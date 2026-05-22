@@ -1,0 +1,38 @@
+{
+  "buildCommand": "echo 'Static HTML - no build needed'",
+  "outputDirectory": ".",
+  "public": true,
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600, s-maxage=3600"
+        }
+      ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/login",
+      "destination": "/login.html"
+    },
+    {
+      "source": "/member",
+      "destination": "/ffp-member-dashboard.html"
+    },
+    {
+      "source": "/provider",
+      "destination": "/ffp-provider.html"
+    },
+    {
+      "source": "/admin",
+      "destination": "/ffp-admin.html"
+    }
+  ]
+}
