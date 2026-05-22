@@ -1,17 +1,15 @@
 /* =============================================================
-   FFP Passport — API Integration Module
+   FFP Passport — API Integration Module (v2 — corrected endpoints)
    Backend: https://ffp-passport-backend.vercel.app
-   Loads on every HTML page. Handles auth, API calls, page init.
+   Endpoints: /api/auth/signup, /api/auth/signin, /api/auth/reset
    ============================================================= */
 (function (window) {
   'use strict';
 
-  // ---------- CONFIG ----------
   var API_BASE = 'https://ffp-passport-backend.vercel.app';
   var TOKEN_KEY = 'ffp_token';
   var MEMBER_KEY = 'ffp_member';
 
-  // ---------- AUTH ----------
   var FFPAuth = {
     getToken: function () {
       try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; }
@@ -39,7 +37,6 @@
     }
   };
 
-  // ---------- CORE API CALL ----------
   function call(path, options) {
     options = options || {};
     var headers = {
@@ -72,19 +69,24 @@
     });
   }
 
-  // ---------- API METHODS ----------
   var FFPApi = {
-    // --- Auth ---
     requestCode: function (email, fullName, flow) {
-      return call('/api/auth/request-code', {
-        method: 'POST',
-        body: { email: email, full_name: fullName, flow: flow }
-      });
+      var path;
+      var body = { email: email };
+      if (flow === 'signup') {
+        path = '/api/auth/signup';
+        if (fullName) body.full_name = fullName;
+      } else if (flow === 'reset') {
+        path = '/api/auth/reset';
+      } else {
+        path = '/api/auth/signin';
+      }
+      return call(path, { method: 'POST', body: body });
     },
     verifyCode: function (email, code, flow) {
-      return call('/api/auth/verify-code', {
+      return call('/api/auth/signin', {
         method: 'POST',
-        body: { email: email, code: code, flow: flow }
+        body: { email: email, code: code }
       }).then(function (res) {
         if (res && res.token) {
           FFPAuth.setToken(res.token);
@@ -93,14 +95,7 @@
         return res;
       });
     },
-
-    // --- Member ---
     getMemberProfile: function () { return call('/api/members/me'); },
-    updateMemberProfile: function (data) {
-      return call('/api/members/me', { method: 'PATCH', body: data });
-    },
-
-    // --- Deals ---
     getDeals: function (filters) {
       var q = filters ? '?' + new URLSearchParams(filters).toString() : '';
       return call('/api/deals' + q);
@@ -108,76 +103,28 @@
     redeemDeal: function (dealId) {
       return call('/api/deals/' + dealId + '/redeem', { method: 'POST' });
     },
-
-    // --- Events ---
-    getEvents: function () { return call('/api/events'); },
-    rsvpEvent: function (eventId) {
-      return call('/api/events/' + eventId + '/rsvp', { method: 'POST' });
-    },
-
-    // --- Challenges ---
-    getChallenges: function () { return call('/api/challenges'); },
-    joinChallenge: function (challengeId) {
-      return call('/api/challenges/' + challengeId + '/join', { method: 'POST' });
-    },
-
-    // --- Meet & Move ---
-    getMatches: function () { return call('/api/matches'); },
-    getMeetups: function () { return call('/api/meetups'); },
-
-    // --- Ambassador / Referrals ---
-    getAmbassadorStats: function () { return call('/api/ambassador/stats'); },
-    getReferralCode: function () { return call('/api/ambassador/code'); },
-
-    // --- Notifications ---
-    getNotifications: function () { return call('/api/notifications'); },
-
-    // --- Provider portal ---
     getVenueProfile: function () { return call('/api/provider/venue'); },
     getVenueStats: function () { return call('/api/provider/stats'); },
-    getVenueRedemptions: function () { return call('/api/provider/redemptions'); },
-    scanMemberQR: function (qrToken) {
-      return call('/api/provider/scan', { method: 'POST', body: { qr: qrToken } });
-    },
-
-    // --- Admin ---
-    getAdminDashboard: function () { return call('/api/admin/dashboard'); },
-    getAllMembers: function (filters) {
-      var q = filters ? '?' + new URLSearchParams(filters).toString() : '';
-      return call('/api/admin/members' + q);
-    },
-    getAllVenues: function () { return call('/api/admin/venues'); }
+    getAdminDashboard: function () { return call('/api/admin/dashboard'); }
   };
 
-  // ---------- ERROR HELPER ----------
   function handleAPIError(error, fallback) {
     console.error('FFP API error:', error);
     var msg = (error && error.message) || fallback || 'Something went wrong.';
     alert(msg);
   }
 
-  // ---------- PAGE AUTO-INIT ----------
-  // Detects page by filename and runs the right bootstrap.
   function autoInit() {
     var path = window.location.pathname.toLowerCase();
-
-    // member dashboard
-    if (path.indexOf('ffp-member-dashboard') !== -1 || path.indexOf('/member') !== -1) {
-      if (!FFPAuth.isAuthenticated()) {
-        // Demo mode: don't force redirect if there's no token — leave the demo data visible.
-        // Uncomment next line to enforce auth:
-        // window.location.href = 'login.html';
-        return;
-      }
+    if (path.indexOf('ffp-member-dashboard') !== -1) {
+      if (!FFPAuth.isAuthenticated()) return;
       FFPApi.getMemberProfile().then(function (profile) {
         if (!profile || profile.error) return;
         applyProfileToDashboard(profile);
       });
       return;
     }
-
-    // provider portal
-    if (path.indexOf('ffp-provider') !== -1 || path.indexOf('/provider') !== -1) {
+    if (path.indexOf('ffp-provider') !== -1) {
       if (!FFPAuth.isAuthenticated()) return;
       FFPApi.getVenueProfile().then(function (v) {
         if (!v || v.error) return;
@@ -186,9 +133,7 @@
       });
       return;
     }
-
-    // admin dashboard
-    if (path.indexOf('ffp-admin') !== -1 || path.indexOf('/admin') !== -1) {
+    if (path.indexOf('ffp-admin') !== -1) {
       if (!FFPAuth.isAuthenticated()) return;
       FFPApi.getAdminDashboard().then(function (d) {
         if (!d || d.error) return;
@@ -197,12 +142,10 @@
         if (mEl && d.total_members != null) mEl.textContent = d.total_members;
         if (rEl && d.total_revenue != null) rEl.textContent = 'AED ' + d.total_revenue;
       });
-      return;
     }
   }
 
   function applyProfileToDashboard(profile) {
-    // Selector list designed to be safe: only updates if elements exist.
     var map = {
       'pass-name': profile.full_name,
       'pass-passport-num': profile.passport_number,
@@ -216,19 +159,15 @@
     });
   }
 
-  // Hook into DOM ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', autoInit);
   } else {
     autoInit();
   }
 
-  // ---------- EXPORT ----------
   window.FFPAuth = FFPAuth;
   window.FFPApi = FFPApi;
   window.handleAPIError = handleAPIError;
-
-  // Logout helper available globally
   window.ffpLogout = function () {
     FFPAuth.clear();
     window.location.href = 'login.html';
