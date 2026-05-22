@@ -1,7 +1,8 @@
 /* =============================================================
-   FFP Passport — API Integration Module (v2 — corrected endpoints)
+   FFP Passport — API Integration Module (v3)
    Backend: https://ffp-passport-backend.vercel.app
    Endpoints: /api/auth/signup, /api/auth/signin, /api/auth/reset
+   v3: signin flow advances to code screen without API call (permanent code model)
    ============================================================= */
 (function (window) {
   'use strict';
@@ -65,12 +66,16 @@
       return res.json().catch(function () { return { error: 'Invalid JSON response' }; });
     }).catch(function (err) {
       console.error('FFPApi call failed:', path, err);
-      return { error: err.message || 'Network error' };
+      return { error: err && err.message ? err.message : 'Network error' };
     });
   }
 
   var FFPApi = {
     requestCode: function (email, fullName, flow) {
+      // SIGNIN flow uses a permanent code — no API call, just advance UI to code entry
+      if (flow === 'signin') {
+        return Promise.resolve({ success: true });
+      }
       var path;
       var body = { email: email };
       if (flow === 'signup') {
@@ -79,7 +84,7 @@
       } else if (flow === 'reset') {
         path = '/api/auth/reset';
       } else {
-        path = '/api/auth/signin';
+        return Promise.resolve({ error: 'Unknown flow: ' + flow });
       }
       return call(path, { method: 'POST', body: body });
     },
@@ -118,40 +123,27 @@
     var path = window.location.pathname.toLowerCase();
     if (path.indexOf('ffp-member-dashboard') !== -1) {
       if (!FFPAuth.isAuthenticated()) return;
-      FFPApi.getMemberProfile().then(function (profile) {
-        if (!profile || profile.error) return;
-        applyProfileToDashboard(profile);
-      });
+      // Use stored member data first (from sign-in response)
+      var stored = FFPAuth.getMember();
+      if (stored) applyProfileToDashboard(stored);
       return;
     }
     if (path.indexOf('ffp-provider') !== -1) {
       if (!FFPAuth.isAuthenticated()) return;
-      FFPApi.getVenueProfile().then(function (v) {
-        if (!v || v.error) return;
+      var v = FFPAuth.getMember();
+      if (v) {
         var nameEl = document.querySelector('[data-venue-name]');
-        if (nameEl) nameEl.textContent = v.name;
-      });
+        if (nameEl && v.full_name) nameEl.textContent = v.full_name;
+      }
       return;
-    }
-    if (path.indexOf('ffp-admin') !== -1) {
-      if (!FFPAuth.isAuthenticated()) return;
-      FFPApi.getAdminDashboard().then(function (d) {
-        if (!d || d.error) return;
-        var mEl = document.querySelector('[data-total-members]');
-        var rEl = document.querySelector('[data-total-revenue]');
-        if (mEl && d.total_members != null) mEl.textContent = d.total_members;
-        if (rEl && d.total_revenue != null) rEl.textContent = 'AED ' + d.total_revenue;
-      });
     }
   }
 
   function applyProfileToDashboard(profile) {
     var map = {
       'pass-name': profile.full_name,
-      'pass-passport-num': profile.passport_number,
-      'pass-dob': profile.dob,
-      'pass-nationality': profile.nationality,
-      'pass-city': profile.city
+      'pass-passport-num': profile.passport_no || profile.passport_number,
+      'pass-email': profile.email
     };
     Object.keys(map).forEach(function (id) {
       var el = document.getElementById(id);
