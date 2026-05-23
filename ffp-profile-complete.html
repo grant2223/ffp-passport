@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Complete Your Profile — FFP Passport</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --blue: #1980AD;
+  --blue-lt: #2ba8e0;
+  --blue-dk: #0f5a7a;
+  --navy: #0b1c28;
+  --navy-2: #0d2030;
+  --navy-deep: #081420;
+  --muted: #6a90a8;
+  --muted-lt: #9dbdd0;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  font-family: 'Montserrat', sans-serif;
+  background: var(--navy-deep);
+  color: #fff;
+}
+
+.app {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.container {
+  width: 100%;
+  max-width: 480px;
+  background: var(--navy);
+  border: 1px solid rgba(43, 168, 224, 0.15);
+  border-radius: 20px;
+  padding: 40px 32px;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.logo {
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+
+.logo span { color: var(--blue-lt); }
+
+.subtitle {
+  font-size: 13px;
+  color: var(--muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.heading {
+  font-size: 24px;
+  font-weight: 900;
+  margin-top: 24px;
+  margin-bottom: 8px;
+}
+
+.subheading {
+  font-size: 13px;
+  color: var(--muted-lt);
+  line-height: 1.6;
+  margin-bottom: 32px;
+}
+
+/* Form */
+.form-group {
+  margin-bottom: 24px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--blue-lt);
+  margin-bottom: 8px;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 12px 14px;
+  background: rgba(11, 28, 40, 0.6);
+  border: 1px solid rgba(43, 168, 224, 0.2);
+  border-radius: 8px;
+  color: #fff;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--blue-lt);
+  background: rgba(11, 28, 40, 0.8);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.form-group input::placeholder {
+  color: rgba(106, 144, 168, 0.5);
+}
+
+/* Photo upload */
+.photo-upload {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  margin: 0 auto 24px;
+  cursor: pointer;
+}
+
+.photo-preview {
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  border: 2px dashed rgba(43, 168, 224, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(43, 168, 224, 0.05);
+  font-size: 32px;
+  transition: all 0.2s;
+}
+
+.photo-upload:hover .photo-preview {
+  border-color: var(--blue-lt);
+  background: rgba(43, 168, 224, 0.1);
+}
+
+.photo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+#photoInput {
+  display: none;
+}
+
+/* Interests */
+.interests-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.interest-btn {
+  padding: 10px 12px;
+  background: rgba(43, 168, 224, 0.1);
+  border: 1px solid rgba(43, 168, 224, 0.2);
+  border-radius: 8px;
+  color: var(--muted-lt);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.interest-btn:hover {
+  border-color: var(--blue-lt);
+  background: rgba(43, 168, 224, 0.15);
+}
+
+.interest-btn.active {
+  background: var(--blue-lt);
+  color: #000;
+  border-color: var(--blue-lt);
+}
+
+/* Buttons */
+.button-group {
+  display: flex;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.btn {
+  flex: 1;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  border: none;
+  font-family: 'Montserrat', sans-serif;
+  letter-spacing: 0.5px;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--blue), var(--blue-lt));
+  color: #fff;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+}
+
+.btn-secondary {
+  background: rgba(43, 168, 224, 0.1);
+  border: 1px solid rgba(43, 168, 224, 0.3);
+  color: var(--muted-lt);
+}
+
+.btn-secondary:hover {
+  border-color: var(--blue-lt);
+}
+
+/* Loading & Error */
+.error {
+  background: rgba(220, 53, 69, 0.1);
+  border: 1px solid rgba(220, 53, 69, 0.3);
+  color: #ff6b6b;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  margin-bottom: 20px;
+}
+
+.success {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #51cf66;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  margin-bottom: 20px;
+}
+
+.loading { opacity: 0.6; pointer-events: none; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="container">
+    <div class="header">
+      <div class="logo">FFP <span>PASSPORT</span></div>
+      <div class="subtitle">Find Fit People</div>
+      <h1 class="heading">Complete Your Profile</h1>
+      <p class="subheading">Tell us more about yourself so other members can find you.</p>
+    </div>
+
+    <form id="profileForm">
+      <div id="messageBox"></div>
+
+      <!-- Photo -->
+      <div class="photo-upload" onclick="document.getElementById('photoInput').click()">
+        <div class="photo-preview" id="photoPreview">📷</div>
+        <input type="file" id="photoInput" accept="image/*">
+      </div>
+
+      <!-- Name -->
+      <div class="form-group">
+        <label>Full Name *</label>
+        <input type="text" id="fullName" placeholder="Your name" required>
+      </div>
+
+      <!-- Date of Birth -->
+      <div class="form-group">
+        <label>Date of Birth</label>
+        <input type="date" id="dateOfBirth">
+      </div>
+
+      <!-- Gender -->
+      <div class="form-group">
+        <label>Gender</label>
+        <select id="gender">
+          <option value="">Select...</option>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <!-- Bio -->
+      <div class="form-group">
+        <label>Bio</label>
+        <textarea id="bio" placeholder="Tell us about yourself (150 chars max)"></textarea>
+      </div>
+
+      <!-- Fitness Level -->
+      <div class="form-group">
+        <label>Fitness Level</label>
+        <select id="fitnessLevel">
+          <option value="">Select...</option>
+          <option value="beginner">Beginner</option>
+          <option value="intermediate">Intermediate</option>
+          <option value="advanced">Advanced</option>
+        </select>
+      </div>
+
+      <!-- Interests -->
+      <div class="form-group">
+        <label>Interests & Activities</label>
+        <div class="interests-grid">
+          <button type="button" class="interest-btn" data-interest="yoga">🧘 Yoga</button>
+          <button type="button" class="interest-btn" data-interest="gym">🏋️ Gym</button>
+          <button type="button" class="interest-btn" data-interest="running">🏃 Running</button>
+          <button type="button" class="interest-btn" data-interest="cycling">🚴 Cycling</button>
+          <button type="button" class="interest-btn" data-interest="hiking">🥾 Hiking</button>
+          <button type="button" class="interest-btn" data-interest="swimming">🏊 Swimming</button>
+          <button type="button" class="interest-btn" data-interest="boxing">🥊 Boxing</button>
+          <button type="button" class="interest-btn" data-interest="crossfit">⚡ CrossFit</button>
+        </div>
+      </div>
+
+      <div class="button-group">
+        <button type="button" class="btn btn-secondary" onclick="window.history.back()">Back</button>
+        <button type="submit" class="btn btn-primary" id="submitBtn">Complete Profile</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+const API_BASE = 'https://FFP-passport-backend.vercel.app';
+
+// Get member ID from URL or session
+const memberId = new URLSearchParams(window.location.search).get('id') || 
+                 sessionStorage.getItem('member_id');
+
+if (!memberId) {
+  window.location.href = '/login.html';
+}
+
+let selectedInterests = [];
+let photoBase64 = null;
+
+// Photo upload
+document.getElementById('photoInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    photoBase64 = event.target.result;
+    document.getElementById('photoPreview').innerHTML = 
+      `<img src="${photoBase64}" alt="Profile photo">`;
+  };
+  reader.readAsDataURL(file);
+});
+
+// Interest buttons
+document.querySelectorAll('.interest-btn').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    btn.classList.toggle('active');
+    const interest = btn.dataset.interest;
+    
+    if (selectedInterests.includes(interest)) {
+      selectedInterests = selectedInterests.filter(i => i !== interest);
+    } else {
+      selectedInterests.push(interest);
+    }
+  });
+});
+
+// Form submit
+document.getElementById('profileForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const fullName = document.getElementById('fullName').value.trim();
+  if (!fullName) {
+    showMessage('Name is required', 'error');
+    return;
+  }
+
+  const submitBtn = document.getElementById('submitBtn');
+  submitBtn.classList.add('loading');
+  submitBtn.textContent = 'Saving...';
+
+  try {
+    const response = await fetch(`${API_BASE}/api/members/${memberId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        full_name: fullName,
+        photo_url: photoBase64 || null,
+        bio: document.getElementById('bio').value || null,
+        fitness_level: document.getElementById('fitnessLevel').value || null,
+        date_of_birth: document.getElementById('dateOfBirth').value || null,
+        gender: document.getElementById('gender').value || null,
+        interests: selectedInterests.length > 0 ? selectedInterests : null
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to update profile');
+    }
+
+    showMessage('Profile complete! Redirecting to dashboard...', 'success');
+    setTimeout(() => {
+      window.location.href = '/ffp-member-dashboard.html';
+    }, 1500);
+
+  } catch (error) {
+    console.error('Profile update error:', error);
+    showMessage(error.message, 'error');
+    submitBtn.classList.remove('loading');
+    submitBtn.textContent = 'Complete Profile';
+  }
+});
+
+function showMessage(msg, type) {
+  const box = document.getElementById('messageBox');
+  box.className = type;
+  box.textContent = msg;
+}
+</script>
+
+</body>
+</html>
