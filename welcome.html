@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Welcome to FFP Passport</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  min-height: 100vh;
+  font-family: 'Montserrat', sans-serif;
+  background: #081420;
+  color: #fff;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+.card {
+  width: 100%;
+  max-width: 440px;
+  background: linear-gradient(135deg, #0b1c28 0%, #0d2030 100%);
+  border: 1px solid rgba(43,168,224,.2);
+  border-radius: 20px;
+  padding: 44px 32px;
+  text-align: center;
+  box-shadow: 0 24px 60px rgba(0,0,0,.6);
+}
+.logo {
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  margin-bottom: 6px;
+}
+.logo span { color: #2ba8e0; }
+.tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: #6a90a8;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 36px;
+}
+.check {
+  width: 80px;
+  height: 80px;
+  background: rgba(34,197,94,.12);
+  border: 2px solid rgba(34,197,94,.5);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 22px;
+}
+.check svg { width: 38px; height: 38px; stroke: #22c55e; }
+h1 {
+  font-size: 24px;
+  font-weight: 900;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg,#fff 0%,#2ba8e0 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.sub {
+  font-size: 13px;
+  color: #9dbdd0;
+  line-height: 1.7;
+  margin-bottom: 28px;
+}
+.steps {
+  background: rgba(43,168,224,.05);
+  border: 1px solid rgba(43,168,224,.15);
+  border-radius: 14px;
+  padding: 22px 20px;
+  text-align: left;
+  margin-bottom: 28px;
+}
+.step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+.step:last-child { margin-bottom: 0; }
+.step-num {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  background: #2ba8e0;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 900;
+}
+.step-text {
+  font-size: 12px;
+  color: #9dbdd0;
+  line-height: 1.6;
+  padding-top: 3px;
+}
+.step-text b { color: #fff; }
+.btn {
+  display: inline-block;
+  width: 100%;
+  background: #2ba8e0;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 14px 20px;
+  border-radius: 12px;
+  text-decoration: none;
+  letter-spacing: .3px;
+  transition: background .2s;
+}
+.btn:hover { background: #1f95cb; }
+.footnote {
+  margin-top: 18px;
+  font-size: 11px;
+  color: #6a90a8;
+  line-height: 1.6;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="logo">FFP <span>PASSPORT</span></div>
+    <div class="tag">Find Fit People</div>
+
+    <div class="check">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+
+    <h1>Welcome to FFP!</h1>
+    <p class="sub">Payment successful. Your founding membership is now active.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text"><b>Check your email</b> &mdash; we&rsquo;ve sent your 6-digit access code. (Check spam too, just in case.)</div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text"><b>Sign in</b> with your email and the code we sent you.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text"><b>Complete your profile</b> &mdash; surname, given names, photo, nationality, and the sports you love.</div>
+      </div>
+    </div>
+
+    <a href="/login" class="btn">Sign In Now</a>
+    <div class="footnote">Email not arrived in 2 minutes? Check your spam folder, or <a href="mailto:hello@findfitpeople.com" style="color:#2ba8e0;text-decoration:none;font-weight:700;">contact us</a>.</div>
+  </div>
+</div>
+</body>
+</html>
