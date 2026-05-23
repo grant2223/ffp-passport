@@ -39,17 +39,19 @@ html, body {
 
 .container {
   width: 100%;
-  max-width: 520px;
+  max-width: 620px;
   background: linear-gradient(135deg, var(--navy) 0%, var(--navy-2) 100%);
   border: 1px solid var(--border);
   border-radius: 24px;
   padding: 48px 40px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .header {
   text-align: center;
-  margin-bottom: 48px;
+  margin-bottom: 40px;
 }
 
 .logo {
@@ -89,7 +91,6 @@ html, body {
   line-height: 1.6;
 }
 
-/* Form */
 .form-group {
   margin-bottom: 28px;
 }
@@ -132,11 +133,6 @@ html, body {
   min-height: 80px;
 }
 
-.form-group input::placeholder {
-  color: rgba(106, 144, 168, 0.4);
-}
-
-/* Photo upload */
 .photo-upload {
   position: relative;
   width: 100px;
@@ -174,63 +170,141 @@ html, body {
 
 #photoInput { display: none; }
 
-/* Skills Section */
-.skills-container {
-  margin-bottom: 24px;
+.search-box {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 12px 16px 12px 40px;
+  background: rgba(11, 28, 40, 0.5);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: #fff;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+}
+
+.search-box input:focus {
+  outline: none;
+  border-color: var(--blue-lt);
+  background: rgba(11, 28, 40, 0.8);
+}
+
+.search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.sports-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  max-height: 350px;
+  overflow-y: auto;
+  padding: 4px;
+  margin-bottom: 16px;
+}
+
+.sport-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  background: rgba(43, 168, 224, 0.08);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 12px;
+}
+
+.sport-card:hover {
+  background: rgba(43, 168, 224, 0.12);
+  border-color: rgba(43, 168, 224, 0.25);
+}
+
+.sport-card input {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--blue-lt);
+  flex-shrink: 0;
+}
+
+.sport-name {
+  font-size: 12px;
+  font-weight: 600;
+  flex: 1;
+}
+
+.selected-skills {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
 }
 
 .skill-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px;
+  padding: 12px;
   background: rgba(43, 168, 224, 0.08);
   border: 1px solid var(--border);
   border-radius: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   transition: all 0.2s;
+  font-size: 12px;
 }
 
 .skill-item:hover {
   background: rgba(43, 168, 224, 0.12);
-  border-color: rgba(43, 168, 224, 0.25);
 }
 
 .skill-name {
   font-weight: 600;
-  font-size: 13px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
-.skill-icon {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(43, 168, 224, 0.2);
+.skill-remove {
+  background: rgba(220, 53, 69, 0.2);
+  color: #ff6b6b;
+  border: none;
   border-radius: 6px;
-  color: var(--blue-lt);
-  font-size: 12px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.skill-remove:hover {
+  background: rgba(220, 53, 69, 0.3);
 }
 
 .star-rating {
   display: flex;
-  gap: 6px;
+  gap: 4px;
 }
 
 .star {
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s;
   color: #444;
-  font-size: 14px;
+  font-size: 11px;
 }
 
 .star:hover,
@@ -239,11 +313,10 @@ html, body {
   transform: scale(1.15);
 }
 
-/* Buttons */
 .button-group {
   display: flex;
   gap: 12px;
-  margin-top: 40px;
+  margin-top: 32px;
 }
 
 .btn {
@@ -271,10 +344,6 @@ html, body {
   box-shadow: 0 6px 24px rgba(43, 168, 224, 0.4);
 }
 
-.btn-primary:active {
-  transform: translateY(0);
-}
-
 .btn-secondary {
   background: rgba(43, 168, 224, 0.1);
   border: 1px solid var(--border);
@@ -286,7 +355,6 @@ html, body {
   background: rgba(43, 168, 224, 0.15);
 }
 
-/* Messages */
 .error {
   background: rgba(220, 53, 69, 0.12);
   border: 1px solid rgba(220, 53, 69, 0.3);
@@ -309,10 +377,15 @@ html, body {
 
 .loading { opacity: 0.6; pointer-events: none; }
 
-/* Responsive */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: rgba(43, 168, 224, 0.05); border-radius: 10px; }
+::-webkit-scrollbar-thumb { background: rgba(43, 168, 224, 0.3); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(43, 168, 224, 0.5); }
+
 @media (max-width: 480px) {
   .container { padding: 32px 24px; }
   .heading { font-size: 24px; }
+  .sports-grid { grid-template-columns: 1fr; }
 }
 </style>
 </head>
@@ -333,7 +406,6 @@ html, body {
     <form id="profileForm">
       <div id="messageBox"></div>
 
-      <!-- Photo -->
       <div class="photo-upload" onclick="document.getElementById('photoInput').click()">
         <div class="photo-preview" id="photoPreview">
           <i class="fas fa-camera"></i>
@@ -341,19 +413,16 @@ html, body {
         <input type="file" id="photoInput" accept="image/*">
       </div>
 
-      <!-- Name -->
       <div class="form-group">
         <label>Full Name *</label>
         <input type="text" id="fullName" placeholder="Your name" required>
       </div>
 
-      <!-- Date of Birth -->
       <div class="form-group">
         <label>Date of Birth</label>
         <input type="date" id="dateOfBirth">
       </div>
 
-      <!-- Gender -->
       <div class="form-group">
         <label>Gender</label>
         <select id="gender">
@@ -364,16 +433,25 @@ html, body {
         </select>
       </div>
 
-      <!-- Bio -->
       <div class="form-group">
         <label>Bio</label>
         <textarea id="bio" placeholder="Tell us about yourself (max 200 chars)"></textarea>
       </div>
 
-      <!-- Skills & Rating -->
       <div class="form-group">
         <label>Sport & Skill Levels (0 = Never done, 5 = Professional)</label>
-        <div class="skills-container" id="skillsContainer"></div>
+        
+        <div class="search-box">
+          <i class="fas fa-search search-icon"></i>
+          <input type="text" id="sportSearch" placeholder="Search 120+ sports...">
+        </div>
+
+        <div class="sports-grid" id="sportsGrid"></div>
+
+        <div class="selected-skills" id="selectedSkillsContainer" style="display: none;">
+          <label style="font-size: 12px; color: var(--muted); margin-bottom: 8px; display: block;">Your Skills:</label>
+          <div id="selectedSkills"></div>
+        </div>
       </div>
 
       <div class="button-group">
@@ -387,90 +465,267 @@ html, body {
 <script>
 const API_BASE = 'https://ffp-passport-backend.vercel.app';
 
-const SPORTS = [
-  { name: 'Running', icon: 'fa-person-running', key: 'running' },
-  { name: 'Cycling', icon: 'fa-person-biking', key: 'cycling' },
-  { name: 'Swimming', icon: 'fa-person-swimming', key: 'swimming' },
-  { name: 'Yoga', icon: 'fa-om', key: 'yoga' },
-  { name: 'Gym', icon: 'fa-dumbbell', key: 'gym' },
-  { name: 'Padel', icon: 'fa-racquet', key: 'padel' },
-  { name: 'Hiking', icon: 'fa-person-hiking', key: 'hiking' },
-  { name: 'Boxing', icon: 'fa-hand-fist', key: 'boxing' },
-  { name: 'CrossFit', icon: 'fa-fire', key: 'crossfit' },
-];
+const SPORTS_BY_CATEGORY = {
+  Sports: [
+    { name: 'Running', icon: 'fa-person-running', key: 'running' },
+    { name: 'Sprint Running', icon: 'fa-person-running', key: 'sprint_running' },
+    { name: 'Marathon', icon: 'fa-person-running', key: 'marathon' },
+    { name: 'Trail Running', icon: 'fa-person-running', key: 'trail_running' },
+    { name: 'Obstacle Course Racing', icon: 'fa-person-running', key: 'ocr' },
+    { name: 'Cycling', icon: 'fa-person-biking', key: 'cycling' },
+    { name: 'Road Cycling', icon: 'fa-person-biking', key: 'road_cycling' },
+    { name: 'Mountain Biking', icon: 'fa-mountain-sun', key: 'mountain_biking' },
+    { name: 'BMX', icon: 'fa-person-biking', key: 'bmx' },
+    { name: 'Swimming', icon: 'fa-person-swimming', key: 'swimming' },
+    { name: 'Open Water Swimming', icon: 'fa-person-swimming', key: 'open_water_swimming' },
+    { name: 'Water Polo', icon: 'fa-person-swimming', key: 'water_polo' },
+    { name: 'Triathlon', icon: 'fa-fire', key: 'triathlon' },
+    { name: 'Padel', icon: 'fa-racquet', key: 'padel' },
+    { name: 'Tennis', icon: 'fa-racquet', key: 'tennis' },
+    { name: 'Squash', icon: 'fa-racquet', key: 'squash' },
+    { name: 'Badminton', icon: 'fa-shuttlecock', key: 'badminton' },
+    { name: 'Table Tennis', icon: 'fa-table-tennis-paddle-ball', key: 'table_tennis' },
+    { name: 'Racquetball', icon: 'fa-racquet', key: 'racquetball' },
+    { name: 'Football (Soccer)', icon: 'fa-futbol', key: 'football' },
+    { name: 'American Football', icon: 'fa-football', key: 'american_football' },
+    { name: 'Basketball', icon: 'fa-basketball', key: 'basketball' },
+    { name: 'Volleyball', icon: 'fa-volleyball', key: 'volleyball' },
+    { name: 'Beach Volleyball', icon: 'fa-volleyball', key: 'beach_volleyball' },
+    { name: 'Handball', icon: 'fa-hand-fist', key: 'handball' },
+    { name: 'Rugby', icon: 'fa-football', key: 'rugby' },
+    { name: 'Ice Hockey', icon: 'fa-hockey-puck', key: 'ice_hockey' },
+    { name: 'Field Hockey', icon: 'fa-hockey-puck', key: 'field_hockey' },
+    { name: 'Lacrosse', icon: 'fa-racquet', key: 'lacrosse' },
+    { name: 'Golf', icon: 'fa-golf-ball', key: 'golf' },
+    { name: 'Cricket', icon: 'fa-cricket', key: 'cricket' },
+    { name: 'Baseball', icon: 'fa-baseball', key: 'baseball' },
+    { name: 'Softball', icon: 'fa-baseball', key: 'softball' },
+    { name: 'Bowling', icon: 'fa-bowling-ball', key: 'bowling' },
+    { name: 'Archery', icon: 'fa-bow', key: 'archery' },
+    { name: 'Fencing', icon: 'fa-wand-magic-sparkles', key: 'fencing' },
+    { name: 'Javelin Throw', icon: 'fa-spoon', key: 'javelin' },
+    { name: 'Shot Put', icon: 'fa-spoon', key: 'shot_put' },
+    { name: 'Long Jump', icon: 'fa-person-running', key: 'long_jump' },
+    { name: 'High Jump', icon: 'fa-person-running', key: 'high_jump' },
+    { name: 'Hurdles', icon: 'fa-person-running', key: 'hurdles' },
+    { name: 'Decathlon', icon: 'fa-star', key: 'decathlon' },
+  ],
+  Fitness: [
+    { name: 'Gym / Weightlifting', icon: 'fa-dumbbell', key: 'gym' },
+    { name: 'Strength Training', icon: 'fa-dumbbell', key: 'strength_training' },
+    { name: 'Powerlifting', icon: 'fa-dumbbell', key: 'powerlifting' },
+    { name: 'Bodybuilding', icon: 'fa-dumbbell', key: 'bodybuilding' },
+    { name: 'Olympic Weightlifting', icon: 'fa-dumbbell', key: 'olympic_weightlifting' },
+    { name: 'CrossFit', icon: 'fa-fire', key: 'crossfit' },
+    { name: 'HIIT', icon: 'fa-fire', key: 'hiit' },
+    { name: 'Circuit Training', icon: 'fa-fire', key: 'circuit_training' },
+    { name: 'Bootcamp', icon: 'fa-fire', key: 'bootcamp' },
+    { name: 'Functional Training', icon: 'fa-person', key: 'functional_training' },
+    { name: 'TRX / Suspension Training', icon: 'fa-person', key: 'trx' },
+    { name: 'Calisthenics', icon: 'fa-person', key: 'calisthenics' },
+    { name: 'Parkour', icon: 'fa-person-hiking', key: 'parkour' },
+    { name: 'Gymnastics', icon: 'fa-person', key: 'gymnastics' },
+    { name: 'Pilates', icon: 'fa-person', key: 'pilates' },
+    { name: 'Barre', icon: 'fa-music', key: 'barre' },
+    { name: 'Spinning / Indoor Cycling', icon: 'fa-person-biking', key: 'spinning' },
+    { name: 'Aerobics', icon: 'fa-person-running', key: 'aerobics' },
+    { name: 'Zumba', icon: 'fa-music', key: 'zumba' },
+    { name: 'Dance Fitness', icon: 'fa-music', key: 'dance_fitness' },
+    { name: 'Contemporary Dance', icon: 'fa-music', key: 'contemporary_dance' },
+    { name: 'Ballet', icon: 'fa-music', key: 'ballet' },
+    { name: 'Hip Hop Dance', icon: 'fa-music', key: 'hip_hop_dance' },
+    { name: 'Salsa', icon: 'fa-music', key: 'salsa' },
+    { name: 'Tango', icon: 'fa-music', key: 'tango' },
+    { name: 'Swing Dance', icon: 'fa-music', key: 'swing_dance' },
+    { name: 'Jazz Dance', icon: 'fa-music', key: 'jazz_dance' },
+    { name: 'Step Aerobics', icon: 'fa-music', key: 'step_aerobics' },
+    { name: 'Kickboxing', icon: 'fa-hand-fist', key: 'kickboxing' },
+    { name: 'Muay Thai', icon: 'fa-hand-fist', key: 'muay_thai' },
+    { name: 'Boxing', icon: 'fa-hand-fist', key: 'boxing' },
+    { name: 'Martial Arts', icon: 'fa-hand-fist', key: 'martial_arts' },
+    { name: 'Karate', icon: 'fa-hand-fist', key: 'karate' },
+    { name: 'Taekwondo', icon: 'fa-hand-fist', key: 'taekwondo' },
+    { name: 'Judo', icon: 'fa-hand-fist', key: 'judo' },
+    { name: 'Wrestling', icon: 'fa-hand-fist', key: 'wrestling' },
+    { name: 'Brazilian Jiu Jitsu', icon: 'fa-hand-fist', key: 'bjj' },
+    { name: 'Rope Jumping', icon: 'fa-rope', key: 'rope_jumping' },
+    { name: 'Boxing Conditioning', icon: 'fa-hand-fist', key: 'boxing_conditioning' },
+    { name: 'Sled Push / Pull', icon: 'fa-person-running', key: 'sled_push' },
+  ],
+  Wellness: [
+    { name: 'Yoga', icon: 'fa-om', key: 'yoga' },
+    { name: 'Hatha Yoga', icon: 'fa-om', key: 'hatha_yoga' },
+    { name: 'Vinyasa Yoga', icon: 'fa-om', key: 'vinyasa_yoga' },
+    { name: 'Power Yoga', icon: 'fa-om', key: 'power_yoga' },
+    { name: 'Yin Yoga', icon: 'fa-om', key: 'yin_yoga' },
+    { name: 'Hot Yoga', icon: 'fa-om', key: 'hot_yoga' },
+    { name: 'Ashtanga Yoga', icon: 'fa-om', key: 'ashtanga_yoga' },
+    { name: 'Meditation', icon: 'fa-spa', key: 'meditation' },
+    { name: 'Mindfulness', icon: 'fa-spa', key: 'mindfulness' },
+    { name: 'Tai Chi', icon: 'fa-om', key: 'tai_chi' },
+    { name: 'Qigong', icon: 'fa-om', key: 'qigong' },
+    { name: 'Stretching', icon: 'fa-person', key: 'stretching' },
+    { name: 'Foam Rolling', icon: 'fa-person', key: 'foam_rolling' },
+    { name: 'Massage Therapy', icon: 'fa-spa', key: 'massage' },
+    { name: 'Reflexology', icon: 'fa-spa', key: 'reflexology' },
+    { name: 'Acupuncture', icon: 'fa-spa', key: 'acupuncture' },
+    { name: 'Reiki', icon: 'fa-spa', key: 'reiki' },
+    { name: 'Chakra Balancing', icon: 'fa-spa', key: 'chakra_balancing' },
+    { name: 'Breathing Exercises', icon: 'fa-wind', key: 'breathing' },
+    { name: 'Nutritional Coaching', icon: 'fa-apple', key: 'nutrition' },
+  ],
+  Adventure: [
+    { name: 'Hiking', icon: 'fa-person-hiking', key: 'hiking' },
+    { name: 'Day Hiking', icon: 'fa-person-hiking', key: 'day_hiking' },
+    { name: 'Backpacking', icon: 'fa-person-hiking', key: 'backpacking' },
+    { name: 'Ultra Distance Hiking', icon: 'fa-person-hiking', key: 'ultra_hiking' },
+    { name: 'Rock Climbing', icon: 'fa-mountain', key: 'rock_climbing' },
+    { name: 'Sport Climbing', icon: 'fa-mountain', key: 'sport_climbing' },
+    { name: 'Bouldering', icon: 'fa-mountain', key: 'bouldering' },
+    { name: 'Top Rope Climbing', icon: 'fa-mountain', key: 'top_rope_climbing' },
+    { name: 'Lead Climbing', icon: 'fa-mountain', key: 'lead_climbing' },
+    { name: 'Ice Climbing', icon: 'fa-mountain', key: 'ice_climbing' },
+    { name: 'Via Ferrata', icon: 'fa-mountain', key: 'via_ferrata' },
+    { name: 'Canyoneering', icon: 'fa-water', key: 'canyoneering' },
+    { name: 'Rappelling', icon: 'fa-mountain', key: 'rappelling' },
+    { name: 'Kayaking', icon: 'fa-water', key: 'kayaking' },
+    { name: 'Whitewater Kayaking', icon: 'fa-water', key: 'whitewater_kayaking' },
+    { name: 'Sea Kayaking', icon: 'fa-water', key: 'sea_kayaking' },
+    { name: 'Canoeing', icon: 'fa-water', key: 'canoeing' },
+    { name: 'Rafting', icon: 'fa-water', key: 'rafting' },
+    { name: 'Whitewater Rafting', icon: 'fa-water', key: 'whitewater_rafting' },
+    { name: 'Surfing', icon: 'fa-water', key: 'surfing' },
+    { name: 'Windsurfing', icon: 'fa-water', key: 'windsurfing' },
+    { name: 'Kitesurfing', icon: 'fa-water', key: 'kitesurfing' },
+    { name: 'Stand Up Paddling (SUP)', icon: 'fa-water', key: 'sup' },
+    { name: 'Wakeboarding', icon: 'fa-water', key: 'wakeboarding' },
+    { name: 'Water Skiing', icon: 'fa-water', key: 'water_skiing' },
+    { name: 'Scuba Diving', icon: 'fa-person-swimming', key: 'scuba_diving' },
+    { name: 'Snorkeling', icon: 'fa-person-swimming', key: 'snorkeling' },
+    { name: 'Freediving', icon: 'fa-person-swimming', key: 'freediving' },
+    { name: 'Cave Diving', icon: 'fa-person-swimming', key: 'cave_diving' },
+    { name: 'Deep Sea Diving', icon: 'fa-person-swimming', key: 'deep_sea_diving' },
+    { name: 'Fishing', icon: 'fa-fish', key: 'fishing' },
+    { name: 'Fly Fishing', icon: 'fa-fish', key: 'fly_fishing' },
+    { name: 'Spearfishing', icon: 'fa-fish', key: 'spearfishing' },
+    { name: 'Camping', icon: 'fa-tent', key: 'camping' },
+    { name: 'Glamping', icon: 'fa-tent', key: 'glamping' },
+    { name: 'RV Camping', icon: 'fa-tent', key: 'rv_camping' },
+    { name: 'Skiing', icon: 'fa-snowflake', key: 'skiing' },
+    { name: 'Alpine Skiing', icon: 'fa-snowflake', key: 'alpine_skiing' },
+    { name: 'Cross Country Skiing', icon: 'fa-snowflake', key: 'cross_country_skiing' },
+    { name: 'Snowboarding', icon: 'fa-snowflake', key: 'snowboarding' },
+    { name: 'Backcountry Skiing', icon: 'fa-snowflake', key: 'backcountry_skiing' },
+    { name: 'Sledding / Tobogganing', icon: 'fa-snowflake', key: 'sledding' },
+    { name: 'Snowshoeing', icon: 'fa-snowflake', key: 'snowshoeing' },
+    { name: 'Ice Skating', icon: 'fa-snowflake', key: 'ice_skating' },
+    { name: 'Mountaineering', icon: 'fa-mountain', key: 'mountaineering' },
+    { name: 'Alpine Mountaineering', icon: 'fa-mountain', key: 'alpine_mountaineering' },
+    { name: 'Paragliding', icon: 'fa-person-hiking', key: 'paragliding' },
+    { name: 'Hang Gliding', icon: 'fa-person-hiking', key: 'hang_gliding' },
+    { name: 'Skydiving', icon: 'fa-person-hiking', key: 'skydiving' },
+    { name: 'BASE Jumping', icon: 'fa-person-hiking', key: 'base_jumping' },
+    { name: 'Hot Air Ballooning', icon: 'fa-balloon', key: 'hot_air_ballooning' },
+    { name: 'Zip Lining', icon: 'fa-person-hiking', key: 'zip_lining' },
+    { name: 'Orienteering', icon: 'fa-compass', key: 'orienteering' },
+    { name: 'Geocaching', icon: 'fa-compass', key: 'geocaching' },
+  ]
+};
 
-const memberId = new URLSearchParams(window.location.search).get('id') || 
-                 sessionStorage.getItem('member_id');
+const memberId = new URLSearchParams(window.location.search).get('id') || sessionStorage.getItem('member_id');
 
-if (!memberId) {
-  window.location.href = '/login.html';
+if (!memberId) window.location.href = '/login.html';
+
+let skillRatings = {}, selectedSports = new Set(), photoBase64 = null;
+
+function getAllSports() {
+  let allSports = [];
+  for (const category in SPORTS_BY_CATEGORY) allSports = allSports.concat(SPORTS_BY_CATEGORY[category]);
+  return allSports;
 }
 
-let skillRatings = {};
-let photoBase64 = null;
+function initializeSports(filterText = '') {
+  const grid = document.getElementById('sportsGrid');
+  grid.innerHTML = '';
+  const allSports = getAllSports();
+  const filtered = allSports.filter(sport => sport.name.toLowerCase().includes(filterText.toLowerCase()));
 
-// Initialize skills
-function initializeSkills() {
-  const container = document.getElementById('skillsContainer');
-  SPORTS.forEach(sport => {
+  filtered.forEach(sport => {
+    const card = document.createElement('label');
+    card.className = 'sport-card';
+    card.innerHTML = `<input type="checkbox" data-sport-key="${sport.key}" value="${sport.key}"><span class="sport-name">${sport.name}</span>`;
+    grid.appendChild(card);
+
+    card.querySelector('input').addEventListener('change', (e) => {
+      if (e.target.checked) { selectedSports.add(sport.key); skillRatings[sport.key] = 0; }
+      else { selectedSports.delete(sport.key); delete skillRatings[sport.key]; }
+      renderSelectedSkills();
+    });
+  });
+}
+
+function renderSelectedSkills() {
+  const container = document.getElementById('selectedSkills');
+  const parentContainer = document.getElementById('selectedSkillsContainer');
+  
+  if (selectedSports.size === 0) { parentContainer.style.display = 'none'; return; }
+
+  parentContainer.style.display = 'block';
+  container.innerHTML = '';
+
+  const allSports = getAllSports();
+  const sportMap = {};
+  allSports.forEach(s => sportMap[s.key] = s);
+
+  Array.from(selectedSports).forEach(sportKey => {
+    const sport = sportMap[sportKey];
     const skillDiv = document.createElement('div');
     skillDiv.className = 'skill-item';
     skillDiv.innerHTML = `
-      <div class="skill-name">
-        <div class="skill-icon">
-          <i class="fas ${sport.icon}"></i>
-        </div>
-        ${sport.name}
-      </div>
-      <div class="star-rating" data-skill="${sport.key}">
-        ${[1, 2, 3, 4, 5].map(i => `
-          <div class="star" data-rating="${i}">
-            <i class="fas fa-star"></i>
-          </div>
-        `).join('')}
+      <div class="skill-name"><i class="fas ${sport.icon}"></i>${sport.name}</div>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <div class="star-rating" data-skill="${sport.key}">${[1,2,3,4,5].map(i => `<div class="star" data-rating="${i}"><i class="fas fa-star"></i></div>`).join('')}</div>
+        <button type="button" class="skill-remove" onclick="removeSport('${sportKey}')">Remove</button>
       </div>
     `;
     container.appendChild(skillDiv);
 
-    // Add star click handlers
     skillDiv.querySelectorAll('.star').forEach(star => {
+      const rating = parseInt(star.dataset.rating);
+      if (skillRatings[sport.key] >= rating) star.classList.add('active');
       star.addEventListener('click', (e) => {
-        const rating = parseInt(star.dataset.rating);
-        const starsContainer = skillDiv.querySelector('.star-rating');
+        e.preventDefault();
         skillRatings[sport.key] = rating;
-        
-        starsContainer.querySelectorAll('.star').forEach((s, idx) => {
-          if (idx < rating) s.classList.add('active');
-          else s.classList.remove('active');
-        });
+        skillDiv.querySelectorAll('.star').forEach((s, idx) => { idx < rating ? s.classList.add('active') : s.classList.remove('active'); });
       });
     });
   });
 }
 
-// Photo upload
+function removeSport(sportKey) {
+  selectedSports.delete(sportKey);
+  delete skillRatings[sportKey];
+  document.querySelector(`input[data-sport-key="${sportKey}"]`).checked = false;
+  renderSelectedSkills();
+}
+
+document.getElementById('sportSearch').addEventListener('input', (e) => initializeSports(e.target.value));
+
 document.getElementById('photoInput').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
-
   const reader = new FileReader();
   reader.onload = (event) => {
     photoBase64 = event.target.result;
-    document.getElementById('photoPreview').innerHTML = 
-      `<img src="${photoBase64}" alt="Profile photo">`;
+    document.getElementById('photoPreview').innerHTML = `<img src="${photoBase64}" alt="Profile photo">`;
   };
   reader.readAsDataURL(file);
 });
 
-// Form submit
 document.getElementById('profileForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-
   const fullName = document.getElementById('fullName').value.trim();
-  if (!fullName) {
-    showMessage('Name is required', 'error');
-    return;
-  }
+  if (!fullName) { showMessage('Name is required', 'error'); return; }
 
   const submitBtn = document.getElementById('submitBtn');
   submitBtn.classList.add('loading');
@@ -491,15 +746,10 @@ document.getElementById('profileForm').addEventListener('submit', async (e) => {
     });
 
     const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || 'Failed to update profile');
-    }
+    if (!response.ok) throw new Error(data.error || 'Failed to update profile');
 
     showMessage('Profile complete! Redirecting to dashboard...', 'success');
-    setTimeout(() => {
-      window.location.href = '/ffp-member-dashboard.html';
-    }, 1500);
+    setTimeout(() => { window.location.href = '/ffp-member-dashboard.html'; }, 1500);
 
   } catch (error) {
     console.error('Profile update error:', error);
@@ -515,8 +765,7 @@ function showMessage(msg, type) {
   box.textContent = msg;
 }
 
-// Initialize on load
-initializeSkills();
+initializeSports();
 </script>
 
 </body>
