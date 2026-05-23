@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Refund Policy &mdash; FFP Passport</title>
+<meta name="description" content="FFP Passport refund policy. All memberships are final and non-refundable.">
+<link rel="icon" type="image/png" href="assets/ffp-emblem.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #081420; --bg-elev: #0f1e2e; --bg-deep: #050d16;
+  --accent: #2ba8e0; --accent-soft: rgba(43,168,224,.1);
+  --accent-line: rgba(43,168,224,.25); --accent-line-dim: rgba(43,168,224,.15);
+  --text: #ffffff; --text-soft: #b8d4e0; --text-mute: #9dbdd0; --text-dim: #6a90a8;
+  --radius: 14px; --radius-lg: 16px; --max-prose: 720px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { font-family: 'Montserrat', -apple-system, sans-serif; background: var(--bg); color: var(--text); overflow-x: hidden; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+img { display: block; max-width: 100%; }
+.prose { max-width: var(--max-prose); margin: 0 auto; padding: 0 24px; }
+@media (min-width: 900px) { .prose { padding: 0 48px; } }
+nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(8,20,32,.97); backdrop-filter: blur(12px); border-bottom: 1px solid var(--accent-line-dim); padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+.nav-brand { display: flex; align-items: center; gap: 10px; color: #fff; }
+.nav-brand:hover { text-decoration: none; }
+.nav-brand img { height: 32px; }
+.nav-brand .wordmark { font-size: 13px; font-weight: 800; letter-spacing: 2px; }
+.nav-yr { font-size: 10px; font-weight: 700; color: rgba(255,255,255,.55); border: 1px solid rgba(255,255,255,.2); border-radius: 4px; padding: 1px 5px; letter-spacing: 1px; margin-left: 6px; vertical-align: middle; }
+.nav-link { font-size: 13px; font-weight: 700; color: rgba(255,255,255,.75); padding: 9px 18px; border: 1px solid var(--accent-line); border-radius: 10px; }
+.nav-link:hover { color: #fff; border-color: rgba(43,168,224,.6); text-decoration: none; }
+@media (min-width: 900px) { nav { padding: 20px 40px; } }
+.policy-hero { padding: 130px 0 40px; text-align: center; }
+.policy-hero .eyebrow { display: inline-block; background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 100px; padding: 6px 18px; font-size: 10px; font-weight: 900; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); margin-bottom: 20px; }
+.policy-hero h1 { font-size: 38px; font-weight: 900; line-height: 1.1; letter-spacing: -1px; margin-bottom: 10px; }
+.policy-hero .version { font-size: 12px; color: var(--text-dim); letter-spacing: 1px; font-weight: 700; text-transform: uppercase; }
+@media (min-width: 900px) { .policy-hero { padding: 150px 0 50px; } .policy-hero h1 { font-size: 52px; } }
+.policy { padding: 30px 0 80px; }
+.policy h2 { font-size: 22px; font-weight: 900; margin: 40px 0 12px; letter-spacing: -.3px; color: #fff; padding-top: 20px; border-top: 1px solid var(--accent-line-dim); }
+.policy h2:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+.policy p, .policy li { font-size: 14px; line-height: 1.75; color: var(--text-soft); margin-bottom: 14px; }
+.policy ul { margin: 0 0 16px 20px; }
+.policy ul li { margin-bottom: 6px; }
+.policy b, .policy strong { color: #fff; font-weight: 800; }
+.headline-callout { background: linear-gradient(135deg, rgba(43,168,224,.12), rgba(43,168,224,.04)); border: 1px solid var(--accent); border-radius: var(--radius-lg); padding: 28px 28px; margin: 30px 0; text-align: center; }
+.headline-callout .pill { display: inline-block; background: var(--accent); color: #fff; font-size: 10px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; padding: 5px 12px; border-radius: 100px; margin-bottom: 14px; }
+.headline-callout h2 { font-size: 22px; font-weight: 900; margin: 0 0 10px; border: none; padding: 0; color: #fff; }
+.headline-callout p { font-size: 14px; color: var(--text-soft); margin: 0; max-width: 540px; margin-left: auto; margin-right: auto; }
+.contact-card { background: var(--bg-elev); border: 1px solid var(--accent-line); border-radius: var(--radius); padding: 24px; margin-top: 32px; text-align: center; }
+.contact-card .label { font-size: 11px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+.contact-card h3 { font-size: 18px; font-weight: 900; color: #fff; margin-bottom: 10px; }
+.contact-card p { font-size: 13px; color: var(--text-soft); margin-bottom: 14px; }
+.contact-card a.btn { display: inline-block; background: var(--accent); color: #fff; padding: 12px 24px; border-radius: 10px; font-size: 13px; font-weight: 800; letter-spacing: .3px; }
+.contact-card a.btn:hover { transform: translateY(-1px); text-decoration: none; }
+footer { background: var(--bg-deep); border-top: 1px solid var(--accent-line-dim); padding: 40px 0 24px; }
+.footer-mini { display: flex; flex-direction: column; gap: 16px; align-items: center; text-align: center; max-width: var(--max-prose); margin: 0 auto; padding: 0 24px; }
+.footer-mini-brand img { height: 32px; margin: 0 auto 8px; }
+.footer-mini-tag { font-size: 12px; color: var(--text-dim); }
+.footer-mini-links { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; }
+.footer-mini-links a { font-size: 12px; color: var(--text-mute); }
+.footer-mini-links a:hover { color: #fff; }
+.footer-copy { font-size: 11px; color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="/">
+    <img src="assets/ffp-emblem.png" alt="FFP">
+    <span class="wordmark">PASSPORT <span class="nav-yr">2026</span></span>
+  </a>
+  <a href="/login" class="nav-link">Log In</a>
+</nav>
+
+<section class="policy-hero">
+  <div class="prose">
+    <span class="eyebrow">Legal</span>
+    <h1>Refund Policy</h1>
+    <div class="version">Version 05/2026 &middot; FFP Passport</div>
+  </div>
+</section>
+
+<section class="policy">
+  <div class="prose">
+
+    <div class="headline-callout">
+      <span class="pill">Important</span>
+      <h2>All memberships are final and non-refundable.</h2>
+      <p>By purchasing an FFP Passport membership, you agree to this policy. Please read it carefully before completing your purchase.</p>
+    </div>
+
+    <h2>Why memberships are non-refundable</h2>
+    <p>FFP Passport is a community-based annual membership. From the moment your purchase is confirmed, you receive immediate and full access to:</p>
+    <ul>
+      <li>The Meet &amp; Move member community and matching</li>
+      <li>The full calendar of events, community days and experiences</li>
+      <li>Member Perks at hundreds of FFP partner venues across the UAE</li>
+      <li>Challenges, leaderboards and Ambassador Programme participation</li>
+      <li>The member app, fitness tools and tracking features</li>
+    </ul>
+    <p>Because this access is granted in full at the point of purchase, and because partner venues and event organisers commit resources based on confirmed member numbers, FFP Passport memberships cannot be returned, refunded or pro-rated.</p>
+
+    <h2>This applies to all situations</h2>
+    <p>Memberships are non-refundable regardless of the reason, including (but not limited to):</p>
+    <ul>
+      <li><b>Change of mind</b> after purchase</li>
+      <li><b>Relocation</b> out of the UAE or inability to attend events</li>
+      <li><b>Non-use</b> of the membership or any specific benefit</li>
+      <li><b>Changes to partner venues</b> &mdash; partners may be added, removed or change their terms throughout the year</li>
+      <li><b>Changes to events</b> &mdash; events may be cancelled, postponed or modified due to weather, regulatory requirements or other factors outside our control</li>
+      <li><b>Account suspension or termination</b> resulting from a breach of our <a href="/terms">Terms &amp; Conditions</a></li>
+    </ul>
+
+    <h2>Limited exceptions</h2>
+    <p>Refunds will be considered only in the following exceptional circumstances:</p>
+    <ul>
+      <li><b>Duplicate payment</b> &mdash; if you have been charged twice in error for the same membership, we will refund the duplicate charge</li>
+      <li><b>Fraudulent transaction</b> &mdash; if a payment was made on your card without your authorisation, contact us immediately and we will assist with the investigation</li>
+      <li><b>Where required by mandatory law</b> &mdash; if the consumer protection laws of your country of residence grant you a non-waivable right to a refund, that right is not affected by this policy</li>
+      <li><b>Termination by FFP Passport</b> &mdash; if we end your membership for reasons other than breach of our Terms, we will refund a pro-rata portion of the remaining unused membership term, calculated to the nearest full month</li>
+    </ul>
+
+    <h2>How approved refunds are processed</h2>
+    <p>Where a refund is approved, it will be returned to the original payment method used for the purchase via our payment processor, Stripe. Refunds typically appear in your account within 5&ndash;10 business days, depending on your bank or card issuer.</p>
+
+    <h2>Chargebacks and payment disputes</h2>
+    <p>If you initiate a chargeback or payment dispute with your bank or card issuer for a valid, completed FFP Passport membership purchase, we reserve the right to:</p>
+    <ul>
+      <li>Provide evidence of the purchase, terms accepted, and benefits accessed to the bank or card issuer</li>
+      <li>Suspend or terminate your account during the dispute</li>
+      <li>Permanently terminate your account without further refund if the chargeback is found to be invalid</li>
+    </ul>
+    <p>If you have a concern about your membership or a charge, please contact us first &mdash; we will always try to resolve the issue directly before any dispute is escalated.</p>
+
+    <h2>Cancelling future renewals</h2>
+    <p>The 2026 FFP Passport is a one-time annual purchase and does not auto-renew. You will not be charged again unless you actively purchase a new membership for a future year.</p>
+
+    <!-- CONTACT -->
+    <div class="contact-card">
+      <div class="label">Questions about a charge?</div>
+      <h3>Contact our team directly.</h3>
+      <p>Always reach out before initiating a chargeback. We'll review every case and help where we can.</p>
+      <a href="mailto:hello@ffppassport.com" class="btn">Email hello@ffppassport.com</a>
+    </div>
+
+    <p style="margin-top:40px;padding-top:24px;border-top:1px solid var(--accent-line-dim);font-size:12px;color:var(--text-dim);">Last updated: May 2026. This Refund Policy forms part of and should be read together with our <a href="/terms">Terms &amp; Conditions</a> and <a href="/privacy">Privacy Policy</a>.</p>
+
+  </div>
+</section>
+
+<footer>
+  <div class="footer-mini">
+    <div class="footer-mini-brand">
+      <img src="assets/ffp-emblem.png" alt="FFP Passport">
+      <div class="footer-mini-tag">The UAE&rsquo;s active lifestyle passport.</div>
+    </div>
+    <div class="footer-mini-links">
+      <a href="/">Home</a>
+      <a href="/about">About</a>
+      <a href="/login">Member Login</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/refunds">Refunds</a>
+    </div>
+    <div class="footer-copy">&copy; 2026 FFP Passport. All rights reserved.</div>
+  </div>
+</footer>
+
+</body>
+</html>
