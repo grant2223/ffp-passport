@@ -65,7 +65,7 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 </div>
 <div class="wrap">
 
-<!-- ── SCREEN 1: PORTAL SELECT ── -->
+<!-- SCREEN 1: PORTAL SELECT -->
 <div class="screen active" id="screen-portal">
 <div style="font-size:11px;font-weight:800;color:#6a90a8;letter-spacing:2px;text-transform:uppercase;text-align:center;margin-bottom:20px;">Sign in as</div>
 <div class="portal-card selected" onclick="selectPortal(this,'member')">
@@ -95,7 +95,7 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 <div class="link-row">New member? <a onclick="goToSignUp()">Become A Member</a></div>
 </div>
 
-<!-- ── SCREEN 2: SIGN IN (email) ── -->
+<!-- SCREEN 2: SIGN IN (email) -->
 <div class="screen" id="screen-signin-email">
 <button class="btn-back" onclick="goTo('screen-portal')">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
@@ -114,7 +114,7 @@ Back
 <div class="link-row">No account yet? <a onclick="goToSignUp()">Become A Member</a></div>
 </div>
 
-<!-- ── SCREEN 3: ENTER CODE (sign in) ── -->
+<!-- SCREEN 3: ENTER CODE (sign in) -->
 <div class="screen" id="screen-signin-code">
 <button class="btn-back" onclick="goTo('screen-signin-email')">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
@@ -136,9 +136,9 @@ Back
 <div class="resend-row">Lost or forgot your code? <a onclick="goTo('screen-reset')">Get new code</a></div>
 </div>
 
-<!-- ── SCREEN 4: BECOME A MEMBER ── -->
+<!-- SCREEN 4: BECOME A MEMBER -->
 <div class="screen" id="screen-signup">
-<button class="btn-back" onclick="goTo('screen-portal')">
+<button class="btn-back" id="signup-back-btn" onclick="goTo('screen-portal')">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
 Back
 </button>
@@ -257,7 +257,7 @@ Secure payment via Stripe. Access code emailed after checkout.
 <div class="link-row">Already paid? <a onclick="goTo('screen-portal')">Sign in with your code</a></div>
 </div>
 
-<!-- ── SCREEN 5: ENTER CODE (sign up) ── -->
+<!-- SCREEN 5: ENTER CODE (sign up) -->
 <div class="screen" id="screen-signup-code">
 <button class="btn-back" onclick="goTo('screen-signup')">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
@@ -278,7 +278,7 @@ Back
 <div class="resend-row">Didn&rsquo;t receive it? <a onclick="requestCode('signup')">Resend code</a></div>
 </div>
 
-<!-- ── SCREEN 6: RESET CODE ── -->
+<!-- SCREEN 6: RESET CODE -->
 <div class="screen" id="screen-reset">
 <button class="btn-back" onclick="goTo('screen-signin-email')">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
@@ -294,7 +294,7 @@ Back
 <div class="error-msg" id="reset-err"></div>
 </div>
 
-<!-- ── SCREEN 7: CODE SENT CONFIRMATION ── -->
+<!-- SCREEN 7: CODE SENT CONFIRMATION -->
 <div class="screen" id="screen-sent">
 <div style="text-align:center;padding:20px 0;">
 <div class="success-icon">
@@ -329,11 +329,9 @@ var destinations = {
 // Handle profile completion redirect
 function handleAuthRedirect(response) {
   if (response.member && !response.member.profile_complete) {
-    // New member — send to profile completion
     sessionStorage.setItem('member_id', response.member.id);
     window.location.href = 'ffp-profile-complete.html?id=' + response.member.id;
   } else {
-    // Profile complete — go to dashboard
     var role = response.member.role;
     window.location.href = destinations[role] || destinations.member;
   }
@@ -393,7 +391,39 @@ function setBusy(btnId, busy, normalLabel) {
 }
 
 /* ============================================================
-   REAL API CALLS — replaces previous demo stubs
+   HASH ROUTER — deep-link support for landing page CTAs
+   ============================================================ */
+function routeFromHash() {
+  var hash = (window.location.hash || '').replace('#', '').toLowerCase();
+  var backBtn = document.getElementById('signup-back-btn');
+
+  if (hash === 'signup' || hash === 'join' || hash === 'become-member') {
+    goToSignUp();
+    // User arrived from landing — Back should go home, not to portal
+    if (backBtn) backBtn.setAttribute('onclick', "window.location.href='/'");
+  } else if (hash === 'signin' || hash === 'login') {
+    selectedPortal = 'member';
+    goToSignIn();
+  } else if (hash === 'reset') {
+    goTo('screen-reset');
+  } else {
+    // No hash — default portal, restore Back behaviour
+    if (backBtn) backBtn.setAttribute('onclick', "goTo('screen-portal')");
+  }
+}
+
+// Run on initial load
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', routeFromHash);
+} else {
+  routeFromHash();
+}
+
+// React to hash changes (back/forward buttons, manual URL edit)
+window.addEventListener('hashchange', routeFromHash);
+
+/* ============================================================
+   REAL API CALLS
    ============================================================ */
 async function requestCode(flow) {
   var emailEl = document.getElementById(flow + '-email') || document.getElementById('signin-email');
@@ -421,7 +451,6 @@ async function requestCode(flow) {
       showError(errIds[flow], res.error);
       return;
     }
-    // Code sent — go to verification screen
     var sentEl = document.getElementById('sent-email');
     if (sentEl) sentEl.textContent = email;
     if (flow === 'signin') {
@@ -471,7 +500,6 @@ async function verifyCode(flow) {
       setTimeout(function () { digits.forEach(function (d) { d.style.borderColor = ''; }); }, 800);
       return;
     }
-    // Success — token already saved by FFPApi.verifyCode
     handleAuthRedirect(res);
   } catch (e) {
     showError(errId, 'Verification failed. Please try again.');
