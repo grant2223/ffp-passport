@@ -92,7 +92,7 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 <div style="height:20px;"></div>
 <button class="btn-primary" onclick="goToSignIn()">Continue</button>
 <hr class="divider">
-<div class="link-row">New member? <a onclick="goToSignUp()">Create account</a></div>
+<div class="link-row">New member? <a onclick="goToSignUp()">Become A Member</a></div>
 </div>
 
 <!-- ── SCREEN 2: SIGN IN (email) ── -->
@@ -111,7 +111,7 @@ Back
 <button class="btn-primary" id="signin-email-btn" onclick="requestCode('signin')">Continue</button>
 <div class="error-msg" id="signin-email-err"></div>
 <hr class="divider">
-<div class="link-row">No account yet? <a onclick="goToSignUp()">Create one</a></div>
+<div class="link-row">No account yet? <a onclick="goToSignUp()">Become A Member</a></div>
 </div>
 
 <!-- ── SCREEN 3: ENTER CODE (sign in) ── -->
@@ -136,26 +136,38 @@ Back
 <div class="resend-row">Lost or forgot your code? <a onclick="goTo('screen-reset')">Get new code</a></div>
 </div>
 
-<!-- ── SCREEN 4: SIGN UP ── -->
+<!-- ── SCREEN 4: BECOME A MEMBER (payment-first via Stripe) ── -->
 <div class="screen" id="screen-signup">
 <button class="btn-back" onclick="goTo('screen-portal')">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
 Back
 </button>
-<div class="screen-title">Create Account</div>
-<div class="screen-sub">Enter your email. We&rsquo;ll send you a 6-digit code &mdash; that&rsquo;s your login. No password needed.</div>
-<div class="field">
-<div class="field-label">Email Address</div>
-<input class="field-input" type="email" id="signup-email" placeholder="you@email.com" autocomplete="email">
+<div class="screen-title">Become A Member</div>
+<div class="screen-sub">Join FFP Passport and unlock 2-for-1 deals, events, challenges and the Meet &amp; Move community across the UAE.</div>
+
+<div style="background:rgba(43,168,224,.06);border:1px solid rgba(43,168,224,.2);border-radius:14px;padding:20px 18px;margin:18px 0;">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;">
+    <div style="font-size:13px;font-weight:800;color:#fff;">Founding Member</div>
+    <div><span style="font-size:22px;font-weight:900;color:#2ba8e0;">AED 499</span><span style="font-size:11px;color:#6a90a8;margin-left:4px;">/year</span></div>
+  </div>
+  <div style="font-size:12px;color:#9dbdd0;line-height:1.7;">
+    &check; Valid through 31 Dec 2026<br>
+    &check; 2-for-1 deals at FFP partner venues<br>
+    &check; Access to events &amp; challenges<br>
+    &check; Meet &amp; Move community
+  </div>
 </div>
-<div class="field">
-<div class="field-label">Full Name</div>
-<input class="field-input" type="text" id="signup-name" placeholder="Your name">
+
+<a href="https://buy.stripe.com/test_bJe5kCaiO3ESgEs4jV3Nm00" class="btn-primary" style="display:flex;align-items:center;justify-content:center;text-decoration:none;gap:8px;">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+  Become A Member &mdash; Pay AED 499
+</a>
+<div style="font-size:11px;color:#6a90a8;text-align:center;margin-top:10px;line-height:1.6;">
+  Secure payment via Stripe.<br>After checkout we&rsquo;ll email your 6-digit access code.
 </div>
-<button class="btn-primary" id="signup-btn" onclick="requestCode('signup')">Create Account &amp; Send Code</button>
-<div class="error-msg" id="signup-err"></div>
+
 <hr class="divider">
-<div class="link-row">Already have an account? <a onclick="goTo('screen-portal')">Sign in</a></div>
+<div class="link-row">Already paid? <a onclick="goTo('screen-portal')">Sign in with your code</a></div>
 </div>
 
 <!-- ── SCREEN 5: ENTER CODE (sign up) ── -->
