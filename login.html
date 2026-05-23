@@ -227,6 +227,19 @@ var destinations = {
   admin:    'ffp-admin.html'
 };
 
+// Handle profile completion redirect
+function handleAuthRedirect(response) {
+  if (response.member && !response.member.profile_complete) {
+    // New member — send to profile completion
+    sessionStorage.setItem('member_id', response.member.id);
+    window.location.href = 'ffp-profile-complete.html?id=' + response.member.id;
+  } else {
+    // Profile complete — go to dashboard
+    var role = response.member.role;
+    window.location.href = destinations[role] || destinations.member;
+  }
+}
+
 function selectPortal(el, portal) {
   document.querySelectorAll('.portal-card').forEach(function (c) { c.classList.remove('selected'); });
   el.classList.add('selected');
@@ -360,9 +373,7 @@ async function verifyCode(flow) {
       return;
     }
     // Success — token already saved by FFPApi.verifyCode
-    var role = (res && res.member && res.member.role) || selectedPortal;
-    var dest = destinations[role] || destinations[selectedPortal] || destinations.member;
-    window.location.href = dest;
+    handleAuthRedirect(res);
   } catch (e) {
     showError(errId, 'Verification failed. Please try again.');
   } finally {
