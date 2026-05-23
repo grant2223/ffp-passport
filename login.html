@@ -136,34 +136,120 @@ Back
 <div class="resend-row">Lost or forgot your code? <a onclick="goTo('screen-reset')">Get new code</a></div>
 </div>
 
-<!-- ── SCREEN 4: BECOME A MEMBER (payment-first via Stripe) ── -->
+<!-- ── SCREEN 4: BECOME A MEMBER ── -->
 <div class="screen" id="screen-signup">
 <button class="btn-back" onclick="goTo('screen-portal')">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
 Back
 </button>
-<div class="screen-title">Become A Member</div>
-<div class="screen-sub">Join FFP Passport and unlock 2-for-1 deals, events, challenges and the Meet &amp; Move community across the UAE.</div>
 
-<div style="background:rgba(43,168,224,.06);border:1px solid rgba(43,168,224,.2);border-radius:14px;padding:20px 18px;margin:18px 0;">
-  <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;">
-    <div style="font-size:13px;font-weight:800;color:#fff;">Founding Member</div>
-    <div><span style="font-size:22px;font-weight:900;color:#2ba8e0;">AED 499</span><span style="font-size:11px;color:#6a90a8;margin-left:4px;">/year</span></div>
-  </div>
-  <div style="font-size:12px;color:#9dbdd0;line-height:1.7;">
-    &check; Valid through 31 Dec 2026<br>
-    &check; 2-for-1 deals at FFP partner venues<br>
-    &check; Access to events &amp; challenges<br>
-    &check; Meet &amp; Move community
+<!-- HERO IMAGE -->
+<div style="position:relative;margin-bottom:20px;border-radius:14px;overflow:hidden;aspect-ratio:16/10;background:linear-gradient(135deg,#0e5a7a 0%,#1980AD 60%,#081420 100%);">
+  <img src="assets/group-of-5.jpg" alt="FFP Passport community" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.style.display='none'">
+  <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,20,32,.1) 0%,rgba(8,20,32,.9) 100%);"></div>
+  <div style="position:absolute;left:18px;right:18px;bottom:16px;">
+    <div style="font-size:9px;font-weight:800;letter-spacing:2.5px;color:#2ba8e0;text-transform:uppercase;margin-bottom:6px;">FFP Passport 2026</div>
+    <div style="font-size:24px;font-weight:900;color:#fff;line-height:1.05;letter-spacing:-.3px;">Become A Member</div>
+    <div style="font-size:12px;color:#cfe4ee;margin-top:6px;font-weight:500;">Meet people. Move together.</div>
   </div>
 </div>
 
+<!-- BULLET LIST -->
+<div style="margin-bottom:22px;">
+  <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
+    <div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div style="flex:1;">
+      <div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;letter-spacing:.1px;">Meet Like-minded People</div>
+      <div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Active people who share your sports and lifestyle</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
+    <div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div style="flex:1;">
+      <div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;letter-spacing:.1px;">Join Communities</div>
+      <div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Meet &amp; Move matching, local groups, member meet-ups</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
+    <div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div style="flex:1;">
+      <div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;letter-spacing:.1px;">Events &amp; Community Days</div>
+      <div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Regular FFP events and gatherings across the UAE</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
+    <div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div style="flex:1;">
+      <div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;letter-spacing:.1px;">Experiences &amp; Adventures</div>
+      <div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Group experiences and overseas trips</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
+    <div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div style="flex:1;">
+      <div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;letter-spacing:.1px;">Challenges &amp; Leaderboards</div>
+      <div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Compete, win prizes, climb the city rankings</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
+    <div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div style="flex:1;">
+      <div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;letter-spacing:.1px;">Ambassador Programme</div>
+      <div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Earn status by supporting the community</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
+    <div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div style="flex:1;">
+      <div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;letter-spacing:.1px;">Fitness Tools</div>
+      <div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Workout timer, calorie tracker and personal stats</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
+    <div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div style="flex:1;">
+      <div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;letter-spacing:.1px;">Partner Venue Deals</div>
+      <div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Member deals at FFP partner fitness, wellness &amp; food venues</div>
+    </div>
+  </div>
+</div>
+
+<!-- PRICE -->
+<div style="text-align:center;padding:18px 0;border-top:1px solid rgba(43,168,224,.15);border-bottom:1px solid rgba(43,168,224,.15);margin-bottom:20px;">
+  <div style="font-size:34px;font-weight:900;color:#fff;line-height:1;letter-spacing:-.5px;">AED 499</div>
+  <div style="font-size:11px;color:#9dbdd0;margin-top:8px;font-weight:600;letter-spacing:.3px;">Full membership for 2026</div>
+</div>
+
+<!-- CTA -->
 <a href="https://buy.stripe.com/test_bJe5kCaiO3ESgEs4jV3Nm00" class="btn-primary" style="display:flex;align-items:center;justify-content:center;text-decoration:none;gap:8px;">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-  Become A Member &mdash; Pay AED 499
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+Become A Member &mdash; AED 499
 </a>
 <div style="font-size:11px;color:#6a90a8;text-align:center;margin-top:10px;line-height:1.6;">
-  Secure payment via Stripe.<br>After checkout we&rsquo;ll email your 6-digit access code.
+Secure payment via Stripe. Access code emailed after checkout.
 </div>
 
 <hr class="divider">
