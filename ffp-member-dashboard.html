@@ -4,516 +4,332 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FFP Passport — Member Dashboard</title>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900&display=swap" rel="stylesheet">
   <style>
     :root {
-      --ffp-blue: #2ba8e0;
-      --ffp-blue-dark: #1980AD;
-      --ffp-navy-deep: #081420;
-      --ffp-navy-card: #0f1e2e;
-      --ffp-text: #e8eef4;
-      --ffp-text-muted: #8a99a8;
-      --ffp-yellow: #FFCC00;
-      --ffp-border: rgba(43, 168, 224, 0.1);
+      --blue: #1980AD;
+      --blue-lt: #2ba8e0;
+      --blue-dk: #0f5a7a;
+      --navy: #0b1c28;
+      --navy-2: #0d2030;
+      --navy-card: #0f1e2e;
+      --navy-deep: #081420;
+      --amber: #FFCC00;
+      --amber-dk: #cc9900;
+      --green: #22c55e;
+      --muted: #6a90a8;
+      --muted-lt: #9dbdd0;
     }
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; font-family: 'Montserrat', sans-serif; background: var(--navy-deep); color: #fff; }
 
-    html, body {
-      height: 100%;
-      font-family: 'Montserrat', system-ui, sans-serif;
-      background: var(--ffp-navy-deep);
-      color: var(--ffp-text);
-    }
+    .app { display: flex; height: 100dvh; overflow: hidden; flex-direction: column; }
 
-    .dashboard {
-      display: flex;
-      flex-direction: column;
-      height: 100dvh;
-      overflow: hidden;
-    }
-
-    /* TOP NAV */
-    .top-nav {
+    .topbar {
       background: rgba(11, 28, 40, 0.95);
-      border-bottom: 1px solid var(--ffp-border);
-      padding: 14px 16px;
+      border-bottom: 1px solid rgba(25, 128, 173, 0.1);
+      padding: 0 16px;
+      height: 58px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       position: sticky;
       top: 0;
       z-index: 50;
-      height: 56px;
     }
 
-    .nav-left {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
+    .tb-left { display: flex; align-items: center; gap: 12px; }
+    .tb-title { font-size: 15px; font-weight: 900; }
+    .tb-right { display: flex; align-items: center; gap: 10px; }
 
-    .nav-title {
-      font-size: 14px;
-      font-weight: 900;
-      letter-spacing: 1px;
-    }
-
-    .nav-right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .member-info {
-      font-size: 12px;
-      text-align: right;
-    }
-
-    .member-name {
-      font-weight: 700;
-      color: var(--ffp-text);
-    }
-
-    .member-sub {
-      font-size: 10px;
-      color: var(--ffp-text-muted);
-      font-weight: 500;
-    }
-
-    .avatar {
-      width: 36px;
-      height: 36px;
-      border-radius: 8px;
-      background: linear-gradient(135deg, var(--ffp-blue-dark), var(--ffp-blue));
+    .tb-icon-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: rgba(25, 128, 173, 0.1);
+      border: 1px solid rgba(25, 128, 173, 0.2);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: 900;
-      font-size: 13px;
-      color: #fff;
-      flex-shrink: 0;
+      cursor: pointer;
+      position: relative;
+      color: currentColor;
     }
 
-    /* MAIN CONTENT */
+    .tb-badge {
+      position: absolute;
+      top: -3px;
+      right: -3px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--amber);
+      color: #000;
+      font-size: 8px;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
     .main-content {
       flex: 1;
       overflow-y: auto;
-      overflow-x: hidden;
-      padding-bottom: 70px;
+      padding: 24px 16px 80px;
+      display: flex;
+      flex-direction: column;
     }
 
-    /* PANEL CONTAINER */
-    .panel-container {
-      min-height: 100%;
-    }
+    .panel { display: none; }
+    .panel.active { display: block; }
 
-    .panel {
-      display: none;
-      min-height: 100%;
-    }
-
-    .panel.active {
-      display: block;
-      animation: fadeIn 0.3s ease-in;
-    }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .panel-loading {
-      padding: 40px 20px;
-      text-align: center;
-      color: var(--ffp-text-muted);
-      font-size: 13px;
-    }
-
-    .panel-error {
-      padding: 40px 20px;
-      text-align: center;
-      color: #ef4444;
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    /* BOTTOM TAB NAV */
-    .bottom-nav {
+    .mobile-nav {
       position: fixed;
       bottom: 0;
       left: 0;
       right: 0;
-      background: rgba(8, 20, 32, 0.98);
-      border-top: 1px solid var(--ffp-border);
+      background: var(--navy);
+      border-top: 1px solid rgba(25, 128, 173, 0.15);
       z-index: 100;
-      display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      gap: 0;
+      padding: 6px 0;
+      display: flex;
     }
 
-    .nav-item {
+    .mob-item {
+      flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 10px 8px;
+      gap: 3px;
       cursor: pointer;
-      border: none;
-      background: none;
-      color: var(--ffp-text-muted);
-      font-family: 'Montserrat', system-ui, sans-serif;
+      padding: 6px 0;
       font-size: 9px;
       font-weight: 700;
-      transition: all 0.2s;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      color: var(--muted);
+      transition: color 0.2s;
+      border-top: 2px solid transparent;
     }
 
-    .nav-item:hover {
-      color: var(--ffp-text);
+    .mob-item svg {
+      color: currentColor;
+      flex-shrink: 0;
     }
 
-    .nav-item.active {
-      color: var(--ffp-yellow);
-      border-top: 3px solid var(--ffp-yellow);
+    .mob-item.active {
+      color: var(--blue-lt);
+      border-top-color: var(--blue-lt);
     }
 
-    .nav-icon {
-      font-size: 18px;
-      margin-bottom: 4px;
-    }
+    .avatar-menu { position: relative; }
 
-    /* ERROR STATE */
-    .error-screen {
+    .avatar-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--blue-dk), var(--blue));
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-height: 100vh;
-      padding: 20px;
-      text-align: center;
-    }
-
-    .error-title {
-      font-size: 18px;
+      font-size: 11px;
       font-weight: 900;
-      margin-bottom: 12px;
-    }
-
-    .error-msg {
-      font-size: 13px;
-      color: var(--ffp-text-muted);
-      margin-bottom: 24px;
-      max-width: 300px;
-    }
-
-    .error-btn {
-      padding: 12px 20px;
-      background: var(--ffp-blue);
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-family: 'Montserrat', system-ui, sans-serif;
-      font-size: 12px;
-      font-weight: 700;
       cursor: pointer;
-      transition: all 0.2s;
+      border: 2px solid rgba(43, 168, 224, 0.3);
     }
 
-    .error-btn:hover {
-      background: var(--ffp-blue-dark);
+    .menu-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      background: var(--navy-card);
+      border: 1px solid rgba(25, 128, 173, 0.2);
+      border-radius: 12px;
+      width: 320px;
+      max-height: 70vh;
+      overflow-y: auto;
+      display: none;
+      z-index: 1000;
+      margin-top: 8px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
     }
 
-    /* Mobile responsive */
-    @media (max-width: 480px) {
-      .nav-right {
-        gap: 6px;
-      }
+    .menu-dropdown.active { display: block; }
 
-      .member-info {
-        display: none;
-      }
-
-      .nav-item {
-        padding: 8px 6px;
-        font-size: 8px;
-      }
-
-      .nav-icon {
-        font-size: 16px;
-        margin-bottom: 3px;
-      }
-    }
+    #menu-content { min-height: 100px; }
   </style>
 </head>
 <body>
-  <div class="dashboard" id="dashboard">
-    <!-- TOP NAVIGATION -->
-    <div class="top-nav">
-      <div class="nav-left">
-        <div class="nav-title">FFP PASSPORT</div>
+  <div class="app">
+    <div class="topbar">
+      <div class="tb-left">
+        <div class="tb-title" id="page-title">My Passport</div>
       </div>
-      <div class="nav-right">
-        <div class="member-info">
-          <div class="member-name" id="member-name">Loading...</div>
-          <div class="member-sub" id="member-sub">Member</div>
+      <div class="tb-right">
+        <div class="tb-icon-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          <div class="tb-badge">3</div>
         </div>
-        <div class="avatar" id="member-avatar">GH</div>
-      </div>
-    </div>
-
-    <!-- MAIN CONTENT AREA -->
-    <div class="main-content" id="main-content">
-      <div class="panel-container">
-        <div class="panel active" id="panel-passport">
-          <div class="panel-loading">Loading Passport...</div>
-        </div>
-        <div class="panel" id="panel-deals">
-          <div class="panel-loading">Loading Deals...</div>
-        </div>
-        <div class="panel" id="panel-events">
-          <div class="panel-loading">Loading Events...</div>
-        </div>
-        <div class="panel" id="panel-experiences">
-          <div class="panel-loading">Loading Experiences...</div>
-        </div>
-        <div class="panel" id="panel-challenges">
-          <div class="panel-loading">Loading Challenges...</div>
-        </div>
-        <div class="panel" id="panel-meetmove">
-          <div class="panel-loading">Loading Meet & Move...</div>
+        <div class="avatar-menu">
+          <div class="avatar-btn" onclick="toggleMenu(event)">GH</div>
+          <div class="menu-dropdown" id="menu-dropdown">
+            <div id="menu-content"></div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- BOTTOM NAVIGATION -->
-    <div class="bottom-nav">
-      <button class="nav-item active" data-panel="passport">
-        <div class="nav-icon">📘</div>
-        <div>Passport</div>
-      </button>
-      <button class="nav-item" data-panel="deals">
-        <div class="nav-icon">🎁</div>
-        <div>Deals</div>
-      </button>
-      <button class="nav-item" data-panel="events">
-        <div class="nav-icon">🎯</div>
-        <div>Events</div>
-      </button>
-      <button class="nav-item" data-panel="experiences">
-        <div class="nav-icon">✈️</div>
-        <div>Experiences</div>
-      </button>
-      <button class="nav-item" data-panel="challenges">
-        <div class="nav-icon">🏆</div>
-        <div>Challenges</div>
-      </button>
-      <button class="nav-item" data-panel="meetmove">
-        <div class="nav-icon">👥</div>
-        <div>Meet & Move</div>
-      </button>
+    <div class="main-content">
+      <div id="passport" class="panel active"></div>
+      <div id="deals" class="panel"></div>
+      <div id="events" class="panel"></div>
+      <div id="experiences" class="panel"></div>
+      <div id="challenges" class="panel"></div>
+      <div id="meetmove" class="panel"></div>
+    </div>
+
+    <div class="mobile-nav">
+      <div class="mob-item active" onclick="switchPanel('passport')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 4a2 2 0 0 1 2 2v2H6V6a2 2 0 0 1 2-2h8z"></path></svg><span>Passport</span></div>
+      <div class="mob-item" onclick="switchPanel('deals')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="12 1 22 8 22 16 12 23 2 16 2 8 12 1"></polyline><polyline points="12 12.5 22 8 12 3.5 2 8 12 12.5"></polyline><polyline points="12 12.5 12 23"></polyline><polyline points="12 12.5 22 8"></polyline><polyline points="12 12.5 2 8"></polyline></svg><span>Deals</span></div>
+      <div class="mob-item" onclick="switchPanel('events')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg><span>Events</span></div>
+      <div class="mob-item" onclick="switchPanel('experiences')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg><span>Experiences</span></div>
+      <div class="mob-item" onclick="switchPanel('challenges')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9c0-1 1-2 2-2h8c1 0 2 1 2 2v8c0 1-1 2-2 2H8c-1 0-2-1-2-2V9z"></path><path d="M9 9v-1h6v1"></path><path d="M9 17v1h6v-1"></path><line x1="6" y1="13" x2="6" y2="13.01"></line><line x1="18" y1="13" x2="18" y2="13.01"></line></svg><span>Challenges</span></div>
+      <div class="mob-item" onclick="switchPanel('meetmove')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg><span>Meet & Move</span></div>
     </div>
   </div>
 
   <script>
-    // ════════════════════════════════════════════════════════════
-    // CONFIG & STATE
-    // ════════════════════════════════════════════════════════════
+    const memberData = { id: 'demo-001', name: 'Grant Hermanus', tier: 'premium', country: 'UNITED ARAB EMIRATES' };
 
-    const API_BASE = 'https://ffp-passport-backend.vercel.app';
-    const PANELS_BASE = 'https://ffppassport.com/panels';
+    window.addEventListener('load', () => loadPanel('passport'));
 
-    let currentMember = null;
-    let loadedPanels = new Set();
+    function switchPanel(name) {
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.mob-item').forEach(m => m.classList.remove('active'));
+      const panel = document.getElementById(name);
+      panel.classList.add('active');
+      event?.target?.closest('.mob-item')?.classList.add('active');
+      const titles = { passport: 'My Passport', deals: 'Deals', events: 'Events', experiences: 'Experiences', challenges: 'Challenges', meetmove: 'Meet & Move' };
+      document.getElementById('page-title').textContent = titles[name];
+      if (panel.innerHTML.trim() === '') loadPanel(name);
+    }
 
-    // ════════════════════════════════════════════════════════════
-    // INITIALIZATION
-    // ════════════════════════════════════════════════════════════
+    function loadPanel(name) {
+      const panel = document.getElementById(name);
+      if (!panel) return;
+      const panelFiles = { passport: 'panel-passport.html', deals: 'panel-deals.html', events: 'panel-events.html', experiences: 'panel-experiences.html', challenges: 'panel-challenges.html', meetmove: 'panel-meetmove.html' };
+      const url = `https://ffppassport.com/panels/${panelFiles[name]}`;
+      
+      fetch(url)
+        .then(r => r.text())
+        .then(html => {
+          const temp = document.createElement('div');
+          temp.innerHTML = html;
+          const body = temp.querySelector('body');
+          let content = body?.innerHTML || html;
+          content = content.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+          panel.innerHTML = content;
+        })
+        .catch(err => {
+          panel.innerHTML = `<p style="padding:20px;color:#ff6b6b;">Error loading panel</p>`;
+        });
+    }
 
-    document.addEventListener('DOMContentLoaded', async function() {
+    // ====================================================================
+    // USER MENU SYSTEM — Load menu modules dynamically
+    // ====================================================================
+    
+    const menuModules = {
+      profile: 'https://ffppassport.com/user-menu/menu-profile.js',
+      fitness: 'https://ffppassport.com/user-menu/menu-fitness-stats.js',
+      calories: 'https://ffppassport.com/user-menu/menu-calorie-tracker.js',
+      workout: 'https://ffppassport.com/user-menu/menu-workout-timer.js',
+      earnings: 'https://ffppassport.com/user-menu/menu-earnings.js'
+    };
+
+    let currentMenuModule = null;
+    const menuLabels = {
+      profile: 'My Profile',
+      fitness: 'Fitness Stats',
+      calories: 'Calorie Tracker',
+      workout: 'Workout Timer',
+      earnings: 'My Earnings'
+    };
+
+    // Load and initialize a menu module
+    async function loadMenuModule(moduleKey) {
       try {
-        // Get member ID from URL
-        const memberId = new URLSearchParams(window.location.search).get('id');
-        
-        if (!memberId) {
-          showError('Missing member ID. Please log in again.');
-          setTimeout(() => window.location.href = 'login.html', 2000);
-          return;
-        }
+        const script = document.createElement('script');
+        script.src = menuModules[moduleKey];
+        script.onload = () => {
+          // Module loaded, it will auto-init and render into #menu-content
+          currentMenuModule = moduleKey;
+        };
+        script.onerror = () => {
+          document.getElementById('menu-content').innerHTML = `<p style="padding:16px;color:#ff6b6b;font-size:12px;">Failed to load menu</p>`;
+        };
+        document.head.appendChild(script);
+      } catch (err) {
+        console.error('Menu load error:', err);
+      }
+    }
 
-        // Load member data
-        await loadMemberData(memberId);
+    // Build menu navigation
+    function buildMenuNav() {
+      const container = document.getElementById('menu-content');
+      const nav = document.createElement('div');
+      nav.style.cssText = 'display: flex; flex-direction: column; gap: 6px; padding: 8px;';
+      
+      Object.entries(menuLabels).forEach(([key, label]) => {
+        const btn = document.createElement('button');
+        btn.textContent = label;
+        btn.style.cssText = `
+          background: rgba(25, 128, 173, 0.1);
+          border: 1px solid rgba(25, 128, 173, 0.2);
+          border-radius: 8px;
+          color: var(--muted);
+          padding: 10px 12px;
+          font-size: 12px;
+          font-weight: 700;
+          cursor: pointer;
+          font-family: 'Montserrat', sans-serif;
+          transition: all 0.2s;
+        `;
+        btn.onmouseover = () => {
+          btn.style.borderColor = 'var(--blue-lt)';
+          btn.style.color = 'var(--blue-lt)';
+        };
+        btn.onmouseout = () => {
+          btn.style.borderColor = 'rgba(25, 128, 173, 0.2)';
+          btn.style.color = 'var(--muted)';
+        };
+        btn.onclick = () => {
+          container.innerHTML = ''; // Clear
+          loadMenuModule(key);
+        };
+        nav.appendChild(btn);
+      });
+      
+      container.appendChild(nav);
+    }
 
-        // Set up navigation
-        setupNavigation();
+    function toggleMenu(e) {
+      e.stopPropagation();
+      const dropdown = document.getElementById('menu-dropdown');
+      
+      // If menu not open, build nav on first open
+      if (!dropdown.classList.contains('active') && !currentMenuModule) {
+        buildMenuNav();
+      }
+      
+      dropdown.classList.toggle('active');
+    }
 
-        // Load first panel
-        await loadPanel('passport');
-
-      } catch (error) {
-        console.error('Dashboard init error:', error);
-        showError('Failed to load dashboard. ' + error.message);
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.avatar-menu')) {
+        document.getElementById('menu-dropdown').classList.remove('active');
       }
     });
-
-    // ════════════════════════════════════════════════════════════
-    // LOAD MEMBER DATA
-    // ════════════════════════════════════════════════════════════
-
-    async function loadMemberData(memberId) {
-      try {
-        const response = await fetch(`${API_BASE}/api/members/${memberId}`);
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch member data');
-        }
-
-        const data = await response.json();
-        currentMember = data.member;
-
-        // Update UI with member data
-        updateMemberUI();
-
-      } catch (error) {
-        console.error('Member data error:', error);
-        throw error;
-      }
-    }
-
-    function updateMemberUI() {
-      if (!currentMember) return;
-
-      const initials = (currentMember.full_name || 'GH')
-        .split(' ')
-        .map(n => n[0])
-        .join('')
-        .toUpperCase()
-        .slice(0, 2);
-
-      document.getElementById('member-name').textContent = currentMember.full_name || 'Member';
-      document.getElementById('member-sub').textContent = currentMember.passport_no || 'Passport Member';
-      document.getElementById('member-avatar').textContent = initials;
-    }
-
-    // ════════════════════════════════════════════════════════════
-    // LOAD PANEL
-    // ════════════════════════════════════════════════════════════
-
-    async function loadPanel(panelName) {
-      const panelEl = document.getElementById(`panel-${panelName}`);
-      
-      if (!panelEl) return;
-
-      // If already loaded, just show it
-      if (loadedPanels.has(panelName)) {
-        showPanel(panelName);
-        return;
-      }
-
-      // Show loading
-      panelEl.innerHTML = '<div class="panel-loading">Loading...</div>';
-
-      try {
-        // Fetch panel HTML
-        const url = `${PANELS_BASE}/panel-${panelName}.html`;
-        const response = await fetch(url);
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        let html = await response.text();
-
-        // Extract content from body
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        const mainEl = doc.querySelector('main');
-        let content = mainEl ? mainEl.innerHTML : html;
-
-        // Remove scripts (security)
-        content = content.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-
-        // Inject into panel
-        panelEl.innerHTML = content;
-        loadedPanels.add(panelName);
-
-        // Run panel setup if exists (panels might have initialization scripts)
-        const setupFunc = window[`setup${panelName.charAt(0).toUpperCase() + panelName.slice(1)}`];
-        if (typeof setupFunc === 'function') {
-          setupFunc(currentMember);
-        }
-
-      } catch (error) {
-        console.error(`Panel load error (${panelName}):`, error);
-        panelEl.innerHTML = `<div class="panel-error">Error loading panel. Try again.</div>`;
-      }
-
-      showPanel(panelName);
-    }
-
-    // ════════════════════════════════════════════════════════════
-    // SHOW/HIDE PANELS
-    // ════════════════════════════════════════════════════════════
-
-    function showPanel(panelName) {
-      // Hide all panels
-      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-      
-      // Show selected panel
-      const panel = document.getElementById(`panel-${panelName}`);
-      if (panel) {
-        panel.classList.add('active');
-      }
-
-      // Update nav
-      document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-      const navItem = document.querySelector(`[data-panel="${panelName}"]`);
-      if (navItem) {
-        navItem.classList.add('active');
-      }
-
-      // Scroll to top
-      document.getElementById('main-content').scrollTop = 0;
-    }
-
-    // ════════════════════════════════════════════════════════════
-    // NAVIGATION SETUP
-    // ════════════════════════════════════════════════════════════
-
-    function setupNavigation() {
-      document.querySelectorAll('.nav-item').forEach(item => {
-        item.addEventListener('click', async function() {
-          const panelName = this.dataset.panel;
-          await loadPanel(panelName);
-        });
-      });
-    }
-
-    // ════════════════════════════════════════════════════════════
-    // ERROR HANDLING
-    // ════════════════════════════════════════════════════════════
-
-    function showError(message) {
-      const dashboard = document.getElementById('dashboard');
-      dashboard.innerHTML = `
-        <div class="error-screen">
-          <div class="error-title">Oops</div>
-          <div class="error-msg">${message}</div>
-          <button class="error-btn" onclick="window.location.href='login.html'">Back to Login</button>
-        </div>
-      `;
-    }
   </script>
 </body>
 </html>
