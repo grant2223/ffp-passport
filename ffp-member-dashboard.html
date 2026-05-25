@@ -223,15 +223,47 @@
       fetch(url)
         .then(r => r.text())
         .then(html => {
-          const temp = document.createElement('div');
-          temp.innerHTML = html;
-          const body = temp.querySelector('body');
+          // Parse as full document
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, 'text/html');
+          
+          // Extract body content
+          const body = doc.querySelector('body');
           let content = body?.innerHTML || html;
-          content = content.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
-          panel.innerHTML = content;
+          
+          // Find all styles from head and body
+          const styles = doc.querySelectorAll('style');
+          const styleContent = Array.from(styles).map(s => s.textContent).join('\n');
+          
+          // Find all scripts from body
+          const scripts = doc.querySelectorAll('script');
+          const scriptTexts = Array.from(scripts).map(s => s.textContent);
+          
+          // Clear and rebuild panel
+          panel.innerHTML = '';
+          
+          // Add styles if any
+          if (styleContent) {
+            const styleEl = document.createElement('style');
+            styleEl.textContent = styleContent;
+            panel.appendChild(styleEl);
+          }
+          
+          // Add content
+          const contentDiv = document.createElement('div');
+          contentDiv.innerHTML = content;
+          panel.appendChild(contentDiv);
+          
+          // Execute scripts
+          scriptTexts.forEach(scriptText => {
+            const script = document.createElement('script');
+            script.textContent = scriptText;
+            panel.appendChild(script);
+          });
         })
         .catch(err => {
-          panel.innerHTML = `<p style="padding:20px;color:#ff6b6b;">Error loading panel</p>`;
+          console.error('Panel load error:', err);
+          panel.innerHTML = `<p style="padding:20px;color:#ff6b6b;">Error loading panel: ${err.message}</p>`;
         });
     }
 
