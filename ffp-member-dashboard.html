@@ -62,6 +62,9 @@ input { font-family: inherit; color: inherit; }
 .menu-user-head { padding: 16px; border-bottom: 1px solid var(--border); }
 .menu-user-name { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
 .menu-user-status { font-size: 12px; color: var(--muted); }
+.menu-divider { height: 1px; background: var(--border); margin: 6px 0; }
+.menu-item-danger { color: #ef4444; }
+.menu-item-danger:hover { background: rgba(239,68,68,0.08); color: #ef4444; }
 
 /* NOTIFICATIONS */
 .notif-item { padding: 12px 16px; border-bottom: 1px solid rgba(43,168,224,0.05); display: flex; gap: 12px; }
@@ -528,6 +531,135 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
 .panel-placeholder .pp-sub { font-size: 13px; color: var(--muted); max-width: 320px; line-height: 1.5; }
 .panel-placeholder .pp-tag { display: inline-block; margin-top: 16px; padding: 6px 12px; background: rgba(255,204,0,0.10); border: 1px solid rgba(255,204,0,0.25); border-radius: 20px; color: var(--yellow); font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
 
+/* PROFILE PANEL */
+.profile-menu { padding: 4px 0 20px; }
+.profile-header { display: flex; align-items: center; gap: 16px; margin-bottom: 22px; padding: 18px; background: linear-gradient(135deg, rgba(25,128,173,0.10), rgba(43,168,224,0.04)); border: 1px solid var(--border-mid); border-radius: 14px; }
+.ph-avatar { width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, var(--blue-dk), var(--blue)); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 22px; font-weight: 900; letter-spacing: 1px; flex-shrink: 0; border: 2px solid rgba(43,168,224,0.4); position: relative; }
+.ph-avatar-edit { position: absolute; bottom: -2px; right: -2px; width: 22px; height: 22px; border-radius: 50%; background: var(--bg-2); border: 1px solid var(--blue); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+.ph-avatar-edit .material-icons { font-size: 13px; color: var(--blue); }
+.ph-info { flex: 1; min-width: 0; }
+.ph-name { font-size: 17px; font-weight: 800; margin-bottom: 5px; overflow: hidden; text-overflow: ellipsis; }
+.ph-badges { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
+.ph-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 9px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; line-height: 1; }
+.ph-badge .material-icons { font-size: 12px; }
+.ph-badge-verified { background: rgba(43,168,224,0.15); border: 1px solid rgba(43,168,224,0.35); color: var(--blue); }
+.ph-badge-pro { background: rgba(255,255,255,0.04); border: 1px solid var(--border-mid); color: var(--text); }
+.ph-badge-pro-verified { background: rgba(255,204,0,0.10); border: 1px solid rgba(255,204,0,0.40); color: var(--yellow); }
+.ph-meta { font-size: 11px; color: var(--muted); }
+
+.profile-section-title { font-size: 11px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: var(--muted); margin: 20px 0 10px; display: flex; align-items: center; justify-content: space-between; }
+.profile-section-title .section-action { font-size: 11px; color: var(--blue); font-weight: 700; cursor: pointer; background: none; border: none; padding: 0; display: inline-flex; align-items: center; gap: 4px; text-transform: none; letter-spacing: 0; }
+.profile-section-title .section-action:hover { color: var(--text); }
+.profile-section-title .section-action .material-icons { font-size: 14px; }
+
+/* 2-column grid of field cards (auto-stacks on narrow screens) */
+.fields-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+.fields-grid.full-row { grid-template-columns: 1fr; }
+
+/* Field card that always spans the entire row of its parent grid */
+.field-card.full-width { grid-column: 1 / -1; }
+
+/* All field cards are always interactive — no edit-mode toggle. */
+.field-card-label-top { font-size: 9px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 0; }
+.field-card-row { display: flex; align-items: center; gap: 10px; min-height: 22px; }
+
+/* Flat input that lives inside a card and looks like display text until focused */
+.field-card-input-flat { flex: 1; min-width: 0; background: transparent; border: none; border-bottom: 1px solid transparent; color: var(--text); font-size: 14px; font-weight: 700; font-family: inherit; outline: none; padding: 4px 0; transition: border-color 0.15s; }
+.field-card-input-flat::placeholder { color: var(--muted); font-weight: 500; }
+.field-card-input-flat:hover { border-bottom-color: rgba(43,168,224,0.30); cursor: text; }
+.field-card-input-flat:focus { border-bottom-color: var(--blue); }
+
+/* Picker card — entire card is clickable, opens the universal picker */
+.field-card-picker { cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+.field-card-picker:hover { background: rgba(43,168,224,0.10); border-color: var(--blue); }
+.field-card-picker:active { background: rgba(43,168,224,0.16); }
+.field-card-picker .field-card-display { font-size: 14px; font-weight: 700; color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.field-card-picker .field-card-display.muted { color: var(--muted); font-weight: 500; }
+.field-card-picker .pt-chevron { color: var(--blue); font-size: 20px; flex-shrink: 0; }
+
+/* Phone card sub-fields — always shown (no edit mode) */
+.field-card-phone .phone-cc { flex: 0 0 90px; display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; background: rgba(43,168,224,0.10); border: 1px solid var(--border-mid); border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 700; color: var(--text); transition: background 0.15s, border-color 0.15s; }
+.field-card-phone .phone-cc:hover { background: rgba(43,168,224,0.18); border-color: var(--blue); }
+.field-card-phone .phone-cc .material-icons { font-size: 16px; color: var(--blue); margin-left: 2px; }
+.field-card-phone .phone-num { flex: 1; min-width: 0; }
+
+/* DOB card — uses an invisible native <input type="date"> overlay so clicking
+   the card triggers the platform's native date picker (iOS wheel, Android
+   calendar, desktop popup). */
+.field-card-dob { position: relative; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+.field-card-dob:hover { background: rgba(43,168,224,0.10); border-color: var(--blue); }
+.field-card-dob .dob-display { font-size: 14px; font-weight: 700; color: var(--text); flex: 1; }
+.field-card-dob .dob-icon { color: var(--blue); font-size: 18px; flex-shrink: 0; }
+.field-card-dob .dob-native { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: none; background: transparent; padding: 0; margin: 0; -webkit-appearance: none; appearance: none; font-family: inherit; color: transparent; }
+/* Hide the default calendar icon on the invisible native input */
+.field-card-dob .dob-native::-webkit-calendar-picker-indicator { width: 100%; height: 100%; position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; }
+
+.field-card { background: rgba(43,168,224,0.05); border: 1px solid var(--border-mid); border-radius: 10px; padding: 10px 14px; position: relative; min-height: 52px; display: flex; flex-direction: column; justify-content: center; gap: 4px; }
+
+/* Security PIN card variant */
+.security-card { background: rgba(43,168,224,0.05); border: 1px solid var(--border-mid); border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.security-card-info { flex: 1; }
+.security-card-label { font-size: 11px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+.security-card-status { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.security-card-status.set { color: #4ade80; }
+.pin-display { display: inline-flex; gap: 4px; }
+.pin-display .pin-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text); }
+.security-btn { background: transparent; color: var(--blue); border: 1px solid var(--border-mid); border-radius: 6px; padding: 7px 14px; font-size: 11px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+.security-btn:hover { background: rgba(43,168,224,0.10); border-color: var(--blue); }
+
+/* Professional roles list */
+.role-list { display: flex; flex-direction: column; gap: 8px; }
+.role-remove { position: absolute; top: 50%; right: 12px; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: color 0.15s; }
+.role-remove:hover .material-icons, .role-remove:active .material-icons { color: #ef4444; }
+.role-remove .material-icons { font-size: 22px; color: var(--muted); }
+.role-add-btn { margin-top: 8px; background: rgba(43,168,224,0.08); color: var(--blue); border: 1px dashed var(--border-mid); border-radius: 10px; padding: 12px; font-size: 13px; font-weight: 700; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.role-add-btn:hover { background: rgba(43,168,224,0.15); border-color: var(--blue); border-style: solid; }
+.role-add-btn .material-icons { font-size: 18px; }
+
+/* Sports — 2-col grid of cards */
+.sports-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.sport-card { background: rgba(43,168,224,0.06); border: 1px solid var(--border-mid); border-radius: 10px; padding: 12px 14px; position: relative; min-height: 70px; display: flex; flex-direction: column; gap: 8px; }
+.sport-card-name { font-size: 13px; font-weight: 800; color: var(--text); padding-right: 36px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; }
+.sport-card-level { display: inline-block; align-self: flex-start; font-size: 10px; color: var(--blue); font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; padding: 3px 8px; background: rgba(43,168,224,0.12); border-radius: 4px; }
+.sport-card-remove { position: absolute; top: 4px; right: 6px; background: transparent; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; z-index: 2; transition: color 0.15s; line-height: 1; }
+.sport-card-remove:hover .material-icons, .sport-card-remove:active .material-icons { color: #ef4444; }
+.sport-card-remove .material-icons { font-size: 22px; color: var(--muted); }
+
+/* Preferences */
+.profile-preferences { background: rgba(43,168,224,0.05); border: 1px solid var(--border-mid); border-radius: 12px; padding: 6px 14px; }
+.pref-toggle { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid rgba(43,168,224,0.08); cursor: pointer; font-size: 13px; font-weight: 600; }
+.pref-toggle:last-child { border-bottom: 0; }
+.pref-toggle span { user-select: none; }
+.pref-toggle input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--blue); }
+
+/* PIN modal input */
+.pin-input-row { display: flex; gap: 8px; justify-content: center; margin: 16px 0; }
+.pin-input-row input { width: 44px; height: 52px; border: 1px solid var(--border-mid); border-radius: 8px; background: rgba(43,168,224,0.08); color: var(--text); font-size: 22px; font-weight: 800; text-align: center; outline: none; font-family: inherit; }
+.pin-input-row input:focus { border-color: var(--blue); background: rgba(43,168,224,0.15); }
+.modal-helper { font-size: 12px; color: var(--muted); text-align: center; margin-bottom: 4px; }
+.modal-error { font-size: 12px; color: #ef4444; text-align: center; min-height: 18px; margin-top: 4px; }
+
+/* ===== UNIVERSAL PICKER MODAL =====
+   Reusable modal for ANY option list. Always has a search at the top, hidden
+   scrollbar, and grouped or flat options. Used for: Gender, City, Country,
+   Nationality, Country Code, Month, Add Sport. */
+.picker-modal { max-width: 460px; max-height: 80vh; display: flex; flex-direction: column; }
+.picker-modal .picker-search-wrap { padding: 12px 20px 14px; border-bottom: 1px solid var(--border); position: relative; }
+.picker-modal .picker-search-wrap .material-icons { position: absolute; left: 32px; top: 50%; transform: translateY(-30%); color: var(--muted); font-size: 18px; pointer-events: none; }
+.picker-modal .picker-search-input { width: 100%; padding: 10px 12px 10px 38px; background: rgba(43,168,224,0.08); border: 1px solid var(--border-mid); border-radius: 8px; color: var(--text); font-size: 14px; font-weight: 500; font-family: inherit; outline: none; }
+.picker-modal .picker-search-input:focus { border-color: var(--blue); }
+.picker-modal .picker-options { flex: 1; overflow-y: auto; padding: 6px 0 12px; }
+.picker-modal .picker-options::-webkit-scrollbar { display: none; }
+.picker-modal .picker-options { -ms-overflow-style: none; scrollbar-width: none; }
+.picker-modal .picker-option-group-label { font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.7px; padding: 14px 20px 6px; }
+.picker-modal .picker-option { padding: 12px 20px; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.picker-modal .picker-option:hover { background: rgba(43,168,224,0.08); color: var(--blue); }
+.picker-modal .picker-option.selected { background: rgba(43,168,224,0.10); color: var(--blue); font-weight: 700; }
+.picker-modal .picker-option.selected .material-icons { color: var(--blue); }
+.picker-modal .picker-option .po-sub { font-size: 11px; color: var(--muted); font-weight: 500; }
+.picker-modal .picker-option .material-icons { font-size: 18px; color: transparent; }
+.picker-modal .picker-empty { padding: 28px 20px; text-align: center; color: var(--muted); font-size: 13px; }
+
 /* BOTTOM NAV */
 .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #0b1c28; border-top: 1px solid rgba(43,168,224,0.15); padding: 8px 0; display: flex; z-index: 100; }
 .nav-item { flex: 1; border: none; background: transparent; color: #6a90a8; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 8px 4px; }
@@ -637,6 +769,8 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
         <button class="menu-item" data-panel="panel-calorie-tracker"><span class="material-icons">local_fire_department</span><span>Calorie Tracker</span></button>
         <button class="menu-item" data-panel="panel-fitness-stats"><span class="material-icons">show_chart</span><span>Fitness Stats</span></button>
         <button class="menu-item" data-panel="panel-earnings"><span class="material-icons">account_balance_wallet</span><span>Earnings</span></button>
+        <div class="menu-divider"></div>
+        <button class="menu-item menu-item-danger" id="user-menu-logout"><span class="material-icons">logout</span><span>Logout</span></button>
       </div>
     </div>
   </div>
@@ -948,12 +1082,9 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
 
   <!-- PROFILE -->
   <div id="panel-profile" class="panel-view">
-    <div class="panel-placeholder">
-      <div class="pp-icon"><span class="material-icons">person</span></div>
-      <div class="pp-title">Profile</div>
-      <div class="pp-sub">Manage your member profile — photo, passport details, nationality, contact info and preferences.</div>
-      <div class="pp-tag">Coming next</div>
-    </div>
+    <h2 style="margin-bottom: 4px;">Profile</h2>
+    <div style="font-size: 13px; color: var(--muted); margin-bottom: 20px;">Your member info, sports and preferences.</div>
+    <div id="profile-body"><!-- rendered by renderProfile() --></div>
   </div>
 
   <!-- WORKOUT TIMER -->
@@ -1073,6 +1204,62 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
     <div class="modal-footer">
       <button class="btn" onclick="closeLogModal()">Cancel</button>
       <button class="btn btn-blue" onclick="saveLog()">Save activity</button>
+    </div>
+  </div>
+</div>
+
+<!-- UNIVERSAL PICKER MODAL (reused for Gender, City, Country, Nationality, etc.) -->
+<div class="modal-overlay" id="picker-modal-overlay">
+  <div class="modal picker-modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="picker-modal-title">Select</div>
+        <div class="modal-subtitle" id="picker-modal-subtitle"></div>
+      </div>
+      <button class="modal-close" onclick="closePicker()">&times;</button>
+    </div>
+    <div class="picker-search-wrap">
+      <span class="material-icons">search</span>
+      <input type="text" class="picker-search-input" id="picker-modal-search" placeholder="Search..." autocomplete="off">
+    </div>
+    <div class="picker-options" id="picker-modal-options"></div>
+  </div>
+</div>
+
+<!-- PIN MODAL (Set or Change 6-digit PIN) -->
+<div class="modal-overlay" id="pin-modal">
+  <div class="modal" style="max-width: 380px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="pin-modal-title">Set 6-digit PIN</div>
+        <div class="modal-subtitle">A quick code for partner check-ins and quick access</div>
+      </div>
+      <button class="modal-close" onclick="closePinModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-helper">Enter your 6-digit PIN</div>
+      <div class="pin-input-row" id="pin-row-1">
+        <input type="text" inputmode="numeric" maxlength="1" data-pin="1">
+        <input type="text" inputmode="numeric" maxlength="1" data-pin="2">
+        <input type="text" inputmode="numeric" maxlength="1" data-pin="3">
+        <input type="text" inputmode="numeric" maxlength="1" data-pin="4">
+        <input type="text" inputmode="numeric" maxlength="1" data-pin="5">
+        <input type="text" inputmode="numeric" maxlength="1" data-pin="6">
+      </div>
+      <div class="modal-helper">Confirm your PIN</div>
+      <div class="pin-input-row" id="pin-row-2">
+        <input type="text" inputmode="numeric" maxlength="1" data-pin-confirm="1">
+        <input type="text" inputmode="numeric" maxlength="1" data-pin-confirm="2">
+        <input type="text" inputmode="numeric" maxlength="1" data-pin-confirm="3">
+        <input type="text" inputmode="numeric" maxlength="1" data-pin-confirm="4">
+        <input type="text" inputmode="numeric" maxlength="1" data-pin-confirm="5">
+        <input type="text" inputmode="numeric" maxlength="1" data-pin-confirm="6">
+      </div>
+      <div class="modal-error" id="pin-error"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closePinModal()">Cancel</button>
+      <button class="btn btn-blue" onclick="MemberProfile.savePin()">Save PIN</button>
     </div>
   </div>
 </div>
@@ -2259,6 +2446,19 @@ function setupTopbar() {
   document.addEventListener('click', e => {
     if (!e.target.closest('.menu-wrap')) { notifMenu.classList.remove('show'); userMenu.classList.remove('show'); }
   });
+  
+  // Logout button in user menu
+  const logoutBtn = document.getElementById('user-menu-logout');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+      userMenu.classList.remove('show');
+      if (!confirm('Are you sure you want to logout?')) return;
+      // PRODUCTION:
+      //   fetch('/api/auth/logout', { method: 'POST' })
+      //     .then(() => window.location.href = '/login.html');
+      alert('Logout — wires up to auth backend when built.');
+    });
+  }
 }
 
 function clearNotifs() {
@@ -2337,6 +2537,898 @@ function setupPanelNav() {
     showPanel(initialHash);
   }
 }
+
+// ===== PROFILE PANEL =====
+// MemberProfile.data is now the SINGLE SOURCE OF TRUTH for member identity.
+// The passport card (memberPassport object) is a derived view — every profile
+// change calls syncToPassport() which mirrors fields into memberPassport and
+// calls applyPassportData() + renderQR() so the card updates instantly.
+//
+// Layout:
+//   PERSONAL INFORMATION
+//     Given Names | Surname            (2-col)
+//     Email                            (full row)
+//     Phone (CC + number in card)      (full row)
+//     Date of Birth | Gender           (2-col)
+//
+//   LOCATION
+//     Country                          (listed FIRST; full row)
+//     City                             (filtered by current country)
+//     Nationality                      (full row)
+//
+//   SECURITY  (6-digit PIN only)
+//   SPORTS & SKILL LEVELS  (× to remove each)
+//   PREFERENCES
+
+const NATIONALITIES = [
+  'Argentinian','Australian','Austrian','Belgian','Brazilian','British','Bulgarian',
+  'Canadian','Chilean','Chinese','Colombian','Croatian','Czech','Danish','Dutch',
+  'Egyptian','Emirati','Filipino','Finnish','French','German','Greek','Hungarian',
+  'Indian','Indonesian','Irish','Israeli','Italian','Japanese','Jordanian','Kenyan',
+  'Kuwaiti','Lebanese','Malaysian','Mexican','Moroccan','New Zealander','Nigerian',
+  'Norwegian','Omani','Pakistani','Peruvian','Polish','Portuguese','Qatari','Romanian',
+  'Russian','Saudi Arabian','Singaporean','South African','South Korean','Spanish',
+  'Sri Lankan','Swedish','Swiss','Thai','Turkish','Ukrainian','American','Vietnamese'
+];
+
+// Map nationality -> 3-letter ISO code (used on the passport card MRZ line)
+const NATIONALITY_ISO = {
+  'Argentinian':'ARG','Australian':'AUS','Austrian':'AUT','Belgian':'BEL','Brazilian':'BRA',
+  'British':'GBR','Bulgarian':'BGR','Canadian':'CAN','Chilean':'CHL','Chinese':'CHN',
+  'Colombian':'COL','Croatian':'HRV','Czech':'CZE','Danish':'DNK','Dutch':'NLD',
+  'Egyptian':'EGY','Emirati':'ARE','Filipino':'PHL','Finnish':'FIN','French':'FRA',
+  'German':'DEU','Greek':'GRC','Hungarian':'HUN','Indian':'IND','Indonesian':'IDN',
+  'Irish':'IRL','Israeli':'ISR','Italian':'ITA','Japanese':'JPN','Jordanian':'JOR',
+  'Kenyan':'KEN','Kuwaiti':'KWT','Lebanese':'LBN','Malaysian':'MYS','Mexican':'MEX',
+  'Moroccan':'MAR','New Zealander':'NZL','Nigerian':'NGA','Norwegian':'NOR','Omani':'OMN',
+  'Pakistani':'PAK','Peruvian':'PER','Polish':'POL','Portuguese':'PRT','Qatari':'QAT',
+  'Romanian':'ROU','Russian':'RUS','Saudi Arabian':'SAU','Singaporean':'SGP',
+  'South African':'ZAF','South Korean':'KOR','Spanish':'ESP','Sri Lankan':'LKA',
+  'Swedish':'SWE','Swiss':'CHE','Thai':'THA','Turkish':'TUR','Ukrainian':'UKR',
+  'American':'USA','Vietnamese':'VNM'
+};
+
+const GENDERS = ['Male', 'Female', 'Non-binary', 'Prefer not to say'];
+
+const FFP_FITNESS_LEVELS = ['Beginner', 'Intermediate', 'Advanced', 'Elite', 'Professional'];
+
+// FFP Professional Roles — full taxonomy (FFP-PROFESSIONAL-ROLES-TAXONOMY.md)
+// SKILL-SPECIFIC ONLY — no generic titles like "Personal Trainer" or "Sports Coach".
+// Member self-declares any number of roles. Admin verifies each role separately.
+const FFP_PROFESSIONAL_ROLES = {
+  'Strength & Body Composition': [
+    'Powerlifting Coach','Weightlifting Coach (Olympic)','Bodybuilding Coach',
+    'Strongman Coach','Calisthenics Coach','Kettlebell Coach','Gymnastic Strength Coach',
+    'Animal Flow Coach','Weight Loss Coach','Fat Loss Coach','Body Recomposition Coach',
+    'Lean Bulk Coach','Contest Prep Coach','Pre/Postnatal Strength Coach',
+    'Youth Strength Coach','Senior Strength Coach'
+  ],
+  'Functional & Conditioning': [
+    'CrossFit Coach','HIIT Coach','Plyometric Coach','Mobility Coach',
+    'Functional Training Coach','Bootcamp Coach','F45 Coach','Hyrox Coach',
+    'TRX / Suspension Coach','Sandbag Training Coach','Battle Rope Coach',
+    'Stability & Balance Coach'
+  ],
+  'Endurance & Running': [
+    'Running Coach','Trail Running Coach','Marathon Coach','Ultra Endurance Coach',
+    'Triathlon Coach','Cycling Coach','Mountain Bike Coach','Indoor Cycling / Spin Instructor',
+    'Speed & Agility Coach','Sprinting Coach','Track & Field Coach','Walking / Hiking Coach'
+  ],
+  'Sport-Specific Coaching': [
+    'Tennis Coach','Padel Coach','Pickleball Coach','Squash Coach','Badminton Coach',
+    'Table Tennis Coach','Football (Soccer) Coach','Futsal Coach','American Football Coach',
+    'Basketball Coach','Cricket Coach','Rugby Coach','Volleyball Coach',
+    'Beach Volleyball Coach','Baseball Coach','Field Hockey Coach','Ice Hockey Coach',
+    'Lacrosse Coach','Ultimate Frisbee Coach','Handball Coach','Golf Coach',
+    'Skateboarding Coach','BMX Coach','Equestrian Coach','Archery Coach','Shooting Coach'
+  ],
+  'Combat Sports & Martial Arts': [
+    'Boxing Coach','Muay Thai Coach','Kickboxing Coach','Brazilian Jiu-Jitsu Instructor',
+    'MMA Coach','Karate Sensei','Taekwondo Instructor','Judo Coach','Wrestling Coach',
+    'Krav Maga Instructor','Self-Defense Instructor','Fencing Coach','Capoeira Instructor',
+    'Aikido Instructor'
+  ],
+  'Yoga, Pilates & Movement': [
+    'Yoga Instructor (Hatha)','Yoga Instructor (Vinyasa)','Yoga Instructor (Ashtanga)',
+    'Hot Yoga Instructor','Yin Yoga Instructor','Aerial Yoga Instructor',
+    'Pilates Instructor (Mat)','Reformer Pilates Instructor','Barre Instructor',
+    'Pole Fitness Instructor','Movement Specialist','Posture Coach','Stretching Coach'
+  ],
+  'Dance & Rhythm': [
+    'Contemporary Dance Instructor','Choreographer','Ballet Teacher',
+    'Latin Dance Instructor','Hip Hop Dance Instructor','Ballroom Dance Instructor',
+    'Zumba Instructor'
+  ],
+  'Mind & Mental Performance': [
+    'Meditation Teacher','Mindfulness Coach','Breathwork Coach',
+    'Mental Performance Coach','Sports Psychologist','Mental Health Coach',
+    'Therapist / Counsellor','Hypnotherapist','Stress Management Coach','Life Coach'
+  ],
+  'Sports Therapy & Bodywork': [
+    'Physiotherapist','Sports Physiotherapist','Osteopath','Chiropractor',
+    'Sports Therapist','Biomechanics Specialist','Rehabilitation Coach',
+    'Injury Prevention Coach','Sports Doctor','Sports Scientist',
+    'Massage Therapist','Sports Massage Therapist','Deep Tissue Therapist',
+    'Stretching Therapist','Reflexologist'
+  ],
+  'Recovery & Wellness Practices': [
+    'Cryotherapy Specialist','Sauna / Heat Therapy Practitioner','Cold Exposure Practitioner',
+    'IV Therapy Specialist','Float Tank Therapist','Acupuncturist','Aromatherapist',
+    'Reiki Practitioner','Sound Healer','Energy Healer'
+  ],
+  'Nutrition & Health': [
+    'Nutritionist','Sports Nutritionist','Performance Nutritionist','Registered Dietitian',
+    'Holistic Nutrition Coach','Plant-Based Nutrition Coach','Health Coach','Wellness Coach',
+    'Holistic Health Practitioner','Naturopath','Sleep Coach','Hormone Coach',
+    'Gut Health Coach','Functional Medicine Practitioner'
+  ],
+  'Adventure & Outdoor': [
+    'Adventure Guide','Mountain Guide','Trekking Guide','Hiking Guide',
+    'Climbing Instructor','Bouldering Coach','Ski Instructor','Snowboard Instructor',
+    'Wilderness Instructor','Survival Instructor','Bike Tour Guide','Bushcraft Instructor',
+    'Canyoning Guide'
+  ],
+  'Watersports': [
+    'Swim Coach','Open Water Swim Coach','Surfing Instructor','Kitesurfing Instructor',
+    'Windsurfing Instructor','SUP (Paddleboard) Instructor','Sailing Instructor',
+    'Scuba Diving Instructor','Freediving Instructor','Spearfishing Guide',
+    'Wakeboard Coach','Watersports Guide','Lifeguard / Aquatic Safety',
+    'Underwater Photographer','Kayaking Instructor'
+  ],
+  'Industry & Business': [
+    'Studio Owner','Gym Owner','Brand Owner','Sports Apparel Brand','Supplement Brand',
+    'Equipment Brand','Event Organizer','Race Director','Tournament Organizer',
+    'Sports Photographer','Action Videographer','Sports Journalist','Sports Commentator',
+    'Sports Agent','Athlete Manager','Sports Marketing Specialist','Sponsorship Specialist',
+    'Sports PR'
+  ],
+  'Athletes & Creators': [
+    'Professional Athlete','Sponsored Athlete','National Team Athlete',
+    'Olympic / Paralympic Athlete','Adventure Athlete','Content Creator',
+    'Fitness Influencer','Wellness Influencer','Adventure Influencer',
+    'Author / Educator','Podcast Host','Public Speaker'
+  ],
+  'Other': [
+    'Entrepreneur','Investor','Consultant','Sports Tech Founder','Wellness Tech Founder',
+    'Researcher','Educator','Other'
+  ]
+};
+
+const MONTHS = [
+  { num: '01', short: 'JAN', long: 'January' },
+  { num: '02', short: 'FEB', long: 'February' },
+  { num: '03', short: 'MAR', long: 'March' },
+  { num: '04', short: 'APR', long: 'April' },
+  { num: '05', short: 'MAY', long: 'May' },
+  { num: '06', short: 'JUN', long: 'June' },
+  { num: '07', short: 'JUL', long: 'July' },
+  { num: '08', short: 'AUG', long: 'August' },
+  { num: '09', short: 'SEP', long: 'September' },
+  { num: '10', short: 'OCT', long: 'October' },
+  { num: '11', short: 'NOV', long: 'November' },
+  { num: '12', short: 'DEC', long: 'December' }
+];
+
+const COUNTRY_CODES = [
+  { code: '+971', country: 'United Arab Emirates' },
+  { code: '+93',  country: 'Afghanistan' },{ code: '+54',  country: 'Argentina' },
+  { code: '+61',  country: 'Australia' },{ code: '+43',  country: 'Austria' },
+  { code: '+973', country: 'Bahrain' },{ code: '+32',  country: 'Belgium' },
+  { code: '+55',  country: 'Brazil' },{ code: '+359', country: 'Bulgaria' },
+  { code: '+1',   country: 'Canada' },{ code: '+56',  country: 'Chile' },
+  { code: '+86',  country: 'China' },{ code: '+57',  country: 'Colombia' },
+  { code: '+385', country: 'Croatia' },{ code: '+420', country: 'Czech Republic' },
+  { code: '+45',  country: 'Denmark' },{ code: '+20',  country: 'Egypt' },
+  { code: '+358', country: 'Finland' },{ code: '+33',  country: 'France' },
+  { code: '+49',  country: 'Germany' },{ code: '+30',  country: 'Greece' },
+  { code: '+852', country: 'Hong Kong' },{ code: '+36',  country: 'Hungary' },
+  { code: '+91',  country: 'India' },{ code: '+62',  country: 'Indonesia' },
+  { code: '+98',  country: 'Iran' },{ code: '+353', country: 'Ireland' },
+  { code: '+972', country: 'Israel' },{ code: '+39',  country: 'Italy' },
+  { code: '+81',  country: 'Japan' },{ code: '+962', country: 'Jordan' },
+  { code: '+254', country: 'Kenya' },{ code: '+965', country: 'Kuwait' },
+  { code: '+961', country: 'Lebanon' },{ code: '+60',  country: 'Malaysia' },
+  { code: '+52',  country: 'Mexico' },{ code: '+212', country: 'Morocco' },
+  { code: '+31',  country: 'Netherlands' },{ code: '+64',  country: 'New Zealand' },
+  { code: '+234', country: 'Nigeria' },{ code: '+47',  country: 'Norway' },
+  { code: '+968', country: 'Oman' },{ code: '+92',  country: 'Pakistan' },
+  { code: '+51',  country: 'Peru' },{ code: '+63',  country: 'Philippines' },
+  { code: '+48',  country: 'Poland' },{ code: '+351', country: 'Portugal' },
+  { code: '+974', country: 'Qatar' },{ code: '+40',  country: 'Romania' },
+  { code: '+7',   country: 'Russia' },{ code: '+966', country: 'Saudi Arabia' },
+  { code: '+65',  country: 'Singapore' },{ code: '+27',  country: 'South Africa' },
+  { code: '+82',  country: 'South Korea' },{ code: '+34',  country: 'Spain' },
+  { code: '+94',  country: 'Sri Lanka' },{ code: '+46',  country: 'Sweden' },
+  { code: '+41',  country: 'Switzerland' },{ code: '+66',  country: 'Thailand' },
+  { code: '+90',  country: 'Turkey' },{ code: '+380', country: 'Ukraine' },
+  { code: '+44',  country: 'United Kingdom' },{ code: '+1',   country: 'United States' },
+  { code: '+84',  country: 'Vietnam' }
+];
+
+// =====================================================================
+// UNIVERSAL PICKER
+// =====================================================================
+const Picker = {
+  current: null,
+  open(config) {
+    this.current = config;
+    document.getElementById('picker-modal-title').textContent = config.title || 'Select';
+    document.getElementById('picker-modal-subtitle').textContent = config.subtitle || '';
+    const search = document.getElementById('picker-modal-search');
+    search.value = '';
+    search.placeholder = config.searchPlaceholder || 'Search...';
+    this.renderOptions('');
+    document.getElementById('picker-modal-overlay').classList.add('show');
+    setTimeout(() => search.focus(), 50);
+  },
+  close() {
+    document.getElementById('picker-modal-overlay').classList.remove('show');
+    this.current = null;
+  },
+  normalize(opt) {
+    if (typeof opt === 'string') return { value: opt, label: opt, sub: '' };
+    return { value: opt.value, label: opt.label || opt.value, sub: opt.sub || '' };
+  },
+  renderOptions(filterText) {
+    const cfg = this.current;
+    if (!cfg) return;
+    const f = (filterText || '').toLowerCase().trim();
+    const container = document.getElementById('picker-modal-options');
+    const matches = (opt) => !f ||
+      (opt.label || '').toLowerCase().includes(f) ||
+      (opt.sub || '').toLowerCase().includes(f) ||
+      (opt.value || '').toLowerCase().includes(f);
+    const row = (o) => {
+      const sel = String(o.value) === String(cfg.current);
+      const sub = o.sub ? `<span class="po-sub">${this.escape(o.sub)}</span>` : '';
+      const chk = sel ? '<span class="material-icons" style="color:var(--blue);">check</span>' : '<span class="material-icons"></span>';
+      return `<div class="picker-option ${sel ? 'selected' : ''}" data-value="${this.escape(String(o.value))}">
+        <span>${this.escape(o.label)} ${sub}</span>${chk}</div>`;
+    };
+    let html = '', count = 0;
+    if (cfg.grouped) {
+      Object.keys(cfg.options).forEach(g => {
+        const items = cfg.options[g].map(o => this.normalize(o)).filter(matches);
+        if (!items.length) return;
+        html += `<div class="picker-option-group-label">${this.escape(g)}</div>`;
+        items.forEach(o => { html += row(o); count++; });
+      });
+    } else {
+      cfg.options.map(o => this.normalize(o)).filter(matches).forEach(o => { html += row(o); count++; });
+    }
+    if (!count) html = '<div class="picker-empty">No matches.</div>';
+    container.innerHTML = html;
+    container.querySelectorAll('.picker-option[data-value]').forEach(el => {
+      el.addEventListener('click', () => {
+        const v = el.getAttribute('data-value');
+        const onPick = cfg.onPick;
+        this.close();
+        if (onPick) onPick(v);
+      });
+    });
+  },
+  escape(str) {
+    if (str == null) return '';
+    return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+};
+function openPicker(config) { Picker.open(config); }
+function closePicker()      { Picker.close(); }
+(function wirePicker() {
+  const overlay = document.getElementById('picker-modal-overlay');
+  if (!overlay || overlay._wired) return;
+  overlay.addEventListener('click', e => { if (e.target.id === 'picker-modal-overlay') closePicker(); });
+  document.getElementById('picker-modal-search').addEventListener('input', e => Picker.renderOptions(e.target.value));
+  overlay._wired = true;
+})();
+
+// =====================================================================
+// MEMBER PROFILE — single source of truth for member identity
+// =====================================================================
+const MemberProfile = {
+  data: {
+    // Identity (shared with passport card)
+    givenNames: 'Grant',
+    surname: 'Hermanus Goes',
+    
+    // Contact
+    email: 'grant@ffppassport.com',
+    phoneCountryCode: '+971',
+    phoneNumber: '56 261 7359',
+    
+    // DOB
+    dobDay: '12',
+    dobMonth: '06',
+    dobYear: '1990',
+    
+    gender: 'Male',
+    
+    // Location
+    country: 'United Arab Emirates',  // where you LIVE
+    city: 'Dubai',
+    nationality: 'New Zealander',     // passport country (demonym)
+    
+    // Account meta
+    tier: 'Passport Premium Member',
+    memberSince: '23 MAY 2024',
+    passportNumber: 'F1206250001',
+    issueDate: '23 MAY 2024',
+    expiryDate: '31 DEC 2030',
+    hasPin: false,
+    
+    // VERIFICATION (admin-set in production — read-only on this profile)
+    //   verified            : true once admin confirms this is a real person
+    //   professional.roles  : array of { role, verified }
+    //                         Each role independently verified by admin.
+    //                         null/empty → not a professional profile
+    verified: true,
+    professional: {
+      roles: [
+        { role: 'Weightlifting Coach', verified: true  },
+        { role: 'Mobility Coach',      verified: false }
+      ]
+    },
+    
+    sports: [
+      { name: 'Padel',             level: 'Advanced'     },
+      { name: 'Running',           level: 'Intermediate' },
+      { name: 'Strength Training', level: 'Advanced'     },
+      { name: 'Yoga',              level: 'Beginner'     }
+    ],
+    
+    preferences: {
+      notifications: true,
+      newsletter: true,
+      publicProfile: true
+    }
+  },
+  
+  // ===== HELPERS =====
+  escape(str) {
+    if (str == null) return '';
+    return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  },
+  
+  getInitials() {
+    const g = (this.data.givenNames || '').trim().charAt(0).toUpperCase();
+    const s = (this.data.surname || '').trim().charAt(0).toUpperCase();
+    return (g + s) || 'M';
+  },
+  
+  getFullName() {
+    return `${this.data.givenNames} ${this.data.surname}`.trim();
+  },
+  
+  formatDOB() {
+    const m = MONTHS.find(x => x.num === this.data.dobMonth);
+    return `${this.data.dobDay || ''} ${m ? m.short : ''} ${this.data.dobYear || ''}`.trim();
+  },
+  
+  dobAsISO() {
+    if (!this.data.dobYear || !this.data.dobMonth || !this.data.dobDay) return '';
+    return `${this.data.dobYear}-${this.data.dobMonth}-${this.data.dobDay.padStart(2,'0')}`;
+  },
+  
+  dobMaxDate() {
+    const t = new Date(); t.setFullYear(t.getFullYear() - 13);
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+  },
+  
+  // Render the Verified badge in the profile header — ONLY if the member is
+  // actually admin-verified. No professional role badges here (those live in the
+  // Professional Profile section). No fallback "Member" badge.
+  renderBadges() {
+    if (!this.data.verified) return '';
+    return `<span class="ph-badge ph-badge-verified">
+      <span class="material-icons">verified</span>Verified
+    </span>`;
+  },
+  
+  // Render the Professional Profile section.
+  // - If no roles: prompt to add one
+  // - If 1+ roles: list each as its own card with a remove X
+  //   Each role has its own verified status (admin-set per role).
+  //   "Add role" button to declare another. To clear all roles, pick
+  //   "Non-professional" from the picker — no separate clear link.
+  renderProfessionalCard() {
+    const roles = (this.data.professional && this.data.professional.roles) || [];
+    
+    if (roles.length === 0) {
+      return `
+        <div class="security-card field-card-picker" onclick="MemberProfile.openRolePicker()">
+          <div class="security-card-info">
+            <div class="security-card-label">Non-professional member</div>
+            <div class="security-card-status">Tap to add a professional role (Powerlifting Coach, Nutritionist, etc.)</div>
+          </div>
+          <span class="material-icons pt-chevron">arrow_drop_down</span>
+        </div>
+      `;
+    }
+    
+    const roleCards = roles.map((r, i) => {
+      const statusText = r.verified ? 'Verified by FFP admin' : 'Pending verification';
+      const statusCls  = r.verified ? 'set' : '';
+      return `
+        <div class="security-card" style="position:relative;">
+          <div class="security-card-info" style="padding-right:24px;">
+            <div class="security-card-label">${this.escape(r.role)}</div>
+            <div class="security-card-status ${statusCls}">${statusText}</div>
+          </div>
+          <button class="role-remove" data-role-index="${i}" aria-label="Remove ${this.escape(r.role)}" title="Remove">
+            <span class="material-icons">close</span>
+          </button>
+        </div>
+      `;
+    }).join('');
+    
+    return `
+      <div class="role-list">${roleCards}</div>
+      <button class="role-add-btn" onclick="MemberProfile.openRolePicker()">
+        <span class="material-icons">add_circle</span>
+        Add another role
+      </button>
+    `;
+  },
+  
+  // =====================================================================
+  // SYNC TO PASSPORT CARD
+  // Profile data → memberPassport object → applyPassportData() + renderQR()
+  // Called after every profile data change so the passport card reflects edits.
+  // =====================================================================
+  syncToPassport() {
+    if (typeof memberPassport === 'undefined') return;
+    memberPassport.surname        = this.data.surname.toUpperCase();
+    memberPassport.givenNames     = this.data.givenNames.toUpperCase();
+    memberPassport.initials       = this.getInitials();
+    memberPassport.nationality    = this.data.nationality.toUpperCase();
+    memberPassport.countryCode    = NATIONALITY_ISO[this.data.nationality] || 'XXX';
+    memberPassport.gender         = this.data.gender.toUpperCase();
+    memberPassport.genderCode     = (this.data.gender.charAt(0) || 'X').toUpperCase();
+    memberPassport.dob            = this.formatDOB();
+    memberPassport.dobMRZ         = (this.data.dobYear || '').slice(2) + (this.data.dobMonth || '') + (this.data.dobDay || '').padStart(2,'0');
+    memberPassport.issueDate      = this.data.issueDate;
+    memberPassport.expiryDate     = this.data.expiryDate;
+    memberPassport.passportNumber = this.data.passportNumber;
+    
+    if (typeof applyPassportData === 'function') applyPassportData();
+    if (typeof renderQR === 'function')          renderQR();
+  },
+  
+  // ===== RENDER =====
+  render() {
+    const body = document.getElementById('profile-body');
+    if (!body) return;
+    const d = this.data;
+    
+    body.innerHTML = `
+      <div class="profile-menu">
+        <!-- HEADER -->
+        <div class="profile-header">
+          <div class="ph-avatar">
+            ${this.getInitials()}
+            <button class="ph-avatar-edit" onclick="MemberProfile.changeAvatar()" title="Change photo">
+              <span class="material-icons">photo_camera</span>
+            </button>
+          </div>
+          <div class="ph-info">
+            <div class="ph-name">${this.escape(this.getFullName())}</div>
+            ${this.renderBadges() ? `<div class="ph-badges">${this.renderBadges()}</div>` : ''}
+            <div class="ph-meta">Member since ${this.escape(d.memberSince)} &middot; ${this.escape(d.passportNumber)}</div>
+          </div>
+        </div>
+
+        <!-- PERSONAL INFORMATION
+             Order: Name (2-col) | Email (full) | Phone (full) | DOB+Gender (2-col)
+             Names sync into the passport card surname / given names. -->
+        <div class="profile-section-title">Personal Information</div>
+        <div class="fields-grid">
+          ${this.renderTextCard('givenNames', 'Given Names', d.givenNames)}
+          ${this.renderTextCard('surname',    'Surname',     d.surname)}
+        </div>
+        <div class="fields-grid" style="margin-top:10px;">
+          ${this.renderEmailCard()}
+          ${this.renderPhoneCard()}
+        </div>
+        <div class="fields-grid" style="margin-top:10px;">
+          ${this.renderDOBCard()}
+          ${this.renderPickerCard('gender', 'Gender', d.gender)}
+        </div>
+
+        <!-- LOCATION — Country + City on one row (2-col), Nationality on its own row -->
+        <div class="profile-section-title">Location</div>
+        <div class="fields-grid">
+          ${this.renderPickerCard('country', 'Country', d.country)}
+          ${this.renderPickerCard('city',    'City',    d.city)}
+        </div>
+        <div class="fields-grid" style="margin-top:10px;">
+          ${this.renderPickerCard('nationality', 'Nationality', d.nationality, true)}
+        </div>
+
+        <!-- SECURITY (PIN only) -->
+        <div class="profile-section-title">Security</div>
+        <div class="security-card">
+          <div class="security-card-info">
+            <div class="security-card-label">6-digit Sign-in PIN</div>
+            <div class="security-card-status ${d.hasPin ? 'set' : ''}">
+              ${d.hasPin
+                ? '<span class="pin-display">' + Array(6).fill('<span class="pin-dot"></span>').join('') + '</span> &middot; Active'
+                : 'Not yet set'}
+            </div>
+          </div>
+          <button class="security-btn" onclick="MemberProfile.openPinModal()">${d.hasPin ? 'Change PIN' : 'Set PIN'}</button>
+        </div>
+
+        <!-- PROFESSIONAL PROFILE — member self-declares role; admin verifies separately -->
+        <div class="profile-section-title">Professional Profile</div>
+        ${this.renderProfessionalCard()}
+
+        <!-- SKILLS & LEVELS — used by Meet & Move for matching -->
+        <div class="profile-section-title">
+          Skills &amp; Levels
+          <button class="section-action" onclick="MemberProfile.addSportFlow()">
+            <span class="material-icons">add_circle</span>
+            Add skill
+          </button>
+        </div>
+        <div class="sports-grid">
+          ${d.sports.length === 0
+            ? '<div style="color:var(--muted); font-size:12px; padding:12px;">No skills added yet. Tap &quot;Add skill&quot; to start.</div>'
+            : d.sports.map((s, i) => `
+              <div class="sport-card">
+                <button class="sport-card-remove"
+                        data-skill-index="${i}"
+                        aria-label="Remove ${this.escape(s.name)}"
+                        title="Remove ${this.escape(s.name)}">
+                  <span class="material-icons">close</span>
+                </button>
+                <div class="sport-card-name">${this.escape(s.name)}</div>
+                <div class="sport-card-level">${this.escape(s.level)}</div>
+              </div>
+            `).join('')}
+        </div>
+
+        <!-- PREFERENCES -->
+        <div class="profile-section-title">Preferences</div>
+        <div class="profile-preferences">
+          <label class="pref-toggle">
+            <span>Notifications</span>
+            <input type="checkbox" ${d.preferences.notifications ? 'checked' : ''} onchange="MemberProfile.setPref('notifications', this.checked)">
+          </label>
+          <label class="pref-toggle">
+            <span>Weekly Newsletter</span>
+            <input type="checkbox" ${d.preferences.newsletter ? 'checked' : ''} onchange="MemberProfile.setPref('newsletter', this.checked)">
+          </label>
+          <label class="pref-toggle">
+            <span>Public Profile (Meet &amp; Move)</span>
+            <input type="checkbox" ${d.preferences.publicProfile ? 'checked' : ''} onchange="MemberProfile.setPref('publicProfile', this.checked)">
+          </label>
+        </div>
+      </div>
+    `;
+    
+    // Keep passport card in sync after every render
+    this.syncToPassport();
+    
+    // Wire role-remove buttons (event delegation, since they appear/disappear)
+    document.querySelectorAll('.role-remove[data-role-index]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const i = parseInt(btn.getAttribute('data-role-index'), 10);
+        if (!isNaN(i)) MemberProfile.removeRole(i);
+      });
+    });
+    
+    // Wire skill-remove buttons (no confirm — just removes, easy to re-add from picker)
+    document.querySelectorAll('.sport-card-remove[data-skill-index]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const i = parseInt(btn.getAttribute('data-skill-index'), 10);
+        if (!isNaN(i)) MemberProfile.removeSport(i);
+      });
+    });
+  },
+  
+  // ===== CARD RENDERERS =====
+  
+  // Generic text field — flat input that looks like display text, edits on focus
+  renderTextCard(field, label, value, autocomplete) {
+    return `
+      <div class="field-card">
+        <div class="field-card-label-top">${label}</div>
+        <input type="text"
+               class="field-card-input-flat"
+               value="${this.escape(value)}"
+               autocomplete="${autocomplete || 'off'}"
+               oninput="MemberProfile.data['${field}'] = this.value"
+               onblur="MemberProfile.commit('${field}', this.value)"
+               onkeydown="if(event.key==='Enter'){event.preventDefault(); this.blur();}">
+      </div>
+    `;
+  },
+  
+  renderEmailCard() {
+    return `
+      <div class="field-card full-width">
+        <div class="field-card-label-top">Email</div>
+        <input type="email"
+               class="field-card-input-flat"
+               value="${this.escape(this.data.email)}"
+               autocomplete="email"
+               inputmode="email"
+               placeholder="your@email.com"
+               oninput="MemberProfile.data.email = this.value"
+               onblur="MemberProfile.commit('email', this.value)"
+               onkeydown="if(event.key==='Enter'){event.preventDefault(); this.blur();}">
+      </div>
+    `;
+  },
+  
+  renderPhoneCard() {
+    return `
+      <div class="field-card full-width field-card-phone">
+        <div class="field-card-label-top">Phone</div>
+        <div class="field-card-row">
+          <button class="phone-cc" onclick="MemberProfile.pickPhoneCC()">
+            <span>${this.escape(this.data.phoneCountryCode)}</span>
+            <span class="material-icons">arrow_drop_down</span>
+          </button>
+          <input type="tel"
+                 class="field-card-input-flat phone-num"
+                 value="${this.escape(this.data.phoneNumber)}"
+                 autocomplete="tel-national"
+                 inputmode="tel"
+                 placeholder="56 261 7359"
+                 oninput="MemberProfile.data.phoneNumber = this.value"
+                 onblur="MemberProfile.commit('phoneNumber', this.value)"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault(); this.blur();}">
+        </div>
+      </div>
+    `;
+  },
+  
+  renderDOBCard() {
+    const iso = this.dobAsISO();
+    return `
+      <div class="field-card field-card-dob">
+        <div class="field-card-label-top">Date of Birth</div>
+        <div class="field-card-row">
+          <span class="dob-display">${this.escape(this.formatDOB() || 'Tap to set')}</span>
+          <span class="material-icons dob-icon">calendar_today</span>
+        </div>
+        <input type="date"
+               class="dob-native"
+               value="${iso}"
+               min="1900-01-01"
+               max="${this.dobMaxDate()}"
+               onchange="MemberProfile.setDOBFromNative(this.value)">
+      </div>
+    `;
+  },
+  
+  renderPickerCard(field, label, value, fullWidth) {
+    const isEmpty = !value;
+    return `
+      <div class="field-card field-card-picker${fullWidth ? ' full-width' : ''}" onclick="MemberProfile.openFieldPicker('${field}')">
+        <div class="field-card-label-top">${label}</div>
+        <div class="field-card-row">
+          <span class="field-card-display ${isEmpty ? 'muted' : ''}">${this.escape(value || 'Tap to choose')}</span>
+          <span class="material-icons pt-chevron">arrow_drop_down</span>
+        </div>
+      </div>
+    `;
+  },
+  
+  // ===== COMMITS (flat inputs save on blur/Enter) =====
+  commit(field, value) {
+    const trimmed = (value || '').trim();
+    if (!trimmed) { this.render(); return; }    // revert empty
+    if (this.data[field] === trimmed) return;   // no change
+    this.data[field] = trimmed;
+    // PRODUCTION: PATCH /api/members/me { [field]: trimmed }
+    this.render();
+  },
+  
+  // ===== PHONE COUNTRY CODE =====
+  pickPhoneCC() {
+    openPicker({
+      title: 'Country Code',
+      searchPlaceholder: 'Search countries or codes...',
+      options: COUNTRY_CODES.map(c => ({ value: c.code, label: c.code, sub: c.country })),
+      current: this.data.phoneCountryCode,
+      onPick: (val) => { this.data.phoneCountryCode = val; this.render(); }
+    });
+  },
+  
+  // ===== PROFESSIONAL ROLES =====
+  // Multiple roles supported. Each has its own admin-set verified flag.
+  // Picker always has "Non-professional" as the first option — picking it clears ALL roles.
+  // Picking any specific role ADDS it to the array (no duplicates).
+  openRolePicker() {
+    // Build options: special "Non-professional" entry first, then full taxonomy grouped
+    const currentRoles = (this.data.professional && this.data.professional.roles) || [];
+    const currentRoleNames = currentRoles.map(r => r.role);
+    
+    // Wrap the grouped taxonomy with a synthetic "Status" group at the top
+    const groupedOptions = { 'Status': ['Non-professional'] };
+    Object.keys(FFP_PROFESSIONAL_ROLES).forEach(cat => {
+      groupedOptions[cat] = FFP_PROFESSIONAL_ROLES[cat];
+    });
+    
+    openPicker({
+      title: 'Professional Role',
+      subtitle: currentRoles.length > 0
+        ? 'Pick another role to add, or "Non-professional" to clear all'
+        : 'Pick your role — admin will verify credentials separately',
+      searchPlaceholder: 'Search roles...',
+      options: groupedOptions,
+      grouped: true,
+      current: null,
+      onPick: (val) => {
+        if (val === 'Non-professional') {
+          // Clear all roles
+          this.data.professional = null;
+          // PRODUCTION: PATCH /api/members/me { professional: null }
+        } else {
+          // Add this role if not already present
+          if (currentRoleNames.includes(val)) {
+            alert(`${val} is already in your professional profile.`);
+            return;
+          }
+          if (!this.data.professional) this.data.professional = { roles: [] };
+          this.data.professional.roles.push({ role: val, verified: false });
+          // PRODUCTION: POST /api/members/me/professional-roles { role: val }
+        }
+        this.render();
+      }
+    });
+  },
+  
+  // Remove a single role by its index in professional.roles
+  removeRole(index) {
+    if (!this.data.professional || !this.data.professional.roles) return;
+    this.data.professional.roles.splice(index, 1);
+    if (this.data.professional.roles.length === 0) {
+      this.data.professional = null;
+    }
+    // PRODUCTION: DELETE /api/members/me/professional-roles/{id}
+    this.render();
+  },
+  
+  // ===== DOB (native date picker) =====
+  setDOBFromNative(iso) {
+    if (!iso) return;
+    const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return;
+    this.data.dobYear  = m[1];
+    this.data.dobMonth = m[2];
+    this.data.dobDay   = m[3];
+    this.render();
+  },
+  
+  // ===== PICKER FIELDS =====
+  openFieldPicker(field) {
+    const cfg = this.pickerConfigFor(field);
+    if (!cfg) return;
+    openPicker({
+      title: cfg.title,
+      subtitle: cfg.subtitle || '',
+      searchPlaceholder: cfg.searchPlaceholder || 'Search...',
+      options: cfg.options,
+      grouped: !!cfg.grouped,
+      current: this.data[field],
+      onPick: (val) => {
+        // Handle country change: if current city isn't valid for new country, clear it
+        if (field === 'country' && this.data.country !== val) {
+          const cities = CITIES_DB[val] || [];
+          if (!cities.includes(this.data.city)) this.data.city = '';
+        }
+        this.data[field] = val;
+        this.render();
+      }
+    });
+  },
+  
+  pickerConfigFor(field) {
+    if (field === 'gender')      return { title: 'Gender',      options: GENDERS,                searchPlaceholder: 'Search...' };
+    if (field === 'nationality') return { title: 'Nationality', options: NATIONALITIES,          searchPlaceholder: 'Search nationalities...' };
+    if (field === 'country')     return { title: 'Country',     options: Object.keys(CITIES_DB), searchPlaceholder: 'Search countries...' };
+    if (field === 'city') {
+      // City picker is filtered by the currently-selected country
+      const cities = CITIES_DB[this.data.country] || [];
+      return cities.length === 0
+        ? { title: 'City', subtitle: 'Pick a country first', options: [], searchPlaceholder: 'No cities — pick a country first' }
+        : { title: `City — ${this.data.country}`, subtitle: 'Filtered by your country', options: cities, searchPlaceholder: 'Search cities...' };
+    }
+    return null;
+  },
+  
+  // ===== AVATAR =====
+  changeAvatar() { alert('Change avatar — wires up to image upload when built.'); },
+  
+  // ===== PIN =====
+  openPinModal() {
+    document.getElementById('pin-modal-title').textContent = this.data.hasPin ? 'Change 6-digit PIN' : 'Set 6-digit PIN';
+    document.querySelectorAll('#pin-modal input').forEach(i => i.value = '');
+    document.getElementById('pin-error').textContent = '';
+    document.getElementById('pin-modal').classList.add('show');
+    setTimeout(() => {
+      const first = document.querySelector('#pin-row-1 input[data-pin="1"]');
+      if (first) first.focus();
+    }, 50);
+  },
+  savePin() {
+    const pin1 = Array.from(document.querySelectorAll('#pin-row-1 input')).map(i => i.value).join('');
+    const pin2 = Array.from(document.querySelectorAll('#pin-row-2 input')).map(i => i.value).join('');
+    const err  = document.getElementById('pin-error');
+    if (pin1.length !== 6 || !/^\d{6}$/.test(pin1)) { err.textContent = 'PIN must be 6 digits.'; return; }
+    if (pin1 !== pin2)                               { err.textContent = 'PINs do not match.'; return; }
+    this.data.hasPin = true;
+    closePinModal();
+    this.render();
+  },
+  
+  // ===== ADD SPORT — chained pickers =====
+  addSportFlow() {
+    const grouped = {};
+    ACTIVITIES_DB.forEach(a => { if (!grouped[a.c]) grouped[a.c] = []; grouped[a.c].push(a.n); });
+    openPicker({
+      title: 'Add a Skill',
+      subtitle: 'Step 1 of 2 — Pick from the FFP activity taxonomy',
+      searchPlaceholder: 'Search skills...',
+      options: grouped,
+      grouped: true,
+      onPick: (sportName) => {
+        if (this.data.sports.some(s => s.name.toLowerCase() === sportName.toLowerCase())) {
+          alert(`${sportName} is already in your profile.`);
+          return;
+        }
+        setTimeout(() => {
+          openPicker({
+            title: `Skill Level — ${sportName}`,
+            subtitle: 'Step 2 of 2 — FFP fitness level',
+            searchPlaceholder: 'Search levels...',
+            options: FFP_FITNESS_LEVELS,
+            onPick: (level) => {
+              this.data.sports.push({ name: sportName, level });
+              this.render();
+            }
+          });
+        }, 80);
+      }
+    });
+  },
+  
+  removeSport(index) {
+    const sport = this.data.sports[index];
+    if (!sport) return;
+    // No confirm — easy to re-add via the picker if removed by mistake.
+    this.data.sports.splice(index, 1);
+    // PRODUCTION: DELETE /api/members/me/skills/{id}
+    this.render();
+  },
+  
+  // ===== PREFERENCES =====
+  setPref(key, value) {
+    this.data.preferences[key] = value;
+    // PRODUCTION: PATCH /api/profile/preferences { [key]: value }
+  }
+};
+
+// ===== PROFILE MODAL HELPERS =====
+function closePinModal() { document.getElementById('pin-modal').classList.remove('show'); }
+
+document.addEventListener('input', e => {
+  if (e.target.matches('#pin-modal input[data-pin], #pin-modal input[data-pin-confirm]')) {
+    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 1);
+    if (e.target.value && e.target.nextElementSibling) e.target.nextElementSibling.focus();
+  }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Backspace' && e.target.matches('#pin-modal input[data-pin], #pin-modal input[data-pin-confirm]') && !e.target.value && e.target.previousElementSibling) {
+    e.target.previousElementSibling.focus();
+  }
+});
+
 
 // ===== TIME FILTERS =====
 function setupTimeFilters() {
@@ -2688,10 +3780,12 @@ function setupLogPickers() {
 
 // ===== INIT =====
 function init() {
+  MemberProfile.syncToPassport();  // profile is source of truth — sync before card render
   applyPassportData();
   renderQR();
   setupTopbar();
   setupPanelNav();
+  MemberProfile.render();
   setupTimeFilters();
   setupCityFilters();
   setupViewAll();
@@ -2711,6 +3805,8 @@ function init() {
   document.getElementById('add-city-btn').addEventListener('click', openAddCity);
   document.getElementById('add-city-modal').addEventListener('click', e => { if (e.target.id === 'add-city-modal') closeAddCity(); });
   document.getElementById('log-modal').addEventListener('click', e => { if (e.target.id === 'log-modal') closeLogModal(); });
+  document.getElementById('pin-modal').addEventListener('click', e => { if (e.target.id === 'pin-modal') closePinModal(); });
+  // Picker modal click-outside is wired inside the Picker module
   document.getElementById('city-search').addEventListener('input', e => renderCityList(e.target.value));
   renderAll();
   console.log('FFP Dashboard v17 - clean build loaded');
