@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FFP Passport — Member Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.css">
   <style>
     :root {
       --blue: #1980AD;
@@ -17,206 +18,127 @@
       --amber: #FFCC00;
       --amber-dk: #cc9900;
       --green: #22c55e;
-      --green-bg: rgba(34, 197, 94, 0.1);
-      --green-bd: rgba(34, 197, 94, 0.28);
       --muted: #6a90a8;
       --muted-lt: #9dbdd0;
-      --sidebar: 230px;
     }
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; font-family: 'Montserrat', sans-serif; background: var(--navy-deep); color: #fff; }
 
-    html, body {
-      height: 100%;
-      font-family: 'Montserrat', sans-serif;
-      background: var(--navy-deep);
-      color: #fff;
-    }
-
-    .app {
-      display: flex;
-      height: 100dvh;
-      overflow: hidden;
-    }
-
-    /* SIDEBAR */
-    .sidebar {
-      width: var(--sidebar);
-      flex-shrink: 0;
-      background: var(--navy);
-      border-right: 1px solid rgba(25, 128, 173, 0.15);
-      display: flex;
-      flex-direction: column;
-    }
-
-    .sb-logo {
-      padding: 22px 20px 16px;
-      border-bottom: 1px solid rgba(25, 128, 173, 0.1);
-    }
-
-    .sb-brand {
-      font-size: 16px;
-      font-weight: 900;
-      letter-spacing: 2px;
-    }
-
-    .sb-brand span {
-      color: var(--blue);
-    }
-
-    .sb-nav {
-      flex: 1;
-      padding: 12px 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      overflow-y: auto;
-    }
-
-    .ni {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 11px 14px;
-      border-radius: 9px;
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--muted);
-      cursor: pointer;
-      transition: all 0.2s;
-      border: 1px solid transparent;
-    }
-
-    .ni:hover {
-      background: rgba(25, 128, 173, 0.08);
-      color: #fff;
-    }
-
-    .ni.active {
-      background: rgba(25, 128, 173, 0.15);
-      color: #fff;
-      border-color: rgba(25, 128, 173, 0.22);
-    }
-
-    .sb-profile {
-      padding: 14px 16px;
-      border-top: 1px solid rgba(25, 128, 173, 0.1);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      cursor: pointer;
-    }
-
-    .av {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--blue), var(--blue-lt));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 13px;
-      font-weight: 800;
-      flex-shrink: 0;
-    }
-
-    .pname {
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    .psub {
-      font-size: 10px;
-      color: var(--muted);
-      margin-top: 1px;
-    }
-
-    /* MAIN */
-    .main {
-      flex: 1;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      background: var(--navy-deep);
-    }
+    .app { display: flex; height: 100dvh; overflow: hidden; flex-direction: column; }
 
     .topbar {
       background: rgba(11, 28, 40, 0.95);
       border-bottom: 1px solid rgba(25, 128, 173, 0.1);
-      padding: 0 28px;
+      padding: 0 16px;
       height: 58px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      flex-shrink: 0;
       position: sticky;
       top: 0;
-      z-index: 10;
+      z-index: 50;
     }
 
-    .tb-title {
-      font-size: 17px;
+    .tb-left { display: flex; align-items: center; gap: 12px; }
+    .tb-title { font-size: 15px; font-weight: 900; }
+    .tb-right { display: flex; align-items: center; gap: 10px; }
+
+    .tb-icon-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: rgba(25, 128, 173, 0.1);
+      border: 1px solid rgba(25, 128, 173, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      color: currentColor;
+    }
+
+    .tb-badge {
+      position: absolute;
+      top: -3px;
+      right: -3px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--amber);
+      color: #000;
+      font-size: 8px;
       font-weight: 900;
-      letter-spacing: -0.2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    /* PANELS */
-    .panels-container {
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 16px 80px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* MOBILE NAV — BOTTOM */
+    .mobile-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--navy);
+      border-top: 1px solid rgba(25, 128, 173, 0.15);
+      z-index: 100;
+      padding: 6px 0;
+      display: flex;
+    }
+
+    .mob-item {
       flex: 1;
       display: flex;
       flex-direction: column;
-      overflow: hidden;
-    }
-
-    .panel-tabs {
-      display: flex;
-      gap: 8px;
-      padding: 16px 28px 0;
-      border-bottom: 1px solid rgba(25, 128, 173, 0.1);
-      overflow-x: auto;
-    }
-
-    .panel-tab {
-      padding: 12px 16px;
-      border: none;
-      background: transparent;
-      color: var(--muted);
-      font-family: 'Montserrat', sans-serif;
-      font-size: 12px;
-      font-weight: 700;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
       cursor: pointer;
-      border-bottom: 2px solid transparent;
-      transition: all 0.2s;
-      white-space: nowrap;
+      padding: 6px 0;
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--muted);
+      transition: color 0.2s;
+      border-top: 2px solid transparent;
     }
 
-    .panel-tab:hover {
-      color: #fff;
+    .mob-item svg {
+      color: currentColor;
+      flex-shrink: 0;
     }
 
-    .panel-tab.active {
-      color: var(--blue);
-      border-bottom-color: var(--blue);
+    .mob-item.active {
+      color: var(--blue-lt);
+      border-top-color: var(--blue-lt);
     }
 
-    .panel-content {
-      flex: 1;
-      overflow-y: auto;
-      padding: 24px 28px 200px;
-      display: none;
-    }
+    /* AVATAR DROPDOWN MENU */
+    .avatar-menu { position: relative; }
 
-    .panel-content.active {
-      display: block;
-    }
-
-    /* MENU DROPDOWN */
-    .avatar-menu {
-      position: relative;
+    .avatar-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--blue-dk), var(--blue));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 900;
+      cursor: pointer;
+      border: 2px solid rgba(43, 168, 224, 0.3);
     }
 
     .menu-dropdown {
@@ -227,7 +149,7 @@
       border: 1px solid rgba(25, 128, 173, 0.2);
       border-radius: 12px;
       width: 320px;
-      max-height: 80vh;
+      max-height: 70vh;
       overflow-y: auto;
       display: none;
       z-index: 1000;
@@ -235,203 +157,98 @@
       box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
     }
 
-    .menu-dropdown.active {
-      display: block;
-    }
+    .menu-dropdown.active { display: block; }
 
-    #menu-content {
-      /* Populated by user menu JS files */
-    }
-
-    /* MOBILE */
-    .mobile-nav {
-      display: none;
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: var(--navy);
-      border-top: 1px solid rgba(25, 128, 173, 0.15);
-      z-index: 100;
-      padding: 6px 0;
-    }
-
-    @media (max-width: 900px) {
-      .sidebar {
-        display: none;
-      }
-
-      .mobile-nav {
-        display: flex;
-      }
-
-      .panel-tabs {
-        padding: 16px 16px 0;
-      }
-
-      .panel-content {
-        padding: 16px;
-      }
-    }
-
-    /* UTILITY */
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      padding: 10px 20px;
-      border-radius: 8px;
-      font-size: 12px;
-      font-weight: 800;
-      cursor: pointer;
-      border: none;
-      font-family: 'Montserrat', sans-serif;
-      letter-spacing: 0.3px;
-      transition: all 0.2s;
-    }
-
-    .btn-blue {
-      background: linear-gradient(135deg, var(--blue), var(--blue-lt));
-      color: #fff;
-      box-shadow: 0 4px 16px rgba(25, 128, 173, 0.3);
-    }
-
-    .btn-blue:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(25, 128, 173, 0.4);
-    }
-
-    .btn-amber {
-      background: linear-gradient(135deg, var(--amber-dk), var(--amber));
-      color: #000;
-    }
-
-    .btn-outline {
-      background: transparent;
-      border: 1px solid rgba(25, 128, 173, 0.3);
-      color: var(--muted-lt);
-    }
-
-    .btn-outline:hover {
-      border-color: var(--blue);
-      color: #fff;
-    }
+    #menu-content { min-height: 100px; }
   </style>
 </head>
 <body>
   <div class="app">
-    <!-- SIDEBAR -->
-    <div class="sidebar">
-      <div class="sb-logo">
-        <div class="sb-brand">FFP <span>Passport</span></div>
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="tb-left">
+        <div class="tb-title" id="page-title">My Passport</div>
       </div>
-
-      <div class="sb-nav">
-        <div class="ni active" onclick="switchPanel('passport')">
-          📋 Passport
+      <div class="tb-right">
+        <div class="tb-icon-btn">
+          <i data-feather="bell" style="width: 18px; height: 18px;"></i>
+          <div class="tb-badge">3</div>
         </div>
-        <div class="ni" onclick="switchPanel('deals')">
-          🤝 Deals
-        </div>
-        <div class="ni" onclick="switchPanel('events')">
-          📅 Events
-        </div>
-        <div class="ni" onclick="switchPanel('experiences')">
-          ✈️ Experiences
-        </div>
-        <div class="ni" onclick="switchPanel('challenges')">
-          🏆 Challenges
-        </div>
-        <div class="ni" onclick="switchPanel('meetmove')">
-          👥 Meet & Move
-        </div>
-      </div>
-
-      <div class="sb-profile" onclick="toggleMenu()">
-        <div class="av">GH</div>
-        <div>
-          <div class="pname">Grant</div>
-          <div class="psub">Member</div>
-        </div>
-      </div>
-
-      <!-- AVATAR MENU DROPDOWN -->
-      <div class="avatar-menu" style="padding: 0 10px 10px;">
-        <div class="menu-dropdown" id="menu-dropdown">
-          <div id="menu-content"></div>
+        <div class="avatar-menu">
+          <div class="avatar-btn" onclick="toggleMenu(event)">GH</div>
+          <div class="menu-dropdown" id="menu-dropdown">
+            <div id="menu-content"></div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- MAIN CONTENT -->
-    <div class="main">
-      <div class="topbar">
-        <div class="tb-title" id="panel-title">My Passport</div>
-        <div></div>
+    <!-- MAIN CONTENT — PANELS -->
+    <div class="main-content">
+      <div id="passport" class="panel active"></div>
+      <div id="deals" class="panel"></div>
+      <div id="events" class="panel"></div>
+      <div id="experiences" class="panel"></div>
+      <div id="challenges" class="panel"></div>
+      <div id="meetmove" class="panel"></div>
+    </div>
+
+    <!-- MOBILE NAV — BOTTOM -->
+    <div class="mobile-nav">
+      <div class="mob-item active" onclick="switchPanel('passport')">
+        <i data-feather="credit-card" style="width: 20px; height: 20px;"></i>
+        <span>Passport</span>
       </div>
-
-      <div class="panels-container">
-        <!-- PANEL TABS -->
-        <div class="panel-tabs">
-          <button class="panel-tab active" onclick="switchPanel('passport')">Passport</button>
-          <button class="panel-tab" onclick="switchPanel('deals')">Deals</button>
-          <button class="panel-tab" onclick="switchPanel('events')">Events</button>
-          <button class="panel-tab" onclick="switchPanel('experiences')">Experiences</button>
-          <button class="panel-tab" onclick="switchPanel('challenges')">Challenges</button>
-          <button class="panel-tab" onclick="switchPanel('meetmove')">Meet & Move</button>
-        </div>
-
-        <!-- PANEL CONTENT -->
-        <div id="passport" class="panel-content active"></div>
-        <div id="deals" class="panel-content"></div>
-        <div id="events" class="panel-content"></div>
-        <div id="experiences" class="panel-content"></div>
-        <div id="challenges" class="panel-content"></div>
-        <div id="meetmove" class="panel-content"></div>
+      <div class="mob-item" onclick="switchPanel('deals')">
+        <i data-feather="gift" style="width: 20px; height: 20px;"></i>
+        <span>Deals</span>
+      </div>
+      <div class="mob-item" onclick="switchPanel('events')">
+        <i data-feather="calendar" style="width: 20px; height: 20px;"></i>
+        <span>Events</span>
+      </div>
+      <div class="mob-item" onclick="switchPanel('experiences')">
+        <i data-feather="map" style="width: 20px; height: 20px;"></i>
+        <span>Experiences</span>
+      </div>
+      <div class="mob-item" onclick="switchPanel('challenges')">
+        <i data-feather="award" style="width: 20px; height: 20px;"></i>
+        <span>Challenges</span>
+      </div>
+      <div class="mob-item" onclick="switchPanel('meetmove')">
+        <i data-feather="users" style="width: 20px; height: 20px;"></i>
+        <span>Meet & Move</span>
       </div>
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
   <script>
-    // Panel switching
-    function switchPanel(panelName) {
-      // Hide all panels
-      document.querySelectorAll('.panel-content').forEach(p => p.classList.remove('active'));
-      document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.ni').forEach(n => n.classList.remove('active'));
-
-      // Show selected panel
-      document.getElementById(panelName).classList.add('active');
-      document.querySelector(`[onclick="switchPanel('${panelName}')"]`).classList.add('active');
-      event?.target?.classList.add('active');
-
-      // Update title
-      const titles = {
-        passport: 'My Passport',
-        deals: 'Deals',
-        events: 'Events',
-        experiences: 'Experiences',
-        challenges: 'Challenges',
-        meetmove: 'Meet & Move'
+    feather.replace();
+    
+    function switchPanel(name) {
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.mob-item').forEach(m => m.classList.remove('active'));
+      
+      document.getElementById(name).classList.add('active');
+      event?.target?.closest('.mob-item')?.classList.add('active');
+      
+      const titles = { 
+        passport: 'My Passport', 
+        deals: 'Deals', 
+        events: 'Events', 
+        experiences: 'Experiences', 
+        challenges: 'Challenges', 
+        meetmove: 'Meet & Move' 
       };
-      document.getElementById('panel-title').textContent = titles[panelName] || 'Dashboard';
-
-      // Load panel content (placeholder for now)
-      loadPanel(panelName);
+      document.getElementById('page-title').textContent = titles[name];
     }
 
-    function loadPanel(panelName) {
-      const panel = document.getElementById(panelName);
-      panel.innerHTML = `<p style="padding: 20px; color: var(--muted);">Loading ${panelName}...</p>`;
-      // Panel content will be loaded from your existing panel files
-    }
-
-    // Avatar menu dropdown
-    function toggleMenu() {
+    function toggleMenu(e) {
+      e.stopPropagation();
       const dropdown = document.getElementById('menu-dropdown');
       dropdown.classList.toggle('active');
       
-      // Load user menu content
       if (dropdown.classList.contains('active')) {
         loadUserMenu();
       }
@@ -440,25 +257,32 @@
     function loadUserMenu() {
       const content = document.getElementById('menu-content');
       
-      // Placeholder menu options
-      const menuOptions = [
-        { name: 'Workout Timer', id: 'workout-timer' },
-        { name: 'Calorie Tracker', id: 'calorie-tracker' },
-        { name: 'Fitness Stats', id: 'fitness-stats' },
-        { name: 'My Earnings', id: 'earnings' },
-        { name: 'My Profile', id: 'profile' }
-      ];
-
       content.innerHTML = `
         <div style="padding: 16px; text-align: center; color: var(--muted);">
-          Menu system ready. User menu files loaded.
+          <p style="font-size: 11px; margin-bottom: 12px;">Loading menu...</p>
         </div>
       `;
+
+      const menuFiles = [
+        'menu-workout-timer.js',
+        'menu-calorie-tracker.js',
+        'menu-fitness-stats.js',
+        'menu-earnings.js',
+        'menu-profile.js'
+      ];
+
+      menuFiles.forEach(file => {
+        const script = document.createElement('script');
+        script.src = '/user-menu/' + file;
+        script.onerror = () => {
+          console.log(file + ' not found or not loaded yet');
+        };
+        document.head.appendChild(script);
+      });
     }
 
-    // Close menu when clicking elsewhere
     document.addEventListener('click', (e) => {
-      if (!e.target.closest('.avatar-menu') && !e.target.closest('.sb-profile')) {
+      if (!e.target.closest('.avatar-menu')) {
         document.getElementById('menu-dropdown').classList.remove('active');
       }
     });
