@@ -219,67 +219,64 @@
       if (!panel) { console.error('Panel container not found:', name); return; }
       const panelFiles = { passport: 'panel-passport.html', deals: 'panel-deals.html', events: 'panel-events.html', experiences: 'panel-experiences.html', challenges: 'panel-challenges.html', meetmove: 'panel-meetmove.html' };
       const url = `https://ffppassport.com/panels/${panelFiles[name]}`;
-      console.log('Loading panel:', name, 'from', url);
+      console.log('Loading panel from:', url);
       
       fetch(url)
-        .then(r => {
-          console.log('Fetch response status:', r.status);
-          return r.text();
-        })
+        .then(r => r.text())
         .then(html => {
-          console.log('HTML fetched, length:', html.length);
-          // Parse as full document
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(html, 'text/html');
-          
-          // Extract body content
-          const body = doc.querySelector('body');
-          let content = body?.innerHTML || html;
-          console.log('Content extracted, length:', content.length);
-          
-          // Find all styles from head and body
-          const styles = doc.querySelectorAll('style');
-          const styleContent = Array.from(styles).map(s => s.textContent).join('\n');
-          console.log('Styles found:', styles.length);
-          
-          // Find all scripts from body
-          const scripts = doc.querySelectorAll('script');
-          const scriptTexts = Array.from(scripts).map(s => s.textContent);
-          console.log('Scripts found:', scripts.length);
-          
-          // Clear and rebuild panel
-          panel.innerHTML = '';
-          
-          // Add styles if any
-          if (styleContent) {
-            const styleEl = document.createElement('style');
-            styleEl.textContent = styleContent;
-            panel.appendChild(styleEl);
+          // Extract just the body content with regex
+          const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+          if (!bodyMatch) {
+            console.error('No body found in HTML');
+            return;
           }
           
-          // Add content
-          const contentDiv = document.createElement('div');
-          contentDiv.innerHTML = content;
-          panel.appendChild(contentDiv);
-          console.log('Content added to panel');
+          const bodyHTML = bodyMatch[1];
+          console.log('Body HTML extracted, length:', bodyHTML.length);
           
-          // Execute scripts
-          scriptTexts.forEach((scriptText, i) => {
-            const script = document.createElement('script');
-            script.textContent = scriptText;
-            panel.appendChild(script);
-            console.log('Script', i, 'executed');
+          // Extract all scripts
+          const scripts = [];
+          const scriptRegex = /<script[^>]*>([\s\S]*?)<\/script>/gi;
+          let match;
+          while ((match = scriptRegex.exec(html)) !== null) {
+            scripts.push(match[1]);
+          }
+          console.log('Scripts found:', scripts.length);
+          
+          // Remove scripts from HTML before inserting
+          let cleanHTML = bodyHTML.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+          
+          // Insert the clean HTML into the panel
+          panel.innerHTML = cleanHTML;
+          console.log('HTML inserted into panel');
+          
+          // Now execute scripts one by one
+          scripts.forEach((code, idx) => {
+            try {
+              const script = document.createElement('script');
+              script.textContent = code;
+              document.body.appendChild(script);
+              console.log('Script', idx, 'executed');
+            } catch(e) {
+              console.error('Script execution error:', e);
+            }
           });
           
-          // For passport panel, manually call init since DOMContentLoaded already fired
-          if (name === 'passport' && window.FFPJourney) {
-            console.log('Calling FFPJourney.init() manually');
-            window.FFPJourney.init();
+          // For passport, call init manually
+          if (name === 'passport') {
+            setTimeout(() => {
+              if (window.FFPJourney && window.FFPJourney.init) {
+                console.log('Calling FFPJourney.init()');
+                window.FFPJourney.init();
+              } else {
+                console.error('FFPJourney.init not available');
+              }
+            }, 100);
           }
         })
         .catch(err => {
-          console.error('Panel load error:', err);
-          panel.innerHTML = `<p style="padding:20px;color:#ff6b6b;">Error loading panel: ${err.message}</p>`;
+          console.error('Fetch failed:', err);
+          panel.innerHTML = `<p style="padding:20px;color:#ff6b6b;">Error: ${err.message}</p>`;
         });
     }
 
