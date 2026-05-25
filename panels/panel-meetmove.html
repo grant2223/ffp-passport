@@ -52,76 +52,9 @@ button, input, select, textarea { font-family: inherit; color: inherit; }
 .ti { display: inline-block; width: 1em; height: 1em; vertical-align: -0.125em; flex-shrink: 0; }
 
 /* ════════ SHELL ════════ */
-.app { display: flex; height: 100vh; overflow: hidden; }
-.sidebar {
-  width: 230px; flex-shrink: 0;
-  background: var(--ffp-bg-2);
-  border-right: 1px solid var(--ffp-border);
-  display: flex; flex-direction: column;
-}
-.sb-logo { padding: 22px 20px 16px; border-bottom: 1px solid var(--ffp-border); }
-.sb-brand { font-size: 16px; font-weight: 900; letter-spacing: 2px; }
-.sb-brand span { color: var(--ffp-blue); }
-.sb-nav { flex: 1; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; }
-.ni {
-  display: flex; align-items: center; gap: 10px;
-  padding: 11px 14px; border-radius: 9px;
-  font-size: 13px; font-weight: 700;
-  color: var(--ffp-text-muted);
-  cursor: pointer; transition: all .2s;
-  border: 1px solid transparent;
-}
-.ni:hover { background: rgba(43, 168, 224, .06); color: var(--ffp-text); }
-.ni.active {
-  background: rgba(43, 168, 224, .14);
-  color: var(--ffp-text);
-  border-color: rgba(43, 168, 224, .26);
-}
-.ni .ti { font-size: 17px; flex-shrink: 0; }
-.ni-badge {
-  margin-left: auto;
-  background: var(--ffp-yellow); color: #000;
-  border-radius: 100px; padding: 1px 7px;
-  font-size: 9px; font-weight: 800;
-}
-.ni-badge.blue { background: var(--ffp-blue); color: #fff; }
-
-.main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
-.main::-webkit-scrollbar { width: 6px; }
-.main::-webkit-scrollbar-thumb { background: rgba(43, 168, 224, .2); border-radius: 3px; }
-
-.topbar {
-  background: rgba(11, 28, 40, .92);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border-bottom: 1px solid var(--ffp-border);
-  padding: 0 28px;
-  height: 58px;
-  display: flex; align-items: center; justify-content: space-between;
-  flex-shrink: 0;
-  position: sticky; top: 0; z-index: 10;
-}
-.tb-title { font-size: 17px; font-weight: 900; letter-spacing: -.2px; }
-.tb-actions { display: flex; align-items: center; gap: 12px; }
-.tb-bell {
-  width: 36px; height: 36px; border-radius: 50%;
-  background: rgba(43, 168, 224, .08);
-  border: 1px solid var(--ffp-border-mid);
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; color: var(--ffp-text);
-}
-.tb-bell .ti { font-size: 16px; }
-.tb-avatar {
-  width: 36px; height: 36px; border-radius: 50%;
-  background: linear-gradient(135deg, var(--ffp-blue-darker), var(--ffp-blue));
-  display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 900;
-  border: 2px solid var(--ffp-border-str);
-  cursor: pointer;
-}
 
 /* ════════ PANEL ════════ */
-.panel { padding: 26px 28px 90px; max-width: 1240px; width: 100%; margin: 0 auto; }
+.panel { max-width: 880px; margin: 0 auto; padding: 24px 20px 80px; }
 .ph {
   font-size: 26px; font-weight: 900;
   letter-spacing: -.5px;
@@ -1565,11 +1498,11 @@ button, input, select, textarea { font-family: inherit; color: inherit; }
 
 /* Responsive */
 @media (max-width: 900px) {
-  .sidebar { display: none; }
+  
   .bottom-tabs { display: flex; }
-  .panel { padding: 18px 14px 110px; }
+  
   .ph { font-size: 22px; }
-  .topbar { padding: 0 14px; height: 54px; }
+  
   .mm-hero { grid-template-columns: 36px 1fr; padding: 14px; gap: 12px; }
   .mm-hero .btn-primary { grid-column: 1 / -1; width: 100%; justify-content: center; }
   .cards-grid { grid-template-columns: 1fr; }
@@ -1583,31 +1516,7 @@ button, input, select, textarea { font-family: inherit; color: inherit; }
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></symbol><symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5l10 -10"/></symbol><symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></symbol><symbol id="i-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l14 0"/><path d="M13 18l6 -6"/><path d="M13 6l6 6"/></symbol><symbol id="i-calendar-event" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M4 11h16"/><path d="M8 15h2v2h-2z"/></symbol><symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></symbol><symbol id="i-map-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="11" r="3"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"/></symbol><symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5a2 2 0 0 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6"/><path d="M9 17v1a3 3 0 0 0 6 0v-1"/></symbol><symbol id="i-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6l9 -6"/></symbol><symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14l11 -11"/><path d="M21 3l-6.5 18a.55 .55 0 0 1 -1 0l-3.5 -7l-7 -3.5a.55 .55 0 0 1 0 -1l18 -6.5"/></symbol><symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><path d="M21 21l-6 -6"/></symbol><symbol id="i-shield-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.46 20.846a12 12 0 0 1 -7.96 -14.846a12 12 0 0 0 8.5 -3a12 12 0 0 0 8.5 3a12 12 0 0 1 -.09 7.06"/><path d="M15 19l2 2l4 -4"/></symbol><symbol id="i-info-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 9h.01"/><path d="M11 12h1v4h1"/></symbol><symbol id="i-alert-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol><symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><circle cx="12" cy="16" r="1"/><path d="M8 11v-4a4 4 0 1 1 8 0v4"/></symbol><symbol id="i-flame" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c2 -2.96 0 -7 -1 -8c0 3.038 -1.773 4.741 -3 6c-1.226 1.26 -2 3.24 -2 5a5 5 0 0 0 10 0c0 -1.532 -1.056 -3.94 -2 -5c-1.786 3 -2.791 3 -2 2z"/></symbol><symbol id="i-sparkles" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.7 4.3l4.3 1.7l-4.3 1.7l-1.7 4.3l-1.7 -4.3l-4.3 -1.7l4.3 -1.7z"/><path d="M19 14l.8 2l2 .8l-2 .8l-.8 2l-.8 -2l-2 -.8l2 -.8z"/><path d="M19 4l.6 1.6l1.4 .6l-1.4 .6l-.6 1.4l-.6 -1.4l-1.4 -.6l1.4 -.6z"/></symbol><symbol id="i-bolt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3l-7 11l5 0l-1 7l7 -11l-5 0z"/></symbol><symbol id="i-coin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1"/><path d="M12 7v10"/></symbol><symbol id="i-id" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M15 8h2"/><path d="M15 12h2"/><path d="M7 16h10"/></symbol><symbol id="i-tag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 6h-2.5a2 2 0 0 0 -2 2v2.5c0 .5 .2 1 .6 1.4l6.1 6.1a2 2 0 0 0 2.9 0l4.8 -4.8a2 2 0 0 0 0 -2.9l-6.1 -6.1a2 2 0 0 0 -1.4 -.6z"/><circle cx="7" cy="10" r=".5" fill="currentColor"/></symbol><symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0 -3 -3.85"/></symbol><symbol id="i-mountain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20l3.5 -8l5.5 9l2.5 -4l1 2l3 -6l2.5 7z"/></symbol><symbol id="i-trophy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21l8 0"/><path d="M12 17v4"/><path d="M7 4h10v8a5 5 0 0 1 -10 0z"/><path d="M7 4h-2a2 2 0 0 0 -2 2v2a2 2 0 0 0 2 2h2"/><path d="M17 4h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2"/></symbol><symbol id="i-ball-tennis" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M5.65 5.65a9 9 0 0 1 0 12.7"/><path d="M18.35 5.65a9 9 0 0 0 0 12.7"/></symbol><symbol id="i-ball-football" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7l4.76 3.45l-1.76 5.55h-6l-1.76 -5.55z"/><path d="M12 7v-4"/><path d="M15 16l2.5 3"/><path d="M9 16l-2.5 3"/><path d="M21 7.5l-4.5 3"/><path d="M3 7.5l4.5 3"/></symbol><symbol id="i-run" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4" r="1"/><path d="M4 22l5 -9"/><path d="M16 22l-3 -8l-3 -3l3 -5l3 5l4 3"/><path d="M16 11l3 -3l-2 -3"/></symbol><symbol id="i-bike" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><path d="M12 19v-4l-3 -3l5 -4l2 3h3"/><circle cx="17" cy="5" r="1"/></symbol><symbol id="i-swimming" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12c.6 0 1.2 -.2 1.8 -.5l2.1 -1.3a2.7 2.7 0 0 1 2.8 0l2.6 1.6a2.7 2.7 0 0 0 2.8 0l2.6 -1.6a2.7 2.7 0 0 1 2.8 0l2.1 1.3c.6 .3 1.2 .5 1.8 .5"/><path d="M3 17c.6 0 1.2 -.2 1.8 -.5l2.1 -1.3a2.7 2.7 0 0 1 2.8 0l2.6 1.6a2.7 2.7 0 0 0 2.8 0l2.6 -1.6a2.7 2.7 0 0 1 2.8 0l2.1 1.3c.6 .3 1.2 .5 1.8 .5"/><circle cx="16" cy="9" r="3"/></symbol><symbol id="i-wave-sine" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12c.5 -3.5 2 -8 4 -8s3.5 4.5 5 8s3 8 5 8s3.5 -4.5 4 -8"/></symbol><symbol id="i-barbell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h1"/><path d="M21 12h1"/><rect x="3" y="9" width="3" height="6" rx="1"/><rect x="6" y="7" width="3" height="10" rx="1"/><path d="M9 12h6"/><rect x="15" y="7" width="3" height="10" rx="1"/><rect x="18" y="9" width="3" height="6" rx="1"/></symbol><symbol id="i-yoga" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4" r="1.5"/><path d="M5 21a7 7 0 0 1 14 0"/><path d="M12 7v9"/><path d="M5 13l7 -3l7 3"/></symbol><symbol id="i-golf" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 18v-15l7 4l-7 4"/><path d="M9 21a3 3 0 0 1 6 0"/></symbol><symbol id="i-karate" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="5" r="2"/><path d="M5 22l3.5 -6l3 -1.5l-1 -5.5l5 1.5l3 2.5l3 -1.5"/><path d="M19 22l-2 -7"/></symbol><symbol id="i-music" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="17" r="3"/><circle cx="16" cy="15" r="3"/><path d="M9 17v-13h10v11"/></symbol><symbol id="i-message-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20l1.3 -3.9a9 8 0 1 1 3.4 2.9l-4.7 1z"/></symbol><symbol id="i-chart-bar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="4" height="9" rx="1"/><rect x="10" y="6" width="4" height="15" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/></symbol></defs></svg>
 
-<div class="app">
-
-<aside class="sidebar">
-  <div class="sb-logo">
-    <div class="sb-brand">FFP <span>PASSPORT</span></div>
-  </div>
-  <nav class="sb-nav">
-    <div class="ni"><svg class="ti"><use href="#i-id"/></svg>My Passport</div>
-    <div class="ni"><svg class="ti"><use href="#i-tag"/></svg>Deals<span class="ni-badge blue">14</span></div>
-    <div class="ni"><svg class="ti"><use href="#i-calendar-event"/></svg>Events<span class="ni-badge">3</span></div>
-    <div class="ni active"><svg class="ti"><use href="#i-users"/></svg>Meet &amp; Move<span class="ni-badge blue">8</span></div>
-    <div class="ni"><svg class="ti"><use href="#i-coin"/></svg>Earnings<span class="ni-badge">5</span></div>
-    <div class="ni"><svg class="ti"><use href="#i-mountain"/></svg>Experiences<span class="ni-badge blue">2</span></div>
-    <div class="ni"><svg class="ti"><use href="#i-trophy"/></svg>Challenges<span class="ni-badge">2</span></div>
-    <div class="ni"><svg class="ti"><use href="#i-bell"/></svg>Notifications<span class="ni-badge">4</span></div>
-  </nav>
-</aside>
-
-<main class="main">
-  <div class="topbar">
-    <div class="tb-title">Meet &amp; Move</div>
-    <div class="tb-actions">
-      <button class="tb-bell" aria-label="Notifications"><svg class="ti"><use href="#i-bell"/></svg></button>
-      <div class="tb-avatar">GH</div>
-    </div>
+<main class="panel">
   </div>
 
   <div class="panel" id="panel-meet-move">
@@ -1617,7 +1526,6 @@ button, input, select, textarea { font-family: inherit; color: inherit; }
 
     <div class="matches-strip">
       <div class="ms-head">
-        <div class="ms-head-left">
           <div class="ms-head-icon"><svg class="ti"><use href="#i-sparkles"/></svg></div>
           <div>
             <div class="ms-head-eyebrow">For You</div>
