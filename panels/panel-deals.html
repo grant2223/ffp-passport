@@ -25,26 +25,17 @@
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { height: 100%; font-family: 'Montserrat', sans-serif; background: var(--navy-deep); color: #fff; -webkit-font-smoothing: antialiased; }
-.app { display: flex; height: 100vh; overflow: hidden; }
 
-.sidebar { width: 230px; flex-shrink: 0; background: var(--navy); border-right: 1px solid rgba(25,128,173,.12); display: flex; flex-direction: column; }
-.sb-logo { padding: 22px 20px 16px; border-bottom: 1px solid rgba(25,128,173,.1); }
-.sb-brand { font-size: 16px; font-weight: 900; letter-spacing: 2px; }
-.sb-brand span { color: var(--blue); }
-.sb-nav { flex: 1; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; }
 .ni { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-radius: 9px; font-size: 13px; font-weight: 700; color: var(--muted); cursor: pointer; transition: all .2s; border: 1px solid transparent; }
 .ni:hover { background: rgba(25,128,173,.06); color: #fff; }
 .ni.active { background: rgba(25,128,173,.12); color: #fff; border-color: rgba(25,128,173,.2); }
 .ni-badge { margin-left: auto; background: var(--amber); color: #000; border-radius: 100px; padding: 1px 6px; font-size: 9px; font-weight: 800; }
 .ni-badge.blue { background: var(--blue); color: #fff; }
 
-.main { flex: 1; overflow-y: auto; background: radial-gradient(ellipse at top, #0a1825 0%, var(--navy-deep) 60%); }
 .main::-webkit-scrollbar { width: 6px; }
 .main::-webkit-scrollbar-thumb { background: rgba(25,128,173,.2); border-radius: 3px; }
-.topbar { background: rgba(11,28,40,.85); backdrop-filter: blur(14px); border-bottom: 1px solid rgba(25,128,173,.08); padding: 0 28px; height: 58px; display: flex; align-items: center; position: sticky; top: 0; z-index: 10; }
-.tb-title { font-size: 17px; font-weight: 900; letter-spacing: -.2px; }
 
-.panel { padding: 28px 28px 100px; max-width: 1400px; margin: 0 auto; }
+.panel { max-width: 880px; margin: 0 auto; padding: 24px 20px 80px; }
 
 .ph { font-size: 28px; font-weight: 900; letter-spacing: -.5px; line-height: 1; margin-bottom: 8px; }
 .psub2 { font-size: 13px; color: var(--muted-lt); margin-bottom: 22px; line-height: 1.6; font-weight: 500; max-width: 540px; }
@@ -659,10 +650,10 @@ html, body { height: 100%; font-family: 'Montserrat', sans-serif; background: va
   .pr-cat { display: none; }
 }
 @media (max-width: 900px) {
-  .sidebar { display: none; }
-  .panel { padding: 20px 16px 90px; }
+  
+  
   .ph { font-size: 24px; }
-  .topbar { padding: 0 16px; }
+  
   .dm-info-grid { grid-template-columns: 1fr; }
   .deals-tab { margin-right: 20px; font-size: 10px; }
 }
@@ -670,26 +661,7 @@ html, body { height: 100%; font-family: 'Montserrat', sans-serif; background: va
 </head>
 <body>
 
-<div class="app">
-
-<div class="sidebar">
-  <div class="sb-logo">
-    <div class="sb-brand">FFP <span>PASSPORT</span></div>
-  </div>
-  <div class="sb-nav">
-    <div class="ni">My Passport</div>
-    <div class="ni active">Deals<span class="ni-badge blue">14</span></div>
-    <div class="ni">Events<span class="ni-badge">3</span></div>
-    <div class="ni">Meet &amp; Move</div>
-    <div class="ni">Earnings<span class="ni-badge">5</span></div>
-    <div class="ni">Experiences<span class="ni-badge blue">2</span></div>
-    <div class="ni">Challenges<span class="ni-badge">2</span></div>
-    <div class="ni">Notifications<span class="ni-badge">4</span></div>
-  </div>
-</div>
-
 <div class="main">
-  <div class="topbar"><div class="tb-title">Deals</div></div>
 
   <!-- ═══════════════════════════════════════════════
   DROP-IN PANEL — replaces #panel-deals in your file
@@ -1376,6 +1348,5 @@ function handleSearch(value) {
 
 renderFeatured();
 </script>
-
 </body>
 </html>
