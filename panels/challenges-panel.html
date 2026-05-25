@@ -1,0 +1,2998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FFP Passport — Challenges</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+<style>
+/* ════════════════════════════════════════════════
+   DESIGN TOKENS — synced with all FFP panels
+   ════════════════════════════════════════════════ */
+:root {
+  --ffp-blue:         #2ba8e0;
+  --ffp-blue-dark:    #1980AD;
+  --ffp-blue-darker:  #0f5a7a;
+  --ffp-bg:           #081420;
+  --ffp-bg-2:         #0f1e2e;
+  --ffp-bg-card:      rgba(15, 30, 46, 0.5);
+  --ffp-border:       rgba(43, 168, 224, 0.10);
+  --ffp-border-mid:   rgba(43, 168, 224, 0.20);
+  --ffp-border-str:   rgba(43, 168, 224, 0.35);
+  --ffp-text:         #e8eef4;
+  --ffp-text-muted:   #8a99a8;
+  --ffp-text-dim:     #4d5b6a;
+  --ffp-yellow:       #FFCC00;
+  --ffp-gold:         #d4af37;
+  --ffp-green:        #4ade80;
+  --ffp-red:          #ef4444;
+  --cream:            #f5ecd8;
+  --cream-2:          #ebe1cb;
+  --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: var(--ffp-bg);
+  color: var(--ffp-text);
+  font-family: 'Montserrat', system-ui, sans-serif;
+  font-weight: 400;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  height: 100%;
+}
+button, input, select { font-family: inherit; color: inherit; }
+
+/* ════════════════════════════════════════════════
+   SHELL
+   ════════════════════════════════════════════════ */
+.app { display: flex; height: 100vh; overflow: hidden; }
+
+.sidebar {
+  width: 230px; flex-shrink: 0;
+  background: var(--ffp-bg-2);
+  border-right: 1px solid var(--ffp-border);
+  display: flex; flex-direction: column;
+}
+.sb-logo { padding: 22px 20px 16px; border-bottom: 1px solid var(--ffp-border); }
+.sb-brand { font-size: 16px; font-weight: 900; letter-spacing: 2px; }
+.sb-brand span { color: var(--ffp-blue); }
+.sb-nav { flex: 1; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; }
+.ni {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px; border-radius: 9px;
+  font-size: 13px; font-weight: 700;
+  color: var(--ffp-text-muted);
+  cursor: pointer; transition: all .2s;
+  border: 1px solid transparent;
+}
+.ni:hover { background: rgba(43, 168, 224, .06); color: var(--ffp-text); }
+.ni.active {
+  background: rgba(43, 168, 224, .12);
+  color: var(--ffp-text);
+  border-color: var(--ffp-border-mid);
+}
+.ni .ti { font-size: 16px; flex-shrink: 0; }
+.ni-badge {
+  margin-left: auto;
+  background: var(--ffp-yellow); color: #000;
+  border-radius: 100px; padding: 1px 6px;
+  font-size: 9px; font-weight: 800;
+}
+.ni-badge.blue { background: var(--ffp-blue); color: #fff; }
+
+.main {
+  flex: 1; overflow-y: auto;
+  background: radial-gradient(ellipse at top, #0a1825 0%, var(--ffp-bg) 60%);
+}
+.main::-webkit-scrollbar { width: 6px; }
+.main::-webkit-scrollbar-thumb { background: rgba(43, 168, 224, .2); border-radius: 3px; }
+
+.topbar {
+  background: rgba(8, 20, 32, .85);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--ffp-border);
+  padding: 0 22px; height: 60px;
+  display: flex; align-items: center; gap: 12px;
+  position: sticky; top: 0; z-index: 10;
+}
+.tb-title { font-size: 17px; font-weight: 900; letter-spacing: -.2px; }
+.tb-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.tb-bell {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: rgba(15, 30, 46, .7);
+  border: 1px solid var(--ffp-border-mid);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  position: relative;
+  color: var(--ffp-text);
+  transition: all .15s;
+}
+.tb-bell:hover { background: rgba(15, 30, 46, .95); border-color: var(--ffp-border-str); }
+.tb-bell::after {
+  content: "";
+  position: absolute;
+  top: 9px; right: 10px;
+  width: 7px; height: 7px;
+  background: var(--ffp-yellow);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--ffp-bg);
+}
+.tb-bell .ti { font-size: 17px; }
+.tb-avatar {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: var(--ffp-blue);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+  cursor: pointer;
+  letter-spacing: .3px;
+}
+
+.panel { padding: 24px 20px 110px; max-width: 720px; margin: 0 auto; }
+
+/* ════════════════════════════════════════════════
+   PAGE HEADER + SEARCH
+   ════════════════════════════════════════════════ */
+.ph { font-size: 26px; font-weight: 900; letter-spacing: -.5px; line-height: 1; margin-bottom: 8px; }
+.psub { font-size: 13px; color: var(--ffp-text-muted); margin-bottom: 18px; line-height: 1.55; font-weight: 500; }
+
+.search-bar { margin-bottom: 16px; position: relative; }
+.search-bar input {
+  width: 100%;
+  background: var(--ffp-bg-card);
+  border: 1px solid var(--ffp-border-mid);
+  border-radius: var(--r-md);
+  padding: 12px 14px 12px 42px;
+  font-size: 13px; font-weight: 600;
+  color: var(--ffp-text);
+  outline: none;
+  transition: border-color .15s;
+}
+.search-bar input:focus { border-color: var(--ffp-blue); }
+.search-bar input::placeholder { color: var(--ffp-text-muted); font-weight: 500; }
+.search-bar svg {
+  position: absolute; left: 14px; top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none; color: var(--ffp-text-muted);
+}
+
+/* Tabs */
+.tabs {
+  display: flex; gap: 0; margin-bottom: 16px;
+  border-bottom: 1px solid var(--ffp-border);
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  background: transparent; border: none;
+  color: var(--ffp-text-muted);
+  font-size: 11px; font-weight: 800;
+  padding: 12px 4px;
+  margin-right: 24px;
+  cursor: pointer;
+  position: relative;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  transition: color .2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.tab:hover { color: var(--ffp-text); }
+.tab.active { color: var(--ffp-text); }
+.tab.active::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px;
+  height: 2px; background: var(--ffp-yellow);
+}
+
+.view { display: none; }
+.view.active { display: block; }
+
+/* ════════════════════════════════════════════════
+   FILTERS
+   ════════════════════════════════════════════════ */
+.view-header {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.create-challenge-btn {
+  background: var(--ffp-yellow);
+  color: var(--ffp-bg);
+  border: none;
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all .15s;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.create-challenge-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
+.create-challenge-btn:active {
+  transform: translateY(0);
+}
+
+.create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 11px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 11px 12px;
+  font-size: 13px;
+  color: #fff;
+  font-family: inherit;
+  outline: none;
+  transition: all .15s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: rgba(255, 204, 0, 0.5);
+  background: rgba(255, 204, 0, 0.05);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.filter-section { margin-bottom: 20px; }
+
+.filter-row-dropdowns {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-select {
+  flex: 1;
+  min-width: 140px;
+  background: var(--ffp-bg-card);
+  border: 1px solid var(--ffp-border-mid);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+  font-size: 12px; font-weight: 700;
+  color: var(--ffp-text);
+  cursor: pointer;
+  outline: none;
+  transition: all .15s;
+}
+.filter-select:hover { border-color: var(--ffp-border-str); }
+.filter-select:focus { border-color: var(--ffp-blue); }
+.filter-select option { background: var(--ffp-bg-2); color: var(--ffp-text); }
+
+/* ════════════════════════════════════════════════
+   CHALLENGE CARD GRID
+   ════════════════════════════════════════════════ */
+.challenges-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.challenge-card {
+  background: linear-gradient(180deg, rgba(15, 30, 46, 0.7) 0%, rgba(10, 20, 30, 0.5) 100%);
+  border: 1px solid var(--ffp-border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all .2s;
+  display: flex; flex-direction: column;
+  height: 100%;
+}
+.challenge-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--ffp-border-str);
+  background: linear-gradient(180deg, rgba(15, 30, 46, 0.9) 0%, rgba(10, 20, 30, 0.7) 100%);
+}
+
+.cc-image-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3/2;
+  overflow: hidden;
+  background: var(--ffp-bg-2);
+}
+.cc-image-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform .3s ease;
+}
+.challenge-card:hover .cc-image-wrap img {
+  transform: scale(1.04);
+}
+.cc-image-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0) 50%, rgba(8,20,32,.6) 100%);
+  pointer-events: none;
+}
+
+.cc-logo {
+  position: absolute;
+  top: 8px; left: 8px;
+  z-index: 2;
+  width: 32px; height: 32px;
+}
+.cc-logo.provider {
+  background: radial-gradient(ellipse at 30% 30%, #fbf6e8, var(--cream) 50%, var(--cream-2) 100%);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.4) inset,
+    0 -1px 0 rgba(0,0,0,.05) inset,
+    0 4px 12px rgba(0,0,0,.4);
+  position: relative;
+}
+.cc-logo.provider::before {
+  content: ""; position: absolute; inset: 0;
+  border-radius: 50%;
+  padding: 1px;
+  background: linear-gradient(180deg, rgba(255,204,0,.7), rgba(212,167,61,.4) 50%, rgba(212,167,61,.15));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.cc-logo.provider .logo-letter {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  color: var(--ffp-bg);
+  line-height: 1;
+  position: relative;
+  z-index: 2;
+  letter-spacing: -.5px;
+  font-size: 14px;
+}
+
+.cc-logo.community {
+  background: radial-gradient(ellipse at 30% 30%, #2ba8e0, #1980ad 50%, #0f5a7a 100%);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 3px 10px rgba(43, 168, 224, .3);
+  position: relative;
+}
+.cc-logo.community .logo-letter {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+  font-size: 14px;
+}
+
+.cc-badge-type {
+  position: absolute;
+  top: 8px; right: 8px;
+  z-index: 2;
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: var(--r-sm);
+  letter-spacing: .6px;
+}
+.cc-badge-type.provider {
+  background: rgba(255, 204, 0, .2);
+  color: var(--ffp-yellow);
+  border: 1px solid rgba(255, 204, 0, .3);
+}
+.cc-badge-type.community {
+  background: rgba(43, 168, 224, .2);
+  color: var(--ffp-blue);
+  border: 1px solid rgba(43, 168, 224, .3);
+}
+
+.cc-fav {
+  position: absolute;
+  bottom: 8px; right: 8px;
+  z-index: 2;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: rgba(15, 30, 46, .8);
+  border: 1px solid rgba(43, 168, 224, .3);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: all .15s;
+}
+.cc-fav:hover { background: rgba(15, 30, 46, .95); border-color: rgba(43, 168, 224, .5); }
+.cc-fav svg {
+  width: 14px; height: 14px;
+  stroke: var(--ffp-text-muted);
+  fill: none;
+  stroke-width: 1.8;
+  transition: all .2s;
+}
+.cc-fav.active svg { fill: var(--ffp-red); stroke: var(--ffp-red); }
+
+.cc-body {
+  padding: 12px;
+  flex: 1;
+  display: flex; flex-direction: column;
+  gap: 8px;
+}
+
+.cc-organizer {
+  font-size: 10px;
+  color: var(--ffp-text-muted);
+  font-weight: 600;
+  letter-spacing: .2px;
+  line-height: 1.3;
+}
+
+.cc-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ffp-text);
+  line-height: 1.3;
+  letter-spacing: -.1px;
+}
+
+.cc-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 8px;
+  font-size: 10px;
+  border-top: 1px solid var(--ffp-border);
+  padding-top: 8px;
+}
+
+.cc-fact-item {
+  display: flex; flex-direction: column;
+  gap: 1px;
+}
+
+.cc-fact-label {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  color: var(--ffp-text-muted);
+}
+
+.cc-fact-value {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ffp-text);
+  letter-spacing: -.05px;
+}
+
+.cc-fact-value.activity {
+  background: rgba(74, 222, 128, .12);
+  color: var(--ffp-green);
+  padding: 2px 4px;
+  border-radius: var(--r-sm);
+  width: fit-content;
+  font-size: 9px;
+}
+
+.cc-fact-value.spots-green { color: var(--ffp-green); }
+.cc-fact-value.spots-warn { color: var(--ffp-yellow); }
+.cc-fact-value.spots-full { color: var(--ffp-red); }
+
+.cc-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--ffp-text-muted);
+  font-weight: 600;
+  margin-top: auto;
+  padding-top: 6px;
+  border-top: 1px solid var(--ffp-border);
+}
+
+/* ════════════════════════════════════════════════
+   MODAL
+   ════════════════════════════════════════════════ */
+.modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .6);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  align-items: flex-end;
+  justify-content: center;
+}
+.modal-backdrop.show { display: flex; }
+
+.modal {
+  background: var(--ffp-bg-2);
+  border: 1px solid var(--ffp-border);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  max-width: 520px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: slideUp .3s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(40px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.modal-close {
+  position: fixed;
+  top: 16px; right: 16px;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: rgba(8, 20, 32, .7);
+  border: 1px solid var(--ffp-border-mid);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  color: var(--ffp-text);
+  transition: all .15s;
+  z-index: 1001;
+}
+.modal-close:hover { background: rgba(8, 20, 32, .9); border-color: var(--ffp-border-str); }
+
+.modal-header {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16/9;
+  overflow: hidden;
+  background: var(--ffp-bg);
+}
+.modal-header img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.modal-header::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,.2) 0%, rgba(8,20,32,.8) 100%);
+  pointer-events: none;
+}
+
+.modal-org-strip {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--ffp-border);
+  display: flex; align-items: center; gap: 12px;
+}
+
+.modal-org-logo {
+  width: 44px; height: 44px;
+  flex-shrink: 0;
+}
+.modal-org-logo.provider {
+  background: radial-gradient(ellipse at 30% 30%, #fbf6e8, var(--cream) 50%, var(--cream-2) 100%);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 16px rgba(0,0,0,.4);
+  position: relative;
+}
+.modal-org-logo.provider::before {
+  content: ""; position: absolute; inset: 0;
+  border-radius: 50%;
+  padding: 1px;
+  background: linear-gradient(180deg, rgba(255,204,0,.7), rgba(212,167,61,.4) 50%, rgba(212,167,61,.15));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.modal-org-logo.provider .logo-letter {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  color: var(--ffp-bg);
+  line-height: 1;
+  font-size: 20px;
+}
+
+.modal-org-logo.community {
+  background: radial-gradient(ellipse at 30% 30%, #2ba8e0, #1980ad 50%, #0f5a7a 100%);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 12px rgba(43, 168, 224, .3);
+}
+.modal-org-logo.community .logo-letter {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+  font-size: 20px;
+}
+
+.modal-org-info {
+  flex: 1;
+}
+.modal-org-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ffp-text);
+  margin-bottom: 2px;
+  letter-spacing: -.1px;
+}
+.modal-org-meta {
+  font-size: 11px;
+  color: var(--ffp-text-muted);
+  font-weight: 600;
+}
+
+.modal-org-links {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.modal-org-link {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ffp-blue);
+  text-decoration: none;
+  padding: 6px 8px;
+  border: 1px solid var(--ffp-border-mid);
+  border-radius: var(--r-sm);
+  background: rgba(43, 168, 224, 0.08);
+  transition: all .15s;
+  letter-spacing: .3px;
+}
+
+.modal-org-link:hover {
+  background: rgba(43, 168, 224, 0.15);
+  border-color: var(--ffp-blue);
+  color: var(--ffp-blue);
+}
+
+.modal-org-link svg {
+  flex-shrink: 0;
+}
+
+.modal-body {
+  padding: 20px 18px;
+}
+
+.modal-title {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--ffp-text);
+  margin-bottom: 6px;
+  letter-spacing: -.3px;
+}
+
+.modal-description {
+  font-size: 12px;
+  color: var(--ffp-text-muted);
+  line-height: 1.55;
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
+.modal-status-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: var(--r-sm);
+  margin-bottom: 16px;
+}
+.modal-status-badge.active {
+  background: rgba(74, 222, 128, .15);
+  color: var(--ffp-green);
+}
+.modal-status-badge.closing {
+  background: rgba(255, 204, 0, .15);
+  color: var(--ffp-yellow);
+}
+.modal-status-badge.closed {
+  background: rgba(239, 68, 68, .15);
+  color: var(--ffp-red);
+}
+
+.modal-section {
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--ffp-border);
+}
+.modal-section:last-of-type {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.modal-section-title {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--ffp-text-muted);
+  margin-bottom: 10px;
+}
+
+.modal-section-title-with-button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.view-leaderboard-btn {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ffp-blue);
+  background: transparent;
+  border: 1px solid var(--ffp-blue);
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all .15s;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+.view-leaderboard-btn:hover {
+  background: rgba(43, 168, 224, 0.1);
+}
+
+.modal-facts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 14px;
+}
+
+.modal-fact {
+  display: flex; flex-direction: column;
+  gap: 2px;
+}
+
+.modal-fact-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ffp-text-muted);
+}
+
+.modal-fact-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ffp-text);
+  letter-spacing: -.1px;
+}
+
+.modal-text {
+  font-size: 12px;
+  color: var(--ffp-text);
+  line-height: 1.6;
+  font-weight: 500;
+}
+
+.modal-leaderboard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.modal-leaderboard-row {
+  display: grid;
+  grid-template-columns: 30px 1fr 80px;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--ffp-bg-card);
+  border-radius: var(--r-md);
+  border: 1px solid var(--ffp-border);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.modal-leaderboard-rank {
+  color: var(--ffp-yellow);
+  font-weight: 900;
+  text-align: center;
+}
+
+.modal-leaderboard-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modal-leaderboard-name {
+  color: var(--ffp-text);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.modal-leaderboard-score {
+  color: var(--ffp-text-muted);
+  text-align: right;
+}
+
+.modal-leaderboard-row.user-rank {
+  background: rgba(43, 168, 224, 0.15);
+  border-color: var(--ffp-border-mid);
+}
+
+.modal-footer {
+  padding: 16px 18px 24px;
+  border-top: 1px solid var(--ffp-border);
+  display: flex; flex-direction: column; gap: 10px;
+  position: sticky; bottom: 0;
+  background: var(--ffp-bg-2);
+}
+
+.modal-btn {
+  width: 100%;
+  background: var(--ffp-yellow);
+  color: var(--ffp-bg);
+  border: none;
+  border-radius: var(--r-md);
+  padding: 14px 16px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -.1px;
+  cursor: pointer;
+  transition: all .15s;
+  font-family: inherit;
+}
+.modal-btn:hover {
+  background: #ffd633;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(255, 204, 0, .3);
+}
+.modal-btn:disabled {
+  background: rgba(43, 168, 224, .12);
+  color: var(--ffp-blue);
+  cursor: default;
+  border: 1px solid rgba(43, 168, 224, .3);
+}
+
+.modal-note {
+  font-size: 11px;
+  color: var(--ffp-text-muted);
+  text-align: center;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+/* ════════════════════════════════════════════════
+   APPLICATION MODAL - MATCHES DEALS PANEL STYLE
+   ════════════════════════════════════════════════ */
+
+.application-modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.application-modal {
+  background: linear-gradient(180deg, #11243a 0%, #0b1c2c 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 40px 28px 28px;
+  width: 100%;
+  max-width: 460px;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.7);
+  position: relative;
+  overflow: hidden;
+}
+
+.application-modal-close {
+  position: absolute;
+  top: 12px; right: 12px;
+  width: 32px; height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 28px;
+  font-weight: 300;
+  transition: color .2s;
+  background: none;
+  border: none;
+  padding: 0;
+  line-height: 1;
+}
+
+.application-modal-close:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.application-modal-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0;
+}
+
+.application-provider-logo {
+  width: 72px;
+  height: 72px;
+  border: 3px solid #d4af37;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: 900;
+  color: #f5ecd8;
+  background: rgba(212, 175, 55, 0.05);
+  margin-bottom: 20px;
+}
+
+.application-modal-content h2 {
+  font-size: 26px;
+  font-weight: 900;
+  color: #fff;
+  margin: 0 0 8px;
+  letter-spacing: -0.5px;
+}
+
+.application-subtitle {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+.application-location {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin: 0 0 16px;
+  font-weight: 700;
+}
+
+.application-message {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 24px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.6;
+  width: 100%;
+}
+
+.application-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 12px;
+  width: 100%;
+}
+
+.app-submit-btn {
+  background: #FFCC00;
+  color: #0b1c2c;
+  border: none;
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all .2s;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.app-submit-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
+.app-submit-btn:active {
+  transform: translateY(0);
+}
+
+.app-cancel-btn {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all .2s;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.app-cancel-btn:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* ════════════════════════════════════════════════
+   SCORE SUBMISSION FORM
+   ════════════════════════════════════════════════ */
+
+.score-form-group {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.score-form-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 8px;
+}
+
+.score-form-input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 11px 12px;
+  font-size: 13px;
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  outline: none;
+  transition: all .15s;
+}
+
+.score-form-input:focus {
+  border-color: rgba(255, 204, 0, 0.5);
+  background: rgba(255, 204, 0, 0.05);
+}
+
+.score-verification-section {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.score-verification-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin: 0 0 10px;
+}
+
+.verification-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.verification-option:last-child {
+  margin-bottom: 0;
+}
+
+.verification-option input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  cursor: pointer;
+  accent-color: #FFCC00;
+}
+
+.verification-option label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+  flex: 1;
+}
+
+.verification-label-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.verification-label-desc {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.3;
+}
+
+/* ════════════════════════════════════════════════
+   VERIFICATION BADGE (in leaderboard)
+   ════════════════════════════════════════════════ */
+
+.verification-badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.verification-badge.verified {
+  background: rgba(74, 222, 128, 0.15);
+  color: #4ade80;
+}
+
+.verification-badge.unverified {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* ════════════════════════════════════════════════
+   PROVIDER PROFILE MODAL - CONSISTENT WITH DEALS
+   ════════════════════════════════════════════════ */
+
+.provider-profile-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2500;
+  padding: 20px;
+}
+
+.provider-profile-modal {
+  background: linear-gradient(180deg, #11243a 0%, #0b1c2c 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 40px 28px 28px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 70vh;
+  overflow-y: auto;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.7);
+  position: relative;
+}
+
+.provider-profile-close {
+  position: absolute;
+  top: 12px; right: 12px;
+  width: 32px; height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 28px;
+  font-weight: 300;
+  transition: color .2s;
+  background: none;
+  border: none;
+  padding: 0;
+  line-height: 1;
+}
+
+.provider-profile-close:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.provider-profile-header {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.provider-profile-logo {
+  width: 72px; height: 72px;
+  background: linear-gradient(135deg, #f5ecd8, #ebe1cb);
+  border: 3px solid #d4af37;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 900;
+  color: #082335;
+  flex-shrink: 0;
+}
+
+.provider-profile-title h2 {
+  font-size: 20px;
+  font-weight: 900;
+  color: #fff;
+  margin: 0 0 4px;
+  letter-spacing: -0.3px;
+}
+
+.provider-profile-title p {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 600;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.provider-profile-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.provider-profile-section h3 {
+  font-size: 11px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  margin: 0 0 8px;
+}
+
+.provider-profile-section p {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.provider-services {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.provider-services li {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.8);
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* ════════════════════════════════════════════════
+   EXPANDED LEADERBOARD MODAL - CONSISTENT STYLE
+   ════════════════════════════════════════════════ */
+
+.leaderboard-expanded-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2500;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.leaderboard-expanded-modal {
+  background: linear-gradient(180deg, #11243a 0%, #0b1c2c 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 0;
+  width: 100%;
+  max-width: 500px;
+  max-height: 70vh;
+  overflow-y: auto;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.7);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.leaderboard-expanded-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 28px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  position: sticky;
+  top: 0;
+  background: linear-gradient(180deg, #11243a 0%, #0b1c2c 100%);
+}
+
+.leaderboard-expanded-header h2 {
+  font-size: 20px;
+  font-weight: 900;
+  color: #fff;
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+
+.leaderboard-expanded-close {
+  width: 32px; height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 28px;
+  font-weight: 300;
+  transition: color .2s;
+  background: none;
+  border: none;
+  padding: 0;
+  line-height: 1;
+}
+
+.leaderboard-expanded-close:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.leaderboard-expanded-content {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.leaderboard-row-full {
+  display: grid;
+  grid-template-columns: 50px 1fr 80px;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+
+.lb-rank {
+  font-weight: 900;
+  font-size: 14px;
+  color: #FFCC00;
+  text-align: center;
+}
+
+.lb-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lb-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.lb-location {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.lb-score {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.6);
+  text-align: right;
+}
+
+/* ════════════════════════════════════════════════
+   SCORE SUBMITTED TOAST
+   ════════════════════════════════════════════════ */
+
+.score-submitted-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 16px;
+  right: 16px;
+  max-width: 400px;
+  margin: 0 auto;
+  background: linear-gradient(135deg, #1a472a 0%, #0f2f1f 100%);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 3000;
+  animation: slideInUp .3s ease-out;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.toast-icon {
+  font-size: 20px;
+  color: #4ade80;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.toast-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.toast-text strong {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.toast-text span {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+@keyframes slideInUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* ════════════════════════════════════════════════
+   RESPONSIVE
+   ════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .bottom-tabs { display: flex; }
+  .panel { padding: 18px 14px 110px; }
+  .ph { font-size: 22px; }
+  .topbar { padding: 0 14px; height: 54px; }
+  .challenges-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+}
+
+@media (max-width: 600px) {
+  .challenges-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .cc-facts { grid-template-columns: 1fr 1fr; gap: 4px 6px; }
+  .tab { font-size: 10px; margin-right: 16px; }
+  .filter-chip { padding: 6px 11px; font-size: 10px; }
+  .cc-body { padding: 10px; }
+  .cc-title { font-size: 12px; }
+  .cc-organizer { font-size: 9px; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+<aside class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-brand">FFP <span>PASSPORT</span></div>
+  </div>
+  <nav class="sb-nav">
+    <div class="ni"><i class="ti ti-id"></i>My Passport</div>
+    <div class="ni"><i class="ti ti-tag"></i>Deals<span class="ni-badge blue">14</span></div>
+    <div class="ni"><i class="ti ti-calendar-event"></i>Events<span class="ni-badge">3</span></div>
+    <div class="ni"><i class="ti ti-users"></i>Meet & Move</div>
+    <div class="ni"><i class="ti ti-coin"></i>Earnings<span class="ni-badge">5</span></div>
+    <div class="ni"><i class="ti ti-mountain"></i>Experiences<span class="ni-badge blue">2</span></div>
+    <div class="ni active"><i class="ti ti-trophy"></i>Challenges<span class="ni-badge">4</span></div>
+    <div class="ni"><i class="ti ti-bell"></i>Notifications<span class="ni-badge">4</span></div>
+  </nav>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <div class="tb-title">Challenges</div>
+    <div class="tb-actions">
+      <button class="tb-bell" aria-label="Notifications"><i class="ti ti-bell"></i></button>
+      <div class="tb-avatar">GH</div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-challenges">
+    <h1 class="ph">Challenges</h1>
+    <p class="psub">Provider activations and community tests. Pick your challenge and compete.</p>
+
+    <div class="search-bar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
+      <input type="text" id="searchInput" placeholder="Search challenges, activities...">
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="provider">PROVIDER CHALLENGES</button>
+      <button class="tab" data-tab="community">COMMUNITY CHALLENGES</button>
+    </div>
+
+    <!-- PROVIDER CHALLENGES TAB -->
+    <div class="view active" id="view-provider">
+      <div class="filter-section">
+        <div class="filter-row-dropdowns">
+          <select class="filter-select" id="locFilter">
+            <option value="">All Locations</option>
+            <option value="dubai">Dubai</option>
+            <option value="abu-dhabi">Abu Dhabi</option>
+            <option value="sharjah">Sharjah</option>
+            <option value="ajman">Ajman</option>
+            <option value="umm-al-quwain">Umm Al Quwain</option>
+            <option value="ras-al-khaimah">Ras Al Khaimah</option>
+            <option value="fujairah">Fujairah</option>
+            <option value="al-ain">Al Ain</option>
+            <option value="virtual">Virtual</option>
+          </select>
+          <select class="filter-select" id="activityFilter">
+            <option value="all">All Sports</option>
+            <optgroup label="Running & Walking">
+              <option value="walk-2k">Walk 2km</option>
+              <option value="walk-5k">Walk 5km</option>
+              <option value="walk-10k">Walk 10km</option>
+              <option value="run-2k">Run 2km</option>
+              <option value="run-5k">Run 5km</option>
+              <option value="run-10k">Run 10km</option>
+              <option value="half-marathon">Half Marathon</option>
+              <option value="marathon">Marathon</option>
+              <option value="ultra">Ultra Marathon</option>
+              <option value="trail-run">Trail Run</option>
+            </optgroup>
+            <optgroup label="Cycling">
+              <option value="road-cycling">Road Cycling</option>
+              <option value="mtb">Mountain Biking</option>
+              <option value="gravel">Gravel Cycling</option>
+              <option value="spin">Spin</option>
+              <option value="ebike">Ebike Ride</option>
+              <option value="bike-commute">Bike Commute</option>
+              <option value="time-trial">Time Trial</option>
+              <option value="bikepacking">Bikepacking</option>
+              <option value="bmx">BMX</option>
+            </optgroup>
+            <optgroup label="Swimming">
+              <option value="pool-swim">Pool Swim</option>
+              <option value="open-water">Open Water Swim</option>
+              <option value="lap-swim">Lap Swim</option>
+              <option value="swim-training">Swim Training</option>
+              <option value="swim-sprints">Swim Sprints</option>
+              <option value="swim-distance">Long-Distance Swim</option>
+            </optgroup>
+            <optgroup label="Watersports">
+              <option value="sup">SUP</option>
+              <option value="sup-yoga">SUP Yoga</option>
+              <option value="surfing">Surfing</option>
+              <option value="bodyboarding">Bodyboarding</option>
+              <option value="kitesurfing">Kitesurfing</option>
+              <option value="windsurfing">Windsurfing</option>
+              <option value="wing-foil">Wing Foiling</option>
+              <option value="wakeboard">Wakeboarding</option>
+              <option value="water-ski">Water Skiing</option>
+              <option value="kayak">Kayaking</option>
+              <option value="canoe">Canoeing</option>
+              <option value="sailing">Sailing</option>
+              <option value="rowing">Rowing</option>
+              <option value="jet-ski">Jet Ski</option>
+            </optgroup>
+            <optgroup label="Racquet Sports">
+              <option value="tennis">Tennis</option>
+              <option value="padel">Padel</option>
+              <option value="pickleball">Pickleball</option>
+              <option value="squash">Squash</option>
+              <option value="badminton">Badminton</option>
+              <option value="table-tennis">Table Tennis</option>
+              <option value="racquetball">Racquetball</option>
+              <option value="beach-tennis">Beach Tennis</option>
+            </optgroup>
+            <optgroup label="Team Sports">
+              <option value="football">Football</option>
+              <option value="five-a-side">Five-a-Side</option>
+              <option value="basketball">Basketball</option>
+              <option value="rugby">Rugby</option>
+              <option value="cricket">Cricket</option>
+              <option value="field-hockey">Field Hockey</option>
+              <option value="volleyball">Volleyball</option>
+              <option value="beach-volley">Beach Volleyball</option>
+              <option value="netball">Netball</option>
+              <option value="touch-rugby">Touch Rugby</option>
+              <option value="ultimate">Ultimate Frisbee</option>
+              <option value="handball">Handball</option>
+            </optgroup>
+            <optgroup label="Combat Sports">
+              <option value="boxing">Boxing</option>
+              <option value="kickboxing">Kickboxing</option>
+              <option value="muay-thai">Muay Thai</option>
+              <option value="bjj">Brazilian Jiu-Jitsu</option>
+              <option value="mma">MMA</option>
+              <option value="judo">Judo</option>
+              <option value="karate">Karate</option>
+              <option value="taekwondo">Taekwondo</option>
+            </optgroup>
+            <optgroup label="Strength & Fitness">
+              <option value="strength">Strength Training</option>
+              <option value="powerlifting">Powerlifting</option>
+              <option value="oly-lifting">Olympic Lifting</option>
+              <option value="crossfit">CrossFit</option>
+              <option value="hiit">HIIT</option>
+              <option value="f45">F45</option>
+              <option value="bootcamp">Bootcamp</option>
+              <option value="functional">Functional Training</option>
+              <option value="calisthenics">Calisthenics</option>
+              <option value="bodyweight">Bodyweight Workout</option>
+              <option value="kettlebell">Kettlebell Training</option>
+              <option value="trx">TRX</option>
+              <option value="battle-ropes">Battle Ropes</option>
+              <option value="strongman">Strongman</option>
+              <option value="circuit">Circuit Training</option>
+            </optgroup>
+            <optgroup label="Mind-Body & Yoga">
+              <option value="vinyasa">Vinyasa Yoga</option>
+              <option value="hot-yoga">Hot Yoga</option>
+              <option value="yin-yoga">Yin Yoga</option>
+              <option value="ashtanga">Ashtanga Yoga</option>
+              <option value="hatha">Hatha Yoga</option>
+              <option value="power-yoga">Power Yoga</option>
+              <option value="aerial-yoga">Aerial Yoga</option>
+              <option value="pilates-mat">Pilates Mat</option>
+              <option value="reformer">Pilates Reformer</option>
+              <option value="barre">Barre</option>
+              <option value="meditation">Meditation</option>
+              <option value="breathwork">Breathwork</option>
+            </optgroup>
+            <optgroup label="Dance & Rhythm">
+              <option value="zumba">Zumba</option>
+              <option value="dance-fit">Dance Fitness</option>
+              <option value="ballet">Ballet</option>
+              <option value="hip-hop">Hip Hop</option>
+              <option value="salsa">Salsa</option>
+              <option value="pole">Pole Fitness</option>
+              <option value="aerial-silks">Aerial Silks</option>
+              <option value="ballroom">Ballroom Dancing</option>
+            </optgroup>
+            <optgroup label="Outdoor & Adventure">
+              <option value="hiking">Hiking</option>
+              <option value="mountain-hike">Mountain Hike</option>
+              <option value="indoor-climb">Indoor Climbing</option>
+              <option value="sport-climb">Outdoor Sport Climbing</option>
+              <option value="bouldering">Bouldering</option>
+              <option value="trad-climb">Trad Climbing</option>
+              <option value="via-ferrata">Via Ferrata</option>
+              <option value="mountaineering">Mountaineering</option>
+              <option value="canyoning">Canyoning</option>
+              <option value="caving">Caving</option>
+              <option value="parkour">Parkour</option>
+              <option value="scrambling">Scrambling</option>
+              <option value="wadi-trek">Wadi Trekking</option>
+              <option value="desert-trek">Desert Trekking</option>
+              <option value="bushcraft">Bushcraft</option>
+            </optgroup>
+            <optgroup label="Recovery & Wellness">
+              <option value="cryo">Cryotherapy</option>
+              <option value="ice-bath">Ice Bath</option>
+              <option value="cold-plunge">Cold Plunge</option>
+              <option value="sauna">Sauna</option>
+              <option value="infrared-sauna">Infrared Sauna</option>
+              <option value="steam">Steam Room</option>
+              <option value="hbot">Hyperbaric Chamber</option>
+              <option value="float">Float Tank</option>
+              <option value="sports-massage">Sports Massage</option>
+              <option value="deep-tissue">Deep Tissue Massage</option>
+              <option value="lymphatic">Lymphatic Drainage</option>
+              <option value="red-light">Red Light Therapy</option>
+              <option value="pemf">PEMF Therapy</option>
+              <option value="sound-bath">Sound Bath</option>
+              <option value="contrast">Contrast Therapy</option>
+            </optgroup>
+            <optgroup label="Golf">
+              <option value="golf-round">Golf Round</option>
+              <option value="driving-range">Driving Range</option>
+              <option value="golf-lesson">Golf Lesson</option>
+            </optgroup>
+            <optgroup label="Equestrian">
+              <option value="horse-riding">Horse Riding</option>
+              <option value="polo">Polo</option>
+              <option value="dressage">Dressage</option>
+            </optgroup>
+            <optgroup label="Air & Extreme">
+              <option value="skydive">Skydiving</option>
+              <option value="paraglide">Paragliding</option>
+              <option value="bungee">Bungee Jump</option>
+              <option value="zip-line">Zip Line</option>
+            </optgroup>
+            <optgroup label="Snow Sports">
+              <option value="ski">Skiing</option>
+              <option value="snowboard">Snowboarding</option>
+              <option value="xc-ski">Cross-Country Skiing</option>
+              <option value="ski-tour">Ski Touring</option>
+            </optgroup>
+            <optgroup label="Multi-Sport & Events">
+              <option value="triathlon">Triathlon</option>
+              <option value="duathlon">Duathlon</option>
+              <option value="hyrox">Hyrox</option>
+              <option value="ocr">Obstacle Course Race</option>
+            </optgroup>
+          </select>
+          <select class="filter-select" id="levelFilter">
+            <option value="all">All Levels</option>
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="advanced">Advanced</option>
+            <option value="elite">Elite</option>
+            <option value="professional">Professional</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="challenges-grid" id="providerGrid">
+        <!-- Provider challenge cards inserted here -->
+      </div>
+    </div>
+
+    <!-- COMMUNITY CHALLENGES TAB -->
+    <div class="view" id="view-community">
+      <div class="view-header">
+        <button class="create-challenge-btn" onclick="showCreateChallengeForm()">+ Create Challenge</button>
+      </div>
+      <div class="filter-section">
+        <div class="filter-row-dropdowns">
+          <select class="filter-select" id="communityActivityFilter">
+            <option value="all">All Sports</option>
+            <optgroup label="Running & Walking">
+              <option value="walk-2k">Walk 2km</option>
+              <option value="walk-5k">Walk 5km</option>
+              <option value="walk-10k">Walk 10km</option>
+              <option value="run-2k">Run 2km</option>
+              <option value="run-5k">Run 5km</option>
+              <option value="run-10k">Run 10km</option>
+              <option value="half-marathon">Half Marathon</option>
+              <option value="marathon">Marathon</option>
+              <option value="ultra">Ultra Marathon</option>
+              <option value="trail-run">Trail Run</option>
+            </optgroup>
+            <optgroup label="Cycling">
+              <option value="road-cycling">Road Cycling</option>
+              <option value="mtb">Mountain Biking</option>
+              <option value="gravel">Gravel Cycling</option>
+              <option value="spin">Spin</option>
+              <option value="ebike">Ebike Ride</option>
+              <option value="bike-commute">Bike Commute</option>
+              <option value="time-trial">Time Trial</option>
+              <option value="bikepacking">Bikepacking</option>
+              <option value="bmx">BMX</option>
+            </optgroup>
+            <optgroup label="Swimming">
+              <option value="pool-swim">Pool Swim</option>
+              <option value="open-water">Open Water Swim</option>
+              <option value="lap-swim">Lap Swim</option>
+              <option value="swim-training">Swim Training</option>
+              <option value="swim-sprints">Swim Sprints</option>
+              <option value="swim-distance">Long-Distance Swim</option>
+            </optgroup>
+            <optgroup label="Watersports">
+              <option value="sup">SUP</option>
+              <option value="sup-yoga">SUP Yoga</option>
+              <option value="surfing">Surfing</option>
+              <option value="bodyboarding">Bodyboarding</option>
+              <option value="kitesurfing">Kitesurfing</option>
+              <option value="windsurfing">Windsurfing</option>
+              <option value="wing-foil">Wing Foiling</option>
+              <option value="wakeboard">Wakeboarding</option>
+              <option value="water-ski">Water Skiing</option>
+              <option value="kayak">Kayaking</option>
+              <option value="canoe">Canoeing</option>
+              <option value="sailing">Sailing</option>
+              <option value="rowing">Rowing</option>
+              <option value="jet-ski">Jet Ski</option>
+            </optgroup>
+            <optgroup label="Racquet Sports">
+              <option value="tennis">Tennis</option>
+              <option value="padel">Padel</option>
+              <option value="pickleball">Pickleball</option>
+              <option value="squash">Squash</option>
+              <option value="badminton">Badminton</option>
+              <option value="table-tennis">Table Tennis</option>
+              <option value="racquetball">Racquetball</option>
+              <option value="beach-tennis">Beach Tennis</option>
+            </optgroup>
+            <optgroup label="Team Sports">
+              <option value="football">Football</option>
+              <option value="five-a-side">Five-a-Side</option>
+              <option value="basketball">Basketball</option>
+              <option value="rugby">Rugby</option>
+              <option value="cricket">Cricket</option>
+              <option value="field-hockey">Field Hockey</option>
+              <option value="volleyball">Volleyball</option>
+              <option value="beach-volley">Beach Volleyball</option>
+              <option value="netball">Netball</option>
+              <option value="touch-rugby">Touch Rugby</option>
+              <option value="ultimate">Ultimate Frisbee</option>
+              <option value="handball">Handball</option>
+            </optgroup>
+            <optgroup label="Combat Sports">
+              <option value="boxing">Boxing</option>
+              <option value="kickboxing">Kickboxing</option>
+              <option value="muay-thai">Muay Thai</option>
+              <option value="bjj">Brazilian Jiu-Jitsu</option>
+              <option value="mma">MMA</option>
+              <option value="judo">Judo</option>
+              <option value="karate">Karate</option>
+              <option value="taekwondo">Taekwondo</option>
+            </optgroup>
+            <optgroup label="Strength & Fitness">
+              <option value="strength">Strength Training</option>
+              <option value="powerlifting">Powerlifting</option>
+              <option value="oly-lifting">Olympic Lifting</option>
+              <option value="crossfit">CrossFit</option>
+              <option value="hiit">HIIT</option>
+              <option value="f45">F45</option>
+              <option value="bootcamp">Bootcamp</option>
+              <option value="functional">Functional Training</option>
+              <option value="calisthenics">Calisthenics</option>
+              <option value="bodyweight">Bodyweight Workout</option>
+              <option value="kettlebell">Kettlebell Training</option>
+              <option value="trx">TRX</option>
+              <option value="battle-ropes">Battle Ropes</option>
+              <option value="strongman">Strongman</option>
+              <option value="circuit">Circuit Training</option>
+            </optgroup>
+            <optgroup label="Mind-Body & Yoga">
+              <option value="vinyasa">Vinyasa Yoga</option>
+              <option value="hot-yoga">Hot Yoga</option>
+              <option value="yin-yoga">Yin Yoga</option>
+              <option value="ashtanga">Ashtanga Yoga</option>
+              <option value="hatha">Hatha Yoga</option>
+              <option value="power-yoga">Power Yoga</option>
+              <option value="aerial-yoga">Aerial Yoga</option>
+              <option value="pilates-mat">Pilates Mat</option>
+              <option value="reformer">Pilates Reformer</option>
+              <option value="barre">Barre</option>
+              <option value="meditation">Meditation</option>
+              <option value="breathwork">Breathwork</option>
+            </optgroup>
+            <optgroup label="Dance & Rhythm">
+              <option value="zumba">Zumba</option>
+              <option value="dance-fit">Dance Fitness</option>
+              <option value="ballet">Ballet</option>
+              <option value="hip-hop">Hip Hop</option>
+              <option value="salsa">Salsa</option>
+              <option value="pole">Pole Fitness</option>
+              <option value="aerial-silks">Aerial Silks</option>
+              <option value="ballroom">Ballroom Dancing</option>
+            </optgroup>
+            <optgroup label="Outdoor & Adventure">
+              <option value="hiking">Hiking</option>
+              <option value="mountain-hike">Mountain Hike</option>
+              <option value="indoor-climb">Indoor Climbing</option>
+              <option value="sport-climb">Outdoor Sport Climbing</option>
+              <option value="bouldering">Bouldering</option>
+              <option value="trad-climb">Trad Climbing</option>
+              <option value="via-ferrata">Via Ferrata</option>
+              <option value="mountaineering">Mountaineering</option>
+              <option value="canyoning">Canyoning</option>
+              <option value="caving">Caving</option>
+              <option value="parkour">Parkour</option>
+              <option value="scrambling">Scrambling</option>
+              <option value="wadi-trek">Wadi Trekking</option>
+              <option value="desert-trek">Desert Trekking</option>
+              <option value="bushcraft">Bushcraft</option>
+            </optgroup>
+            <optgroup label="Recovery & Wellness">
+              <option value="cryo">Cryotherapy</option>
+              <option value="ice-bath">Ice Bath</option>
+              <option value="cold-plunge">Cold Plunge</option>
+              <option value="sauna">Sauna</option>
+              <option value="infrared-sauna">Infrared Sauna</option>
+              <option value="steam">Steam Room</option>
+              <option value="hbot">Hyperbaric Chamber</option>
+              <option value="float">Float Tank</option>
+              <option value="sports-massage">Sports Massage</option>
+              <option value="deep-tissue">Deep Tissue Massage</option>
+              <option value="lymphatic">Lymphatic Drainage</option>
+              <option value="red-light">Red Light Therapy</option>
+              <option value="pemf">PEMF Therapy</option>
+              <option value="sound-bath">Sound Bath</option>
+              <option value="contrast">Contrast Therapy</option>
+            </optgroup>
+            <optgroup label="Golf">
+              <option value="golf-round">Golf Round</option>
+              <option value="driving-range">Driving Range</option>
+              <option value="golf-lesson">Golf Lesson</option>
+            </optgroup>
+            <optgroup label="Equestrian">
+              <option value="horse-riding">Horse Riding</option>
+              <option value="polo">Polo</option>
+              <option value="dressage">Dressage</option>
+            </optgroup>
+            <optgroup label="Air & Extreme">
+              <option value="skydive">Skydiving</option>
+              <option value="paraglide">Paragliding</option>
+              <option value="bungee">Bungee Jump</option>
+              <option value="zip-line">Zip Line</option>
+            </optgroup>
+            <optgroup label="Snow Sports">
+              <option value="ski">Skiing</option>
+              <option value="snowboard">Snowboarding</option>
+              <option value="xc-ski">Cross-Country Skiing</option>
+              <option value="ski-tour">Ski Touring</option>
+            </optgroup>
+            <optgroup label="Multi-Sport & Events">
+              <option value="triathlon">Triathlon</option>
+              <option value="duathlon">Duathlon</option>
+              <option value="hyrox">Hyrox</option>
+              <option value="ocr">Obstacle Course Race</option>
+            </optgroup>
+          </select>
+          <select class="filter-select" id="communityLevelFilter">
+            <option value="all">All Levels</option>
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="advanced">Advanced</option>
+            <option value="elite">Elite</option>
+            <option value="professional">Professional</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="challenges-grid" id="communityGrid">
+        <!-- Community challenge cards inserted here -->
+      </div>
+    </div>
+
+  </div>
+
+</main>
+
+</div>
+
+<!-- MODAL BACKDROP -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" id="modal">
+    <div class="modal-close" id="modalClose"><i class="ti ti-x"></i></div>
+    
+    <div class="modal-header" id="modalHeader">
+      <img src="" alt="Challenge">
+    </div>
+
+    <div class="modal-org-strip" id="modalOrgStrip">
+      <div class="modal-org-logo provider" id="modalOrgLogo">
+        <span class="logo-letter" id="modalOrgLetter">X</span>
+      </div>
+      <div class="modal-org-info">
+        <div class="modal-org-name" id="modalOrgName">Organization Name</div>
+        <div class="modal-org-meta" id="modalOrgMeta">Details here</div>
+        <div class="modal-org-links">
+          <a href="#" id="modalOrgMapsLink" class="modal-org-link" target="_blank">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            Facility Location
+          </a>
+          <a href="#" id="modalOrgProfileLink" class="modal-org-link" target="_blank">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            Provider Profile
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-body" id="modalBody">
+      <div class="modal-title" id="modalTitle">Challenge Title</div>
+      <div class="modal-description" id="modalDescription">Description text</div>
+      <div class="modal-status-badge active" id="modalStatus">Active</div>
+
+      <div class="modal-section">
+        <div class="modal-section-title">Quick Facts</div>
+        <div class="modal-facts-grid" id="modalFacts">
+          <!-- Facts inserted here -->
+        </div>
+      </div>
+
+      <div class="modal-section" id="rulesSection">
+        <div class="modal-section-title">How It Works</div>
+        <div class="modal-text" id="modalRules">Rules and format details</div>
+      </div>
+
+      <div class="modal-section" id="bookingSection" style="display: none;">
+        <div class="modal-section-title">Before You Join</div>
+        <div class="modal-text" id="modalBooking">Booking details</div>
+      </div>
+
+      <div class="modal-section" id="leaderboardSection" style="display: none;">
+        <div class="modal-section-title-with-button">
+          <div class="modal-section-title">Leaderboard</div>
+          <button class="view-leaderboard-btn" id="viewFullLeaderboardBtn" onclick="">View Full</button>
+        </div>
+        <div class="modal-leaderboard" id="modalLeaderboard">
+          <!-- Leaderboard inserted here -->
+        </div>
+      </div>
+
+    </div>
+
+    <div class="modal-footer">
+      <button class="modal-btn" id="modalBtn">Join Challenge</button>
+      <div class="modal-note" id="modalNote">Registration note text</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════
+// SAMPLE DATA
+// ════════════════════════════════════════════════
+
+const providerChallenges = [
+  {
+    id: 'ch-p1',
+    type: 'provider',
+    title: '5K Time Trial Challenge',
+    organizer: { name: 'Al Wasl Park', location: 'Dubai', letter: 'A' },
+    activity: 'Run 5K',
+    activitySlug: 'run-5k',
+    difficulty: 'Intermediate',
+    participants: 12,
+    maxParticipants: 30,
+    startDate: '2026-05-25',
+    endDate: '2026-05-31',
+    daysLeft: 3,
+    description: 'Test your speed. 5K timed run at Al Wasl Park with results displayed live. All levels welcome.',
+    rules: 'Timed 5K on marked route. Official timing via mobile app. Results posted same day.',
+    bookingRequired: 'Just show up — arrive 15 mins early for registration.',
+    location: 'Al Wasl Park, Dubai',
+    imageUrl: '/images/ch-run-5k.jpg',
+    status: 'active',
+    leaderboard: [
+      { rank: 1, name: 'Ahmed', time: '18:32', location: 'Dubai' },
+      { rank: 2, name: 'Fatima', time: '18:45', location: 'Dubai' },
+      { rank: 3, name: 'Mohammed', time: '19:01', location: 'Abu Dhabi' }
+    ]
+  },
+  {
+    id: 'ch-p2',
+    type: 'provider',
+    title: 'Member Fitness Test Week 5',
+    organizer: { name: 'CrossFit Dubai', location: 'DIFC', letter: 'C' },
+    activity: 'Strength Training',
+    activitySlug: 'crossfit',
+    difficulty: 'Advanced',
+    participants: 24,
+    maxParticipants: 30,
+    startDate: '2026-05-26',
+    endDate: '2026-05-30',
+    daysLeft: 2,
+    description: 'Partner WOD circuit test. 3 rounds: 15 thrusters, 12 pullups, 9 box jumps. Track your score.',
+    rules: 'Rx or scaled versions available. Scores submitted via video by May 30, 11:59pm. Top 3 get prizes.',
+    bookingRequired: 'Book a 1-hour time slot. Use the booking link from the provider.',
+    location: 'CrossFit Dubai, DIFC',
+    imageUrl: '/images/ch-crossfit.jpg',
+    status: 'active',
+    leaderboard: [
+      { rank: 1, name: 'Sara', score: '15:22', location: 'Dubai' },
+      { rank: 2, name: 'Khalid', score: '16:05', location: 'Dubai' }
+    ]
+  },
+  {
+    id: 'ch-p3',
+    type: 'provider',
+    title: 'Padel Mixed Doubles Tournament',
+    organizer: { name: 'Padel Pro Club', location: 'Downtown Dubai', letter: 'P' },
+    activity: 'Padel',
+    activitySlug: 'padel',
+    difficulty: 'Intermediate',
+    participants: 28,
+    maxParticipants: 32,
+    startDate: '2026-06-01',
+    endDate: '2026-06-02',
+    daysLeft: 8,
+    description: 'Mixed doubles tournament. 3 rounds over 2 days. Limited to 16 pairs (32 players).',
+    rules: 'Pairs registration. Round robin then knockouts. Lunch provided. Entry AED 150 per pair.',
+    bookingRequired: 'Find a partner and both confirm attendance. Specific court times assigned by provider.',
+    location: 'Padel Pro Club, Downtown Dubai',
+    imageUrl: '/images/ch-padel.jpg',
+    status: 'active',
+    leaderboard: []
+  },
+  {
+    id: 'ch-p4',
+    type: 'provider',
+    title: 'Yoga Flow 7-Day Challenge',
+    organizer: { name: 'Yoga Wellness Studio', location: 'Marina', letter: 'Y' },
+    activity: 'Vinyasa Yoga',
+    activitySlug: 'vinyasa',
+    difficulty: 'Beginner',
+    participants: 8,
+    maxParticipants: 15,
+    startDate: '2026-05-28',
+    endDate: '2026-06-03',
+    daysLeft: 5,
+    description: 'Guided 7-day vinyasa flow. Morning or evening classes. All levels. Track consistency.',
+    rules: 'Attend min 5 of 7 classes. Schedule posted weekly. No prior experience needed.',
+    location: 'Yoga Wellness Studio, Marina',
+    imageUrl: '/images/ch-yoga.jpg',
+    status: 'active',
+    leaderboard: []
+  }
+];
+
+const communityChallenges = [
+  {
+    id: 'ch-c1',
+    type: 'community',
+    title: 'Plank Hold Challenge',
+    creator: { name: 'Sarah', letter: 'S', reliabilityScore: 8.5 },
+    activity: 'Strength Training',
+    activitySlug: 'strength',
+    difficulty: 'Beginner',
+    participants: 5,
+    maxParticipants: 8,
+    startDate: '2026-05-24',
+    endDate: '2026-05-31',
+    daysLeft: 7,
+    description: 'Hold a plank as long as you can. Daily attempts. Log your best time.',
+    rules: 'Log your personal best time. Honor system. No equipment needed.',
+    imageUrl: '/images/ch-plank.jpg',
+    status: 'active',
+    leaderboard: [
+      { rank: 1, name: 'Sarah', score: '3:45', verified: true, location: 'Dubai' },
+      { rank: 2, name: 'Layla', score: '3:22', verified: true, location: 'Abu Dhabi' },
+      { rank: 3, name: 'Noor', score: '2:58', verified: false, location: 'Dubai' },
+      { rank: 4, name: 'Zara', score: '2:45', verified: false, location: 'Sharjah' }
+    ]
+  },
+  {
+    id: 'ch-c2',
+    type: 'community',
+    title: '10K Speed Run',
+    creator: { name: 'Marcus', letter: 'M', reliabilityScore: 9 },
+    activity: 'Running',
+    activitySlug: 'run-10k',
+    difficulty: 'Intermediate',
+    participants: 6,
+    maxParticipants: 8,
+    startDate: '2026-05-25',
+    endDate: '2026-06-01',
+    daysLeft: 8,
+    description: 'Complete a 10K run this week. Beat your personal best or try for a new time.',
+    rules: 'Run anytime, anywhere. Track with GPS or stopwatch. Submit your official time.',
+    imageUrl: '/images/ch-run-10k.jpg',
+    status: 'active',
+    leaderboard: [
+      { rank: 1, name: 'Marcus', score: '47:32', verified: true, location: 'Dubai' },
+      { rank: 2, name: 'Hassan', score: '49:15', verified: true, location: 'Dubai' },
+      { rank: 3, name: 'Riya', score: '51:08', verified: false, location: 'Abu Dhabi' }
+    ]
+  },
+  {
+    id: 'ch-c3',
+    type: 'community',
+    title: '7-Day Yoga Streak',
+    creator: { name: 'Aisha', letter: 'A', reliabilityScore: 8 },
+    activity: 'Yoga',
+    activitySlug: 'vinyasa',
+    difficulty: 'Beginner',
+    participants: 7,
+    maxParticipants: 8,
+    startDate: '2026-05-24',
+    endDate: '2026-05-31',
+    daysLeft: 7,
+    description: '7 consecutive days of yoga. Any duration, any style. Stay consistent.',
+    rules: 'Log daily practice. Optional: share progress with group. Support each other.',
+    imageUrl: '/images/ch-yoga-women.jpg',
+    status: 'active',
+    leaderboard: [
+      { rank: 1, name: 'Aisha', score: '7 days', verified: true, location: 'Dubai' },
+      { rank: 2, name: 'Hana', score: '6 days', verified: true, location: 'Abu Dhabi' },
+      { rank: 3, name: 'Mira', score: '5 days', verified: false, location: 'Dubai' },
+      { rank: 4, name: 'Leena', score: '4 days', verified: false, location: 'Sharjah' }
+    ]
+  }
+];
+
+// ════════════════════════════════════════════════
+// RENDER CARDS
+// ════════════════════════════════════════════════
+
+function renderCards(challenges, gridId) {
+  const grid = document.getElementById(gridId);
+  grid.innerHTML = '';
+
+  challenges.forEach(ch => {
+    const card = document.createElement('div');
+    card.className = 'challenge-card';
+    card.innerHTML = `
+      <div class="cc-image-wrap">
+        <img src="${ch.imageUrl}" alt="${ch.title}">
+        <div class="cc-logo ${ch.type}">
+          <span class="logo-letter">${ch.type === 'provider' ? ch.organizer.letter : ch.creator.letter}</span>
+        </div>
+        <button class="cc-fav" aria-label="Favorite"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg></button>
+      </div>
+      <div class="cc-body">
+        <div class="cc-organizer">${ch.type === 'provider' ? 'by ' + ch.organizer.name : 'by ' + ch.creator.name}</div>
+        <div class="cc-title">${ch.title}</div>
+        <div class="cc-facts">
+          <div class="cc-fact-item">
+            <div class="cc-fact-label">Activity</div>
+            <div class="cc-fact-value activity">${ch.activity}</div>
+          </div>
+          <div class="cc-fact-item">
+            <div class="cc-fact-label">Level</div>
+            <div class="cc-fact-value">${ch.difficulty}</div>
+          </div>
+          <div class="cc-fact-item">
+            <div class="cc-fact-label">Participants</div>
+            <div class="cc-fact-value">${ch.participants}</div>
+          </div>
+        </div>
+        <div class="cc-footer">
+          <span>${new Date(ch.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+        </div>
+      </div>
+    `;
+
+    card.addEventListener('click', () => openModal(ch));
+    grid.appendChild(card);
+  });
+}
+
+// ════════════════════════════════════════════════
+// MODAL
+// ════════════════════════════════════════════════
+
+function openModal(challenge) {
+  const backdrop = document.getElementById('modalBackdrop');
+  const header = document.getElementById('modalHeader');
+  const orgStrip = document.getElementById('modalOrgStrip');
+  const orgLogo = document.getElementById('modalOrgLogo');
+  const orgLetter = document.getElementById('modalOrgLetter');
+  const orgName = document.getElementById('modalOrgName');
+  const orgMeta = document.getElementById('modalOrgMeta');
+  const title = document.getElementById('modalTitle');
+  const desc = document.getElementById('modalDescription');
+  const status = document.getElementById('modalStatus');
+  const factsHtml = document.getElementById('modalFacts');
+  const rulesSection = document.getElementById('rulesSection');
+  const rules = document.getElementById('modalRules');
+  const btn = document.getElementById('modalBtn');
+  const note = document.getElementById('modalNote');
+
+  // Safety check: only proceed if critical elements exist
+  if (!header || !backdrop || !title) return;
+
+  const headerImg = header.querySelector('img');
+  if (headerImg) headerImg.src = challenge.imageUrl;
+
+  if (challenge.type === 'provider') {
+    if (orgLogo) orgLogo.className = 'modal-org-logo provider';
+    if (orgLetter) orgLetter.textContent = challenge.organizer.letter;
+    if (orgName) orgName.textContent = challenge.organizer.name;
+    if (orgMeta) orgMeta.textContent = challenge.organizer.location + ' | Provider Challenge';
+    
+    // Set provider links
+    const mapsLink = document.getElementById('modalOrgMapsLink');
+    const profileLink = document.getElementById('modalOrgProfileLink');
+    
+    if (mapsLink) {
+      // Google Maps link with provider location
+      const mapQuery = encodeURIComponent(challenge.organizer.location + ', Dubai, UAE');
+      mapsLink.href = `https://www.google.com/maps/search/${mapQuery}`;
+    }
+    
+    if (profileLink) {
+      // Show provider profile popup (not external link)
+      profileLink.href = '#';
+      profileLink.onclick = (e) => {
+        e.preventDefault();
+        showProviderProfile(challenge.organizer);
+      };
+    }
+  } else {
+    if (orgLogo) orgLogo.className = 'modal-org-logo community';
+    if (orgLetter) orgLetter.textContent = challenge.creator.letter;
+    if (orgName) orgName.textContent = challenge.creator.name;
+    if (orgMeta) orgMeta.textContent = 'Community Challenge';
+    
+    // Hide provider links for community challenges
+    const linksContainer = document.querySelector('.modal-org-links');
+    if (linksContainer) linksContainer.style.display = 'none';
+  }
+
+  if (title) title.textContent = challenge.title;
+  if (desc) desc.textContent = challenge.description;
+
+  if (status) {
+    status.className = 'modal-status-badge ' + challenge.status;
+    status.textContent = challenge.status === 'active' ? 'Active' : challenge.status === 'closing' ? 'Closing Soon' : 'Closed';
+  }
+
+  if (factsHtml) factsHtml.innerHTML = `
+    <div class="modal-fact">
+      <div class="modal-fact-label">Activity</div>
+      <div class="modal-fact-value">${challenge.activity}</div>
+    </div>
+    <div class="modal-fact">
+      <div class="modal-fact-label">Level</div>
+      <div class="modal-fact-value">${challenge.difficulty}</div>
+    </div>
+    <div class="modal-fact">
+      <div class="modal-fact-label">Finishes</div>
+      <div class="modal-fact-value">${new Date(challenge.endDate).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})}</div>
+    </div>
+    <div class="modal-fact">
+      <div class="modal-fact-label">Participants</div>
+      <div class="modal-fact-value">${challenge.participants}</div>
+    </div>
+  `;
+
+  if (rulesSection) rulesSection.style.display = 'block';
+  if (rules) rules.textContent = challenge.rules;
+
+  // BOOKING REQUIREMENTS (Provider Challenges Only)
+  const bookingSection = document.getElementById('bookingSection');
+  const modalBooking = document.getElementById('modalBooking');
+  
+  if (challenge.type === 'provider' && challenge.bookingRequired) {
+    if (bookingSection) bookingSection.style.display = 'block';
+    if (modalBooking) modalBooking.textContent = challenge.bookingRequired;
+  } else if (bookingSection) {
+    bookingSection.style.display = 'none';
+  }
+
+  // LEADERBOARD (Provider & Community Challenges)
+  const leaderboardSection = document.getElementById('leaderboardSection');
+  const modalLeaderboard = document.getElementById('modalLeaderboard');
+  
+  if (challenge.leaderboard && challenge.leaderboard.length > 0) {
+    if (leaderboardSection) leaderboardSection.style.display = 'block';
+    if (modalLeaderboard) {
+      let leaderboardHtml = '';
+      
+      // For community challenges, sort verified first, then unverified
+      let sortedLeaderboard = [...challenge.leaderboard];
+      if (challenge.type === 'community') {
+        sortedLeaderboard.sort((a, b) => {
+          if (b.verified === a.verified) return 0;
+          return b.verified ? 1 : -1;
+        });
+      }
+      
+      sortedLeaderboard.forEach((entry, index) => {
+        const score = entry.time || entry.score || '—';
+        const verificationBadge = challenge.type === 'community' ? 
+          `<div class="verification-badge ${entry.verified ? 'verified' : 'unverified'}">
+            ${entry.verified ? '✓' : '○'} ${entry.verified ? 'Verified' : 'Unverified'}
+           </div>` : '';
+        
+        leaderboardHtml += `
+          <div class="modal-leaderboard-row">
+            <div class="modal-leaderboard-rank">#${index + 1}</div>
+            <div class="modal-leaderboard-info">
+              <div class="modal-leaderboard-name">${entry.name}</div>
+              ${verificationBadge}
+            </div>
+            <div class="modal-leaderboard-score">${score}</div>
+          </div>
+        `;
+      });
+      modalLeaderboard.innerHTML = leaderboardHtml;
+      
+      // Make leaderboard clickable to expand
+      modalLeaderboard.addEventListener('click', () => {
+        expandFullLeaderboard(challenge);
+      });
+      modalLeaderboard.style.cursor = 'pointer';
+      
+      // Set up View Full button
+      const viewFullBtn = document.getElementById('viewFullLeaderboardBtn');
+      if (viewFullBtn) {
+        viewFullBtn.onclick = (e) => {
+          e.preventDefault();
+          expandFullLeaderboard(challenge);
+        };
+      }
+    }
+  } else if (leaderboardSection) {
+    leaderboardSection.style.display = 'none';
+  }
+
+  if (btn) {
+    if (challenge.type === 'provider') {
+      btn.textContent = 'Express Interest';
+      btn.onclick = (e) => {
+        e.preventDefault();
+        showApplicationForm(challenge);
+      };
+    } else {
+      btn.textContent = 'Submit Score';
+      btn.onclick = (e) => {
+        e.preventDefault();
+        showScoreSubmissionForm(challenge);
+      };
+    }
+    btn.disabled = false;
+    btn.style.opacity = '1';
+  }
+  
+  if (note) {
+    if (challenge.type === 'provider') {
+      note.textContent = 'Provider will contact you within 24-48 hours.';
+    } else {
+      note.textContent = 'Submit verified or unverified scores. Verified scores rank higher.';
+    }
+  }
+
+  if (backdrop) backdrop.classList.add('show');
+}
+
+function closeModal() {
+  const backdrop = document.getElementById('modalBackdrop');
+  if (backdrop) backdrop.classList.remove('show');
+}
+
+// ════════════════════════════════════════════════
+// MODAL EVENT LISTENERS
+// ════════════════════════════════════════════════
+
+document.addEventListener('DOMContentLoaded', () => {
+  const modalBackdrop = document.getElementById('modalBackdrop');
+  if (modalBackdrop) {
+    modalBackdrop.addEventListener('click', (e) => {
+      if (e.target.id === 'modalBackdrop') closeModal();
+    });
+  }
+
+  const modalClose = document.getElementById('modalClose');
+  if (modalClose) modalClose.addEventListener('click', closeModal);
+
+  // ════════════════════════════════════════════════
+  // TAB SWITCHING
+  // ════════════════════════════════════════════════
+
+  const tabs = document.querySelectorAll('.tab');
+  if (tabs && tabs.length > 0) {
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        
+        tab.classList.add('active');
+        const viewId = 'view-' + tab.dataset.tab;
+        const view = document.getElementById(viewId);
+        if (view) view.classList.add('active');
+      });
+    });
+  }
+});
+
+// ════════════════════════════════════════════════
+// FILTERS & SEARCH
+// ════════════════════════════════════════════════
+
+let filteredProviderChallenges = [...providerChallenges];
+let filteredCommunityChallenges = [...communityChallenges];
+let activeLocation = '';
+let activeActivity = 'all';
+let activeDifficulty = 'all';
+let activeCommunityActivity = 'all';
+let activeCommunityDifficulty = 'all';
+
+function applyFilters() {
+  const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+  // PROVIDER CHALLENGES
+  filteredProviderChallenges = providerChallenges.filter(ch => {
+    const matchSearch = !searchTerm || ch.title.toLowerCase().includes(searchTerm) || ch.activity.toLowerCase().includes(searchTerm) || ch.organizer.name.toLowerCase().includes(searchTerm);
+    const matchLocation = !activeLocation || ch.organizer.location.toLowerCase().includes(activeLocation);
+    const matchActivity = activeActivity === 'all' || ch.activitySlug === activeActivity;
+    const matchDifficulty = activeDifficulty === 'all' || ch.difficulty.toLowerCase() === activeDifficulty.toLowerCase();
+    return matchSearch && matchLocation && matchActivity && matchDifficulty;
+  });
+
+  // COMMUNITY CHALLENGES
+  filteredCommunityChallenges = communityChallenges.filter(ch => {
+    const matchSearch = !searchTerm || ch.title.toLowerCase().includes(searchTerm) || ch.activity.toLowerCase().includes(searchTerm) || ch.creator.name.toLowerCase().includes(searchTerm);
+    const matchActivity = activeCommunityActivity === 'all' || ch.activitySlug === activeCommunityActivity;
+    const matchDifficulty = activeCommunityDifficulty === 'all' || ch.difficulty.toLowerCase() === activeCommunityDifficulty.toLowerCase();
+    return matchSearch && matchActivity && matchDifficulty;
+  });
+
+  renderCards(filteredProviderChallenges, 'providerGrid');
+  renderCards(filteredCommunityChallenges, 'communityGrid');
+}
+
+// Search input listener
+const searchInput = document.getElementById('searchInput');
+if (searchInput) searchInput.addEventListener('input', applyFilters);
+
+// PROVIDER LOCATION FILTER
+const locFilter = document.getElementById('locFilter');
+if (locFilter) locFilter.addEventListener('change', (e) => {
+  activeLocation = e.target.value;
+  applyFilters();
+});
+
+// PROVIDER ACTIVITY FILTER
+const activityFilter = document.getElementById('activityFilter');
+if (activityFilter) activityFilter.addEventListener('change', (e) => {
+  activeActivity = e.target.value;
+  applyFilters();
+});
+
+// PROVIDER DIFFICULTY FILTER
+const levelFilter = document.getElementById('levelFilter');
+if (levelFilter) levelFilter.addEventListener('change', (e) => {
+  activeDifficulty = e.target.value;
+  applyFilters();
+});
+
+// COMMUNITY ACTIVITY FILTER
+const communityActivityFilter = document.getElementById('communityActivityFilter');
+if (communityActivityFilter) communityActivityFilter.addEventListener('change', (e) => {
+  activeCommunityActivity = e.target.value;
+  applyFilters();
+});
+
+// COMMUNITY DIFFICULTY FILTER
+const communityLevelFilter = document.getElementById('communityLevelFilter');
+if (communityLevelFilter) communityLevelFilter.addEventListener('change', (e) => {
+  activeCommunityDifficulty = e.target.value;
+  applyFilters();
+});
+
+// ════════════════════════════════════════════════
+// JOIN CHALLENGE FUNCTIONS
+// ════════════════════════════════════════════════
+
+function showApplicationForm(challenge) {
+  const formHtml = `
+    <div class="application-modal-overlay" onclick="closeApplicationForm()">
+      <div class="application-modal" onclick="event.stopPropagation()">
+        <button class="application-modal-close" onclick="closeApplicationForm()">×</button>
+        
+        <div class="application-modal-content">
+          <div class="application-provider-logo">
+            <span>${challenge.organizer.letter}</span>
+          </div>
+          
+          <h2>Express Interest?</h2>
+          <p class="application-subtitle">${challenge.title}</p>
+          <p class="application-location">${challenge.organizer.name}</p>
+          
+          <div class="application-message">
+            Letting the provider know you're interested.
+          </div>
+          
+          <div class="application-buttons">
+            <button class="app-cancel-btn" onclick="closeApplicationForm()">Cancel</button>
+            <button class="app-submit-btn" onclick="confirmInterest()">Express Interest</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  const container = document.createElement('div');
+  container.id = 'applicationModalContainer';
+  container.innerHTML = formHtml;
+  document.body.appendChild(container);
+}
+
+function closeApplicationForm() {
+  const container = document.getElementById('applicationModalContainer');
+  if (container) container.remove();
+}
+
+function confirmInterest() {
+  const btn = document.getElementById('modalBtn');
+  if (btn) {
+    btn.textContent = 'Interest Expressed';
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+  }
+  
+  const note = document.getElementById('modalNote');
+  if (note) {
+    note.textContent = 'Provider will contact you within 24-48 hours.';
+  }
+  
+  closeApplicationForm();
+}
+
+function showScoreSubmissionForm(challenge) {
+  const formHtml = `
+    <div class="application-modal-overlay" onclick="closeScoreSubmissionForm()">
+      <div class="application-modal" onclick="event.stopPropagation()">
+        <button class="application-modal-close" onclick="closeScoreSubmissionForm()">×</button>
+        
+        <div class="application-modal-content">
+          <div class="application-provider-logo">
+            <span>${challenge.creator.letter}</span>
+          </div>
+          
+          <h2>Submit Your Score</h2>
+          <p class="application-subtitle">${challenge.title}</p>
+          
+          <div class="score-form-group">
+            <label class="score-form-label">Your Score/Time</label>
+            <input type="text" id="scoreInput" class="score-form-input" placeholder="e.g., 3:45, 250 points" autocomplete="off">
+          </div>
+          
+          <div class="score-verification-section">
+            <p class="score-verification-title">Verification Status</p>
+            <div class="verification-option">
+              <input type="radio" id="unverified" name="verification" value="unverified" checked>
+              <label for="unverified">
+                <span class="verification-label-title">Unverified</span>
+                <span class="verification-label-desc">Self-submitted. You verify your own score.</span>
+              </label>
+            </div>
+            <div class="verification-option">
+              <input type="radio" id="verified" name="verification" value="verified">
+              <label for="verified">
+                <span class="verification-label-title">Request Verification</span>
+                <span class="verification-label-desc">Ask another FFP member to verify your score.</span>
+              </label>
+            </div>
+          </div>
+          
+          <div class="application-buttons">
+            <button class="app-cancel-btn" onclick="closeScoreSubmissionForm()">Cancel</button>
+            <button class="app-submit-btn" onclick="confirmScoreSubmission()">Submit Score</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  const container = document.createElement('div');
+  container.id = 'scoreSubmissionFormContainer';
+  container.innerHTML = formHtml;
+  document.body.appendChild(container);
+}
+
+function closeScoreSubmissionForm() {
+  const container = document.getElementById('scoreSubmissionFormContainer');
+  if (container) container.remove();
+}
+
+function confirmScoreSubmission() {
+  const scoreInput = document.getElementById('scoreInput');
+  const verificationRadio = document.querySelector('input[name="verification"]:checked');
+  
+  if (!scoreInput || !scoreInput.value.trim()) {
+    alert('Please enter your score');
+    return;
+  }
+  
+  const verificationStatus = verificationRadio ? verificationRadio.value : 'unverified';
+  const btn = document.getElementById('modalBtn');
+  
+  if (btn) {
+    btn.textContent = 'Score Submitted!';
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+  }
+  
+  const note = document.getElementById('modalNote');
+  if (note) {
+    if (verificationStatus === 'verified') {
+      note.textContent = 'Verification request sent. Leaderboard will update once verified.';
+    } else {
+      note.textContent = 'Your score has been added! Check the leaderboard.';
+    }
+  }
+  
+  closeScoreSubmissionForm();
+  
+  // Show success toast
+  showScoreSubmittedToast(scoreInput.value, verificationStatus);
+}
+
+function showScoreSubmittedToast(score, verificationStatus) {
+  const toastHtml = `
+    <div class="score-submitted-toast">
+      <div class="toast-icon">✓</div>
+      <div class="toast-text">
+        <strong>Score Submitted!</strong>
+        <span>${score} • ${verificationStatus === 'verified' ? 'Pending verification' : 'Added to leaderboard'}</span>
+      </div>
+    </div>
+  `;
+  
+  const toast = document.createElement('div');
+  toast.innerHTML = toastHtml;
+  document.body.appendChild(toast);
+  
+  // Auto-remove after 3.5 seconds
+  setTimeout(() => toast.remove(), 3500);
+}
+
+function showProviderProfile(organizer) {
+  // Show provider profile popup in modal
+  const profileHtml = `
+    <div class="provider-profile-overlay" onclick="closeProviderProfile()">
+      <div class="provider-profile-modal" onclick="event.stopPropagation()">
+        <div class="provider-profile-close" onclick="closeProviderProfile()">✕</div>
+        
+        <div class="provider-profile-header">
+          <div class="provider-profile-logo">
+            <span>${organizer.letter}</span>
+          </div>
+          <div class="provider-profile-title">
+            <h2>${organizer.name}</h2>
+            <p>${organizer.location}</p>
+          </div>
+        </div>
+        
+        <div class="provider-profile-content">
+          <div class="provider-profile-section">
+            <h3>About</h3>
+            <p>Premium fitness facility offering state-of-the-art equipment, expert training, and community-driven challenges.</p>
+          </div>
+          
+          <div class="provider-profile-section">
+            <h3>Services</h3>
+            <ul class="provider-services">
+              <li>Group classes</li>
+              <li>Personal training</li>
+              <li>Equipment access</li>
+              <li>Challenge events</li>
+            </ul>
+          </div>
+          
+          <div class="provider-profile-section">
+            <h3>Contact</h3>
+            <p>
+              <strong>Email:</strong> info@${organizer.name.toLowerCase().replace(/\s+/g, '')}.com<br>
+              <strong>Phone:</strong> +971 4 XXX XXXX<br>
+              <strong>Location:</strong> ${organizer.location}, Dubai
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  const container = document.createElement('div');
+  container.id = 'providerProfileContainer';
+  container.innerHTML = profileHtml;
+  document.body.appendChild(container);
+}
+
+function closeProviderProfile() {
+  const container = document.getElementById('providerProfileContainer');
+  if (container) container.remove();
+}
+
+function expandFullLeaderboard(challenge) {
+  let fullLeaderboardHtml = '';
+  
+  if (challenge.leaderboard && challenge.leaderboard.length > 0) {
+    challenge.leaderboard.forEach(entry => {
+      const score = entry.time || entry.score || '—';
+      fullLeaderboardHtml += `
+        <div class="leaderboard-row-full">
+          <div class="lb-rank">#${entry.rank}</div>
+          <div class="lb-info">
+            <div class="lb-name">${entry.name}</div>
+            <div class="lb-location">${entry.location}</div>
+          </div>
+          <div class="lb-score">${score}</div>
+        </div>
+      `;
+    });
+  }
+  
+  const expandedHtml = `
+    <div class="leaderboard-expanded-overlay" onclick="closeExpandedLeaderboard()">
+      <div class="leaderboard-expanded-modal" onclick="event.stopPropagation()">
+        <div class="leaderboard-expanded-header">
+          <h2>${challenge.title} - Leaderboard</h2>
+          <div class="leaderboard-expanded-close" onclick="closeExpandedLeaderboard()">✕</div>
+        </div>
+        <div class="leaderboard-expanded-content">
+          ${fullLeaderboardHtml}
+        </div>
+      </div>
+    </div>
+  `;
+  
+  const container = document.createElement('div');
+  container.id = 'leaderboardExpandedContainer';
+  container.innerHTML = expandedHtml;
+  document.body.appendChild(container);
+}
+
+function closeExpandedLeaderboard() {
+  const container = document.getElementById('leaderboardExpandedContainer');
+  if (container) container.remove();
+}
+
+function showCreateChallengeForm() {
+  const formHtml = `
+    <div class="application-modal-overlay" onclick="closeCreateChallengeForm()">
+      <div class="application-modal" onclick="event.stopPropagation()">
+        <button class="application-modal-close" onclick="closeCreateChallengeForm()">×</button>
+        
+        <div class="application-modal-content">
+          <h2>Create Community Challenge</h2>
+          <p class="application-subtitle">Start a challenge for the FFP community</p>
+          
+          <div class="create-form">
+            <div class="form-group">
+              <label>Challenge Name</label>
+              <input type="text" id="challengeTitle" placeholder="e.g., 7-Day Plank Challenge" autocomplete="off">
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label>Activity</label>
+                <select id="challengeActivity">
+                  <option value="running">Running</option>
+                  <option value="strength">Strength Training</option>
+                  <option value="yoga">Yoga</option>
+                  <option value="cycling">Cycling</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Difficulty</label>
+                <select id="challengeDifficulty">
+                  <option value="Beginner">Beginner</option>
+                  <option value="Intermediate">Intermediate</option>
+                  <option value="Advanced">Advanced</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label>Challenge Guidelines</label>
+              <textarea id="challengeGuidelines" placeholder="What is the challenge? How do participants win or complete it? Any rules?" rows="3"></textarea>
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label>Duration (Days)</label>
+                <select id="challengeDuration">
+                  <option value="1">1 Day</option>
+                  <option value="3">3 Days</option>
+                  <option value="5">5 Days</option>
+                  <option value="7">7 Days</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Max Participants</label>
+                <input type="number" id="challengeMaxParticipants" placeholder="8" min="2" max="20" autocomplete="off">
+              </div>
+            </div>
+            
+            <div class="application-buttons">
+              <button class="app-cancel-btn" onclick="closeCreateChallengeForm()">Cancel</button>
+              <button class="app-submit-btn" onclick="submitCreateChallenge()">Create Challenge</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  const container = document.createElement('div');
+  container.id = 'createChallengeFormContainer';
+  container.innerHTML = formHtml;
+  document.body.appendChild(container);
+}
+
+function closeCreateChallengeForm() {
+  const container = document.getElementById('createChallengeFormContainer');
+  if (container) container.remove();
+}
+
+function submitCreateChallenge() {
+  const title = document.getElementById('challengeTitle');
+  const guidelines = document.getElementById('challengeGuidelines');
+  const duration = document.getElementById('challengeDuration');
+  const maxParticipants = document.getElementById('challengeMaxParticipants');
+  
+  if (!title || !title.value.trim()) {
+    alert('Please enter a challenge name');
+    return;
+  }
+  if (!guidelines || !guidelines.value.trim()) {
+    alert('Please enter challenge guidelines');
+    return;
+  }
+  if (!maxParticipants || !maxParticipants.value) {
+    alert('Please set max participants');
+    return;
+  }
+  
+  // Create new challenge object
+  const today = new Date();
+  const endDate = new Date(today);
+  endDate.setDate(endDate.getDate() + parseInt(duration.value));
+  
+  const newChallenge = {
+    id: 'ch-c' + Date.now(),
+    type: 'community',
+    title: title.value,
+    creator: { name: 'You', letter: 'Y', reliabilityScore: 0 },
+    activity: document.getElementById('challengeActivity').value,
+    activitySlug: document.getElementById('challengeActivity').value,
+    difficulty: document.getElementById('challengeDifficulty').value,
+    participants: 1,
+    maxParticipants: parseInt(maxParticipants.value),
+    startDate: today.toISOString().split('T')[0],
+    endDate: endDate.toISOString().split('T')[0],
+    daysLeft: parseInt(duration.value),
+    description: guidelines.value,
+    rules: guidelines.value,
+    imageUrl: '/images/ch-default.jpg',
+    status: 'active',
+    leaderboard: [
+      { rank: 1, name: 'You', score: 'Awaiting scores...', verified: false, location: 'UAE' }
+    ]
+  };
+  
+  // Add to community challenges
+  communityChallenges.unshift(newChallenge);
+  
+  // Re-render
+  renderCards(communityChallenges, 'communityGrid');
+  
+  // Show success and close form
+  showScoreSubmittedToast(title.value, 'challenge_created');
+  closeCreateChallengeForm();
+}
+
+// ════════════════════════════════════════════════
+// INITIAL RENDER
+// ════════════════════════════════════════════════
+
+const providerGrid = document.getElementById('providerGrid');
+const communityGrid = document.getElementById('communityGrid');
+
+if (providerGrid && providerChallenges) renderCards(providerChallenges, 'providerGrid');
+if (communityGrid && communityChallenges) renderCards(communityChallenges, 'communityGrid');
+</script>
+
+</body>
+</html>
