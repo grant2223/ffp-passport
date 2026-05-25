@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FFP Passport — Deals</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --blue: #1980AD;
+  --blue-lt: #2ba8e0;
+  --blue-dk: #0f5a7a;
+  --navy: #0b1c28;
+  --navy-2: #0d2030;
+  --navy-card: #0f1e2e;
+  --navy-deep: #060f18;
+  --amber: #FFCC00;
+  --amber-soft: #d4a73d;
+  --green: #22c55e;
+  --red: #ef4444;
+  --muted: #6a90a8;
+  --muted-lt: #9dbdd0;
+  --cream: #f5ecd8;
+  --cream-2: #ebe1cb;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; font-family: 'Montserrat', sans-serif; background: var(--navy-deep); color: #fff; -webkit-font-smoothing: antialiased; }
+.app { display: flex; height: 100vh; overflow: hidden; }
+
+.sidebar { width: 230px; flex-shrink: 0; background: var(--navy); border-right: 1px solid rgba(25,128,173,.12); display: flex; flex-direction: column; }
+.sb-logo { padding: 22px 20px 16px; border-bottom: 1px solid rgba(25,128,173,.1); }
+.sb-brand { font-size: 16px; font-weight: 900; letter-spacing: 2px; }
+.sb-brand span { color: var(--blue); }
+.sb-nav { flex: 1; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; }
+.ni { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-radius: 9px; font-size: 13px; font-weight: 700; color: var(--muted); cursor: pointer; transition: all .2s; border: 1px solid transparent; }
+.ni:hover { background: rgba(25,128,173,.06); color: #fff; }
+.ni.active { background: rgba(25,128,173,.12); color: #fff; border-color: rgba(25,128,173,.2); }
+.ni-badge { margin-left: auto; background: var(--amber); color: #000; border-radius: 100px; padding: 1px 6px; font-size: 9px; font-weight: 800; }
+.ni-badge.blue { background: var(--blue); color: #fff; }
+
+.main { flex: 1; overflow-y: auto; background: radial-gradient(ellipse at top, #0a1825 0%, var(--navy-deep) 60%); }
+.main::-webkit-scrollbar { width: 6px; }
+.main::-webkit-scrollbar-thumb { background: rgba(25,128,173,.2); border-radius: 3px; }
+.topbar { background: rgba(11,28,40,.85); backdrop-filter: blur(14px); border-bottom: 1px solid rgba(25,128,173,.08); padding: 0 28px; height: 58px; display: flex; align-items: center; position: sticky; top: 0; z-index: 10; }
+.tb-title { font-size: 17px; font-weight: 900; letter-spacing: -.2px; }
+
+.panel { padding: 28px 28px 100px; max-width: 1400px; margin: 0 auto; }
+
+.ph { font-size: 28px; font-weight: 900; letter-spacing: -.5px; line-height: 1; margin-bottom: 8px; }
+.psub2 { font-size: 13px; color: var(--muted-lt); margin-bottom: 22px; line-height: 1.6; font-weight: 500; max-width: 540px; }
+
+.deals-search-bar { margin-bottom: 16px; }
+.dsb-search-wrap { position: relative; max-width: 460px; }
+.dsb-input {
+  width: 100%;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px;
+  padding: 11px 14px 11px 40px;
+  font-size: 13px; font-weight: 600;
+  color: #fff;
+  font-family: 'Montserrat', sans-serif;
+  outline: none;
+  transition: all .2s;
+}
+.dsb-input:focus { border-color: rgba(255,204,0,.4); background: rgba(255,255,255,.05); }
+.dsb-input::placeholder { color: var(--muted); font-weight: 500; }
+.dsb-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; stroke: var(--muted); }
+
+.deals-tabs { display: flex; gap: 0; margin-bottom: 18px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.deals-tab {
+  background: transparent; border: none;
+  color: var(--muted);
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px; font-weight: 800;
+  padding: 12px 4px;
+  margin-right: 28px;
+  cursor: pointer;
+  position: relative;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  transition: color .2s;
+}
+.deals-tab:hover { color: var(--muted-lt); }
+.deals-tab.active { color: #fff; }
+.deals-tab.active::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px;
+  height: 2px; background: var(--amber);
+}
+.deals-tab .count {
+  background: rgba(255,255,255,.06);
+  color: var(--muted-lt);
+  border-radius: 100px;
+  padding: 1px 7px;
+  font-size: 10px; font-weight: 800;
+  margin-left: 5px;
+}
+.deals-tab.active .count { background: rgba(255,204,0,.15); color: var(--amber); }
+
+.view { display: none; }
+.view.active { display: block; }
+
+.deals-filters { display: flex; gap: 7px; margin-bottom: 22px; flex-wrap: wrap; }
+.filter-btn {
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 100px;
+  padding: 7px 14px;
+  font-size: 11px; font-weight: 700;
+  color: var(--muted-lt);
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  letter-spacing: .3px;
+  transition: all .2s;
+}
+.filter-btn:hover { background: rgba(255,255,255,.07); color: #fff; }
+.filter-btn.active {
+  background: linear-gradient(180deg, #ffd633 0%, var(--amber) 100%);
+  color: #0b1c28;
+  border-color: var(--amber);
+  box-shadow: 0 4px 12px rgba(255,204,0,.2);
+}
+
+.logo-badge {
+  background: radial-gradient(ellipse at 30% 30%, #fbf6e8, var(--cream) 50%, var(--cream-2) 100%);
+  border-radius: 50%;
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.4) inset,
+    0 -1px 0 rgba(0,0,0,.05) inset,
+    0 6px 16px rgba(0,0,0,.4);
+}
+.logo-badge::before {
+  content: ""; position: absolute; inset: 0;
+  border-radius: 50%;
+  padding: 1px;
+  background: linear-gradient(180deg, rgba(255,204,0,.7), rgba(212,167,61,.4) 50%, rgba(212,167,61,.15));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.logo-letter {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  color: var(--navy);
+  line-height: 1;
+  position: relative;
+  z-index: 2;
+  letter-spacing: -.5px;
+}
+
+.fav-btn {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: rgba(11,20,32,.6);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,.14);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .15s;
+}
+.fav-btn:hover { background: rgba(11,20,32,.8); border-color: rgba(255,255,255,.25); }
+.fav-btn svg { width: 13px; height: 13px; stroke: rgba(255,255,255,.9); fill: none; stroke-width: 1.8; transition: all .2s; }
+.fav-btn.active svg { fill: var(--red); stroke: var(--red); }
+
+.deals-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+
+.deal-card {
+  background: linear-gradient(180deg, #0f2334 0%, #0a1c2a 100%);
+  border: 1px solid rgba(255,255,255,.05);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+  position: relative;
+}
+.deal-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255,204,0,.22);
+  box-shadow: 0 16px 32px rgba(0,0,0,.45);
+}
+
+.deal-img-wrap { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; background: var(--navy-2); }
+.deal-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .5s ease; }
+.deal-card:hover .deal-img-wrap img { transform: scale(1.06); }
+.deal-img-wrap::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0) 60%, rgba(11,28,40,.7) 100%);
+  pointer-events: none;
+}
+
+.dc-logo { position: absolute; top: 10px; left: 10px; z-index: 2; width: 34px; height: 34px; }
+.dc-logo .logo-letter { font-size: 16px; }
+.dc-fav { position: absolute; top: 10px; right: 10px; z-index: 2; }
+.dc-featured-tick {
+  position: absolute; bottom: 10px; left: 10px; z-index: 2;
+  background: rgba(255,204,0,.95); color: #0b1c28;
+  font-size: 8px; font-weight: 900;
+  padding: 3px 8px; border-radius: 4px;
+  letter-spacing: 1px; text-transform: uppercase;
+}
+
+.dc-body { padding: 12px 13px 13px; }
+.dc-partner { font-size: 13px; font-weight: 800; margin-bottom: 3px; letter-spacing: -.1px; line-height: 1.2; }
+.dc-deal { font-size: 11px; color: var(--muted-lt); font-weight: 500; line-height: 1.45; margin-bottom: 10px; min-height: 32px; }
+.dc-meta { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--muted); font-weight: 600; letter-spacing: .2px; }
+.dc-meta .pin { display: flex; align-items: center; gap: 3px; }
+.dc-meta .pin svg { stroke: var(--muted); width: 10px; height: 10px; flex-shrink: 0; }
+.dc-meta .dot { width: 2px; height: 2px; border-radius: 50%; background: var(--muted); }
+.dc-meta .cat-label { text-transform: uppercase; letter-spacing: .8px; font-size: 9px; color: var(--muted-lt); font-weight: 700; }
+
+.provider-rows { display: flex; flex-direction: column; gap: 8px; }
+
+.provider-row {
+  display: flex; align-items: center;
+  gap: 14px;
+  background: linear-gradient(180deg, #0f2334 0%, #0a1c2a 100%);
+  border: 1px solid rgba(255,255,255,.05);
+  border-radius: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.provider-row:hover {
+  border-color: rgba(255,204,0,.2);
+  background: linear-gradient(180deg, #133048 0%, #0d2333 100%);
+  transform: translateX(2px);
+}
+
+.pr-logo { width: 44px; height: 44px; flex-shrink: 0; }
+.pr-logo .logo-letter { font-size: 20px; }
+
+.pr-info { flex: 1; min-width: 0; }
+.pr-name { font-size: 14px; font-weight: 800; letter-spacing: -.1px; margin-bottom: 2px; }
+.pr-loc { font-size: 11px; color: var(--muted); font-weight: 600; display: flex; align-items: center; gap: 4px; }
+.pr-loc svg { stroke: var(--muted); width: 11px; height: 11px; flex-shrink: 0; }
+
+.pr-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.pr-cat { font-size: 9px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--muted-lt); padding: 4px 9px; background: rgba(255,255,255,.05); border-radius: 5px; }
+.pr-perk-count {
+  font-size: 9px; font-weight: 800;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  color: var(--amber);
+  padding: 4px 10px;
+  background: rgba(255, 204, 0, .12);
+  border: 1px solid rgba(255, 204, 0, .35);
+  border-radius: 100px;
+}
+.pr-perk-count.multi {
+  color: var(--blue-lt);
+  background: rgba(43, 168, 224, .12);
+  border-color: rgba(43, 168, 224, .35);
+}
+.pr-chev { stroke: var(--muted); transition: transform .2s; }
+.provider-row:hover .pr-chev { transform: translateX(3px); stroke: var(--amber); }
+
+/* Multi-perk provider — accordion */
+.provider-row-group { flex-direction: column; align-items: stretch; padding: 0; gap: 0; overflow: hidden; }
+.provider-row-group:hover { transform: none; }
+.pr-head {
+  display: flex; align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+}
+.pr-head .pr-chev.expand-chev { transition: transform .2s; }
+.provider-row-group.expanded .pr-chev.expand-chev { transform: rotate(180deg); }
+.pr-perks {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height .25s ease, padding .25s ease;
+  background: rgba(0, 0, 0, .25);
+  border-top: 0 solid transparent;
+}
+.provider-row-group.expanded .pr-perks {
+  max-height: 400px;
+  padding: 4px 0 8px;
+  border-top: 1px solid rgba(255, 255, 255, .05);
+}
+.pr-perk {
+  display: flex; align-items: center;
+  gap: 12px;
+  padding: 11px 18px 11px 22px;
+  cursor: pointer;
+  transition: background .12s;
+}
+.pr-perk:hover { background: rgba(255, 204, 0, .04); }
+.pr-perk-name { flex: 1; font-size: 13px; font-weight: 700; color: #fff; line-height: 1.35; }
+.pr-perk-cat {
+  font-size: 9px; font-weight: 800;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  color: var(--muted-lt);
+  padding: 3px 8px;
+  background: rgba(255, 255, 255, .05);
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.pr-perk .pr-chev { stroke: var(--muted); flex-shrink: 0; }
+.pr-perk:hover .pr-chev { stroke: var(--amber); transform: translateX(2px); }
+
+.empty-state {
+  text-align: center;
+  padding: 50px 24px;
+  border: 1px solid rgba(255,255,255,.05);
+  border-radius: 14px;
+  background: rgba(255,255,255,.02);
+}
+.es-icon { width: 40px; height: 40px; margin: 0 auto 14px; opacity: .3; stroke: var(--muted-lt); }
+.es-title { font-size: 14px; font-weight: 800; margin-bottom: 6px; }
+.es-sub { font-size: 12px; color: var(--muted); line-height: 1.6; max-width: 320px; margin: 0 auto; font-weight: 500; }
+
+.modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.82); backdrop-filter: blur(12px); z-index: 1000; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
+.modal-backdrop.open { display: flex; }
+
+.detail-modal {
+  background: linear-gradient(180deg, #11243a 0%, #0b1c2c 100%);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 16px;
+  max-width: 540px; width: 100%;
+  box-shadow: 0 32px 80px rgba(0,0,0,.7);
+  overflow: hidden;
+  position: relative;
+  max-height: 92vh; overflow-y: auto;
+}
+.detail-modal::-webkit-scrollbar { width: 4px; }
+.detail-modal::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 2px; }
+
+.dm-hero { position: relative; width: 100%; aspect-ratio: 16/9; overflow: hidden; background: var(--navy-2); }
+.dm-hero img { width: 100%; height: 100%; object-fit: cover; }
+.dm-hero::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0) 50%, rgba(11,28,40,.95) 100%);
+}
+.dm-close {
+  position: absolute; top: 14px; right: 14px;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(11,20,32,.65); backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,.15);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  z-index: 3; transition: all .2s;
+}
+.dm-close:hover { background: rgba(11,20,32,.85); }
+.dm-close svg { stroke: #fff; }
+.dm-featured-tick {
+  position: absolute; top: 16px; left: 86px; z-index: 2;
+  display: none;
+  background: rgba(255,204,0,.95); color: #0b1c28;
+  font-size: 9px; font-weight: 900;
+  padding: 4px 10px; border-radius: 5px;
+  letter-spacing: 1px; text-transform: uppercase;
+}
+.dm-featured-tick.show { display: inline-block; }
+.dm-logo { position: absolute; bottom: -24px; left: 22px; z-index: 2; width: 60px; height: 60px; }
+.dm-logo .logo-letter { font-size: 28px; }
+
+.dm-body { padding: 34px 24px 18px; }
+.dm-partner { font-size: 21px; font-weight: 900; letter-spacing: -.4px; margin-bottom: 4px; line-height: 1.2; }
+.dm-loc-row { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; font-size: 11px; color: var(--muted); font-weight: 600; letter-spacing: .3px; }
+.dm-loc-row .pin { display: flex; align-items: center; gap: 5px; }
+.dm-loc-row .pin svg { stroke: var(--muted); width: 12px; height: 12px; }
+.dm-loc-row .sep { width: 3px; height: 3px; border-radius: 50%; background: var(--muted); }
+.dm-loc-row .cat-label { text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted-lt); font-size: 10px; font-weight: 700; }
+
+.dm-deal-name { font-size: 16px; font-weight: 600; margin-bottom: 20px; line-height: 1.5; color: #fff; }
+
+.dm-section { padding: 16px 0; border-top: 1px solid rgba(255,255,255,.06); }
+.dm-section:first-of-type { border-top: none; padding-top: 0; }
+.dm-section-label { font-size: 10px; font-weight: 800; letter-spacing: 1.5px; color: var(--amber-soft); text-transform: uppercase; margin-bottom: 9px; }
+.dm-section p { font-size: 13px; color: var(--muted-lt); line-height: 1.7; font-weight: 500; }
+.dm-breakdown {
+  background: rgba(255,204,0,.05);
+  border: 1px solid rgba(255,204,0,.18);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.dm-breakdown .dm-section-label { color: var(--amber); margin-bottom: 6px; }
+.dm-breakdown p { color: #fff; font-weight: 600; line-height: 1.6; font-size: 13px; }
+
+.dm-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 22px; }
+.dm-info-cell .k { font-size: 9px; font-weight: 800; color: var(--muted); letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 3px; }
+.dm-info-cell .v { font-size: 12px; font-weight: 600; color: var(--muted-lt); }
+
+.dm-footer {
+  padding: 16px 24px;
+  border-top: 1px solid rgba(255,255,255,.08);
+  background: rgba(11,28,40,.4);
+  display: flex; gap: 10px; align-items: center;
+  position: sticky; bottom: 0;
+}
+.dm-fav {
+  width: 44px; height: 44px; border-radius: 11px;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  flex-shrink: 0; transition: all .15s;
+}
+.dm-fav:hover { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.18); }
+.dm-fav svg { stroke: var(--muted-lt); fill: none; width: 19px; height: 19px; stroke-width: 1.8; }
+.dm-fav.active svg { fill: var(--red); stroke: var(--red); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 22px; border-radius: 10px;
+  font-size: 11px; font-weight: 800; cursor: pointer; border: none;
+  font-family: 'Montserrat', sans-serif;
+  letter-spacing: 1px; text-transform: uppercase;
+  transition: all .2s;
+}
+.btn-amber {
+  background: linear-gradient(180deg, #ffd633 0%, var(--amber) 50%, var(--amber-soft) 100%);
+  color: #0b1c28;
+  box-shadow: 0 6px 18px rgba(255,204,0,.25), 0 1px 0 rgba(255,255,255,.4) inset;
+}
+.btn-amber:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(255,204,0,.35); }
+.btn-outline { background: transparent; border: 1px solid rgba(255,255,255,.18); color: var(--muted-lt); }
+.btn-outline:hover { border-color: rgba(255,255,255,.32); color: #fff; }
+.btn-redeem { flex: 1; padding: 13px 22px; }
+.btn-redeem.is-used {
+  background: rgba(34, 197, 94, .12) !important;
+  color: var(--green) !important;
+  border: 1px solid rgba(34, 197, 94, .35) !important;
+  box-shadow: none !important;
+  cursor: default;
+}
+
+/* ════════════════════════════════════════════════
+   AWAIT-REPLY MODAL — claim request waiting / approved / declined
+   ════════════════════════════════════════════════ */
+.await-modal {
+  background: linear-gradient(180deg, #11243a 0%, #0b1c2c 100%);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 20px;
+  max-width: 380px; width: 100%;
+  box-shadow: 0 32px 80px rgba(0,0,0,.7);
+  padding: 32px 24px 22px;
+  text-align: center;
+  position: relative;
+}
+.await-state { display: flex; flex-direction: column; align-items: center; }
+
+/* Animated orb with pulsing rings */
+.await-orb {
+  width: 120px; height: 120px;
+  margin: 0 auto 22px;
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+.pulse-ring {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 72px; height: 72px;
+  margin: -36px 0 0 -36px;
+  border-radius: 50%;
+  border: 2px solid var(--amber);
+  opacity: 0;
+  animation: pulse-out 2.4s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  pointer-events: none;
+}
+.pulse-ring:nth-child(2) { animation-delay: 0.8s; }
+.pulse-ring:nth-child(3) { animation-delay: 1.6s; }
+@keyframes pulse-out {
+  0%   { opacity: 0.65; transform: scale(1); border-width: 2px; }
+  100% { opacity: 0; transform: scale(2.4); border-width: 1px; }
+}
+.await-logo {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 30% 30%, #fbf6e8, var(--cream) 50%, var(--cream-2) 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; font-weight: 900;
+  color: #0b1c28;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 1px 0 rgba(255,255,255,.4) inset, 0 -1px 0 rgba(0,0,0,.05) inset, 0 8px 20px rgba(0,0,0,.4);
+  letter-spacing: -.5px;
+}
+
+.await-title {
+  font-size: 18px; font-weight: 900;
+  color: #fff;
+  letter-spacing: -.3px;
+  margin-bottom: 6px;
+}
+.await-title span { color: var(--amber); }
+.await-deal {
+  font-size: 13px;
+  color: var(--muted-lt);
+  font-weight: 600;
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+/* Bouncing dots */
+.dots-row {
+  display: flex; gap: 7px;
+  justify-content: center;
+  margin: 16px 0 16px;
+}
+.bouncing-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--amber);
+  animation: dot-bounce 1.4s ease-in-out infinite;
+}
+.bouncing-dot:nth-child(2) { animation-delay: 0.18s; }
+.bouncing-dot:nth-child(3) { animation-delay: 0.36s; }
+@keyframes dot-bounce {
+  0%, 80%, 100% { opacity: 0.25; transform: scale(0.7); }
+  40% { opacity: 1; transform: scale(1); }
+}
+
+.await-note {
+  font-size: 12px;
+  color: var(--muted-lt);
+  font-weight: 500;
+  line-height: 1.55;
+  padding: 0 8px;
+  margin-bottom: 22px;
+}
+
+.await-cancel {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,.18);
+  color: var(--muted-lt);
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  padding: 11px 22px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .15s;
+}
+.await-cancel:hover { color: #fff; border-color: rgba(255,255,255,.4); }
+
+.await-sim-decline {
+  position: absolute;
+  bottom: 8px; right: 12px;
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,.25);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .3px;
+  cursor: pointer;
+  padding: 4px 8px;
+  font-family: inherit;
+  transition: color .15s;
+}
+.await-sim-decline:hover { color: rgba(255,255,255,.6); }
+
+/* Approved / Declined states */
+.result-icon {
+  width: 84px; height: 84px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 18px;
+  animation: result-pop .4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes result-pop {
+  0%   { transform: scale(0.4); opacity: 0; }
+  60%  { transform: scale(1.08); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.result-icon.approved {
+  background: rgba(34, 197, 94, .15);
+  border: 2px solid var(--green);
+  color: var(--green);
+}
+.result-icon.declined {
+  background: rgba(239, 68, 68, .12);
+  border: 2px solid var(--red);
+  color: var(--red);
+}
+.result-icon svg { width: 38px; height: 38px; }
+.result-title {
+  font-size: 19px; font-weight: 900;
+  color: #fff;
+  letter-spacing: -.3px;
+  margin-bottom: 6px;
+}
+.result-title span { color: var(--amber); }
+.result-icon.declined + .result-title span { color: var(--red); }
+
+.result-note {
+  font-size: 12px;
+  color: var(--muted-lt);
+  font-weight: 500;
+  line-height: 1.6;
+  padding: 12px 14px;
+  background: rgba(255, 204, 0, .06);
+  border: 1px solid rgba(255, 204, 0, .2);
+  border-radius: 10px;
+  margin: 14px 0 16px;
+  text-align: left;
+}
+.result-note strong { color: #fff; font-weight: 800; }
+
+.result-passport {
+  width: 100%;
+  background: linear-gradient(145deg, #f0e8d0 0%, #e2d8bd 50%, #d6cba8 100%);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .35);
+  text-align: left;
+}
+.rp-row { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.rp-label { font-size: 8px; font-weight: 800; color: #5a7d92; letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 2px; }
+.rp-val { font-size: 13px; font-weight: 800; color: #1a3a4e; letter-spacing: -.2px; }
+.rp-row > div:last-child { text-align: right; }
+.rp-stamp {
+  font-size: 9px; font-weight: 900;
+  letter-spacing: 1.4px;
+  color: #1a3a4e;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(26,58,78,.25);
+  text-align: center;
+}
+
+/* CONFIRMATION MODAL */
+.confirm-modal {
+  background: linear-gradient(180deg, #11243a 0%, #0b1c2c 100%);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 16px;
+  max-width: 380px; width: 100%;
+  box-shadow: 0 32px 80px rgba(0,0,0,.7);
+  padding: 26px 24px 20px;
+  text-align: center;
+}
+.cm-icon {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: rgba(255,204,0,.12);
+  border: 1px solid rgba(255,204,0,.25);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 14px;
+}
+.cm-icon svg { width: 26px; height: 26px; stroke: var(--amber); }
+.cm-title { font-size: 17px; font-weight: 900; letter-spacing: -.3px; margin-bottom: 6px; }
+.cm-deal { font-size: 13px; font-weight: 600; color: #fff; line-height: 1.45; margin-bottom: 4px; }
+.cm-venue { font-size: 11px; color: var(--muted-lt); font-weight: 600; letter-spacing: .3px; text-transform: uppercase; margin-bottom: 16px; }
+.cm-warn {
+  background: rgba(255,204,0,.06);
+  border: 1px solid rgba(255,204,0,.16);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 11px; line-height: 1.55; color: var(--muted-lt); font-weight: 500;
+  margin-bottom: 18px;
+  text-align: left;
+}
+.cm-footer { display: flex; gap: 8px; align-items: stretch; }
+.cm-footer .btn { flex-shrink: 0; padding: 11px 18px; }
+
+@media (max-width: 1100px) { .deals-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 700px) {
+  .deals-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .dc-deal { min-height: 28px; font-size: 10px; }
+  .dc-partner { font-size: 12px; }
+  .pr-cat { display: none; }
+}
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .panel { padding: 20px 16px 90px; }
+  .ph { font-size: 24px; }
+  .topbar { padding: 0 16px; }
+  .dm-info-grid { grid-template-columns: 1fr; }
+  .deals-tab { margin-right: 20px; font-size: 10px; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+<div class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-brand">FFP <span>PASSPORT</span></div>
+  </div>
+  <div class="sb-nav">
+    <div class="ni">My Passport</div>
+    <div class="ni active">Deals<span class="ni-badge blue">14</span></div>
+    <div class="ni">Events<span class="ni-badge">3</span></div>
+    <div class="ni">Meet &amp; Move</div>
+    <div class="ni">Earnings<span class="ni-badge">5</span></div>
+    <div class="ni">Experiences<span class="ni-badge blue">2</span></div>
+    <div class="ni">Challenges<span class="ni-badge">2</span></div>
+    <div class="ni">Notifications<span class="ni-badge">4</span></div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar"><div class="tb-title">Deals</div></div>
+
+  <!-- ═══════════════════════════════════════════════
+  DROP-IN PANEL — replaces #panel-deals in your file
+  ═══════════════════════════════════════════════ -->
+  <div class="panel" id="panel-deals">
+    <div class="ph">Deals</div>
+    <div class="psub2">Member perks at partner venues across the UAE. Show your passport at the venue to redeem.</div>
+
+    <div class="deals-search-bar">
+      <div class="dsb-search-wrap">
+        <svg class="dsb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" class="dsb-input" placeholder="Search venues, activities, or perks" oninput="handleSearch(this.value)">
+      </div>
+    </div>
+
+    <div class="deals-tabs">
+      <button class="deals-tab active" onclick="switchView(this, 'featured')">Featured <span class="count" id="feat-count">8</span></button>
+      <button class="deals-tab" onclick="switchView(this, 'deals')">Deals <span class="count" id="deals-count">10</span></button>
+      <button class="deals-tab" onclick="switchView(this, 'providers')">Providers <span class="count" id="prov-count">10</span></button>
+      <button class="deals-tab" onclick="switchView(this, 'fav')">Favourites <span class="count" id="fav-count">0</span></button>
+    </div>
+
+    <div class="deals-filters" id="filters">
+      <button class="filter-btn active" onclick="setCategory(this, 'all')">All</button>
+      <button class="filter-btn" onclick="setCategory(this, 'Sports')">Sports</button>
+      <button class="filter-btn" onclick="setCategory(this, 'Fitness')">Fitness</button>
+      <button class="filter-btn" onclick="setCategory(this, 'Wellness')">Wellness</button>
+      <button class="filter-btn" onclick="setCategory(this, 'Adventure')">Adventure</button>
+      <button class="filter-btn" onclick="setCategory(this, 'Community')">Community</button>
+      <button class="filter-btn" onclick="setCategory(this, 'Food')">Food</button>
+    </div>
+
+    <div class="view active" id="view-featured">
+      <div class="deals-grid" id="featured-grid"></div>
+    </div>
+
+    <div class="view" id="view-deals">
+      <div class="deals-grid" id="deals-grid"></div>
+    </div>
+
+    <div class="view" id="view-providers">
+      <div class="provider-rows" id="providers-list"></div>
+    </div>
+
+    <div class="view" id="view-fav">
+      <div class="deals-grid" id="fav-grid"></div>
+      <div class="empty-state" id="fav-empty">
+        <svg class="es-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        <div class="es-title">Nothing saved yet</div>
+        <div class="es-sub">Tap the heart on any perk to keep it here for quick access.</div>
+      </div>
+    </div>
+
+  </div>
+  <!-- ═══════════════════════════════════════════════
+  END DROP-IN PANEL
+  ═══════════════════════════════════════════════ -->
+</div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-backdrop" id="detail-backdrop" onclick="closeDetail(event)">
+  <div class="detail-modal" onclick="event.stopPropagation()">
+    <div class="dm-hero">
+      <img id="dm-img" src="" alt="">
+      <button class="dm-close" onclick="closeDetail()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div class="dm-featured-tick" id="dm-tick">Featured</div>
+      <div class="dm-logo logo-badge" id="dm-logo"><span class="logo-letter" id="dm-letter">P</span></div>
+    </div>
+    <div class="dm-body">
+      <div class="dm-partner" id="dm-partner"></div>
+      <div class="dm-loc-row">
+        <span class="pin">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span id="dm-loc"></span>
+        </span>
+        <span class="sep"></span>
+        <span class="cat-label" id="dm-cat"></span>
+      </div>
+      <div class="dm-deal-name" id="dm-deal-name"></div>
+
+      <div class="dm-section dm-breakdown">
+        <div class="dm-section-label">What you get</div>
+        <p id="dm-breakdown"></p>
+      </div>
+
+      <div class="dm-section">
+        <div class="dm-section-label">About the venue</div>
+        <p id="dm-about"></p>
+      </div>
+
+      <div class="dm-section">
+        <div class="dm-section-label">The details</div>
+        <div class="dm-info-grid">
+          <div class="dm-info-cell"><div class="k">Valid</div><div class="v" id="dm-valid"></div></div>
+          <div class="dm-info-cell"><div class="k">Booking</div><div class="v" id="dm-booking"></div></div>
+          <div class="dm-info-cell"><div class="k">Limits</div><div class="v" id="dm-limits"></div></div>
+          <div class="dm-info-cell"><div class="k">Frequency</div><div class="v" id="dm-frequency"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="dm-footer">
+      <button class="dm-fav" id="dm-fav-btn" onclick="toggleDetailFav(this)">
+        <svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      </button>
+      <button class="btn btn-amber btn-redeem" onclick="openClaimConfirm()">Claim This Deal</button>
+    </div>
+  </div>
+</div>
+
+<!-- CLAIM CONFIRMATION MODAL -->
+<div class="modal-backdrop" id="claim-confirm-backdrop" onclick="closeClaimConfirm(event)">
+  <div class="confirm-modal" onclick="event.stopPropagation()">
+    <div class="cm-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>
+    </div>
+    <div class="cm-title">Send claim request?</div>
+    <div class="cm-deal" id="cc-deal"></div>
+    <div class="cm-venue" id="cc-venue"></div>
+    <div class="cm-warn">Your request will be sent to the provider. Once they confirm, your perk is unlocked — and this deal becomes one-time-use on your account.</div>
+    <div class="cm-footer">
+      <button class="btn btn-outline" onclick="closeClaimConfirm()">Cancel</button>
+      <button class="btn btn-amber" style="flex:1;" onclick="confirmClaim()">Send Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- AWAITING REPLY MODAL — three states: waiting → approved or declined -->
+<div class="modal-backdrop" id="redemption-backdrop" onclick="closeRedemption(event)">
+  <div class="await-modal" onclick="event.stopPropagation()">
+
+    <!-- ─── STATE: WAITING ───────────────────────── -->
+    <div class="await-state" id="state-waiting">
+      <div class="await-orb">
+        <span class="pulse-ring"></span>
+        <span class="pulse-ring"></span>
+        <span class="pulse-ring"></span>
+        <div class="await-logo" id="await-logo"></div>
+      </div>
+      <div class="await-title">Waiting for <span id="await-partner-w"></span></div>
+      <div class="await-deal" id="await-deal-w"></div>
+      <div class="dots-row">
+        <span class="bouncing-dot"></span>
+        <span class="bouncing-dot"></span>
+        <span class="bouncing-dot"></span>
+      </div>
+      <div class="await-note">
+        The provider has been notified on their portal. They'll confirm or decline this request shortly.
+      </div>
+      <button class="await-cancel" onclick="cancelClaim()">Cancel Request</button>
+      <button class="await-sim-decline" onclick="simulateDecline()" title="Demo only">Demo: simulate decline →</button>
+    </div>
+
+    <!-- ─── STATE: APPROVED ──────────────────────── -->
+    <div class="await-state" id="state-approved" style="display:none;">
+      <div class="result-icon approved">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div class="result-title">Approved by <span id="await-partner-a"></span></div>
+      <div class="await-deal" id="await-deal-a"></div>
+      <div class="result-note">
+        <strong>Show this screen at the counter.</strong> The provider confirms in person to redeem your perk.
+      </div>
+      <div class="result-passport">
+        <div class="rp-row">
+          <div>
+            <div class="rp-label">Member</div>
+            <div class="rp-val">Grant Hermanus</div>
+          </div>
+          <div>
+            <div class="rp-label">Approved at</div>
+            <div class="rp-val" id="rp-time"></div>
+          </div>
+        </div>
+        <div class="rp-stamp">CLAIM #<span id="rp-claim-id"></span> · ONE-TIME USE</div>
+      </div>
+      <button class="btn btn-amber" style="width:100%;" onclick="closeRedemption()">Done</button>
+    </div>
+
+    <!-- ─── STATE: DECLINED ──────────────────────── -->
+    <div class="await-state" id="state-declined" style="display:none;">
+      <div class="result-icon declined">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </div>
+      <div class="result-title">Declined by <span id="await-partner-d"></span></div>
+      <div class="await-deal" id="await-deal-d"></div>
+      <div class="result-note">
+        The provider couldn't approve this request right now. The deal stays in your list — try again later or check the terms.
+      </div>
+      <button class="btn btn-outline" style="width:100%;" onclick="closeRedemption()">Close</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// SVG placeholder data URIs for categories without photos yet
+const placeholderAdventure = "data:image/svg+xml;utf8," + encodeURIComponent(`
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'>
+  <defs>
+    <linearGradient id='ag' x1='0%' y1='0%' x2='0%' y2='100%'>
+      <stop offset='0%' stop-color='#1f3148'/>
+      <stop offset='100%' stop-color='#0a1825'/>
+    </linearGradient>
+  </defs>
+  <rect width='400' height='400' fill='url(%23ag)'/>
+  <circle cx='320' cy='90' r='28' fill='%23FFCC00' opacity='0.35'/>
+  <path d='M0 290 L70 200 L140 250 L220 160 L290 220 L360 180 L400 200 L400 400 L0 400 Z' fill='%23081420' opacity='0.7'/>
+  <path d='M0 330 L80 260 L180 300 L260 250 L340 290 L400 270 L400 400 L0 400 Z' fill='%23060f18'/>
+</svg>`);
+
+const placeholderFood = "data:image/svg+xml;utf8," + encodeURIComponent(`
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'>
+  <defs>
+    <linearGradient id='fg' x1='0%' y1='0%' x2='100%' y2='100%'>
+      <stop offset='0%' stop-color='#2b1d14'/>
+      <stop offset='100%' stop-color='#16110d'/>
+    </linearGradient>
+  </defs>
+  <rect width='400' height='400' fill='url(%23fg)'/>
+  <ellipse cx='200' cy='240' rx='130' ry='34' fill='%231a0e0a'/>
+  <path d='M70 225 Q200 295 330 225 L308 258 Q200 310 92 258 Z' fill='%23080404'/>
+  <circle cx='160' cy='215' r='20' fill='%235a8a44'/>
+  <circle cx='200' cy='200' r='26' fill='%236a9a54'/>
+  <circle cx='240' cy='218' r='19' fill='%234a7c3a'/>
+  <circle cx='220' cy='225' r='9' fill='%23FFCC00' opacity='0.7'/>
+  <circle cx='180' cy='230' r='6' fill='%23d4a73d' opacity='0.6'/>
+</svg>`);
+
+const deals = {
+  padelhaus: {
+    partner: 'PadelHaus', letter: 'P', loc: 'Al Quoz, Dubai', cat: 'Sports', featured: true,
+    deal: 'Book one court, your padel partner plays free',
+    breakdown: 'Book and pay for one court, your padel partner plays free. Standard court fees apply for the booking player.',
+    about: 'A member-friendly padel club with six outdoor and two covered courts. Coaches available for private and group lessons.',
+    valid: 'Mon–Thu, 9am–5pm', booking: 'Reserve direct, mention FFP', limits: 'Standard court rate applies',
+    frequency: 'Once per week per member', img: 'images/padel.jpg'
+  },
+  padelhausCoaching: {
+    partner: 'PadelHaus', letter: 'P', loc: 'Al Quoz, Dubai', cat: 'Sports', featured: false,
+    deal: 'Member rate on 1-hour private coaching',
+    breakdown: 'AED 250 per private coaching hour for FFP members. Standard non-member rate is AED 400.',
+    about: 'FIP-certified coaches available for one-on-one or pair sessions across all levels — beginner intro through tournament prep.',
+    valid: 'Mon–Sun, daytime slots only', booking: 'Book via PadelHaus app, select "FFP Member" rate', limits: 'Subject to coach availability',
+    frequency: 'Up to 4 sessions per month', img: 'images/padel.jpg'
+  },
+  hotyoga: {
+    partner: 'Hot Yoga House', letter: 'H', loc: 'JLT, Dubai', cat: 'Wellness', featured: true,
+    deal: 'Book a mat, bring a yogi on the next one free',
+    breakdown: 'Book your drop-in class, bring a friend on the next mat over. Off-peak hours.',
+    about: 'Heated Vinyasa and Yin flows in a 36°C studio. Drop-in or class packs. All levels welcome.',
+    valid: 'Off-peak weekday classes', booking: 'Book both via studio app', limits: 'Mat space and slot availability',
+    frequency: 'Once per week per member', img: 'images/yoga.jpg'
+  },
+  strongco: {
+    partner: 'Strong Co.', letter: 'S', loc: 'Al Wasl, Dubai', cat: 'Fitness', featured: true,
+    deal: 'Book a PT session, second trainee on us',
+    breakdown: 'Book a drop-in PT session, bring a friend who trains alongside you free.',
+    about: 'Strength-focused gym with platforms, racks, and dumbbells to 60kg. Personal training on request.',
+    valid: 'All operating hours', booking: 'Book PT session via gym app', limits: 'One friend per session',
+    frequency: 'Twice per month per member', img: 'images/strength.jpg'
+  },
+  runclub: {
+    partner: 'Run Club Dubai', letter: 'R', loc: 'Kite Beach, Dubai', cat: 'Community', featured: false,
+    deal: 'Enter any race, your pacer runs free',
+    breakdown: 'Enter any club-organised race, your pace partner runs free with full kit and timing included.',
+    about: 'Weekly social runs along Kite Beach and JBR. Beginner to marathon-ready groups, all paces welcome.',
+    valid: 'Club race calendar', booking: 'Sign up at clubhouse', limits: 'Both runners must be FFP members',
+    frequency: 'Once per race per member', img: 'images/run.jpg'
+  },
+  pickle: {
+    partner: 'Pickleball Pavilion', letter: 'P', loc: 'The Sevens, Dubai', cat: 'Sports', featured: true,
+    deal: 'Pay for one paddle, your partner plays free',
+    breakdown: 'Pay for one paddle rental, your doubles partner plays free for the full court session.',
+    about: 'Six dedicated pickleball courts, paddle rental on site. Open play sessions and league nights.',
+    valid: 'Daily, all hours', booking: 'Book court online', limits: 'One free paddle per booking',
+    frequency: 'Once per week per member', img: 'images/pickleball.jpg'
+  },
+  crew: {
+    partner: 'Crew HIIT', letter: 'C', loc: 'Dubai Marina', cat: 'Fitness', featured: true,
+    deal: 'Drop into a class, second spot on us',
+    breakdown: 'Drop into any group class, bring a friend whose spot is on us.',
+    about: 'High-intensity team training in 45-minute blocks. Cardio, resistance, and hybrid sessions.',
+    valid: 'All class times', booking: 'Book both spots via app', limits: 'Spots fill fast — book ahead',
+    frequency: 'Twice per month per member', img: 'images/hiit.jpg'
+  },
+  stillpoint: {
+    partner: 'Stillpoint Recovery', letter: 'S', loc: 'Business Bay, Dubai', cat: 'Wellness', featured: true,
+    deal: 'Book a session, bring a recovery buddy free',
+    breakdown: 'Book any cold plunge or sauna session, your buddy joins free with the same amenities access.',
+    about: 'Contrast therapy studio — cold plunge, infrared sauna, breathwork. Walk-in friendly.',
+    valid: 'All operating hours', booking: 'Book online or walk in', limits: 'One buddy per session',
+    frequency: 'Once per month per member', img: 'images/recovery.jpg'
+  },
+  coast: {
+    partner: 'Coastal Run Co.', letter: 'C', loc: 'JBR Walk, Dubai', cat: 'Community', featured: false,
+    deal: 'Join a Sunday run, second runner on us',
+    breakdown: 'Sign up for any Sunday long run, your training partner joins free.',
+    about: 'Sunday morning long runs along the coast. Coached paces from 5min/km to social jogs.',
+    valid: 'Sunday mornings', booking: 'Register at meetup point', limits: 'Both must register',
+    frequency: 'Twice per month per member', img: 'images/coast.jpg'
+  },
+  hatta: {
+    partner: 'Hatta Trail Co.', letter: 'H', loc: 'Hatta, Dubai', cat: 'Adventure', featured: true,
+    deal: 'Book a guided hike, bring a trail buddy free',
+    breakdown: 'Book any guided hike or e-bike tour, your trail partner joins free with full kit included.',
+    about: 'Guided trail experiences in the Hajar mountains. Hiking, e-biking, kayaking on Hatta dam.',
+    valid: 'Year-round, weather permitting', booking: 'Book 48hr ahead online', limits: 'Group size capped at 12',
+    frequency: 'Once per month per member', img: placeholderAdventure
+  },
+  greenbowl: {
+    partner: 'The Green Bowl', letter: 'G', loc: 'City Walk, Dubai', cat: 'Food', featured: true,
+    deal: 'Buy a bowl, second one on the house',
+    breakdown: 'Order any signature bowl, your companion gets the same bowl free. Dine-in only.',
+    about: 'Plant-forward bowls, cold-pressed juices, and protein-rich breakfasts. Sit-down cafe with outdoor terrace.',
+    valid: 'Daily, 8am–6pm', booking: 'Walk in, mention FFP', limits: 'One free bowl per visit',
+    frequency: 'Once per week per member', img: placeholderFood
+  }
+};
+
+const favourites = new Set();
+let searchTerm = '';
+let activeCategory = 'all';
+
+const filterMatches = (d) => {
+  if (activeCategory !== 'all' && d.cat !== activeCategory) return false;
+  if (!searchTerm) return true;
+  const q = searchTerm.toLowerCase();
+  return d.partner.toLowerCase().includes(q) ||
+         d.loc.toLowerCase().includes(q) ||
+         d.cat.toLowerCase().includes(q) ||
+         d.deal.toLowerCase().includes(q);
+};
+
+function dealCard(key, d) {
+  const isFav = favourites.has(key) ? 'active' : '';
+  const featTick = d.featured ? '<div class="dc-featured-tick">Featured</div>' : '';
+  return `
+    <div class="deal-card" data-key="${key}" onclick="openDeal('${key}')">
+      <div class="deal-img-wrap">
+        <img src="${d.img}" alt="">
+        <div class="dc-logo logo-badge"><span class="logo-letter">${d.letter}</span></div>
+        ${featTick}
+        <button class="dc-fav fav-btn ${isFav}" onclick="event.stopPropagation(); toggleFav('${key}', this)">
+          <svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        </button>
+      </div>
+      <div class="dc-body">
+        <div class="dc-partner">${d.partner}</div>
+        <div class="dc-deal">${d.deal}</div>
+        <div class="dc-meta">
+          <span class="pin">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            ${d.loc.split(',')[0]}
+          </span>
+          <span class="dot"></span>
+          <span class="cat-label">${d.cat}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function providerRow(key, d) {
+  return `
+    <div class="provider-row" data-key="${key}" onclick="openDeal('${key}')">
+      <div class="pr-logo logo-badge"><span class="logo-letter">${d.letter}</span></div>
+      <div class="pr-info">
+        <div class="pr-name">${d.partner}</div>
+        <div class="pr-loc">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          ${d.loc}
+        </div>
+      </div>
+      <div class="pr-right">
+        <span class="pr-cat">${d.cat}</span>
+        <svg class="pr-chev" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+    </div>
+  `;
+}
+
+function renderFeatured() {
+  const grid = document.getElementById('featured-grid');
+  grid.innerHTML = '';
+  // Featured = top 8 curated by FFP (admin-flagged), filtered by current category/search
+  const items = Object.entries(deals)
+    .filter(([, d]) => d.featured && filterMatches(d))
+    .slice(0, 8);
+  document.getElementById('feat-count').textContent = items.length;
+  if (items.length === 0) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;"><div class="es-title">No featured deals in this category yet</div><div class="es-sub">Check back soon, or browse all deals in this category.</div></div>`;
+    return;
+  }
+  items.forEach(([key, d]) => grid.insertAdjacentHTML('beforeend', dealCard(key, d)));
+}
+
+function renderDeals() {
+  const grid = document.getElementById('deals-grid');
+  grid.innerHTML = '';
+  // Deals = the full catalog
+  const items = Object.entries(deals).filter(([, d]) => filterMatches(d));
+  document.getElementById('deals-count').textContent = Object.keys(deals).length;
+  if (items.length === 0) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;"><div class="es-title">Nothing matches</div><div class="es-sub">Try a different search term or category.</div></div>`;
+    return;
+  }
+  items.forEach(([key, d]) => grid.insertAdjacentHTML('beforeend', dealCard(key, d)));
+}
+
+function renderProviders() {
+  const list = document.getElementById('providers-list');
+  list.innerHTML = '';
+  // Group deals by partner name — one row per unique provider
+  const grouped = {};
+  Object.entries(deals).forEach(([key, d]) => {
+    if (!filterMatches(d)) return;
+    if (!grouped[d.partner]) {
+      grouped[d.partner] = { partner: d.partner, letter: d.letter, loc: d.loc, cat: d.cat, deals: [] };
+    }
+    grouped[d.partner].deals.push({ key, deal: d });
+  });
+  const sorted = Object.values(grouped).sort((a, b) => a.partner.localeCompare(b.partner));
+  // Provider count reflects unique partners regardless of current filter
+  document.getElementById('prov-count').textContent = new Set(Object.values(deals).map(d => d.partner)).size;
+  if (sorted.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="es-title">Nothing matches</div><div class="es-sub">Try a different search term or category.</div></div>`;
+    return;
+  }
+  sorted.forEach(group => list.insertAdjacentHTML('beforeend', providerGroupRow(group)));
+}
+
+function providerGroupRow(group) {
+  const perkLabel = group.deals.length === 1 ? '1 perk' : `${group.deals.length} perks`;
+  // Single perk → tap row jumps straight to that deal
+  // Multiple perks → tap row expands inline to show each perk
+  if (group.deals.length === 1) {
+    const d = group.deals[0].deal;
+    const key = group.deals[0].key;
+    return `
+      <div class="provider-row" data-key="${key}" onclick="openDeal('${key}')">
+        <div class="pr-logo logo-badge"><span class="logo-letter">${group.letter}</span></div>
+        <div class="pr-info">
+          <div class="pr-name">${group.partner}</div>
+          <div class="pr-loc">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            ${group.loc}
+          </div>
+        </div>
+        <div class="pr-right">
+          <span class="pr-perk-count">${perkLabel}</span>
+          <svg class="pr-chev" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    `;
+  }
+  // Multi-perk provider — expandable accordion
+  const perksList = group.deals.map(({ key, deal }) =>
+    `<div class="pr-perk" onclick="event.stopPropagation(); openDeal('${key}')">
+      <div class="pr-perk-name">${deal.deal}</div>
+      <div class="pr-perk-cat">${deal.cat}</div>
+      <svg class="pr-chev" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>`
+  ).join('');
+  return `
+    <div class="provider-row provider-row-group" onclick="this.classList.toggle('expanded')">
+      <div class="pr-head">
+        <div class="pr-logo logo-badge"><span class="logo-letter">${group.letter}</span></div>
+        <div class="pr-info">
+          <div class="pr-name">${group.partner}</div>
+          <div class="pr-loc">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            ${group.loc}
+          </div>
+        </div>
+        <div class="pr-right">
+          <span class="pr-perk-count multi">${perkLabel}</span>
+          <svg class="pr-chev expand-chev" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      </div>
+      <div class="pr-perks">${perksList}</div>
+    </div>
+  `;
+}
+
+function renderFavourites() {
+  const grid = document.getElementById('fav-grid');
+  const empty = document.getElementById('fav-empty');
+  grid.innerHTML = '';
+  if (favourites.size === 0) {
+    grid.style.display = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+  grid.style.display = 'grid';
+  empty.style.display = 'none';
+  favourites.forEach(key => {
+    const d = deals[key];
+    if (d && filterMatches(d)) grid.insertAdjacentHTML('beforeend', dealCard(key, d));
+  });
+}
+
+function renderActive() {
+  const active = document.querySelector('.view.active').id;
+  if (active === 'view-featured') renderFeatured();
+  if (active === 'view-deals') renderDeals();
+  if (active === 'view-providers') renderProviders();
+  if (active === 'view-fav') renderFavourites();
+}
+
+function switchView(btn, view) {
+  document.querySelectorAll('.deals-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + view).classList.add('active');
+  renderActive();
+}
+
+function setCategory(btn, cat) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  activeCategory = cat;
+  renderActive();
+}
+
+function toggleFav(key, btn) {
+  if (favourites.has(key)) favourites.delete(key);
+  else favourites.add(key);
+  document.getElementById('fav-count').textContent = favourites.size;
+  document.querySelectorAll(`[data-key="${key}"] .fav-btn`).forEach(b => {
+    b.classList.toggle('active', favourites.has(key));
+  });
+  const dmFav = document.getElementById('dm-fav-btn');
+  if (dmFav.dataset.key === key) dmFav.classList.toggle('active', favourites.has(key));
+}
+
+function toggleDetailFav(btn) {
+  toggleFav(btn.dataset.key, btn);
+  if (document.getElementById('view-fav').classList.contains('active')) renderFavourites();
+}
+
+function openDeal(key) {
+  const d = deals[key];
+  if (!d) return;
+  currentDetailKey = key;
+  document.getElementById('dm-img').src = d.img;
+  document.getElementById('dm-partner').textContent = d.partner;
+  document.getElementById('dm-loc').textContent = d.loc;
+  document.getElementById('dm-cat').textContent = d.cat;
+  document.getElementById('dm-deal-name').textContent = d.deal;
+  document.getElementById('dm-breakdown').textContent = d.breakdown;
+  document.getElementById('dm-about').textContent = d.about;
+  document.getElementById('dm-valid').textContent = d.valid;
+  document.getElementById('dm-booking').textContent = d.booking;
+  document.getElementById('dm-limits').textContent = d.limits;
+  document.getElementById('dm-frequency').textContent = d.frequency || 'Set by provider';
+  document.getElementById('dm-letter').textContent = d.letter;
+  document.getElementById('dm-tick').classList.toggle('show', !!d.featured);
+
+  const favBtn = document.getElementById('dm-fav-btn');
+  favBtn.dataset.key = key;
+  favBtn.classList.toggle('active', favourites.has(key));
+
+  // Store the active deal for the claim flow
+  document.getElementById('cc-deal').textContent = d.deal;
+  document.getElementById('cc-venue').textContent = d.partner + ' · ' + d.loc;
+
+  // Claim button — lock if already used
+  const claimBtn = document.querySelector('.btn-redeem');
+  if (claimed.has(key)) {
+    claimBtn.textContent = '✓ Claimed — One-time Use';
+    claimBtn.disabled = true;
+    claimBtn.classList.add('is-used');
+  } else {
+    claimBtn.textContent = 'Claim This Deal';
+    claimBtn.disabled = false;
+    claimBtn.classList.remove('is-used');
+  }
+
+  document.getElementById('detail-backdrop').classList.add('open');
+}
+
+let currentDetailKey = null;
+
+function closeDetail(e) {
+  if (e && e.target.closest && e.target.closest('.detail-modal')) return;
+  document.getElementById('detail-backdrop').classList.remove('open');
+}
+
+function openClaimConfirm() {
+  document.getElementById('detail-backdrop').classList.remove('open');
+  document.getElementById('claim-confirm-backdrop').classList.add('open');
+}
+
+function closeClaimConfirm(e) {
+  if (e && e.target.closest && e.target.closest('.confirm-modal')) return;
+  document.getElementById('claim-confirm-backdrop').classList.remove('open');
+}
+
+// ─── CLAIM STATE MACHINE ─────────────────────────
+const claimed = new Set();           // keys of deals successfully redeemed (one-time use)
+let activeClaimKey = null;            // deal currently being claimed
+let activeClaimDeal = null;           // the deal object
+let pendingTimer = null;              // auto-resolve timer
+
+function showState(name) {
+  ['waiting', 'approved', 'declined'].forEach(s => {
+    document.getElementById('state-' + s).style.display = (s === name) ? 'flex' : 'none';
+  });
+}
+
+function confirmClaim() {
+  // Pull deal info from the confirm modal text (set when detail was opened)
+  activeClaimKey = currentDetailKey;
+  activeClaimDeal = activeClaimKey ? deals[activeClaimKey] : null;
+  if (!activeClaimDeal) return;
+
+  document.getElementById('claim-confirm-backdrop').classList.remove('open');
+
+  // Populate waiting state
+  const partner = activeClaimDeal.partner;
+  const dealName = activeClaimDeal.deal;
+  document.getElementById('await-partner-w').textContent = partner;
+  document.getElementById('await-deal-w').textContent = dealName;
+  document.getElementById('await-logo').textContent = (activeClaimDeal.letter || partner.charAt(0));
+
+  showState('waiting');
+  document.getElementById('redemption-backdrop').classList.add('open');
+
+  // Simulate provider response — auto-approve after 3.5s
+  // (Real flow: provider taps Confirm/Decline on their portal, this fires via websocket/poll)
+  pendingTimer = setTimeout(() => simulateApprove(), 3500);
+}
+
+function simulateApprove() {
+  if (!activeClaimDeal) return;
+  clearTimeout(pendingTimer);
+
+  document.getElementById('await-partner-a').textContent = activeClaimDeal.partner;
+  document.getElementById('await-deal-a').textContent = activeClaimDeal.deal;
+  const now = new Date();
+  const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  document.getElementById('rp-time').textContent = time;
+  document.getElementById('rp-claim-id').textContent = String(Date.now()).slice(-6);
+
+  showState('approved');
+
+  // Mark deal as claimed — one-time use, locks the card and detail button
+  claimed.add(activeClaimKey);
+}
+
+function simulateDecline() {
+  if (!activeClaimDeal) return;
+  clearTimeout(pendingTimer);
+
+  document.getElementById('await-partner-d').textContent = activeClaimDeal.partner;
+  document.getElementById('await-deal-d').textContent = activeClaimDeal.deal;
+
+  showState('declined');
+  // Deal stays unclaimed — member can try again later
+}
+
+function cancelClaim() {
+  clearTimeout(pendingTimer);
+  closeRedemption();
+  activeClaimKey = null;
+  activeClaimDeal = null;
+}
+
+function closeRedemption(e) {
+  if (e && e.target.closest && e.target.closest('.await-modal')) return;
+  document.getElementById('redemption-backdrop').classList.remove('open');
+  clearTimeout(pendingTimer);
+  // Refresh card list so any newly-claimed deal renders as Used
+  if (typeof renderActive === 'function') renderActive();
+}
+
+function handleSearch(value) {
+  searchTerm = value.trim();
+  renderActive();
+}
+
+renderFeatured();
+</script>
+
+</body>
+</html>
