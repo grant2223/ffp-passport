@@ -518,6 +518,16 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
 
 .empty-state { padding: 20px; text-align: center; color: var(--muted); font-size: 13px; }
 
+/* PANEL VIEWS (swappable via bottom nav) */
+.panel-view { display: none; }
+.panel-view.active { display: block; }
+.panel-placeholder { min-height: calc(100vh - 200px); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 20px; }
+.panel-placeholder .pp-icon { width: 80px; height: 80px; border-radius: 50%; background: rgba(43,168,224,0.10); border: 1px solid var(--border-mid); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
+.panel-placeholder .pp-icon .material-icons { font-size: 40px; color: var(--blue); }
+.panel-placeholder .pp-title { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+.panel-placeholder .pp-sub { font-size: 13px; color: var(--muted); max-width: 320px; line-height: 1.5; }
+.panel-placeholder .pp-tag { display: inline-block; margin-top: 16px; padding: 6px 12px; background: rgba(255,204,0,0.10); border: 1px solid rgba(255,204,0,0.25); border-radius: 20px; color: var(--yellow); font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+
 /* BOTTOM NAV */
 .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #0b1c28; border-top: 1px solid rgba(43,168,224,0.15); padding: 8px 0; display: flex; z-index: 100; }
 .nav-item { flex: 1; border: none; background: transparent; color: #6a90a8; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 8px 4px; }
@@ -622,11 +632,11 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
           <div class="menu-user-name">Grant Hermanus</div>
           <div class="menu-user-status">Member since 2024</div>
         </div>
-        <button class="menu-item"><span class="material-icons">person</span><span>Profile</span></button>
-        <button class="menu-item"><span class="material-icons">schedule</span><span>Workout Timer</span></button>
-        <button class="menu-item"><span class="material-icons">local_fire_department</span><span>Calorie Tracker</span></button>
-        <button class="menu-item"><span class="material-icons">show_chart</span><span>Fitness Stats</span></button>
-        <button class="menu-item"><span class="material-icons">account_balance_wallet</span><span>Earnings</span></button>
+        <button class="menu-item" data-panel="panel-profile"><span class="material-icons">person</span><span>Profile</span></button>
+        <button class="menu-item" data-panel="panel-workout-timer"><span class="material-icons">schedule</span><span>Workout Timer</span></button>
+        <button class="menu-item" data-panel="panel-calorie-tracker"><span class="material-icons">local_fire_department</span><span>Calorie Tracker</span></button>
+        <button class="menu-item" data-panel="panel-fitness-stats"><span class="material-icons">show_chart</span><span>Fitness Stats</span></button>
+        <button class="menu-item" data-panel="panel-earnings"><span class="material-icons">account_balance_wallet</span><span>Earnings</span></button>
       </div>
     </div>
   </div>
@@ -634,6 +644,11 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
 
 <!-- CONTENT -->
 <div class="content">
+  
+  <!-- ═══════════════════════════════════════════════════════════════
+       PANEL: PASSPORT (active by default)
+       ═══════════════════════════════════════════════════════════════ -->
+  <div id="panel-passport" class="panel-view active">
   
   <!-- PASSPORT CARD -->
   <div class="pass-container">
@@ -865,16 +880,132 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
     Log experience
   </button>
   
+  </div><!-- /panel-passport -->
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       PANEL: DEALS (placeholder — real content lands in v43)
+       ═══════════════════════════════════════════════════════════════ -->
+  <div id="panel-deals" class="panel-view">
+    <div class="panel-placeholder">
+      <div class="pp-icon"><span class="material-icons">local_offer</span></div>
+      <div class="pp-title">Deals</div>
+      <div class="pp-sub">Member perks at partner venues across the UAE. Show your passport at the venue to redeem.</div>
+      <div class="pp-tag">Coming next</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       PANEL: EVENTS (placeholder)
+       ═══════════════════════════════════════════════════════════════ -->
+  <div id="panel-events" class="panel-view">
+    <div class="panel-placeholder">
+      <div class="pp-icon"><span class="material-icons">event</span></div>
+      <div class="pp-title">Events</div>
+      <div class="pp-sub">Discover and RSVP to fitness events, races, classes and community activations across the UAE.</div>
+      <div class="pp-tag">Coming next</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       PANEL: EXPERIENCES (placeholder)
+       ═══════════════════════════════════════════════════════════════ -->
+  <div id="panel-experiences" class="panel-view">
+    <div class="panel-placeholder">
+      <div class="pp-icon"><span class="material-icons">flight</span></div>
+      <div class="pp-title">Experiences</div>
+      <div class="pp-sub">Multi-day trips, retreats and sports events organised by providers worldwide. Apply to join.</div>
+      <div class="pp-tag">Coming next</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       PANEL: MEET & MOVE (placeholder)
+       ═══════════════════════════════════════════════════════════════ -->
+  <div id="panel-meet" class="panel-view">
+    <div class="panel-placeholder">
+      <div class="pp-icon"><span class="material-icons">group</span></div>
+      <div class="pp-title">Meet &amp; Move</div>
+      <div class="pp-sub">Small peer-to-peer meetups — up to 8 people. Find members who match your sports, level and city.</div>
+      <div class="pp-tag">Coming next</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       PANEL: CHALLENGES (placeholder)
+       ═══════════════════════════════════════════════════════════════ -->
+  <div id="panel-challenges" class="panel-view">
+    <div class="panel-placeholder">
+      <div class="pp-icon"><span class="material-icons">whatshot</span></div>
+      <div class="pp-title">Challenges</div>
+      <div class="pp-sub">Join community challenges, earn FFP coins and climb the leaderboards across activities and cities.</div>
+      <div class="pp-tag">Coming next</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       USER-MENU PANELS (opened from topbar user menu, not bottom nav)
+       ═══════════════════════════════════════════════════════════════ -->
+
+  <!-- PROFILE -->
+  <div id="panel-profile" class="panel-view">
+    <div class="panel-placeholder">
+      <div class="pp-icon"><span class="material-icons">person</span></div>
+      <div class="pp-title">Profile</div>
+      <div class="pp-sub">Manage your member profile — photo, passport details, nationality, contact info and preferences.</div>
+      <div class="pp-tag">Coming next</div>
+    </div>
+  </div>
+
+  <!-- WORKOUT TIMER -->
+  <div id="panel-workout-timer" class="panel-view">
+    <div class="panel-placeholder">
+      <div class="pp-icon"><span class="material-icons">schedule</span></div>
+      <div class="pp-title">Workout Timer</div>
+      <div class="pp-sub">Interval timer, stopwatch and rest tracker for your training sessions.</div>
+      <div class="pp-tag">Coming next</div>
+    </div>
+  </div>
+
+  <!-- CALORIE TRACKER -->
+  <div id="panel-calorie-tracker" class="panel-view">
+    <div class="panel-placeholder">
+      <div class="pp-icon"><span class="material-icons">local_fire_department</span></div>
+      <div class="pp-title">Calorie Tracker</div>
+      <div class="pp-sub">Log meals, track macros and monitor daily energy balance against your activity output.</div>
+      <div class="pp-tag">Coming next</div>
+    </div>
+  </div>
+
+  <!-- FITNESS STATS -->
+  <div id="panel-fitness-stats" class="panel-view">
+    <div class="panel-placeholder">
+      <div class="pp-icon"><span class="material-icons">show_chart</span></div>
+      <div class="pp-title">Fitness Stats</div>
+      <div class="pp-sub">Deep dive into trends across your activities — frequency, intensity, recovery and progress over time.</div>
+      <div class="pp-tag">Coming next</div>
+    </div>
+  </div>
+
+  <!-- EARNINGS -->
+  <div id="panel-earnings" class="panel-view">
+    <div class="panel-placeholder">
+      <div class="pp-icon"><span class="material-icons">account_balance_wallet</span></div>
+      <div class="pp-title">Earnings</div>
+      <div class="pp-sub">FFP coins earned, redemption history and referral rewards. Cash out or spend on Member Perks.</div>
+      <div class="pp-tag">Coming next</div>
+    </div>
+  </div>
+
 </div>
 
 <!-- BOTTOM NAV -->
 <div class="bottom-nav">
-  <button class="nav-item active"><span class="material-icons">card_membership</span><span>Passport</span></button>
-  <button class="nav-item"><span class="material-icons">local_offer</span><span>Deals</span></button>
-  <button class="nav-item"><span class="material-icons">event</span><span>Events</span></button>
-  <button class="nav-item"><span class="material-icons">flight</span><span>Experiences</span></button>
-  <button class="nav-item"><span class="material-icons">group</span><span>Meet &amp; Move</span></button>
-  <button class="nav-item"><span class="material-icons">whatshot</span><span>Challenges</span></button>
+  <button class="nav-item active" data-panel="panel-passport"><span class="material-icons">card_membership</span><span>Passport</span></button>
+  <button class="nav-item" data-panel="panel-deals"><span class="material-icons">local_offer</span><span>Deals</span></button>
+  <button class="nav-item" data-panel="panel-events"><span class="material-icons">event</span><span>Events</span></button>
+  <button class="nav-item" data-panel="panel-experiences"><span class="material-icons">flight</span><span>Experiences</span></button>
+  <button class="nav-item" data-panel="panel-meet"><span class="material-icons">group</span><span>Meet &amp; Move</span></button>
+  <button class="nav-item" data-panel="panel-challenges"><span class="material-icons">whatshot</span><span>Challenges</span></button>
 </div>
 
 <!-- ADD CITY MODAL -->
@@ -2135,6 +2266,78 @@ function clearNotifs() {
   document.getElementById('notif-badge').textContent = '0';
 }
 
+// ===== PANEL NAVIGATION =====
+// Bottom nav AND user menu both switch which .panel-view is active.
+// Bottom-nav panels keep an active tab highlight.
+// User-menu panels (Profile, Workout Timer, etc.) clear the bottom nav highlight
+// because they live outside the bottom nav.
+// Hash sync keeps the selected panel after refresh.
+function setupPanelNav() {
+  const navItems = document.querySelectorAll('.nav-item');
+  const userMenuItems = document.querySelectorAll('#user-menu .menu-item[data-panel]');
+  
+  // Bottom-nav panels — these keep an active tab highlight when shown
+  const bottomNavPanels = new Set(
+    Array.from(navItems).map(n => n.getAttribute('data-panel')).filter(Boolean)
+  );
+  
+  function showPanel(panelId) {
+    // Validate panel exists
+    const target = document.getElementById(panelId);
+    if (!target) return;
+    
+    // Swap panel visibility
+    document.querySelectorAll('.panel-view').forEach(p => p.classList.remove('active'));
+    target.classList.add('active');
+    
+    // Update bottom nav active state
+    navItems.forEach(n => n.classList.remove('active'));
+    if (bottomNavPanels.has(panelId)) {
+      const navBtn = document.querySelector(`.nav-item[data-panel="${panelId}"]`);
+      if (navBtn) navBtn.classList.add('active');
+    }
+    // If panelId is a user-menu panel, bottom nav stays cleared (no item highlighted)
+    
+    // Update URL hash (so refresh keeps panel)
+    if (window.location.hash !== '#' + panelId) {
+      history.replaceState(null, '', '#' + panelId);
+    }
+    
+    // Scroll to top of content area
+    window.scrollTo(0, 0);
+    
+    // If switching back to passport, re-scale the card (in case viewport changed)
+    if (panelId === 'panel-passport') {
+      setTimeout(scalePassportCard, 50);
+    }
+  }
+  
+  // Bottom nav clicks
+  navItems.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const panelId = btn.getAttribute('data-panel');
+      if (panelId) showPanel(panelId);
+    });
+  });
+  
+  // User menu clicks (also close the menu after click)
+  userMenuItems.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const panelId = btn.getAttribute('data-panel');
+      if (panelId) {
+        showPanel(panelId);
+        document.getElementById('user-menu').classList.remove('show');
+      }
+    });
+  });
+  
+  // Open panel from URL hash on load (e.g. #panel-deals, #panel-workout-timer)
+  const initialHash = window.location.hash.replace('#', '');
+  if (initialHash && document.getElementById(initialHash)) {
+    showPanel(initialHash);
+  }
+}
+
 // ===== TIME FILTERS =====
 function setupTimeFilters() {
   document.querySelectorAll('.time-chip').forEach(chip => {
@@ -2488,6 +2691,7 @@ function init() {
   applyPassportData();
   renderQR();
   setupTopbar();
+  setupPanelNav();
   setupTimeFilters();
   setupCityFilters();
   setupViewAll();
