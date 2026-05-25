@@ -262,14 +262,22 @@
             }
           });
           
-          // For passport, call init manually
+          // For passport, call init manually with better error handling
           if (name === 'passport') {
             setTimeout(() => {
-              if (window.FFPJourney && window.FFPJourney.init) {
-                console.log('Calling FFPJourney.init()');
-                window.FFPJourney.init();
-              } else {
-                console.error('FFPJourney.init not available');
+              console.log('Checking for FFPJourney...');
+              console.log('window.FFPJourney:', window.FFPJourney);
+              try {
+                if (window.FFPJourney && typeof window.FFPJourney.init === 'function') {
+                  console.log('Calling FFPJourney.init()');
+                  window.FFPJourney.init();
+                } else if (window.FFPJourney) {
+                  console.log('FFPJourney exists but init is not a function. Keys:', Object.keys(window.FFPJourney));
+                } else {
+                  console.error('FFPJourney object does not exist on window');
+                }
+              } catch(e) {
+                console.error('Error calling FFPJourney.init:', e.message, e.stack);
               }
             }, 100);
           }
