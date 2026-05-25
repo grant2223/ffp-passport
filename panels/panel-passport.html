@@ -20,8 +20,8 @@
   --ffp-blue-darker:  #0f5a7a;
   --ffp-bg:           #081420;
   --ffp-bg-2:         #0f1e2e;
-  --ffp-bg-card:      #0d1c2c;
-  --ffp-bg-elev:      #16263a;
+  --ffp-bg-card:      rgba(15, 30, 46, 0.5);
+  --ffp-bg-elev:      rgba(22, 42, 62, 0.85);
   --ffp-border:       rgba(43, 168, 224, 0.10);
   --ffp-border-mid:   rgba(43, 168, 224, 0.20);
   --ffp-border-str:   rgba(43, 168, 224, 0.35);
@@ -47,17 +47,7 @@
   --r-sm: 6px;  --r-md: 10px;  --r-lg: 14px;  --r-xl: 20px;
 }
 * { box-sizing: border-box; }
-html { background: #081420; min-height: 100%; }
-html, body {
-  margin: 0; padding: 0;
-  background: #081420;
-  color: var(--ffp-text);
-  font-family: 'Montserrat', system-ui, sans-serif;
-  font-weight: 400;
-  line-height: 1.45;
-  -webkit-font-smoothing: antialiased;
-  min-height: 100vh;
-}
+html, body { margin: 0; padding: 0; background: var(--ffp-bg); color: var(--ffp-text); font-family: 'Montserrat', system-ui, sans-serif; font-weight: 400; line-height: 1.45; -webkit-font-smoothing: antialiased; }
 button { font-family: inherit; cursor: pointer; }
 input, textarea, select { font-family: inherit; color: inherit; }
 h2 { font-weight: 800; font-size: 22px; margin: 0; letter-spacing: -0.3px; }
