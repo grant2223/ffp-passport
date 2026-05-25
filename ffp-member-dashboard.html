@@ -261,7 +261,6 @@
         return;
       }
       
-      // Map panel names to file names
       const panelFiles = {
         passport: 'panel-passport.html',
         deals: 'panel-deals.html',
@@ -274,21 +273,32 @@
       const fileName = panelFiles[name];
       const url = `https://ffppassport.com/panels/${fileName}`;
       
-      console.log(`Loading panel: ${name} from ${url}`);
+      console.log(`Loading panel: ${name}`);
       
       fetch(url)
         .then(response => {
-          console.log(`Response status: ${response.status}`);
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           return response.text();
         })
         .then(html => {
-          console.log(`Received ${html.length} characters`);
-          panel.innerHTML = html;
-          console.log(`Panel ${name} loaded successfully`);
+          // Parse the HTML and extract only the body content
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, 'text/html');
+          const bodyContent = doc.body.innerHTML;
+          
+          // Also extract and inject styles from head
+          const styles = doc.querySelector('style');
+          if (styles && !document.querySelector(`style[data-panel="${name}"]`)) {
+            const styleClone = styles.cloneNode(true);
+            styleClone.setAttribute('data-panel', name);
+            document.head.appendChild(styleClone);
+          }
+          
+          panel.innerHTML = bodyContent;
+          console.log(`Panel ${name} loaded`);
         })
         .catch(error => {
-          console.error(`Failed to load panel ${name}:`, error);
+          console.error(`Failed to load ${name}:`, error);
           panel.innerHTML = `<p style="padding: 20px; color: #ff6b6b;">Error: ${error.message}</p>`;
         });
     }
