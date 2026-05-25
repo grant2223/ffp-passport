@@ -1721,8 +1721,7 @@ textarea { resize: vertical; min-height: 70px; }
 const FFPJourney = (function(){
   'use strict';
 
-  const API_BASE = 'https://ffp-passport-backend.vercel.app';
-  const DEMO_MODE = true;
+  // FRONTEND-ONLY MODE — No backend calls, demo data only
 
   const state = {
     member: null, timeRange: 'all', cityFilter: 'all',
@@ -1842,25 +1841,12 @@ const FFPJourney = (function(){
     'snow':'ti-ski-jumping','multi-sport':'ti-trophy'
   };
 
-  // API
-  function getToken(){try{return localStorage.getItem('ffp_token');}catch(e){return null;}}
-  function getStoredMember(){try{const r=localStorage.getItem('ffp_member');return r?JSON.parse(r):null;}catch(e){return null;}}
+  // Simple demo functions (no API calls)
   async function apiCall(path, opts = {}) {
-    if (DEMO_MODE) {
-      if (path === '/api/activity_types') return { success: true, activities: buildDemoActivities() };
-      if (path.startsWith('/api/journey/stats')) return { success: true, ...DEMO_JOURNEY };
-      return { success: true };
-    }
-    const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
-    const token = getToken();
-    if (token) headers['Authorization'] = 'Bearer ' + token;
-    try {
-      const res = await fetch(API_BASE + path, {
-        method: opts.method || 'GET', headers,
-        body: opts.body ? JSON.stringify(opts.body) : undefined, mode: 'cors'
-      });
-      return await res.json();
-    } catch (e) { console.error('API error:', path, e); return { error: e.message }; }
+    // All calls return demo data instantly
+    if (path === '/api/activity_types') return { success: true, activities: buildDemoActivities() };
+    if (path.startsWith('/api/journey/stats')) return { success: true, ...DEMO_JOURNEY };
+    return { success: true };
   }
   function buildDemoActivities() {
     return [
@@ -2267,17 +2253,11 @@ const FFPJourney = (function(){
     showToast(city.is_favorite ? 'Added to favorites' : 'Removed from favorites');
   }
   async function removeFromWishlist(city) {
-    // Remove from local journey state
+    // Remove from local journey state (frontend only)
     state.journey.by_place = state.journey.by_place.filter(c => !(c.city === city.city && c.country === city.country));
     state.journey.totals.cities_goal = Math.max(0, state.journey.totals.cities_goal - 1);
     renderCities();
     drawMapPins();
-    if (!DEMO_MODE && state.member) {
-      await apiCall(`/api/member_cities/${encodeURIComponent(city.city)}`, {
-        method: 'PUT',
-        body: { member_id: state.member.id, country: city.country, status: 'locked' }
-      });
-    }
     showToast('Removed from wish list');
   }
 
@@ -2317,12 +2297,6 @@ const FFPJourney = (function(){
     document.querySelectorAll('.city-filter').forEach(c => c.classList.toggle('active', c.dataset.filter === 'wishlist'));
     renderCities();
     drawMapPins();
-    if (!DEMO_MODE && state.member) {
-      await apiCall(`/api/member_cities/${encodeURIComponent(city)}`, {
-        method: 'PUT',
-        body: { member_id: state.member.id, country, status: 'goal' }
-      });
-    }
     showToast(city + ' added to wish list');
   }
 
@@ -2866,36 +2840,23 @@ const FFPJourney = (function(){
     const time = $('log-time').value || '12:00';
     const city = $('log-city').value.trim();
     if (!date || !city) { showToast('Date and city are required'); return; }
-    const payload = {
-      member_id: state.member ? state.member.id : 'demo-001',
-      activity_slug: state.selectedActivity.slug,
-      logged_at: new Date(`${date}T${time}:00`).toISOString(),
-      duration_min: parseInt($('log-duration').value) || null,
-      distance_km: $('log-distance') ? parseFloat($('log-distance').value) || null : null,
-      city, country: 'UAE',
-      provider_id: state.selectedPartner ? state.selectedPartner.provider_id : null,
-      notes: $('log-notes').value || null,
-      photo_url: state.photoUrl
+    
+    // Frontend only - no backend call
+    closeLogModal();
+    state.pendingShare = {
+      activity_name: state.selectedActivity.name, category: state.selectedActivity.category,
+      venue_name: state.selectedPartner ? state.selectedPartner.venue_name : null,
+      city, duration_min: parseInt($('log-duration').value) || null
     };
-    let result;
-    if (state.editingLogId) result = await apiCall(`/api/activity_logs/${state.editingLogId}`, { method: 'PUT', body: payload });
-    else result = await apiCall('/api/activity_logs', { method: 'POST', body: payload });
-    if (result && (result.success || result.log)) {
-      closeLogModal();
-      state.pendingShare = {
-        activity_name: state.selectedActivity.name, category: state.selectedActivity.category,
-        venue_name: state.selectedPartner ? state.selectedPartner.venue_name : null,
-        city, duration_min: payload.duration_min
-      };
-      if (state.editingLogId) { showToast('Activity updated'); await loadJourney(); }
-      else { showToast('Logged'); await loadJourney(); openShareModal(); }
-    } else showToast((result && result.error) || 'Save failed');
+    if (state.editingLogId) showToast('Activity updated');
+    else { showToast('Logged'); openShareModal(); }
   }
+  
   async function deleteLog(id) {
     if (!confirm('Delete this activity log?')) return;
-    const result = await apiCall('/api/activity_logs/' + id, { method: 'DELETE', body: { member_id: state.member ? state.member.id : 'demo-001' } });
-    if (result && result.success) { closeLogModal(); showToast('Activity deleted'); await loadJourney(); }
-    else showToast((result && result.error) || 'Delete failed');
+    // Frontend only - no backend call
+    closeLogModal();
+    showToast('Activity deleted');
   }
 
   // ────────── SHARE MODAL ──────────
@@ -2949,7 +2910,7 @@ const FFPJourney = (function(){
     drawMapPins();
   }
   async function init() {
-    state.member = getStoredMember() || DEMO_MEMBER;
+    state.member = DEMO_MEMBER;  // Always use demo member
     renderPassportCard();
     renderPassportBg();
 
