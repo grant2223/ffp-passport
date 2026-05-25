@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FFP Passport — Member Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.css">
   <style>
     :root {
       --blue: #1980AD;
@@ -269,17 +268,20 @@
         meetmove: 'panel-meetmove.html'
       };
       
-      fetch(`/panels/${panelFiles[name]}`)
+      const fileName = panelFiles[name];
+      const url = `https://ffppassport.com/panels/${fileName}`;
+      
+      fetch(url)
         .then(response => {
-          if (!response.ok) throw new Error('Panel not found');
+          if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
           return response.text();
         })
         .then(html => {
           panel.innerHTML = html;
         })
         .catch(error => {
-          panel.innerHTML = `<p style="padding: 20px; color: #ff6b6b; text-align: center;">Error loading ${name}. Make sure panel file exists in /panels/ folder.</p>`;
-          console.error('Error loading panel:', error);
+          panel.innerHTML = `<p style="padding: 20px; color: #ff6b6b; text-align: center;">Error loading ${name}.<br/>Details: ${error.message}</p>`;
+          console.error(`Failed to load panel ${fileName}:`, error);
         });
     }
 
