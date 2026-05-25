@@ -226,6 +226,11 @@
   <script>
     feather.replace();
     
+    // Load passport panel on page load
+    window.addEventListener('load', () => {
+      loadPanel('passport');
+    });
+    
     function switchPanel(name) {
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       document.querySelectorAll('.mob-item').forEach(m => m.classList.remove('active'));
