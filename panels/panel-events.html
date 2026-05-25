@@ -50,93 +50,8 @@ button, input, select { font-family: inherit; color: inherit; }
 /* ════════════════════════════════════════════════
    SHELL
    ════════════════════════════════════════════════ */
-.app { display: flex; height: 100vh; overflow: hidden; }
 
-.sidebar {
-  width: 230px; flex-shrink: 0;
-  background: var(--ffp-bg-2);
-  border-right: 1px solid var(--ffp-border);
-  display: flex; flex-direction: column;
-}
-.sb-logo { padding: 22px 20px 16px; border-bottom: 1px solid var(--ffp-border); }
-.sb-brand { font-size: 16px; font-weight: 900; letter-spacing: 2px; }
-.sb-brand span { color: var(--ffp-blue); }
-.sb-nav { flex: 1; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; }
-.ni {
-  display: flex; align-items: center; gap: 10px;
-  padding: 11px 14px; border-radius: 9px;
-  font-size: 13px; font-weight: 700;
-  color: var(--ffp-text-muted);
-  cursor: pointer; transition: all .2s;
-  border: 1px solid transparent;
-}
-.ni:hover { background: rgba(43, 168, 224, .06); color: var(--ffp-text); }
-.ni.active {
-  background: rgba(43, 168, 224, .12);
-  color: var(--ffp-text);
-  border-color: var(--ffp-border-mid);
-}
-.ni .ti { font-size: 16px; flex-shrink: 0; }
-.ni-badge {
-  margin-left: auto;
-  background: var(--ffp-yellow); color: #000;
-  border-radius: 100px; padding: 1px 6px;
-  font-size: 9px; font-weight: 800;
-}
-.ni-badge.blue { background: var(--ffp-blue); color: #fff; }
-
-.main {
-  flex: 1; overflow-y: auto;
-  background: radial-gradient(ellipse at top, #0a1825 0%, var(--ffp-bg) 60%);
-}
-.main::-webkit-scrollbar { width: 6px; }
-.main::-webkit-scrollbar-thumb { background: rgba(43, 168, 224, .2); border-radius: 3px; }
-
-.topbar {
-  background: rgba(8, 20, 32, .85);
-  backdrop-filter: blur(14px);
-  border-bottom: 1px solid var(--ffp-border);
-  padding: 0 22px; height: 60px;
-  display: flex; align-items: center; gap: 12px;
-  position: sticky; top: 0; z-index: 10;
-}
-.tb-title { font-size: 17px; font-weight: 900; letter-spacing: -.2px; }
-.tb-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
-.tb-bell {
-  width: 38px; height: 38px;
-  border-radius: 50%;
-  background: rgba(15, 30, 46, .7);
-  border: 1px solid var(--ffp-border-mid);
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
-  position: relative;
-  color: var(--ffp-text);
-  transition: all .15s;
-}
-.tb-bell:hover { background: rgba(15, 30, 46, .95); border-color: var(--ffp-border-str); }
-.tb-bell::after {
-  content: "";
-  position: absolute;
-  top: 9px; right: 10px;
-  width: 7px; height: 7px;
-  background: var(--ffp-yellow);
-  border-radius: 50%;
-  box-shadow: 0 0 0 2px var(--ffp-bg);
-}
-.tb-bell .ti { font-size: 17px; }
-.tb-avatar {
-  width: 38px; height: 38px;
-  border-radius: 50%;
-  background: var(--ffp-blue);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 12px;
-  font-weight: 800;
-  color: #fff;
-  cursor: pointer;
-  letter-spacing: .3px;
-}
-
-.panel { padding: 24px 20px 110px; max-width: 720px; margin: 0 auto; }
+.panel { max-width: 880px; margin: 0 auto; padding: 24px 20px 80px; }
 
 /* ════════════════════════════════════════════════
    PAGE HEADER + SEARCH
@@ -1648,11 +1563,11 @@ button, input, select { font-family: inherit; color: inherit; }
 
 /* Responsive */
 @media (max-width: 900px) {
-  .sidebar { display: none; }
+  
   .bottom-tabs { display: flex; }
-  .panel { padding: 18px 14px 110px; }
+  
   .ph { font-size: 22px; }
-  .topbar { padding: 0 14px; height: 54px; }
+  
   .ec-body { padding: 14px 16px 16px; }
   .ec-title { font-size: 16px; }
   .tab { margin-right: 18px; font-size: 10px; }
@@ -1661,31 +1576,7 @@ button, input, select { font-family: inherit; color: inherit; }
 </head>
 <body>
 
-<div class="app">
-
-<aside class="sidebar">
-  <div class="sb-logo">
-    <div class="sb-brand">FFP <span>PASSPORT</span></div>
-  </div>
-  <nav class="sb-nav">
-    <div class="ni"><i class="ti ti-id"></i>My Passport</div>
-    <div class="ni"><i class="ti ti-tag"></i>Deals<span class="ni-badge blue">14</span></div>
-    <div class="ni active"><i class="ti ti-calendar-event"></i>Events<span class="ni-badge">3</span></div>
-    <div class="ni"><i class="ti ti-users"></i>Meet &amp; Move</div>
-    <div class="ni"><i class="ti ti-coin"></i>Earnings<span class="ni-badge">5</span></div>
-    <div class="ni"><i class="ti ti-mountain"></i>Experiences<span class="ni-badge blue">2</span></div>
-    <div class="ni"><i class="ti ti-trophy"></i>Challenges<span class="ni-badge">2</span></div>
-    <div class="ni"><i class="ti ti-bell"></i>Notifications<span class="ni-badge">4</span></div>
-  </nav>
-</aside>
-
-<main class="main">
-  <div class="topbar">
-    <div class="tb-title">Events</div>
-    <div class="tb-actions">
-      <button class="tb-bell" aria-label="Notifications"><i class="ti ti-bell"></i></button>
-      <div class="tb-avatar">GH</div>
-    </div>
+<main class="panel">
   </div>
 
   <!-- ════════════════════════════════════════════════
@@ -1695,7 +1586,6 @@ button, input, select { font-family: inherit; color: inherit; }
     <h1 class="ph">Events</h1>
     <p class="psub">Group sessions, workshops, and gatherings from our community of organisers. RSVP to hold your spot — the organizer manages the guest list.</p>
 
-    <div class="search-bar">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input type="text" placeholder="Search events, venues, or activities" oninput="handleSearch(this.value)">
     </div>
