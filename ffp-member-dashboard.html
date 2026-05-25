@@ -256,7 +256,10 @@
 
     function loadPanel(name) {
       const panel = document.getElementById(name);
-      panel.innerHTML = '<p style="padding: 20px; color: var(--muted); text-align: center;">Loading...</p>';
+      if (!panel) {
+        console.error(`Panel container with id="${name}" not found`);
+        return;
+      }
       
       // Map panel names to file names
       const panelFiles = {
@@ -271,17 +274,22 @@
       const fileName = panelFiles[name];
       const url = `https://ffppassport.com/panels/${fileName}`;
       
+      console.log(`Loading panel: ${name} from ${url}`);
+      
       fetch(url)
         .then(response => {
-          if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          console.log(`Response status: ${response.status}`);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
           return response.text();
         })
         .then(html => {
+          console.log(`Received ${html.length} characters`);
           panel.innerHTML = html;
+          console.log(`Panel ${name} loaded successfully`);
         })
         .catch(error => {
-          panel.innerHTML = `<p style="padding: 20px; color: #ff6b6b; text-align: center;">Error loading ${name}.<br/>Details: ${error.message}</p>`;
-          console.error(`Failed to load panel ${fileName}:`, error);
+          console.error(`Failed to load panel ${name}:`, error);
+          panel.innerHTML = `<p style="padding: 20px; color: #ff6b6b;">Error: ${error.message}</p>`;
         });
     }
 
