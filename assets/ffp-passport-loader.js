@@ -152,6 +152,10 @@
         console.warn('[FFP Passport Loader] applyPassportData() function not found.');
       }
 
+      // Fix elements that don't use data-field (the dashboard HTML hardcodes some)
+      var passNumEl = document.querySelector('.pass-passnum');
+      if (passNumEl) passNumEl.textContent = updated.passportNumber;
+
       // Cache for offline / faster next load
       try {
         localStorage.setItem('ffp_passport', JSON.stringify(updated));
