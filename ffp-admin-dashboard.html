@@ -1,0 +1,3643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FFP Admin Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --blue: #2ba8e0;
+  --blue-dk: #1980AD;
+  --bg: #081420;
+  --bg-2: #0f1e2e;
+  --bg-3: #142a3f;
+  --yellow: #FFCC00;
+  --green: #4ade80;
+  --red: #ef4444;
+  --orange: #f97316;
+  --text: #f5f7fa;
+  --muted: #8a99a8;
+  --muted-2: #5a6878;
+  --border: rgba(43,168,224,0.15);
+  --border-mid: rgba(43,168,224,0.30);
+  --sidebar-w: 240px;
+  --topbar-h: 56px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { background: var(--bg); }
+html, body { background: var(--bg); color: var(--text); font-family: 'Montserrat', sans-serif; font-weight: 500; -webkit-font-smoothing: antialiased; min-height: 100vh; }
+body { background: var(--bg); }
+canvas { background: transparent !important; }
+.chart-canvas-wrap { background: var(--bg-2); }
+.chart-card { background: var(--bg-2) !important; }
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+input, select, textarea { font-family: inherit; }
+
+/* ============ SEARCH ROW (v2 — on every list panel) ============ */
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.search-input-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+  max-width: 400px;
+}
+.search-input-wrap .material-icons {
+  position: absolute;
+  left: 10px; top: 50%; transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 16px;
+}
+.search-input-wrap input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border-mid);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  padding: 8px 12px 8px 34px;
+  outline: none;
+}
+.search-input-wrap input:focus { border-color: var(--blue); }
+.search-meta {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 700;
+  margin-left: auto;
+}
+
+/* ============ DETAIL DRAWER (slide-in from right) ============ */
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 90;
+  display: none;
+}
+.drawer-backdrop.open { display: block; }
+.drawer {
+  position: fixed;
+  top: 0; right: 0;
+  width: min(560px, 100vw);
+  height: 100vh;
+  background: var(--bg-2);
+  border-left: 1px solid var(--border-mid);
+  z-index: 95;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.25s;
+}
+.drawer.open { transform: translateX(0); }
+.drawer-head {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.drawer-head-avatar {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  background: var(--blue);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 20px;
+  flex-shrink: 0;
+}
+.drawer-head-avatar.provider { background: var(--yellow); color: #0a0a0a; }
+.drawer-head-info { flex: 1; min-width: 0; }
+.drawer-head-title { font-size: 18px; font-weight: 900; letter-spacing: -0.3px; margin-bottom: 4px; }
+.drawer-head-sub { font-size: 12px; color: var(--muted); font-weight: 600; }
+.drawer-head-pills { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+.drawer-close {
+  background: none; border: none; color: var(--muted);
+  cursor: pointer; padding: 4px;
+  flex-shrink: 0;
+}
+.drawer-close:hover { color: var(--text); }
+.drawer-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+.drawer-tab {
+  background: none; border: none; color: var(--muted);
+  font-family: inherit; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 12px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  position: relative;
+}
+.drawer-tab:hover { color: var(--text); }
+.drawer-tab.active { color: var(--text); }
+.drawer-tab.active::after {
+  content: '';
+  position: absolute;
+  left: 8px; right: 8px; bottom: -1px;
+  height: 2px;
+  background: var(--yellow);
+}
+.drawer-tab .count {
+  display: inline-block;
+  font-size: 9px;
+  background: var(--bg-3);
+  color: var(--muted);
+  padding: 1px 5px;
+  border-radius: 100px;
+  margin-left: 4px;
+}
+.drawer-tab.active .count { background: var(--yellow); color: #0a0a0a; }
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+.drawer-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+/* Drawer panes (tab content) */
+.drawer-pane { display: none; }
+.drawer-pane.active { display: block; }
+
+/* Drawer info rows */
+.info-row {
+  display: flex;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+.info-row:last-child { border-bottom: none; }
+.info-row-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  min-width: 110px;
+  padding-top: 2px;
+}
+.info-row-value {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 600;
+  flex: 1;
+}
+.info-row-value.editable {
+  cursor: pointer;
+  padding: 4px 8px;
+  margin: -4px -8px;
+  border-radius: 6px;
+  transition: background 0.12s;
+}
+.info-row-value.editable:hover {
+  background: var(--bg-3);
+}
+.info-row-value.editable::after {
+  content: 'edit';
+  font-family: 'Material Icons';
+  font-size: 14px;
+  color: var(--muted);
+  margin-left: 6px;
+  opacity: 0;
+  transition: opacity 0.12s;
+  vertical-align: middle;
+}
+.info-row-value.editable:hover::after { opacity: 1; }
+
+/* Drawer mini-cards (for deep links) */
+.drawer-link-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.drawer-link-card:hover {
+  border-color: var(--blue);
+  background: rgba(43,168,224,0.05);
+}
+.drawer-link-card-icon {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  background: rgba(43,168,224,0.12);
+  color: var(--blue);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.drawer-link-card-icon .material-icons { font-size: 16px; }
+.drawer-link-card-body { flex: 1; min-width: 0; }
+.drawer-link-card-title { font-size: 12px; font-weight: 700; }
+.drawer-link-card-meta { font-size: 10px; color: var(--muted); font-weight: 600; margin-top: 2px; }
+.drawer-link-card-arrow { color: var(--muted); }
+.drawer-link-card-arrow .material-icons { font-size: 18px; }
+
+/* Drawer empty state */
+.drawer-empty {
+  text-align: center;
+  padding: 30px 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.drawer-empty .material-icons {
+  font-size: 36px;
+  display: block;
+  margin: 0 auto 10px;
+  opacity: 0.4;
+}
+
+/* ============ EDIT FIELD INLINE ============ */
+.edit-popover {
+  position: absolute;
+  background: var(--bg-2);
+  border: 1px solid var(--border-mid);
+  border-radius: 8px;
+  padding: 8px;
+  z-index: 200;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  display: none;
+  min-width: 240px;
+}
+.edit-popover.show { display: block; }
+.edit-popover-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  justify-content: flex-end;
+}
+
+/* ============ ANALYTICS CHARTS ============ */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+/* v3 — Time period filter for analytics */
+.time-filter {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+}
+.time-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.time-filter-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-right: 4px;
+}
+.time-chip-group {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+.time-chip {
+  background: var(--bg-3);
+  border: 1px solid transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  padding: 6px 12px;
+  border-radius: 100px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.time-chip:hover { color: var(--text); }
+.time-chip.active {
+  background: var(--yellow);
+  color: #0a0a0a;
+  border-color: var(--yellow);
+}
+.time-filter-compare {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+}
+.compare-toggle {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  background: var(--bg-3);
+  border-radius: 100px;
+  cursor: pointer;
+  transition: background 0.2s;
+  border: 1px solid var(--border-mid);
+}
+.compare-toggle.on { background: var(--blue); border-color: var(--blue); }
+.compare-toggle::after {
+  content: '';
+  position: absolute;
+  top: 1px; left: 1px;
+  width: 16px; height: 16px;
+  background: var(--text);
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+.compare-toggle.on::after { transform: translateX(16px); }
+.compare-toggle-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.2px;
+}
+.compare-toggle.on + .compare-toggle-label { color: var(--text); }
+
+.time-period-summary {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.time-period-summary .range { color: var(--text); font-weight: 800; }
+.time-period-summary .compare-range { color: var(--blue); font-weight: 700; }
+
+/* KPI tile with comparison */
+.kpi-tile.with-compare {
+  position: relative;
+}
+.kpi-compare {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.kpi-compare-prev {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.kpi-compare-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 100px;
+}
+.kpi-compare-delta.up { background: rgba(74,222,128,0.18); color: var(--green); }
+.kpi-compare-delta.down { background: rgba(239,68,68,0.18); color: var(--red); }
+.kpi-compare-delta.flat { background: rgba(138,153,168,0.18); color: var(--muted); }
+.kpi-compare-delta .material-icons { font-size: 11px; }
+
+.chart-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  position: relative;
+}
+.chart-card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.chart-card-title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+.chart-card-meta { font-size: 11px; color: var(--muted); margin-left: auto; }
+.chart-canvas-wrap {
+  position: relative;
+  height: 220px;
+}
+.chart-canvas-wrap.tall { height: 280px; }
+.chart-stat-summary {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.chart-stat {
+  text-align: left;
+}
+.chart-stat-value {
+  font-size: 22px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+}
+.chart-stat-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  margin-top: 3px;
+}
+
+/* Demographic bar list */
+.demo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.demo-row {
+  display: grid;
+  grid-template-columns: 100px 1fr 40px;
+  gap: 10px;
+  align-items: center;
+  font-size: 11px;
+}
+.demo-row-label { color: var(--muted); font-weight: 700; }
+.demo-row-bar {
+  height: 8px;
+  background: var(--bg-3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.demo-row-bar-fill {
+  height: 100%;
+  background: var(--blue);
+  border-radius: 4px;
+}
+.demo-row-value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* Audit log */
+.audit-row {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.audit-row:last-child { border-bottom: none; }
+.audit-row-when {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 700;
+}
+.audit-row-action {
+  color: var(--text);
+}
+.audit-row-actor { color: var(--blue); font-weight: 700; }
+
+/* ============ GLOBAL SEARCH OVERLAY ============ */
+.global-search-overlay {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(640px, 92vw);
+  background: var(--bg-2);
+  border: 1px solid var(--border-mid);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+  z-index: 90;
+  display: none;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.global-search-overlay.open { display: block; }
+.gs-group { padding: 8px 0; }
+.gs-group:not(:last-child) { border-bottom: 1px solid var(--border); }
+.gs-group-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: var(--muted);
+  text-transform: uppercase;
+  padding: 6px 16px 4px;
+}
+.gs-result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.gs-result:hover { background: var(--bg-3); }
+.gs-result-icon {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--bg-3);
+  color: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 11px;
+  flex-shrink: 0;
+}
+.gs-result-icon.member { background: var(--blue); color: #fff; }
+.gs-result-icon.provider { background: var(--yellow); color: #0a0a0a; }
+.gs-result-info { flex: 1; min-width: 0; }
+.gs-result-title { font-size: 13px; font-weight: 700; }
+.gs-result-meta { font-size: 10px; color: var(--muted); font-weight: 600; margin-top: 1px; }
+.gs-empty { padding: 30px 16px; text-align: center; color: var(--muted); font-size: 12px; }
+
+/* ============ LAYOUT ============ */
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  grid-template-rows: var(--topbar-h) 1fr;
+  grid-template-areas: "sidebar topbar" "sidebar main";
+  min-height: 100vh;
+}
+
+/* ============ TOPBAR ============ */
+.topbar {
+  grid-area: topbar;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+.topbar-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.3px;
+}
+.topbar-title .panel-name {
+  color: var(--text);
+  font-weight: 800;
+}
+.topbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.topbar-search {
+  position: relative;
+  width: 320px;
+  max-width: 100%;
+}
+.topbar-search input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border-mid);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  padding: 8px 12px 8px 36px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.topbar-search input:focus { border-color: var(--blue); }
+.topbar-search .material-icons {
+  position: absolute;
+  left: 10px; top: 50%; transform: translateY(-50%);
+  font-size: 18px;
+  color: var(--muted);
+}
+.topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.topbar-user:hover { background: var(--bg-3); }
+.topbar-user-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--blue);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 12px;
+}
+.topbar-user-info { line-height: 1.2; }
+.topbar-user-name { font-size: 12px; font-weight: 700; }
+.topbar-user-role { font-size: 10px; color: var(--muted); font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+
+/* ============ SIDEBAR ============ */
+.sidebar {
+  grid-area: sidebar;
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+.sidebar-logo {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--topbar-h);
+}
+.sidebar-logo-mark {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1px solid var(--yellow);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--yellow);
+  font-weight: 900;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.sidebar-logo-text {
+  font-weight: 900;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+}
+.sidebar-logo-text .sub {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  display: block;
+  margin-top: 1px;
+}
+
+.sidebar-nav {
+  padding: 12px 8px;
+  flex: 1;
+}
+.sidebar-section-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--muted);
+  text-transform: uppercase;
+  padding: 10px 12px 6px;
+}
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.12s;
+  position: relative;
+  margin-bottom: 1px;
+}
+.sidebar-link .material-icons { font-size: 18px; }
+.sidebar-link:hover {
+  background: var(--bg-3);
+  color: var(--text);
+}
+.sidebar-link.active {
+  background: rgba(43,168,224,0.12);
+  color: var(--text);
+}
+.sidebar-link.active::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 6px; bottom: 6px;
+  width: 3px;
+  background: var(--yellow);
+  border-radius: 0 3px 3px 0;
+}
+.sidebar-link-badge {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 800;
+  background: var(--yellow);
+  color: #0a0a0a;
+  padding: 1px 7px;
+  border-radius: 100px;
+  letter-spacing: 0.3px;
+}
+
+.sidebar-footer {
+  padding: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 10px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ============ MAIN ============ */
+.main {
+  grid-area: main;
+  padding: 20px 24px 60px;
+  overflow-y: auto;
+  max-width: 100%;
+}
+
+.panel { display: none; }
+.panel.active { display: block; }
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.panel-head h1 {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.3px;
+}
+.panel-head-sub {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.panel-head-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+/* ============ COMPONENTS ============ */
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border-radius: 8px;
+  border: none;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn .material-icons { font-size: 16px; }
+.btn-primary { background: var(--yellow); color: #0a0a0a; }
+.btn-primary:hover { background: #ffd933; }
+.btn-blue { background: var(--blue); color: #fff; }
+.btn-blue:hover { background: var(--blue-dk); }
+.btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border-mid); }
+.btn-outline:hover { background: var(--bg-3); border-color: var(--blue); }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-danger:hover { background: #dc2626; }
+.btn-ghost { background: transparent; color: var(--muted); }
+.btn-ghost:hover { background: var(--bg-3); color: var(--text); }
+.btn-sm { padding: 6px 10px; font-size: 11px; }
+.btn-sm .material-icons { font-size: 14px; }
+
+/* KPI tiles */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.kpi-tile {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+.kpi-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.kpi-value {
+  font-size: 26px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+.kpi-delta {
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.kpi-delta.up { color: var(--green); }
+.kpi-delta.down { color: var(--red); }
+.kpi-delta .material-icons { font-size: 14px; }
+
+/* Section card */
+.section {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.section-head {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.section-title {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+.section-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--bg-3);
+  padding: 2px 8px;
+  border-radius: 100px;
+}
+.section-actions { margin-left: auto; display: flex; gap: 6px; }
+.section-body { padding: 0; }
+.section-body.padded { padding: 16px; }
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+  margin-bottom: 16px;
+}
+.tab-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 12px 14px;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.15s;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active {
+  color: var(--text);
+}
+.tab-btn.active::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 2px;
+  background: var(--yellow);
+}
+.tab-btn .count {
+  font-size: 10px;
+  background: var(--bg-3);
+  color: var(--muted);
+  padding: 1px 6px;
+  border-radius: 100px;
+  margin-left: 4px;
+}
+.tab-btn.active .count { background: var(--yellow); color: #0a0a0a; }
+
+/* Tables */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.table th {
+  text-align: left;
+  padding: 10px 14px;
+  background: var(--bg-3);
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+}
+.table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-weight: 500;
+  vertical-align: middle;
+}
+.table tr:last-child td { border-bottom: none; }
+.table tr:hover td { background: rgba(43,168,224,0.04); }
+.table-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+/* Status pills */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 100px;
+}
+.pill-pending  { background: rgba(249,115,22,0.18); color: var(--orange); }
+.pill-approved { background: rgba(74,222,128,0.18); color: var(--green); }
+.pill-rejected { background: rgba(239,68,68,0.18); color: var(--red); }
+.pill-live     { background: rgba(74,222,128,0.18); color: var(--green); }
+.pill-paid     { background: rgba(74,222,128,0.18); color: var(--green); }
+.pill-paused   { background: rgba(138,153,168,0.18); color: var(--muted); }
+.pill-draft    { background: rgba(138,153,168,0.18); color: var(--muted); }
+.pill-past     { background: rgba(138,153,168,0.18); color: var(--muted); }
+.pill-member     { background: rgba(138,153,168,0.18); color: var(--text); }
+.pill-supporter  { background: rgba(43,168,224,0.20); color: var(--blue); }
+.pill-ambassador { background: rgba(255,204,0,0.22); color: var(--yellow); }
+.pill-featured   { background: rgba(255,204,0,0.18); color: var(--yellow); }
+.pill-verified   { background: rgba(43,168,224,0.20); color: var(--blue); }
+.pill-suspended  { background: rgba(239,68,68,0.18); color: var(--red); }
+.pill-cancelled  { background: rgba(239,68,68,0.18); color: var(--red); }
+.pill-going      { background: rgba(74,222,128,0.18); color: var(--green); }
+
+/* Member avatar */
+.cell-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--blue);
+  color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 11px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+.cell-name {
+  font-weight: 700;
+  vertical-align: middle;
+}
+.cell-meta {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 500;
+  margin-top: 1px;
+}
+
+/* Filters row */
+.filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.filter-chip {
+  background: var(--bg-3);
+  border: 1px solid transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 6px 12px;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.filter-chip:hover { color: var(--text); }
+.filter-chip.active {
+  background: var(--blue);
+  color: #fff;
+}
+
+/* Action queue */
+.queue-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.queue-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.queue-card:hover { border-color: var(--blue); }
+.queue-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.queue-card-icon {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  background: rgba(43,168,224,0.12);
+  color: var(--blue);
+  display: flex; align-items: center; justify-content: center;
+}
+.queue-card-icon .material-icons { font-size: 18px; }
+.queue-card.urgent .queue-card-icon { background: rgba(249,115,22,0.18); color: var(--orange); }
+.queue-card-title { font-size: 12px; font-weight: 700; color: var(--muted); flex: 1; }
+.queue-card-count {
+  font-size: 24px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.queue-card-meta { font-size: 11px; color: var(--muted); font-weight: 600; }
+
+/* Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal-backdrop.open { display: flex; }
+.modal {
+  background: var(--bg-2);
+  border: 1px solid var(--border-mid);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+}
+.modal-head {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.modal-title { font-size: 16px; font-weight: 800; }
+.modal-close {
+  margin-left: auto;
+  background: none; border: none; color: var(--muted);
+  cursor: pointer; padding: 4px;
+}
+.modal-close:hover { color: var(--text); }
+.modal-body { padding: 20px; }
+.modal-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* Form fields */
+.field { margin-bottom: 14px; }
+.field-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.field-input,
+.field-select,
+.field-textarea {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border-mid);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 10px 12px;
+  outline: none;
+}
+.field-input:focus,
+.field-select:focus,
+.field-textarea:focus { border-color: var(--blue); }
+.field-textarea { resize: vertical; min-height: 80px; }
+.field-row { display: flex; gap: 10px; }
+.field-row .field { flex: 1; }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--bg-3);
+  border: 1px solid var(--border-mid);
+  border-radius: 100px;
+  padding: 10px 18px 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.25s;
+  z-index: 200;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast .material-icons { font-size: 16px; color: var(--yellow); }
+
+/* Mobile */
+@media (max-width: 900px) {
+  .app {
+    grid-template-columns: 1fr;
+    grid-template-areas: "topbar" "main";
+  }
+  .sidebar {
+    position: fixed;
+    left: -100%;
+    width: 280px;
+    height: 100vh;
+    z-index: 100;
+    transition: left 0.25s;
+  }
+  .sidebar.open { left: 0; }
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 99;
+    display: none;
+  }
+  .sidebar-backdrop.show { display: block; }
+  .topbar-menu-btn { display: flex !important; }
+  .topbar-search { width: auto; flex: 1; max-width: 240px; }
+  .main { padding: 14px 14px 60px; }
+  .kpi-tile { padding: 12px; }
+  .kpi-value { font-size: 22px; }
+}
+
+.topbar-menu-btn {
+  display: none;
+  background: none; border: none; color: var(--text);
+  padding: 4px;
+  cursor: pointer;
+}
+.topbar-menu-btn .material-icons { font-size: 22px; }
+
+/* Utility */
+.text-muted { color: var(--muted); }
+.text-yellow { color: var(--yellow); }
+.text-blue { color: var(--blue); }
+.text-green { color: var(--green); }
+.text-red { color: var(--red); }
+.aed::before { content: 'AED '; font-size: 0.75em; opacity: 0.7; font-weight: 700; }
+.nowrap { white-space: nowrap; }
+.f-tabular { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-mark">F</div>
+      <div class="sidebar-logo-text">
+        FFP Passport
+        <span class="sub">Admin</span>
+      </div>
+    </div>
+    
+    <nav class="sidebar-nav">
+      <div class="sidebar-section-label">Mission Control</div>
+      <a class="sidebar-link active" data-panel="panel-overview" onclick="App.go('panel-overview')">
+        <span class="material-icons">dashboard</span>Overview
+      </a>
+      <a class="sidebar-link" data-panel="panel-analytics" onclick="App.go('panel-analytics')">
+        <span class="material-icons">insights</span>Analytics
+      </a>
+      
+      <div class="sidebar-section-label">Approvals</div>
+      <a class="sidebar-link" data-panel="panel-providers" onclick="App.go('panel-providers')">
+        <span class="material-icons">storefront</span>Providers
+        <span class="sidebar-link-badge" id="badge-providers">3</span>
+      </a>
+      <a class="sidebar-link" data-panel="panel-content" onclick="App.go('panel-content')">
+        <span class="material-icons">rate_review</span>Content
+        <span class="sidebar-link-badge" id="badge-content">5</span>
+      </a>
+      <a class="sidebar-link" data-panel="panel-payouts" onclick="App.go('panel-payouts')">
+        <span class="material-icons">account_balance</span>Payouts
+        <span class="sidebar-link-badge" id="badge-payouts">2</span>
+      </a>
+      <a class="sidebar-link" data-panel="panel-referrals" onclick="App.go('panel-referrals')">
+        <span class="material-icons">group_add</span>Referrals
+        <span class="sidebar-link-badge" id="badge-referrals">4</span>
+      </a>
+      
+      <div class="sidebar-section-label">Marketplace</div>
+      <a class="sidebar-link" data-panel="panel-members" onclick="App.go('panel-members')">
+        <span class="material-icons">people</span>Members
+      </a>
+      <a class="sidebar-link" data-panel="panel-deals" onclick="App.go('panel-deals')">
+        <span class="material-icons">local_offer</span>Deals
+      </a>
+      <a class="sidebar-link" data-panel="panel-events" onclick="App.go('panel-events')">
+        <span class="material-icons">event</span>Events
+      </a>
+      <a class="sidebar-link" data-panel="panel-experiences" onclick="App.go('panel-experiences')">
+        <span class="material-icons">flight_takeoff</span>Experiences
+      </a>
+      <a class="sidebar-link" data-panel="panel-challenges" onclick="App.go('panel-challenges')">
+        <span class="material-icons">emoji_events</span>Challenges
+      </a>
+      <a class="sidebar-link" data-panel="panel-meetups" onclick="App.go('panel-meetups')">
+        <span class="material-icons">groups</span>Meet &amp; Move
+      </a>
+      
+      <div class="sidebar-section-label">Platform</div>
+      <a class="sidebar-link" data-panel="panel-taxonomies" onclick="App.go('panel-taxonomies')">
+        <span class="material-icons">category</span>Taxonomies
+      </a>
+      <a class="sidebar-link" data-panel="panel-settings" onclick="App.go('panel-settings')">
+        <span class="material-icons">settings</span>Settings
+      </a>
+    </nav>
+    
+    <div class="sidebar-footer">
+      v1.0 &middot; FFP Admin
+    </div>
+  </aside>
+  <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.toggleSidebar()"></div>
+  
+  <!-- ============ TOPBAR ============ -->
+  <header class="topbar">
+    <button class="topbar-menu-btn" onclick="App.toggleSidebar()">
+      <span class="material-icons">menu</span>
+    </button>
+    <div class="topbar-title">
+      <span class="panel-name" id="topbar-panel-name">Overview</span>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-search">
+        <span class="material-icons">search</span>
+        <input type="text" id="global-search-input" placeholder="Search members, providers, listings..." oninput="GlobalSearch.onInput(this.value)" onfocus="GlobalSearch.onInput(this.value)" onblur="setTimeout(()=>GlobalSearch.close(),200)">
+      </div>
+      <div class="topbar-user" onclick="showToast('Logout menu coming soon')">
+        <div class="topbar-user-avatar">G</div>
+        <div class="topbar-user-info">
+          <div class="topbar-user-name">Grant Goes</div>
+          <div class="topbar-user-role">Super Admin</div>
+        </div>
+      </div>
+    </div>
+  </header>
+  
+  <!-- ============ MAIN ============ -->
+  <main class="main">
+    
+    <!-- ========== OVERVIEW ========== -->
+    <section class="panel active" id="panel-overview">
+      <div class="panel-head">
+        <h1>Overview</h1>
+        <div class="panel-head-actions">
+          <button class="btn btn-outline" onclick="showToast('Refreshed')"><span class="material-icons">refresh</span>Refresh</button>
+        </div>
+      </div>
+      
+      <!-- KPIs -->
+      <div class="kpi-grid">
+        <div class="kpi-tile">
+          <div class="kpi-label">Total Members</div>
+          <div class="kpi-value" id="kpi-total-members">147</div>
+          <div class="kpi-delta up"><span class="material-icons">trending_up</span>+12 this week</div>
+        </div>
+        <div class="kpi-tile">
+          <div class="kpi-label">Active 30 days</div>
+          <div class="kpi-value" id="kpi-active">98</div>
+          <div class="kpi-delta up"><span class="material-icons">trending_up</span>67% engagement</div>
+        </div>
+        <div class="kpi-tile">
+          <div class="kpi-label">MRR</div>
+          <div class="kpi-value f-tabular"><span style="font-size:14px; color:var(--muted);">AED</span> 6,103</div>
+          <div class="kpi-delta up"><span class="material-icons">trending_up</span>+AED 499 this week</div>
+        </div>
+        <div class="kpi-tile">
+          <div class="kpi-label">Approved Providers</div>
+          <div class="kpi-value" id="kpi-providers">24</div>
+          <div class="kpi-delta up"><span class="material-icons">trending_up</span>3 pending</div>
+        </div>
+      </div>
+      
+      <!-- Action Queue -->
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">Action Queue</div>
+          <span class="section-count">14 items</span>
+        </div>
+        <div class="section-body padded">
+          <div class="queue-grid">
+            <div class="queue-card urgent" onclick="App.go('panel-providers')">
+              <div class="queue-card-head">
+                <div class="queue-card-icon"><span class="material-icons">storefront</span></div>
+                <div class="queue-card-title">Provider applications</div>
+              </div>
+              <div class="queue-card-count">3</div>
+              <div class="queue-card-meta">Awaiting review &middot; oldest 2 days</div>
+            </div>
+            <div class="queue-card urgent" onclick="App.go('panel-payouts')">
+              <div class="queue-card-head">
+                <div class="queue-card-icon"><span class="material-icons">account_balance</span></div>
+                <div class="queue-card-title">Payout requests</div>
+              </div>
+              <div class="queue-card-count">2</div>
+              <div class="queue-card-meta">AED 1,250 total</div>
+            </div>
+            <div class="queue-card" onclick="App.go('panel-content')">
+              <div class="queue-card-head">
+                <div class="queue-card-icon"><span class="material-icons">rate_review</span></div>
+                <div class="queue-card-title">Content submissions</div>
+              </div>
+              <div class="queue-card-count">5</div>
+              <div class="queue-card-meta">3 reviews &middot; 2 posts</div>
+            </div>
+            <div class="queue-card" onclick="App.go('panel-referrals')">
+              <div class="queue-card-head">
+                <div class="queue-card-icon"><span class="material-icons">group_add</span></div>
+                <div class="queue-card-title">Referrals to verify</div>
+              </div>
+              <div class="queue-card-count">4</div>
+              <div class="queue-card-meta">All paid signups</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Recent Activity -->
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">Recent activity</div>
+          <span class="section-count">Last 24 hours</span>
+        </div>
+        <div class="section-body">
+          <table class="table">
+            <thead>
+              <tr><th>When</th><th>Who</th><th>What</th></tr>
+            </thead>
+            <tbody id="activity-feed">
+              <tr><td class="text-muted nowrap">2 min ago</td><td><span class="cell-avatar">S</span><span class="cell-name">Sarah K.</span></td><td>Signed up &middot; <span class="text-yellow">AED 499 paid</span></td></tr>
+              <tr><td class="text-muted nowrap">14 min ago</td><td><span class="cell-avatar" style="background:var(--yellow); color:#0a0a0a;">A</span><span class="cell-name">Ace Padel Club</span></td><td>Submitted provider application</td></tr>
+              <tr><td class="text-muted nowrap">28 min ago</td><td><span class="cell-avatar">M</span><span class="cell-name">Mike H.</span></td><td>Requested payout &middot; <span class="text-yellow">AED 750</span></td></tr>
+              <tr><td class="text-muted nowrap">42 min ago</td><td><span class="cell-avatar">P</span><span class="cell-name">Priya R.</span></td><td>Claimed deal at <strong>Cryo Recovery DXB</strong></td></tr>
+              <tr><td class="text-muted nowrap">1h ago</td><td><span class="cell-avatar">L</span><span class="cell-name">Layla M.</span></td><td>Created Meet &amp; Move &middot; Sunrise yoga</td></tr>
+              <tr><td class="text-muted nowrap">2h ago</td><td><span class="cell-avatar" style="background:var(--yellow); color:#0a0a0a;">F</span><span class="cell-name">Forge Fitness</span></td><td>Added new deal &middot; pending approval</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    
+    <!-- ========== PROVIDERS ========== -->
+    <section class="panel" id="panel-providers">
+      <div class="panel-head">
+        <h1>Providers</h1>
+        <div class="panel-head-actions">
+          <button class="btn btn-primary" onclick="AdminProviders.openAddModal()"><span class="material-icons">add</span>Add Provider</button>
+        </div>
+      </div>
+      
+      <div class="section">
+        <div class="search-row">
+          <div class="search-input-wrap">
+            <span class="material-icons">search</span>
+            <input type="text" placeholder="Search providers by name, city, category..." oninput="AdminProviders.onSearch(this.value)">
+          </div>
+          <div class="search-meta" id="AdminProviders-meta"></div>
+        </div>
+        <div class="tabs" id="providers-tabs">
+          <button class="tab-btn active" data-tab="pending" onclick="AdminProviders.setTab('pending')">Pending <span class="count" id="prov-count-pending">3</span></button>
+          <button class="tab-btn" data-tab="approved" onclick="AdminProviders.setTab('approved')">Approved <span class="count" id="prov-count-approved">10</span></button>
+          <button class="tab-btn" data-tab="featured" onclick="AdminProviders.setTab('featured')">Featured <span class="count" id="prov-count-featured">5</span></button>
+          <button class="tab-btn" data-tab="suspended" onclick="AdminProviders.setTab('suspended')">Suspended <span class="count" id="prov-count-suspended">1</span></button>
+        </div>
+        <div class="section-body">
+          <table class="table">
+            <thead>
+              <tr><th>Provider</th><th>Category</th><th>City</th><th>Applied</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody id="providers-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    
+    <!-- ========== MEMBERS ========== -->
+    <section class="panel" id="panel-members">
+      <div class="panel-head">
+        <h1>Members</h1>
+        <div class="panel-head-actions">
+          <button class="btn btn-outline" onclick="showToast('Export coming soon')"><span class="material-icons">download</span>Export CSV</button>
+        </div>
+      </div>
+      
+      <div class="section">
+        <div class="search-row">
+          <div class="search-input-wrap">
+            <span class="material-icons">search</span>
+            <input type="text" placeholder="Search members by name, email, city..." oninput="AdminMembers.onSearch(this.value)">
+          </div>
+          <div class="search-meta" id="AdminMembers-meta"></div>
+        </div>
+        <div class="filters-row">
+          <button class="filter-chip active" onclick="AdminMembers.setFilter('all', this)">All</button>
+          <button class="filter-chip" onclick="AdminMembers.setFilter('member', this)">Member</button>
+          <button class="filter-chip" onclick="AdminMembers.setFilter('supporter', this)">Supporter</button>
+          <button class="filter-chip" onclick="AdminMembers.setFilter('ambassador', this)">Ambassador</button>
+          <button class="filter-chip" onclick="AdminMembers.setFilter('suspended', this)">Suspended</button>
+        </div>
+        <div class="section-body">
+          <table class="table">
+            <thead>
+              <tr><th>Member</th><th>City</th><th>Tier</th><th>Balance</th><th>Joined</th><th></th></tr>
+            </thead>
+            <tbody id="members-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    
+    <!-- ========== CONTENT ========== -->
+    <section class="panel" id="panel-content">
+      <div class="panel-head">
+        <h1>Content Moderation</h1>
+        <div class="panel-head-sub">Review member-submitted content. Approve with reward amount or reject with reason.</div>
+      </div>
+      
+      <div class="section">
+        <div class="search-row">
+          <div class="search-input-wrap">
+            <span class="material-icons">search</span>
+            <input type="text" placeholder="Search by title or member name..." oninput="AdminContent.onSearch(this.value)">
+          </div>
+          <div class="search-meta" id="AdminContent-meta"></div>
+        </div>
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="pending" onclick="AdminContent.setTab('pending')">Pending <span class="count">5</span></button>
+          <button class="tab-btn" data-tab="approved" onclick="AdminContent.setTab('approved')">Approved <span class="count">28</span></button>
+          <button class="tab-btn" data-tab="rejected" onclick="AdminContent.setTab('rejected')">Rejected <span class="count">7</span></button>
+        </div>
+        <div class="section-body">
+          <table class="table">
+            <thead>
+              <tr><th>Member</th><th>Type</th><th>Title</th><th>Submitted</th><th></th></tr>
+            </thead>
+            <tbody id="content-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    
+    <!-- ========== PAYOUTS ========== -->
+    <section class="panel" id="panel-payouts">
+      <div class="panel-head">
+        <h1>Payouts</h1>
+        <div class="panel-head-sub">Review and process member payout requests. Min AED 500.</div>
+        <div class="panel-head-actions">
+          <button class="btn btn-outline" onclick="showToast('CSV export coming soon')"><span class="material-icons">download</span>Bank Batch CSV</button>
+        </div>
+      </div>
+      
+      <div class="section">
+        <div class="search-row">
+          <div class="search-input-wrap">
+            <span class="material-icons">search</span>
+            <input type="text" placeholder="Search by member name..." oninput="AdminPayouts.onSearch(this.value)">
+          </div>
+          <div class="search-meta" id="AdminPayouts-meta"></div>
+        </div>
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="pending" onclick="AdminPayouts.setTab('pending')">Pending <span class="count">2</span></button>
+          <button class="tab-btn" data-tab="approved" onclick="AdminPayouts.setTab('approved')">Approved <span class="count">1</span></button>
+          <button class="tab-btn" data-tab="paid" onclick="AdminPayouts.setTab('paid')">Paid <span class="count">8</span></button>
+          <button class="tab-btn" data-tab="rejected" onclick="AdminPayouts.setTab('rejected')">Rejected <span class="count">0</span></button>
+        </div>
+        <div class="section-body">
+          <table class="table">
+            <thead>
+              <tr><th>Member</th><th>Amount</th><th>Method</th><th>Requested</th><th></th></tr>
+            </thead>
+            <tbody id="payouts-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    
+    <!-- ========== REFERRALS ========== -->
+    <section class="panel" id="panel-referrals">
+      <div class="panel-head">
+        <h1>Referrals</h1>
+        <div class="panel-head-sub">Verify referral signups. On verify, reward credited to referrer based on their tier.</div>
+      </div>
+      
+      <div class="section">
+        <div class="search-row">
+          <div class="search-input-wrap">
+            <span class="material-icons">search</span>
+            <input type="text" placeholder="Search referrer or referred..." oninput="AdminReferrals.onSearch(this.value)">
+          </div>
+          <div class="search-meta" id="AdminReferrals-meta"></div>
+        </div>
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="pending" onclick="AdminReferrals.setTab('pending')">Pending <span class="count">4</span></button>
+          <button class="tab-btn" data-tab="paid" onclick="AdminReferrals.setTab('paid')">Paid <span class="count">12</span></button>
+          <button class="tab-btn" data-tab="invalid" onclick="AdminReferrals.setTab('invalid')">Invalid <span class="count">1</span></button>
+        </div>
+        <div class="section-body">
+          <table class="table">
+            <thead>
+              <tr><th>Referrer</th><th>Referred</th><th>Status</th><th>Reward</th><th>Signed up</th><th></th></tr>
+            </thead>
+            <tbody id="referrals-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    
+    <!-- ========== DEALS ========== -->
+    <section class="panel" id="panel-deals">
+      <div class="panel-head">
+        <h1>Deals</h1>
+        <div class="panel-head-actions">
+          <button class="btn btn-primary" onclick="showToast('Add deal on behalf of provider - form coming')"><span class="material-icons">add</span>Add Deal</button>
+        </div>
+      </div>
+      
+      <div class="section">
+        <div class="search-row">
+          <div class="search-input-wrap">
+            <span class="material-icons">search</span>
+            <input type="text" placeholder="Search by perk, provider, category..." oninput="AdminDeals.onSearch(this.value)">
+          </div>
+          <div class="search-meta" id="AdminDeals-meta"></div>
+        </div>
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="live" onclick="AdminDeals.setTab('live')">Live <span class="count">11</span></button>
+          <button class="tab-btn" data-tab="pending" onclick="AdminDeals.setTab('pending')">Pending <span class="count">2</span></button>
+          <button class="tab-btn" data-tab="featured" onclick="AdminDeals.setTab('featured')">Featured <span class="count">5</span></button>
+          <button class="tab-btn" data-tab="paused" onclick="AdminDeals.setTab('paused')">Paused <span class="count">0</span></button>
+        </div>
+        <div class="section-body">
+          <table class="table">
+            <thead>
+              <tr><th>Provider</th><th>Perk</th><th>Category</th><th>Status</th><th>Flags</th><th></th></tr>
+            </thead>
+            <tbody id="deals-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    
+    <!-- ========== EVENTS ========== -->
+    <section class="panel" id="panel-events">
+      <div class="panel-head">
+        <h1>Events</h1>
+        <div class="panel-head-actions">
+          <button class="btn btn-primary" onclick="showToast('Create FFP-organized event form coming')"><span class="material-icons">add</span>FFP-Organized Event</button>
+        </div>
+      </div>
+      
+      <div class="section">
+        <div class="search-row">
+          <div class="search-input-wrap">
+            <span class="material-icons">search</span>
+            <input type="text" placeholder="Search by event title, organizer..." oninput="AdminEvents.onSearch(this.value)">
+          </div>
+          <div class="search-meta" id="AdminEvents-meta"></div>
+        </div>
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="upcoming" onclick="AdminEvents.setTab('upcoming')">Upcoming <span class="count">5</span></button>
+          <button class="tab-btn" data-tab="past" onclick="AdminEvents.setTab('past')">Past <span class="count">8</span></button>
+          <button class="tab-btn" data-tab="cancelled" onclick="AdminEvents.setTab('cancelled')">Cancelled <span class="count">1</span></button>
+        </div>
+        <div class="section-body">
+          <table class="table">
+            <thead>
+              <tr><th>Event</th><th>Organizer</th><th>Date</th><th>RSVPs</th><th></th></tr>
+            </thead>
+            <tbody id="events-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    
+    <!-- ========== EXPERIENCES ========== -->
+    <section class="panel" id="panel-experiences">
+      <div class="panel-head">
+        <h1>Experiences</h1>
+        <div class="panel-head-actions">
+          <button class="btn btn-primary" onclick="showToast('Create FFP-organized experience form coming')"><span class="material-icons">add</span>FFP-Organized Trip</button>
+        </div>
+      </div>
+      
+      <div class="section">
+        <div class="search-row">
+          <div class="search-input-wrap">
+            <span class="material-icons">search</span>
+            <input type="text" placeholder="Search experiences by title, organizer..." oninput="AdminExperiences.onSearch(this.value)">
+          </div>
+          <div class="search-meta" id="AdminExperiences-meta"></div>
+        </div>
+        <div class="section-body">
+          <table class="table">
+            <thead>
+              <tr><th>Title</th><th>Type</th><th>Organizer</th><th>Dates</th><th>Applications</th><th></th></tr>
+            </thead>
+            <tbody id="experiences-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    
+    <!-- ========== CHALLENGES ========== -->
+    <section class="panel" id="panel-challenges">
+      <div class="panel-head">
+        <h1>Challenges</h1>
+        <div class="panel-head-actions">
+          <button class="btn btn-primary" onclick="showToast('Create FFP challenge form coming')"><span class="material-icons">add</span>FFP Challenge</button>
+        </div>
+      </div>
+      
+      <div class="section">
+        <div class="search-row">
+          <div class="search-input-wrap">
+            <span class="material-icons">search</span>
+            <input type="text" placeholder="Search by title, sport, organizer..." oninput="AdminChallenges.onSearch(this.value)">
+          </div>
+          <div class="search-meta" id="AdminChallenges-meta"></div>
+        </div>
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="ffp" onclick="AdminChallenges.setTab('ffp')">FFP-Set <span class="count">0</span></button>
+          <button class="tab-btn" data-tab="provider" onclick="AdminChallenges.setTab('provider')">Provider <span class="count">5</span></button>
+          <button class="tab-btn" data-tab="member" onclick="AdminChallenges.setTab('member')">Member <span class="count">4</span></button>
+        </div>
+        <div class="section-body">
+          <table class="table">
+            <thead>
+              <tr><th>Title</th><th>Sport</th><th>Organizer</th><th>Ends</th><th>Participants</th><th></th></tr>
+            </thead>
+            <tbody id="challenges-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    
+    <!-- ========== MEETUPS ========== -->
+    <section class="panel" id="panel-meetups">
+      <div class="panel-head">
+        <h1>Meet &amp; Move</h1>
+        <div class="panel-head-sub">Member-hosted peer-to-peer meetups (max 8 people). Oversized groups can be converted to FFP-organized events.</div>
+      </div>
+      
+      <div class="section">
+        <div class="search-row">
+          <div class="search-input-wrap">
+            <span class="material-icons">search</span>
+            <input type="text" placeholder="Search activity, host name..." oninput="AdminMeetups.onSearch(this.value)">
+          </div>
+          <div class="search-meta" id="AdminMeetups-meta"></div>
+        </div>
+        <div class="section-body">
+          <table class="table">
+            <thead>
+              <tr><th>Activity</th><th>Host</th><th>When</th><th>Capacity</th><th></th></tr>
+            </thead>
+            <tbody id="meetups-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    
+    <!-- ========== TAXONOMIES ========== -->
+    <section class="panel" id="panel-taxonomies">
+      <div class="panel-head">
+        <h1>Taxonomies</h1>
+        <div class="panel-head-sub">Cities, activities, and categories used across the platform.</div>
+      </div>
+      
+      <div class="kpi-grid">
+        <div class="kpi-tile" onclick="showToast('Cities editor coming')" style="cursor:pointer;">
+          <div class="kpi-label">Cities</div>
+          <div class="kpi-value">537</div>
+          <div class="kpi-delta"><span class="text-muted">across 67 countries</span></div>
+        </div>
+        <div class="kpi-tile" onclick="showToast('Activities editor coming')" style="cursor:pointer;">
+          <div class="kpi-label">Activities</div>
+          <div class="kpi-value">101</div>
+          <div class="kpi-delta"><span class="text-muted">across 16 categories</span></div>
+        </div>
+        <div class="kpi-tile" onclick="showToast('Categories editor coming')" style="cursor:pointer;">
+          <div class="kpi-label">Provider Categories</div>
+          <div class="kpi-value">5</div>
+          <div class="kpi-delta"><span class="text-muted">Fitness, Sports, Wellness, Adventure, Recovery</span></div>
+        </div>
+        <div class="kpi-tile">
+          <div class="kpi-label">Fitness Levels (locked)</div>
+          <div class="kpi-value" style="font-size:14px; line-height:1.4;">Beginner &middot; Intermediate<br>Advanced &middot; Elite &middot; Professional</div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- ========== SETTINGS ========== -->
+    <section class="panel" id="panel-settings">
+      <div class="panel-head">
+        <h1>Settings</h1>
+      </div>
+      
+      <div class="section">
+        <div class="section-head"><div class="section-title">FFP Team</div></div>
+        <div class="section-body">
+          <table class="table">
+            <thead>
+              <tr><th>Name</th><th>Email</th><th>Role</th><th>Added</th><th></th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="cell-avatar">G</span><span class="cell-name">Grant Goes</span></td>
+                <td class="text-muted">grant@ffppassport.com</td>
+                <td><span class="pill pill-ambassador">Super Admin</span></td>
+                <td class="text-muted">Founder</td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <div class="section">
+        <div class="section-head"><div class="section-title">Platform Config</div></div>
+        <div class="section-body padded">
+          <div class="field-row">
+            <div class="field">
+              <label class="field-label">Membership Price (AED)</label>
+              <input class="field-input" value="499" type="number">
+            </div>
+            <div class="field">
+              <label class="field-label">Min Payout (AED)</label>
+              <input class="field-input" value="500" type="number">
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label class="field-label">Member Referral (AED)</label>
+              <input class="field-input" value="25" type="number">
+            </div>
+            <div class="field">
+              <label class="field-label">Supporter Referral (AED)</label>
+              <input class="field-input" value="50" type="number">
+            </div>
+            <div class="field">
+              <label class="field-label">Ambassador Referral (AED)</label>
+              <input class="field-input" value="100" type="number">
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="showToast('Settings saved')">Save Config</button>
+        </div>
+      </div>
+      
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">Audit Log</div>
+          <span class="section-count">Last 50 actions</span>
+        </div>
+        <div class="section-body padded" id="audit-log"></div>
+      </div>
+    </section>
+    
+    <!-- ========== ANALYTICS (v3 — full time filter + comparison) ========== -->
+    <section class="panel" id="panel-analytics">
+      <div class="panel-head">
+        <h1>Analytics</h1>
+        <div class="panel-head-sub">Member growth, demographics, revenue, engagement. For sponsors and brand decks.</div>
+        <div class="panel-head-actions">
+          <button class="btn btn-outline" onclick="showToast('Analytics export coming')"><span class="material-icons">download</span>Export</button>
+        </div>
+      </div>
+      
+      <!-- Time period filter -->
+      <div class="time-filter">
+        <div class="time-filter-row">
+          <span class="time-filter-label">Period</span>
+          <div class="time-chip-group">
+            <button class="time-chip" data-period="today" onclick="Analytics.setPeriod('today', this)">Today</button>
+            <button class="time-chip" data-period="yesterday" onclick="Analytics.setPeriod('yesterday', this)">Yesterday</button>
+            <button class="time-chip" data-period="thisWeek" onclick="Analytics.setPeriod('thisWeek', this)">This Week</button>
+            <button class="time-chip" data-period="lastWeek" onclick="Analytics.setPeriod('lastWeek', this)">Last Week</button>
+            <button class="time-chip" data-period="thisMonth" onclick="Analytics.setPeriod('thisMonth', this)">This Month</button>
+            <button class="time-chip" data-period="lastMonth" onclick="Analytics.setPeriod('lastMonth', this)">Last Month</button>
+            <button class="time-chip active" data-period="last90" onclick="Analytics.setPeriod('last90', this)">Last 90 Days</button>
+            <button class="time-chip" data-period="thisQuarter" onclick="Analytics.setPeriod('thisQuarter', this)">This Quarter</button>
+            <button class="time-chip" data-period="lastQuarter" onclick="Analytics.setPeriod('lastQuarter', this)">Last Quarter</button>
+            <button class="time-chip" data-period="last6m" onclick="Analytics.setPeriod('last6m', this)">Last 6 Months</button>
+            <button class="time-chip" data-period="thisYear" onclick="Analytics.setPeriod('thisYear', this)">This Year</button>
+            <button class="time-chip" data-period="lastYear" onclick="Analytics.setPeriod('lastYear', this)">Last Year</button>
+            <button class="time-chip" data-period="allTime" onclick="Analytics.setPeriod('allTime', this)">All Time</button>
+          </div>
+          <div class="time-filter-compare">
+            <div class="compare-toggle" id="compare-toggle" onclick="Analytics.toggleCompare()"></div>
+            <span class="compare-toggle-label">Compare to previous</span>
+          </div>
+        </div>
+        <div class="time-period-summary" id="time-period-summary">
+          Showing data for <span class="range">last 90 days</span>
+        </div>
+      </div>
+      
+      <!-- TOP KPI summary (comparison-aware) -->
+      <div class="kpi-grid" id="analytics-kpis"></div>
+      
+      <!-- Charts grid -->
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-card-head">
+            <div class="chart-card-title">Member Growth</div>
+            <div class="chart-card-meta" id="chart-growth-meta">Last 90 days</div>
+          </div>
+          <div class="chart-canvas-wrap"><canvas id="chart-growth"></canvas></div>
+        </div>
+        
+        <div class="chart-card">
+          <div class="chart-card-head">
+            <div class="chart-card-title">Tier Distribution</div>
+            <div class="chart-card-meta" id="chart-tiers-meta">147 active members</div>
+          </div>
+          <div class="chart-canvas-wrap"><canvas id="chart-tiers"></canvas></div>
+        </div>
+        
+        <div class="chart-card">
+          <div class="chart-card-head">
+            <div class="chart-card-title">MRR Over Time</div>
+            <div class="chart-card-meta">AED, monthly recurring</div>
+          </div>
+          <div class="chart-canvas-wrap"><canvas id="chart-mrr"></canvas></div>
+        </div>
+        
+        <div class="chart-card">
+          <div class="chart-card-head">
+            <div class="chart-card-title">Engagement Mix</div>
+            <div class="chart-card-meta" id="chart-engagement-meta">Actions in selected period</div>
+          </div>
+          <div class="chart-canvas-wrap"><canvas id="chart-engagement"></canvas></div>
+        </div>
+      </div>
+      
+      <!-- Demographics for sponsors -->
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">Audience Demographics</div>
+          <span class="section-count">For sponsor + brand decks</span>
+        </div>
+        <div class="section-body padded">
+          <div class="charts-grid">
+            <div>
+              <div class="chart-card-title" style="margin-bottom:10px;">Cities</div>
+              <div class="demo-list" id="demo-cities"></div>
+            </div>
+            <div>
+              <div class="chart-card-title" style="margin-bottom:10px;">Nationalities</div>
+              <div class="demo-list" id="demo-nationalities"></div>
+            </div>
+            <div>
+              <div class="chart-card-title" style="margin-bottom:10px;">Age Ranges</div>
+              <div class="demo-list" id="demo-ages"></div>
+            </div>
+            <div>
+              <div class="chart-card-title" style="margin-bottom:10px;">Gender Split</div>
+              <div class="demo-list" id="demo-gender"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Top providers -->
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">Top Providers by Claims</div>
+          <span class="section-count">Last 30 days</span>
+        </div>
+        <div class="section-body">
+          <table class="table">
+            <thead><tr><th>#</th><th>Provider</th><th>Claims</th><th>Trend</th></tr></thead>
+            <tbody id="top-providers-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- Category breakdown -->
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">Activity Category Popularity</div>
+          <span class="section-count">Member preference</span>
+        </div>
+        <div class="section-body padded">
+          <div class="demo-list" id="demo-categories"></div>
+        </div>
+      </div>
+    </section>
+    
+  </main>
+</div>
+
+<!-- ========== DETAIL DRAWER ========== -->
+<div class="drawer-backdrop" id="drawer-backdrop" onclick="Drawer.close()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <div class="drawer-head-avatar" id="drawer-avatar">?</div>
+    <div class="drawer-head-info">
+      <div class="drawer-head-title" id="drawer-title">Loading...</div>
+      <div class="drawer-head-sub" id="drawer-sub"></div>
+      <div class="drawer-head-pills" id="drawer-pills"></div>
+    </div>
+    <button class="drawer-close" onclick="Drawer.close()"><span class="material-icons">close</span></button>
+  </div>
+  <div class="drawer-tabs" id="drawer-tabs"></div>
+  <div class="drawer-body" id="drawer-body"></div>
+  <div class="drawer-footer" id="drawer-footer"></div>
+</div>
+
+<!-- ========== GLOBAL SEARCH OVERLAY ========== -->
+<div class="global-search-overlay" id="global-search-overlay"></div>
+
+<!-- ========== TOAST ========== -->
+<div class="toast" id="toast">
+  <span class="material-icons" id="toast-icon">check</span>
+  <span id="toast-msg"></span>
+</div>
+
+<!-- ========== MODAL ========== -->
+<div class="modal-backdrop" id="modal-backdrop" onclick="if(event.target.id==='modal-backdrop')closeModal()">
+  <div class="modal" id="modal" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <div class="modal-title" id="modal-title">Title</div>
+      <button class="modal-close" onclick="closeModal()"><span class="material-icons">close</span></button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<script>
+// =====================================================================
+// SHARED HELPERS — MUST EXIST ACROSS ALL MODULES
+// =====================================================================
+function showToast(msg, icon) {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  document.getElementById('toast-icon').textContent = icon || 'check';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+function escHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function openModal(title, bodyHtml, footerHtml) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = bodyHtml;
+  document.getElementById('modal-footer').innerHTML = footerHtml || '';
+  document.getElementById('modal-backdrop').classList.add('open');
+}
+function closeModal() { document.getElementById('modal-backdrop').classList.remove('open'); }
+function fmtDays(d) {
+  if (d === 0) return 'Today';
+  if (d === 1) return 'Yesterday';
+  if (d < 7) return `${d} days ago`;
+  if (d < 30) return `${Math.floor(d/7)} weeks ago`;
+  return `${Math.floor(d/30)} months ago`;
+}
+
+// =====================================================================
+// APP — TOP-LEVEL ROUTER
+// =====================================================================
+const App = {
+  panelNames: {
+    'panel-overview':    'Overview',
+    'panel-analytics':   'Analytics',
+    'panel-providers':   'Providers',
+    'panel-members':     'Members',
+    'panel-content':     'Content Moderation',
+    'panel-payouts':     'Payouts',
+    'panel-referrals':   'Referrals',
+    'panel-deals':       'Deals',
+    'panel-events':      'Events',
+    'panel-experiences': 'Experiences',
+    'panel-challenges':  'Challenges',
+    'panel-meetups':     'Meet & Move',
+    'panel-taxonomies':  'Taxonomies',
+    'panel-settings':    'Settings'
+  },
+  
+  init() {
+    AdminProviders.init();
+    AdminMembers.init();
+    AdminContent.init();
+    AdminPayouts.init();
+    AdminReferrals.init();
+    AdminDeals.init();
+    AdminEvents.init();
+    AdminExperiences.init();
+    AdminChallenges.init();
+    AdminMeetups.init();
+    AuditLog.init();
+    Analytics.init();
+  },
+  
+  go(panelId) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+    document.getElementById(panelId).classList.add('active');
+    document.querySelector(`.sidebar-link[data-panel="${panelId}"]`)?.classList.add('active');
+    document.getElementById('topbar-panel-name').textContent = this.panelNames[panelId] || '';
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-backdrop').classList.remove('show');
+    GlobalSearch.close();
+    window.scrollTo(0, 0);
+    
+    // Render analytics charts when panel becomes active (canvases need to be visible)
+    if (panelId === 'panel-analytics') {
+      setTimeout(() => Analytics.renderCharts(), 50);
+    }
+  },
+  
+  toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebar-backdrop').classList.toggle('show');
+  }
+};
+
+// =====================================================================
+// PROVIDERS MODULE
+// =====================================================================
+const AdminProviders = {
+  tab: 'pending',
+  search: '',
+  
+  data: [
+    // Pending
+    { id:'p1', business_name:'Ace Padel Club',          letter:'A', category:'Sports',    city:'Dubai',     status:'pending',  daysAgo:2, featured:false },
+    { id:'p2', business_name:'Boxing Academy DXB',      letter:'B', category:'Fitness',   city:'Dubai',     status:'pending',  daysAgo:5, featured:false },
+    { id:'p3', business_name:'Yas Marina F45',          letter:'Y', category:'Fitness',   city:'Abu Dhabi', status:'pending',  daysAgo:1, featured:false },
+    // Approved
+    { id:'p4', business_name:'Forge Fitness',           letter:'F', category:'Fitness',   city:'Dubai',     status:'approved', daysAgo:30, featured:true },
+    { id:'p5', business_name:'Cryo Recovery DXB',       letter:'C', category:'Wellness',  city:'Dubai',     status:'approved', daysAgo:45, featured:true },
+    { id:'p6', business_name:'Power Yoga Co.',          letter:'P', category:'Wellness',  city:'Dubai',     status:'approved', daysAgo:60, featured:false },
+    { id:'p7', business_name:'Hayya Padel',             letter:'H', category:'Sports',    city:'Dubai',     status:'approved', daysAgo:75, featured:false },
+    { id:'p8', business_name:'Reform Athletica',        letter:'R', category:'Fitness',   city:'Dubai',     status:'approved', daysAgo:90, featured:true },
+    { id:'p9', business_name:'Dubai Longevity Centre',  letter:'D', category:'Wellness',  city:'Dubai',     status:'approved', daysAgo:50, featured:true },
+    { id:'p10',business_name:'Hatta Mountain Reserve',  letter:'H', category:'Adventure', city:'Hatta',     status:'approved', daysAgo:120,featured:false },
+    { id:'p11',business_name:'The Yoga Studio JBR',     letter:'Y', category:'Wellness',  city:'Dubai',     status:'approved', daysAgo:100,featured:false },
+    { id:'p12',business_name:'Inertia Gym',             letter:'I', category:'Fitness',   city:'Dubai',     status:'approved', daysAgo:80, featured:false },
+    { id:'p13',business_name:'Run Society UAE',         letter:'R', category:'Sports',    city:'Dubai',     status:'approved', daysAgo:25, featured:true },
+    // Suspended
+    { id:'p14',business_name:'Old Gym (Closed)',        letter:'O', category:'Fitness',   city:'Sharjah',   status:'suspended',daysAgo:200,featured:false }
+  ],
+  
+  init() {
+    this.render();
+  },
+  
+  setTab(tab) {
+    this.tab = tab;
+    document.querySelectorAll('#providers-tabs .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    this.render();
+  },
+  
+  onSearch(q) {
+    this.search = (q || '').toLowerCase().trim();
+    this.render();
+  },
+  
+  filtered() {
+    let rows = this.data;
+    if (this.tab === 'featured') rows = rows.filter(p => p.featured && p.status === 'approved');
+    else rows = rows.filter(p => p.status === this.tab);
+    if (this.search) {
+      rows = rows.filter(p =>
+        p.business_name.toLowerCase().includes(this.search) ||
+        p.category.toLowerCase().includes(this.search) ||
+        p.city.toLowerCase().includes(this.search)
+      );
+    }
+    return rows;
+  },
+  
+  render() {
+    const rows = this.filtered();
+    document.getElementById('AdminProviders-meta').textContent = this.search ? `${rows.length} match` : `${rows.length} total`;
+    document.getElementById('providers-tbody').innerHTML = rows.map(p => `
+      <tr>
+        <td onclick="Drawer.openProvider('${p.id}')" style="cursor:pointer;"><span class="cell-avatar" style="background:var(--yellow); color:#0a0a0a;">${p.letter}</span><span class="cell-name">${escHtml(p.business_name)}</span></td>
+        <td class="text-muted">${escHtml(p.category)}</td>
+        <td class="text-muted">${escHtml(p.city)}</td>
+        <td class="text-muted nowrap">${fmtDays(p.daysAgo)}</td>
+        <td>
+          <span class="pill pill-${p.status}">${p.status}</span>
+          ${p.featured ? '<span class="pill pill-featured" style="margin-left:4px;">Featured</span>' : ''}
+        </td>
+        <td>
+          <div class="table-actions">
+            ${p.status === 'pending' ? `
+              <button class="btn btn-sm btn-blue" onclick="AdminProviders.approve('${p.id}')"><span class="material-icons">check</span>Approve</button>
+              <button class="btn btn-sm btn-danger" onclick="AdminProviders.reject('${p.id}')">Reject</button>
+            ` : `
+              <button class="btn btn-sm btn-ghost" onclick="Drawer.openProvider('${p.id}')"><span class="material-icons">visibility</span></button>
+              <button class="btn btn-sm btn-ghost" onclick="AdminProviders.toggleFeatured('${p.id}')"><span class="material-icons">${p.featured ? 'star' : 'star_border'}</span></button>
+            `}
+          </div>
+        </td>
+      </tr>
+    `).join('') || '<tr><td colspan="6" class="text-muted" style="text-align:center; padding:30px;">No providers match</td></tr>';
+  },
+  
+  approve(id) {
+    const p = this.data.find(x => x.id === id);
+    if (!p) return;
+    p.status = 'approved'; p.daysAgo = 0;
+    showToast(`Approved ${p.business_name}`);
+    AuditLog.add('Grant', `approved provider ${p.business_name}`);
+    this.render();
+  },
+  
+  reject(id) {
+    const p = this.data.find(x => x.id === id);
+    if (!p) return;
+    p.status = 'rejected';
+    showToast(`Rejected ${p.business_name}`, 'close');
+    AuditLog.add('Grant', `rejected provider ${p.business_name}`);
+    this.render();
+  },
+  
+  toggleFeatured(id) {
+    const p = this.data.find(x => x.id === id);
+    p.featured = !p.featured;
+    showToast(p.featured ? `Featured ${p.business_name}` : 'Unfeatured');
+    AuditLog.add('Grant', `${p.featured ? 'featured' : 'unfeatured'} ${p.business_name}`);
+    this.render();
+  },
+  
+  openAddModal() { showToast('Add provider manually — form coming'); }
+};
+
+// =====================================================================
+// MEMBERS MODULE
+// =====================================================================
+const AdminMembers = {
+  filter: 'all',
+  search: '',
+  
+  data: [
+    { id:'m1', full_name:'Grant Hermanus Goes', initial:'G', email:'grant@ffppassport.com', city:'Dubai',     tier:'ambassador', balance:175,  daysAgo:120, status:'active' },
+    { id:'m2', full_name:'Sarah Kelley',         initial:'S', email:'sarah.k@example.com',    city:'Dubai',     tier:'supporter',  balance:250,  daysAgo:85,  status:'active' },
+    { id:'m3', full_name:'Mike Henderson',       initial:'M', email:'mike.h@example.com',     city:'Dubai',     tier:'supporter',  balance:825,  daysAgo:70,  status:'active' },
+    { id:'m4', full_name:'Priya Raman',          initial:'P', email:'priya.r@example.com',    city:'Dubai',     tier:'member',     balance:75,   daysAgo:60,  status:'active' },
+    { id:'m5', full_name:'Ahmed Mansour',        initial:'A', email:'ahmed.m@example.com',    city:'Abu Dhabi', tier:'member',     balance:50,   daysAgo:45,  status:'active' },
+    { id:'m6', full_name:'Layla Mariam',         initial:'L', email:'layla.m@example.com',    city:'Dubai',     tier:'supporter',  balance:400,  daysAgo:50,  status:'active' },
+    { id:'m7', full_name:'James Williams',       initial:'J', email:'james.w@example.com',    city:'Dubai',     tier:'member',     balance:25,   daysAgo:30,  status:'active' },
+    { id:'m8', full_name:'Nina Patel',           initial:'N', email:'nina.p@example.com',     city:'Sharjah',   tier:'member',     balance:0,    daysAgo:14,  status:'active' },
+    { id:'m9', full_name:'Hassan Al-Qassimi',    initial:'H', email:'hassan.a@example.com',   city:'Abu Dhabi', tier:'member',     balance:0,    daysAgo:7,   status:'active' },
+    { id:'m10',full_name:'Reem Tariq',           initial:'R', email:'reem.t@example.com',     city:'Dubai',     tier:'member',     balance:0,    daysAgo:3,   status:'active' },
+    { id:'m11',full_name:'Omar Diallo',          initial:'O', email:'omar.d@example.com',     city:'Dubai',     tier:'member',     balance:0,    daysAgo:1,   status:'active' },
+    { id:'m12',full_name:'Test User (suspended)',initial:'T', email:'test@example.com',       city:'Dubai',     tier:'member',     balance:0,    daysAgo:200, status:'suspended' }
+  ],
+  
+  init() { this.render(); },
+  
+  setFilter(f, btn) {
+    this.filter = f;
+    document.querySelectorAll('#panel-members .filter-chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    this.render();
+  },
+  
+  onSearch(q) {
+    this.search = (q || '').toLowerCase().trim();
+    this.render();
+  },
+  
+  filtered() {
+    let rows = this.data;
+    if (this.filter === 'suspended') rows = rows.filter(m => m.status === 'suspended');
+    else if (this.filter !== 'all') rows = rows.filter(m => m.tier === this.filter && m.status === 'active');
+    if (this.search) {
+      rows = rows.filter(m =>
+        m.full_name.toLowerCase().includes(this.search) ||
+        m.email.toLowerCase().includes(this.search) ||
+        m.city.toLowerCase().includes(this.search)
+      );
+    }
+    return rows;
+  },
+  
+  render() {
+    const rows = this.filtered();
+    document.getElementById('AdminMembers-meta').textContent = this.search ? `${rows.length} match` : `${rows.length} total`;
+    document.getElementById('members-tbody').innerHTML = rows.map(m => `
+      <tr>
+        <td onclick="Drawer.openMember('${m.id}')" style="cursor:pointer;">
+          <span class="cell-avatar">${m.initial}</span>
+          <span class="cell-name">${escHtml(m.full_name)}</span>
+          <div class="cell-meta" style="margin-left:36px;">${escHtml(m.email)}</div>
+        </td>
+        <td class="text-muted">${escHtml(m.city)}</td>
+        <td><span class="pill pill-${m.tier}">${m.tier}</span></td>
+        <td class="f-tabular ${m.balance >= 500 ? 'text-yellow' : 'text-muted'}"><span class="aed">${m.balance.toLocaleString()}</span></td>
+        <td class="text-muted nowrap">${fmtDays(m.daysAgo)}</td>
+        <td>
+          <div class="table-actions">
+            <button class="btn btn-sm btn-ghost" onclick="Drawer.openMember('${m.id}')"><span class="material-icons">visibility</span></button>
+          </div>
+        </td>
+      </tr>
+    `).join('') || '<tr><td colspan="6" class="text-muted" style="text-align:center; padding:30px;">No members match</td></tr>';
+  }
+};
+
+// =====================================================================
+// CONTENT MODERATION MODULE
+// =====================================================================
+const AdminContent = {
+  tab: 'pending',
+  search: '',
+  
+  data: [
+    { id:'c1', member:'Sarah K.', initial:'S', type:'review', title:'Forge Fitness — best gym in JLT',     status:'pending',  daysAgo:1 },
+    { id:'c2', member:'Mike H.',  initial:'M', type:'post',   title:'My first padel tournament experience', status:'pending',  daysAgo:2 },
+    { id:'c3', member:'Priya R.', initial:'P', type:'review', title:'Cryo Recovery DXB — recovery game changer', status:'pending', daysAgo:3 },
+    { id:'c4', member:'Layla M.', initial:'L', type:'photo',  title:'Sunrise yoga at Zabeel Park',         status:'pending',  daysAgo:4 },
+    { id:'c5', member:'Ahmed M.', initial:'A', type:'review', title:'Hayya Padel review',                  status:'pending',  daysAgo:5 }
+  ],
+  
+  init() { this.render(); },
+  setTab(tab) {
+    this.tab = tab;
+    document.querySelectorAll('#panel-content .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    this.render();
+  },
+  onSearch(q) { this.search = (q || '').toLowerCase().trim(); this.render(); },
+  filtered() {
+    let rows = this.data.filter(c => c.status === this.tab);
+    if (this.search) rows = rows.filter(c => c.title.toLowerCase().includes(this.search) || c.member.toLowerCase().includes(this.search));
+    return rows;
+  },
+  
+  render() {
+    const rows = this.filtered();
+    document.getElementById('AdminContent-meta').textContent = `${rows.length} item${rows.length === 1 ? '' : 's'}`;
+    document.getElementById('content-tbody').innerHTML = rows.map(c => `
+      <tr>
+        <td><span class="cell-avatar">${c.initial}</span><span class="cell-name">${escHtml(c.member)}</span></td>
+        <td><span class="pill pill-${c.type === 'review' ? 'verified' : 'member'}">${c.type}</span></td>
+        <td>${escHtml(c.title)}</td>
+        <td class="text-muted nowrap">${fmtDays(c.daysAgo)}</td>
+        <td>
+          <div class="table-actions">
+            <button class="btn btn-sm btn-blue" onclick="AdminContent.approve('${c.id}')"><span class="material-icons">check</span>Approve</button>
+            <button class="btn btn-sm btn-danger" onclick="AdminContent.reject('${c.id}')">Reject</button>
+          </div>
+        </td>
+      </tr>
+    `).join('') || '<tr><td colspan="5" class="text-muted" style="text-align:center; padding:30px;">No submissions match</td></tr>';
+  },
+  
+  approve(id) {
+    const c = this.data.find(x => x.id === id);
+    openModal('Approve content', `
+      <div class="field">
+        <label class="field-label">Reward amount (AED)</label>
+        <input class="field-input" id="approve-reward-input" type="number" value="50" min="0">
+      </div>
+      <div class="field">
+        <label class="field-label">Admin notes (optional)</label>
+        <textarea class="field-textarea" id="approve-notes-input" placeholder="Any notes for the audit log..."></textarea>
+      </div>
+    `, `
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="AdminContent.confirmApprove('${id}')">Approve &amp; Reward</button>
+    `);
+  },
+  
+  confirmApprove(id) {
+    const reward = parseFloat(document.getElementById('approve-reward-input').value) || 0;
+    const c = this.data.find(x => x.id === id);
+    if (c) c.status = 'approved';
+    closeModal();
+    showToast(`Approved · AED ${reward} credited to ${c.member}`);
+    AuditLog.add('Grant', `approved content "${c.title}" from ${c.member} (AED ${reward})`);
+    this.render();
+  },
+  
+  reject(id) {
+    const c = this.data.find(x => x.id === id);
+    if (c) c.status = 'rejected';
+    showToast('Rejected', 'close');
+    AuditLog.add('Grant', `rejected content "${c.title}"`);
+    this.render();
+  }
+};
+
+// =====================================================================
+// PAYOUTS MODULE
+// =====================================================================
+const AdminPayouts = {
+  tab: 'pending',
+  search: '',
+  
+  data: [
+    { id:'po1', member:'Mike H.',   initial:'M', amount:750,  method:'bank',  status:'pending',  daysAgo:1 },
+    { id:'po2', member:'Layla M.',  initial:'L', amount:500,  method:'bank',  status:'pending',  daysAgo:3 },
+    { id:'po3', member:'Sarah K.',  initial:'S', amount:1000, method:'bank',  status:'approved', daysAgo:5 },
+    { id:'po4', member:'Grant G.',  initial:'G', amount:500,  method:'bank',  status:'paid',     daysAgo:14 }
+  ],
+  
+  init() { this.render(); },
+  setTab(tab) {
+    this.tab = tab;
+    document.querySelectorAll('#panel-payouts .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    this.render();
+  },
+  onSearch(q) { this.search = (q || '').toLowerCase().trim(); this.render(); },
+  
+  render() {
+    let rows = this.data.filter(p => p.status === this.tab);
+    if (this.search) rows = rows.filter(p => p.member.toLowerCase().includes(this.search));
+    document.getElementById('AdminPayouts-meta').textContent = `${rows.length} item${rows.length === 1 ? '' : 's'}`;
+    document.getElementById('payouts-tbody').innerHTML = rows.map(p => `
+      <tr>
+        <td><span class="cell-avatar">${p.initial}</span><span class="cell-name">${escHtml(p.member)}</span></td>
+        <td class="f-tabular text-yellow" style="font-weight:800;"><span class="aed">${p.amount.toLocaleString()}</span></td>
+        <td class="text-muted">${escHtml(p.method)}</td>
+        <td class="text-muted nowrap">${fmtDays(p.daysAgo)}</td>
+        <td>
+          <div class="table-actions">
+            ${p.status === 'pending' ? `
+              <button class="btn btn-sm btn-blue" onclick="AdminPayouts.approve('${p.id}')"><span class="material-icons">check</span>Approve</button>
+              <button class="btn btn-sm btn-danger" onclick="AdminPayouts.reject('${p.id}')">Reject</button>
+            ` : p.status === 'approved' ? `
+              <button class="btn btn-sm btn-primary" onclick="AdminPayouts.markPaid('${p.id}')"><span class="material-icons">done_all</span>Mark Paid</button>
+            ` : `
+              <span class="pill pill-paid">${p.status}</span>
+            `}
+          </div>
+        </td>
+      </tr>
+    `).join('') || '<tr><td colspan="5" class="text-muted" style="text-align:center; padding:30px;">No payouts match</td></tr>';
+  },
+  
+  approve(id) {
+    const p = this.data.find(x => x.id === id);
+    p.status = 'approved';
+    showToast(`Approved · collecting bank details from ${p.member}`);
+    AuditLog.add('Grant', `approved payout AED ${p.amount} to ${p.member}`);
+    this.render();
+  },
+  markPaid(id) {
+    const p = this.data.find(x => x.id === id);
+    p.status = 'paid';
+    showToast(`Marked as paid · AED ${p.amount} to ${p.member}`);
+    AuditLog.add('Grant', `marked payout AED ${p.amount} to ${p.member} as paid`);
+    this.render();
+  },
+  reject(id) {
+    const p = this.data.find(x => x.id === id);
+    p.status = 'rejected';
+    showToast('Rejected', 'close');
+    AuditLog.add('Grant', `rejected payout AED ${p.amount} from ${p.member}`);
+    this.render();
+  }
+};
+
+// =====================================================================
+// REFERRALS MODULE
+// =====================================================================
+const AdminReferrals = {
+  tab: 'pending',
+  search: '',
+  
+  data: [
+    { id:'r1', referrer:'Grant G.',  rInit:'G', refTier:'ambassador', referred:'Sarah K.',  bInit:'S', reward:100, status:'pending', daysAgo:2 },
+    { id:'r2', referrer:'Grant G.',  rInit:'G', refTier:'ambassador', referred:'Mike H.',   bInit:'M', reward:100, status:'pending', daysAgo:5 },
+    { id:'r3', referrer:'Sarah K.',  rInit:'S', refTier:'supporter',  referred:'Layla M.',  bInit:'L', reward:50,  status:'pending', daysAgo:3 },
+    { id:'r4', referrer:'Mike H.',   rInit:'M', refTier:'supporter',  referred:'Ahmed M.',  bInit:'A', reward:50,  status:'pending', daysAgo:1 },
+    { id:'r5', referrer:'Priya R.',  rInit:'P', refTier:'member',     referred:'Nina P.',   bInit:'N', reward:25,  status:'paid',    daysAgo:30 }
+  ],
+  
+  init() { this.render(); },
+  setTab(tab) {
+    this.tab = tab;
+    document.querySelectorAll('#panel-referrals .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    this.render();
+  },
+  onSearch(q) { this.search = (q || '').toLowerCase().trim(); this.render(); },
+  
+  render() {
+    let rows = this.data.filter(r => r.status === this.tab);
+    if (this.search) rows = rows.filter(r => r.referrer.toLowerCase().includes(this.search) || r.referred.toLowerCase().includes(this.search));
+    document.getElementById('AdminReferrals-meta').textContent = `${rows.length} item${rows.length === 1 ? '' : 's'}`;
+    document.getElementById('referrals-tbody').innerHTML = rows.map(r => `
+      <tr>
+        <td>
+          <span class="cell-avatar">${r.rInit}</span>
+          <span class="cell-name">${escHtml(r.referrer)}</span>
+          <span class="pill pill-${r.refTier}" style="margin-left:4px;">${r.refTier}</span>
+        </td>
+        <td><span class="cell-avatar">${r.bInit}</span><span class="cell-name">${escHtml(r.referred)}</span></td>
+        <td><span class="pill pill-${r.status}">${r.status}</span></td>
+        <td class="f-tabular text-yellow"><span class="aed">${r.reward}</span></td>
+        <td class="text-muted nowrap">${fmtDays(r.daysAgo)}</td>
+        <td>
+          <div class="table-actions">
+            ${r.status === 'pending' ? `
+              <button class="btn btn-sm btn-blue" onclick="AdminReferrals.verify('${r.id}')"><span class="material-icons">check</span>Verify &amp; Pay</button>
+              <button class="btn btn-sm btn-danger" onclick="AdminReferrals.invalid('${r.id}')">Invalid</button>
+            ` : ''}
+          </div>
+        </td>
+      </tr>
+    `).join('') || '<tr><td colspan="6" class="text-muted" style="text-align:center; padding:30px;">No referrals match</td></tr>';
+  },
+  
+  verify(id) {
+    const r = this.data.find(x => x.id === id);
+    r.status = 'paid';
+    showToast(`Verified · AED ${r.reward} credited to ${r.referrer}`);
+    AuditLog.add('Grant', `verified referral by ${r.referrer} (AED ${r.reward})`);
+    this.render();
+  },
+  invalid(id) {
+    const r = this.data.find(x => x.id === id);
+    r.status = 'invalid';
+    showToast('Marked invalid', 'close');
+    AuditLog.add('Grant', `marked referral by ${r.referrer} invalid`);
+    this.render();
+  }
+};
+
+// =====================================================================
+// DEALS, EVENTS, EXPERIENCES, CHALLENGES, MEETUPS — light modules (stubs)
+// All sample data matches v91 shapes. Render simple tables.
+// =====================================================================
+
+const AdminDeals = {
+  tab: 'live',
+  search: '',
+  data: [
+    { id:'d1', provider:'Forge Fitness',         pLetter:'F', perk:'Train with a friend — they go free',  category:'Fitness',  status:'live',    featured:false, hot:true  },
+    { id:'d2', provider:'Ace Padel Club',        pLetter:'A', perk:'Book a court, partner plays free',    category:'Sports',   status:'live',    featured:true,  hot:false },
+    { id:'d3', provider:'Cryo Recovery DXB',     pLetter:'C', perk:'Free cryo session every month',       category:'Wellness', status:'live',    featured:true,  hot:true  },
+    { id:'d4', provider:'Power Yoga Co.',        pLetter:'P', perk:'10-class pack + 10 bonus classes',    category:'Wellness', status:'live',    featured:false, hot:false },
+    { id:'d5', provider:'Hayya Padel',           pLetter:'H', perk:'Court hire + free partner play',      category:'Sports',   status:'live',    featured:false, hot:false },
+    { id:'d6', provider:'Reform Athletica',      pLetter:'R', perk:'5 reformer classes + 5 free',         category:'Fitness',  status:'live',    featured:true,  hot:false },
+    { id:'d7', provider:'Dubai Longevity Centre',pLetter:'D', perk:'IV therapy + free guest session',     category:'Wellness', status:'live',    featured:true,  hot:true  },
+    { id:'d8', provider:'Hatta Mountain Reserve',pLetter:'H', perk:'Weekend entry — bring a +1 free',     category:'Adventure',status:'live',    featured:false, hot:false },
+    { id:'d9', provider:'New Provider',          pLetter:'N', perk:'Intro class pack',                    category:'Fitness',  status:'pending', featured:false, hot:false }
+  ],
+  init() { this.render(); },
+  setTab(tab) {
+    this.tab = tab;
+    document.querySelectorAll('#panel-deals .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    this.render();
+  },
+  onSearch(q) { this.search = (q || '').toLowerCase().trim(); this.render(); },
+  
+  render() {
+    let rows = this.data;
+    if (this.tab === 'featured') rows = rows.filter(d => d.featured);
+    else rows = rows.filter(d => d.status === this.tab);
+    if (this.search) rows = rows.filter(d =>
+      d.provider.toLowerCase().includes(this.search) ||
+      d.perk.toLowerCase().includes(this.search) ||
+      d.category.toLowerCase().includes(this.search)
+    );
+    document.getElementById('AdminDeals-meta').textContent = `${rows.length} item${rows.length === 1 ? '' : 's'}`;
+    document.getElementById('deals-tbody').innerHTML = rows.map(d => `
+      <tr>
+        <td><span class="cell-avatar" style="background:var(--yellow); color:#0a0a0a;">${d.pLetter}</span><span class="cell-name">${escHtml(d.provider)}</span></td>
+        <td>${escHtml(d.perk)}</td>
+        <td class="text-muted">${escHtml(d.category)}</td>
+        <td><span class="pill pill-${d.status}">${d.status}</span></td>
+        <td>
+          ${d.featured ? '<span class="pill pill-featured">Featured</span> ' : ''}
+          ${d.hot ? '<span class="pill pill-supporter">Hot</span>' : ''}
+        </td>
+        <td>
+          <div class="table-actions">
+            ${d.status === 'pending' ? `<button class="btn btn-sm btn-blue" onclick="AdminDeals.approve('${d.id}')"><span class="material-icons">check</span>Approve</button>` : ''}
+            <button class="btn btn-sm btn-ghost" onclick="AdminDeals.feature('${d.id}')"><span class="material-icons">${d.featured ? 'star' : 'star_border'}</span></button>
+            <button class="btn btn-sm btn-ghost" onclick="AdminDeals.edit('${d.id}')"><span class="material-icons">edit</span></button>
+          </div>
+        </td>
+      </tr>
+    `).join('') || '<tr><td colspan="6" class="text-muted" style="text-align:center; padding:30px;">No deals in this tab</td></tr>';
+  },
+  approve(id)   { const d = this.data.find(x=>x.id===id); d.status='live'; showToast(`Deal approved`); this.render(); },
+  feature(id)   { const d = this.data.find(x=>x.id===id); d.featured=!d.featured; showToast(d.featured?'Featured':'Unfeatured'); this.render(); },
+  edit(id)      { showToast('Edit deal form — coming'); }
+};
+
+const AdminEvents = {
+  tab: 'upcoming',
+  search: '',
+  data: [
+    { id:'e1', title:'Padel Tournament — Open Doubles',     organizer:'Ace Padel Club',   date:'Sat 26 Apr',  rsvps:21 },
+    { id:'e2', title:'Sunrise Beach Bootcamp',              organizer:'Forge Fitness',    date:'Sun 27 Apr',  rsvps:14 },
+    { id:'e3', title:'Hatta Trail Run 10K',                 organizer:'Run Society UAE',  date:'Sat 3 May',   rsvps:42 },
+    { id:'e4', title:'Yoga + Sound Healing',                organizer:'Power Yoga Co.',   date:'Fri 9 May',   rsvps:8  },
+    { id:'e5', title:'Cryo + Recovery Day',                 organizer:'Cryo Recovery DXB',date:'Sat 10 May',  rsvps:11 }
+  ],
+  init() { this.render(); },
+  setTab(tab) { this.tab = tab; document.querySelectorAll('#panel-events .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab)); this.render(); },
+  onSearch(q) { this.search = (q || '').toLowerCase().trim(); this.render(); },
+  render() {
+    let rows = this.data;
+    if (this.search) rows = rows.filter(e => e.title.toLowerCase().includes(this.search) || e.organizer.toLowerCase().includes(this.search));
+    document.getElementById('AdminEvents-meta').textContent = `${rows.length} item${rows.length === 1 ? '' : 's'}`;
+    document.getElementById('events-tbody').innerHTML = rows.map(e => `
+      <tr>
+        <td><strong>${escHtml(e.title)}</strong></td>
+        <td class="text-muted">${escHtml(e.organizer)}</td>
+        <td class="text-muted nowrap">${escHtml(e.date)}</td>
+        <td class="f-tabular"><strong class="text-yellow">${e.rsvps}</strong></td>
+        <td><div class="table-actions">
+          <button class="btn btn-sm btn-ghost" onclick="showToast('Event detail')"><span class="material-icons">visibility</span></button>
+          <button class="btn btn-sm btn-ghost" onclick="showToast('Edit event')"><span class="material-icons">edit</span></button>
+          <button class="btn btn-sm btn-danger" onclick="showToast('Cancel event')"><span class="material-icons">close</span></button>
+        </div></td>
+      </tr>
+    `).join('');
+  }
+};
+
+const AdminExperiences = {
+  search: '',
+  data: [
+    { id:'x1', title:'Bali Wellness Retreat',          type:'Retreat',      organizer:'Power Yoga Co.',     dates:'12-19 May',  apps:3 },
+    { id:'x2', title:'Sri Lanka Cycling Tour',         type:'Adventure',    organizer:'Adventure Co.',      dates:'1-8 June',   apps:5 },
+    { id:'x3', title:'Greece Padel Camp',              type:'Sports Event', organizer:'Ace Padel Club',     dates:'15-22 June', apps:8 },
+    { id:'x4', title:'Oman Mountain Hike',             type:'Adventure',    organizer:'Hatta Mountain Reserve', dates:'5-9 July', apps:2 }
+  ],
+  init() { this.render(); },
+  onSearch(q) { this.search = (q || '').toLowerCase().trim(); this.render(); },
+  render() {
+    let rows = this.data;
+    if (this.search) rows = rows.filter(x => x.title.toLowerCase().includes(this.search) || x.organizer.toLowerCase().includes(this.search) || x.type.toLowerCase().includes(this.search));
+    document.getElementById('AdminExperiences-meta').textContent = `${rows.length} item${rows.length === 1 ? '' : 's'}`;
+    document.getElementById('experiences-tbody').innerHTML = rows.map(x => `
+      <tr>
+        <td><strong>${escHtml(x.title)}</strong></td>
+        <td><span class="pill pill-verified">${escHtml(x.type)}</span></td>
+        <td class="text-muted">${escHtml(x.organizer)}</td>
+        <td class="text-muted nowrap">${escHtml(x.dates)}</td>
+        <td class="f-tabular"><strong class="text-yellow">${x.apps}</strong></td>
+        <td><div class="table-actions">
+          <button class="btn btn-sm btn-ghost" onclick="showToast('Experience detail')"><span class="material-icons">visibility</span></button>
+          <button class="btn btn-sm btn-ghost" onclick="showToast('Edit experience')"><span class="material-icons">edit</span></button>
+        </div></td>
+      </tr>
+    `).join('');
+  }
+};
+
+const AdminChallenges = {
+  tab: 'provider',
+  search: '',
+  data: [
+    // Provider
+    { id:'c1', title:'5K Sunrise Time Trial',      sport:'Running', organizer:'Run Society UAE',    ends:'31 Mar',  participants:47, kind:'provider' },
+    { id:'c2', title:'Forge 30-Day Challenge',     sport:'Fitness', organizer:'Forge Fitness',      ends:'30 Apr',  participants:32, kind:'provider' },
+    { id:'c3', title:'Ace Padel Ladder',           sport:'Padel',   organizer:'Ace Padel Club',     ends:'15 May',  participants:24, kind:'provider' },
+    { id:'c4', title:'Cryo 30 Days',               sport:'Wellness',organizer:'Cryo Recovery DXB', ends:'30 May',  participants:18, kind:'provider' },
+    { id:'c5', title:'Hatta Trail King',           sport:'Hiking',  organizer:'Hatta Mountain Reserve',ends:'5 Jun',participants:11, kind:'provider' },
+    // Member
+    { id:'cm1',title:'Marina Bridge Crossings',    sport:'Running', organizer:'Mike H.',           ends:'12 Apr',  participants:8,  kind:'member' },
+    { id:'cm2',title:'Sunrise Yoga Streak',        sport:'Yoga',    organizer:'Layla M.',          ends:'19 Apr',  participants:6,  kind:'member' },
+    { id:'cm3',title:'Wildest Workout Photo',      sport:'Multi',   organizer:'Sarah K.',          ends:'1 May',   participants:14, kind:'member' },
+    { id:'cm4',title:'Padel Doubles Tour',         sport:'Padel',   organizer:'Mike H.',           ends:'15 May',  participants:4,  kind:'member' }
+  ],
+  init() { this.render(); },
+  setTab(tab) { this.tab = tab; document.querySelectorAll('#panel-challenges .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab)); this.render(); },
+  onSearch(q) { this.search = (q || '').toLowerCase().trim(); this.render(); },
+  render() {
+    let rows = this.data.filter(c => c.kind === this.tab);
+    if (this.tab === 'ffp') rows = [];
+    if (this.search) rows = rows.filter(c => c.title.toLowerCase().includes(this.search) || c.sport.toLowerCase().includes(this.search) || c.organizer.toLowerCase().includes(this.search));
+    document.getElementById('AdminChallenges-meta').textContent = `${rows.length} item${rows.length === 1 ? '' : 's'}`;
+    document.getElementById('challenges-tbody').innerHTML = rows.length ? rows.map(c => `
+      <tr>
+        <td><strong>${escHtml(c.title)}</strong></td>
+        <td class="text-muted">${escHtml(c.sport)}</td>
+        <td class="text-muted">${escHtml(c.organizer)}</td>
+        <td class="text-muted nowrap">${escHtml(c.ends)}</td>
+        <td class="f-tabular"><strong class="text-yellow">${c.participants}</strong></td>
+        <td><div class="table-actions">
+          <button class="btn btn-sm btn-ghost" onclick="showToast('Challenge detail')"><span class="material-icons">visibility</span></button>
+          <button class="btn btn-sm btn-ghost" onclick="showToast('Edit challenge')"><span class="material-icons">edit</span></button>
+        </div></td>
+      </tr>
+    `).join('') : '<tr><td colspan="6" class="text-muted" style="text-align:center; padding:30px;">No FFP-set challenges yet. Click "FFP Challenge" above to create one.</td></tr>';
+  }
+};
+
+const AdminMeetups = {
+  search: '',
+  data: [
+    { id:'mt1', activity:'Padel doubles — need a 4th',  host:'Mike H.',  hInit:'M', when:'Sat 5 Apr, 7:00 AM',  cap:'3/4' },
+    { id:'mt2', activity:'Saturday Kite Beach 5K',      host:'Sarah K.', hInit:'S', when:'Sat 5 Apr, 6:00 AM',  cap:'4/8' },
+    { id:'mt3', activity:'Sunrise yoga at Zabeel Park', host:'Layla M.', hInit:'L', when:'Sun 6 Apr, 6:30 AM',  cap:'1/6' },
+    { id:'mt4', activity:'Hatta trail hike (FULL)',     host:'Nina P.',  hInit:'N', when:'Sat 12 Apr, 5:30 AM', cap:'8/8' }
+  ],
+  init() { this.render(); },
+  onSearch(q) { this.search = (q || '').toLowerCase().trim(); this.render(); },
+  render() {
+    let rows = this.data;
+    if (this.search) rows = rows.filter(m => m.activity.toLowerCase().includes(this.search) || m.host.toLowerCase().includes(this.search));
+    document.getElementById('AdminMeetups-meta').textContent = `${rows.length} item${rows.length === 1 ? '' : 's'}`;
+    document.getElementById('meetups-tbody').innerHTML = rows.map(m => `
+      <tr>
+        <td><strong>${escHtml(m.activity)}</strong></td>
+        <td><span class="cell-avatar">${m.hInit}</span><span class="cell-name">${escHtml(m.host)}</span></td>
+        <td class="text-muted nowrap">${escHtml(m.when)}</td>
+        <td class="f-tabular"><strong class="text-yellow">${escHtml(m.cap)}</strong></td>
+        <td><div class="table-actions">
+          <button class="btn btn-sm btn-ghost" onclick="showToast('Meetup detail')"><span class="material-icons">visibility</span></button>
+          <button class="btn btn-sm btn-outline" onclick="showToast('Convert to FFP-organized event')"><span class="material-icons">arrow_forward</span>Convert</button>
+        </div></td>
+      </tr>
+    `).join('');
+  }
+};
+
+// =====================================================================
+// DETAIL DRAWER — slide-in detail view for any entity
+// =====================================================================
+const Drawer = {
+  currentTab: 'profile',
+  current: null,  // { kind: 'provider' | 'member', data: ... }
+  
+  open() {
+    document.getElementById('drawer-backdrop').classList.add('open');
+    document.getElementById('drawer').classList.add('open');
+  },
+  
+  close() {
+    document.getElementById('drawer-backdrop').classList.remove('open');
+    document.getElementById('drawer').classList.remove('open');
+    this.current = null;
+  },
+  
+  setTab(tab) {
+    this.currentTab = tab;
+    document.querySelectorAll('#drawer-tabs .drawer-tab').forEach(t => t.classList.toggle('active', t.dataset.dtab === tab));
+    document.querySelectorAll('#drawer-body .drawer-pane').forEach(p => p.classList.toggle('active', p.dataset.dtab === tab));
+  },
+  
+  // ─── PROVIDER detail with deep links to their listings ───
+  openProvider(id) {
+    const p = AdminProviders.data.find(x => x.id === id);
+    if (!p) return;
+    this.current = { kind: 'provider', data: p };
+    this.currentTab = 'profile';
+    
+    // Deep links: find all their deals/events/experiences/challenges
+    const theirDeals       = AdminDeals.data.filter(d => d.provider === p.business_name);
+    const theirEvents      = AdminEvents.data.filter(e => e.organizer === p.business_name);
+    const theirExperiences = AdminExperiences.data.filter(x => x.organizer === p.business_name);
+    const theirChallenges  = AdminChallenges.data.filter(c => c.organizer === p.business_name);
+    
+    document.getElementById('drawer-avatar').textContent = p.letter;
+    document.getElementById('drawer-avatar').className = 'drawer-head-avatar provider';
+    document.getElementById('drawer-title').textContent = p.business_name;
+    document.getElementById('drawer-sub').textContent = `${p.category} · ${p.city}`;
+    document.getElementById('drawer-pills').innerHTML = `
+      <span class="pill pill-${p.status}">${p.status}</span>
+      ${p.featured ? '<span class="pill pill-featured">Featured</span>' : ''}
+      ${p.verified ? '<span class="pill pill-verified">Verified</span>' : ''}
+    `;
+    
+    document.getElementById('drawer-tabs').innerHTML = `
+      <button class="drawer-tab active" data-dtab="profile" onclick="Drawer.setTab('profile')">Profile</button>
+      <button class="drawer-tab" data-dtab="deals" onclick="Drawer.setTab('deals')">Deals <span class="count">${theirDeals.length}</span></button>
+      <button class="drawer-tab" data-dtab="events" onclick="Drawer.setTab('events')">Events <span class="count">${theirEvents.length}</span></button>
+      <button class="drawer-tab" data-dtab="experiences" onclick="Drawer.setTab('experiences')">Experiences <span class="count">${theirExperiences.length}</span></button>
+      <button class="drawer-tab" data-dtab="challenges" onclick="Drawer.setTab('challenges')">Challenges <span class="count">${theirChallenges.length}</span></button>
+    `;
+    
+    document.getElementById('drawer-body').innerHTML = `
+      <div class="drawer-pane active" data-dtab="profile">
+        <div class="info-row">
+          <div class="info-row-label">Business name</div>
+          <div class="info-row-value editable" onclick="Drawer.editField('business_name')">${escHtml(p.business_name)}</div>
+        </div>
+        <div class="info-row">
+          <div class="info-row-label">Category</div>
+          <div class="info-row-value editable" onclick="Drawer.editField('category')">${escHtml(p.category)}</div>
+        </div>
+        <div class="info-row">
+          <div class="info-row-label">Location</div>
+          <div class="info-row-value editable" onclick="Drawer.editField('city')">${escHtml(p.city)}</div>
+        </div>
+        <div class="info-row">
+          <div class="info-row-label">Status</div>
+          <div class="info-row-value"><span class="pill pill-${p.status}">${p.status}</span></div>
+        </div>
+        <div class="info-row">
+          <div class="info-row-label">Applied / Approved</div>
+          <div class="info-row-value">${fmtDays(p.daysAgo)}</div>
+        </div>
+        <div class="info-row">
+          <div class="info-row-label">Featured</div>
+          <div class="info-row-value">
+            <button class="btn btn-sm ${p.featured ? 'btn-primary' : 'btn-outline'}" onclick="AdminProviders.toggleFeatured('${p.id}'); Drawer.openProvider('${p.id}')">
+              <span class="material-icons">${p.featured ? 'star' : 'star_border'}</span>${p.featured ? 'Featured' : 'Not featured'}
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="drawer-pane" data-dtab="deals">
+        ${theirDeals.length ? theirDeals.map(d => `
+          <div class="drawer-link-card" onclick="Drawer.close(); App.go('panel-deals'); setTimeout(() => { AdminDeals.onSearch('${escHtml(d.perk).split(' ').slice(0,2).join(' ')}'); }, 100);">
+            <div class="drawer-link-card-icon"><span class="material-icons">local_offer</span></div>
+            <div class="drawer-link-card-body">
+              <div class="drawer-link-card-title">${escHtml(d.perk)}</div>
+              <div class="drawer-link-card-meta">${escHtml(d.category)} · <span class="pill pill-${d.status}" style="display:inline-block; margin-left:2px;">${d.status}</span></div>
+            </div>
+            <div class="drawer-link-card-arrow"><span class="material-icons">arrow_forward</span></div>
+          </div>
+        `).join('') : `<div class="drawer-empty"><span class="material-icons">local_offer</span>No deals yet</div>`}
+      </div>
+      
+      <div class="drawer-pane" data-dtab="events">
+        ${theirEvents.length ? theirEvents.map(e => `
+          <div class="drawer-link-card" onclick="Drawer.close(); App.go('panel-events');">
+            <div class="drawer-link-card-icon"><span class="material-icons">event</span></div>
+            <div class="drawer-link-card-body">
+              <div class="drawer-link-card-title">${escHtml(e.title)}</div>
+              <div class="drawer-link-card-meta">${escHtml(e.date)} · ${e.rsvps} RSVPs</div>
+            </div>
+            <div class="drawer-link-card-arrow"><span class="material-icons">arrow_forward</span></div>
+          </div>
+        `).join('') : `<div class="drawer-empty"><span class="material-icons">event</span>No events yet</div>`}
+      </div>
+      
+      <div class="drawer-pane" data-dtab="experiences">
+        ${theirExperiences.length ? theirExperiences.map(x => `
+          <div class="drawer-link-card" onclick="Drawer.close(); App.go('panel-experiences');">
+            <div class="drawer-link-card-icon"><span class="material-icons">flight_takeoff</span></div>
+            <div class="drawer-link-card-body">
+              <div class="drawer-link-card-title">${escHtml(x.title)}</div>
+              <div class="drawer-link-card-meta">${escHtml(x.type)} · ${escHtml(x.dates)} · ${x.apps} applications</div>
+            </div>
+            <div class="drawer-link-card-arrow"><span class="material-icons">arrow_forward</span></div>
+          </div>
+        `).join('') : `<div class="drawer-empty"><span class="material-icons">flight_takeoff</span>No experiences yet</div>`}
+      </div>
+      
+      <div class="drawer-pane" data-dtab="challenges">
+        ${theirChallenges.length ? theirChallenges.map(c => `
+          <div class="drawer-link-card" onclick="Drawer.close(); App.go('panel-challenges');">
+            <div class="drawer-link-card-icon"><span class="material-icons">emoji_events</span></div>
+            <div class="drawer-link-card-body">
+              <div class="drawer-link-card-title">${escHtml(c.title)}</div>
+              <div class="drawer-link-card-meta">${escHtml(c.sport)} · ${c.participants} participants · ends ${escHtml(c.ends)}</div>
+            </div>
+            <div class="drawer-link-card-arrow"><span class="material-icons">arrow_forward</span></div>
+          </div>
+        `).join('') : `<div class="drawer-empty"><span class="material-icons">emoji_events</span>No challenges yet</div>`}
+      </div>
+    `;
+    
+    document.getElementById('drawer-footer').innerHTML = `
+      ${p.status === 'pending' ? `
+        <button class="btn btn-danger" onclick="AdminProviders.reject('${p.id}'); Drawer.close()">Reject</button>
+        <button class="btn btn-primary" onclick="AdminProviders.approve('${p.id}'); Drawer.openProvider('${p.id}')">Approve</button>
+      ` : `
+        <button class="btn btn-outline" onclick="Drawer.close()">Close</button>
+      `}
+    `;
+    
+    this.open();
+  },
+  
+  // ─── MEMBER detail ───
+  openMember(id) {
+    const m = AdminMembers.data.find(x => x.id === id);
+    if (!m) return;
+    this.current = { kind: 'member', data: m };
+    this.currentTab = 'profile';
+    
+    // Sample related data — in production these come from Supabase joins
+    const sampleClaims = m.tier === 'ambassador' ? 12 : m.tier === 'supporter' ? 6 : 2;
+    const sampleRSVPs = m.tier === 'ambassador' ? 8 : m.tier === 'supporter' ? 4 : 1;
+    const sampleReferrals = m.tier === 'ambassador' ? 4 : m.tier === 'supporter' ? 2 : 0;
+    
+    document.getElementById('drawer-avatar').textContent = m.initial;
+    document.getElementById('drawer-avatar').className = 'drawer-head-avatar';
+    document.getElementById('drawer-title').textContent = m.full_name;
+    document.getElementById('drawer-sub').textContent = m.email;
+    document.getElementById('drawer-pills').innerHTML = `
+      <span class="pill pill-${m.tier}">${m.tier}</span>
+      ${m.status === 'suspended' ? '<span class="pill pill-suspended">suspended</span>' : '<span class="pill pill-live">active</span>'}
+    `;
+    
+    document.getElementById('drawer-tabs').innerHTML = `
+      <button class="drawer-tab active" data-dtab="profile" onclick="Drawer.setTab('profile')">Profile</button>
+      <button class="drawer-tab" data-dtab="activity" onclick="Drawer.setTab('activity')">Activity</button>
+      <button class="drawer-tab" data-dtab="claims" onclick="Drawer.setTab('claims')">Claims <span class="count">${sampleClaims}</span></button>
+      <button class="drawer-tab" data-dtab="earnings" onclick="Drawer.setTab('earnings')">Earnings</button>
+      <button class="drawer-tab" data-dtab="referrals" onclick="Drawer.setTab('referrals')">Referrals <span class="count">${sampleReferrals}</span></button>
+    `;
+    
+    document.getElementById('drawer-body').innerHTML = `
+      <div class="drawer-pane active" data-dtab="profile">
+        <div class="info-row"><div class="info-row-label">Full name</div><div class="info-row-value editable" onclick="Drawer.editField('full_name')">${escHtml(m.full_name)}</div></div>
+        <div class="info-row"><div class="info-row-label">Email</div><div class="info-row-value">${escHtml(m.email)}</div></div>
+        <div class="info-row"><div class="info-row-label">City</div><div class="info-row-value editable" onclick="Drawer.editField('city')">${escHtml(m.city)}</div></div>
+        <div class="info-row"><div class="info-row-label">Tier</div><div class="info-row-value editable" onclick="Drawer.editField('tier')"><span class="pill pill-${m.tier}">${m.tier}</span></div></div>
+        <div class="info-row"><div class="info-row-label">Balance</div><div class="info-row-value editable" onclick="Drawer.editField('balance')" style="color:var(--yellow); font-weight:800;"><span class="aed">${m.balance.toLocaleString()}</span></div></div>
+        <div class="info-row"><div class="info-row-label">Joined</div><div class="info-row-value">${fmtDays(m.daysAgo)}</div></div>
+        <div class="info-row"><div class="info-row-label">Status</div><div class="info-row-value">${m.status === 'suspended' ? '<span class="pill pill-suspended">suspended</span>' : '<span class="pill pill-live">active</span>'}</div></div>
+      </div>
+      
+      <div class="drawer-pane" data-dtab="activity">
+        <div style="margin-bottom:16px;">
+          <div style="font-size:11px; color:var(--muted); font-weight:700; margin-bottom:6px; text-transform:uppercase;">Last 30 days</div>
+          <div style="display:flex; gap:14px;">
+            <div><div style="font-size:20px; font-weight:900;">${sampleClaims}</div><div style="font-size:10px; color:var(--muted);">Deals claimed</div></div>
+            <div><div style="font-size:20px; font-weight:900;">${sampleRSVPs}</div><div style="font-size:10px; color:var(--muted);">Events</div></div>
+            <div><div style="font-size:20px; font-weight:900;">${m.tier === 'ambassador' ? 18 : m.tier === 'supporter' ? 9 : 3}</div><div style="font-size:10px; color:var(--muted);">Workouts</div></div>
+          </div>
+        </div>
+        <div class="drawer-link-card" onclick="Drawer.close(); App.go('panel-meetups');">
+          <div class="drawer-link-card-icon"><span class="material-icons">groups</span></div>
+          <div class="drawer-link-card-body">
+            <div class="drawer-link-card-title">View their Meet &amp; Move sessions</div>
+            <div class="drawer-link-card-meta">As host and as attendee</div>
+          </div>
+          <div class="drawer-link-card-arrow"><span class="material-icons">arrow_forward</span></div>
+        </div>
+      </div>
+      
+      <div class="drawer-pane" data-dtab="claims">
+        <div class="drawer-empty"><span class="material-icons">local_offer</span>Claims history wires to Supabase claims table</div>
+      </div>
+      
+      <div class="drawer-pane" data-dtab="earnings">
+        <div class="info-row"><div class="info-row-label">Current balance</div><div class="info-row-value" style="color:var(--yellow); font-weight:800;"><span class="aed">${m.balance.toLocaleString()}</span></div></div>
+        <div class="info-row"><div class="info-row-label">Total earned</div><div class="info-row-value"><span class="aed">${(m.balance + (m.tier === 'ambassador' ? 500 : m.tier === 'supporter' ? 200 : 0)).toLocaleString()}</span></div></div>
+        <div class="info-row"><div class="info-row-label">Total paid out</div><div class="info-row-value"><span class="aed">${m.tier === 'ambassador' ? 500 : m.tier === 'supporter' ? 200 : 0}</span></div></div>
+        <div style="margin-top:14px;">
+          <button class="btn btn-outline btn-sm" onclick="showToast('Manual balance adjustment modal — coming')"><span class="material-icons">edit</span>Adjust balance</button>
+        </div>
+      </div>
+      
+      <div class="drawer-pane" data-dtab="referrals">
+        <div style="font-size:13px; margin-bottom:14px;">
+          <strong>${sampleReferrals}</strong> successful referrals · Earned <strong class="text-yellow aed">${sampleReferrals * (m.tier === 'ambassador' ? 100 : m.tier === 'supporter' ? 50 : 25)}</strong>
+        </div>
+        ${sampleReferrals === 0 ? `<div class="drawer-empty"><span class="material-icons">group_add</span>No referrals yet</div>` : `<div class="drawer-empty"><span class="material-icons">group_add</span>Referral list wires to Supabase</div>`}
+      </div>
+    `;
+    
+    document.getElementById('drawer-footer').innerHTML = `
+      <button class="btn btn-outline" onclick="showToast('Email composer — coming')"><span class="material-icons">mail</span>Email</button>
+      ${m.status === 'active'
+        ? `<button class="btn btn-danger" onclick="Drawer.suspendMember('${m.id}')">Suspend</button>`
+        : `<button class="btn btn-primary" onclick="Drawer.unsuspendMember('${m.id}')">Reactivate</button>`}
+    `;
+    
+    this.open();
+  },
+  
+  editField(fieldName) {
+    showToast(`Inline edit for "${fieldName}" — opens edit form`);
+    // PRODUCTION: open inline editor or modal; on save, update Supabase row + audit log
+  },
+  
+  suspendMember(id) {
+    const m = AdminMembers.data.find(x => x.id === id);
+    m.status = 'suspended';
+    AuditLog.add('Grant', `suspended member ${m.full_name}`);
+    showToast(`Suspended ${m.full_name}`, 'close');
+    this.openMember(id);
+    AdminMembers.render();
+  },
+  
+  unsuspendMember(id) {
+    const m = AdminMembers.data.find(x => x.id === id);
+    m.status = 'active';
+    AuditLog.add('Grant', `reactivated member ${m.full_name}`);
+    showToast(`Reactivated ${m.full_name}`);
+    this.openMember(id);
+    AdminMembers.render();
+  }
+};
+
+// =====================================================================
+// AUDIT LOG — every admin action gets logged
+// =====================================================================
+const AuditLog = {
+  entries: [
+    { actor: 'Grant', action: 'opened admin dashboard', daysAgo: 0, mins: 1 },
+    { actor: 'Grant', action: 'reviewed payout queue', daysAgo: 0, mins: 30 },
+    { actor: 'Grant', action: 'approved provider Forge Fitness', daysAgo: 1, mins: 0 },
+    { actor: 'Grant', action: 'approved content from Sarah K. (AED 50)', daysAgo: 2, mins: 0 },
+    { actor: 'Grant', action: 'verified referral by Mike H. (AED 50)', daysAgo: 3, mins: 0 },
+    { actor: 'Grant', action: 'marked payout AED 500 to Grant G. as paid', daysAgo: 14, mins: 0 }
+  ],
+  
+  init() { this.render(); },
+  
+  add(actor, action) {
+    this.entries.unshift({ actor, action, daysAgo: 0, mins: 0 });
+    if (this.entries.length > 50) this.entries.pop();
+    this.render();
+  },
+  
+  render() {
+    const el = document.getElementById('audit-log');
+    if (!el) return;
+    el.innerHTML = this.entries.map(e => `
+      <div class="audit-row">
+        <div class="audit-row-when">${e.daysAgo === 0 ? (e.mins === 0 ? 'just now' : `${e.mins}m ago`) : fmtDays(e.daysAgo)}</div>
+        <div class="audit-row-action"><span class="audit-row-actor">${escHtml(e.actor)}</span> ${escHtml(e.action)}</div>
+      </div>
+    `).join('');
+  }
+};
+
+// =====================================================================
+// ANALYTICS — period filter + comparison + charts via Chart.js
+// =====================================================================
+const Analytics = {
+  charts: {},
+  period: 'last90',
+  compare: false,
+  
+  // Sample data per period — in production these come from Supabase aggregations
+  // Each period has { kpis: {...}, growth: [...], tiers: [...], mrr: [...], engagement: [...], demographics, top providers }
+  periodData: {
+    today: {
+      label: 'today',
+      compareLabel: 'yesterday',
+      kpis: { members: 3, mrr: 1497, engagement: 0.6, churn: 0 },
+      prevKpis: { members: 2, mrr: 998, engagement: 0.5, churn: 0 },
+      growth: { labels: ['6am','9am','12pm','3pm','6pm','9pm','now'], data: [0,1,1,2,2,3,3] },
+      mrr: { labels: ['6am','9am','12pm','3pm','6pm','9pm','now'], data: [0,499,499,998,998,1497,1497] },
+      engagement: { labels: ['Logs','Claims','RSVPs','Meet','Chal','Refs'], data: [12,6,3,1,0,1] }
+    },
+    yesterday: {
+      label: 'yesterday',
+      compareLabel: 'day before yesterday',
+      kpis: { members: 2, mrr: 998, engagement: 0.5, churn: 0 },
+      prevKpis: { members: 1, mrr: 499, engagement: 0.4, churn: 0 },
+      growth: { labels: ['6am','9am','12pm','3pm','6pm','9pm','11pm'], data: [0,0,1,1,2,2,2] },
+      mrr: { labels: ['6am','9am','12pm','3pm','6pm','9pm','11pm'], data: [0,0,499,499,998,998,998] },
+      engagement: { labels: ['Logs','Claims','RSVPs','Meet','Chal','Refs'], data: [8,4,2,0,0,0] }
+    },
+    thisWeek: {
+      label: 'this week',
+      compareLabel: 'last week',
+      kpis: { members: 11, mrr: 5489, engagement: 1.8, churn: 0 },
+      prevKpis: { members: 9, mrr: 4491, engagement: 1.5, churn: 0.3 },
+      growth: { labels: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], data: [1,2,2,3,3,2,3] },
+      mrr: { labels: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], data: [499,998,998,1497,1497,998,1497] },
+      engagement: { labels: ['Logs','Claims','RSVPs','Meet','Chal','Refs'], data: [62,38,22,9,6,3] }
+    },
+    lastWeek: {
+      label: 'last week',
+      compareLabel: '2 weeks ago',
+      kpis: { members: 9, mrr: 4491, engagement: 1.5, churn: 0.3 },
+      prevKpis: { members: 7, mrr: 3493, engagement: 1.3, churn: 0.2 },
+      growth: { labels: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], data: [1,1,2,2,2,1,2] },
+      mrr: { labels: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], data: [499,499,998,998,998,499,998] },
+      engagement: { labels: ['Logs','Claims','RSVPs','Meet','Chal','Refs'], data: [54,32,18,7,4,2] }
+    },
+    thisMonth: {
+      label: 'this month',
+      compareLabel: 'last month',
+      kpis: { members: 42, mrr: 20958, engagement: 3.8, churn: 1.2 },
+      prevKpis: { members: 38, mrr: 18962, engagement: 3.5, churn: 1.5 },
+      growth: { labels: ['W1','W2','W3','W4'], data: [11,22,32,42] },
+      mrr: { labels: ['W1','W2','W3','W4'], data: [5489,10978,15968,20958] },
+      engagement: { labels: ['Logs','Claims','RSVPs','Meet','Chal','Refs'], data: [248,156,94,38,26,12] }
+    },
+    lastMonth: {
+      label: 'last month',
+      compareLabel: '2 months ago',
+      kpis: { members: 38, mrr: 18962, engagement: 3.5, churn: 1.5 },
+      prevKpis: { members: 28, mrr: 13972, engagement: 3.0, churn: 2.1 },
+      growth: { labels: ['W1','W2','W3','W4'], data: [9,18,28,38] },
+      mrr: { labels: ['W1','W2','W3','W4'], data: [4491,8982,13473,18962] },
+      engagement: { labels: ['Logs','Claims','RSVPs','Meet','Chal','Refs'], data: [218,138,86,34,22,10] }
+    },
+    last90: {
+      label: 'last 90 days',
+      compareLabel: 'previous 90 days',
+      kpis: { members: 108, mrr: 53892, engagement: 4.2, churn: 3.4 },
+      prevKpis: { members: 39, mrr: 19461, engagement: 3.1, churn: 5.1 },
+      growth: { labels: ['W1','W2','W3','W4','W5','W6','W7','W8','W9','W10','W11','W12'], data: [12,19,28,39,52,64,78,92,105,119,133,147] },
+      mrr: { labels: ['Mon 1','Mon 2','Mon 3'], data: [18962,38912,73253] },
+      engagement: { labels: ['Logs','Claims','RSVPs','Meet','Chal','Refs'], data: [624,392,238,98,68,32] }
+    },
+    thisQuarter: {
+      label: 'this quarter (Q2 2026)',
+      compareLabel: 'Q1 2026',
+      kpis: { members: 89, mrr: 44411, engagement: 4.0, churn: 3.0 },
+      prevKpis: { members: 58, mrr: 28942, engagement: 3.4, churn: 4.5 },
+      growth: { labels: ['Apr W1','Apr W2','Apr W3','Apr W4','May W1','May W2'], data: [15,32,48,62,78,89] },
+      mrr: { labels: ['Apr','May','Jun'], data: [28942,44411,0] },
+      engagement: { labels: ['Logs','Claims','RSVPs','Meet','Chal','Refs'], data: [512,322,196,82,56,26] }
+    },
+    lastQuarter: {
+      label: 'last quarter (Q1 2026)',
+      compareLabel: 'Q4 2025',
+      kpis: { members: 58, mrr: 28942, engagement: 3.4, churn: 4.5 },
+      prevKpis: { members: 31, mrr: 15469, engagement: 2.8, churn: 6.2 },
+      growth: { labels: ['Jan','Feb','Mar'], data: [22,38,58] },
+      mrr: { labels: ['Jan','Feb','Mar'], data: [10978,18962,28942] },
+      engagement: { labels: ['Logs','Claims','RSVPs','Meet','Chal','Refs'], data: [322,206,124,52,34,18] }
+    },
+    last6m: {
+      label: 'last 6 months',
+      compareLabel: 'previous 6 months',
+      kpis: { members: 147, mrr: 73253, engagement: 4.2, churn: 3.4 },
+      prevKpis: { members: 34, mrr: 16966, engagement: 2.7, churn: 7.1 },
+      growth: { labels: ['Dec','Jan','Feb','Mar','Apr','May'], data: [12,22,38,58,89,147] },
+      mrr: { labels: ['Dec','Jan','Feb','Mar','Apr','May'], data: [5988,10978,18962,28942,44411,73253] },
+      engagement: { labels: ['Logs','Claims','RSVPs','Meet','Chal','Refs'], data: [962,612,378,158,108,52] }
+    },
+    thisYear: {
+      label: '2026 YTD',
+      compareLabel: '2025 YTD (same period)',
+      kpis: { members: 135, mrr: 67340, engagement: 4.1, churn: 3.5 },
+      prevKpis: { members: 28, mrr: 13972, engagement: 2.5, churn: 7.8 },
+      growth: { labels: ['Jan','Feb','Mar','Apr','May'], data: [22,38,58,89,135] },
+      mrr: { labels: ['Jan','Feb','Mar','Apr','May'], data: [10978,18962,28942,44411,67340] },
+      engagement: { labels: ['Logs','Claims','RSVPs','Meet','Chal','Refs'], data: [902,572,348,148,98,48] }
+    },
+    lastYear: {
+      label: '2025',
+      compareLabel: '2024',
+      kpis: { members: 28, mrr: 13972, engagement: 2.5, churn: 7.8 },
+      prevKpis: { members: 8, mrr: 3992, engagement: 1.8, churn: 12.0 },
+      growth: { labels: ['Q1','Q2','Q3','Q4'], data: [3,8,16,28] },
+      mrr: { labels: ['Q1','Q2','Q3','Q4'], data: [1497,3992,7984,13972] },
+      engagement: { labels: ['Logs','Claims','RSVPs','Meet','Chal','Refs'], data: [186,118,72,28,18,8] }
+    },
+    allTime: {
+      label: 'all time',
+      compareLabel: null,
+      kpis: { members: 147, mrr: 73253, engagement: 4.2, churn: 3.4 },
+      prevKpis: null,
+      growth: { labels: ['2024 Q1','2024 Q2','2024 Q3','2024 Q4','2025 Q1','2025 Q2','2025 Q3','2025 Q4','2026 Q1','2026 Q2'], data: [1,2,4,8,12,18,24,28,58,147] },
+      mrr: { labels: ['2024','2025','2026 YTD'], data: [3992,13972,73253] },
+      engagement: { labels: ['Logs','Claims','RSVPs','Meet','Chal','Refs'], data: [1248,790,460,196,142,68] }
+    }
+  },
+  
+  init() {
+    this.renderDemographics();
+    this.renderTopProviders();
+    this.renderKPIs();
+  },
+  
+  setPeriod(period, btn) {
+    this.period = period;
+    document.querySelectorAll('.time-chip').forEach(c => c.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    this.updateSummary();
+    this.renderKPIs();
+    this.renderCharts();
+  },
+  
+  toggleCompare() {
+    this.compare = !this.compare;
+    const toggle = document.getElementById('compare-toggle');
+    toggle.classList.toggle('on', this.compare);
+    this.renderKPIs();
+    this.updateSummary();
+  },
+  
+  updateSummary() {
+    const p = this.periodData[this.period];
+    const summary = document.getElementById('time-period-summary');
+    if (this.compare && p.compareLabel) {
+      summary.innerHTML = `Showing data for <span class="range">${p.label}</span> compared with <span class="compare-range">${p.compareLabel}</span>`;
+    } else {
+      summary.innerHTML = `Showing data for <span class="range">${p.label}</span>`;
+    }
+    // Update chart card meta
+    const growthMeta = document.getElementById('chart-growth-meta');
+    if (growthMeta) growthMeta.textContent = p.label;
+    const engMeta = document.getElementById('chart-engagement-meta');
+    if (engMeta) engMeta.textContent = `Actions · ${p.label}`;
+  },
+  
+  computeDelta(curr, prev) {
+    if (prev === 0 || prev == null) return { pct: null, dir: 'flat' };
+    const pct = ((curr - prev) / prev) * 100;
+    return {
+      pct: Math.abs(pct).toFixed(1),
+      dir: pct > 0.5 ? 'up' : pct < -0.5 ? 'down' : 'flat',
+      raw: pct
+    };
+  },
+  
+  renderKPIs() {
+    const p = this.periodData[this.period];
+    const k = p.kpis;
+    const pk = p.prevKpis;
+    const showCompare = this.compare && pk !== null;
+    
+    const tiles = [
+      {
+        label: 'New Members',
+        value: k.members,
+        prev: pk?.members,
+        format: v => v
+      },
+      {
+        label: 'Revenue (AED)',
+        value: k.mrr,
+        prev: pk?.mrr,
+        format: v => `<span style="font-size:12px;color:var(--muted);">AED</span> ${v.toLocaleString()}`
+      },
+      {
+        label: 'Avg Engagement',
+        value: k.engagement,
+        prev: pk?.engagement,
+        format: v => `${v}<span style="font-size:14px; color:var(--muted);"> /wk</span>`
+      },
+      {
+        label: 'Churn',
+        value: k.churn,
+        prev: pk?.churn,
+        format: v => `${v}<span style="font-size:14px; color:var(--muted);">%</span>`,
+        invertDelta: true  // lower churn = good
+      }
+    ];
+    
+    document.getElementById('analytics-kpis').innerHTML = tiles.map(t => {
+      let compareHtml = '';
+      if (showCompare && t.prev !== null && t.prev !== undefined) {
+        const d = this.computeDelta(t.value, t.prev);
+        let dirCls = d.dir;
+        if (t.invertDelta && d.dir !== 'flat') dirCls = d.dir === 'up' ? 'down' : 'up';
+        const icon = d.dir === 'up' ? 'arrow_upward' : d.dir === 'down' ? 'arrow_downward' : 'remove';
+        compareHtml = `
+          <div class="kpi-compare">
+            <span class="kpi-compare-prev">vs ${t.format(t.prev)}</span>
+            ${d.pct !== null ? `<span class="kpi-compare-delta ${dirCls}"><span class="material-icons">${icon}</span>${d.pct}%</span>` : ''}
+          </div>
+        `;
+      }
+      return `
+        <div class="kpi-tile with-compare">
+          <div class="kpi-label">${t.label}</div>
+          <div class="kpi-value f-tabular">${t.format(t.value)}</div>
+          ${compareHtml}
+        </div>
+      `;
+    }).join('');
+  },
+  
+  renderDemographics() {
+    const cities = [
+      { label: 'Dubai',     pct: 68 }, { label: 'Abu Dhabi', pct: 19 },
+      { label: 'Sharjah',   pct: 7 }, { label: 'Ajman',     pct: 4 },
+      { label: 'RAK',       pct: 2 }
+    ];
+    document.getElementById('demo-cities').innerHTML = cities.map(c => `
+      <div class="demo-row">
+        <div class="demo-row-label">${c.label}</div>
+        <div class="demo-row-bar"><div class="demo-row-bar-fill" style="width:${c.pct}%; background:var(--blue);"></div></div>
+        <div class="demo-row-value">${c.pct}%</div>
+      </div>
+    `).join('');
+    
+    const nats = [
+      { label: 'UAE', pct: 32 }, { label: 'UK', pct: 18 }, { label: 'India', pct: 14 },
+      { label: 'South Africa', pct: 9 }, { label: 'Australia', pct: 7 },
+      { label: 'New Zealand', pct: 5 }, { label: 'Other', pct: 15 }
+    ];
+    document.getElementById('demo-nationalities').innerHTML = nats.map(n => `
+      <div class="demo-row">
+        <div class="demo-row-label">${n.label}</div>
+        <div class="demo-row-bar"><div class="demo-row-bar-fill" style="width:${n.pct}%; background:var(--yellow);"></div></div>
+        <div class="demo-row-value">${n.pct}%</div>
+      </div>
+    `).join('');
+    
+    const ages = [
+      { label: '18-24', pct: 8 }, { label: '25-34', pct: 38 }, { label: '35-44', pct: 32 },
+      { label: '45-54', pct: 16 }, { label: '55+', pct: 6 }
+    ];
+    document.getElementById('demo-ages').innerHTML = ages.map(a => `
+      <div class="demo-row">
+        <div class="demo-row-label">${a.label}</div>
+        <div class="demo-row-bar"><div class="demo-row-bar-fill" style="width:${a.pct * 2}%; background:var(--blue);"></div></div>
+        <div class="demo-row-value">${a.pct}%</div>
+      </div>
+    `).join('');
+    
+    const gender = [
+      { label: 'Men', pct: 54 }, { label: 'Women', pct: 44 }, { label: 'Other', pct: 2 }
+    ];
+    document.getElementById('demo-gender').innerHTML = gender.map(g => `
+      <div class="demo-row">
+        <div class="demo-row-label">${g.label}</div>
+        <div class="demo-row-bar"><div class="demo-row-bar-fill" style="width:${g.pct}%; background:var(--yellow);"></div></div>
+        <div class="demo-row-value">${g.pct}%</div>
+      </div>
+    `).join('');
+    
+    const cats = [
+      { label: 'Fitness', pct: 42 }, { label: 'Wellness', pct: 28 }, { label: 'Sports', pct: 18 },
+      { label: 'Adventure', pct: 8 }, { label: 'Recovery', pct: 4 }
+    ];
+    document.getElementById('demo-categories').innerHTML = cats.map(c => `
+      <div class="demo-row">
+        <div class="demo-row-label">${c.label}</div>
+        <div class="demo-row-bar"><div class="demo-row-bar-fill" style="width:${c.pct * 2}%;"></div></div>
+        <div class="demo-row-value">${c.pct}%</div>
+      </div>
+    `).join('');
+  },
+  
+  renderTopProviders() {
+    const top = [
+      { rank:1, name:'Forge Fitness',          claims:45, trend:'+18%' },
+      { rank:2, name:'Ace Padel Club',         claims:38, trend:'+12%' },
+      { rank:3, name:'Cryo Recovery DXB',      claims:32, trend:'+8%'  },
+      { rank:4, name:'Power Yoga Co.',         claims:28, trend:'+5%'  },
+      { rank:5, name:'Reform Athletica',       claims:24, trend:'+22%' },
+      { rank:6, name:'Dubai Longevity Centre', claims:18, trend:'+3%'  },
+      { rank:7, name:'Hayya Padel',            claims:14, trend:'-2%'  }
+    ];
+    const tbody = document.getElementById('top-providers-tbody');
+    if (tbody) tbody.innerHTML = top.map(t => `
+      <tr>
+        <td style="font-weight:800; color:var(--yellow);">${t.rank}</td>
+        <td>${escHtml(t.name)}</td>
+        <td class="f-tabular"><strong>${t.claims}</strong></td>
+        <td class="${t.trend.startsWith('+') ? 'text-green' : 'text-red'}" style="font-weight:700;">${escHtml(t.trend)}</td>
+      </tr>
+    `).join('');
+  },
+  
+  renderCharts() {
+    const p = this.periodData[this.period];
+    const pPrev = p.prevKpis !== null && this.compare ? this._getPrevData() : null;
+    
+    // Growth chart
+    if (this.charts.growth) this.charts.growth.destroy();
+    const growthCtx = document.getElementById('chart-growth');
+    if (growthCtx) {
+      const datasets = [{
+        label: p.label,
+        data: p.growth.data,
+        borderColor: '#FFCC00',
+        backgroundColor: 'rgba(255,204,0,0.10)',
+        tension: 0.35,
+        fill: true,
+        pointRadius: 3,
+        pointBackgroundColor: '#FFCC00'
+      }];
+      if (this.compare && pPrev) {
+        datasets.push({
+          label: p.compareLabel,
+          data: pPrev.growth.data,
+          borderColor: '#8a99a8',
+          backgroundColor: 'transparent',
+          borderDash: [4, 4],
+          tension: 0.35,
+          fill: false,
+          pointRadius: 2,
+          pointBackgroundColor: '#8a99a8'
+        });
+      }
+      this.charts.growth = new Chart(growthCtx, {
+        type: 'line',
+        data: { labels: p.growth.labels, datasets },
+        options: this._chartOpts({ legend: this.compare })
+      });
+    }
+    
+    // Tiers donut
+    if (this.charts.tiers) this.charts.tiers.destroy();
+    const tiersCtx = document.getElementById('chart-tiers');
+    if (tiersCtx) {
+      // Estimate tier distribution scales with total
+      const total = p.kpis.members;
+      let m = Math.round(total * 0.80);
+      let s = Math.round(total * 0.18);
+      let a = Math.max(1, total - m - s);
+      // For all-time, use absolute numbers
+      if (this.period === 'allTime' || this.period === 'last6m' || this.period === 'thisYear') {
+        m = 118; s = 26; a = 3;
+      }
+      document.getElementById('chart-tiers-meta').textContent = `${m + s + a} members`;
+      this.charts.tiers = new Chart(tiersCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Member', 'Supporter', 'Ambassador'],
+          datasets: [{
+            data: [m, s, a],
+            backgroundColor: ['#8a99a8', '#2ba8e0', '#FFCC00'],
+            borderWidth: 0,
+            hoverOffset: 8
+          }]
+        },
+        options: this._chartOpts({ legend: true })
+      });
+    }
+    
+    // MRR bar
+    if (this.charts.mrr) this.charts.mrr.destroy();
+    const mrrCtx = document.getElementById('chart-mrr');
+    if (mrrCtx) {
+      const datasets = [{
+        label: 'AED',
+        data: p.mrr.data,
+        backgroundColor: '#2ba8e0',
+        borderRadius: 6
+      }];
+      if (this.compare && pPrev) {
+        datasets.push({
+          label: p.compareLabel,
+          data: pPrev.mrr.data,
+          backgroundColor: 'rgba(138,153,168,0.45)',
+          borderRadius: 6
+        });
+      }
+      this.charts.mrr = new Chart(mrrCtx, {
+        type: 'bar',
+        data: { labels: p.mrr.labels, datasets },
+        options: this._chartOpts({ legend: this.compare })
+      });
+    }
+    
+    // Engagement
+    if (this.charts.engagement) this.charts.engagement.destroy();
+    const engCtx = document.getElementById('chart-engagement');
+    if (engCtx) {
+      const datasets = [{
+        label: p.label,
+        data: p.engagement.data,
+        backgroundColor: '#FFCC00',
+        borderRadius: 4
+      }];
+      if (this.compare && pPrev) {
+        datasets.push({
+          label: p.compareLabel,
+          data: pPrev.engagement.data,
+          backgroundColor: 'rgba(138,153,168,0.45)',
+          borderRadius: 4
+        });
+      }
+      this.charts.engagement = new Chart(engCtx, {
+        type: 'bar',
+        data: { labels: p.engagement.labels, datasets },
+        options: this._chartOpts({ legend: this.compare, indexAxis: 'y' })
+      });
+    }
+  },
+  
+  _getPrevData() {
+    // Map current period to its previous-period data (for chart comparison)
+    const map = {
+      today: 'yesterday',
+      yesterday: null,
+      thisWeek: 'lastWeek',
+      lastWeek: null,
+      thisMonth: 'lastMonth',
+      lastMonth: null,
+      last90: null,
+      thisQuarter: 'lastQuarter',
+      lastQuarter: null,
+      last6m: null,
+      thisYear: 'lastYear',
+      lastYear: null,
+      allTime: null
+    };
+    const prevKey = map[this.period];
+    return prevKey ? this.periodData[prevKey] : null;
+  },
+  
+  _chartOpts(opts = {}) {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: opts.indexAxis || 'x',
+      plugins: {
+        legend: opts.legend ? {
+          display: true,
+          position: 'bottom',
+          labels: { color: '#8a99a8', font: { family: 'Montserrat', size: 11, weight: '700' }, padding: 12, boxWidth: 12, boxHeight: 12 }
+        } : { display: false },
+        tooltip: {
+          backgroundColor: '#0f1e2e',
+          titleColor: '#f5f7fa',
+          bodyColor: '#f5f7fa',
+          borderColor: 'rgba(43,168,224,0.30)',
+          borderWidth: 1,
+          padding: 10,
+          titleFont: { family: 'Montserrat', weight: '700', size: 11 },
+          bodyFont: { family: 'Montserrat', size: 11 }
+        }
+      },
+      scales: opts.indexAxis === 'y' ? {
+        x: { ticks: { color: '#8a99a8', font: { family: 'Montserrat' } }, grid: { color: 'rgba(43,168,224,0.08)' } },
+        y: { ticks: { color: '#f5f7fa', font: { family: 'Montserrat', weight: '700' } }, grid: { display: false } }
+      } : {
+        y: { ticks: { color: '#8a99a8', font: { family: 'Montserrat' } }, grid: { color: 'rgba(43,168,224,0.08)' } },
+        x: { ticks: { color: '#8a99a8', font: { family: 'Montserrat' } }, grid: { display: false } }
+      }
+    };
+  }
+};
+
+// =====================================================================
+// GLOBAL SEARCH — search across all entity types from topbar
+// =====================================================================
+const GlobalSearch = {
+  onInput(q) {
+    const query = (q || '').toLowerCase().trim();
+    if (!query) { this.close(); return; }
+    
+    const results = {
+      members:     AdminMembers.data.filter(m => m.full_name.toLowerCase().includes(query) || m.email.toLowerCase().includes(query)).slice(0,5),
+      providers:   AdminProviders.data.filter(p => p.business_name.toLowerCase().includes(query) || p.category.toLowerCase().includes(query)).slice(0,5),
+      deals:       AdminDeals.data.filter(d => d.perk.toLowerCase().includes(query) || d.provider.toLowerCase().includes(query)).slice(0,4),
+      events:      AdminEvents.data.filter(e => e.title.toLowerCase().includes(query) || e.organizer.toLowerCase().includes(query)).slice(0,4),
+      experiences: AdminExperiences.data.filter(x => x.title.toLowerCase().includes(query)).slice(0,3),
+      challenges:  AdminChallenges.data.filter(c => c.title.toLowerCase().includes(query) || c.sport.toLowerCase().includes(query)).slice(0,4)
+    };
+    
+    const total = Object.values(results).reduce((a, r) => a + r.length, 0);
+    const overlay = document.getElementById('global-search-overlay');
+    
+    if (total === 0) {
+      overlay.innerHTML = `<div class="gs-empty">No results for "${escHtml(query)}"</div>`;
+      overlay.classList.add('open');
+      return;
+    }
+    
+    let html = '';
+    if (results.members.length) {
+      html += `<div class="gs-group"><div class="gs-group-label">Members (${results.members.length})</div>`;
+      html += results.members.map(m => `
+        <div class="gs-result" onclick="Drawer.openMember('${m.id}'); GlobalSearch.close();">
+          <div class="gs-result-icon member">${m.initial}</div>
+          <div class="gs-result-info">
+            <div class="gs-result-title">${escHtml(m.full_name)}</div>
+            <div class="gs-result-meta">${escHtml(m.email)} · ${m.tier} · ${escHtml(m.city)}</div>
+          </div>
+        </div>
+      `).join('');
+      html += `</div>`;
+    }
+    if (results.providers.length) {
+      html += `<div class="gs-group"><div class="gs-group-label">Providers (${results.providers.length})</div>`;
+      html += results.providers.map(p => `
+        <div class="gs-result" onclick="Drawer.openProvider('${p.id}'); GlobalSearch.close();">
+          <div class="gs-result-icon provider">${p.letter}</div>
+          <div class="gs-result-info">
+            <div class="gs-result-title">${escHtml(p.business_name)}</div>
+            <div class="gs-result-meta">${escHtml(p.category)} · ${escHtml(p.city)} · <span class="pill pill-${p.status}" style="display:inline-block; padding:1px 6px; font-size:9px;">${p.status}</span></div>
+          </div>
+        </div>
+      `).join('');
+      html += `</div>`;
+    }
+    if (results.deals.length) {
+      html += `<div class="gs-group"><div class="gs-group-label">Deals (${results.deals.length})</div>`;
+      html += results.deals.map(d => `
+        <div class="gs-result" onclick="App.go('panel-deals'); AdminDeals.onSearch('${escHtml(d.provider).replace(/'/g, '')}'); GlobalSearch.close();">
+          <div class="gs-result-icon"><span class="material-icons" style="font-size:14px;">local_offer</span></div>
+          <div class="gs-result-info">
+            <div class="gs-result-title">${escHtml(d.perk)}</div>
+            <div class="gs-result-meta">${escHtml(d.provider)} · ${escHtml(d.category)}</div>
+          </div>
+        </div>
+      `).join('');
+      html += `</div>`;
+    }
+    if (results.events.length) {
+      html += `<div class="gs-group"><div class="gs-group-label">Events (${results.events.length})</div>`;
+      html += results.events.map(e => `
+        <div class="gs-result" onclick="App.go('panel-events'); GlobalSearch.close();">
+          <div class="gs-result-icon"><span class="material-icons" style="font-size:14px;">event</span></div>
+          <div class="gs-result-info">
+            <div class="gs-result-title">${escHtml(e.title)}</div>
+            <div class="gs-result-meta">${escHtml(e.organizer)} · ${escHtml(e.date)}</div>
+          </div>
+        </div>
+      `).join('');
+      html += `</div>`;
+    }
+    if (results.experiences.length) {
+      html += `<div class="gs-group"><div class="gs-group-label">Experiences (${results.experiences.length})</div>`;
+      html += results.experiences.map(x => `
+        <div class="gs-result" onclick="App.go('panel-experiences'); GlobalSearch.close();">
+          <div class="gs-result-icon"><span class="material-icons" style="font-size:14px;">flight_takeoff</span></div>
+          <div class="gs-result-info">
+            <div class="gs-result-title">${escHtml(x.title)}</div>
+            <div class="gs-result-meta">${escHtml(x.type)} · ${escHtml(x.dates)}</div>
+          </div>
+        </div>
+      `).join('');
+      html += `</div>`;
+    }
+    if (results.challenges.length) {
+      html += `<div class="gs-group"><div class="gs-group-label">Challenges (${results.challenges.length})</div>`;
+      html += results.challenges.map(c => `
+        <div class="gs-result" onclick="App.go('panel-challenges'); GlobalSearch.close();">
+          <div class="gs-result-icon"><span class="material-icons" style="font-size:14px;">emoji_events</span></div>
+          <div class="gs-result-info">
+            <div class="gs-result-title">${escHtml(c.title)}</div>
+            <div class="gs-result-meta">${escHtml(c.sport)} · ${escHtml(c.organizer)}</div>
+          </div>
+        </div>
+      `).join('');
+      html += `</div>`;
+    }
+    
+    overlay.innerHTML = html;
+    overlay.classList.add('open');
+  },
+  
+  close() {
+    document.getElementById('global-search-overlay').classList.remove('open');
+  }
+};
+
+// =====================================================================
+// BOOT
+// =====================================================================
+document.addEventListener('DOMContentLoaded', () => App.init());
+</script>
+</body>
+</html>
