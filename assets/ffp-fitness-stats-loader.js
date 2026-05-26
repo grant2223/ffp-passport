@@ -1,14 +1,19 @@
-/* FFP Fitness Stats Loader — v4
-   v4 adds: REAL community percentile rankings against the full member base.
-   - Loads ranking pool via get_ranking_pool() RPC (privacy-safe view)
-   - Computes "Top X%" per PR for the selected comparison group
-   - Recomputes whenever the comparison dropdown changes
-   - Expanded comparison options: gender / age / country / city / nationality / combos
+/* FFP Fitness Stats Loader — v5
+   v5 REDESIGN: Records tab becomes a full leaderboard view with combinable filters.
+   - Metric switcher (12 metrics: 3 strength, 5 cardio, 3 health, 1 sleep)
+   - Independent filters: gender, age (preset buckets or custom range), city, country, nationality
+   - All filters combinable — pick any combination
+   - Live "Showing N members" sample size pill
+   - Ranked leaderboard with name + value + position (your row highlighted)
+   - Filters persist in localStorage across refreshes
+   - Privacy: only given_names + last initial shown (e.g. "Sarah K.")
+   - Members can opt out via members.show_on_leaderboard = false
 
-   Prerequisites:
+   Prerequisites (SQL):
      ALTER TABLE challenges    ADD COLUMN IF NOT EXISTS host_member_id uuid REFERENCES auth.users(id);
      ALTER TABLE profile_meta  ADD COLUMN IF NOT EXISTS pr_dates jsonb DEFAULT '{}'::jsonb;
-     CREATE OR REPLACE FUNCTION public.get_ranking_pool() ... (see message)
+     ALTER TABLE members       ADD COLUMN IF NOT EXISTS show_on_leaderboard boolean DEFAULT true;
+     CREATE OR REPLACE FUNCTION public.get_ranking_pool() ... (see message — adds given_names, surname_initial, sleep_avg_hours)
 */
 (function () {
   'use strict';
@@ -17,20 +22,162 @@
   var currentUserId = null;
   var wrapped = false;
   var activityCache = [];
-  var rankingPool = [];    // all rows from get_ranking_pool()
-  var myDemo = null;       // current user's demographic snapshot
+  var rankingPool = [];
+  var myDemo = null;
+  var recordsBuilt = false;
+
+  var FILTER_STORAGE_KEY = 'ffp_records_filters';
+  var filters = loadFilters();
+
+  function loadFilters() {
+    try {
+      var raw = localStorage.getItem(FILTER_STORAGE_KEY);
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') return Object.assign(defaultFilters(), parsed);
+      }
+    } catch (e) {}
+    return defaultFilters();
+  }
+  function defaultFilters() {
+    return {
+      gender: 'any',
+      ageMode: 'any',
+      ageMin: null,
+      ageMax: null,
+      city: 'any',
+      country: 'any',
+      nationality: 'any',
+      metric: 'bench1RM'
+    };
+  }
+  function saveFilters() {
+    try { localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(filters)); } catch (e) {}
+  }
 
   function injectStyles() {
     if (document.getElementById('ffp-fitness-stats-loader-styles')) return;
     var s = document.createElement('style');
     s.id = 'ffp-fitness-stats-loader-styles';
-    s.textContent =
-      '*::-webkit-scrollbar{display:none !important;width:0 !important;height:0 !important;}' +
-      '*{-ms-overflow-style:none !important;scrollbar-width:none !important;}';
+    s.textContent = [
+      '*::-webkit-scrollbar{display:none !important;width:0 !important;height:0 !important;}',
+      '*{-ms-overflow-style:none !important;scrollbar-width:none !important;}',
+
+      // Metric switcher
+      '.ffp-metric-strip{display:flex;gap:8px;overflow-x:auto;padding:8px 0 12px;margin:0 -4px;}',
+      '.ffp-metric-chip{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;background:rgba(255,255,255,0.05);border:1px solid var(--border-mid);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;}',
+      '.ffp-metric-chip:hover{background:rgba(255,255,255,0.08);}',
+      '.ffp-metric-chip.active{background:var(--yellow);color:#082335;border-color:var(--yellow);}',
+      '.ffp-metric-chip .material-icons{font-size:16px;}',
+
+      // My PR hero card
+      '.ffp-my-pr-card{background:linear-gradient(135deg, rgba(43,168,224,0.15), rgba(43,168,224,0.05));border:1px solid var(--blue);border-radius:14px;padding:16px;margin-bottom:14px;}',
+      '.ffp-my-pr-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;}',
+      '.ffp-my-pr-title{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;}',
+      '.ffp-my-pr-edit{background:rgba(43,168,224,0.2);border:none;color:var(--blue);padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:4px;}',
+      '.ffp-my-pr-edit .material-icons{font-size:14px;}',
+      '.ffp-my-pr-value{font-size:32px;font-weight:900;color:var(--text);line-height:1;font-variant-numeric:tabular-nums;}',
+      '.ffp-my-pr-value-unit{font-size:14px;color:var(--muted);margin-left:6px;font-weight:600;}',
+      '.ffp-my-pr-empty{font-size:16px;font-weight:600;color:var(--muted);font-style:italic;}',
+      '.ffp-my-pr-meta{margin-top:8px;font-size:12px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;}',
+      '.ffp-my-pr-pos{color:var(--yellow);font-weight:800;}',
+
+      // Filters
+      '.ffp-filters{background:rgba(255,255,255,0.03);border:1px solid var(--border-mid);border-radius:12px;padding:12px;margin-bottom:14px;}',
+      '.ffp-filters-head{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;}',
+      '.ffp-filters-title{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;display:flex;align-items:center;gap:6px;}',
+      '.ffp-filters-count{font-size:11px;color:var(--yellow);font-weight:700;background:rgba(255,200,0,0.1);padding:3px 8px;border-radius:999px;}',
+      '.ffp-filters-toggle{background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:inline-flex;align-items:center;font-family:inherit;}',
+      '.ffp-filters-body{margin-top:12px;display:flex;flex-direction:column;gap:10px;}',
+      '.ffp-filters-body.collapsed{display:none;}',
+      '.ffp-filter-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}',
+      '.ffp-filter-label{font-size:11px;font-weight:700;color:var(--muted);min-width:64px;text-transform:uppercase;letter-spacing:0.4px;}',
+      '.ffp-filter-chips{display:flex;gap:6px;flex-wrap:wrap;flex:1;}',
+      '.ffp-filter-chip{padding:6px 12px;border-radius:999px;background:transparent;border:1px solid var(--border-mid);color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;}',
+      '.ffp-filter-chip:hover{background:rgba(255,255,255,0.05);}',
+      '.ffp-filter-chip.active{background:var(--blue);border-color:var(--blue);color:#fff;}',
+      '.ffp-filter-select{flex:1;min-width:120px;background:rgba(43,168,224,0.06);border:1px solid var(--border-mid);border-radius:8px;color:var(--text);padding:8px 10px;font-size:12px;font-weight:600;font-family:inherit;}',
+      '.ffp-filter-select:focus{outline:none;border-color:var(--blue);}',
+      '.ffp-age-custom{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:64px;font-size:12px;color:var(--muted);}',
+      '.ffp-age-custom.hidden{display:none;}',
+      '.ffp-age-input{width:54px;background:rgba(43,168,224,0.06);border:1px solid var(--border-mid);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;font-weight:700;text-align:center;font-family:inherit;}',
+      '.ffp-age-input:focus{outline:none;border-color:var(--blue);}',
+      '.ffp-filters-foot{margin-top:10px;padding-top:10px;border-top:1px solid var(--border-mid);display:flex;align-items:center;justify-content:space-between;gap:10px;}',
+      '.ffp-filters-sample{font-size:12px;color:var(--muted);}',
+      '.ffp-filters-sample b{color:var(--text);}',
+      '.ffp-filters-reset{background:transparent;border:1px solid var(--border-mid);color:var(--muted);padding:5px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;}',
+      '.ffp-filters-reset:hover{border-color:var(--text);color:var(--text);}',
+
+      // Leaderboard
+      '.ffp-lb-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;}',
+      '.ffp-lb-title{font-size:13px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:0.6px;}',
+      '.ffp-lb-empty{padding:24px 16px;text-align:center;color:var(--muted);font-size:13px;background:rgba(255,255,255,0.02);border:1px dashed var(--border-mid);border-radius:12px;}',
+      '.ffp-lb-list{display:flex;flex-direction:column;gap:6px;}',
+      '.ffp-lb-row{display:grid;grid-template-columns:36px 1fr auto;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--border-mid);border-radius:10px;}',
+      '.ffp-lb-row.me{background:linear-gradient(90deg, rgba(255,200,0,0.15), rgba(255,200,0,0.05));border-color:var(--yellow);}',
+      '.ffp-lb-row.top1{border-color:var(--yellow);}',
+      '.ffp-lb-rank{font-size:14px;font-weight:900;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums;}',
+      '.ffp-lb-row.top1 .ffp-lb-rank,.ffp-lb-row.top2 .ffp-lb-rank,.ffp-lb-row.top3 .ffp-lb-rank{color:var(--yellow);}',
+      '.ffp-lb-row.me .ffp-lb-rank{color:var(--text);}',
+      '.ffp-lb-name-bar{display:flex;flex-direction:column;gap:5px;min-width:0;}',
+      '.ffp-lb-name{font-size:13px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
+      '.ffp-lb-bar-wrap{height:5px;background:rgba(255,255,255,0.05);border-radius:999px;overflow:hidden;}',
+      '.ffp-lb-bar{height:100%;background:var(--blue);border-radius:999px;}',
+      '.ffp-lb-row.me .ffp-lb-bar{background:var(--yellow);}',
+      '.ffp-lb-value{font-size:14px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums;text-align:right;}',
+      '.ffp-lb-row.me{cursor:pointer;}',
+      '.ffp-lb-show-more{margin-top:10px;background:transparent;border:1px solid var(--border-mid);color:var(--muted);padding:8px;width:100%;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;}',
+      '.ffp-lb-show-more:hover{border-color:var(--text);color:var(--text);}'
+    ].join('');
     document.head.appendChild(s);
   }
 
-  // Dashboard PR key → profile_meta column + sort direction (higher = better, or lower = better)
+  // ─────────── METRIC + AGE TAXONOMY ───────────
+
+  var METRICS = [
+    { key: 'bench1RM',    label: 'Bench',     icon: 'fitness_center',     col: 'pr_bench_kg',     unit: 'kg',        dir: 'higher', kind: 'num',  group: 'Strength' },
+    { key: 'squat1RM',    label: 'Squat',     icon: 'fitness_center',     col: 'pr_squat_kg',     unit: 'kg',        dir: 'higher', kind: 'num',  group: 'Strength' },
+    { key: 'deadlift1RM', label: 'Deadlift',  icon: 'fitness_center',     col: 'pr_deadlift_kg',  unit: 'kg',        dir: 'higher', kind: 'num',  group: 'Strength' },
+    { key: 'run5K',       label: '5K',        icon: 'directions_run',     col: 'pr_5k_seconds',   unit: 'time',      dir: 'lower',  kind: 'time', group: 'Cardio' },
+    { key: 'run10K',      label: '10K',       icon: 'directions_run',     col: 'pr_10k_seconds',  unit: 'time',      dir: 'lower',  kind: 'time', group: 'Cardio' },
+    { key: 'run21K',      label: 'Half',      icon: 'directions_run',     col: 'pr_21k_seconds',  unit: 'time',      dir: 'lower',  kind: 'time', group: 'Cardio' },
+    { key: 'runMara',     label: 'Marathon',  icon: 'emoji_events',       col: 'pr_marathon_sec', unit: 'time',      dir: 'lower',  kind: 'time', group: 'Cardio' },
+    { key: 'swim1K',      label: 'Swim 1km',  icon: 'pool',               col: 'pr_swim1k_sec',   unit: 'time',      dir: 'lower',  kind: 'time', group: 'Cardio' },
+    { key: 'vo2max',      label: 'VO\u2082',  icon: 'favorite',           col: 'vo2_max',         unit: 'ml/kg/min', dir: 'higher', kind: 'num',  group: 'Health' },
+    { key: 'bodyFat',     label: 'Body Fat',  icon: 'monitor_weight',     col: 'body_fat_pct',    unit: '%',         dir: 'lower',  kind: 'num',  group: 'Health' },
+    { key: 'visceralFat', label: 'Visceral',  icon: 'medical_information',col: 'visceral_fat',    unit: 'rating',    dir: 'lower',  kind: 'num',  group: 'Health' },
+    { key: 'sleepAvgHrs', label: 'Sleep',     icon: 'bedtime',            col: 'sleep_avg_hours', unit: 'hrs',       dir: 'higher', kind: 'num',  group: 'Health' }
+  ];
+  var AGE_BUCKETS = [
+    { key: 'any',     label: 'Any',      range: null },
+    { key: 'u20',     label: 'Under 20', range: [0, 19] },
+    { key: '20s',     label: '20s',      range: [20, 29] },
+    { key: '30s',     label: '30s',      range: [30, 39] },
+    { key: '40s',     label: '40s',      range: [40, 49] },
+    { key: '50s',     label: '50s',      range: [50, 59] },
+    { key: '60plus',  label: '60+',      range: [60, 200] },
+    { key: 'custom',  label: 'Custom',   range: null }
+  ];
+
+  function metricByKey(k) { return METRICS.find(function (m) { return m.key === k; }); }
+
+  function formatMetricValue(value, metric) {
+    if (value == null) return '\u2014';
+    if (metric.kind === 'time') {
+      var sec = Math.round(value);
+      var h = Math.floor(sec / 3600);
+      var m = Math.floor((sec % 3600) / 60);
+      var s = sec % 60;
+      if (h > 0) return h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+      return m + ':' + String(s).padStart(2, '0');
+    }
+    var v = Number(value);
+    if (isNaN(v)) return '\u2014';
+    return v % 1 === 0 ? String(v) : v.toFixed(1);
+  }
+
+  // ─────────── PR_MAP ───────────
+
   var PR_MAP = {
     bench1RM:    { col: 'pr_bench_kg',     cast: 'float', dir: 'higher' },
     squat1RM:    { col: 'pr_squat_kg',     cast: 'float', dir: 'higher' },
@@ -55,168 +202,410 @@
     if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) age--;
     return age;
   }
-  function ageBucketRange(age) {
-    if (age == null) return null;
-    if (age < 20) return [0, 19];
-    if (age < 30) return [20, 29];
-    if (age < 40) return [30, 39];
-    if (age < 50) return [40, 49];
-    if (age < 60) return [50, 59];
-    if (age < 70) return [60, 69];
-    return [70, 200];
-  }
-  function ageBucketLabel(age) {
-    var r = ageBucketRange(age);
-    if (!r) return '?';
-    if (r[1] >= 200) return r[0] + '+';
-    return r[0] + '\u2013' + r[1];
-  }
-
-  function localDateStr(date) {
-    var y = date.getFullYear();
-    var mo = String(date.getMonth() + 1).padStart(2, '0');
-    var d = String(date.getDate()).padStart(2, '0');
-    return y + '-' + mo + '-' + d;
-  }
+  function localDateStr(date) { var y = date.getFullYear(); var mo = String(date.getMonth() + 1).padStart(2, '0'); var d = String(date.getDate()).padStart(2, '0'); return y + '-' + mo + '-' + d; }
   function todayStr() { return localDateStr(new Date()); }
   function dateStrFromDaysAgo(n) { var d = new Date(); d.setDate(d.getDate() - n); return localDateStr(d); }
-  function daysAgoFromDateStr(s) {
-    var d = new Date(s + 'T00:00:00');
-    var t = new Date(); t.setHours(0, 0, 0, 0);
-    return Math.round((t - d) / 86400000);
-  }
-  function daysAgoFromIso(iso) {
-    if (!iso) return 0;
-    var d = new Date(iso); d.setHours(0, 0, 0, 0);
-    var t = new Date();   t.setHours(0, 0, 0, 0);
-    return Math.max(0, Math.round((t - d) / 86400000));
-  }
-  function sleepFromDb(dbObj) {
-    var out = {};
-    if (!dbObj || typeof dbObj !== 'object') return out;
-    Object.keys(dbObj).forEach(function (k) {
-      var hrs = Number(dbObj[k]);
-      if (isNaN(hrs)) return;
-      var d = daysAgoFromDateStr(k);
-      if (d >= 1 && d <= 30) out[d] = hrs;
-    });
-    return out;
-  }
-  function sleepToDb(dashObj) {
-    var out = {};
-    if (!dashObj || typeof dashObj !== 'object') return out;
-    Object.keys(dashObj).forEach(function (k) {
-      var n = Number(k), hrs = Number(dashObj[k]);
-      if (isNaN(n) || isNaN(hrs)) return;
-      out[dateStrFromDaysAgo(n)] = hrs;
-    });
-    return out;
-  }
+  function daysAgoFromDateStr(s) { var d = new Date(s + 'T00:00:00'); var t = new Date(); t.setHours(0, 0, 0, 0); return Math.round((t - d) / 86400000); }
+  function daysAgoFromIso(iso) { if (!iso) return 0; var d = new Date(iso); d.setHours(0, 0, 0, 0); var t = new Date(); t.setHours(0, 0, 0, 0); return Math.max(0, Math.round((t - d) / 86400000)); }
+  function sleepFromDb(dbObj) { var out = {}; if (!dbObj || typeof dbObj !== 'object') return out; Object.keys(dbObj).forEach(function (k) { var hrs = Number(dbObj[k]); if (isNaN(hrs)) return; var d = daysAgoFromDateStr(k); if (d >= 1 && d <= 30) out[d] = hrs; }); return out; }
+  function sleepToDb(dashObj) { var out = {}; if (!dashObj || typeof dashObj !== 'object') return out; Object.keys(dashObj).forEach(function (k) { var n = Number(k), hrs = Number(dashObj[k]); if (isNaN(n) || isNaN(hrs)) return; out[dateStrFromDaysAgo(n)] = hrs; }); return out; }
 
-  // ─────────── COMPARISON GROUP FILTERING ───────────
+  function escAttr(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function escText(s) { return (typeof escHtml === 'function') ? escHtml(s) : escAttr(s); }
 
-  function filterPoolForGroup(group) {
-    if (!myDemo) return [];
-    var myAgeR = ageBucketRange(myDemo.age);
-    return rankingPool.filter(function (r) {
-      if (r.member_id === currentUserId) return false;  // exclude self
-      switch (group) {
-        case 'all':
-          return true;
-        case 'gender':
-          return r.gender && r.gender === myDemo.gender;
-        case 'age':
-          if (!myAgeR || r.age == null) return false;
-          return r.age >= myAgeR[0] && r.age <= myAgeR[1];
-        case 'age_gender':
-          if (!myAgeR || r.age == null || !r.gender) return false;
-          return r.age >= myAgeR[0] && r.age <= myAgeR[1] && r.gender === myDemo.gender;
-        case 'country':
-          return r.country && r.country === myDemo.country;
-        case 'city':
-          return r.city && r.city === myDemo.city;
-        case 'nationality':
-          return r.nationality && r.nationality === myDemo.nationality;
-        case 'age_gender_city':
-          if (!myAgeR || r.age == null || !r.gender || !r.city) return false;
-          return r.age >= myAgeR[0] && r.age <= myAgeR[1] &&
-                 r.gender === myDemo.gender && r.city === myDemo.city;
-        case 'age_gender_country':
-          if (!myAgeR || r.age == null || !r.gender || !r.country) return false;
-          return r.age >= myAgeR[0] && r.age <= myAgeR[1] &&
-                 r.gender === myDemo.gender && r.country === myDemo.country;
-        case 'age_gender_nationality':
-          if (!myAgeR || r.age == null || !r.gender || !r.nationality) return false;
-          return r.age >= myAgeR[0] && r.age <= myAgeR[1] &&
-                 r.gender === myDemo.gender && r.nationality === myDemo.nationality;
-        default:
-          return true;
+  // ─────────── FILTERING ───────────
+
+  function filterPool(pool, f) {
+    return pool.filter(function (r) {
+      if (f.gender !== 'any' && r.gender !== f.gender) return false;
+      if (f.ageMode !== 'any') {
+        if (r.age == null) return false;
+        var range;
+        if (f.ageMode === 'custom') {
+          range = [f.ageMin != null ? f.ageMin : 0, f.ageMax != null ? f.ageMax : 200];
+        } else {
+          var bucket = AGE_BUCKETS.find(function (b) { return b.key === f.ageMode; });
+          range = bucket ? bucket.range : null;
+        }
+        if (range && (r.age < range[0] || r.age > range[1])) return false;
       }
+      if (f.city !== 'any' && r.city !== f.city) return false;
+      if (f.country !== 'any' && r.country !== f.country) return false;
+      if (f.nationality !== 'any' && r.nationality !== f.nationality) return false;
+      return true;
     });
   }
 
-  function computeTopPercent(myValue, direction, others, col) {
-    if (myValue == null) return null;
-    var rows = others.filter(function (r) { return r[col] != null; });
-    if (rows.length === 0) return null;
-    var beat = 0;
-    rows.forEach(function (r) {
-      if (direction === 'higher' && myValue > r[col]) beat++;
-      else if (direction === 'lower' && myValue < r[col]) beat++;
-    });
-    var total = rows.length + 1;       // include myself
-    var rank  = total - beat;          // 1 = best
-    return Math.max(1, Math.min(100, Math.round((rank / total) * 100)));
+  // ─────────── RECORDS TAB UI BUILD ───────────
+
+  function distinctValues(field) {
+    var seen = {};
+    rankingPool.forEach(function (r) { if (r[field]) seen[r[field]] = true; });
+    return Object.keys(seen).sort();
   }
 
-  function refreshRanks() {
-    if (!myDemo || rankingPool.length === 0) {
-      FitnessStats.ranks = {};
+  function buildRecordsTabUI() {
+    var view = document.getElementById('fs-records-view');
+    if (!view) return;
+    if (recordsBuilt) return;
+
+    // Build dynamic option lists from the actual pool
+    var cities       = distinctValues('city');
+    var countries    = distinctValues('country');
+    var nationalities = distinctValues('nationality');
+
+    var metricChips = METRICS.map(function (m) {
+      var active = filters.metric === m.key ? ' active' : '';
+      return '<button class="ffp-metric-chip' + active + '" data-metric="' + m.key + '">' +
+        '<span class="material-icons">' + m.icon + '</span>' + m.label +
+      '</button>';
+    }).join('');
+
+    var ageChips = AGE_BUCKETS.map(function (b) {
+      var active = filters.ageMode === b.key ? ' active' : '';
+      return '<button class="ffp-filter-chip' + active + '" data-age="' + b.key + '">' + b.label + '</button>';
+    }).join('');
+
+    var genderChips = ['any', 'male', 'female'].map(function (g) {
+      var active = filters.gender === g ? ' active' : '';
+      var label = g === 'any' ? 'Any' : (g === 'male' ? 'Male' : 'Female');
+      return '<button class="ffp-filter-chip' + active + '" data-gender="' + g + '">' + label + '</button>';
+    }).join('');
+
+    function selectOptions(values, selected) {
+      var opts = '<option value="any"' + (selected === 'any' ? ' selected' : '') + '>Any</option>';
+      values.forEach(function (v) {
+        var s = v === selected ? ' selected' : '';
+        opts += '<option value="' + escAttr(v) + '"' + s + '>' + escText(v) + '</option>';
+      });
+      return opts;
+    }
+
+    var customHidden = filters.ageMode === 'custom' ? '' : ' hidden';
+
+    view.innerHTML =
+      // Data source banner (kept)
+      '<div class="fs-data-source">' +
+        '<span class="material-icons">info</span>' +
+        '<div>' +
+          '<div class="fs-data-source-title">You log these values yourself</div>' +
+          '<div class="fs-data-source-sub">Tap any metric to see the leaderboard. Wearable sync coming soon.</div>' +
+        '</div>' +
+      '</div>' +
+
+      // Metric switcher
+      '<div class="ffp-metric-strip" id="ffp-metric-strip">' + metricChips + '</div>' +
+
+      // My PR card (for selected metric)
+      '<div class="ffp-my-pr-card" id="ffp-my-pr-card"></div>' +
+
+      // Filters (collapsible)
+      '<div class="ffp-filters">' +
+        '<div class="ffp-filters-head" id="ffp-filters-head">' +
+          '<div class="ffp-filters-title">' +
+            '<span class="material-icons" style="font-size:14px;">tune</span> Filters' +
+            '<span class="ffp-filters-count" id="ffp-filters-count">All members</span>' +
+          '</div>' +
+          '<button class="ffp-filters-toggle"><span class="material-icons" id="ffp-filters-caret">expand_less</span></button>' +
+        '</div>' +
+        '<div class="ffp-filters-body" id="ffp-filters-body">' +
+
+          // Gender row
+          '<div class="ffp-filter-row">' +
+            '<div class="ffp-filter-label">Gender</div>' +
+            '<div class="ffp-filter-chips" id="ffp-gender-chips">' + genderChips + '</div>' +
+          '</div>' +
+
+          // Age row
+          '<div class="ffp-filter-row">' +
+            '<div class="ffp-filter-label">Age</div>' +
+            '<div class="ffp-filter-chips" id="ffp-age-chips">' + ageChips + '</div>' +
+          '</div>' +
+          '<div class="ffp-age-custom' + customHidden + '" id="ffp-age-custom">' +
+            'From <input type="number" min="10" max="100" class="ffp-age-input" id="ffp-age-min" value="' + (filters.ageMin != null ? filters.ageMin : 30) + '">' +
+            ' to <input type="number" min="10" max="100" class="ffp-age-input" id="ffp-age-max" value="' + (filters.ageMax != null ? filters.ageMax : 39) + '">' +
+            ' years' +
+          '</div>' +
+
+          // City row
+          '<div class="ffp-filter-row">' +
+            '<div class="ffp-filter-label">City</div>' +
+            '<select class="ffp-filter-select" id="ffp-city-select">' + selectOptions(cities, filters.city) + '</select>' +
+          '</div>' +
+
+          // Country row
+          '<div class="ffp-filter-row">' +
+            '<div class="ffp-filter-label">Country</div>' +
+            '<select class="ffp-filter-select" id="ffp-country-select">' + selectOptions(countries, filters.country) + '</select>' +
+          '</div>' +
+
+          // Nationality row
+          '<div class="ffp-filter-row">' +
+            '<div class="ffp-filter-label">Nation</div>' +
+            '<select class="ffp-filter-select" id="ffp-nationality-select">' + selectOptions(nationalities, filters.nationality) + '</select>' +
+          '</div>' +
+
+          // Foot — sample size + reset
+          '<div class="ffp-filters-foot">' +
+            '<div class="ffp-filters-sample" id="ffp-sample-text">Showing <b>0</b> members</div>' +
+            '<button class="ffp-filters-reset" id="ffp-filters-reset">Reset</button>' +
+          '</div>' +
+
+        '</div>' +
+      '</div>' +
+
+      // Leaderboard
+      '<div class="ffp-lb-head">' +
+        '<div class="ffp-lb-title" id="ffp-lb-title">Leaderboard</div>' +
+      '</div>' +
+      '<div id="ffp-lb-container"></div>';
+
+    bindRecordsHandlers();
+    recordsBuilt = true;
+  }
+
+  function bindRecordsHandlers() {
+    // Metric chips
+    document.querySelectorAll('#ffp-metric-strip .ffp-metric-chip').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        filters.metric = btn.dataset.metric;
+        saveFilters();
+        updateMetricChips();
+        renderRecordsContent();
+      });
+    });
+    // Gender chips
+    document.querySelectorAll('#ffp-gender-chips .ffp-filter-chip').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        filters.gender = btn.dataset.gender;
+        saveFilters();
+        updateGenderChips();
+        renderRecordsContent();
+      });
+    });
+    // Age chips
+    document.querySelectorAll('#ffp-age-chips .ffp-filter-chip').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        filters.ageMode = btn.dataset.age;
+        saveFilters();
+        updateAgeChips();
+        var custom = document.getElementById('ffp-age-custom');
+        if (custom) custom.classList.toggle('hidden', filters.ageMode !== 'custom');
+        renderRecordsContent();
+      });
+    });
+    // Age custom inputs
+    ['ffp-age-min', 'ffp-age-max'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('input', function () {
+        var v = parseInt(el.value, 10);
+        if (isNaN(v)) v = null;
+        if (id === 'ffp-age-min') filters.ageMin = v; else filters.ageMax = v;
+        saveFilters();
+        renderRecordsContent();
+      });
+    });
+    // City / Country / Nationality selects
+    [['ffp-city-select','city'], ['ffp-country-select','country'], ['ffp-nationality-select','nationality']].forEach(function (pair) {
+      var el = document.getElementById(pair[0]);
+      if (!el) return;
+      el.addEventListener('change', function () {
+        filters[pair[1]] = el.value;
+        saveFilters();
+        renderRecordsContent();
+      });
+    });
+    // Collapse toggle
+    var head = document.getElementById('ffp-filters-head');
+    var body = document.getElementById('ffp-filters-body');
+    var caret = document.getElementById('ffp-filters-caret');
+    if (head && body && caret) {
+      head.addEventListener('click', function () {
+        body.classList.toggle('collapsed');
+        caret.textContent = body.classList.contains('collapsed') ? 'expand_more' : 'expand_less';
+      });
+    }
+    // Reset
+    var reset = document.getElementById('ffp-filters-reset');
+    if (reset) reset.addEventListener('click', function (e) {
+      e.stopPropagation();
+      filters = defaultFilters();
+      saveFilters();
+      recordsBuilt = false;
+      buildRecordsTabUI();
+      renderRecordsContent();
+    });
+  }
+
+  function updateMetricChips() {
+    document.querySelectorAll('#ffp-metric-strip .ffp-metric-chip').forEach(function (btn) {
+      btn.classList.toggle('active', btn.dataset.metric === filters.metric);
+    });
+  }
+  function updateGenderChips() {
+    document.querySelectorAll('#ffp-gender-chips .ffp-filter-chip').forEach(function (btn) {
+      btn.classList.toggle('active', btn.dataset.gender === filters.gender);
+    });
+  }
+  function updateAgeChips() {
+    document.querySelectorAll('#ffp-age-chips .ffp-filter-chip').forEach(function (btn) {
+      btn.classList.toggle('active', btn.dataset.age === filters.ageMode);
+    });
+  }
+
+  function renderRecordsContent() {
+    if (!recordsBuilt) return;
+    var metric = metricByKey(filters.metric);
+    if (!metric) return;
+    var lbTitle = document.getElementById('ffp-lb-title');
+    if (lbTitle) lbTitle.textContent = 'Leaderboard — ' + metric.label + (metric.unit !== 'time' ? ' (' + metric.unit + ')' : '');
+
+    // Filter pool + sort by selected metric
+    var filtered = filterPool(rankingPool, filters);
+    var withValue = filtered.filter(function (r) { return r[metric.col] != null; });
+    withValue.sort(function (a, b) {
+      var av = Number(a[metric.col]);
+      var bv = Number(b[metric.col]);
+      return metric.dir === 'higher' ? bv - av : av - bv;
+    });
+
+    // Sample size pill
+    var pill = document.getElementById('ffp-filters-count');
+    var foot = document.getElementById('ffp-sample-text');
+    var n = filtered.length;
+    var pillText = n === 0 ? 'No members' : (n === 1 ? '1 member' : n + ' members');
+    if (pill) pill.textContent = pillText;
+    if (foot) foot.innerHTML = 'Showing <b>' + n + '</b> member' + (n === 1 ? '' : 's') + ' \u00b7 <b>' + withValue.length + '</b> with a ' + metric.label + ' value';
+
+    // My PR card
+    renderMyPrCard(metric, withValue);
+
+    // Leaderboard rows
+    var container = document.getElementById('ffp-lb-container');
+    if (!container) return;
+    if (withValue.length === 0) {
+      container.innerHTML = '<div class="ffp-lb-empty">No members have logged a ' + metric.label + ' value in this group yet.</div>';
       return;
     }
-    var group = FitnessStats.compareGroup || 'age_gender';
-    var others = filterPoolForGroup(group);
-    var ranks = {};
-    Object.keys(PR_MAP).forEach(function (key) {
-      var rec = FitnessStats.records ? FitnessStats.records[key] : null;
-      if (!rec) { ranks[key] = null; return; }
-      var map = PR_MAP[key];
-      // Need at least 4 others to show a meaningful percentile
-      if (others.filter(function (r) { return r[map.col] != null; }).length < 4) {
-        ranks[key] = null;
-        return;
-      }
-      ranks[key] = computeTopPercent(rec.value, map.dir, others, map.col);
-    });
-    FitnessStats.ranks = ranks;
-  }
+    var values = withValue.map(function (r) { return Number(r[metric.col]); });
+    var maxV = Math.max.apply(null, values);
+    var minV = Math.min.apply(null, values);
+    function barPctFor(v) {
+      if (maxV === minV) return 1;
+      if (metric.dir === 'higher') return 0.1 + ((v - minV) / (maxV - minV)) * 0.9;
+      return 0.1 + ((maxV - v) / (maxV - minV)) * 0.9;
+    }
 
-  function buildCompareOptions() {
-    var sel = document.getElementById('fs-compare-select');
-    if (!sel || !myDemo) return;
+    // Render: show top 20 + always include me if I'm outside
+    var TOP_N = 20;
+    var myIdx = -1;
+    for (var i = 0; i < withValue.length; i++) {
+      if (withValue[i].member_id === currentUserId) { myIdx = i; break; }
+    }
+    var rowsToShow = withValue.slice(0, TOP_N);
+    var showingMe = myIdx >= 0 && myIdx < TOP_N;
+    var meAppended = false;
+    if (myIdx >= TOP_N) {
+      meAppended = true;
+    }
 
-    var ageLabel = myDemo.age != null ? ageBucketLabel(myDemo.age) : null;
-    var opts = [
-      { v: 'all',                     label: 'All FFP members' },
-      { v: 'gender',                  label: 'Same gender' },
-      { v: 'age',                     label: ageLabel ? 'Your age group (' + ageLabel + ')' : 'Your age group' },
-      { v: 'age_gender',              label: 'Same age & gender' },
-      { v: 'country',                 label: myDemo.country ? 'Same country (' + myDemo.country + ')' : 'Same country' },
-      { v: 'city',                    label: myDemo.city ? 'Same city (' + myDemo.city + ')' : 'Same city' },
-      { v: 'nationality',             label: myDemo.nationality ? 'Same nationality (' + myDemo.nationality + ')' : 'Same nationality' },
-      { v: 'age_gender_city',         label: 'Same age, gender & city' },
-      { v: 'age_gender_country',      label: 'Same age, gender & country' },
-      { v: 'age_gender_nationality',  label: 'Same age, gender & nationality' }
-    ];
-
-    var current = FitnessStats.compareGroup || 'age_gender';
-    sel.innerHTML = opts.map(function (o) {
-      var selAttr = o.v === current ? ' selected' : '';
-      return '<option value="' + o.v + '"' + selAttr + '>' + o.label + '</option>';
+    var html = rowsToShow.map(function (r, i) {
+      return renderLbRow(r, i + 1, metric, barPctFor(Number(r[metric.col])));
     }).join('');
+
+    if (meAppended) {
+      html += '<div style="text-align:center;color:var(--muted);font-size:11px;padding:6px 0;">\u00b7\u00b7\u00b7</div>';
+      html += renderLbRow(withValue[myIdx], myIdx + 1, metric, barPctFor(Number(withValue[myIdx][metric.col])));
+    }
+
+    if (!meAppended && myIdx < 0 && currentUserId) {
+      // I don't have a value for this metric — invite to log
+      html += '<div class="ffp-lb-empty" style="margin-top:10px;">You haven\'t logged a ' + metric.label + ' value yet. Tap the card above to add one.</div>';
+    }
+
+    container.innerHTML = html;
+
+    // Wire "me" row click → open PR edit / sleep modal
+    container.querySelectorAll('.ffp-lb-row.me').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (filters.metric === 'sleepAvgHrs' && typeof FitnessStats.openSleepLog === 'function') {
+          FitnessStats.openSleepLog();
+        } else if (typeof FitnessStats.openPrEdit === 'function' && PR_MAP[filters.metric]) {
+          FitnessStats.openPrEdit(filters.metric);
+        }
+      });
+    });
   }
 
-  // ─────────── ACTIVITY OVERRIDES (from v3) ───────────
+  function renderLbRow(r, rank, metric, barPct) {
+    var isMe = r.member_id === currentUserId;
+    var name = isMe ? 'You' : escText(((r.given_names || 'Member') + ' ' + (r.surname_initial || '')).trim() + '.');
+    var rankCls = 'ffp-lb-row';
+    if (isMe)        rankCls += ' me';
+    else if (rank === 1) rankCls += ' top1';
+    else if (rank === 2) rankCls += ' top2';
+    else if (rank === 3) rankCls += ' top3';
+    var value = formatMetricValue(r[metric.col], metric);
+    var valueLine = metric.unit === 'time' ? value : (value + ' <span style="color:var(--muted);font-size:11px;font-weight:600;">' + metric.unit + '</span>');
+    return '<div class="' + rankCls + '">' +
+      '<div class="ffp-lb-rank">#' + rank + '</div>' +
+      '<div class="ffp-lb-name-bar">' +
+        '<div class="ffp-lb-name">' + name + '</div>' +
+        '<div class="ffp-lb-bar-wrap"><div class="ffp-lb-bar" style="width:' + (barPct * 100) + '%;"></div></div>' +
+      '</div>' +
+      '<div class="ffp-lb-value">' + valueLine + '</div>' +
+    '</div>';
+  }
+
+  function renderMyPrCard(metric, sortedFiltered) {
+    var card = document.getElementById('ffp-my-pr-card');
+    if (!card) return;
+    var rec = FitnessStats.records ? FitnessStats.records[metric.key] : null;
+    // Sleep is computed, not stored as a single record
+    var sleepRec = (metric.key === 'sleepAvgHrs' && typeof FitnessStats.getRecord === 'function')
+      ? FitnessStats.getRecord('sleepAvgHrs') : null;
+    var rec2 = rec || sleepRec;
+
+    var posLine = '';
+    var myIdx = -1;
+    for (var i = 0; i < sortedFiltered.length; i++) {
+      if (sortedFiltered[i].member_id === currentUserId) { myIdx = i; break; }
+    }
+    if (myIdx >= 0) {
+      posLine = '<span class="ffp-my-pr-pos">#' + (myIdx + 1) + ' of ' + sortedFiltered.length + '</span> in current group';
+    } else if (rec2) {
+      posLine = 'Not in current filtered group';
+    } else {
+      posLine = 'No value logged yet';
+    }
+
+    var valueHtml = rec2
+      ? '<div class="ffp-my-pr-value">' + formatMetricValue(rec2.value, metric) + (metric.unit !== 'time' ? '<span class="ffp-my-pr-value-unit">' + metric.unit + '</span>' : '') + '</div>'
+      : '<div class="ffp-my-pr-empty">No record yet — tap edit to add</div>';
+
+    card.innerHTML =
+      '<div class="ffp-my-pr-head">' +
+        '<div class="ffp-my-pr-title">Your ' + metric.label + (metric.group ? ' \u00b7 ' + metric.group : '') + '</div>' +
+        '<button class="ffp-my-pr-edit" id="ffp-my-pr-edit-btn"><span class="material-icons">edit</span>' + (rec2 ? 'Edit' : 'Add') + '</button>' +
+      '</div>' +
+      valueHtml +
+      '<div class="ffp-my-pr-meta">' +
+        '<div>' + posLine + '</div>' +
+        (rec2 && rec2.date ? '<div>PR set ' + escText(rec2.date) + '</div>' : '') +
+      '</div>';
+
+    var btn = document.getElementById('ffp-my-pr-edit-btn');
+    if (btn) btn.addEventListener('click', function () {
+      if (metric.key === 'sleepAvgHrs' && typeof FitnessStats.openSleepLog === 'function') {
+        FitnessStats.openSleepLog();
+      } else if (typeof FitnessStats.openPrEdit === 'function') {
+        FitnessStats.openPrEdit(metric.key);
+      }
+    });
+  }
+
+  // ─────────── ACTIVITY / MILESTONES OVERRIDES (carried from v4) ───────────
 
   function overrideComputeStreak() {
     FitnessStats.computeStreak = function () {
@@ -255,10 +644,7 @@
         var cls = 'streak-day';
         if (active)  cls += ' active';
         if (isToday) cls += ' today';
-        flamesHtml += '<div class="' + cls + '">' +
-          '<span class="streak-day-flame"></span>' +
-          '<span class="streak-day-label">' + label + '</span>' +
-        '</div>';
+        flamesHtml += '<div class="' + cls + '"><span class="streak-day-flame"></span><span class="streak-day-label">' + label + '</span></div>';
       }
       var dotsEl = document.getElementById('streak-dots');
       if (dotsEl) dotsEl.innerHTML = flamesHtml;
@@ -289,11 +675,7 @@
       var tilesEl = document.getElementById('stats-tiles');
       if (tilesEl) {
         tilesEl.innerHTML = tiles.map(function (t) {
-          return '<div class="stats-tile">' +
-            '<div class="stats-tile-icon"><span class="material-icons">' + t.icon + '</span></div>' +
-            '<div class="stats-tile-value">' + t.value + '</div>' +
-            '<div class="stats-tile-label">' + t.label + '</div>' +
-          '</div>';
+          return '<div class="stats-tile"><div class="stats-tile-icon"><span class="material-icons">' + t.icon + '</span></div><div class="stats-tile-value">' + t.value + '</div><div class="stats-tile-label">' + t.label + '</div></div>';
         }).join('');
       }
     };
@@ -330,14 +712,7 @@
           if (m.binary)        progressText = unlocked ? 'Unlocked' : 'Not yet';
           else if (m.decimals) progressText = (+m.current).toFixed(m.decimals) + (m.unit || '') + ' / ' + m.target + (m.unit || '');
           else                 progressText = m.current + ' / ' + m.target;
-          var esc = (typeof escHtml === 'function') ? escHtml : function (x) { return x; };
-          return '<div class="achievement ' + (unlocked ? 'unlocked' : 'locked') + '">' +
-            '<div class="achievement-icon"><span class="material-icons">' + m.icon + '</span></div>' +
-            '<div class="achievement-name">' + esc(m.name) + '</div>' +
-            '<div class="achievement-desc">' + esc(m.desc) + '</div>' +
-            '<div class="achievement-count">' + progressText + '</div>' +
-            '<div class="achievement-progress"><div class="achievement-progress-fill" style="width:' + pct + '%;"></div></div>' +
-          '</div>';
+          return '<div class="achievement ' + (unlocked ? 'unlocked' : 'locked') + '"><div class="achievement-icon"><span class="material-icons">' + m.icon + '</span></div><div class="achievement-name">' + escText(m.name) + '</div><div class="achievement-desc">' + escText(m.desc) + '</div><div class="achievement-count">' + progressText + '</div><div class="achievement-progress"><div class="achievement-progress-fill" style="width:' + pct + '%;"></div></div></div>';
         }).join('');
       }
       var unlockedCount = milestones.filter(function (m) { return m.current >= m.target; }).length;
@@ -346,12 +721,17 @@
     };
   }
 
-  // Wrap render so ranks are recomputed before every paint (catches compareGroup changes)
+  // Wrap FitnessStats.render — when Records tab active, rebuild + repaint
   function overrideRender() {
     var origRender = FitnessStats.render.bind(FitnessStats);
     FitnessStats.render = function () {
-      refreshRanks();
+      // Always run the dashboard's own renders (Bio Age etc.)
       origRender();
+      // If we're on Records, swap in our UI
+      if (this.tab === 'records') {
+        buildRecordsTabUI();
+        renderRecordsContent();
+      }
     };
   }
 
@@ -373,11 +753,8 @@
       currentUserId = userRes.data.user.id;
 
       var memRes = await window.supabase
-        .from('members')
-        .select('date_of_birth, gender, city, country, nationality')
-        .eq('id', currentUserId)
-        .maybeSingle();
-
+        .from('members').select('date_of_birth, gender, city, country, nationality')
+        .eq('id', currentUserId).maybeSingle();
       if (!memRes.error && memRes.data) {
         var ageFromDob = computeAgeFromDob(memRes.data.date_of_birth);
         if (ageFromDob != null) FitnessStats.profile.chronAge = ageFromDob;
@@ -398,12 +775,9 @@
                 'pr_bench_kg, pr_squat_kg, pr_deadlift_kg, ' +
                 'pr_5k_seconds, pr_10k_seconds, pr_21k_seconds, pr_marathon_sec, pr_swim1k_sec, ' +
                 'vo2_max, body_fat_pct, visceral_fat')
-        .eq('member_id', currentUserId)
-        .maybeSingle();
-
-      if (pm.error) {
-        console.error('[FFP Fitness Stats] profile_meta read:', pm.error);
-      } else if (pm.data) {
+        .eq('member_id', currentUserId).maybeSingle();
+      if (pm.error) console.error('[FFP Fitness Stats] profile_meta read:', pm.error);
+      else if (pm.data) {
         var p = pm.data;
         if (p.chrono_age != null) FitnessStats.profile.chronAge = Number(p.chrono_age);
         if (p.current_weight_kg != null) FitnessStats.profile.weight = Number(p.current_weight_kg);
@@ -418,40 +792,26 @@
         FitnessStats.sleepLogs = sleepFromDb(p.sleep_logs);
       }
 
-      // Activity cache for streak/tiles/milestones
       var sinceIso = new Date(Date.now() - 90 * 86400000).toISOString();
       var actRes = await window.supabase
-        .from('activity_logs')
-        .select('activity, duration_min, logged_at')
-        .eq('member_id', currentUserId)
-        .gte('logged_at', sinceIso);
-      if (actRes.error) {
-        console.error('[FFP Fitness Stats] activity_logs read:', actRes.error);
-        activityCache = [];
-      } else {
-        activityCache = (actRes.data || []).map(function (r) {
-          return {
-            activity: r.activity || '',
-            duration_min: r.duration_min || 0,
-            daysAgo: daysAgoFromIso(r.logged_at)
-          };
-        });
-      }
+        .from('activity_logs').select('activity, duration_min, logged_at')
+        .eq('member_id', currentUserId).gte('logged_at', sinceIso);
+      if (actRes.error) { console.error('[FFP Fitness Stats] activity_logs read:', actRes.error); activityCache = []; }
+      else activityCache = (actRes.data || []).map(function (r) {
+        return { activity: r.activity || '', duration_min: r.duration_min || 0, daysAgo: daysAgoFromIso(r.logged_at) };
+      });
 
-      // RANKING POOL — privacy-safe RPC
       var poolRes = await window.supabase.rpc('get_ranking_pool');
-      if (poolRes.error) {
-        console.error('[FFP Fitness Stats] ranking_pool RPC:', poolRes.error);
-        rankingPool = [];
-      } else {
-        rankingPool = poolRes.data || [];
-      }
+      if (poolRes.error) { console.error('[FFP Fitness Stats] ranking_pool RPC:', poolRes.error); rankingPool = []; }
+      else rankingPool = poolRes.data || [];
+
+      // Old percentile pills no longer used (leaderboard replaces them)
+      FitnessStats.ranks = {};
 
       overrideComputeStreak();
       overrideRenderActivity();
       overrideRenderMilestones();
       overrideRender();
-      buildCompareOptions();
       wrapWrites();
 
       var panel = document.getElementById('panel-fitness-stats');
@@ -459,7 +819,7 @@
         FitnessStats.render();
       }
 
-      console.log('[FFP Fitness Stats] Loaded from Supabase ✓ (' + activityCache.length + ' activities, ' + rankingPool.length + ' members in ranking pool)');
+      console.log('[FFP Fitness Stats] Loaded \u2713 (' + activityCache.length + ' activities, ' + rankingPool.length + ' members in pool)');
     } catch (err) {
       console.error('[FFP Fitness Stats] Unexpected error:', err);
     }
@@ -480,20 +840,17 @@
       if (!rec) return;
       var val = map.cast === 'int' ? Math.round(rec.value) : Number(rec.value);
       try {
-        var readRes = await window.supabase
-          .from('profile_meta').select('pr_dates')
-          .eq('member_id', currentUserId).maybeSingle();
-        var prDates = (readRes.data && readRes.data.pr_dates && typeof readRes.data.pr_dates === 'object')
-          ? readRes.data.pr_dates : {};
+        var readRes = await window.supabase.from('profile_meta').select('pr_dates').eq('member_id', currentUserId).maybeSingle();
+        var prDates = (readRes.data && readRes.data.pr_dates && typeof readRes.data.pr_dates === 'object') ? readRes.data.pr_dates : {};
         prDates[key] = rec.date || todayStr();
         var payload = { member_id: currentUserId, pr_dates: prDates, updated_at: new Date().toISOString() };
         payload[map.col] = val;
         var res = await window.supabase.from('profile_meta').upsert(payload, { onConflict: 'member_id' });
         if (res.error) console.error('[FFP FS] pr save:', res.error);
-        // Refresh ranking pool snapshot of self so the rank reflects new value
         for (var i = 0; i < rankingPool.length; i++) {
           if (rankingPool[i].member_id === currentUserId) { rankingPool[i][map.col] = val; break; }
         }
+        if (this.tab === 'records') renderRecordsContent();
       } catch (e) { console.error('[FFP FS] pr save:', e); }
     };
 
@@ -506,11 +863,8 @@
       var map = PR_MAP[key];
       if (!map) return;
       try {
-        var readRes = await window.supabase
-          .from('profile_meta').select('pr_dates')
-          .eq('member_id', currentUserId).maybeSingle();
-        var prDates = (readRes.data && readRes.data.pr_dates && typeof readRes.data.pr_dates === 'object')
-          ? readRes.data.pr_dates : {};
+        var readRes = await window.supabase.from('profile_meta').select('pr_dates').eq('member_id', currentUserId).maybeSingle();
+        var prDates = (readRes.data && readRes.data.pr_dates && typeof readRes.data.pr_dates === 'object') ? readRes.data.pr_dates : {};
         delete prDates[key];
         var payload = { member_id: currentUserId, pr_dates: prDates, updated_at: new Date().toISOString() };
         payload[map.col] = null;
@@ -519,6 +873,7 @@
         for (var i = 0; i < rankingPool.length; i++) {
           if (rankingPool[i].member_id === currentUserId) { rankingPool[i][map.col] = null; break; }
         }
+        if (this.tab === 'records') renderRecordsContent();
       } catch (e) { console.error('[FFP FS] pr clear:', e); }
     };
 
@@ -529,11 +884,17 @@
       var dbShape = sleepToDb(this.sleepLogs);
       try {
         var res = await window.supabase.from('profile_meta').upsert({
-          member_id: currentUserId,
-          sleep_logs: dbShape,
-          updated_at: new Date().toISOString()
+          member_id: currentUserId, sleep_logs: dbShape, updated_at: new Date().toISOString()
         }, { onConflict: 'member_id' });
         if (res.error) console.error('[FFP FS] sleep save:', res.error);
+        // Recompute sleep avg locally on the pool snapshot of self
+        var hrs = [];
+        Object.keys(dbShape).forEach(function (k) { var v = Number(dbShape[k]); if (!isNaN(v)) hrs.push(v); });
+        var avg = hrs.length > 0 ? hrs.reduce(function (a, b) { return a + b; }, 0) / hrs.length : null;
+        for (var i = 0; i < rankingPool.length; i++) {
+          if (rankingPool[i].member_id === currentUserId) { rankingPool[i].sleep_avg_hours = avg; break; }
+        }
+        if (this.tab === 'records') renderRecordsContent();
       } catch (e) { console.error('[FFP FS] sleep save:', e); }
     };
   }
