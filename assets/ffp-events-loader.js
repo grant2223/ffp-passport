@@ -77,17 +77,15 @@
   }
 
   // Build "who" audience string from fitness_level + group_filter
+  // Real group_filter values: 'open' | 'mixed' | 'women_only' | 'men_only'
   function buildAudienceString(fitnessLevel, groupFilter) {
     const parts = [];
-    if (fitnessLevel) parts.push(fitnessLevel + ' level');
-    if (groupFilter && groupFilter !== 'any') {
-      if (groupFilter === 'women') parts.push('Women only');
-      else if (groupFilter === 'men') parts.push('Men only');
-      else if (groupFilter === 'mixed') parts.push('Mixed group');
-      else parts.push(groupFilter);
-    } else if (groupFilter === 'any') {
-      parts.push('Open to all');
-    }
+    if (fitnessLevel && fitnessLevel !== 'All') parts.push(fitnessLevel + ' level');
+    else if (fitnessLevel === 'All') parts.push('All levels');
+    if (groupFilter === 'open')        parts.push('Open to all');
+    else if (groupFilter === 'mixed')      parts.push('Mixed group');
+    else if (groupFilter === 'women_only') parts.push('Women only');
+    else if (groupFilter === 'men_only')   parts.push('Men only');
     return parts.join(' · ');
   }
 
