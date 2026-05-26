@@ -1,153 +1,158 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   FFP PROFILE LOADER (v3)
+   FFP PROFILE LOADER (v5)
    ───────────────────────────────────────────────────────────────────────
-   v3 changes:
-   - SAVES GENDER (requires `gender` column in members table — run the
-     add-gender-column.sql migration first)
-   - Injects a big, clear SAVE BUTTON at the top of the profile panel
-     with visible states: All saved / Save changes / Saving / Saved / Failed
-   - Manual save still triggers via button; auto-save still runs in background
+   v5 changes:
+   - REMOVED sticky save bar (was too intrusive)
+   - REMOVED auto-save (manual save only — standard form pattern)
+   - Big Save Changes button at the BOTTOM of the profile
+   - Click → save to Supabase → toast confirms success or failure
+   - All v4 features retained: DOB three-dropdown picker, gender saving,
+     proper error logging
 ═══════════════════════════════════════════════════════════════════════ */
 
 (function () {
   'use strict';
 
   let serverSnapshot = null;
-  let saveTimer = null;
   let isSaving = false;
   let currentUid = null;
   let retries = 0;
   const MAX_RETRIES = 30;
-  const AUTOSAVE_DELAY = 1500;
 
-  // ─── Inject CSS for save bar + error toast ───────────────────────────
+  // ─── Inject CSS for save button + error toast styling ────────────────
   function injectStyles() {
     if (document.getElementById('ffp-profile-loader-styles')) return;
     const s = document.createElement('style');
     s.id = 'ffp-profile-loader-styles';
     s.textContent = `
+      /* ── Error toast (dashboard toast is green by default) ── */
       .toast.ffp-error{border-color:#ef4444 !important;}
       .toast.ffp-error .material-icons{color:#ef4444 !important;}
 
-      .ffp-savebar{
-        position:sticky;top:0;z-index:90;
-        background:linear-gradient(180deg,#0f1e2e 0%,#0f1e2e 85%,rgba(15,30,46,0));
-        padding:14px 0 18px;margin:-4px 0 14px;
-        display:flex;align-items:center;justify-content:space-between;gap:12px;
+      /* ── Save Changes button at the bottom of profile ── */
+      #ffp-save-btn-wrap{
+        margin-top:24px;
+        padding-top:18px;
+        border-top:1px solid rgba(43,168,224,.15);
       }
-      .ffp-savebar-status{
-        font-size:12px;font-weight:700;color:#6a90a8;
-        display:flex;align-items:center;gap:6px;
-        flex:1;min-width:0;
-      }
-      .ffp-savebar-status .material-icons{font-size:16px;}
-      .ffp-savebar-status.dirty{color:#facc15;}
-      .ffp-savebar-status.saving{color:#9dbdd0;}
-      .ffp-savebar-status.saved{color:#22c55e;}
-      .ffp-savebar-status.error{color:#ef4444;}
-
-      .ffp-savebar-btn{
-        background:#2ba8e0;color:#fff;border:none;border-radius:10px;
-        padding:11px 22px;font-size:14px;font-weight:800;cursor:pointer;
+      .ffp-save-btn{
+        display:flex;align-items:center;justify-content:center;gap:8px;
+        width:100%;padding:15px;
+        background:#2ba8e0;color:#fff;border:none;border-radius:12px;
+        font-size:15px;font-weight:800;cursor:pointer;
         font-family:'Montserrat',sans-serif;
-        display:flex;align-items:center;gap:7px;
-        transition:all .15s;letter-spacing:.3px;
-        min-width:140px;justify-content:center;
+        letter-spacing:.3px;
+        transition:background .15s;
       }
-      .ffp-savebar-btn:hover:not(:disabled){background:#1980AD;}
-      .ffp-savebar-btn:disabled{
-        background:rgba(43,168,224,.15);color:#6a90a8;cursor:default;
+      .ffp-save-btn:hover:not(:disabled){background:#1980AD;}
+      .ffp-save-btn:disabled{
+        background:rgba(43,168,224,.25);color:#9dbdd0;cursor:default;
       }
-      .ffp-savebar-btn.dirty{background:#2ba8e0;color:#fff;}
-      .ffp-savebar-btn.dirty:hover{background:#1980AD;}
-      .ffp-savebar-btn.error{background:#ef4444;color:#fff;}
-      .ffp-savebar-btn.error:hover{background:#dc2626;}
-      .ffp-savebar-btn .material-icons{font-size:16px;}
-
+      .ffp-save-btn .material-icons{font-size:18px;}
       @keyframes ffp-spin{to{transform:rotate(360deg);}}
-      .ffp-savebar-btn.saving .material-icons{animation:ffp-spin 1s linear infinite;}
+      .ffp-save-btn.saving .material-icons{animation:ffp-spin 1s linear infinite;}
+
+      /* ── 3-column DOB picker ── */
+      .field-card-dob3{
+        background:rgba(43,168,224,.05);
+        border:1px solid rgba(43,168,224,.18);
+        border-radius:12px;
+        padding:12px 14px;
+      }
+      .field-card-dob3 .field-card-label-top{
+        font-size:10px;font-weight:800;color:#6a90a8;
+        letter-spacing:.6px;text-transform:uppercase;margin-bottom:8px;
+      }
+      .dob3-row{
+        display:grid;
+        grid-template-columns:1fr 1.4fr 1fr;
+        gap:8px;
+      }
+      .dob3-select{
+        width:100%;
+        background:rgba(43,168,224,.08);
+        border:1px solid rgba(43,168,224,.22);
+        border-radius:8px;
+        padding:11px 12px;
+        font-size:14px;
+        font-weight:600;
+        color:#fff;
+        font-family:'Montserrat',sans-serif;
+        appearance:none;
+        -webkit-appearance:none;
+        cursor:pointer;
+        outline:none;
+        transition:border-color .15s;
+        background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236a90a8' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>");
+        background-position:right 8px center;
+        background-repeat:no-repeat;
+        background-size:12px;
+        padding-right:28px;
+      }
+      .dob3-select:focus{border-color:#2ba8e0;}
+      .dob3-select option{background:#0b1c28;color:#fff;}
+      .dob3-select.empty{color:#6a90a8;}
     `;
     document.head.appendChild(s);
   }
 
-  // ─── Save bar rendering ──────────────────────────────────────────────
-  let saveBarState = 'idle'; // idle | dirty | saving | saved | error
-
-  function renderSaveBar() {
-    const bar = document.getElementById('ffp-savebar');
-    if (!bar) return;
-
-    let statusIcon, statusText, btnIcon, btnText, statusClass, btnClass, btnDisabled;
-
-    switch (saveBarState) {
-      case 'dirty':
-        statusIcon = 'edit'; statusText = 'Unsaved changes';
-        btnIcon = 'save'; btnText = 'Save Changes';
-        statusClass = 'dirty'; btnClass = 'dirty'; btnDisabled = false;
-        break;
-      case 'saving':
-        statusIcon = 'sync'; statusText = 'Saving…';
-        btnIcon = 'sync'; btnText = 'Saving…';
-        statusClass = 'saving'; btnClass = 'saving'; btnDisabled = true;
-        break;
-      case 'saved':
-        statusIcon = 'check_circle'; statusText = 'All changes saved';
-        btnIcon = 'check'; btnText = 'Saved';
-        statusClass = 'saved'; btnClass = ''; btnDisabled = true;
-        break;
-      case 'error':
-        statusIcon = 'error'; statusText = 'Save failed — tap to retry';
-        btnIcon = 'refresh'; btnText = 'Retry Save';
-        statusClass = 'error'; btnClass = 'error'; btnDisabled = false;
-        break;
-      default: // idle
-        statusIcon = 'check_circle'; statusText = 'All changes saved';
-        btnIcon = 'check'; btnText = 'Saved';
-        statusClass = ''; btnClass = ''; btnDisabled = true;
+  // ─── Toast helper (uses dashboard's existing showToast + adds error styling) ──
+  function showStatusToast(msg, isError) {
+    if (typeof showToast !== 'function') return;
+    showToast(msg, isError ? 'error' : 'check');
+    const t = document.getElementById('ffp-toast');
+    if (t) {
+      if (isError) t.classList.add('ffp-error');
+      else t.classList.remove('ffp-error');
     }
-
-    bar.querySelector('.ffp-savebar-status').className = 'ffp-savebar-status ' + statusClass;
-    bar.querySelector('.ffp-savebar-status').innerHTML =
-      '<span class="material-icons">' + statusIcon + '</span>' +
-      '<span>' + statusText + '</span>';
-
-    const btn = bar.querySelector('.ffp-savebar-btn');
-    btn.className = 'ffp-savebar-btn ' + btnClass;
-    btn.disabled = btnDisabled;
-    btn.innerHTML =
-      '<span class="material-icons">' + btnIcon + '</span>' +
-      '<span>' + btnText + '</span>';
   }
 
-  function setSaveBarState(state) {
-    saveBarState = state;
-    renderSaveBar();
-  }
-
-  function injectSaveBar() {
+  // ─── Save button at bottom of profile ────────────────────────────────
+  function injectSaveButton() {
     const body = document.getElementById('profile-body');
     if (!body) return;
-    if (document.getElementById('ffp-savebar')) return; // already present
 
-    const bar = document.createElement('div');
-    bar.id = 'ffp-savebar';
-    bar.className = 'ffp-savebar';
-    bar.innerHTML =
-      '<div class="ffp-savebar-status">' +
-        '<span class="material-icons">check_circle</span>' +
-        '<span>All changes saved</span>' +
-      '</div>' +
-      '<button class="ffp-savebar-btn" disabled>' +
-        '<span class="material-icons">check</span>' +
-        '<span>Saved</span>' +
+    // Remove existing if present (so re-renders don't duplicate)
+    const existing = document.getElementById('ffp-save-btn-wrap');
+    if (existing) existing.remove();
+
+    const wrap = document.createElement('div');
+    wrap.id = 'ffp-save-btn-wrap';
+    wrap.innerHTML =
+      '<button class="ffp-save-btn" id="ffp-save-profile-btn">' +
+        '<span class="material-icons">save</span>' +
+        '<span>Save Changes</span>' +
       '</button>';
+    body.appendChild(wrap);
 
-    body.parentNode.insertBefore(bar, body);
-
-    bar.querySelector('.ffp-savebar-btn').addEventListener('click', function () {
-      clearTimeout(saveTimer);
-      saveProfileToSupabase(true);
+    document.getElementById('ffp-save-profile-btn').addEventListener('click', function () {
+      saveProfileToSupabase();
     });
+  }
+
+  function setSaveButtonState(state) {
+    const btn = document.getElementById('ffp-save-profile-btn');
+    if (!btn) return;
+    btn.classList.remove('saving');
+    switch (state) {
+      case 'saving':
+        btn.classList.add('saving');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-icons">sync</span><span>Saving…</span>';
+        break;
+      case 'saved':
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-icons">check</span><span>Saved</span>';
+        setTimeout(function () { setSaveButtonState('idle'); }, 2000);
+        break;
+      case 'error':
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-icons">save</span><span>Save Changes</span>';
+        break;
+      default: // idle
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-icons">save</span><span>Save Changes</span>';
+    }
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────
@@ -173,6 +178,66 @@
       nationality: MemberProfile.data.nationality,
       sports:      MemberProfile.data.sports
     });
+  }
+
+  // ─── Patch DOB card with three clean dropdowns ───────────────────────
+  function patchDOBCard() {
+    if (typeof MemberProfile === 'undefined') return;
+    if (window._ffpDobPatched) return;
+
+    const MONTH_NAMES = [
+      { num:'01', name:'January' }, { num:'02', name:'February' }, { num:'03', name:'March' },
+      { num:'04', name:'April' },   { num:'05', name:'May' },      { num:'06', name:'June' },
+      { num:'07', name:'July' },    { num:'08', name:'August' },   { num:'09', name:'September' },
+      { num:'10', name:'October' }, { num:'11', name:'November' }, { num:'12', name:'December' }
+    ];
+
+    MemberProfile.renderDOBCard = function () {
+      const currentYear = new Date().getFullYear();
+      const maxYear = currentYear - 13;
+      const minYear = 1900;
+
+      let dayOptions = '<option value="" ' + (!this.data.dobDay ? 'selected' : '') + '>Day</option>';
+      for (let d = 1; d <= 31; d++) {
+        const v = String(d).padStart(2, '0');
+        dayOptions += '<option value="' + v + '"' + (this.data.dobDay === v ? ' selected' : '') + '>' + d + '</option>';
+      }
+
+      let monthOptions = '<option value="" ' + (!this.data.dobMonth ? 'selected' : '') + '>Month</option>';
+      MONTH_NAMES.forEach(function (m) {
+        monthOptions += '<option value="' + m.num + '"' +
+                       (MemberProfile.data.dobMonth === m.num ? ' selected' : '') +
+                       '>' + m.name + '</option>';
+      });
+
+      let yearOptions = '<option value="" ' + (!this.data.dobYear ? 'selected' : '') + '>Year</option>';
+      for (let y = maxYear; y >= minYear; y--) {
+        yearOptions += '<option value="' + y + '"' + (this.data.dobYear === String(y) ? ' selected' : '') + '>' + y + '</option>';
+      }
+
+      return '<div class="field-card field-card-dob3">' +
+               '<div class="field-card-label-top">Date of Birth</div>' +
+               '<div class="dob3-row">' +
+                 '<select class="dob3-select' + (this.data.dobDay ? '' : ' empty') + '" ' +
+                          'onchange="MemberProfile.data.dobDay = this.value; ' +
+                                    'this.classList.toggle(\'empty\', !this.value);">' +
+                   dayOptions +
+                 '</select>' +
+                 '<select class="dob3-select' + (this.data.dobMonth ? '' : ' empty') + '" ' +
+                          'onchange="MemberProfile.data.dobMonth = this.value; ' +
+                                    'this.classList.toggle(\'empty\', !this.value);">' +
+                   monthOptions +
+                 '</select>' +
+                 '<select class="dob3-select' + (this.data.dobYear ? '' : ' empty') + '" ' +
+                          'onchange="MemberProfile.data.dobYear = this.value; ' +
+                                    'this.classList.toggle(\'empty\', !this.value);">' +
+                   yearOptions +
+                 '</select>' +
+               '</div>' +
+             '</div>';
+    };
+
+    window._ffpDobPatched = true;
   }
 
   // ─── Load profile from Supabase ──────────────────────────────────────
@@ -248,30 +313,26 @@
       serverSnapshot = snapshotProfileData();
 
       injectStyles();
+      patchDOBCard();
 
-      // Wrap MemberProfile.render once so save bar is re-injected after re-renders
+      // Wrap MemberProfile.render so the Save button is re-injected after re-renders
       if (typeof MemberProfile.render === 'function' && !window._ffpProfileRenderWrapped) {
         const originalRender = MemberProfile.render.bind(MemberProfile);
         MemberProfile.render = function () {
           originalRender();
-          setTimeout(function () {
-            injectSaveBar();
-            renderSaveBar();
-          }, 30);
+          setTimeout(injectSaveButton, 30);
         };
         window._ffpProfileRenderWrapped = true;
       }
 
+      // Trigger render if panel is already open, otherwise just inject the button
       const panel = document.getElementById('panel-profile');
       if (panel && panel.classList.contains('active') && typeof MemberProfile.render === 'function') {
         MemberProfile.render();
       } else {
-        // Panel not yet active — inject when it becomes visible
-        injectSaveBar();
-        renderSaveBar();
+        injectSaveButton();
       }
 
-      attachAutoSave();
       console.log('[FFP Profile Loader] Profile loaded from Supabase ✓');
 
     } catch (err) {
@@ -279,48 +340,12 @@
     }
   }
 
-  // ─── Auto-save: debounced 1.5s after change ──────────────────────────
-  function attachAutoSave() {
-    document.addEventListener('input', queueSave, true);
-    document.addEventListener('change', queueSave, true);
-    document.addEventListener('click', queueSaveDelayed, true);
-  }
-
-  function queueSave(e) {
-    const panel = document.getElementById('panel-profile');
-    if (!panel || !panel.contains(e.target)) return;
-    // Ignore clicks on the save bar itself
-    if (e.target.closest('#ffp-savebar')) return;
-    markDirty();
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(function () { saveProfileToSupabase(false); }, AUTOSAVE_DELAY);
-  }
-
-  function queueSaveDelayed(e) {
-    const panel = document.getElementById('panel-profile');
-    if (!panel || !panel.contains(e.target)) return;
-    if (e.target.closest('#ffp-savebar')) return;
-    markDirty();
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(function () { saveProfileToSupabase(false); }, 2000);
-  }
-
-  function markDirty() {
-    if (!serverSnapshot) return;
-    const current = snapshotProfileData();
-    if (current !== serverSnapshot) {
-      setSaveBarState('dirty');
-    }
-  }
-
-  async function saveProfileToSupabase(manual) {
-    if (isSaving || !serverSnapshot || !currentUid) return;
-
-    const currentSnapshot = snapshotProfileData();
-    if (currentSnapshot === serverSnapshot && !manual) return;
+  // ─── Save profile to Supabase ────────────────────────────────────────
+  async function saveProfileToSupabase() {
+    if (isSaving || !currentUid) return;
 
     isSaving = true;
-    setSaveBarState('saving');
+    setSaveButtonState('saving');
 
     try {
       const dy = MemberProfile.data.dobYear;
@@ -357,12 +382,12 @@
           details: memberUpdate.error.details,
           hint:    memberUpdate.error.hint
         });
-        setSaveBarState('error');
+        setSaveButtonState('error');
+        showStatusToast('Save failed', true);
         isSaving = false;
         return;
       }
 
-      // Save sports to profile_meta
       const sportsArr = (MemberProfile.data.sports || []).map(function (s) {
         return { name: s.name, level: s.level, shared: false };
       });
@@ -374,18 +399,15 @@
         console.error('[FFP Profile Loader] Skills save failed:', metaUpdate.error);
       }
 
-      serverSnapshot = currentSnapshot;
-      setSaveBarState('saved');
+      serverSnapshot = snapshotProfileData();
+      setSaveButtonState('saved');
+      showStatusToast('Saved', false);
       console.log('[FFP Profile Loader] Profile saved ✓');
-
-      // After 2s of "Saved" → go back to idle (also "All saved" state)
-      setTimeout(function () {
-        if (saveBarState === 'saved') setSaveBarState('idle');
-      }, 2000);
 
     } catch (err) {
       console.error('[FFP Profile Loader] Save exception:', err);
-      setSaveBarState('error');
+      setSaveButtonState('error');
+      showStatusToast('Save failed', true);
     } finally {
       isSaving = false;
     }
@@ -400,5 +422,5 @@
   }
 
   window.ffpReloadProfile = loadProfileFromSupabase;
-  window.ffpSaveProfile = function () { saveProfileToSupabase(true); };
+  window.ffpSaveProfile = saveProfileToSupabase;
 })();
