@@ -1,7 +1,12 @@
-/* FFP Fitness Stats Loader — v6
-   v6: Leaderboard name format flipped to "S. Khan" (initial + full surname)
-   for better privacy. SQL function returns given_names_initial + surname.
-   All other behaviour identical to v5.
+/* FFP Fitness Stats Loader — v7
+   v7 changes:
+   - Removed "You log these values yourself" banner (self-explanatory)
+   - Country + City filters now use the master CITIES_DB taxonomy (58 countries, 541 cities)
+   - City picker filters to selected country (or all cities when "Any country")
+   - Country-only filtering supported (e.g. all UAE members, any city)
+   - Replaced native browser <select> with custom dark-themed picker (modal sheet with search)
+   - UAE sorts first in country list (FFP home market rule)
+   v6 leaderboard naming preserved: "S. Khan" format.
    - Metric switcher (12 metrics: 3 strength, 5 cardio, 3 health, 1 sleep)
    - Independent filters: gender, age (preset buckets or custom range), city, country, nationality
    - All filters combinable — pick any combination
@@ -100,6 +105,34 @@
       '.ffp-filter-chip.active{background:var(--blue);border-color:var(--blue);color:#fff;}',
       '.ffp-filter-select{flex:1;min-width:120px;background:rgba(43,168,224,0.06);border:1px solid var(--border-mid);border-radius:8px;color:var(--text);padding:8px 10px;font-size:12px;font-weight:600;font-family:inherit;}',
       '.ffp-filter-select:focus{outline:none;border-color:var(--blue);}',
+
+      // Custom picker field (replaces native select for country/city/nationality)
+      '.ffp-picker-field{flex:1;min-width:120px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(43,168,224,0.06);border:1px solid var(--border-mid);border-radius:8px;color:var(--text);padding:8px 12px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;text-align:left;}',
+      '.ffp-picker-field:hover{border-color:var(--blue);}',
+      '.ffp-picker-field .material-icons{font-size:18px;color:var(--muted);}',
+      '.ffp-picker-field.has-value{color:var(--text);}',
+      '.ffp-picker-field .ffp-picker-field-val{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
+      '.ffp-picker-field.disabled{opacity:0.5;cursor:not-allowed;}',
+
+      // Picker modal (bottom sheet)
+      '.ffp-picker-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:none;align-items:flex-end;justify-content:center;}',
+      '.ffp-picker-backdrop.open{display:flex;}',
+      '.ffp-picker-sheet{background:var(--bg-2);border-top-left-radius:18px;border-top-right-radius:18px;width:100%;max-width:560px;max-height:80vh;display:flex;flex-direction:column;animation:ffpPickerSlideUp 0.18s ease-out;}',
+      '@keyframes ffpPickerSlideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}',
+      '.ffp-picker-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px 8px;border-bottom:1px solid var(--border-mid);}',
+      '.ffp-picker-title{font-size:14px;font-weight:800;color:var(--text);}',
+      '.ffp-picker-close{background:transparent;border:none;color:var(--muted);cursor:pointer;padding:4px;font-family:inherit;display:inline-flex;align-items:center;}',
+      '.ffp-picker-close .material-icons{font-size:22px;}',
+      '.ffp-picker-search{padding:10px 16px;border-bottom:1px solid var(--border-mid);}',
+      '.ffp-picker-search input{width:100%;background:rgba(43,168,224,0.06);border:1px solid var(--border-mid);border-radius:8px;color:var(--text);padding:9px 12px;font-size:13px;font-family:inherit;}',
+      '.ffp-picker-search input:focus{outline:none;border-color:var(--blue);}',
+      '.ffp-picker-list{overflow-y:auto;flex:1;padding:6px;}',
+      '.ffp-picker-item{padding:11px 12px;border-radius:8px;font-size:13px;color:var(--text);cursor:pointer;font-weight:600;display:flex;align-items:center;justify-content:space-between;}',
+      '.ffp-picker-item:hover{background:rgba(43,168,224,0.08);}',
+      '.ffp-picker-item.active{background:rgba(43,168,224,0.15);color:var(--blue);}',
+      '.ffp-picker-item .material-icons{font-size:18px;color:var(--blue);}',
+      '.ffp-picker-section{padding:10px 12px 4px;font-size:10px;text-transform:uppercase;letter-spacing:0.7px;color:var(--muted);font-weight:800;}',
+      '.ffp-picker-empty{padding:24px;text-align:center;color:var(--muted);font-size:13px;}',
       '.ffp-age-custom{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:64px;font-size:12px;color:var(--muted);}',
       '.ffp-age-custom.hidden{display:none;}',
       '.ffp-age-input{width:54px;background:rgba(43,168,224,0.06);border:1px solid var(--border-mid);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;font-weight:700;text-align:center;font-family:inherit;}',
@@ -251,11 +284,6 @@
     if (!view) return;
     if (recordsBuilt) return;
 
-    // Build dynamic option lists from the actual pool
-    var cities       = distinctValues('city');
-    var countries    = distinctValues('country');
-    var nationalities = distinctValues('nationality');
-
     var metricChips = METRICS.map(function (m) {
       var active = filters.metric === m.key ? ' active' : '';
       return '<button class="ffp-metric-chip' + active + '" data-metric="' + m.key + '">' +
@@ -274,31 +302,22 @@
       return '<button class="ffp-filter-chip' + active + '" data-gender="' + g + '">' + label + '</button>';
     }).join('');
 
-    function selectOptions(values, selected) {
-      var opts = '<option value="any"' + (selected === 'any' ? ' selected' : '') + '>Any</option>';
-      values.forEach(function (v) {
-        var s = v === selected ? ' selected' : '';
-        opts += '<option value="' + escAttr(v) + '"' + s + '>' + escText(v) + '</option>';
-      });
-      return opts;
+    function pickerFieldHtml(id, value, placeholder) {
+      var display = (value && value !== 'any') ? value : placeholder;
+      var hasVal = value && value !== 'any' ? ' has-value' : '';
+      return '<button class="ffp-picker-field' + hasVal + '" id="' + id + '" type="button">' +
+        '<span class="ffp-picker-field-val">' + escText(display) + '</span>' +
+        '<span class="material-icons">expand_more</span>' +
+      '</button>';
     }
 
     var customHidden = filters.ageMode === 'custom' ? '' : ' hidden';
 
     view.innerHTML =
-      // Data source banner (kept)
-      '<div class="fs-data-source">' +
-        '<span class="material-icons">info</span>' +
-        '<div>' +
-          '<div class="fs-data-source-title">You log these values yourself</div>' +
-          '<div class="fs-data-source-sub">Tap any metric to see the leaderboard. Wearable sync coming soon.</div>' +
-        '</div>' +
-      '</div>' +
-
       // Metric switcher
       '<div class="ffp-metric-strip" id="ffp-metric-strip">' + metricChips + '</div>' +
 
-      // My PR card (for selected metric)
+      // My PR card
       '<div class="ffp-my-pr-card" id="ffp-my-pr-card"></div>' +
 
       // Filters (collapsible)
@@ -312,13 +331,11 @@
         '</div>' +
         '<div class="ffp-filters-body" id="ffp-filters-body">' +
 
-          // Gender row
           '<div class="ffp-filter-row">' +
             '<div class="ffp-filter-label">Gender</div>' +
             '<div class="ffp-filter-chips" id="ffp-gender-chips">' + genderChips + '</div>' +
           '</div>' +
 
-          // Age row
           '<div class="ffp-filter-row">' +
             '<div class="ffp-filter-label">Age</div>' +
             '<div class="ffp-filter-chips" id="ffp-age-chips">' + ageChips + '</div>' +
@@ -329,25 +346,21 @@
             ' years' +
           '</div>' +
 
-          // City row
-          '<div class="ffp-filter-row">' +
-            '<div class="ffp-filter-label">City</div>' +
-            '<select class="ffp-filter-select" id="ffp-city-select">' + selectOptions(cities, filters.city) + '</select>' +
-          '</div>' +
-
-          // Country row
           '<div class="ffp-filter-row">' +
             '<div class="ffp-filter-label">Country</div>' +
-            '<select class="ffp-filter-select" id="ffp-country-select">' + selectOptions(countries, filters.country) + '</select>' +
+            pickerFieldHtml('ffp-country-field', filters.country, 'Any country') +
           '</div>' +
 
-          // Nationality row
+          '<div class="ffp-filter-row">' +
+            '<div class="ffp-filter-label">City</div>' +
+            pickerFieldHtml('ffp-city-field', filters.city, 'Any city') +
+          '</div>' +
+
           '<div class="ffp-filter-row">' +
             '<div class="ffp-filter-label">Nation</div>' +
-            '<select class="ffp-filter-select" id="ffp-nationality-select">' + selectOptions(nationalities, filters.nationality) + '</select>' +
+            pickerFieldHtml('ffp-nationality-field', filters.nationality, 'Any nationality') +
           '</div>' +
 
-          // Foot — sample size + reset
           '<div class="ffp-filters-foot">' +
             '<div class="ffp-filters-sample" id="ffp-sample-text">Showing <b>0</b> members</div>' +
             '<button class="ffp-filters-reset" id="ffp-filters-reset">Reset</button>' +
@@ -362,8 +375,171 @@
       '</div>' +
       '<div id="ffp-lb-container"></div>';
 
+    ensurePickerModal();
     bindRecordsHandlers();
     recordsBuilt = true;
+  }
+
+  // ─────────── PICKER MODAL (custom dark-themed dropdown) ───────────
+
+  function ensurePickerModal() {
+    if (document.getElementById('ffp-picker-backdrop')) return;
+    var html =
+      '<div class="ffp-picker-backdrop" id="ffp-picker-backdrop">' +
+        '<div class="ffp-picker-sheet" onclick="event.stopPropagation();">' +
+          '<div class="ffp-picker-head">' +
+            '<div class="ffp-picker-title" id="ffp-picker-title">Select</div>' +
+            '<button class="ffp-picker-close" id="ffp-picker-close" type="button">' +
+              '<span class="material-icons">close</span>' +
+            '</button>' +
+          '</div>' +
+          '<div class="ffp-picker-search">' +
+            '<input type="text" id="ffp-picker-search-input" placeholder="Search…">' +
+          '</div>' +
+          '<div class="ffp-picker-list" id="ffp-picker-list"></div>' +
+        '</div>' +
+      '</div>';
+    var wrap = document.createElement('div');
+    wrap.innerHTML = html;
+    document.body.appendChild(wrap.firstChild);
+    var backdrop = document.getElementById('ffp-picker-backdrop');
+    backdrop.addEventListener('click', function (e) {
+      if (e.target === backdrop) closePicker();
+    });
+    document.getElementById('ffp-picker-close').addEventListener('click', closePicker);
+    document.getElementById('ffp-picker-search-input').addEventListener('input', function () {
+      renderPickerList();
+    });
+  }
+
+  var pickerState = { items: [], current: null, onSelect: null, searchable: true, grouped: false };
+
+  function openPicker(title, items, current, onSelect, opts) {
+    opts = opts || {};
+    pickerState.items = items;
+    pickerState.current = current;
+    pickerState.onSelect = onSelect;
+    pickerState.grouped = !!opts.grouped;
+    document.getElementById('ffp-picker-title').textContent = title;
+    document.getElementById('ffp-picker-search-input').value = '';
+    renderPickerList();
+    document.getElementById('ffp-picker-backdrop').classList.add('open');
+    setTimeout(function () {
+      var input = document.getElementById('ffp-picker-search-input');
+      if (input) input.focus();
+    }, 50);
+  }
+  function closePicker() {
+    document.getElementById('ffp-picker-backdrop').classList.remove('open');
+    pickerState.onSelect = null;
+  }
+  function renderPickerList() {
+    var listEl = document.getElementById('ffp-picker-list');
+    if (!listEl) return;
+    var search = (document.getElementById('ffp-picker-search-input').value || '').toLowerCase().trim();
+    var items = pickerState.items;
+    var html = '';
+
+    if (pickerState.grouped) {
+      // items: [{ section: 'Middle East', items: ['UAE', 'Saudi Arabia', ...] }, ...]
+      items.forEach(function (group) {
+        var matchedItems = group.items.filter(function (it) {
+          return !search || it.label.toLowerCase().indexOf(search) !== -1;
+        });
+        if (matchedItems.length === 0) return;
+        html += '<div class="ffp-picker-section">' + escText(group.section) + '</div>';
+        matchedItems.forEach(function (it) {
+          var active = it.value === pickerState.current ? ' active' : '';
+          html += '<div class="ffp-picker-item' + active + '" data-value="' + escAttr(it.value) + '">' +
+            '<span>' + escText(it.label) + '</span>' +
+            (active ? '<span class="material-icons">check</span>' : '') +
+          '</div>';
+        });
+      });
+    } else {
+      var matched = items.filter(function (it) {
+        return !search || it.label.toLowerCase().indexOf(search) !== -1;
+      });
+      if (matched.length === 0) {
+        html = '<div class="ffp-picker-empty">No matches.</div>';
+      } else {
+        matched.forEach(function (it) {
+          var active = it.value === pickerState.current ? ' active' : '';
+          html += '<div class="ffp-picker-item' + active + '" data-value="' + escAttr(it.value) + '">' +
+            '<span>' + escText(it.label) + '</span>' +
+            (active ? '<span class="material-icons">check</span>' : '') +
+          '</div>';
+        });
+      }
+    }
+    listEl.innerHTML = html;
+    listEl.querySelectorAll('.ffp-picker-item').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var val = el.dataset.value;
+        if (pickerState.onSelect) pickerState.onSelect(val);
+        closePicker();
+      });
+    });
+  }
+
+  // ─────────── COUNTRY / CITY / NATIONALITY DATA SOURCES ───────────
+
+  function getCitiesDb() {
+    return (typeof CITIES_DB !== 'undefined' && CITIES_DB && typeof CITIES_DB === 'object') ? CITIES_DB : {};
+  }
+
+  // UAE-first country list, then alphabetical
+  function countryItemsList() {
+    var db = getCitiesDb();
+    var keys = Object.keys(db);
+    var UAE = 'United Arab Emirates';
+    var rest = keys.filter(function (k) { return k !== UAE; }).sort();
+    var ordered = (keys.indexOf(UAE) !== -1) ? [UAE].concat(rest) : rest;
+    var items = [{ value: 'any', label: 'Any country' }];
+    ordered.forEach(function (c) {
+      items.push({ value: c, label: c });
+    });
+    return items;
+  }
+
+  // Cities for the currently selected country, OR all cities flat if "any"
+  function cityItemsList(selectedCountry) {
+    var db = getCitiesDb();
+    var items = [{ value: 'any', label: 'Any city' }];
+    if (selectedCountry && selectedCountry !== 'any' && db[selectedCountry]) {
+      db[selectedCountry].slice().sort().forEach(function (city) {
+        items.push({ value: city, label: city });
+      });
+      return items;
+    }
+    // All cities flat, alphabetical, no duplicates
+    var seen = {};
+    Object.keys(db).forEach(function (country) {
+      (db[country] || []).forEach(function (city) {
+        if (!seen[city]) { seen[city] = true; items.push({ value: city, label: city + ' \u00b7 ' + country }); }
+      });
+    });
+    return items;
+  }
+
+  // Nationality — use country names as the option list (members type these themselves)
+  // Plus include any nationalities that exist in the current ranking pool
+  function nationalityItemsList() {
+    var seen = {};
+    var items = [{ value: 'any', label: 'Any nationality' }];
+    // Real nationalities from pool first
+    rankingPool.forEach(function (r) {
+      if (r.nationality && !seen[r.nationality]) {
+        seen[r.nationality] = true;
+        items.push({ value: r.nationality, label: r.nationality });
+      }
+    });
+    // Then country list as common nationality options
+    var db = getCitiesDb();
+    Object.keys(db).forEach(function (c) {
+      if (!seen[c]) { seen[c] = true; items.push({ value: c, label: c }); }
+    });
+    return items;
   }
 
   function bindRecordsHandlers() {
@@ -408,13 +584,51 @@
         renderRecordsContent();
       });
     });
-    // City / Country / Nationality selects
-    [['ffp-city-select','city'], ['ffp-country-select','country'], ['ffp-nationality-select','nationality']].forEach(function (pair) {
-      var el = document.getElementById(pair[0]);
+    // Country / City / Nationality — open picker modal
+    function updatePickerFieldDisplay(id, value, placeholder) {
+      var el = document.getElementById(id);
       if (!el) return;
-      el.addEventListener('change', function () {
-        filters[pair[1]] = el.value;
+      var valEl = el.querySelector('.ffp-picker-field-val');
+      if (valEl) {
+        valEl.textContent = (value && value !== 'any') ? value : placeholder;
+      }
+      el.classList.toggle('has-value', value && value !== 'any');
+    }
+    var countryBtn = document.getElementById('ffp-country-field');
+    if (countryBtn) countryBtn.addEventListener('click', function () {
+      openPicker('Select country', countryItemsList(), filters.country, function (val) {
+        filters.country = val;
+        // If user changes country, reset city (unless city belongs to the new country)
+        if (filters.city !== 'any' && val !== 'any') {
+          var db = getCitiesDb();
+          if (db[val] && db[val].indexOf(filters.city) === -1) filters.city = 'any';
+        }
         saveFilters();
+        updatePickerFieldDisplay('ffp-country-field', filters.country, 'Any country');
+        updatePickerFieldDisplay('ffp-city-field', filters.city, 'Any city');
+        renderRecordsContent();
+      });
+    });
+    var cityBtn = document.getElementById('ffp-city-field');
+    if (cityBtn) cityBtn.addEventListener('click', function () {
+      openPicker(
+        filters.country !== 'any' ? 'Select city in ' + filters.country : 'Select any city',
+        cityItemsList(filters.country),
+        filters.city,
+        function (val) {
+          filters.city = val;
+          saveFilters();
+          updatePickerFieldDisplay('ffp-city-field', filters.city, 'Any city');
+          renderRecordsContent();
+        }
+      );
+    });
+    var natBtn = document.getElementById('ffp-nationality-field');
+    if (natBtn) natBtn.addEventListener('click', function () {
+      openPicker('Select nationality', nationalityItemsList(), filters.nationality, function (val) {
+        filters.nationality = val;
+        saveFilters();
+        updatePickerFieldDisplay('ffp-nationality-field', filters.nationality, 'Any nationality');
         renderRecordsContent();
       });
     });
