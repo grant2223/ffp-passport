@@ -1,8 +1,8 @@
-/* FFP Calorie Tracker Loader — v1
+/* FFP Calorie Tracker Loader — v2
    Wires CalorieTracker module in ffp-member-dashboard.html to Supabase.
-   Reads:  profile_meta (goal config), activity_logs (today), food_logs (today)
+   Reads:  profile_meta (goal), activity_logs (today + 29 days back), food_logs (today + 29 days back)
    Writes: confirmAddActivity, removeActivity, confirmAdd, removeItem, saveGoalConfig
-   Week + 30-day tabs keep sample data in v1 (aggregation wired in v2).
+   v2 adds Week tab + 30-day tab aggregation (rolling, real data).
 */
 (function () {
   'use strict';
@@ -10,6 +10,8 @@
   var MAX_RETRIES = 30;
   var currentUserId = null;
   var wrapped = false;
+
+  var DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
   function injectStyles() {
     if (document.getElementById('ffp-calorie-tracker-loader-styles')) return;
@@ -25,6 +27,21 @@
     var d = new Date();
     d.setHours(0, 0, 0, 0);
     return d.toISOString();
+  }
+  function startOf30DaysAgoIso() {
+    var d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - 29);
+    return d.toISOString();
+  }
+  function localDateKey(date) {
+    var y = date.getFullYear();
+    var m = String(date.getMonth() + 1).padStart(2, '0');
+    var day = String(date.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + day;
+  }
+  function localDateKeyFromIso(iso) {
+    return localDateKey(new Date(iso));
   }
 
   // activity_factor numeric ↔ 'low'/'mod'/'high' label
@@ -69,9 +86,42 @@
     };
   }
 
-  // DB meal value 'snack' ↔ dashboard key 'snacks' (the rest match)
-  function dbMealToKey(m)  { return m === 'snack'  ? 'snacks' : m; }
-  function keyToDbMeal(k)  { return k === 'snacks' ? 'snack'  : k; }
+  function dbMealToKey(m) { return m === 'snack'  ? 'snacks' : m; }
+  function keyToDbMeal(k) { return k === 'snacks' ? 'snack'  : k; }
+
+  // Build rolling history arrays from raw rows (last 29 days before today)
+  function buildHistory(foodRows, activityRows) {
+    var intakeByDay = {};
+    var burnedByDay = {};
+    (foodRows || []).forEach(function (r) {
+      var k = localDateKeyFromIso(r.logged_at);
+      intakeByDay[k] = (intakeByDay[k] || 0) + (r.calories || 0);
+    });
+    (activityRows || []).forEach(function (r) {
+      var k = localDateKeyFromIso(r.logged_at);
+      burnedByDay[k] = (burnedByDay[k] || 0) + (r.calories || 0);
+    });
+
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    var monthHistory = [];
+    var weekHistory = [];
+
+    for (var i = 29; i >= 1; i--) {
+      var d = new Date(today);
+      d.setDate(today.getDate() - i);
+      var key = localDateKey(d);
+      var dayLabel = DAY_NAMES[d.getDay()];
+      var dateNum = d.getDate();
+      var intake = intakeByDay[key] || 0;
+      var burned = burnedByDay[key] || 0;
+      monthHistory.push({ idx: -i, intake: intake, burned: burned });
+      if (i <= 6) weekHistory.push({ day: dayLabel, date: dateNum, intake: intake, burned: burned });
+    }
+
+    return { weekHistory: weekHistory, monthHistory: monthHistory };
+  }
 
   async function loadFromSupabase() {
     if (!window.supabase || typeof CalorieTracker === 'undefined') {
@@ -88,7 +138,7 @@
       }
       currentUserId = userRes.data.user.id;
 
-      // 1. Goal config from profile_meta
+      // 1. Goal from profile_meta
       var pm = await window.supabase
         .from('profile_meta')
         .select('current_weight_kg, target_weight_kg, target_weeks, activity_factor')
@@ -105,36 +155,37 @@
       }
 
       var today = startOfTodayIso();
+      var thirtyDays = startOf30DaysAgoIso();
 
-      // 2. Today's activity_logs
-      var aRes = await window.supabase
+      // 2. Today's activity_logs (full detail for live list)
+      var aTodayRes = await window.supabase
         .from('activity_logs')
         .select('id, activity, category, duration_min, calories, logged_at')
         .eq('member_id', currentUserId)
         .gte('logged_at', today)
         .order('logged_at', { ascending: true });
 
-      if (aRes.error) {
-        console.error('[FFP Calorie Tracker] activity_logs read:', aRes.error);
+      if (aTodayRes.error) {
+        console.error('[FFP Calorie Tracker] activity_logs (today) read:', aTodayRes.error);
       } else {
-        var arows = aRes.data || [];
+        var arows = aTodayRes.data || [];
         CalorieTracker.activities = arows.map(function (r, i) { return mapActivityRow(r, i + 1); });
         CalorieTracker._nextActId = CalorieTracker.activities.length + 1;
       }
 
-      // 3. Today's food_logs
-      var fRes = await window.supabase
+      // 3. Today's food_logs (full detail for live meals)
+      var fTodayRes = await window.supabase
         .from('food_logs')
         .select('id, meal, food_name, calories, protein_g, carbs_g, fat_g, logged_at')
         .eq('member_id', currentUserId)
         .gte('logged_at', today)
         .order('logged_at', { ascending: true });
 
-      if (fRes.error) {
-        console.error('[FFP Calorie Tracker] food_logs read:', fRes.error);
+      if (fTodayRes.error) {
+        console.error('[FFP Calorie Tracker] food_logs (today) read:', fTodayRes.error);
       } else {
         var meals = { breakfast: [], lunch: [], dinner: [], snacks: [] };
-        (fRes.data || []).forEach(function (r) {
+        (fTodayRes.data || []).forEach(function (r) {
           var item = mapFoodRow(r);
           if (!item) return;
           var key = dbMealToKey(r.meal);
@@ -143,10 +194,46 @@
         CalorieTracker.meals = meals;
       }
 
-      // 4. Wrap writes (only once)
+      // 4. 30-day aggregation — just calories + logged_at, last 29 days BEFORE today
+      var aHistRes = await window.supabase
+        .from('activity_logs')
+        .select('calories, logged_at')
+        .eq('member_id', currentUserId)
+        .gte('logged_at', thirtyDays)
+        .lt('logged_at', today);
+
+      var fHistRes = await window.supabase
+        .from('food_logs')
+        .select('calories, logged_at')
+        .eq('member_id', currentUserId)
+        .gte('logged_at', thirtyDays)
+        .lt('logged_at', today);
+
+      if (aHistRes.error) console.error('[FFP Calorie Tracker] activity_logs (history) read:', aHistRes.error);
+      if (fHistRes.error) console.error('[FFP Calorie Tracker] food_logs (history) read:', fHistRes.error);
+
+      var history = buildHistory(fHistRes.data || [], aHistRes.data || []);
+      CalorieTracker.weekHistory  = history.weekHistory;
+      CalorieTracker.monthHistory = history.monthHistory;
+
+      // 5. Override todayDayStat() so day/date reflect actual today (was hardcoded Sun 28)
+      var now = new Date();
+      var todayDayName = DAY_NAMES[now.getDay()];
+      var todayDateNum = now.getDate();
+      CalorieTracker.todayDayStat = function () {
+        return {
+          day: todayDayName,
+          date: todayDateNum,
+          intake: this.totals().kcal,
+          burned: this.activitiesTotal(),
+          isToday: true
+        };
+      };
+
+      // 6. Wrap writes (once)
       wrapWrites();
 
-      // 5. Re-render if Calorie Tracker panel is visible
+      // 7. Re-render if Calorie Tracker panel is visible
       var panel = document.getElementById('panel-calorie-tracker');
       if (panel && panel.classList.contains('active') && typeof CalorieTracker.render === 'function') {
         CalorieTracker.render();
