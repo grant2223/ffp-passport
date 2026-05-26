@@ -14,64 +14,99 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 .wrap{width:100%;max-width:480px;}
 
 /* Header */
-.logo{text-align:center;margin-bottom:32px;}
+.logo{text-align:center;margin-bottom:28px;}
 .logo-brand{font-size:20px;font-weight:900;letter-spacing:3px;}
 .logo-brand span{color:#2ba8e0;}
 .logo-sub{font-size:10px;font-weight:700;color:#6a90a8;letter-spacing:2px;text-transform:uppercase;margin-top:5px;}
 
-.welcome{text-align:center;margin-bottom:28px;}
+.welcome{text-align:center;margin-bottom:22px;}
 .welcome-h{font-size:24px;font-weight:900;margin-bottom:6px;letter-spacing:-.3px;}
 .welcome-sub{font-size:13px;color:#9dbdd0;line-height:1.6;}
 
-/* Section */
-.section{margin-bottom:28px;}
-.section-label{font-size:10px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#2ba8e0;margin-bottom:14px;}
+/* Progress */
+.progress{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:28px;font-size:10px;font-weight:800;color:#6a90a8;letter-spacing:1.5px;text-transform:uppercase;}
+.progress-step{display:flex;align-items:center;gap:6px;}
+.progress-dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;background:rgba(43,168,224,.15);border:1.5px solid rgba(43,168,224,.3);color:#6a90a8;}
+.progress-dot.active{background:#2ba8e0;border-color:#2ba8e0;color:#fff;}
+.progress-dot.done{background:#22c55e;border-color:#22c55e;color:#fff;}
+.progress-line{width:24px;height:1.5px;background:rgba(43,168,224,.2);}
+.progress-line.done{background:#22c55e;}
 
-/* Field */
-.field{margin-bottom:14px;}
+/* Section + fields */
+.section-label{font-size:10px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#2ba8e0;margin-bottom:14px;}
 .field-label{font-size:10px;font-weight:800;color:#6a90a8;letter-spacing:1px;text-transform:uppercase;margin-bottom:7px;}
-.field-input,.field-select{width:100%;background:rgba(43,168,224,.06);border:1px solid rgba(43,168,224,.2);border-radius:10px;padding:13px 16px;font-size:15px;font-weight:600;color:#fff;font-family:'Montserrat',sans-serif;outline:none;transition:border-color .15s;}
+.field-input,.field-select{width:100%;background:rgba(43,168,224,.06);border:1px solid rgba(43,168,224,.2);border-radius:10px;padding:13px 16px;font-size:15px;font-weight:600;color:#fff;font-family:'Montserrat',sans-serif;outline:none;transition:border-color .15s;height:48px;}
 .field-input:focus,.field-select:focus{border-color:#2ba8e0;}
 .field-input::placeholder{color:#6a90a8;font-weight:500;}
+.field-input[type="date"]{font-family:'Montserrat',sans-serif;color-scheme:dark;}
+.field-input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(60%) sepia(15%) saturate(800%) hue-rotate(170deg);cursor:pointer;}
 .field-select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236a90a8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");background-position:right 14px center;background-repeat:no-repeat;background-size:14px;padding-right:40px;cursor:pointer;}
 .field-select option{background:#0b1c28;color:#fff;}
-.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-@media(max-width:380px){.field-row{grid-template-columns:1fr;}}
 
-/* Sport chips */
-.sport-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px;}
-@media(min-width:480px){.sport-grid{grid-template-columns:repeat(3,1fr);}}
-.sport-chip{background:rgba(43,168,224,.05);border:1.5px solid rgba(43,168,224,.18);border-radius:10px;padding:11px 12px;font-size:13px;font-weight:700;color:#9dbdd0;cursor:pointer;transition:all .15s;text-align:center;display:flex;align-items:center;justify-content:center;gap:6px;min-height:46px;font-family:'Montserrat',sans-serif;}
-.sport-chip:hover{border-color:rgba(43,168,224,.4);color:#fff;}
-.sport-chip.selected{background:rgba(43,168,224,.15);border-color:#2ba8e0;color:#fff;}
-.sport-chip .checkmark{display:none;width:14px;height:14px;background:#2ba8e0;border-radius:50%;align-items:center;justify-content:center;flex-shrink:0;}
-.sport-chip.selected .checkmark{display:inline-flex;}
-.sport-chip .checkmark svg{width:8px;height:8px;}
-
-/* Selected sports with skill level */
-.selected-list{margin-top:18px;}
-.selected-empty{padding:18px;text-align:center;font-size:12px;color:#6a90a8;border:1px dashed rgba(43,168,224,.2);border-radius:10px;background:rgba(43,168,224,.03);}
-.selected-row{display:flex;align-items:center;gap:10px;background:rgba(43,168,224,.06);border:1px solid rgba(43,168,224,.18);border-radius:10px;padding:10px 12px;margin-bottom:8px;}
-.selected-name{flex:1;font-size:13px;font-weight:700;color:#fff;}
-.selected-level{background:rgba(11,28,40,.6);border:1px solid rgba(43,168,224,.25);border-radius:7px;padding:6px 28px 6px 10px;font-size:11px;font-weight:700;color:#fff;font-family:'Montserrat',sans-serif;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236a90a8' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>");background-position:right 8px center;background-repeat:no-repeat;background-size:10px;cursor:pointer;}
-.selected-remove{background:none;border:none;color:#6a90a8;cursor:pointer;padding:4px;display:flex;align-items:center;}
-.selected-remove:hover{color:#ef4444;}
+/* All field rows use the same 2-col grid */
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+@media(max-width:400px){.field-grid{grid-template-columns:1fr;}}
+.field-cell .field-label{margin-bottom:7px;}
 
 /* Buttons */
-.btn-primary{display:block;width:100%;padding:15px;border-radius:12px;font-size:15px;font-weight:800;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;color:#fff;background:#2ba8e0;transition:background .15s;text-align:center;margin-top:8px;}
+.btn-primary{display:flex;align-items:center;justify-content:center;width:100%;padding:15px;border-radius:12px;font-size:15px;font-weight:800;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;color:#fff;background:#2ba8e0;transition:background .15s;text-align:center;gap:8px;margin-top:8px;}
 .btn-primary:hover{background:#1980AD;}
 .btn-primary:disabled{opacity:.5;cursor:not-allowed;}
+.btn-secondary{display:flex;align-items:center;justify-content:center;width:100%;padding:13px;border-radius:12px;font-size:14px;font-weight:700;border:1.5px solid rgba(43,168,224,.3);cursor:pointer;font-family:'Montserrat',sans-serif;color:#9dbdd0;background:transparent;transition:all .15s;text-align:center;gap:8px;}
+.btn-secondary:hover{border-color:#2ba8e0;color:#fff;}
+.btn-back{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#6a90a8;background:none;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;padding:0;margin-bottom:20px;}
+.btn-back:hover{color:#2ba8e0;}
 
-/* Progress */
-.progress{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:24px;font-size:11px;font-weight:700;color:#6a90a8;letter-spacing:1px;text-transform:uppercase;}
-.progress-bar{flex:1;max-width:120px;height:4px;background:rgba(43,168,224,.15);border-radius:2px;overflow:hidden;}
-.progress-fill{height:100%;background:linear-gradient(90deg,#1980AD,#2ba8e0);border-radius:2px;transition:width .3s;}
+/* Step views */
+.step{display:none;}
+.step.active{display:block;animation:fadeIn .25s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+/* Step 2: Sports list */
+.sports-helper{font-size:12px;color:#9dbdd0;margin-bottom:18px;line-height:1.6;}
+.sports-list{margin-bottom:14px;}
+.sport-row{display:flex;align-items:center;gap:12px;background:rgba(43,168,224,.08);border:1px solid rgba(43,168,224,.22);border-radius:11px;padding:13px 14px;margin-bottom:8px;}
+.sport-row-info{flex:1;}
+.sport-row-name{font-size:14px;font-weight:800;color:#fff;}
+.sport-row-level{font-size:11px;font-weight:700;color:#2ba8e0;margin-top:2px;letter-spacing:.5px;text-transform:uppercase;}
+.sport-row-edit{background:none;border:none;color:#6a90a8;cursor:pointer;padding:6px;display:flex;align-items:center;border-radius:6px;transition:color .15s;}
+.sport-row-edit:hover{color:#2ba8e0;}
+.sport-row-remove{background:none;border:none;color:#6a90a8;cursor:pointer;padding:6px;display:flex;align-items:center;border-radius:6px;transition:color .15s;}
+.sport-row-remove:hover{color:#ef4444;}
+.sports-empty{padding:24px;text-align:center;font-size:12px;color:#6a90a8;border:1px dashed rgba(43,168,224,.22);border-radius:11px;background:rgba(43,168,224,.03);margin-bottom:12px;line-height:1.6;}
+
+/* Sport picker overlay (in-page) */
+.picker{display:none;position:fixed;inset:0;background:#081420;z-index:100;overflow-y:auto;padding:32px 20px 60px;}
+.picker.active{display:block;animation:fadeIn .2s ease;}
+.picker-wrap{width:100%;max-width:480px;margin:0 auto;}
+.picker-title{font-size:22px;font-weight:900;margin-bottom:6px;letter-spacing:-.3px;}
+.picker-sub{font-size:13px;color:#9dbdd0;margin-bottom:24px;line-height:1.6;}
+
+/* Sport grid */
+.sport-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px;}
+@media(min-width:480px){.sport-grid{grid-template-columns:repeat(3,1fr);}}
+.sport-chip{background:rgba(43,168,224,.05);border:1.5px solid rgba(43,168,224,.18);border-radius:11px;padding:14px 12px;font-size:13px;font-weight:700;color:#9dbdd0;cursor:pointer;transition:all .15s;text-align:center;min-height:52px;display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif;}
+.sport-chip:hover{border-color:#2ba8e0;color:#fff;background:rgba(43,168,224,.1);}
+.sport-chip:disabled{opacity:.35;cursor:not-allowed;}
+.sport-chip:disabled:hover{border-color:rgba(43,168,224,.18);color:#9dbdd0;background:rgba(43,168,224,.05);}
+
+/* Level cards (stacked) */
+.level-list{display:flex;flex-direction:column;gap:10px;margin-bottom:18px;}
+.level-card{background:rgba(43,168,224,.05);border:1.5px solid rgba(43,168,224,.18);border-radius:12px;padding:16px;cursor:pointer;transition:all .15s;display:flex;align-items:flex-start;gap:14px;}
+.level-card:hover{border-color:#2ba8e0;background:rgba(43,168,224,.08);}
+.level-card.selected{border-color:#2ba8e0;background:rgba(43,168,224,.12);}
+.level-radio{width:20px;height:20px;border-radius:50%;border:2px solid rgba(43,168,224,.4);flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.level-card.selected .level-radio{border-color:#2ba8e0;background:#2ba8e0;}
+.level-card.selected .level-radio::after{content:"";width:7px;height:7px;border-radius:50%;background:#fff;}
+.level-info{flex:1;}
+.level-name{font-size:14px;font-weight:800;color:#fff;margin-bottom:3px;letter-spacing:.2px;}
+.level-desc{font-size:12px;color:#9dbdd0;line-height:1.5;font-weight:500;}
 
 /* Error msg */
 .error-msg{color:#ef4444;font-size:12px;font-weight:700;margin-top:10px;text-align:center;min-height:18px;}
 
 /* Loading */
-.loading-screen{position:fixed;inset:0;background:#081420;display:flex;align-items:center;justify-content:center;z-index:100;}
+.loading-screen{position:fixed;inset:0;background:#081420;display:flex;align-items:center;justify-content:center;z-index:200;}
 .spinner{width:32px;height:32px;border:3px solid rgba(43,168,224,.2);border-top-color:#2ba8e0;border-radius:50%;animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .hidden{display:none !important;}
@@ -96,91 +131,137 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
   <div class="welcome-sub">Let's complete your passport. Takes 2 minutes.</div>
 </div>
 
-<div class="progress">
-  <span>Step 1 of 1</span>
-  <div class="progress-bar"><div class="progress-fill" style="width:50%;" id="progress-fill"></div></div>
-  <span id="progress-pct">50%</span>
+<div class="progress" id="progress">
+  <div class="progress-step">
+    <div class="progress-dot active" id="dot-1">1</div>
+    <span>Personal</span>
+  </div>
+  <div class="progress-line" id="line-1"></div>
+  <div class="progress-step">
+    <div class="progress-dot" id="dot-2">2</div>
+    <span>Sports</span>
+  </div>
 </div>
 
-<!-- ─── PERSONAL ─── -->
-<div class="section">
-  <div class="section-label">Personal Details</div>
 
-  <div class="field-row">
-    <div class="field">
-      <div class="field-label">Surname</div>
-      <input class="field-input" type="text" id="f-surname" placeholder="Goes" autocomplete="family-name">
-    </div>
-    <div class="field">
-      <div class="field-label">Given Names</div>
-      <input class="field-input" type="text" id="f-given" placeholder="Grant" autocomplete="given-name">
-    </div>
+<!-- ─────────────────────────────────────────────────────────────────
+     STEP 1 — PERSONAL DETAILS
+───────────────────────────────────────────────────────────────── -->
+<div class="step active" id="step-1">
+
+<div class="section-label">Personal Details</div>
+
+<div class="field-grid">
+  <div class="field-cell">
+    <div class="field-label">Surname</div>
+    <input class="field-input" type="text" id="f-surname" placeholder="Goes" autocomplete="family-name">
   </div>
+  <div class="field-cell">
+    <div class="field-label">Given Names</div>
+    <input class="field-input" type="text" id="f-given" placeholder="Grant" autocomplete="given-name">
+  </div>
+</div>
 
-  <div class="field">
+<div class="field-grid">
+  <div class="field-cell">
     <div class="field-label">Date of Birth</div>
     <input class="field-input" type="date" id="f-dob" max="2010-01-01">
   </div>
-
-  <div class="field">
+  <div class="field-cell">
     <div class="field-label">Nationality</div>
     <select class="field-select" id="f-nationality">
-      <option value="">Select your nationality</option>
+      <option value="">Select</option>
     </select>
   </div>
+</div>
 
-  <div class="field">
+<div class="field-grid">
+  <div class="field-cell">
+    <div class="field-label">Country</div>
+    <select class="field-select" id="f-country">
+      <option value="">Select</option>
+    </select>
+  </div>
+  <div class="field-cell">
     <div class="field-label">City</div>
     <select class="field-select" id="f-city">
-      <option value="">Select your city</option>
-      <optgroup label="UAE">
-        <option value="Dubai">Dubai</option>
-        <option value="Abu Dhabi">Abu Dhabi</option>
-        <option value="Sharjah">Sharjah</option>
-        <option value="Ras Al Khaimah">Ras Al Khaimah</option>
-        <option value="Ajman">Ajman</option>
-        <option value="Fujairah">Fujairah</option>
-        <option value="Umm Al Quwain">Umm Al Quwain</option>
-        <option value="Al Ain">Al Ain</option>
-      </optgroup>
-      <optgroup label="Worldwide">
-        <option value="London">London</option>
-        <option value="New York">New York</option>
-        <option value="Cape Town">Cape Town</option>
-        <option value="Johannesburg">Johannesburg</option>
-        <option value="Sydney">Sydney</option>
-        <option value="Singapore">Singapore</option>
-        <option value="Hong Kong">Hong Kong</option>
-        <option value="Bangkok">Bangkok</option>
-        <option value="Mumbai">Mumbai</option>
-        <option value="Riyadh">Riyadh</option>
-        <option value="Doha">Doha</option>
-        <option value="Other">Other</option>
-      </optgroup>
+      <option value="">Select country first</option>
     </select>
   </div>
 </div>
 
-<!-- ─── SPORTS ─── -->
-<div class="section">
-  <div class="section-label">Your Sports</div>
-  <div style="font-size:12px;color:#9dbdd0;margin-bottom:14px;line-height:1.6;">Tap to add sports you play or want to play. Pick at least one.</div>
+<button class="btn-primary" onclick="goToStep2()">
+  Continue
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
+</button>
+<div class="error-msg" id="step1-err"></div>
 
+</div>
+
+
+<!-- ─────────────────────────────────────────────────────────────────
+     STEP 2 — YOUR SPORTS
+───────────────────────────────────────────────────────────────── -->
+<div class="step" id="step-2">
+
+<button class="btn-back" onclick="goToStep1()">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
+  Back
+</button>
+
+<div class="section-label">Your Sports</div>
+<div class="sports-helper">Add the sports you play and rate your level. Pick at least one — you can change these later.</div>
+
+<div class="sports-list" id="sports-list"></div>
+
+<button class="btn-secondary" onclick="openSportPicker()">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  <span id="add-btn-label">Add a Sport</span>
+</button>
+
+<button class="btn-primary" id="submit-btn" onclick="submitProfile()" style="margin-top:24px;">
+  Complete Profile
+</button>
+<div class="error-msg" id="step2-err"></div>
+
+</div>
+
+</div>
+</div>
+
+
+<!-- ─────────────────────────────────────────────────────────────────
+     SPORT PICKER OVERLAY
+───────────────────────────────────────────────────────────────── -->
+<div class="picker" id="picker">
+<div class="picker-wrap">
+
+<button class="btn-back" onclick="closeSportPicker()" id="picker-back-btn">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
+  Back
+</button>
+
+<!-- Stage A: Pick a sport -->
+<div id="picker-stage-sport">
+  <div class="picker-title">Choose a Sport</div>
+  <div class="picker-sub">Pick one to add to your profile.</div>
   <div class="sport-grid" id="sport-grid"></div>
-
-  <div class="selected-list" id="selected-list">
-    <div class="selected-empty">Select sports above to set your level</div>
-  </div>
 </div>
 
-<button class="btn-primary" id="submit-btn" onclick="submitProfile()">Complete Profile</button>
-<div class="error-msg" id="error-msg"></div>
+<!-- Stage B: Pick a level -->
+<div id="picker-stage-level" style="display:none;">
+  <div class="picker-title">Your <span id="picker-sport-name"></span> level</div>
+  <div class="picker-sub">Be honest — this helps us match you with the right people and events.</div>
+  <div class="level-list" id="level-list"></div>
+  <button class="btn-primary" id="confirm-level-btn" onclick="confirmLevel()" disabled>Confirm</button>
+</div>
 
 </div>
 </div>
+
 
 <script>
-// ─── Sport catalogue ──────────────────────────────────────────────────────
+// ─── Sport catalogue ─────────────────────────────────────────────────────
 var SPORTS = [
   { id: 'running',       name: 'Running' },
   { id: 'cycling',       name: 'Cycling' },
@@ -210,8 +291,16 @@ var SPORTS = [
   { id: 'golf',          name: 'Golf' }
 ];
 
-var FITNESS_LEVELS = ['Beginner','Intermediate','Advanced','Elite','Professional'];
+// ─── Fitness levels with descriptions ────────────────────────────────────
+var LEVELS = [
+  { id: 'Beginner',     desc: 'New to this. Still learning the basics and getting comfortable.' },
+  { id: 'Intermediate', desc: 'Confident with fundamentals. Regular practice, building consistency.' },
+  { id: 'Advanced',     desc: 'Strong technique. Train consistently. Compete at club or city level.' },
+  { id: 'Elite',        desc: 'Highly competitive. Compete at national or international level.' },
+  { id: 'Professional', desc: 'This is your career. Sponsored or earn income from this sport.' }
+];
 
+// ─── Nationalities ───────────────────────────────────────────────────────
 var NATIONALITIES = [
   'Emirati','American','British','Australian','Canadian','South African','Indian',
   'Pakistani','Filipino','Egyptian','Jordanian','Lebanese','Syrian','Iranian',
@@ -224,17 +313,51 @@ var NATIONALITIES = [
   'New Zealander','Irish','Scottish','Welsh','Other'
 ];
 
+// ─── Countries with their cities ─────────────────────────────────────────
+var COUNTRIES = {
+  'United Arab Emirates': ['Dubai','Abu Dhabi','Sharjah','Ras Al Khaimah','Ajman','Fujairah','Umm Al Quwain','Al Ain'],
+  'Saudi Arabia':         ['Riyadh','Jeddah','Mecca','Medina','Dammam','Khobar'],
+  'Qatar':                ['Doha','Al Rayyan','Lusail'],
+  'Bahrain':              ['Manama','Muharraq','Riffa'],
+  'Kuwait':               ['Kuwait City','Salmiya','Hawalli'],
+  'Oman':                 ['Muscat','Salalah','Sohar'],
+  'United Kingdom':       ['London','Manchester','Birmingham','Edinburgh','Glasgow','Bristol','Leeds','Liverpool'],
+  'United States':        ['New York','Los Angeles','Miami','Chicago','San Francisco','Boston','Austin','Seattle'],
+  'Canada':               ['Toronto','Vancouver','Montreal','Calgary','Ottawa'],
+  'Australia':            ['Sydney','Melbourne','Brisbane','Perth','Adelaide','Gold Coast'],
+  'New Zealand':          ['Auckland','Wellington','Christchurch'],
+  'South Africa':         ['Cape Town','Johannesburg','Durban','Pretoria'],
+  'India':                ['Mumbai','Delhi','Bangalore','Hyderabad','Chennai','Kolkata','Pune'],
+  'Pakistan':             ['Karachi','Lahore','Islamabad'],
+  'Philippines':          ['Manila','Cebu City','Davao'],
+  'Egypt':                ['Cairo','Alexandria','Giza'],
+  'France':               ['Paris','Lyon','Marseille','Nice'],
+  'Germany':              ['Berlin','Munich','Hamburg','Frankfurt'],
+  'Italy':                ['Rome','Milan','Naples','Florence'],
+  'Spain':                ['Madrid','Barcelona','Valencia','Seville'],
+  'Netherlands':          ['Amsterdam','Rotterdam','The Hague'],
+  'Singapore':            ['Singapore'],
+  'Hong Kong':            ['Hong Kong'],
+  'Thailand':             ['Bangkok','Phuket','Chiang Mai'],
+  'Brazil':               ['São Paulo','Rio de Janeiro','Brasília'],
+  'Other':                ['Other']
+};
+
+
 // ─── State ───────────────────────────────────────────────────────────────
-var selectedSports = {};  // { sportId: 'Beginner', ... }
+var selectedSports = {};       // { sportId: 'Beginner', ... }
 var currentMember = null;
+var pickerMode = null;         // 'add' or 'edit'
+var pickerSportId = null;
+var pickerLevel = null;
+
 
 // ─── Init ────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', initialise);
 
 async function initialise() {
-  // Check auth and load member
   if (!window.supabase || !window.supabase.auth) {
-    showError('Supabase not loaded. Refresh the page.');
+    showError('step1-err', 'Supabase not loaded. Refresh the page.');
     return;
   }
 
@@ -251,180 +374,294 @@ async function initialise() {
     .single();
 
   if (memberRes.error || !memberRes.data) {
-    showError('Could not load your profile. ' + (memberRes.error && memberRes.error.message ? memberRes.error.message : ''));
+    showError('step1-err', 'Could not load profile. ' + (memberRes.error && memberRes.error.message ? memberRes.error.message : ''));
     return;
   }
 
   currentMember = memberRes.data;
 
-  // If already complete, just go to dashboard
   if (currentMember.profile_complete) {
     window.location.href = 'ffp-member-dashboard.html';
     return;
   }
 
-  // Pre-fill from Stripe data
-  populateForm();
-  buildSportsGrid();
   populateNationalities();
+  populateCountries();
+  populateForm();
+  buildSportGrid();
+  buildLevelList();
 
   document.getElementById('loading-screen').classList.add('hidden');
   document.getElementById('main-page').classList.remove('hidden');
 }
 
 function populateForm() {
-  // Split full_name into given_names + surname if those columns are empty
-  var greet = document.getElementById('greet-name');
-  var firstWord = '';
-  if (currentMember.full_name) {
-    firstWord = currentMember.full_name.trim().split(' ')[0];
-    greet.textContent = firstWord || 'there';
-  }
   var fn = currentMember.full_name ? currentMember.full_name.trim() : '';
+  var firstWord = fn.split(' ')[0] || 'there';
+  document.getElementById('greet-name').textContent = firstWord;
+
   var parts = fn.split(' ');
-  document.getElementById('f-given').value = currentMember.given_names || (parts.length > 1 ? parts.slice(0, -1).join(' ') : parts[0] || '');
   document.getElementById('f-surname').value = currentMember.surname || (parts.length > 1 ? parts[parts.length - 1] : '');
+  document.getElementById('f-given').value = currentMember.given_names || (parts.length > 1 ? parts.slice(0, -1).join(' ') : parts[0] || '');
   if (currentMember.date_of_birth) document.getElementById('f-dob').value = currentMember.date_of_birth;
-  if (currentMember.city) document.getElementById('f-city').value = currentMember.city;
+  if (currentMember.nationality) document.getElementById('f-nationality').value = currentMember.nationality;
+  if (currentMember.country) {
+    document.getElementById('f-country').value = currentMember.country;
+    onCountryChange();
+    if (currentMember.city) document.getElementById('f-city').value = currentMember.city;
+  }
 }
 
 function populateNationalities() {
   var sel = document.getElementById('f-nationality');
-  NATIONALITIES.sort().forEach(function (n) {
+  NATIONALITIES.slice().sort().forEach(function (n) {
     var opt = document.createElement('option');
-    opt.value = n;
-    opt.textContent = n;
+    opt.value = n; opt.textContent = n;
     sel.appendChild(opt);
   });
-  if (currentMember.nationality) sel.value = currentMember.nationality;
 }
 
-function buildSportsGrid() {
-  var grid = document.getElementById('sport-grid');
-  grid.innerHTML = SPORTS.map(function (s) {
-    return '<div class="sport-chip" data-sport="' + s.id + '" onclick="toggleSport(\'' + s.id + '\')">' +
-           '<span class="checkmark"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>' +
-           '<span>' + s.name + '</span>' +
-           '</div>';
-  }).join('');
-}
-
-function toggleSport(sportId) {
-  if (selectedSports[sportId]) {
-    delete selectedSports[sportId];
-  } else {
-    selectedSports[sportId] = 'Beginner';
-  }
-  renderSports();
-  updateProgress();
-}
-
-function renderSports() {
-  // Update chip selection state
-  document.querySelectorAll('.sport-chip').forEach(function (chip) {
-    var id = chip.dataset.sport;
-    if (selectedSports[id]) chip.classList.add('selected');
-    else chip.classList.remove('selected');
+function populateCountries() {
+  var sel = document.getElementById('f-country');
+  Object.keys(COUNTRIES).forEach(function (c) {
+    var opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    sel.appendChild(opt);
   });
+  sel.addEventListener('change', onCountryChange);
+}
 
-  // Update selected list
-  var list = document.getElementById('selected-list');
-  var ids = Object.keys(selectedSports);
-  if (ids.length === 0) {
-    list.innerHTML = '<div class="selected-empty">Select sports above to set your level</div>';
+function onCountryChange() {
+  var country = document.getElementById('f-country').value;
+  var citySel = document.getElementById('f-city');
+  citySel.innerHTML = '<option value="">Select your city</option>';
+  if (!country || !COUNTRIES[country]) {
+    citySel.querySelector('option').textContent = 'Select country first';
     return;
   }
-  list.innerHTML = ids.map(function (id) {
-    var s = SPORTS.find(function (sp) { return sp.id === id; });
-    if (!s) return '';
-    var level = selectedSports[id];
-    var opts = FITNESS_LEVELS.map(function (lv) {
-      return '<option value="' + lv + '"' + (lv === level ? ' selected' : '') + '>' + lv + '</option>';
-    }).join('');
-    return '<div class="selected-row">' +
-           '<span class="selected-name">' + s.name + '</span>' +
-           '<select class="selected-level" onchange="setLevel(\'' + id + '\', this.value)">' + opts + '</select>' +
-           '<button class="selected-remove" onclick="toggleSport(\'' + id + '\')" title="Remove">' +
-           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
-           '</button>' +
+  COUNTRIES[country].forEach(function (city) {
+    var opt = document.createElement('option');
+    opt.value = city; opt.textContent = city;
+    citySel.appendChild(opt);
+  });
+}
+
+
+// ─── Step navigation ─────────────────────────────────────────────────────
+function goToStep2() {
+  showError('step1-err', '');
+  // Validate step 1
+  var s = document.getElementById('f-surname').value.trim();
+  var g = document.getElementById('f-given').value.trim();
+  var d = document.getElementById('f-dob').value;
+  var n = document.getElementById('f-nationality').value;
+  var co = document.getElementById('f-country').value;
+  var ci = document.getElementById('f-city').value;
+
+  if (!s) return showError('step1-err', 'Enter your surname');
+  if (!g) return showError('step1-err', 'Enter your given names');
+  if (!d) return showError('step1-err', 'Enter your date of birth');
+  if (!n) return showError('step1-err', 'Select your nationality');
+  if (!co) return showError('step1-err', 'Select your country');
+  if (!ci) return showError('step1-err', 'Select your city');
+
+  document.getElementById('step-1').classList.remove('active');
+  document.getElementById('step-2').classList.add('active');
+  document.getElementById('dot-1').classList.remove('active');
+  document.getElementById('dot-1').classList.add('done');
+  document.getElementById('dot-1').innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" width="11" height="11"><polyline points="20 6 9 17 4 12"/></svg>';
+  document.getElementById('line-1').classList.add('done');
+  document.getElementById('dot-2').classList.add('active');
+
+  window.scrollTo(0, 0);
+}
+
+function goToStep1() {
+  document.getElementById('step-2').classList.remove('active');
+  document.getElementById('step-1').classList.add('active');
+  document.getElementById('dot-1').classList.add('active');
+  document.getElementById('dot-1').classList.remove('done');
+  document.getElementById('dot-1').textContent = '1';
+  document.getElementById('line-1').classList.remove('done');
+  document.getElementById('dot-2').classList.remove('active');
+  window.scrollTo(0, 0);
+}
+
+
+// ─── Sport picker ────────────────────────────────────────────────────────
+function buildSportGrid() {
+  var grid = document.getElementById('sport-grid');
+  grid.innerHTML = SPORTS.map(function (s) {
+    return '<button class="sport-chip" data-sport="' + s.id + '" onclick="pickSport(\'' + s.id + '\')">' + s.name + '</button>';
+  }).join('');
+}
+
+function buildLevelList() {
+  var list = document.getElementById('level-list');
+  list.innerHTML = LEVELS.map(function (lv) {
+    return '<div class="level-card" data-level="' + lv.id + '" onclick="pickLevel(\'' + lv.id + '\')">' +
+           '<div class="level-radio"></div>' +
+           '<div class="level-info">' +
+             '<div class="level-name">' + lv.id + '</div>' +
+             '<div class="level-desc">' + lv.desc + '</div>' +
+           '</div>' +
            '</div>';
   }).join('');
 }
 
-function setLevel(sportId, level) {
-  selectedSports[sportId] = level;
+function openSportPicker() {
+  pickerMode = 'add';
+  pickerSportId = null;
+  pickerLevel = null;
+  showPickerStage('sport');
+  updateSportGridState();
+  document.getElementById('picker').classList.add('active');
+  document.body.style.overflow = 'hidden';
 }
 
-function updateProgress() {
-  // Simple completeness check: form fields + at least 1 sport
-  var filled = 0;
-  if (document.getElementById('f-given').value.trim()) filled++;
-  if (document.getElementById('f-surname').value.trim()) filled++;
-  if (document.getElementById('f-dob').value) filled++;
-  if (document.getElementById('f-nationality').value) filled++;
-  if (document.getElementById('f-city').value) filled++;
-  if (Object.keys(selectedSports).length > 0) filled++;
-  var pct = Math.round((filled / 6) * 100);
-  document.getElementById('progress-fill').style.width = pct + '%';
-  document.getElementById('progress-pct').textContent = pct + '%';
+function openEditPicker(sportId) {
+  pickerMode = 'edit';
+  pickerSportId = sportId;
+  pickerLevel = selectedSports[sportId];
+  showPickerStage('level');
+  setLevelSelection(pickerLevel);
+  document.getElementById('picker').classList.add('active');
+  document.body.style.overflow = 'hidden';
 }
 
-['f-given','f-surname','f-dob','f-nationality','f-city'].forEach(function (id) {
-  document.addEventListener('DOMContentLoaded', function () {
-    var el = document.getElementById(id);
-    if (el) el.addEventListener('input', updateProgress);
-    if (el) el.addEventListener('change', updateProgress);
+function closeSportPicker() {
+  document.getElementById('picker').classList.remove('active');
+  document.body.style.overflow = '';
+  pickerMode = null;
+  pickerSportId = null;
+  pickerLevel = null;
+}
+
+function showPickerStage(stage) {
+  document.getElementById('picker-stage-sport').style.display = (stage === 'sport') ? '' : 'none';
+  document.getElementById('picker-stage-level').style.display = (stage === 'level') ? '' : 'none';
+  window.scrollTo(0, 0);
+}
+
+function updateSportGridState() {
+  document.querySelectorAll('.sport-chip').forEach(function (chip) {
+    var id = chip.dataset.sport;
+    chip.disabled = !!selectedSports[id];
   });
-});
+}
 
-function showError(msg) {
-  var el = document.getElementById('error-msg');
+function pickSport(sportId) {
+  pickerSportId = sportId;
+  pickerLevel = null;
+  var s = SPORTS.find(function (sp) { return sp.id === sportId; });
+  document.getElementById('picker-sport-name').textContent = s ? s.name : '';
+  setLevelSelection(null);
+  showPickerStage('level');
+}
+
+function pickLevel(level) {
+  pickerLevel = level;
+  setLevelSelection(level);
+}
+
+function setLevelSelection(level) {
+  document.querySelectorAll('.level-card').forEach(function (c) {
+    if (c.dataset.level === level) c.classList.add('selected');
+    else c.classList.remove('selected');
+  });
+  var confirmBtn = document.getElementById('confirm-level-btn');
+  confirmBtn.disabled = !level;
+}
+
+function confirmLevel() {
+  if (!pickerSportId || !pickerLevel) return;
+  selectedSports[pickerSportId] = pickerLevel;
+  renderSportsList();
+  closeSportPicker();
+}
+
+
+// ─── Sports list rendering ──────────────────────────────────────────────
+function renderSportsList() {
+  var list = document.getElementById('sports-list');
+  var ids = Object.keys(selectedSports);
+  if (ids.length === 0) {
+    list.innerHTML = '<div class="sports-empty">No sports added yet. Tap below to add your first one.</div>';
+  } else {
+    list.innerHTML = ids.map(function (id) {
+      var s = SPORTS.find(function (sp) { return sp.id === id; });
+      if (!s) return '';
+      var level = selectedSports[id];
+      return '<div class="sport-row">' +
+             '<div class="sport-row-info">' +
+               '<div class="sport-row-name">' + s.name + '</div>' +
+               '<div class="sport-row-level">' + level + '</div>' +
+             '</div>' +
+             '<button class="sport-row-edit" onclick="openEditPicker(\'' + id + '\')" title="Change level">' +
+               '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>' +
+             '</button>' +
+             '<button class="sport-row-remove" onclick="removeSport(\'' + id + '\')" title="Remove">' +
+               '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+             '</button>' +
+             '</div>';
+    }).join('');
+  }
+
+  // Update the "Add another" button label
+  document.getElementById('add-btn-label').textContent = (ids.length === 0) ? 'Add a Sport' : 'Add Another Sport';
+}
+
+function removeSport(sportId) {
+  delete selectedSports[sportId];
+  renderSportsList();
+}
+
+// ─── Submit ─────────────────────────────────────────────────────────────
+function showError(elId, msg) {
+  var el = document.getElementById(elId);
   if (el) el.textContent = msg || '';
 }
 
 async function submitProfile() {
-  showError('');
+  showError('step2-err', '');
 
-  // Validate
-  var given = document.getElementById('f-given').value.trim();
-  var surname = document.getElementById('f-surname').value.trim();
-  var dob = document.getElementById('f-dob').value;
-  var nationality = document.getElementById('f-nationality').value;
-  var city = document.getElementById('f-city').value;
-
-  if (!given) { showError('Enter your given name'); return; }
-  if (!surname) { showError('Enter your surname'); return; }
-  if (!dob) { showError('Enter your date of birth'); return; }
-  if (!nationality) { showError('Select your nationality'); return; }
-  if (!city) { showError('Select your city'); return; }
-  if (Object.keys(selectedSports).length === 0) { showError('Select at least one sport'); return; }
+  if (Object.keys(selectedSports).length === 0) {
+    return showError('step2-err', 'Add at least one sport to continue');
+  }
 
   var btn = document.getElementById('submit-btn');
   btn.disabled = true;
   btn.textContent = 'Saving...';
 
   try {
-    // Update members row
-    var fullName = (given + ' ' + surname).trim();
+    var s = document.getElementById('f-surname').value.trim();
+    var g = document.getElementById('f-given').value.trim();
+    var d = document.getElementById('f-dob').value;
+    var n = document.getElementById('f-nationality').value;
+    var co = document.getElementById('f-country').value;
+    var ci = document.getElementById('f-city').value;
+
+    var fullName = (g + ' ' + s).trim();
+
     var updateRes = await window.supabase
       .from('members')
       .update({
-        given_names: given,
-        surname: surname,
+        surname: s,
+        given_names: g,
         full_name: fullName,
-        date_of_birth: dob,
-        nationality: nationality,
-        city: city,
+        date_of_birth: d,
+        nationality: n,
+        country: co,
+        city: ci,
         profile_complete: true
       })
       .eq('id', currentMember.id);
 
     if (updateRes.error) throw updateRes.error;
 
-    // Upsert profile_meta with skills
     var chronoAge = null;
-    if (dob) {
-      var birth = new Date(dob);
+    if (d) {
+      var birth = new Date(d);
       var today = new Date();
       chronoAge = today.getFullYear() - birth.getFullYear();
       var m = today.getMonth() - birth.getMonth();
@@ -441,28 +678,29 @@ async function submitProfile() {
 
     if (metaRes.error) throw metaRes.error;
 
-    // Update localStorage cache so the dashboard has fresh data
     try {
       var cached = JSON.parse(localStorage.getItem('ffp_member') || '{}');
-      cached.given_names = given;
-      cached.surname = surname;
+      cached.surname = s;
+      cached.given_names = g;
       cached.full_name = fullName;
-      cached.date_of_birth = dob;
-      cached.nationality = nationality;
-      cached.city = city;
+      cached.date_of_birth = d;
+      cached.nationality = n;
+      cached.country = co;
+      cached.city = ci;
       cached.profile_complete = true;
       localStorage.setItem('ffp_member', JSON.stringify(cached));
     } catch (e) {}
 
-    // Redirect
     window.location.href = 'ffp-member-dashboard.html';
   } catch (err) {
     console.error('[profile-complete] save failed:', err);
-    showError('Could not save: ' + (err.message || 'unknown error'));
+    showError('step2-err', 'Could not save: ' + (err.message || 'unknown error'));
     btn.disabled = false;
     btn.textContent = 'Complete Profile';
   }
 }
+
+renderSportsList();
 </script>
 </body>
 </html>
