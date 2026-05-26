@@ -11,6 +11,11 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420 !important;color:#fff;-webkit-font-smoothing:antialiased;}
+
+/* FFP RULE: no ugly default scrollbars anywhere — content still scrolls */
+*::-webkit-scrollbar{display:none;width:0;height:0;}
+*{-ms-overflow-style:none;scrollbar-width:none;}
+
 .page{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:32px 20px 80px;}
 .wrap{width:100%;max-width:480px;}
 
