@@ -1,17 +1,23 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   FFP PASSPORT LOADER (v1)
+   FFP PASSPORT LOADER (v3)
    ───────────────────────────────────────────────────────────────────────
    Fetches the signed-in member's data from Supabase and renders it into
-   the passport card. Works by mutating the existing global `memberPassport`
-   object and calling the dashboard's existing `applyPassportData()` function.
+   the passport card. Mutates the global `memberPassport` object and wraps
+   the dashboard's existing `applyPassportData()` function so that fields
+   without `data-field` attributes also stay in sync.
+
+   v3 changes:
+   - TYPE field on passport card now shows FFP tier (MEMBER / SUPPORTER /
+     AMBASSADOR) instead of hardcoded "F"
+   - COUNTRY field shows the member's country of residence (from
+     members.country) instead of hardcoded "UNITED ARAB EMIRATES"
+   - applyPassportData is wrapped so these fields update live whenever the
+     dashboard refreshes the passport (e.g. via MemberProfile.syncToPassport)
 
    Requires (load in this order in the dashboard HTML <head>):
      1. https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2
      2. assets/ffp-api-integration.js
      3. assets/ffp-passport-loader.js  ← this file
-
-   No edits needed to the dashboard JS itself — this loader hooks into
-   the existing memberPassport / applyPassportData() pattern.
 ═══════════════════════════════════════════════════════════════════════ */
 
 (function () {
@@ -121,6 +127,8 @@
         initials:       computeInitials(member.given_names, member.surname),
         nationality:    (member.nationality || '').toUpperCase(),
         countryCode:    countryCode,
+        country:        (member.country || '').toUpperCase(),
+        tier:           (member.tier || 'MEMBER').toUpperCase(),
         gender:         (member.gender || 'X').toUpperCase(),
         genderCode:     (member.gender || 'X').charAt(0).toUpperCase(),
         dob:            formatPassportDate(member.date_of_birth),
@@ -141,7 +149,35 @@
         return;
       }
 
-      // Re-render the passport card
+      // Wrap applyPassportData() once so that every render (including
+      // profile-driven updates via MemberProfile.syncToPassport) also refreshes
+      // the elements that don't have data-field attributes:
+      //   - .pass-mini-val (TYPE = FFP tier, COUNTRY = country of residence)
+      //   - .pass-passnum  (PASSPORT NO. at top right)
+      if (typeof window.applyPassportData === 'function' && !window._ffpPassportWrapped) {
+        const originalApplyPassportData = window.applyPassportData;
+        window.applyPassportData = function () {
+          originalApplyPassportData.apply(this, arguments);
+
+          const miniVals = document.querySelectorAll('.pass-mini-val');
+          // First .pass-mini-val = TYPE (was hardcoded "F", now shows FFP tier)
+          if (miniVals[0] && memberPassport.tier) {
+            miniVals[0].textContent = memberPassport.tier;
+          }
+          // Second .pass-mini-val = COUNTRY of residence
+          if (miniVals[1] && memberPassport.country) {
+            miniVals[1].textContent = memberPassport.country;
+          }
+          // .pass-passnum at top right
+          const passNumEl = document.querySelector('.pass-passnum');
+          if (passNumEl && memberPassport.passportNumber) {
+            passNumEl.textContent = memberPassport.passportNumber;
+          }
+        };
+        window._ffpPassportWrapped = true;
+      }
+
+      // Re-render the passport card (will trigger our wrapped function too)
       if (typeof applyPassportData === 'function') {
         applyPassportData();
         console.log('[FFP Passport Loader] Passport rendered with Supabase data ✓');
@@ -151,10 +187,6 @@
       } else {
         console.warn('[FFP Passport Loader] applyPassportData() function not found.');
       }
-
-      // Fix elements that don't use data-field (the dashboard HTML hardcodes some)
-      var passNumEl = document.querySelector('.pass-passnum');
-      if (passNumEl) passNumEl.textContent = updated.passportNumber;
 
       // Cache for offline / faster next load
       try {
