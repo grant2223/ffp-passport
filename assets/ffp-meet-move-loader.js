@@ -1,263 +1,259 @@
-/* ═══════════════════════════════════════════════════════════════════════
-   FFP MEET & MOVE LOADER (v1)
-   ───────────────────────────────────────────────────────────────────────
-   Wires the member-hosted meetups (max 8 people incl. host).
-
-   Reads:
-     - meetups (status = 'open')
-     - members (for host name, city, etc.) — separate query, no FK to members
-     - profile_meta (for host's reliability_score)
-     - meetup_attendees (to count joined + flag current user)
-
-   Does NOT yet wire:
-     - Member matching algorithm (matches array stays as dashboard sample)
-     - Join / leave / host-create flows (separate writes loader)
-
-   Requires:
-     1. https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2
-     2. assets/ffp-api-integration.js
-═══════════════════════════════════════════════════════════════════════ */
-
+/* FFP Meet & Move Loader — v2
+   v2 fixes:
+   - Block "Request to Join" when current user is the host
+   - Inject hero image (m.img) into the detail modal cover (was a CSS class cover only)
+   Reads:  meetups (host_member_id, sport, etc.), members (host name lookup),
+           profile_meta (reliability_score on each host), meetup_attendees (joinedByMe)
+   Writes: wrapped requestJoin → INSERT meetup_attendees with status='joined'
+*/
 (function () {
   'use strict';
-
-  let retries = 0;
-  const MAX_RETRIES = 30;
+  var retries = 0;
+  var MAX_RETRIES = 30;
+  var currentUserId = null;
+  var wrapped = false;
 
   function injectStyles() {
     if (document.getElementById('ffp-meet-move-loader-styles')) return;
-    const s = document.createElement('style');
+    var s = document.createElement('style');
     s.id = 'ffp-meet-move-loader-styles';
-    s.textContent = `
-      *::-webkit-scrollbar{display:none !important;width:0 !important;height:0 !important;}
-      *{-ms-overflow-style:none !important;scrollbar-width:none !important;}
-    `;
+    s.textContent =
+      '*::-webkit-scrollbar{display:none !important;width:0 !important;height:0 !important;}' +
+      '*{-ms-overflow-style:none !important;scrollbar-width:none !important;}' +
+      /* v2 — detail modal cover image */
+      '.dm-cover.ffp-img-cover{background-size:cover !important;background-position:center !important;background-repeat:no-repeat !important;}';
     document.head.appendChild(s);
   }
 
-  // ─── Sport → category + icon + default image ─────────────────────────
-  const SPORT_MAP = {
-    'padel':         { cat: 'racquet',   icon: 'sports_tennis',    img: 'https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=600&q=70' },
-    'tennis':        { cat: 'racquet',   icon: 'sports_tennis',    img: 'https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=600&q=70' },
-    'squash':        { cat: 'racquet',   icon: 'sports_tennis',    img: 'https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=600&q=70' },
-    'pickleball':    { cat: 'racquet',   icon: 'sports_tennis',    img: 'https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=600&q=70' },
-    'running':       { cat: 'running',   icon: 'directions_run',   img: 'https://images.unsplash.com/photo-1502904550040-7534597429ae?w=600&q=70' },
-    'trail running': { cat: 'running',   icon: 'directions_run',   img: 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=600&q=70' },
-    'jogging':       { cat: 'running',   icon: 'directions_run',   img: 'https://images.unsplash.com/photo-1502904550040-7534597429ae?w=600&q=70' },
-    'yoga':          { cat: 'mind-body', icon: 'self_improvement', img: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=600&q=70' },
-    'pilates':       { cat: 'mind-body', icon: 'self_improvement', img: 'https://images.unsplash.com/photo-1591291621164-2c6367723315?w=600&q=70' },
-    'meditation':    { cat: 'mind-body', icon: 'self_improvement', img: 'https://images.unsplash.com/photo-1545389336-cf090694435e?w=600&q=70' },
-    'breathwork':    { cat: 'mind-body', icon: 'self_improvement', img: 'https://images.unsplash.com/photo-1545389336-cf090694435e?w=600&q=70' },
-    'hiit':          { cat: 'fitness',   icon: 'fitness_center',   img: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=600&q=70' },
-    'crossfit':      { cat: 'fitness',   icon: 'fitness_center',   img: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&q=70' },
-    'f45':           { cat: 'fitness',   icon: 'fitness_center',   img: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=600&q=70' },
-    'strength':      { cat: 'fitness',   icon: 'fitness_center',   img: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&q=70' },
-    'gym':           { cat: 'fitness',   icon: 'fitness_center',   img: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&q=70' },
-    'swimming':      { cat: 'swimming',  icon: 'pool',             img: 'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=600&q=70' },
-    'open water':    { cat: 'swimming',  icon: 'pool',             img: 'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=600&q=70' },
-    'hiking':        { cat: 'adventure', icon: 'hiking',           img: 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=600&q=70' },
-    'bouldering':    { cat: 'adventure', icon: 'hiking',           img: 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=600&q=70' },
-    'climbing':      { cat: 'adventure', icon: 'hiking',           img: 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=600&q=70' },
-    'cycling':       { cat: 'adventure', icon: 'directions_bike',  img: 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=600&q=70' },
-    'boxing':        { cat: 'combat',    icon: 'sports_mma',       img: 'https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=600&q=70' },
-    'muay thai':     { cat: 'combat',    icon: 'sports_mma',       img: 'https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=600&q=70' },
-    'mma':           { cat: 'combat',    icon: 'sports_mma',       img: 'https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=600&q=70' },
-    'jiu jitsu':     { cat: 'combat',    icon: 'sports_mma',       img: 'https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=600&q=70' }
+  var SPORT_META = {
+    Padel:    { cat: 'racquet',   icon: 'sports_tennis',   img: 'https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=400&q=70' },
+    Tennis:   { cat: 'racquet',   icon: 'sports_tennis',   img: 'https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=400&q=70' },
+    Running:  { cat: 'running',   icon: 'directions_run',  img: 'https://images.unsplash.com/photo-1502904550040-7534597429ae?w=400&q=70' },
+    Yoga:     { cat: 'mind-body', icon: 'self_improvement',img: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400&q=70' },
+    Pilates:  { cat: 'mind-body', icon: 'self_improvement',img: 'https://images.unsplash.com/photo-1591291621164-2c6367723315?w=400&q=70' },
+    Fitness:  { cat: 'fitness',   icon: 'fitness_center',  img: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=400&q=70' },
+    HIIT:     { cat: 'fitness',   icon: 'fitness_center',  img: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=400&q=70' },
+    Swimming: { cat: 'swimming',  icon: 'pool',            img: 'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=400&q=70' },
+    Hiking:   { cat: 'adventure', icon: 'hiking',          img: 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&q=70' },
+    Boxing:   { cat: 'combat',    icon: 'sports_mma',      img: 'https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=400&q=70' }
   };
-  const DEFAULT_SPORT = { cat: 'fitness', icon: 'fitness_center', img: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=600&q=70' };
-
-  function sportMeta(sport) {
-    if (!sport) return DEFAULT_SPORT;
-    return SPORT_MAP[String(sport).toLowerCase()] || DEFAULT_SPORT;
+  function metaForSport(sport) {
+    return SPORT_META[sport] || { cat: 'fitness', icon: 'fitness_center', img: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=400&q=70' };
   }
-
-  // ─── Date / time helpers ─────────────────────────────────────────────
-  const DAY_ABBR   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-  // Format meets_at as "Sat · 5 Apr · 7:00 AM"
-  function formatWhen(meetsAt) {
-    if (!meetsAt) return '';
-    const d = new Date(meetsAt);
-    if (isNaN(d.getTime())) return '';
-    let hours = d.getHours();
-    const minutes = String(d.getMinutes()).padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12 || 12;
-    return DAY_ABBR[d.getDay()] + ' · ' + d.getDate() + ' ' + MONTH_ABBR[d.getMonth()] +
-           ' · ' + hours + ':' + minutes + ' ' + ampm;
-  }
-
-  // Bucket meetup into when filter slot: this-weekend / this-week / next-week / later
-  function whenSlot(meetsAt) {
-    if (!meetsAt) return 'later';
-    const d = new Date(meetsAt);
-    if (isNaN(d.getTime())) return 'later';
-    const now = new Date(); now.setHours(0,0,0,0);
-    const target = new Date(d); target.setHours(0,0,0,0);
-    const daysAway = Math.round((target - now) / (1000 * 60 * 60 * 24));
-    if (daysAway < 0) return 'past';
-    if (daysAway <= 1) return 'this-week';
-    const dow = target.getDay();   // 0=Sun, 6=Sat
-    if (dow === 0 || dow === 6) {
-      if (daysAway <= 7) return 'this-weekend';
-      if (daysAway <= 14) return 'next-week';
-    }
-    if (daysAway <= 7) return 'this-week';
-    if (daysAway <= 14) return 'next-week';
-    return 'later';
-  }
-
-  // Map group_filter to dashboard's gender filter
-  function mapGroupFilter(g) {
-    if (g === 'open' || !g) return 'any';
-    if (g === 'women_only') return 'women';
-    if (g === 'men_only')   return 'men';
-    if (g === 'mixed')      return 'mixed';
+  function genderMap(dbVal) {
+    if (dbVal === 'women_only') return 'women';
+    if (dbVal === 'men_only')   return 'men';
     return 'any';
   }
+  function fmtWhen(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    var dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var hr = d.getHours();
+    var min = d.getMinutes();
+    var ampm = hr >= 12 ? 'PM' : 'AM';
+    hr = hr % 12; if (hr === 0) hr = 12;
+    var minStr = String(min).padStart(2, '0');
+    return dayNames[d.getDay()] + ' · ' + d.getDate() + ' ' + monthNames[d.getMonth()] + ' · ' + hr + ':' + minStr + ' ' + ampm;
+  }
+  function memberDisplayName(m) {
+    if (!m) return 'Member';
+    if (m.given_names) {
+      var initial = m.surname ? ' ' + m.surname.charAt(0).toUpperCase() + '.' : '';
+      return m.given_names + initial;
+    }
+    if (m.full_name) return m.full_name;
+    return 'Member';
+  }
+  function memberLetter(m) {
+    if (!m) return 'M';
+    var src = m.given_names || m.full_name || 'M';
+    return src.charAt(0).toUpperCase();
+  }
 
-  // ─── Main loader ─────────────────────────────────────────────────────
-  async function loadMeetMoveFromSupabase() {
+  async function loadFromSupabase() {
     if (!window.supabase || typeof MeetMove === 'undefined') {
-      if (retries < MAX_RETRIES) {
-        retries++;
-        setTimeout(loadMeetMoveFromSupabase, 200);
-      } else {
-        console.error('[FFP Meet & Move Loader] Supabase or MeetMove module not available.');
-      }
+      if (retries < MAX_RETRIES) { retries++; setTimeout(loadFromSupabase, 200); }
       return;
     }
-
     injectStyles();
 
     try {
-      // 1. Fetch open meetups
-      const meetupsRes = await window.supabase
+      var userRes = await window.supabase.auth.getUser();
+      if (userRes.error || !userRes.data || !userRes.data.user) {
+        console.log('[FFP Meet & Move] No user — keeping sample');
+        return;
+      }
+      currentUserId = userRes.data.user.id;
+
+      // 1. Load live meetups
+      var mRes = await window.supabase
         .from('meetups')
         .select('*')
-        .eq('status', 'open')
-        .order('meets_at', { ascending: true });
+        .in('status', ['open', 'full']);
+      if (mRes.error) { console.error('[FFP Meet & Move] meetups read:', mRes.error); return; }
+      var meetups = mRes.data || [];
+      if (meetups.length === 0) { console.log('[FFP Meet & Move] No meetups — keeping sample'); return; }
 
-      if (meetupsRes.error) {
-        console.error('[FFP Meet & Move Loader] Could not load meetups:', {
-          code:    meetupsRes.error.code,
-          message: meetupsRes.error.message,
-          details: meetupsRes.error.details,
-          hint:    meetupsRes.error.hint
-        });
-        console.warn('[FFP Meet & Move Loader] Keeping sample data fallback.');
-        return;
+      // 2. Host lookup (host_member_id references auth.users — get member rows by id)
+      var hostIds = Array.from(new Set(meetups.map(function (m) { return m.host_member_id; }).filter(Boolean)));
+      var hostMap = {};
+      if (hostIds.length > 0) {
+        var hRes = await window.supabase
+          .from('members')
+          .select('id, full_name, given_names, surname')
+          .in('id', hostIds);
+        if (hRes.error) console.error('[FFP Meet & Move] hosts read:', hRes.error);
+        (hRes.data || []).forEach(function (m) { hostMap[m.id] = m; });
       }
 
-      const meetupRows = meetupsRes.data || [];
-      if (meetupRows.length === 0) {
-        console.log('[FFP Meet & Move Loader] No open meetups in Supabase yet — keeping sample data.');
-        return;
-      }
-
-      // 2. Fetch host details (members + profile_meta)
-      const hostIds = Array.from(new Set(meetupRows.map(function (m) { return m.host_member_id; })));
-      const meetupIds = meetupRows.map(function (m) { return m.id; });
-
-      const sessionRes = await window.supabase.auth.getSession();
-      const uid = sessionRes.data && sessionRes.data.session ? sessionRes.data.session.user.id : null;
-
-      const [hostsRes, metaRes, attendeesRes] = await Promise.all([
-        window.supabase.from('members').select('id, full_name, given_names, surname, city').in('id', hostIds),
-        window.supabase.from('profile_meta').select('member_id, reliability_score').in('member_id', hostIds),
-        window.supabase.from('meetup_attendees').select('meetup_id, member_id, status').in('meetup_id', meetupIds)
-      ]);
-
-      const hostMap = {};
-      if (!hostsRes.error && hostsRes.data) {
-        hostsRes.data.forEach(function (h) { hostMap[h.id] = h; });
-      }
-      const metaMap = {};
-      if (!metaRes.error && metaRes.data) {
-        metaRes.data.forEach(function (m) { metaMap[m.member_id] = m; });
-      }
-
-      const joinedCount = {};
-      const joinedByMe = {};
-      if (!attendeesRes.error && attendeesRes.data) {
-        attendeesRes.data.forEach(function (a) {
-          if (a.status === 'joined') {
-            joinedCount[a.meetup_id] = (joinedCount[a.meetup_id] || 0) + 1;
-            if (uid && a.member_id === uid) joinedByMe[a.meetup_id] = true;
-          }
+      // 3. Host trust (reliability_score) from profile_meta
+      var trustMap = {};
+      if (hostIds.length > 0) {
+        var tRes = await window.supabase
+          .from('profile_meta')
+          .select('member_id, reliability_score')
+          .in('member_id', hostIds);
+        if (!tRes.error) (tRes.data || []).forEach(function (p) {
+          if (p.reliability_score != null) trustMap[p.member_id] = Number(p.reliability_score);
         });
       }
 
-      // 3. Build the data array
-      const data = meetupRows.map(function (row) {
-        const host = hostMap[row.host_member_id] || {};
-        const meta = metaMap[row.host_member_id] || {};
-        const sm = sportMeta(row.sport);
-        const capacity = row.max_people || 0;
-        const joined = joinedCount[row.id] || 0;
-        const hostName = host.full_name ||
-                         ((host.given_names || '') + ' ' + (host.surname || '')).trim() ||
-                         'Member';
-        const hostInitial = (hostName || '?').charAt(0).toUpperCase();
-        const hostTrust = meta.reliability_score !== undefined && meta.reliability_score !== null
-          ? parseFloat(meta.reliability_score)
-          : 10.0;
+      // 4. My RSVPs
+      var myAttRes = await window.supabase
+        .from('meetup_attendees')
+        .select('meetup_id, status')
+        .eq('member_id', currentUserId)
+        .in('status', ['joined', 'attended']);
+      var joinedSet = new Set((myAttRes.data || []).map(function (r) { return r.meetup_id; }));
+
+      // 5. Attendee counts per meetup
+      var meetupIds = meetups.map(function (m) { return m.id; });
+      var countMap = {};
+      if (meetupIds.length > 0) {
+        var aRes = await window.supabase
+          .from('meetup_attendees')
+          .select('meetup_id')
+          .in('meetup_id', meetupIds)
+          .in('status', ['joined', 'attended']);
+        (aRes.data || []).forEach(function (r) {
+          countMap[r.meetup_id] = (countMap[r.meetup_id] || 0) + 1;
+        });
+      }
+
+      // 6. Map rows → dashboard shape
+      MeetMove.data = meetups.map(function (m) {
+        var host = hostMap[m.host_member_id] || null;
+        var meta = metaForSport(m.sport);
+        var startIso = m.meets_at;
+        var attendeeCount = countMap[m.id] || 0;
+        var isHostedByMe = m.host_member_id === currentUserId;
 
         return {
-          id:          row.id,
-          activity:    row.title || '',
-          cat:         sm.cat,
-          icon:        sm.icon,
-          host:        hostName,
-          hostInitial: hostInitial,
-          hostTrust:   hostTrust,
-          when:        formatWhen(row.meets_at),
-          whenSlot:    whenSlot(row.meets_at),
-          venue:       row.venue || '',
-          area:        row.city || '',
-          capacity:    capacity,
-          joined:      joined,
-          level:       row.fitness_level || '',
-          gender:      mapGroupFilter(row.group_filter),
-          cost:        '',
-          joinedByMe:  joinedByMe[row.id] === true,
-          about:       row.description || '',
-          img:         sm.img,
-          full:        capacity > 0 && joined >= capacity
+          id: m.id,
+          activity: m.title || m.sport || 'Meetup',
+          cat: meta.cat,
+          icon: meta.icon,
+          host: memberDisplayName(host),
+          hostInitial: memberLetter(host),
+          hostTrust: trustMap[m.host_member_id] != null ? trustMap[m.host_member_id] : 9.0,
+          when: fmtWhen(startIso),
+          whenSlot: 'this-week',
+          venue: m.venue || '',
+          area: m.city || '',
+          capacity: m.max_people || 8,
+          joined: 1 + attendeeCount,  // host counts toward total
+          level: m.fitness_level || 'All',
+          gender: genderMap(m.group_filter),
+          cost: 'Free',
+          joinedByMe: joinedSet.has(m.id) || isHostedByMe,
+          isHostedByMe: isHostedByMe,
+          host_member_id: m.host_member_id,
+          full: m.status === 'full',
+          about: m.description || 'Member-hosted meetup.',
+          img: meta.img
         };
       });
 
-      // 4. Set hosting Set (meetups where current user is the host)
-      const hostingIds = new Set();
-      meetupRows.forEach(function (m) {
-        if (uid && m.host_member_id === uid) hostingIds.add(m.id);
-      });
+      installOverrides();
+      wrapWrites();
 
-      MeetMove.data = data;
-      MeetMove.hostingIds = hostingIds;
-
-      const panel = document.getElementById('panel-meet');
+      var panel = document.getElementById('panel-meet-move');
       if (panel && panel.classList.contains('active') && typeof MeetMove.render === 'function') {
         MeetMove.render();
-        if (typeof MeetMove.renderMatchStrip === 'function') MeetMove.renderMatchStrip();
       }
-
-      console.log('[FFP Meet & Move Loader] Loaded ' + meetupRows.length + ' meetups from Supabase ✓');
-      console.log('[FFP Meet & Move Loader] Note: member matching strip still shows sample matches — algorithm not yet wired.');
-
+      console.log('[FFP Meet & Move] Loaded ' + MeetMove.data.length + ' meetups ✓');
     } catch (err) {
-      console.error('[FFP Meet & Move Loader] Unexpected error:', err);
+      console.error('[FFP Meet & Move] Unexpected error:', err);
     }
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () {
-      setTimeout(loadMeetMoveFromSupabase, 500);
-    });
-  } else {
-    setTimeout(loadMeetMoveFromSupabase, 500);
+  function installOverrides() {
+    // Override openMeetupDetail to (a) include hero image, (b) handle own-meetup state
+    var orig = MeetMove.openMeetupDetail.bind(MeetMove);
+    MeetMove.openMeetupDetail = function (id) {
+      orig(id);
+      var m = this.data.find(function (x) { return x.id === id; });
+      if (!m) return;
+      // After the original renders, patch the DOM:
+      setTimeout(function () {
+        // (a) Cover → use real image
+        var cover = document.querySelector('.dm-cover');
+        if (cover && m.img) {
+          cover.classList.add('ffp-img-cover');
+          cover.style.backgroundImage = "url('" + m.img + "')";
+        }
+        // (b) If hosted by me, swap the join button to a "You're hosting" pill
+        if (m.isHostedByMe) {
+          var btn = document.querySelector('.dm-footer .btn-primary-yellow');
+          if (btn) {
+            btn.textContent = "You're hosting this";
+            btn.disabled = true;
+            btn.onclick = function (e) { e.preventDefault(); };
+            btn.style.opacity = '0.7';
+            btn.style.cursor  = 'default';
+          }
+          var note = document.querySelector('.dm-footer-note');
+          if (note) note.textContent = 'Members request to join. Approve them in your hosted list.';
+        }
+      }, 0);
+    };
   }
 
-  window.ffpReloadMeetMove = loadMeetMoveFromSupabase;
+  function wrapWrites() {
+    if (wrapped) return;
+    wrapped = true;
+
+    var origRequestJoin = MeetMove.requestJoin.bind(MeetMove);
+    MeetMove.requestJoin = async function (id) {
+      var m = this.data.find(function (x) { return x.id === id; });
+      if (!m) return;
+      // Block self-RSVP
+      if (m.isHostedByMe) {
+        if (typeof showToast === 'function') showToast("You're hosting this meetup");
+        return;
+      }
+      if (m.joinedByMe) return origRequestJoin(id);
+
+      origRequestJoin(id);
+      if (!currentUserId) return;
+      try {
+        var res = await window.supabase.from('meetup_attendees').insert({
+          meetup_id: id,
+          member_id: currentUserId,
+          status: 'joined',
+          created_at: new Date().toISOString()
+        });
+        if (res.error) console.error('[FFP Meet & Move] RSVP insert:', res.error);
+      } catch (e) { console.error('[FFP Meet & Move] RSVP insert:', e); }
+    };
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { setTimeout(loadFromSupabase, 400); });
+  } else {
+    setTimeout(loadFromSupabase, 400);
+  }
+  window.ffpReloadMeetMove = loadFromSupabase;
 })();
