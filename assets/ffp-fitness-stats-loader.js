@@ -1,14 +1,14 @@
-/* FFP Fitness Stats Loader — v3
-   v3 changes:
-   - PR dates now persist via new pr_dates jsonb column on profile_meta
-   - "PR set [date]" line survives refresh
-   Reads:  profile_meta (PRs, pr_dates, vo2_max, body_fat_pct, visceral_fat, sleep_logs, chrono_age, weight)
-           members (date_of_birth, gender, city)
-           activity_logs (last 90 days — for streak, tiles, milestones)
-   Writes: savePr (value + date), clearPr (nulls value + removes date), saveSleepLog
+/* FFP Fitness Stats Loader — v4
+   v4 adds: REAL community percentile rankings against the full member base.
+   - Loads ranking pool via get_ranking_pool() RPC (privacy-safe view)
+   - Computes "Top X%" per PR for the selected comparison group
+   - Recomputes whenever the comparison dropdown changes
+   - Expanded comparison options: gender / age / country / city / nationality / combos
 
    Prerequisites:
-     ALTER TABLE profile_meta ADD COLUMN pr_dates jsonb DEFAULT '{}'::jsonb;
+     ALTER TABLE challenges    ADD COLUMN IF NOT EXISTS host_member_id uuid REFERENCES auth.users(id);
+     ALTER TABLE profile_meta  ADD COLUMN IF NOT EXISTS pr_dates jsonb DEFAULT '{}'::jsonb;
+     CREATE OR REPLACE FUNCTION public.get_ranking_pool() ... (see message)
 */
 (function () {
   'use strict';
@@ -17,6 +17,8 @@
   var currentUserId = null;
   var wrapped = false;
   var activityCache = [];
+  var rankingPool = [];    // all rows from get_ranking_pool()
+  var myDemo = null;       // current user's demographic snapshot
 
   function injectStyles() {
     if (document.getElementById('ffp-fitness-stats-loader-styles')) return;
@@ -28,18 +30,19 @@
     document.head.appendChild(s);
   }
 
+  // Dashboard PR key → profile_meta column + sort direction (higher = better, or lower = better)
   var PR_MAP = {
-    bench1RM:    { col: 'pr_bench_kg',    cast: 'float' },
-    squat1RM:    { col: 'pr_squat_kg',    cast: 'float' },
-    deadlift1RM: { col: 'pr_deadlift_kg', cast: 'float' },
-    run5K:       { col: 'pr_5k_seconds',  cast: 'int' },
-    run10K:      { col: 'pr_10k_seconds', cast: 'int' },
-    run21K:      { col: 'pr_21k_seconds', cast: 'int' },
-    runMara:     { col: 'pr_marathon_sec', cast: 'int' },
-    swim1K:      { col: 'pr_swim1k_sec',  cast: 'int' },
-    vo2max:      { col: 'vo2_max',        cast: 'float' },
-    bodyFat:     { col: 'body_fat_pct',   cast: 'float' },
-    visceralFat: { col: 'visceral_fat',   cast: 'float' }
+    bench1RM:    { col: 'pr_bench_kg',     cast: 'float', dir: 'higher' },
+    squat1RM:    { col: 'pr_squat_kg',     cast: 'float', dir: 'higher' },
+    deadlift1RM: { col: 'pr_deadlift_kg',  cast: 'float', dir: 'higher' },
+    run5K:       { col: 'pr_5k_seconds',   cast: 'int',   dir: 'lower'  },
+    run10K:      { col: 'pr_10k_seconds',  cast: 'int',   dir: 'lower'  },
+    run21K:      { col: 'pr_21k_seconds',  cast: 'int',   dir: 'lower'  },
+    runMara:     { col: 'pr_marathon_sec', cast: 'int',   dir: 'lower'  },
+    swim1K:      { col: 'pr_swim1k_sec',   cast: 'int',   dir: 'lower'  },
+    vo2max:      { col: 'vo2_max',         cast: 'float', dir: 'higher' },
+    bodyFat:     { col: 'body_fat_pct',    cast: 'float', dir: 'lower'  },
+    visceralFat: { col: 'visceral_fat',    cast: 'float', dir: 'lower'  }
   };
 
   function computeAgeFromDob(dobStr) {
@@ -52,6 +55,23 @@
     if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) age--;
     return age;
   }
+  function ageBucketRange(age) {
+    if (age == null) return null;
+    if (age < 20) return [0, 19];
+    if (age < 30) return [20, 29];
+    if (age < 40) return [30, 39];
+    if (age < 50) return [40, 49];
+    if (age < 60) return [50, 59];
+    if (age < 70) return [60, 69];
+    return [70, 200];
+  }
+  function ageBucketLabel(age) {
+    var r = ageBucketRange(age);
+    if (!r) return '?';
+    if (r[1] >= 200) return r[0] + '+';
+    return r[0] + '\u2013' + r[1];
+  }
+
   function localDateStr(date) {
     var y = date.getFullYear();
     var mo = String(date.getMonth() + 1).padStart(2, '0');
@@ -59,10 +79,7 @@
     return y + '-' + mo + '-' + d;
   }
   function todayStr() { return localDateStr(new Date()); }
-  function dateStrFromDaysAgo(n) {
-    var d = new Date(); d.setDate(d.getDate() - n);
-    return localDateStr(d);
-  }
+  function dateStrFromDaysAgo(n) { var d = new Date(); d.setDate(d.getDate() - n); return localDateStr(d); }
   function daysAgoFromDateStr(s) {
     var d = new Date(s + 'T00:00:00');
     var t = new Date(); t.setHours(0, 0, 0, 0);
@@ -77,10 +94,10 @@
   function sleepFromDb(dbObj) {
     var out = {};
     if (!dbObj || typeof dbObj !== 'object') return out;
-    Object.keys(dbObj).forEach(function (dateKey) {
-      var hrs = Number(dbObj[dateKey]);
+    Object.keys(dbObj).forEach(function (k) {
+      var hrs = Number(dbObj[k]);
       if (isNaN(hrs)) return;
-      var d = daysAgoFromDateStr(dateKey);
+      var d = daysAgoFromDateStr(k);
       if (d >= 1 && d <= 30) out[d] = hrs;
     });
     return out;
@@ -89,13 +106,117 @@
     var out = {};
     if (!dashObj || typeof dashObj !== 'object') return out;
     Object.keys(dashObj).forEach(function (k) {
-      var n = Number(k);
-      var hrs = Number(dashObj[k]);
+      var n = Number(k), hrs = Number(dashObj[k]);
       if (isNaN(n) || isNaN(hrs)) return;
       out[dateStrFromDaysAgo(n)] = hrs;
     });
     return out;
   }
+
+  // ─────────── COMPARISON GROUP FILTERING ───────────
+
+  function filterPoolForGroup(group) {
+    if (!myDemo) return [];
+    var myAgeR = ageBucketRange(myDemo.age);
+    return rankingPool.filter(function (r) {
+      if (r.member_id === currentUserId) return false;  // exclude self
+      switch (group) {
+        case 'all':
+          return true;
+        case 'gender':
+          return r.gender && r.gender === myDemo.gender;
+        case 'age':
+          if (!myAgeR || r.age == null) return false;
+          return r.age >= myAgeR[0] && r.age <= myAgeR[1];
+        case 'age_gender':
+          if (!myAgeR || r.age == null || !r.gender) return false;
+          return r.age >= myAgeR[0] && r.age <= myAgeR[1] && r.gender === myDemo.gender;
+        case 'country':
+          return r.country && r.country === myDemo.country;
+        case 'city':
+          return r.city && r.city === myDemo.city;
+        case 'nationality':
+          return r.nationality && r.nationality === myDemo.nationality;
+        case 'age_gender_city':
+          if (!myAgeR || r.age == null || !r.gender || !r.city) return false;
+          return r.age >= myAgeR[0] && r.age <= myAgeR[1] &&
+                 r.gender === myDemo.gender && r.city === myDemo.city;
+        case 'age_gender_country':
+          if (!myAgeR || r.age == null || !r.gender || !r.country) return false;
+          return r.age >= myAgeR[0] && r.age <= myAgeR[1] &&
+                 r.gender === myDemo.gender && r.country === myDemo.country;
+        case 'age_gender_nationality':
+          if (!myAgeR || r.age == null || !r.gender || !r.nationality) return false;
+          return r.age >= myAgeR[0] && r.age <= myAgeR[1] &&
+                 r.gender === myDemo.gender && r.nationality === myDemo.nationality;
+        default:
+          return true;
+      }
+    });
+  }
+
+  function computeTopPercent(myValue, direction, others, col) {
+    if (myValue == null) return null;
+    var rows = others.filter(function (r) { return r[col] != null; });
+    if (rows.length === 0) return null;
+    var beat = 0;
+    rows.forEach(function (r) {
+      if (direction === 'higher' && myValue > r[col]) beat++;
+      else if (direction === 'lower' && myValue < r[col]) beat++;
+    });
+    var total = rows.length + 1;       // include myself
+    var rank  = total - beat;          // 1 = best
+    return Math.max(1, Math.min(100, Math.round((rank / total) * 100)));
+  }
+
+  function refreshRanks() {
+    if (!myDemo || rankingPool.length === 0) {
+      FitnessStats.ranks = {};
+      return;
+    }
+    var group = FitnessStats.compareGroup || 'age_gender';
+    var others = filterPoolForGroup(group);
+    var ranks = {};
+    Object.keys(PR_MAP).forEach(function (key) {
+      var rec = FitnessStats.records ? FitnessStats.records[key] : null;
+      if (!rec) { ranks[key] = null; return; }
+      var map = PR_MAP[key];
+      // Need at least 4 others to show a meaningful percentile
+      if (others.filter(function (r) { return r[map.col] != null; }).length < 4) {
+        ranks[key] = null;
+        return;
+      }
+      ranks[key] = computeTopPercent(rec.value, map.dir, others, map.col);
+    });
+    FitnessStats.ranks = ranks;
+  }
+
+  function buildCompareOptions() {
+    var sel = document.getElementById('fs-compare-select');
+    if (!sel || !myDemo) return;
+
+    var ageLabel = myDemo.age != null ? ageBucketLabel(myDemo.age) : null;
+    var opts = [
+      { v: 'all',                     label: 'All FFP members' },
+      { v: 'gender',                  label: 'Same gender' },
+      { v: 'age',                     label: ageLabel ? 'Your age group (' + ageLabel + ')' : 'Your age group' },
+      { v: 'age_gender',              label: 'Same age & gender' },
+      { v: 'country',                 label: myDemo.country ? 'Same country (' + myDemo.country + ')' : 'Same country' },
+      { v: 'city',                    label: myDemo.city ? 'Same city (' + myDemo.city + ')' : 'Same city' },
+      { v: 'nationality',             label: myDemo.nationality ? 'Same nationality (' + myDemo.nationality + ')' : 'Same nationality' },
+      { v: 'age_gender_city',         label: 'Same age, gender & city' },
+      { v: 'age_gender_country',      label: 'Same age, gender & country' },
+      { v: 'age_gender_nationality',  label: 'Same age, gender & nationality' }
+    ];
+
+    var current = FitnessStats.compareGroup || 'age_gender';
+    sel.innerHTML = opts.map(function (o) {
+      var selAttr = o.v === current ? ' selected' : '';
+      return '<option value="' + o.v + '"' + selAttr + '>' + o.label + '</option>';
+    }).join('');
+  }
+
+  // ─────────── ACTIVITY OVERRIDES (from v3) ───────────
 
   function overrideComputeStreak() {
     FitnessStats.computeStreak = function () {
@@ -146,20 +267,11 @@
       if (metaEl) {
         metaEl.classList.remove('warn','celebrate');
         var metaText;
-        if (streak.current === 0) {
-          metaText = 'Log an activity today to start your streak';
-        } else if (!todayActive) {
-          metaText = 'Log today to keep your ' + streak.current + '-day streak alive';
-          metaEl.classList.add('warn');
-        } else if (streak.current >= streak.best && streak.best > 1) {
-          metaText = "You're at your all-time best \u2014 don't stop now";
-          metaEl.classList.add('celebrate');
-        } else if (streak.best > streak.current) {
-          var diff = streak.best - streak.current;
-          metaText = diff + ' more day' + (diff === 1 ? '' : 's') + ' to match your best';
-        } else {
-          metaText = 'Keep the chain alive';
-        }
+        if (streak.current === 0)             metaText = 'Log an activity today to start your streak';
+        else if (!todayActive)                { metaText = 'Log today to keep your ' + streak.current + '-day streak alive'; metaEl.classList.add('warn'); }
+        else if (streak.current >= streak.best && streak.best > 1) { metaText = "You're at your all-time best \u2014 don't stop now"; metaEl.classList.add('celebrate'); }
+        else if (streak.best > streak.current) { var diff = streak.best - streak.current; metaText = diff + ' more day' + (diff === 1 ? '' : 's') + ' to match your best'; }
+        else                                  metaText = 'Keep the chain alive';
         metaEl.textContent = metaText;
       }
       var last30 = activityCache.filter(function (l) { return l.daysAgo <= 30; });
@@ -198,19 +310,17 @@
       var sleepRec = this.getRecord('sleepAvgHrs');
       var sleepGood = sleepRec && sleepRec.value >= 7 && sleepRec.value <= 9 ? 1 : 0;
       var currentStreak = this.computeStreak().current;
-
       var milestones = [
-        { name: '10 Activities',   desc: 'Log 10 activities',           icon: 'flag',           current: logs.length, target: 10, source: 'Counts from your activity logs' },
-        { name: '5 Sport Types',   desc: 'Try 5 different sports',      icon: 'sports',         current: sportCount,  target: 5,  source: 'Unique activity names in your logs' },
-        { name: 'On a Roll',       desc: '14-day activity streak',      icon: 'local_fire_department', current: currentStreak, target: 14, source: 'Your current daily activity streak' },
-        { name: 'Strong as an Ox', desc: 'Deadlift 2\u00d7 bodyweight', icon: 'fitness_center', current: dlRatio,     target: 2,  source: 'From your deadlift PR \u00f7 weight', decimals: 2, unit: '\u00d7' },
-        { name: 'Half Marathoner', desc: 'Log a 21K PR',                icon: 'directions_run', current: r.run21K  ? 1 : 0, target: 1, source: 'Manual entry on the Records tab', binary: true },
-        { name: 'Marathon Club',   desc: 'Log a Marathon PR',           icon: 'emoji_events',   current: r.runMara ? 1 : 0, target: 1, source: 'Manual entry on the Records tab', binary: true },
-        { name: 'VO\u2082 Elite',  desc: 'VO\u2082 max above 50',       icon: 'favorite',       current: r.vo2max ? r.vo2max.value : 0, target: 50, source: 'From your VO\u2082 record', decimals: 1 },
-        { name: 'Healthy Heart',   desc: 'Body fat under ' + bfHealthyMax + '%', icon: 'monitor_weight', current: r.bodyFat && r.bodyFat.value <= bfHealthyMax ? 1 : 0, target: 1, source: 'From your body fat record', binary: true },
-        { name: 'Well-Rested',     desc: 'Sleep avg 7\u20139 hrs',      icon: 'bedtime',        current: sleepGood,   target: 1, source: 'From your nightly sleep logs', binary: true }
+        { name: '10 Activities',   desc: 'Log 10 activities',           icon: 'flag',           current: logs.length, target: 10 },
+        { name: '5 Sport Types',   desc: 'Try 5 different sports',      icon: 'sports',         current: sportCount,  target: 5  },
+        { name: 'On a Roll',       desc: '14-day activity streak',      icon: 'local_fire_department', current: currentStreak, target: 14 },
+        { name: 'Strong as an Ox', desc: 'Deadlift 2\u00d7 bodyweight', icon: 'fitness_center', current: dlRatio,     target: 2, decimals: 2, unit: '\u00d7' },
+        { name: 'Half Marathoner', desc: 'Log a 21K PR',                icon: 'directions_run', current: r.run21K  ? 1 : 0, target: 1, binary: true },
+        { name: 'Marathon Club',   desc: 'Log a Marathon PR',           icon: 'emoji_events',   current: r.runMara ? 1 : 0, target: 1, binary: true },
+        { name: 'VO\u2082 Elite',  desc: 'VO\u2082 max above 50',       icon: 'favorite',       current: r.vo2max ? r.vo2max.value : 0, target: 50, decimals: 1 },
+        { name: 'Healthy Heart',   desc: 'Body fat under ' + bfHealthyMax + '%', icon: 'monitor_weight', current: r.bodyFat && r.bodyFat.value <= bfHealthyMax ? 1 : 0, target: 1, binary: true },
+        { name: 'Well-Rested',     desc: 'Sleep avg 7\u20139 hrs',      icon: 'bedtime',        current: sleepGood,   target: 1, binary: true }
       ];
-
       var gridEl = document.getElementById('achievements-grid');
       if (gridEl) {
         gridEl.innerHTML = milestones.map(function (m) {
@@ -221,7 +331,7 @@
           else if (m.decimals) progressText = (+m.current).toFixed(m.decimals) + (m.unit || '') + ' / ' + m.target + (m.unit || '');
           else                 progressText = m.current + ' / ' + m.target;
           var esc = (typeof escHtml === 'function') ? escHtml : function (x) { return x; };
-          return '<div class="achievement ' + (unlocked ? 'unlocked' : 'locked') + '" title="' + esc(m.source) + '">' +
+          return '<div class="achievement ' + (unlocked ? 'unlocked' : 'locked') + '">' +
             '<div class="achievement-icon"><span class="material-icons">' + m.icon + '</span></div>' +
             '<div class="achievement-name">' + esc(m.name) + '</div>' +
             '<div class="achievement-desc">' + esc(m.desc) + '</div>' +
@@ -235,6 +345,17 @@
       if (countEl) countEl.textContent = unlockedCount + ' of ' + milestones.length + ' unlocked';
     };
   }
+
+  // Wrap render so ranks are recomputed before every paint (catches compareGroup changes)
+  function overrideRender() {
+    var origRender = FitnessStats.render.bind(FitnessStats);
+    FitnessStats.render = function () {
+      refreshRanks();
+      origRender();
+    };
+  }
+
+  // ─────────── LOAD ───────────
 
   async function loadFromSupabase() {
     if (!window.supabase || typeof FitnessStats === 'undefined') {
@@ -253,7 +374,7 @@
 
       var memRes = await window.supabase
         .from('members')
-        .select('date_of_birth, gender, city')
+        .select('date_of_birth, gender, city, country, nationality')
         .eq('id', currentUserId)
         .maybeSingle();
 
@@ -262,6 +383,13 @@
         if (ageFromDob != null) FitnessStats.profile.chronAge = ageFromDob;
         if (memRes.data.gender) FitnessStats.profile.gender = memRes.data.gender;
         if (memRes.data.city)   FitnessStats.profile.city   = memRes.data.city;
+        myDemo = {
+          gender: memRes.data.gender || null,
+          age: ageFromDob,
+          city: memRes.data.city || null,
+          country: memRes.data.country || null,
+          nationality: memRes.data.nationality || null
+        };
       }
 
       var pm = await window.supabase
@@ -290,7 +418,7 @@
         FitnessStats.sleepLogs = sleepFromDb(p.sleep_logs);
       }
 
-      // Activity cache (last 90 days)
+      // Activity cache for streak/tiles/milestones
       var sinceIso = new Date(Date.now() - 90 * 86400000).toISOString();
       var actRes = await window.supabase
         .from('activity_logs')
@@ -310,17 +438,28 @@
         });
       }
 
-      FitnessStats.ranks = {};
+      // RANKING POOL — privacy-safe RPC
+      var poolRes = await window.supabase.rpc('get_ranking_pool');
+      if (poolRes.error) {
+        console.error('[FFP Fitness Stats] ranking_pool RPC:', poolRes.error);
+        rankingPool = [];
+      } else {
+        rankingPool = poolRes.data || [];
+      }
+
       overrideComputeStreak();
       overrideRenderActivity();
       overrideRenderMilestones();
+      overrideRender();
+      buildCompareOptions();
       wrapWrites();
 
       var panel = document.getElementById('panel-fitness-stats');
       if (panel && panel.classList.contains('active') && typeof FitnessStats.render === 'function') {
         FitnessStats.render();
       }
-      console.log('[FFP Fitness Stats] Loaded from Supabase ✓ (' + activityCache.length + ' activities cached)');
+
+      console.log('[FFP Fitness Stats] Loaded from Supabase ✓ (' + activityCache.length + ' activities, ' + rankingPool.length + ' members in ranking pool)');
     } catch (err) {
       console.error('[FFP Fitness Stats] Unexpected error:', err);
     }
@@ -340,22 +479,21 @@
       var rec = this.records[key];
       if (!rec) return;
       var val = map.cast === 'int' ? Math.round(rec.value) : Number(rec.value);
-
-      // Read current pr_dates, patch this key, write back
       try {
         var readRes = await window.supabase
-          .from('profile_meta')
-          .select('pr_dates')
-          .eq('member_id', currentUserId)
-          .maybeSingle();
+          .from('profile_meta').select('pr_dates')
+          .eq('member_id', currentUserId).maybeSingle();
         var prDates = (readRes.data && readRes.data.pr_dates && typeof readRes.data.pr_dates === 'object')
           ? readRes.data.pr_dates : {};
         prDates[key] = rec.date || todayStr();
-
         var payload = { member_id: currentUserId, pr_dates: prDates, updated_at: new Date().toISOString() };
         payload[map.col] = val;
         var res = await window.supabase.from('profile_meta').upsert(payload, { onConflict: 'member_id' });
         if (res.error) console.error('[FFP FS] pr save:', res.error);
+        // Refresh ranking pool snapshot of self so the rank reflects new value
+        for (var i = 0; i < rankingPool.length; i++) {
+          if (rankingPool[i].member_id === currentUserId) { rankingPool[i][map.col] = val; break; }
+        }
       } catch (e) { console.error('[FFP FS] pr save:', e); }
     };
 
@@ -364,23 +502,23 @@
       var key = this._editKey;
       origClearPr();
       if (!key || !currentUserId) return;
-      if (this.records[key] != null) return;  // user cancelled confirm
+      if (this.records[key] != null) return;
       var map = PR_MAP[key];
       if (!map) return;
       try {
         var readRes = await window.supabase
-          .from('profile_meta')
-          .select('pr_dates')
-          .eq('member_id', currentUserId)
-          .maybeSingle();
+          .from('profile_meta').select('pr_dates')
+          .eq('member_id', currentUserId).maybeSingle();
         var prDates = (readRes.data && readRes.data.pr_dates && typeof readRes.data.pr_dates === 'object')
           ? readRes.data.pr_dates : {};
         delete prDates[key];
-
         var payload = { member_id: currentUserId, pr_dates: prDates, updated_at: new Date().toISOString() };
         payload[map.col] = null;
         var res = await window.supabase.from('profile_meta').upsert(payload, { onConflict: 'member_id' });
         if (res.error) console.error('[FFP FS] pr clear:', res.error);
+        for (var i = 0; i < rankingPool.length; i++) {
+          if (rankingPool[i].member_id === currentUserId) { rankingPool[i][map.col] = null; break; }
+        }
       } catch (e) { console.error('[FFP FS] pr clear:', e); }
     };
 
