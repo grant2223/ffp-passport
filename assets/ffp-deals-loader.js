@@ -1,9 +1,19 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   FFP DEALS LOADER (v2)
+   FFP DEALS LOADER (v3)
    ───────────────────────────────────────────────────────────────────────
-   v2 changes:
-   - Removed `verified` from the providers SELECT (column doesn't exist
-     in deployed schema). verified is now derived from provider.status === 'approved'.
+   v3 changes:
+   - Matches actual deployed schema:
+     * deals.title (was perk), deals.description (was breakdown)
+     * deals.hero_image_url (was hero_photo_url)
+     * deals.offer_label → mapped to dashboard's "valid" short label
+     * deals.terms → mapped to dashboard's "booking" detail text
+     * deals.max_redemptions_per_member → mapped to "limits" string
+     * providers.about (provider-level, not per deal)
+   - Fields not in schema (frequency, service, hot) default to safe values
+
+   Requires:
+     1. https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2
+     2. assets/ffp-api-integration.js
 ═══════════════════════════════════════════════════════════════════════ */
 
 (function () {
@@ -12,7 +22,6 @@
   let retries = 0;
   const MAX_RETRIES = 30;
 
-  // ─── Global no-scrollbar rule (FFP HARD RULE) ────────────────────────
   function injectStyles() {
     if (document.getElementById('ffp-deals-loader-styles')) return;
     const s = document.createElement('style');
@@ -25,33 +34,41 @@
     document.head.appendChild(s);
   }
 
-  // ─── Map a Supabase deal row + joined provider into the Deals.data shape ──
+  // Map a Supabase deal row + joined provider into the dashboard Deals.data shape
   function mapDealRow(row) {
     const provider = row.provider || {};
+
+    // Build a "limits" string from max_redemptions_per_member if set
+    let limits = '';
+    if (row.max_redemptions_per_member && row.max_redemptions_per_member > 0 && row.max_redemptions_per_member < 999) {
+      limits = 'Max ' + row.max_redemptions_per_member + ' per member';
+    } else {
+      limits = 'No restriction';
+    }
+
     return {
       id:           row.id,
       venue:        provider.business_name || 'Unknown provider',
       letter:       provider.letter_mark || (provider.business_name || '?').charAt(0).toUpperCase(),
-      perk:         row.perk || '',
-      breakdown:    row.breakdown || '',
-      about:        row.about || '',
+      perk:         row.title || '',
+      breakdown:    row.description || '',
+      about:        provider.about || '',
       category:     row.category || provider.category || 'Other',
       area:         provider.area || '',
-      valid:        row.valid || '',
-      booking:      row.booking || '',
-      limits:       row.limits || '',
-      frequency:    row.frequency || '',
+      valid:        row.offer_label || '',
+      booking:      row.terms || '',
+      limits:       limits,
+      frequency:    '',
       providerType: provider.provider_type || '',
-      service:      row.service || '',
+      service:      '',
       city:         provider.city || '',
       verified:     provider.status === 'approved',
       featured:     row.featured === true,
-      hot:          row.hot === true,
-      img:          row.hero_photo_url || ''
+      hot:          false,
+      img:          row.hero_image_url || ''
     };
   }
 
-  // ─── Load deals from Supabase ────────────────────────────────────────
   async function loadDealsFromSupabase() {
     if (!window.supabase || typeof Deals === 'undefined') {
       if (retries < MAX_RETRIES) {
@@ -66,10 +83,9 @@
     injectStyles();
 
     try {
-      // Fetch live deals with their approved providers
       const res = await window.supabase
         .from('deals')
-        .select('*, provider:providers!inner(business_name, letter_mark, category, provider_type, city, area, status)')
+        .select('*, provider:providers!inner(business_name, letter_mark, category, provider_type, city, area, about, status)')
         .eq('status', 'live')
         .eq('provider.status', 'approved');
 
@@ -91,10 +107,8 @@
         return;
       }
 
-      // Replace the dashboard's Deals.data with real rows
       Deals.data = rows.map(mapDealRow);
 
-      // Re-render if the deals panel is currently visible
       const panel = document.getElementById('panel-deals');
       if (panel && panel.classList.contains('active') && typeof Deals.render === 'function') {
         Deals.render();
@@ -107,7 +121,6 @@
     }
   }
 
-  // ─── Run on DOM ready ────────────────────────────────────────────────
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () {
       setTimeout(loadDealsFromSupabase, 400);
@@ -116,6 +129,5 @@
     setTimeout(loadDealsFromSupabase, 400);
   }
 
-  // Expose for manual reload / debugging
   window.ffpReloadDeals = loadDealsFromSupabase;
 })();
