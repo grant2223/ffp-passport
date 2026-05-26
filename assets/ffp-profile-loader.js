@@ -1,13 +1,10 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   FFP PROFILE LOADER (v5)
+   FFP PROFILE LOADER (v6)
    ───────────────────────────────────────────────────────────────────────
-   v5 changes:
-   - REMOVED sticky save bar (was too intrusive)
-   - REMOVED auto-save (manual save only — standard form pattern)
-   - Big Save Changes button at the BOTTOM of the profile
-   - Click → save to Supabase → toast confirms success or failure
-   - All v4 features retained: DOB three-dropdown picker, gender saving,
-     proper error logging
+   v6 changes:
+   - GLOBAL no-scrollbar rule baked into injected styles (applies to every
+     element on the dashboard, including dropdown popups)
+   - All v5 features retained
 ═══════════════════════════════════════════════════════════════════════ */
 
 (function () {
@@ -25,6 +22,10 @@
     const s = document.createElement('style');
     s.id = 'ffp-profile-loader-styles';
     s.textContent = `
+      /* ── FFP RULE: no default browser scrollbars anywhere ── */
+      *::-webkit-scrollbar{display:none !important;width:0 !important;height:0 !important;}
+      *{-ms-overflow-style:none !important;scrollbar-width:none !important;}
+
       /* ── Error toast (dashboard toast is green by default) ── */
       .toast.ffp-error{border-color:#ef4444 !important;}
       .toast.ffp-error .material-icons{color:#ef4444 !important;}
