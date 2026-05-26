@@ -1,167 +1,249 @@
-/* =============================================================
-   FFP Passport — API Integration Module (v3)
-   Backend: https://ffp-passport-backend.vercel.app
-   Endpoints: /api/auth/signup, /api/auth/signin, /api/auth/reset
-   v3: signin flow advances to code screen without API call (permanent code model)
-   ============================================================= */
+/* ============================================================================
+   FFP Passport — API Integration Module (v4)
+   ============================================================================
+   Architecture:
+     - Supabase Auth handles login (email OTP, 6-digit codes)
+     - Supabase JS client used directly from dashboards for data
+     - Vercel backend only handles the Stripe webhook
+   
+   Loaded BEFORE this file in HTML:
+     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+   
+   Public API maintained for compatibility with login.html:
+     FFPApi.requestCode(email, fullName, flow)  — sends OTP code
+     FFPApi.verifyCode(email, code, flow)       — verifies code, returns member
+     FFPApi.getMemberProfile()                   — fetches current member
+     FFPAuth.isAuthenticated()                   — true if signed in
+     FFPAuth.getMember()                         — cached member object
+     FFPAuth.clear()                             — sign out
+     ffpLogout()                                 — sign out + redirect to login
+     window.supabase                             — the live Supabase client (for dashboards)
+   ============================================================================ */
 (function (window) {
   'use strict';
 
-  var API_BASE = 'https://ffp-passport-backend.vercel.app';
-  var TOKEN_KEY = 'ffp_token';
-  var MEMBER_KEY = 'ffp_member';
+  // ── Configuration ─────────────────────────────────────────────────────────
+  var SUPABASE_URL = 'https://kxzyuofecmtymablnmak.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4enl1b2ZlY210eW1hYmxubWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NDM1MTYsImV4cCI6MjA5NTAxOTUxNn0.cWn0x1AeD-x9C-HHf9MShXbFRWdkWi5RMgHLgWJwOuE';
 
+  // ── Initialise Supabase client ────────────────────────────────────────────
+  if (!window.supabase || !window.supabase.createClient) {
+    console.error('[FFP] Supabase JS SDK not loaded. Add this BEFORE ffp-api-integration.js:\n<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>');
+    return;
+  }
+
+  var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: false
+    }
+  });
+
+  // Expose the client globally so dashboards can use `supabase.from('deals')...` etc.
+  window.supabase = supabase;
+
+
+  // ── Helper: fetch member + determine role (member / provider / admin) ─────
+  async function loadEnrichedMember(userId) {
+    // 1. Fetch the members row
+    var memberRes = await supabase
+      .from('members')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (memberRes.error || !memberRes.data) {
+      return { error: 'Failed to load member profile' };
+    }
+    var member = memberRes.data;
+
+    // 2. Check if they're in admin_users
+    var adminRes = await supabase
+      .from('admin_users')
+      .select('id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (adminRes.data) {
+      member.role = 'admin';
+      return { member: member };
+    }
+
+    // 3. Check if they own a provider
+    var providerRes = await supabase
+      .from('providers')
+      .select('id')
+      .eq('owner_user_id', userId)
+      .maybeSingle();
+
+    member.role = providerRes.data ? 'provider' : 'member';
+    return { member: member };
+  }
+
+
+  // ── FFPApi — same interface login.html expects ────────────────────────────
+  var FFPApi = {
+    /**
+     * Sends a fresh 6-digit OTP code to the user's email.
+     * Flows:
+     *   signin — sends OTP (real email)
+     *   signup — no-op (signup happens via Stripe payment, webhook creates user)
+     *   reset  — sends OTP (same as signin)
+     */
+    requestCode: async function (email, fullName, flow) {
+      if (flow === 'signup') {
+        // Signup happens via Stripe — no code request needed from this page
+        return { success: true };
+      }
+      try {
+        var res = await supabase.auth.signInWithOtp({
+          email: email,
+          options: {
+            shouldCreateUser: false  // Only paid members (created by Stripe webhook) can sign in
+          }
+        });
+        if (res.error) {
+          // Common case: user not found = haven't paid yet
+          var msg = res.error.message || 'Failed to send code';
+          if (/signups not allowed|user.*not.*found|invalid/i.test(msg)) {
+            msg = 'No account found for that email. Please complete payment first.';
+          }
+          return { error: msg };
+        }
+        return { success: true };
+      } catch (err) {
+        return { error: err.message || 'Network error' };
+      }
+    },
+
+    /**
+     * Verifies the 6-digit code and signs the user in.
+     * Returns: { success: true, member, token } or { error }
+     */
+    verifyCode: async function (email, code, flow) {
+      try {
+        var res = await supabase.auth.verifyOtp({
+          email: email,
+          token: String(code).trim(),
+          type: 'email'
+        });
+
+        if (res.error || !res.data || !res.data.user) {
+          var msg = (res.error && res.error.message) || 'Invalid or expired code';
+          if (/expired/i.test(msg)) msg = 'Code expired. Request a new one.';
+          else if (/invalid/i.test(msg)) msg = 'Wrong code. Try again.';
+          return { error: msg };
+        }
+
+        // Fetch enriched member profile (with role)
+        var enriched = await loadEnrichedMember(res.data.user.id);
+        if (enriched.error) {
+          return { error: enriched.error };
+        }
+
+        // Cache for sync access by older code paths
+        try {
+          localStorage.setItem('ffp_member', JSON.stringify(enriched.member));
+          localStorage.setItem('ffp_token', res.data.session.access_token);
+        } catch (e) {}
+
+        return {
+          success: true,
+          member: enriched.member,
+          token: res.data.session.access_token
+        };
+      } catch (err) {
+        return { error: err.message || 'Verification failed' };
+      }
+    },
+
+    /**
+     * Get current member profile. Returns the member object or { error }.
+     */
+    getMemberProfile: async function () {
+      var userRes = await supabase.auth.getUser();
+      if (userRes.error || !userRes.data || !userRes.data.user) {
+        return { error: 'Not authenticated' };
+      }
+      var enriched = await loadEnrichedMember(userRes.data.user.id);
+      if (enriched.error) return { error: enriched.error };
+      return enriched.member;
+    }
+  };
+
+
+  // ── FFPAuth — session helpers ─────────────────────────────────────────────
   var FFPAuth = {
+    isAuthenticated: async function () {
+      var res = await supabase.auth.getSession();
+      return !!(res.data && res.data.session);
+    },
     getToken: function () {
-      try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; }
+      try { return localStorage.getItem('ffp_token'); } catch (e) { return null; }
     },
     setToken: function (token) {
-      try { localStorage.setItem(TOKEN_KEY, token); } catch (e) {}
+      try { localStorage.setItem('ffp_token', token); } catch (e) {}
     },
     getMember: function () {
       try {
-        var raw = localStorage.getItem(MEMBER_KEY);
+        var raw = localStorage.getItem('ffp_member');
         return raw ? JSON.parse(raw) : null;
       } catch (e) { return null; }
     },
     setMember: function (member) {
-      try { localStorage.setItem(MEMBER_KEY, JSON.stringify(member)); } catch (e) {}
+      try { localStorage.setItem('ffp_member', JSON.stringify(member)); } catch (e) {}
     },
-    clear: function () {
+    clear: async function () {
       try {
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(MEMBER_KEY);
+        localStorage.removeItem('ffp_token');
+        localStorage.removeItem('ffp_member');
       } catch (e) {}
-    },
-    isAuthenticated: function () {
-      return !!this.getToken();
+      try { await supabase.auth.signOut(); } catch (e) {}
     }
   };
 
-  function call(path, options) {
-    options = options || {};
-    var headers = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    };
-    var token = FFPAuth.getToken();
-    if (token) headers['Authorization'] = 'Bearer ' + token;
 
-    var fetchOpts = {
-      method: options.method || 'GET',
-      headers: headers,
-      mode: 'cors',
-      credentials: 'omit'
-    };
-    if (options.body) fetchOpts.body = JSON.stringify(options.body);
-
-    return fetch(API_BASE + path, fetchOpts).then(function (res) {
-      if (res.status === 401) {
-        FFPAuth.clear();
-        if (!/login\.html$/.test(window.location.pathname)) {
-          window.location.href = 'login.html';
-        }
-        return { error: 'Unauthorized' };
-      }
-      return res.json().catch(function () { return { error: 'Invalid JSON response' }; });
-    }).catch(function (err) {
-      console.error('FFPApi call failed:', path, err);
-      return { error: err && err.message ? err.message : 'Network error' };
-    });
-  }
-
-  var FFPApi = {
-    requestCode: function (email, fullName, flow) {
-      // SIGNIN flow uses a permanent code — no API call, just advance UI to code entry
-      if (flow === 'signin') {
-        return Promise.resolve({ success: true });
-      }
-      var path;
-      var body = { email: email };
-      if (flow === 'signup') {
-        path = '/api/auth/signup';
-        if (fullName) body.full_name = fullName;
-      } else if (flow === 'reset') {
-        path = '/api/auth/reset';
-      } else {
-        return Promise.resolve({ error: 'Unknown flow: ' + flow });
-      }
-      return call(path, { method: 'POST', body: body });
-    },
-    verifyCode: function (email, code, flow) {
-      return call('/api/auth/signin', {
-        method: 'POST',
-        body: { email: email, code: code }
-      }).then(function (res) {
-        if (res && res.token) {
-          FFPAuth.setToken(res.token);
-          if (res.member) FFPAuth.setMember(res.member);
-        }
-        return res;
-      });
-    },
-    getMemberProfile: function () { return call('/api/members/me'); },
-    getDeals: function (filters) {
-      var q = filters ? '?' + new URLSearchParams(filters).toString() : '';
-      return call('/api/deals' + q);
-    },
-    redeemDeal: function (dealId) {
-      return call('/api/deals/' + dealId + '/redeem', { method: 'POST' });
-    },
-    getVenueProfile: function () { return call('/api/provider/venue'); },
-    getVenueStats: function () { return call('/api/provider/stats'); },
-    getAdminDashboard: function () { return call('/api/admin/dashboard'); }
+  // ── Globals ───────────────────────────────────────────────────────────────
+  window.FFPApi = FFPApi;
+  window.FFPAuth = FFPAuth;
+  window.ffpLogout = async function () {
+    await FFPAuth.clear();
+    window.location.href = 'login.html';
   };
 
-  function handleAPIError(error, fallback) {
-    console.error('FFP API error:', error);
-    var msg = (error && error.message) || fallback || 'Something went wrong.';
-    alert(msg);
+
+  // ── Auto-redirect: if already signed in and on login page, go to dashboard
+  function isOnLoginPage() {
+    var path = (window.location.pathname || '').toLowerCase();
+    return /login/i.test(path);
   }
 
-  function autoInit() {
-    var path = window.location.pathname.toLowerCase();
-    if (path.indexOf('ffp-member-dashboard') !== -1) {
-      if (!FFPAuth.isAuthenticated()) return;
-      // Use stored member data first (from sign-in response)
-      var stored = FFPAuth.getMember();
-      if (stored) applyProfileToDashboard(stored);
-      return;
-    }
-    if (path.indexOf('ffp-provider') !== -1) {
-      if (!FFPAuth.isAuthenticated()) return;
-      var v = FFPAuth.getMember();
-      if (v) {
-        var nameEl = document.querySelector('[data-venue-name]');
-        if (nameEl && v.full_name) nameEl.textContent = v.full_name;
-      }
-      return;
-    }
-  }
+  async function autoSessionCheck() {
+    if (!isOnLoginPage()) return;
+    var res = await supabase.auth.getSession();
+    if (!res.data || !res.data.session) return;
 
-  function applyProfileToDashboard(profile) {
-    var map = {
-      'pass-name': profile.full_name,
-      'pass-passport-num': profile.passport_no || profile.passport_number,
-      'pass-email': profile.email
+    var enriched = await loadEnrichedMember(res.data.session.user.id);
+    if (enriched.error || !enriched.member) return;
+
+    var destinations = {
+      member:   'ffp-member-dashboard.html',
+      provider: 'ffp-provider.html',
+      admin:    'ffp-admin.html'
     };
-    Object.keys(map).forEach(function (id) {
-      var el = document.getElementById(id);
-      if (el && map[id]) el.textContent = map[id];
-    });
+
+    if (!enriched.member.profile_complete) {
+      window.location.href = 'ffp-profile-complete.html?id=' + enriched.member.id;
+    } else {
+      window.location.href = destinations[enriched.member.role] || destinations.member;
+    }
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', autoInit);
+    document.addEventListener('DOMContentLoaded', autoSessionCheck);
   } else {
-    autoInit();
+    autoSessionCheck();
   }
 
-  window.FFPAuth = FFPAuth;
-  window.FFPApi = FFPApi;
-  window.handleAPIError = handleAPIError;
-  window.ffpLogout = function () {
-    FFPAuth.clear();
-    window.location.href = 'login.html';
-  };
 })(window);
