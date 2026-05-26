@@ -7,13 +7,13 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/ffp-api-integration.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420 !important;color:#fff;-webkit-font-smoothing:antialiased;}
 .page{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:32px 20px 80px;}
 .wrap{width:100%;max-width:480px;}
 
-/* Header */
 .logo{text-align:center;margin-bottom:28px;}
 .logo-brand{font-size:20px;font-weight:900;letter-spacing:3px;}
 .logo-brand span{color:#2ba8e0;}
@@ -23,7 +23,6 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 .welcome-h{font-size:24px;font-weight:900;margin-bottom:6px;letter-spacing:-.3px;}
 .welcome-sub{font-size:13px;color:#9dbdd0;line-height:1.6;}
 
-/* Progress */
 .progress{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:28px;font-size:10px;font-weight:800;color:#6a90a8;letter-spacing:1.5px;text-transform:uppercase;}
 .progress-step{display:flex;align-items:center;gap:6px;}
 .progress-dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;background:rgba(43,168,224,.15);border:1.5px solid rgba(43,168,224,.3);color:#6a90a8;}
@@ -32,7 +31,6 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 .progress-line{width:24px;height:1.5px;background:rgba(43,168,224,.2);}
 .progress-line.done{background:#22c55e;}
 
-/* Section + fields */
 .section-label{font-size:10px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#2ba8e0;margin-bottom:14px;}
 .field-label{font-size:10px;font-weight:800;color:#6a90a8;letter-spacing:1px;text-transform:uppercase;margin-bottom:7px;}
 .field-input,.field-select{width:100%;background:rgba(43,168,224,.06);border:1px solid rgba(43,168,224,.2);border-radius:10px;padding:13px 16px;font-size:15px;font-weight:600;color:#fff;font-family:'Montserrat',sans-serif;outline:none;transition:border-color .15s;height:48px;}
@@ -43,12 +41,9 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 .field-select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236a90a8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");background-position:right 14px center;background-repeat:no-repeat;background-size:14px;padding-right:40px;cursor:pointer;}
 .field-select option{background:#0b1c28;color:#fff;}
 
-/* All field rows use the same 2-col grid */
 .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
 @media(max-width:400px){.field-grid{grid-template-columns:1fr;}}
-.field-cell .field-label{margin-bottom:7px;}
 
-/* Buttons */
 .btn-primary{display:flex;align-items:center;justify-content:center;width:100%;padding:15px;border-radius:12px;font-size:15px;font-weight:800;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;color:#fff;background:#2ba8e0;transition:background .15s;text-align:center;gap:8px;margin-top:8px;}
 .btn-primary:hover{background:#1980AD;}
 .btn-primary:disabled{opacity:.5;cursor:not-allowed;}
@@ -57,40 +52,61 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 .btn-back{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#6a90a8;background:none;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;padding:0;margin-bottom:20px;}
 .btn-back:hover{color:#2ba8e0;}
 
-/* Step views */
 .step{display:none;}
 .step.active{display:block;animation:fadeIn .25s ease;}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
 
-/* Step 2: Sports list */
 .sports-helper{font-size:12px;color:#9dbdd0;margin-bottom:18px;line-height:1.6;}
 .sports-list{margin-bottom:14px;}
 .sport-row{display:flex;align-items:center;gap:12px;background:rgba(43,168,224,.08);border:1px solid rgba(43,168,224,.22);border-radius:11px;padding:13px 14px;margin-bottom:8px;}
-.sport-row-info{flex:1;}
+.sport-row-icon{width:34px;height:34px;border-radius:9px;background:rgba(43,168,224,.15);display:flex;align-items:center;justify-content:center;color:#2ba8e0;flex-shrink:0;}
+.sport-row-icon .material-icons-outlined{font-size:20px;}
+.sport-row-info{flex:1;min-width:0;}
 .sport-row-name{font-size:14px;font-weight:800;color:#fff;}
-.sport-row-level{font-size:11px;font-weight:700;color:#2ba8e0;margin-top:2px;letter-spacing:.5px;text-transform:uppercase;}
-.sport-row-edit{background:none;border:none;color:#6a90a8;cursor:pointer;padding:6px;display:flex;align-items:center;border-radius:6px;transition:color .15s;}
+.sport-row-meta{font-size:11px;font-weight:700;color:#2ba8e0;margin-top:2px;letter-spacing:.5px;text-transform:uppercase;}
+.sport-row-edit,.sport-row-remove{background:none;border:none;color:#6a90a8;cursor:pointer;padding:6px;display:flex;align-items:center;border-radius:6px;transition:color .15s;}
 .sport-row-edit:hover{color:#2ba8e0;}
-.sport-row-remove{background:none;border:none;color:#6a90a8;cursor:pointer;padding:6px;display:flex;align-items:center;border-radius:6px;transition:color .15s;}
 .sport-row-remove:hover{color:#ef4444;}
 .sports-empty{padding:24px;text-align:center;font-size:12px;color:#6a90a8;border:1px dashed rgba(43,168,224,.22);border-radius:11px;background:rgba(43,168,224,.03);margin-bottom:12px;line-height:1.6;}
 
-/* Sport picker overlay (in-page) */
+/* Picker overlay */
 .picker{display:none;position:fixed;inset:0;background:#081420;z-index:100;overflow-y:auto;padding:32px 20px 60px;}
 .picker.active{display:block;animation:fadeIn .2s ease;}
 .picker-wrap{width:100%;max-width:480px;margin:0 auto;}
 .picker-title{font-size:22px;font-weight:900;margin-bottom:6px;letter-spacing:-.3px;}
-.picker-sub{font-size:13px;color:#9dbdd0;margin-bottom:24px;line-height:1.6;}
+.picker-sub{font-size:13px;color:#9dbdd0;margin-bottom:20px;line-height:1.6;}
 
-/* Sport grid */
-.sport-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px;}
-@media(min-width:480px){.sport-grid{grid-template-columns:repeat(3,1fr);}}
-.sport-chip{background:rgba(43,168,224,.05);border:1.5px solid rgba(43,168,224,.18);border-radius:11px;padding:14px 12px;font-size:13px;font-weight:700;color:#9dbdd0;cursor:pointer;transition:all .15s;text-align:center;min-height:52px;display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif;}
-.sport-chip:hover{border-color:#2ba8e0;color:#fff;background:rgba(43,168,224,.1);}
-.sport-chip:disabled{opacity:.35;cursor:not-allowed;}
-.sport-chip:disabled:hover{border-color:rgba(43,168,224,.18);color:#9dbdd0;background:rgba(43,168,224,.05);}
+/* Search input */
+.picker-search{position:relative;margin-bottom:14px;}
+.picker-search .material-icons-outlined{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#6a90a8;font-size:18px;pointer-events:none;}
+.picker-search input{width:100%;background:rgba(43,168,224,.06);border:1px solid rgba(43,168,224,.2);border-radius:10px;padding:13px 16px 13px 42px;font-size:14px;font-weight:600;color:#fff;font-family:'Montserrat',sans-serif;outline:none;transition:border-color .15s;height:46px;}
+.picker-search input:focus{border-color:#2ba8e0;}
+.picker-search input::placeholder{color:#6a90a8;font-weight:500;}
 
-/* Level cards (stacked) */
+/* Category chips (horizontally scrollable) */
+.picker-cats{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:6px;margin-bottom:14px;scrollbar-width:none;}
+.picker-cats::-webkit-scrollbar{display:none;}
+.cat-chip{flex-shrink:0;background:rgba(43,168,224,.05);border:1px solid rgba(43,168,224,.18);border-radius:18px;padding:7px 13px;font-size:11px;font-weight:700;color:#9dbdd0;cursor:pointer;transition:all .15s;font-family:'Montserrat',sans-serif;white-space:nowrap;display:flex;align-items:center;gap:5px;}
+.cat-chip:hover{border-color:#2ba8e0;color:#fff;}
+.cat-chip.active{background:#2ba8e0;border-color:#2ba8e0;color:#fff;}
+.cat-chip .material-icons-outlined{font-size:14px;}
+
+/* Activity list */
+.activity-list{display:flex;flex-direction:column;gap:6px;margin-bottom:18px;max-height:50vh;overflow-y:auto;padding-right:4px;}
+.activity-row{background:rgba(43,168,224,.05);border:1.5px solid rgba(43,168,224,.18);border-radius:10px;padding:11px 14px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;transition:all .15s;text-align:left;display:flex;align-items:center;gap:12px;font-family:'Montserrat',sans-serif;}
+.activity-row:hover{border-color:#2ba8e0;background:rgba(43,168,224,.1);}
+.activity-row:disabled{opacity:.35;cursor:not-allowed;}
+.activity-row:disabled:hover{border-color:rgba(43,168,224,.18);background:rgba(43,168,224,.05);}
+.activity-row-icon{width:28px;height:28px;border-radius:7px;background:rgba(43,168,224,.15);display:flex;align-items:center;justify-content:center;color:#2ba8e0;flex-shrink:0;}
+.activity-row-icon .material-icons-outlined{font-size:17px;}
+.activity-row-info{flex:1;min-width:0;}
+.activity-row-name{font-size:13px;font-weight:700;color:#fff;}
+.activity-row-cat{font-size:10px;font-weight:600;color:#6a90a8;margin-top:2px;letter-spacing:.3px;}
+.activity-row-arrow{color:#6a90a8;flex-shrink:0;}
+.activity-row:hover .activity-row-arrow{color:#2ba8e0;}
+.activity-empty{padding:20px;text-align:center;font-size:12px;color:#6a90a8;border:1px dashed rgba(43,168,224,.18);border-radius:10px;}
+
+/* Level cards */
 .level-list{display:flex;flex-direction:column;gap:10px;margin-bottom:18px;}
 .level-card{background:rgba(43,168,224,.05);border:1.5px solid rgba(43,168,224,.18);border-radius:12px;padding:16px;cursor:pointer;transition:all .15s;display:flex;align-items:flex-start;gap:14px;}
 .level-card:hover{border-color:#2ba8e0;background:rgba(43,168,224,.08);}
@@ -102,10 +118,7 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 .level-name{font-size:14px;font-weight:800;color:#fff;margin-bottom:3px;letter-spacing:.2px;}
 .level-desc{font-size:12px;color:#9dbdd0;line-height:1.5;font-weight:500;}
 
-/* Error msg */
 .error-msg{color:#ef4444;font-size:12px;font-weight:700;margin-top:10px;text-align:center;min-height:18px;}
-
-/* Loading */
 .loading-screen{position:fixed;inset:0;background:#081420;display:flex;align-items:center;justify-content:center;z-index:200;}
 .spinner{width:32px;height:32px;border:3px solid rgba(43,168,224,.2);border-top-color:#2ba8e0;border-radius:50%;animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
@@ -144,30 +157,28 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 </div>
 
 
-<!-- ─────────────────────────────────────────────────────────────────
-     STEP 1 — PERSONAL DETAILS
-───────────────────────────────────────────────────────────────── -->
+<!-- STEP 1 — PERSONAL -->
 <div class="step active" id="step-1">
 
 <div class="section-label">Personal Details</div>
 
 <div class="field-grid">
-  <div class="field-cell">
+  <div>
     <div class="field-label">Surname</div>
     <input class="field-input" type="text" id="f-surname" placeholder="Goes" autocomplete="family-name">
   </div>
-  <div class="field-cell">
+  <div>
     <div class="field-label">Given Names</div>
     <input class="field-input" type="text" id="f-given" placeholder="Grant" autocomplete="given-name">
   </div>
 </div>
 
 <div class="field-grid">
-  <div class="field-cell">
+  <div>
     <div class="field-label">Date of Birth</div>
     <input class="field-input" type="date" id="f-dob" max="2010-01-01">
   </div>
-  <div class="field-cell">
+  <div>
     <div class="field-label">Nationality</div>
     <select class="field-select" id="f-nationality">
       <option value="">Select</option>
@@ -176,13 +187,13 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 </div>
 
 <div class="field-grid">
-  <div class="field-cell">
+  <div>
     <div class="field-label">Country</div>
     <select class="field-select" id="f-country">
       <option value="">Select</option>
     </select>
   </div>
-  <div class="field-cell">
+  <div>
     <div class="field-label">City</div>
     <select class="field-select" id="f-city">
       <option value="">Select country first</option>
@@ -199,9 +210,7 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 </div>
 
 
-<!-- ─────────────────────────────────────────────────────────────────
-     STEP 2 — YOUR SPORTS
-───────────────────────────────────────────────────────────────── -->
+<!-- STEP 2 — SPORTS -->
 <div class="step" id="step-2">
 
 <button class="btn-back" onclick="goToStep1()">
@@ -210,7 +219,7 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 </button>
 
 <div class="section-label">Your Sports</div>
-<div class="sports-helper">Add the sports you play and rate your level. Pick at least one — you can change these later.</div>
+<div class="sports-helper">Add the sports you do and rate your level. Pick at least one — you can change these later.</div>
 
 <div class="sports-list" id="sports-list"></div>
 
@@ -230,25 +239,31 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 </div>
 
 
-<!-- ─────────────────────────────────────────────────────────────────
-     SPORT PICKER OVERLAY
-───────────────────────────────────────────────────────────────── -->
+<!-- PICKER OVERLAY -->
 <div class="picker" id="picker">
 <div class="picker-wrap">
 
-<button class="btn-back" onclick="closeSportPicker()" id="picker-back-btn">
+<button class="btn-back" onclick="closeSportPicker()">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
   Back
 </button>
 
-<!-- Stage A: Pick a sport -->
+<!-- Stage A: Choose Sport -->
 <div id="picker-stage-sport">
   <div class="picker-title">Choose a Sport</div>
-  <div class="picker-sub">Pick one to add to your profile.</div>
-  <div class="sport-grid" id="sport-grid"></div>
+  <div class="picker-sub">Search or browse by category.</div>
+
+  <div class="picker-search">
+    <span class="material-icons-outlined">search</span>
+    <input type="text" id="sport-search" placeholder="Search sports, activities or categories" oninput="filterActivities()">
+  </div>
+
+  <div class="picker-cats" id="picker-cats"></div>
+
+  <div class="activity-list" id="activity-list"></div>
 </div>
 
-<!-- Stage B: Pick a level -->
+<!-- Stage B: Pick Level -->
 <div id="picker-stage-level" style="display:none;">
   <div class="picker-title">Your <span id="picker-sport-name"></span> level</div>
   <div class="picker-sub">Be honest — this helps us match you with the right people and events.</div>
@@ -261,35 +276,91 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 
 
 <script>
-// ─── Sport catalogue ─────────────────────────────────────────────────────
-var SPORTS = [
-  { id: 'running',       name: 'Running' },
-  { id: 'cycling',       name: 'Cycling' },
-  { id: 'padel',         name: 'Padel' },
-  { id: 'tennis',        name: 'Tennis' },
-  { id: 'pickleball',    name: 'Pickleball' },
-  { id: 'swimming',      name: 'Swimming' },
-  { id: 'yoga',          name: 'Yoga' },
-  { id: 'pilates',       name: 'Pilates' },
-  { id: 'crossfit',      name: 'CrossFit' },
-  { id: 'weights',       name: 'Weight Training' },
-  { id: 'boxing',        name: 'Boxing' },
-  { id: 'mma',           name: 'MMA' },
-  { id: 'bjj',           name: 'BJJ' },
-  { id: 'hiit',          name: 'HIIT' },
-  { id: 'football',      name: 'Football' },
-  { id: 'basketball',    name: 'Basketball' },
-  { id: 'rugby',         name: 'Rugby' },
-  { id: 'hiking',        name: 'Hiking' },
-  { id: 'climbing',      name: 'Climbing' },
-  { id: 'surfing',       name: 'Surfing' },
-  { id: 'sup',           name: 'Paddleboarding' },
-  { id: 'triathlon',     name: 'Triathlon' },
-  { id: 'marathon',      name: 'Marathon Running' },
-  { id: 'dance',         name: 'Dance' },
-  { id: 'spinning',      name: 'Spinning' },
-  { id: 'golf',          name: 'Golf' }
+// ═══════════════════════════════════════════════════════════════════════
+// FFP ACTIVITIES_DB — 101 activities, 16 categories
+// Source: ffp-member-dashboard-v91.html (canonical source)
+// ═══════════════════════════════════════════════════════════════════════
+var ACTIVITIES_DB = [
+  // Running & walking (9)
+  {n:'Walk 2km',c:'Running & walking'},{n:'Walk 5km',c:'Running & walking'},{n:'Walk 10km',c:'Running & walking'},
+  {n:'Run 2km',c:'Running & walking'},{n:'Run 5km',c:'Running & walking'},{n:'Run 10km',c:'Running & walking'},
+  {n:'Half marathon',c:'Running & walking'},{n:'Marathon',c:'Running & walking'},{n:'Trail run',c:'Running & walking'},
+  // Cycling (4)
+  {n:'Road cycling',c:'Cycling'},{n:'Mountain biking',c:'Cycling'},{n:'Indoor cycling',c:'Cycling'},{n:'Track cycling',c:'Cycling'},
+  // Swimming (3)
+  {n:'Pool swim',c:'Swimming'},{n:'Open water swim',c:'Swimming'},{n:'Lap swim',c:'Swimming'},
+  // Watersports (6)
+  {n:'Surfing',c:'Watersports'},{n:'Kitesurfing',c:'Watersports'},{n:'Stand-up paddleboard',c:'Watersports'},
+  {n:'Sailing',c:'Watersports'},{n:'Kayaking',c:'Watersports'},{n:'Scuba diving',c:'Watersports'},
+  // Racquet sports (5)
+  {n:'Tennis',c:'Racquet sports'},{n:'Padel',c:'Racquet sports'},{n:'Pickleball',c:'Racquet sports'},
+  {n:'Squash',c:'Racquet sports'},{n:'Badminton',c:'Racquet sports'},
+  // Team sports (23)
+  {n:'Football (soccer)',c:'Team sports'},{n:'Futsal',c:'Team sports'},
+  {n:'American football',c:'Team sports'},{n:'Australian rules football',c:'Team sports'},
+  {n:'Basketball',c:'Team sports'},{n:'Baseball',c:'Team sports'},{n:'Cricket',c:'Team sports'},
+  {n:'Rugby union',c:'Team sports'},{n:'Rugby league',c:'Team sports'},
+  {n:'Rugby sevens',c:'Team sports'},{n:'Touch rugby',c:'Team sports'},
+  {n:'Ice hockey',c:'Team sports'},{n:'Field hockey',c:'Team sports'},{n:'Lacrosse',c:'Team sports'},
+  {n:'Volleyball',c:'Team sports'},{n:'Beach volleyball',c:'Team sports'},{n:'Water polo',c:'Team sports'},
+  {n:'Netball',c:'Team sports'},{n:'Handball',c:'Team sports'},
+  {n:'Kabaddi',c:'Team sports'},{n:'Dodgeball',c:'Team sports'},
+  {n:'Ultimate frisbee',c:'Team sports'},{n:'Curling',c:'Team sports'},
+  // Combat sports (10)
+  {n:'Boxing',c:'Combat sports'},{n:'Kickboxing',c:'Combat sports'},{n:'Muay Thai',c:'Combat sports'},
+  {n:'Brazilian Jiu-Jitsu',c:'Combat sports'},{n:'MMA',c:'Combat sports'},{n:'Judo',c:'Combat sports'},
+  {n:'Karate',c:'Combat sports'},{n:'Taekwondo',c:'Combat sports'},{n:'Wrestling',c:'Combat sports'},{n:'Fencing',c:'Combat sports'},
+  // Strength & fitness (8)
+  {n:'Strength training',c:'Strength & fitness'},{n:'Powerlifting',c:'Strength & fitness'},
+  {n:'Olympic lifting',c:'Strength & fitness'},{n:'CrossFit',c:'Strength & fitness'},
+  {n:'HIIT',c:'Strength & fitness'},{n:'F45',c:'Strength & fitness'},
+  {n:'Functional training',c:'Strength & fitness'},{n:'Calisthenics',c:'Strength & fitness'},
+  // Mind-body (9)
+  {n:'Vinyasa yoga',c:'Mind-body'},{n:'Hot yoga',c:'Mind-body'},{n:'Yin yoga',c:'Mind-body'},
+  {n:'Pilates mat',c:'Mind-body'},{n:'Pilates reformer',c:'Mind-body'},{n:'Barre',c:'Mind-body'},
+  {n:'Meditation',c:'Mind-body'},{n:'Breathwork',c:'Mind-body'},{n:'Tai Chi',c:'Mind-body'},
+  // Recovery & wellness (5)
+  {n:'Cryotherapy',c:'Recovery & wellness'},{n:'Ice bath',c:'Recovery & wellness'},
+  {n:'Sauna',c:'Recovery & wellness'},{n:'Infrared sauna',c:'Recovery & wellness'},
+  {n:'Sports massage',c:'Recovery & wellness'},
+  // Outdoor & adventure (5)
+  {n:'Hiking',c:'Outdoor & adventure'},{n:'Mountain hike',c:'Outdoor & adventure'},
+  {n:'Indoor climbing',c:'Outdoor & adventure'},{n:'Outdoor climbing',c:'Outdoor & adventure'},
+  {n:'Bouldering',c:'Outdoor & adventure'},
+  // Snow sports (3)
+  {n:'Skiing',c:'Snow sports'},{n:'Snowboarding',c:'Snow sports'},{n:'Cross-country skiing',c:'Snow sports'},
+  // Golf (2)
+  {n:'Golf round',c:'Golf'},{n:'Driving range',c:'Golf'},
+  // Equestrian (2)
+  {n:'Horse riding',c:'Equestrian'},{n:'Polo',c:'Equestrian'},
+  // Air & extreme (3)
+  {n:'Skydiving',c:'Air & extreme'},{n:'Paragliding',c:'Air & extreme'},{n:'Bungee jump',c:'Air & extreme'},
+  // Multi-sport (4)
+  {n:'Triathlon',c:'Multi-sport'},{n:'Ironman',c:'Multi-sport'},
+  {n:'Hyrox',c:'Multi-sport'},{n:'Spartan',c:'Multi-sport'}
 ];
+
+// Category metadata (matches dashboard ACTIVITY_CAT_META)
+var CAT_META = {
+  'Running & walking':   { icon: 'directions_run' },
+  'Cycling':             { icon: 'directions_bike' },
+  'Swimming':            { icon: 'pool' },
+  'Watersports':         { icon: 'surfing' },
+  'Racquet sports':      { icon: 'sports_tennis' },
+  'Team sports':         { icon: 'groups' },
+  'Combat sports':       { icon: 'sports_mma' },
+  'Strength & fitness':  { icon: 'fitness_center' },
+  'Mind-body':           { icon: 'self_improvement' },
+  'Recovery & wellness': { icon: 'spa' },
+  'Outdoor & adventure': { icon: 'hiking' },
+  'Snow sports':         { icon: 'downhill_skiing' },
+  'Golf':                { icon: 'sports_golf' },
+  'Equestrian':          { icon: 'directions_walk' },
+  'Air & extreme':       { icon: 'paragliding' },
+  'Multi-sport':         { icon: 'sports' }
+};
+
+var CATEGORIES = ['All','Running & walking','Cycling','Swimming','Watersports','Racquet sports','Team sports','Combat sports','Strength & fitness','Mind-body','Recovery & wellness','Outdoor & adventure','Snow sports','Golf','Equestrian','Air & extreme','Multi-sport'];
 
 // ─── Fitness levels with descriptions ────────────────────────────────────
 var LEVELS = [
@@ -313,7 +384,7 @@ var NATIONALITIES = [
   'New Zealander','Irish','Scottish','Welsh','Other'
 ];
 
-// ─── Countries with their cities ─────────────────────────────────────────
+// ─── Countries & cities (V1 subset, expand from CITIES_DB later) ─────────
 var COUNTRIES = {
   'United Arab Emirates': ['Dubai','Abu Dhabi','Sharjah','Ras Al Khaimah','Ajman','Fujairah','Umm Al Quwain','Al Ain'],
   'Saudi Arabia':         ['Riyadh','Jeddah','Mecca','Medina','Dammam','Khobar'],
@@ -345,10 +416,12 @@ var COUNTRIES = {
 
 
 // ─── State ───────────────────────────────────────────────────────────────
-var selectedSports = {};       // { sportId: 'Beginner', ... }
+var selectedSports = [];        // [{ name, category, level }]
 var currentMember = null;
-var pickerMode = null;         // 'add' or 'edit'
-var pickerSportId = null;
+var currentCategory = 'All';
+var currentSearch = '';
+var pickerMode = null;          // 'add' or 'edit'
+var pickerActivity = null;
 var pickerLevel = null;
 
 
@@ -388,8 +461,10 @@ async function initialise() {
   populateNationalities();
   populateCountries();
   populateForm();
-  buildSportGrid();
+  buildCategoryChips();
   buildLevelList();
+  renderActivities();
+  renderSportsList();
 
   document.getElementById('loading-screen').classList.add('hidden');
   document.getElementById('main-page').classList.remove('hidden');
@@ -399,7 +474,6 @@ function populateForm() {
   var fn = currentMember.full_name ? currentMember.full_name.trim() : '';
   var firstWord = fn.split(' ')[0] || 'there';
   document.getElementById('greet-name').textContent = firstWord;
-
   var parts = fn.split(' ');
   document.getElementById('f-surname').value = currentMember.surname || (parts.length > 1 ? parts[parts.length - 1] : '');
   document.getElementById('f-given').value = currentMember.given_names || (parts.length > 1 ? parts.slice(0, -1).join(' ') : parts[0] || '');
@@ -450,7 +524,6 @@ function onCountryChange() {
 // ─── Step navigation ─────────────────────────────────────────────────────
 function goToStep2() {
   showError('step1-err', '');
-  // Validate step 1
   var s = document.getElementById('f-surname').value.trim();
   var g = document.getElementById('f-given').value.trim();
   var d = document.getElementById('f-dob').value;
@@ -472,7 +545,6 @@ function goToStep2() {
   document.getElementById('dot-1').innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" width="11" height="11"><polyline points="20 6 9 17 4 12"/></svg>';
   document.getElementById('line-1').classList.add('done');
   document.getElementById('dot-2').classList.add('active');
-
   window.scrollTo(0, 0);
 }
 
@@ -488,14 +560,68 @@ function goToStep1() {
 }
 
 
-// ─── Sport picker ────────────────────────────────────────────────────────
-function buildSportGrid() {
-  var grid = document.getElementById('sport-grid');
-  grid.innerHTML = SPORTS.map(function (s) {
-    return '<button class="sport-chip" data-sport="' + s.id + '" onclick="pickSport(\'' + s.id + '\')">' + s.name + '</button>';
+// ─── Picker: build category chips ────────────────────────────────────────
+function buildCategoryChips() {
+  var chipsEl = document.getElementById('picker-cats');
+  chipsEl.innerHTML = CATEGORIES.map(function (cat) {
+    var icon = '';
+    if (cat !== 'All' && CAT_META[cat]) {
+      icon = '<span class="material-icons-outlined">' + CAT_META[cat].icon + '</span>';
+    }
+    return '<button class="cat-chip' + (cat === 'All' ? ' active' : '') + '" data-cat="' + cat + '" onclick="setCategory(\'' + cat.replace(/'/g, "\\'") + '\')">' + icon + '<span>' + cat + '</span></button>';
   }).join('');
 }
 
+function setCategory(cat) {
+  currentCategory = cat;
+  document.querySelectorAll('.cat-chip').forEach(function (chip) {
+    if (chip.dataset.cat === cat) chip.classList.add('active');
+    else chip.classList.remove('active');
+  });
+  renderActivities();
+}
+
+function filterActivities() {
+  currentSearch = document.getElementById('sport-search').value.trim().toLowerCase();
+  renderActivities();
+}
+
+function renderActivities() {
+  var list = ACTIVITIES_DB.slice();
+  if (currentCategory !== 'All') {
+    list = list.filter(function (a) { return a.c === currentCategory; });
+  }
+  if (currentSearch) {
+    list = list.filter(function (a) {
+      return a.n.toLowerCase().includes(currentSearch) || a.c.toLowerCase().includes(currentSearch);
+    });
+  }
+
+  var listEl = document.getElementById('activity-list');
+  if (list.length === 0) {
+    listEl.innerHTML = '<div class="activity-empty">No activities match. Try a different search.</div>';
+    return;
+  }
+  // Build a Set of already-selected activity names for fast lookup
+  var taken = {};
+  selectedSports.forEach(function (s) { taken[s.name] = true; });
+
+  listEl.innerHTML = list.map(function (a) {
+    var meta = CAT_META[a.c] || { icon: 'sports' };
+    var isTaken = taken[a.n];
+    return '<button class="activity-row" ' + (isTaken ? 'disabled' : 'onclick="pickActivity(\'' + a.n.replace(/'/g, "\\'") + '\')"') + '>' +
+           '<span class="activity-row-icon"><span class="material-icons-outlined">' + meta.icon + '</span></span>' +
+           '<span class="activity-row-info">' +
+             '<span class="activity-row-name">' + a.n + (isTaken ? ' · added' : '') + '</span>' +
+             '<span class="activity-row-cat">' + a.c + '</span>' +
+           '</span>' +
+           '<span class="activity-row-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><polyline points="9 18 15 12 9 6"/></svg></span>' +
+           '</button>';
+  }).join('');
+}
+
+
+// ─── Picker: open/close & stages ─────────────────────────────────────────
 function buildLevelList() {
   var list = document.getElementById('level-list');
   list.innerHTML = LEVELS.map(function (lv) {
@@ -511,20 +637,29 @@ function buildLevelList() {
 
 function openSportPicker() {
   pickerMode = 'add';
-  pickerSportId = null;
+  pickerActivity = null;
   pickerLevel = null;
+  currentSearch = '';
+  currentCategory = 'All';
+  document.getElementById('sport-search').value = '';
+  document.querySelectorAll('.cat-chip').forEach(function (c) { c.classList.remove('active'); });
+  var allChip = document.querySelector('.cat-chip[data-cat="All"]');
+  if (allChip) allChip.classList.add('active');
+  renderActivities();
   showPickerStage('sport');
-  updateSportGridState();
   document.getElementById('picker').classList.add('active');
   document.body.style.overflow = 'hidden';
 }
 
-function openEditPicker(sportId) {
+function openEditPicker(activityName) {
   pickerMode = 'edit';
-  pickerSportId = sportId;
-  pickerLevel = selectedSports[sportId];
-  showPickerStage('level');
+  var found = ACTIVITIES_DB.find(function (a) { return a.n === activityName; });
+  pickerActivity = found || { n: activityName, c: 'Other' };
+  var existing = selectedSports.find(function (s) { return s.name === activityName; });
+  pickerLevel = existing ? existing.level : null;
+  document.getElementById('picker-sport-name').textContent = activityName;
   setLevelSelection(pickerLevel);
+  showPickerStage('level');
   document.getElementById('picker').classList.add('active');
   document.body.style.overflow = 'hidden';
 }
@@ -533,7 +668,7 @@ function closeSportPicker() {
   document.getElementById('picker').classList.remove('active');
   document.body.style.overflow = '';
   pickerMode = null;
-  pickerSportId = null;
+  pickerActivity = null;
   pickerLevel = null;
 }
 
@@ -543,18 +678,11 @@ function showPickerStage(stage) {
   window.scrollTo(0, 0);
 }
 
-function updateSportGridState() {
-  document.querySelectorAll('.sport-chip').forEach(function (chip) {
-    var id = chip.dataset.sport;
-    chip.disabled = !!selectedSports[id];
-  });
-}
-
-function pickSport(sportId) {
-  pickerSportId = sportId;
+function pickActivity(activityName) {
+  var found = ACTIVITIES_DB.find(function (a) { return a.n === activityName; });
+  pickerActivity = found;
   pickerLevel = null;
-  var s = SPORTS.find(function (sp) { return sp.id === sportId; });
-  document.getElementById('picker-sport-name').textContent = s ? s.name : '';
+  document.getElementById('picker-sport-name').textContent = activityName;
   setLevelSelection(null);
   showPickerStage('level');
 }
@@ -569,54 +697,57 @@ function setLevelSelection(level) {
     if (c.dataset.level === level) c.classList.add('selected');
     else c.classList.remove('selected');
   });
-  var confirmBtn = document.getElementById('confirm-level-btn');
-  confirmBtn.disabled = !level;
+  document.getElementById('confirm-level-btn').disabled = !level;
 }
 
 function confirmLevel() {
-  if (!pickerSportId || !pickerLevel) return;
-  selectedSports[pickerSportId] = pickerLevel;
+  if (!pickerActivity || !pickerLevel) return;
+  if (pickerMode === 'edit') {
+    selectedSports = selectedSports.map(function (s) {
+      if (s.name === pickerActivity.n) return { name: pickerActivity.n, category: pickerActivity.c, level: pickerLevel };
+      return s;
+    });
+  } else {
+    selectedSports.push({ name: pickerActivity.n, category: pickerActivity.c, level: pickerLevel });
+  }
   renderSportsList();
   closeSportPicker();
 }
 
 
-// ─── Sports list rendering ──────────────────────────────────────────────
+// ─── Sports list (Step 2) ────────────────────────────────────────────────
 function renderSportsList() {
   var list = document.getElementById('sports-list');
-  var ids = Object.keys(selectedSports);
-  if (ids.length === 0) {
+  if (selectedSports.length === 0) {
     list.innerHTML = '<div class="sports-empty">No sports added yet. Tap below to add your first one.</div>';
   } else {
-    list.innerHTML = ids.map(function (id) {
-      var s = SPORTS.find(function (sp) { return sp.id === id; });
-      if (!s) return '';
-      var level = selectedSports[id];
+    list.innerHTML = selectedSports.map(function (s) {
+      var meta = CAT_META[s.category] || { icon: 'sports' };
       return '<div class="sport-row">' +
+             '<div class="sport-row-icon"><span class="material-icons-outlined">' + meta.icon + '</span></div>' +
              '<div class="sport-row-info">' +
                '<div class="sport-row-name">' + s.name + '</div>' +
-               '<div class="sport-row-level">' + level + '</div>' +
+               '<div class="sport-row-meta">' + s.level + ' · ' + s.category + '</div>' +
              '</div>' +
-             '<button class="sport-row-edit" onclick="openEditPicker(\'' + id + '\')" title="Change level">' +
+             '<button class="sport-row-edit" onclick="openEditPicker(\'' + s.name.replace(/'/g, "\\'") + '\')" title="Change level">' +
                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>' +
              '</button>' +
-             '<button class="sport-row-remove" onclick="removeSport(\'' + id + '\')" title="Remove">' +
+             '<button class="sport-row-remove" onclick="removeSport(\'' + s.name.replace(/'/g, "\\'") + '\')" title="Remove">' +
                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
              '</button>' +
              '</div>';
     }).join('');
   }
-
-  // Update the "Add another" button label
-  document.getElementById('add-btn-label').textContent = (ids.length === 0) ? 'Add a Sport' : 'Add Another Sport';
+  document.getElementById('add-btn-label').textContent = selectedSports.length === 0 ? 'Add a Sport' : 'Add Another Sport';
 }
 
-function removeSport(sportId) {
-  delete selectedSports[sportId];
+function removeSport(activityName) {
+  selectedSports = selectedSports.filter(function (s) { return s.name !== activityName; });
   renderSportsList();
 }
 
-// ─── Submit ─────────────────────────────────────────────────────────────
+
+// ─── Submit ──────────────────────────────────────────────────────────────
 function showError(elId, msg) {
   var el = document.getElementById(elId);
   if (el) el.textContent = msg || '';
@@ -625,7 +756,7 @@ function showError(elId, msg) {
 async function submitProfile() {
   showError('step2-err', '');
 
-  if (Object.keys(selectedSports).length === 0) {
+  if (selectedSports.length === 0) {
     return showError('step2-err', 'Add at least one sport to continue');
   }
 
@@ -640,19 +771,14 @@ async function submitProfile() {
     var n = document.getElementById('f-nationality').value;
     var co = document.getElementById('f-country').value;
     var ci = document.getElementById('f-city').value;
-
     var fullName = (g + ' ' + s).trim();
 
     var updateRes = await window.supabase
       .from('members')
       .update({
-        surname: s,
-        given_names: g,
-        full_name: fullName,
-        date_of_birth: d,
-        nationality: n,
-        country: co,
-        city: ci,
+        surname: s, given_names: g, full_name: fullName,
+        date_of_birth: d, nationality: n,
+        country: co, city: ci,
         profile_complete: true
       })
       .eq('id', currentMember.id);
@@ -661,32 +787,30 @@ async function submitProfile() {
 
     var chronoAge = null;
     if (d) {
-      var birth = new Date(d);
-      var today = new Date();
+      var birth = new Date(d), today = new Date();
       chronoAge = today.getFullYear() - birth.getFullYear();
       var m = today.getMonth() - birth.getMonth();
       if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) chronoAge--;
     }
 
+    // Save skills as array (matches dashboard expected format)
     var metaRes = await window.supabase
       .from('profile_meta')
       .upsert({
         member_id: currentMember.id,
         chrono_age: chronoAge,
-        skills: selectedSports
+        skills: selectedSports.map(function (sp) {
+          return { name: sp.name, category: sp.category, level: sp.level, shared: false };
+        })
       }, { onConflict: 'member_id' });
 
     if (metaRes.error) throw metaRes.error;
 
     try {
       var cached = JSON.parse(localStorage.getItem('ffp_member') || '{}');
-      cached.surname = s;
-      cached.given_names = g;
-      cached.full_name = fullName;
-      cached.date_of_birth = d;
-      cached.nationality = n;
-      cached.country = co;
-      cached.city = ci;
+      cached.surname = s; cached.given_names = g; cached.full_name = fullName;
+      cached.date_of_birth = d; cached.nationality = n;
+      cached.country = co; cached.city = ci;
       cached.profile_complete = true;
       localStorage.setItem('ffp_member', JSON.stringify(cached));
     } catch (e) {}
@@ -699,8 +823,6 @@ async function submitProfile() {
     btn.textContent = 'Complete Profile';
   }
 }
-
-renderSportsList();
 </script>
 </body>
 </html>
