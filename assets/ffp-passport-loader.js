@@ -1,23 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   FFP PASSPORT LOADER (v3)
+   FFP PASSPORT LOADER (v4)
    ───────────────────────────────────────────────────────────────────────
-   Fetches the signed-in member's data from Supabase and renders it into
-   the passport card. Mutates the global `memberPassport` object and wraps
-   the dashboard's existing `applyPassportData()` function so that fields
-   without `data-field` attributes also stay in sync.
-
-   v3 changes:
-   - TYPE field on passport card now shows FFP tier (MEMBER / SUPPORTER /
-     AMBASSADOR) instead of hardcoded "F"
-   - COUNTRY field shows the member's country of residence (from
-     members.country) instead of hardcoded "UNITED ARAB EMIRATES"
-   - applyPassportData is wrapped so these fields update live whenever the
-     dashboard refreshes the passport (e.g. via MemberProfile.syncToPassport)
-
-   Requires (load in this order in the dashboard HTML <head>):
-     1. https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2
-     2. assets/ffp-api-integration.js
-     3. assets/ffp-passport-loader.js  ← this file
+   v4 changes:
+   - TYPE field now shows single letter: M (Member), S (Supporter), A (Ambassador)
+   - All previous v3 features retained
 ═══════════════════════════════════════════════════════════════════════ */
 
 (function () {
@@ -160,9 +146,9 @@
           originalApplyPassportData.apply(this, arguments);
 
           const miniVals = document.querySelectorAll('.pass-mini-val');
-          // First .pass-mini-val = TYPE (was hardcoded "F", now shows FFP tier)
+          // First .pass-mini-val = TYPE (M=Member, S=Supporter, A=Ambassador)
           if (miniVals[0] && memberPassport.tier) {
-            miniVals[0].textContent = memberPassport.tier;
+            miniVals[0].textContent = memberPassport.tier.charAt(0);
           }
           // Second .pass-mini-val = COUNTRY of residence
           if (miniVals[1] && memberPassport.country) {
