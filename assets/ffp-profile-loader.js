@@ -1,10 +1,12 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   FFP PROFILE LOADER (v2)
+   FFP PROFILE LOADER (v3)
    ───────────────────────────────────────────────────────────────────────
-   v2 changes:
-   - Removed `gender` from save (column not yet in members schema)
-   - Full Supabase error logging (code, message, details, hint)
-   - Distinct error toast styling (red border + red icon)
+   v3 changes:
+   - SAVES GENDER (requires `gender` column in members table — run the
+     add-gender-column.sql migration first)
+   - Injects a big, clear SAVE BUTTON at the top of the profile panel
+     with visible states: All saved / Save changes / Saving / Saved / Failed
+   - Manual save still triggers via button; auto-save still runs in background
 ═══════════════════════════════════════════════════════════════════════ */
 
 (function () {
@@ -16,26 +18,136 @@
   let currentUid = null;
   let retries = 0;
   const MAX_RETRIES = 30;
+  const AUTOSAVE_DELAY = 1500;
 
-  // ─── Inject error toast styling once ─────────────────────────────────
+  // ─── Inject CSS for save bar + error toast ───────────────────────────
   function injectStyles() {
     if (document.getElementById('ffp-profile-loader-styles')) return;
     const s = document.createElement('style');
     s.id = 'ffp-profile-loader-styles';
-    s.textContent =
-      '.toast.ffp-error{border-color:#ef4444 !important;}' +
-      '.toast.ffp-error .material-icons{color:#ef4444 !important;}';
+    s.textContent = `
+      .toast.ffp-error{border-color:#ef4444 !important;}
+      .toast.ffp-error .material-icons{color:#ef4444 !important;}
+
+      .ffp-savebar{
+        position:sticky;top:0;z-index:90;
+        background:linear-gradient(180deg,#0f1e2e 0%,#0f1e2e 85%,rgba(15,30,46,0));
+        padding:14px 0 18px;margin:-4px 0 14px;
+        display:flex;align-items:center;justify-content:space-between;gap:12px;
+      }
+      .ffp-savebar-status{
+        font-size:12px;font-weight:700;color:#6a90a8;
+        display:flex;align-items:center;gap:6px;
+        flex:1;min-width:0;
+      }
+      .ffp-savebar-status .material-icons{font-size:16px;}
+      .ffp-savebar-status.dirty{color:#facc15;}
+      .ffp-savebar-status.saving{color:#9dbdd0;}
+      .ffp-savebar-status.saved{color:#22c55e;}
+      .ffp-savebar-status.error{color:#ef4444;}
+
+      .ffp-savebar-btn{
+        background:#2ba8e0;color:#fff;border:none;border-radius:10px;
+        padding:11px 22px;font-size:14px;font-weight:800;cursor:pointer;
+        font-family:'Montserrat',sans-serif;
+        display:flex;align-items:center;gap:7px;
+        transition:all .15s;letter-spacing:.3px;
+        min-width:140px;justify-content:center;
+      }
+      .ffp-savebar-btn:hover:not(:disabled){background:#1980AD;}
+      .ffp-savebar-btn:disabled{
+        background:rgba(43,168,224,.15);color:#6a90a8;cursor:default;
+      }
+      .ffp-savebar-btn.dirty{background:#2ba8e0;color:#fff;}
+      .ffp-savebar-btn.dirty:hover{background:#1980AD;}
+      .ffp-savebar-btn.error{background:#ef4444;color:#fff;}
+      .ffp-savebar-btn.error:hover{background:#dc2626;}
+      .ffp-savebar-btn .material-icons{font-size:16px;}
+
+      @keyframes ffp-spin{to{transform:rotate(360deg);}}
+      .ffp-savebar-btn.saving .material-icons{animation:ffp-spin 1s linear infinite;}
+    `;
     document.head.appendChild(s);
   }
 
-  function showStatusToast(msg, isError) {
-    if (typeof showToast !== 'function') return;
-    showToast(msg, isError ? 'error' : 'check');
-    const t = document.getElementById('ffp-toast');
-    if (t) {
-      if (isError) t.classList.add('ffp-error');
-      else t.classList.remove('ffp-error');
+  // ─── Save bar rendering ──────────────────────────────────────────────
+  let saveBarState = 'idle'; // idle | dirty | saving | saved | error
+
+  function renderSaveBar() {
+    const bar = document.getElementById('ffp-savebar');
+    if (!bar) return;
+
+    let statusIcon, statusText, btnIcon, btnText, statusClass, btnClass, btnDisabled;
+
+    switch (saveBarState) {
+      case 'dirty':
+        statusIcon = 'edit'; statusText = 'Unsaved changes';
+        btnIcon = 'save'; btnText = 'Save Changes';
+        statusClass = 'dirty'; btnClass = 'dirty'; btnDisabled = false;
+        break;
+      case 'saving':
+        statusIcon = 'sync'; statusText = 'Saving…';
+        btnIcon = 'sync'; btnText = 'Saving…';
+        statusClass = 'saving'; btnClass = 'saving'; btnDisabled = true;
+        break;
+      case 'saved':
+        statusIcon = 'check_circle'; statusText = 'All changes saved';
+        btnIcon = 'check'; btnText = 'Saved';
+        statusClass = 'saved'; btnClass = ''; btnDisabled = true;
+        break;
+      case 'error':
+        statusIcon = 'error'; statusText = 'Save failed — tap to retry';
+        btnIcon = 'refresh'; btnText = 'Retry Save';
+        statusClass = 'error'; btnClass = 'error'; btnDisabled = false;
+        break;
+      default: // idle
+        statusIcon = 'check_circle'; statusText = 'All changes saved';
+        btnIcon = 'check'; btnText = 'Saved';
+        statusClass = ''; btnClass = ''; btnDisabled = true;
     }
+
+    bar.querySelector('.ffp-savebar-status').className = 'ffp-savebar-status ' + statusClass;
+    bar.querySelector('.ffp-savebar-status').innerHTML =
+      '<span class="material-icons">' + statusIcon + '</span>' +
+      '<span>' + statusText + '</span>';
+
+    const btn = bar.querySelector('.ffp-savebar-btn');
+    btn.className = 'ffp-savebar-btn ' + btnClass;
+    btn.disabled = btnDisabled;
+    btn.innerHTML =
+      '<span class="material-icons">' + btnIcon + '</span>' +
+      '<span>' + btnText + '</span>';
+  }
+
+  function setSaveBarState(state) {
+    saveBarState = state;
+    renderSaveBar();
+  }
+
+  function injectSaveBar() {
+    const body = document.getElementById('profile-body');
+    if (!body) return;
+    if (document.getElementById('ffp-savebar')) return; // already present
+
+    const bar = document.createElement('div');
+    bar.id = 'ffp-savebar';
+    bar.className = 'ffp-savebar';
+    bar.innerHTML =
+      '<div class="ffp-savebar-status">' +
+        '<span class="material-icons">check_circle</span>' +
+        '<span>All changes saved</span>' +
+      '</div>' +
+      '<button class="ffp-savebar-btn" disabled>' +
+        '<span class="material-icons">check</span>' +
+        '<span>Saved</span>' +
+      '</button>';
+
+    body.parentNode.insertBefore(bar, body);
+
+    bar.querySelector('.ffp-savebar-btn').addEventListener('click', function () {
+      clearTimeout(saveTimer);
+      saveProfileToSupabase(true);
+    });
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────
@@ -55,6 +167,7 @@
       dobDay:      MemberProfile.data.dobDay,
       dobMonth:    MemberProfile.data.dobMonth,
       dobYear:     MemberProfile.data.dobYear,
+      gender:      MemberProfile.data.gender,
       country:     MemberProfile.data.country,
       city:        MemberProfile.data.city,
       nationality: MemberProfile.data.nationality,
@@ -121,6 +234,7 @@
         dobDay:         dobDay,
         dobMonth:       dobMonth,
         dobYear:        dobYear,
+        gender:         member.gender || MemberProfile.data.gender || 'Male',
         country:        member.country || MemberProfile.data.country || '',
         city:           member.city || MemberProfile.data.city || '',
         nationality:    member.nationality || MemberProfile.data.nationality || '',
@@ -133,13 +247,31 @@
 
       serverSnapshot = snapshotProfileData();
 
+      injectStyles();
+
+      // Wrap MemberProfile.render once so save bar is re-injected after re-renders
+      if (typeof MemberProfile.render === 'function' && !window._ffpProfileRenderWrapped) {
+        const originalRender = MemberProfile.render.bind(MemberProfile);
+        MemberProfile.render = function () {
+          originalRender();
+          setTimeout(function () {
+            injectSaveBar();
+            renderSaveBar();
+          }, 30);
+        };
+        window._ffpProfileRenderWrapped = true;
+      }
+
       const panel = document.getElementById('panel-profile');
       if (panel && panel.classList.contains('active') && typeof MemberProfile.render === 'function') {
         MemberProfile.render();
+      } else {
+        // Panel not yet active — inject when it becomes visible
+        injectSaveBar();
+        renderSaveBar();
       }
 
       attachAutoSave();
-      injectStyles();
       console.log('[FFP Profile Loader] Profile loaded from Supabase ✓');
 
     } catch (err) {
@@ -157,24 +289,39 @@
   function queueSave(e) {
     const panel = document.getElementById('panel-profile');
     if (!panel || !panel.contains(e.target)) return;
+    // Ignore clicks on the save bar itself
+    if (e.target.closest('#ffp-savebar')) return;
+    markDirty();
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(saveProfileToSupabase, 1500);
+    saveTimer = setTimeout(function () { saveProfileToSupabase(false); }, AUTOSAVE_DELAY);
   }
 
   function queueSaveDelayed(e) {
     const panel = document.getElementById('panel-profile');
     if (!panel || !panel.contains(e.target)) return;
+    if (e.target.closest('#ffp-savebar')) return;
+    markDirty();
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(saveProfileToSupabase, 2000);
+    saveTimer = setTimeout(function () { saveProfileToSupabase(false); }, 2000);
   }
 
-  async function saveProfileToSupabase() {
+  function markDirty() {
+    if (!serverSnapshot) return;
+    const current = snapshotProfileData();
+    if (current !== serverSnapshot) {
+      setSaveBarState('dirty');
+    }
+  }
+
+  async function saveProfileToSupabase(manual) {
     if (isSaving || !serverSnapshot || !currentUid) return;
 
     const currentSnapshot = snapshotProfileData();
-    if (currentSnapshot === serverSnapshot) return;
+    if (currentSnapshot === serverSnapshot && !manual) return;
 
     isSaving = true;
+    setSaveBarState('saving');
+
     try {
       const dy = MemberProfile.data.dobYear;
       const dm = MemberProfile.data.dobMonth;
@@ -185,12 +332,12 @@
 
       const fullName = ((MemberProfile.data.givenNames || '') + ' ' + (MemberProfile.data.surname || '')).trim();
 
-      // NOTE: `gender` removed in v2 — not yet in schema
       const updatePayload = {
         given_names:   MemberProfile.data.givenNames,
         surname:       MemberProfile.data.surname,
         full_name:     fullName,
         date_of_birth: dob,
+        gender:        MemberProfile.data.gender,
         country:       MemberProfile.data.country,
         city:          MemberProfile.data.city,
         nationality:   MemberProfile.data.nationality
@@ -210,12 +357,12 @@
           details: memberUpdate.error.details,
           hint:    memberUpdate.error.hint
         });
-        showStatusToast('Save failed', true);
+        setSaveBarState('error');
         isSaving = false;
         return;
       }
 
-      // Save sports/skills to profile_meta
+      // Save sports to profile_meta
       const sportsArr = (MemberProfile.data.sports || []).map(function (s) {
         return { name: s.name, level: s.level, shared: false };
       });
@@ -224,21 +371,21 @@
         .upsert({ member_id: currentUid, skills: sportsArr }, { onConflict: 'member_id' });
 
       if (metaUpdate.error) {
-        console.error('[FFP Profile Loader] Skills save failed:', {
-          code:    metaUpdate.error.code,
-          message: metaUpdate.error.message,
-          details: metaUpdate.error.details,
-          hint:    metaUpdate.error.hint
-        });
+        console.error('[FFP Profile Loader] Skills save failed:', metaUpdate.error);
       }
 
       serverSnapshot = currentSnapshot;
-      showStatusToast('Saved', false);
+      setSaveBarState('saved');
       console.log('[FFP Profile Loader] Profile saved ✓');
+
+      // After 2s of "Saved" → go back to idle (also "All saved" state)
+      setTimeout(function () {
+        if (saveBarState === 'saved') setSaveBarState('idle');
+      }, 2000);
 
     } catch (err) {
       console.error('[FFP Profile Loader] Save exception:', err);
-      showStatusToast('Save failed', true);
+      setSaveBarState('error');
     } finally {
       isSaving = false;
     }
@@ -253,5 +400,5 @@
   }
 
   window.ffpReloadProfile = loadProfileFromSupabase;
-  window.ffpSaveProfile = saveProfileToSupabase;
+  window.ffpSaveProfile = function () { saveProfileToSupabase(true); };
 })();
