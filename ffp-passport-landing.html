@@ -3,487 +3,1170 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>FFP Passport &mdash; The UAE Active Lifestyle Passport 2026</title>
-<meta name="description" content="Join the UAE's most active community. Meet people who share your sports, attend events, take on challenges, and unlock member perks across hundreds of venues.">
-<link rel="icon" type="image/png" href="assets/ffp-emblem.png">
+<title>FFP Passport &mdash; UAE's active lifestyle passport</title>
+<meta name="description" content="Find your people. Move together. The gold stamp for active living. By active people, for active people. Local and global.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0" rel="stylesheet">
 <style>
-:root {
-  --bg: #081420;
-  --bg-elev: #0f1e2e;
-  --bg-deep: #050d16;
-  --accent: #2ba8e0;
-  --accent-soft: rgba(43,168,224,.1);
-  --accent-line: rgba(43,168,224,.25);
-  --accent-line-dim: rgba(43,168,224,.15);
-  --yellow: #FFCC00;
-  --text: #ffffff;
-  --text-soft: #b8d4e0;
-  --text-mute: #9dbdd0;
-  --text-dim: #6a90a8;
-  --stripe-purple: #635bff;
-  --radius: 14px;
-  --radius-lg: 16px;
-  --max: 1100px;
-  --stripe: https://buy.stripe.com/test_bJe5kCaiO3ESgEs4jV3Nm00;
+/* ════════════════════════════════════════════════════════════
+   FFP PASSPORT — UAE's active lifestyle passport
+   Mobile-first. Hero = full-bleed image with text overlay.
+   Photos spread throughout the page.
+   ════════════════════════════════════════════════════════════ */
+
+*{margin:0;padding:0;box-sizing:border-box;}
+*::-webkit-scrollbar{display:none;width:0;height:0;}
+*{-ms-overflow-style:none;scrollbar-width:none;}
+
+:root{
+  --bg:#081420;
+  --bg-2:#0f1e2e;
+  --bg-3:#142a3f;
+  --blue:#2ba8e0;
+  --blue-dk:#1980AD;
+  --yellow:#FFCC00;
+  --text:#f5f7fa;
+  --text-dim:#b8c6d1;
+  --muted:#8a99a8;
+  --border:rgba(43,168,224,0.15);
+  --border-mid:rgba(43,168,224,0.30);
+  --yellow-soft:rgba(255,204,0,0.10);
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { font-family: 'Montserrat', -apple-system, sans-serif; background: var(--bg); color: var(--text); overflow-x: hidden; min-height: 100%; }
-a { color: inherit; text-decoration: none; }
-img { display: block; max-width: 100%; }
+html,body{
+  font-family:'Montserrat',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  overflow-x:hidden;
+  line-height:1.55;
+  scroll-behavior:smooth;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit;text-decoration:none;}
+img{display:block;max-width:100%;}
+button{font-family:inherit;cursor:pointer;}
 
-/* Layout column */
-.col { max-width: var(--max); margin: 0 auto; padding: 0 24px; }
-@media (min-width: 900px) { .col { padding: 0 48px; } }
-@media (min-width: 1200px) { .col { padding: 0 60px; } }
-
-/* NAV */
-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(8,20,32,.97); backdrop-filter: blur(12px); border-bottom: 1px solid var(--accent-line-dim); padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
-.nav-brand { display: flex; align-items: center; gap: 10px; }
-.nav-brand img { height: 32px; width: auto; }
-.nav-brand .wordmark { font-size: 13px; font-weight: 800; letter-spacing: 2px; }
-.nav-yr { font-size: 10px; font-weight: 700; color: rgba(255,255,255,.55); border: 1px solid rgba(255,255,255,.2); border-radius: 4px; padding: 1px 5px; letter-spacing: 1px; margin-left: 6px; vertical-align: middle; }
-.nav-right { display: flex; align-items: center; gap: 10px; }
-.nav-link { font-size: 13px; font-weight: 700; color: rgba(255,255,255,.75); padding: 9px 18px; border: 1px solid var(--accent-line); border-radius: 10px; letter-spacing: .3px; transition: all .2s; }
-.nav-link:hover { color: #fff; border-color: rgba(43,168,224,.6); }
-.nav-cta { background: var(--accent); color: #fff; font-size: 13px; font-weight: 800; padding: 10px 22px; border-radius: 10px; letter-spacing: .3px; transition: transform .15s; }
-.nav-cta:hover { transform: translateY(-1px); }
-@media (min-width: 900px) { nav { padding: 20px 40px; } }
-@media (min-width: 1200px) { nav { padding: 20px 60px; } }
-
-/* Sections */
-section { padding: 52px 0; }
-@media (min-width: 900px) { section { padding: 80px 0; } }
-
-.eyebrow { display: inline-block; background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 100px; padding: 6px 18px; font-size: 10px; font-weight: 900; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); margin-bottom: 18px; }
-.sec-heading { font-size: 30px; font-weight: 900; line-height: 1.05; letter-spacing: -.5px; margin-bottom: 12px; }
-.sec-sub { font-size: 14px; color: var(--text-soft); line-height: 1.7; margin-bottom: 28px; max-width: 640px; }
-@media (min-width: 900px) { .sec-heading { font-size: 40px; } }
-
-/* HERO */
-.hero { padding-top: 90px; padding-bottom: 32px; }
-.hero-inner { display: block; }
-.hero-img-wrap { border-radius: var(--radius-lg); overflow: hidden; height: 360px; margin-bottom: 28px; background: linear-gradient(135deg, var(--bg-elev), var(--bg)); }
-.hero-img-wrap img { width: 100%; height: 100%; object-fit: cover; object-position: center 70%; }
-.hero-text h1 { font-size: 38px; font-weight: 900; line-height: 1.0; letter-spacing: -1px; margin-bottom: 14px; }
-.hero-text h1 span { color: var(--accent); }
-.hero-text p { font-size: 14px; color: var(--text-soft); line-height: 1.7; margin-bottom: 28px; }
-.hero-price { font-size: 48px; font-weight: 900; color: var(--yellow); line-height: 1; }
-.hero-price-sub { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); margin: 6px 0 20px; }
-.hero-cta { display: block; background: var(--accent); color: #fff; text-align: center; padding: 16px; border-radius: 12px; font-size: 15px; font-weight: 800; transition: transform .15s; }
-.hero-cta:hover { transform: translateY(-1px); }
-
-@media (min-width: 900px) {
-  .hero { padding-top: 110px; }
-  .hero-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
-  .hero-img-wrap { height: 480px; margin-bottom: 0; }
-  .hero-text h1 { font-size: 52px; line-height: 1.05; }
-  .hero-text p { font-size: 16px; }
-  .hero-price { font-size: 52px; }
-  .hero-cta { max-width: 380px; font-size: 16px; padding: 17px; }
+.material-symbols-outlined{
+  font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;
 }
 
-/* BANNER (cinematic divider) */
-.banner { position: relative; height: 280px; overflow: hidden; }
-.banner img { width: 100%; height: 100%; object-fit: cover; }
-.banner-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(8,20,32,.92) 0%, rgba(8,20,32,.35) 55%, transparent 100%); }
-.banner-text { position: absolute; left: 0; right: 0; bottom: 0; padding: 0 20px 26px; }
-.banner-eyebrow { font-size: 11px; font-weight: 800; color: var(--accent); letter-spacing: 2.5px; text-transform: uppercase; margin-bottom: 6px; }
-.banner-title { font-size: 28px; font-weight: 900; line-height: 1.0; letter-spacing: -.5px; }
-@media (min-width: 900px) { .banner { height: 380px; } .banner-text { padding-bottom: 40px; } .banner-title { font-size: 44px; } }
+.col{max-width:780px;margin:0 auto;padding:0 20px;}
+.col-wide{max-width:1080px;margin:0 auto;padding:0 20px;}
 
-/* FEATURE CARDS (Meet & Move, Ambassador) */
-.feature-stack { display: grid; gap: 12px; }
-.feature-card { border: 1px solid var(--accent-line); border-radius: var(--radius); padding: 18px 20px; display: flex; gap: 14px; align-items: flex-start; background: rgba(43,168,224,.02); transition: border-color .2s, transform .2s; }
-.feature-card:hover { border-color: rgba(43,168,224,.5); transform: translateY(-2px); }
-.feature-icon { flex-shrink: 0; color: var(--accent); width: 22px; height: 22px; }
-.feature-title { font-size: 14px; font-weight: 900; margin-bottom: 4px; }
-.feature-desc { font-size: 12px; color: var(--text-soft); line-height: 1.6; }
-@media (min-width: 900px) { .feature-stack { grid-template-columns: repeat(3, 1fr); } }
+/* ════════════════ NAV ════════════════ */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  background:rgba(8,20,32,0.55);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid rgba(255,255,255,0.05);
+}
+.nav-inner{
+  max-width:1080px;margin:0 auto;
+  padding:14px 20px;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:10px;
+}
+.nav-brand{display:flex;align-items:center;flex-shrink:0;}
+.nav-brand img{height:32px;width:auto;}
+.nav-right{display:flex;align-items:center;gap:8px;}
+.nav-login{
+  color:var(--text);
+  font-size:13px;font-weight:700;
+  padding:11px 14px;
+  letter-spacing:0.2px;
+  transition:color 0.15s;
+}
+.nav-login:hover{color:var(--blue);}
+.nav-cta{
+  background:var(--blue);color:#fff;
+  font-size:12px;font-weight:800;
+  padding:11px 16px;border-radius:10px;
+  letter-spacing:0.3px;
+  transition:background 0.15s;
+}
+.nav-cta:hover{background:var(--blue-dk);}
 
-/* IMAGE-LEFT SPLIT (Events, Experiences, Challenges) */
-.split { display: grid; gap: 32px; align-items: center; }
-.split-img { border-radius: var(--radius-lg); overflow: hidden; aspect-ratio: 4/3; }
-.split-img img { width: 100%; height: 100%; object-fit: cover; }
-@media (min-width: 900px) {
-  .split { grid-template-columns: 1fr 1fr; gap: 56px; }
-  .split.reverse > div:first-child { order: 2; }
+/* ════════════════ HERO — FULL-BLEED IMAGE + TEXT OVERLAY ════════════════ */
+.hero{
+  position:relative;
+  min-height:100vh;
+  display:flex;align-items:center;justify-content:center;
+  padding:100px 0 80px;
+  overflow:hidden;
+}
+.hero-bg{
+  position:absolute;inset:0;z-index:1;
+}
+.hero-bg img{
+  width:100%;height:100%;object-fit:cover;
+}
+.hero-overlay{
+  position:absolute;inset:0;z-index:2;
+  background:
+    linear-gradient(180deg,rgba(8,20,32,0.45) 0%,rgba(8,20,32,0.55) 50%,rgba(8,20,32,0.92) 100%),
+    radial-gradient(ellipse at center,transparent 30%,rgba(8,20,32,0.4) 100%);
+}
+.hero-content{
+  position:relative;z-index:3;
+  max-width:780px;margin:0 auto;
+  padding:0 24px;text-align:center;
+}
+.hero-eyebrow{
+  font-size:11px;font-weight:800;
+  letter-spacing:3px;text-transform:uppercase;
+  color:#fff;
+  margin-bottom:24px;
+  padding-bottom:16px;
+  border-bottom:2px solid var(--yellow);
+  display:inline-block;
+}
+.hero-content h1{
+  font-size:44px;font-weight:900;
+  line-height:1.02;
+  letter-spacing:-1.2px;
+  margin-bottom:24px;
+  color:#fff;
+  text-shadow:0 2px 24px rgba(0,0,0,0.4);
+}
+.hero-content h1 .accent{color:var(--blue);}
+.hero-content p.lead{
+  font-size:15px;line-height:1.7;
+  color:#dce5ec;
+  max-width:580px;margin:0 auto;
+  text-shadow:0 1px 12px rgba(0,0,0,0.4);
+}
+.hero-scroll-hint{
+  position:absolute;bottom:24px;left:50%;
+  transform:translateX(-50%);
+  z-index:3;
+  color:rgba(255,255,255,0.55);
+  font-size:10px;font-weight:800;
+  letter-spacing:2px;text-transform:uppercase;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+}
+.hero-scroll-hint .material-symbols-outlined{
+  font-size:18px;
+  animation:bounce 2s infinite;
+}
+@keyframes bounce{
+  0%,100%{transform:translateY(0);}
+  50%{transform:translateY(4px);}
 }
 
-/* PARTNER GRID (Deals section) */
-.deal-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 8px; }
-.deal-card { border: 1px solid var(--accent-line); border-radius: var(--radius); padding: 18px 20px; background: rgba(43,168,224,.02); }
-.deal-name { font-size: 14px; font-weight: 900; margin-bottom: 4px; }
-.deal-desc { font-size: 12px; color: var(--text-soft); line-height: 1.55; }
-@media (min-width: 700px) { .deal-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (min-width: 900px) { .deal-grid { grid-template-columns: repeat(3, 1fr); } }
+/* ════════════════ INTRO STRIP ════════════════ */
+.intro-strip{
+  padding:60px 0;
+  background:var(--bg);
+}
+.intro-inner{
+  max-width:780px;margin:0 auto;
+  text-align:center;padding:0 24px;
+}
+.intro-inner p{
+  font-size:18px;line-height:1.7;
+  color:#dce5ec;font-weight:500;
+}
+.intro-inner p strong{color:var(--text);font-weight:700;}
+.intro-keywords{
+  margin-top:18px;
+  font-size:11px;font-weight:800;
+  color:var(--blue);letter-spacing:2.5px;
+  text-transform:uppercase;
+}
 
-/* PRICING */
-.pricing { background: var(--bg-elev); position: relative; overflow: hidden; }
-.pricing::before { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at top, rgba(43,168,224,.08), transparent 60%); pointer-events: none; }
-.price-card { position: relative; max-width: 600px; margin: 0 auto; background: var(--bg); border: 1px solid var(--accent-line); border-radius: 20px; padding: 32px 24px; }
-.price-card .price-badge { display: inline-block; background: var(--yellow); color: #081420; font-size: 10px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; padding: 5px 12px; border-radius: 100px; margin-bottom: 16px; }
-.price-card .price-amount { font-size: 64px; font-weight: 900; color: var(--yellow); line-height: 1; letter-spacing: -2px; }
-.price-card .price-sub { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); margin: 6px 0 24px; }
-.benefits { list-style: none; margin: 0 0 28px; padding: 0; }
-.benefits li { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--accent-line-dim); font-size: 13px; color: var(--text-soft); line-height: 1.5; }
-.benefits li:last-child { border: none; }
-.benefits li svg { flex-shrink: 0; color: var(--accent); margin-top: 2px; }
-.benefits b { color: #fff; font-weight: 800; }
-.price-cta { display: block; background: var(--accent); color: #fff; text-align: center; padding: 17px; border-radius: 12px; font-size: 16px; font-weight: 800; transition: transform .15s; }
-.price-cta:hover { transform: translateY(-1px); }
-.price-fine { font-size: 11px; color: var(--text-dim); text-align: center; margin-top: 12px; line-height: 1.5; }
-@media (min-width: 900px) { .price-card { padding: 48px 40px; } .price-card .price-amount { font-size: 88px; } }
+/* ════════════════ SECTION BANNER (image strip in sections) ════════════════ */
+.section-banner{
+  position:relative;
+  height:220px;
+  overflow:hidden;
+}
+.section-banner img{
+  width:100%;height:100%;object-fit:cover;
+}
+.section-banner::after{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(8,20,32,0.35) 0%,rgba(8,20,32,0.7) 75%,var(--bg-2) 100%);
+}
 
-/* PARTNER CTA */
-.partner-card { border: 1px solid var(--accent-line); border-radius: var(--radius-lg); padding: 32px 24px; background: linear-gradient(135deg, rgba(43,168,224,.06), rgba(43,168,224,.02)); text-align: center; }
-.partner-card h3 { font-size: 24px; font-weight: 900; margin-bottom: 10px; letter-spacing: -.3px; }
-.partner-card p { font-size: 13px; color: var(--text-soft); line-height: 1.6; margin-bottom: 20px; max-width: 480px; margin-left: auto; margin-right: auto; }
-.partner-cta { display: inline-block; background: transparent; color: var(--accent); border: 1.5px solid var(--accent); padding: 14px 28px; border-radius: 10px; font-size: 13px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; transition: all .15s; }
-.partner-cta:hover { background: var(--accent); color: #fff; }
+/* ════════════════ SECTION BASE ════════════════ */
+.section{padding:70px 0;}
+.section-eyebrow{
+  font-size:10px;font-weight:800;
+  color:var(--blue);letter-spacing:2.5px;
+  text-transform:uppercase;
+  margin-bottom:14px;text-align:center;
+}
+.section-title{
+  font-size:30px;font-weight:900;
+  text-align:center;margin-bottom:14px;
+  letter-spacing:-0.5px;line-height:1.15;
+}
+.section-sub{
+  font-size:15px;color:var(--muted);
+  text-align:center;max-width:620px;
+  margin:0 auto 50px;line-height:1.7;
+}
 
-/* ═══════════ PREMIUM FOOTER ═══════════ */
-footer { background: var(--bg-deep); border-top: 1px solid var(--accent-line-dim); padding-top: 64px; padding-bottom: 0; margin-top: 60px; }
+/* ════════════════ CONNECT — 5 ways with icons ════════════════ */
+.connect-list{
+  display:flex;flex-direction:column;
+  gap:24px;max-width:760px;margin:0 auto;
+}
+.connect-item{
+  background:var(--bg-2);
+  border:1px solid var(--border);
+  border-radius:18px;overflow:hidden;
+  transition:border-color 0.2s,transform 0.2s;
+}
+.connect-item:hover{
+  border-color:var(--border-mid);
+  transform:translateY(-2px);
+}
+.connect-img{
+  aspect-ratio:16/10;overflow:hidden;
+  position:relative;
+}
+.connect-img img{
+  width:100%;height:100%;object-fit:cover;
+  transition:transform 0.4s;
+}
+.connect-item:hover .connect-img img{transform:scale(1.04);}
+.connect-img::after{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(180deg,transparent 50%,rgba(15,30,46,0.5) 100%);
+}
+.connect-img-icon{
+  position:absolute;top:18px;left:18px;
+  width:48px;height:48px;
+  background:var(--bg);
+  border:1px solid var(--border-mid);
+  border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--yellow);
+  z-index:2;
+}
+.connect-img-icon .material-symbols-outlined{font-size:26px;}
+.connect-body{padding:24px;}
+.connect-step-num{
+  display:inline-block;
+  font-size:10px;font-weight:800;
+  color:var(--yellow);letter-spacing:2px;
+  margin-bottom:10px;
+}
+.connect-name{
+  font-size:22px;font-weight:900;
+  margin-bottom:10px;letter-spacing:-0.3px;
+}
+.connect-desc{
+  font-size:14px;color:var(--text-dim);
+  line-height:1.65;margin-bottom:14px;
+}
+.connect-example{
+  font-size:12px;color:var(--muted);
+  line-height:1.6;
+  border-left:2px solid var(--yellow);
+  padding-left:12px;font-style:italic;
+}
 
-/* Trust strip */
-.trust-strip { border-top: 1px solid var(--accent-line-dim); border-bottom: 1px solid var(--accent-line-dim); padding: 24px 0; margin-bottom: 48px; background: rgba(43,168,224,.02); }
-.trust-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-around; gap: 20px; }
-.trust-item { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-mute); }
-.trust-item svg { color: var(--accent); width: 18px; height: 18px; flex-shrink: 0; }
-.trust-stripe { color: #fff; font-weight: 800; font-size: 14px; letter-spacing: -.3px; text-transform: none; }
-.trust-stripe svg { color: var(--stripe-purple); width: 22px; height: 22px; }
+/* ════════════════ GLOBAL SECTION ════════════════ */
+.global-section{
+  background:var(--bg-2);
+  border-bottom:1px solid var(--border);
+}
+.global-inner{padding:0 0 70px;}
+.global-grid{
+  display:grid;grid-template-columns:1fr;
+  gap:14px;max-width:760px;margin:30px auto 0;
+}
+.global-card{
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:14px;padding:24px;
+  display:flex;gap:16px;align-items:flex-start;
+}
+.global-card-icon{
+  flex-shrink:0;
+  width:44px;height:44px;
+  background:var(--yellow-soft);
+  border:1px solid rgba(255,204,0,0.25);
+  border-radius:11px;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--yellow);
+}
+.global-card-icon .material-symbols-outlined{font-size:24px;}
+.global-card-text h4{
+  font-size:16px;font-weight:900;
+  margin-bottom:6px;color:var(--blue);
+}
+.global-card-text p{
+  font-size:13px;color:var(--text-dim);
+  line-height:1.6;
+}
 
-/* Footer grid */
-.footer-grid { display: grid; grid-template-columns: 1fr; gap: 40px; margin-bottom: 48px; }
-@media (min-width: 700px) { .footer-grid { grid-template-columns: 2fr 1fr 1fr 1fr; gap: 48px; } }
+/* ════════════════ ECOSYSTEM ════════════════ */
+.ecosystem-section{background:var(--bg-2);border-bottom:1px solid var(--border);}
+.ecosystem-inner{padding:0 0 70px;}
+.ecosystem-list{
+  display:grid;grid-template-columns:repeat(2,1fr);
+  gap:10px;max-width:760px;margin:30px auto 0;
+  padding:0 20px;
+}
+.ecosystem-tag{
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:14px 14px;
+  font-size:13px;font-weight:700;
+  display:flex;align-items:center;gap:10px;
+  transition:border-color 0.15s;
+}
+.ecosystem-tag:hover{border-color:var(--border-mid);}
+.ecosystem-tag .material-symbols-outlined{
+  font-size:20px;color:var(--blue);flex-shrink:0;
+}
 
-.footer-brand img { height: 36px; margin-bottom: 14px; }
-.footer-tagline { font-size: 13px; color: var(--text-soft); line-height: 1.7; max-width: 320px; margin-bottom: 18px; }
-.footer-payments { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.card-icon { background: #fff; border-radius: 4px; padding: 4px 8px; height: 24px; display: inline-flex; align-items: center; }
-.card-icon img { height: 14px; width: auto; }
-.card-label { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 4px; padding: 4px 8px; font-size: 9px; font-weight: 800; letter-spacing: 1px; color: var(--text-mute); }
+/* ════════════════ MEMBERSHIP UNLOCKS ════════════════ */
+.unlocks-section{
+  padding:70px 0;
+  background:var(--bg);
+  border-bottom:1px solid var(--border);
+}
+.unlocks-list{
+  max-width:680px;margin:0 auto;
+  display:flex;flex-direction:column;gap:10px;
+}
+.unlock-item{
+  display:flex;gap:16px;align-items:flex-start;
+  padding:18px 20px;
+  background:var(--bg-2);
+  border:1px solid var(--border);
+  border-radius:14px;
+}
+.unlock-icon{
+  flex-shrink:0;
+  width:36px;height:36px;
+  border-radius:10px;
+  background:var(--yellow-soft);
+  border:1px solid rgba(255,204,0,0.25);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--yellow);
+}
+.unlock-icon .material-symbols-outlined{font-size:20px;}
+.unlock-text{
+  font-size:13px;line-height:1.55;
+  color:var(--text);font-weight:500;
+  padding-top:6px;
+}
+.unlock-text strong{font-weight:800;color:var(--text);}
 
-.footer-col h4 { font-size: 11px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 16px; }
-.footer-col ul { list-style: none; }
-.footer-col li { margin-bottom: 10px; }
-.footer-col a { font-size: 13px; color: var(--text-mute); transition: color .15s; }
-.footer-col a:hover { color: #fff; }
-.footer-col .contact-row { font-size: 13px; color: var(--text-mute); line-height: 1.6; margin-bottom: 12px; }
-.footer-col .contact-row b { color: #fff; display: block; font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+/* ════════════════ HOW IT WORKS ════════════════ */
+.how-section{padding:70px 0;background:var(--bg-2);border-bottom:1px solid var(--border);}
+.steps{
+  display:flex;flex-direction:column;
+  gap:16px;max-width:680px;margin:0 auto;
+}
+.step{
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:14px;padding:24px;
+  display:flex;gap:18px;align-items:flex-start;
+}
+.step-num{
+  flex-shrink:0;width:46px;height:46px;
+  border-radius:50%;background:var(--blue);
+  color:#fff;font-size:18px;font-weight:900;
+  display:flex;align-items:center;justify-content:center;
+  position:relative;
+}
+.step-icon-badge{
+  position:absolute;bottom:-6px;right:-6px;
+  width:24px;height:24px;border-radius:50%;
+  background:var(--yellow);color:#081420;
+  display:flex;align-items:center;justify-content:center;
+  border:2px solid var(--bg);
+}
+.step-icon-badge .material-symbols-outlined{font-size:14px;}
+.step-content h4{
+  font-size:17px;font-weight:900;
+  margin-bottom:6px;letter-spacing:-0.2px;
+}
+.step-content p{
+  font-size:13px;color:var(--text-dim);
+  line-height:1.6;
+}
 
-/* Bottom bar */
-.footer-bottom { border-top: 1px solid var(--accent-line-dim); padding: 24px 0; display: flex; flex-direction: column; gap: 16px; align-items: center; text-align: center; }
-.footer-bottom-left { font-size: 11px; color: var(--text-dim); letter-spacing: .5px; }
-.footer-bottom-left a { color: var(--text-mute); margin: 0 8px; }
-.footer-bottom-left a:hover { color: #fff; }
-.footer-social { display: flex; gap: 10px; }
-.footer-social a { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: rgba(43,168,224,.08); border: 1px solid var(--accent-line); color: var(--text-mute); transition: all .15s; }
-.footer-social a:hover { background: var(--accent); color: #fff; border-color: var(--accent); transform: translateY(-2px); }
-.footer-social svg { width: 16px; height: 16px; }
-@media (min-width: 700px) { .footer-bottom { flex-direction: row; justify-content: space-between; text-align: left; } }
+/* ════════════════ STATS — VALUE-FOCUSED ════════════════ */
+.stats{
+  background:var(--bg);
+  padding:70px 0;
+  border-bottom:1px solid var(--border);
+}
+.stats-grid{
+  display:grid;grid-template-columns:repeat(2,1fr);
+  gap:28px;max-width:780px;margin:0 auto;padding:0 20px;
+}
+.stat{
+  background:var(--bg-2);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:24px 18px;
+  text-align:center;
+  transition:border-color 0.15s;
+}
+.stat:hover{border-color:var(--border-mid);}
+.stat-icon{
+  width:46px;height:46px;
+  background:var(--yellow-soft);
+  border:1px solid rgba(255,204,0,0.25);
+  border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;
+  color:var(--yellow);
+  margin-bottom:14px;
+}
+.stat-icon .material-symbols-outlined{font-size:24px;}
+.stat-num{
+  font-size:28px;font-weight:900;
+  color:var(--yellow);line-height:1;
+  margin-bottom:6px;letter-spacing:-0.5px;
+}
+.stat-label{
+  font-size:11px;font-weight:800;
+  color:var(--text);letter-spacing:1px;
+  text-transform:uppercase;
+  margin-bottom:6px;
+}
+.stat-sub{
+  font-size:10px;color:var(--muted);
+  font-weight:500;line-height:1.4;
+}
+
+/* ════════════════ EARN / AMBASSADOR ════════════════ */
+.earn-section{padding:70px 0;background:var(--bg-2);border-bottom:1px solid var(--border);}
+.earn-card{
+  max-width:680px;margin:0 auto;
+  background:linear-gradient(135deg,var(--bg) 0%,var(--bg-3) 100%);
+  border:1px solid var(--border-mid);
+  border-radius:18px;padding:36px 24px;
+  text-align:center;
+}
+.earn-icon-wrap{
+  width:60px;height:60px;border-radius:50%;
+  background:var(--yellow);color:#081420;
+  display:inline-flex;align-items:center;justify-content:center;
+  margin-bottom:18px;
+}
+.earn-icon-wrap .material-symbols-outlined{font-size:32px;}
+.earn-eyebrow{
+  font-size:10px;font-weight:800;
+  color:var(--yellow);letter-spacing:2.5px;
+  text-transform:uppercase;margin-bottom:10px;
+}
+.earn-card h3{
+  font-size:24px;font-weight:900;
+  margin-bottom:12px;letter-spacing:-0.3px;
+}
+.earn-card p{
+  font-size:14px;color:var(--text-dim);
+  line-height:1.65;max-width:480px;margin:0 auto;
+}
+
+/* ════════════════ PROVIDER ════════════════ */
+.provider-section{
+  background:var(--bg);
+  padding:70px 0;
+  border-bottom:1px solid var(--border);
+}
+.provider-card{
+  max-width:680px;margin:0 auto;
+  text-align:center;padding:0 20px;
+}
+.provider-icon-wrap{
+  width:56px;height:56px;border-radius:14px;
+  background:var(--yellow-soft);
+  border:1px solid rgba(255,204,0,0.3);
+  color:var(--yellow);
+  display:inline-flex;align-items:center;justify-content:center;
+  margin-bottom:16px;
+}
+.provider-icon-wrap .material-symbols-outlined{font-size:30px;}
+.provider-card h3{
+  font-size:26px;font-weight:900;
+  margin-bottom:12px;letter-spacing:-0.3px;
+}
+.provider-card p{
+  font-size:14px;color:var(--text-dim);
+  line-height:1.65;margin-bottom:24px;
+  max-width:520px;margin-left:auto;margin-right:auto;
+}
+.btn-primary,.btn-secondary,.btn-yellow{
+  display:inline-block;
+  text-align:center;letter-spacing:0.3px;
+  border:none;
+  transition:background 0.15s,transform 0.15s;
+}
+.btn-primary{
+  background:var(--blue);color:#fff;
+  font-size:14px;font-weight:800;
+  padding:15px 24px;border-radius:12px;
+}
+.btn-primary:hover{background:var(--blue-dk);transform:translateY(-1px);}
+.btn-yellow{
+  background:var(--yellow);color:#081420;
+  font-size:14px;font-weight:800;
+  padding:15px 24px;border-radius:12px;
+}
+.btn-yellow:hover{background:#e6b800;transform:translateY(-1px);}
+
+/* ════════════════ PRICING ════════════════ */
+.pricing-section{padding:70px 0;background:var(--bg-2);border-bottom:1px solid var(--border);}
+.price-card{
+  max-width:460px;margin:0 auto;
+  background:var(--bg);
+  border:1px solid var(--border-mid);
+  border-radius:20px;padding:32px 24px;
+  text-align:center;
+  position:relative;overflow:hidden;
+}
+.price-card::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--blue),var(--yellow));
+}
+.price-eyebrow{
+  font-size:11px;font-weight:800;
+  color:var(--blue);letter-spacing:2px;
+  text-transform:uppercase;margin-bottom:14px;
+}
+.price-amount{
+  font-size:56px;font-weight:900;
+  color:var(--yellow);line-height:1;
+  margin-bottom:8px;letter-spacing:-1.5px;
+}
+.price-period{
+  font-size:14px;color:var(--text);font-weight:700;
+  margin-bottom:6px;
+}
+.price-note{
+  font-size:11px;color:var(--muted);
+  margin-bottom:24px;
+}
+.price-includes{
+  text-align:left;
+  border-top:1px solid var(--border);
+  padding-top:18px;margin-bottom:24px;
+}
+.price-include-row{
+  display:flex;align-items:flex-start;gap:12px;
+  font-size:13px;padding:6px 0;line-height:1.55;
+  color:var(--text-dim);
+}
+.price-check-icon{
+  font-size:18px !important;
+  color:var(--yellow);
+  flex-shrink:0;
+  margin-top:1px;
+}
+.price-card .btn-primary{
+  display:block;width:100%;
+  padding:16px;font-size:14px;
+}
+
+/* ════════════════ FINAL CTA — with subtle bg image ════════════════ */
+.final-cta{
+  position:relative;
+  padding:90px 0;text-align:center;
+  overflow:hidden;
+  background:var(--bg);
+}
+.final-cta-bg{
+  position:absolute;inset:0;z-index:1;
+}
+.final-cta-bg img{
+  width:100%;height:100%;object-fit:cover;
+  opacity:0.25;
+}
+.final-cta::before{
+  content:"";position:absolute;inset:0;z-index:2;
+  background:
+    linear-gradient(180deg,rgba(8,20,32,0.75) 0%,rgba(8,20,32,0.92) 100%);
+}
+.final-cta-inner{position:relative;z-index:3;}
+.final-cta h2{
+  font-size:32px;font-weight:900;
+  margin-bottom:12px;letter-spacing:-0.5px;
+}
+.final-cta p{
+  font-size:15px;color:var(--text-dim);
+  margin-bottom:28px;
+}
+.final-cta .btn-primary{padding:16px 40px;font-size:14px;}
+
+/* ════════════════ FOOTER ════════════════ */
+footer{
+  background:var(--bg-2);
+  padding:40px 0 24px;
+  border-top:1px solid var(--border);
+}
+.footer-inner{
+  max-width:1080px;margin:0 auto;padding:0 20px;
+  display:grid;grid-template-columns:1fr;gap:30px;
+}
+.footer-brand{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.footer-brand img{height:28px;}
+.footer-tag{
+  font-size:12px;color:var(--muted);
+  line-height:1.65;max-width:340px;
+}
+.footer-col h5{
+  font-size:11px;font-weight:800;
+  color:var(--blue);letter-spacing:1.5px;
+  text-transform:uppercase;margin-bottom:14px;
+}
+.footer-col ul{list-style:none;}
+.footer-col li{padding:6px 0;}
+.footer-col a{
+  font-size:13px;color:var(--text-dim);
+  transition:color 0.15s;
+}
+.footer-col a:hover{color:var(--blue);}
+
+.trust-row{
+  max-width:1080px;margin:30px auto 0;padding:24px 20px 0;
+  display:flex;flex-wrap:wrap;justify-content:center;align-items:center;
+  gap:18px;
+  border-top:1px solid var(--border);
+}
+.trust-label{
+  font-size:10px;font-weight:700;
+  color:var(--muted);letter-spacing:1.5px;
+  text-transform:uppercase;
+  width:100%;text-align:center;margin-bottom:4px;
+}
+.trust-icon{height:24px;width:auto;opacity:0.85;filter:brightness(0) invert(1);}
+.trust-icon-placeholder{
+  height:28px;padding:0 12px;
+  display:flex;align-items:center;
+  background:rgba(255,255,255,0.05);
+  border:1px solid var(--border);
+  border-radius:4px;
+  font-size:10px;font-weight:800;
+  color:var(--muted);letter-spacing:1px;
+}
+.footer-bottom{
+  border-top:1px solid var(--border);
+  margin-top:24px;padding-top:20px;
+  text-align:center;font-size:11px;
+  color:var(--muted);letter-spacing:0.3px;
+}
+
+/* ════════════════════════════════════════════════════════════
+   DESKTOP
+   ════════════════════════════════════════════════════════════ */
+@media (min-width:768px){
+  .nav-inner{padding:16px 32px;}
+  .nav-brand img{height:38px;}
+  .nav-login{font-size:13px;padding:11px 16px;}
+  .nav-cta{font-size:13px;padding:12px 22px;}
+
+  .hero{min-height:92vh;padding:130px 0 110px;}
+  .hero-content h1{font-size:84px;letter-spacing:-2px;}
+  .hero-content p.lead{font-size:18px;}
+  .hero-eyebrow{font-size:13px;padding-bottom:18px;}
+
+  .intro-strip{padding:80px 0;}
+  .intro-inner p{font-size:22px;line-height:1.6;}
+
+  .section-banner{height:320px;}
+
+  .section{padding:100px 0;}
+  .section-title{font-size:42px;letter-spacing:-1px;}
+  .section-sub{font-size:16px;margin-bottom:56px;}
+
+  .connect-list{gap:32px;max-width:960px;}
+  .connect-item{display:grid;grid-template-columns:1fr 1fr;align-items:stretch;}
+  .connect-item:nth-child(even) .connect-img{order:2;}
+  .connect-img{aspect-ratio:auto;height:100%;min-height:300px;}
+  .connect-body{padding:40px;display:flex;flex-direction:column;justify-content:center;}
+  .connect-name{font-size:26px;}
+  .connect-desc{font-size:15px;}
+
+  .global-inner{padding:0 0 100px;}
+  .global-grid{grid-template-columns:1fr 1fr;gap:16px;}
+
+  .ecosystem-inner{padding:0 0 100px;}
+  .ecosystem-list{grid-template-columns:repeat(3,1fr);gap:12px;}
+
+  .unlocks-section{padding:100px 0;}
+
+  .how-section{padding:100px 0;}
+  .step{padding:28px;}
+  .step-num{width:52px;height:52px;font-size:20px;}
+  .step-content h4{font-size:19px;}
+  .step-content p{font-size:14px;}
+
+  .stats{padding:100px 0;}
+  .stats-grid{grid-template-columns:repeat(4,1fr);gap:20px;}
+  .stat{padding:32px 20px;}
+  .stat-num{font-size:34px;}
+
+  .earn-section{padding:100px 0;}
+  .earn-card{padding:48px 32px;}
+  .earn-card h3{font-size:30px;}
+
+  .provider-section{padding:90px 0;}
+  .provider-card h3{font-size:30px;}
+
+  .pricing-section{padding:100px 0;}
+  .price-amount{font-size:68px;}
+
+  .final-cta{padding:130px 0;}
+  .final-cta h2{font-size:44px;letter-spacing:-1px;}
+  .final-cta p{font-size:17px;}
+
+  .footer-inner{grid-template-columns:2fr 1fr 1fr;gap:60px;}
+}
 </style>
 </head>
 <body>
 
-<!-- NAV -->
+<!-- ════════════════ NAV ════════════════ -->
 <nav>
-  <a class="nav-brand" href="/">
-    <img src="assets/ffp-white-logo.png" alt="FFP">
-    <span class="wordmark">PASSPORT <span class="nav-yr">2026</span></span>
-  </a>
-  <div class="nav-right">
-    <a href="/login" class="nav-link">Log In</a>
-    <a href="https://buy.stripe.com/test_bJe5kCaiO3ESgEs4jV3Nm00" class="nav-cta">Join Now</a>
+  <div class="nav-inner">
+    <a class="nav-brand" href="/">
+      <img src="FFP_White_logo.png" alt="FFP Passport">
+    </a>
+    <div class="nav-right">
+      <a class="nav-login" href="/login">Log in</a>
+      <a class="nav-cta" href="/login">Become a Member</a>
+    </div>
   </div>
 </nav>
 
-<!-- HERO -->
+<!-- ════════════════ HERO — FULL-BLEED IMAGE WITH TEXT OVERLAY ════════════════ -->
 <section class="hero">
-  <div class="col">
-    <div class="hero-inner">
-      <div class="hero-img-wrap">
-        <img src="assets/group-of-5.jpg" alt="FFP Passport community">
+  <div class="hero-bg">
+    <img src="Hands_in.jpg" alt="">
+  </div>
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <div class="hero-eyebrow">Find your people. Move together.</div>
+    <h1>UAE's active lifestyle <span class="accent">passport</span></h1>
+    <p class="lead">Built for those who take their active lifestyle seriously &mdash; who want to meet great people, do great things, and share the best the region and the world have to offer. The gold stamp for active living.</p>
+  </div>
+  <div class="hero-scroll-hint">
+    <span>Scroll</span>
+    <span class="material-symbols-outlined">expand_more</span>
+  </div>
+</section>
+
+<!-- ════════════════ INTRO STRIP ════════════════ -->
+<section class="intro-strip">
+  <div class="intro-inner">
+    <p><strong>Real people. Real connections. Real experiences.</strong> The best food, the best training, the best recovery, the best specialists and the best places &mdash; opened to people who love an active life.</p>
+    <div class="intro-keywords">Premium experiences &middot; Premium people &middot; Premium providers</div>
+  </div>
+</section>
+
+<!-- ════════════════ HOW WE CONNECT — 5 ways ════════════════ -->
+<section class="section">
+  <div class="col-wide">
+    <div class="section-eyebrow">What the passport opens</div>
+    <h2 class="section-title">Five ways in</h2>
+    <p class="section-sub">Match with people. Host or join meetups. Tap into professional networks. Get into provider events. Travel together for full experiences. Each one a different door to people, places and possibilities.</p>
+
+    <div class="connect-list">
+
+      <div class="connect-item">
+        <div class="connect-img">
+          <div class="connect-img-icon"><span class="material-symbols-outlined">connect_without_contact</span></div>
+          <img src="Group_of_5.jpg" alt="FFP member matching">
+        </div>
+        <div class="connect-body">
+          <div class="connect-step-num">01 &mdash; FOUNDATION</div>
+          <div class="connect-name">Matched to people like you</div>
+          <div class="connect-desc">We identify members near you with similar sports, similar level and similar interests. You decide who to connect with &mdash; it's always your call.</div>
+          <div class="connect-example">A 4am running partner in JLT. A weekend padel duo at your level. A yoga buddy in your neighbourhood.</div>
+        </div>
       </div>
-      <div class="hero-text">
-        <h1>The UAE&rsquo;s<br><span>Active Lifestyle</span><br>Passport.</h1>
-        <p>One price. A community of active people, exclusive events, group experiences, real challenges and member perks across the UAE.</p>
-        <div class="hero-price">AED 499</div>
-        <div class="hero-price-sub">Founding Rate &middot; Price Increases After Launch</div>
-        <a href="https://buy.stripe.com/test_bJe5kCaiO3ESgEs4jV3Nm00" class="hero-cta">Secure Your 2026 Passport</a>
+
+      <div class="connect-item">
+        <div class="connect-img">
+          <div class="connect-img-icon"><span class="material-symbols-outlined">groups</span></div>
+          <img src="Padel_high_five.jpg" alt="Meet and Move meetup">
+        </div>
+        <div class="connect-body">
+          <div class="connect-step-num">02 &mdash; MEMBER-HOSTED</div>
+          <div class="connect-name">Meet &amp; Move</div>
+          <div class="connect-desc">Create or join a small-group meetup, up to 8 people. The simplest way to get a session on the calendar with people in your community. Some are free, some have a small cost &mdash; either way, you're in.</div>
+          <div class="connect-example">A 4th for padel. A kayak crew. A morning run. A kite-surf session. A beach volleyball game.</div>
+        </div>
       </div>
+
+      <div class="connect-item">
+        <div class="connect-img">
+          <div class="connect-img-icon"><span class="material-symbols-outlined">workspace_premium</span></div>
+          <img src="Ladies_lifting.jpg" alt="Professional network">
+        </div>
+        <div class="connect-body">
+          <div class="connect-step-num">03 &mdash; PROFESSIONALS</div>
+          <div class="connect-name">Pro Network</div>
+          <div class="connect-desc">A dedicated space for coaches, professional athletes, entrepreneurs and serious practitioners who want to connect with their peers.</div>
+          <div class="connect-example">Coaches sharing methodology. Pros training with pros. Entrepreneurs in the active-life space, meeting their tribe.</div>
+        </div>
+      </div>
+
+      <div class="connect-item">
+        <div class="connect-img">
+          <div class="connect-img-icon"><span class="material-symbols-outlined">event_available</span></div>
+          <img src="Pickel_ball.jpg" alt="FFP provider events">
+        </div>
+        <div class="connect-body">
+          <div class="connect-step-num">04 &mdash; PROVIDER-LED</div>
+          <div class="connect-name">Events</div>
+          <div class="connect-desc">Providers opening their doors to people who love the lifestyle. Try out their services, meet their team, find your next studio, club or coach.</div>
+          <div class="connect-example">A taster class at a new studio. A community race weekend. A coaching clinic with a touring pro.</div>
+        </div>
+      </div>
+
+      <div class="connect-item">
+        <div class="connect-img">
+          <div class="connect-img-icon"><span class="material-symbols-outlined">flight_takeoff</span></div>
+          <img src="racegroupphoto.jpg" alt="FFP experiences and travel">
+        </div>
+        <div class="connect-body">
+          <div class="connect-step-num">05 &mdash; MULTI-DAY &amp; TRAVEL</div>
+          <div class="connect-name">Experiences</div>
+          <div class="connect-desc">Retreats, training camps, and curated travel to major sporting events worldwide &mdash; F1, golf majors, marathon weekends, padel tournaments, Rugby Sevens and more.</div>
+          <div class="connect-example">Outbound trips with your crew. Inbound itineraries for visitors coming to UAE events.</div>
+        </div>
+      </div>
+
     </div>
   </div>
 </section>
 
-<!-- FIND YOUR PEOPLE BANNER -->
-<div class="banner">
-  <img src="assets/hands-in.jpg" alt="FFP Community">
-  <div class="banner-overlay"></div>
-  <div class="banner-text">
+<!-- ════════════════ GLOBAL SECTION (banner image + content) ════════════════ -->
+<section class="global-section">
+  <div class="section-banner">
+    <img src="Guys_running.jpg" alt="">
+  </div>
+  <div class="global-inner">
     <div class="col">
-      <div class="banner-eyebrow">Match, connect and go do things together.</div>
-      <div class="banner-title">FIND YOUR PEOPLE</div>
-    </div>
-  </div>
-</div>
+      <div class="section-eyebrow">By active people, for active people</div>
+      <h2 class="section-title">Local and global.</h2>
+      <p class="section-sub">The best of the region, opened to members at home. The best of the world, organised for travel together. The passport grows with you.</p>
 
-<!-- MEET & MOVE -->
-<section id="meet-and-move">
-  <div class="col">
-    <span class="eyebrow">Meet &amp; Move</span>
-    <h2 class="sec-heading">Find Your People. Train Together.</h2>
-    <p class="sec-sub">The FFP app matches you with passport holders near you based on your sports, fitness level, age and area. Connect, organise meetups, build your crew.</p>
-    <div class="feature-stack">
-      <div class="feature-card">
-        <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        <div><div class="feature-title">Get Matched</div><div class="feature-desc">View profiles of passport holders who match your interests, location and activity level. Connect mutually &mdash; no cold outreach.</div></div>
-      </div>
-      <div class="feature-card">
-        <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
-        <div><div class="feature-title">Organise Meetups</div><div class="feature-desc">Create a group session &mdash; a run, padel, gym, hike. Set the time, location and who you want. Your matches get notified.</div></div>
-      </div>
-      <div class="feature-card">
-        <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
-        <div><div class="feature-title">Track &amp; Rank</div><div class="feature-desc">Log active days, track biological age, strength, VO2 max &mdash; and see how you rank against passport holders in your city.</div></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- EVENTS -->
-<section style="background:var(--bg-elev);">
-  <div class="col">
-    <div class="split">
-      <div class="split-img"><img src="assets/padel-high-five.jpg" alt="FFP events"></div>
-      <div>
-        <span class="eyebrow">Events</span>
-        <h2 class="sec-heading">Show Up. Be Part Of It.</h2>
-        <p class="sec-sub">Pickleball nights. Padel tournaments. Sunrise yoga. Saturday hikes. Community days at partner venues across Dubai, Abu Dhabi and the Northern Emirates &mdash; included with your passport.</p>
+      <div class="global-grid">
+        <div class="global-card">
+          <div class="global-card-icon"><span class="material-symbols-outlined">home_pin</span></div>
+          <div class="global-card-text">
+            <h4>Local</h4>
+            <p>Find your people across the UAE &mdash; in your city, your neighbourhood, your sport, your level.</p>
+          </div>
+        </div>
+        <div class="global-card">
+          <div class="global-card-icon"><span class="material-symbols-outlined">flight_takeoff</span></div>
+          <div class="global-card-text">
+            <h4>Outbound</h4>
+            <p>Travel with your crew to F1, golf majors, marathons, padel tournaments &mdash; organised by trusted partners.</p>
+          </div>
+        </div>
+        <div class="global-card">
+          <div class="global-card-icon"><span class="material-symbols-outlined">flight_land</span></div>
+          <div class="global-card-text">
+            <h4>Inbound</h4>
+            <p>Visitors for Rugby Sevens, F1 Abu Dhabi or DP World Tour get itineraries curated by people who live it here.</p>
+          </div>
+        </div>
+        <div class="global-card">
+          <div class="global-card-icon"><span class="material-symbols-outlined">public</span></div>
+          <div class="global-card-text">
+            <h4>Anywhere next</h4>
+            <p>As FFP grows, your passport opens doors in new cities. Same membership, more places, more people.</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- EXPERIENCES -->
-<section>
-  <div class="col">
-    <div class="split reverse">
-      <div>
-        <span class="eyebrow">Experiences</span>
-        <h2 class="sec-heading">Train Hard. Travel Together.</h2>
-        <p class="sec-sub">Group fitness retreats overseas. Trail running in the Hajar Mountains. Recovery weekends in the desert. Wellness escapes with the community you train with. Members-only pricing on every trip.</p>
-      </div>
-      <div class="split-img"><img src="assets/lady-yoga.jpg" alt="FFP experiences"></div>
-    </div>
+<!-- ════════════════ ECOSYSTEM (banner image + tags) ════════════════ -->
+<section class="ecosystem-section">
+  <div class="section-banner">
+    <img src="Lady_yoga.jpg" alt="">
   </div>
-</section>
+  <div class="ecosystem-inner">
+    <div class="col-wide">
+      <div class="section-eyebrow">An ecosystem for active life</div>
+      <h2 class="section-title">The best of the best,<br>in one platform</h2>
+      <p class="section-sub">The best recovery. The best food. The best training. The best specialists. The best places to play. FFP curates the providers who make active life worth living.</p>
 
-<!-- MEMBER PERKS -->
-<section style="background:var(--bg-elev);">
-  <div class="col">
-    <span class="eyebrow">Member Perks</span>
-    <h2 class="sec-heading">Bring A Friend. They&rsquo;re In Free.</h2>
-    <p class="sec-sub">Member deals at hundreds of FFP partner venues across the UAE. Pay for yourself &mdash; your guest gets in free. No tiers. No restrictions. Every category, every emirate.</p>
-    <div class="deal-grid">
-      <div class="deal-card"><div class="deal-name">Strength &amp; HIIT</div><div class="deal-desc">Boutique gyms, F45, CrossFit boxes, functional studios &mdash; pay your session, bring a friend.</div></div>
-      <div class="deal-card"><div class="deal-name">Mind &amp; Body</div><div class="deal-desc">Yoga, pilates, breathwork. From Reformer studios to rooftop flow classes.</div></div>
-      <div class="deal-card"><div class="deal-name">Recovery</div><div class="deal-desc">Cryo, infrared, massage, IV therapy. Members rates at the UAE&rsquo;s best recovery clinics.</div></div>
-      <div class="deal-card"><div class="deal-name">Padel &amp; Pickleball</div><div class="deal-desc">Court time, coaching and tournament entries at top racquet clubs.</div></div>
-      <div class="deal-card"><div class="deal-name">Watersports &amp; Outdoors</div><div class="deal-desc">Surf, SUP, kayak, sailing, kite. Plus desert hikes and mountain trail experiences.</div></div>
-      <div class="deal-card"><div class="deal-name">Nutrition &amp; Wellness</div><div class="deal-desc">Meal prep partners, supplement stores, performance nutritionists.</div></div>
-    </div>
-  </div>
-</section>
-
-<!-- CHALLENGES -->
-<section>
-  <div class="col">
-    <div class="split">
-      <div class="split-img"><img src="assets/ladies-lifting.jpg" alt="FFP challenges"></div>
-      <div>
-        <span class="eyebrow">Challenges</span>
-        <h2 class="sec-heading">Compete. Climb The Board. Win.</h2>
-        <p class="sec-sub">Monthly and seasonal challenges with live leaderboards across the UAE. Run streaks. Strength benchmarks. Activity totals. Real prizes for the people who show up.</p>
+      <div class="ecosystem-list">
+        <div class="ecosystem-tag"><span class="material-symbols-outlined">fitness_center</span>Gyms &amp; studios</div>
+        <div class="ecosystem-tag"><span class="material-symbols-outlined">sports_tennis</span>Sports academies</div>
+        <div class="ecosystem-tag"><span class="material-symbols-outlined">school</span>Coaches</div>
+        <div class="ecosystem-tag"><span class="material-symbols-outlined">self_improvement</span>Yoga &amp; Pilates</div>
+        <div class="ecosystem-tag"><span class="material-symbols-outlined">restaurant</span>Healthy cafés</div>
+        <div class="ecosystem-tag"><span class="material-symbols-outlined">healing</span>Physios</div>
+        <div class="ecosystem-tag"><span class="material-symbols-outlined">accessibility_new</span>Osteopaths</div>
+        <div class="ecosystem-tag"><span class="material-symbols-outlined">medical_services</span>Chiropractors</div>
+        <div class="ecosystem-tag"><span class="material-symbols-outlined">spa</span>Recovery &amp; spa</div>
+        <div class="ecosystem-tag"><span class="material-symbols-outlined">hiking</span>Adventure operators</div>
+        <div class="ecosystem-tag"><span class="material-symbols-outlined">celebration</span>Event organisers</div>
+        <div class="ecosystem-tag"><span class="material-symbols-outlined">travel_explore</span>Travel partners</div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- AMBASSADOR PROGRAMME -->
-<section style="background:var(--bg-elev);">
+<!-- ════════════════ WHAT MEMBERSHIP UNLOCKS ════════════════ -->
+<section class="unlocks-section">
   <div class="col">
-    <span class="eyebrow">Ambassador Programme</span>
-    <h2 class="sec-heading">The FFP Ambassador Programme.</h2>
-    <p class="sec-sub">The people who bring others in get rewarded. Refer members, lead meetups, host community days &mdash; earn Ambassador status, partner perks, and direct earnings on every passport you sell.</p>
-    <div class="feature-stack">
-      <div class="feature-card">
-        <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 15.09 8.26 22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-        <div><div class="feature-title">Earn Status</div><div class="feature-desc">Climb tiers. Unlock exclusive Ambassador-only experiences, gear and recognition.</div></div>
+    <div class="section-eyebrow">What your membership unlocks</div>
+    <h2 class="section-title">Access. Invitations.<br>The good stuff.</h2>
+    <p class="section-sub">Not a coupon book. Your passport opens doors to people, premium experiences and invitations you can't get anywhere else.</p>
+
+    <div class="unlocks-list">
+      <div class="unlock-item">
+        <div class="unlock-icon"><span class="material-symbols-outlined">verified_user</span></div>
+        <div class="unlock-text"><strong>Verified people</strong> matched to your sport, level, age range and city.</div>
       </div>
-      <div class="feature-card">
-        <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-        <div><div class="feature-title">Get Paid</div><div class="feature-desc">Direct earnings on every passport sold through your referral. Withdrawable in AED.</div></div>
+      <div class="unlock-item">
+        <div class="unlock-icon"><span class="material-symbols-outlined">event_available</span></div>
+        <div class="unlock-text"><strong>All FFP events and meet-ups.</strong> Some are free, some have a small cost &mdash; you're invited to all.</div>
       </div>
-      <div class="feature-card">
-        <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        <div><div class="feature-title">Support The Community</div><div class="feature-desc">Lead meetups, host events, build the local crew. Rewarded for the time you put in.</div></div>
+      <div class="unlock-item">
+        <div class="unlock-icon"><span class="material-symbols-outlined">flight_takeoff</span></div>
+        <div class="unlock-text"><strong>Apply for multi-day experiences</strong> &mdash; retreats, camps, travel to major events worldwide.</div>
+      </div>
+      <div class="unlock-item">
+        <div class="unlock-icon"><span class="material-symbols-outlined">new_releases</span></div>
+        <div class="unlock-text"><strong>Product launches</strong> &mdash; invitations from premium brands across the region.</div>
+      </div>
+      <div class="unlock-item">
+        <div class="unlock-icon"><span class="material-symbols-outlined">card_membership</span></div>
+        <div class="unlock-text"><strong>Pre-launch access</strong> to new studios, adventure venues and experiences before they open to the public.</div>
+      </div>
+      <div class="unlock-item">
+        <div class="unlock-icon"><span class="material-symbols-outlined">monitoring</span></div>
+        <div class="unlock-text"><strong>Calorie tracker, fitness stats</strong> and your activity passport &mdash; train, recover, track your year.</div>
+      </div>
+      <div class="unlock-item">
+        <div class="unlock-icon"><span class="material-symbols-outlined">local_offer</span></div>
+        <div class="unlock-text"><strong>Member deals</strong> &mdash; better when you bring a friend. Deals designed to get more people active together.</div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- PRICING -->
-<section class="pricing">
+<!-- ════════════════ HOW IT WORKS ════════════════ -->
+<section class="how-section" id="how">
   <div class="col">
+    <div class="section-eyebrow">How it works</div>
+    <h2 class="section-title">Three steps.<br>Start this week.</h2>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">
+          1
+          <div class="step-icon-badge"><span class="material-symbols-outlined">person_add</span></div>
+        </div>
+        <div class="step-content">
+          <h4>Join</h4>
+          <p>One membership covers everything &mdash; matching, Meet &amp; Move, Pro Network, Events, Experiences and member access.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">
+          2
+          <div class="step-icon-badge"><span class="material-symbols-outlined">badge</span></div>
+        </div>
+        <div class="step-content">
+          <h4>Build your profile</h4>
+          <p>Add your sports, level per sport, age range, gender and city. Beginner yoga, intermediate surfer, elite runner &mdash; we account for all of it.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">
+          3
+          <div class="step-icon-badge"><span class="material-symbols-outlined">groups</span></div>
+        </div>
+        <div class="step-content">
+          <h4>Get matched &amp; meet your people</h4>
+          <p>Real connections. Real experiences. Meetups, events, experiences &mdash; and a community that grows with you.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ STATS — VALUE-FOCUSED ════════════════ -->
+<section class="stats">
+  <div class="col-wide">
+    <div class="section-eyebrow">Why members join</div>
+    <h2 class="section-title">Value, packed in.</h2>
+    <p class="section-sub">One membership unlocks an entire ecosystem of premium people, places and experiences.</p>
+
+    <div class="stats-grid">
+      <div class="stat">
+        <div class="stat-icon"><span class="material-symbols-outlined">workspace_premium</span></div>
+        <div class="stat-num">100s</div>
+        <div class="stat-label">Premium providers</div>
+        <div class="stat-sub">Curated UAE network</div>
+      </div>
+      <div class="stat">
+        <div class="stat-icon"><span class="material-symbols-outlined">sports_tennis</span></div>
+        <div class="stat-num">120+</div>
+        <div class="stat-label">Activities</div>
+        <div class="stat-sub">Sports, fitness &amp; wellness</div>
+      </div>
+      <div class="stat">
+        <div class="stat-icon"><span class="material-symbols-outlined">all_inclusive</span></div>
+        <div class="stat-num">Unlimited</div>
+        <div class="stat-label">Meet-ups</div>
+        <div class="stat-sub">Host or join, as often as you like</div>
+      </div>
+      <div class="stat">
+        <div class="stat-icon"><span class="material-symbols-outlined">public</span></div>
+        <div class="stat-num">Worldwide</div>
+        <div class="stat-label">Travel together</div>
+        <div class="stat-sub">Major events &amp; experiences</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ EARN / AMBASSADOR ════════════════ -->
+<section class="earn-section">
+  <div class="col">
+    <div class="earn-card">
+      <div class="earn-icon-wrap"><span class="material-symbols-outlined">paid</span></div>
+      <div class="earn-eyebrow">Ambassador program</div>
+      <h3>Your active life,<br>supported financially too.</h3>
+      <p>FFP Passport gives back. Refer people you'd want to train with and earn ambassador rewards. More ways to earn coming as the platform grows.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ MEMBERSHIP / PRICING ════════════════ -->
+<section class="pricing-section">
+  <div class="col">
+    <div class="section-eyebrow">Membership</div>
+    <h2 class="section-title">One passport.<br>Everything in.</h2>
+
     <div class="price-card">
-      <div style="text-align:center;">
-        <span class="price-badge">Founding Rate</span>
-        <div class="price-amount">AED 499</div>
-        <div class="price-sub">One-time &middot; Full 2026 Access</div>
+      <div class="price-eyebrow">2026 FFP Passport</div>
+      <div class="price-amount">AED 499</div>
+      <div class="price-period">for 2026</div>
+      <div class="price-note">renews annually</div>
+
+      <div class="price-includes">
+        <div class="price-include-row">
+          <span class="material-symbols-outlined price-check-icon">check</span>
+          <div>Matching with verified members in your city</div>
+        </div>
+        <div class="price-include-row">
+          <span class="material-symbols-outlined price-check-icon">check</span>
+          <div>Unlimited Meet &amp; Move &mdash; host or join</div>
+        </div>
+        <div class="price-include-row">
+          <span class="material-symbols-outlined price-check-icon">check</span>
+          <div>Pro Network for coaches and pros</div>
+        </div>
+        <div class="price-include-row">
+          <span class="material-symbols-outlined price-check-icon">check</span>
+          <div>All FFP events across the UAE</div>
+        </div>
+        <div class="price-include-row">
+          <span class="material-symbols-outlined price-check-icon">check</span>
+          <div>Apply for multi-day Experiences and travel</div>
+        </div>
+        <div class="price-include-row">
+          <span class="material-symbols-outlined price-check-icon">check</span>
+          <div>Calorie tracker, fitness stats and activity passport</div>
+        </div>
+        <div class="price-include-row">
+          <span class="material-symbols-outlined price-check-icon">check</span>
+          <div>Invitations to product launches and brand events</div>
+        </div>
+        <div class="price-include-row">
+          <span class="material-symbols-outlined price-check-icon">check</span>
+          <div>Ambassador program &mdash; earn from referrals</div>
+        </div>
       </div>
-      <ul class="benefits">
-        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span><b>Meet &amp; Move</b> &mdash; match with people who share your sports</span></li>
-        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span><b>FFP events</b> and community days across the UAE</span></li>
-        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span><b>Group experiences</b> and overseas trips</span></li>
-        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span><b>Challenges</b> with live leaderboards and prizes</span></li>
-        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span><b>Ambassador status</b> &mdash; earn rewards for supporting the community</span></li>
-        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span><b>Member deals</b> at hundreds of FFP partner venues</span></li>
-        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span><b>Free premiere sessions</b> at new venues</span></li>
-        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span><b>Fitness tracking</b>, workout timer and city rankings</span></li>
-      </ul>
-      <a href="https://buy.stripe.com/test_bJe5kCaiO3ESgEs4jV3Nm00" class="price-cta">Become A Member</a>
-      <div class="price-fine">Secure checkout via Stripe. Access code emailed instantly.</div>
+
+      <a href="/login" class="btn-primary">Become a Member</a>
     </div>
   </div>
 </section>
 
-<!-- PARTNER -->
-<section>
+<!-- ════════════════ PROVIDER / ORGANISER ════════════════ -->
+<section class="provider-section">
+  <div class="provider-card">
+    <div class="provider-icon-wrap"><span class="material-symbols-outlined">handshake</span></div>
+    <h3>Coach, studio,<br>or event organiser?</h3>
+    <p>Apply to join the FFP platform as a partner. List your services, run your meetups, organise events and experiences for an engaged community of active members across the UAE.</p>
+    <a href="/login" class="btn-yellow">Apply to be a partner</a>
+  </div>
+</section>
+
+<!-- ════════════════ FINAL CTA (with bg image) ════════════════ -->
+<section class="final-cta">
+  <div class="final-cta-bg">
+    <img src="Hands_in.jpg" alt="">
+  </div>
   <div class="col">
-    <div class="partner-card">
-      <h3>Run A Venue Or Studio?</h3>
-      <p>Partner with FFP Passport. Get featured to the UAE&rsquo;s most active community, drive premiere bookings, and grow your member base &mdash; with zero upfront cost.</p>
-      <a href="mailto:partners@ffppassport.com" class="partner-cta">Become A Partner</a>
+    <div class="final-cta-inner">
+      <h2>Active life is<br>better together.</h2>
+      <p>Join the community. Move more.</p>
+      <a href="/login" class="btn-primary">Become a Member</a>
     </div>
   </div>
 </section>
 
-<!-- ═══════════ FOOTER ═══════════ -->
+<!-- ════════════════ FOOTER ════════════════ -->
 <footer>
-
-  <!-- Trust strip -->
-  <div class="trust-strip">
-    <div class="col">
-      <div class="trust-row">
-        <div class="trust-item trust-stripe">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 7.5c0-.69-.62-1.25-1.5-1.25s-1.5.56-1.5 1.25c0 .89.78 1.34 2.05 1.93 2.13 1 3.45 1.78 3.45 4.07 0 2.36-1.84 3.75-4.5 3.75-1.81 0-3.39-.75-4.5-1.94l1.34-1.36c.85.91 1.91 1.55 3.16 1.55.97 0 1.75-.48 1.75-1.41 0-.97-.78-1.41-2.25-2.09-1.94-.91-3.25-1.66-3.25-3.91 0-2.06 1.66-3.59 4.25-3.59 1.69 0 3.06.66 4.13 1.69l-1.36 1.42c-.72-.72-1.62-1.16-2.77-1.16-.97 0-1.5.41-1.5 1.05z"/></svg>
-          <span>Powered by Stripe</span>
-        </div>
-        <div class="trust-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          <span>256-bit SSL Encrypted</span>
-        </div>
-        <div class="trust-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
-          <span>30-Day Guarantee</span>
-        </div>
-        <div class="trust-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          <span>Support 7 Days</span>
-        </div>
-        <div class="trust-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          <span>UAE Based</span>
-        </div>
+  <div class="footer-inner">
+    <div>
+      <div class="footer-brand">
+        <img src="FFP_White_logo.png" alt="FFP Passport">
       </div>
+      <p class="footer-tag">The UAE's active lifestyle passport. Find your people. Move together.</p>
+    </div>
+    <div class="footer-col">
+      <h5>Platform</h5>
+      <ul>
+        <li><a href="/login">Become a Member</a></li>
+        <li><a href="/login">Log in</a></li>
+        <li><a href="/login">Apply to be a partner</a></li>
+        <li><a href="#how">How it works</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h5>Legal</h5>
+      <ul>
+        <li><a href="/terms">Terms of service</a></li>
+        <li><a href="/privacy">Privacy policy</a></li>
+        <li><a href="/refund">Refund policy</a></li>
+        <li><a href="/contact">Contact</a></li>
+      </ul>
     </div>
   </div>
 
-  <div class="col">
+  <div class="trust-row">
+    <div class="trust-label">Secure payments &amp; partners</div>
+    <!-- Replace with official SVGs from each brand press kit -->
+    <div class="trust-icon-placeholder">STRIPE</div>
+    <div class="trust-icon-placeholder">VISA</div>
+    <div class="trust-icon-placeholder">MASTERCARD</div>
+    <div class="trust-icon-placeholder">APPLE PAY</div>
+    <div class="trust-icon-placeholder">GOOGLE PAY</div>
+  </div>
 
-    <!-- Main footer grid -->
-    <div class="footer-grid">
-
-      <div class="footer-brand">
-        <img src="assets/ffp-white-logo.png" alt="FFP Passport">
-        <div class="footer-tagline">The UAE&rsquo;s active lifestyle passport. Meet your people. Move together. Train, compete, travel and earn rewards across the Emirates.</div>
-        <div class="footer-payments">
-          <span class="card-label">VISA</span>
-          <span class="card-label">MASTERCARD</span>
-          <span class="card-label">AMEX</span>
-          <span class="card-label">APPLE PAY</span>
-        </div>
-      </div>
-
-      <div class="footer-col">
-        <h4>Passport</h4>
-        <ul>
-          <li><a href="#meet-and-move">Meet &amp; Move</a></li>
-          <li><a href="#">Events</a></li>
-          <li><a href="#">Experiences</a></li>
-          <li><a href="#">Challenges</a></li>
-          <li><a href="#">Ambassador</a></li>
-          <li><a href="#">Member Perks</a></li>
-        </ul>
-      </div>
-
-      <div class="footer-col">
-        <h4>Company</h4>
-        <ul>
-          <li><a href="#">About FFP</a></li>
-          <li><a href="mailto:partners@ffppassport.com">Become A Partner</a></li>
-          <li><a href="#">Careers</a></li>
-          <li><a href="#">Press</a></li>
-          <li><a href="/login">Member Login</a></li>
-        </ul>
-      </div>
-
-      <div class="footer-col">
-        <h4>Support</h4>
-        <div class="contact-row">
-          <b>Email</b>
-          <a href="mailto:hello@ffppassport.com">hello@ffppassport.com</a>
-        </div>
-        <div class="contact-row">
-          <b>Hours</b>
-          Sun&ndash;Sat, 9am&ndash;9pm GST
-        </div>
-        <div class="contact-row">
-          <b>Based In</b>
-          Dubai, UAE
-        </div>
-      </div>
-
-    </div>
-
-    <!-- Bottom bar -->
-    <div class="footer-bottom">
-      <div class="footer-bottom-left">
-        &copy; 2026 FFP Passport. All rights reserved.
-        <a href="#">Privacy</a>&middot;
-        <a href="#">Terms</a>&middot;
-        <a href="#">Refunds</a>
-      </div>
-      <div class="footer-social">
-        <a href="#" aria-label="Instagram">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
-        </a>
-        <a href="#" aria-label="TikTok">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5.8 20.1a6.34 6.34 0 0 0 10.86-4.43V8.45a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.36z"/></svg>
-        </a>
-        <a href="#" aria-label="Strava">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.599h4.172L10.463 0l-7 13.828h4.169"/></svg>
-        </a>
-        <a href="#" aria-label="WhatsApp">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884a9.825 9.825 0 0 1 6.988 2.896 9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0 0 20.464 3.488"/></svg>
-        </a>
-      </div>
-    </div>
-
+  <div class="footer-bottom">
+    &copy; 2026 FFP Passport. All rights reserved.
   </div>
 </footer>
 
