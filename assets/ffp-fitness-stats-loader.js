@@ -1,18 +1,14 @@
-/* FFP Fitness Stats Loader — v2
-   Wires FitnessStats module in ffp-member-dashboard.html to Supabase.
-   Reads:  profile_meta (PRs, vo2_max, body_fat_pct, visceral_fat, sleep_logs, chrono_age, weight)
+/* FFP Fitness Stats Loader — v3
+   v3 changes:
+   - PR dates now persist via new pr_dates jsonb column on profile_meta
+   - "PR set [date]" line survives refresh
+   Reads:  profile_meta (PRs, pr_dates, vo2_max, body_fat_pct, visceral_fat, sleep_logs, chrono_age, weight)
            members (date_of_birth, gender, city)
-           activity_logs (last 90 days — for real streak, tiles, milestones)
-   Writes: savePr, clearPr, saveSleepLog
-   v2 changes:
-   - Activity tab streak now from real activity_logs (not sample LOGS)
-   - 30-day tiles use real activity counts + real summed duration_min hours
-   - Milestones activity-based counters use real data
-   - Multi-City milestone dropped (no city data in activity_logs) → replaced with "On a Roll" 14-day streak
-   - Fake "Top X%" community rank pills hidden (no real ranking yet)
-   Known v2 limitations:
-   - PR dates still not persisted (needs schema: pr_dates jsonb on profile_meta)
-   - No real community percentile ranks yet (needs aggregate stats view)
+           activity_logs (last 90 days — for streak, tiles, milestones)
+   Writes: savePr (value + date), clearPr (nulls value + removes date), saveSleepLog
+
+   Prerequisites:
+     ALTER TABLE profile_meta ADD COLUMN pr_dates jsonb DEFAULT '{}'::jsonb;
 */
 (function () {
   'use strict';
@@ -20,7 +16,7 @@
   var MAX_RETRIES = 30;
   var currentUserId = null;
   var wrapped = false;
-  var activityCache = [];  // last 90 days of activity_logs, mapped
+  var activityCache = [];
 
   function injectStyles() {
     if (document.getElementById('ffp-fitness-stats-loader-styles')) return;
@@ -32,7 +28,6 @@
     document.head.appendChild(s);
   }
 
-  // Dashboard PR key → profile_meta column + numeric type
   var PR_MAP = {
     bench1RM:    { col: 'pr_bench_kg',    cast: 'float' },
     squat1RM:    { col: 'pr_squat_kg',    cast: 'float' },
@@ -57,12 +52,11 @@
     if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) age--;
     return age;
   }
-
   function localDateStr(date) {
     var y = date.getFullYear();
-    var m = String(date.getMonth() + 1).padStart(2, '0');
+    var mo = String(date.getMonth() + 1).padStart(2, '0');
     var d = String(date.getDate()).padStart(2, '0');
-    return y + '-' + m + '-' + d;
+    return y + '-' + mo + '-' + d;
   }
   function todayStr() { return localDateStr(new Date()); }
   function dateStrFromDaysAgo(n) {
@@ -80,8 +74,6 @@
     var t = new Date();   t.setHours(0, 0, 0, 0);
     return Math.max(0, Math.round((t - d) / 86400000));
   }
-
-  // sleep_logs jsonb: { "YYYY-MM-DD": hours, ... } ↔ dashboard sleepLogs: { daysAgo: hours, ... }
   function sleepFromDb(dbObj) {
     var out = {};
     if (!dbObj || typeof dbObj !== 'object') return out;
@@ -105,8 +97,6 @@
     return out;
   }
 
-  // ─────────── REAL ACTIVITY OVERRIDES ───────────
-
   function overrideComputeStreak() {
     FitnessStats.computeStreak = function () {
       var daysWithActivity = new Set(activityCache.map(function (l) { return l.daysAgo; }));
@@ -128,13 +118,11 @@
 
   function overrideRenderActivity() {
     FitnessStats.renderActivity = function () {
-      // Streak card
       var streak = this.computeStreak();
       var curEl  = document.getElementById('streak-current');
       var bestEl = document.getElementById('streak-best');
       if (curEl)  curEl.textContent  = streak.current;
       if (bestEl) bestEl.textContent = streak.best;
-
       var dayShort = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
       var today = new Date();
       var flamesHtml = '';
@@ -153,8 +141,6 @@
       }
       var dotsEl = document.getElementById('streak-dots');
       if (dotsEl) dotsEl.innerHTML = flamesHtml;
-
-      // Meta line
       var todayActive = streak.daysWithActivity.has(0);
       var metaEl = document.getElementById('streak-meta');
       if (metaEl) {
@@ -176,15 +162,12 @@
         }
         metaEl.textContent = metaText;
       }
-
-      // 30-day tiles — REAL counts from activity_logs
       var last30 = activityCache.filter(function (l) { return l.daysAgo <= 30; });
       var totalCount  = last30.length;
       var totalMin    = last30.reduce(function (s, l) { return s + (l.duration_min || 0); }, 0);
       var totalHours  = Math.round(totalMin / 60);
       var activeDays  = new Set(last30.map(function (l) { return l.daysAgo; })).size;
       var sportsCount = new Set(last30.map(function (l) { return l.activity; })).size;
-
       var tiles = [
         { icon: 'fitness_center', value: totalCount,       label: 'Activities' },
         { icon: 'schedule',       value: totalHours + 'h', label: 'Hours' },
@@ -217,17 +200,15 @@
       var currentStreak = this.computeStreak().current;
 
       var milestones = [
-        // Activity-based — real activity_logs
-        { name: '10 Activities',   desc: 'Log 10 activities',           icon: 'flag',           current: logs.length,      target: 10, source: 'Counts from your activity logs' },
-        { name: '5 Sport Types',   desc: 'Try 5 different sports',      icon: 'sports',         current: sportCount,       target: 5,  source: 'Unique activity names in your logs' },
+        { name: '10 Activities',   desc: 'Log 10 activities',           icon: 'flag',           current: logs.length, target: 10, source: 'Counts from your activity logs' },
+        { name: '5 Sport Types',   desc: 'Try 5 different sports',      icon: 'sports',         current: sportCount,  target: 5,  source: 'Unique activity names in your logs' },
         { name: 'On a Roll',       desc: '14-day activity streak',      icon: 'local_fire_department', current: currentStreak, target: 14, source: 'Your current daily activity streak' },
-        // PR-based
-        { name: 'Strong as an Ox', desc: 'Deadlift 2\u00d7 bodyweight', icon: 'fitness_center', current: dlRatio,          target: 2,  source: 'From your deadlift PR \u00f7 weight', decimals: 2, unit: '\u00d7' },
-        { name: 'Half Marathoner', desc: 'Log a 21K PR',                icon: 'directions_run', current: r.run21K  ? 1 : 0, target: 1,  source: 'Manual entry on the Records tab', binary: true },
-        { name: 'Marathon Club',   desc: 'Log a Marathon PR',           icon: 'emoji_events',   current: r.runMara ? 1 : 0, target: 1,  source: 'Manual entry on the Records tab', binary: true },
+        { name: 'Strong as an Ox', desc: 'Deadlift 2\u00d7 bodyweight', icon: 'fitness_center', current: dlRatio,     target: 2,  source: 'From your deadlift PR \u00f7 weight', decimals: 2, unit: '\u00d7' },
+        { name: 'Half Marathoner', desc: 'Log a 21K PR',                icon: 'directions_run', current: r.run21K  ? 1 : 0, target: 1, source: 'Manual entry on the Records tab', binary: true },
+        { name: 'Marathon Club',   desc: 'Log a Marathon PR',           icon: 'emoji_events',   current: r.runMara ? 1 : 0, target: 1, source: 'Manual entry on the Records tab', binary: true },
         { name: 'VO\u2082 Elite',  desc: 'VO\u2082 max above 50',       icon: 'favorite',       current: r.vo2max ? r.vo2max.value : 0, target: 50, source: 'From your VO\u2082 record', decimals: 1 },
         { name: 'Healthy Heart',   desc: 'Body fat under ' + bfHealthyMax + '%', icon: 'monitor_weight', current: r.bodyFat && r.bodyFat.value <= bfHealthyMax ? 1 : 0, target: 1, source: 'From your body fat record', binary: true },
-        { name: 'Well-Rested',     desc: 'Sleep avg 7\u20139 hrs',      icon: 'bedtime',        current: sleepGood,        target: 1, source: 'From your nightly sleep logs', binary: true }
+        { name: 'Well-Rested',     desc: 'Sleep avg 7\u20139 hrs',      icon: 'bedtime',        current: sleepGood,   target: 1, source: 'From your nightly sleep logs', binary: true }
       ];
 
       var gridEl = document.getElementById('achievements-grid');
@@ -255,8 +236,6 @@
     };
   }
 
-  // ─────────── LOAD ───────────
-
   async function loadFromSupabase() {
     if (!window.supabase || typeof FitnessStats === 'undefined') {
       if (retries < MAX_RETRIES) { retries++; setTimeout(loadFromSupabase, 200); }
@@ -272,7 +251,6 @@
       }
       currentUserId = userRes.data.user.id;
 
-      // 1. members → DOB, gender, city
       var memRes = await window.supabase
         .from('members')
         .select('date_of_birth, gender, city')
@@ -284,14 +262,11 @@
         if (ageFromDob != null) FitnessStats.profile.chronAge = ageFromDob;
         if (memRes.data.gender) FitnessStats.profile.gender = memRes.data.gender;
         if (memRes.data.city)   FitnessStats.profile.city   = memRes.data.city;
-      } else if (memRes.error) {
-        console.error('[FFP Fitness Stats] members read:', memRes.error);
       }
 
-      // 2. profile_meta → PRs, sleep, weight, chrono_age
       var pm = await window.supabase
         .from('profile_meta')
-        .select('chrono_age, current_weight_kg, sleep_logs, ' +
+        .select('chrono_age, current_weight_kg, sleep_logs, pr_dates, ' +
                 'pr_bench_kg, pr_squat_kg, pr_deadlift_kg, ' +
                 'pr_5k_seconds, pr_10k_seconds, pr_21k_seconds, pr_marathon_sec, pr_swim1k_sec, ' +
                 'vo2_max, body_fat_pct, visceral_fat')
@@ -304,26 +279,24 @@
         var p = pm.data;
         if (p.chrono_age != null) FitnessStats.profile.chronAge = Number(p.chrono_age);
         if (p.current_weight_kg != null) FitnessStats.profile.weight = Number(p.current_weight_kg);
-
+        var prDates = (p.pr_dates && typeof p.pr_dates === 'object') ? p.pr_dates : {};
         var rec = {};
         Object.keys(PR_MAP).forEach(function (key) {
           var col = PR_MAP[key].col;
           if (p[col] == null) { rec[key] = null; return; }
-          rec[key] = { value: Number(p[col]), date: null };
+          rec[key] = { value: Number(p[col]), date: prDates[key] || null };
         });
         FitnessStats.records = rec;
-
         FitnessStats.sleepLogs = sleepFromDb(p.sleep_logs);
       }
 
-      // 3. activity_logs (last 90 days) for streak + tiles + milestones
+      // Activity cache (last 90 days)
       var sinceIso = new Date(Date.now() - 90 * 86400000).toISOString();
       var actRes = await window.supabase
         .from('activity_logs')
         .select('activity, duration_min, logged_at')
         .eq('member_id', currentUserId)
         .gte('logged_at', sinceIso);
-
       if (actRes.error) {
         console.error('[FFP Fitness Stats] activity_logs read:', actRes.error);
         activityCache = [];
@@ -337,23 +310,16 @@
         });
       }
 
-      // 4. Hide fake community ranks (no real ranking endpoint yet)
       FitnessStats.ranks = {};
-
-      // 5. Install overrides
       overrideComputeStreak();
       overrideRenderActivity();
       overrideRenderMilestones();
-
-      // 6. Wrap writes
       wrapWrites();
 
-      // 7. Re-render if Fitness Stats panel is visible
       var panel = document.getElementById('panel-fitness-stats');
       if (panel && panel.classList.contains('active') && typeof FitnessStats.render === 'function') {
         FitnessStats.render();
       }
-
       console.log('[FFP Fitness Stats] Loaded from Supabase ✓ (' + activityCache.length + ' activities cached)');
     } catch (err) {
       console.error('[FFP Fitness Stats] Unexpected error:', err);
@@ -364,7 +330,6 @@
     if (wrapped) return;
     wrapped = true;
 
-    // savePr
     var origSavePr = FitnessStats.savePr.bind(FitnessStats);
     FitnessStats.savePr = async function () {
       var key = this._editKey;
@@ -375,33 +340,50 @@
       var rec = this.records[key];
       if (!rec) return;
       var val = map.cast === 'int' ? Math.round(rec.value) : Number(rec.value);
-      var payload = { member_id: currentUserId, updated_at: new Date().toISOString() };
-      payload[map.col] = val;
+
+      // Read current pr_dates, patch this key, write back
       try {
+        var readRes = await window.supabase
+          .from('profile_meta')
+          .select('pr_dates')
+          .eq('member_id', currentUserId)
+          .maybeSingle();
+        var prDates = (readRes.data && readRes.data.pr_dates && typeof readRes.data.pr_dates === 'object')
+          ? readRes.data.pr_dates : {};
+        prDates[key] = rec.date || todayStr();
+
+        var payload = { member_id: currentUserId, pr_dates: prDates, updated_at: new Date().toISOString() };
+        payload[map.col] = val;
         var res = await window.supabase.from('profile_meta').upsert(payload, { onConflict: 'member_id' });
         if (res.error) console.error('[FFP FS] pr save:', res.error);
       } catch (e) { console.error('[FFP FS] pr save:', e); }
     };
 
-    // clearPr
     var origClearPr = FitnessStats.clearPr.bind(FitnessStats);
     FitnessStats.clearPr = async function () {
       var key = this._editKey;
       origClearPr();
       if (!key || !currentUserId) return;
-      var afterCleared = this.records[key] == null;
-      if (!afterCleared) return;
+      if (this.records[key] != null) return;  // user cancelled confirm
       var map = PR_MAP[key];
       if (!map) return;
-      var payload = { member_id: currentUserId, updated_at: new Date().toISOString() };
-      payload[map.col] = null;
       try {
+        var readRes = await window.supabase
+          .from('profile_meta')
+          .select('pr_dates')
+          .eq('member_id', currentUserId)
+          .maybeSingle();
+        var prDates = (readRes.data && readRes.data.pr_dates && typeof readRes.data.pr_dates === 'object')
+          ? readRes.data.pr_dates : {};
+        delete prDates[key];
+
+        var payload = { member_id: currentUserId, pr_dates: prDates, updated_at: new Date().toISOString() };
+        payload[map.col] = null;
         var res = await window.supabase.from('profile_meta').upsert(payload, { onConflict: 'member_id' });
         if (res.error) console.error('[FFP FS] pr clear:', res.error);
       } catch (e) { console.error('[FFP FS] pr clear:', e); }
     };
 
-    // saveSleepLog
     var origSaveSleepLog = FitnessStats.saveSleepLog.bind(FitnessStats);
     FitnessStats.saveSleepLog = async function () {
       origSaveSleepLog();
