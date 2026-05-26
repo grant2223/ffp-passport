@@ -1,656 +1,468 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FFP Passport — Complete Your Profile</title>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --ffp-blue: #2ba8e0;
-      --ffp-blue-dark: #1980AD;
-      --ffp-bg: #081420;
-      --ffp-bg-2: #0f1e2e;
-      --ffp-bg-card: rgba(15, 30, 46, 0.5);
-      --ffp-border: rgba(43, 168, 224, 0.10);
-      --ffp-border-mid: rgba(43, 168, 224, 0.20);
-      --ffp-text: #e8eef4;
-      --ffp-text-muted: #8a99a8;
-      --ffp-yellow: #FFCC00;
-      --ffp-green: #4ade80;
-      --ffp-red: #ef4444;
-      --r-md: 10px;
-      --r-lg: 14px;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<title>Complete Your Profile — FFP Passport</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/ffp-api-integration.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420 !important;color:#fff;-webkit-font-smoothing:antialiased;}
+.page{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:32px 20px 80px;}
+.wrap{width:100%;max-width:480px;}
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+/* Header */
+.logo{text-align:center;margin-bottom:32px;}
+.logo-brand{font-size:20px;font-weight:900;letter-spacing:3px;}
+.logo-brand span{color:#2ba8e0;}
+.logo-sub{font-size:10px;font-weight:700;color:#6a90a8;letter-spacing:2px;text-transform:uppercase;margin-top:5px;}
 
-    html, body {
-      height: 100%;
-      font-family: 'Montserrat', system-ui, sans-serif;
-      background: var(--ffp-bg);
-      color: var(--ffp-text);
-      font-weight: 400;
-      line-height: 1.45;
-      -webkit-font-smoothing: antialiased;
-    }
+.welcome{text-align:center;margin-bottom:28px;}
+.welcome-h{font-size:24px;font-weight:900;margin-bottom:6px;letter-spacing:-.3px;}
+.welcome-sub{font-size:13px;color:#9dbdd0;line-height:1.6;}
 
-    .page {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 32px 20px 100px;
-      background: var(--ffp-bg);
-    }
+/* Section */
+.section{margin-bottom:28px;}
+.section-label{font-size:10px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#2ba8e0;margin-bottom:14px;}
 
-    .logo {
-      text-align: center;
-      margin-bottom: 36px;
-    }
+/* Field */
+.field{margin-bottom:14px;}
+.field-label{font-size:10px;font-weight:800;color:#6a90a8;letter-spacing:1px;text-transform:uppercase;margin-bottom:7px;}
+.field-input,.field-select{width:100%;background:rgba(43,168,224,.06);border:1px solid rgba(43,168,224,.2);border-radius:10px;padding:13px 16px;font-size:15px;font-weight:600;color:#fff;font-family:'Montserrat',sans-serif;outline:none;transition:border-color .15s;}
+.field-input:focus,.field-select:focus{border-color:#2ba8e0;}
+.field-input::placeholder{color:#6a90a8;font-weight:500;}
+.field-select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236a90a8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");background-position:right 14px center;background-repeat:no-repeat;background-size:14px;padding-right:40px;cursor:pointer;}
+.field-select option{background:#0b1c28;color:#fff;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+@media(max-width:380px){.field-row{grid-template-columns:1fr;}}
 
-    .logo-brand {
-      font-size: 22px;
-      font-weight: 900;
-      letter-spacing: 3px;
-    }
+/* Sport chips */
+.sport-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px;}
+@media(min-width:480px){.sport-grid{grid-template-columns:repeat(3,1fr);}}
+.sport-chip{background:rgba(43,168,224,.05);border:1.5px solid rgba(43,168,224,.18);border-radius:10px;padding:11px 12px;font-size:13px;font-weight:700;color:#9dbdd0;cursor:pointer;transition:all .15s;text-align:center;display:flex;align-items:center;justify-content:center;gap:6px;min-height:46px;font-family:'Montserrat',sans-serif;}
+.sport-chip:hover{border-color:rgba(43,168,224,.4);color:#fff;}
+.sport-chip.selected{background:rgba(43,168,224,.15);border-color:#2ba8e0;color:#fff;}
+.sport-chip .checkmark{display:none;width:14px;height:14px;background:#2ba8e0;border-radius:50%;align-items:center;justify-content:center;flex-shrink:0;}
+.sport-chip.selected .checkmark{display:inline-flex;}
+.sport-chip .checkmark svg{width:8px;height:8px;}
 
-    .logo-brand span {
-      color: var(--ffp-blue);
-    }
+/* Selected sports with skill level */
+.selected-list{margin-top:18px;}
+.selected-empty{padding:18px;text-align:center;font-size:12px;color:#6a90a8;border:1px dashed rgba(43,168,224,.2);border-radius:10px;background:rgba(43,168,224,.03);}
+.selected-row{display:flex;align-items:center;gap:10px;background:rgba(43,168,224,.06);border:1px solid rgba(43,168,224,.18);border-radius:10px;padding:10px 12px;margin-bottom:8px;}
+.selected-name{flex:1;font-size:13px;font-weight:700;color:#fff;}
+.selected-level{background:rgba(11,28,40,.6);border:1px solid rgba(43,168,224,.25);border-radius:7px;padding:6px 28px 6px 10px;font-size:11px;font-weight:700;color:#fff;font-family:'Montserrat',sans-serif;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236a90a8' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>");background-position:right 8px center;background-repeat:no-repeat;background-size:10px;cursor:pointer;}
+.selected-remove{background:none;border:none;color:#6a90a8;cursor:pointer;padding:4px;display:flex;align-items:center;}
+.selected-remove:hover{color:#ef4444;}
 
-    .logo-sub {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--ffp-text-muted);
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      margin-top: 6px;
-    }
+/* Buttons */
+.btn-primary{display:block;width:100%;padding:15px;border-radius:12px;font-size:15px;font-weight:800;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;color:#fff;background:#2ba8e0;transition:background .15s;text-align:center;margin-top:8px;}
+.btn-primary:hover{background:#1980AD;}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;}
 
-    .wrap {
-      width: 100%;
-      max-width: 420px;
-    }
+/* Progress */
+.progress{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:24px;font-size:11px;font-weight:700;color:#6a90a8;letter-spacing:1px;text-transform:uppercase;}
+.progress-bar{flex:1;max-width:120px;height:4px;background:rgba(43,168,224,.15);border-radius:2px;overflow:hidden;}
+.progress-fill{height:100%;background:linear-gradient(90deg,#1980AD,#2ba8e0);border-radius:2px;transition:width .3s;}
 
-    .screen-title {
-      font-size: 26px;
-      font-weight: 900;
-      margin-bottom: 6px;
-      letter-spacing: -0.5px;
-    }
+/* Error msg */
+.error-msg{color:#ef4444;font-size:12px;font-weight:700;margin-top:10px;text-align:center;min-height:18px;}
 
-    .screen-sub {
-      font-size: 13px;
-      color: var(--ffp-text-muted);
-      margin-bottom: 24px;
-      line-height: 1.6;
-      font-weight: 500;
-    }
-
-    /* Form styles */
-    .form-group {
-      margin-bottom: 18px;
-    }
-
-    .form-label {
-      font-size: 10px;
-      font-weight: 800;
-      color: var(--ffp-text-muted);
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      margin-bottom: 7px;
-      display: block;
-    }
-
-    .form-input,
-    .form-select,
-    .form-textarea {
-      width: 100%;
-      background: var(--ffp-bg-card);
-      border: 1px solid var(--ffp-border-mid);
-      border-radius: var(--r-md);
-      padding: 13px 16px;
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--ffp-text);
-      font-family: 'Montserrat', system-ui, sans-serif;
-      outline: none;
-      transition: border-color 0.15s;
-    }
-
-    .form-input:focus,
-    .form-select:focus,
-    .form-textarea:focus {
-      border-color: var(--ffp-blue);
-    }
-
-    .form-input::placeholder,
-    .form-textarea::placeholder {
-      color: var(--ffp-text-muted);
-      font-weight: 500;
-    }
-
-    .form-textarea {
-      resize: vertical;
-      min-height: 100px;
-    }
-
-    /* Photo upload */
-    .photo-upload {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-
-    .photo-preview {
-      width: 64px;
-      height: 64px;
-      border-radius: 10px;
-      background: linear-gradient(135deg, var(--ffp-blue-dark), var(--ffp-blue));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 24px;
-      font-weight: 900;
-      color: #fff;
-      flex-shrink: 0;
-      border: 2px solid rgba(43, 168, 224, 0.3);
-      overflow: hidden;
-    }
-
-    .photo-preview img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    .photo-input-wrap {
-      flex: 1;
-    }
-
-    #photo-file {
-      display: none;
-    }
-
-    .photo-btn {
-      display: inline-block;
-      padding: 8px 14px;
-      background: var(--ffp-bg-card);
-      border: 1px solid var(--ffp-border-mid);
-      border-radius: var(--r-md);
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--ffp-text-muted);
-      cursor: pointer;
-      transition: all 0.2s;
-      font-family: 'Montserrat', system-ui, sans-serif;
-    }
-
-    .photo-btn:hover {
-      border-color: var(--ffp-blue);
-      color: var(--ffp-text);
-    }
-
-    /* Fitness level pills */
-    .fitness-levels {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    .fitness-pill {
-      background: var(--ffp-bg-card);
-      border: 1px solid var(--ffp-border-mid);
-      border-radius: var(--r-md);
-      padding: 11px 14px;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--ffp-text-muted);
-      cursor: pointer;
-      transition: all 0.2s;
-      text-align: center;
-      font-family: 'Montserrat', system-ui, sans-serif;
-    }
-
-    .fitness-pill:hover {
-      border-color: var(--ffp-blue);
-      color: var(--ffp-text);
-    }
-
-    .fitness-pill.selected {
-      background: rgba(43, 168, 224, 0.15);
-      border-color: var(--ffp-blue);
-      color: var(--ffp-text);
-    }
-
-    /* Interests checkboxes */
-    .interests-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    .interest-check {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 12px;
-      background: var(--ffp-bg-card);
-      border: 1px solid var(--ffp-border-mid);
-      border-radius: var(--r-md);
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .interest-check input[type="checkbox"] {
-      width: 16px;
-      height: 16px;
-      cursor: pointer;
-      accent-color: var(--ffp-blue);
-    }
-
-    .interest-check label {
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--ffp-text-muted);
-      cursor: pointer;
-      flex: 1;
-    }
-
-    .interest-check input[type="checkbox"]:checked + label {
-      color: var(--ffp-text);
-    }
-
-    /* Buttons */
-    .btn {
-      display: block;
-      width: 100%;
-      padding: 15px;
-      border-radius: var(--r-md);
-      font-size: 15px;
-      font-weight: 800;
-      border: none;
-      cursor: pointer;
-      font-family: 'Montserrat', system-ui, sans-serif;
-      text-align: center;
-      transition: all 0.2s;
-      margin-top: 8px;
-    }
-
-    .btn-primary {
-      background: var(--ffp-blue);
-      color: #fff;
-      box-shadow: 0 4px 12px rgba(43, 168, 224, 0.25);
-    }
-
-    .btn-primary:hover {
-      background: var(--ffp-blue-dark);
-      box-shadow: 0 6px 16px rgba(43, 168, 224, 0.35);
-    }
-
-    .btn-primary:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      box-shadow: none;
-    }
-
-    .btn-primary.loading {
-      position: relative;
-      color: transparent;
-    }
-
-    .btn-primary.loading::after {
-      content: '';
-      position: absolute;
-      width: 16px;
-      height: 16px;
-      top: 50%;
-      left: 50%;
-      margin-left: -8px;
-      margin-top: -8px;
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      border-radius: 50%;
-      border-top-color: #fff;
-      animation: spin 0.8s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    /* Error/Success messages */
-    .error-msg {
-      color: var(--ffp-red);
-      font-size: 12px;
-      font-weight: 700;
-      margin-top: 8px;
-      text-align: center;
-      min-height: 18px;
-    }
-
-    .success-msg {
-      color: var(--ffp-green);
-      font-size: 12px;
-      font-weight: 700;
-      margin-top: 8px;
-      text-align: center;
-    }
-
-    .divider {
-      border: none;
-      border-top: 1px solid var(--ffp-border);
-      margin: 24px 0;
-    }
-
-    .info-box {
-      background: rgba(43, 168, 224, 0.05);
-      border: 1px solid var(--ffp-border-mid);
-      border-radius: var(--r-md);
-      padding: 12px 14px;
-      font-size: 12px;
-      color: var(--ffp-text-muted);
-      line-height: 1.6;
-      margin-bottom: 20px;
-    }
-
-    .info-box strong {
-      color: var(--ffp-text);
-    }
-
-    /* Mobile responsive */
-    @media (max-width: 480px) {
-      .page {
-        padding: 24px 16px 80px;
-      }
-
-      .logo-brand {
-        font-size: 18px;
-      }
-
-      .screen-title {
-        font-size: 22px;
-      }
-
-      .wrap {
-        max-width: 100%;
-      }
-
-      .fitness-levels,
-      .interests-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-  </style>
+/* Loading */
+.loading-screen{position:fixed;inset:0;background:#081420;display:flex;align-items:center;justify-content:center;z-index:100;}
+.spinner{width:32px;height:32px;border:3px solid rgba(43,168,224,.2);border-top-color:#2ba8e0;border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.hidden{display:none !important;}
+</style>
 </head>
 <body>
-  <div class="page">
-    <div class="logo">
-      <div class="logo-brand">FFP <span>PASSPORT</span></div>
-      <div class="logo-sub">Find Fit People</div>
+
+<div class="loading-screen" id="loading-screen">
+  <div class="spinner"></div>
+</div>
+
+<div class="page hidden" id="main-page">
+<div class="wrap">
+
+<div class="logo">
+  <div class="logo-brand">FFP <span>PASSPORT</span></div>
+  <div class="logo-sub">Find Fit People</div>
+</div>
+
+<div class="welcome">
+  <div class="welcome-h">Welcome, <span id="greet-name">there</span></div>
+  <div class="welcome-sub">Let's complete your passport. Takes 2 minutes.</div>
+</div>
+
+<div class="progress">
+  <span>Step 1 of 1</span>
+  <div class="progress-bar"><div class="progress-fill" style="width:50%;" id="progress-fill"></div></div>
+  <span id="progress-pct">50%</span>
+</div>
+
+<!-- ─── PERSONAL ─── -->
+<div class="section">
+  <div class="section-label">Personal Details</div>
+
+  <div class="field-row">
+    <div class="field">
+      <div class="field-label">Surname</div>
+      <input class="field-input" type="text" id="f-surname" placeholder="Goes" autocomplete="family-name">
     </div>
-
-    <div class="wrap">
-      <div class="screen-title">Complete Your Profile</div>
-      <div class="screen-sub">Tell us about yourself so we can match you with the right community and events.</div>
-
-      <div class="info-box">
-        You can update this anytime. Only <strong>Full Name</strong> and <strong>Fitness Level</strong> are required to continue.
-      </div>
-
-      <form id="profile-form">
-        <!-- Full Name -->
-        <div class="form-group">
-          <label class="form-label">Full Name *</label>
-          <input type="text" id="full_name" class="form-input" placeholder="e.g., Grant Hermanus" required>
-        </div>
-
-        <!-- Date of Birth -->
-        <div class="form-group">
-          <label class="form-label">Date of Birth</label>
-          <input type="date" id="date_of_birth" class="form-input">
-        </div>
-
-        <!-- Photo (Optional) -->
-        <div class="form-group">
-          <label class="form-label">Profile Photo (Optional)</label>
-          <div class="photo-upload">
-            <div class="photo-preview" id="photo-preview">
-              <span id="photo-initials">GH</span>
-            </div>
-            <div class="photo-input-wrap">
-              <input type="file" id="photo-file" accept="image/*">
-              <button type="button" class="photo-btn" onclick="document.getElementById('photo-file').click()">
-                Upload Photo
-              </button>
-              <div style="font-size: 10px; color: var(--ffp-text-muted); margin-top: 6px;">
-                JPG, PNG, up to 5MB
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Fitness Level -->
-        <div class="form-group">
-          <label class="form-label">Fitness Level *</label>
-          <div class="fitness-levels" id="fitness-levels">
-            <button type="button" class="fitness-pill" data-level="Beginner">Beginner</button>
-            <button type="button" class="fitness-pill" data-level="Intermediate">Intermediate</button>
-            <button type="button" class="fitness-pill" data-level="Advanced">Advanced</button>
-            <button type="button" class="fitness-pill" data-level="Elite">Elite</button>
-            <button type="button" class="fitness-pill" data-level="Professional">Professional</button>
-          </div>
-          <input type="hidden" id="fitness_level">
-        </div>
-
-        <!-- Bio -->
-        <div class="form-group">
-          <label class="form-label">About You (Optional)</label>
-          <textarea id="bio" class="form-textarea" placeholder="Tell us about your fitness journey, interests, or what you're looking for in the FFP community..."></textarea>
-        </div>
-
-        <!-- Interests -->
-        <div class="form-group">
-          <label class="form-label">Interests</label>
-          <div class="interests-grid" id="interests-grid">
-            <div class="interest-check">
-              <input type="checkbox" id="interest-fitness" value="Fitness">
-              <label for="interest-fitness">Fitness</label>
-            </div>
-            <div class="interest-check">
-              <input type="checkbox" id="interest-wellness" value="Wellness">
-              <label for="interest-wellness">Wellness</label>
-            </div>
-            <div class="interest-check">
-              <input type="checkbox" id="interest-recovery" value="Recovery">
-              <label for="interest-recovery">Recovery</label>
-            </div>
-            <div class="interest-check">
-              <input type="checkbox" id="interest-sports" value="Sports">
-              <label for="interest-sports">Sports</label>
-            </div>
-            <div class="interest-check">
-              <input type="checkbox" id="interest-food" value="Food">
-              <label for="interest-food">Healthy Food</label>
-            </div>
-            <div class="interest-check">
-              <input type="checkbox" id="interest-adventure" value="Adventure">
-              <label for="interest-adventure">Adventure</label>
-            </div>
-            <div class="interest-check">
-              <input type="checkbox" id="interest-community" value="Community">
-              <label for="interest-community">Community</label>
-            </div>
-            <div class="interest-check">
-              <input type="checkbox" id="interest-longevity" value="Longevity">
-              <label for="interest-longevity">Longevity</label>
-            </div>
-          </div>
-        </div>
-
-        <button type="submit" class="btn btn-primary" id="submit-btn">Complete Profile & Enter Dashboard</button>
-        <div class="error-msg" id="error-msg"></div>
-      </form>
+    <div class="field">
+      <div class="field-label">Given Names</div>
+      <input class="field-input" type="text" id="f-given" placeholder="Grant" autocomplete="given-name">
     </div>
   </div>
 
-  <script>
-    // ────────────────────────────────────────────────────────────
-    // STATE & INITIALIZATION
-    // ────────────────────────────────────────────────────────────
+  <div class="field">
+    <div class="field-label">Date of Birth</div>
+    <input class="field-input" type="date" id="f-dob" max="2010-01-01">
+  </div>
 
-    let selectedFitnessLevel = null;
-    let photoBase64 = null;
-    const API_BASE = 'https://ffp-passport-backend.vercel.app';
+  <div class="field">
+    <div class="field-label">Nationality</div>
+    <select class="field-select" id="f-nationality">
+      <option value="">Select your nationality</option>
+    </select>
+  </div>
 
-    // Get member ID from URL
-    const memberId = new URLSearchParams(window.location.search).get('id');
-    if (!memberId) {
-      document.getElementById('error-msg').textContent = 'Missing member ID. Please log in again.';
-      setTimeout(() => window.location.href = 'login.html', 3000);
+  <div class="field">
+    <div class="field-label">City</div>
+    <select class="field-select" id="f-city">
+      <option value="">Select your city</option>
+      <optgroup label="UAE">
+        <option value="Dubai">Dubai</option>
+        <option value="Abu Dhabi">Abu Dhabi</option>
+        <option value="Sharjah">Sharjah</option>
+        <option value="Ras Al Khaimah">Ras Al Khaimah</option>
+        <option value="Ajman">Ajman</option>
+        <option value="Fujairah">Fujairah</option>
+        <option value="Umm Al Quwain">Umm Al Quwain</option>
+        <option value="Al Ain">Al Ain</option>
+      </optgroup>
+      <optgroup label="Worldwide">
+        <option value="London">London</option>
+        <option value="New York">New York</option>
+        <option value="Cape Town">Cape Town</option>
+        <option value="Johannesburg">Johannesburg</option>
+        <option value="Sydney">Sydney</option>
+        <option value="Singapore">Singapore</option>
+        <option value="Hong Kong">Hong Kong</option>
+        <option value="Bangkok">Bangkok</option>
+        <option value="Mumbai">Mumbai</option>
+        <option value="Riyadh">Riyadh</option>
+        <option value="Doha">Doha</option>
+        <option value="Other">Other</option>
+      </optgroup>
+    </select>
+  </div>
+</div>
+
+<!-- ─── SPORTS ─── -->
+<div class="section">
+  <div class="section-label">Your Sports</div>
+  <div style="font-size:12px;color:#9dbdd0;margin-bottom:14px;line-height:1.6;">Tap to add sports you play or want to play. Pick at least one.</div>
+
+  <div class="sport-grid" id="sport-grid"></div>
+
+  <div class="selected-list" id="selected-list">
+    <div class="selected-empty">Select sports above to set your level</div>
+  </div>
+</div>
+
+<button class="btn-primary" id="submit-btn" onclick="submitProfile()">Complete Profile</button>
+<div class="error-msg" id="error-msg"></div>
+
+</div>
+</div>
+
+<script>
+// ─── Sport catalogue ──────────────────────────────────────────────────────
+var SPORTS = [
+  { id: 'running',       name: 'Running' },
+  { id: 'cycling',       name: 'Cycling' },
+  { id: 'padel',         name: 'Padel' },
+  { id: 'tennis',        name: 'Tennis' },
+  { id: 'pickleball',    name: 'Pickleball' },
+  { id: 'swimming',      name: 'Swimming' },
+  { id: 'yoga',          name: 'Yoga' },
+  { id: 'pilates',       name: 'Pilates' },
+  { id: 'crossfit',      name: 'CrossFit' },
+  { id: 'weights',       name: 'Weight Training' },
+  { id: 'boxing',        name: 'Boxing' },
+  { id: 'mma',           name: 'MMA' },
+  { id: 'bjj',           name: 'BJJ' },
+  { id: 'hiit',          name: 'HIIT' },
+  { id: 'football',      name: 'Football' },
+  { id: 'basketball',    name: 'Basketball' },
+  { id: 'rugby',         name: 'Rugby' },
+  { id: 'hiking',        name: 'Hiking' },
+  { id: 'climbing',      name: 'Climbing' },
+  { id: 'surfing',       name: 'Surfing' },
+  { id: 'sup',           name: 'Paddleboarding' },
+  { id: 'triathlon',     name: 'Triathlon' },
+  { id: 'marathon',      name: 'Marathon Running' },
+  { id: 'dance',         name: 'Dance' },
+  { id: 'spinning',      name: 'Spinning' },
+  { id: 'golf',          name: 'Golf' }
+];
+
+var FITNESS_LEVELS = ['Beginner','Intermediate','Advanced','Elite','Professional'];
+
+var NATIONALITIES = [
+  'Emirati','American','British','Australian','Canadian','South African','Indian',
+  'Pakistani','Filipino','Egyptian','Jordanian','Lebanese','Syrian','Iranian',
+  'French','German','Italian','Spanish','Portuguese','Dutch','Belgian','Swiss',
+  'Polish','Russian','Ukrainian','Czech','Romanian','Greek','Turkish',
+  'Brazilian','Argentinian','Mexican','Colombian','Chilean',
+  'Chinese','Japanese','Korean','Thai','Vietnamese','Singaporean','Malaysian','Indonesian',
+  'Saudi','Kuwaiti','Qatari','Bahraini','Omani','Iraqi',
+  'Nigerian','Kenyan','Ghanaian','Moroccan','Algerian','Tunisian','Ethiopian',
+  'New Zealander','Irish','Scottish','Welsh','Other'
+];
+
+// ─── State ───────────────────────────────────────────────────────────────
+var selectedSports = {};  // { sportId: 'Beginner', ... }
+var currentMember = null;
+
+// ─── Init ────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', initialise);
+
+async function initialise() {
+  // Check auth and load member
+  if (!window.supabase || !window.supabase.auth) {
+    showError('Supabase not loaded. Refresh the page.');
+    return;
+  }
+
+  var sessionRes = await window.supabase.auth.getSession();
+  if (!sessionRes.data || !sessionRes.data.session) {
+    window.location.href = 'login.html';
+    return;
+  }
+
+  var memberRes = await window.supabase
+    .from('members')
+    .select('*')
+    .eq('id', sessionRes.data.session.user.id)
+    .single();
+
+  if (memberRes.error || !memberRes.data) {
+    showError('Could not load your profile. ' + (memberRes.error && memberRes.error.message ? memberRes.error.message : ''));
+    return;
+  }
+
+  currentMember = memberRes.data;
+
+  // If already complete, just go to dashboard
+  if (currentMember.profile_complete) {
+    window.location.href = 'ffp-member-dashboard.html';
+    return;
+  }
+
+  // Pre-fill from Stripe data
+  populateForm();
+  buildSportsGrid();
+  populateNationalities();
+
+  document.getElementById('loading-screen').classList.add('hidden');
+  document.getElementById('main-page').classList.remove('hidden');
+}
+
+function populateForm() {
+  // Split full_name into given_names + surname if those columns are empty
+  var greet = document.getElementById('greet-name');
+  var firstWord = '';
+  if (currentMember.full_name) {
+    firstWord = currentMember.full_name.trim().split(' ')[0];
+    greet.textContent = firstWord || 'there';
+  }
+  var fn = currentMember.full_name ? currentMember.full_name.trim() : '';
+  var parts = fn.split(' ');
+  document.getElementById('f-given').value = currentMember.given_names || (parts.length > 1 ? parts.slice(0, -1).join(' ') : parts[0] || '');
+  document.getElementById('f-surname').value = currentMember.surname || (parts.length > 1 ? parts[parts.length - 1] : '');
+  if (currentMember.date_of_birth) document.getElementById('f-dob').value = currentMember.date_of_birth;
+  if (currentMember.city) document.getElementById('f-city').value = currentMember.city;
+}
+
+function populateNationalities() {
+  var sel = document.getElementById('f-nationality');
+  NATIONALITIES.sort().forEach(function (n) {
+    var opt = document.createElement('option');
+    opt.value = n;
+    opt.textContent = n;
+    sel.appendChild(opt);
+  });
+  if (currentMember.nationality) sel.value = currentMember.nationality;
+}
+
+function buildSportsGrid() {
+  var grid = document.getElementById('sport-grid');
+  grid.innerHTML = SPORTS.map(function (s) {
+    return '<div class="sport-chip" data-sport="' + s.id + '" onclick="toggleSport(\'' + s.id + '\')">' +
+           '<span class="checkmark"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>' +
+           '<span>' + s.name + '</span>' +
+           '</div>';
+  }).join('');
+}
+
+function toggleSport(sportId) {
+  if (selectedSports[sportId]) {
+    delete selectedSports[sportId];
+  } else {
+    selectedSports[sportId] = 'Beginner';
+  }
+  renderSports();
+  updateProgress();
+}
+
+function renderSports() {
+  // Update chip selection state
+  document.querySelectorAll('.sport-chip').forEach(function (chip) {
+    var id = chip.dataset.sport;
+    if (selectedSports[id]) chip.classList.add('selected');
+    else chip.classList.remove('selected');
+  });
+
+  // Update selected list
+  var list = document.getElementById('selected-list');
+  var ids = Object.keys(selectedSports);
+  if (ids.length === 0) {
+    list.innerHTML = '<div class="selected-empty">Select sports above to set your level</div>';
+    return;
+  }
+  list.innerHTML = ids.map(function (id) {
+    var s = SPORTS.find(function (sp) { return sp.id === id; });
+    if (!s) return '';
+    var level = selectedSports[id];
+    var opts = FITNESS_LEVELS.map(function (lv) {
+      return '<option value="' + lv + '"' + (lv === level ? ' selected' : '') + '>' + lv + '</option>';
+    }).join('');
+    return '<div class="selected-row">' +
+           '<span class="selected-name">' + s.name + '</span>' +
+           '<select class="selected-level" onchange="setLevel(\'' + id + '\', this.value)">' + opts + '</select>' +
+           '<button class="selected-remove" onclick="toggleSport(\'' + id + '\')" title="Remove">' +
+           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+           '</button>' +
+           '</div>';
+  }).join('');
+}
+
+function setLevel(sportId, level) {
+  selectedSports[sportId] = level;
+}
+
+function updateProgress() {
+  // Simple completeness check: form fields + at least 1 sport
+  var filled = 0;
+  if (document.getElementById('f-given').value.trim()) filled++;
+  if (document.getElementById('f-surname').value.trim()) filled++;
+  if (document.getElementById('f-dob').value) filled++;
+  if (document.getElementById('f-nationality').value) filled++;
+  if (document.getElementById('f-city').value) filled++;
+  if (Object.keys(selectedSports).length > 0) filled++;
+  var pct = Math.round((filled / 6) * 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-pct').textContent = pct + '%';
+}
+
+['f-given','f-surname','f-dob','f-nationality','f-city'].forEach(function (id) {
+  document.addEventListener('DOMContentLoaded', function () {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateProgress);
+    if (el) el.addEventListener('change', updateProgress);
+  });
+});
+
+function showError(msg) {
+  var el = document.getElementById('error-msg');
+  if (el) el.textContent = msg || '';
+}
+
+async function submitProfile() {
+  showError('');
+
+  // Validate
+  var given = document.getElementById('f-given').value.trim();
+  var surname = document.getElementById('f-surname').value.trim();
+  var dob = document.getElementById('f-dob').value;
+  var nationality = document.getElementById('f-nationality').value;
+  var city = document.getElementById('f-city').value;
+
+  if (!given) { showError('Enter your given name'); return; }
+  if (!surname) { showError('Enter your surname'); return; }
+  if (!dob) { showError('Enter your date of birth'); return; }
+  if (!nationality) { showError('Select your nationality'); return; }
+  if (!city) { showError('Select your city'); return; }
+  if (Object.keys(selectedSports).length === 0) { showError('Select at least one sport'); return; }
+
+  var btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  try {
+    // Update members row
+    var fullName = (given + ' ' + surname).trim();
+    var updateRes = await window.supabase
+      .from('members')
+      .update({
+        given_names: given,
+        surname: surname,
+        full_name: fullName,
+        date_of_birth: dob,
+        nationality: nationality,
+        city: city,
+        profile_complete: true
+      })
+      .eq('id', currentMember.id);
+
+    if (updateRes.error) throw updateRes.error;
+
+    // Upsert profile_meta with skills
+    var chronoAge = null;
+    if (dob) {
+      var birth = new Date(dob);
+      var today = new Date();
+      chronoAge = today.getFullYear() - birth.getFullYear();
+      var m = today.getMonth() - birth.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) chronoAge--;
     }
 
-    // Set initials from localStorage
-    const memberEmail = localStorage.getItem('memberEmail') || '';
-    const initials = memberEmail
-      .split('@')[0]
-      .split('.')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2) || 'GH';
-    document.getElementById('photo-initials').textContent = initials;
+    var metaRes = await window.supabase
+      .from('profile_meta')
+      .upsert({
+        member_id: currentMember.id,
+        chrono_age: chronoAge,
+        skills: selectedSports
+      }, { onConflict: 'member_id' });
 
-    // ────────────────────────────────────────────────────────────
-    // PHOTO UPLOAD
-    // ────────────────────────────────────────────────────────────
+    if (metaRes.error) throw metaRes.error;
 
-    document.getElementById('photo-file').addEventListener('change', function(e) {
-      const file = e.target.files[0];
-      if (!file) return;
+    // Update localStorage cache so the dashboard has fresh data
+    try {
+      var cached = JSON.parse(localStorage.getItem('ffp_member') || '{}');
+      cached.given_names = given;
+      cached.surname = surname;
+      cached.full_name = fullName;
+      cached.date_of_birth = dob;
+      cached.nationality = nationality;
+      cached.city = city;
+      cached.profile_complete = true;
+      localStorage.setItem('ffp_member', JSON.stringify(cached));
+    } catch (e) {}
 
-      if (file.size > 5 * 1024 * 1024) {
-        document.getElementById('error-msg').textContent = 'Photo must be under 5MB';
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = function(event) {
-        photoBase64 = event.target.result;
-        const preview = document.getElementById('photo-preview');
-        preview.innerHTML = `<img src="${photoBase64}" alt="Profile">`;
-      };
-      reader.readAsDataURL(file);
-    });
-
-    // ────────────────────────────────────────────────────────────
-    // FITNESS LEVEL SELECTION
-    // ────────────────────────────────────────────────────────────
-
-    document.querySelectorAll('.fitness-pill').forEach(pill => {
-      pill.addEventListener('click', function(e) {
-        e.preventDefault();
-        document.querySelectorAll('.fitness-pill').forEach(p => p.classList.remove('selected'));
-        this.classList.add('selected');
-        selectedFitnessLevel = this.dataset.level;
-        document.getElementById('fitness_level').value = selectedFitnessLevel;
-      });
-    });
-
-    // ────────────────────────────────────────────────────────────
-    // FORM SUBMISSION
-    // ────────────────────────────────────────────────────────────
-
-    document.getElementById('profile-form').addEventListener('submit', async function(e) {
-      e.preventDefault();
-
-      // Validate required fields
-      const fullName = document.getElementById('full_name').value.trim();
-      if (!fullName) {
-        document.getElementById('error-msg').textContent = 'Full Name is required';
-        return;
-      }
-
-      if (!selectedFitnessLevel) {
-        document.getElementById('error-msg').textContent = 'Please select a Fitness Level';
-        return;
-      }
-
-      // Clear previous errors
-      document.getElementById('error-msg').textContent = '';
-
-      // Collect interests
-      const interests = [];
-      document.querySelectorAll('.interest-check input[type="checkbox"]:checked').forEach(checkbox => {
-        interests.push(checkbox.value);
-      });
-
-      // Prepare payload
-      const payload = {
-        full_name: fullName,
-        date_of_birth: document.getElementById('date_of_birth').value || null,
-        fitness_level: selectedFitnessLevel,
-        bio: document.getElementById('bio').value || null,
-        interests: interests.length > 0 ? interests : null,
-        photo_url: photoBase64 || null
-      };
-
-      // Show loading state
-      const submitBtn = document.getElementById('submit-btn');
-      submitBtn.classList.add('loading');
-      submitBtn.disabled = true;
-
-      try {
-        // Call backend API
-        const response = await fetch(`${API_BASE}/api/members/${memberId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payload)
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to update profile');
-        }
-
-        // Success! Backend has set profile_complete: true
-        // Redirect to dashboard
-        setTimeout(() => {
-          window.location.href = `ffp-member-dashboard.html?id=${memberId}`;
-        }, 500);
-
-      } catch (error) {
-        console.error('Profile submission error:', error);
-        document.getElementById('error-msg').textContent = error.message || 'Something went wrong. Please try again.';
-        submitBtn.classList.remove('loading');
-        submitBtn.disabled = false;
-      }
-    });
-
-    // ────────────────────────────────────────────────────────────
-    // FALLBACK: If user tries to go back to login while on this page
-    // ────────────────────────────────────────────────────────────
-
-    window.addEventListener('beforeunload', function(e) {
-      // Optional: warn if form has unsaved changes
-      const hasChanges = document.getElementById('full_name').value || 
-                        document.getElementById('date_of_birth').value ||
-                        selectedFitnessLevel ||
-                        photoBase64;
-      
-      if (hasChanges && !window.justSubmitted) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    });
-  </script>
+    // Redirect
+    window.location.href = 'ffp-member-dashboard.html';
+  } catch (err) {
+    console.error('[profile-complete] save failed:', err);
+    showError('Could not save: ' + (err.message || 'unknown error'));
+    btn.disabled = false;
+    btn.textContent = 'Complete Profile';
+  }
+}
+</script>
 </body>
 </html>
