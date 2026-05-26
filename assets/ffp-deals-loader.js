@@ -1,22 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   FFP DEALS LOADER (v1)
+   FFP DEALS LOADER (v2)
    ───────────────────────────────────────────────────────────────────────
-   Fetches live deals (joined with their approved providers) from Supabase
-   and replaces the dashboard's hardcoded Deals.data sample. If the table
-   is empty, the sample data is left intact so the panel still demos well.
-
-   Wires:
-     deals + providers (read)
-     - status = 'live' deals only
-     - provider status = 'approved' only
-
-   Does NOT yet wire:
-     - Favourites (stays in localStorage / browser memory for now)
-     - Claim flow (will be a separate writes loader)
-
-   Requires (loaded BEFORE this file):
-     1. https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2
-     2. assets/ffp-api-integration.js
+   v2 changes:
+   - Removed `verified` from the providers SELECT (column doesn't exist
+     in deployed schema). verified is now derived from provider.status === 'approved'.
 ═══════════════════════════════════════════════════════════════════════ */
 
 (function () {
@@ -57,7 +44,7 @@
       providerType: provider.provider_type || '',
       service:      row.service || '',
       city:         provider.city || '',
-      verified:     provider.verified === true,
+      verified:     provider.status === 'approved',
       featured:     row.featured === true,
       hot:          row.hot === true,
       img:          row.hero_photo_url || ''
@@ -82,7 +69,7 @@
       // Fetch live deals with their approved providers
       const res = await window.supabase
         .from('deals')
-        .select('*, provider:providers!inner(business_name, letter_mark, category, provider_type, city, area, verified, status)')
+        .select('*, provider:providers!inner(business_name, letter_mark, category, provider_type, city, area, status)')
         .eq('status', 'live')
         .eq('provider.status', 'approved');
 
