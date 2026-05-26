@@ -1,180 +1,258 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   FFP PASSPORT LOADER (v1)
+   FFP PROFILE LOADER (v1)
    ───────────────────────────────────────────────────────────────────────
-   Fetches the signed-in member's data from Supabase and renders it into
-   the passport card. Works by mutating the existing global `memberPassport`
-   object and calling the dashboard's existing `applyPassportData()` function.
+   Fetches the signed-in member's data into MemberProfile.data on load,
+   then auto-saves changes back to Supabase 1.5s after the user stops
+   editing. Uses the dashboard's existing showToast() function for UX.
 
-   Requires (load in this order in the dashboard HTML <head>):
+   Wires the following fields to Supabase `members` table:
+     given_names, surname, full_name, date_of_birth, gender,
+     country, city, nationality
+   Wires sports to `profile_meta.skills` as a JSONB array.
+
+   Does NOT save:
+     email          — tied to Supabase Auth, requires separate update flow
+     phone fields   — not yet in DB schema (will add later)
+     pin            — not yet in DB schema
+     preferences    — not yet in DB schema
+     professional   — admin-verified, members can declare but not save here
+     photo          — needs Supabase Storage bucket (separate task)
+
+   Requires (loaded BEFORE this file):
      1. https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2
      2. assets/ffp-api-integration.js
-     3. assets/ffp-passport-loader.js  ← this file
-
-   No edits needed to the dashboard JS itself — this loader hooks into
-   the existing memberPassport / applyPassportData() pattern.
+     3. (passport-loader is independent, no order requirement)
 ═══════════════════════════════════════════════════════════════════════ */
 
 (function () {
   'use strict';
 
-  // ─── Nationality → ISO 3-letter country code ─────────────────────────
-  const NATIONALITY_TO_CODE = {
-    'Emirati':'ARE','American':'USA','British':'GBR','Australian':'AUS',
-    'Canadian':'CAN','South African':'ZAF','Indian':'IND','Pakistani':'PAK',
-    'Filipino':'PHL','Egyptian':'EGY','Jordanian':'JOR','Lebanese':'LBN',
-    'Syrian':'SYR','Iranian':'IRN','French':'FRA','German':'DEU','Italian':'ITA',
-    'Spanish':'ESP','Portuguese':'PRT','Dutch':'NLD','Belgian':'BEL','Swiss':'CHE',
-    'Polish':'POL','Russian':'RUS','Ukrainian':'UKR','Czech':'CZE','Romanian':'ROU',
-    'Greek':'GRC','Turkish':'TUR','Brazilian':'BRA','Argentinian':'ARG',
-    'Mexican':'MEX','Colombian':'COL','Chilean':'CHL','Chinese':'CHN','Japanese':'JPN',
-    'Korean':'KOR','Thai':'THA','Vietnamese':'VNM','Singaporean':'SGP',
-    'Malaysian':'MYS','Indonesian':'IDN','Saudi':'SAU','Kuwaiti':'KWT',
-    'Qatari':'QAT','Bahraini':'BHR','Omani':'OMN','Iraqi':'IRQ','Nigerian':'NGA',
-    'Kenyan':'KEN','Ghanaian':'GHA','Moroccan':'MAR','Algerian':'DZA',
-    'Tunisian':'TUN','Ethiopian':'ETH','New Zealander':'NZL','Irish':'IRL',
-    'Scottish':'GBR','Welsh':'GBR','Other':'XXX'
-  };
+  let serverSnapshot = null;   // last-saved state as JSON string, for diffing
+  let saveTimer = null;
+  let isSaving = false;
+  let currentUid = null;
+  let retries = 0;
+  const MAX_RETRIES = 30;
 
-  const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-  const MEMBERSHIP_YEAR = 2026;
-
-  // ─── Format helpers ──────────────────────────────────────────────────
+  // ─── Helpers ─────────────────────────────────────────────────────────
   function formatPassportDate(isoDate) {
     if (!isoDate) return '';
+    const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
     const d = new Date(isoDate);
     if (isNaN(d.getTime())) return '';
-    const day = String(d.getDate()).padStart(2, '0');
-    return day + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear();
+    return String(d.getDate()).padStart(2, '0') + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
   }
 
-  function formatMRZ(isoDate) {
-    if (!isoDate) return '';
-    const d = new Date(isoDate);
-    if (isNaN(d.getTime())) return '';
-    const yy = String(d.getFullYear()).slice(-2);
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return yy + mm + dd;
+  function snapshotProfileData() {
+    if (typeof MemberProfile === 'undefined' || !MemberProfile.data) return null;
+    return JSON.stringify({
+      givenNames:  MemberProfile.data.givenNames,
+      surname:     MemberProfile.data.surname,
+      dobDay:      MemberProfile.data.dobDay,
+      dobMonth:    MemberProfile.data.dobMonth,
+      dobYear:     MemberProfile.data.dobYear,
+      gender:      MemberProfile.data.gender,
+      country:     MemberProfile.data.country,
+      city:        MemberProfile.data.city,
+      nationality: MemberProfile.data.nationality,
+      sports:      MemberProfile.data.sports
+    });
   }
 
-  function computeInitials(givenNames, surname) {
-    const g = (givenNames || '').trim();
-    const s = (surname || '').trim();
-    const gI = g.charAt(0).toUpperCase();
-    const sI = s.charAt(0).toUpperCase();
-    return (gI + sI) || 'FF';
-  }
-
-  // ─── Retry guard ─────────────────────────────────────────────────────
-  let retries = 0;
-  const MAX_RETRIES = 30; // ~6 seconds total
-
-  async function loadPassportFromSupabase() {
-    // Wait for Supabase SDK to be ready
-    if (!window.supabase || !window.supabase.auth) {
+  // ─── Load profile from Supabase ──────────────────────────────────────
+  async function loadProfileFromSupabase() {
+    if (!window.supabase || !window.supabase.auth || typeof MemberProfile === 'undefined') {
       if (retries < MAX_RETRIES) {
         retries++;
-        setTimeout(loadPassportFromSupabase, 200);
+        setTimeout(loadProfileFromSupabase, 200);
       } else {
-        console.error('[FFP Passport Loader] Supabase SDK never loaded. Check network or CDN.');
+        console.error('[FFP Profile Loader] Supabase or MemberProfile not available.');
       }
       return;
     }
 
     try {
-      // Check session — redirect to login if not signed in
       const sessionRes = await window.supabase.auth.getSession();
       if (!sessionRes.data || !sessionRes.data.session) {
-        console.warn('[FFP Passport Loader] No active session — redirecting to login.');
-        window.location.href = 'login.html';
+        console.warn('[FFP Profile Loader] No active session.');
         return;
       }
+      currentUid = sessionRes.data.session.user.id;
 
-      const uid = sessionRes.data.session.user.id;
-
-      // Fetch member row
-      const memberRes = await window.supabase
-        .from('members')
-        .select('*')
-        .eq('id', uid)
-        .single();
+      // Fetch in parallel
+      const [memberRes, metaRes] = await Promise.all([
+        window.supabase.from('members').select('*').eq('id', currentUid).single(),
+        window.supabase.from('profile_meta').select('*').eq('member_id', currentUid).maybeSingle()
+      ]);
 
       if (memberRes.error) {
-        console.error('[FFP Passport Loader] Could not load member:', memberRes.error);
+        console.error('[FFP Profile Loader] Could not load member:', memberRes.error);
         return;
       }
+
       const member = memberRes.data;
-      if (!member) {
-        console.warn('[FFP Passport Loader] No member row found for uid:', uid);
-        return;
+      const meta = (metaRes && metaRes.data) || {};
+
+      // Parse date_of_birth (format: YYYY-MM-DD)
+      let dobDay = '', dobMonth = '', dobYear = '';
+      if (member.date_of_birth) {
+        const parts = String(member.date_of_birth).split('-');
+        dobYear = parts[0] || '';
+        dobMonth = parts[1] || '';
+        dobDay = parts[2] || '';
       }
 
-      // Build the updated passport object
-      const countryCode = NATIONALITY_TO_CODE[member.nationality] || 'XXX';
-      const issueDate = member.created_at
-        ? formatPassportDate(member.created_at)
-        : formatPassportDate(new Date().toISOString());
-
-      const updated = {
-        surname:        (member.surname || '').toUpperCase(),
-        givenNames:     (member.given_names || '').toUpperCase(),
-        initials:       computeInitials(member.given_names, member.surname),
-        nationality:    (member.nationality || '').toUpperCase(),
-        countryCode:    countryCode,
-        gender:         (member.gender || 'X').toUpperCase(),
-        genderCode:     (member.gender || 'X').charAt(0).toUpperCase(),
-        dob:            formatPassportDate(member.date_of_birth),
-        dobMRZ:         formatMRZ(member.date_of_birth),
-        issueDate:      issueDate,
-        expiryDate:     '31 DEC ' + MEMBERSHIP_YEAR,
-        expiryMRZ:      String(MEMBERSHIP_YEAR).slice(-2) + '1231',
-        passportNumber: member.passport_no || 'FFP-' + MEMBERSHIP_YEAR + '-0000'
-      };
-
-      // Mutate the existing memberPassport object (works for const obj)
-      if (typeof memberPassport !== 'undefined') {
-        Object.assign(memberPassport, updated);
-      } else if (typeof window.memberPassport !== 'undefined') {
-        Object.assign(window.memberPassport, updated);
-      } else {
-        console.warn('[FFP Passport Loader] memberPassport not found in scope. Dashboard may be using a different variable name.');
-        return;
+      // Map skills: support both array format and object format
+      let sports = [];
+      if (Array.isArray(meta.skills)) {
+        sports = meta.skills.map(function (s) {
+          return { name: s.name, level: s.level };
+        });
+      } else if (meta.skills && typeof meta.skills === 'object') {
+        sports = Object.keys(meta.skills).map(function (name) {
+          return { name: name, level: meta.skills[name] };
+        });
       }
 
-      // Re-render the passport card
-      if (typeof applyPassportData === 'function') {
-        applyPassportData();
-        console.log('[FFP Passport Loader] Passport rendered with Supabase data ✓');
-      } else if (typeof window.applyPassportData === 'function') {
-        window.applyPassportData();
-        console.log('[FFP Passport Loader] Passport rendered with Supabase data ✓');
-      } else {
-        console.warn('[FFP Passport Loader] applyPassportData() function not found.');
+      const memberSince = member.created_at ? formatPassportDate(member.created_at) : '';
+
+      // Populate MemberProfile.data (mutate in place — keeps other defaults intact)
+      Object.assign(MemberProfile.data, {
+        givenNames:     member.given_names || MemberProfile.data.givenNames || '',
+        surname:        member.surname || MemberProfile.data.surname || '',
+        email:          member.email || MemberProfile.data.email || '',
+        dobDay:         dobDay,
+        dobMonth:       dobMonth,
+        dobYear:        dobYear,
+        gender:         member.gender || 'X',
+        country:        member.country || MemberProfile.data.country || '',
+        city:           member.city || MemberProfile.data.city || '',
+        nationality:    member.nationality || MemberProfile.data.nationality || '',
+        memberSince:    memberSince,
+        passportNumber: member.passport_no || MemberProfile.data.passportNumber || '',
+        issueDate:      memberSince,
+        expiryDate:     '31 DEC 2026',
+        sports:         sports.length > 0 ? sports : (MemberProfile.data.sports || [])
+      });
+
+      // Take snapshot AFTER populating — this becomes the baseline for diffing
+      serverSnapshot = snapshotProfileData();
+
+      // Re-render profile panel if it's already visible
+      const panel = document.getElementById('panel-profile');
+      if (panel && panel.classList.contains('active') && typeof MemberProfile.render === 'function') {
+        MemberProfile.render();
       }
 
-      // Fix elements that don't use data-field (the dashboard HTML hardcodes some)
-      var passNumEl = document.querySelector('.pass-passnum');
-      if (passNumEl) passNumEl.textContent = updated.passportNumber;
+      // Attach auto-save listeners
+      attachAutoSave();
 
-      // Cache for offline / faster next load
-      try {
-        localStorage.setItem('ffp_passport', JSON.stringify(updated));
-      } catch (e) {}
+      console.log('[FFP Profile Loader] Profile loaded from Supabase ✓');
 
     } catch (err) {
-      console.error('[FFP Passport Loader] Unexpected error:', err);
+      console.error('[FFP Profile Loader] Unexpected error:', err);
+    }
+  }
+
+  // ─── Auto-save: debounced 1.5s after change ──────────────────────────
+  function attachAutoSave() {
+    // Use capture-phase to catch all events bubbling out of profile panel
+    document.addEventListener('input', queueSave, true);
+    document.addEventListener('change', queueSave, true);
+    // Click handles button-driven changes (remove sport, etc.)
+    document.addEventListener('click', queueSaveDelayed, true);
+  }
+
+  function queueSave(e) {
+    const panel = document.getElementById('panel-profile');
+    if (!panel || !panel.contains(e.target)) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveProfileToSupabase, 1500);
+  }
+
+  function queueSaveDelayed(e) {
+    const panel = document.getElementById('panel-profile');
+    if (!panel || !panel.contains(e.target)) return;
+    // For clicks, give the dashboard render cycle a moment, then check
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveProfileToSupabase, 2000);
+  }
+
+  async function saveProfileToSupabase() {
+    if (isSaving || !serverSnapshot || !currentUid) return;
+
+    const currentSnapshot = snapshotProfileData();
+    if (currentSnapshot === serverSnapshot) return;  // no actual changes
+
+    isSaving = true;
+    try {
+      // Build date_of_birth from parts
+      const dy = MemberProfile.data.dobYear;
+      const dm = MemberProfile.data.dobMonth;
+      const dd = MemberProfile.data.dobDay;
+      const dob = (dy && dm && dd)
+        ? dy + '-' + String(dm).padStart(2, '0') + '-' + String(dd).padStart(2, '0')
+        : null;
+
+      const fullName = ((MemberProfile.data.givenNames || '') + ' ' + (MemberProfile.data.surname || '')).trim();
+
+      // Update members table
+      const memberUpdate = await window.supabase
+        .from('members')
+        .update({
+          given_names:   MemberProfile.data.givenNames,
+          surname:       MemberProfile.data.surname,
+          full_name:     fullName,
+          date_of_birth: dob,
+          gender:        MemberProfile.data.gender,
+          country:       MemberProfile.data.country,
+          city:          MemberProfile.data.city,
+          nationality:   MemberProfile.data.nationality
+        })
+        .eq('id', currentUid);
+
+      if (memberUpdate.error) {
+        console.error('[FFP Profile Loader] Save failed:', memberUpdate.error);
+        if (typeof showToast === 'function') showToast('Save failed', 'error');
+        isSaving = false;
+        return;
+      }
+
+      // Upsert profile_meta with sports (preserve other fields if present)
+      const sportsArr = (MemberProfile.data.sports || []).map(function (s) {
+        return { name: s.name, level: s.level, shared: false };
+      });
+      const metaUpdate = await window.supabase
+        .from('profile_meta')
+        .upsert({ member_id: currentUid, skills: sportsArr }, { onConflict: 'member_id' });
+
+      if (metaUpdate.error) {
+        console.error('[FFP Profile Loader] Skills save failed:', metaUpdate.error);
+      }
+
+      // Update snapshot to current state
+      serverSnapshot = currentSnapshot;
+      if (typeof showToast === 'function') showToast('Saved');
+      console.log('[FFP Profile Loader] Profile saved ✓');
+
+    } catch (err) {
+      console.error('[FFP Profile Loader] Save error:', err);
+      if (typeof showToast === 'function') showToast('Save failed', 'error');
+    } finally {
+      isSaving = false;
     }
   }
 
   // ─── Run on DOM ready ────────────────────────────────────────────────
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () {
-      setTimeout(loadPassportFromSupabase, 100);
+      setTimeout(loadProfileFromSupabase, 300);
     });
   } else {
-    setTimeout(loadPassportFromSupabase, 100);
+    setTimeout(loadProfileFromSupabase, 300);
   }
 
-  // Expose globally for manual re-render after edits
-  window.ffpReloadPassport = loadPassportFromSupabase;
+  // Expose for manual reload / debugging
+  window.ffpReloadProfile = loadProfileFromSupabase;
+  window.ffpSaveProfile = saveProfileToSupabase;
 })();
