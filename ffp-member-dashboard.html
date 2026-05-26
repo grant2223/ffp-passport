@@ -702,6 +702,11 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
   font-variant-numeric: tabular-nums;
   margin-bottom: 8px;
 }
+/* v91 — Stopwatch mode: numbers ~10% smaller (extra HH:MM:SS.ms digits don't need the full size) */
+.timer-time.stopwatch-mode {
+  font-size: clamp(65px, 20vw, 108px);
+  letter-spacing: -2px;
+}
 .timer-meta {
   font-size: 12px;
   color: var(--muted);
@@ -7852,6 +7857,7 @@ const WorkoutTimer = {
     document.getElementById('config-emom').style.display      = this.s.mode === 'emom'      ? '' : 'none';
     document.getElementById('timer-skip').style.display = (this.s.mode === 'interval' || this.s.mode === 'emom') ? '' : 'none';
     document.getElementById('timer-pips').style.display = (this.s.mode === 'interval' || this.s.mode === 'emom') ? 'flex' : 'none';
+    document.getElementById('timer-time').classList.toggle('stopwatch-mode', this.s.mode === 'stopwatch');
     this.renderTime();
     this.renderPips();
   },
@@ -11370,7 +11376,6 @@ const Challenges = {
     // PROVIDER CHALLENGES
     {
       id:'c1', kind:'provider',
-      img:'https://images.unsplash.com/photo-1486218119243-13883505764c?w=400&q=70',
       img:'https://images.unsplash.com/photo-1502904550040-7534597429ae?w=400&q=70',
       title:'5K Sunrise Time Trial',
       desc:'Beat your best 5K time on the JBR Beach loop. Single attempt counts.',
@@ -11395,7 +11400,6 @@ const Challenges = {
     },
     {
       id:'c2', kind:'provider',
-      img:'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400&q=70',
       img:'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&q=70',
       title:'Forge 30-Day Challenge',
       desc:'Most Forge classes attended in 30 days.',
@@ -11417,7 +11421,6 @@ const Challenges = {
     },
     {
       id:'c3', kind:'provider',
-      img:'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&q=70',
       img:'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=400&q=70',
       title:'Ace Padel Ladder',
       desc:'Most match wins on Ace Padel courts this month.',
@@ -11438,7 +11441,6 @@ const Challenges = {
     },
     {
       id:'c4', kind:'provider',
-      img:'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=400&q=70',
       img:'https://images.unsplash.com/photo-1599058917212-d750089bc07e?w=400&q=70',
       title:'Cryo 30 Days',
       desc:'Most cryo sessions in 30 days.',
@@ -11480,6 +11482,7 @@ const Challenges = {
     // MEMBER CHALLENGES
     {
       id:'m1', kind:'member',
+      img:'https://images.unsplash.com/photo-1486218119243-13883505764c?w=400&q=70',
       title:'Marina Bridge Crossings',
       desc:'Most crossings of the Marina pedestrian bridge in 7 days. Run, bike or walk — your call.',
       rules:'Track your crossings between 1–7 April. Submit total at end. Verification optional — have another FFP member confirm to add the verified badge.',
@@ -11501,6 +11504,7 @@ const Challenges = {
     },
     {
       id:'m2', kind:'member',
+      img:'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400&q=70',
       title:'Sunrise Yoga Streak',
       desc:'Most consecutive sunrise yoga sessions logged.',
       rules:'Log your daily yoga session before 7am. Photo or screenshot from your tracker submitted with score. Verification by another member adds verified badge.',
@@ -11521,6 +11525,7 @@ const Challenges = {
     },
     {
       id:'m3', kind:'member',
+      img:'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&q=70',
       title:'Wildest Workout Photo',
       desc:'Best photo of the most unusual workout location. Beach yoga, desert HIIT, rooftop runs — get creative.',
       rules:'Post your workout photo with location tag. Members vote with thumbs up. Top votes wins.',
@@ -11540,6 +11545,7 @@ const Challenges = {
     },
     {
       id:'m4', kind:'member',
+      img:'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=400&q=70',
       title:'Padel Doubles Tour',
       desc:'Most doubles matches played with different partners. Build the FFP padel network.',
       rules:'Play padel matches with different FFP members. Each unique partner counts. Submit list of partners at end.',
