@@ -1,5 +1,7 @@
-/* FFP Fitness Stats Loader — v5
-   v5 REDESIGN: Records tab becomes a full leaderboard view with combinable filters.
+/* FFP Fitness Stats Loader — v6
+   v6: Leaderboard name format flipped to "S. Khan" (initial + full surname)
+   for better privacy. SQL function returns given_names_initial + surname.
+   All other behaviour identical to v5.
    - Metric switcher (12 metrics: 3 strength, 5 cardio, 3 health, 1 sleep)
    - Independent filters: gender, age (preset buckets or custom range), city, country, nationality
    - All filters combinable — pick any combination
@@ -540,7 +542,9 @@
 
   function renderLbRow(r, rank, metric, barPct) {
     var isMe = r.member_id === currentUserId;
-    var name = isMe ? 'You' : escText(((r.given_names || 'Member') + ' ' + (r.surname_initial || '')).trim() + '.');
+    var initial = r.given_names_initial ? r.given_names_initial + '. ' : '';
+    var surname = r.surname || 'Member';
+    var name = isMe ? 'You' : escText((initial + surname).trim());
     var rankCls = 'ffp-lb-row';
     if (isMe)        rankCls += ' me';
     else if (rank === 1) rankCls += ' top1';
