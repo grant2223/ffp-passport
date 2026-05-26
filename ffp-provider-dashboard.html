@@ -1,0 +1,4780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FFP Passport — Provider Portal</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block">
+
+<style>
+/* ════════════════════════════════════════════════
+   DESIGN TOKENS — synced with member + admin
+   ════════════════════════════════════════════════ */
+:root {
+  --ffp-blue:         #2ba8e0;
+  --ffp-blue-dark:    #1980AD;
+  --ffp-blue-darker:  #0f5a7a;
+  --ffp-bg:           #081420;
+  --ffp-bg-2:         #0f1e2e;
+  --ffp-bg-3:         #142a3f;
+  --ffp-bg-card:      rgba(15, 30, 46, 0.55);
+  --ffp-border:       rgba(43, 168, 224, 0.10);
+  --ffp-border-mid:   rgba(43, 168, 224, 0.22);
+  --ffp-border-str:   rgba(43, 168, 224, 0.38);
+  --ffp-text:         #e8eef4;
+  --ffp-text-muted:   #8a99a8;
+  --ffp-text-dim:     #4d5b6a;
+  --ffp-yellow:       #FFCC00;
+  --ffp-yellow-dk:    #d4a700;
+  --ffp-gold:         #d4af37;
+  --ffp-green:        #4ade80;
+  --ffp-green-dk:     #22c55e;
+  --ffp-red:          #ef4444;
+  --ffp-orange:       #f97316;
+  --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px;
+  --shadow-card: 0 4px 14px rgba(0, 0, 0, 0.25);
+  --shadow-pop: 0 18px 50px rgba(0, 0, 0, 0.5);
+}
+
+/* Material Symbols Outlined baseline */
+.ms {
+  font-family: 'Material Symbols Outlined';
+  font-weight: 400;
+  font-style: normal;
+  font-size: 18px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+  user-select: none;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: var(--ffp-bg);
+  color: var(--ffp-text);
+  font-family: 'Montserrat', system-ui, sans-serif;
+  font-weight: 400;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  height: 100%;
+}
+button, input, select, textarea { font-family: inherit; color: inherit; outline: none; }
+button { cursor: pointer; border: none; background: none; }
+a { color: var(--ffp-blue); text-decoration: none; }
+
+/* ════════════════════════════════════════════════
+   APP SHELL
+   ════════════════════════════════════════════════ */
+.app { display: flex; height: 100vh; overflow: hidden; }
+
+/* SIDEBAR */
+.sidebar {
+  width: 244px; flex-shrink: 0;
+  background: var(--ffp-bg-2);
+  border-right: 1px solid var(--ffp-border);
+  display: flex; flex-direction: column;
+}
+.sb-logo { padding: 20px 22px 16px; border-bottom: 1px solid var(--ffp-border); }
+.sb-brand { font-size: 15px; font-weight: 900; letter-spacing: 2px; line-height: 1.1; }
+.sb-brand span { color: var(--ffp-blue); }
+.sb-sub {
+  font-size: 9px; font-weight: 800; letter-spacing: 1.6px;
+  color: var(--ffp-yellow); margin-top: 4px;
+  text-transform: uppercase;
+}
+.sb-nav {
+  flex: 1; padding: 12px 10px;
+  display: flex; flex-direction: column; gap: 2px;
+  overflow-y: auto;
+}
+.sb-nav::-webkit-scrollbar { width: 4px; }
+.sb-nav::-webkit-scrollbar-thumb { background: rgba(43, 168, 224, .15); border-radius: 2px; }
+.sb-section {
+  font-size: 9px; font-weight: 800; letter-spacing: 1.6px;
+  color: var(--ffp-text-dim);
+  text-transform: uppercase;
+  padding: 14px 14px 6px;
+}
+.ni {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 14px; border-radius: 9px;
+  font-size: 13px; font-weight: 700;
+  color: var(--ffp-text-muted);
+  cursor: pointer; transition: all .15s;
+  border: 1px solid transparent;
+  width: 100%; text-align: left;
+}
+.ni:hover { background: rgba(43, 168, 224, .06); color: var(--ffp-text); }
+.ni.active {
+  background: rgba(43, 168, 224, .14);
+  color: var(--ffp-text);
+  border-color: var(--ffp-border-mid);
+}
+.ni.locked { color: var(--ffp-text-dim); cursor: not-allowed; }
+.ni.locked:hover { background: transparent; color: var(--ffp-text-dim); }
+.ni .ms { font-size: 16px; flex-shrink: 0; }
+.ni-badge {
+  margin-left: auto;
+  background: var(--ffp-yellow); color: #000;
+  border-radius: 100px; padding: 2px 7px;
+  font-size: 9px; font-weight: 800;
+  min-width: 20px; text-align: center;
+}
+.ni-badge.blue { background: var(--ffp-blue); color: #fff; }
+.ni-badge.dim { background: var(--ffp-bg-3); color: var(--ffp-text-muted); }
+.ni-lock-pill {
+  margin-left: auto;
+  background: var(--ffp-bg-3); color: var(--ffp-text-dim);
+  border-radius: 100px; padding: 2px 8px;
+  font-size: 8px; font-weight: 800; letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.sb-foot {
+  padding: 14px 14px;
+  border-top: 1px solid var(--ffp-border);
+  display: flex; align-items: center; gap: 11px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.sb-foot:hover { background: rgba(43, 168, 224, .04); }
+.sb-foot-mark {
+  width: 36px; height: 36px;
+  border-radius: 9px;
+  background: var(--ffp-blue);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 900; color: #fff;
+  flex-shrink: 0;
+}
+.sb-foot-info { flex: 1; min-width: 0; }
+.sb-foot-name {
+  font-size: 12px; font-weight: 800;
+  color: var(--ffp-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sb-foot-tag {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  color: var(--ffp-green); text-transform: uppercase;
+  margin-top: 2px;
+}
+.sb-foot-tag.pending { color: var(--ffp-yellow); }
+.sb-foot-tag.suspended { color: var(--ffp-red); }
+
+/* MAIN */
+.main {
+  flex: 1; overflow-y: auto;
+  background: radial-gradient(ellipse at top, #0a1825 0%, var(--ffp-bg) 60%);
+}
+.main::-webkit-scrollbar { width: 6px; }
+.main::-webkit-scrollbar-thumb { background: rgba(43, 168, 224, .2); border-radius: 3px; }
+
+.topbar {
+  background: rgba(8, 20, 32, .88);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--ffp-border);
+  padding: 0 28px; height: 62px;
+  display: flex; align-items: center; gap: 14px;
+  position: sticky; top: 0; z-index: 20;
+}
+.tb-title { font-size: 18px; font-weight: 900; letter-spacing: -.3px; }
+.tb-status {
+  font-size: 10px; font-weight: 800; letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 5px 10px;
+  border-radius: 100px;
+  background: rgba(74, 222, 128, .15);
+  color: var(--ffp-green);
+  border: 1px solid rgba(74, 222, 128, .3);
+}
+.tb-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.tb-btn {
+  height: 38px;
+  padding: 0 14px;
+  border-radius: var(--r-md);
+  background: var(--ffp-bg-3);
+  color: var(--ffp-text);
+  font-size: 12px; font-weight: 800;
+  letter-spacing: .3px;
+  display: inline-flex; align-items: center; gap: 7px;
+  border: 1px solid var(--ffp-border-mid);
+  transition: all .15s;
+}
+.tb-btn:hover { border-color: var(--ffp-border-str); background: var(--ffp-bg-2); }
+.tb-btn .ms { font-size: 15px; }
+.tb-bell {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: var(--ffp-bg-3);
+  border: 1px solid var(--ffp-border-mid);
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  color: var(--ffp-text);
+  transition: all .15s;
+}
+.tb-bell:hover { border-color: var(--ffp-border-str); }
+.tb-bell::after {
+  content: ""; position: absolute;
+  top: 8px; right: 9px;
+  width: 8px; height: 8px;
+  background: var(--ffp-yellow);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--ffp-bg-2);
+}
+.tb-bell .ms { font-size: 17px; }
+.tb-avatar {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: var(--ffp-blue);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800; color: #fff;
+  letter-spacing: .3px;
+  cursor: pointer;
+}
+
+.panel-wrap { padding: 28px 32px 80px; max-width: 1280px; margin: 0 auto; }
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* PAGE HEADER */
+.ph {
+  font-size: 28px; font-weight: 900;
+  letter-spacing: -.5px; line-height: 1.1;
+  margin-bottom: 8px;
+}
+.psub {
+  font-size: 14px; color: var(--ffp-text-muted);
+  margin-bottom: 22px; line-height: 1.6;
+  font-weight: 500;
+}
+.ph-row {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 16px; margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+.ph-row .ph { margin-bottom: 4px; }
+.ph-row .psub { margin-bottom: 0; }
+
+/* PRIMARY BUTTONS */
+.btn {
+  height: 42px;
+  padding: 0 18px;
+  border-radius: var(--r-md);
+  font-size: 12px; font-weight: 800;
+  letter-spacing: .5px; text-transform: uppercase;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.btn .ms { font-size: 16px; }
+.btn-pri {
+  background: var(--ffp-yellow);
+  color: #000;
+}
+.btn-pri:hover { background: var(--ffp-yellow-dk); }
+.btn-sec {
+  background: var(--ffp-bg-3);
+  color: var(--ffp-text);
+  border: 1px solid var(--ffp-border-mid);
+}
+.btn-sec:hover { border-color: var(--ffp-border-str); background: var(--ffp-bg-2); }
+.btn-blue {
+  background: var(--ffp-blue);
+  color: #fff;
+}
+.btn-blue:hover { background: var(--ffp-blue-dark); }
+.btn-ghost {
+  background: transparent;
+  color: var(--ffp-text-muted);
+  border: 1px solid var(--ffp-border-mid);
+}
+.btn-ghost:hover { color: var(--ffp-text); border-color: var(--ffp-border-str); }
+.btn-danger {
+  background: var(--ffp-red);
+  color: #fff;
+}
+.btn-danger:hover { background: #c93535; }
+.btn-sm { height: 34px; padding: 0 14px; font-size: 11px; }
+.btn-xs { height: 28px; padding: 0 11px; font-size: 10px; }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+
+/* CARD BASE */
+.card {
+  background: var(--ffp-bg-card);
+  border: 1px solid var(--ffp-border);
+  border-radius: var(--r-lg);
+}
+
+/* ════════════════════════════════════════════════
+   OVERVIEW — KPI TILES + ACTIVITY
+   ════════════════════════════════════════════════ */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.kpi {
+  background: var(--ffp-bg-card);
+  border: 1px solid var(--ffp-border);
+  border-radius: var(--r-lg);
+  padding: 18px 18px 16px;
+}
+.kpi-lbl {
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 1.4px; text-transform: uppercase;
+  color: var(--ffp-text-muted);
+  margin-bottom: 10px;
+}
+.kpi-val {
+  font-size: 30px; font-weight: 900;
+  letter-spacing: -.8px; line-height: 1;
+  color: var(--ffp-text);
+}
+.kpi-val.yellow { color: var(--ffp-yellow); }
+.kpi-val.green { color: var(--ffp-green); }
+.kpi-val.blue { color: var(--ffp-blue); }
+.kpi-delta {
+  margin-top: 10px;
+  font-size: 11px; font-weight: 700;
+  color: var(--ffp-green);
+  display: flex; align-items: center; gap: 4px;
+}
+.kpi-delta.down { color: var(--ffp-red); }
+.kpi-delta.flat { color: var(--ffp-text-muted); }
+.kpi-delta .ms { font-size: 14px; }
+
+.split-2 {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 18px;
+  margin-bottom: 28px;
+}
+
+.section-card {
+  background: var(--ffp-bg-card);
+  border: 1px solid var(--ffp-border);
+  border-radius: var(--r-lg);
+  padding: 20px 22px;
+}
+.section-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.section-title {
+  font-size: 14px; font-weight: 800;
+  letter-spacing: .3px;
+}
+.section-link {
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 1px; text-transform: uppercase;
+  color: var(--ffp-blue);
+  cursor: pointer;
+}
+.section-link:hover { color: var(--ffp-yellow); }
+
+.activity-list { display: flex; flex-direction: column; gap: 12px; }
+.act-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px dashed var(--ffp-border);
+}
+.act-row:last-child { border-bottom: none; padding-bottom: 0; }
+.act-icon {
+  width: 36px; height: 36px;
+  border-radius: 9px;
+  background: rgba(43, 168, 224, .12);
+  color: var(--ffp-blue);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.act-icon.yellow { background: rgba(255, 204, 0, .12); color: var(--ffp-yellow); }
+.act-icon.green { background: rgba(74, 222, 128, .12); color: var(--ffp-green); }
+.act-icon .ms { font-size: 18px; }
+.act-body { flex: 1; min-width: 0; }
+.act-text { font-size: 13px; font-weight: 600; color: var(--ffp-text); }
+.act-text b { font-weight: 800; }
+.act-time {
+  font-size: 10px; font-weight: 700;
+  color: var(--ffp-text-muted);
+  letter-spacing: .3px;
+  margin-top: 2px;
+}
+
+.quick-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.qa {
+  background: var(--ffp-bg-3);
+  border: 1px solid var(--ffp-border-mid);
+  border-radius: var(--r-md);
+  padding: 14px 14px;
+  display: flex; align-items: center; gap: 11px;
+  cursor: pointer;
+  transition: all .15s;
+  text-align: left;
+  width: 100%;
+}
+.qa:hover { border-color: var(--ffp-border-str); background: var(--ffp-bg-2); }
+.qa-icon {
+  width: 36px; height: 36px;
+  border-radius: 9px;
+  background: var(--ffp-blue);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.qa-icon.yellow { background: var(--ffp-yellow); color: #000; }
+.qa-icon .ms { font-size: 18px; }
+.qa-body { flex: 1; min-width: 0; }
+.qa-title { font-size: 12px; font-weight: 800; color: var(--ffp-text); }
+.qa-sub { font-size: 10px; font-weight: 600; color: var(--ffp-text-muted); margin-top: 2px; }
+
+.welcome-banner {
+  background: linear-gradient(135deg, rgba(43, 168, 224, .14) 0%, rgba(255, 204, 0, .08) 100%);
+  border: 1px solid var(--ffp-border-mid);
+  border-radius: var(--r-lg);
+  padding: 18px 22px;
+  margin-bottom: 22px;
+  display: flex; align-items: center; gap: 16px;
+}
+.welcome-banner-body { flex: 1; }
+.welcome-banner-title { font-size: 15px; font-weight: 800; margin-bottom: 4px; }
+.welcome-banner-sub { font-size: 12px; color: var(--ffp-text-muted); font-weight: 500; }
+.welcome-banner-close {
+  background: transparent; border: none;
+  color: var(--ffp-text-muted);
+  font-size: 20px; cursor: pointer;
+  padding: 4px;
+}
+.welcome-banner-close:hover { color: var(--ffp-text); }
+
+/* ════════════════════════════════════════════════
+   FORMS
+   ════════════════════════════════════════════════ */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 18px;
+}
+.form-grid .full { grid-column: 1 / -1; }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.label {
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--ffp-text-muted);
+}
+.label .req { color: var(--ffp-yellow); margin-left: 3px; }
+.label-hint {
+  font-size: 10px; font-weight: 600;
+  color: var(--ffp-text-dim);
+  margin-left: 6px;
+  letter-spacing: 0; text-transform: none;
+}
+.input, .select, .textarea {
+  width: 100%;
+  background: var(--ffp-bg-card);
+  border: 1px solid var(--ffp-border-mid);
+  border-radius: var(--r-md);
+  padding: 11px 14px;
+  font-size: 13px; font-weight: 600;
+  color: var(--ffp-text);
+  transition: border-color .15s;
+}
+.input:focus, .select:focus, .textarea:focus { border-color: var(--ffp-blue); }
+.input::placeholder, .textarea::placeholder { color: var(--ffp-text-muted); font-weight: 500; }
+.textarea { resize: vertical; min-height: 80px; line-height: 1.55; font-weight: 500; }
+.select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a99a8' stroke-width='2.5'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 38px;
+}
+
+.form-section {
+  margin-bottom: 26px;
+}
+.form-section-title {
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 1.4px; text-transform: uppercase;
+  color: var(--ffp-yellow);
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--ffp-border);
+}
+
+/* PHOTO UPLOADER */
+.uploader {
+  background: var(--ffp-bg-card);
+  border: 1.5px dashed var(--ffp-border-mid);
+  border-radius: var(--r-lg);
+  padding: 22px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .15s;
+  position: relative;
+  min-height: 140px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px;
+}
+.uploader:hover { border-color: var(--ffp-blue); background: rgba(43, 168, 224, .04); }
+.uploader.dragover { border-color: var(--ffp-yellow); background: rgba(255, 204, 0, .06); }
+.uploader-icon {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: rgba(43, 168, 224, .14);
+  color: var(--ffp-blue);
+  display: flex; align-items: center; justify-content: center;
+}
+.uploader-icon .ms { font-size: 22px; }
+.uploader-title { font-size: 13px; font-weight: 800; color: var(--ffp-text); }
+.uploader-hint { font-size: 11px; color: var(--ffp-text-muted); font-weight: 500; }
+.uploader input[type="file"] { display: none; }
+
+.uploader.has-image {
+  border-style: solid;
+  border-color: var(--ffp-border);
+  padding: 0;
+  overflow: hidden;
+  min-height: 180px;
+}
+.uploader-preview {
+  position: relative;
+  width: 100%;
+  min-height: 180px;
+  background-size: cover;
+  background-position: center;
+  border-radius: var(--r-lg);
+}
+.uploader-preview-actions {
+  position: absolute;
+  bottom: 10px; right: 10px;
+  display: flex; gap: 6px;
+}
+.uploader-preview-btn {
+  background: rgba(8, 20, 32, .9);
+  border: 1px solid var(--ffp-border-mid);
+  color: var(--ffp-text);
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.uploader-preview-btn:hover { background: var(--ffp-bg-2); border-color: var(--ffp-border-str); }
+.uploader-preview-btn .ms { font-size: 14px; }
+.uploader-preview-btn.del:hover { color: var(--ffp-red); border-color: var(--ffp-red); }
+
+.uploader.logo-uploader {
+  min-height: 120px;
+  max-width: 160px;
+}
+.uploader.logo-uploader.has-image .uploader-preview { min-height: 120px; }
+.uploader.logo-uploader .uploader-icon { width: 36px; height: 36px; }
+.uploader.logo-uploader .uploader-icon .ms { font-size: 18px; }
+.uploader.logo-uploader .uploader-title { font-size: 11px; }
+.uploader.logo-uploader .uploader-hint { font-size: 10px; }
+
+/* HOURS GRID */
+.hours-grid { display: flex; flex-direction: column; gap: 8px; }
+.hours-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+.hours-day {
+  font-size: 12px; font-weight: 800;
+  letter-spacing: .3px;
+  color: var(--ffp-text);
+}
+.hours-row .input { padding: 8px 11px; font-size: 12px; }
+.hours-closed {
+  font-size: 10px; font-weight: 700;
+  color: var(--ffp-text-muted);
+  text-transform: uppercase; letter-spacing: 1px;
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer; user-select: none;
+}
+.hours-closed input { accent-color: var(--ffp-blue); }
+.hours-row.is-closed .input { opacity: .35; pointer-events: none; }
+
+/* STICKY SAVE BAR */
+.save-bar {
+  position: sticky;
+  bottom: 0;
+  background: rgba(8, 20, 32, .94);
+  backdrop-filter: blur(14px);
+  border-top: 1px solid var(--ffp-border-mid);
+  margin: 28px -32px -80px;
+  padding: 14px 32px;
+  display: flex; justify-content: flex-end; gap: 10px;
+  z-index: 5;
+}
+.save-bar-msg {
+  margin-right: auto;
+  font-size: 12px; font-weight: 700;
+  color: var(--ffp-text-muted);
+  display: flex; align-items: center; gap: 7px;
+}
+.save-bar-msg.dirty { color: var(--ffp-yellow); }
+.save-bar-msg .ms { font-size: 14px; }
+
+/* ════════════════════════════════════════════════
+   LIST + CARDS (Deals / Events / Experiences / Challenges)
+   ════════════════════════════════════════════════ */
+.list-toolbar {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.search-box {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+}
+.search-box input {
+  width: 100%;
+  background: var(--ffp-bg-card);
+  border: 1px solid var(--ffp-border-mid);
+  border-radius: var(--r-md);
+  padding: 10px 14px 10px 38px;
+  font-size: 13px; font-weight: 600;
+  color: var(--ffp-text);
+}
+.search-box input:focus { border-color: var(--ffp-blue); }
+.search-box .ms {
+  position: absolute; left: 12px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--ffp-text-muted);
+  font-size: 16px;
+  pointer-events: none;
+}
+
+.tabs {
+  display: flex; gap: 0; margin-bottom: 18px;
+  border-bottom: 1px solid var(--ffp-border);
+  overflow-x: auto;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  background: transparent; border: none;
+  color: var(--ffp-text-muted);
+  font-size: 11px; font-weight: 800;
+  padding: 12px 4px;
+  margin-right: 26px;
+  cursor: pointer;
+  position: relative;
+  letter-spacing: 1.2px; text-transform: uppercase;
+  transition: color .15s;
+  white-space: nowrap;
+}
+.tab:hover { color: var(--ffp-text); }
+.tab.active { color: var(--ffp-text); }
+.tab.active::after {
+  content: ""; position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 2px; background: var(--ffp-yellow);
+}
+.tab .count {
+  background: var(--ffp-bg-3);
+  color: var(--ffp-text-muted);
+  border-radius: 100px;
+  padding: 1px 7px;
+  font-size: 10px; font-weight: 800;
+  margin-left: 5px;
+}
+.tab.active .count { background: var(--ffp-yellow); color: #000; }
+
+/* LISTING CARD */
+.listing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+}
+.listing-card {
+  background: var(--ffp-bg-card);
+  border: 1px solid var(--ffp-border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  transition: border-color .15s, transform .15s;
+}
+.listing-card:hover { border-color: var(--ffp-border-mid); transform: translateY(-2px); }
+.lc-hero {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background-color: var(--ffp-bg-3);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.lc-hero::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, transparent 40%, rgba(0, 0, 0, .55));
+}
+.lc-status-pill {
+  position: absolute;
+  top: 12px; left: 12px;
+  background: var(--ffp-green);
+  color: #000;
+  font-size: 9px; font-weight: 900;
+  letter-spacing: 1.4px; text-transform: uppercase;
+  padding: 4px 9px;
+  border-radius: 4px;
+  z-index: 2;
+}
+.lc-status-pill.draft { background: var(--ffp-text-muted); color: #000; }
+.lc-status-pill.pending { background: var(--ffp-yellow); color: #000; }
+.lc-status-pill.paused { background: var(--ffp-orange); color: #fff; }
+.lc-status-pill.cancelled, .lc-status-pill.rejected { background: var(--ffp-red); color: #fff; }
+.lc-status-pill.past { background: var(--ffp-text-dim); color: #fff; }
+.lc-cat-pill {
+  position: absolute;
+  top: 12px; right: 12px;
+  background: rgba(8, 20, 32, .85);
+  color: var(--ffp-text);
+  font-size: 9px; font-weight: 800;
+  letter-spacing: 1px; text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 4px;
+  z-index: 2;
+  border: 1px solid var(--ffp-border-mid);
+}
+.lc-body {
+  padding: 16px 18px 14px;
+  display: flex; flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+.lc-title {
+  font-size: 15px; font-weight: 800;
+  letter-spacing: -.2px; line-height: 1.3;
+  color: var(--ffp-text);
+}
+.lc-sub {
+  font-size: 11px; font-weight: 600;
+  color: var(--ffp-text-muted);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.lc-meta {
+  display: flex; flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+  font-size: 10px; font-weight: 700;
+  color: var(--ffp-text-muted);
+  letter-spacing: .3px;
+  text-transform: uppercase;
+}
+.lc-meta span { display: inline-flex; align-items: center; gap: 4px; }
+.lc-meta .ms { font-size: 12px; }
+.lc-stat-row {
+  display: flex;
+  gap: 10px;
+  padding-top: 12px;
+  margin-top: 4px;
+  border-top: 1px solid var(--ffp-border);
+}
+.lc-stat {
+  flex: 1;
+  text-align: center;
+}
+.lc-stat-val {
+  font-size: 17px; font-weight: 900;
+  color: var(--ffp-yellow);
+  line-height: 1;
+}
+.lc-stat-lbl {
+  font-size: 9px; font-weight: 700;
+  color: var(--ffp-text-muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+.lc-actions {
+  display: flex;
+  gap: 6px;
+  padding: 0 14px 14px;
+}
+.lc-actions .btn { flex: 1; }
+
+/* EMPTY STATE */
+.empty-state {
+  text-align: center;
+  padding: 60px 30px;
+  border: 1.5px dashed var(--ffp-border-mid);
+  border-radius: var(--r-lg);
+  background: var(--ffp-bg-card);
+}
+.empty-icon {
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  background: rgba(43, 168, 224, .12);
+  color: var(--ffp-blue);
+  margin: 0 auto 16px;
+  display: flex; align-items: center; justify-content: center;
+}
+.empty-icon .ms { font-size: 30px; }
+.empty-title { font-size: 16px; font-weight: 800; margin-bottom: 6px; }
+.empty-sub { font-size: 13px; color: var(--ffp-text-muted); margin-bottom: 18px; font-weight: 500; max-width: 360px; margin-left: auto; margin-right: auto; }
+
+/* ════════════════════════════════════════════════
+   MODAL
+   ════════════════════════════════════════════════ */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, .72);
+  backdrop-filter: blur(6px);
+  z-index: 100;
+  display: none;
+  align-items: flex-start; justify-content: center;
+  padding: 40px 20px;
+  overflow-y: auto;
+}
+.modal-backdrop.open { display: flex; }
+.modal {
+  width: 100%;
+  max-width: 720px;
+  background: var(--ffp-bg-2);
+  border: 1px solid var(--ffp-border-mid);
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-pop);
+  margin: auto;
+}
+.modal.lg { max-width: 880px; }
+.modal.sm { max-width: 460px; }
+.modal-head {
+  padding: 20px 26px;
+  border-bottom: 1px solid var(--ffp-border);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+}
+.modal-title { font-size: 17px; font-weight: 800; letter-spacing: -.2px; }
+.modal-close {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: var(--ffp-bg-3);
+  color: var(--ffp-text-muted);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+}
+.modal-close:hover { color: var(--ffp-text); border-color: var(--ffp-border-mid); }
+.modal-close .ms { font-size: 18px; }
+.modal-body {
+  padding: 22px 26px;
+  max-height: calc(100vh - 240px);
+  overflow-y: auto;
+}
+.modal-foot {
+  padding: 16px 26px;
+  border-top: 1px solid var(--ffp-border);
+  display: flex; justify-content: flex-end; gap: 10px;
+  background: rgba(8, 20, 32, .5);
+}
+.modal-foot .btn { min-width: 100px; }
+.modal-foot .left { margin-right: auto; }
+
+/* ITINERARY BUILDER */
+.itin-wrap {
+  display: flex; flex-direction: column;
+  gap: 10px;
+}
+.itin-day {
+  border: 1px solid var(--ffp-border-mid);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: rgba(8, 20, 32, .35);
+}
+.itin-day-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px;
+  background: var(--ffp-bg-3);
+}
+.itin-day-num {
+  background: var(--ffp-yellow); color: #000;
+  font-size: 10px; font-weight: 900; letter-spacing: 1px;
+  padding: 4px 9px; border-radius: 4px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.itin-day-title-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  font-size: 13px; font-weight: 800;
+  color: var(--ffp-text);
+  padding: 4px 0;
+}
+.itin-day-title-input:focus { outline: 1px solid var(--ffp-border-str); border-radius: 4px; padding: 4px 6px; }
+.itin-day-del {
+  background: transparent; border: none;
+  color: var(--ffp-text-muted);
+  width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.itin-day-del:hover { color: var(--ffp-red); background: rgba(239, 68, 68, .1); }
+.itin-day-body {
+  padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.itin-event {
+  display: grid;
+  grid-template-columns: 90px 1fr 32px;
+  gap: 10px;
+  align-items: center;
+}
+.itin-event .input { font-size: 12px; padding: 8px 11px; }
+.itin-event-del {
+  background: transparent; border: none;
+  color: var(--ffp-text-dim);
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  border-radius: 50%;
+}
+.itin-event-del:hover { color: var(--ffp-red); background: rgba(239, 68, 68, .1); }
+.itin-add-event {
+  background: transparent;
+  border: 1px dashed var(--ffp-border-mid);
+  color: var(--ffp-text-muted);
+  font-size: 11px; font-weight: 800;
+  letter-spacing: .8px; text-transform: uppercase;
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.itin-add-event:hover { color: var(--ffp-text); border-color: var(--ffp-border-str); }
+
+.itin-add-day {
+  background: transparent;
+  border: 1.5px dashed var(--ffp-border-mid);
+  color: var(--ffp-text);
+  font-size: 12px; font-weight: 800;
+  letter-spacing: 1px; text-transform: uppercase;
+  padding: 14px;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.itin-add-day:hover { border-color: var(--ffp-blue); color: var(--ffp-blue); }
+
+/* CHIP / TAG LIST */
+.chip-input-wrap {
+  background: var(--ffp-bg-card);
+  border: 1px solid var(--ffp-border-mid);
+  border-radius: var(--r-md);
+  padding: 8px 10px;
+  display: flex; flex-wrap: wrap; gap: 6px;
+  min-height: 44px;
+  align-items: center;
+}
+.chip-input-wrap:focus-within { border-color: var(--ffp-blue); }
+.chip {
+  background: var(--ffp-bg-3);
+  border: 1px solid var(--ffp-border-mid);
+  border-radius: 100px;
+  padding: 3px 4px 3px 11px;
+  font-size: 11px; font-weight: 700;
+  display: inline-flex; align-items: center; gap: 4px;
+  color: var(--ffp-text);
+}
+.chip button {
+  background: transparent; border: none;
+  color: var(--ffp-text-muted);
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.chip button:hover { color: var(--ffp-red); background: rgba(239, 68, 68, .1); }
+.chip-input {
+  flex: 1; min-width: 100px;
+  background: transparent; border: none;
+  font-size: 13px; font-weight: 500;
+  padding: 4px;
+  color: var(--ffp-text);
+}
+
+/* CHECK-INS PANEL */
+.checkin-card {
+  background: var(--ffp-bg-card);
+  border: 1px solid var(--ffp-border-mid);
+  border-radius: var(--r-xl);
+  padding: 28px 26px;
+  margin-bottom: 22px;
+  text-align: center;
+}
+.checkin-title { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
+.checkin-sub { font-size: 12px; color: var(--ffp-text-muted); font-weight: 500; margin-bottom: 22px; }
+
+.code-input {
+  width: 100%; max-width: 360px;
+  margin: 0 auto;
+  background: var(--ffp-bg);
+  border: 2px solid var(--ffp-border-mid);
+  border-radius: var(--r-md);
+  padding: 18px 20px;
+  font-size: 22px; font-weight: 800;
+  letter-spacing: 4px;
+  text-align: center;
+  color: var(--ffp-text);
+  text-transform: uppercase;
+}
+.code-input:focus { border-color: var(--ffp-yellow); }
+.code-input::placeholder { color: var(--ffp-text-dim); letter-spacing: 4px; }
+
+.checkin-actions {
+  display: flex; gap: 10px; margin-top: 18px; justify-content: center;
+}
+
+.checkin-list { display: flex; flex-direction: column; gap: 10px; }
+.checkin-row {
+  background: var(--ffp-bg-card);
+  border: 1px solid var(--ffp-border);
+  border-radius: var(--r-md);
+  padding: 14px 18px;
+  display: flex; align-items: center; gap: 14px;
+}
+.checkin-avatar {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: var(--ffp-blue);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800;
+  flex-shrink: 0;
+}
+.checkin-info { flex: 1; min-width: 0; }
+.checkin-name { font-size: 13px; font-weight: 800; }
+.checkin-listing { font-size: 11px; color: var(--ffp-text-muted); font-weight: 600; margin-top: 2px; }
+.checkin-time {
+  font-size: 10px; font-weight: 700; letter-spacing: .5px;
+  color: var(--ffp-text-muted);
+  text-transform: uppercase;
+  text-align: right;
+}
+.checkin-status {
+  font-size: 9px; font-weight: 800; letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 4px 9px; border-radius: 4px;
+  background: var(--ffp-green); color: #000;
+}
+
+/* RSVP / APPLICATION LIST (inside detail modal) */
+.member-list { display: flex; flex-direction: column; gap: 6px; }
+.member-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px;
+  background: var(--ffp-bg-3);
+  border: 1px solid var(--ffp-border);
+  border-radius: var(--r-md);
+}
+.member-avatar {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: var(--ffp-blue);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800;
+  flex-shrink: 0;
+}
+.member-info { flex: 1; min-width: 0; }
+.member-name { font-size: 12px; font-weight: 800; }
+.member-sub { font-size: 10px; color: var(--ffp-text-muted); font-weight: 600; letter-spacing: .3px; }
+.member-actions { display: flex; gap: 6px; }
+
+/* TOAST */
+.toast-wrap {
+  position: fixed;
+  bottom: 28px; right: 28px;
+  z-index: 200;
+  display: flex; flex-direction: column-reverse; gap: 10px;
+  pointer-events: none;
+}
+.toast {
+  background: var(--ffp-bg-2);
+  border: 1px solid var(--ffp-border-mid);
+  border-left: 3px solid var(--ffp-yellow);
+  border-radius: var(--r-md);
+  padding: 13px 18px 13px 16px;
+  font-size: 13px; font-weight: 600;
+  color: var(--ffp-text);
+  box-shadow: var(--shadow-pop);
+  min-width: 240px; max-width: 360px;
+  display: flex; align-items: center; gap: 10px;
+  animation: toast-in .25s ease;
+  pointer-events: auto;
+}
+.toast.success { border-left-color: var(--ffp-green); }
+.toast.error { border-left-color: var(--ffp-red); }
+.toast .ms { font-size: 18px; color: var(--ffp-yellow); flex-shrink: 0; }
+.toast.success .ms { color: var(--ffp-green); }
+.toast.error .ms { color: var(--ffp-red); }
+@keyframes toast-in {
+  from { transform: translateX(120%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* LOCKED PANEL */
+.locked-panel {
+  background: var(--ffp-bg-card);
+  border: 1.5px dashed var(--ffp-border-mid);
+  border-radius: var(--r-xl);
+  padding: 60px 30px;
+  text-align: center;
+}
+.locked-panel .empty-icon { background: rgba(255, 204, 0, .12); color: var(--ffp-yellow); }
+
+/* SUPPORT BAR (sticky help on every panel) */
+.help-strip {
+  background: rgba(43, 168, 224, .08);
+  border: 1px solid var(--ffp-border);
+  border-radius: var(--r-md);
+  padding: 12px 16px;
+  font-size: 12px; font-weight: 600;
+  color: var(--ffp-text-muted);
+  margin-bottom: 20px;
+  display: flex; align-items: center; gap: 10px;
+}
+.help-strip .ms { color: var(--ffp-blue); font-size: 18px; flex-shrink: 0; }
+.help-strip b { color: var(--ffp-text); font-weight: 800; }
+.help-strip a { font-weight: 800; text-decoration: underline; }
+
+/* ════════════════════════════════════════════════
+   RESPONSIVE
+   ════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .split-2 { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .panel-wrap { padding: 22px 18px 80px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .hours-row { grid-template-columns: 90px 1fr 1fr; }
+  .hours-row .hours-closed { grid-column: 1 / -1; padding-top: 4px; }
+  .topbar { padding: 0 18px; }
+  .tb-btn span { display: none; }
+  .modal-foot { flex-wrap: wrap; }
+  .save-bar { margin-left: -18px; margin-right: -18px; padding: 12px 18px; }
+}
+
+/* ════════════════════════════════════════════════
+   ANALYTICS
+   ════════════════════════════════════════════════ */
+.period-chips {
+  display: flex; flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 22px;
+}
+.period-chip {
+  background: var(--ffp-bg-3);
+  border: 1px solid var(--ffp-border-mid);
+  color: var(--ffp-text-muted);
+  padding: 8px 13px;
+  border-radius: 100px;
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 1px; text-transform: uppercase;
+  cursor: pointer;
+  transition: all .15s;
+}
+.period-chip:hover { color: var(--ffp-text); border-color: var(--ffp-border-str); }
+.period-chip.active {
+  background: var(--ffp-yellow);
+  color: #000;
+  border-color: var(--ffp-yellow);
+}
+
+.analytics-3col {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.analytics-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+@media (max-width: 1024px) {
+  .analytics-3col { grid-template-columns: 1fr; }
+  .analytics-2col { grid-template-columns: 1fr; }
+}
+
+/* Horizontal bar list (for demographics) */
+.bar-list { display: flex; flex-direction: column; gap: 11px; }
+.bar-row { display: flex; flex-direction: column; gap: 5px; }
+.bar-head {
+  display: flex; justify-content: space-between;
+  font-size: 12px; font-weight: 700;
+  gap: 8px;
+}
+.bar-head .bar-label {
+  color: var(--ffp-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.bar-head .bar-val {
+  color: var(--ffp-text-muted);
+  font-weight: 800;
+  letter-spacing: .3px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.bar-track {
+  background: var(--ffp-bg-3);
+  border-radius: 100px;
+  height: 8px;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  background: var(--ffp-blue);
+  border-radius: 100px;
+  transition: width .4s ease;
+}
+.bar-fill.yellow { background: var(--ffp-yellow); }
+.bar-fill.green { background: var(--ffp-green); }
+
+/* Ranked list (top performers) */
+.rank-list { display: flex; flex-direction: column; gap: 8px; }
+.rank-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 12px;
+  background: var(--ffp-bg-3);
+  border: 1px solid var(--ffp-border);
+  border-radius: var(--r-md);
+}
+.rank-num {
+  width: 26px; height: 26px;
+  background: var(--ffp-yellow); color: #000;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 900;
+  flex-shrink: 0;
+}
+.rank-num.silver { background: #c8c8c8; color: #000; }
+.rank-num.bronze { background: #cd7f32; color: #fff; }
+.rank-num.other { background: var(--ffp-bg); color: var(--ffp-text-muted); border: 1px solid var(--ffp-border-mid); }
+.rank-info { flex: 1; min-width: 0; }
+.rank-title {
+  font-size: 12px; font-weight: 800;
+  color: var(--ffp-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.rank-sub {
+  font-size: 10px; font-weight: 600;
+  color: var(--ffp-text-muted);
+  margin-top: 2px;
+  letter-spacing: .3px;
+}
+.rank-val {
+  font-size: 17px; font-weight: 900;
+  color: var(--ffp-yellow);
+  text-align: right;
+  line-height: 1;
+}
+.rank-val-lbl {
+  font-size: 9px; font-weight: 700;
+  color: var(--ffp-text-muted);
+  letter-spacing: .9px;
+  text-transform: uppercase;
+  margin-top: 4px;
+  text-align: right;
+}
+
+/* Funnel */
+.funnel {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 8px;
+}
+.funnel-step {
+  background: var(--ffp-bg-3);
+  border: 1px solid var(--ffp-border-mid);
+  border-radius: var(--r-md);
+  padding: 14px 16px;
+}
+.funnel-icon-wrap {
+  width: 34px; height: 34px;
+  background: rgba(43, 168, 224, .14);
+  color: var(--ffp-blue);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 9px;
+}
+.funnel-icon-wrap.yellow { background: rgba(255, 204, 0, .14); color: var(--ffp-yellow); }
+.funnel-icon-wrap.green { background: rgba(74, 222, 128, .14); color: var(--ffp-green); }
+.funnel-label {
+  font-size: 9px; font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ffp-text-muted);
+  margin-bottom: 4px;
+}
+.funnel-value {
+  font-size: 22px; font-weight: 900;
+  letter-spacing: -.4px;
+  color: var(--ffp-text);
+}
+.funnel-pct {
+  font-size: 10px; font-weight: 700;
+  color: var(--ffp-green);
+  margin-top: 4px;
+  letter-spacing: .3px;
+}
+@media (max-width: 768px) {
+  .funnel { grid-template-columns: 1fr 1fr; }
+}
+
+/* Trend chart */
+.trend-chart {
+  width: 100%;
+  height: 180px;
+  display: block;
+}
+.trend-bar {
+  fill: var(--ffp-blue);
+  transition: fill .15s;
+}
+.trend-bar:hover {
+  fill: var(--ffp-yellow);
+}
+.trend-axis-label {
+  fill: var(--ffp-text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* Peak engagement heatmap */
+.peak-grid-7 {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+.peak-cell {
+  aspect-ratio: 1;
+  background: var(--ffp-bg-3);
+  border-radius: 6px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  color: var(--ffp-text-muted);
+  border: 1px solid var(--ffp-border);
+}
+.peak-cell-day {
+  font-size: 9px; font-weight: 800;
+  letter-spacing: .8px; text-transform: uppercase;
+}
+.peak-cell-val {
+  font-size: 15px; font-weight: 900;
+  color: var(--ffp-text);
+  margin-top: 4px;
+}
+.peak-cell.hot {
+  background: var(--ffp-yellow);
+  color: #000;
+  border-color: var(--ffp-yellow);
+}
+.peak-cell.hot .peak-cell-val { color: #000; }
+.peak-cell.hot .peak-cell-day { color: #000; }
+.peak-cell.warm {
+  background: rgba(43, 168, 224, .22);
+  border-color: var(--ffp-border-str);
+}
+
+.hours-chart {
+  width: 100%;
+  height: 110px;
+  margin-top: 14px;
+}
+.hours-bar {
+  fill: var(--ffp-blue);
+}
+.hours-bar.peak {
+  fill: var(--ffp-yellow);
+}
+
+/* Retention */
+.retention-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 0;
+  border-bottom: 1px dashed var(--ffp-border);
+}
+.retention-row:last-child { border-bottom: none; padding-bottom: 0; }
+.retention-row:first-child { padding-top: 0; }
+.retention-circle {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: var(--ffp-bg-3);
+  border: 1px solid var(--ffp-border-mid);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; font-weight: 900;
+  color: var(--ffp-yellow);
+  flex-shrink: 0;
+}
+.retention-info { flex: 1; min-width: 0; }
+.retention-label { font-size: 13px; font-weight: 800; color: var(--ffp-text); }
+.retention-sub {
+  font-size: 11px; font-weight: 600;
+  color: var(--ffp-text-muted);
+  margin-top: 3px;
+  line-height: 1.4;
+}
+
+.section-sub {
+  font-size: 11px; font-weight: 700;
+  color: var(--ffp-text-muted);
+  letter-spacing: .3px;
+}
+
+/* Small adjustment: Material Symbols icons inside .kpi-delta, .funnel etc. should be 14-15px */
+.kpi-delta .ms { font-size: 14px; }
+.funnel-icon-wrap .ms { font-size: 18px; }
+.retention-circle .ms { font-size: 26px; }
+
+/* ════════════════════════════════════════════════
+   PHONE INPUT (split: country code + local number)
+   ════════════════════════════════════════════════ */
+.phone-input { display: flex; gap: 0; }
+.phone-cc {
+  width: 152px;
+  flex-shrink: 0;
+  background: var(--ffp-bg-card);
+  border: 1px solid var(--ffp-border-mid);
+  border-right: 1px solid var(--ffp-border);
+  border-radius: var(--r-md) 0 0 var(--r-md);
+  padding: 11px 30px 11px 14px;
+  font-size: 13px; font-weight: 700;
+  color: var(--ffp-text);
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a99a8' stroke-width='2.5'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.phone-cc:focus { border-color: var(--ffp-blue); outline: none; }
+.phone-num {
+  flex: 1; min-width: 0;
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+  border-left: none;
+}
+.phone-num:focus { border-color: var(--ffp-blue); }
+
+/* ════════════════════════════════════════════════
+   PROFILE COMPLETION CARD
+   ════════════════════════════════════════════════ */
+.completion-card {
+  background: rgba(255, 204, 0, .08);
+  border: 1px solid rgba(255, 204, 0, .28);
+  border-radius: var(--r-md);
+  padding: 16px 18px;
+  margin-bottom: 22px;
+}
+.completion-card.full {
+  background: rgba(74, 222, 128, .08);
+  border-color: rgba(74, 222, 128, .28);
+}
+.completion-head {
+  display: flex; align-items: flex-start; gap: 14px;
+  margin-bottom: 12px;
+}
+.completion-head .ms {
+  font-size: 28px;
+  color: var(--ffp-yellow);
+  flex-shrink: 0;
+}
+.completion-card.full .completion-head .ms { color: var(--ffp-green); }
+.completion-text { flex: 1; }
+.completion-title { font-size: 13px; font-weight: 800; }
+.completion-title em { color: var(--ffp-yellow); font-style: normal; }
+.completion-card.full .completion-title em { color: var(--ffp-green); }
+.completion-sub {
+  font-size: 11px;
+  color: var(--ffp-text-muted);
+  font-weight: 600;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+/* ════════════════════════════════════════════════
+   MOBILE MENU TOGGLE + SLIDE-OUT SIDEBAR
+   ════════════════════════════════════════════════ */
+.menu-toggle {
+  display: none;
+  width: 38px; height: 38px;
+  border-radius: var(--r-md);
+  background: var(--ffp-bg-3);
+  border: 1px solid var(--ffp-border-mid);
+  color: var(--ffp-text);
+  align-items: center; justify-content: center;
+  flex-shrink: 0;
+  margin-right: 6px;
+}
+.menu-toggle:hover { border-color: var(--ffp-border-str); }
+.menu-toggle .ms { font-size: 22px; }
+.sidebar-backdrop {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, .65);
+  z-index: 49;
+  backdrop-filter: blur(4px);
+}
+.sidebar-backdrop.open { display: block; }
+
+@media (max-width: 768px) {
+  .menu-toggle { display: flex; }
+  .sidebar {
+    display: flex;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    transform: translateX(-100%);
+    transition: transform .25s ease;
+    z-index: 50;
+    box-shadow: 12px 0 36px rgba(0, 0, 0, .4);
+  }
+  .sidebar.open { transform: translateX(0); }
+}
+
+/* ════════════════════════════════════════════════
+   PENDING REVIEW BANNER (overview)
+   ════════════════════════════════════════════════ */
+.welcome-banner.pending {
+  background: linear-gradient(135deg, rgba(255, 204, 0, .14) 0%, rgba(255, 204, 0, .04) 100%);
+  border-color: rgba(255, 204, 0, .35);
+}
+.welcome-banner-pre {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 204, 0, .14);
+  color: var(--ffp-yellow);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.welcome-banner-pre .ms { font-size: 22px; }
+
+/* ════════════════════════════════════════════════
+   AUTH SCREEN — Apply + Email code sign-in
+   ════════════════════════════════════════════════ */
+.auth-screen {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at top, #0a1825 0%, var(--ffp-bg) 70%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 30px 20px;
+  z-index: 1000;
+  overflow-y: auto;
+}
+.auth-card {
+  width: 100%;
+  max-width: 460px;
+  background: var(--ffp-bg-2);
+  border: 1px solid var(--ffp-border-mid);
+  border-radius: var(--r-xl);
+  padding: 34px 32px 28px;
+  box-shadow: var(--shadow-pop);
+}
+.auth-logo {
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: 2.5px;
+  text-align: center;
+  margin-bottom: 4px;
+}
+.auth-logo span { color: var(--ffp-blue); }
+.auth-tag {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.8px;
+  color: var(--ffp-yellow);
+  text-align: center;
+  text-transform: uppercase;
+  margin-bottom: 26px;
+}
+.auth-section { display: none; }
+.auth-section.active { display: block; }
+.auth-back {
+  background: transparent;
+  border: none;
+  color: var(--ffp-text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 6px 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+.auth-back:hover { color: var(--ffp-text); }
+.auth-back .ms { font-size: 16px; }
+.auth-title {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -.3px;
+  margin-bottom: 6px;
+  line-height: 1.2;
+}
+.auth-sub {
+  font-size: 13px;
+  color: var(--ffp-text-muted);
+  margin-bottom: 22px;
+  line-height: 1.55;
+  font-weight: 500;
+}
+.auth-sub b { color: var(--ffp-text); font-weight: 800; }
+.auth-cta {
+  display: flex;
+  width: 100%;
+  margin-top: 8px;
+}
+.auth-alt {
+  text-align: center;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--ffp-border);
+  font-size: 12px;
+  color: var(--ffp-text-muted);
+  font-weight: 600;
+}
+.auth-alt-link {
+  display: inline-block;
+  margin-top: 6px;
+  color: var(--ffp-blue);
+  font-weight: 800;
+  font-size: 12px;
+  cursor: pointer;
+}
+.auth-alt-link:hover { color: var(--ffp-yellow); }
+.auth-footer {
+  margin-top: 22px;
+  font-size: 11px;
+  color: var(--ffp-text-muted);
+  font-weight: 600;
+  text-align: center;
+}
+.auth-footer a { color: var(--ffp-text); font-weight: 800; }
+
+/* OTP boxes */
+.otp-boxes {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+  margin-top: 4px;
+}
+.otp-box {
+  flex: 1;
+  height: 58px;
+  background: var(--ffp-bg);
+  border: 1.5px solid var(--ffp-border-mid);
+  border-radius: var(--r-md);
+  text-align: center;
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--ffp-text);
+  outline: none;
+  transition: border-color .15s;
+  font-family: inherit;
+}
+.otp-box:focus { border-color: var(--ffp-yellow); }
+.otp-box[data-filled="true"] { border-color: var(--ffp-blue); }
+.auth-resend {
+  font-size: 11px;
+  color: var(--ffp-text-muted);
+  text-align: center;
+  margin-top: 14px;
+  font-weight: 600;
+}
+.auth-resend button {
+  background: transparent;
+  border: none;
+  color: var(--ffp-blue);
+  font-weight: 800;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0 4px;
+  font-family: inherit;
+}
+.auth-resend button:hover { color: var(--ffp-yellow); }
+.auth-success {
+  text-align: center;
+  padding: 6px 0 6px;
+}
+.auth-success-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(74, 222, 128, .14);
+  color: var(--ffp-green);
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.auth-success-icon .ms { font-size: 32px; }
+.demo-banner {
+  background: rgba(43, 168, 224, .08);
+  border: 1px dashed var(--ffp-border-mid);
+  border-radius: var(--r-md);
+  padding: 10px 14px;
+  margin-bottom: 22px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ffp-text-muted);
+  text-align: center;
+  line-height: 1.5;
+}
+.demo-banner b { color: var(--ffp-yellow); font-weight: 800; }
+.auth-skip {
+  display: block;
+  text-align: center;
+  margin-top: 14px;
+  font-size: 11px;
+  color: var(--ffp-text-dim);
+  text-decoration: underline;
+  font-weight: 600;
+  cursor: pointer;
+}
+.auth-skip:hover { color: var(--ffp-text-muted); }
+
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════
+     AUTH SCREEN — shown until provider signs in
+     ════════════════════════════════════════════════ -->
+<div class="auth-screen" id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">FFP <span>PASSPORT</span></div>
+    <div class="auth-tag">Provider Portal</div>
+
+    <!-- Landing -->
+    <div class="auth-section active" id="auth-landing">
+      <div class="demo-banner">
+        <b>Demo mode</b> — sign in with any email + any 6-digit code, or try the apply flow.
+      </div>
+      <div class="auth-title">Sign in to your provider account</div>
+      <div class="auth-sub">No password needed. Enter your email and we'll send a 6-digit code.</div>
+      <button class="btn btn-pri auth-cta" onclick="setAuthState('signin_email')">
+        <span class="ms">login</span> Sign in
+      </button>
+      <div class="auth-alt">
+        Want to become an FFP Passport provider?
+        <span class="auth-alt-link" onclick="setAuthState('apply')">Apply to join</span>
+      </div>
+    </div>
+
+    <!-- Sign in: email entry -->
+    <div class="auth-section" id="auth-signin-email">
+      <button class="auth-back" onclick="setAuthState('landing')">
+        <span class="ms">arrow_back</span> Back
+      </button>
+      <div class="auth-title">Sign in</div>
+      <div class="auth-sub">Enter the email tied to your provider account. We'll send a 6-digit code that's valid for 10 minutes.</div>
+      <div class="field">
+        <div class="label">Email <span class="req">*</span></div>
+        <input class="input" type="email" id="auth-email-input" placeholder="bookings@yourbusiness.ae" value="bookings@forgefitness.ae" autocomplete="email">
+      </div>
+      <button class="btn btn-pri auth-cta" style="margin-top: 18px;" onclick="submitEmail()">
+        <span class="ms">send</span> Send sign-in code
+      </button>
+    </div>
+
+    <!-- Sign in: code entry -->
+    <div class="auth-section" id="auth-signin-code">
+      <button class="auth-back" onclick="setAuthState('signin_email')">
+        <span class="ms">arrow_back</span> Back
+      </button>
+      <div class="auth-title">Enter your code</div>
+      <div class="auth-sub">We sent a 6-digit code to <b id="auth-code-email">bookings@forgefitness.ae</b>.<br>Demo: enter any 6 digits.</div>
+      <div class="otp-boxes" id="otp-boxes">
+        <input class="otp-box" inputmode="numeric" maxlength="1" autocomplete="one-time-code">
+        <input class="otp-box" inputmode="numeric" maxlength="1">
+        <input class="otp-box" inputmode="numeric" maxlength="1">
+        <input class="otp-box" inputmode="numeric" maxlength="1">
+        <input class="otp-box" inputmode="numeric" maxlength="1">
+        <input class="otp-box" inputmode="numeric" maxlength="1">
+      </div>
+      <button class="btn btn-pri auth-cta" style="margin-top: 18px;" onclick="verifyCode()">
+        <span class="ms">login</span> Verify and sign in
+      </button>
+      <div class="auth-resend">
+        Didn't get it? <button onclick="resendCode()">Resend code</button>
+      </div>
+    </div>
+
+    <!-- Apply form -->
+    <div class="auth-section" id="auth-apply">
+      <button class="auth-back" onclick="setAuthState('landing')">
+        <span class="ms">arrow_back</span> Back
+      </button>
+      <div class="auth-title">Apply to become a provider</div>
+      <div class="auth-sub">Tell us about your business. We review applications within 48 hours and email you when you're approved.</div>
+      <div class="form-grid">
+        <div class="field full">
+          <div class="label">Business name <span class="req">*</span></div>
+          <input class="input" id="ap-business" placeholder="e.g. Forge Fitness">
+        </div>
+        <div class="field">
+          <div class="label">Your name <span class="req">*</span></div>
+          <input class="input" id="ap-contact" placeholder="Primary contact">
+        </div>
+        <div class="field">
+          <div class="label">Email <span class="req">*</span></div>
+          <input class="input" type="email" id="ap-email" placeholder="you@business.com">
+        </div>
+        <div class="field full">
+          <div class="label">Phone <span class="req">*</span></div>
+          <div class="phone-input">
+            <select class="phone-cc" id="ap-phone-cc">
+              <option value="+971">+971 UAE</option>
+              <option value="+966">+966 Saudi Arabia</option>
+              <option value="+965">+965 Kuwait</option>
+              <option value="+968">+968 Oman</option>
+              <option value="+973">+973 Bahrain</option>
+              <option value="+974">+974 Qatar</option>
+              <option value="+962">+962 Jordan</option>
+              <option value="+961">+961 Lebanon</option>
+              <option value="+20">+20 Egypt</option>
+              <option value="+44">+44 UK</option>
+              <option value="+1">+1 USA / Canada</option>
+              <option value="+91">+91 India</option>
+              <option value="+92">+92 Pakistan</option>
+              <option value="+63">+63 Philippines</option>
+              <option value="+27">+27 South Africa</option>
+              <option value="+90">+90 Turkey</option>
+              <option value="+49">+49 Germany</option>
+              <option value="+33">+33 France</option>
+              <option value="+39">+39 Italy</option>
+              <option value="+34">+34 Spain</option>
+              <option value="+61">+61 Australia</option>
+            </select>
+            <input class="input phone-num" id="ap-phone-num" placeholder="50 123 4567" inputmode="tel">
+          </div>
+        </div>
+        <div class="field">
+          <div class="label">Category <span class="req">*</span></div>
+          <select class="select" id="ap-category">
+            <option value="">Choose category</option>
+            <option>Fitness studio</option>
+            <option>Wellness centre</option>
+            <option>Padel club</option>
+            <option>Pilates / Yoga</option>
+            <option>Climbing</option>
+            <option>Combat sports</option>
+            <option>Recovery / Spa</option>
+            <option>Performance lab</option>
+            <option>Nutrition / Cafe</option>
+            <option>Adventure / Outdoor</option>
+            <option>Coach / Trainer</option>
+            <option>Retail</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <div class="label">City <span class="req">*</span></div>
+          <select class="select" id="ap-city">
+            <option value="">Choose city</option>
+            <option>Dubai</option>
+            <option>Abu Dhabi</option>
+            <option>Sharjah</option>
+            <option>Ajman</option>
+            <option>Ras Al Khaimah</option>
+            <option>Fujairah</option>
+            <option>Al Ain</option>
+            <option>Umm Al Quwain</option>
+          </select>
+        </div>
+        <div class="field full">
+          <div class="label">Website</div>
+          <input class="input" id="ap-website" placeholder="https://yourbusiness.com">
+        </div>
+        <div class="field full">
+          <div class="label">Tell us about your business <span class="req">*</span></div>
+          <textarea class="textarea" id="ap-about" rows="3" placeholder="What you offer, who you serve, what makes you different."></textarea>
+        </div>
+      </div>
+      <button class="btn btn-pri auth-cta" style="margin-top: 20px;" onclick="submitApplication()">
+        <span class="ms">send</span> Submit application
+      </button>
+    </div>
+
+    <!-- Apply submitted -->
+    <div class="auth-section" id="auth-apply-submitted">
+      <div class="auth-success">
+        <div class="auth-success-icon"><span class="ms">check_circle</span></div>
+        <div class="auth-title" style="margin-bottom: 8px;">Application received</div>
+        <div class="auth-sub">Thanks. We'll review and email you at <b id="auth-applied-email"></b> within 48 hours. If approved, your sign-in code will arrive at the same address.</div>
+      </div>
+      <button class="btn btn-sec auth-cta" onclick="setAuthState('landing')">
+        <span class="ms">arrow_back</span> Back to sign in
+      </button>
+    </div>
+
+  </div>
+
+  <a class="auth-skip" onclick="bypassAuthDemo()">Skip to dashboard (demo only)</a>
+
+  <div class="auth-footer">
+    Need help? <a href="mailto:providers@ffppassport.com">providers@ffppassport.com</a>
+  </div>
+</div>
+
+<div class="app" id="app" style="display: none;">
+
+  <!-- ════════════════════════════════════════════════
+       SIDEBAR
+       ════════════════════════════════════════════════ -->
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-brand">FFP <span>PASSPORT</span></div>
+      <div class="sb-sub">Provider Portal</div>
+    </div>
+    <nav class="sb-nav" id="sb-nav"></nav>
+    <button class="sb-foot" id="sb-foot" onclick="showPanel('profile')">
+      <div class="sb-foot-mark" id="sb-foot-mark">F</div>
+      <div class="sb-foot-info">
+        <div class="sb-foot-name" id="sb-foot-name">Forge Fitness</div>
+        <div class="sb-foot-tag" id="sb-foot-tag">Approved</div>
+      </div>
+    </button>
+  </aside>
+
+  <!-- ════════════════════════════════════════════════
+       MAIN
+       ════════════════════════════════════════════════ -->
+  <div class="main">
+    <header class="topbar">
+      <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Open menu">
+        <span class="ms">menu</span>
+      </button>
+      <div class="tb-title" id="tb-title">Overview</div>
+      <div class="tb-status" id="tb-status">Live</div>
+      <div class="tb-actions">
+        <button class="tb-btn" onclick="showToast('Help center opens here', 'info')">
+          <span class="ms">support_agent</span><span>Help</span>
+        </button>
+        <button class="tb-bell" onclick="showToast('1 new RSVP, 1 new application', 'info')">
+          <span class="ms">notifications</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="panel-wrap">
+
+      <!-- ════════ OVERVIEW ════════ -->
+      <section class="panel active" id="panel-overview">
+        <div class="welcome-banner" id="welcome-banner" style="display: none;"></div>
+
+        <div class="ph-row">
+          <div>
+            <div class="ph">Good morning, Forge</div>
+            <div class="psub">Here's what's happening across your listings today.</div>
+          </div>
+          <button class="btn btn-pri" onclick="openCreatePicker()">
+            <span class="ms">add</span> Create new listing
+          </button>
+        </div>
+
+        <div class="kpi-grid" id="kpi-grid"></div>
+
+        <div class="split-2">
+          <div class="section-card">
+            <div class="section-head">
+              <div class="section-title">Recent activity</div>
+              <button class="section-link" onclick="showToast('Full activity log coming soon', 'info')">View all</button>
+            </div>
+            <div class="activity-list" id="activity-list"></div>
+          </div>
+          <div class="section-card">
+            <div class="section-head">
+              <div class="section-title">Quick actions</div>
+            </div>
+            <div class="quick-actions">
+              <button class="qa" onclick="openDealModal()">
+                <div class="qa-icon yellow"><span class="ms">local_offer</span></div>
+                <div class="qa-body">
+                  <div class="qa-title">New deal</div>
+                  <div class="qa-sub">Member perk</div>
+                </div>
+              </button>
+              <button class="qa" onclick="openEventModal()">
+                <div class="qa-icon"><span class="ms">event</span></div>
+                <div class="qa-body">
+                  <div class="qa-title">New event</div>
+                  <div class="qa-sub">Single date</div>
+                </div>
+              </button>
+              <button class="qa" onclick="openExperienceModal()">
+                <div class="qa-icon"><span class="ms">flight</span></div>
+                <div class="qa-body">
+                  <div class="qa-title">New experience</div>
+                  <div class="qa-sub">Multi-day</div>
+                </div>
+              </button>
+              <button class="qa" onclick="showPanel('checkins')">
+                <div class="qa-icon"><span class="ms">qr_code_scanner</span></div>
+                <div class="qa-body">
+                  <div class="qa-title">Check in</div>
+                  <div class="qa-sub">Verify claim</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════ PROFILE ════════ -->
+      <section class="panel" id="panel-profile">
+        <div class="ph">Business profile</div>
+        <div class="psub">This is the information members see when they discover you on the platform. Changes go to admin for review before going live.</div>
+
+        <div class="help-strip">
+          <span class="ms">info</span>
+          <div>Upload high quality photos — landscape 16:10 for hero, square logo with transparent background works best.</div>
+        </div>
+
+        <div class="completion-card" id="completion-card">
+          <div class="completion-head">
+            <span class="ms" id="completion-icon">trending_up</span>
+            <div class="completion-text">
+              <div class="completion-title">Profile <em><span id="completion-pct">0</span>%</em> complete</div>
+              <div class="completion-sub" id="completion-sub">Complete profiles rank higher in member search and get more engagement.</div>
+            </div>
+          </div>
+          <div class="bar-track"><div class="bar-fill yellow" id="completion-bar" style="width: 0%"></div></div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">Branding</div>
+          <div class="form-grid">
+            <div class="field">
+              <div class="label">Logo</div>
+              <div class="uploader logo-uploader" id="up-logo" onclick="document.getElementById('up-logo-input').click()">
+                <input type="file" id="up-logo-input" accept="image/*" onchange="handleUpload('logo', this.files[0])">
+                <div class="uploader-icon"><span class="ms">image</span></div>
+                <div class="uploader-title">Upload logo</div>
+                <div class="uploader-hint">PNG · square</div>
+              </div>
+            </div>
+            <div class="field">
+              <div class="label">Hero photo <span class="label-hint">— shown on listings + profile</span></div>
+              <div class="uploader" id="up-hero" onclick="document.getElementById('up-hero-input').click()">
+                <input type="file" id="up-hero-input" accept="image/*" onchange="handleUpload('hero', this.files[0])">
+                <div class="uploader-icon"><span class="ms">image</span></div>
+                <div class="uploader-title">Click or drag to upload</div>
+                <div class="uploader-hint">JPG or PNG · 16:10 · up to 5 MB</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">Business info</div>
+          <div class="form-grid">
+            <div class="field full">
+              <div class="label">Business name <span class="req">*</span></div>
+              <input class="input" id="pf-business-name" placeholder="e.g. Forge Fitness">
+            </div>
+            <div class="field">
+              <div class="label">Category <span class="req">*</span></div>
+              <select class="select" id="pf-category">
+                <option value="">Choose category</option>
+                <option>Fitness studio</option>
+                <option>Wellness centre</option>
+                <option>Padel club</option>
+                <option>Pilates / Yoga</option>
+                <option>Climbing</option>
+                <option>Combat sports</option>
+                <option>Recovery / Spa</option>
+                <option>Performance lab</option>
+                <option>Nutrition / Cafe</option>
+                <option>Adventure / Outdoor</option>
+                <option>Coach / Trainer</option>
+                <option>Retail</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="field">
+              <div class="label">Provider type</div>
+              <select class="select" id="pf-type">
+                <option value="">Choose type</option>
+                <option>Single location</option>
+                <option>Multi-location chain</option>
+                <option>Mobile / Online</option>
+                <option>Event organizer</option>
+                <option>Coach / Individual</option>
+              </select>
+            </div>
+            <div class="field">
+              <div class="label">City <span class="req">*</span></div>
+              <select class="select" id="pf-city">
+                <option value="">Choose city</option>
+                <option>Dubai</option>
+                <option>Abu Dhabi</option>
+                <option>Sharjah</option>
+                <option>Ajman</option>
+                <option>Ras Al Khaimah</option>
+                <option>Fujairah</option>
+                <option>Al Ain</option>
+                <option>Umm Al Quwain</option>
+              </select>
+            </div>
+            <div class="field">
+              <div class="label">Area / Neighbourhood</div>
+              <input class="input" id="pf-area" placeholder="e.g. Al Quoz, JLT, Dubai Marina">
+            </div>
+            <div class="field full">
+              <div class="label">Address</div>
+              <input class="input" id="pf-address" placeholder="Building, street, unit number">
+            </div>
+            <div class="field">
+              <div class="label">Phone</div>
+              <div class="phone-input">
+                <select class="phone-cc" id="pf-phone-cc">
+                  <option value="+971">+971 UAE</option>
+                  <option value="+966">+966 Saudi Arabia</option>
+                  <option value="+965">+965 Kuwait</option>
+                  <option value="+968">+968 Oman</option>
+                  <option value="+973">+973 Bahrain</option>
+                  <option value="+974">+974 Qatar</option>
+                  <option value="+962">+962 Jordan</option>
+                  <option value="+961">+961 Lebanon</option>
+                  <option value="+20">+20 Egypt</option>
+                  <option value="+44">+44 UK</option>
+                  <option value="+1">+1 USA / Canada</option>
+                  <option value="+91">+91 India</option>
+                  <option value="+92">+92 Pakistan</option>
+                  <option value="+63">+63 Philippines</option>
+                  <option value="+27">+27 South Africa</option>
+                  <option value="+90">+90 Turkey</option>
+                  <option value="+49">+49 Germany</option>
+                  <option value="+33">+33 France</option>
+                  <option value="+39">+39 Italy</option>
+                  <option value="+34">+34 Spain</option>
+                  <option value="+61">+61 Australia</option>
+                </select>
+                <input class="input phone-num" id="pf-phone-num" placeholder="50 123 4567" inputmode="tel">
+              </div>
+            </div>
+            <div class="field">
+              <div class="label">Website</div>
+              <input class="input" id="pf-website" placeholder="https://yourbusiness.com">
+            </div>
+            <div class="field full">
+              <div class="label">About <span class="label-hint">— shown on your provider profile</span></div>
+              <textarea class="textarea" id="pf-about" rows="4" placeholder="A short paragraph about your business, what you offer, and what makes you different."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">Hours of operation</div>
+          <div class="hours-grid" id="hours-grid"></div>
+        </div>
+
+        <div class="save-bar">
+          <div class="save-bar-msg" id="profile-save-msg">
+            <span class="ms">check</span> All changes saved
+          </div>
+          <button class="btn btn-ghost" onclick="loadProfile()">Discard</button>
+          <button class="btn btn-pri" onclick="saveProfile()">
+            <span class="ms">save</span> Save changes
+          </button>
+        </div>
+      </section>
+
+      <!-- ════════ DEALS ════════ -->
+      <section class="panel" id="panel-deals">
+        <div class="ph-row">
+          <div>
+            <div class="ph">Deals</div>
+            <div class="psub">Member perks at your business. All new deals are reviewed by admin before going live.</div>
+          </div>
+          <button class="btn btn-pri" onclick="openDealModal()">
+            <span class="ms">add</span> New deal
+          </button>
+        </div>
+        <div class="tabs" id="deals-tabs"></div>
+        <div class="help-strip" style="margin-bottom: 18px;">
+          <span class="ms">schedule</span>
+          <div>New deals are <b>reviewed by admin within 24 hours</b> before going live to members. You'll get an email when each one is approved.</div>
+        </div>
+        <div class="list-toolbar">
+          <div class="search-box">
+            <span class="ms">search</span>
+            <input id="deals-search" placeholder="Search your deals" oninput="renderDeals()">
+          </div>
+        </div>
+        <div class="listing-grid" id="deals-grid"></div>
+      </section>
+
+      <!-- ════════ EVENTS ════════ -->
+      <section class="panel" id="panel-events">
+        <div class="ph-row">
+          <div>
+            <div class="ph">Events</div>
+            <div class="psub">Single-date sessions members can RSVP to. RSVPs route directly to you.</div>
+          </div>
+          <button class="btn btn-pri" onclick="openEventModal()">
+            <span class="ms">add</span> New event
+          </button>
+        </div>
+        <div class="tabs" id="events-tabs"></div>
+        <div class="help-strip" style="margin-bottom: 18px;">
+          <span class="ms">schedule</span>
+          <div>New events are <b>reviewed by admin within 24 hours</b> before going live. Once approved, RSVPs route straight to you.</div>
+        </div>
+        <div class="list-toolbar">
+          <div class="search-box">
+            <span class="ms">search</span>
+            <input id="events-search" placeholder="Search your events" oninput="renderEvents()">
+          </div>
+        </div>
+        <div class="listing-grid" id="events-grid"></div>
+      </section>
+
+      <!-- ════════ EXPERIENCES ════════ -->
+      <section class="panel" id="panel-experiences">
+        <div class="ph-row">
+          <div>
+            <div class="ph">Experiences</div>
+            <div class="psub">Multi-day trips and sport events. Members apply, you review and approve, then send deposit details.</div>
+          </div>
+          <button class="btn btn-pri" onclick="openExperienceModal()">
+            <span class="ms">add</span> New experience
+          </button>
+        </div>
+        <div class="tabs" id="exp-tabs"></div>
+        <div class="help-strip" style="margin-bottom: 18px;">
+          <span class="ms">schedule</span>
+          <div>New experiences are <b>reviewed by admin within 24 hours</b> before going live. Applications then route to you for approval and deposit handling.</div>
+        </div>
+        <div class="list-toolbar">
+          <div class="search-box">
+            <span class="ms">search</span>
+            <input id="exp-search" placeholder="Search your experiences" oninput="renderExperiences()">
+          </div>
+        </div>
+        <div class="listing-grid" id="exp-grid"></div>
+      </section>
+
+      <!-- ════════ CHALLENGES ════════ -->
+      <section class="panel" id="panel-challenges">
+        <div class="ph-row">
+          <div>
+            <div class="ph">Challenges</div>
+            <div class="psub">Provider-type challenges you organize at your venue. Upload results after the event.</div>
+          </div>
+          <button class="btn btn-pri" onclick="openChallengeModal()">
+            <span class="ms">add</span> New challenge
+          </button>
+        </div>
+        <div class="tabs" id="ch-tabs"></div>
+        <div class="help-strip" style="margin-bottom: 18px;">
+          <span class="ms">schedule</span>
+          <div>New challenges are <b>reviewed by admin within 24 hours</b> before going live. Upload results when the challenge ends to publish the leaderboard.</div>
+        </div>
+        <div class="list-toolbar">
+          <div class="search-box">
+            <span class="ms">search</span>
+            <input id="ch-search" placeholder="Search your challenges" oninput="renderChallenges()">
+          </div>
+        </div>
+        <div class="listing-grid" id="ch-grid"></div>
+      </section>
+
+      <!-- ════════ CHECK-INS ════════ -->
+      <section class="panel" id="panel-checkins">
+        <div class="ph">Check-ins</div>
+        <div class="psub">Verify a member's claim code at your venue. The code appears in their Passport app when they redeem your deal.</div>
+
+        <div class="checkin-card">
+          <div class="checkin-title">Enter member claim code</div>
+          <div class="checkin-sub">Or use the camera button to scan a QR</div>
+          <input class="code-input" id="claim-code-input" maxlength="8" placeholder="XXXX-XXXX" oninput="formatClaimCode(this)">
+          <div class="checkin-actions">
+            <button class="btn btn-ghost" onclick="showToast('QR scanner opens on mobile camera', 'info')">
+              <span class="ms">qr_code_scanner</span> Scan QR
+            </button>
+            <button class="btn btn-pri" onclick="verifyClaimCode()">
+              <span class="ms">check</span> Verify code
+            </button>
+          </div>
+        </div>
+
+        <div class="section-head">
+          <div class="section-title">Recent check-ins</div>
+        </div>
+        <div class="checkin-list" id="checkin-list"></div>
+      </section>
+
+
+      <!-- ════════ ANALYTICS ════════ -->
+      <section class="panel" id="panel-analytics">
+        <div class="ph-row">
+          <div>
+            <div class="ph">Analytics</div>
+            <div class="psub">How members are discovering, engaging with, and visiting your business.</div>
+          </div>
+          <button class="btn btn-sec" onclick="showToast('PDF export starting', 'success')">
+            <span class="ms">download</span> Export report
+          </button>
+        </div>
+
+        <div class="period-chips" id="period-chips"></div>
+
+        <div class="kpi-grid" id="analytics-kpi-grid"></div>
+
+        <div class="section-card" style="margin-bottom: 18px;">
+          <div class="section-head">
+            <div class="section-title">Engagement funnel</div>
+            <div class="section-sub" id="funnel-summary"></div>
+          </div>
+          <div class="funnel" id="funnel"></div>
+        </div>
+
+        <div class="section-card" style="margin-bottom: 18px;">
+          <div class="section-head">
+            <div class="section-title">Engagement trend</div>
+            <div class="section-sub" id="trend-summary"></div>
+          </div>
+          <div id="trend-chart-wrap"></div>
+        </div>
+
+        <div class="analytics-3col">
+          <div class="section-card">
+            <div class="section-head"><div class="section-title">Age groups</div></div>
+            <div class="bar-list" id="age-bars"></div>
+          </div>
+          <div class="section-card">
+            <div class="section-head"><div class="section-title">Gender</div></div>
+            <div class="bar-list" id="gender-bars"></div>
+          </div>
+          <div class="section-card">
+            <div class="section-head"><div class="section-title">Member tier</div></div>
+            <div class="bar-list" id="tier-bars"></div>
+          </div>
+        </div>
+
+        <div class="analytics-2col">
+          <div class="section-card">
+            <div class="section-head"><div class="section-title">Where members are based</div></div>
+            <div class="bar-list" id="area-bars"></div>
+          </div>
+          <div class="section-card">
+            <div class="section-head"><div class="section-title">Top member sports</div></div>
+            <div class="bar-list" id="sport-bars"></div>
+          </div>
+        </div>
+
+        <div class="analytics-2col">
+          <div class="section-card">
+            <div class="section-head"><div class="section-title">Top deals</div></div>
+            <div class="rank-list" id="top-deals"></div>
+          </div>
+          <div class="section-card">
+            <div class="section-head"><div class="section-title">Top events & experiences</div></div>
+            <div class="rank-list" id="top-events"></div>
+          </div>
+        </div>
+
+        <div class="analytics-2col">
+          <div class="section-card">
+            <div class="section-head"><div class="section-title">Peak engagement</div></div>
+            <div id="peak-grid"></div>
+          </div>
+          <div class="section-card">
+            <div class="section-head"><div class="section-title">New vs returning</div></div>
+            <div id="retention"></div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ════════ EARNINGS (LOCKED) ════════ -->
+      <section class="panel" id="panel-earnings">
+        <div class="ph">Earnings</div>
+        <div class="psub">Track your revenue share and payouts.</div>
+        <div class="locked-panel">
+          <div class="empty-icon"><span class="ms">payments</span></div>
+          <div class="empty-title">Coming soon</div>
+          <div class="empty-sub">Earnings tracking goes live once your first paid bookings start flowing through the platform. You'll see revenue, payouts, and your share here.</div>
+        </div>
+      </section>
+
+      <!-- ════════ TEAM (LOCKED) ════════ -->
+      <section class="panel" id="panel-team">
+        <div class="ph">Team</div>
+        <div class="psub">Add staff accounts with limited permissions to manage your listings and check in members.</div>
+        <div class="locked-panel">
+          <div class="empty-icon"><span class="ms">group</span></div>
+          <div class="empty-title">Coming soon</div>
+          <div class="empty-sub">Multi-seat accounts arrive in the next update. For now, share one login with your team.</div>
+        </div>
+      </section>
+
+      <!-- ════════ SETTINGS ════════ -->
+      <section class="panel" id="panel-settings">
+        <div class="ph">Settings</div>
+        <div class="psub">Notification preferences and account management.</div>
+
+        <div class="form-section">
+          <div class="form-section-title">Notifications</div>
+          <div class="form-grid">
+            <div class="field full">
+              <label class="hours-closed">
+                <input type="checkbox" checked> Email me when a member RSVPs to an event
+              </label>
+            </div>
+            <div class="field full">
+              <label class="hours-closed">
+                <input type="checkbox" checked> Email me when a member applies for an experience
+              </label>
+            </div>
+            <div class="field full">
+              <label class="hours-closed">
+                <input type="checkbox" checked> Email me when admin approves a new listing
+              </label>
+            </div>
+            <div class="field full">
+              <label class="hours-closed">
+                <input type="checkbox"> Weekly performance summary
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">Account</div>
+          <div class="form-grid">
+            <div class="field">
+              <div class="label">Login email</div>
+              <input class="input" value="bookings@forgefitness.ae" disabled>
+            </div>
+            <div class="field">
+              <div class="label">Password</div>
+              <button class="btn btn-sec" onclick="showToast('Password reset email sent', 'success')">Send reset email</button>
+            </div>
+            <div class="field full">
+              <div class="label">Session</div>
+              <button class="btn btn-sec" style="width: auto;" onclick="signOut()">
+                <span class="ms">logout</span> Sign out
+              </button>
+            </div>
+            <div class="field full">
+              <div class="label">Danger zone</div>
+              <button class="btn btn-ghost" style="color: var(--ffp-red); border-color: rgba(239,68,68,.3);" onclick="showToast('Contact admin to close your account', 'info')">
+                <span class="ms">delete</span> Close my provider account
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     MODAL CONTAINER
+     ════════════════════════════════════════════════ -->
+<div class="modal-backdrop" id="modal-backdrop" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal" onclick="event.stopPropagation()"></div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<!-- SIDEBAR BACKDROP (mobile) -->
+<div class="sidebar-backdrop" id="sidebar-backdrop" onclick="toggleSidebar()"></div>
+
+<script>
+/* ════════════════════════════════════════════════
+   FFP PROVIDER DASHBOARD — v1
+   ════════════════════════════════════════════════ */
+
+// ════════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════════
+function escHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+function showToast(msg, type) {
+  type = type || 'info';
+  const wrap = document.getElementById('toast-wrap');
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  const iconMap = { success: 'check_circle', error: 'error', info: 'info' };
+  t.innerHTML = '<span class="ms">' + (iconMap[type] || 'info') + '</span><span>' + escHtml(msg) + '</span>';
+  wrap.appendChild(t);
+  setTimeout(() => { t.style.transition = 'opacity .3s'; t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3200);
+}
+
+function uid() { return 'id_' + Math.random().toString(36).slice(2, 10); }
+
+function fmtDate(d) {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt)) return d;
+  return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+function fmtDateShort(d) {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt)) return d;
+  return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+function fmtRelative(ts) {
+  const now = Date.now();
+  const diff = Math.floor((now - new Date(ts).getTime()) / 1000);
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+  if (diff < 604800) return Math.floor(diff/86400) + 'd ago';
+  return fmtDateShort(ts);
+}
+
+// ════════════════════════════════════════════════
+// SAMPLE DATA — represents one logged-in provider
+// ════════════════════════════════════════════════
+const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+let providerProfile = {
+  business_name: 'Forge Fitness',
+  letter_mark: 'F',
+  category: 'Fitness studio',
+  provider_type: 'Single location',
+  city: 'Dubai',
+  area: 'Al Quoz',
+  address: 'Warehouse 12, Street 17, Al Quoz Industrial 3',
+  phone: '+971 50 123 4567',
+  website: 'https://forgefitness.ae',
+  about: 'Functional strength and conditioning studio in Al Quoz. Group classes, personal training, and small-group performance coaching. Coaches certified through NASM, CrossFit L2, and Precision Nutrition.',
+  status: 'approved',
+  verified: true,
+  logo_url: null,
+  hero_url: null,
+  hours: {
+    Monday:    { open: '05:30', close: '22:00', closed: false },
+    Tuesday:   { open: '05:30', close: '22:00', closed: false },
+    Wednesday: { open: '05:30', close: '22:00', closed: false },
+    Thursday:  { open: '05:30', close: '22:00', closed: false },
+    Friday:    { open: '06:00', close: '20:00', closed: false },
+    Saturday:  { open: '07:00', close: '14:00', closed: false },
+    Sunday:    { open: '',      close: '',      closed: true  }
+  }
+};
+
+let deals = [
+  {
+    id: uid(), perk: 'Member rate on monthly unlimited',
+    breakdown: '600 AED instead of 850 AED for the first month, then standard pricing.',
+    about: 'Unlimited group classes for 30 days. Includes mobility, strength, conditioning, and Saturday team class.',
+    category: 'Fitness', service: 'Monthly membership',
+    valid: '7 days a week', booking: 'Walk in or book in app',
+    limits: 'Once per member, new joiners only', frequency: 'one-time',
+    hero_url: null, status: 'live', featured: true,
+    claims: 47, claims_this_month: 12, created_at: '2025-12-15'
+  },
+  {
+    id: uid(), perk: 'First class free',
+    breakdown: 'Walk in for any group class, no commitment.',
+    about: 'Try us out. Pick any class on the schedule from the app.', category: 'Fitness',
+    service: 'Drop-in trial', valid: 'Weekdays only', booking: 'Book in app',
+    limits: 'New members only', frequency: 'one-time',
+    hero_url: null, status: 'live', featured: false,
+    claims: 134, claims_this_month: 28, created_at: '2025-11-02'
+  },
+  {
+    id: uid(), perk: '20% off InBody scan + consult',
+    breakdown: '120 AED instead of 150 AED for a full body composition scan with 20-minute coach consult.',
+    about: 'Quarterly check-in tool. Comes with a printable report you can share with your doctor.', category: 'Wellness',
+    service: 'Body composition', valid: 'Weekdays only', booking: 'WhatsApp +971 50 123 4567',
+    limits: 'Once per quarter', frequency: 'quarterly',
+    hero_url: null, status: 'pending', featured: false,
+    claims: 0, claims_this_month: 0, created_at: '2026-05-20'
+  }
+];
+
+let events = [
+  {
+    id: uid(), title: 'Saturday Team WOD',
+    description: 'Partner conditioning workout, scaled options for all levels.',
+    about: 'Bring a friend. Coffee and protein shakes on us after.',
+    category: 'Fitness', event_date: '2026-06-07', event_time: '08:00',
+    venue: 'Forge Fitness', city: 'Dubai', area: 'Al Quoz',
+    capacity: 24, cost: 'Free for members', intensity: 'Intermediate',
+    setting: 'Indoor', parking: 'Free on site',
+    facilities: 'Showers, lockers, towels',
+    bring: 'Water bottle, training shoes',
+    who: 'Open to all FFP members',
+    hero_url: null, status: 'live', verified: true,
+    rsvps: 18, capacity_pct: 75, created_at: '2026-05-12'
+  },
+  {
+    id: uid(), title: 'Strength Foundations Workshop',
+    description: 'Two-hour technique workshop on squat, hinge, push and pull patterns.',
+    about: 'For members who want to clean up their lifts before progressing to heavier loads.',
+    category: 'Fitness', event_date: '2026-06-14', event_time: '10:00',
+    venue: 'Forge Fitness', city: 'Dubai', area: 'Al Quoz',
+    capacity: 12, cost: 'AED 150', intensity: 'Beginner',
+    setting: 'Indoor', parking: 'Free on site',
+    facilities: 'Showers, lockers',
+    bring: 'Training shoes, comfortable clothes',
+    who: 'New lifters or members wanting form review',
+    hero_url: null, status: 'live', verified: true,
+    rsvps: 7, capacity_pct: 58, created_at: '2026-05-18'
+  }
+];
+
+let experiences = [
+  {
+    id: uid(), title: 'Hatta Mountain Endurance Camp',
+    description: 'Three-day high-altitude conditioning camp in the Hajar mountains.',
+    overview: 'Trail running, hill repeats, recovery yoga, and shared meals at a base lodge in Hatta. Designed to build aerobic base before the autumn racing season.',
+    experience_type: 'Fitness',
+    start_date: '2026-10-09', end_date: '2026-10-11', duration_days: 3,
+    country: 'United Arab Emirates', destination: 'Hatta, Dubai',
+    price_aed: 1850,
+    price_includes: ['Lodging (twin share)', 'All meals', 'Coaching', 'Transport from Dubai', 'Recovery sessions'],
+    price_excludes: ['Personal gear', 'Trail running shoes', 'Travel insurance'],
+    accommodation: 'Hatta Wadi Hub lodge — twin share rooms with shared bathrooms.',
+    flights: 'Not required — group transport from Forge Fitness on Friday morning.',
+    travel_reqs: 'UAE residence or visit visa. No vaccination requirements.',
+    fitness_reqs: 'Able to run 5km continuously. We will scale all sessions to the group.',
+    fitness_level: 'Intermediate',
+    hero_url: null, status: 'live', applications: 9, capacity: 16, created_at: '2026-04-22',
+    itinerary: [
+      { day: 1, title: 'Arrival & shakeout', events: [
+        { time: '07:00', item: 'Depart Forge Fitness' },
+        { time: '09:30', item: 'Arrive Hatta, room check-in' },
+        { time: '11:00', item: 'Shakeout trail run (5km)' },
+        { time: '13:00', item: 'Lunch + recovery' },
+        { time: '17:00', item: 'Yoga + mobility' },
+        { time: '19:00', item: 'Welcome dinner' }
+      ]},
+      { day: 2, title: 'Hill repeats day', events: [
+        { time: '06:00', item: 'Breakfast' },
+        { time: '07:00', item: 'Hill repeats session (90 min)' },
+        { time: '10:00', item: 'Recovery + ice bath' },
+        { time: '13:00', item: 'Lunch' },
+        { time: '16:00', item: 'Strength + core circuit' },
+        { time: '19:00', item: 'Dinner + Q&A' }
+      ]},
+      { day: 3, title: 'Long run + departure', events: [
+        { time: '05:30', item: 'Pre-run fueling' },
+        { time: '06:30', item: 'Long trail run (12km option / 6km option)' },
+        { time: '09:30', item: 'Brunch + closing circle' },
+        { time: '12:00', item: 'Depart Hatta' }
+      ]}
+    ]
+  }
+];
+
+let challenges = [
+  {
+    id: uid(), title: 'Forge May Strength Push',
+    description: 'Hit 3 personal records across squat, deadlift, and overhead press in the month of May.',
+    challenge_type: 'provider',
+    metric: 'Combined PR kg increase',
+    venue: 'Forge Fitness, Al Quoz',
+    start_date: '2026-05-01', end_date: '2026-05-31',
+    prize: 'Top 3 win a Forge Fitness branded recovery kit (foam roller, lacrosse ball, resistance bands)',
+    category: 'Strength',
+    hero_url: null, status: 'live',
+    participants: 22, results_uploaded: false,
+    created_at: '2026-04-25'
+  }
+];
+
+let checkIns = [
+  { id: uid(), member_name: 'Sarah Al Mansoori', member_letter: 'S', listing: 'First class free', code: '7K4N-9PMX', ts: Date.now() - 2 * 60 * 60 * 1000, status: 'verified' },
+  { id: uid(), member_name: 'James Lee', member_letter: 'J', listing: '20% off InBody scan', code: '3B8Q-1RWZ', ts: Date.now() - 5 * 60 * 60 * 1000, status: 'verified' },
+  { id: uid(), member_name: 'Priya Sharma', member_letter: 'P', listing: 'Member rate on monthly unlimited', code: 'M2X9-VL4F', ts: Date.now() - 24 * 60 * 60 * 1000, status: 'verified' },
+  { id: uid(), member_name: 'Omar Hassan', member_letter: 'O', listing: 'First class free', code: 'Q7T1-8NSA', ts: Date.now() - 26 * 60 * 60 * 1000, status: 'verified' }
+];
+
+// SAMPLE pending RSVPs / applications (used in detail modal)
+const sampleRsvps = [
+  { name: 'Aisha Khan', letter: 'A', joined: '3d ago' },
+  { name: 'Marcus Webb', letter: 'M', joined: '2d ago' },
+  { name: 'Lina Park', letter: 'L', joined: '1d ago' },
+  { name: 'Tariq Yusuf', letter: 'T', joined: '6h ago' }
+];
+
+// ════════════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════════════
+const NAV = [
+  { id: 'overview',    icon: 'dashboard',       label: 'Overview',    section: 'manage' },
+  { id: 'analytics',   icon: 'analytics',       label: 'Analytics',   section: 'manage' },
+  { id: 'deals',       icon: 'local_offer',     label: 'Deals',       section: 'listings' },
+  { id: 'events',      icon: 'event',           label: 'Events',      section: 'listings' },
+  { id: 'experiences', icon: 'flight',          label: 'Experiences', section: 'listings' },
+  { id: 'challenges',  icon: 'emoji_events',    label: 'Challenges',  section: 'listings' },
+  { id: 'checkins',    icon: 'qr_code_scanner', label: 'Check-ins',   section: 'operations' },
+  { id: 'earnings',    icon: 'payments',        label: 'Earnings',    section: 'operations', locked: true },
+  { id: 'profile',     icon: 'storefront',      label: 'Profile',     section: 'account' },
+  { id: 'settings',    icon: 'settings',        label: 'Settings',    section: 'account' },
+  { id: 'team',        icon: 'group',           label: 'Team',        section: 'account', locked: true }
+];
+
+function renderNav() {
+  const nav = document.getElementById('sb-nav');
+  let html = '';
+  let lastSection = null;
+  const sectionLabels = { manage: 'Manage', listings: 'Listings', operations: 'Operations', account: 'Account' };
+  NAV.forEach(item => {
+    if (item.section !== lastSection) {
+      html += '<div class="sb-section">' + sectionLabels[item.section] + '</div>';
+      lastSection = item.section;
+    }
+    const lockedClass = item.locked ? ' locked' : '';
+    const onclick = item.locked ? '' : ' onclick="showPanel(\'' + item.id + '\')"';
+    let badge = '';
+    if (item.id === 'deals') {
+      badge = '<span class="ni-badge dim">' + deals.length + '</span>';
+    } else if (item.id === 'events') {
+      badge = '<span class="ni-badge dim">' + events.length + '</span>';
+    } else if (item.id === 'experiences') {
+      badge = '<span class="ni-badge dim">' + experiences.length + '</span>';
+    } else if (item.id === 'challenges') {
+      badge = '<span class="ni-badge dim">' + challenges.length + '</span>';
+    } else if (item.locked) {
+      badge = '<span class="ni-lock-pill">Soon</span>';
+    }
+    html += '<button class="ni' + lockedClass + '" data-nav="' + item.id + '"' + onclick + '>' +
+            '<span class="ms">' + item.icon + '</span>' +
+            '<span>' + item.label + '</span>' + badge +
+            '</button>';
+  });
+  nav.innerHTML = html;
+}
+
+function showPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const el = document.getElementById('panel-' + id);
+  if (el) el.classList.add('active');
+  document.querySelectorAll('.ni').forEach(n => n.classList.remove('active'));
+  const navBtn = document.querySelector('.ni[data-nav="' + id + '"]');
+  if (navBtn) navBtn.classList.add('active');
+  const item = NAV.find(x => x.id === id);
+  document.getElementById('tb-title').textContent = item ? item.label : '';
+  // Top bar status pill reflects provider account status (not listing status)
+  const statusPill = document.getElementById('tb-status');
+  if (id === 'overview' || id === 'profile') {
+    statusPill.style.display = 'inline-block';
+  } else {
+    statusPill.style.display = 'none';
+  }
+  // Initial render hooks
+  if (id === 'overview') renderOverview();
+  if (id === 'profile') loadProfile();
+  if (id === 'deals') renderDeals();
+  if (id === 'events') renderEvents();
+  if (id === 'experiences') renderExperiences();
+  if (id === 'challenges') renderChallenges();
+  if (id === 'checkins') renderCheckIns();
+  if (id === 'analytics') renderAnalytics();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  // Close mobile sidebar after navigation
+  if (window.innerWidth <= 768) closeSidebar();
+}
+
+// ════════════════════════════════════════════════
+// OVERVIEW
+// ════════════════════════════════════════════════
+function renderOverview() {
+  // Pending review banner
+  const banner = document.getElementById('welcome-banner');
+  if (banner) {
+    const pendingCount = getPendingCount();
+    if (pendingCount > 0) {
+      banner.classList.add('pending');
+      banner.innerHTML =
+        '<div class="welcome-banner-pre"><span class="ms">schedule</span></div>' +
+        '<div class="welcome-banner-body">' +
+          '<div class="welcome-banner-title">' + pendingCount + ' ' + (pendingCount === 1 ? 'item' : 'items') + ' pending admin review</div>' +
+          '<div class="welcome-banner-sub">Admin typically approves new listings within 24 hours. You\'ll get an email when each one goes live to members.</div>' +
+        '</div>' +
+        '<button class="welcome-banner-close" onclick="this.parentElement.style.display=\'none\'">&times;</button>';
+      banner.style.display = 'flex';
+    } else {
+      banner.classList.remove('pending');
+      banner.innerHTML =
+        '<div class="welcome-banner-pre" style="background: rgba(43, 168, 224, .14); color: var(--ffp-blue);"><span class="ms">check_circle</span></div>' +
+        '<div class="welcome-banner-body">' +
+          '<div class="welcome-banner-title">Everything is up to date</div>' +
+          '<div class="welcome-banner-sub">No listings in review. All your live items are visible to members right now.</div>' +
+        '</div>' +
+        '<button class="welcome-banner-close" onclick="this.parentElement.style.display=\'none\'">&times;</button>';
+      banner.style.display = 'flex';
+    }
+  }
+
+  const liveDeals = deals.filter(d => d.status === 'live').length;
+  const totalClaims = deals.reduce((a, d) => a + (d.claims || 0), 0);
+  const totalRsvps = events.reduce((a, e) => a + (e.rsvps || 0), 0);
+  const totalApps = experiences.reduce((a, e) => a + (e.applications || 0), 0);
+  const totalListings = deals.length + events.length + experiences.length + challenges.length;
+
+  const kpiGrid = document.getElementById('kpi-grid');
+  kpiGrid.innerHTML = '' +
+    kpi('Active listings', totalListings, '+2 this month', 'up') +
+    kpi('Deal claims', totalClaims, '+40 last 30 days', 'up', 'yellow') +
+    kpi('Event RSVPs', totalRsvps, '+12 last 30 days', 'up', 'green') +
+    kpi('Experience applications', totalApps, '+9 last 30 days', 'up', 'blue');
+
+  const acts = [
+    { icon: 'person_add', tone: 'green', text: '<b>Sarah Al Mansoori</b> RSVPed to Saturday Team WOD', ts: Date.now() - 30 * 60 * 1000 },
+    { icon: 'check', tone: 'yellow', text: '<b>James Lee</b> redeemed your "20% off InBody scan"', ts: Date.now() - 2 * 60 * 60 * 1000 },
+    { icon: 'flight', tone: '', text: '<b>Tariq Yusuf</b> applied for Hatta Mountain Endurance Camp', ts: Date.now() - 6 * 60 * 60 * 1000 },
+    { icon: 'local_offer', tone: 'yellow', text: 'Your deal "Member rate on monthly unlimited" was approved', ts: Date.now() - 22 * 60 * 60 * 1000 },
+    { icon: 'emoji_events', tone: '', text: '4 new entrants in Forge May Strength Push challenge', ts: Date.now() - 36 * 60 * 60 * 1000 }
+  ];
+  const al = document.getElementById('activity-list');
+  al.innerHTML = acts.map(a =>
+    '<div class="act-row">' +
+      '<div class="act-icon ' + a.tone + '"><span class="ms">' + a.icon + '</span></div>' +
+      '<div class="act-body">' +
+        '<div class="act-text">' + a.text + '</div>' +
+        '<div class="act-time">' + fmtRelative(a.ts) + '</div>' +
+      '</div>' +
+    '</div>'
+  ).join('');
+}
+
+function kpi(label, val, delta, dir, tone) {
+  const arrow = dir === 'up' ? 'trending_up' : dir === 'down' ? 'trending_down' : 'remove';
+  const dirCls = dir === 'down' ? 'down' : dir === 'flat' ? 'flat' : '';
+  return '<div class="kpi">' +
+    '<div class="kpi-lbl">' + label + '</div>' +
+    '<div class="kpi-val ' + (tone || '') + '">' + val + '</div>' +
+    '<div class="kpi-delta ' + dirCls + '"><span class="ms">' + arrow + '</span>' + delta + '</div>' +
+  '</div>';
+}
+
+// ════════════════════════════════════════════════
+// PROFILE
+// ════════════════════════════════════════════════
+function loadProfile() {
+  document.getElementById('pf-business-name').value = providerProfile.business_name || '';
+  document.getElementById('pf-category').value = providerProfile.category || '';
+  document.getElementById('pf-type').value = providerProfile.provider_type || '';
+  document.getElementById('pf-city').value = providerProfile.city || '';
+  document.getElementById('pf-area').value = providerProfile.area || '';
+  document.getElementById('pf-address').value = providerProfile.address || '';
+  setPhoneValue(providerProfile.phone || '');
+  document.getElementById('pf-website').value = providerProfile.website || '';
+  document.getElementById('pf-about').value = providerProfile.about || '';
+  renderHours();
+  renderUploader('up-logo', providerProfile.logo_url, 'logo');
+  renderUploader('up-hero', providerProfile.hero_url, 'hero');
+  renderProfileCompletion();
+  setSaveBar(false);
+}
+
+function renderHours() {
+  const grid = document.getElementById('hours-grid');
+  grid.innerHTML = DAYS.map(day => {
+    const h = providerProfile.hours[day] || { open: '', close: '', closed: false };
+    return '<div class="hours-row' + (h.closed ? ' is-closed' : '') + '" data-day="' + day + '">' +
+      '<div class="hours-day">' + day + '</div>' +
+      '<input class="input" type="time" value="' + escHtml(h.open || '') + '" data-field="open">' +
+      '<input class="input" type="time" value="' + escHtml(h.close || '') + '" data-field="close">' +
+      '<label class="hours-closed"><input type="checkbox"' + (h.closed ? ' checked' : '') + ' onchange="toggleClosed(\'' + day + '\', this.checked)"> Closed</label>' +
+    '</div>';
+  }).join('');
+  grid.querySelectorAll('input').forEach(el => el.addEventListener('change', () => setSaveBar(true)));
+}
+
+function toggleClosed(day, isClosed) {
+  providerProfile.hours[day].closed = isClosed;
+  renderHours();
+  setSaveBar(true);
+}
+
+function setSaveBar(dirty) {
+  const m = document.getElementById('profile-save-msg');
+  if (!m) return;
+  if (dirty) {
+    m.classList.add('dirty');
+    m.innerHTML = '<span class="ms">error</span> Unsaved changes';
+  } else {
+    m.classList.remove('dirty');
+    m.innerHTML = '<span class="ms">check</span> All changes saved';
+  }
+}
+
+// mark profile dirty on any input change
+document.addEventListener('input', e => {
+  if (e.target.closest('#panel-profile')) setSaveBar(true);
+});
+
+function saveProfile() {
+  providerProfile.business_name = document.getElementById('pf-business-name').value.trim();
+  providerProfile.category      = document.getElementById('pf-category').value;
+  providerProfile.provider_type = document.getElementById('pf-type').value;
+  providerProfile.city          = document.getElementById('pf-city').value;
+  providerProfile.area          = document.getElementById('pf-area').value.trim();
+  providerProfile.address       = document.getElementById('pf-address').value.trim();
+  providerProfile.phone         = getPhoneValue();
+  providerProfile.website       = document.getElementById('pf-website').value.trim();
+  providerProfile.about         = document.getElementById('pf-about').value.trim();
+  // capture hours from inputs
+  document.querySelectorAll('#hours-grid .hours-row').forEach(row => {
+    const day = row.dataset.day;
+    providerProfile.hours[day].open  = row.querySelector('[data-field="open"]').value;
+    providerProfile.hours[day].close = row.querySelector('[data-field="close"]').value;
+  });
+  providerProfile.letter_mark = (providerProfile.business_name || 'P').charAt(0).toUpperCase();
+  // Update sidebar foot + topbar avatar
+  document.getElementById('sb-foot-name').textContent = providerProfile.business_name || 'Your business';
+  document.getElementById('sb-foot-mark').textContent = providerProfile.letter_mark;
+  renderProfileCompletion();
+  // PRODUCTION: send to Supabase here
+  setSaveBar(false);
+  showToast('Profile saved', 'success');
+}
+
+// ════════════════════════════════════════════════
+// PHONE — country code split helpers
+// ════════════════════════════════════════════════
+const PHONE_CODES = ['+971','+966','+965','+968','+973','+974','+962','+961','+20','+44','+1','+91','+92','+63','+27','+90','+49','+33','+39','+34','+61'];
+
+function setPhoneValue(full) {
+  full = (full || '').trim();
+  const cc = document.getElementById('pf-phone-cc');
+  const num = document.getElementById('pf-phone-num');
+  if (!cc || !num) return;
+  if (!full) { cc.value = '+971'; num.value = ''; return; }
+  for (const code of PHONE_CODES) {
+    if (full.startsWith(code)) {
+      cc.value = code;
+      num.value = full.slice(code.length).trim();
+      return;
+    }
+  }
+  cc.value = '+971';
+  num.value = full.replace(/^\+\d+\s*/, '').trim() || full;
+}
+
+function getPhoneValue() {
+  const cc = document.getElementById('pf-phone-cc');
+  const num = document.getElementById('pf-phone-num');
+  if (!cc || !num) return '';
+  const n = num.value.trim();
+  return n ? cc.value + ' ' + n : '';
+}
+
+// ════════════════════════════════════════════════
+// PROFILE COMPLETION
+// ════════════════════════════════════════════════
+function computeProfileCompletion() {
+  const p = providerProfile;
+  const filledHours = Object.values(p.hours).filter(h => h.closed || (h.open && h.close)).length;
+  const checks = [
+    !!p.business_name,
+    !!p.category,
+    !!p.city,
+    !!p.provider_type,
+    !!p.area,
+    !!p.address,
+    !!p.phone,
+    !!p.website,
+    !!(p.about && p.about.length >= 40),
+    !!p.logo_url,
+    !!p.hero_url,
+    filledHours >= 7
+  ];
+  return Math.round(checks.filter(Boolean).length / checks.length * 100);
+}
+
+function renderProfileCompletion() {
+  const card = document.getElementById('completion-card');
+  if (!card) return;
+  const pct = computeProfileCompletion();
+  card.classList.toggle('full', pct === 100);
+  document.getElementById('completion-pct').textContent = pct;
+  const bar = document.getElementById('completion-bar');
+  bar.style.width = pct + '%';
+  bar.className = pct === 100 ? 'bar-fill green' : 'bar-fill yellow';
+  document.getElementById('completion-icon').textContent = pct === 100 ? 'verified' : 'trending_up';
+  document.getElementById('completion-sub').textContent = pct === 100
+    ? 'Your profile is complete and ranks higher in member search results.'
+    : 'Members see complete profiles first in search results. Fill in the missing fields below.';
+}
+
+// Refresh completion whenever any profile field changes
+document.addEventListener('input', e => {
+  if (e.target.closest('#panel-profile')) renderProfileCompletion();
+});
+document.addEventListener('change', e => {
+  if (e.target.closest('#panel-profile')) renderProfileCompletion();
+});
+
+// ════════════════════════════════════════════════
+// PENDING REVIEW COUNT (for overview banner)
+// ════════════════════════════════════════════════
+function getPendingCount() {
+  return [].concat(deals, events, experiences, challenges).filter(x => x.status === 'pending').length;
+}
+
+// ════════════════════════════════════════════════
+// MOBILE SIDEBAR TOGGLE
+// ════════════════════════════════════════════════
+function toggleSidebar() {
+  document.querySelector('.sidebar').classList.toggle('open');
+  document.getElementById('sidebar-backdrop').classList.toggle('open');
+}
+function closeSidebar() {
+  document.querySelector('.sidebar').classList.remove('open');
+  document.getElementById('sidebar-backdrop').classList.remove('open');
+}
+
+// ════════════════════════════════════════════════
+// SUBMIT-FOR-REVIEW CONFIRMATION MODAL
+// ════════════════════════════════════════════════
+function showSubmittedModal(typeLabel) {
+  openModalShell('sm', 'Pending admin review', `
+    <div style="text-align: center; padding: 8px 0 14px;">
+      <div style="width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 50%; background: rgba(255, 204, 0, .14); color: var(--ffp-yellow); display: flex; align-items: center; justify-content: center;">
+        <span class="ms" style="font-size: 32px;">schedule</span>
+      </div>
+      <div style="font-size: 16px; font-weight: 800; margin-bottom: 6px;">Your ${escHtml(typeLabel)} is in admin review</div>
+      <div style="font-size: 13px; color: var(--ffp-text-muted); font-weight: 500; line-height: 1.55; max-width: 340px; margin: 0 auto;">
+        We typically approve new listings within 24 hours. You'll get an email when it goes live so members can discover it.
+      </div>
+    </div>
+  `, `
+    <button class="btn btn-blue" onclick="closeModal()">Got it</button>
+  `);
+}
+
+// ════════════════════════════════════════════════
+// PHOTO UPLOADER
+// ════════════════════════════════════════════════
+function renderUploader(targetId, dataUrl, kind) {
+  const el = document.getElementById(targetId);
+  if (!el) return;
+  if (dataUrl) {
+    el.classList.add('has-image');
+    const isLogo = kind === 'logo';
+    el.innerHTML =
+      '<div class="uploader-preview" style="background-image: url(\'' + dataUrl + '\')">' +
+        '<div class="uploader-preview-actions">' +
+          '<button class="uploader-preview-btn" onclick="event.stopPropagation(); document.getElementById(\'' + targetId + '-input\').click()" title="Replace"><span class="ms">refresh</span></button>' +
+          '<button class="uploader-preview-btn del" onclick="event.stopPropagation(); removeUpload(\'' + kind + '\')" title="Remove"><span class="ms">delete</span></button>' +
+        '</div>' +
+        '<input type="file" id="' + targetId + '-input" accept="image/*" onchange="handleUpload(\'' + kind + '\', this.files[0])">' +
+      '</div>';
+  } else {
+    el.classList.remove('has-image');
+    const isLogo = kind === 'logo';
+    el.innerHTML =
+      '<input type="file" id="' + targetId + '-input" accept="image/*" onchange="handleUpload(\'' + kind + '\', this.files[0])">' +
+      '<div class="uploader-icon"><span class="ms">image</span></div>' +
+      '<div class="uploader-title">' + (isLogo ? 'Upload logo' : 'Click or drag to upload') + '</div>' +
+      '<div class="uploader-hint">' + (isLogo ? 'PNG · square' : 'JPG or PNG · 16:10 · up to 5 MB') + '</div>';
+  }
+}
+
+function handleUpload(kind, file) {
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('File too large — max 5 MB', 'error');
+    return;
+  }
+  if (!file.type.startsWith('image/')) {
+    showToast('Please upload an image', 'error');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dataUrl = e.target.result;
+    if (kind === 'logo') {
+      providerProfile.logo_url = dataUrl;
+      renderUploader('up-logo', dataUrl, 'logo');
+    } else if (kind === 'hero') {
+      providerProfile.hero_url = dataUrl;
+      renderUploader('up-hero', dataUrl, 'hero');
+    } else if (kind && kind.startsWith('listing:')) {
+      const slot = kind.split(':')[1];
+      const slotEl = document.getElementById('listing-photo-slot');
+      if (slotEl) {
+        slotEl.dataset.url = dataUrl;
+        renderListingUploader(dataUrl);
+      }
+    }
+    setSaveBar(true);
+    showToast('Photo ready — save to commit', 'success');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeUpload(kind) {
+  if (kind === 'logo') {
+    providerProfile.logo_url = null;
+    renderUploader('up-logo', null, 'logo');
+  } else if (kind === 'hero') {
+    providerProfile.hero_url = null;
+    renderUploader('up-hero', null, 'hero');
+  } else if (kind === 'listing') {
+    const slotEl = document.getElementById('listing-photo-slot');
+    if (slotEl) {
+      slotEl.dataset.url = '';
+      renderListingUploader(null);
+    }
+  }
+  setSaveBar(true);
+}
+
+// Drag and drop on uploaders (delegated)
+document.addEventListener('dragover', e => {
+  const up = e.target.closest('.uploader');
+  if (up) {
+    e.preventDefault();
+    up.classList.add('dragover');
+  }
+});
+document.addEventListener('dragleave', e => {
+  const up = e.target.closest('.uploader');
+  if (up) up.classList.remove('dragover');
+});
+document.addEventListener('drop', e => {
+  const up = e.target.closest('.uploader');
+  if (!up) return;
+  e.preventDefault();
+  up.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (!f) return;
+  // Determine kind by uploader id
+  if (up.id === 'up-logo') handleUpload('logo', f);
+  else if (up.id === 'up-hero') handleUpload('hero', f);
+  else if (up.id === 'up-listing') handleUpload('listing:listing', f);
+});
+
+// ════════════════════════════════════════════════
+// LISTING TABS (status filter)
+// ════════════════════════════════════════════════
+const listingTabState = { deals: 'all', events: 'all', experiences: 'all', challenges: 'all' };
+
+function renderTabs(containerId, kind, items, statuses) {
+  const wrap = document.getElementById(containerId);
+  const cur = listingTabState[kind];
+  const counts = { all: items.length };
+  statuses.forEach(s => { counts[s] = items.filter(x => x.status === s).length; });
+  const tabs = [['all', 'All']].concat(statuses.map(s => [s, s.charAt(0).toUpperCase() + s.slice(1)]));
+  wrap.innerHTML = tabs.map(([id, lbl]) =>
+    '<button class="tab' + (cur === id ? ' active' : '') + '" onclick="setListingTab(\'' + kind + '\', \'' + id + '\')">' +
+    lbl + ' <span class="count">' + counts[id] + '</span></button>'
+  ).join('');
+}
+
+function setListingTab(kind, status) {
+  listingTabState[kind] = status;
+  if (kind === 'deals') renderDeals();
+  if (kind === 'events') renderEvents();
+  if (kind === 'experiences') renderExperiences();
+  if (kind === 'challenges') renderChallenges();
+}
+
+function applyFilters(items, kind, searchValue) {
+  const status = listingTabState[kind];
+  const q = (searchValue || '').toLowerCase().trim();
+  return items.filter(it => {
+    if (status !== 'all' && it.status !== status) return false;
+    if (!q) return true;
+    const blob = Object.values(it).filter(v => typeof v === 'string' || typeof v === 'number').join(' ').toLowerCase();
+    return blob.includes(q);
+  });
+}
+
+function emptyState(title, sub, ctaLabel, ctaFn) {
+  return '<div class="empty-state" style="grid-column: 1 / -1;">' +
+    '<div class="empty-icon"><span class="ms">sentiment_neutral</span></div>' +
+    '<div class="empty-title">' + escHtml(title) + '</div>' +
+    '<div class="empty-sub">' + escHtml(sub) + '</div>' +
+    (ctaLabel ? '<button class="btn btn-pri" onclick="' + ctaFn + '"><span class="ms">add</span> ' + escHtml(ctaLabel) + '</button>' : '') +
+  '</div>';
+}
+
+function heroStyle(url) {
+  if (url) return 'style="background-image: url(\'' + url + '\')"';
+  // fallback gradient varies by hash of nothing — keep single subtle gradient
+  return 'style="background: linear-gradient(135deg, #142a3f 0%, #0f1e2e 60%, #081420 100%)"';
+}
+
+// ════════════════════════════════════════════════
+// DEALS
+// ════════════════════════════════════════════════
+function renderDeals() {
+  renderTabs('deals-tabs', 'deals', deals, ['live', 'pending', 'draft', 'paused']);
+  const q = document.getElementById('deals-search').value;
+  const items = applyFilters(deals, 'deals', q);
+  const grid = document.getElementById('deals-grid');
+  if (items.length === 0) {
+    grid.innerHTML = deals.length === 0
+      ? emptyState('No deals yet', 'Create your first member perk. Deals show up in the FFP Passport app under your business.', 'New deal', 'openDealModal()')
+      : emptyState('No matches', 'Try a different search or change tab', '', '');
+    return;
+  }
+  grid.innerHTML = items.map(d => dealCard(d)).join('');
+}
+
+function dealCard(d) {
+  return '<div class="listing-card">' +
+    '<div class="lc-hero" ' + heroStyle(d.hero_url) + '>' +
+      '<div class="lc-status-pill ' + d.status + '">' + d.status + '</div>' +
+      (d.category ? '<div class="lc-cat-pill">' + escHtml(d.category) + '</div>' : '') +
+    '</div>' +
+    '<div class="lc-body">' +
+      '<div class="lc-title">' + escHtml(d.perk) + '</div>' +
+      '<div class="lc-sub">' + escHtml(d.breakdown || d.about || '') + '</div>' +
+      '<div class="lc-meta">' +
+        (d.service ? '<span><span class="ms">inventory_2</span>' + escHtml(d.service) + '</span>' : '') +
+        (d.valid ? '<span><span class="ms">calendar_today</span>' + escHtml(d.valid) + '</span>' : '') +
+      '</div>' +
+      '<div class="lc-stat-row">' +
+        '<div class="lc-stat"><div class="lc-stat-val">' + (d.claims || 0) + '</div><div class="lc-stat-lbl">Total claims</div></div>' +
+        '<div class="lc-stat"><div class="lc-stat-val">' + (d.claims_this_month || 0) + '</div><div class="lc-stat-lbl">This month</div></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="lc-actions">' +
+      '<button class="btn btn-sec btn-sm" onclick="openDealModal(\'' + d.id + '\')"><span class="ms">edit</span> Edit</button>' +
+      (d.status === 'live'
+        ? '<button class="btn btn-ghost btn-sm" onclick="toggleDeal(\'' + d.id + '\', \'paused\')"><span class="ms">pause</span> Pause</button>'
+        : d.status === 'paused'
+        ? '<button class="btn btn-blue btn-sm" onclick="toggleDeal(\'' + d.id + '\', \'live\')"><span class="ms">play_arrow</span> Resume</button>'
+        : '<button class="btn btn-ghost btn-sm" disabled><span class="ms">schedule</span> Awaiting</button>') +
+      '<button class="btn btn-ghost btn-sm" onclick="confirmDeleteDeal(\'' + d.id + '\')"><span class="ms">delete</span></button>' +
+    '</div>' +
+  '</div>';
+}
+
+function toggleDeal(id, newStatus) {
+  const d = deals.find(x => x.id === id);
+  if (!d) return;
+  d.status = newStatus;
+  renderDeals();
+  renderNav();
+  showToast(newStatus === 'paused' ? 'Deal paused' : 'Deal resumed', 'success');
+}
+
+function confirmDeleteDeal(id) {
+  openConfirm('Delete this deal?', 'Members who already claimed it keep their record, but no new claims can be made.', () => {
+    deals = deals.filter(x => x.id !== id);
+    renderDeals();
+    renderNav();
+    showToast('Deal deleted', 'success');
+  });
+}
+
+function openDealModal(id) {
+  const editing = id ? deals.find(d => d.id === id) : null;
+  const d = editing || { perk: '', breakdown: '', about: '', category: '', service: '', valid: '', booking: '', limits: '', frequency: '', hero_url: null };
+  openModalShell('lg', (editing ? 'Edit deal' : 'New deal'), `
+    <div class="form-section">
+      <div class="form-section-title">Photo</div>
+      <div id="listing-photo-slot" data-url="${d.hero_url || ''}"></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">The offer</div>
+      <div class="form-grid">
+        <div class="field full">
+          <div class="label">Headline perk <span class="req">*</span> <span class="label-hint">— what the member sees first</span></div>
+          <input class="input" id="dm-perk" value="${escHtml(d.perk)}" placeholder="e.g. Member rate on monthly unlimited">
+        </div>
+        <div class="field full">
+          <div class="label">Price breakdown</div>
+          <input class="input" id="dm-breakdown" value="${escHtml(d.breakdown)}" placeholder="e.g. 600 AED instead of 850 AED for the first month">
+        </div>
+        <div class="field full">
+          <div class="label">About the deal</div>
+          <textarea class="textarea" id="dm-about" rows="3" placeholder="What the member gets, conditions, what to expect">${escHtml(d.about)}</textarea>
+        </div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Details</div>
+      <div class="form-grid">
+        <div class="field">
+          <div class="label">Category <span class="req">*</span></div>
+          <select class="select" id="dm-category">
+            ${['Fitness','Wellness','Recovery','Nutrition','Padel','Yoga / Pilates','Climbing','Combat','Adventure','Retail','Other'].map(c => `<option ${d.category===c?'selected':''}>${c}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <div class="label">Service / Product</div>
+          <input class="input" id="dm-service" value="${escHtml(d.service)}" placeholder="e.g. Monthly membership">
+        </div>
+        <div class="field">
+          <div class="label">Valid</div>
+          <input class="input" id="dm-valid" value="${escHtml(d.valid)}" placeholder="e.g. Weekdays only">
+        </div>
+        <div class="field">
+          <div class="label">Booking</div>
+          <input class="input" id="dm-booking" value="${escHtml(d.booking)}" placeholder="e.g. Walk in or book in app">
+        </div>
+        <div class="field">
+          <div class="label">Limits</div>
+          <input class="input" id="dm-limits" value="${escHtml(d.limits)}" placeholder="e.g. Once per member">
+        </div>
+        <div class="field">
+          <div class="label">Frequency</div>
+          <select class="select" id="dm-frequency">
+            ${['one-time','weekly','monthly','quarterly','annual','ongoing'].map(f => `<option ${d.frequency===f?'selected':''}>${f}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+    </div>
+  `, `
+    ${editing ? '<button class="btn btn-ghost left" onclick="confirmDeleteDeal(\''+editing.id+'\'); closeModal()"><span class="ms">delete</span> Delete</button>' : ''}
+    <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-pri" onclick="saveDeal('${editing ? editing.id : ''}')">${editing ? 'Save changes' : 'Submit for review'}</button>
+  `);
+  renderListingUploader(d.hero_url);
+}
+
+function saveDeal(id) {
+  const get = i => document.getElementById('dm-' + i).value.trim();
+  const photo = document.getElementById('listing-photo-slot').dataset.url || null;
+  const perk = get('perk');
+  if (!perk) { showToast('Headline perk is required', 'error'); return; }
+  const data = {
+    perk, breakdown: get('breakdown'), about: get('about'),
+    category: get('category'), service: get('service'),
+    valid: get('valid'), booking: get('booking'),
+    limits: get('limits'), frequency: get('frequency'),
+    hero_url: photo
+  };
+  if (id) {
+    const d = deals.find(x => x.id === id);
+    Object.assign(d, data);
+    showToast('Deal updated', 'success');
+    closeModal();
+  } else {
+    deals.unshift(Object.assign({
+      id: uid(), status: 'pending', featured: false, claims: 0, claims_this_month: 0,
+      created_at: new Date().toISOString().slice(0,10)
+    }, data));
+    closeModal();
+    showSubmittedModal('deal');
+  }
+  renderDeals();
+  renderNav();
+  renderOverview();
+}
+
+// ════════════════════════════════════════════════
+// EVENTS
+// ════════════════════════════════════════════════
+function renderEvents() {
+  renderTabs('events-tabs', 'events', events, ['live', 'pending', 'draft', 'past', 'cancelled']);
+  const q = document.getElementById('events-search').value;
+  const items = applyFilters(events, 'events', q);
+  const grid = document.getElementById('events-grid');
+  if (items.length === 0) {
+    grid.innerHTML = events.length === 0
+      ? emptyState('No events yet', 'Create a single-date session members can RSVP to.', 'New event', 'openEventModal()')
+      : emptyState('No matches', 'Try a different search or change tab', '', '');
+    return;
+  }
+  grid.innerHTML = items.map(e => eventCard(e)).join('');
+}
+
+function eventCard(e) {
+  const pct = Math.min(100, Math.round(((e.rsvps || 0) / (e.capacity || 1)) * 100));
+  return '<div class="listing-card">' +
+    '<div class="lc-hero" ' + heroStyle(e.hero_url) + '>' +
+      '<div class="lc-status-pill ' + e.status + '">' + e.status + '</div>' +
+      (e.category ? '<div class="lc-cat-pill">' + escHtml(e.category) + '</div>' : '') +
+    '</div>' +
+    '<div class="lc-body">' +
+      '<div class="lc-title">' + escHtml(e.title) + '</div>' +
+      '<div class="lc-sub">' + escHtml(e.description || '') + '</div>' +
+      '<div class="lc-meta">' +
+        '<span><span class="ms">calendar_today</span>' + fmtDate(e.event_date) + (e.event_time ? ' ' + escHtml(e.event_time) : '') + '</span>' +
+        (e.venue ? '<span><span class="ms">place</span>' + escHtml(e.venue) + '</span>' : '') +
+      '</div>' +
+      '<div class="lc-stat-row">' +
+        '<div class="lc-stat"><div class="lc-stat-val">' + (e.rsvps || 0) + '</div><div class="lc-stat-lbl">RSVPs</div></div>' +
+        '<div class="lc-stat"><div class="lc-stat-val">' + (e.capacity || 0) + '</div><div class="lc-stat-lbl">Capacity</div></div>' +
+        '<div class="lc-stat"><div class="lc-stat-val">' + pct + '%</div><div class="lc-stat-lbl">Filled</div></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="lc-actions">' +
+      '<button class="btn btn-sec btn-sm" onclick="openEventModal(\'' + e.id + '\')"><span class="ms">edit</span> Edit</button>' +
+      '<button class="btn btn-blue btn-sm" onclick="viewRsvps(\'' + e.id + '\')"><span class="ms">group</span> RSVPs</button>' +
+      '<button class="btn btn-ghost btn-sm" onclick="confirmDeleteEvent(\'' + e.id + '\')"><span class="ms">delete</span></button>' +
+    '</div>' +
+  '</div>';
+}
+
+function confirmDeleteEvent(id) {
+  openConfirm('Delete this event?', 'Members with RSVPs will be notified by email. This cannot be undone.', () => {
+    events = events.filter(x => x.id !== id);
+    renderEvents(); renderNav(); showToast('Event deleted', 'success');
+  });
+}
+
+function openEventModal(id) {
+  const editing = id ? events.find(e => e.id === id) : null;
+  const e = editing || { title: '', description: '', about: '', category: '', event_date: '', event_time: '', venue: providerProfile.business_name, city: providerProfile.city, area: providerProfile.area, capacity: '', cost: '', intensity: 'Beginner', setting: '', parking: '', facilities: '', bring: '', who: '', hero_url: null };
+  openModalShell('lg', (editing ? 'Edit event' : 'New event'), `
+    <div class="form-section">
+      <div class="form-section-title">Photo</div>
+      <div id="listing-photo-slot" data-url="${e.hero_url || ''}"></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Basics</div>
+      <div class="form-grid">
+        <div class="field full">
+          <div class="label">Title <span class="req">*</span></div>
+          <input class="input" id="em-title" value="${escHtml(e.title)}" placeholder="e.g. Saturday Team WOD">
+        </div>
+        <div class="field full">
+          <div class="label">Short description</div>
+          <input class="input" id="em-description" value="${escHtml(e.description)}" placeholder="One-sentence summary shown on cards">
+        </div>
+        <div class="field full">
+          <div class="label">About</div>
+          <textarea class="textarea" id="em-about" rows="3" placeholder="Full details — what to expect, format, vibe">${escHtml(e.about)}</textarea>
+        </div>
+        <div class="field">
+          <div class="label">Category</div>
+          <select class="select" id="em-category">
+            ${['Fitness','Wellness','Padel','Yoga / Pilates','Running','Climbing','Combat','Recovery','Social','Other'].map(c => `<option ${e.category===c?'selected':''}>${c}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <div class="label">Intensity / Level</div>
+          <select class="select" id="em-intensity">
+            ${['Beginner','Intermediate','Advanced','Elite','Professional'].map(l => `<option ${e.intensity===l?'selected':''}>${l}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">When & where</div>
+      <div class="form-grid">
+        <div class="field">
+          <div class="label">Date <span class="req">*</span></div>
+          <input class="input" type="date" id="em-date" value="${escHtml(e.event_date)}">
+        </div>
+        <div class="field">
+          <div class="label">Time</div>
+          <input class="input" type="time" id="em-time" value="${escHtml(e.event_time)}">
+        </div>
+        <div class="field">
+          <div class="label">Venue</div>
+          <input class="input" id="em-venue" value="${escHtml(e.venue)}" placeholder="Venue name">
+        </div>
+        <div class="field">
+          <div class="label">City</div>
+          <input class="input" id="em-city" value="${escHtml(e.city)}">
+        </div>
+        <div class="field">
+          <div class="label">Area</div>
+          <input class="input" id="em-area" value="${escHtml(e.area)}" placeholder="Neighbourhood">
+        </div>
+        <div class="field">
+          <div class="label">Setting</div>
+          <select class="select" id="em-setting">
+            ${['','Indoor','Outdoor','Beach','Studio','Park','Track','Pool','Gym'].map(s => `<option ${e.setting===s?'selected':''}>${s || 'Choose setting'}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Logistics</div>
+      <div class="form-grid">
+        <div class="field">
+          <div class="label">Capacity</div>
+          <input class="input" type="number" id="em-capacity" value="${escHtml(e.capacity)}" placeholder="e.g. 24">
+        </div>
+        <div class="field">
+          <div class="label">Cost</div>
+          <input class="input" id="em-cost" value="${escHtml(e.cost)}" placeholder="e.g. Free for members, AED 75 guests">
+        </div>
+        <div class="field">
+          <div class="label">Parking</div>
+          <input class="input" id="em-parking" value="${escHtml(e.parking)}" placeholder="e.g. Free on site">
+        </div>
+        <div class="field">
+          <div class="label">Facilities</div>
+          <input class="input" id="em-facilities" value="${escHtml(e.facilities)}" placeholder="e.g. Showers, lockers, towels">
+        </div>
+        <div class="field full">
+          <div class="label">What to bring</div>
+          <input class="input" id="em-bring" value="${escHtml(e.bring)}" placeholder="e.g. Water bottle, training shoes">
+        </div>
+        <div class="field full">
+          <div class="label">Who this is for</div>
+          <input class="input" id="em-who" value="${escHtml(e.who)}" placeholder="e.g. Open to all FFP members">
+        </div>
+      </div>
+    </div>
+  `, `
+    ${editing ? '<button class="btn btn-ghost left" onclick="confirmDeleteEvent(\''+editing.id+'\'); closeModal()"><span class="ms">delete</span> Delete</button>' : ''}
+    <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-pri" onclick="saveEvent('${editing ? editing.id : ''}')">${editing ? 'Save changes' : 'Submit for review'}</button>
+  `);
+  renderListingUploader(e.hero_url);
+}
+
+function saveEvent(id) {
+  const get = i => document.getElementById('em-' + i).value.trim();
+  const title = get('title');
+  const date = get('date');
+  if (!title) { showToast('Title is required', 'error'); return; }
+  if (!date) { showToast('Date is required', 'error'); return; }
+  const photo = document.getElementById('listing-photo-slot').dataset.url || null;
+  const data = {
+    title, description: get('description'), about: get('about'),
+    category: get('category'), intensity: get('intensity'),
+    event_date: date, event_time: get('time'),
+    venue: get('venue'), city: get('city'), area: get('area'),
+    setting: get('setting'),
+    capacity: parseInt(get('capacity'), 10) || 0,
+    cost: get('cost'), parking: get('parking'), facilities: get('facilities'),
+    bring: get('bring'), who: get('who'),
+    hero_url: photo
+  };
+  if (id) {
+    const e = events.find(x => x.id === id);
+    Object.assign(e, data);
+    showToast('Event updated', 'success');
+    closeModal();
+  } else {
+    events.unshift(Object.assign({
+      id: uid(), status: 'pending', verified: false, rsvps: 0,
+      created_at: new Date().toISOString().slice(0,10)
+    }, data));
+    closeModal();
+    showSubmittedModal('event');
+  }
+  renderEvents(); renderNav(); renderOverview();
+}
+
+function viewRsvps(id) {
+  const e = events.find(x => x.id === id);
+  if (!e) return;
+  const list = sampleRsvps.slice(0, e.rsvps || 0).map(m =>
+    `<div class="member-row">
+      <div class="member-avatar">${m.letter}</div>
+      <div class="member-info">
+        <div class="member-name">${escHtml(m.name)}</div>
+        <div class="member-sub">RSVP'd ${escHtml(m.joined)}</div>
+      </div>
+      <div class="member-actions">
+        <button class="btn btn-sec btn-xs" onclick="showToast('Message sent to ${escHtml(m.name)}', 'success')"><span class="ms">chat_bubble</span></button>
+        <button class="btn btn-ghost btn-xs" onclick="showToast('${escHtml(m.name)} removed', 'success')"><span class="ms">person_remove</span></button>
+      </div>
+    </div>`
+  ).join('');
+  openModalShell('', escHtml(e.title) + ' — RSVPs', `
+    <div class="psub" style="margin-bottom: 14px;">${e.rsvps || 0} of ${e.capacity || '∞'} confirmed for ${fmtDate(e.event_date)}.</div>
+    <div class="member-list">${list || '<div class="empty-sub" style="text-align:left;">No RSVPs yet.</div>'}</div>
+  `, `
+    <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+    <button class="btn btn-sec" onclick="showToast('CSV export started', 'success')"><span class="ms">download</span> Export CSV</button>
+    <button class="btn btn-blue" onclick="showToast('Broadcast email sent to all RSVPs', 'success')"><span class="ms">mail</span> Email all</button>
+  `);
+}
+
+// ════════════════════════════════════════════════
+// EXPERIENCES
+// ════════════════════════════════════════════════
+function renderExperiences() {
+  renderTabs('exp-tabs', 'experiences', experiences, ['live', 'pending', 'draft', 'past']);
+  const q = document.getElementById('exp-search').value;
+  const items = applyFilters(experiences, 'experiences', q);
+  const grid = document.getElementById('exp-grid');
+  if (items.length === 0) {
+    grid.innerHTML = experiences.length === 0
+      ? emptyState('No experiences yet', 'Multi-day trips, retreats, and sport events go here. Members apply, you review.', 'New experience', 'openExperienceModal()')
+      : emptyState('No matches', 'Try a different search or change tab', '', '');
+    return;
+  }
+  grid.innerHTML = items.map(e => experienceCard(e)).join('');
+}
+
+function experienceCard(e) {
+  return '<div class="listing-card">' +
+    '<div class="lc-hero" ' + heroStyle(e.hero_url) + '>' +
+      '<div class="lc-status-pill ' + e.status + '">' + e.status + '</div>' +
+      (e.experience_type ? '<div class="lc-cat-pill">' + escHtml(e.experience_type) + '</div>' : '') +
+    '</div>' +
+    '<div class="lc-body">' +
+      '<div class="lc-title">' + escHtml(e.title) + '</div>' +
+      '<div class="lc-sub">' + escHtml(e.description || '') + '</div>' +
+      '<div class="lc-meta">' +
+        '<span><span class="ms">calendar_today</span>' + fmtDateShort(e.start_date) + ' — ' + fmtDateShort(e.end_date) + '</span>' +
+        (e.destination ? '<span><span class="ms">place</span>' + escHtml(e.destination) + '</span>' : '') +
+        (e.duration_days ? '<span><span class="ms">schedule</span>' + e.duration_days + ' days</span>' : '') +
+      '</div>' +
+      '<div class="lc-stat-row">' +
+        '<div class="lc-stat"><div class="lc-stat-val">AED ' + (e.price_aed || 0) + '</div><div class="lc-stat-lbl">Per person</div></div>' +
+        '<div class="lc-stat"><div class="lc-stat-val">' + (e.applications || 0) + '</div><div class="lc-stat-lbl">Applications</div></div>' +
+        '<div class="lc-stat"><div class="lc-stat-val">' + (e.capacity || 0) + '</div><div class="lc-stat-lbl">Capacity</div></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="lc-actions">' +
+      '<button class="btn btn-sec btn-sm" onclick="openExperienceModal(\'' + e.id + '\')"><span class="ms">edit</span> Edit</button>' +
+      '<button class="btn btn-blue btn-sm" onclick="viewApplications(\'' + e.id + '\')"><span class="ms">mark_email_read</span> Applications</button>' +
+      '<button class="btn btn-ghost btn-sm" onclick="confirmDeleteExperience(\'' + e.id + '\')"><span class="ms">delete</span></button>' +
+    '</div>' +
+  '</div>';
+}
+
+function confirmDeleteExperience(id) {
+  openConfirm('Delete this experience?', 'All applicants will be notified by email. This cannot be undone.', () => {
+    experiences = experiences.filter(x => x.id !== id);
+    renderExperiences(); renderNav(); showToast('Experience deleted', 'success');
+  });
+}
+
+let modalItinerary = [];
+let modalIncludes = [];
+let modalExcludes = [];
+
+function openExperienceModal(id) {
+  const editing = id ? experiences.find(e => e.id === id) : null;
+  const e = editing || {
+    title: '', description: '', overview: '', experience_type: 'Fitness',
+    start_date: '', end_date: '', duration_days: '',
+    country: '', destination: '', price_aed: '',
+    price_includes: [], price_excludes: [],
+    accommodation: '', flights: '', travel_reqs: '',
+    fitness_reqs: '', fitness_level: 'Beginner',
+    itinerary: [], hero_url: null, capacity: ''
+  };
+  modalItinerary = JSON.parse(JSON.stringify(e.itinerary || []));
+  modalIncludes  = (e.price_includes || []).slice();
+  modalExcludes  = (e.price_excludes || []).slice();
+  openModalShell('lg', (editing ? 'Edit experience' : 'New experience'), `
+    <div class="form-section">
+      <div class="form-section-title">Photo</div>
+      <div id="listing-photo-slot" data-url="${e.hero_url || ''}"></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Overview</div>
+      <div class="form-grid">
+        <div class="field full">
+          <div class="label">Title <span class="req">*</span></div>
+          <input class="input" id="xm-title" value="${escHtml(e.title)}" placeholder="e.g. Hatta Mountain Endurance Camp">
+        </div>
+        <div class="field full">
+          <div class="label">Short description</div>
+          <input class="input" id="xm-description" value="${escHtml(e.description)}" placeholder="One-sentence summary">
+        </div>
+        <div class="field full">
+          <div class="label">Overview</div>
+          <textarea class="textarea" id="xm-overview" rows="4" placeholder="The full story — what makes this experience unique">${escHtml(e.overview)}</textarea>
+        </div>
+        <div class="field">
+          <div class="label">Type</div>
+          <select class="select" id="xm-type">
+            ${['Fitness','Adventure','Wellness','Retreat','Sports Event','Hybrid'].map(t => `<option ${e.experience_type===t?'selected':''}>${t}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <div class="label">Fitness level required</div>
+          <select class="select" id="xm-fitness-level">
+            ${['Beginner','Intermediate','Advanced','Elite','Professional'].map(l => `<option ${e.fitness_level===l?'selected':''}>${l}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">When & where</div>
+      <div class="form-grid">
+        <div class="field">
+          <div class="label">Start date <span class="req">*</span></div>
+          <input class="input" type="date" id="xm-start" value="${escHtml(e.start_date)}">
+        </div>
+        <div class="field">
+          <div class="label">End date <span class="req">*</span></div>
+          <input class="input" type="date" id="xm-end" value="${escHtml(e.end_date)}">
+        </div>
+        <div class="field">
+          <div class="label">Country</div>
+          <input class="input" id="xm-country" value="${escHtml(e.country)}" placeholder="e.g. United Arab Emirates">
+        </div>
+        <div class="field">
+          <div class="label">Destination</div>
+          <input class="input" id="xm-destination" value="${escHtml(e.destination)}" placeholder="e.g. Hatta, Dubai">
+        </div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Price</div>
+      <div class="form-grid">
+        <div class="field">
+          <div class="label">Price per person (AED) <span class="req">*</span></div>
+          <input class="input" type="number" id="xm-price" value="${escHtml(e.price_aed)}" placeholder="e.g. 1850">
+        </div>
+        <div class="field">
+          <div class="label">Capacity</div>
+          <input class="input" type="number" id="xm-capacity" value="${escHtml(e.capacity)}" placeholder="e.g. 16">
+        </div>
+        <div class="field full">
+          <div class="label">What's included</div>
+          <div class="chip-input-wrap" id="xm-includes-wrap"></div>
+        </div>
+        <div class="field full">
+          <div class="label">What's NOT included</div>
+          <div class="chip-input-wrap" id="xm-excludes-wrap"></div>
+        </div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Itinerary</div>
+      <div class="itin-wrap" id="xm-itinerary"></div>
+      <button class="itin-add-day" type="button" onclick="addItinDay()"><span class="ms">add</span> Add a day</button>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Practical info</div>
+      <div class="form-grid">
+        <div class="field full">
+          <div class="label">Accommodation</div>
+          <textarea class="textarea" id="xm-accommodation" rows="2" placeholder="Where members stay, room type, amenities">${escHtml(e.accommodation)}</textarea>
+        </div>
+        <div class="field full">
+          <div class="label">Flights / Transport</div>
+          <textarea class="textarea" id="xm-flights" rows="2" placeholder="Are flights included? Group transport? Self-arrival?">${escHtml(e.flights)}</textarea>
+        </div>
+        <div class="field full">
+          <div class="label">Travel requirements</div>
+          <textarea class="textarea" id="xm-travel-reqs" rows="2" placeholder="Visas, vaccinations, insurance">${escHtml(e.travel_reqs)}</textarea>
+        </div>
+        <div class="field full">
+          <div class="label">Fitness requirements</div>
+          <textarea class="textarea" id="xm-fitness-reqs" rows="2" placeholder="What members should be able to do before joining">${escHtml(e.fitness_reqs)}</textarea>
+        </div>
+      </div>
+    </div>
+  `, `
+    ${editing ? '<button class="btn btn-ghost left" onclick="confirmDeleteExperience(\''+editing.id+'\'); closeModal()"><span class="ms">delete</span> Delete</button>' : ''}
+    <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-pri" onclick="saveExperience('${editing ? editing.id : ''}')">${editing ? 'Save changes' : 'Submit for review'}</button>
+  `);
+  renderListingUploader(e.hero_url);
+  renderItinerary();
+  renderChips('xm-includes-wrap', modalIncludes, 'includes');
+  renderChips('xm-excludes-wrap', modalExcludes, 'excludes');
+}
+
+function renderItinerary() {
+  const wrap = document.getElementById('xm-itinerary');
+  if (!wrap) return;
+  if (modalItinerary.length === 0) {
+    wrap.innerHTML = '<div class="empty-sub" style="text-align:left;">No days yet. Click "Add a day" below to start.</div>';
+    return;
+  }
+  wrap.innerHTML = modalItinerary.map((day, i) => `
+    <div class="itin-day">
+      <div class="itin-day-head">
+        <div class="itin-day-num">Day ${i+1}</div>
+        <input class="itin-day-title-input" value="${escHtml(day.title)}" placeholder="Day title (e.g. Hill repeats day)" onchange="modalItinerary[${i}].title=this.value">
+        <button class="itin-day-del" onclick="removeItinDay(${i})" title="Remove day"><span class="ms">delete</span></button>
+      </div>
+      <div class="itin-day-body">
+        ${(day.events || []).map((ev, j) => `
+          <div class="itin-event">
+            <input class="input" type="time" value="${escHtml(ev.time)}" onchange="modalItinerary[${i}].events[${j}].time=this.value">
+            <input class="input" value="${escHtml(ev.item)}" placeholder="What happens" onchange="modalItinerary[${i}].events[${j}].item=this.value">
+            <button class="itin-event-del" onclick="removeItinEvent(${i}, ${j})"><span class="ms">close</span></button>
+          </div>
+        `).join('')}
+        <button class="itin-add-event" onclick="addItinEvent(${i})"><span class="ms">add</span> Add item</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function addItinDay() {
+  const next = modalItinerary.length + 1;
+  modalItinerary.push({ day: next, title: '', events: [] });
+  renderItinerary();
+}
+function removeItinDay(i) { modalItinerary.splice(i, 1); renderItinerary(); }
+function addItinEvent(i) { modalItinerary[i].events.push({ time: '', item: '' }); renderItinerary(); }
+function removeItinEvent(i, j) { modalItinerary[i].events.splice(j, 1); renderItinerary(); }
+
+function renderChips(containerId, list, kind) {
+  const wrap = document.getElementById(containerId);
+  if (!wrap) return;
+  wrap.innerHTML = list.map((item, i) =>
+    `<span class="chip">${escHtml(item)}<button onclick="removeChip('${kind}', ${i})"><span class="ms">close</span></button></span>`
+  ).join('') +
+  `<input class="chip-input" placeholder="Type and press Enter..." onkeydown="if(event.key==='Enter'){event.preventDefault();addChip('${kind}', this.value); this.value=''}">`;
+}
+
+function addChip(kind, value) {
+  value = value.trim();
+  if (!value) return;
+  if (kind === 'includes') { modalIncludes.push(value); renderChips('xm-includes-wrap', modalIncludes, 'includes'); }
+  if (kind === 'excludes') { modalExcludes.push(value); renderChips('xm-excludes-wrap', modalExcludes, 'excludes'); }
+}
+function removeChip(kind, i) {
+  if (kind === 'includes') { modalIncludes.splice(i, 1); renderChips('xm-includes-wrap', modalIncludes, 'includes'); }
+  if (kind === 'excludes') { modalExcludes.splice(i, 1); renderChips('xm-excludes-wrap', modalExcludes, 'excludes'); }
+}
+
+function saveExperience(id) {
+  const get = i => document.getElementById('xm-' + i).value.trim();
+  const title = get('title');
+  if (!title) { showToast('Title is required', 'error'); return; }
+  const start = get('start'), end = get('end');
+  if (!start || !end) { showToast('Start and end dates are required', 'error'); return; }
+  const photo = document.getElementById('listing-photo-slot').dataset.url || null;
+  const days = Math.max(1, Math.round((new Date(end) - new Date(start)) / (1000 * 60 * 60 * 24)) + 1);
+  const data = {
+    title, description: get('description'), overview: get('overview'),
+    experience_type: get('type'),
+    start_date: start, end_date: end, duration_days: days,
+    country: get('country'), destination: get('destination'),
+    price_aed: parseFloat(get('price')) || 0,
+    capacity: parseInt(get('capacity'), 10) || 0,
+    price_includes: modalIncludes.slice(),
+    price_excludes: modalExcludes.slice(),
+    accommodation: get('accommodation'), flights: get('flights'),
+    travel_reqs: get('travel-reqs'), fitness_reqs: get('fitness-reqs'),
+    fitness_level: get('fitness-level'),
+    itinerary: JSON.parse(JSON.stringify(modalItinerary)),
+    hero_url: photo
+  };
+  if (id) {
+    const e = experiences.find(x => x.id === id);
+    Object.assign(e, data);
+    showToast('Experience updated', 'success');
+    closeModal();
+  } else {
+    experiences.unshift(Object.assign({
+      id: uid(), status: 'pending', applications: 0,
+      created_at: new Date().toISOString().slice(0,10)
+    }, data));
+    closeModal();
+    showSubmittedModal('experience');
+  }
+  renderExperiences(); renderNav(); renderOverview();
+}
+
+function viewApplications(id) {
+  const e = experiences.find(x => x.id === id);
+  if (!e) return;
+  const list = sampleRsvps.slice(0, e.applications || 0).map(m =>
+    `<div class="member-row">
+      <div class="member-avatar">${m.letter}</div>
+      <div class="member-info">
+        <div class="member-name">${escHtml(m.name)}</div>
+        <div class="member-sub">Applied ${escHtml(m.joined)}</div>
+      </div>
+      <div class="member-actions">
+        <button class="btn btn-blue btn-xs" onclick="showToast('Deposit details sent to ${escHtml(m.name)}', 'success')"><span class="ms">check</span> Approve</button>
+        <button class="btn btn-sec btn-xs" onclick="showToast('Message sent to ${escHtml(m.name)}', 'success')"><span class="ms">chat_bubble</span></button>
+        <button class="btn btn-ghost btn-xs" onclick="showToast('${escHtml(m.name)} declined', 'success')"><span class="ms">close</span></button>
+      </div>
+    </div>`
+  ).join('');
+  openModalShell('', escHtml(e.title) + ' — Applications', `
+    <div class="psub" style="margin-bottom: 14px;">${e.applications || 0} of ${e.capacity || '∞'} spots requested for ${fmtDate(e.start_date)} — ${fmtDate(e.end_date)}.</div>
+    <div class="help-strip" style="margin-bottom: 14px;">
+      <span class="ms">info</span>
+      <div>Approve an applicant to send them your deposit details. Members are notified by email automatically.</div>
+    </div>
+    <div class="member-list">${list || '<div class="empty-sub" style="text-align:left;">No applications yet.</div>'}</div>
+  `, `
+    <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+    <button class="btn btn-sec" onclick="showToast('CSV export started', 'success')"><span class="ms">download</span> Export CSV</button>
+    <button class="btn btn-blue" onclick="showToast('Broadcast email sent to all applicants', 'success')"><span class="ms">mail</span> Email all</button>
+  `);
+}
+
+// ════════════════════════════════════════════════
+// CHALLENGES
+// ════════════════════════════════════════════════
+function renderChallenges() {
+  renderTabs('ch-tabs', 'challenges', challenges, ['live', 'pending', 'draft', 'past']);
+  const q = document.getElementById('ch-search').value;
+  const items = applyFilters(challenges, 'challenges', q);
+  const grid = document.getElementById('ch-grid');
+  if (items.length === 0) {
+    grid.innerHTML = challenges.length === 0
+      ? emptyState('No challenges yet', 'Create a provider challenge at your venue. You upload results after the event.', 'New challenge', 'openChallengeModal()')
+      : emptyState('No matches', 'Try a different search or change tab', '', '');
+    return;
+  }
+  grid.innerHTML = items.map(c => challengeCard(c)).join('');
+}
+
+function challengeCard(c) {
+  return '<div class="listing-card">' +
+    '<div class="lc-hero" ' + heroStyle(c.hero_url) + '>' +
+      '<div class="lc-status-pill ' + c.status + '">' + c.status + '</div>' +
+      '<div class="lc-cat-pill">Provider</div>' +
+    '</div>' +
+    '<div class="lc-body">' +
+      '<div class="lc-title">' + escHtml(c.title) + '</div>' +
+      '<div class="lc-sub">' + escHtml(c.description || '') + '</div>' +
+      '<div class="lc-meta">' +
+        '<span><span class="ms">calendar_today</span>' + fmtDateShort(c.start_date) + ' — ' + fmtDateShort(c.end_date) + '</span>' +
+        (c.venue ? '<span><span class="ms">place</span>' + escHtml(c.venue) + '</span>' : '') +
+      '</div>' +
+      '<div class="lc-stat-row">' +
+        '<div class="lc-stat"><div class="lc-stat-val">' + (c.participants || 0) + '</div><div class="lc-stat-lbl">Entrants</div></div>' +
+        '<div class="lc-stat"><div class="lc-stat-val">' + (c.results_uploaded ? 'Yes' : 'No') + '</div><div class="lc-stat-lbl">Results in</div></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="lc-actions">' +
+      '<button class="btn btn-sec btn-sm" onclick="openChallengeModal(\'' + c.id + '\')"><span class="ms">edit</span> Edit</button>' +
+      '<button class="btn btn-blue btn-sm" onclick="openResultsModal(\'' + c.id + '\')"><span class="ms">upload</span> ' + (c.results_uploaded ? 'Update results' : 'Upload results') + '</button>' +
+      '<button class="btn btn-ghost btn-sm" onclick="confirmDeleteChallenge(\'' + c.id + '\')"><span class="ms">delete</span></button>' +
+    '</div>' +
+  '</div>';
+}
+
+function confirmDeleteChallenge(id) {
+  openConfirm('Delete this challenge?', 'All entrants will be notified by email. This cannot be undone.', () => {
+    challenges = challenges.filter(x => x.id !== id);
+    renderChallenges(); renderNav(); showToast('Challenge deleted', 'success');
+  });
+}
+
+function openChallengeModal(id) {
+  const editing = id ? challenges.find(c => c.id === id) : null;
+  const c = editing || { title: '', description: '', metric: '', venue: providerProfile.business_name, start_date: '', end_date: '', prize: '', category: 'Strength', hero_url: null };
+  openModalShell('lg', (editing ? 'Edit challenge' : 'New challenge'), `
+    <div class="help-strip">
+      <span class="ms">info</span>
+      <div><b>Provider challenge:</b> you set the rules and upload results at the end. Members see a leaderboard with your results. No FFP coins — prizes are physical only.</div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Photo</div>
+      <div id="listing-photo-slot" data-url="${c.hero_url || ''}"></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Challenge</div>
+      <div class="form-grid">
+        <div class="field full">
+          <div class="label">Title <span class="req">*</span></div>
+          <input class="input" id="cm-title" value="${escHtml(c.title)}" placeholder="e.g. Forge May Strength Push">
+        </div>
+        <div class="field full">
+          <div class="label">Description</div>
+          <textarea class="textarea" id="cm-description" rows="3" placeholder="The rules — what entrants do, how scores are recorded">${escHtml(c.description)}</textarea>
+        </div>
+        <div class="field">
+          <div class="label">Category</div>
+          <select class="select" id="cm-category">
+            ${['Strength','Endurance','Speed','Skill','Recovery','Team','Other'].map(x => `<option ${c.category===x?'selected':''}>${x}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <div class="label">Metric</div>
+          <input class="input" id="cm-metric" value="${escHtml(c.metric)}" placeholder="e.g. Combined PR kg increase">
+        </div>
+        <div class="field">
+          <div class="label">Venue</div>
+          <input class="input" id="cm-venue" value="${escHtml(c.venue)}">
+        </div>
+        <div class="field">
+          <div class="label">Prize <span class="label-hint">— physical gift only</span></div>
+          <input class="input" id="cm-prize" value="${escHtml(c.prize)}" placeholder="e.g. Recovery kit for top 3">
+        </div>
+        <div class="field">
+          <div class="label">Start date <span class="req">*</span></div>
+          <input class="input" type="date" id="cm-start" value="${escHtml(c.start_date)}">
+        </div>
+        <div class="field">
+          <div class="label">End date <span class="req">*</span></div>
+          <input class="input" type="date" id="cm-end" value="${escHtml(c.end_date)}">
+        </div>
+      </div>
+    </div>
+  `, `
+    ${editing ? '<button class="btn btn-ghost left" onclick="confirmDeleteChallenge(\''+editing.id+'\'); closeModal()"><span class="ms">delete</span> Delete</button>' : ''}
+    <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-pri" onclick="saveChallenge('${editing ? editing.id : ''}')">${editing ? 'Save changes' : 'Submit for review'}</button>
+  `);
+  renderListingUploader(c.hero_url);
+}
+
+function saveChallenge(id) {
+  const get = i => document.getElementById('cm-' + i).value.trim();
+  const title = get('title');
+  if (!title) { showToast('Title is required', 'error'); return; }
+  if (!get('start') || !get('end')) { showToast('Start and end dates are required', 'error'); return; }
+  const photo = document.getElementById('listing-photo-slot').dataset.url || null;
+  const data = {
+    title, description: get('description'),
+    metric: get('metric'), venue: get('venue'),
+    prize: get('prize'), category: get('category'),
+    start_date: get('start'), end_date: get('end'),
+    hero_url: photo
+  };
+  if (id) {
+    const c = challenges.find(x => x.id === id);
+    Object.assign(c, data);
+    showToast('Challenge updated', 'success');
+    closeModal();
+  } else {
+    challenges.unshift(Object.assign({
+      id: uid(), status: 'pending', challenge_type: 'provider',
+      participants: 0, results_uploaded: false,
+      created_at: new Date().toISOString().slice(0,10)
+    }, data));
+    closeModal();
+    showSubmittedModal('challenge');
+  }
+  renderChallenges(); renderNav();
+}
+
+function openResultsModal(id) {
+  const c = challenges.find(x => x.id === id);
+  if (!c) return;
+  openModalShell('', c.title + ' — Upload results', `
+    <div class="psub" style="margin-bottom: 18px;">Upload a CSV with member name, score, and rank. Results render as the live leaderboard.</div>
+    <div class="uploader" id="up-results" onclick="document.getElementById('up-results-input').click()">
+      <input type="file" id="up-results-input" accept=".csv,.xlsx,.xls" onchange="document.getElementById('results-filename').textContent = this.files[0] ? this.files[0].name : 'No file chosen'">
+      <div class="uploader-icon"><span class="ms">table_view</span></div>
+      <div class="uploader-title">Click to upload CSV or Excel</div>
+      <div class="uploader-hint" id="results-filename">Columns: name, score, rank</div>
+    </div>
+    <div style="margin-top: 14px;">
+      <a style="font-size: 12px; font-weight: 700;" onclick="showToast('Template downloaded', 'success')"><span class="ms">download</span> Download results template</a>
+    </div>
+  `, `
+    <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-pri" onclick="finalizeResults('${id}')"><span class="ms">emoji_events</span> Publish leaderboard</button>
+  `);
+}
+
+function finalizeResults(id) {
+  const c = challenges.find(x => x.id === id);
+  if (c) { c.results_uploaded = true; c.status = 'past'; }
+  closeModal();
+  renderChallenges();
+  showToast('Results published — members notified', 'success');
+}
+
+
+// ════════════════════════════════════════════════
+// ANALYTICS
+// ════════════════════════════════════════════════
+const PERIODS = [
+  { id: 'today',         label: 'Today' },
+  { id: 'yesterday',     label: 'Yesterday' },
+  { id: 'this_week',     label: 'This week' },
+  { id: 'last_week',     label: 'Last week' },
+  { id: 'this_month',    label: 'This month' },
+  { id: 'last_month',    label: 'Last month' },
+  { id: 'this_quarter',  label: 'This quarter' },
+  { id: 'last_quarter',  label: 'Last quarter' },
+  { id: 'last_6_months', label: 'Last 6 months' },
+  { id: 'this_year',     label: 'This year' },
+  { id: 'last_year',     label: 'Last year' }
+];
+
+let analyticsState = { period: 'this_month' };
+
+function setPeriod(p) {
+  analyticsState.period = p;
+  renderAnalytics();
+}
+
+// Deterministic hash so same period gives same numbers in a session
+function _seedRand(seed) {
+  let s = seed;
+  return () => {
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+}
+
+function generateAnalyticsData(period) {
+  const mult = {
+    today: 0.04, yesterday: 0.05,
+    this_week: 0.22, last_week: 0.19,
+    this_month: 1, last_month: 0.94,
+    this_quarter: 2.7, last_quarter: 2.45,
+    last_6_months: 5.2,
+    this_year: 9.4, last_year: 8.6
+  }[period] || 1;
+
+  const seed = period.split('').reduce((a, c) => a + c.charCodeAt(0), 0) * 17;
+  const rng = _seedRand(seed);
+
+  // Current period totals
+  const cur = {
+    views: Math.round(1247 * mult * (0.95 + rng() * 0.10)),
+    engagements: Math.round(89 * mult * (0.92 + rng() * 0.16)),
+    checkins: Math.round(34 * mult * (0.90 + rng() * 0.20)),
+    followers: Math.round(12 * mult * (0.85 + rng() * 0.30))
+  };
+  // Previous period (for delta calc)
+  const prev = {
+    views: Math.round(cur.views * (0.78 + rng() * 0.25)),
+    engagements: Math.round(cur.engagements * (0.72 + rng() * 0.30)),
+    checkins: Math.round(cur.checkins * (0.80 + rng() * 0.22)),
+    followers: Math.round(cur.followers * (0.92 + rng() * 0.35))
+  };
+
+  // Trend buckets — granularity by period
+  let buckets, xLabels;
+  if (period === 'today' || period === 'yesterday') {
+    buckets = 24;
+    xLabels = ['12a','','','','','6a','','','','','12p','','','','','6p','','','','','','','',''];
+  } else if (period === 'this_week' || period === 'last_week') {
+    buckets = 7;
+    xLabels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  } else if (period === 'this_month' || period === 'last_month') {
+    buckets = 30;
+    xLabels = ['Day 1','','','','Day 5','','','','','Day 10','','','','','Day 15','','','','','Day 20','','','','','Day 25','','','','','Day 30'];
+  } else if (period === 'this_quarter' || period === 'last_quarter') {
+    buckets = 13;
+    xLabels = ['Wk 1','Wk 2','Wk 3','Wk 4','Wk 5','Wk 6','Wk 7','Wk 8','Wk 9','Wk 10','Wk 11','Wk 12','Wk 13'];
+  } else if (period === 'last_6_months') {
+    buckets = 26;
+    xLabels = Array.from({length: 26}, (_, i) => i % 4 === 0 ? `Wk ${i+1}` : '');
+  } else {
+    buckets = 12;
+    xLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  }
+  const trend = Array.from({ length: buckets }, () => Math.round(cur.engagements / buckets * (0.5 + rng() * 1.1)));
+
+  // Funnel
+  const views = cur.views;
+  const saved = Math.round(views * (0.16 + rng() * 0.06));
+  const claimed = Math.round(views * (0.06 + rng() * 0.04));
+  const checkedIn = cur.checkins;
+
+  // Demographics — age
+  const ageWeights = [0.12, 0.41, 0.28, 0.13, 0.06];
+  const age = ['18-24','25-34','35-44','45-54','55+'].map((label, i) => ({
+    label, val: Math.round(cur.engagements * ageWeights[i])
+  }));
+  // Gender
+  const gender = [
+    { label: 'Male',                val: Math.round(cur.engagements * 0.56) },
+    { label: 'Female',              val: Math.round(cur.engagements * 0.42) },
+    { label: 'Other / Not stated',  val: Math.round(cur.engagements * 0.02) }
+  ];
+  // Tier
+  const tier = [
+    { label: 'Member',     val: Math.round(cur.engagements * 0.71) },
+    { label: 'Supporter',  val: Math.round(cur.engagements * 0.22) },
+    { label: 'Ambassador', val: Math.round(cur.engagements * 0.07) }
+  ];
+  // Areas
+  const areaWeights = [0.22, 0.18, 0.15, 0.12, 0.10, 0.08, 0.15];
+  const areaNames = ['Dubai Marina','Downtown Dubai','JLT','Al Quoz','Business Bay','Jumeirah','Other'];
+  const areas = areaNames.map((label, i) => ({ label, val: Math.round(cur.engagements * areaWeights[i]) }));
+  // Sports
+  const sportWeights = [0.28, 0.19, 0.16, 0.13, 0.11, 0.08, 0.05];
+  const sportNames = ['Strength training','Running','Yoga','Padel','HIIT','Cycling','Pilates'];
+  const sports = sportNames.map((label, i) => ({ label, val: Math.round(cur.engagements * sportWeights[i]) }));
+
+  // Top listings from real data
+  const topDeals = deals.slice()
+    .map(d => ({ title: d.perk || 'Untitled', sub: d.category || '—', val: Math.round((d.claims || 0) * mult / 6) + Math.round(rng() * 4) }))
+    .sort((a, b) => b.val - a.val);
+  const topEvents = events.slice()
+    .map(e => ({ title: e.title || 'Untitled', sub: 'Event · ' + (fmtDateShort(e.event_date) || ''), val: Math.round((e.rsvps || 0) * mult / 3) + Math.round(rng() * 3) }))
+    .sort((a, b) => b.val - a.val);
+  const topExps = experiences.slice()
+    .map(e => ({ title: e.title || 'Untitled', sub: 'Experience · ' + (e.destination || ''), val: Math.round((e.applications || 0) * mult / 2) + Math.round(rng() * 2) }))
+    .sort((a, b) => b.val - a.val);
+  const topEventsCombined = [...topEvents, ...topExps].sort((a, b) => b.val - a.val);
+
+  // Peak days
+  const dayNames = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const dayWeights = [0.15, 0.12, 0.14, 0.13, 0.13, 0.20, 0.13];
+  const peakDays = dayNames.map((d, i) => ({ day: d, val: Math.round(cur.engagements * dayWeights[i]) }));
+  const peakSorted = peakDays.slice().sort((a, b) => b.val - a.val);
+  peakDays.forEach(d => {
+    if (d.val === peakSorted[0].val) d.tag = 'hot';
+    else if (d.val >= peakSorted[0].val * 0.78) d.tag = 'warm';
+  });
+
+  // Hours
+  const hours = Array.from({ length: 24 }, (_, h) => {
+    let m;
+    if (h >= 5 && h < 9) m = 1.4;
+    else if (h >= 17 && h < 21) m = 1.7;
+    else if (h >= 11 && h < 14) m = 1.0;
+    else if (h >= 21 || h < 5) m = 0.2;
+    else m = 0.6;
+    return { hour: h, val: Math.round(cur.engagements / 24 * m * (0.7 + rng() * 0.5)) };
+  });
+
+  // Retention
+  const totalUnique = Math.round(cur.engagements * 1.35);
+  const returning = Math.round(totalUnique * 0.62);
+  const newMembers = totalUnique - returning;
+
+  return {
+    cur, prev, trend, xLabels, views, saved, claimed, checkedIn,
+    age, gender, tier, areas, sports,
+    topDeals, topEvents: topEventsCombined,
+    peakDays, hours,
+    retention: { total: totalUnique, returning, newMembers }
+  };
+}
+
+function delta(cur, prev) {
+  if (prev === 0) return { txt: 'New', dir: 'up' };
+  const pct = ((cur - prev) / prev) * 100;
+  const dir = pct > 1 ? 'up' : pct < -1 ? 'down' : 'flat';
+  const sign = pct > 0 ? '+' : '';
+  return { txt: sign + Math.round(pct) + '% vs prev', dir };
+}
+
+function renderAnalytics() {
+  const chips = document.getElementById('period-chips');
+  chips.innerHTML = PERIODS.map(p =>
+    '<button class="period-chip' + (analyticsState.period === p.id ? ' active' : '') + '" onclick="setPeriod(\'' + p.id + '\')">' + p.label + '</button>'
+  ).join('');
+
+  const data = generateAnalyticsData(analyticsState.period);
+
+  // KPI
+  const tiles = [
+    { lbl: 'Profile views',       val: data.cur.views,        d: delta(data.cur.views, data.prev.views),               tone: '' },
+    { lbl: 'Total engagements',   val: data.cur.engagements,  d: delta(data.cur.engagements, data.prev.engagements),   tone: 'yellow' },
+    { lbl: 'Check-ins',           val: data.cur.checkins,     d: delta(data.cur.checkins, data.prev.checkins),         tone: 'green' },
+    { lbl: 'New followers',       val: data.cur.followers,    d: delta(data.cur.followers, data.prev.followers),       tone: 'blue' }
+  ];
+  document.getElementById('analytics-kpi-grid').innerHTML =
+    tiles.map(t => kpi(t.lbl, t.val.toLocaleString(), t.d.txt, t.d.dir, t.tone)).join('');
+
+  // Funnel
+  const totalViews = data.views || 1;
+  const funnelSteps = [
+    { lbl: 'Profile views',  val: data.views,     icon: 'visibility',       tone: '',       pct: null },
+    { lbl: 'Saved',          val: data.saved,     icon: 'bookmark',         tone: 'yellow', pct: Math.round(data.saved / totalViews * 100) },
+    { lbl: 'Claim / RSVP',   val: data.claimed,   icon: 'check_circle',     tone: 'green',  pct: Math.round(data.claimed / totalViews * 100) },
+    { lbl: 'Checked in',     val: data.checkedIn, icon: 'qr_code_scanner',  tone: '',       pct: Math.round(data.checkedIn / totalViews * 100) }
+  ];
+  document.getElementById('funnel').innerHTML = funnelSteps.map(s =>
+    '<div class="funnel-step">' +
+      '<div class="funnel-icon-wrap ' + s.tone + '"><span class="ms">' + s.icon + '</span></div>' +
+      '<div class="funnel-label">' + s.lbl + '</div>' +
+      '<div class="funnel-value">' + s.val.toLocaleString() + '</div>' +
+      (s.pct !== null ? '<div class="funnel-pct">' + s.pct + '% of views</div>' : '<div class="funnel-pct">Starting point</div>') +
+    '</div>'
+  ).join('');
+  const finalPct = Math.round(data.checkedIn / totalViews * 100);
+  document.getElementById('funnel-summary').textContent = 'View → check-in: ' + finalPct + '%';
+
+  // Trend
+  document.getElementById('trend-chart-wrap').innerHTML = renderTrendChart(data.trend, data.xLabels);
+  const trendTotal = data.trend.reduce((a, b) => a + b, 0);
+  document.getElementById('trend-summary').textContent = trendTotal.toLocaleString() + ' total engagements in period';
+
+  // Bars
+  renderBars('age-bars', data.age, 'yellow');
+  renderBars('gender-bars', data.gender, '');
+  renderBars('tier-bars', data.tier, 'green');
+  renderBars('area-bars', data.areas, '');
+  renderBars('sport-bars', data.sports, 'yellow');
+
+  // Top performers
+  document.getElementById('top-deals').innerHTML = data.topDeals.length
+    ? data.topDeals.slice(0, 5).map((d, i) => rankRow(d, i, 'claims')).join('')
+    : emptyRank('No deal data yet');
+  document.getElementById('top-events').innerHTML = data.topEvents.length
+    ? data.topEvents.slice(0, 5).map((d, i) => rankRow(d, i, 'sign-ups')).join('')
+    : emptyRank('No event data yet');
+
+  // Peak engagement
+  document.getElementById('peak-grid').innerHTML =
+    '<div style="font-size: 10px; font-weight: 800; color: var(--ffp-text-muted); margin-bottom: 8px; letter-spacing: 1px; text-transform: uppercase;">By day of week</div>' +
+    '<div class="peak-grid-7">' +
+    data.peakDays.map(d =>
+      '<div class="peak-cell ' + (d.tag || '') + '">' +
+        '<div class="peak-cell-day">' + d.day + '</div>' +
+        '<div class="peak-cell-val">' + d.val + '</div>' +
+      '</div>'
+    ).join('') + '</div>' +
+    '<div style="font-size: 10px; font-weight: 800; color: var(--ffp-text-muted); margin-top: 18px; margin-bottom: 6px; letter-spacing: 1px; text-transform: uppercase;">By hour of day</div>' +
+    renderHoursChart(data.hours);
+
+  // Retention
+  const totRet = data.retention.total || 1;
+  document.getElementById('retention').innerHTML =
+    '<div class="retention-row">' +
+      '<div class="retention-circle" style="color: var(--ffp-blue);">' + data.retention.newMembers + '</div>' +
+      '<div class="retention-info">' +
+        '<div class="retention-label">First-time visitors</div>' +
+        '<div class="retention-sub">' + Math.round(data.retention.newMembers / totRet * 100) + '% of unique members · their first interaction with you</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="retention-row">' +
+      '<div class="retention-circle">' + data.retention.returning + '</div>' +
+      '<div class="retention-info">' +
+        '<div class="retention-label">Returning members</div>' +
+        '<div class="retention-sub">' + Math.round(data.retention.returning / totRet * 100) + '% of unique members · seen across multiple sessions</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="retention-row">' +
+      '<div class="retention-circle" style="color: var(--ffp-green);">' + data.retention.total + '</div>' +
+      '<div class="retention-info">' +
+        '<div class="retention-label">Unique members reached</div>' +
+        '<div class="retention-sub">Across every listing for the selected period</div>' +
+      '</div>' +
+    '</div>';
+}
+
+function renderBars(targetId, items, toneClass) {
+  const max = Math.max.apply(null, items.map(i => i.val)) || 1;
+  const total = items.reduce((a, i) => a + i.val, 0) || 1;
+  document.getElementById(targetId).innerHTML = items.map(it => {
+    const pct = Math.round(it.val / total * 100);
+    const w = Math.max(2, (it.val / max) * 100);
+    return '<div class="bar-row">' +
+      '<div class="bar-head">' +
+        '<span class="bar-label">' + escHtml(it.label) + '</span>' +
+        '<span class="bar-val">' + it.val.toLocaleString() + ' · ' + pct + '%</span>' +
+      '</div>' +
+      '<div class="bar-track"><div class="bar-fill ' + toneClass + '" style="width: ' + w + '%"></div></div>' +
+    '</div>';
+  }).join('');
+}
+
+function rankRow(item, i, valLbl) {
+  const cls = i === 0 ? '' : i === 1 ? 'silver' : i === 2 ? 'bronze' : 'other';
+  return '<div class="rank-row">' +
+    '<div class="rank-num ' + cls + '">' + (i + 1) + '</div>' +
+    '<div class="rank-info">' +
+      '<div class="rank-title">' + escHtml(item.title) + '</div>' +
+      '<div class="rank-sub">' + escHtml(item.sub || '') + '</div>' +
+    '</div>' +
+    '<div>' +
+      '<div class="rank-val">' + (item.val || 0).toLocaleString() + '</div>' +
+      '<div class="rank-val-lbl">' + escHtml(valLbl) + '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+function emptyRank(msg) {
+  return '<div class="empty-sub" style="text-align:left; padding: 18px 4px;">' + escHtml(msg) + '</div>';
+}
+
+function renderTrendChart(data, xLabels) {
+  const w = 800, h = 170;
+  const padding = { top: 14, right: 8, bottom: 28, left: 8 };
+  const max = Math.max.apply(null, data) || 1;
+  const innerW = w - padding.left - padding.right;
+  const innerH = h - padding.top - padding.bottom;
+  const stepW = innerW / data.length;
+  const barW = stepW * 0.7;
+
+  let bars = '';
+  for (let i = 0; i < data.length; i++) {
+    const x = padding.left + i * stepW + (stepW - barW) / 2;
+    const barH = Math.max(2, (data[i] / max) * innerH);
+    const y = padding.top + innerH - barH;
+    bars += '<rect class="trend-bar" x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + barH.toFixed(1) + '" rx="2"><title>' + data[i] + '</title></rect>';
+  }
+
+  let labels = '';
+  const labelArr = xLabels || [];
+  if (labelArr.length === data.length) {
+    for (let i = 0; i < labelArr.length; i++) {
+      if (!labelArr[i]) continue;
+      const x = padding.left + (i + 0.5) * stepW;
+      labels += '<text class="trend-axis-label" x="' + x.toFixed(1) + '" y="' + (h - 8) + '" text-anchor="middle">' + escHtml(labelArr[i]) + '</text>';
+    }
+  }
+
+  return '<svg class="trend-chart" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none">' + bars + labels + '</svg>';
+}
+
+function renderHoursChart(hours) {
+  const w = 800, h = 100;
+  const padding = { top: 8, right: 6, bottom: 22, left: 6 };
+  const max = Math.max.apply(null, hours.map(h => h.val)) || 1;
+  const innerW = w - padding.left - padding.right;
+  const innerH = h - padding.top - padding.bottom;
+  const stepW = innerW / 24;
+  const barW = stepW * 0.7;
+
+  let bars = '';
+  let labels = '';
+  for (let i = 0; i < 24; i++) {
+    const x = padding.left + i * stepW + (stepW - barW) / 2;
+    const barH = Math.max(1, (hours[i].val / max) * innerH);
+    const y = padding.top + innerH - barH;
+    const isPeak = hours[i].val === max;
+    bars += '<rect class="hours-bar ' + (isPeak ? 'peak' : '') + '" x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + barH.toFixed(1) + '" rx="2"><title>' + hours[i].hour + ':00 — ' + hours[i].val + '</title></rect>';
+    if (i % 4 === 0) {
+      const cx = padding.left + (i + 0.5) * stepW;
+      const hr = i === 0 ? '12a' : i === 12 ? '12p' : i < 12 ? i + 'a' : (i - 12) + 'p';
+      labels += '<text class="trend-axis-label" x="' + cx.toFixed(1) + '" y="' + (h - 6) + '" text-anchor="middle">' + hr + '</text>';
+    }
+  }
+
+  return '<svg class="hours-chart" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none">' + bars + labels + '</svg>';
+}
+
+
+// ════════════════════════════════════════════════
+// CHECK-INS
+// ════════════════════════════════════════════════
+function renderCheckIns() {
+  const list = document.getElementById('checkin-list');
+  list.innerHTML = checkIns.map(c =>
+    '<div class="checkin-row">' +
+      '<div class="checkin-avatar">' + escHtml(c.member_letter) + '</div>' +
+      '<div class="checkin-info">' +
+        '<div class="checkin-name">' + escHtml(c.member_name) + '</div>' +
+        '<div class="checkin-listing">' + escHtml(c.listing) + ' · ' + escHtml(c.code) + '</div>' +
+      '</div>' +
+      '<div>' +
+        '<div class="checkin-status">' + c.status + '</div>' +
+        '<div class="checkin-time" style="margin-top:4px;">' + fmtRelative(c.ts) + '</div>' +
+      '</div>' +
+    '</div>'
+  ).join('');
+}
+
+function formatClaimCode(input) {
+  let v = input.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  if (v.length > 4) v = v.slice(0,4) + '-' + v.slice(4,8);
+  input.value = v;
+}
+
+function verifyClaimCode() {
+  const code = document.getElementById('claim-code-input').value.trim();
+  if (code.length < 9) { showToast('Enter the full 8-character code', 'error'); return; }
+  // Sample verify success
+  const firstNames = ['Yusuf','Layla','Ben','Maya','Khalid','Noor'];
+  const name = firstNames[Math.floor(Math.random() * firstNames.length)] + ' ' + ['Ahmed','Smith','Lee','Patel'][Math.floor(Math.random()*4)];
+  openModalShell('sm', 'Code verified', `
+    <div style="text-align: center; padding: 12px 0 22px;">
+      <div style="width: 72px; height: 72px; margin: 0 auto 14px; border-radius: 50%; background: rgba(74, 222, 128, .15); color: var(--ffp-green); display: flex; align-items: center; justify-content: center;">
+        <span class="ms" style="font-size: 38px;">check_circle</span>
+      </div>
+      <div style="font-size: 18px; font-weight: 800; margin-bottom: 4px;">${escHtml(name)}</div>
+      <div style="font-size: 12px; font-weight: 600; color: var(--ffp-text-muted); letter-spacing: .3px;">Member · FFP Passport</div>
+      <div style="margin-top: 14px; padding: 12px 16px; background: var(--ffp-bg-3); border-radius: var(--r-md); display: inline-block;">
+        <div style="font-size: 10px; font-weight: 800; color: var(--ffp-text-muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px;">Claiming</div>
+        <div style="font-size: 13px; font-weight: 800;">First class free</div>
+      </div>
+    </div>
+  `, `
+    <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-pri" onclick="confirmCheckIn('${escHtml(name)}', '${code}')">
+      <span class="ms">check</span> Confirm check-in
+    </button>
+  `);
+}
+
+function confirmCheckIn(name, code) {
+  checkIns.unshift({
+    id: uid(),
+    member_name: name,
+    member_letter: name.charAt(0).toUpperCase(),
+    listing: 'First class free',
+    code: code,
+    ts: Date.now(),
+    status: 'verified'
+  });
+  document.getElementById('claim-code-input').value = '';
+  closeModal();
+  renderCheckIns();
+  showToast('Checked in — member earns activity log entry', 'success');
+}
+
+// ════════════════════════════════════════════════
+// MODAL UTILITIES
+// ════════════════════════════════════════════════
+function openModalShell(size, title, bodyHtml, footHtml) {
+  const back = document.getElementById('modal-backdrop');
+  const modal = document.getElementById('modal');
+  modal.className = 'modal' + (size ? ' ' + size : '');
+  modal.innerHTML =
+    '<div class="modal-head">' +
+      '<div class="modal-title">' + title + '</div>' +
+      '<button class="modal-close" onclick="closeModal()"><span class="ms">close</span></button>' +
+    '</div>' +
+    '<div class="modal-body">' + bodyHtml + '</div>' +
+    (footHtml ? '<div class="modal-foot">' + footHtml + '</div>' : '');
+  back.classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-backdrop').classList.remove('open');
+}
+
+function openConfirm(title, body, onConfirm) {
+  openModalShell('sm', title, `<div style="font-size: 13px; color: var(--ffp-text-muted); line-height: 1.6;">${escHtml(body)}</div>`, `
+    <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-danger" id="confirm-yes"><span class="ms">delete</span> Yes, delete</button>
+  `);
+  document.getElementById('confirm-yes').onclick = () => { closeModal(); onConfirm(); };
+}
+
+function openCreatePicker() {
+  openModalShell('sm', 'Create new listing', `
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <button class="qa" onclick="closeModal(); openDealModal()">
+        <div class="qa-icon yellow"><span class="ms">local_offer</span></div>
+        <div class="qa-body">
+          <div class="qa-title">Deal</div>
+          <div class="qa-sub">A member perk at your business</div>
+        </div>
+      </button>
+      <button class="qa" onclick="closeModal(); openEventModal()">
+        <div class="qa-icon"><span class="ms">event</span></div>
+        <div class="qa-body">
+          <div class="qa-title">Event</div>
+          <div class="qa-sub">A single-date session members RSVP to</div>
+        </div>
+      </button>
+      <button class="qa" onclick="closeModal(); openExperienceModal()">
+        <div class="qa-icon"><span class="ms">flight</span></div>
+        <div class="qa-body">
+          <div class="qa-title">Experience</div>
+          <div class="qa-sub">A multi-day trip or sport event</div>
+        </div>
+      </button>
+      <button class="qa" onclick="closeModal(); openChallengeModal()">
+        <div class="qa-icon yellow"><span class="ms">emoji_events</span></div>
+        <div class="qa-body">
+          <div class="qa-title">Challenge</div>
+          <div class="qa-sub">A timed competition at your venue</div>
+        </div>
+      </button>
+    </div>
+  `, '');
+}
+
+// ════════════════════════════════════════════════
+// LISTING-PHOTO UPLOADER (used inside modals)
+// ════════════════════════════════════════════════
+function renderListingUploader(dataUrl) {
+  const slot = document.getElementById('listing-photo-slot');
+  if (!slot) return;
+  slot.dataset.url = dataUrl || '';
+  if (dataUrl) {
+    slot.innerHTML = `
+      <div class="uploader has-image" id="up-listing">
+        <div class="uploader-preview" style="background-image: url('${dataUrl}')">
+          <div class="uploader-preview-actions">
+            <button class="uploader-preview-btn" onclick="event.stopPropagation(); document.getElementById('up-listing-input').click()" title="Replace"><span class="ms">refresh</span></button>
+            <button class="uploader-preview-btn del" onclick="event.stopPropagation(); removeUpload('listing')" title="Remove"><span class="ms">delete</span></button>
+          </div>
+          <input type="file" id="up-listing-input" accept="image/*" onchange="handleUpload('listing:listing', this.files[0])">
+        </div>
+      </div>
+    `;
+  } else {
+    slot.innerHTML = `
+      <div class="uploader" id="up-listing" onclick="document.getElementById('up-listing-input').click()">
+        <input type="file" id="up-listing-input" accept="image/*" onchange="handleUpload('listing:listing', this.files[0])">
+        <div class="uploader-icon"><span class="ms">image</span></div>
+        <div class="uploader-title">Click or drag to upload photo</div>
+        <div class="uploader-hint">JPG or PNG · 16:10 · up to 5 MB</div>
+      </div>
+    `;
+  }
+}
+
+// ════════════════════════════════════════════════
+// AUTH — Passwordless email code sign-in + apply
+// ════════════════════════════════════════════════
+let authState = 'landing';
+let authEmail = '';
+
+function setAuthState(state) {
+  authState = state;
+  document.querySelectorAll('.auth-section').forEach(s => s.classList.remove('active'));
+  const map = {
+    'landing':           'auth-landing',
+    'signin_email':      'auth-signin-email',
+    'signin_code':       'auth-signin-code',
+    'apply':             'auth-apply',
+    'apply_submitted':   'auth-apply-submitted'
+  };
+  const target = document.getElementById(map[state]);
+  if (target) target.classList.add('active');
+  // Focus first input shortly after switch
+  setTimeout(() => {
+    if (!target) return;
+    if (state === 'signin_code') {
+      setupOtp();
+    } else {
+      const focusEl = target.querySelector('input:not([type=hidden]), textarea, select');
+      if (focusEl) try { focusEl.focus(); } catch (e) {}
+    }
+  }, 50);
+}
+
+function submitEmail() {
+  const email = document.getElementById('auth-email-input').value.trim();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showToast('Enter a valid email', 'error');
+    return;
+  }
+  authEmail = email;
+  document.getElementById('auth-code-email').textContent = email;
+  setAuthState('signin_code');
+  // In production: POST { email } -> /api/auth/request-code
+  showToast('Demo: enter any 6 digits to sign in', 'info');
+}
+
+function resendCode() {
+  // In production: POST { email: authEmail } -> /api/auth/request-code
+  showToast('Code resent to ' + authEmail, 'success');
+}
+
+function setupOtp() {
+  const boxes = document.querySelectorAll('#otp-boxes .otp-box');
+  if (!boxes.length) return;
+  boxes.forEach((box, i) => {
+    box.value = '';
+    box.removeAttribute('data-filled');
+    box.oninput = () => {
+      box.value = box.value.replace(/\D/g, '');
+      if (box.value) {
+        box.setAttribute('data-filled', 'true');
+        if (i < boxes.length - 1) boxes[i + 1].focus();
+      } else {
+        box.removeAttribute('data-filled');
+      }
+    };
+    box.onkeydown = (e) => {
+      if (e.key === 'Backspace' && !box.value && i > 0) boxes[i - 1].focus();
+      if (e.key === 'Enter') verifyCode();
+    };
+    box.onpaste = (e) => {
+      const text = ((e.clipboardData || window.clipboardData).getData('text') || '').replace(/\D/g, '').slice(0, 6);
+      if (!text) return;
+      boxes.forEach((b, j) => {
+        b.value = text[j] || '';
+        if (text[j]) b.setAttribute('data-filled', 'true');
+        else b.removeAttribute('data-filled');
+      });
+      e.preventDefault();
+      const last = Math.min(text.length, 5);
+      boxes[last].focus();
+    };
+  });
+  setTimeout(() => { try { boxes[0].focus(); } catch (e) {} }, 80);
+}
+
+function getOtpValue() {
+  return Array.from(document.querySelectorAll('#otp-boxes .otp-box')).map(b => b.value).join('');
+}
+
+function verifyCode() {
+  const code = getOtpValue();
+  if (code.length !== 6) {
+    showToast('Enter all 6 digits', 'error');
+    return;
+  }
+  // In production: POST { email: authEmail, code } -> /api/auth/verify
+  // Demo accepts any 6 digits
+  enterDashboard();
+}
+
+function submitApplication() {
+  const business = document.getElementById('ap-business').value.trim();
+  const contact  = document.getElementById('ap-contact').value.trim();
+  const email    = document.getElementById('ap-email').value.trim();
+  const phoneNum = document.getElementById('ap-phone-num').value.trim();
+  const phoneCc  = document.getElementById('ap-phone-cc').value;
+  const category = document.getElementById('ap-category').value;
+  const city     = document.getElementById('ap-city').value;
+  const about    = document.getElementById('ap-about').value.trim();
+  const website  = document.getElementById('ap-website').value.trim();
+
+  if (!business || !contact || !email || !phoneNum || !category || !city || !about) {
+    showToast('Fill all required fields', 'error');
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showToast('Enter a valid email', 'error');
+    return;
+  }
+  // In production: POST to /api/provider-applications
+  // Payload: { business_name, contact_name, email, phone, category, city, about, website }
+  document.getElementById('auth-applied-email').textContent = email;
+  setAuthState('apply_submitted');
+}
+
+function bypassAuthDemo() { enterDashboard(); }
+
+function enterDashboard() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  if (!window._dashboardInited) {
+    renderNav();
+    showPanel('overview');
+    window._dashboardInited = true;
+  }
+}
+
+function signOut() {
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+  setAuthState('landing');
+  showToast('Signed out', 'info');
+}
+
+// ════════════════════════════════════════════════
+// INIT — start on auth screen, NOT dashboard
+// ════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  setAuthState('landing');
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+  });
+});
+</script>
+</body>
+</html>
