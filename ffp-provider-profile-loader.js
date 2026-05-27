@@ -1,8 +1,8 @@
-/* FFP Provider Profile Loader — v3
-   v3 fix: schema introspection showed provider_hours uses `opens` / `closes` / `closed`
-   (original column names) — v2 incorrectly referenced `open_time` / `close_time`.
-   v3 uses the canonical names. Run the SQL to drop the redundant columns I added.
-   All v2 features (dark pickers, refined categories/types, auto-close, etc.) preserved.
+/* FFP Provider Profile Loader — v4
+   v4 fix: when the custom picker wraps the phone country code select, the wrapper
+   was full-width and broke the flex layout (number input got hidden). v4 scopes the
+   picker wrapper to match the original 152px width inside .phone-input, restoring
+   the side-by-side cc + number layout. Picker menu widens to 240px so country names fit.
 */
 (function () {
   'use strict';
@@ -92,7 +92,13 @@
       '.ffp-pp-pick-menu.open{display:block;}',
       '.ffp-pp-pick-item{padding:9px 12px;border-radius:6px;font-size:13px;font-weight:600;color:#f5f7fa;cursor:pointer;}',
       '.ffp-pp-pick-item:hover{background:rgba(43,168,224,0.10);}',
-      '.ffp-pp-pick-item.active{background:rgba(43,168,224,0.15);color:#2ba8e0;}'
+      '.ffp-pp-pick-item.active{background:rgba(43,168,224,0.15);color:#2ba8e0;}',
+
+      // Phone country-code picker: preserve flex layout side-by-side with .phone-num
+      '#panel-profile .phone-input .ffp-pp-pick{width:152px;flex-shrink:0;}',
+      '#panel-profile .phone-input .ffp-pp-pick-btn{border-radius:8px 0 0 8px;border-right:1px solid rgba(43,168,224,0.10);padding:11px 14px;}',
+      '#panel-profile .phone-input .ffp-pp-pick-menu{min-width:260px;width:auto;left:0;right:auto;}',
+      '#panel-profile .phone-input .input.phone-num{border-radius:0 8px 8px 0;border-left:none;}'
     ].join('');
     document.head.appendChild(css);
   }
