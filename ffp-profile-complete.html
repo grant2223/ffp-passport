@@ -1,7 +1,24 @@
 <!--
-FFP Profile Complete v5
+FFP Profile Complete v7
 Last updated: 27 May 2026
-Status: Testing
+
+v7 changelog (vs v5/v6):
+- Architecture A throughout. ZERO Supabase Auth dependency on this page.
+- Identity is resolved in this order:
+    1. URL parameter ?session_id (came from Stripe success_url) — page looks
+       up the member row by stripe_session_id and writes to localStorage.
+    2. localStorage.ffp_member (member already signed in via login.html).
+    3. None → show form anyway so preview/manual visits still render. Submit
+       guards against missing identity and routes to login if so.
+- On Stripe redirect we retry the session lookup once after 2s in case the
+  Stripe webhook hasn't finished creating the member row yet (race condition).
+- If a Stripe session_id resolves to an already-complete member, refuse to
+  set localStorage (prevents identity replay from a shared URL) and bounce
+  to login.
+
+STRIPE SUCCESS URL MUST BE:
+  https://ffppassport.com/ffp-profile-complete.html?session_id={CHECKOUT_SESSION_ID}
+(Stripe substitutes {CHECKOUT_SESSION_ID} automatically.)
 -->
 
 <!DOCTYPE html>
@@ -145,8 +162,8 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 <div class="page hidden" id="main-page">
 <div class="wrap">
 
-<!-- VERSION MARKER: ffp-profile-complete-v5.html -->
-<div style="text-align:center;font-size:10px;font-weight:700;color:#2ba8e0;letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;padding:8px;border-bottom:1px solid rgba(43,168,224,.2);">FFP Profile Complete v5</div>
+<!-- VERSION MARKER: ffp-profile-complete v7 -->
+<div style="text-align:center;font-size:10px;font-weight:700;color:#2ba8e0;letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;padding:8px;border-bottom:1px solid rgba(43,168,224,.2);">FFP Profile Complete v7</div>
 
 <div class="logo">
   <div class="logo-brand">FFP <span>PASSPORT</span></div>
@@ -290,6 +307,8 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 
 
 <script>
+console.log('[FFP Profile Complete v7] Loaded — Architecture A (Stripe session_id + localStorage)');
+
 // ═══════════════════════════════════════════════════════════════════════
 // FFP ACTIVITIES_DB — 101 activities, 16 categories
 // Source: ffp-member-dashboard-v91.html (canonical source)
@@ -354,7 +373,6 @@ var ACTIVITIES_DB = [
   {n:'Hyrox',c:'Multi-sport'},{n:'Spartan',c:'Multi-sport'}
 ];
 
-// Category metadata (matches dashboard ACTIVITY_CAT_META)
 var CAT_META = {
   'Running & walking':   { icon: 'directions_run' },
   'Cycling':             { icon: 'directions_bike' },
@@ -376,7 +394,6 @@ var CAT_META = {
 
 var CATEGORIES = ['All','Running & walking','Cycling','Swimming','Watersports','Racquet sports','Team sports','Combat sports','Strength & fitness','Mind-body','Recovery & wellness','Outdoor & adventure','Snow sports','Golf','Equestrian','Air & extreme','Multi-sport'];
 
-// ─── Fitness levels with descriptions ────────────────────────────────────
 var LEVELS = [
   { id: 'Beginner',     desc: 'New to this. Still learning the basics and getting comfortable.' },
   { id: 'Intermediate', desc: 'Confident with fundamentals. Regular practice, building consistency.' },
@@ -385,7 +402,6 @@ var LEVELS = [
   { id: 'Professional', desc: 'This is your career. Sponsored or earn income from this sport.' }
 ];
 
-// ─── Nationalities ───────────────────────────────────────────────────────
 var NATIONALITIES = [
   'Emirati','American','British','Australian','Canadian','South African','Indian',
   'Pakistani','Filipino','Egyptian','Jordanian','Lebanese','Syrian','Iranian',
@@ -398,7 +414,6 @@ var NATIONALITIES = [
   'New Zealander','Irish','Scottish','Welsh','Other'
 ];
 
-// ─── Countries & cities (V1 subset, expand from CITIES_DB later) ─────────
 var COUNTRIES = {
   'United Arab Emirates': ['Dubai','Abu Dhabi','Sharjah','Ras Al Khaimah','Ajman','Fujairah','Umm Al Quwain','Al Ain'],
   'Saudi Arabia':         ['Riyadh','Jeddah','Mecca','Medina','Dammam','Khobar'],
@@ -430,11 +445,11 @@ var COUNTRIES = {
 
 
 // ─── State ───────────────────────────────────────────────────────────────
-var selectedSports = [];        // [{ name, category, level }]
+var selectedSports = [];
 var currentMember = null;
 var currentCategory = 'All';
 var currentSearch = '';
-var pickerMode = null;          // 'add' or 'edit'
+var pickerMode = null;
 var pickerActivity = null;
 var pickerLevel = null;
 
@@ -443,35 +458,74 @@ var pickerLevel = null;
 document.addEventListener('DOMContentLoaded', initialise);
 
 async function initialise() {
-  if (!window.supabase || !window.supabase.auth) {
+  if (!window.supabase) {
     showError('step1-err', 'Supabase not loaded. Refresh the page.');
     return;
   }
 
-  var sessionRes = await window.supabase.auth.getSession();
-  if (!sessionRes.data || !sessionRes.data.session) {
-    window.location.href = 'login.html';
-    return;
+  // ─── Identity resolution (Architecture A — no Supabase Auth) ───────────
+  var urlParams = new URLSearchParams(window.location.search);
+  var stripeSessionId = urlParams.get('session_id');
+
+  // 1) Try Stripe session ID from URL (came from Stripe success_url).
+  if (stripeSessionId) {
+    console.log('[profile-complete v7] Stripe session_id detected:', stripeSessionId);
+    var sessionMember = await lookupBySessionId(stripeSessionId);
+
+    if (!sessionMember) {
+      // Webhook race — wait 2s and retry once.
+      console.warn('[profile-complete v7] Member not found for session, retrying after 2s...');
+      await new Promise(function (r) { setTimeout(r, 2000); });
+      sessionMember = await lookupBySessionId(stripeSessionId);
+    }
+
+    if (sessionMember) {
+      if (sessionMember.profile_complete) {
+        // Already complete — refuse to set localStorage (prevents replay
+        // from a shared URL) and send them through normal login.
+        console.warn('[profile-complete v7] Stripe session for already-complete profile. Refusing replay.');
+        window.location.href = 'login.html';
+        return;
+      }
+      currentMember = sessionMember;
+      try { localStorage.setItem('ffp_member', JSON.stringify(currentMember)); } catch (e) {}
+    } else {
+      console.error('[profile-complete v7] Stripe session lookup failed after retry.');
+      showError('step1-err', 'Setting up your account. Please refresh in a moment.');
+      // Show form anyway so user can fill in while waiting.
+    }
   }
 
-  var memberRes = await window.supabase
-    .from('members')
-    .select('*')
-    .eq('id', sessionRes.data.session.user.id)
-    .single();
+  // 2) Fall back to localStorage if no session_id resolved.
+  if (!currentMember) {
+    var cached = null;
+    try { cached = JSON.parse(localStorage.getItem('ffp_member') || 'null'); } catch (e) { cached = null; }
 
-  if (memberRes.error || !memberRes.data) {
-    showError('step1-err', 'Could not load profile. ' + (memberRes.error && memberRes.error.message ? memberRes.error.message : ''));
-    return;
+    if (cached && cached.id) {
+      var memberRes = await window.supabase
+        .from('members')
+        .select('*')
+        .eq('id', cached.id)
+        .single();
+
+      if (!memberRes.error && memberRes.data) {
+        currentMember = memberRes.data;
+        if (currentMember.profile_complete) {
+          console.log('[profile-complete v7] profile_complete=true, redirecting to dashboard');
+          window.location.href = 'ffp-member-dashboard.html';
+          return;
+        }
+      } else {
+        console.error('[profile-complete v7] members fetch failed:', memberRes.error);
+      }
+    } else {
+      console.warn('[profile-complete v7] No identity (no session_id, no localStorage). Showing empty form.');
+    }
   }
 
-  currentMember = memberRes.data;
-
-  if (currentMember.profile_complete) {
-    window.location.href = 'ffp-member-dashboard.html';
-    return;
-  }
-
+  // ─── Render form regardless of identity state ──────────────────────────
+  // If currentMember is null we still show the form so the page renders
+  // (preview, manual visits). Submit will guard and route to login if no id.
   populateNationalities();
   populateCountries();
   populateForm();
@@ -484,7 +538,26 @@ async function initialise() {
   document.getElementById('main-page').classList.remove('hidden');
 }
 
+async function lookupBySessionId(sessionId) {
+  try {
+    var res = await window.supabase
+      .from('members')
+      .select('*')
+      .eq('stripe_session_id', sessionId)
+      .maybeSingle();
+    if (res.error) {
+      console.error('[profile-complete v7] session lookup error:', res.error);
+      return null;
+    }
+    return res.data || null;
+  } catch (e) {
+    console.error('[profile-complete v7] session lookup exception:', e);
+    return null;
+  }
+}
+
 function populateForm() {
+  if (!currentMember) return;
   var fn = currentMember.full_name ? currentMember.full_name.trim() : '';
   var firstWord = fn.split(' ')[0] || 'there';
   document.getElementById('greet-name').textContent = firstWord;
@@ -616,7 +689,6 @@ function renderActivities() {
     listEl.innerHTML = '<div class="activity-empty">No activities match. Try a different search.</div>';
     return;
   }
-  // Build a Set of already-selected activity names for fast lookup
   var taken = {};
   selectedSports.forEach(function (s) { taken[s.name] = true; });
 
@@ -770,6 +842,12 @@ function showError(elId, msg) {
 async function submitProfile() {
   showError('step2-err', '');
 
+  if (!currentMember || !currentMember.id) {
+    showError('step2-err', 'Session expired. Redirecting to sign in...');
+    setTimeout(function () { window.location.href = 'login.html'; }, 1500);
+    return;
+  }
+
   if (selectedSports.length === 0) {
     return showError('step2-err', 'Add at least one sport to continue');
   }
@@ -807,7 +885,6 @@ async function submitProfile() {
       if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) chronoAge--;
     }
 
-    // Save skills as array (matches dashboard expected format)
     var metaRes = await window.supabase
       .from('profile_meta')
       .upsert({
@@ -831,7 +908,7 @@ async function submitProfile() {
 
     window.location.href = 'ffp-member-dashboard.html';
   } catch (err) {
-    console.error('[profile-complete] save failed:', err);
+    console.error('[profile-complete v7] save failed:', err);
     showError('step2-err', 'Could not save: ' + (err.message || 'unknown error'));
     btn.disabled = false;
     btn.textContent = 'Complete Profile';
