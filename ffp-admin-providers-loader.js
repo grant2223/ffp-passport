@@ -1,16 +1,19 @@
-/* FFP Admin Providers Loader — v2
-   v2 fix: dashboard declares AdminProviders with `const`, which does NOT attach
-   to window. v1 waited on window.AdminProviders forever. v2 reads the bare global
-   via a typeof-guarded getter (getAP()).
+/* FFP Admin Providers Loader — v3
+   v3 adds:
+   - Real "Add Provider" modal (replaces v2 toast stub)
+   - Clearer expiry display: bigger sub-line, date in human format, click-to-extend
+   - Status icons (calendar/clock/warning) on subscription line
+   v2: getAP() bare-global workaround (const AdminProviders).
+   v1: initial wiring.
 
-   Add ONE script tag to ffp-admin-dashboard.html AFTER ffp-admin-auth.js:
+   ADD ONE script tag to ffp-admin-dashboard.html AFTER ffp-admin-auth.js:
      <script src="ffp-admin-providers-loader.js"></script>
 
-   Required SQL (run once — see message): adds paid_until, subscription_tier,
-   monthly_fee_aed, the 'lapsed' status, admin RLS, and the lapse-flip function.
-
-   Architecture: this loader patches the existing AdminProviders module
-   (preserving the existing UI in #panel-providers) instead of building an overlay.
+   ADDITIONAL SQL needed for Add Provider (run once):
+     DROP POLICY IF EXISTS providers_admin_insert ON providers;
+     CREATE POLICY providers_admin_insert ON providers
+       FOR INSERT TO authenticated
+       WITH CHECK (EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid()));
 */
 (function () {
   'use strict';
@@ -99,10 +102,14 @@
     css.textContent = [
       '.pill-lapsed{background:rgba(249,115,22,0.18);color:#f97316;}',
       '.pill-archived{background:rgba(138,153,168,0.18);color:#8a99a8;}',
-      '.ffp-sub-info{font-size:10px;font-weight:600;margin-top:2px;line-height:1.2;}',
-      '.ffp-sub-info.ok{color:#8a99a8;}',
-      '.ffp-sub-info.warn{color:#FFCC00;}',
-      '.ffp-sub-info.bad{color:#ef4444;}',
+      // Bigger, clearer expiry sub-line — clickable
+      '.ffp-sub-info{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;margin-top:3px;line-height:1.3;padding:2px 6px;border-radius:5px;cursor:pointer;transition:filter 0.15s;}',
+      '.ffp-sub-info:hover{filter:brightness(1.2);}',
+      '.ffp-sub-info .material-icons{font-size:13px;}',
+      '.ffp-sub-info.ok{color:#8a99a8;background:rgba(138,153,168,0.10);}',
+      '.ffp-sub-info.warn{color:#FFCC00;background:rgba(255,204,0,0.10);}',
+      '.ffp-sub-info.bad{color:#ef4444;background:rgba(239,68,68,0.10);}',
+      '.ffp-sub-info .tier-tag{margin-left:4px;opacity:0.75;text-transform:capitalize;}',
       /* Modal */
       '.ffp-pm-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;font-family:Montserrat,sans-serif;}',
       '.ffp-pm-backdrop.open{display:flex;}',
@@ -210,6 +217,90 @@
             '<button class="ffp-pm-btn ffp-pm-btn-primary" type="button" id="ffp-pm-extend-confirm">Extend</button>' +
           '</div>' +
         '</div>' +
+      '</div>' +
+
+      // ─── Add Provider modal ───
+      '<div class="ffp-pm-backdrop" id="ffp-pm-add-backdrop">' +
+        '<div class="ffp-pm-sheet" style="max-width:560px;" onclick="event.stopPropagation();">' +
+          '<div class="ffp-pm-head">' +
+            '<div>' +
+              '<div class="ffp-pm-title">Add provider</div>' +
+              '<div class="ffp-pm-sub">Create a new provider account manually</div>' +
+            '</div>' +
+            '<button class="ffp-pm-close" type="button" data-close="add"><span class="material-icons">close</span></button>' +
+          '</div>' +
+          '<div class="ffp-pm-body">' +
+            '<div class="ffp-pm-row">' +
+              '<label class="ffp-pm-label">Business name *</label>' +
+              '<input type="text" class="ffp-pm-input" id="ffp-pm-add-name" placeholder="e.g. Forge Fitness DXB">' +
+            '</div>' +
+            '<div class="ffp-pm-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+              '<div>' +
+                '<label class="ffp-pm-label">Category *</label>' +
+                '<input type="text" class="ffp-pm-input" id="ffp-pm-add-category" list="ffp-pm-add-cats" placeholder="Sports">' +
+                '<datalist id="ffp-pm-add-cats">' +
+                  '<option value="Sports"><option value="Fitness"><option value="Wellness">' +
+                  '<option value="Adventure"><option value="Recovery"><option value="Nutrition">' +
+                '</datalist>' +
+              '</div>' +
+              '<div>' +
+                '<label class="ffp-pm-label">City *</label>' +
+                '<input type="text" class="ffp-pm-input" id="ffp-pm-add-city" list="ffp-pm-add-cities" placeholder="Dubai">' +
+                '<datalist id="ffp-pm-add-cities">' +
+                  '<option value="Dubai"><option value="Abu Dhabi"><option value="Sharjah"><option value="Ajman">' +
+                  '<option value="Ras Al Khaimah"><option value="Fujairah"><option value="Al Ain"><option value="Umm Al Quwain">' +
+                '</datalist>' +
+              '</div>' +
+            '</div>' +
+            '<div class="ffp-pm-row">' +
+              '<label class="ffp-pm-label">Contact email *</label>' +
+              '<input type="email" class="ffp-pm-input" id="ffp-pm-add-email" placeholder="bookings@business.ae">' +
+            '</div>' +
+            '<div class="ffp-pm-row">' +
+              '<label class="ffp-pm-label">Contact phone</label>' +
+              '<input type="tel" class="ffp-pm-input" id="ffp-pm-add-phone" placeholder="+971...">' +
+            '</div>' +
+            '<div class="ffp-pm-row">' +
+              '<label class="ffp-pm-label">Initial status</label>' +
+              '<div class="ffp-pm-duration-chips" id="ffp-pm-add-status-chips" style="grid-template-columns:1fr 1fr;">' +
+                '<button class="ffp-pm-duration-chip active" data-status="pending" type="button">Pending review</button>' +
+                '<button class="ffp-pm-duration-chip" data-status="approved" type="button">Approved (set subscription)</button>' +
+              '</div>' +
+            '</div>' +
+            '<div id="ffp-pm-add-sub-fields" style="display:none;">' +
+              '<div class="ffp-pm-row">' +
+                '<label class="ffp-pm-label">Subscription tier</label>' +
+                '<div class="ffp-pm-tier-chips" id="ffp-pm-add-tier-chips">' +
+                  '<button class="ffp-pm-tier-chip active" data-tier="standard" type="button">Standard</button>' +
+                  '<button class="ffp-pm-tier-chip" data-tier="premium" type="button">Premium</button>' +
+                  '<button class="ffp-pm-tier-chip" data-tier="partner" type="button">Partner</button>' +
+                '</div>' +
+              '</div>' +
+              '<div class="ffp-pm-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+                '<div>' +
+                  '<label class="ffp-pm-label">Initial period</label>' +
+                  '<div class="ffp-pm-duration-chips" id="ffp-pm-add-duration-chips">' +
+                    '<button class="ffp-pm-duration-chip" data-months="1" type="button">1 mo</button>' +
+                    '<button class="ffp-pm-duration-chip active" data-months="3" type="button">3 mo</button>' +
+                    '<button class="ffp-pm-duration-chip" data-months="6" type="button">6 mo</button>' +
+                    '<button class="ffp-pm-duration-chip" data-months="12" type="button">12 mo</button>' +
+                  '</div>' +
+                '</div>' +
+                '<div>' +
+                  '<label class="ffp-pm-label">Monthly fee (AED)</label>' +
+                  '<input type="number" min="0" step="50" class="ffp-pm-input" id="ffp-pm-add-fee" value="500">' +
+                '</div>' +
+              '</div>' +
+              '<div class="ffp-pm-row">' +
+                '<div class="ffp-pm-preview" id="ffp-pm-add-preview"></div>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="ffp-pm-foot">' +
+            '<button class="ffp-pm-btn ffp-pm-btn-ghost" type="button" data-close="add">Cancel</button>' +
+            '<button class="ffp-pm-btn ffp-pm-btn-primary" type="button" id="ffp-pm-add-confirm">Add provider</button>' +
+          '</div>' +
+        '</div>' +
       '</div>';
     var wrap = document.createElement('div');
     wrap.innerHTML = html;
@@ -221,6 +312,7 @@
         var which = el.getAttribute('data-close');
         if (which === 'approve') closeApproveModal();
         if (which === 'extend') closeExtendModal();
+        if (which === 'add') closeAddModal();
       });
     });
     $('#ffp-pm-approve-backdrop').addEventListener('click', function (e) {
@@ -228,6 +320,9 @@
     });
     $('#ffp-pm-extend-backdrop').addEventListener('click', function (e) {
       if (e.target.id === 'ffp-pm-extend-backdrop') closeExtendModal();
+    });
+    $('#ffp-pm-add-backdrop').addEventListener('click', function (e) {
+      if (e.target.id === 'ffp-pm-add-backdrop') closeAddModal();
     });
 
     // Tier chips
@@ -263,6 +358,43 @@
 
     $('#ffp-pm-approve-confirm').addEventListener('click', confirmApprove);
     $('#ffp-pm-extend-confirm').addEventListener('click', confirmExtend);
+
+    // ─── Add Provider chip handlers ───
+    // Status chips: pending vs approved (show/hide subscription fields)
+    $$('#ffp-pm-add-status-chips .ffp-pm-duration-chip').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        $$('#ffp-pm-add-status-chips .ffp-pm-duration-chip').forEach(function (c) { c.classList.remove('active'); });
+        chip.classList.add('active');
+        var status = chip.dataset.status;
+        $('#ffp-pm-add-sub-fields').style.display = (status === 'approved') ? 'block' : 'none';
+        updateAddPreview();
+      });
+    });
+    // Tier chips (Add)
+    $$('#ffp-pm-add-tier-chips .ffp-pm-tier-chip').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        $$('#ffp-pm-add-tier-chips .ffp-pm-tier-chip').forEach(function (c) { c.classList.remove('active'); });
+        chip.classList.add('active');
+        var tier = chip.dataset.tier;
+        var feeInput = $('#ffp-pm-add-fee');
+        if (feeInput && TIER_DEFAULTS[tier]) feeInput.value = TIER_DEFAULTS[tier].fee;
+        updateAddPreview();
+      });
+    });
+    // Duration chips (Add)
+    $$('#ffp-pm-add-duration-chips .ffp-pm-duration-chip').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        $$('#ffp-pm-add-duration-chips .ffp-pm-duration-chip').forEach(function (c) { c.classList.remove('active'); });
+        chip.classList.add('active');
+        updateAddPreview();
+      });
+    });
+    $('#ffp-pm-add-fee').addEventListener('input', updateAddPreview);
+    $('#ffp-pm-add-confirm').addEventListener('click', confirmAddProvider);
+    // Auto-letter from business name
+    $('#ffp-pm-add-name').addEventListener('input', function () {
+      // No-op for now; letter_mark is derived on submit
+    });
   }
 
   var pendingApproveId = null;
@@ -292,6 +424,104 @@
     $('#ffp-pm-extend-backdrop').classList.add('open');
   }
   function closeExtendModal() { $('#ffp-pm-extend-backdrop').classList.remove('open'); pendingExtendId = null; }
+
+  // ─── Add Provider modal ───
+  function openAddModal() {
+    // Reset all fields
+    $('#ffp-pm-add-name').value = '';
+    $('#ffp-pm-add-category').value = '';
+    $('#ffp-pm-add-city').value = '';
+    $('#ffp-pm-add-email').value = '';
+    $('#ffp-pm-add-phone').value = '';
+    $('#ffp-pm-add-fee').value = TIER_DEFAULTS.standard.fee;
+    $$('#ffp-pm-add-status-chips .ffp-pm-duration-chip').forEach(function (c) { c.classList.toggle('active', c.dataset.status === 'pending'); });
+    $$('#ffp-pm-add-tier-chips .ffp-pm-tier-chip').forEach(function (c) { c.classList.toggle('active', c.dataset.tier === 'standard'); });
+    $$('#ffp-pm-add-duration-chips .ffp-pm-duration-chip').forEach(function (c) { c.classList.toggle('active', c.dataset.months === '3'); });
+    $('#ffp-pm-add-sub-fields').style.display = 'none';
+    $('#ffp-pm-add-confirm').disabled = false;
+    $('#ffp-pm-add-backdrop').classList.add('open');
+    setTimeout(function () { try { $('#ffp-pm-add-name').focus(); } catch (e) {} }, 50);
+  }
+  function closeAddModal() { $('#ffp-pm-add-backdrop').classList.remove('open'); }
+
+  function selectedAddStatus() {
+    var el = $('#ffp-pm-add-status-chips .ffp-pm-duration-chip.active');
+    return el ? el.dataset.status : 'pending';
+  }
+  function selectedAddTier() {
+    var el = $('#ffp-pm-add-tier-chips .ffp-pm-tier-chip.active');
+    return el ? el.dataset.tier : 'standard';
+  }
+  function selectedAddMonths() {
+    var el = $('#ffp-pm-add-duration-chips .ffp-pm-duration-chip.active');
+    return el ? parseInt(el.dataset.months, 10) : 3;
+  }
+  function updateAddPreview() {
+    var status = selectedAddStatus();
+    if (status === 'pending') return;
+    var tier = selectedAddTier();
+    var months = selectedAddMonths();
+    var fee = parseFloat($('#ffp-pm-add-fee').value) || 0;
+    var until = new Date(Date.now() + months * 30 * 86400 * 1000);
+    $('#ffp-pm-add-preview').innerHTML =
+      'Added as <b>' + tier + '</b> tier at <b>AED ' + fee.toFixed(0) + '/mo</b>.<br>' +
+      'Subscription valid until <b>' + isoDate(until) + '</b> (' + months + ' month' + (months > 1 ? 's' : '') + ').';
+  }
+
+  async function confirmAddProvider() {
+    var name     = $('#ffp-pm-add-name').value.trim();
+    var category = $('#ffp-pm-add-category').value.trim();
+    var city     = $('#ffp-pm-add-city').value.trim();
+    var email    = $('#ffp-pm-add-email').value.trim().toLowerCase();
+    var phone    = $('#ffp-pm-add-phone').value.trim();
+    var status   = selectedAddStatus();
+
+    if (!name || !category || !city || !email) {
+      toast('Fill all required fields (name, category, city, email)', 'error');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast('Enter a valid email', 'error');
+      return;
+    }
+
+    var payload = {
+      business_name: name,
+      letter_mark: (name[0] || '?').toUpperCase(),
+      category: category,
+      city: city,
+      contact_email: email,
+      contact_phone: phone || null,
+      status: status,
+      featured: false
+    };
+
+    if (status === 'approved') {
+      var tier   = selectedAddTier();
+      var months = selectedAddMonths();
+      var fee    = parseFloat($('#ffp-pm-add-fee').value) || 0;
+      var until  = new Date(Date.now() + months * 30 * 86400 * 1000);
+      payload.subscription_tier = tier;
+      payload.monthly_fee_aed   = fee;
+      payload.paid_until        = until.toISOString();
+      payload.approved_at       = new Date().toISOString();
+    }
+
+    var btn = $('#ffp-pm-add-confirm');
+    btn.disabled = true;
+    try {
+      var res = await window.supabase.from('providers').insert(payload);
+      if (res.error) throw res.error;
+      toast('Provider added \u00b7 ' + name, 'success');
+      logAction('added provider ' + name + ' (status=' + status + ')');
+      closeAddModal();
+      await refresh();
+    } catch (e) {
+      console.error('[FFP Admin Providers] add:', e);
+      toast(e.message || 'Add failed (check INSERT RLS policy)', 'error');
+      btn.disabled = false;
+    }
+  }
 
   function selectedTier() {
     var el = $('#ffp-pm-tier-chips .ffp-pm-tier-chip.active');
@@ -444,13 +674,28 @@
     var expires = new Date(p.paid_until);
     var days = Math.floor((expires.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
     var tier = p.subscription_tier || 'standard';
+    var dateStr = expires.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    var clickHandler = 'onclick="event.stopPropagation(); AdminProviders.extendSubscription(\'' + p.id + '\')"';
+    var title = 'Click to extend subscription';
     if (days < 0) {
-      return '<div class="ffp-sub-info bad">Expired ' + Math.abs(days) + 'd ago \u00b7 ' + tier + '</div>';
+      return '<span class="ffp-sub-info bad" ' + clickHandler + ' title="' + title + '">' +
+        '<span class="material-icons">error_outline</span>' +
+        'Expired ' + Math.abs(days) + 'd ago \u00b7 ' + dateStr +
+        '<span class="tier-tag">' + tier + '</span>' +
+      '</span>';
     }
     if (days < 7) {
-      return '<div class="ffp-sub-info warn">Expires in ' + days + 'd \u00b7 ' + tier + '</div>';
+      return '<span class="ffp-sub-info warn" ' + clickHandler + ' title="' + title + '">' +
+        '<span class="material-icons">schedule</span>' +
+        'Expires in ' + days + 'd \u00b7 ' + dateStr +
+        '<span class="tier-tag">' + tier + '</span>' +
+      '</span>';
     }
-    return '<div class="ffp-sub-info ok">' + tier + ' \u00b7 until ' + isoDate(expires) + '</div>';
+    return '<span class="ffp-sub-info ok" ' + clickHandler + ' title="' + title + '">' +
+      '<span class="material-icons">event</span>' +
+      'Until ' + dateStr + ' \u00b7 ' + days + 'd left' +
+      '<span class="tier-tag">' + tier + '</span>' +
+    '</span>';
   }
 
   function rowActions(p) {
@@ -599,7 +844,7 @@
     };
 
     AP.openAddModal = function () {
-      toast('Manual add: coming in next ship — use the Apply flow on partner.html for now', 'info');
+      openAddModal();
     };
   }
 
