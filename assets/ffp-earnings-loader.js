@@ -1,18 +1,29 @@
-/* FFP Earnings Loader — v7
-   v7 changes:
-   - Refactored to use shared FFPRealtime helper (assets/ffp-realtime.js)
-     instead of inline channel subscription. Requires ffp-realtime.js to load
-     BEFORE this file.
+/* FFP Earnings Loader — v8
+   v8 changes — major layout restructure per Build Standards:
+   - Two new prominent sections sit right under Refer-a-friend:
+       "Your Payouts" (was already there in v6, redesigned)
+       "Earnings log" (replaces "Recent activity" — clearer name + structure)
+   - Both sections have time-filter chips: This month / Last month / 6 months / Year / All time
+   - Both sections show summary stats at top for the filtered period:
+       Payouts → Total paid / Pending / Rejected
+       Earnings → Total earned / Pending
+   - "How tiers work" and "Ways to earn" become collapsed dropdowns in a
+     two-column row at the bottom. Less noise, more focus on what matters.
+   - "Your progression" sits between the two main sections and the dropdowns
+     (still important for tier tracking).
+   - "Maintain Ambassador" only shown when relevant (Ambassador tier).
+
+   v7 changes (kept):
+   - Uses shared FFPRealtime helper (requires assets/ffp-realtime.js loaded first)
 
    v6 changes (kept):
-   - DEDICATED "Your Payouts" section in Earnings panel (above Recent activity)
-   - Real-time updates via Supabase Realtime
+   - Dedicated payouts section + real-time updates
 
    v5 changes (kept):
-   - Member can view payment receipts for paid payouts (image or PDF inline)
+   - View receipt modal for paid payouts (image / PDF)
 
    v4 changes (kept):
-   - Bank fields: clearer labels, IBAN format hint with live validation, branch city
+   - Bank fields: IBAN format hint with live validation, branch city
 */
 (function () {
   'use strict';
@@ -21,6 +32,10 @@
   var currentUserId = null;
   var wrapped = false;
   var memberPayouts = [];
+  var allTransactions = [];          // v8: keep full tx list for filtering
+  var payoutFilter = 'all';          // v8: time filter for payouts section
+  var earningsFilter = 'all';        // v8: time filter for earnings log
+  var layoutBuilt = false;
 
   function injectStyles() {
     if (document.getElementById('ffp-earnings-loader-styles')) return;
@@ -152,6 +167,365 @@
     }).join('');
 
     section.innerHTML = titleRow + '<div class="ffp-po-list">' + rows + '</div>';
+  }
+
+  // ─── v8 LAYOUT BUILDER ───
+  // Restructures the existing earnings panel into the new clear hierarchy.
+  // Idempotent — safe to call repeatedly; rebuilds the filter-driven sections
+  // on every call but only moves DOM elements once.
+  function rebuildLayout() {
+    var panel = document.getElementById('panel-earnings');
+    if (!panel) return;
+
+    // Inject v8 styles once
+    injectV8Styles();
+
+    if (!layoutBuilt) {
+      moveTiersAndWaysToBottomRow(panel);
+      layoutBuilt = true;
+    }
+
+    renderEarningsLog();
+    refreshPayoutsSectionWithFilter();
+  }
+
+  function injectV8Styles() {
+    if (document.getElementById('ffp-earnings-v8-styles')) return;
+    var s = document.createElement('style');
+    s.id = 'ffp-earnings-v8-styles';
+    s.textContent =
+      // Two-column row for dropdowns
+      '#ffp-bottom-dropdowns{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px;}' +
+      '@media(max-width:560px){#ffp-bottom-dropdowns{grid-template-columns:1fr;}}' +
+      '.ffp-dd{background:rgba(43,168,224,0.04);border:1px solid var(--border-mid,rgba(43,168,224,0.30));border-radius:12px;overflow:hidden;}' +
+      '.ffp-dd-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;user-select:none;}' +
+      '.ffp-dd-head:hover{background:rgba(43,168,224,0.06);}' +
+      '.ffp-dd-title{font-size:13px;font-weight:700;color:var(--text,#e8eef4);}' +
+      '.ffp-dd-chevron{transition:transform 0.2s ease;color:var(--muted,#8a99a8);}' +
+      '.ffp-dd.open .ffp-dd-chevron{transform:rotate(180deg);}' +
+      '.ffp-dd-body{display:none;padding:0 16px 16px;}' +
+      '.ffp-dd.open .ffp-dd-body{display:block;}' +
+      // Filter chips
+      '.ffp-filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}' +
+      '.ffp-chip{background:rgba(43,168,224,0.06);border:1px solid var(--border-mid,rgba(43,168,224,0.25));color:var(--muted,#8a99a8);padding:5px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:Montserrat,sans-serif;letter-spacing:0.3px;}' +
+      '.ffp-chip:hover{color:var(--text,#e8eef4);}' +
+      '.ffp-chip.active{background:rgba(43,168,224,0.16);border-color:#2ba8e0;color:#7dd3fc;}' +
+      // Summary stats row
+      '.ffp-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;padding:12px 14px;background:rgba(0,0,0,0.18);border-radius:10px;}' +
+      '.ffp-summary.two{grid-template-columns:repeat(2,1fr);}' +
+      '.ffp-summary-cell{text-align:center;}' +
+      '.ffp-summary-label{font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted,#8a99a8);margin-bottom:3px;}' +
+      '.ffp-summary-val{font-size:15px;font-weight:800;color:var(--text,#e8eef4);}' +
+      '.ffp-summary-val.green{color:#4ade80;}' +
+      '.ffp-summary-val.yellow{color:#FFCC00;}' +
+      '.ffp-summary-val.red{color:#fca5a5;}' +
+      // Earnings log row
+      '#ffp-earnings-log .ffp-earn-row{display:grid;grid-template-columns:36px 1fr auto;gap:12px;padding:12px 14px;border-bottom:1px solid rgba(43,168,224,0.10);align-items:center;}' +
+      '#ffp-earnings-log .ffp-earn-row:last-child{border-bottom:none;}' +
+      '#ffp-earnings-log .ffp-earn-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(74,222,128,0.12);color:#4ade80;}' +
+      '#ffp-earnings-log .ffp-earn-icon.out{background:rgba(239,68,68,0.12);color:#fca5a5;}' +
+      '#ffp-earnings-log .ffp-earn-name{font-size:13px;font-weight:700;color:var(--text,#e8eef4);}' +
+      '#ffp-earnings-log .ffp-earn-meta{font-size:11px;color:var(--muted,#8a99a8);margin-top:2px;}' +
+      '#ffp-earnings-log .ffp-earn-amt{font-size:14px;font-weight:800;color:#4ade80;white-space:nowrap;}' +
+      '#ffp-earnings-log .ffp-earn-amt.out{color:#fca5a5;}' +
+      '#ffp-earnings-log .ffp-earn-empty{padding:24px 16px;text-align:center;color:var(--muted,#8a99a8);font-size:12px;}';
+    document.head.appendChild(s);
+  }
+
+  // Move "How tiers work" and "Ways to earn" sections into a two-column dropdown row at the bottom.
+  // Also wrap each as a dropdown (collapsed by default).
+  function moveTiersAndWaysToBottomRow(panel) {
+    var tierTitle = panel.querySelector('.ct-section-title');
+    // Find each section by its title text
+    var sections = panel.querySelectorAll('.ct-section');
+    var tiersSection = null, waysSection = null, progressionSection = null;
+    sections.forEach(function (sec) {
+      var title = (sec.querySelector('.ct-section-title') || {}).textContent || '';
+      if (/how tiers work/i.test(title)) tiersSection = sec;
+      else if (/ways to earn/i.test(title)) waysSection = sec;
+      else if (/your progression/i.test(title)) progressionSection = sec;
+    });
+
+    // Hide original sections that we're moving/replacing
+    var oldTxSection = null;
+    sections.forEach(function (sec) {
+      var title = (sec.querySelector('.ct-section-title') || {}).textContent || '';
+      if (/recent activity/i.test(title)) {
+        oldTxSection = sec;
+        sec.style.display = 'none';  // hidden; we render our own Earnings log instead
+      }
+    });
+
+    // Build the two-column dropdown row
+    var bottomRow = document.createElement('div');
+    bottomRow.id = 'ffp-bottom-dropdowns';
+
+    if (tiersSection) {
+      var tiersDd = wrapAsDropdown('How tiers work', tiersSection);
+      bottomRow.appendChild(tiersDd);
+    }
+    if (waysSection) {
+      var waysDd = wrapAsDropdown('Ways to earn', waysSection);
+      bottomRow.appendChild(waysDd);
+    }
+
+    // Append bottom row to end of panel
+    panel.appendChild(bottomRow);
+  }
+
+  function wrapAsDropdown(title, originalSection) {
+    var dd = document.createElement('div');
+    dd.className = 'ffp-dd';
+    var head = document.createElement('div');
+    head.className = 'ffp-dd-head';
+    head.innerHTML =
+      '<div class="ffp-dd-title">' + escHtml(title) + '</div>' +
+      '<span class="material-icons ffp-dd-chevron">expand_more</span>';
+    head.onclick = function () { dd.classList.toggle('open'); };
+    var body = document.createElement('div');
+    body.className = 'ffp-dd-body';
+    // Move the original section's content into the body (preserves all its internal structure + JS hooks)
+    var inner = originalSection.cloneNode(true);
+    // Strip the section header inside (we already have the title in the dd head)
+    var innerHead = inner.querySelector('.ct-section-head');
+    if (innerHead) innerHead.style.display = 'none';
+    body.appendChild(inner);
+    dd.appendChild(head);
+    dd.appendChild(body);
+    // Hide the original
+    originalSection.style.display = 'none';
+    return dd;
+  }
+
+  // ─── Time filters ───
+  function withinFilter(dateIso, filter) {
+    if (!dateIso || filter === 'all') return true;
+    var d = new Date(dateIso);
+    if (isNaN(d.getTime())) return false;
+    var now = new Date();
+    if (filter === 'thismonth') {
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    }
+    if (filter === 'lastmonth') {
+      var lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      return d.getFullYear() === lm.getFullYear() && d.getMonth() === lm.getMonth();
+    }
+    if (filter === '6mo') {
+      var c = new Date(now); c.setMonth(c.getMonth() - 6);
+      return d >= c;
+    }
+    if (filter === 'year') {
+      var y = new Date(now); y.setFullYear(y.getFullYear() - 1);
+      return d >= y;
+    }
+    return true;
+  }
+
+  function buildFilterChips(currentFilter, onChange) {
+    var opts = [
+      { k: 'thismonth', l: 'This month' },
+      { k: 'lastmonth', l: 'Last month' },
+      { k: '6mo',       l: '6 months' },
+      { k: 'year',      l: '1 year' },
+      { k: 'all',       l: 'All time' }
+    ];
+    return '<div class="ffp-filter-row">' +
+      opts.map(function (o) {
+        return '<button class="ffp-chip' + (o.k === currentFilter ? ' active' : '') + '" data-filter="' + o.k + '">' + escHtml(o.l) + '</button>';
+      }).join('') +
+    '</div>';
+  }
+
+  // ─── Refresh payouts section with current filter + summary stats ───
+  function refreshPayoutsSectionWithFilter() {
+    var section = document.getElementById('ffp-payouts-section');
+    if (!section) return;
+
+    var filtered = memberPayouts.filter(function (p) {
+      return withinFilter(p.requested_at, payoutFilter);
+    });
+
+    // Summary stats
+    var totalPaid = 0, totalPending = 0, totalRejected = 0;
+    filtered.forEach(function (p) {
+      var amt = Number(p.amount_aed) || 0;
+      if (p.status === 'paid') totalPaid += amt;
+      else if (p.status === 'pending' || p.status === 'approved') totalPending += amt;
+      else if (p.status === 'rejected') totalRejected += amt;
+    });
+
+    var titleRow =
+      '<div class="ffp-po-title-row">' +
+        '<div>' +
+          '<div class="ffp-po-title">Your Payouts</div>' +
+          '<div class="ffp-po-subtitle">Track every withdrawal request and its status</div>' +
+        '</div>' +
+      '</div>';
+
+    var filterChips = buildFilterChips(payoutFilter);
+
+    var summary =
+      '<div class="ffp-summary">' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Paid</div><div class="ffp-summary-val green">AED ' + Math.round(totalPaid).toLocaleString() + '</div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">In progress</div><div class="ffp-summary-val yellow">AED ' + Math.round(totalPending).toLocaleString() + '</div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Rejected</div><div class="ffp-summary-val red">AED ' + Math.round(totalRejected).toLocaleString() + '</div></div>' +
+      '</div>';
+
+    var rowsHtml;
+    if (!filtered.length) {
+      rowsHtml = '<div class="ffp-po-list"><div class="ffp-po-empty">No payouts in this period.</div></div>';
+    } else {
+      var rows = filtered.map(function (p) {
+        var amt = Math.round(Number(p.amount_aed) || 0);
+        var status = p.status || 'pending';
+        var statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+        if (status === 'pending') statusLabel = 'Under review';
+
+        var dates = '<b>Requested:</b> ' + escHtml(fmtNiceDate(p.requested_at));
+        if (p.processed_at && (status === 'paid' || status === 'rejected')) {
+          var processedLabel = status === 'paid' ? 'Transferred' : 'Reviewed';
+          dates += '<br><b>' + processedLabel + ':</b> ' + escHtml(fmtNiceDate(p.processed_at));
+        }
+        if (status === 'approved') {
+          dates += '<br><b>Expected by:</b> ' + escHtml(plus14DaysFrom(p.requested_at));
+        }
+
+        var rejectionBlock = '';
+        if (status === 'rejected' && p.notes) {
+          rejectionBlock = '<div class="ffp-po-reason"><b>Reason:</b> ' + escHtml(p.notes) + '</div>';
+        }
+
+        var receiptBtn = '';
+        if (status === 'paid' && (p.receipt_url || p.notes)) {
+          var poJson = encodeURIComponent(JSON.stringify({
+            notes: p.notes || '',
+            receiptUrl: p.receipt_url || ''
+          }));
+          receiptBtn =
+            '<button class="ffp-po-view-btn" onclick="ffpOpenReceiptFromAttr(this)" data-payout="' + poJson + '">' +
+              '<span class="material-icons" style="font-size:14px;">receipt_long</span>View receipt' +
+            '</button>';
+        }
+
+        return '<div class="ffp-po-row">' +
+          '<div>' +
+            '<div class="ffp-po-amount">AED ' + amt.toLocaleString() + '</div>' +
+            '<div class="ffp-po-method">' + escHtml(p.method || 'bank') + ' transfer</div>' +
+            '<div class="ffp-po-dates">' + dates + '</div>' +
+            rejectionBlock +
+            receiptBtn +
+          '</div>' +
+          '<div class="ffp-po-pill ' + escHtml(status) + '">' + escHtml(statusLabel) + '</div>' +
+        '</div>';
+      }).join('');
+      rowsHtml = '<div class="ffp-po-list">' + rows + '</div>';
+    }
+
+    section.innerHTML = titleRow + filterChips + summary + rowsHtml;
+
+    // Wire filter chips
+    section.querySelectorAll('.ffp-chip').forEach(function (btn) {
+      btn.onclick = function () {
+        payoutFilter = btn.getAttribute('data-filter');
+        refreshPayoutsSectionWithFilter();
+      };
+    });
+  }
+
+  // ─── Earnings log section (replaces Recent activity) ───
+  function renderEarningsLog() {
+    var panel = document.getElementById('panel-earnings');
+    if (!panel) return;
+
+    var section = document.getElementById('ffp-earnings-log');
+    if (!section) {
+      section = document.createElement('div');
+      section.id = 'ffp-earnings-log';
+      section.style.marginTop = '18px';
+      // Insert AFTER the payouts section
+      var payouts = document.getElementById('ffp-payouts-section');
+      if (payouts && payouts.parentNode) {
+        payouts.parentNode.insertBefore(section, payouts.nextSibling);
+      } else {
+        panel.appendChild(section);
+      }
+    }
+
+    // Filter transactions by date AND exclude payout category (those are in Your Payouts)
+    var filtered = (allTransactions || []).filter(function (r) {
+      if (r.category === 'payout') return false;
+      return withinFilter(r.created_at, earningsFilter);
+    });
+
+    // Summary stats
+    var totalEarned = 0, totalPending = 0;
+    filtered.forEach(function (r) {
+      var amt = Number(r.amount_aed) || 0;
+      if (r.type === 'in') {
+        if (r.status === 'paid') totalEarned += amt;
+        else if (r.status === 'pending') totalPending += amt;
+      }
+    });
+
+    var titleRow =
+      '<div class="ffp-po-title-row">' +
+        '<div>' +
+          '<div class="ffp-po-title">Earnings log</div>' +
+          '<div class="ffp-po-subtitle">Every referral and reward you\'ve earned</div>' +
+        '</div>' +
+      '</div>';
+
+    var filterChips = buildFilterChips(earningsFilter);
+
+    var summary =
+      '<div class="ffp-summary two">' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Earned</div><div class="ffp-summary-val green">AED ' + Math.round(totalEarned).toLocaleString() + '</div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Pending</div><div class="ffp-summary-val yellow">AED ' + Math.round(totalPending).toLocaleString() + '</div></div>' +
+      '</div>';
+
+    var listHtml;
+    if (!filtered.length) {
+      listHtml = '<div class="ffp-po-list"><div class="ffp-earn-empty">No earnings in this period.</div></div>';
+    } else {
+      var rows = filtered.map(function (r) {
+        var isIn = r.type === 'in';
+        var amt = Math.round(Number(r.amount_aed) || 0);
+        var icon = isIn ? 'add' : 'remove';
+        var sign = isIn ? '+' : '\u2212';
+        var statusText = r.status === 'pending' ? 'pending review' : r.status === 'rejected' ? 'rejected' : '';
+        var src = r.source || categoryLabel(r.category);
+        var meta = categoryLabel(r.category) + ' \u00b7 ' + daysAgoLabel(r.created_at) + (statusText ? ' \u00b7 ' + statusText : '');
+        return '<div class="ffp-earn-row">' +
+          '<div class="ffp-earn-icon' + (isIn ? '' : ' out') + '"><span class="material-icons" style="font-size:18px;">' + icon + '</span></div>' +
+          '<div>' +
+            '<div class="ffp-earn-name">' + escHtml(src) + '</div>' +
+            '<div class="ffp-earn-meta">' + escHtml(meta) + '</div>' +
+          '</div>' +
+          '<div class="ffp-earn-amt' + (isIn ? '' : ' out') + '">' + sign + amt + '</div>' +
+        '</div>';
+      }).join('');
+      listHtml = '<div class="ffp-po-list">' + rows + '</div>';
+    }
+
+    section.innerHTML = titleRow + filterChips + summary + listHtml;
+
+    section.querySelectorAll('.ffp-chip').forEach(function (btn) {
+      btn.onclick = function () {
+        earningsFilter = btn.getAttribute('data-filter');
+        renderEarningsLog();
+      };
+    });
+  }
+
+  function daysAgoLabel(iso) {
+    if (!iso) return '\u2014';
+    var d = new Date(iso); d.setHours(0,0,0,0);
+    var t = new Date();   t.setHours(0,0,0,0);
+    var n = Math.max(0, Math.round((t - d) / 86400000));
+    if (n === 0) return 'Today';
+    if (n === 1) return 'Yesterday';
+    if (n < 30) return n + ' days ago';
+    return fmtNiceDate(iso);
   }
 
   // Global handler for receipt button in Payouts section
@@ -291,6 +665,7 @@
         console.error('[FFP Earnings] transactions read:', txRes.error);
       } else {
         var txRows = txRes.data || [];
+        allTransactions = txRows;  // v8: keep full list for time filtering
         Earnings.balance = computeBalance(txRows);
 
         // For paid payouts, fetch the receipt URL from payouts table
@@ -409,6 +784,7 @@
         memberPayouts = poRes.data || [];
       }
       renderPayoutsSection();
+      rebuildLayout();  // v8: full panel layout restructure
 
       // 6. Wrap submitPayout
       wrapWrites();
@@ -422,7 +798,7 @@
       // 8. Subscribe to real-time updates so the panel auto-updates
       subscribeRealtime();
 
-      console.log('[FFP Earnings v7] Loaded from Supabase \u2713');
+      console.log('[FFP Earnings v8] Loaded from Supabase \u2713');
     } catch (err) {
       console.error('[FFP Earnings] Unexpected error:', err);
     }
