@@ -1,406 +1,615 @@
-/* FFP Earnings Loader — v3
-   Wires Earnings module in ffp-member-dashboard.html to Supabase.
-   Reads:  members (referral_code), transactions (balance + history),
-           referrals (stats), claims, rsvps, activity_logs, meetup_attendees,
-           challenge_entries (category counters for tier computation)
-   Writes: submitPayout → inserts payouts row + transactions row (status pending)
-   Tier is computed locally from the category counters (Member/Supporter/Ambassador).
-
+/* FFP Admin Payouts Loader — v3
    v3 changes:
-   - REPLACES openPayout wrap with MutationObserver watching #payout-modal-backdrop
-   - Bank fields inject reliably regardless of how the modal is opened
-   - Re-checks injection on every modal show (handles modal re-use)
-   - Stricter IBAN validation (UAE IBANs start with AE + 21 chars total)
-   - Auto-formats IBAN to uppercase, strips spaces
+   - MARK PAID modal now captures a full receipt: sending bank, transfer date,
+     transfer time, payment reference. All saved to payouts.notes as structured
+     text the member can read.
+   - The mirror transactions row is ALSO updated with the same receipt info in
+     its notes column, so it shows up in the member's earnings history.
+   - View modal now displays the full receipt for paid payouts, formatted clearly.
 
    v2 changes (kept):
-   - INJECTS bank account fields (holder name, IBAN, bank name) into the payout modal
-   - For "Other" method, injects a free-text textarea
-   - Validates bank_details is non-empty before submission
-   - Adds confirm() before submitting (real money — be deliberate)
-   - Stores bank_details on the payouts row so admin can do the transfer immediately
+   - REPLACES native prompt() with inline modal containing textarea for rejection reason
+   - APPROVE modal shows "Expected payout by [today + 14 days]" so admin can communicate timing
+   - All actions: detect 0 rows affected → show "may have been processed already" error
+   - After action success: auto-switch to destination tab so admin sees the row in its new home
+   - Longer-lasting success toasts (no more "did anything happen?" confusion)
+   - Mirror transaction sync on reject/markPaid unchanged from v1
 */
 (function () {
   'use strict';
-  var retries = 0;
-  var MAX_RETRIES = 30;
-  var currentUserId = null;
-  var wrapped = false;
+
+  function getAP() { return (typeof AdminPayouts !== 'undefined') ? AdminPayouts : null; }
+  function toast(msg, kind) {
+    if (typeof window.showToast === 'function') { try { window.showToast(msg, kind || 'info'); return; } catch (e) {} }
+    console.log('[FFP Admin Payouts]', msg);
+  }
+  async function waitFor(check, ms) {
+    var tries = 0; var limit = Math.ceil((ms || 15000) / 100);
+    while (!check() && tries < limit) {
+      await new Promise(function (r) { setTimeout(r, 100); });
+      tries++;
+    }
+    return check();
+  }
+  function escHtml(s) {
+    if (typeof window.escHtml === 'function') return window.escHtml(s);
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function fmtDays(iso) {
+    if (!iso) return '—';
+    if (typeof window.fmtDays === 'function') {
+      try { var d = new Date(iso); var days = Math.floor((Date.now() - d.getTime()) / 86400000); return window.fmtDays(days); } catch (e) {}
+    }
+    var d = new Date(iso);
+    var days = Math.floor((Date.now() - d.getTime()) / 86400000);
+    if (days < 1) return 'today';
+    if (days === 1) return '1 day ago';
+    if (days < 30) return days + ' days ago';
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return d.getDate() + ' ' + months[d.getMonth()];
+  }
+  function fmtDateTime(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleString();
+  }
 
   function injectStyles() {
-    if (document.getElementById('ffp-earnings-loader-styles')) return;
-    var s = document.createElement('style');
-    s.id = 'ffp-earnings-loader-styles';
-    s.textContent =
-      '*::-webkit-scrollbar{display:none !important;width:0 !important;height:0 !important;}' +
-      '*{-ms-overflow-style:none !important;scrollbar-width:none !important;}';
-    document.head.appendChild(s);
+    if (document.getElementById('ffp-admin-payouts-css')) return;
+    var css = document.createElement('style');
+    css.id = 'ffp-admin-payouts-css';
+    css.textContent = [
+      '*::-webkit-scrollbar{display:none !important;width:0 !important;height:0 !important;}',
+      '*{-ms-overflow-style:none !important;scrollbar-width:none !important;}',
+      'select{appearance:none;-webkit-appearance:none;-moz-appearance:none;' +
+        'background-image:url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%238a99a8\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'%3E%3C/polyline%3E%3C/svg%3E");' +
+        'background-repeat:no-repeat;background-position:right 12px center;background-size:16px;padding-right:36px;}'
+    ].join('');
+    document.head.appendChild(css);
   }
 
-  function daysAgoFromIso(iso) {
-    if (!iso) return 0;
-    var d = new Date(iso); d.setHours(0, 0, 0, 0);
-    var t = new Date();   t.setHours(0, 0, 0, 0);
-    return Math.max(0, Math.round((t - d) / 86400000));
+  function letterFor(name) {
+    return (name && name.length) ? name[0].toUpperCase() : '?';
   }
 
-  // DB category → display category label
-  function categoryLabel(cat) {
-    switch (cat) {
-      case 'referrals': return 'Referral reward';
-      case 'deals':     return 'Deal reward';
-      case 'events':    return 'Event reward';
-      case 'providers': return 'Provider reward';
-      case 'activities':return 'Activity reward';
-      case 'meet_move': return 'Meet & Move reward';
-      case 'challenges':return 'Challenge reward';
-      case 'content':   return 'Content reward';
-      case 'payout':    return 'Payout';
-      default:          return cat || 'Reward';
-    }
+  function memberName(m) {
+    if (!m) return 'Unknown member';
+    return m.full_name || m.given_names || m.email || 'Member';
   }
 
-  function txSourceFromRow(row) {
-    if (row.source) return row.source;
-    if (row.notes)  return row.notes;
-    return categoryLabel(row.category);
-  }
-
-  // Compute balance: sum(in.paid) − sum(out where status in paid/pending)
-  function computeBalance(rows) {
-    var bal = 0;
-    rows.forEach(function (r) {
-      var amt = Number(r.amount_aed) || 0;
-      if (r.type === 'in'  && r.status === 'paid') bal += amt;
-      else if (r.type === 'out' && (r.status === 'paid' || r.status === 'pending')) bal -= amt;
-    });
-    return Math.round(bal);
-  }
-
-  // Count rows helper (head: true → just the count, no data)
-  async function countRows(table, filterFn) {
-    try {
-      var q = window.supabase.from(table).select('*', { count: 'exact', head: true });
-      q = filterFn(q);
-      var res = await q;
-      if (res.error) {
-        console.error('[FFP Earnings] count ' + table + ':', res.error);
-        return 0;
-      }
-      return res.count || 0;
-    } catch (e) {
-      console.error('[FFP Earnings] count ' + table + ':', e);
-      return 0;
-    }
-  }
-
-  async function loadFromSupabase() {
-    if (!window.supabase || typeof Earnings === 'undefined') {
-      if (retries < MAX_RETRIES) { retries++; setTimeout(loadFromSupabase, 200); }
-      return;
-    }
-    injectStyles();
-
-    try {
-      var userRes = await window.supabase.auth.getUser();
-      if (userRes.error || !userRes.data || !userRes.data.user) {
-        console.log('[FFP Earnings] No user — keeping sample');
-        return;
-      }
-      currentUserId = userRes.data.user.id;
-
-      // 1. Referral code from members
-      var memRes = await window.supabase
-        .from('members')
-        .select('referral_code')
-        .eq('id', currentUserId)
-        .maybeSingle();
-
-      if (!memRes.error && memRes.data && memRes.data.referral_code) {
-        Earnings.referralCode = memRes.data.referral_code;
-      } else if (memRes.error) {
-        console.error('[FFP Earnings] members read:', memRes.error);
-      }
-
-      // 2. Transactions (balance + history)
-      var txRes = await window.supabase
-        .from('transactions')
-        .select('id, type, amount_aed, source, category, status, notes, created_at')
-        .eq('member_id', currentUserId)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (txRes.error) {
-        console.error('[FFP Earnings] transactions read:', txRes.error);
-      } else {
-        var txRows = txRes.data || [];
-        Earnings.balance = computeBalance(txRows);
-        Earnings.transactions = txRows.map(function (r) {
-          return {
-            type: r.type,
-            amount: Math.round(Number(r.amount_aed) || 0),
-            source: txSourceFromRow(r),
-            category: categoryLabel(r.category),
-            daysAgo: daysAgoFromIso(r.created_at),
-            status: r.status === 'pending' ? 'pending review'
-                  : r.status === 'paid'    ? null
-                  : r.status === 'rejected'? 'rejected'
-                  : r.status
-          };
-        });
-      }
-
-      // 3. Referral stats (total, earned, pending)
-      var refRes = await window.supabase
-        .from('referrals')
-        .select('status, reward_aed')
-        .eq('referrer_id', currentUserId);
-
-      if (refRes.error) {
-        console.error('[FFP Earnings] referrals read:', refRes.error);
-      } else {
-        var refs = refRes.data || [];
-        var total = refs.length;
-        var earned = 0, pending = 0;
-        refs.forEach(function (r) {
-          var amt = Number(r.reward_aed) || 0;
-          if (r.status === 'paid') earned += amt;
-          if (r.status === 'pending' || r.status === 'signed_up') pending++;
-        });
-        Earnings.referralStats = {
-          total: total,
-          earned: Math.round(earned),
-          pending: pending
-        };
-      }
-
-      // 4. Category counters (parallel) — drive tier computation
-      var counters = await Promise.all([
-        // referrals: signed up or paid
-        countRows('referrals', function (q) {
-          return q.eq('referrer_id', currentUserId).in('status', ['signed_up', 'paid']);
-        }),
-        // deals: claims
-        countRows('claims', function (q) {
-          return q.eq('member_id', currentUserId);
-        }),
-        // events: rsvps marked attended
-        countRows('rsvps', function (q) {
-          return q.eq('member_id', currentUserId).eq('status', 'attended');
-        }),
-        // providers: no check-in feature yet
-        Promise.resolve(0),
-        // activities logged
-        countRows('activity_logs', function (q) {
-          return q.eq('member_id', currentUserId);
-        }),
-        // meet & move attended
-        countRows('meetup_attendees', function (q) {
-          return q.eq('member_id', currentUserId).eq('status', 'attended');
-        }),
-        // challenges entered
-        countRows('challenge_entries', function (q) {
-          return q.eq('member_id', currentUserId);
-        })
-      ]);
-
-      // Dashboard categories order: referrals, deals, events, providers, logs, meet, challenges
-      var catKeys = ['referrals', 'deals', 'events', 'providers', 'logs', 'meet', 'challenges'];
-      Earnings.categories.forEach(function (cat, i) {
-        var idx = catKeys.indexOf(cat.key);
-        if (idx >= 0 && idx < counters.length) cat.current = counters[idx];
-      });
-
-      // 5. Wrap submitPayout
-      wrapWrites();
-
-      // 6. Re-render if Earnings panel is visible
-      var panel = document.getElementById('panel-earnings');
-      if (panel && panel.classList.contains('active') && typeof Earnings.render === 'function') {
-        Earnings.render();
-      }
-
-      console.log('[FFP Earnings] Loaded from Supabase ✓');
-    } catch (err) {
-      console.error('[FFP Earnings] Unexpected error:', err);
-    }
-  }
-
-  // ─── v2: Inject bank_details + IBAN/account name fields into the existing payout modal ───
-  function injectBankFieldsIntoModal() {
-    var modal = document.querySelector('#payout-modal-backdrop .detail-modal');
-    if (!modal) return;
-    if (modal.querySelector('#ffp-bank-details-block')) return;  // already injected
-
-    var methodBlock = modal.querySelector('.payout-method-block');
-    if (!methodBlock) return;
-
-    var bankBlock = document.createElement('div');
-    bankBlock.id = 'ffp-bank-details-block';
-    bankBlock.style.cssText = 'margin-top:14px;padding:14px;background:rgba(43,168,224,0.06);border:1px solid rgba(43,168,224,0.18);border-radius:10px;';
-    bankBlock.innerHTML =
-      '<div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted-lt,#8a99a8);margin-bottom:10px;">Bank account details (required for bank transfer)</div>' +
-      '<input id="ffp-payout-bank-name" type="text" placeholder="Account holder name (as on card)" style="width:100%;background:rgba(0,0,0,0.25);border:1px solid rgba(43,168,224,0.25);border-radius:8px;padding:10px 12px;font-size:13px;font-weight:600;color:#fff;font-family:Montserrat,sans-serif;margin-bottom:8px;outline:none;">' +
-      '<input id="ffp-payout-iban" type="text" placeholder="IBAN" style="width:100%;background:rgba(0,0,0,0.25);border:1px solid rgba(43,168,224,0.25);border-radius:8px;padding:10px 12px;font-size:13px;font-weight:600;color:#fff;font-family:Montserrat,sans-serif;margin-bottom:8px;outline:none;">' +
-      '<input id="ffp-payout-bank" type="text" placeholder="Bank name (e.g. Emirates NBD)" style="width:100%;background:rgba(0,0,0,0.25);border:1px solid rgba(43,168,224,0.25);border-radius:8px;padding:10px 12px;font-size:13px;font-weight:600;color:#fff;font-family:Montserrat,sans-serif;outline:none;">' +
-      '<div style="font-size:10px;color:var(--muted,#6a90a8);margin-top:8px;line-height:1.5;">Stored only for this payout. We never store card details.</div>';
-    methodBlock.parentNode.insertBefore(bankBlock, methodBlock.nextSibling);
-
-    var otherBlock = document.createElement('div');
-    otherBlock.id = 'ffp-other-details-block';
-    otherBlock.style.cssText = 'display:none;margin-top:14px;padding:14px;background:rgba(255,204,0,0.06);border:1px solid rgba(255,204,0,0.18);border-radius:10px;';
-    otherBlock.innerHTML =
-      '<div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted-lt,#8a99a8);margin-bottom:10px;">How should we reach you?</div>' +
-      '<textarea id="ffp-payout-other" rows="3" placeholder="Tell us how you\'d like to receive your payout (e.g. crypto wallet, in-person cash pickup, etc.)" style="width:100%;background:rgba(0,0,0,0.25);border:1px solid rgba(255,204,0,0.25);border-radius:8px;padding:10px 12px;font-size:13px;font-weight:600;color:#fff;font-family:Montserrat,sans-serif;outline:none;resize:vertical;"></textarea>';
-    methodBlock.parentNode.insertBefore(otherBlock, bankBlock.nextSibling);
-
-    // Show/hide based on method radio
-    modal.querySelectorAll('input[name="po-method"]').forEach(function (radio) {
-      radio.addEventListener('change', function () {
-        var m = radio.value;
-        bankBlock.style.display = (m === 'bank') ? '' : 'none';
-        otherBlock.style.display = (m === 'other') ? '' : 'none';
-      });
-    });
-  }
-
-  function collectBankDetails() {
-    var methodInput = document.querySelector('input[name="po-method"]:checked');
-    var method = methodInput ? methodInput.value : 'bank';
-    if (method === 'bank') {
-      var name = (document.getElementById('ffp-payout-bank-name') || {}).value || '';
-      var iban = (document.getElementById('ffp-payout-iban') || {}).value || '';
-      var bank = (document.getElementById('ffp-payout-bank') || {}).value || '';
-      name = name.trim();
-      iban = iban.trim().replace(/\s+/g, '').toUpperCase();
-      bank = bank.trim();
-      if (!name || !iban || !bank) {
-        showToast('Please fill in account holder name, IBAN, and bank name', 'error');
-        return null;
-      }
-      // UAE IBANs are 23 chars total: AE + 2 check digits + 19 account digits
-      if (!/^AE\d{21}$/.test(iban)) {
-        showToast('IBAN must start with AE followed by 21 digits (23 characters total)', 'error');
-        return null;
-      }
-      return {
-        method: 'bank',
-        bank_details: 'Account holder: ' + name + '\nIBAN: ' + iban + '\nBank: ' + bank
-      };
-    } else {
-      var other = (document.getElementById('ffp-payout-other') || {}).value || '';
-      other = other.trim();
-      if (!other) {
-        showToast('Please tell us how you\'d like to receive your payout', 'error');
-        return null;
-      }
-      return { method: 'other', bank_details: other };
-    }
-  }
-
-  function showToast(msg, kind) {
-    if (typeof window.showToast === 'function') { try { window.showToast(msg, kind || 'info'); return; } catch (e) {} }
-    console.log('[FFP Earnings]', msg);
-  }
-
-  // Hook into modal opening via MutationObserver (more reliable than wrapping openPayout)
-  // — watches for the .open class being added to the modal backdrop, then injects.
-  function startModalObserver() {
-    var backdrop = document.getElementById('payout-modal-backdrop');
-    if (!backdrop) {
-      // Retry until DOM is ready (modal HTML is inline so should be ready after DOMContentLoaded)
-      setTimeout(startModalObserver, 500);
-      return;
-    }
-    if (backdrop._ffpObserver) return; // already wired
-    backdrop._ffpObserver = true;
-
-    function check() {
-      if (backdrop.classList.contains('open')) {
-        // Slight delay so any other DOM updates settle
-        setTimeout(injectBankFieldsIntoModal, 30);
-      }
-    }
-    // Initial check
-    check();
-    // Watch for class changes
-    var obs = new MutationObserver(function (mutations) {
-      mutations.forEach(function (m) {
-        if (m.type === 'attributes' && m.attributeName === 'class') {
-          check();
-        }
-      });
-    });
-    obs.observe(backdrop, { attributes: true, attributeFilter: ['class'] });
-  }
-
-  function wrapWrites() {
-    if (wrapped) return;
-    wrapped = true;
-
-    startModalObserver();
-
-    var origSubmitPayout = Earnings.submitPayout.bind(Earnings);
-    Earnings.submitPayout = async function () {
-      // Capture amount + method BEFORE original runs (original closes modal + clears state)
-      var amount = this._payoutAmount;
-      // Guard amount before collecting bank details
-      if (amount < 500) { showToast('Minimum payout is AED 500', 'error'); return; }
-      if (amount > this.balance) { showToast('Amount exceeds balance', 'error'); return; }
-
-      // Collect + validate bank/other details BEFORE the original closes the modal
-      var details = collectBankDetails();
-      if (!details) return;  // validation failed, modal stays open
-
-      // Final confirmation — this is real money
-      if (!confirm('Submit payout request for AED ' + amount.toLocaleString() + ' via ' + details.method + '?\n\nAdmin will review and contact you within 3\u20135 business days.')) {
-        return;
-      }
-
-      origSubmitPayout();  // closes modal + clears state
-      if (!currentUserId) return;
-      try {
-        // 1. Insert payout request (now WITH bank_details)
-        var payoutRes = await window.supabase.from('payouts').insert({
-          member_id: currentUserId,
-          amount_aed: amount,
-          method: details.method,
-          bank_details: details.bank_details,
-          status: 'pending',
-          requested_at: new Date().toISOString()
-        }).select('id').single();
-        if (payoutRes.error) {
-          console.error('[FFP Earnings] payout insert:', payoutRes.error);
-          showToast('Payout request failed: ' + payoutRes.error.message, 'error');
-          return;
-        }
-        // 2. Mirror to transactions so balance math reflects the reservation
-        var txRes = await window.supabase.from('transactions').insert({
-          member_id: currentUserId,
-          type: 'out',
-          amount_aed: amount,
-          source: 'Payout request \u2014 ' + (details.method === 'bank' ? 'bank transfer' : 'other'),
-          category: 'payout',
-          status: 'pending',
-          related_id: payoutRes.data.id,
-          created_at: new Date().toISOString()
-        });
-        if (txRes.error) {
-          // Non-fatal — payout still recorded. Admin can reconcile.
-          console.error('[FFP Earnings] payout transaction mirror:', txRes.error);
-        }
-        showToast('Payout requested. Admin will review within 3\u20135 business days.', 'success');
-      } catch (e) {
-        console.error('[FFP Earnings] payout submit:', e);
-        showToast(e.message || 'Payout request failed', 'error');
-      }
+  function mapForUi(row) {
+    var m = row.members || {};
+    return {
+      id: row.id,
+      member: memberName(m),
+      memberEmail: m.email || '',
+      initial: letterFor(memberName(m)),
+      amount: Number(row.amount_aed) || 0,
+      method: row.method || 'bank',
+      bankDetails: row.bank_details || '',
+      notes: row.notes || '',
+      status: row.status || 'pending',
+      requestedAt: row.requested_at || row.created_at || null,
+      processedAt: row.processed_at || null,
+      _raw: row
     };
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () { setTimeout(loadFromSupabase, 400); });
-  } else {
-    setTimeout(loadFromSupabase, 400);
+  async function fetchPayouts() {
+    var res = await window.supabase
+      .from('payouts')
+      .select('id, member_id, amount_aed, method, status, processed_by, processed_at, bank_details, notes, requested_at, members(full_name, given_names, email)')
+      .order('requested_at', { ascending: false });
+    if (res.error) {
+      console.error('[FFP Admin Payouts] fetch:', res.error);
+      toast('Could not load payouts', 'error');
+      return [];
+    }
+    return (res.data || []).map(mapForUi);
   }
-  window.ffpReloadEarnings = loadFromSupabase;
+
+  async function refresh() {
+    var ap = getAP();
+    if (!ap) return;
+    ap.data = await fetchPayouts();
+    realRender();
+  }
+
+  function tabCounts(data) {
+    var c = { pending: 0, approved: 0, paid: 0, rejected: 0 };
+    data.forEach(function (p) { if (c[p.status] != null) c[p.status]++; });
+    return c;
+  }
+
+  function realRender() {
+    var ap = getAP();
+    if (!ap) return;
+    var tab = ap.tab || 'pending';
+    var rows = (ap.data || []).filter(function (p) { return p.status === tab; });
+    if (ap.search) {
+      rows = rows.filter(function (p) {
+        return p.member.toLowerCase().indexOf(ap.search) >= 0 ||
+               (p.memberEmail || '').toLowerCase().indexOf(ap.search) >= 0;
+      });
+    }
+
+    // Update tab counts
+    var counts = tabCounts(ap.data || []);
+    var tabsEl = document.querySelector('#panel-payouts .tabs');
+    if (tabsEl) {
+      tabsEl.innerHTML =
+        '<button class="tab-btn' + (tab === 'pending' ? ' active' : '') + '" data-tab="pending" onclick="AdminPayouts.setTab(\'pending\')">Pending <span class="count">' + counts.pending + '</span></button>' +
+        '<button class="tab-btn' + (tab === 'approved' ? ' active' : '') + '" data-tab="approved" onclick="AdminPayouts.setTab(\'approved\')">Approved <span class="count">' + counts.approved + '</span></button>' +
+        '<button class="tab-btn' + (tab === 'paid' ? ' active' : '') + '" data-tab="paid" onclick="AdminPayouts.setTab(\'paid\')">Paid <span class="count">' + counts.paid + '</span></button>' +
+        '<button class="tab-btn' + (tab === 'rejected' ? ' active' : '') + '" data-tab="rejected" onclick="AdminPayouts.setTab(\'rejected\')">Rejected <span class="count">' + counts.rejected + '</span></button>';
+    }
+
+    var metaEl = document.getElementById('AdminPayouts-meta');
+    if (metaEl) metaEl.textContent = rows.length + ' item' + (rows.length === 1 ? '' : 's');
+
+    var body = document.getElementById('payouts-tbody');
+    if (!body) return;
+    body.innerHTML = rows.length === 0
+      ? '<tr><td colspan="5" class="text-muted" style="text-align:center; padding:30px;">No payouts in this tab</td></tr>'
+      : rows.map(function (p) {
+          var actBtns = '';
+          if (p.status === 'pending') {
+            actBtns += '<button class="btn btn-sm btn-blue" onclick="AdminPayouts.approve(\'' + p.id + '\')"><span class="material-icons">check</span>Approve</button>';
+            actBtns += '<button class="btn btn-sm btn-danger" onclick="AdminPayouts.reject(\'' + p.id + '\')"><span class="material-icons">close</span>Reject</button>';
+          } else if (p.status === 'approved') {
+            actBtns += '<button class="btn btn-sm btn-primary" onclick="AdminPayouts.markPaid(\'' + p.id + '\')"><span class="material-icons">done_all</span>Mark Paid</button>';
+          }
+          actBtns += '<button class="btn btn-sm btn-ghost" onclick="AdminPayouts.view(\'' + p.id + '\')" title="View"><span class="material-icons">visibility</span></button>';
+
+          return '<tr>' +
+            '<td><span class="cell-avatar">' + escHtml(p.initial) + '</span><span class="cell-name">' + escHtml(p.member) + '</span></td>' +
+            '<td class="f-tabular text-yellow" style="font-weight:800;"><span class="aed">' + p.amount.toLocaleString() + '</span></td>' +
+            '<td class="text-muted">' + escHtml(p.method) + '</td>' +
+            '<td class="text-muted nowrap">' + escHtml(fmtDays(p.requestedAt)) + '</td>' +
+            '<td><div class="table-actions">' + actBtns + '</div></td>' +
+          '</tr>';
+        }).join('');
+  }
+
+  // ─── Mirror transaction status update ───
+  // The member earnings loader inserts a mirror transactions row when a payout
+  // is requested (related_id = payout.id, category='payout', type='out', status='pending').
+  // Keep that mirror in sync when admin processes the payout.
+  async function updateMirrorTransaction(payoutId, newTxStatus) {
+    try {
+      var res = await window.supabase
+        .from('transactions')
+        .update({ status: newTxStatus })
+        .eq('related_id', payoutId)
+        .eq('category', 'payout');
+      if (res.error) {
+        console.warn('[FFP Admin Payouts] mirror tx update:', res.error);
+        // Non-fatal — admin can reconcile manually
+      }
+    } catch (e) {
+      console.warn('[FFP Admin Payouts] mirror tx update exception:', e);
+    }
+  }
+
+  async function getMyAdminUid() {
+    try {
+      var sess = await window.supabase.auth.getUser();
+      return sess && sess.data && sess.data.user ? sess.data.user.id : null;
+    } catch (e) { return null; }
+  }
+
+  // ─── Custom action modal (replaces native confirm/prompt) ───
+  function openActionModal(opts) {
+    // opts: { title, bodyHtml, primaryLabel, primaryClass, onConfirm, validate }
+    if (typeof window.closeAdminModal === 'function') window.closeAdminModal();
+    var overlay = document.createElement('div');
+    overlay.id = 'ffp-admin-action-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,8,20,0.78);z-index:100001;display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML =
+      '<div style="background:#0f1e2e;border:1px solid #1a2f44;border-radius:16px;width:100%;max-width:480px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.6);overflow:hidden;font-family:Montserrat,sans-serif;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid #1a2f44;">' +
+          '<div style="color:#e8eef4;font-size:16px;font-weight:700;">' + escHtml(opts.title) + '</div>' +
+          '<button id="ffp-action-close" style="background:transparent;border:none;color:#8a99a8;cursor:pointer;font-size:24px;line-height:1;padding:0 4px;">&times;</button>' +
+        '</div>' +
+        '<div style="padding:20px;overflow-y:auto;flex:1;color:#cfd6dc;font-size:13px;line-height:1.55;">' + opts.bodyHtml + '</div>' +
+        '<div style="display:flex;gap:10px;justify-content:flex-end;padding:14px 20px;border-top:1px solid #1a2f44;">' +
+          '<button id="ffp-action-cancel" class="btn btn-ghost">Cancel</button>' +
+          '<button id="ffp-action-confirm" class="btn ' + (opts.primaryClass || 'btn-blue') + '">' + escHtml(opts.primaryLabel || 'Confirm') + '</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+
+    function close() {
+      var ov = document.getElementById('ffp-admin-action-overlay');
+      if (ov) ov.remove();
+    }
+    document.getElementById('ffp-action-close').onclick = close;
+    document.getElementById('ffp-action-cancel').onclick = close;
+    document.getElementById('ffp-action-confirm').onclick = async function () {
+      if (typeof opts.validate === 'function') {
+        var err = opts.validate(overlay);
+        if (err) { showActionError(err); return; }
+      }
+      var btn = document.getElementById('ffp-action-confirm');
+      btn.disabled = true; btn.textContent = 'Working\u2026';
+      try {
+        await opts.onConfirm(overlay);
+        close();
+      } catch (e) {
+        btn.disabled = false; btn.textContent = opts.primaryLabel || 'Confirm';
+        showActionError(e && e.message ? e.message : 'Action failed');
+      }
+    };
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+  }
+
+  function showActionError(msg) {
+    var existing = document.getElementById('ffp-action-error');
+    if (existing) existing.remove();
+    var overlay = document.getElementById('ffp-admin-action-overlay');
+    if (!overlay) return;
+    var err = document.createElement('div');
+    err.id = 'ffp-action-error';
+    err.style.cssText = 'background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);color:#fca5a5;padding:10px 12px;border-radius:8px;font-size:12px;margin-top:10px;';
+    err.textContent = msg;
+    overlay.querySelector('div[style*="overflow-y"]').appendChild(err);
+  }
+
+  function plus14Days() {
+    var d = new Date();
+    d.setDate(d.getDate() + 14);
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+  }
+
+  function bigToast(msg, kind) {
+    // Always also use the regular toast for accessibility
+    toast(msg, kind);
+    // ALSO show an inline banner at top of payouts panel that lingers
+    var panel = document.getElementById('panel-payouts');
+    if (!panel) return;
+    var existing = document.getElementById('ffp-payouts-banner');
+    if (existing) existing.remove();
+    var banner = document.createElement('div');
+    banner.id = 'ffp-payouts-banner';
+    var bg = kind === 'success' ? 'rgba(74,222,128,0.12)' : kind === 'error' ? 'rgba(239,68,68,0.12)' : 'rgba(43,168,224,0.12)';
+    var border = kind === 'success' ? 'rgba(74,222,128,0.35)' : kind === 'error' ? 'rgba(239,68,68,0.35)' : 'rgba(43,168,224,0.35)';
+    var fg = kind === 'success' ? '#4ade80' : kind === 'error' ? '#fca5a5' : '#7dd3fc';
+    banner.style.cssText = 'background:' + bg + ';border:1px solid ' + border + ';color:' + fg + ';padding:12px 16px;border-radius:10px;font-size:13px;font-weight:600;margin:0 0 16px 0;display:flex;align-items:center;gap:10px;';
+    banner.innerHTML = '<span class="material-icons" style="font-size:18px;">' + (kind === 'success' ? 'check_circle' : kind === 'error' ? 'error' : 'info') + '</span><span>' + escHtml(msg) + '</span>';
+    var section = panel.querySelector('.section');
+    if (section) section.insertBefore(banner, section.firstChild);
+    setTimeout(function () {
+      if (banner && banner.parentNode) banner.remove();
+    }, 6000);
+  }
+
+  function switchTab(tab) {
+    var ap = getAP();
+    if (!ap) return;
+    ap.tab = tab;
+    realRender();
+  }
+
+  // ─── Actions ───
+  function approve(id) {
+    var ap = getAP();
+    var p = ap.data.find(function (x) { return x.id === id; });
+    if (!p) return;
+
+    var bodyHtml =
+      '<div style="margin-bottom:14px;">You\'re approving a payout for <b style="color:#e8eef4;">' + escHtml(p.member) + '</b>.</div>' +
+      '<div style="background:#0a1825;border:1px solid #1a2f44;border-radius:10px;padding:14px;margin-bottom:14px;">' +
+        '<div style="color:#8a99a8;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;">Amount</div>' +
+        '<div style="color:#FFCC00;font-size:24px;font-weight:800;">AED ' + p.amount.toLocaleString() + '</div>' +
+      '</div>' +
+      '<div style="background:rgba(43,168,224,0.08);border:1px solid rgba(43,168,224,0.25);border-radius:10px;padding:14px;margin-bottom:14px;">' +
+        '<div style="color:#7dd3fc;font-size:12px;font-weight:700;margin-bottom:4px;">Expected payout by ' + plus14Days() + '</div>' +
+        '<div style="color:#8a99a8;font-size:11px;line-height:1.5;">Payouts are processed in weekly batches. Approving here marks it as queued for the next batch.</div>' +
+      '</div>' +
+      '<div style="color:#8a99a8;font-size:11px;font-style:italic;">After approving, do the bank transfer when the batch runs, then come back and click <b>Mark Paid</b> on this row.</div>';
+
+    openActionModal({
+      title: 'Approve payout',
+      bodyHtml: bodyHtml,
+      primaryLabel: 'Approve',
+      primaryClass: 'btn-blue',
+      onConfirm: async function () {
+        var uid = await getMyAdminUid();
+        var res = await window.supabase
+          .from('payouts')
+          .update({ status: 'approved', processed_by: uid })
+          .eq('id', id)
+          .eq('status', 'pending')
+          .select('id');
+        if (res.error) throw res.error;
+        if (!res.data || res.data.length === 0) {
+          throw new Error('Could not approve — may have been processed already. Refresh and try again.');
+        }
+        await refresh();
+        switchTab('approved');
+        bigToast('Approved \u2014 expected payout by ' + plus14Days() + '. Do the bank transfer, then Mark Paid.', 'success');
+      }
+    });
+  }
+
+  function reject(id) {
+    var ap = getAP();
+    var p = ap.data.find(function (x) { return x.id === id; });
+    if (!p) return;
+
+    var bodyHtml =
+      '<div style="margin-bottom:14px;">You\'re rejecting a payout for <b style="color:#e8eef4;">' + escHtml(p.member) + '</b> (AED ' + p.amount.toLocaleString() + ').</div>' +
+      '<div style="margin-bottom:14px;color:#8a99a8;font-size:12px;">The AED will be returned to the member\'s balance. Please explain the reason — this is shown to the member.</div>' +
+      '<textarea id="ffp-reject-reason" rows="4" placeholder="e.g. We could not verify the source of these earnings. Please contact us to discuss."' +
+      ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:10px 12px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;resize:vertical;"></textarea>' +
+      '<div style="font-size:10px;color:#6a90a8;margin-top:6px;">Minimum 10 characters.</div>';
+
+    openActionModal({
+      title: 'Reject payout',
+      bodyHtml: bodyHtml,
+      primaryLabel: 'Reject payout',
+      primaryClass: 'btn-danger',
+      validate: function () {
+        var t = (document.getElementById('ffp-reject-reason') || {}).value || '';
+        t = t.trim();
+        if (t.length < 10) return 'Please write a clear reason for the member (min 10 characters).';
+        return null;
+      },
+      onConfirm: async function () {
+        var reason = (document.getElementById('ffp-reject-reason').value || '').trim();
+        var uid = await getMyAdminUid();
+        var res = await window.supabase
+          .from('payouts')
+          .update({ status: 'rejected', processed_by: uid, processed_at: new Date().toISOString(), notes: reason })
+          .eq('id', id)
+          .eq('status', 'pending')
+          .select('id');
+        if (res.error) throw res.error;
+        if (!res.data || res.data.length === 0) {
+          throw new Error('Could not reject — may have been processed already. Refresh and try again.');
+        }
+        await updateMirrorTransaction(id, 'rejected');
+        await refresh();
+        switchTab('rejected');
+        bigToast('Rejected \u2014 AED ' + p.amount.toLocaleString() + ' returned to ' + p.member + '\'s balance.', 'success');
+      }
+    });
+  }
+
+  function markPaid(id) {
+    var ap = getAP();
+    var p = ap.data.find(function (x) { return x.id === id; });
+    if (!p) return;
+
+    var todayIso = new Date().toISOString().slice(0, 10);
+    var nowTime = new Date().toTimeString().slice(0, 5);
+
+    var bodyHtml =
+      '<div style="margin-bottom:14px;">Record the bank transfer receipt for <b style="color:#e8eef4;">' + escHtml(p.member) + '</b> (AED ' + p.amount.toLocaleString() + ').</div>' +
+      '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:12px;margin-bottom:16px;">' +
+        '<div style="color:#fca5a5;font-size:12px;font-weight:700;margin-bottom:4px;">This cannot be undone.</div>' +
+        '<div style="color:#8a99a8;font-size:11px;line-height:1.5;">Only mark Paid AFTER the transfer is complete and you have proof. The details below are saved as the member\'s receipt.</div>' +
+      '</div>' +
+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">' +
+        '<div>' +
+          '<div style="color:#8a99a8;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px;">Transfer date</div>' +
+          '<input id="ffp-paid-date" type="date" value="' + todayIso + '"' +
+            ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:9px 10px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;">' +
+        '</div>' +
+        '<div>' +
+          '<div style="color:#8a99a8;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px;">Transfer time</div>' +
+          '<input id="ffp-paid-time" type="time" value="' + nowTime + '"' +
+            ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:9px 10px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;">' +
+        '</div>' +
+      '</div>' +
+
+      '<div style="margin-bottom:10px;">' +
+        '<div style="color:#8a99a8;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px;">Sending bank (FFP operations account)</div>' +
+        '<input id="ffp-paid-sending-bank" type="text" placeholder="e.g. Emirates NBD — FFP Operations"' +
+          ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:9px 10px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;">' +
+      '</div>' +
+
+      '<div style="margin-bottom:10px;">' +
+        '<div style="color:#8a99a8;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px;">Payment reference / transaction ID</div>' +
+        '<input id="ffp-paid-ref" type="text" placeholder="Bank reference or transaction number"' +
+          ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:9px 10px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;">' +
+      '</div>' +
+
+      '<div>' +
+        '<div style="color:#8a99a8;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px;">Additional notes (optional)</div>' +
+        '<textarea id="ffp-paid-extra" rows="2" placeholder="Any extra info for the member"' +
+          ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:9px 10px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;resize:vertical;"></textarea>' +
+      '</div>';
+
+    openActionModal({
+      title: 'Mark payout as Paid',
+      bodyHtml: bodyHtml,
+      primaryLabel: 'Save receipt & lock Paid',
+      primaryClass: 'btn-primary',
+      validate: function () {
+        var date = (document.getElementById('ffp-paid-date') || {}).value || '';
+        var sendingBank = ((document.getElementById('ffp-paid-sending-bank') || {}).value || '').trim();
+        var ref = ((document.getElementById('ffp-paid-ref') || {}).value || '').trim();
+        if (!date) return 'Transfer date is required';
+        if (!sendingBank) return 'Sending bank is required';
+        if (!ref) return 'Payment reference is required';
+        return null;
+      },
+      onConfirm: async function () {
+        var date = document.getElementById('ffp-paid-date').value;
+        var time = (document.getElementById('ffp-paid-time') || {}).value || '';
+        var sendingBank = document.getElementById('ffp-paid-sending-bank').value.trim();
+        var ref = document.getElementById('ffp-paid-ref').value.trim();
+        var extra = ((document.getElementById('ffp-paid-extra') || {}).value || '').trim();
+
+        // Structured receipt text — readable for both admin and member
+        var receipt =
+          'Payment receipt\n' +
+          'Reference: ' + ref + '\n' +
+          'Transferred: ' + date + (time ? ' ' + time : '') + '\n' +
+          'Sending bank: ' + sendingBank +
+          (extra ? '\nNotes: ' + extra : '');
+
+        // Real transfer timestamp (when the bank actually moved the money)
+        var transferIso;
+        try {
+          transferIso = new Date(date + 'T' + (time || '12:00') + ':00').toISOString();
+        } catch (e) {
+          transferIso = new Date().toISOString();
+        }
+
+        var uid = await getMyAdminUid();
+        var res = await window.supabase
+          .from('payouts')
+          .update({
+            status: 'paid',
+            processed_by: uid,
+            processed_at: transferIso,
+            notes: receipt
+          })
+          .eq('id', id)
+          .eq('status', 'approved')
+          .select('id');
+        if (res.error) throw res.error;
+        if (!res.data || res.data.length === 0) {
+          throw new Error('Could not mark Paid — was not in Approved status. Refresh and try again.');
+        }
+        // Update mirror transaction with same receipt info so member sees it in their earnings history
+        await updateMirrorTransactionFull(id, 'paid', receipt);
+        await refresh();
+        switchTab('paid');
+        bigToast('Paid \u2014 receipt saved. Status locked. Ref: ' + ref, 'success');
+      }
+    });
+  }
+
+  // Full mirror tx update — sets status AND notes (used by markPaid for receipt)
+  async function updateMirrorTransactionFull(payoutId, newStatus, notes) {
+    try {
+      var res = await window.supabase
+        .from('transactions')
+        .update({ status: newStatus, notes: notes })
+        .eq('related_id', payoutId)
+        .eq('category', 'payout');
+      if (res.error) {
+        console.warn('[FFP Admin Payouts] mirror tx full update:', res.error);
+      }
+    } catch (e) {
+      console.warn('[FFP Admin Payouts] mirror tx full update exception:', e);
+    }
+  }
+
+  function viewPayout(id) {
+    var ap = getAP();
+    var p = ap.data.find(function (x) { return x.id === id; });
+    if (!p) return;
+
+    var statusPill = '<span class="pill pill-' + escHtml(p.status) + '">' + escHtml(p.status) + '</span>';
+    var bankBlock = p.method === 'bank' && p.bankDetails
+      ? '<div style="background:#0a1825;border:1px solid #1a2f44;border-radius:10px;padding:14px;margin:14px 0;">' +
+          '<div style="color:#8a99a8;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">Bank details (use these to transfer)</div>' +
+          '<div style="color:#e8eef4;font-size:13px;line-height:1.6;white-space:pre-wrap;font-family:monospace;">' + escHtml(p.bankDetails) + '</div>' +
+        '</div>'
+      : '<div style="color:#8a99a8;font-size:12px;margin:14px 0;font-style:italic;">No bank details on file. Method: <b>' + escHtml(p.method) + '</b>. Contact member directly.</div>';
+
+    var receiptBlock = '';
+    if (p.status === 'paid' && p.notes && p.notes.indexOf('Payment receipt') === 0) {
+      // Render the structured receipt
+      receiptBlock =
+        '<div style="background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.28);border-radius:10px;padding:14px;margin:14px 0;">' +
+          '<div style="color:#4ade80;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">Payment receipt</div>' +
+          '<div style="color:#e8eef4;font-size:13px;line-height:1.7;white-space:pre-wrap;font-family:monospace;">' + escHtml(p.notes) + '</div>' +
+        '</div>';
+    }
+
+    var content =
+      '<div style="text-align:center;margin-bottom:18px;">' +
+        '<div style="font-size:32px;font-weight:800;color:#FFCC00;letter-spacing:-1px;">AED ' + p.amount.toLocaleString() + '</div>' +
+        '<div style="color:#8a99a8;font-size:12px;margin-top:4px;">Requested by</div>' +
+        '<div style="color:#e8eef4;font-size:16px;font-weight:700;margin-top:2px;">' + escHtml(p.member) + '</div>' +
+        (p.memberEmail ? '<div style="color:#8a99a8;font-size:11px;">' + escHtml(p.memberEmail) + '</div>' : '') +
+      '</div>' +
+      bankBlock +
+      receiptBlock +
+      '<div style="color:#cfd6dc;font-size:12px;margin-bottom:6px;"><b style="color:#8a99a8;">Requested:</b> ' + escHtml(fmtDateTime(p.requestedAt)) + '</div>' +
+      (p.processedAt ? '<div style="color:#cfd6dc;font-size:12px;margin-bottom:6px;"><b style="color:#8a99a8;">' + (p.status === 'paid' ? 'Transferred' : 'Processed') + ':</b> ' + escHtml(fmtDateTime(p.processedAt)) + '</div>' : '') +
+      (p.notes && !receiptBlock ? '<div style="color:#cfd6dc;font-size:12px;margin-bottom:6px;"><b style="color:#8a99a8;">Notes:</b> ' + escHtml(p.notes) + '</div>' : '') +
+      '<div style="color:#cfd6dc;font-size:12px;margin-top:10px;"><b style="color:#8a99a8;">Status:</b> ' + statusPill + '</div>';
+
+    var foot = '<button class="btn btn-ghost" onclick="closeAdminModal()">Close</button>';
+    if (p.status === 'pending') {
+      foot = '<button class="btn btn-danger" onclick="closeAdminModal(); AdminPayouts.reject(\'' + p.id + '\')"><span class="material-icons">close</span>Reject</button>' +
+             '<button class="btn btn-blue" onclick="closeAdminModal(); AdminPayouts.approve(\'' + p.id + '\')"><span class="material-icons">check</span>Approve</button>';
+    } else if (p.status === 'approved') {
+      foot = '<button class="btn btn-ghost" onclick="closeAdminModal()">Close</button>' +
+             '<button class="btn btn-primary" onclick="closeAdminModal(); AdminPayouts.markPaid(\'' + p.id + '\')"><span class="material-icons">done_all</span>Mark Paid</button>';
+    }
+
+    if (typeof window.openAdminModal === 'function') {
+      window.openAdminModal('Payout request', content, foot);
+    } else { _openAdminModal('Payout request', content, foot); }
+  }
+
+  // Fallback modal (if no other admin loader has loaded one yet)
+  function _openAdminModal(title, content, footer) {
+    if (typeof window.closeAdminModal === 'function') window.closeAdminModal();
+    var overlay = document.createElement('div');
+    overlay.id = 'ffp-admin-modal-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,8,20,0.75);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML =
+      '<div style="background:#0f1e2e;border:1px solid #1a2f44;border-radius:16px;width:100%;max-width:540px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.5);overflow:hidden;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid #1a2f44;">' +
+          '<div style="color:#e8eef4;font-size:16px;font-weight:600;">' + escHtml(title) + '</div>' +
+          '<button onclick="closeAdminModal()" style="background:transparent;border:none;color:#8a99a8;cursor:pointer;font-size:24px;line-height:1;padding:0 4px;">&times;</button>' +
+        '</div>' +
+        '<div style="padding:20px;overflow-y:auto;flex:1;">' + content + '</div>' +
+        '<div style="display:flex;gap:10px;justify-content:flex-end;padding:14px 20px;border-top:1px solid #1a2f44;">' + footer + '</div>' +
+      '</div>';
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) window.closeAdminModal(); });
+    document.body.appendChild(overlay);
+    window.closeAdminModal = function () {
+      var ov = document.getElementById('ffp-admin-modal-overlay');
+      if (ov) ov.remove();
+    };
+  }
+
+  async function init() {
+    var ok = await waitFor(function () {
+      return window.supabase && typeof AdminPayouts !== 'undefined';
+    }, 15000);
+    if (!ok) { console.error('[FFP Admin Payouts] deps never loaded'); return; }
+
+    var authed = await waitFor(function () { return !!(window.FFP_ADMIN); }, 30000);
+    if (!authed) { console.warn('[FFP Admin Payouts] FFP_ADMIN not set'); return; }
+
+    injectStyles();
+    var ap = getAP();
+    ap.tab = 'pending';
+    ap.init = function () { refresh(); };
+    ap.setTab = function (tab) { ap.tab = tab; realRender(); };
+    ap.onSearch = function (q) { ap.search = (q || '').toLowerCase().trim(); realRender(); };
+    ap.render = realRender;
+    ap.approve = approve;
+    ap.reject = reject;
+    ap.markPaid = markPaid;
+    ap.view = viewPayout;
+    ap.refresh = refresh;
+
+    try {
+      await refresh();
+      console.log('[FFP Admin Payouts v1] Loaded \u2713');
+    } catch (e) {
+      console.error('[FFP Admin Payouts] initial load:', e);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 })();
