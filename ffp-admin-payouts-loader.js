@@ -1,18 +1,21 @@
-/* FFP Admin Payouts Loader — v5
-   v5 changes:
-   - MARK PAID modal: file upload for transfer receipt (image or PDF, max 5MB)
-     Files uploaded to Supabase Storage bucket "payout-receipts", URL saved to
-     payouts.receipt_url AND appended to mirror tx notes so member sees the link.
-   - SENDING BANK field clarified: "Sending bank account name (the FFP account
-     the money came from)"
-   - VIEW MODAL: shows receipt inline if image, or as a clickable link if PDF.
+/* FFP Admin Payouts Loader — v7
+   v7 changes:
+   - Refactored to use shared FFPRealtime helper (assets/ffp-realtime.js)
+     instead of inline channel subscription. Cleaner, consistent platform-wide
+     pattern. Requires ffp-realtime.js to load BEFORE this file.
+
+   v6 changes (kept):
+   - Real-time auto-updates via Supabase Realtime
+
+   v5 changes (kept):
+   - MARK PAID: file upload for transfer receipt
+   - VIEW MODAL: shows receipt image inline / PDF link
 
    v4 changes (kept):
-   - VIEW MODAL bank details: parsed fields with big readable values, IBAN in
-     extra-large yellow monospace, per-field Copy buttons + Copy All
+   - VIEW MODAL bank details parsed with big labels + per-field Copy buttons
 
    v3 changes (kept):
-   - MARK PAID full receipt: sending bank, transfer date, transfer time, ref
+   - MARK PAID full receipt: sending bank, transfer date, time, ref
 
    v2 changes (kept):
    - Inline reject modal, approve "expected by" date, 0-rows detection, banners
@@ -748,7 +751,15 @@
 
     try {
       await refresh();
-      console.log('[FFP Admin Payouts v1] Loaded \u2713');
+      // Real-time updates via shared helper
+      if (window.FFPRealtime) {
+        window.FFPRealtime.subscribe('ffp-admin-payouts', 'payouts', null, function () {
+          refresh();
+        });
+      } else {
+        console.warn('[FFP Admin Payouts] FFPRealtime helper not loaded — auto-updates disabled. Add assets/ffp-realtime.js before this script.');
+      }
+      console.log('[FFP Admin Payouts v7] Loaded \u2713');
     } catch (e) {
       console.error('[FFP Admin Payouts] initial load:', e);
     }
