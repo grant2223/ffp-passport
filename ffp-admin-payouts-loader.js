@@ -1,19 +1,21 @@
-/* FFP Admin Payouts Loader — v3
-   v3 changes:
-   - MARK PAID modal now captures a full receipt: sending bank, transfer date,
-     transfer time, payment reference. All saved to payouts.notes as structured
-     text the member can read.
-   - The mirror transactions row is ALSO updated with the same receipt info in
-     its notes column, so it shows up in the member's earnings history.
-   - View modal now displays the full receipt for paid payouts, formatted clearly.
+/* FFP Admin Payouts Loader — v5
+   v5 changes:
+   - MARK PAID modal: file upload for transfer receipt (image or PDF, max 5MB)
+     Files uploaded to Supabase Storage bucket "payout-receipts", URL saved to
+     payouts.receipt_url AND appended to mirror tx notes so member sees the link.
+   - SENDING BANK field clarified: "Sending bank account name (the FFP account
+     the money came from)"
+   - VIEW MODAL: shows receipt inline if image, or as a clickable link if PDF.
+
+   v4 changes (kept):
+   - VIEW MODAL bank details: parsed fields with big readable values, IBAN in
+     extra-large yellow monospace, per-field Copy buttons + Copy All
+
+   v3 changes (kept):
+   - MARK PAID full receipt: sending bank, transfer date, transfer time, ref
 
    v2 changes (kept):
-   - REPLACES native prompt() with inline modal containing textarea for rejection reason
-   - APPROVE modal shows "Expected payout by [today + 14 days]" so admin can communicate timing
-   - All actions: detect 0 rows affected → show "may have been processed already" error
-   - After action success: auto-switch to destination tab so admin sees the row in its new home
-   - Longer-lasting success toasts (no more "did anything happen?" confusion)
-   - Mirror transaction sync on reject/markPaid unchanged from v1
+   - Inline reject modal, approve "expected by" date, 0-rows detection, banners
 */
 (function () {
   'use strict';
@@ -90,6 +92,7 @@
       method: row.method || 'bank',
       bankDetails: row.bank_details || '',
       notes: row.notes || '',
+      receiptUrl: row.receipt_url || '',
       status: row.status || 'pending',
       requestedAt: row.requested_at || row.created_at || null,
       processedAt: row.processed_at || null,
@@ -100,7 +103,7 @@
   async function fetchPayouts() {
     var res = await window.supabase
       .from('payouts')
-      .select('id, member_id, amount_aed, method, status, processed_by, processed_at, bank_details, notes, requested_at, members(full_name, given_names, email)')
+      .select('id, member_id, amount_aed, method, status, processed_by, processed_at, bank_details, notes, receipt_url, requested_at, members(full_name, given_names, email)')
       .order('requested_at', { ascending: false });
     if (res.error) {
       console.error('[FFP Admin Payouts] fetch:', res.error);
@@ -173,6 +176,91 @@
         }).join('');
   }
 
+  // Parse structured bank_details text into labeled fields, then render with
+  // big readable values + per-field copy buttons. Resilient: if parsing fails
+  // it falls back to a monospace block of the raw text.
+  function renderBankCard(rawText) {
+    var fields = parseBankDetails(rawText);
+    if (!fields.length) {
+      // Fallback: just show raw text in big mono
+      return '<div style="background:#0a1825;border:1px solid #1a2f44;border-radius:12px;padding:18px;margin:14px 0;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
+          '<div style="color:#FFCC00;font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;">Bank details (transfer to)</div>' +
+          '<button onclick="ffpCopyText(this, ' + JSON.stringify(rawText).replace(/"/g, '&quot;') + ')" style="background:rgba(255,204,0,0.12);border:1px solid rgba(255,204,0,0.35);color:#FFCC00;padding:4px 10px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;font-family:Montserrat,sans-serif;">Copy all</button>' +
+        '</div>' +
+        '<div style="color:#e8eef4;font-size:15px;line-height:1.7;white-space:pre-wrap;font-family:monospace;">' + escHtml(rawText) + '</div>' +
+        '</div>';
+    }
+
+    var rowsHtml = fields.map(function (f) {
+      var isIban = /iban/i.test(f.label);
+      var valueStyle = isIban
+        ? 'font-size:20px;font-weight:800;font-family:monospace;color:#FFCC00;letter-spacing:1.5px;'
+        : 'font-size:17px;font-weight:700;color:#e8eef4;';
+      var copyJson = JSON.stringify(f.value).replace(/"/g, '&quot;');
+      return '<div style="padding:12px 0;border-bottom:1px solid #1a2f44;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px;">' +
+          '<div style="color:#8a99a8;font-size:10px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;">' + escHtml(f.label) + '</div>' +
+          '<button onclick="ffpCopyText(this, ' + copyJson + ')" style="background:rgba(43,168,224,0.12);border:1px solid rgba(43,168,224,0.35);color:#7dd3fc;padding:3px 8px;border-radius:5px;font-size:10px;font-weight:700;cursor:pointer;font-family:Montserrat,sans-serif;">Copy</button>' +
+        '</div>' +
+        '<div style="' + valueStyle + 'word-break:break-all;">' + escHtml(f.value) + '</div>' +
+      '</div>';
+    }).join('');
+
+    return '<div style="background:#0a1825;border:1px solid #1a2f44;border-radius:12px;padding:18px;margin:14px 0;">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">' +
+        '<div style="color:#FFCC00;font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;">Bank details (transfer to)</div>' +
+        '<button onclick="ffpCopyText(this, ' + JSON.stringify(rawText).replace(/"/g, '&quot;') + ')" style="background:rgba(255,204,0,0.12);border:1px solid rgba(255,204,0,0.35);color:#FFCC00;padding:4px 10px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;font-family:Montserrat,sans-serif;">Copy all</button>' +
+      '</div>' +
+      rowsHtml.replace(/border-bottom:1px solid #1a2f44;(?=[^]*$)/, '') +  // remove trailing border on last
+    '</div>';
+  }
+
+  function parseBankDetails(text) {
+    if (!text) return [];
+    var lines = String(text).split('\n');
+    var fields = [];
+    lines.forEach(function (line) {
+      var colonIdx = line.indexOf(':');
+      if (colonIdx <= 0) return;
+      var label = line.slice(0, colonIdx).trim();
+      var value = line.slice(colonIdx + 1).trim();
+      if (label && value) fields.push({ label: label, value: value });
+    });
+    return fields;
+  }
+
+  // Global copy function (button onclick handler)
+  window.ffpCopyText = function (btn, text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text);
+      } else {
+        // Fallback for older browsers
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      var orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      btn.style.background = 'rgba(74,222,128,0.15)';
+      btn.style.borderColor = 'rgba(74,222,128,0.5)';
+      btn.style.color = '#4ade80';
+      setTimeout(function () {
+        btn.textContent = orig;
+        btn.style.background = '';
+        btn.style.borderColor = '';
+        btn.style.color = '';
+      }, 1500);
+    } catch (e) {
+      console.error('[FFP Copy]', e);
+    }
+  };
   // ─── Mirror transaction status update ───
   // The member earnings loader inserts a mirror transactions row when a payout
   // is requested (related_id = payout.id, category='payout', type='out', status='pending').
@@ -388,7 +476,7 @@
     var nowTime = new Date().toTimeString().slice(0, 5);
 
     var bodyHtml =
-      '<div style="margin-bottom:14px;">Record the bank transfer receipt for <b style="color:#e8eef4;">' + escHtml(p.member) + '</b> (AED ' + p.amount.toLocaleString() + ').</div>' +
+      '<div style="margin-bottom:14px;">Record the bank transfer receipt for <b style="color:#e8eef4;">' + escHtml(p.member) + '</b> (<span style="color:#FFCC00;font-weight:800;">AED ' + p.amount.toLocaleString() + '</span>).</div>' +
       '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:12px;margin-bottom:16px;">' +
         '<div style="color:#fca5a5;font-size:12px;font-weight:700;margin-bottom:4px;">This cannot be undone.</div>' +
         '<div style="color:#8a99a8;font-size:11px;line-height:1.5;">Only mark Paid AFTER the transfer is complete and you have proof. The details below are saved as the member\'s receipt.</div>' +
@@ -398,31 +486,38 @@
         '<div>' +
           '<div style="color:#8a99a8;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px;">Transfer date</div>' +
           '<input id="ffp-paid-date" type="date" value="' + todayIso + '"' +
-            ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:9px 10px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;">' +
+            ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:9px 10px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;box-sizing:border-box;">' +
         '</div>' +
         '<div>' +
           '<div style="color:#8a99a8;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px;">Transfer time</div>' +
           '<input id="ffp-paid-time" type="time" value="' + nowTime + '"' +
-            ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:9px 10px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;">' +
+            ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:9px 10px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;box-sizing:border-box;">' +
         '</div>' +
       '</div>' +
 
       '<div style="margin-bottom:10px;">' +
-        '<div style="color:#8a99a8;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px;">Sending bank (FFP operations account)</div>' +
-        '<input id="ffp-paid-sending-bank" type="text" placeholder="e.g. Emirates NBD — FFP Operations"' +
-          ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:9px 10px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;">' +
+        '<div style="color:#8a99a8;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px;">Sending bank account name</div>' +
+        '<input id="ffp-paid-sending-bank" type="text" placeholder="The FFP account the money came from (e.g. FFP Operations - Emirates NBD)"' +
+          ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:9px 10px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;box-sizing:border-box;">' +
       '</div>' +
 
       '<div style="margin-bottom:10px;">' +
         '<div style="color:#8a99a8;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px;">Payment reference / transaction ID</div>' +
         '<input id="ffp-paid-ref" type="text" placeholder="Bank reference or transaction number"' +
-          ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:9px 10px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;">' +
+          ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:9px 10px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;box-sizing:border-box;">' +
+      '</div>' +
+
+      '<div style="margin-bottom:10px;">' +
+        '<div style="color:#8a99a8;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px;">Transfer receipt (photo or PDF, max 5MB)</div>' +
+        '<input id="ffp-paid-receipt-file" type="file" accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"' +
+          ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:9px 10px;color:#e8eef4;font-size:12px;font-family:Montserrat,sans-serif;outline:none;box-sizing:border-box;cursor:pointer;">' +
+        '<div id="ffp-paid-receipt-status" style="font-size:10px;color:#6a90a8;margin-top:4px;">Upload a screenshot of the bank transfer confirmation. The member will see this as proof of payment.</div>' +
       '</div>' +
 
       '<div>' +
         '<div style="color:#8a99a8;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px;">Additional notes (optional)</div>' +
         '<textarea id="ffp-paid-extra" rows="2" placeholder="Any extra info for the member"' +
-          ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:9px 10px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;resize:vertical;"></textarea>' +
+          ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:9px 10px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;resize:vertical;box-sizing:border-box;"></textarea>' +
       '</div>';
 
     openActionModal({
@@ -434,9 +529,14 @@
         var date = (document.getElementById('ffp-paid-date') || {}).value || '';
         var sendingBank = ((document.getElementById('ffp-paid-sending-bank') || {}).value || '').trim();
         var ref = ((document.getElementById('ffp-paid-ref') || {}).value || '').trim();
+        var fileEl = document.getElementById('ffp-paid-receipt-file');
         if (!date) return 'Transfer date is required';
-        if (!sendingBank) return 'Sending bank is required';
+        if (!sendingBank) return 'Sending bank account name is required';
         if (!ref) return 'Payment reference is required';
+        if (fileEl && fileEl.files && fileEl.files[0]) {
+          var f = fileEl.files[0];
+          if (f.size > 5 * 1024 * 1024) return 'Receipt file is too large (max 5MB)';
+        }
         return null;
       },
       onConfirm: async function () {
@@ -445,16 +545,38 @@
         var sendingBank = document.getElementById('ffp-paid-sending-bank').value.trim();
         var ref = document.getElementById('ffp-paid-ref').value.trim();
         var extra = ((document.getElementById('ffp-paid-extra') || {}).value || '').trim();
+        var fileEl = document.getElementById('ffp-paid-receipt-file');
+        var file = fileEl && fileEl.files ? fileEl.files[0] : null;
+
+        // Upload receipt file (if provided)
+        var receiptUrl = null;
+        if (file) {
+          var statusEl = document.getElementById('ffp-paid-receipt-status');
+          if (statusEl) { statusEl.textContent = 'Uploading\u2026'; statusEl.style.color = '#FFCC00'; }
+          var ext = (file.name.split('.').pop() || 'bin').toLowerCase();
+          var path = 'payouts/' + id + '/' + Date.now() + '.' + ext;
+          var upRes = await window.supabase.storage
+            .from('payout-receipts')
+            .upload(path, file, { upsert: true, contentType: file.type });
+          if (upRes.error) {
+            throw new Error('Receipt upload failed: ' + upRes.error.message);
+          }
+          var urlRes = window.supabase.storage.from('payout-receipts').getPublicUrl(path);
+          receiptUrl = urlRes && urlRes.data ? urlRes.data.publicUrl : null;
+          if (statusEl) { statusEl.textContent = 'Uploaded \u2713'; statusEl.style.color = '#4ade80'; }
+        }
 
         // Structured receipt text — readable for both admin and member
         var receipt =
           'Payment receipt\n' +
+          'Amount: AED ' + p.amount.toLocaleString() + '\n' +
           'Reference: ' + ref + '\n' +
           'Transferred: ' + date + (time ? ' ' + time : '') + '\n' +
           'Sending bank: ' + sendingBank +
-          (extra ? '\nNotes: ' + extra : '');
+          (extra ? '\nNotes: ' + extra : '') +
+          (receiptUrl ? '\nReceipt: ' + receiptUrl : '');
 
-        // Real transfer timestamp (when the bank actually moved the money)
+        // Real transfer timestamp
         var transferIso;
         try {
           transferIso = new Date(date + 'T' + (time || '12:00') + ':00').toISOString();
@@ -469,7 +591,8 @@
             status: 'paid',
             processed_by: uid,
             processed_at: transferIso,
-            notes: receipt
+            notes: receipt,
+            receipt_url: receiptUrl
           })
           .eq('id', id)
           .eq('status', 'approved')
@@ -478,11 +601,11 @@
         if (!res.data || res.data.length === 0) {
           throw new Error('Could not mark Paid — was not in Approved status. Refresh and try again.');
         }
-        // Update mirror transaction with same receipt info so member sees it in their earnings history
+        // Mirror tx gets same receipt info
         await updateMirrorTransactionFull(id, 'paid', receipt);
         await refresh();
         switchTab('paid');
-        bigToast('Paid \u2014 receipt saved. Status locked. Ref: ' + ref, 'success');
+        bigToast('Paid \u2014 receipt saved' + (receiptUrl ? ' with file' : '') + '. Ref: ' + ref, 'success');
       }
     });
   }
@@ -509,20 +632,44 @@
     if (!p) return;
 
     var statusPill = '<span class="pill pill-' + escHtml(p.status) + '">' + escHtml(p.status) + '</span>';
-    var bankBlock = p.method === 'bank' && p.bankDetails
-      ? '<div style="background:#0a1825;border:1px solid #1a2f44;border-radius:10px;padding:14px;margin:14px 0;">' +
-          '<div style="color:#8a99a8;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">Bank details (use these to transfer)</div>' +
-          '<div style="color:#e8eef4;font-size:13px;line-height:1.6;white-space:pre-wrap;font-family:monospace;">' + escHtml(p.bankDetails) + '</div>' +
-        '</div>'
-      : '<div style="color:#8a99a8;font-size:12px;margin:14px 0;font-style:italic;">No bank details on file. Method: <b>' + escHtml(p.method) + '</b>. Contact member directly.</div>';
+    var bankBlock = '';
+    if (p.method === 'bank' && p.bankDetails) {
+      bankBlock = renderBankCard(p.bankDetails);
+    } else if (p.method !== 'bank') {
+      bankBlock = '<div style="color:#8a99a8;font-size:12px;margin:14px 0;font-style:italic;">No bank details. Method: <b>' + escHtml(p.method) + '</b>. Contact member directly.</div>';
+    } else {
+      bankBlock = '<div style="color:#ef4444;font-size:12px;margin:14px 0;font-weight:600;">Bank details missing on this payout. Contact the member.</div>';
+    }
 
     var receiptBlock = '';
     if (p.status === 'paid' && p.notes && p.notes.indexOf('Payment receipt') === 0) {
-      // Render the structured receipt
+      var receiptFileBlock = '';
+      if (p.receiptUrl) {
+        var isPdf = /\.pdf$/i.test(p.receiptUrl);
+        if (isPdf) {
+          receiptFileBlock =
+            '<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(74,222,128,0.25);">' +
+              '<a href="' + escHtml(p.receiptUrl) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;background:rgba(74,222,128,0.15);border:1px solid rgba(74,222,128,0.35);color:#4ade80;padding:8px 14px;border-radius:8px;text-decoration:none;font-size:12px;font-weight:700;">' +
+                '<span class="material-icons" style="font-size:18px;">picture_as_pdf</span>View PDF receipt' +
+              '</a>' +
+            '</div>';
+        } else {
+          receiptFileBlock =
+            '<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(74,222,128,0.25);">' +
+              '<div style="color:#4ade80;font-size:11px;font-weight:700;margin-bottom:6px;">Transfer confirmation</div>' +
+              '<a href="' + escHtml(p.receiptUrl) + '" target="_blank" rel="noopener">' +
+                '<img src="' + escHtml(p.receiptUrl) + '" alt="Transfer receipt" style="max-width:100%;max-height:300px;border-radius:8px;border:1px solid rgba(74,222,128,0.25);display:block;cursor:zoom-in;">' +
+              '</a>' +
+            '</div>';
+        }
+      }
+      // Render structured receipt minus the URL line (which is shown as the inline image/link)
+      var displayNotes = p.notes.replace(/\nReceipt:\s*https?:\/\/\S+/, '');
       receiptBlock =
         '<div style="background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.28);border-radius:10px;padding:14px;margin:14px 0;">' +
           '<div style="color:#4ade80;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">Payment receipt</div>' +
-          '<div style="color:#e8eef4;font-size:13px;line-height:1.7;white-space:pre-wrap;font-family:monospace;">' + escHtml(p.notes) + '</div>' +
+          '<div style="color:#e8eef4;font-size:13px;line-height:1.7;white-space:pre-wrap;font-family:monospace;">' + escHtml(displayNotes) + '</div>' +
+          receiptFileBlock +
         '</div>';
     }
 
