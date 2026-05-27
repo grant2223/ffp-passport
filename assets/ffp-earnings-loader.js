@@ -264,7 +264,7 @@
 
       '<div style="margin-bottom:10px;">' +
         '<label style="' + labelStyle + '">Exact account holder name</label>' +
-        '<input id="ffp-payout-bank-name" type="text" placeholder="As shown on your bank account / card" style="' + inputStyle + '">' +
+        '<input id="ffp-payout-bank-name" type="text" placeholder="As shown on bank account." style="' + inputStyle + '">' +
         '<span style="' + hintStyle + '">Must match the name on the bank account exactly. Transfers to a different name will be rejected.</span>' +
       '</div>' +
 
