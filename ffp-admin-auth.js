@@ -1,6 +1,9 @@
-/* FFP Admin Auth Gate — v1
-   Add ONE script tag to ffp-admin.html (after ffp-api-integration.js):
-     <script src="assets/ffp-admin-auth.js"></script>
+/* FFP Admin Auth Gate — v2
+   v2: Use admin_users.id (matches actual deployed schema) instead of user_id.
+   The deployed admin_users columns are: id (uuid PK → auth.users.id), role, added_at.
+
+   Add ONE script tag to ffp-admin-dashboard.html (after ffp-api-integration.js):
+     <script src="ffp-admin-auth.js"></script>
 
    What it does:
    - Hides the page on load
@@ -251,7 +254,7 @@
       var adminRes = await window.supabase
         .from('admin_users')
         .select('role')
-        .eq('user_id', user.id)
+        .eq('id', user.id)
         .maybeSingle();
 
       if (adminRes.error) {
