@@ -1,9 +1,12 @@
-/* FFP Provider Events Loader — v2
-   v2 changes (Grant's feedback):
-   - Categories swapped to FFP-ACTIVITY-TAXONOMY 23 (was ad-hoc Fitness/Padel/etc)
-   - Category is REQUIRED — validated before save
-   - RE-APPROVAL on edit: if existing status was 'live' or 'paused', UPDATE forces status='pending'
-   - Same scrollbar + dark dropdown CSS as v1
+/* FFP Provider Events Loader — v4
+   v4 changes (Grant's feedback):
+   - Activity picker (379 activities, searchable, grouped by category) replaces
+     the broad-category dropdown — pick "Padel" not "Racquet sports".
+   - Reuses window.FFPPicker exposed by the experiences loader (no extra script tag).
+   - Stores both activity + category on each event row.
+   v3: Removed "Who is this for?" + thin chevron CSS.
+   v2: FFP 23-category taxonomy + re-approval rule.
+   v1: Initial wiring.
 */
 (function () {
   'use strict';
@@ -47,7 +50,36 @@
       '#panel-events{overflow-x:hidden;}',
       '.modal select, .modal .select, .modal-body select, .modal-body .select{color-scheme:dark;}',
       '.modal select option, .modal-body select option{background:#0f1e2e !important;color:#f5f7fa !important;}',
-      '.modal select option:checked, .modal-body select option:checked{background:#2ba8e0 !important;color:#082335 !important;}'
+      '.modal select option:checked, .modal-body select option:checked{background:#2ba8e0 !important;color:#082335 !important;}',
+
+      // FFP thin chevron-down on all selects in dashboard panels + modals
+      // (replaces native OS block arrow with brand-standard line chevron)
+      'select.select, select.input,' +
+      ' #panel-overview select, #panel-profile select, #panel-deals select, #panel-events select,' +
+      ' #panel-experiences select, #panel-challenges select, #panel-checkins select,' +
+      ' .modal select, .modal-body select {' +
+        'appearance:none;-webkit-appearance:none;-moz-appearance:none;' +
+        'background-image:url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%238a99a8\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'%3E%3C/polyline%3E%3C/svg%3E");' +
+        'background-repeat:no-repeat;' +
+        'background-position:right 12px center;' +
+        'background-size:16px;' +
+        'padding-right:36px;' +
+      '}',
+      // Hide IE/Edge legacy select arrow
+      'select.select::-ms-expand, select.input::-ms-expand{display:none;}',
+
+      // Picker button (matches experiences loader styling)
+      '.ffp-picker-btn{' +
+        'width:100%;display:flex;align-items:center;justify-content:space-between;' +
+        'background:#0a1825;border:1px solid #1a2f44;border-radius:10px;' +
+        'padding:11px 14px;color:#e8eef4;font-size:14px;font-family:inherit;cursor:pointer;' +
+        'text-align:left;}',
+      '.ffp-picker-btn:hover{border-color:#2a4564;}',
+      '.ffp-picker-btn.placeholder{color:#6c7a8b;}',
+      '.ffp-picker-btn .caret{flex-shrink:0;margin-left:10px;color:#8a99a8;}',
+      '.ffp-picker-btn .picked{display:flex;flex-direction:column;line-height:1.3;gap:1px;overflow:hidden;}',
+      '.ffp-picker-btn .picked .name{color:#e8eef4;font-weight:500;}',
+      '.ffp-picker-btn .picked .group{color:#8a99a8;font-size:11px;}'
     ].join('');
     document.head.appendChild(css);
   }
@@ -67,6 +99,7 @@
       title: row.title || '',
       description: row.description || '',
       about: row.about || '',
+      activity: row.activity || '',
       category: row.category || '',
       intensity: row.fitness_level || 'Beginner',
       event_date: d || '',
@@ -97,7 +130,7 @@
     var providerId = window.FFP_PROVIDER.id;
     var res = await window.supabase
       .from('events')
-      .select('id, provider_id, title, description, about, category, fitness_level, group_filter, hero_image_url, city, venue, area, setting, starts_at, ends_at, capacity, price_aed, cost, parking, facilities, bring, who_for, status, featured, created_at, updated_at')
+      .select('id, provider_id, title, description, about, activity, category, fitness_level, group_filter, hero_image_url, city, venue, area, setting, starts_at, ends_at, capacity, price_aed, cost, parking, facilities, bring, who_for, status, featured, created_at, updated_at')
       .eq('provider_id', providerId)
       .order('starts_at', { ascending: true });
     if (res.error) {
@@ -124,18 +157,86 @@
     return isNaN(d.getTime()) ? null : d.toISOString();
   }
 
-  // ─── Patch the existing openEventModal to swap categories after it opens ───
-  function patchModalCategories() {
+  function escHtmlSafe(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function setActivityBtn(btn, name, category) {
+    btn.dataset.value = name || '';
+    btn.dataset.category = category || '';
+    if (name) {
+      btn.classList.remove('placeholder');
+      btn.innerHTML =
+        '<div class="picked"><div class="name">' + escHtmlSafe(name) + '</div>' +
+        (category ? '<div class="group">' + escHtmlSafe(category) + '</div>' : '') +
+        '</div>' +
+        '<span class="ms caret">expand_more</span>';
+    } else {
+      btn.classList.add('placeholder');
+      btn.innerHTML = '<span>Choose activity…</span><span class="ms caret">expand_more</span>';
+    }
+  }
+
+  // Replace the category <select> with an activity picker button
+  function swapCategoryForPicker(currentActivity, currentCategory) {
     var sel = document.getElementById('em-category');
     if (!sel) return;
-    var current = sel.value;
-    sel.innerHTML =
-      '<option value="">Choose category…</option>' +
-      FFP_CATEGORIES.map(function (c) {
-        return '<option value="' + escHtml(c) + '"' + (current === c ? ' selected' : '') + '>' + escHtml(c) + '</option>';
-      }).join('');
+    var fieldDiv = sel.closest('.field');
+    if (!fieldDiv) return;
 
-    // Inject re-approval notice if editing a live/paused event
+    // Update label
+    var labelDiv = fieldDiv.querySelector('.label');
+    if (labelDiv) {
+      labelDiv.innerHTML = 'Activity <span class="req">*</span> <span class="label-hint">— what is it?</span>';
+    }
+
+    // Build picker button
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ffp-picker-btn placeholder';
+    btn.id = 'em-activity-btn';
+    btn.dataset.value = '';
+    btn.dataset.category = '';
+    btn.innerHTML = '<span>Choose activity…</span><span class="ms caret">expand_more</span>';
+
+    // Replace the select element
+    sel.parentNode.replaceChild(btn, sel);
+
+    // Initialize state
+    if (currentActivity) {
+      setActivityBtn(btn, currentActivity, currentCategory);
+    }
+
+    // Wire click
+    btn.addEventListener('click', function () {
+      if (window.FFPPicker && typeof window.FFPPicker.openActivity === 'function') {
+        window.FFPPicker.openActivity(btn.dataset.value, function (name, cat) {
+          setActivityBtn(btn, name, cat);
+        });
+      } else {
+        console.error('[FFP Events] FFPPicker not loaded — is experiences loader present?');
+        toast('Activity picker not ready', 'error');
+      }
+    });
+  }
+
+  function patchModalAfterOpen(editingId) {
+    // Find the activity/category for editing event
+    var existing = editingId ? events.find(function (x) { return x.id === editingId; }) : null;
+    var currentActivity = existing ? (existing.activity || '') : '';
+    var currentCategory = existing ? (existing.category || '') : '';
+
+    swapCategoryForPicker(currentActivity, currentCategory);
+
+    // Remove "Who is this for?" field — every event is for FFP members anyway
+    var whoEl = document.getElementById('em-who');
+    if (whoEl) {
+      var fieldEl = whoEl.closest('.field');
+      if (fieldEl && fieldEl.parentNode) fieldEl.parentNode.removeChild(fieldEl);
+    }
+
+    // Clean prior re-approval note
     var modal = document.querySelector('.modal');
     if (!modal) return;
     var existingNote = modal.querySelector('.ffp-reapproval-note');
@@ -167,10 +268,12 @@
     };
     var title    = get('title');
     var date     = get('date');
-    var category = get('category');
+    var actBtn   = document.getElementById('em-activity-btn');
+    var activity = actBtn ? actBtn.dataset.value : '';
+    var category = actBtn ? actBtn.dataset.category : '';
     if (!title)    { toast('Title is required', 'error'); return; }
     if (!date)     { toast('Date is required', 'error'); return; }
-    if (!category) { toast('Category is required', 'error'); return; }
+    if (!activity) { toast('Activity is required', 'error'); return; }
 
     var startsAt = buildStartsAt(date, get('time'));
     var photoSlot = document.getElementById('listing-photo-slot');
@@ -184,7 +287,8 @@
       title: title,
       description: get('description') || null,
       about: get('about') || null,
-      category: category,
+      activity: activity,
+      category: category || null,
       fitness_level: get('intensity') || null,
       starts_at: startsAt,
       venue: get('venue') || null,
@@ -196,7 +300,6 @@
       parking: get('parking') || null,
       facilities: get('facilities') || null,
       bring: get('bring') || null,
-      who_for: get('who') || null,
       hero_image_url: heroUrl
     };
 
@@ -278,12 +381,12 @@
       console.error('[FFP Provider Events] initial load:', e);
     }
 
-    // Wrap openEventModal to swap categories + show re-approval note
+    // Wrap openEventModal to swap category → activity picker + remove who_for + show re-approval note
     var origOpenEventModal = window.openEventModal;
     window.openEventModal = function (id) {
       try { origOpenEventModal(id); } catch (e) { console.error('[FFP Provider Events] orig modal:', e); }
       setTimeout(function () {
-        patchModalCategories();
+        patchModalAfterOpen(id);
         showReapprovalNoteIfNeeded(id);
       }, 50);
     };
