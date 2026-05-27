@@ -1,6 +1,7 @@
-/* FFP Admin Auth Gate — v2
-   v2: Use admin_users.id (matches actual deployed schema) instead of user_id.
-   The deployed admin_users columns are: id (uuid PK → auth.users.id), role, added_at.
+/* FFP Admin Auth Gate — v3
+   v3 fix: Overlay attached before body content was rendered (race condition with
+   DOMContentLoaded). v3 ensures overlay is attached before every render call
+   and inside boot() so the spinner/form/error always show.
 
    Add ONE script tag to ffp-admin-dashboard.html (after ffp-api-integration.js):
      <script src="ffp-admin-auth.js"></script>
@@ -65,18 +66,23 @@
       '<div class="ffp-aa-sub">Admin Console</div>' +
       '<div id="ffp-aa-body"></div>' +
     '</div>';
-  // Attach when body exists
-  function attach() {
+  // Attach when body exists — defensive against script-loaded-before-body race
+  function ensureAttached() {
+    if (overlay.parentNode) return;
     if (document.body) document.body.appendChild(overlay);
-    else setTimeout(attach, 30);
   }
-  attach();
+  if (document.body) {
+    ensureAttached();
+  } else {
+    document.addEventListener('DOMContentLoaded', ensureAttached);
+  }
 
   // ─── State ───
   var state = { email: '', awaitingCode: false };
 
   // ─── Views ───
   function showLoading(msg) {
+    ensureAttached();
     var body = document.getElementById('ffp-aa-body');
     if (!body) return;
     body.innerHTML =
@@ -85,6 +91,7 @@
   }
 
   function showEmailForm(prefill) {
+    ensureAttached();
     var body = document.getElementById('ffp-aa-body');
     if (!body) return;
     body.innerHTML =
@@ -101,6 +108,7 @@
   }
 
   function showCodeForm(email) {
+    ensureAttached();
     var body = document.getElementById('ffp-aa-body');
     if (!body) return;
     var digits = '';
@@ -145,6 +153,7 @@
   }
 
   function showAccessDenied(email) {
+    ensureAttached();
     var body = document.getElementById('ffp-aa-body');
     if (!body) return;
     body.innerHTML =
@@ -286,6 +295,13 @@
 
   // ─── Boot ───
   async function boot() {
+    // Wait for body to exist (script could have loaded before parser finished)
+    var tries = 0;
+    while (!document.body && tries < 50) {
+      await new Promise(function (r) { setTimeout(r, 20); });
+      tries++;
+    }
+    ensureAttached();
     showLoading('Checking access\u2026');
     var ok = await waitForSupabase();
     if (!ok) {
@@ -294,7 +310,6 @@
     }
     var sessRes = await window.supabase.auth.getSession();
     if (sessRes.data && sessRes.data.session) {
-      // Already signed in — verify admin
       await checkAdminAndProceed();
     } else {
       showEmailForm('');
