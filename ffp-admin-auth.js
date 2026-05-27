@@ -1,7 +1,9 @@
-/* FFP Admin Auth Gate — v3
-   v3 fix: Overlay attached before body content was rendered (race condition with
-   DOMContentLoaded). v3 ensures overlay is attached before every render call
-   and inside boot() so the spinner/form/error always show.
+/* FFP Admin Auth Gate — v4
+   v4 fix: Defensive page guard. If this script is loaded onto a non-admin page
+   (member or provider dashboard), bail out silently. Prevents accidental
+   gating when script tags get copy-pasted to the wrong file.
+   v3: Overlay attached before body content was rendered (race condition).
+   v2: Initial overlay implementation.
 
    Add ONE script tag to ffp-admin-dashboard.html (after ffp-api-integration.js):
      <script src="ffp-admin-auth.js"></script>
@@ -19,6 +21,15 @@
 */
 (function () {
   'use strict';
+
+  // ─── Page guard — bail out unless on admin dashboard ───
+  // Looks for the admin panel structure. If not present, this is the wrong page.
+  var path = (location.pathname || '').toLowerCase();
+  var isAdminPage = /admin/.test(path) || !!document.querySelector('#panel-providers, [data-admin-page]');
+  if (!isAdminPage) {
+    console.log('[FFP Admin Auth] Not an admin page — bailing out. (URL: ' + path + ')');
+    return;
+  }
 
   // ─── Block the page until verified ───
   var hideStyle = document.createElement('style');
