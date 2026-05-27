@@ -1,15 +1,13 @@
-/* FFP Provider Experiences Loader — v2
-   v2 changes (Grant's feedback):
-   - ACTIVITY PICKER: searchable modal sheet replaces the broad-category dropdown.
-     Fetches from activity_types table (379 activities, 23 categories). Selecting an
-     activity auto-derives category, so a "Padel" experience also gets category='Racquet sports'.
-   - COUNTRY → DROPDOWN from FFP-CITIES-TAXONOMY (58 countries, sorted UAE first).
-   - CITY → DROPDOWN filtered by selected country (replaces free-text "Destination").
-   - WHAT'S INCLUDED / NOT INCLUDED → simple textareas (one per line) — replaces chip inputs.
-   - REMOVED "Format" field (Fitness/Adventure/Wellness/Retreat/Sports Event/Hybrid) —
-     was confusing; the activity already conveys what the experience is about.
+/* FFP Provider Experiences Loader — v3
+   v3 changes (Grant's feedback):
+   - Added "Experience type" field back with 6 clear, distinct options:
+     Training camp / Competition trip / Spectator trip / Wellness retreat /
+     Adventure trip / Active getaway. Helper text clarifies the choice.
+     Saved to existing exp_type column.
+   - Picker functions exposed as window.FFPPicker for events/deals loaders to reuse.
 
-   Requires SQL (already run): activity_types table seeded + experiences.activity column added.
+   v2: Activity picker + Country/City dropdowns + textareas + removed Format field.
+   v1: Initial wiring.
 */
 (function () {
   'use strict';
@@ -82,6 +80,16 @@
   });
 
   var FITNESS_LEVELS = ['Beginner', 'Intermediate', 'Advanced', 'Elite', 'Professional'];
+
+  // Six clear experience types — replaces the old vague "Format" field
+  var EXPERIENCE_TYPES = [
+    'Training camp',
+    'Competition trip',
+    'Spectator trip',
+    'Wellness retreat',
+    'Adventure trip',
+    'Active getaway'
+  ];
 
   // Cache for activity_types fetched once per session
   window.FFP_ACTIVITIES_CACHE = window.FFP_ACTIVITIES_CACHE || null;
@@ -352,6 +360,7 @@
       overview: row.overview || '',
       activity: row.activity || '',
       category: row.category || '',
+      experience_type: row.exp_type || '',
       start_date: row.starts_at || '',
       end_date: row.ends_at || '',
       duration_days: row.duration_days || 0,
@@ -496,6 +505,15 @@
             '</button>' +
           '</div>' +
           '<div class="field">' +
+            '<div class="label">Experience type <span class="req">*</span> <span class="label-hint">— what kind of trip?</span></div>' +
+            '<select class="select" id="xm-exp-type">' +
+              '<option value="">Choose type…</option>' +
+              EXPERIENCE_TYPES.map(function (t) {
+                return '<option value="' + escHtml(t) + '"' + (e.experience_type === t ? ' selected' : '') + '>' + escHtml(t) + '</option>';
+              }).join('') +
+            '</select>' +
+          '</div>' +
+          '<div class="field">' +
             '<div class="label">Fitness level required</div>' +
             '<select class="select" id="xm-fitness-level">' +
               FITNESS_LEVELS.map(function (l) {
@@ -630,12 +648,14 @@
     var category = aBtn ? aBtn.dataset.category : '';
     var country  = coBtn ? coBtn.dataset.value : '';
     var city     = ciBtn ? ciBtn.dataset.value : '';
+    var expType  = get('exp-type');
     var start = get('start');
     var end   = get('end');
     var price = get('price');
 
     if (!title)    { toast('Title is required', 'error'); return; }
     if (!activity) { toast('Activity is required', 'error'); return; }
+    if (!expType)  { toast('Experience type is required', 'error'); return; }
     if (!country)  { toast('Country is required', 'error'); return; }
     if (!start)    { toast('Start date is required', 'error'); return; }
     if (!end)      { toast('End date is required', 'error'); return; }
@@ -658,6 +678,7 @@
       overview:        get('overview') || null,
       activity:        activity,
       category:        category || null,
+      exp_type:        expType,
       fitness_level:   get('fitness-level') || null,
       starts_at:       start,
       ends_at:         end,
@@ -762,6 +783,14 @@
     window.openExperienceModal     = realOpenExperienceModal;
     window.saveExperience          = realSaveExperience;
     window.confirmDeleteExperience = realDeleteExperience;
+
+    // Expose pickers for events/deals loaders to reuse
+    window.FFPPicker = {
+      openActivity: openActivityPicker,
+      openCountry:  openCountryPicker,
+      openCity:     openCityPicker,
+      getActivities: getActivities
+    };
   }
 
   if (document.readyState === 'loading') {
