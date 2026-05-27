@@ -1,39 +1,46 @@
-/* FFP Provider Profile Loader — v1
-   Wires the provider dashboard's Profile panel to real Supabase data.
-
-   Add ONE script tag to ffp-provider-dashboard.html AFTER ffp-provider-auth.js:
-     <script src="ffp-provider-profile-loader.js"></script>
-
-   What it does:
-   1. Waits for the provider auth gate to set window.FFP_PROVIDER
-   2. Fetches the provider row from `providers` (RLS: own row)
-   3. Fetches operating hours from `provider_hours` (RLS: own rows)
-   4. Replaces the in-memory providerProfile{} with real values
-   5. Calls the dashboard's existing loadProfile() so the form populates
-   6. Overrides saveProfile() to UPDATE the DB on save (providers row + provider_hours replace)
-   7. Updates sidebar foot + window.FFP_PROVIDER on successful save
-
-   Required SQL (run once — see message):
-   - Provider UPDATE RLS policy + trigger to block admin-only fields
-   - provider_hours RLS (own + admin)
-
-   Photo uploads (logo / hero):
-   - The existing handleUpload() reads files as data URLs and stores them in providerProfile
-   - saveProfile() writes whatever URL/data-URL is set to the DB columns
-   - TODO: replace with real Supabase Storage upload in a later ship (data URLs work but bloat rows)
-
-   Architecture: hooks into existing globals (providerProfile, loadProfile, saveProfile,
-   getPhoneValue, setPhoneValue, renderProfileCompletion). Does NOT build a separate UI.
+/* FFP Provider Profile Loader — v3
+   v3 fix: schema introspection showed provider_hours uses `opens` / `closes` / `closed`
+   (original column names) — v2 incorrectly referenced `open_time` / `close_time`.
+   v3 uses the canonical names. Run the SQL to drop the redundant columns I added.
+   All v2 features (dark pickers, refined categories/types, auto-close, etc.) preserved.
 */
 (function () {
   'use strict';
 
-  // Day mapping — dashboard uses names, DB uses int 0-6 (Sun-Sat per master progress)
   var DAY_TO_INT = {
     'Sunday': 0, 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3,
     'Thursday': 4, 'Friday': 5, 'Saturday': 6
   };
   var INT_TO_DAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+  // Refined option lists — businesses/organizations, not individuals
+  var CATEGORIES = [
+    'Fitness studio',
+    'Wellness centre',
+    'Padel club',
+    'Pilates / Yoga',
+    'Climbing',
+    'Combat sports',
+    'Recovery / Spa',
+    'Performance lab',
+    'Nutrition / Cafe',
+    'Adventure / Outdoor',
+    'Personal Training',
+    'Retail',
+    'Other'
+  ];
+
+  var PROVIDER_TYPES = [
+    'Single location',
+    'Multi-location',
+    'Remote / Online',
+    'Event organizer'
+  ];
+
+  var UAE_CITIES = [
+    'Dubai', 'Abu Dhabi', 'Sharjah', 'Ajman',
+    'Ras Al Khaimah', 'Fujairah', 'Al Ain', 'Umm Al Quwain'
+  ];
 
   function toast(msg, kind) {
     if (typeof window.showToast === 'function') {
@@ -41,30 +48,176 @@
     }
     console.log('[FFP Provider Profile]', msg);
   }
-
   async function waitFor(check, ms) {
-    var tries = 0;
-    var limit = Math.ceil((ms || 15000) / 100);
+    var tries = 0; var limit = Math.ceil((ms || 15000) / 100);
     while (!check() && tries < limit) {
       await new Promise(function (r) { setTimeout(r, 100); });
       tries++;
     }
     return check();
   }
-
-  function trimTime(t) {
-    // DB returns "HH:MM:SS" — form needs "HH:MM"
-    if (!t) return '';
-    return String(t).slice(0, 5);
-  }
-
+  function trimTime(t) { return t ? String(t).slice(0, 5) : ''; }
   function defaultHoursObj() {
     var h = {};
-    INT_TO_DAY.forEach(function (day) {
-      h[day] = { open: '', close: '', closed: false };
-    });
+    INT_TO_DAY.forEach(function (day) { h[day] = { open: '', close: '', closed: false }; });
     return h;
   }
+  function escText(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // ─── Inject CSS fixes ───
+  function injectStyles() {
+    if (document.getElementById('ffp-provider-profile-css')) return;
+    var css = document.createElement('style');
+    css.id = 'ffp-provider-profile-css';
+    css.textContent = [
+      // Kill horizontal overflow
+      '#panel-profile{overflow-x:hidden;}',
+      '#panel-profile .form-grid{max-width:100%;}',
+
+      // Native dropdowns → dark (color-scheme + option background)
+      '#panel-profile select, #panel-profile .select{color-scheme:dark;}',
+      '#panel-profile select option{background:#0f1e2e !important;color:#f5f7fa !important;}',
+      '#panel-profile select option:checked{background:#2ba8e0 !important;color:#082335 !important;}',
+
+      // Custom picker (replaces native select look entirely)
+      '.ffp-pp-pick{position:relative;width:100%;}',
+      '.ffp-pp-pick-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(43,168,224,0.06);border:1px solid rgba(43,168,224,0.30);border-radius:8px;color:#f5f7fa;padding:10px 12px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;text-align:left;}',
+      '.ffp-pp-pick-btn:hover{border-color:#2ba8e0;}',
+      '.ffp-pp-pick-btn.placeholder{color:#8a99a8;}',
+      '.ffp-pp-pick-btn .material-symbols-outlined,.ffp-pp-pick-btn .ms{font-size:18px;color:#8a99a8;}',
+      '.ffp-pp-pick-menu{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#0f1e2e;border:1px solid rgba(43,168,224,0.30);border-radius:8px;max-height:260px;overflow-y:auto;z-index:9000;display:none;box-shadow:0 8px 24px rgba(0,0,0,0.4);padding:4px;}',
+      '.ffp-pp-pick-menu.open{display:block;}',
+      '.ffp-pp-pick-item{padding:9px 12px;border-radius:6px;font-size:13px;font-weight:600;color:#f5f7fa;cursor:pointer;}',
+      '.ffp-pp-pick-item:hover{background:rgba(43,168,224,0.10);}',
+      '.ffp-pp-pick-item.active{background:rgba(43,168,224,0.15);color:#2ba8e0;}'
+    ].join('');
+    document.head.appendChild(css);
+  }
+
+  // ─── Refine panel UI: subtitle, category options, type options ───
+  function refineUI() {
+    // Subtitle clarity — businesses/organizations only
+    var sub = document.querySelector('#panel-profile .psub');
+    if (sub) {
+      sub.innerHTML = 'For <b>businesses and organizations</b> only. Individual trainers and coaches should join as a member instead. Changes go to admin for review before going live.';
+    }
+
+    // Replace category options
+    var catSel = document.getElementById('pf-category');
+    if (catSel) {
+      var current = catSel.value;
+      catSel.innerHTML = '<option value="">Choose category</option>' +
+        CATEGORIES.map(function (c) { return '<option value="' + escText(c) + '">' + escText(c) + '</option>'; }).join('');
+      if (current) catSel.value = current;
+    }
+
+    // Replace provider type options
+    var typeSel = document.getElementById('pf-type');
+    if (typeSel) {
+      var currentT = typeSel.value;
+      typeSel.innerHTML = '<option value="">Choose type</option>' +
+        PROVIDER_TYPES.map(function (t) { return '<option value="' + escText(t) + '">' + escText(t) + '</option>'; }).join('');
+      if (currentT) typeSel.value = currentT;
+    }
+
+    // Wire up the custom dark pickers on top of existing <select>s
+    wrapSelectAsPicker('pf-category',  'Choose category');
+    wrapSelectAsPicker('pf-type',      'Choose type');
+    wrapSelectAsPicker('pf-city',      'Choose city');
+    wrapSelectAsPicker('pf-phone-cc',  'Code');
+  }
+
+  // ─── Custom dark picker wrapper ───
+  // Hides the native <select> and renders a dark dropdown that mirrors it. On selection,
+  // the underlying <select>.value is set and a change event fires so existing handlers work.
+  function wrapSelectAsPicker(selectId, placeholder) {
+    var sel = document.getElementById(selectId);
+    if (!sel) return;
+    // If we've already wrapped this select, just refresh the label
+    if (sel.dataset.ffpPickerWrapped === '1') {
+      refreshPickerLabel(sel);
+      return;
+    }
+    sel.dataset.ffpPickerWrapped = '1';
+    sel.style.display = 'none';
+
+    var wrap = document.createElement('div');
+    wrap.className = 'ffp-pp-pick';
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ffp-pp-pick-btn placeholder';
+    btn.innerHTML = '<span class="ffp-pp-pick-label">' + escText(placeholder) + '</span><span class="ms material-symbols-outlined">expand_more</span>';
+    var menu = document.createElement('div');
+    menu.className = 'ffp-pp-pick-menu';
+
+    function rebuildMenu() {
+      var html = '';
+      Array.prototype.forEach.call(sel.options, function (opt) {
+        if (!opt.value && !opt.textContent.trim()) return;
+        if (!opt.value) return; // skip the placeholder ("")
+        var active = (opt.value === sel.value) ? ' active' : '';
+        html += '<div class="ffp-pp-pick-item' + active + '" data-value="' + escText(opt.value) + '">' + escText(opt.textContent) + '</div>';
+      });
+      menu.innerHTML = html;
+      menu.querySelectorAll('.ffp-pp-pick-item').forEach(function (it) {
+        it.addEventListener('click', function () {
+          sel.value = it.dataset.value;
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+          refreshPickerLabel(sel);
+          closeMenu();
+        });
+      });
+    }
+    function openMenu() {
+      // Close any other open menus
+      document.querySelectorAll('.ffp-pp-pick-menu.open').forEach(function (m) { m.classList.remove('open'); });
+      rebuildMenu();
+      menu.classList.add('open');
+    }
+    function closeMenu() { menu.classList.remove('open'); }
+
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (menu.classList.contains('open')) closeMenu(); else openMenu();
+    });
+
+    sel.parentNode.insertBefore(wrap, sel);
+    wrap.appendChild(btn);
+    wrap.appendChild(menu);
+
+    // Refresh label whenever the underlying <select> changes (from code or user)
+    sel.addEventListener('change', function () { refreshPickerLabel(sel); });
+
+    refreshPickerLabel(sel);
+  }
+
+  function refreshPickerLabel(sel) {
+    if (!sel || sel.dataset.ffpPickerWrapped !== '1') return;
+    var wrap = sel.previousSibling;
+    if (!wrap || !wrap.classList || !wrap.classList.contains('ffp-pp-pick')) return;
+    var btn = wrap.querySelector('.ffp-pp-pick-btn');
+    var label = wrap.querySelector('.ffp-pp-pick-label');
+    if (!btn || !label) return;
+    var selectedOpt = sel.options[sel.selectedIndex];
+    var hasValue = sel.value && selectedOpt && selectedOpt.value;
+    if (hasValue) {
+      label.textContent = selectedOpt.textContent;
+      btn.classList.remove('placeholder');
+    } else {
+      // Use the placeholder from the first option ("Choose ...") if present
+      var placeholderText = sel.options[0] ? sel.options[0].textContent : '';
+      label.textContent = placeholderText || '';
+      btn.classList.add('placeholder');
+    }
+  }
+
+  // Close pickers on outside click
+  document.addEventListener('click', function () {
+    document.querySelectorAll('.ffp-pp-pick-menu.open').forEach(function (m) { m.classList.remove('open'); });
+  });
 
   // ─── Fetch ───
   async function fetchProfile() {
@@ -73,19 +226,15 @@
 
     var provRes = await window.supabase
       .from('providers')
-      .select('id, business_name, letter_mark, category, provider_type, city, area, address, contact_email, contact_phone, website, instagram, about, logo_url, hero_photo_url, status, paid_until, subscription_tier, monthly_fee_aed, featured')
-      .eq('id', id)
-      .single();
+      .select('id, business_name, letter_mark, category, provider_type, city, area, address, contact_email, contact_phone, website, instagram, about, logo_url, hero_photo_url, status')
+      .eq('id', id).single();
     if (provRes.error) throw provRes.error;
 
     var hoursRes = await window.supabase
       .from('provider_hours')
-      .select('day_of_week, open_time, close_time, closed')
+      .select('day_of_week, opens, closes, closed')
       .eq('provider_id', id);
-    if (hoursRes.error) {
-      console.warn('[FFP Provider Profile] hours read error:', hoursRes.error.message);
-      // Don't fail entire load if hours table is empty/restricted — proceed with empty hours
-    }
+    if (hoursRes.error) console.warn('[FFP Provider Profile] hours read error:', hoursRes.error.message);
 
     var p = provRes.data;
     var profile = {
@@ -103,21 +252,14 @@
       verified:      p.status === 'approved',
       logo_url:      p.logo_url || null,
       hero_url:      p.hero_photo_url || null,
-      // Stash extra fields available for reference (read-only on this panel)
-      _contact_email: p.contact_email,
-      _instagram:     p.instagram,
-      _paid_until:    p.paid_until,
-      _tier:          p.subscription_tier,
-      _featured:      p.featured,
-      hours: defaultHoursObj()
+      hours:         defaultHoursObj()
     };
-
     (hoursRes && hoursRes.data ? hoursRes.data : []).forEach(function (h) {
       var day = INT_TO_DAY[h.day_of_week];
       if (!day) return;
       profile.hours[day] = {
-        open:   trimTime(h.open_time),
-        close:  trimTime(h.close_time),
+        open:   trimTime(h.opens),
+        close:  trimTime(h.closes),
         closed: !!h.closed
       };
     });
@@ -126,10 +268,7 @@
 
   // ─── Save ───
   async function realSaveProfile() {
-    if (!window.FFP_PROVIDER || !window.FFP_PROVIDER.id) {
-      toast('Provider not loaded', 'error');
-      return;
-    }
+    if (!window.FFP_PROVIDER || !window.FFP_PROVIDER.id) { toast('Provider not loaded', 'error'); return; }
     var id = window.FFP_PROVIDER.id;
 
     var businessName = (document.getElementById('pf-business-name').value || '').trim();
@@ -147,31 +286,33 @@
     if (!category)     { toast('Category is required', 'error'); return; }
     if (!city)         { toast('City is required', 'error'); return; }
 
-    // Capture hours from form
+    // Hours — AUTO-CLOSE any day where times are empty (no invalid open-but-no-times state)
     var hoursRows = [];
+    var autoClosedCount = 0;
     document.querySelectorAll('#hours-grid .hours-row').forEach(function (row) {
       var day = row.dataset.day;
       var dayInt = DAY_TO_INT[day];
       if (dayInt === undefined) return;
       var checkbox = row.querySelector('.hours-closed input[type="checkbox"]');
-      var closed = !!(checkbox && checkbox.checked) || row.classList.contains('is-closed');
+      var manuallyClosed = !!(checkbox && checkbox.checked) || row.classList.contains('is-closed');
       var openEl  = row.querySelector('[data-field="open"]');
       var closeEl = row.querySelector('[data-field="close"]');
-      var openTime  = closed ? null : (openEl ? openEl.value : null) || null;
-      var closeTime = closed ? null : (closeEl ? closeEl.value : null) || null;
+      var openVal  = openEl ? (openEl.value || '').trim() : '';
+      var closeVal = closeEl ? (closeEl.value || '').trim() : '';
+      var noTimes = !openVal && !closeVal;
+      var closed = manuallyClosed || noTimes;
+      if (!manuallyClosed && noTimes) autoClosedCount++;
       hoursRows.push({
         provider_id: id,
         day_of_week: dayInt,
-        open_time:   openTime,
-        close_time:  closeTime,
+        opens:   closed ? null : (openVal || null),
+        closes:  closed ? null : (closeVal || null),
         closed:      closed
       });
     });
 
-    // Read photo URLs from providerProfile (handleUpload puts data URLs there)
     var logoUrl = (typeof providerProfile !== 'undefined' && providerProfile.logo_url) ? providerProfile.logo_url : null;
     var heroUrl = (typeof providerProfile !== 'undefined' && providerProfile.hero_url) ? providerProfile.hero_url : null;
-
     var saveBtn = document.querySelector('#panel-profile .btn-pri');
     if (saveBtn) saveBtn.disabled = true;
 
@@ -192,7 +333,6 @@
       }).eq('id', id);
       if (provRes.error) throw provRes.error;
 
-      // Replace provider_hours rows for this provider
       var delRes = await window.supabase.from('provider_hours').delete().eq('provider_id', id);
       if (delRes.error) throw delRes.error;
       if (hoursRows.length > 0) {
@@ -200,7 +340,7 @@
         if (insRes.error) throw insRes.error;
       }
 
-      // Sync in-memory providerProfile so Discard works correctly after save
+      // Sync providerProfile in memory
       if (typeof providerProfile !== 'undefined') {
         providerProfile.business_name = businessName;
         providerProfile.letter_mark   = letterMark;
@@ -212,41 +352,38 @@
         providerProfile.phone         = phone;
         providerProfile.website       = website;
         providerProfile.about         = about;
-        // Refresh hours from what we just saved
         hoursRows.forEach(function (h) {
           var day = INT_TO_DAY[h.day_of_week];
           providerProfile.hours[day] = {
-            open:   trimTime(h.open_time),
-            close:  trimTime(h.close_time),
+            open: trimTime(h.opens),
+            close: trimTime(h.closes),
             closed: !!h.closed
           };
         });
       }
 
-      // Refresh sidebar foot + topbar (the dashboard's UI bits)
+      // Update sidebar foot + topbar
       var sbName = document.getElementById('sb-foot-name');
       var sbMark = document.getElementById('sb-foot-mark');
       if (sbName) sbName.textContent = businessName || 'Your business';
       if (sbMark) sbMark.textContent = letterMark;
-
-      // Update window.FFP_PROVIDER so other panels see the new name
       window.FFP_PROVIDER.business_name = businessName;
 
-      if (typeof window.renderProfileCompletion === 'function') {
-        try { window.renderProfileCompletion(); } catch (e) {}
-      }
-      if (typeof window.setSaveBar === 'function') {
-        try { window.setSaveBar(false); } catch (e) {}
-      }
-      toast('Profile saved', 'success');
+      if (typeof window.renderProfileCompletion === 'function') { try { window.renderProfileCompletion(); } catch (e) {} }
+      if (typeof window.setSaveBar === 'function') { try { window.setSaveBar(false); } catch (e) {} }
+
+      var msg = 'Profile saved';
+      if (autoClosedCount > 0) msg += ' (' + autoClosedCount + ' day' + (autoClosedCount > 1 ? 's' : '') + ' auto-marked closed)';
+      toast(msg, 'success');
     } catch (e) {
       console.error('[FFP Provider Profile] save:', e);
-      var msg = e.message || 'Save failed';
-      // Friendlier hints for common RLS issues
-      if (/policy|permission|denied|rls/i.test(msg)) {
-        msg = 'Save blocked — check provider RLS policies on providers + provider_hours';
+      var emsg = e.message || 'Save failed';
+      if (/policy|permission|denied|rls/i.test(emsg)) {
+        emsg = 'Save blocked by RLS — check provider/provider_hours policies';
+      } else if (/does not exist/i.test(emsg)) {
+        emsg = 'Schema mismatch — see console for details';
       }
-      toast(msg, 'error');
+      toast(emsg, 'error');
     } finally {
       if (saveBtn) saveBtn.disabled = false;
     }
@@ -254,37 +391,36 @@
 
   // ─── Init ───
   async function init() {
-    // Dependencies: Supabase + dashboard globals
     var ok = await waitFor(function () {
       return window.supabase && window.supabase.auth &&
              typeof window.loadProfile === 'function' &&
              typeof providerProfile !== 'undefined';
     }, 15000);
-    if (!ok) {
-      console.error('[FFP Provider Profile] dependencies never loaded');
-      return;
-    }
+    if (!ok) { console.error('[FFP Provider Profile] dependencies never loaded'); return; }
 
-    // Wait for the auth gate to grant access (sets FFP_PROVIDER)
-    var authed = await waitFor(function () {
-      return !!(window.FFP_PROVIDER && window.FFP_PROVIDER.id);
-    }, 30000);
-    if (!authed) {
-      console.warn('[FFP Provider Profile] FFP_PROVIDER not set — provider not authenticated yet');
-      return;
-    }
+    var authed = await waitFor(function () { return !!(window.FFP_PROVIDER && window.FFP_PROVIDER.id); }, 30000);
+    if (!authed) { console.warn('[FFP Provider Profile] FFP_PROVIDER not set — provider not authenticated yet'); return; }
 
-    // Pull real data into the in-memory providerProfile
+    injectStyles();
+
+    // Refine UI as soon as the profile panel exists in the DOM
+    refineUI();
+
     try {
       var real = await fetchProfile();
       if (real) {
         Object.assign(providerProfile, real);
-        // If the user is already on the profile panel, repaint it now
+        // If user is on the profile panel, repaint
         var profilePanel = document.getElementById('panel-profile');
         if (profilePanel && profilePanel.classList.contains('active')) {
           try { window.loadProfile(); } catch (e) {}
+          // After loadProfile, refresh picker labels (selects got new values)
+          ['pf-category', 'pf-type', 'pf-city', 'pf-phone-cc'].forEach(function (id) {
+            var s = document.getElementById(id);
+            if (s) refreshPickerLabel(s);
+          });
         }
-        console.log('[FFP Provider Profile] Loaded from Supabase \u2713');
+        console.log('[FFP Provider Profile v2] Loaded from Supabase \u2713');
       }
     } catch (e) {
       console.error('[FFP Provider Profile] load:', e);
@@ -293,6 +429,17 @@
 
     // Override saveProfile to write to Supabase
     window.saveProfile = realSaveProfile;
+
+    // Re-run UI refinements after the dashboard calls loadProfile() (panel switch)
+    var origLoadProfile = window.loadProfile;
+    window.loadProfile = function () {
+      try { origLoadProfile(); } catch (e) {}
+      refineUI();
+      ['pf-category', 'pf-type', 'pf-city', 'pf-phone-cc'].forEach(function (id) {
+        var s = document.getElementById(id);
+        if (s) refreshPickerLabel(s);
+      });
+    };
   }
 
   if (document.readyState === 'loading') {
