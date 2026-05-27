@@ -45,16 +45,25 @@ img{display:block;max-width:100%;}
 @media (min-width:1200px){.col{padding:0 60px;}}
 
 /* NAV */
-nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(8,20,32,.97);backdrop-filter:blur(12px);border-bottom:1px solid var(--accent-line-dim);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;}
-.nav-brand{display:flex;align-items:center;gap:10px;}
-.nav-brand img{height:32px;width:auto;}
-.nav-brand .wordmark{font-size:13px;font-weight:800;letter-spacing:2px;}
-.nav-yr{font-size:10px;font-weight:700;color:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.2);border-radius:4px;padding:1px 5px;letter-spacing:1px;margin-left:6px;vertical-align:middle;}
-.nav-right{display:flex;align-items:center;gap:10px;}
-.nav-link{font-size:13px;font-weight:700;color:rgba(255,255,255,.78);padding:9px 18px;border:1px solid var(--accent-line);border-radius:10px;letter-spacing:.3px;transition:all .15s;}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(8,20,32,.97);backdrop-filter:blur(12px);border-bottom:1px solid var(--accent-line-dim);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.nav-brand{display:flex;align-items:center;gap:8px;flex-shrink:0;min-width:0;}
+.nav-brand img{height:28px;width:auto;flex-shrink:0;}
+.nav-brand .wordmark{font-size:11px;font-weight:800;letter-spacing:1.5px;white-space:nowrap;}
+.nav-yr{font-size:9px;font-weight:700;color:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.2);border-radius:4px;padding:1px 4px;letter-spacing:1px;margin-left:4px;vertical-align:middle;}
+.nav-right{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.nav-link{font-size:11px;font-weight:700;color:rgba(255,255,255,.78);padding:7px 12px;border:1px solid var(--accent-line);border-radius:8px;letter-spacing:.2px;transition:all .15s;white-space:nowrap;}
 .nav-link:hover{color:#fff;border-color:rgba(43,168,224,.6);}
-.nav-cta{background:var(--accent);color:#fff;font-size:13px;font-weight:800;padding:10px 22px;border-radius:10px;letter-spacing:.3px;transition:transform .15s;}
+.nav-cta{background:var(--accent);color:#fff;font-size:11px;font-weight:800;padding:8px 14px;border-radius:8px;letter-spacing:.2px;transition:transform .15s;white-space:nowrap;}
 .nav-cta:hover{transform:translateY(-1px);}
+@media (min-width:600px){
+  nav{padding:14px 24px;gap:12px;}
+  .nav-brand img{height:32px;}
+  .nav-brand .wordmark{font-size:13px;letter-spacing:2px;}
+  .nav-yr{font-size:10px;padding:1px 5px;margin-left:6px;}
+  .nav-right{gap:10px;}
+  .nav-link{font-size:13px;padding:9px 18px;border-radius:10px;letter-spacing:.3px;}
+  .nav-cta{font-size:13px;padding:10px 22px;border-radius:10px;letter-spacing:.3px;}
+}
 @media (min-width:900px){nav{padding:18px 40px;}}
 @media (min-width:1200px){nav{padding:20px 60px;}}
 
@@ -275,7 +284,7 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
 <!-- BANNER STRIP -->
 <div class="banner-wrap">
   <div class="banner">
-    <img src="assets/group-of-5.jpg" alt="FFP community">
+    <img src="assets/guys-running.jpg" alt="FFP community">
     <div class="banner-overlay"></div>
     <div class="banner-text">
       <div class="banner-eyebrow">Match. Connect. Do things together.</div>
@@ -333,7 +342,7 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
       </div>
 
       <div class="way-card">
-        <div class="way-img"><img src="assets/racegroupphoto.jpg" alt="Experiences"></div>
+        <div class="way-img"><img src="assets/experiences.jpg" alt="Experiences"></div>
         <div class="way-body">
           <div class="way-step">05 &mdash; Multi-day &amp; travel</div>
           <div class="way-title">Experiences</div>
@@ -355,7 +364,7 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
     <div class="lg-grid">
 
       <div class="lg-card">
-        <span class="material-icons lg-icon">home_pin</span>
+        <span class="material-icons lg-icon">place</span>
         <div class="lg-title">Local</div>
         <div class="lg-desc">Find your people across the UAE &mdash; in your city, your neighbourhood, your sport, your level.</div>
       </div>
@@ -610,7 +619,7 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
 <!-- FINAL CTA -->
 <div class="final-cta">
   <div class="final-banner">
-    <div class="final-banner-bg"><img src="assets/guys-running.jpg" alt="Move together"></div>
+    <div class="final-banner-bg"><img src="assets/hands-in.jpg" alt="Move together"></div>
     <div class="final-banner-content">
       <h2>Active life is<br>better together.</h2>
       <p>Join the community. Move more.</p>
