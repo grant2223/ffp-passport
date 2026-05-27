@@ -1,26 +1,27 @@
-/* FFP Earnings Loader — v9
-   v9 fixes from v8:
-   - Payouts + Earnings log sections now inject IMMEDIATELY AFTER the Refer-a-friend
-     CTA (correct anchor). Previously they got placed inside Recent activity and were
-     unreachable.
-   - "How tiers work" dropdown now MOVES the original DOM (not clones), preserving
-     IDs and existing render bindings. Pre-triggers Earnings.toggleTierCards() so the
-     content is rendered and visible when the dropdown opens.
-   - Both lists default to showing latest 5 entries with a "Show all (N)" toggle.
-     Cleaner first impression; full history one tap away.
+/* ═══════════════════════════════════════════════════════════════
+   FFP EARNINGS LOADER · CURRENT VERSION: v10
+   File path: assets/ffp-earnings-loader.js
+   On-load log: [FFP Earnings v10] Loaded from Supabase ✓
+   ═══════════════════════════════════════════════════════════════ */
 
-   v8 changes (kept):
-   - Time filters + summary stats on Payouts and Earnings log
-   - Tiers & Ways to earn as collapsed dropdowns in two-column row
+/* WHAT v10 CHANGES (from v9):
+   New panel order:
+     1. Available Balance
+     2. Your Tier
+     3. Refer a friend
+     4. How tiers work | Ways to earn  (two-column dropdowns)
+     5. Your progression
+     6. Your Payouts (with time filters, 3-stat summary, show 5 / show all)
+     7. Earnings log (with time filters, 2-stat summary, show 5 / show all)
+*/
 
-   v7 changes (kept):
-   - Uses shared FFPRealtime helper (requires assets/ffp-realtime.js loaded first)
-
-   v6 changes (kept):
-   - Real-time updates + dedicated payouts section
-
-   v5/v4 changes (kept):
-   - View receipt modal, IBAN format validation, branch city
+/* EARLIER VERSIONS (most recent first):
+   v9 — fixed v8 bugs: anchor sections to Refer-a-friend, fix tier dropdown content render, show 5 / show all toggles
+   v8 — full layout restructure: time filters, summary stats, dropdowns
+   v7 — refactored to use shared FFPRealtime helper (requires assets/ffp-realtime.js)
+   v6 — dedicated "Your Payouts" section + real-time updates
+   v5 — View receipt modal for paid payouts (image / PDF)
+   v4 — bank fields: IBAN format hint, branch city, live validation
 */
 (function () {
   'use strict';
@@ -164,13 +165,10 @@
 
   // ─── v8 LAYOUT BUILDER ───
   // Restructures the existing earnings panel into the new clear hierarchy.
-  // Idempotent — safe to call repeatedly; rebuilds the filter-driven sections
-  // on every call but only moves DOM elements once.
   function rebuildLayout() {
     var panel = document.getElementById('panel-earnings');
     if (!panel) return;
 
-    // Inject v8 styles once
     injectV8Styles();
 
     if (!layoutBuilt) {
@@ -180,6 +178,37 @@
 
     renderEarningsLog();
     refreshPayoutsSectionWithFilter();
+
+    // v10: enforce the target panel order on every rebuild
+    reorderToTargetOrder(panel);
+  }
+
+  // v10: target order
+  //   .earn-refer-cta  →  #ffp-bottom-dropdowns  →  Your progression ct-section
+  //                    →  #ffp-payouts-section   →  #ffp-earnings-log
+  function reorderToTargetOrder(panel) {
+    var anchor = panel.querySelector('.earn-refer-cta');
+    if (!anchor) return;
+
+    var bottomDd = document.getElementById('ffp-bottom-dropdowns');
+    var payouts = document.getElementById('ffp-payouts-section');
+    var earnings = document.getElementById('ffp-earnings-log');
+
+    // Find the "Your progression" ct-section by its title text
+    var progression = null;
+    panel.querySelectorAll('.ct-section').forEach(function (sec) {
+      var t = (sec.querySelector('.ct-section-title') || {}).textContent || '';
+      if (/your progression/i.test(t)) progression = sec;
+    });
+
+    // Insert each one after the previous, starting with anchor (Refer-a-friend)
+    var prev = anchor;
+    [bottomDd, progression, payouts, earnings].forEach(function (el) {
+      if (!el) return;
+      if (el.parentNode) el.parentNode.removeChild(el);
+      prev.parentNode.insertBefore(el, prev.nextSibling);
+      prev = el;
+    });
   }
 
   function injectV8Styles() {
@@ -839,7 +868,7 @@
       // 8. Subscribe to real-time updates so the panel auto-updates
       subscribeRealtime();
 
-      console.log('[FFP Earnings v9] Loaded from Supabase \u2713');
+      console.log('[FFP Earnings v10] Loaded from Supabase \u2713');
     } catch (err) {
       console.error('[FFP Earnings] Unexpected error:', err);
     }
