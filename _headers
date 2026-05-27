@@ -1,0 +1,28 @@
+# During active development: never cache HTML or JS.
+# Images can cache for 24 hours since they rarely change.
+# When we go to production with stable releases, change /*.js to long max-age
+# and use versioned filenames (e.g. ffp-deals-loader.v2.js) for cache-busting.
+
+/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/assets/*.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/assets/*.png
+  Cache-Control: public, max-age=86400
+
+/assets/*.jpg
+  Cache-Control: public, max-age=86400
+
+/assets/*.jpeg
+  Cache-Control: public, max-age=86400
+
+/assets/*.svg
+  Cache-Control: public, max-age=86400
+
+/assets/*.webp
+  Cache-Control: public, max-age=86400
