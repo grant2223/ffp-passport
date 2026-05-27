@@ -1,8 +1,15 @@
-/* FFP Admin Payouts Loader — v2
-   v2 changes:
+/* FFP Admin Payouts Loader — v3
+   v3 changes:
+   - MARK PAID modal now captures a full receipt: sending bank, transfer date,
+     transfer time, payment reference. All saved to payouts.notes as structured
+     text the member can read.
+   - The mirror transactions row is ALSO updated with the same receipt info in
+     its notes column, so it shows up in the member's earnings history.
+   - View modal now displays the full receipt for paid payouts, formatted clearly.
+
+   v2 changes (kept):
    - REPLACES native prompt() with inline modal containing textarea for rejection reason
    - APPROVE modal shows "Expected payout by [today + 14 days]" so admin can communicate timing
-   - MARK PAID modal accepts optional payment reference (stored in notes)
    - All actions: detect 0 rows affected → show "may have been processed already" error
    - After action success: auto-switch to destination tab so admin sees the row in its new home
    - Longer-lasting success toasts (no more "did anything happen?" confusion)
@@ -377,28 +384,93 @@
     var p = ap.data.find(function (x) { return x.id === id; });
     if (!p) return;
 
+    var todayIso = new Date().toISOString().slice(0, 10);
+    var nowTime = new Date().toTimeString().slice(0, 5);
+
     var bodyHtml =
-      '<div style="margin-bottom:14px;">Confirm the bank transfer for <b style="color:#e8eef4;">' + escHtml(p.member) + '</b> (AED ' + p.amount.toLocaleString() + ') has been completed.</div>' +
-      '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:12px;margin-bottom:14px;">' +
+      '<div style="margin-bottom:14px;">Record the bank transfer receipt for <b style="color:#e8eef4;">' + escHtml(p.member) + '</b> (AED ' + p.amount.toLocaleString() + ').</div>' +
+      '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:12px;margin-bottom:16px;">' +
         '<div style="color:#fca5a5;font-size:12px;font-weight:700;margin-bottom:4px;">This cannot be undone.</div>' +
-        '<div style="color:#8a99a8;font-size:11px;line-height:1.5;">Only mark Paid AFTER you\'ve completed the bank transfer and have proof. Once Paid, the status is locked.</div>' +
+        '<div style="color:#8a99a8;font-size:11px;line-height:1.5;">Only mark Paid AFTER the transfer is complete and you have proof. The details below are saved as the member\'s receipt.</div>' +
       '</div>' +
-      '<div style="margin-bottom:6px;color:#8a99a8;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Payment reference (optional)</div>' +
-      '<input id="ffp-paid-ref" type="text" placeholder="e.g. Bank ref ENBD-2026-05-27-001"' +
-      ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:10px 12px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;">';
+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">' +
+        '<div>' +
+          '<div style="color:#8a99a8;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px;">Transfer date</div>' +
+          '<input id="ffp-paid-date" type="date" value="' + todayIso + '"' +
+            ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:9px 10px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;">' +
+        '</div>' +
+        '<div>' +
+          '<div style="color:#8a99a8;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px;">Transfer time</div>' +
+          '<input id="ffp-paid-time" type="time" value="' + nowTime + '"' +
+            ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:9px 10px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;">' +
+        '</div>' +
+      '</div>' +
+
+      '<div style="margin-bottom:10px;">' +
+        '<div style="color:#8a99a8;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px;">Sending bank (FFP operations account)</div>' +
+        '<input id="ffp-paid-sending-bank" type="text" placeholder="e.g. Emirates NBD — FFP Operations"' +
+          ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:9px 10px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;">' +
+      '</div>' +
+
+      '<div style="margin-bottom:10px;">' +
+        '<div style="color:#8a99a8;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px;">Payment reference / transaction ID</div>' +
+        '<input id="ffp-paid-ref" type="text" placeholder="Bank reference or transaction number"' +
+          ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:9px 10px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;">' +
+      '</div>' +
+
+      '<div>' +
+        '<div style="color:#8a99a8;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px;">Additional notes (optional)</div>' +
+        '<textarea id="ffp-paid-extra" rows="2" placeholder="Any extra info for the member"' +
+          ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:9px 10px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;resize:vertical;"></textarea>' +
+      '</div>';
 
     openActionModal({
       title: 'Mark payout as Paid',
       bodyHtml: bodyHtml,
-      primaryLabel: 'Yes, mark Paid',
+      primaryLabel: 'Save receipt & lock Paid',
       primaryClass: 'btn-primary',
+      validate: function () {
+        var date = (document.getElementById('ffp-paid-date') || {}).value || '';
+        var sendingBank = ((document.getElementById('ffp-paid-sending-bank') || {}).value || '').trim();
+        var ref = ((document.getElementById('ffp-paid-ref') || {}).value || '').trim();
+        if (!date) return 'Transfer date is required';
+        if (!sendingBank) return 'Sending bank is required';
+        if (!ref) return 'Payment reference is required';
+        return null;
+      },
       onConfirm: async function () {
-        var ref = (document.getElementById('ffp-paid-ref').value || '').trim();
+        var date = document.getElementById('ffp-paid-date').value;
+        var time = (document.getElementById('ffp-paid-time') || {}).value || '';
+        var sendingBank = document.getElementById('ffp-paid-sending-bank').value.trim();
+        var ref = document.getElementById('ffp-paid-ref').value.trim();
+        var extra = ((document.getElementById('ffp-paid-extra') || {}).value || '').trim();
+
+        // Structured receipt text — readable for both admin and member
+        var receipt =
+          'Payment receipt\n' +
+          'Reference: ' + ref + '\n' +
+          'Transferred: ' + date + (time ? ' ' + time : '') + '\n' +
+          'Sending bank: ' + sendingBank +
+          (extra ? '\nNotes: ' + extra : '');
+
+        // Real transfer timestamp (when the bank actually moved the money)
+        var transferIso;
+        try {
+          transferIso = new Date(date + 'T' + (time || '12:00') + ':00').toISOString();
+        } catch (e) {
+          transferIso = new Date().toISOString();
+        }
+
         var uid = await getMyAdminUid();
-        var newNotes = ref ? ('Payment ref: ' + ref) : null;
         var res = await window.supabase
           .from('payouts')
-          .update({ status: 'paid', processed_by: uid, processed_at: new Date().toISOString(), notes: newNotes })
+          .update({
+            status: 'paid',
+            processed_by: uid,
+            processed_at: transferIso,
+            notes: receipt
+          })
           .eq('id', id)
           .eq('status', 'approved')
           .select('id');
@@ -406,12 +478,29 @@
         if (!res.data || res.data.length === 0) {
           throw new Error('Could not mark Paid — was not in Approved status. Refresh and try again.');
         }
-        await updateMirrorTransaction(id, 'paid');
+        // Update mirror transaction with same receipt info so member sees it in their earnings history
+        await updateMirrorTransactionFull(id, 'paid', receipt);
         await refresh();
         switchTab('paid');
-        bigToast('Marked as Paid \u2014 AED ' + p.amount.toLocaleString() + ' to ' + p.member + '. Status is now locked.', 'success');
+        bigToast('Paid \u2014 receipt saved. Status locked. Ref: ' + ref, 'success');
       }
     });
+  }
+
+  // Full mirror tx update — sets status AND notes (used by markPaid for receipt)
+  async function updateMirrorTransactionFull(payoutId, newStatus, notes) {
+    try {
+      var res = await window.supabase
+        .from('transactions')
+        .update({ status: newStatus, notes: notes })
+        .eq('related_id', payoutId)
+        .eq('category', 'payout');
+      if (res.error) {
+        console.warn('[FFP Admin Payouts] mirror tx full update:', res.error);
+      }
+    } catch (e) {
+      console.warn('[FFP Admin Payouts] mirror tx full update exception:', e);
+    }
   }
 
   function viewPayout(id) {
@@ -427,6 +516,16 @@
         '</div>'
       : '<div style="color:#8a99a8;font-size:12px;margin:14px 0;font-style:italic;">No bank details on file. Method: <b>' + escHtml(p.method) + '</b>. Contact member directly.</div>';
 
+    var receiptBlock = '';
+    if (p.status === 'paid' && p.notes && p.notes.indexOf('Payment receipt') === 0) {
+      // Render the structured receipt
+      receiptBlock =
+        '<div style="background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.28);border-radius:10px;padding:14px;margin:14px 0;">' +
+          '<div style="color:#4ade80;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">Payment receipt</div>' +
+          '<div style="color:#e8eef4;font-size:13px;line-height:1.7;white-space:pre-wrap;font-family:monospace;">' + escHtml(p.notes) + '</div>' +
+        '</div>';
+    }
+
     var content =
       '<div style="text-align:center;margin-bottom:18px;">' +
         '<div style="font-size:32px;font-weight:800;color:#FFCC00;letter-spacing:-1px;">AED ' + p.amount.toLocaleString() + '</div>' +
@@ -435,9 +534,10 @@
         (p.memberEmail ? '<div style="color:#8a99a8;font-size:11px;">' + escHtml(p.memberEmail) + '</div>' : '') +
       '</div>' +
       bankBlock +
+      receiptBlock +
       '<div style="color:#cfd6dc;font-size:12px;margin-bottom:6px;"><b style="color:#8a99a8;">Requested:</b> ' + escHtml(fmtDateTime(p.requestedAt)) + '</div>' +
-      (p.processedAt ? '<div style="color:#cfd6dc;font-size:12px;margin-bottom:6px;"><b style="color:#8a99a8;">Processed:</b> ' + escHtml(fmtDateTime(p.processedAt)) + '</div>' : '') +
-      (p.notes ? '<div style="color:#cfd6dc;font-size:12px;margin-bottom:6px;"><b style="color:#8a99a8;">Notes:</b> ' + escHtml(p.notes) + '</div>' : '') +
+      (p.processedAt ? '<div style="color:#cfd6dc;font-size:12px;margin-bottom:6px;"><b style="color:#8a99a8;">' + (p.status === 'paid' ? 'Transferred' : 'Processed') + ':</b> ' + escHtml(fmtDateTime(p.processedAt)) + '</div>' : '') +
+      (p.notes && !receiptBlock ? '<div style="color:#cfd6dc;font-size:12px;margin-bottom:6px;"><b style="color:#8a99a8;">Notes:</b> ' + escHtml(p.notes) + '</div>' : '') +
       '<div style="color:#cfd6dc;font-size:12px;margin-top:10px;"><b style="color:#8a99a8;">Status:</b> ' + statusPill + '</div>';
 
     var foot = '<button class="btn btn-ghost" onclick="closeAdminModal()">Close</button>';
