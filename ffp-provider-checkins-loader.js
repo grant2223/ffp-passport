@@ -1,14 +1,19 @@
-/* FFP Provider Check-ins Loader — v1
-   Wires the Check-ins panel to real Supabase data.
-   - Verify a member's claim code (XXXX-XXXX format)
-   - Shows member name + deal title in confirm modal
-   - Confirm → UPDATE claims set status='verified', verified_at=now(), verified_by=me
-   - Recent check-ins list shows real verified claims (last 50)
-   - Error cases: invalid code, wrong venue, already used, expired
+/* ═══════════════════════════════════════════════════════════════
+   FFP PROVIDER CHECK-INS LOADER · CURRENT VERSION: v2
+   File path: ffp-provider-checkins-loader.js (repo root)
+   On-load log: [FFP Check-ins v2] Loaded ✓
+   ═══════════════════════════════════════════════════════════════ */
 
-   Requires SQL: RLS policies on claims + ffp_generate_claim_code() function
-   (provider_read, provider_verify, member_own, admin_all).
+/* WHAT v2 CHANGES (from v1):
+   - Fixes input maxlength bug: was 8 (counted the dash, blocking 8th char).
+     Now 9 (4 chars + dash + 4 chars). Patched at runtime so works even before
+     HTML is updated.
+   - For permanent fix, also change maxlength="8" → maxlength="9" in
+     ffp-provider.html at the #claim-code-input element.
 */
+
+/* v1: Phase 2.2 — claim code verification, claims lookup, confirm modal,
+   real-time recent check-ins list */
 (function () {
   'use strict';
 
@@ -271,9 +276,16 @@
 
     injectStyles();
 
+    // v2: fix input maxlength bug (was 8, must be 9 to allow 4 chars + dash + 4 chars)
+    var codeInput = document.getElementById('claim-code-input');
+    if (codeInput) {
+      codeInput.setAttribute('maxlength', '9');
+      codeInput.maxLength = 9;
+    }
+
     try {
       await refresh();
-      console.log('[FFP Check-ins v1] Loaded \u2713');
+      console.log('[FFP Check-ins v2] Loaded \u2713');
     } catch (e) {
       console.error('[FFP Check-ins] initial load:', e);
     }
