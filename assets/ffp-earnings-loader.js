@@ -1,29 +1,26 @@
-/* FFP Earnings Loader — v8
-   v8 changes — major layout restructure per Build Standards:
-   - Two new prominent sections sit right under Refer-a-friend:
-       "Your Payouts" (was already there in v6, redesigned)
-       "Earnings log" (replaces "Recent activity" — clearer name + structure)
-   - Both sections have time-filter chips: This month / Last month / 6 months / Year / All time
-   - Both sections show summary stats at top for the filtered period:
-       Payouts → Total paid / Pending / Rejected
-       Earnings → Total earned / Pending
-   - "How tiers work" and "Ways to earn" become collapsed dropdowns in a
-     two-column row at the bottom. Less noise, more focus on what matters.
-   - "Your progression" sits between the two main sections and the dropdowns
-     (still important for tier tracking).
-   - "Maintain Ambassador" only shown when relevant (Ambassador tier).
+/* FFP Earnings Loader — v9
+   v9 fixes from v8:
+   - Payouts + Earnings log sections now inject IMMEDIATELY AFTER the Refer-a-friend
+     CTA (correct anchor). Previously they got placed inside Recent activity and were
+     unreachable.
+   - "How tiers work" dropdown now MOVES the original DOM (not clones), preserving
+     IDs and existing render bindings. Pre-triggers Earnings.toggleTierCards() so the
+     content is rendered and visible when the dropdown opens.
+   - Both lists default to showing latest 5 entries with a "Show all (N)" toggle.
+     Cleaner first impression; full history one tap away.
+
+   v8 changes (kept):
+   - Time filters + summary stats on Payouts and Earnings log
+   - Tiers & Ways to earn as collapsed dropdowns in two-column row
 
    v7 changes (kept):
    - Uses shared FFPRealtime helper (requires assets/ffp-realtime.js loaded first)
 
    v6 changes (kept):
-   - Dedicated payouts section + real-time updates
+   - Real-time updates + dedicated payouts section
 
-   v5 changes (kept):
-   - View receipt modal for paid payouts (image / PDF)
-
-   v4 changes (kept):
-   - Bank fields: IBAN format hint with live validation, branch city
+   v5/v4 changes (kept):
+   - View receipt modal, IBAN format validation, branch city
 */
 (function () {
   'use strict';
@@ -32,9 +29,12 @@
   var currentUserId = null;
   var wrapped = false;
   var memberPayouts = [];
-  var allTransactions = [];          // v8: keep full tx list for filtering
-  var payoutFilter = 'all';          // v8: time filter for payouts section
-  var earningsFilter = 'all';        // v8: time filter for earnings log
+  var allTransactions = [];
+  var payoutFilter = 'all';
+  var earningsFilter = 'all';
+  var payoutShowAll = false;       // v9
+  var earningsShowAll = false;     // v9
+  var DEFAULT_VISIBLE_ROWS = 5;    // v9
   var layoutBuilt = false;
 
   function injectStyles() {
@@ -81,25 +81,18 @@
     if (!section) {
       section = document.createElement('div');
       section.id = 'ffp-payouts-section';
-      // Inject above the Recent activity section
-      var recentList = document.getElementById('earn-tx-list');
-      if (recentList) {
-        // Insert before the parent of earn-tx-list (its section container)
-        var parent = recentList.parentNode;
-        // Find the section-title above it, if any, to insert before that header block
-        var insertBeforeNode = recentList;
-        // Walk up to find the appropriate container
-        var probe = recentList;
-        for (var i = 0; i < 4 && probe.parentNode; i++) {
-          if (probe.previousElementSibling && /section-title/i.test(probe.previousElementSibling.className || '')) {
-            insertBeforeNode = probe.previousElementSibling;
-            break;
-          }
-          probe = probe.parentNode;
-        }
-        insertBeforeNode.parentNode.insertBefore(section, insertBeforeNode);
+      // v9: anchor to Refer-a-friend CTA (insert right after it)
+      var anchor = panel.querySelector('.earn-refer-cta');
+      if (anchor && anchor.parentNode) {
+        anchor.parentNode.insertBefore(section, anchor.nextSibling);
       } else {
-        panel.appendChild(section);
+        // Fallback: try tier badge card, then panel head, then just append
+        var fallback = panel.querySelector('.tier-badge-card') || panel.querySelector('.earn-hero');
+        if (fallback && fallback.parentNode) {
+          fallback.parentNode.insertBefore(section, fallback.nextSibling);
+        } else {
+          panel.appendChild(section);
+        }
       }
     }
 
@@ -228,46 +221,52 @@
       '#ffp-earnings-log .ffp-earn-meta{font-size:11px;color:var(--muted,#8a99a8);margin-top:2px;}' +
       '#ffp-earnings-log .ffp-earn-amt{font-size:14px;font-weight:800;color:#4ade80;white-space:nowrap;}' +
       '#ffp-earnings-log .ffp-earn-amt.out{color:#fca5a5;}' +
-      '#ffp-earnings-log .ffp-earn-empty{padding:24px 16px;text-align:center;color:var(--muted,#8a99a8);font-size:12px;}';
+      '#ffp-earnings-log .ffp-earn-empty{padding:24px 16px;text-align:center;color:var(--muted,#8a99a8);font-size:12px;}' +
+      // v9: Show all / show less toggle
+      '.ffp-show-toggle{padding:12px 14px;border-top:1px solid rgba(43,168,224,0.10);text-align:center;background:rgba(43,168,224,0.02);}' +
+      '.ffp-show-toggle-btn{background:transparent;border:1px solid var(--border-mid,rgba(43,168,224,0.25));color:#7dd3fc;padding:6px 14px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:Montserrat,sans-serif;letter-spacing:0.3px;}' +
+      '.ffp-show-toggle-btn:hover{background:rgba(43,168,224,0.08);}';
     document.head.appendChild(s);
   }
 
   // Move "How tiers work" and "Ways to earn" sections into a two-column dropdown row at the bottom.
-  // Also wrap each as a dropdown (collapsed by default).
   function moveTiersAndWaysToBottomRow(panel) {
-    var tierTitle = panel.querySelector('.ct-section-title');
-    // Find each section by its title text
     var sections = panel.querySelectorAll('.ct-section');
-    var tiersSection = null, waysSection = null, progressionSection = null;
+    var tiersSection = null, waysSection = null;
     sections.forEach(function (sec) {
       var title = (sec.querySelector('.ct-section-title') || {}).textContent || '';
       if (/how tiers work/i.test(title)) tiersSection = sec;
       else if (/ways to earn/i.test(title)) waysSection = sec;
-      else if (/your progression/i.test(title)) progressionSection = sec;
     });
 
-    // Hide original sections that we're moving/replacing
-    var oldTxSection = null;
+    // Hide "Recent activity" — we render our own Earnings log instead
     sections.forEach(function (sec) {
       var title = (sec.querySelector('.ct-section-title') || {}).textContent || '';
-      if (/recent activity/i.test(title)) {
-        oldTxSection = sec;
-        sec.style.display = 'none';  // hidden; we render our own Earnings log instead
-      }
+      if (/recent activity/i.test(title)) sec.style.display = 'none';
     });
+
+    // v9: pre-trigger tier cards render so content is available when dropdown opens
+    if (typeof Earnings !== 'undefined' && typeof Earnings.toggleTierCards === 'function') {
+      var tierCardsEl = document.getElementById('tier-cards');
+      if (tierCardsEl && !tierCardsEl.innerHTML.trim()) {
+        try {
+          Earnings.toggleTierCards();  // renders + toggles open
+          // Force display regardless of toggle state — our dropdown controls visibility now
+          tierCardsEl.style.display = 'block';
+        } catch (e) {
+          console.warn('[FFP Earnings] tier cards pre-render:', e);
+        }
+      } else if (tierCardsEl) {
+        tierCardsEl.style.display = 'block';
+      }
+    }
 
     // Build the two-column dropdown row
     var bottomRow = document.createElement('div');
     bottomRow.id = 'ffp-bottom-dropdowns';
 
-    if (tiersSection) {
-      var tiersDd = wrapAsDropdown('How tiers work', tiersSection);
-      bottomRow.appendChild(tiersDd);
-    }
-    if (waysSection) {
-      var waysDd = wrapAsDropdown('Ways to earn', waysSection);
-      bottomRow.appendChild(waysDd);
-    }
+    if (tiersSection) bottomRow.appendChild(wrapAsDropdown('How tiers work', tiersSection));
+    if (waysSection) bottomRow.appendChild(wrapAsDropdown('Ways to earn', waysSection));
 
     // Append bottom row to end of panel
     panel.appendChild(bottomRow);
@@ -284,16 +283,19 @@
     head.onclick = function () { dd.classList.toggle('open'); };
     var body = document.createElement('div');
     body.className = 'ffp-dd-body';
-    // Move the original section's content into the body (preserves all its internal structure + JS hooks)
-    var inner = originalSection.cloneNode(true);
-    // Strip the section header inside (we already have the title in the dd head)
-    var innerHead = inner.querySelector('.ct-section-head');
-    if (innerHead) innerHead.style.display = 'none';
-    body.appendChild(inner);
+
+    // v9: MOVE original section's contents into body (preserves IDs + bindings).
+    // Hide the section header (we already have title in dd head).
+    var sectionHead = originalSection.querySelector('.ct-section-head');
+    if (sectionHead) sectionHead.style.display = 'none';
+    while (originalSection.firstChild) {
+      body.appendChild(originalSection.firstChild);
+    }
+    // Hide the now-empty original wrapper
+    originalSection.style.display = 'none';
+
     dd.appendChild(head);
     dd.appendChild(body);
-    // Hide the original
-    originalSection.style.display = 'none';
     return dd;
   }
 
@@ -375,7 +377,11 @@
     if (!filtered.length) {
       rowsHtml = '<div class="ffp-po-list"><div class="ffp-po-empty">No payouts in this period.</div></div>';
     } else {
-      var rows = filtered.map(function (p) {
+      // v9: show only first DEFAULT_VISIBLE_ROWS unless "show all" is toggled
+      var visible = payoutShowAll ? filtered : filtered.slice(0, DEFAULT_VISIBLE_ROWS);
+      var hiddenCount = filtered.length - visible.length;
+
+      var rows = visible.map(function (p) {
         var amt = Math.round(Number(p.amount_aed) || 0);
         var status = p.status || 'pending';
         var statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
@@ -419,6 +425,14 @@
         '</div>';
       }).join('');
       rowsHtml = '<div class="ffp-po-list">' + rows + '</div>';
+      // v9: Show all / Show less toggle
+      if (filtered.length > DEFAULT_VISIBLE_ROWS) {
+        rowsHtml += '<div class="ffp-show-toggle">' +
+          '<button class="ffp-show-toggle-btn" data-target="payouts">' +
+            (payoutShowAll ? 'Show less' : 'Show all (' + filtered.length + ')') +
+          '</button>' +
+        '</div>';
+      }
     }
 
     section.innerHTML = titleRow + filterChips + summary + rowsHtml;
@@ -427,9 +441,18 @@
     section.querySelectorAll('.ffp-chip').forEach(function (btn) {
       btn.onclick = function () {
         payoutFilter = btn.getAttribute('data-filter');
+        payoutShowAll = false;  // reset show-all when filter changes
         refreshPayoutsSectionWithFilter();
       };
     });
+    // Wire show-all toggle
+    var toggleBtn = section.querySelector('.ffp-show-toggle-btn');
+    if (toggleBtn) {
+      toggleBtn.onclick = function () {
+        payoutShowAll = !payoutShowAll;
+        refreshPayoutsSectionWithFilter();
+      };
+    }
   }
 
   // ─── Earnings log section (replaces Recent activity) ───
@@ -487,7 +510,9 @@
     if (!filtered.length) {
       listHtml = '<div class="ffp-po-list"><div class="ffp-earn-empty">No earnings in this period.</div></div>';
     } else {
-      var rows = filtered.map(function (r) {
+      // v9: show only first DEFAULT_VISIBLE_ROWS unless "show all" is toggled
+      var visible = earningsShowAll ? filtered : filtered.slice(0, DEFAULT_VISIBLE_ROWS);
+      var rows = visible.map(function (r) {
         var isIn = r.type === 'in';
         var amt = Math.round(Number(r.amount_aed) || 0);
         var icon = isIn ? 'add' : 'remove';
@@ -505,6 +530,14 @@
         '</div>';
       }).join('');
       listHtml = '<div class="ffp-po-list">' + rows + '</div>';
+      // v9: Show all toggle
+      if (filtered.length > DEFAULT_VISIBLE_ROWS) {
+        listHtml += '<div class="ffp-show-toggle">' +
+          '<button class="ffp-show-toggle-btn" data-target="earnings">' +
+            (earningsShowAll ? 'Show less' : 'Show all (' + filtered.length + ')') +
+          '</button>' +
+        '</div>';
+      }
     }
 
     section.innerHTML = titleRow + filterChips + summary + listHtml;
@@ -512,9 +545,17 @@
     section.querySelectorAll('.ffp-chip').forEach(function (btn) {
       btn.onclick = function () {
         earningsFilter = btn.getAttribute('data-filter');
+        earningsShowAll = false;
         renderEarningsLog();
       };
     });
+    var toggleBtn = section.querySelector('.ffp-show-toggle-btn');
+    if (toggleBtn) {
+      toggleBtn.onclick = function () {
+        earningsShowAll = !earningsShowAll;
+        renderEarningsLog();
+      };
+    }
   }
 
   function daysAgoLabel(iso) {
@@ -798,7 +839,7 @@
       // 8. Subscribe to real-time updates so the panel auto-updates
       subscribeRealtime();
 
-      console.log('[FFP Earnings v8] Loaded from Supabase \u2713');
+      console.log('[FFP Earnings v9] Loaded from Supabase \u2713');
     } catch (err) {
       console.error('[FFP Earnings] Unexpected error:', err);
     }
