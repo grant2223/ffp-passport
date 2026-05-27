@@ -1,19 +1,12 @@
-/* FFP Provider Deals Loader — v2
-   v2 changes (Grant's feedback):
-   - REPLACED the deal modal with a cleaner form:
-       * Headline perk* (title)
-       * Details (description)
-       * Category* (taxonomy 23 — REQUIRED)
-       * Type (Service / Product — optional)
-       * Valid when (helper text encourages more detail)
-       * Booking link (URL)
-       * Hero photo
-   - REMOVED from form: price breakdown, free-text service, limits, frequency
-   - Limit set to 1 per member automatically (max_redemptions_per_member=1 on insert)
-   - RE-APPROVAL on edit: if existing status was 'live' or 'paused', UPDATE forces status='pending'
-   - Toast tells provider why their deal went back to pending
-
-   Requires SQL: ALTER TABLE deals ADD COLUMN IF NOT EXISTS offering_type text;
+/* FFP Provider Deals Loader — v3
+   v3 changes (Grant's feedback):
+   - Activity picker (379 activities) replaces broad-category dropdown.
+     A padel-court deal tags as "Padel", not "Racquet sports".
+   - Reuses window.FFPPicker exposed by experiences loader.
+   - Stores both activity + category on each deal.
+   v2: Cleaner form (Headline perk + Details + Type + Booking link + Valid),
+       max_redemptions_per_member auto-set to 1, re-approval rule.
+   v1: Initial wiring.
 */
 (function () {
   'use strict';
@@ -59,7 +52,19 @@
       // Dark dropdowns inside modal
       '.modal select, .modal .select, .modal-body select, .modal-body .select{color-scheme:dark;}',
       '.modal select option, .modal-body select option{background:#0f1e2e !important;color:#f5f7fa !important;}',
-      '.modal select option:checked, .modal-body select option:checked{background:#2ba8e0 !important;color:#082335 !important;}'
+      '.modal select option:checked, .modal-body select option:checked{background:#2ba8e0 !important;color:#082335 !important;}',
+      // Picker button — matches experiences/events styling
+      '.ffp-picker-btn{' +
+        'width:100%;display:flex;align-items:center;justify-content:space-between;' +
+        'background:#0a1825;border:1px solid #1a2f44;border-radius:10px;' +
+        'padding:11px 14px;color:#e8eef4;font-size:14px;font-family:inherit;cursor:pointer;' +
+        'text-align:left;}',
+      '.ffp-picker-btn:hover{border-color:#2a4564;}',
+      '.ffp-picker-btn.placeholder{color:#6c7a8b;}',
+      '.ffp-picker-btn .caret{flex-shrink:0;margin-left:10px;color:#8a99a8;}',
+      '.ffp-picker-btn .picked{display:flex;flex-direction:column;line-height:1.3;gap:1px;overflow:hidden;}',
+      '.ffp-picker-btn .picked .name{color:#e8eef4;font-weight:500;}',
+      '.ffp-picker-btn .picked .group{color:#8a99a8;font-size:11px;}'
     ].join('');
     document.head.appendChild(css);
   }
@@ -71,6 +76,7 @@
       perk: row.title || '',
       breakdown: '',  // No longer collected — display fallback to about/description
       about: row.description || '',
+      activity: row.activity || '',
       category: row.category || '',
       offering_type: row.offering_type || '',
       service: row.service || '',  // legacy column, no longer in form
@@ -93,7 +99,7 @@
     var providerId = window.FFP_PROVIDER.id;
     var res = await window.supabase
       .from('deals')
-      .select('id, provider_id, title, description, category, hero_image_url, offer_label, offer_price_aed, original_price_aed, terms, status, featured, starts_at, ends_at, max_redemptions_per_member, service, valid_when, booking_method, limits, frequency, offering_type, created_at, updated_at')
+      .select('id, provider_id, title, description, activity, category, hero_image_url, offer_label, offer_price_aed, original_price_aed, terms, status, featured, starts_at, ends_at, max_redemptions_per_member, service, valid_when, booking_method, limits, frequency, offering_type, created_at, updated_at')
       .eq('provider_id', providerId)
       .order('created_at', { ascending: false });
     if (res.error) {
@@ -148,13 +154,10 @@
         '<div class="form-section-title">Categorization</div>' +
         '<div class="form-grid">' +
           '<div class="field">' +
-            '<div class="label">Category <span class="req">*</span></div>' +
-            '<select class="select" id="dm-category">' +
-              '<option value="">Choose category…</option>' +
-              catOpts.map(function (c) {
-                return '<option value="' + escHtml(c) + '"' + (d.category === c ? ' selected' : '') + '>' + escHtml(c) + '</option>';
-              }).join('') +
-            '</select>' +
+            '<div class="label">Activity <span class="req">*</span> <span class="label-hint">— what is it?</span></div>' +
+            '<button type="button" class="ffp-picker-btn placeholder" id="dm-activity-btn" data-value="" data-category="">' +
+              '<span>Choose activity…</span><span class="ms caret">expand_more</span>' +
+            '</button>' +
           '</div>' +
           '<div class="field">' +
             '<div class="label">Type <span class="label-hint">— optional</span></div>' +
@@ -202,6 +205,42 @@
     if (typeof window.renderListingUploader === 'function') {
       try { window.renderListingUploader(d.hero_url); } catch (e) {}
     }
+
+    // Wire activity picker button
+    setTimeout(function () {
+      var btn = document.getElementById('dm-activity-btn');
+      if (!btn) return;
+      // Pre-fill if editing
+      if (d.activity || d.category) {
+        setActivityBtn(btn, d.activity || d.category, d.category);
+      }
+      btn.addEventListener('click', function () {
+        if (window.FFPPicker && typeof window.FFPPicker.openActivity === 'function') {
+          window.FFPPicker.openActivity(btn.dataset.value, function (name, cat) {
+            setActivityBtn(btn, name, cat);
+          });
+        } else {
+          console.error('[FFP Deals] FFPPicker not loaded');
+          toast('Activity picker not ready', 'error');
+        }
+      });
+    }, 50);
+  }
+
+  function setActivityBtn(btn, name, category) {
+    btn.dataset.value = name || '';
+    btn.dataset.category = category || '';
+    if (name) {
+      btn.classList.remove('placeholder');
+      btn.innerHTML =
+        '<div class="picked"><div class="name">' + escHtml(name) + '</div>' +
+        (category ? '<div class="group">' + escHtml(category) + '</div>' : '') +
+        '</div>' +
+        '<span class="ms caret">expand_more</span>';
+    } else {
+      btn.classList.add('placeholder');
+      btn.innerHTML = '<span>Choose activity…</span><span class="ms caret">expand_more</span>';
+    }
   }
 
   // ─── Save (INSERT / UPDATE) ───
@@ -216,10 +255,12 @@
     };
 
     var perk     = get('perk');
-    var category = get('category');
+    var actBtn   = document.getElementById('dm-activity-btn');
+    var activity = actBtn ? actBtn.dataset.value : '';
+    var category = actBtn ? actBtn.dataset.category : '';
 
     if (!perk)     { toast('Headline perk is required', 'error'); return; }
-    if (!category) { toast('Category is required', 'error'); return; }
+    if (!activity) { toast('Activity is required', 'error'); return; }
 
     var photoSlot = document.getElementById('listing-photo-slot');
     var heroUrl = (photoSlot && photoSlot.dataset.url) ? photoSlot.dataset.url : null;
@@ -230,13 +271,14 @@
     if (offeringType === '') offeringType = null;
 
     var payload = {
-      title:           perk,
-      description:     get('about') || null,
-      category:        category,
-      offering_type:   offeringType,
-      valid_when:      get('valid') || null,
-      booking_method:  get('booking') || null,
-      hero_image_url:  heroUrl
+      title:            perk,
+      description:      get('about') || null,
+      activity:         activity,
+      category:         category || null,
+      offering_type:    offeringType,
+      valid_when:       get('valid') || null,
+      booking_method:   get('booking') || null,
+      hero_image_url:   heroUrl
     };
 
     var reapprovalNote = '';
