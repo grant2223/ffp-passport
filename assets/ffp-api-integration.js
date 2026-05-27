@@ -1,12 +1,28 @@
 /* =============================================================
-   FFP Passport — API Integration Module (v4)
+   FFP Passport — API Integration Module (v3.1)
    Backend: https://ffp-passport-backend.vercel.app
-   Endpoints: /api/auth/signup, /api/auth/signin, /api/auth/reset, /api/auth/session-signin
-   v3: signin flow advances to code screen without API call (permanent code model)
-   v4: added sessionSignin for post-Stripe auto-signin via checkout session_id
+   Endpoints: /api/auth/signup, /api/auth/signin, /api/auth/reset
+   v3.1: Adds window.supabase client instantiation so admin auth works.
+         Keeps v3 FFPAuth/FFPApi behaviour intact.
    ============================================================= */
 (function (window) {
   'use strict';
+
+  // ── Supabase client setup (NEW in v3.1) ──────────────────────
+  // Required for ffp-admin-auth.js which uses Supabase Auth directly.
+  var SUPABASE_URL = 'https://kxzyuofecmtymablnmak.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4enl1b2ZlY210eW1hYmxubWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NDM1MTYsImV4cCI6MjA5NTAxOTUxNn0.cWn0x1AeD-x9C-HHf9MShXbFRWdkWi5RMgHLgWJwOuE';
+  if (window.supabase && window.supabase.createClient) {
+    try {
+      window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      console.log('[FFP] Supabase client initialised');
+    } catch (e) {
+      console.error('[FFP] Supabase init failed:', e);
+    }
+  } else {
+    console.warn('[FFP] Supabase SDK not found — ensure the CDN script tag loads BEFORE ffp-api-integration.js');
+  }
+  // ─────────────────────────────────────────────────────────────
 
   var API_BASE = 'https://ffp-passport-backend.vercel.app';
   var TOKEN_KEY = 'ffp_token';
@@ -101,20 +117,6 @@
         return res;
       });
     },
-    sessionSignin: function (sessionId) {
-      // Post-Stripe auto-signin: exchanges Stripe checkout session_id for a token.
-      // No 6-digit code required — the session_id is the proof of payment + identity.
-      return call('/api/auth/session-signin', {
-        method: 'POST',
-        body: { session_id: sessionId }
-      }).then(function (res) {
-        if (res && res.token) {
-          FFPAuth.setToken(res.token);
-          if (res.member) FFPAuth.setMember(res.member);
-        }
-        return res;
-      });
-    },
     getMemberProfile: function () { return call('/api/members/me'); },
     getDeals: function (filters) {
       var q = filters ? '?' + new URLSearchParams(filters).toString() : '';
@@ -138,7 +140,6 @@
     var path = window.location.pathname.toLowerCase();
     if (path.indexOf('ffp-member-dashboard') !== -1) {
       if (!FFPAuth.isAuthenticated()) return;
-      // Use stored member data first (from sign-in response)
       var stored = FFPAuth.getMember();
       if (stored) applyProfileToDashboard(stored);
       return;
