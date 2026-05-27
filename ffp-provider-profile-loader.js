@@ -1,8 +1,6 @@
-/* FFP Provider Profile Loader — v4
-   v4 fix: when the custom picker wraps the phone country code select, the wrapper
-   was full-width and broke the flex layout (number input got hidden). v4 scopes the
-   picker wrapper to match the original 152px width inside .phone-input, restoring
-   the side-by-side cc + number layout. Picker menu widens to 240px so country names fit.
+/* FFP Provider Profile Loader — v5
+   v5 fix: kill the visible scrollbar on the panel (FFP rule: no native scrollbars anywhere).
+   Content still scrolls — only the visible bar is hidden via -webkit-scrollbar + scrollbar-width.
 */
 (function () {
   'use strict';
@@ -73,6 +71,10 @@
     var css = document.createElement('style');
     css.id = 'ffp-provider-profile-css';
     css.textContent = [
+      // Kill all native scrollbars on this page (FFP-wide rule)
+      '*::-webkit-scrollbar{display:none !important;width:0 !important;height:0 !important;}',
+      '*{-ms-overflow-style:none !important;scrollbar-width:none !important;}',
+
       // Kill horizontal overflow
       '#panel-profile{overflow-x:hidden;}',
       '#panel-profile .form-grid{max-width:100%;}',
