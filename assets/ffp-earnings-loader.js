@@ -1,14 +1,12 @@
-/* FFP Earnings Loader — v6
-   v6 changes:
-   - DEDICATED "Your Payouts" section in Earnings panel (above Recent activity).
-     Shows ONLY payouts (not earnings transactions). Big status pills, clear
-     amount, requested + processed dates, View Receipt button on Paid, rejection
-     reason inline for Rejected. Empty state when no payouts yet.
-   - REAL-TIME updates via Supabase Realtime: when admin approves/rejects/pays
-     a member's payout, the member's panel auto-updates without refresh. Balance,
-     transactions, and Payouts section all reflect new state immediately.
-   - "View receipt" button kept on Recent activity rows for backward consistency,
-     but the Payouts section is now the primary place to track payment status.
+/* FFP Earnings Loader — v7
+   v7 changes:
+   - Refactored to use shared FFPRealtime helper (assets/ffp-realtime.js)
+     instead of inline channel subscription. Requires ffp-realtime.js to load
+     BEFORE this file.
+
+   v6 changes (kept):
+   - DEDICATED "Your Payouts" section in Earnings panel (above Recent activity)
+   - Real-time updates via Supabase Realtime
 
    v5 changes (kept):
    - Member can view payment receipts for paid payouts (image or PDF inline)
@@ -23,7 +21,6 @@
   var currentUserId = null;
   var wrapped = false;
   var memberPayouts = [];
-  var realtimeChannel = null;
 
   function injectStyles() {
     if (document.getElementById('ffp-earnings-loader-styles')) return;
@@ -181,21 +178,20 @@
     return fmtNiceDate(d.toISOString());
   }
 
-  // ─── Real-time subscription so panel auto-updates on admin changes ───
+  // ─── Real-time subscription via shared FFPRealtime helper ───
   function subscribeRealtime() {
-    if (realtimeChannel) return;
-    if (!window.supabase || typeof window.supabase.channel !== 'function') return;
-    realtimeChannel = window.supabase
-      .channel('ffp-member-earnings-' + (currentUserId || 'anon'))
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'payouts', filter: 'member_id=eq.' + currentUserId },
-        function () { loadFromSupabase(); }
-      )
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'transactions', filter: 'member_id=eq.' + currentUserId },
-        function () { loadFromSupabase(); }
-      )
-      .subscribe();
+    if (!currentUserId) return;
+    if (!window.FFPRealtime) {
+      console.warn('[FFP Earnings] FFPRealtime helper not loaded — auto-updates disabled. Add assets/ffp-realtime.js before this script.');
+      return;
+    }
+    var ch = 'ffp-member-earnings-' + currentUserId;
+    window.FFPRealtime.subscribe(ch + '-payouts', 'payouts', 'member_id=eq.' + currentUserId, function () {
+      loadFromSupabase();
+    });
+    window.FFPRealtime.subscribe(ch + '-transactions', 'transactions', 'member_id=eq.' + currentUserId, function () {
+      loadFromSupabase();
+    });
   }
 
   function daysAgoFromIso(iso) {
@@ -426,7 +422,7 @@
       // 8. Subscribe to real-time updates so the panel auto-updates
       subscribeRealtime();
 
-      console.log('[FFP Earnings v6] Loaded from Supabase \u2713');
+      console.log('[FFP Earnings v7] Loaded from Supabase \u2713');
     } catch (err) {
       console.error('[FFP Earnings] Unexpected error:', err);
     }
