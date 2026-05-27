@@ -1,17 +1,14 @@
-/* FFP Earnings Loader — v4
-   v4 changes:
-   - Bank fields now clearer: "Exact account holder name (as shown on bank account)"
-   - IBAN field shows format hint (AE07 0331 2345 6789 0123 456) and live-formats with spaces
-   - Added "Branch city" field (Dubai, Abu Dhabi, etc.)
-   - IBAN validation strict: AE + 21 digits = 23 chars total
+/* FFP Earnings Loader — v5
+   v5 changes:
+   - Member can now VIEW PAYMENT RECEIPTS for paid payouts
+   - After Earnings.render(), injects a "View receipt" button on every paid
+     payout row. Clicking opens a modal with:
+       - Amount, sending bank, transferred date/time, reference
+       - Inline image preview (if receipt is image) or PDF link
+   - Transaction objects now carry receiptUrl + notes through to the render hook
 
-   v3 changes (kept):
-   - MutationObserver-based field injection (reliable regardless of how modal opens)
-
-   v2 changes (kept):
-   - Injects bank fields + free-text textarea for "Other" method
-   - Validates bank_details non-empty
-   - confirm() before submission
+   v4 changes (kept):
+   - Bank fields: clearer labels, IBAN format hint with live validation, branch city
 */
 (function () {
   'use strict';
@@ -118,7 +115,7 @@
       // 2. Transactions (balance + history)
       var txRes = await window.supabase
         .from('transactions')
-        .select('id, type, amount_aed, source, category, status, notes, created_at')
+        .select('id, type, amount_aed, source, category, status, notes, related_id, created_at')
         .eq('member_id', currentUserId)
         .order('created_at', { ascending: false })
         .limit(50);
@@ -128,6 +125,28 @@
       } else {
         var txRows = txRes.data || [];
         Earnings.balance = computeBalance(txRows);
+
+        // For paid payouts, fetch the receipt URL from payouts table
+        var paidPayoutIds = txRows
+          .filter(function (r) { return r.category === 'payout' && r.status === 'paid' && r.related_id; })
+          .map(function (r) { return r.related_id; });
+        var receiptMap = {};
+        if (paidPayoutIds.length) {
+          try {
+            var poRes = await window.supabase
+              .from('payouts')
+              .select('id, receipt_url')
+              .in('id', paidPayoutIds);
+            if (!poRes.error && poRes.data) {
+              poRes.data.forEach(function (p) {
+                if (p.receipt_url) receiptMap[p.id] = p.receipt_url;
+              });
+            }
+          } catch (e) {
+            console.warn('[FFP Earnings] receipt fetch:', e);
+          }
+        }
+
         Earnings.transactions = txRows.map(function (r) {
           return {
             type: r.type,
@@ -138,7 +157,12 @@
             status: r.status === 'pending' ? 'pending review'
                   : r.status === 'paid'    ? null
                   : r.status === 'rejected'? 'rejected'
-                  : r.status
+                  : r.status,
+            // Carry these through for the receipt button injection
+            _ffpRawCategory: r.category,
+            _ffpRawStatus: r.status,
+            _ffpNotes: r.notes || '',
+            _ffpReceiptUrl: r.related_id ? (receiptMap[r.related_id] || '') : ''
           };
         });
       }
@@ -360,7 +384,114 @@
     console.log('[FFP Earnings]', msg);
   }
 
-  // Hook into modal opening via MutationObserver (more reliable than wrapping openPayout)
+  // After Earnings.render(), inject "View receipt" buttons on paid payout rows
+  function wrapRender() {
+    if (typeof Earnings === 'undefined' || typeof Earnings.render !== 'function') {
+      setTimeout(wrapRender, 200);
+      return;
+    }
+    var orig = Earnings.render.bind(Earnings);
+    Earnings.render = function () {
+      orig();
+      // Wait one tick for DOM to settle, then inject buttons
+      setTimeout(injectReceiptButtons, 30);
+    };
+  }
+
+  function injectReceiptButtons() {
+    var list = document.getElementById('earn-tx-list');
+    if (!list || !Earnings || !Earnings.transactions) return;
+    var rows = list.querySelectorAll('.earn-tx-row');
+    Earnings.transactions.forEach(function (t, i) {
+      var row = rows[i];
+      if (!row) return;
+      if (row.querySelector('.ffp-view-receipt-btn')) return;  // already injected
+      // Only inject for paid payouts that have a receipt URL OR receipt notes
+      if (t._ffpRawCategory !== 'payout' || t._ffpRawStatus !== 'paid') return;
+      if (!t._ffpReceiptUrl && !t._ffpNotes) return;
+
+      var metaEl = row.querySelector('.earn-tx-meta');
+      if (!metaEl) return;
+      var btn = document.createElement('button');
+      btn.className = 'ffp-view-receipt-btn';
+      btn.style.cssText = 'margin-left:8px;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.35);color:#4ade80;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700;cursor:pointer;font-family:Montserrat,sans-serif;display:inline-flex;align-items:center;gap:4px;';
+      btn.innerHTML = '<span class="material-icons" style="font-size:12px;">receipt_long</span>View receipt';
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        openReceiptModal(t);
+      };
+      metaEl.appendChild(btn);
+    });
+  }
+
+  function openReceiptModal(t) {
+    // Close any existing
+    var existing = document.getElementById('ffp-receipt-modal');
+    if (existing) existing.remove();
+
+    var fileBlock = '';
+    if (t._ffpReceiptUrl) {
+      var url = t._ffpReceiptUrl;
+      var isPdf = /\.pdf$/i.test(url);
+      if (isPdf) {
+        fileBlock =
+          '<div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(74,222,128,0.25);">' +
+            '<a href="' + escAttr(url) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;background:rgba(74,222,128,0.15);border:1px solid rgba(74,222,128,0.35);color:#4ade80;padding:10px 16px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:700;font-family:Montserrat,sans-serif;">' +
+              '<span class="material-icons" style="font-size:18px;">picture_as_pdf</span>Open PDF receipt' +
+            '</a>' +
+          '</div>';
+      } else {
+        fileBlock =
+          '<div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(74,222,128,0.25);">' +
+            '<div style="color:#4ade80;font-size:11px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:1.2px;">Bank transfer confirmation</div>' +
+            '<a href="' + escAttr(url) + '" target="_blank" rel="noopener">' +
+              '<img src="' + escAttr(url) + '" alt="Transfer receipt" style="max-width:100%;border-radius:8px;border:1px solid rgba(74,222,128,0.25);display:block;cursor:zoom-in;">' +
+            '</a>' +
+            '<div style="margin-top:6px;font-size:10px;color:#6a90a8;">Tap to open full size</div>' +
+          '</div>';
+      }
+    }
+
+    // Strip the URL line from notes for display (it's shown as the image/PDF instead)
+    var displayNotes = (t._ffpNotes || '').replace(/\nReceipt:\s*https?:\/\/\S+/, '');
+
+    var overlay = document.createElement('div');
+    overlay.id = 'ffp-receipt-modal';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,8,20,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;font-family:Montserrat,sans-serif;';
+    overlay.innerHTML =
+      '<div style="background:#0f1e2e;border:1px solid #1a2f44;border-radius:16px;width:100%;max-width:520px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.6);overflow:hidden;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid #1a2f44;">' +
+          '<div style="color:#e8eef4;font-size:16px;font-weight:700;">Payment receipt</div>' +
+          '<button onclick="document.getElementById(\'ffp-receipt-modal\').remove()" style="background:transparent;border:none;color:#8a99a8;cursor:pointer;font-size:24px;line-height:1;padding:0 4px;">&times;</button>' +
+        '</div>' +
+        '<div style="padding:20px;overflow-y:auto;flex:1;">' +
+          (displayNotes
+            ? '<div style="background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.28);border-radius:10px;padding:14px;">' +
+                '<div style="color:#e8eef4;font-size:13px;line-height:1.7;white-space:pre-wrap;font-family:monospace;">' + escHtml(displayNotes) + '</div>' +
+              '</div>'
+            : '<div style="color:#8a99a8;font-size:13px;">No payment details recorded.</div>'
+          ) +
+          fileBlock +
+        '</div>' +
+        '<div style="padding:14px 20px;border-top:1px solid #1a2f44;text-align:right;">' +
+          '<button onclick="document.getElementById(\'ffp-receipt-modal\').remove()" style="background:rgba(43,168,224,0.12);border:1px solid rgba(43,168,224,0.35);color:#7dd3fc;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:Montserrat,sans-serif;">Close</button>' +
+        '</div>' +
+      '</div>';
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) overlay.remove();
+    });
+    document.body.appendChild(overlay);
+  }
+
+  function escAttr(s) {
+    return String(s == null ? '' : s).replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  }
+  function escHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+
   // — watches for the .open class being added to the modal backdrop, then injects.
   function startModalObserver() {
     var backdrop = document.getElementById('payout-modal-backdrop');
@@ -396,6 +527,7 @@
     wrapped = true;
 
     startModalObserver();
+    wrapRender();
 
     var origSubmitPayout = Earnings.submitPayout.bind(Earnings);
     Earnings.submitPayout = async function () {
