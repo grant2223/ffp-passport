@@ -1,18 +1,23 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP EARNINGS LOADER · CURRENT VERSION: v10
+   FFP EARNINGS LOADER · CURRENT VERSION: v11
    File path: assets/ffp-earnings-loader.js
-   On-load log: [FFP Earnings v10] Loaded from Supabase ✓
+   On-load log: [FFP Earnings v11] Loaded from Supabase ✓
    ═══════════════════════════════════════════════════════════════ */
 
-/* WHAT v10 CHANGES (from v9):
+/* WHAT v11 CHANGES (from v10):
+   - Default visible rows in Payouts and Earnings log: 5 → 3.
+     Less noise on first view; full list one tap away.
+*/
+
+/* WHAT v10 CHANGED (from v9):
    New panel order:
      1. Available Balance
      2. Your Tier
      3. Refer a friend
      4. How tiers work | Ways to earn  (two-column dropdowns)
      5. Your progression
-     6. Your Payouts (with time filters, 3-stat summary, show 5 / show all)
-     7. Earnings log (with time filters, 2-stat summary, show 5 / show all)
+     6. Your Payouts
+     7. Earnings log
 */
 
 /* EARLIER VERSIONS (most recent first):
@@ -35,7 +40,7 @@
   var earningsFilter = 'all';
   var payoutShowAll = false;       // v9
   var earningsShowAll = false;     // v9
-  var DEFAULT_VISIBLE_ROWS = 5;    // v9
+  var DEFAULT_VISIBLE_ROWS = 3;    // v11 (was 5 in v9-v10)
   var layoutBuilt = false;
 
   function injectStyles() {
@@ -868,7 +873,7 @@
       // 8. Subscribe to real-time updates so the panel auto-updates
       subscribeRealtime();
 
-      console.log('[FFP Earnings v10] Loaded from Supabase \u2713');
+      console.log('[FFP Earnings v11] Loaded from Supabase \u2713');
     } catch (err) {
       console.error('[FFP Earnings] Unexpected error:', err);
     }
