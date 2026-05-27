@@ -4,17 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
 <title>FFP Passport</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/ffp-api-integration.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420 !important;color:#fff;}
-
-/* FFP RULE: no ugly default scrollbars anywhere — content still scrolls */
 *::-webkit-scrollbar{display:none;width:0;height:0;}
 *{-ms-overflow-style:none;scrollbar-width:none;}
-
+html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420 !important;color:#fff;}
 .page{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 20px 100px;background:#081420;}
 .logo{text-align:center;margin-bottom:36px;}
 .logo-brand{font-size:22px;font-weight:900;letter-spacing:3px;}
@@ -37,16 +33,9 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 .field-input{width:100%;background:rgba(43,168,224,.06);border:1px solid rgba(43,168,224,.2);border-radius:10px;padding:13px 16px;font-size:15px;font-weight:600;color:#fff;font-family:'Montserrat',sans-serif;outline:none;transition:border-color .15s;}
 .field-input:focus{border-color:#2ba8e0;}
 .field-input::placeholder{color:#6a90a8;font-weight:600;}
-
-/* FFP RULE: code boxes must be responsive, never overflow. Grid with 6 equal columns capped to a max. */
 .code-wrap{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:0 auto 8px;max-width:320px;width:100%;}
-.code-digit{width:100%;height:56px;background:rgba(43,168,224,.06);border:1.5px solid rgba(43,168,224,.2);border-radius:10px;font-size:24px;font-weight:900;color:#fff;text-align:center;font-family:'Montserrat',sans-serif;outline:none;transition:border-color .15s;padding:0;min-width:0;}
+.code-digit{width:100%;height:56px;min-width:0;padding:0;background:rgba(43,168,224,.06);border:1.5px solid rgba(43,168,224,.2);border-radius:10px;font-size:24px;font-weight:900;color:#fff;text-align:center;font-family:'Montserrat',sans-serif;outline:none;transition:border-color .15s;}
 .code-digit:focus{border-color:#2ba8e0;}
-@media (max-width:360px){
-  .code-wrap{gap:6px;max-width:280px;}
-  .code-digit{height:52px;font-size:22px;}
-}
-
 .btn-primary{display:block;width:100%;padding:15px;border-radius:12px;font-size:15px;font-weight:800;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;color:#fff;background:#2ba8e0;transition:background .15s;text-align:center;}
 .btn-primary:hover{background:#1980AD;}
 .btn-primary:disabled{opacity:.6;cursor:not-allowed;}
@@ -68,6 +57,7 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 .resend-row{text-align:center;margin-top:16px;font-size:12px;color:#6a90a8;}
 .resend-row a{color:#2ba8e0;text-decoration:none;font-weight:700;cursor:pointer;}
 .error-msg{color:#ef4444;font-size:12px;font-weight:700;margin-top:8px;text-align:center;min-height:18px;}
+@media (max-width:360px){.code-wrap{gap:6px;max-width:280px;} .code-digit{height:52px;}}
 </style>
 </head>
 <body>
@@ -116,7 +106,7 @@ Back
 </button>
 <div class="screen-badge" id="signin-badge"></div>
 <div class="screen-title">Sign In</div>
-<div class="screen-sub">Enter your email address. We'll send you a 6-digit code.</div>
+<div class="screen-sub">Enter your email address then your 6-digit code.</div>
 <div class="field">
 <div class="field-label">Email Address</div>
 <input class="field-input" type="email" id="signin-email" placeholder="you@email.com" autocomplete="email">
@@ -135,7 +125,7 @@ Back
 </button>
 <div class="screen-badge" id="signin-code-badge"></div>
 <div class="screen-title">Enter Your Code</div>
-<div class="screen-sub" id="signin-code-sub">Enter the 6-digit code we just emailed to <strong id="signin-code-email"></strong>. It expires in 60 minutes.</div>
+<div class="screen-sub" id="signin-code-sub">Enter the 6-digit code for <strong id="signin-code-email"></strong>. This is the code you received when you signed up.</div>
 <div class="code-wrap" id="signin-code-wrap">
 <input class="code-digit" type="text" inputmode="numeric" maxlength="1" oninput="moveNext(this,1,'signin')" onkeydown="movePrev(event,this,'signin')">
 <input class="code-digit" type="text" inputmode="numeric" maxlength="1" oninput="moveNext(this,2,'signin')" onkeydown="movePrev(event,this,'signin')">
@@ -146,7 +136,7 @@ Back
 </div>
 <button class="btn-primary" id="signin-code-btn" onclick="verifyCode('signin')">Sign In</button>
 <div class="error-msg" id="signin-code-err"></div>
-<div class="resend-row">Didn't receive it? <a onclick="goTo('screen-reset')">Send a new code</a></div>
+<div class="resend-row">Lost or forgot your code? <a onclick="goTo('screen-reset')">Get new code</a></div>
 </div>
 
 <!-- SCREEN 4: BECOME A MEMBER -->
@@ -156,6 +146,7 @@ Back
 Back
 </button>
 
+<!-- HERO IMAGE -->
 <div style="position:relative;margin-bottom:14px;border-radius:14px;overflow:hidden;aspect-ratio:16/10;background:linear-gradient(135deg,#0e5a7a 0%,#1980AD 60%,#081420 100%);">
   <img src="assets/group-of-5.jpg" alt="FFP Passport community" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.style.display='none'">
   <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,20,32,.1) 0%,rgba(8,20,32,.9) 100%);"></div>
@@ -166,42 +157,139 @@ Back
   </div>
 </div>
 
+<!-- CTA -->
 <a href="https://buy.stripe.com/test_bJe5kCaiO3ESgEs4jV3Nm00" class="btn-primary" style="display:flex;align-items:center;justify-content:center;text-decoration:none;gap:8px;">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
 Become A Member &mdash; AED 499
 </a>
 <div style="font-size:11px;color:#6a90a8;text-align:center;margin-top:10px;line-height:1.6;">
-Secure payment via Stripe. Access code emailed after checkout.
+Secure payment via Stripe. Access code emailed after checkout.<br>
+Once-off payment &middot; Full access until 31 Dec 2026 &middot; 2027 renewal at then-current rate.
 </div>
 
-<div style="margin:22px 0;">
-  <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;"><div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div><div style="flex:1;"><div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;">Meet Like-minded People</div><div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Active people who share your sports and lifestyle</div></div></div>
-  <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;"><div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div><div style="flex:1;"><div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;">Join Communities</div><div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Meet &amp; Move matching, local groups, member meet-ups</div></div></div>
-  <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;"><div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div><div style="flex:1;"><div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;">Events &amp; Community Days</div><div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Regular FFP events across the UAE</div></div></div>
-  <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;"><div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div><div style="flex:1;"><div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;">Experiences &amp; Adventures</div><div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Group experiences and overseas trips</div></div></div>
-  <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;"><div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div><div style="flex:1;"><div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;">Challenges &amp; Leaderboards</div><div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Compete, win prizes, climb the city rankings</div></div></div>
-  <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;"><div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div><div style="flex:1;"><div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;">Ambassador Programme</div><div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Earn status by supporting the community</div></div></div>
-  <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;"><div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div><div style="flex:1;"><div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;">Fitness Tools</div><div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Workout timer, calorie tracker and personal stats</div></div></div>
-  <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;"><div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div><div style="flex:1;"><div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;">Partner Venue Deals</div><div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Member deals at FFP partner venues</div></div></div>
+
+<!-- BULLET LIST -->
+<div style="margin-bottom:22px;margin-top:24px;">
+  <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
+    <div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div style="flex:1;">
+      <div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;letter-spacing:.1px;">Meet Like-minded People</div>
+      <div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Active people who share your sports and lifestyle</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
+    <div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div style="flex:1;">
+      <div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;letter-spacing:.1px;">Join Communities</div>
+      <div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Meet &amp; Move matching, local groups, member meet-ups</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
+    <div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div style="flex:1;">
+      <div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;letter-spacing:.1px;">Events &amp; Community Days</div>
+      <div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Regular FFP events and gatherings across the UAE</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
+    <div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div style="flex:1;">
+      <div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;letter-spacing:.1px;">Experiences &amp; Adventures</div>
+      <div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Group experiences and overseas trips</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
+    <div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div style="flex:1;">
+      <div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;letter-spacing:.1px;">Challenges &amp; Leaderboards</div>
+      <div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Compete, win prizes, climb the city rankings</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
+    <div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div style="flex:1;">
+      <div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;letter-spacing:.1px;">Ambassador Programme</div>
+      <div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Earn status by supporting the community</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
+    <div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div style="flex:1;">
+      <div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;letter-spacing:.1px;">Fitness Tools</div>
+      <div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Workout timer, calorie tracker and personal stats</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
+    <div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div style="flex:1;">
+      <div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;letter-spacing:.1px;">Member Perks at Partner Venues</div>
+      <div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Deals at FFP partner fitness, wellness &amp; food venues</div>
+    </div>
+  </div>
 </div>
 
+<!-- PRICE -->
 <div style="text-align:center;padding:18px 0;border-top:1px solid rgba(43,168,224,.15);border-bottom:1px solid rgba(43,168,224,.15);margin-bottom:20px;">
   <div style="font-size:34px;font-weight:900;color:#fff;line-height:1;letter-spacing:-.5px;">AED 499</div>
-  <div style="font-size:11px;color:#9dbdd0;margin-top:8px;font-weight:600;letter-spacing:.3px;">Full membership for 2026</div>
+  <div style="font-size:11px;color:#9dbdd0;margin-top:8px;font-weight:600;letter-spacing:.3px;">2026 Full Access</div>
 </div>
 
 <hr class="divider">
 <div class="link-row">Already paid? <a onclick="goTo('screen-portal')">Sign in with your code</a></div>
 </div>
 
-<!-- SCREEN 5: RESET CODE -->
+<!-- SCREEN 5: ENTER CODE (sign up) -->
+<div class="screen" id="screen-signup-code">
+<button class="btn-back" onclick="goTo('screen-signup')">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
+Back
+</button>
+<div class="screen-title">Check Your Email</div>
+<div class="screen-sub">We sent a 6-digit code to <strong id="signup-code-email"></strong>. This is your permanent access code &mdash; save it somewhere safe.</div>
+<div class="code-wrap">
+<input class="code-digit" type="text" inputmode="numeric" maxlength="1" oninput="moveNext(this,1,'signup')" onkeydown="movePrev(event,this,'signup')">
+<input class="code-digit" type="text" inputmode="numeric" maxlength="1" oninput="moveNext(this,2,'signup')" onkeydown="movePrev(event,this,'signup')">
+<input class="code-digit" type="text" inputmode="numeric" maxlength="1" oninput="moveNext(this,3,'signup')" onkeydown="movePrev(event,this,'signup')">
+<input class="code-digit" type="text" inputmode="numeric" maxlength="1" oninput="moveNext(this,4,'signup')" onkeydown="movePrev(event,this,'signup')">
+<input class="code-digit" type="text" inputmode="numeric" maxlength="1" oninput="moveNext(this,5,'signup')" onkeydown="movePrev(event,this,'signup')">
+<input class="code-digit" type="text" inputmode="numeric" maxlength="1" oninput="moveNext(this,6,'signup')" onkeydown="movePrev(event,this,'signup')">
+</div>
+<button class="btn-primary green" id="signup-code-btn" onclick="verifyCode('signup')">Confirm &amp; Enter</button>
+<div class="error-msg" id="signup-code-err"></div>
+<div class="resend-row">Didn&rsquo;t receive it? <a onclick="requestCode('signup')">Resend code</a></div>
+</div>
+
+<!-- SCREEN 6: RESET CODE -->
 <div class="screen" id="screen-reset">
 <button class="btn-back" onclick="goTo('screen-signin-email')">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
 Back
 </button>
-<div class="screen-title">Send a New Code</div>
-<div class="screen-sub">Enter your email and we'll send you a fresh 6-digit code.</div>
+<div class="screen-title">Reset Your Code</div>
+<div class="screen-sub">Enter your email and we&rsquo;ll send you a new 6-digit code. Your old code will stop working immediately.</div>
 <div class="field">
 <div class="field-label">Email Address</div>
 <input class="field-input" type="email" id="reset-email" placeholder="you@email.com">
@@ -210,7 +298,7 @@ Back
 <div class="error-msg" id="reset-err"></div>
 </div>
 
-<!-- SCREEN 6: CODE SENT CONFIRMATION -->
+<!-- SCREEN 7: CODE SENT CONFIRMATION -->
 <div class="screen" id="screen-sent">
 <div style="text-align:center;padding:20px 0;">
 <div class="success-icon">
@@ -218,8 +306,8 @@ Back
 </div>
 <div class="screen-title" style="text-align:center;">Code Sent</div>
 <div class="screen-sub" style="text-align:center;">Check <strong id="sent-email"></strong> for your 6-digit code. It may take a minute to arrive.</div>
-<div class="info-box" style="text-align:left;">If you don't see it, check your spam folder. Codes expire in 60 minutes.</div>
-<button class="btn-primary" id="sent-btn">Back to Sign In</button>
+<div class="info-box" style="text-align:left;">If you don&rsquo;t see it, check your spam folder. The code is permanent &mdash; keep it somewhere safe.</div>
+<button class="btn-primary" id="sent-btn" onclick="">Done</button>
 </div>
 </div>
 
@@ -230,17 +318,27 @@ Back
 var selectedPortal = 'member';
 var currentFlow = 'signin';
 
+var portalColors = {
+  member:   { btn:'#2ba8e0', badge:'color:#2ba8e0;', label:'Member Sign In' },
+  provider: { btn:'#22c55e', badge:'color:#22c55e;', label:'Partner Sign In' },
+  admin:    { btn:'#facc15;color:#081420', badge:'color:#facc15;', label:'Admin Sign In' }
+};
+
 var destinations = {
   member:   'ffp-member-dashboard.html',
   provider: 'ffp-provider.html',
   admin:    'ffp-admin.html'
 };
 
-var portalColors = {
-  member:   { btn:'#2ba8e0', badge:'color:#2ba8e0;', label:'Member Sign In' },
-  provider: { btn:'#22c55e', badge:'color:#22c55e;', label:'Partner Sign In' },
-  admin:    { btn:'#facc15', badge:'color:#facc15;', label:'Admin Sign In' }
-};
+function handleAuthRedirect(response) {
+  if (response.member && !response.member.profile_complete) {
+    sessionStorage.setItem('member_id', response.member.id);
+    window.location.href = 'ffp-profile-complete.html?id=' + response.member.id;
+  } else {
+    var role = response.member.role;
+    window.location.href = destinations[role] || destinations.member;
+  }
+}
 
 function selectPortal(el, portal) {
   document.querySelectorAll('.portal-card').forEach(function (c) { c.classList.remove('selected'); });
@@ -295,7 +393,6 @@ function setBusy(btnId, busy, normalLabel) {
   }
 }
 
-// ── Auth: request code via Supabase OTP ─────────────────────────────────
 async function requestCode(flow) {
   var emailEl = document.getElementById(flow + '-email') || document.getElementById('signin-email');
   var email = emailEl ? emailEl.value.trim() : '';
@@ -305,13 +402,19 @@ async function requestCode(flow) {
   }
   if (emailEl) emailEl.style.borderColor = '';
 
-  var errIds = { signin: 'signin-email-err', reset: 'reset-err' };
-  var btnIds = { signin: 'signin-email-btn' };
+  var errIds = { signin: 'signin-email-err', signup: 'signup-err', reset: 'reset-err' };
+  var btnIds = { signin: 'signin-email-btn', signup: 'signup-btn' };
   showError(errIds[flow], '');
   if (btnIds[flow]) setBusy(btnIds[flow], true);
 
+  var fullName = null;
+  if (flow === 'signup') {
+    var nameEl = document.getElementById('signup-name');
+    fullName = nameEl ? nameEl.value.trim() : '';
+  }
+
   try {
-    var res = await FFPApi.requestCode(email, null, flow);
+    var res = await FFPApi.requestCode(email, fullName, flow);
     if (res && res.error) {
       showError(errIds[flow], res.error);
       return;
@@ -322,9 +425,13 @@ async function requestCode(flow) {
       var ce1 = document.getElementById('signin-code-email');
       if (ce1) ce1.textContent = email;
       goTo('screen-signin-code');
+    } else if (flow === 'signup') {
+      var ce2 = document.getElementById('signup-code-email');
+      if (ce2) ce2.textContent = email;
+      goTo('screen-signup-code');
     } else if (flow === 'reset') {
       var sentBtn = document.getElementById('sent-btn');
-      if (sentBtn) sentBtn.onclick = function () { goTo('screen-signin-email'); };
+      if (sentBtn) { sentBtn.textContent = 'Back to Sign In'; sentBtn.onclick = function () { goTo('screen-signin-email'); }; }
       goTo('screen-sent');
     }
   } catch (e) {
@@ -335,41 +442,33 @@ async function requestCode(flow) {
 }
 
 async function verifyCode(flow) {
-  var wrapId = 'screen-signin-code';
+  var wrapId = flow === 'signup' ? 'screen-signup-code' : 'screen-signin-code';
   var digits = document.querySelectorAll('#' + wrapId + ' .code-digit');
   var code = '';
   digits.forEach(function (d) { code += d.value; });
+
   if (code.length < 6) {
     digits.forEach(function (d) { d.style.borderColor = '#ef4444'; });
     setTimeout(function () { digits.forEach(function (d) { d.style.borderColor = ''; }); }, 800);
     return;
   }
 
-  var emailEl = document.getElementById('signin-email');
+  var emailEl = document.getElementById(flow === 'signup' ? 'signup-email' : 'signin-email');
   var email = emailEl ? emailEl.value.trim() : '';
-  var errId = 'signin-code-err';
-  var btnId = 'signin-code-btn';
+  var errId = flow === 'signup' ? 'signup-code-err' : 'signin-code-err';
+  var btnId = flow === 'signup' ? 'signup-code-btn' : 'signin-code-btn';
   showError(errId, '');
   setBusy(btnId, true);
 
   try {
-    var res = await FFPApi.verifyCode(email, code, 'signin');
+    var res = await FFPApi.verifyCode(email, code, flow);
     if (res && res.error) {
       showError(errId, res.error);
       digits.forEach(function (d) { d.style.borderColor = '#ef4444'; });
       setTimeout(function () { digits.forEach(function (d) { d.style.borderColor = ''; }); }, 800);
       return;
     }
-    // Success — fetch member row to decide redirect
-    var session = await window.supabase.auth.getSession();
-    var uid = session && session.data && session.data.session ? session.data.session.user.id : null;
-    if (!uid) { window.location.href = 'ffp-profile-complete.html'; return; }
-    var memberRes = await window.supabase.from('members').select('profile_complete').eq('id', uid).single();
-    if (memberRes.data && memberRes.data.profile_complete) {
-      window.location.href = destinations[selectedPortal] || destinations.member;
-    } else {
-      window.location.href = 'ffp-profile-complete.html';
-    }
+    handleAuthRedirect(res);
   } catch (e) {
     showError(errId, 'Verification failed. Please try again.');
   } finally {
@@ -394,6 +493,14 @@ function movePrev(e, el, flow) {
     if (idx > 0) d[idx - 1].focus();
   }
 }
+
+// NEW IN THIS VERSION: route to signup screen if URL has #signup hash
+// (so the landing page Become A Member CTA lands directly on the signup view)
+document.addEventListener('DOMContentLoaded', function () {
+  if (window.location.hash === '#signup') {
+    goToSignUp();
+  }
+});
 </script>
 </body>
 </html>
