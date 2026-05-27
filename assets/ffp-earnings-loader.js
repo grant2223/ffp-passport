@@ -1,11 +1,17 @@
-/* FFP Earnings Loader — v5
-   v5 changes:
-   - Member can now VIEW PAYMENT RECEIPTS for paid payouts
-   - After Earnings.render(), injects a "View receipt" button on every paid
-     payout row. Clicking opens a modal with:
-       - Amount, sending bank, transferred date/time, reference
-       - Inline image preview (if receipt is image) or PDF link
-   - Transaction objects now carry receiptUrl + notes through to the render hook
+/* FFP Earnings Loader — v6
+   v6 changes:
+   - DEDICATED "Your Payouts" section in Earnings panel (above Recent activity).
+     Shows ONLY payouts (not earnings transactions). Big status pills, clear
+     amount, requested + processed dates, View Receipt button on Paid, rejection
+     reason inline for Rejected. Empty state when no payouts yet.
+   - REAL-TIME updates via Supabase Realtime: when admin approves/rejects/pays
+     a member's payout, the member's panel auto-updates without refresh. Balance,
+     transactions, and Payouts section all reflect new state immediately.
+   - "View receipt" button kept on Recent activity rows for backward consistency,
+     but the Payouts section is now the primary place to track payment status.
+
+   v5 changes (kept):
+   - Member can view payment receipts for paid payouts (image or PDF inline)
 
    v4 changes (kept):
    - Bank fields: clearer labels, IBAN format hint with live validation, branch city
@@ -16,6 +22,8 @@
   var MAX_RETRIES = 30;
   var currentUserId = null;
   var wrapped = false;
+  var memberPayouts = [];
+  var realtimeChannel = null;
 
   function injectStyles() {
     if (document.getElementById('ffp-earnings-loader-styles')) return;
@@ -23,8 +31,171 @@
     s.id = 'ffp-earnings-loader-styles';
     s.textContent =
       '*::-webkit-scrollbar{display:none !important;width:0 !important;height:0 !important;}' +
-      '*{-ms-overflow-style:none !important;scrollbar-width:none !important;}';
+      '*{-ms-overflow-style:none !important;scrollbar-width:none !important;}' +
+      // ─── Dedicated Payouts section ───
+      '#ffp-payouts-section{margin:18px 0;}' +
+      '#ffp-payouts-section .ffp-po-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}' +
+      '#ffp-payouts-section .ffp-po-title{font-size:14px;font-weight:800;color:var(--text,#e8eef4);letter-spacing:0.3px;}' +
+      '#ffp-payouts-section .ffp-po-subtitle{font-size:11px;color:var(--muted,#8a99a8);margin-top:2px;}' +
+      '#ffp-payouts-section .ffp-po-list{background:rgba(43,168,224,0.04);border:1px solid var(--border-mid,rgba(43,168,224,0.30));border-radius:12px;overflow:hidden;}' +
+      '#ffp-payouts-section .ffp-po-empty{padding:24px 16px;text-align:center;color:var(--muted,#8a99a8);font-size:12px;}' +
+      '#ffp-payouts-section .ffp-po-row{padding:14px 16px;border-bottom:1px solid rgba(43,168,224,0.10);display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start;}' +
+      '#ffp-payouts-section .ffp-po-row:last-child{border-bottom:none;}' +
+      '#ffp-payouts-section .ffp-po-amount{font-size:18px;font-weight:800;color:var(--text,#e8eef4);letter-spacing:-0.3px;}' +
+      '#ffp-payouts-section .ffp-po-method{font-size:11px;color:var(--muted,#8a99a8);text-transform:uppercase;letter-spacing:1px;margin-top:3px;}' +
+      '#ffp-payouts-section .ffp-po-dates{font-size:11px;color:var(--muted,#8a99a8);margin-top:6px;line-height:1.5;}' +
+      '#ffp-payouts-section .ffp-po-dates b{color:var(--text,#e8eef4);font-weight:600;}' +
+      '#ffp-payouts-section .ffp-po-pill{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;padding:5px 10px;border-radius:6px;white-space:nowrap;}' +
+      '#ffp-payouts-section .ffp-po-pill.pending{background:rgba(255,204,0,0.12);color:#FFCC00;border:1px solid rgba(255,204,0,0.35);}' +
+      '#ffp-payouts-section .ffp-po-pill.approved{background:rgba(43,168,224,0.12);color:#7dd3fc;border:1px solid rgba(43,168,224,0.35);}' +
+      '#ffp-payouts-section .ffp-po-pill.paid{background:rgba(74,222,128,0.15);color:#4ade80;border:1px solid rgba(74,222,128,0.40);}' +
+      '#ffp-payouts-section .ffp-po-pill.rejected{background:rgba(239,68,68,0.12);color:#fca5a5;border:1px solid rgba(239,68,68,0.35);}' +
+      '#ffp-payouts-section .ffp-po-reason{margin-top:8px;padding:8px 10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px;font-size:11px;color:#fca5a5;line-height:1.5;}' +
+      '#ffp-payouts-section .ffp-po-view-btn{margin-top:8px;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.35);color:#4ade80;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:Montserrat,sans-serif;display:inline-flex;align-items:center;gap:5px;}' +
+      '#ffp-payouts-section .ffp-po-view-btn:hover{filter:brightness(1.15);}' +
+      '@media (max-width: 480px){' +
+        '#ffp-payouts-section .ffp-po-row{grid-template-columns:1fr;}' +
+        '#ffp-payouts-section .ffp-po-pill{justify-self:start;}' +
+      '}';
     document.head.appendChild(s);
+  }
+
+  // ─── Dedicated Payouts section renderer ───
+  function renderPayoutsSection() {
+    var panel = document.getElementById('panel-earnings');
+    if (!panel) return;
+
+    var section = document.getElementById('ffp-payouts-section');
+    if (!section) {
+      section = document.createElement('div');
+      section.id = 'ffp-payouts-section';
+      // Inject above the Recent activity section
+      var recentList = document.getElementById('earn-tx-list');
+      if (recentList) {
+        // Insert before the parent of earn-tx-list (its section container)
+        var parent = recentList.parentNode;
+        // Find the section-title above it, if any, to insert before that header block
+        var insertBeforeNode = recentList;
+        // Walk up to find the appropriate container
+        var probe = recentList;
+        for (var i = 0; i < 4 && probe.parentNode; i++) {
+          if (probe.previousElementSibling && /section-title/i.test(probe.previousElementSibling.className || '')) {
+            insertBeforeNode = probe.previousElementSibling;
+            break;
+          }
+          probe = probe.parentNode;
+        }
+        insertBeforeNode.parentNode.insertBefore(section, insertBeforeNode);
+      } else {
+        panel.appendChild(section);
+      }
+    }
+
+    var titleRow =
+      '<div class="ffp-po-title-row">' +
+        '<div>' +
+          '<div class="ffp-po-title">Your Payouts</div>' +
+          '<div class="ffp-po-subtitle">Track every withdrawal request and its status</div>' +
+        '</div>' +
+      '</div>';
+
+    if (!memberPayouts.length) {
+      section.innerHTML = titleRow +
+        '<div class="ffp-po-list">' +
+          '<div class="ffp-po-empty">' +
+            'No payouts yet. When your balance reaches AED 500, request your first one above.' +
+          '</div>' +
+        '</div>';
+      return;
+    }
+
+    var rows = memberPayouts.map(function (p) {
+      var amt = Math.round(Number(p.amount_aed) || 0);
+      var status = p.status || 'pending';
+      var statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+      if (status === 'pending') statusLabel = 'Under review';
+
+      var dates =
+        '<b>Requested:</b> ' + escHtml(fmtNiceDate(p.requested_at));
+      if (p.processed_at && (status === 'paid' || status === 'rejected')) {
+        var processedLabel = status === 'paid' ? 'Transferred' : 'Reviewed';
+        dates += '<br><b>' + processedLabel + ':</b> ' + escHtml(fmtNiceDate(p.processed_at));
+      }
+      if (status === 'approved') {
+        dates += '<br><b>Expected by:</b> ' + escHtml(plus14DaysFrom(p.requested_at));
+      }
+
+      var rejectionBlock = '';
+      if (status === 'rejected' && p.notes) {
+        rejectionBlock = '<div class="ffp-po-reason"><b>Reason:</b> ' + escHtml(p.notes) + '</div>';
+      }
+
+      var receiptBtn = '';
+      if (status === 'paid' && (p.receipt_url || p.notes)) {
+        var poJson = encodeURIComponent(JSON.stringify({
+          notes: p.notes || '',
+          receiptUrl: p.receipt_url || ''
+        }));
+        receiptBtn =
+          '<button class="ffp-po-view-btn" onclick="ffpOpenReceiptFromAttr(this)" data-payout="' + poJson + '">' +
+            '<span class="material-icons" style="font-size:14px;">receipt_long</span>View receipt' +
+          '</button>';
+      }
+
+      return '<div class="ffp-po-row">' +
+        '<div>' +
+          '<div class="ffp-po-amount">AED ' + amt.toLocaleString() + '</div>' +
+          '<div class="ffp-po-method">' + escHtml(p.method || 'bank') + ' transfer</div>' +
+          '<div class="ffp-po-dates">' + dates + '</div>' +
+          rejectionBlock +
+          receiptBtn +
+        '</div>' +
+        '<div class="ffp-po-pill ' + escHtml(status) + '">' + escHtml(statusLabel) + '</div>' +
+      '</div>';
+    }).join('');
+
+    section.innerHTML = titleRow + '<div class="ffp-po-list">' + rows + '</div>';
+  }
+
+  // Global handler for receipt button in Payouts section
+  window.ffpOpenReceiptFromAttr = function (btn) {
+    try {
+      var data = JSON.parse(decodeURIComponent(btn.getAttribute('data-payout') || '{}'));
+      openReceiptModal({ _ffpNotes: data.notes, _ffpReceiptUrl: data.receiptUrl });
+    } catch (e) {
+      console.error('[FFP Earnings] receipt open:', e);
+    }
+  };
+
+  function fmtNiceDate(iso) {
+    if (!iso) return '\u2014';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '\u2014';
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+  }
+  function plus14DaysFrom(iso) {
+    var d = iso ? new Date(iso) : new Date();
+    if (isNaN(d.getTime())) d = new Date();
+    d.setDate(d.getDate() + 14);
+    return fmtNiceDate(d.toISOString());
+  }
+
+  // ─── Real-time subscription so panel auto-updates on admin changes ───
+  function subscribeRealtime() {
+    if (realtimeChannel) return;
+    if (!window.supabase || typeof window.supabase.channel !== 'function') return;
+    realtimeChannel = window.supabase
+      .channel('ffp-member-earnings-' + (currentUserId || 'anon'))
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'payouts', filter: 'member_id=eq.' + currentUserId },
+        function () { loadFromSupabase(); }
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'transactions', filter: 'member_id=eq.' + currentUserId },
+        function () { loadFromSupabase(); }
+      )
+      .subscribe();
   }
 
   function daysAgoFromIso(iso) {
@@ -228,16 +399,34 @@
         if (idx >= 0 && idx < counters.length) cat.current = counters[idx];
       });
 
-      // 5. Wrap submitPayout
+      // 5. Fetch dedicated payouts list for the Payouts section
+      var poRes = await window.supabase
+        .from('payouts')
+        .select('id, amount_aed, method, status, bank_details, notes, receipt_url, requested_at, processed_at')
+        .eq('member_id', currentUserId)
+        .order('requested_at', { ascending: false })
+        .limit(30);
+      if (poRes.error) {
+        console.error('[FFP Earnings] payouts read:', poRes.error);
+        memberPayouts = [];
+      } else {
+        memberPayouts = poRes.data || [];
+      }
+      renderPayoutsSection();
+
+      // 6. Wrap submitPayout
       wrapWrites();
 
-      // 6. Re-render if Earnings panel is visible
+      // 7. Re-render if Earnings panel is visible
       var panel = document.getElementById('panel-earnings');
       if (panel && panel.classList.contains('active') && typeof Earnings.render === 'function') {
         Earnings.render();
       }
 
-      console.log('[FFP Earnings] Loaded from Supabase ✓');
+      // 8. Subscribe to real-time updates so the panel auto-updates
+      subscribeRealtime();
+
+      console.log('[FFP Earnings v6] Loaded from Supabase \u2713');
     } catch (err) {
       console.error('[FFP Earnings] Unexpected error:', err);
     }
