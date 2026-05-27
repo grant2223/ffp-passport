@@ -1,7 +1,7 @@
-/* FFP Admin Providers Loader — v1
-   Wires the admin dashboard's existing AdminProviders module to real Supabase data.
-   Replaces hardcoded demo data + demo approve/reject with real CRUD against the
-   providers table. Adds subscription approval modal, extend modal, suspend/reinstate.
+/* FFP Admin Providers Loader — v2
+   v2 fix: dashboard declares AdminProviders with `const`, which does NOT attach
+   to window. v1 waited on window.AdminProviders forever. v2 reads the bare global
+   via a typeof-guarded getter (getAP()).
 
    Add ONE script tag to ffp-admin-dashboard.html AFTER ffp-admin-auth.js:
      <script src="ffp-admin-providers-loader.js"></script>
@@ -9,11 +9,18 @@
    Required SQL (run once — see message): adds paid_until, subscription_tier,
    monthly_fee_aed, the 'lapsed' status, admin RLS, and the lapse-flip function.
 
-   Architecture: this loader patches the existing window.AdminProviders module
+   Architecture: this loader patches the existing AdminProviders module
    (preserving the existing UI in #panel-providers) instead of building an overlay.
 */
 (function () {
   'use strict';
+
+  // Read the bare global AdminProviders (declared `const` in the dashboard, so
+  // not on window). Returns null if not defined yet.
+  function getAP() {
+    try { return (typeof AdminProviders !== 'undefined') ? AdminProviders : null; }
+    catch (e) { return null; }
+  }
 
   // Tier defaults (admin can override per-provider)
   var TIER_DEFAULTS = {
@@ -262,7 +269,7 @@
   var pendingExtendId = null;
 
   function openApproveModal(id) {
-    var p = window.AdminProviders.data.find(function (x) { return x.id === id; });
+    var p = getAP().data.find(function (x) { return x.id === id; });
     if (!p) return;
     pendingApproveId = id;
     $('#ffp-pm-approve-bizname').textContent = p.business_name + ' \u00b7 ' + (p.city || '');
@@ -276,7 +283,7 @@
   function closeApproveModal() { $('#ffp-pm-approve-backdrop').classList.remove('open'); pendingApproveId = null; }
 
   function openExtendModal(id) {
-    var p = window.AdminProviders.data.find(function (x) { return x.id === id; });
+    var p = getAP().data.find(function (x) { return x.id === id; });
     if (!p) return;
     pendingExtendId = id;
     $('#ffp-pm-extend-bizname').textContent = p.business_name + ' \u00b7 ' + (p.city || '');
@@ -309,7 +316,7 @@
       'Subscription valid until <b>' + isoDate(until) + '</b> (' + months + ' month' + (months > 1 ? 's' : '') + ').';
   }
   function updateExtendPreview() {
-    var p = pendingExtendId ? window.AdminProviders.data.find(function (x) { return x.id === pendingExtendId; }) : null;
+    var p = pendingExtendId ? getAP().data.find(function (x) { return x.id === pendingExtendId; }) : null;
     if (!p) return;
     var months = selectedExtendMonths();
     var base = (p.paid_until && new Date(p.paid_until) > new Date()) ? new Date(p.paid_until) : new Date();
@@ -327,7 +334,7 @@
     var until = new Date(Date.now() + months * 30 * 86400 * 1000);
     var btn = $('#ffp-pm-approve-confirm');
     btn.disabled = true;
-    var p = window.AdminProviders.data.find(function (x) { return x.id === pendingApproveId; });
+    var p = getAP().data.find(function (x) { return x.id === pendingApproveId; });
     try {
       var res = await window.supabase
         .from('providers')
@@ -352,7 +359,7 @@
 
   async function confirmExtend() {
     if (!pendingExtendId) return;
-    var p = window.AdminProviders.data.find(function (x) { return x.id === pendingExtendId; });
+    var p = getAP().data.find(function (x) { return x.id === pendingExtendId; });
     if (!p) return;
     var months = selectedExtendMonths();
     var base = (p.paid_until && new Date(p.paid_until) > new Date()) ? new Date(p.paid_until) : new Date();
@@ -411,14 +418,14 @@
 
   async function refresh() {
     var raw = await fetchProviders();
-    window.AdminProviders.data = raw.map(mapForUi);
-    window.AdminProviders.render();
+    getAP().data = raw.map(mapForUi);
+    getAP().render();
     updateCounts();
   }
 
   function updateCounts() {
     var counts = { pending: 0, approved: 0, lapsed: 0, suspended: 0, archived: 0, featured: 0 };
-    window.AdminProviders.data.forEach(function (p) {
+    getAP().data.forEach(function (p) {
       if (counts[p.status] != null) counts[p.status]++;
       if (p.featured && p.status === 'approved') counts.featured++;
     });
@@ -483,7 +490,7 @@
 
   // ─── Patch AdminProviders methods ───
   function patchAdminProviders() {
-    var AP = window.AdminProviders;
+    var AP = getAP();
 
     // Custom filtered() to include 'lapsed' and 'archived' tabs
     AP.filtered = function () {
@@ -599,7 +606,7 @@
   // ─── Boot ───
   async function init() {
     var ok = await waitFor(function () {
-      return window.supabase && window.supabase.auth && window.AdminProviders;
+      return window.supabase && window.supabase.auth && getAP();
     }, 15000);
     if (!ok) {
       console.error('[FFP Admin Providers] dependencies never loaded');
