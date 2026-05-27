@@ -1,4 +1,7 @@
-/* FFP Provider Auth Gate — v1
+/* FFP Provider Auth Gate — v2
+   v2 fix: After granting access, also hide the dashboard's built-in demo
+   login screen (#auth-screen) and show the real app (#app) via enterDashboard().
+   v1 left the demo login visible behind the removed overlay.
    Add ONE script tag to ffp-provider-dashboard.html (after ffp-api-integration.js):
      <script src="ffp-provider-auth.js"></script>
 
@@ -323,8 +326,27 @@
     var hide = document.getElementById('ffp-provider-auth-hide');
     if (hide) hide.remove();
     if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+
+    // Hide the dashboard's built-in demo login + show the real app
+    var authScreen = document.getElementById('auth-screen');
+    if (authScreen) authScreen.style.display = 'none';
+    var appEl = document.getElementById('app');
+    if (appEl) appEl.style.display = 'flex';
+
+    // Trigger the dashboard's own init if it exposes enterDashboard()
+    if (typeof window.enterDashboard === 'function') {
+      try { window.enterDashboard(); } catch (e) { console.error('[FFP Provider Auth] enterDashboard:', e); }
+    }
+
     document.dispatchEvent(new CustomEvent('ffp-provider-ready', { detail: window.FFP_PROVIDER }));
     console.log('[FFP Provider Auth] Access granted \u00b7 ' + provider.business_name);
+
+    // Override the dashboard's signOut so it actually signs out of Supabase and
+    // routes back through this gate instead of showing the demo login.
+    window.signOut = async function () {
+      try { await window.supabase.auth.signOut(); } catch (e) {}
+      window.location.reload();
+    };
   }
 
   async function boot() {
