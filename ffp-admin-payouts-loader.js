@@ -1,12 +1,12 @@
-/* FFP Admin Payouts Loader — v1
-   Wires the admin Payouts panel to real Supabase data.
-   - Fetches payouts joined with members (full_name, given_names, email)
-   - Tabs: Pending / Approved / Paid / Rejected (default: Pending)
-   - Pending row actions: Approve (→ approved) / Reject (→ rejected) / View
-   - Approved row actions: Mark Paid (→ paid) / View
-   - Paid/Rejected row actions: View only
-   - When reject or mark paid: updates mirror transactions row (related_id = payout.id)
-   - View modal shows: member, amount, method, bank details (CRITICAL for actual bank transfer)
+/* FFP Admin Payouts Loader — v2
+   v2 changes:
+   - REPLACES native prompt() with inline modal containing textarea for rejection reason
+   - APPROVE modal shows "Expected payout by [today + 14 days]" so admin can communicate timing
+   - MARK PAID modal accepts optional payment reference (stored in notes)
+   - All actions: detect 0 rows affected → show "may have been processed already" error
+   - After action success: auto-switch to destination tab so admin sees the row in its new home
+   - Longer-lasting success toasts (no more "did anything happen?" confusion)
+   - Mirror transaction sync on reject/markPaid unchanged from v1
 */
 (function () {
   'use strict';
@@ -193,64 +193,225 @@
     } catch (e) { return null; }
   }
 
+  // ─── Custom action modal (replaces native confirm/prompt) ───
+  function openActionModal(opts) {
+    // opts: { title, bodyHtml, primaryLabel, primaryClass, onConfirm, validate }
+    if (typeof window.closeAdminModal === 'function') window.closeAdminModal();
+    var overlay = document.createElement('div');
+    overlay.id = 'ffp-admin-action-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,8,20,0.78);z-index:100001;display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML =
+      '<div style="background:#0f1e2e;border:1px solid #1a2f44;border-radius:16px;width:100%;max-width:480px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.6);overflow:hidden;font-family:Montserrat,sans-serif;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid #1a2f44;">' +
+          '<div style="color:#e8eef4;font-size:16px;font-weight:700;">' + escHtml(opts.title) + '</div>' +
+          '<button id="ffp-action-close" style="background:transparent;border:none;color:#8a99a8;cursor:pointer;font-size:24px;line-height:1;padding:0 4px;">&times;</button>' +
+        '</div>' +
+        '<div style="padding:20px;overflow-y:auto;flex:1;color:#cfd6dc;font-size:13px;line-height:1.55;">' + opts.bodyHtml + '</div>' +
+        '<div style="display:flex;gap:10px;justify-content:flex-end;padding:14px 20px;border-top:1px solid #1a2f44;">' +
+          '<button id="ffp-action-cancel" class="btn btn-ghost">Cancel</button>' +
+          '<button id="ffp-action-confirm" class="btn ' + (opts.primaryClass || 'btn-blue') + '">' + escHtml(opts.primaryLabel || 'Confirm') + '</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+
+    function close() {
+      var ov = document.getElementById('ffp-admin-action-overlay');
+      if (ov) ov.remove();
+    }
+    document.getElementById('ffp-action-close').onclick = close;
+    document.getElementById('ffp-action-cancel').onclick = close;
+    document.getElementById('ffp-action-confirm').onclick = async function () {
+      if (typeof opts.validate === 'function') {
+        var err = opts.validate(overlay);
+        if (err) { showActionError(err); return; }
+      }
+      var btn = document.getElementById('ffp-action-confirm');
+      btn.disabled = true; btn.textContent = 'Working\u2026';
+      try {
+        await opts.onConfirm(overlay);
+        close();
+      } catch (e) {
+        btn.disabled = false; btn.textContent = opts.primaryLabel || 'Confirm';
+        showActionError(e && e.message ? e.message : 'Action failed');
+      }
+    };
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+  }
+
+  function showActionError(msg) {
+    var existing = document.getElementById('ffp-action-error');
+    if (existing) existing.remove();
+    var overlay = document.getElementById('ffp-admin-action-overlay');
+    if (!overlay) return;
+    var err = document.createElement('div');
+    err.id = 'ffp-action-error';
+    err.style.cssText = 'background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);color:#fca5a5;padding:10px 12px;border-radius:8px;font-size:12px;margin-top:10px;';
+    err.textContent = msg;
+    overlay.querySelector('div[style*="overflow-y"]').appendChild(err);
+  }
+
+  function plus14Days() {
+    var d = new Date();
+    d.setDate(d.getDate() + 14);
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+  }
+
+  function bigToast(msg, kind) {
+    // Always also use the regular toast for accessibility
+    toast(msg, kind);
+    // ALSO show an inline banner at top of payouts panel that lingers
+    var panel = document.getElementById('panel-payouts');
+    if (!panel) return;
+    var existing = document.getElementById('ffp-payouts-banner');
+    if (existing) existing.remove();
+    var banner = document.createElement('div');
+    banner.id = 'ffp-payouts-banner';
+    var bg = kind === 'success' ? 'rgba(74,222,128,0.12)' : kind === 'error' ? 'rgba(239,68,68,0.12)' : 'rgba(43,168,224,0.12)';
+    var border = kind === 'success' ? 'rgba(74,222,128,0.35)' : kind === 'error' ? 'rgba(239,68,68,0.35)' : 'rgba(43,168,224,0.35)';
+    var fg = kind === 'success' ? '#4ade80' : kind === 'error' ? '#fca5a5' : '#7dd3fc';
+    banner.style.cssText = 'background:' + bg + ';border:1px solid ' + border + ';color:' + fg + ';padding:12px 16px;border-radius:10px;font-size:13px;font-weight:600;margin:0 0 16px 0;display:flex;align-items:center;gap:10px;';
+    banner.innerHTML = '<span class="material-icons" style="font-size:18px;">' + (kind === 'success' ? 'check_circle' : kind === 'error' ? 'error' : 'info') + '</span><span>' + escHtml(msg) + '</span>';
+    var section = panel.querySelector('.section');
+    if (section) section.insertBefore(banner, section.firstChild);
+    setTimeout(function () {
+      if (banner && banner.parentNode) banner.remove();
+    }, 6000);
+  }
+
+  function switchTab(tab) {
+    var ap = getAP();
+    if (!ap) return;
+    ap.tab = tab;
+    realRender();
+  }
+
   // ─── Actions ───
-  async function approve(id) {
-    if (!confirm('Approve this payout? The member will be notified and you should arrange the bank transfer next.')) return;
-    try {
-      var uid = await getMyAdminUid();
-      var res = await window.supabase
-        .from('payouts')
-        .update({ status: 'approved', processed_by: uid })
-        .eq('id', id)
-        .eq('status', 'pending');  // race guard
-      if (res.error) throw res.error;
-      toast('Payout approved — process the bank transfer, then mark Paid', 'success');
-      await refresh();
-    } catch (e) {
-      console.error('[FFP Admin Payouts] approve:', e);
-      toast(e.message || 'Approve failed', 'error');
-    }
+  function approve(id) {
+    var ap = getAP();
+    var p = ap.data.find(function (x) { return x.id === id; });
+    if (!p) return;
+
+    var bodyHtml =
+      '<div style="margin-bottom:14px;">You\'re approving a payout for <b style="color:#e8eef4;">' + escHtml(p.member) + '</b>.</div>' +
+      '<div style="background:#0a1825;border:1px solid #1a2f44;border-radius:10px;padding:14px;margin-bottom:14px;">' +
+        '<div style="color:#8a99a8;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;">Amount</div>' +
+        '<div style="color:#FFCC00;font-size:24px;font-weight:800;">AED ' + p.amount.toLocaleString() + '</div>' +
+      '</div>' +
+      '<div style="background:rgba(43,168,224,0.08);border:1px solid rgba(43,168,224,0.25);border-radius:10px;padding:14px;margin-bottom:14px;">' +
+        '<div style="color:#7dd3fc;font-size:12px;font-weight:700;margin-bottom:4px;">Expected payout by ' + plus14Days() + '</div>' +
+        '<div style="color:#8a99a8;font-size:11px;line-height:1.5;">Payouts are processed in weekly batches. Approving here marks it as queued for the next batch.</div>' +
+      '</div>' +
+      '<div style="color:#8a99a8;font-size:11px;font-style:italic;">After approving, do the bank transfer when the batch runs, then come back and click <b>Mark Paid</b> on this row.</div>';
+
+    openActionModal({
+      title: 'Approve payout',
+      bodyHtml: bodyHtml,
+      primaryLabel: 'Approve',
+      primaryClass: 'btn-blue',
+      onConfirm: async function () {
+        var uid = await getMyAdminUid();
+        var res = await window.supabase
+          .from('payouts')
+          .update({ status: 'approved', processed_by: uid })
+          .eq('id', id)
+          .eq('status', 'pending')
+          .select('id');
+        if (res.error) throw res.error;
+        if (!res.data || res.data.length === 0) {
+          throw new Error('Could not approve — may have been processed already. Refresh and try again.');
+        }
+        await refresh();
+        switchTab('approved');
+        bigToast('Approved \u2014 expected payout by ' + plus14Days() + '. Do the bank transfer, then Mark Paid.', 'success');
+      }
+    });
   }
 
-  async function reject(id) {
-    var reason = prompt('Reason for rejection (will be shown to member):', '');
-    if (reason === null) return;  // cancelled
-    try {
-      var uid = await getMyAdminUid();
-      var res = await window.supabase
-        .from('payouts')
-        .update({ status: 'rejected', processed_by: uid, processed_at: new Date().toISOString(), notes: reason || null })
-        .eq('id', id)
-        .eq('status', 'pending');
-      if (res.error) throw res.error;
-      // Release the AED back to member's balance by marking mirror tx rejected
-      await updateMirrorTransaction(id, 'rejected');
-      toast('Payout rejected — AED released back to member balance', 'success');
-      await refresh();
-    } catch (e) {
-      console.error('[FFP Admin Payouts] reject:', e);
-      toast(e.message || 'Reject failed', 'error');
-    }
+  function reject(id) {
+    var ap = getAP();
+    var p = ap.data.find(function (x) { return x.id === id; });
+    if (!p) return;
+
+    var bodyHtml =
+      '<div style="margin-bottom:14px;">You\'re rejecting a payout for <b style="color:#e8eef4;">' + escHtml(p.member) + '</b> (AED ' + p.amount.toLocaleString() + ').</div>' +
+      '<div style="margin-bottom:14px;color:#8a99a8;font-size:12px;">The AED will be returned to the member\'s balance. Please explain the reason — this is shown to the member.</div>' +
+      '<textarea id="ffp-reject-reason" rows="4" placeholder="e.g. We could not verify the source of these earnings. Please contact us to discuss."' +
+      ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:10px 12px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;resize:vertical;"></textarea>' +
+      '<div style="font-size:10px;color:#6a90a8;margin-top:6px;">Minimum 10 characters.</div>';
+
+    openActionModal({
+      title: 'Reject payout',
+      bodyHtml: bodyHtml,
+      primaryLabel: 'Reject payout',
+      primaryClass: 'btn-danger',
+      validate: function () {
+        var t = (document.getElementById('ffp-reject-reason') || {}).value || '';
+        t = t.trim();
+        if (t.length < 10) return 'Please write a clear reason for the member (min 10 characters).';
+        return null;
+      },
+      onConfirm: async function () {
+        var reason = (document.getElementById('ffp-reject-reason').value || '').trim();
+        var uid = await getMyAdminUid();
+        var res = await window.supabase
+          .from('payouts')
+          .update({ status: 'rejected', processed_by: uid, processed_at: new Date().toISOString(), notes: reason })
+          .eq('id', id)
+          .eq('status', 'pending')
+          .select('id');
+        if (res.error) throw res.error;
+        if (!res.data || res.data.length === 0) {
+          throw new Error('Could not reject — may have been processed already. Refresh and try again.');
+        }
+        await updateMirrorTransaction(id, 'rejected');
+        await refresh();
+        switchTab('rejected');
+        bigToast('Rejected \u2014 AED ' + p.amount.toLocaleString() + ' returned to ' + p.member + '\'s balance.', 'success');
+      }
+    });
   }
 
-  async function markPaid(id) {
-    if (!confirm('Confirm the bank transfer is complete and you have proof of payment. Mark this payout as Paid?')) return;
-    try {
-      var uid = await getMyAdminUid();
-      var res = await window.supabase
-        .from('payouts')
-        .update({ status: 'paid', processed_by: uid, processed_at: new Date().toISOString() })
-        .eq('id', id)
-        .eq('status', 'approved');
-      if (res.error) throw res.error;
-      // Mirror tx → paid (locks it in the member's lifetime out total)
-      await updateMirrorTransaction(id, 'paid');
-      toast('Payout marked as Paid', 'success');
-      await refresh();
-    } catch (e) {
-      console.error('[FFP Admin Payouts] markPaid:', e);
-      toast(e.message || 'Mark Paid failed', 'error');
-    }
+  function markPaid(id) {
+    var ap = getAP();
+    var p = ap.data.find(function (x) { return x.id === id; });
+    if (!p) return;
+
+    var bodyHtml =
+      '<div style="margin-bottom:14px;">Confirm the bank transfer for <b style="color:#e8eef4;">' + escHtml(p.member) + '</b> (AED ' + p.amount.toLocaleString() + ') has been completed.</div>' +
+      '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:12px;margin-bottom:14px;">' +
+        '<div style="color:#fca5a5;font-size:12px;font-weight:700;margin-bottom:4px;">This cannot be undone.</div>' +
+        '<div style="color:#8a99a8;font-size:11px;line-height:1.5;">Only mark Paid AFTER you\'ve completed the bank transfer and have proof. Once Paid, the status is locked.</div>' +
+      '</div>' +
+      '<div style="margin-bottom:6px;color:#8a99a8;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Payment reference (optional)</div>' +
+      '<input id="ffp-paid-ref" type="text" placeholder="e.g. Bank ref ENBD-2026-05-27-001"' +
+      ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:10px 12px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;">';
+
+    openActionModal({
+      title: 'Mark payout as Paid',
+      bodyHtml: bodyHtml,
+      primaryLabel: 'Yes, mark Paid',
+      primaryClass: 'btn-primary',
+      onConfirm: async function () {
+        var ref = (document.getElementById('ffp-paid-ref').value || '').trim();
+        var uid = await getMyAdminUid();
+        var newNotes = ref ? ('Payment ref: ' + ref) : null;
+        var res = await window.supabase
+          .from('payouts')
+          .update({ status: 'paid', processed_by: uid, processed_at: new Date().toISOString(), notes: newNotes })
+          .eq('id', id)
+          .eq('status', 'approved')
+          .select('id');
+        if (res.error) throw res.error;
+        if (!res.data || res.data.length === 0) {
+          throw new Error('Could not mark Paid — was not in Approved status. Refresh and try again.');
+        }
+        await updateMirrorTransaction(id, 'paid');
+        await refresh();
+        switchTab('paid');
+        bigToast('Marked as Paid \u2014 AED ' + p.amount.toLocaleString() + ' to ' + p.member + '. Status is now locked.', 'success');
+      }
+    });
   }
 
   function viewPayout(id) {
