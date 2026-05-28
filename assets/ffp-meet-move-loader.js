@@ -1,4 +1,8 @@
-/* FFP Meet & Move Loader — v2
+/* FFP Meet & Move Loader — v3
+   v3 (2026-05-29) clean-build refactor: uses FFPAuth.getMember()
+   instead of window.supabase.auth.getUser(). RLS still works via
+   JWT Bearer header (set by ffp-api-integration v8).
+   
    v2 fixes:
    - Block "Request to Join" when current user is the host
    - Inject hero image (m.img) into the detail modal cover (was a CSS class cover only)
@@ -80,12 +84,17 @@
     injectStyles();
 
     try {
-      var userRes = await window.supabase.auth.getUser();
-      if (userRes.error || !userRes.data || !userRes.data.user) {
-        console.log('[FFP Meet & Move] No user — keeping sample');
+      // Read current member from FFP custom auth (FFPAuth.getMember).
+      // We don't use supabase.auth.getUser() — FFP members live in the
+      // `members` table only and have no auth.users row. RLS still
+      // sees auth.uid() correctly because the JWT is set as a Bearer
+      // header on the Supabase client by ffp-api-integration v8.
+      var member = window.FFPAuth && window.FFPAuth.getMember();
+      if (!member || !member.id) {
+        console.log('[FFP Meet & Move] No FFP member — keeping sample');
         return;
       }
-      currentUserId = userRes.data.user.id;
+      currentUserId = member.id;
 
       // 1. Load live meetups
       var mRes = await window.supabase
