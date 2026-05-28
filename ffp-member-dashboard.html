@@ -1,5 +1,26 @@
 <!-- ════════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v106
+     FFP MEMBER DASHBOARD — v107
+     v107 changes (from v106, 2026-05-29):
+     - Wires the FFPRealtime helper (assets/ffp-realtime.js) BEFORE all
+       loaders. Without it, loaders log a warning and disable auto-update
+       subscriptions. Thin wrapper around supabase.channel — no auth
+       needed beyond the JWT the loaders already use.
+     - Wires the remaining THREE member loaders alongside Earnings (already
+       wired in v106). All four use JWT-authenticated Supabase queries via
+       the bridge (ffp-api-integration v8). All call FFPAuth.getMember()
+       to identify the current user — no Supabase Auth dependency.
+         · ffp-calorie-tracker-loader.js v3 — replaces hardcoded sample
+           meals/activities with live profile_meta + activity_logs +
+           food_logs queries, auto-persists every add/remove/save, real
+           rolling 30-day Week and Month aggregation.
+         · ffp-fitness-stats-loader.js v9 — adds live leaderboard with
+           independent filters (gender / age / city / country / nationality),
+           ranked sample-size pill, sleep metric, privacy opt-out via
+           members.show_on_leaderboard. Uses get_ranking_pool() RPC.
+         · ffp-meet-move-loader.js v3 — reads meetups + members +
+           profile_meta.reliability_score + meetup_attendees, writes
+           meetup_attendees on join. Blocks self-join when current member
+           is the host. Detail modal hydrates hero image from m.img.
      v106 changes (from v105, 2026-05-29):
      - Wires the first member loader: ffp-earnings-loader.js. Adds a
        single <script> tag after ffp-api-integration. The loader reads
@@ -118,10 +139,18 @@
      afterwards sees auth.uid() === member.id and RLS works. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/ffp-api-integration.js"></script>
-<!-- v106: First member loader wired. Earnings panel gets the full
-     Payouts section + reorganised layout. RLS-authenticated via the
-     JWT bridge (v6/v7 of ffp-api-integration). -->
+<!-- v107: Realtime helper loaded BEFORE any loader. Loaders register
+     postgres_changes subscriptions via FFPRealtime.subscribe so panels
+     auto-refresh when underlying DB rows change. -->
+<script src="assets/ffp-realtime.js"></script>
+<!-- Member loaders. Each one is JWT-authenticated via the bridge
+     (ffp-api-integration v8 sets the JWT as a Bearer header on
+     window.supabase). All loaders call FFPAuth.getMember() to identify
+     the current user — no Supabase Auth dependency. -->
 <script src="assets/ffp-earnings-loader.js"></script>
+<script src="assets/ffp-calorie-tracker-loader.js"></script>
+<script src="assets/ffp-fitness-stats-loader.js"></script>
+<script src="assets/ffp-meet-move-loader.js"></script>
 
 <style>
 :root {
