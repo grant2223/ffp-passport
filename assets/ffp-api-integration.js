@@ -1,13 +1,18 @@
 /* =============================================================
-   FFP Passport — API Integration Module (v3.1)
+   FFP Passport — API Integration Module (v4)
    Backend: https://ffp-passport-backend.vercel.app
    Endpoints: /api/auth/signup, /api/auth/signin, /api/auth/reset
+   v4: SIGNIN flow now calls /api/auth/reset (generates + emails a
+       fresh 6-digit code) instead of the previous no-op early-return.
+       The old "permanent code model" relied on the Stripe webhook
+       emailing the code at signup so users had it stored — backend v7
+       removed that, so signin now needs to fire the email itself.
+       Every login = "send me a code" → email → enter code → in.
    v3.1: Adds window.supabase client instantiation so admin auth works.
          Keeps v3 FFPAuth/FFPApi behaviour intact.
    ============================================================= */
 (function (window) {
   'use strict';
-
   // ── Supabase client setup (NEW in v3.1) ──────────────────────
   // Required for ffp-admin-auth.js which uses Supabase Auth directly.
   var SUPABASE_URL = 'https://kxzyuofecmtymablnmak.supabase.co';
@@ -23,11 +28,9 @@
     console.warn('[FFP] Supabase SDK not found — ensure the CDN script tag loads BEFORE ffp-api-integration.js');
   }
   // ─────────────────────────────────────────────────────────────
-
   var API_BASE = 'https://ffp-passport-backend.vercel.app';
   var TOKEN_KEY = 'ffp_token';
   var MEMBER_KEY = 'ffp_member';
-
   var FFPAuth = {
     getToken: function () {
       try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; }
@@ -54,7 +57,6 @@
       return !!this.getToken();
     }
   };
-
   function call(path, options) {
     options = options || {};
     var headers = {
@@ -63,7 +65,6 @@
     };
     var token = FFPAuth.getToken();
     if (token) headers['Authorization'] = 'Bearer ' + token;
-
     var fetchOpts = {
       method: options.method || 'GET',
       headers: headers,
@@ -71,7 +72,6 @@
       credentials: 'omit'
     };
     if (options.body) fetchOpts.body = JSON.stringify(options.body);
-
     return fetch(API_BASE + path, fetchOpts).then(function (res) {
       if (res.status === 401) {
         FFPAuth.clear();
@@ -86,19 +86,17 @@
       return { error: err && err.message ? err.message : 'Network error' };
     });
   }
-
   var FFPApi = {
     requestCode: function (email, fullName, flow) {
-      // SIGNIN flow uses a permanent code — no API call, just advance UI to code entry
-      if (flow === 'signin') {
-        return Promise.resolve({ success: true });
-      }
+      // v4: signin and reset both call /api/auth/reset (generates + emails fresh code).
+      // The v3.1 "permanent code model" no-op for signin was removed — backend v7
+      // suppresses the Stripe-webhook code email, so signin must fire the email itself.
       var path;
       var body = { email: email };
       if (flow === 'signup') {
         path = '/api/auth/signup';
         if (fullName) body.full_name = fullName;
-      } else if (flow === 'reset') {
+      } else if (flow === 'reset' || flow === 'signin') {
         path = '/api/auth/reset';
       } else {
         return Promise.resolve({ error: 'Unknown flow: ' + flow });
@@ -129,13 +127,11 @@
     getVenueStats: function () { return call('/api/provider/stats'); },
     getAdminDashboard: function () { return call('/api/admin/dashboard'); }
   };
-
   function handleAPIError(error, fallback) {
     console.error('FFP API error:', error);
     var msg = (error && error.message) || fallback || 'Something went wrong.';
     alert(msg);
   }
-
   function autoInit() {
     var path = window.location.pathname.toLowerCase();
     if (path.indexOf('ffp-member-dashboard') !== -1) {
@@ -154,7 +150,6 @@
       return;
     }
   }
-
   function applyProfileToDashboard(profile) {
     var map = {
       'pass-name': profile.full_name,
@@ -166,13 +161,11 @@
       if (el && map[id]) el.textContent = map[id];
     });
   }
-
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', autoInit);
   } else {
     autoInit();
   }
-
   window.FFPAuth = FFPAuth;
   window.FFPApi = FFPApi;
   window.handleAPIError = handleAPIError;
