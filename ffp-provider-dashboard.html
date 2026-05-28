@@ -1,3 +1,20 @@
+<!--
+═══════════════════════════════════════════════════════════════════════
+     FFP PROVIDER DASHBOARD — v3
+     v3 changes (2026-05-28 late evening):
+     - Removed the "Demo mode" banner from the legacy #auth-landing UI
+       (sat above the Sign In box, instructions about any-email-any-code).
+       Even though v4 provider auth hides #auth-screen entirely, the demo
+       text shouldn't exist in source.
+     - Help email: providers@ffppassport.com → providers@findfitpeople.com
+     v2 changes (2026-05-28 late evening):
+     - signOut() rewritten to actually log out. Was the v3-demo behavior:
+       hide app, show legacy #auth-screen (which provider-auth v4 now
+       hides via CSS anyway, so signOut left the user staring at nothing).
+       Now: confirm → clear localStorage.ffp_token + ffp_member → redirect
+       to /login. Uses window.ffpLogout() if available, defensive fallback.
+═══════════════════════════════════════════════════════════════════════
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1800,9 +1817,6 @@ a { color: var(--ffp-blue); text-decoration: none; }
 
     <!-- Landing -->
     <div class="auth-section active" id="auth-landing">
-      <div class="demo-banner">
-        <b>Demo mode</b> — sign in with any email + any 6-digit code, or try the apply flow.
-      </div>
       <div class="auth-title">Sign in to your provider account</div>
       <div class="auth-sub">No password needed. Enter your email and we'll send a 6-digit code.</div>
       <button class="btn btn-pri auth-cta" onclick="setAuthState('signin_email')">
@@ -1966,7 +1980,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
   <a class="auth-skip" onclick="bypassAuthDemo()">Skip to dashboard (demo only)</a>
 
   <div class="auth-footer">
-    Need help? <a href="mailto:providers@ffppassport.com">providers@ffppassport.com</a>
+    Need help? <a href="mailto:providers@findfitpeople.com">providers@findfitpeople.com</a>
   </div>
 </div>
 
@@ -4775,10 +4789,17 @@ function enterDashboard() {
 }
 
 function signOut() {
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('auth-screen').style.display = 'flex';
-  setAuthState('landing');
-  showToast('Signed out', 'info');
+  // v2: real logout (was legacy v3 demo that just toggled auth-screen back on).
+  if (!confirm('Are you sure you want to logout?')) return;
+  if (typeof window.ffpLogout === 'function') {
+    window.ffpLogout();
+  } else {
+    try {
+      localStorage.removeItem('ffp_token');
+      localStorage.removeItem('ffp_member');
+    } catch (e) {}
+    window.location.href = '/login';
+  }
 }
 
 // ════════════════════════════════════════════════
