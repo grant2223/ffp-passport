@@ -1,6 +1,12 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-     FFP ADMIN DASHBOARD — v2 (clean from LIVE)
+     FFP ADMIN DASHBOARD — v3
+     v3 changes (2026-05-28 late evening):
+     - Wired the topbar-user click to actually log out. Was a placeholder
+       toast "Logout menu coming soon". Now: confirm dialog → clear
+       localStorage.ffp_token + ffp_member → redirect to /login.
+       Uses window.ffpLogout() from ffp-api-integration.js if available,
+       defensive fallback otherwise.
      v2 changes (2026-05-28):
      - FFP Team row email: grant@ffppassport.com → grant@findfitpeople.com
        (Grant's actual super-admin identity)
@@ -1377,13 +1383,28 @@ input, select, textarea { font-family: inherit; }
         <span class="material-icons">search</span>
         <input type="text" id="global-search-input" placeholder="Search members, providers, listings..." oninput="GlobalSearch.onInput(this.value)" onfocus="GlobalSearch.onInput(this.value)" onblur="setTimeout(()=>GlobalSearch.close(),200)">
       </div>
-      <div class="topbar-user" onclick="showToast('Logout menu coming soon')">
+      <div class="topbar-user" onclick="adminLogout()" title="Click to logout">
         <div class="topbar-user-avatar">G</div>
         <div class="topbar-user-info">
           <div class="topbar-user-name">Grant Goes</div>
           <div class="topbar-user-role">Super Admin</div>
         </div>
       </div>
+      <script>
+        // v3: real logout (was placeholder toast)
+        function adminLogout() {
+          if (!confirm('Are you sure you want to logout?')) return;
+          if (typeof window.ffpLogout === 'function') {
+            window.ffpLogout();
+          } else {
+            try {
+              localStorage.removeItem('ffp_token');
+              localStorage.removeItem('ffp_member');
+            } catch (e) {}
+            window.location.href = '/login';
+          }
+        }
+      </script>
     </div>
   </header>
   
