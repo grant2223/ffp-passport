@@ -50,7 +50,7 @@
   var earningsFilter = 'all';
   var payoutShowAll = false;       // v9
   var earningsShowAll = false;     // v9
-  var DEFAULT_VISIBLE_ROWS = 3;    // v11 (was 5 in v9-v10)
+  var DEFAULT_VISIBLE_ROWS = 3;    // v11+ (was 5 in v9-v10)
   var layoutBuilt = false;
 
   function injectStyles() {
@@ -888,7 +888,7 @@
       // 8. Subscribe to real-time updates so the panel auto-updates
       subscribeRealtime();
 
-      console.log('[FFP Earnings v11] Loaded from Supabase \u2713');
+      console.log('[FFP Earnings v12] Loaded from Supabase \u2713');
     } catch (err) {
       console.error('[FFP Earnings] Unexpected error:', err);
     }
