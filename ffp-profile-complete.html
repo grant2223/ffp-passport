@@ -17,7 +17,11 @@ v8 (clean rewrite, no webhook dependency):
 
 <!--
 ═══════════════════════════════════════════════════════════════════════
-     FFP PROFILE COMPLETE — v10
+     FFP PROFILE COMPLETE — v11
+     v11 changes (from v10, 2026-05-28):
+     - Welcome title text: "Welcome, [name]" → "The Active Lifestyle Community"
+     - Welcome subtitle: "Let's complete your passport." → "Let's get your passport ready"
+     - The dynamic <span id="greet-name"> removed (no JS reference to it).
      v10 changes (from v9, 2026-05-28):
      - REMOVED visible "FFP Profile Complete v8" version marker div (was
        rendering blue text at top of page to every user — violation of
@@ -188,8 +192,8 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 </div>
 
 <div class="welcome">
-  <div class="welcome-h">Welcome, <span id="greet-name">there</span></div>
-  <div class="welcome-sub">Let's complete your passport.</div>
+  <div class="welcome-h">The Active Lifestyle Community</div>
+  <div class="welcome-sub">Let's get your passport ready</div>
 </div>
 
 <div class="progress" id="progress">
