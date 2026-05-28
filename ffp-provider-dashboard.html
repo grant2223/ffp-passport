@@ -1,19 +1,21 @@
 <!--
-═══════════════════════════════════════════════════════════════════════
-     FFP PROVIDER DASHBOARD — v3
-     v3 changes (2026-05-28 late evening):
-     - Removed the "Demo mode" banner from the legacy #auth-landing UI
-       (sat above the Sign In box, instructions about any-email-any-code).
-       Even though v4 provider auth hides #auth-screen entirely, the demo
-       text shouldn't exist in source.
-     - Help email: providers@ffppassport.com → providers@findfitpeople.com
-     v2 changes (2026-05-28 late evening):
-     - signOut() rewritten to actually log out. Was the v3-demo behavior:
-       hide app, show legacy #auth-screen (which provider-auth v4 now
-       hides via CSS anyway, so signOut left the user staring at nothing).
-       Now: confirm → clear localStorage.ffp_token + ffp_member → redirect
-       to /login. Uses window.ffpLogout() if available, defensive fallback.
-═══════════════════════════════════════════════════════════════════════
+═════════════════════════════════════════════════════════════════════════
+     FFP PROVIDER DASHBOARD — v4
+     v4 changes (2026-05-28 late evening):
+     - Comprehensive prototype seed-data scrub mirroring member-dashboard v95.
+       All "Forge Fitness" identity values + seed Events/Experiences/Deals/
+       Challenges/Check-ins/Members/Bookings arrays cleared. Real providers
+       now see empty fields / empty panels until loader supplies real data.
+     - Structure / classes / IDs / data-field attrs / loaders preserved.
+     - Placeholder attributes ("e.g. Forge Fitness") kept — those are
+       guidance text, not data.
+     - Dropdown <option> choices kept — they're the valid choices, not seeded
+       selections.
+     v3 changes (from v2 LIVE): removed Demo mode banner; updated help email
+       to providers@findfitpeople.com.
+     v2 changes: real logout in signOut() + header marker.
+     Rollback: ffp-provider-dashboard-v3.html still in working folder.
+═════════════════════════════════════════════════════════════════════════
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -1837,7 +1839,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
       <div class="auth-sub">Enter the email tied to your provider account. We'll send a 6-digit code that's valid for 10 minutes.</div>
       <div class="field">
         <div class="label">Email <span class="req">*</span></div>
-        <input class="input" type="email" id="auth-email-input" placeholder="bookings@yourbusiness.ae" value="bookings@forgefitness.ae" autocomplete="email">
+        <input class="input" type="email" id="auth-email-input" placeholder="bookings@yourbusiness.ae" value="" autocomplete="email">
       </div>
       <button class="btn btn-pri auth-cta" style="margin-top: 18px;" onclick="submitEmail()">
         <span class="ms">send</span> Send sign-in code
@@ -1850,7 +1852,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
         <span class="ms">arrow_back</span> Back
       </button>
       <div class="auth-title">Enter your code</div>
-      <div class="auth-sub">We sent a 6-digit code to <b id="auth-code-email">bookings@forgefitness.ae</b>.<br>Demo: enter any 6 digits.</div>
+      <div class="auth-sub">We sent a 6-digit code to <b id="auth-code-email"></b>.<br>Demo: enter any 6 digits.</div>
       <div class="otp-boxes" id="otp-boxes">
         <input class="otp-box" inputmode="numeric" maxlength="1" autocomplete="one-time-code">
         <input class="otp-box" inputmode="numeric" maxlength="1">
@@ -1996,10 +1998,10 @@ a { color: var(--ffp-blue); text-decoration: none; }
     </div>
     <nav class="sb-nav" id="sb-nav"></nav>
     <button class="sb-foot" id="sb-foot" onclick="showPanel('profile')">
-      <div class="sb-foot-mark" id="sb-foot-mark">F</div>
+      <div class="sb-foot-mark" id="sb-foot-mark">—</div>
       <div class="sb-foot-info">
-        <div class="sb-foot-name" id="sb-foot-name">Forge Fitness</div>
-        <div class="sb-foot-tag" id="sb-foot-tag">Approved</div>
+        <div class="sb-foot-name" id="sb-foot-name">—</div>
+        <div class="sb-foot-tag" id="sb-foot-tag"></div>
       </div>
     </button>
   </aside>
@@ -2514,7 +2516,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
           <div class="form-grid">
             <div class="field">
               <div class="label">Login email</div>
-              <input class="input" value="bookings@forgefitness.ae" disabled>
+              <input class="input" value="" disabled>
             </div>
             <div class="field">
               <div class="label">Password</div>
@@ -2609,167 +2611,43 @@ function fmtRelative(ts) {
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 
 let providerProfile = {
-  business_name: 'Forge Fitness',
-  letter_mark: 'F',
-  category: 'Fitness studio',
-  provider_type: 'Single location',
-  city: 'Dubai',
-  area: 'Al Quoz',
-  address: 'Warehouse 12, Street 17, Al Quoz Industrial 3',
-  phone: '+971 50 123 4567',
-  website: 'https://forgefitness.ae',
-  about: 'Functional strength and conditioning studio in Al Quoz. Group classes, personal training, and small-group performance coaching. Coaches certified through NASM, CrossFit L2, and Precision Nutrition.',
-  status: 'approved',
-  verified: true,
+  business_name: '',
+  letter_mark: '',
+  category: '',
+  provider_type: '',
+  city: '',
+  area: '',
+  address: '',
+  phone: '',
+  website: '',
+  about: '',
+  status: '',
+  verified: false,
   logo_url: null,
   hero_url: null,
   hours: {
-    Monday:    { open: '05:30', close: '22:00', closed: false },
-    Tuesday:   { open: '05:30', close: '22:00', closed: false },
-    Wednesday: { open: '05:30', close: '22:00', closed: false },
-    Thursday:  { open: '05:30', close: '22:00', closed: false },
-    Friday:    { open: '06:00', close: '20:00', closed: false },
-    Saturday:  { open: '07:00', close: '14:00', closed: false },
-    Sunday:    { open: '',      close: '',      closed: true  }
+    Monday:    { open: '', close: '', closed: false },
+    Tuesday:   { open: '', close: '', closed: false },
+    Wednesday: { open: '', close: '', closed: false },
+    Thursday:  { open: '', close: '', closed: false },
+    Friday:    { open: '', close: '', closed: false },
+    Saturday:  { open: '', close: '', closed: false },
+    Sunday:    { open: '', close: '', closed: false }
   }
 };
 
-let deals = [
-  {
-    id: uid(), perk: 'Member rate on monthly unlimited',
-    breakdown: '600 AED instead of 850 AED for the first month, then standard pricing.',
-    about: 'Unlimited group classes for 30 days. Includes mobility, strength, conditioning, and Saturday team class.',
-    category: 'Fitness', service: 'Monthly membership',
-    valid: '7 days a week', booking: 'Walk in or book in app',
-    limits: 'Once per member, new joiners only', frequency: 'one-time',
-    hero_url: null, status: 'live', featured: true,
-    claims: 47, claims_this_month: 12, created_at: '2025-12-15'
-  },
-  {
-    id: uid(), perk: 'First class free',
-    breakdown: 'Walk in for any group class, no commitment.',
-    about: 'Try us out. Pick any class on the schedule from the app.', category: 'Fitness',
-    service: 'Drop-in trial', valid: 'Weekdays only', booking: 'Book in app',
-    limits: 'New members only', frequency: 'one-time',
-    hero_url: null, status: 'live', featured: false,
-    claims: 134, claims_this_month: 28, created_at: '2025-11-02'
-  },
-  {
-    id: uid(), perk: '20% off InBody scan + consult',
-    breakdown: '120 AED instead of 150 AED for a full body composition scan with 20-minute coach consult.',
-    about: 'Quarterly check-in tool. Comes with a printable report you can share with your doctor.', category: 'Wellness',
-    service: 'Body composition', valid: 'Weekdays only', booking: 'WhatsApp +971 50 123 4567',
-    limits: 'Once per quarter', frequency: 'quarterly',
-    hero_url: null, status: 'pending', featured: false,
-    claims: 0, claims_this_month: 0, created_at: '2026-05-20'
-  }
-];
+let deals = [];
 
-let events = [
-  {
-    id: uid(), title: 'Saturday Team WOD',
-    description: 'Partner conditioning workout, scaled options for all levels.',
-    about: 'Bring a friend. Coffee and protein shakes on us after.',
-    category: 'Fitness', event_date: '2026-06-07', event_time: '08:00',
-    venue: 'Forge Fitness', city: 'Dubai', area: 'Al Quoz',
-    capacity: 24, cost: 'Free for members', intensity: 'Intermediate',
-    setting: 'Indoor', parking: 'Free on site',
-    facilities: 'Showers, lockers, towels',
-    bring: 'Water bottle, training shoes',
-    who: 'Open to all FFP members',
-    hero_url: null, status: 'live', verified: true,
-    rsvps: 18, capacity_pct: 75, created_at: '2026-05-12'
-  },
-  {
-    id: uid(), title: 'Strength Foundations Workshop',
-    description: 'Two-hour technique workshop on squat, hinge, push and pull patterns.',
-    about: 'For members who want to clean up their lifts before progressing to heavier loads.',
-    category: 'Fitness', event_date: '2026-06-14', event_time: '10:00',
-    venue: 'Forge Fitness', city: 'Dubai', area: 'Al Quoz',
-    capacity: 12, cost: 'AED 150', intensity: 'Beginner',
-    setting: 'Indoor', parking: 'Free on site',
-    facilities: 'Showers, lockers',
-    bring: 'Training shoes, comfortable clothes',
-    who: 'New lifters or members wanting form review',
-    hero_url: null, status: 'live', verified: true,
-    rsvps: 7, capacity_pct: 58, created_at: '2026-05-18'
-  }
-];
+let events = [];
 
-let experiences = [
-  {
-    id: uid(), title: 'Hatta Mountain Endurance Camp',
-    description: 'Three-day high-altitude conditioning camp in the Hajar mountains.',
-    overview: 'Trail running, hill repeats, recovery yoga, and shared meals at a base lodge in Hatta. Designed to build aerobic base before the autumn racing season.',
-    experience_type: 'Fitness',
-    start_date: '2026-10-09', end_date: '2026-10-11', duration_days: 3,
-    country: 'United Arab Emirates', destination: 'Hatta, Dubai',
-    price_aed: 1850,
-    price_includes: ['Lodging (twin share)', 'All meals', 'Coaching', 'Transport from Dubai', 'Recovery sessions'],
-    price_excludes: ['Personal gear', 'Trail running shoes', 'Travel insurance'],
-    accommodation: 'Hatta Wadi Hub lodge — twin share rooms with shared bathrooms.',
-    flights: 'Not required — group transport from Forge Fitness on Friday morning.',
-    travel_reqs: 'UAE residence or visit visa. No vaccination requirements.',
-    fitness_reqs: 'Able to run 5km continuously. We will scale all sessions to the group.',
-    fitness_level: 'Intermediate',
-    hero_url: null, status: 'live', applications: 9, capacity: 16, created_at: '2026-04-22',
-    itinerary: [
-      { day: 1, title: 'Arrival & shakeout', events: [
-        { time: '07:00', item: 'Depart Forge Fitness' },
-        { time: '09:30', item: 'Arrive Hatta, room check-in' },
-        { time: '11:00', item: 'Shakeout trail run (5km)' },
-        { time: '13:00', item: 'Lunch + recovery' },
-        { time: '17:00', item: 'Yoga + mobility' },
-        { time: '19:00', item: 'Welcome dinner' }
-      ]},
-      { day: 2, title: 'Hill repeats day', events: [
-        { time: '06:00', item: 'Breakfast' },
-        { time: '07:00', item: 'Hill repeats session (90 min)' },
-        { time: '10:00', item: 'Recovery + ice bath' },
-        { time: '13:00', item: 'Lunch' },
-        { time: '16:00', item: 'Strength + core circuit' },
-        { time: '19:00', item: 'Dinner + Q&A' }
-      ]},
-      { day: 3, title: 'Long run + departure', events: [
-        { time: '05:30', item: 'Pre-run fueling' },
-        { time: '06:30', item: 'Long trail run (12km option / 6km option)' },
-        { time: '09:30', item: 'Brunch + closing circle' },
-        { time: '12:00', item: 'Depart Hatta' }
-      ]}
-    ]
-  }
-];
+let experiences = [];
 
-let challenges = [
-  {
-    id: uid(), title: 'Forge May Strength Push',
-    description: 'Hit 3 personal records across squat, deadlift, and overhead press in the month of May.',
-    challenge_type: 'provider',
-    metric: 'Combined PR kg increase',
-    venue: 'Forge Fitness, Al Quoz',
-    start_date: '2026-05-01', end_date: '2026-05-31',
-    prize: 'Top 3 win a Forge Fitness branded recovery kit (foam roller, lacrosse ball, resistance bands)',
-    category: 'Strength',
-    hero_url: null, status: 'live',
-    participants: 22, results_uploaded: false,
-    created_at: '2026-04-25'
-  }
-];
+let challenges = [];
 
-let checkIns = [
-  { id: uid(), member_name: 'Sarah Al Mansoori', member_letter: 'S', listing: 'First class free', code: '7K4N-9PMX', ts: Date.now() - 2 * 60 * 60 * 1000, status: 'verified' },
-  { id: uid(), member_name: 'James Lee', member_letter: 'J', listing: '20% off InBody scan', code: '3B8Q-1RWZ', ts: Date.now() - 5 * 60 * 60 * 1000, status: 'verified' },
-  { id: uid(), member_name: 'Priya Sharma', member_letter: 'P', listing: 'Member rate on monthly unlimited', code: 'M2X9-VL4F', ts: Date.now() - 24 * 60 * 60 * 1000, status: 'verified' },
-  { id: uid(), member_name: 'Omar Hassan', member_letter: 'O', listing: 'First class free', code: 'Q7T1-8NSA', ts: Date.now() - 26 * 60 * 60 * 1000, status: 'verified' }
-];
+let checkIns = [];
 
 // SAMPLE pending RSVPs / applications (used in detail modal)
-const sampleRsvps = [
-  { name: 'Aisha Khan', letter: 'A', joined: '3d ago' },
-  { name: 'Marcus Webb', letter: 'M', joined: '2d ago' },
-  { name: 'Lina Park', letter: 'L', joined: '1d ago' },
-  { name: 'Tariq Yusuf', letter: 'T', joined: '6h ago' }
-];
+const sampleRsvps = [];
 
 // ════════════════════════════════════════════════
 // NAVIGATION
@@ -2889,18 +2767,12 @@ function renderOverview() {
 
   const kpiGrid = document.getElementById('kpi-grid');
   kpiGrid.innerHTML = '' +
-    kpi('Active listings', totalListings, '+2 this month', 'up') +
-    kpi('Deal claims', totalClaims, '+40 last 30 days', 'up', 'yellow') +
-    kpi('Event RSVPs', totalRsvps, '+12 last 30 days', 'up', 'green') +
-    kpi('Experience applications', totalApps, '+9 last 30 days', 'up', 'blue');
+    kpi('Active listings', totalListings, '', 'flat') +
+    kpi('Deal claims', totalClaims, '', 'flat', 'yellow') +
+    kpi('Event RSVPs', totalRsvps, '', 'flat', 'green') +
+    kpi('Experience applications', totalApps, '', 'flat', 'blue');
 
-  const acts = [
-    { icon: 'person_add', tone: 'green', text: '<b>Sarah Al Mansoori</b> RSVPed to Saturday Team WOD', ts: Date.now() - 30 * 60 * 1000 },
-    { icon: 'check', tone: 'yellow', text: '<b>James Lee</b> redeemed your "20% off InBody scan"', ts: Date.now() - 2 * 60 * 60 * 1000 },
-    { icon: 'flight', tone: '', text: '<b>Tariq Yusuf</b> applied for Hatta Mountain Endurance Camp', ts: Date.now() - 6 * 60 * 60 * 1000 },
-    { icon: 'local_offer', tone: 'yellow', text: 'Your deal "Member rate on monthly unlimited" was approved', ts: Date.now() - 22 * 60 * 60 * 1000 },
-    { icon: 'emoji_events', tone: '', text: '4 new entrants in Forge May Strength Push challenge', ts: Date.now() - 36 * 60 * 60 * 1000 }
-  ];
+  const acts = [];
   const al = document.getElementById('activity-list');
   al.innerHTML = acts.map(a =>
     '<div class="act-row">' +
@@ -4519,9 +4391,12 @@ function formatClaimCode(input) {
 function verifyClaimCode() {
   const code = document.getElementById('claim-code-input').value.trim();
   if (code.length < 9) { showToast('Enter the full 8-character code', 'error'); return; }
-  // Sample verify success
-  const firstNames = ['Yusuf','Layla','Ben','Maya','Khalid','Noor'];
-  const name = firstNames[Math.floor(Math.random() * firstNames.length)] + ' ' + ['Ahmed','Smith','Lee','Patel'][Math.floor(Math.random()*4)];
+  // Sample verify success — name resolved by loader in production
+  const firstNames = [];
+  const lastNames = [];
+  const name = (firstNames.length && lastNames.length)
+    ? firstNames[Math.floor(Math.random() * firstNames.length)] + ' ' + lastNames[Math.floor(Math.random() * lastNames.length)]
+    : 'Member';
   openModalShell('sm', 'Code verified', `
     <div style="text-align: center; padding: 12px 0 22px;">
       <div style="width: 72px; height: 72px; margin: 0 auto 14px; border-radius: 50%; background: rgba(74, 222, 128, .15); color: var(--ffp-green); display: flex; align-items: center; justify-content: center;">
