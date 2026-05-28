@@ -1,8 +1,18 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP EARNINGS LOADER · CURRENT VERSION: v11
+   FFP EARNINGS LOADER · CURRENT VERSION: v12
    File path: assets/ffp-earnings-loader.js
-   On-load log: [FFP Earnings v11] Loaded from Supabase ✓
+   On-load log: [FFP Earnings v12] Loaded from Supabase ✓
    ═══════════════════════════════════════════════════════════════ */
+/* WHAT v12 CHANGES (from v11):
+   - CLEAN-BUILD refactor. Replaces window.supabase.auth.getUser()
+     (which validates against auth.users — a table FFP custom-auth
+     members don't exist in) with window.FFPAuth.getMember() which
+     reads localStorage.ffp_member synchronously. Architecture is
+     now explicit: loaders use FFP auth, Supabase is the database.
+     RLS still works because the JWT (set as Bearer header by
+     ffp-api-integration v8) carries auth.uid() = member.id.
+*/
+
 
 /* WHAT v11 CHANGES (from v10):
    - Default visible rows in Payouts and Earnings log: 5 → 3.
@@ -708,12 +718,17 @@
     injectStyles();
 
     try {
-      var userRes = await window.supabase.auth.getUser();
-      if (userRes.error || !userRes.data || !userRes.data.user) {
-        console.log('[FFP Earnings] No user — keeping sample');
+      // Read current member from FFP custom auth (FFPAuth.getMember).
+      // We don't use supabase.auth.getUser() — FFP members live in the
+      // `members` table only and have no auth.users row. RLS still
+      // sees auth.uid() correctly because the JWT is set as a Bearer
+      // header on the Supabase client by ffp-api-integration v8.
+      var member = window.FFPAuth && window.FFPAuth.getMember();
+      if (!member || !member.id) {
+        console.log('[FFP Earnings] No FFP member — keeping sample');
         return;
       }
-      currentUserId = userRes.data.user.id;
+      currentUserId = member.id;
 
       // 1. Referral code from members
       var memRes = await window.supabase
