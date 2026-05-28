@@ -1,24 +1,18 @@
 <!--
-FFP Profile Complete v7
-Last updated: 27 May 2026
+FFP Profile Complete v8
+Last updated: 28 May 2026
 
-v7 changelog (vs v5/v6):
-- Architecture A throughout. ZERO Supabase Auth dependency on this page.
-- Identity is resolved in this order:
-    1. URL parameter ?session_id (came from Stripe success_url) — page looks
-       up the member row by stripe_session_id and writes to localStorage.
-    2. localStorage.ffp_member (member already signed in via login.html).
-    3. None → show form anyway so preview/manual visits still render. Submit
-       guards against missing identity and routes to login if so.
-- On Stripe redirect we retry the session lookup once after 2s in case the
-  Stripe webhook hasn't finished creating the member row yet (race condition).
-- If a Stripe session_id resolves to an already-complete member, refuse to
-  set localStorage (prevents identity replay from a shared URL) and bounce
-  to login.
-
-STRIPE SUCCESS URL MUST BE:
-  https://ffppassport.com/ffp-profile-complete.html?session_id={CHECKOUT_SESSION_ID}
-(Stripe substitutes {CHECKOUT_SESSION_ID} automatically.)
+v8 (clean rewrite, no webhook dependency):
+- Page no longer looks up member by stripe_session_id on load. Form shows
+  immediately. The webhook is OFF the critical path — even if it never
+  fires or always fails, onboarding still works.
+- On submit, page POSTs everything (session_id + form data) to one new
+  backend endpoint: /api/onboard/from-stripe. That endpoint asks Stripe
+  directly for the email/name, then writes one atomic UPSERT to the
+  members table.
+- Result: no PostgREST schema cache games, no race conditions between
+  webhook and frontend, no "Setting up your account" wait-state.
+- User-facing flow is identical to v7: pay → form → dashboard.
 -->
 
 <!DOCTYPE html>
@@ -27,8 +21,7 @@ STRIPE SUCCESS URL MUST BE:
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
 <title>Complete Your Profile — FFP Passport</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="assets/ffp-api-integration.js"></script>
+<!-- v8: no Supabase or ffp-api-integration.js needed. All DB calls go through the backend. -->
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
 <style>
@@ -162,8 +155,8 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 <div class="page hidden" id="main-page">
 <div class="wrap">
 
-<!-- VERSION MARKER: ffp-profile-complete v7 -->
-<div style="text-align:center;font-size:10px;font-weight:700;color:#2ba8e0;letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;padding:8px;border-bottom:1px solid rgba(43,168,224,.2);">FFP Profile Complete v7</div>
+<!-- VERSION MARKER: ffp-profile-complete v8 -->
+<div style="text-align:center;font-size:10px;font-weight:700;color:#2ba8e0;letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;padding:8px;border-bottom:1px solid rgba(43,168,224,.2);">FFP Profile Complete v8</div>
 
 <div class="logo">
   <div class="logo-brand">FFP <span>PASSPORT</span></div>
@@ -307,7 +300,10 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 
 
 <script>
-console.log('[FFP Profile Complete v7] Loaded — Architecture A (Stripe session_id + localStorage)');
+console.log('[FFP Profile Complete v8] Loaded — submit-time onboarding (no webhook dependency)');
+
+// Backend URL — keep in sync with deployed backend
+var BACKEND_URL = 'https://ffp-passport-backend.vercel.app';
 
 // ═══════════════════════════════════════════════════════════════════════
 // FFP ACTIVITIES_DB — 101 activities, 16 categories
@@ -446,7 +442,7 @@ var COUNTRIES = {
 
 // ─── State ───────────────────────────────────────────────────────────────
 var selectedSports = [];
-var currentMember = null;
+var stripeSessionId = null;  // populated from URL on init, used at submit time
 var currentCategory = 'All';
 var currentSearch = '';
 var pickerMode = null;
@@ -458,77 +454,19 @@ var pickerLevel = null;
 document.addEventListener('DOMContentLoaded', initialise);
 
 async function initialise() {
-  if (!window.supabase) {
-    showError('step1-err', 'Supabase not loaded. Refresh the page.');
-    return;
-  }
-
-  // ─── Identity resolution (Architecture A — no Supabase Auth) ───────────
+  // v8: NO lookup on load. We just read the session_id from the URL and
+  // remember it for the submit call. The form renders immediately.
   var urlParams = new URLSearchParams(window.location.search);
-  var stripeSessionId = urlParams.get('session_id');
+  stripeSessionId = urlParams.get('session_id');
 
-  // 1) Try Stripe session ID from URL (came from Stripe success_url).
   if (stripeSessionId) {
-    console.log('[profile-complete v7] Stripe session_id detected:', stripeSessionId);
-    var sessionMember = await lookupBySessionId(stripeSessionId);
-
-    if (!sessionMember) {
-      // Webhook race — wait 2s and retry once.
-      console.warn('[profile-complete v7] Member not found for session, retrying after 2s...');
-      await new Promise(function (r) { setTimeout(r, 2000); });
-      sessionMember = await lookupBySessionId(stripeSessionId);
-    }
-
-    if (sessionMember) {
-      if (sessionMember.profile_complete) {
-        // Already complete — refuse to set localStorage (prevents replay
-        // from a shared URL) and send them through normal login.
-        console.warn('[profile-complete v7] Stripe session for already-complete profile. Refusing replay.');
-        window.location.href = 'login.html';
-        return;
-      }
-      currentMember = sessionMember;
-      try { localStorage.setItem('ffp_member', JSON.stringify(currentMember)); } catch (e) {}
-    } else {
-      console.error('[profile-complete v7] Stripe session lookup failed after retry.');
-      showError('step1-err', 'Setting up your account. Please refresh in a moment.');
-      // Show form anyway so user can fill in while waiting.
-    }
+    console.log('[profile-complete v8] Stripe session_id stashed for submit:', stripeSessionId);
+  } else {
+    console.warn('[profile-complete v8] No session_id in URL. Submit will fail until one is present.');
   }
 
-  // 2) Fall back to localStorage if no session_id resolved.
-  if (!currentMember) {
-    var cached = null;
-    try { cached = JSON.parse(localStorage.getItem('ffp_member') || 'null'); } catch (e) { cached = null; }
-
-    if (cached && cached.id) {
-      var memberRes = await window.supabase
-        .from('members')
-        .select('*')
-        .eq('id', cached.id)
-        .single();
-
-      if (!memberRes.error && memberRes.data) {
-        currentMember = memberRes.data;
-        if (currentMember.profile_complete) {
-          console.log('[profile-complete v7] profile_complete=true, redirecting to dashboard');
-          window.location.href = 'ffp-member-dashboard.html';
-          return;
-        }
-      } else {
-        console.error('[profile-complete v7] members fetch failed:', memberRes.error);
-      }
-    } else {
-      console.warn('[profile-complete v7] No identity (no session_id, no localStorage). Showing empty form.');
-    }
-  }
-
-  // ─── Render form regardless of identity state ──────────────────────────
-  // If currentMember is null we still show the form so the page renders
-  // (preview, manual visits). Submit will guard and route to login if no id.
   populateNationalities();
   populateCountries();
-  populateForm();
   buildCategoryChips();
   buildLevelList();
   renderActivities();
@@ -536,41 +474,6 @@ async function initialise() {
 
   document.getElementById('loading-screen').classList.add('hidden');
   document.getElementById('main-page').classList.remove('hidden');
-}
-
-async function lookupBySessionId(sessionId) {
-  try {
-    var res = await window.supabase
-      .from('members')
-      .select('*')
-      .eq('stripe_session_id', sessionId)
-      .maybeSingle();
-    if (res.error) {
-      console.error('[profile-complete v7] session lookup error:', res.error);
-      return null;
-    }
-    return res.data || null;
-  } catch (e) {
-    console.error('[profile-complete v7] session lookup exception:', e);
-    return null;
-  }
-}
-
-function populateForm() {
-  if (!currentMember) return;
-  var fn = currentMember.full_name ? currentMember.full_name.trim() : '';
-  var firstWord = fn.split(' ')[0] || 'there';
-  document.getElementById('greet-name').textContent = firstWord;
-  var parts = fn.split(' ');
-  document.getElementById('f-surname').value = currentMember.surname || (parts.length > 1 ? parts[parts.length - 1] : '');
-  document.getElementById('f-given').value = currentMember.given_names || (parts.length > 1 ? parts.slice(0, -1).join(' ') : parts[0] || '');
-  if (currentMember.date_of_birth) document.getElementById('f-dob').value = currentMember.date_of_birth;
-  if (currentMember.nationality) document.getElementById('f-nationality').value = currentMember.nationality;
-  if (currentMember.country) {
-    document.getElementById('f-country').value = currentMember.country;
-    onCountryChange();
-    if (currentMember.city) document.getElementById('f-city').value = currentMember.city;
-  }
 }
 
 function populateNationalities() {
@@ -842,9 +745,8 @@ function showError(elId, msg) {
 async function submitProfile() {
   showError('step2-err', '');
 
-  if (!currentMember || !currentMember.id) {
-    showError('step2-err', 'Session expired. Redirecting to sign in...');
-    setTimeout(function () { window.location.href = 'login.html'; }, 1500);
+  if (!stripeSessionId) {
+    showError('step2-err', 'No Stripe session in URL. This page must be opened after completing payment.');
     return;
   }
 
@@ -857,58 +759,39 @@ async function submitProfile() {
   btn.textContent = 'Saving...';
 
   try {
-    var s = document.getElementById('f-surname').value.trim();
-    var g = document.getElementById('f-given').value.trim();
-    var d = document.getElementById('f-dob').value;
-    var n = document.getElementById('f-nationality').value;
-    var co = document.getElementById('f-country').value;
-    var ci = document.getElementById('f-city').value;
-    var fullName = (g + ' ' + s).trim();
-
-    var updateRes = await window.supabase
-      .from('members')
-      .update({
-        surname: s, given_names: g, full_name: fullName,
-        date_of_birth: d, nationality: n,
-        country: co, city: ci,
-        profile_complete: true
+    var payload = {
+      session_id: stripeSessionId,
+      surname: document.getElementById('f-surname').value.trim(),
+      given_names: document.getElementById('f-given').value.trim(),
+      date_of_birth: document.getElementById('f-dob').value,
+      nationality: document.getElementById('f-nationality').value,
+      country: document.getElementById('f-country').value,
+      city: document.getElementById('f-city').value,
+      skills: selectedSports.map(function (sp) {
+        return { name: sp.name, category: sp.category, level: sp.level, shared: false };
       })
-      .eq('id', currentMember.id);
+    };
 
-    if (updateRes.error) throw updateRes.error;
+    var resp = await fetch(BACKEND_URL + '/api/onboard/from-stripe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
 
-    var chronoAge = null;
-    if (d) {
-      var birth = new Date(d), today = new Date();
-      chronoAge = today.getFullYear() - birth.getFullYear();
-      var m = today.getMonth() - birth.getMonth();
-      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) chronoAge--;
+    var data = await resp.json();
+
+    if (!resp.ok || !data.success) {
+      throw new Error((data && data.error) || ('HTTP ' + resp.status));
     }
 
-    var metaRes = await window.supabase
-      .from('profile_meta')
-      .upsert({
-        member_id: currentMember.id,
-        chrono_age: chronoAge,
-        skills: selectedSports.map(function (sp) {
-          return { name: sp.name, category: sp.category, level: sp.level, shared: false };
-        })
-      }, { onConflict: 'member_id' });
-
-    if (metaRes.error) throw metaRes.error;
-
+    // Cache member for dashboard
     try {
-      var cached = JSON.parse(localStorage.getItem('ffp_member') || '{}');
-      cached.surname = s; cached.given_names = g; cached.full_name = fullName;
-      cached.date_of_birth = d; cached.nationality = n;
-      cached.country = co; cached.city = ci;
-      cached.profile_complete = true;
-      localStorage.setItem('ffp_member', JSON.stringify(cached));
+      localStorage.setItem('ffp_member', JSON.stringify(data.member));
     } catch (e) {}
 
     window.location.href = 'ffp-member-dashboard.html';
   } catch (err) {
-    console.error('[profile-complete v7] save failed:', err);
+    console.error('[profile-complete v8] submit failed:', err);
     showError('step2-err', 'Could not save: ' + (err.message || 'unknown error'));
     btn.disabled = false;
     btn.textContent = 'Complete Profile';
