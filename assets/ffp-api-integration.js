@@ -1,5 +1,17 @@
 /* =============================================================
-   FFP Passport — API Integration Module (v5)
+   FFP Passport — API Integration Module (v6)
+   v6 (2026-05-29) — FIX: setSession was failing with "Auth session
+       missing" because Supabase Auth's setSession validates that the
+       user exists in auth.users — but our custom-auth members live in
+       the members table only, never in auth.users. The JWT is still
+       cryptographically valid (signed with SUPABASE_JWT_SECRET) and
+       Postgres will happily decode it to expose auth.uid() inside RLS.
+       v6 stops trying to use setSession and instead attaches the JWT
+       as a global Authorization header on the Supabase client by
+       rebuilding the client when JWT changes. This is the standard
+       pattern for externally-issued JWTs (server-side mint, no Supabase
+       Auth user). RLS works because Postgres reads the JWT from the
+       header, decodes its sub claim, and exposes it as auth.uid().
    v5 (2026-05-29) — JWT BRIDGE for Supabase RLS:
        Backend v13 now returns a Supabase-compatible HS256 JWT in
        signin and onboard responses. v5 of this module:
@@ -33,10 +45,15 @@
   // Required for ffp-admin-auth.js which uses Supabase Auth directly.
   var SUPABASE_URL = 'https://kxzyuofecmtymablnmak.supabase.co';
   var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4enl1b2ZlY210eW1hYmxubWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NDM1MTYsImV4cCI6MjA5NTAxOTUxNn0.cWn0x1AeD-x9C-HHf9MShXbFRWdkWi5RMgHLgWJwOuE';
+  // v6: Cache the SDK module reference BEFORE overwriting window.supabase
+  // with the client instance. We need it to rebuild the client later when
+  // a JWT arrives (the client instance doesn't have createClient on it).
+  var SUPABASE_SDK = null;
   if (window.supabase && window.supabase.createClient) {
+    SUPABASE_SDK = window.supabase;
     try {
-      window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      console.log('[FFP] Supabase client initialised');
+      window.supabase = SUPABASE_SDK.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      console.log('[FFP] Supabase client initialised (anon — JWT applied on demand)');
     } catch (e) {
       console.error('[FFP] Supabase init failed:', e);
     }
@@ -71,41 +88,45 @@
     setJwt: function (jwt) {
       try { localStorage.setItem(JWT_KEY, jwt || ''); } catch (e) {}
     },
-    // v5: Apply the stored JWT as a Supabase Auth session so auth.uid()
-    // resolves to member.id inside Postgres. Safe to call multiple times —
-    // setSession is idempotent. Returns a promise that resolves once the
-    // session is set (or immediately if no JWT or no SDK is available).
+    // v6: Apply the stored JWT by rebuilding the Supabase client with
+    // the JWT as a global Authorization header. (v5 used setSession but
+    // that validates against auth.users which our custom-auth members
+    // don't exist in.) Postgres decodes the JWT from the header and
+    // exposes its sub claim as auth.uid() inside RLS policies — which is
+    // all we actually need. Synchronous in effect (no network round-trip
+    // until the next query), but returns a promise for API compatibility.
     applySupabaseSession: function () {
       var jwt = this.getJwt();
       if (!jwt) return Promise.resolve(null);
-      if (!window.supabase || !window.supabase.auth || !window.supabase.auth.setSession) {
-        console.warn('[FFP v5] Cannot apply Supabase session — supabase client not initialised');
+      if (!SUPABASE_SDK || !SUPABASE_SDK.createClient) {
+        console.warn('[FFP v6] Cannot apply JWT — SDK reference missing. Ensure supabase-js CDN loads BEFORE ffp-api-integration.js.');
         return Promise.resolve(null);
       }
-      return window.supabase.auth.setSession({
-        access_token: jwt,
-        refresh_token: ''
-      }).then(function (result) {
-        if (result && result.error) {
-          console.warn('[FFP v5] supabase.auth.setSession returned error:', result.error.message);
-        } else {
-          console.log('[FFP v5] Supabase session applied — auth.uid() now equals member.id');
-        }
-        return result;
-      }).catch(function (e) {
-        console.warn('[FFP v5] supabase.auth.setSession threw:', e);
-        return null;
-      });
+      try {
+        window.supabase = SUPABASE_SDK.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          global: {
+            headers: { Authorization: 'Bearer ' + jwt }
+          }
+        });
+        console.log('[FFP v6] Supabase client rebuilt with JWT — auth.uid() will resolve to member.id in RLS');
+        return Promise.resolve({ success: true });
+      } catch (e) {
+        console.error('[FFP v6] Failed to rebuild client with JWT:', e);
+        return Promise.resolve({ error: e });
+      }
     },
     clear: function () {
       try {
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(MEMBER_KEY);
-        localStorage.removeItem(JWT_KEY);  // v5
+        localStorage.removeItem(JWT_KEY);
       } catch (e) {}
-      // v5: also sign out of Supabase Auth so any in-flight queries lose their session
-      if (window.supabase && window.supabase.auth && window.supabase.auth.signOut) {
-        try { window.supabase.auth.signOut(); } catch (e) {}
+      // v6: rebuild the Supabase client without the JWT header so any subsequent
+      // queries fall back to anon (matching the now-cleared localStorage state).
+      if (SUPABASE_SDK && SUPABASE_SDK.createClient) {
+        try {
+          window.supabase = SUPABASE_SDK.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } catch (e) {}
       }
     },
     isAuthenticated: function () {
