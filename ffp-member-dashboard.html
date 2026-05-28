@@ -1,5 +1,13 @@
 <!-- ════════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v99
+     FFP MEMBER DASHBOARD — v100
+     v100 changes (from v99, 2026-05-28):
+     - Profile panel now populates with the signed-in member's real data.
+       Added a localStorage.ffp_member → MemberProfile.data sync at the
+       top of init(), so when the dashboard loads the Profile panel reads
+       the member object (set by /api/auth/signin) and shows their
+       given_names, surname, email, phone, DOB, gender, country, city,
+       nationality, tier, passport_no etc. Without this, the v95 seed-
+       data scrub left every Profile field blank for real signed-in users.
      v99 changes (from v98, 2026-05-28):
      - REBUILT from v96 known-good base using Python file IO (the Edit
        pipeline kept silently truncating v97/v98 mid-scalePassportCard,
@@ -11861,6 +11869,39 @@ function setupLogPickers() {
 
 // ===== INIT =====
 function init() {
+  // v100: hydrate MemberProfile.data from localStorage.ffp_member (set by /api/auth/signin
+  // or /api/onboard/from-stripe). Without this the Profile panel renders empty for
+  // signed-in users because v95 cleared all prototype values from the static defaults.
+  try {
+    const raw = localStorage.getItem('ffp_member');
+    if (raw) {
+      const m = JSON.parse(raw);
+      if (m && typeof m === 'object') {
+        const dobParts = (m.date_of_birth || '').split('-'); // YYYY-MM-DD
+        Object.assign(MemberProfile.data, {
+          givenNames:       m.given_names || '',
+          surname:          m.surname || '',
+          email:            m.email || '',
+          phoneCountryCode: m.phone_country_code || '',
+          phoneNumber:      m.phone || '',
+          dobYear:          dobParts[0] || '',
+          dobMonth:         dobParts[1] || '',
+          dobDay:           dobParts[2] || '',
+          gender:           m.gender || '',
+          country:          m.country || '',
+          city:             m.city || '',
+          nationality:      m.nationality || '',
+          tier:             m.tier || '',
+          memberSince:      m.created_at ? String(m.created_at).slice(0, 10) : '',
+          passportNumber:   m.passport_no || '',
+          verified:         !!m.verified,
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('[FFP] init: could not hydrate MemberProfile from localStorage:', e);
+  }
+
   MemberProfile.syncToPassport();  // profile is source of truth — sync before card render
   applyPassportData();
   renderQR();
