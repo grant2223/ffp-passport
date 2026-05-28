@@ -1,11 +1,16 @@
 <!-- ════════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v97
-     v97 changes (from v96, 2026-05-28):
-     - Bottom nav reordered per Grant's spec:
-       Passport / Meet & Move / Events / Experiences / Challenges / Deals
-       (was: Passport / Deals / Events / Experiences / Meet & Move / Challenges)
-       Pure HTML reordering of the 6 .nav-item buttons; data-panel attributes
-       preserved so all click → panel routing works unchanged.
+     FFP MEMBER DASHBOARD — v99
+     v99 changes (from v98, 2026-05-28):
+     - REBUILT from v96 known-good base using Python file IO (the Edit
+       pipeline kept silently truncating v97/v98 mid-scalePassportCard,
+       killing init() and all click handlers — see dashboard-file-truncation
+       memory). v99 includes BOTH the v97 nav reorder and the v98 logout
+       wiring in one verified-tail rebuild.
+     - Bottom nav order: Passport / Meet & Move / Events / Experiences /
+       Challenges / Deals (was: Passport / Deals / Events / Experiences /
+       Meet & Move / Challenges).
+     - Logout button now calls window.ffpLogout() (clears localStorage +
+       redirects to login.html). Was a placeholder alert.
      v96 changes (from v95, 2026-05-28):
      - RESTORED file truncation. v93/v94/v95 were silently missing the
        last ~80 bytes of the file (the rest of scalePassportCard(), the
@@ -6733,10 +6738,14 @@ function setupTopbar() {
     logoutBtn.addEventListener('click', () => {
       userMenu.classList.remove('show');
       if (!confirm('Are you sure you want to logout?')) return;
-      // PRODUCTION:
-      //   fetch('/api/auth/logout', { method: 'POST' })
-      //     .then(() => window.location.href = '/login.html');
-      alert('Logout — wires up to auth backend when built.');
+      // v99: wired to ffp-api-integration.js global ffpLogout() — clears
+      // localStorage.ffp_token + ffp_member and redirects to login.html.
+      if (typeof window.ffpLogout === 'function') {
+        window.ffpLogout();
+      } else {
+        try { localStorage.removeItem('ffp_token'); localStorage.removeItem('ffp_member'); } catch(e) {}
+        window.location.href = 'login.html';
+      }
     });
   }
 }
