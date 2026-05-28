@@ -1,5 +1,14 @@
 <!-- ════════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v104
+     FFP MEMBER DASHBOARD — v105
+     v105 changes (from v104, 2026-05-29):
+     - JWT bridge frontend half. Loads Supabase JS SDK + ffp-api-integration
+       v5 so window.supabase exists and v5's autoInit can call
+       supabase.auth.setSession() with the stored ffp_jwt. Without these
+       two script tags the dashboard had no Supabase client at all — every
+       loader's .from() call would have thrown ReferenceError. With them,
+       loaders see auth.uid() === member.id and RLS evaluates correctly.
+       No inline JS changes — autoInit handles setSession on DOMContentLoaded
+       before the dashboard's own init() runs its render pipeline.
      v104 changes (from v103, 2026-05-29):
      - Passport card COUNTRY now reads from this.data.country (the
        country the member entered in Profile → Location → Country),
@@ -91,6 +100,12 @@
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<!-- v105: Supabase SDK + ffp-api-integration.js v5 (JWT bridge). The integration
+     module initialises window.supabase and applies the stored JWT as a
+     Supabase Auth session on DOMContentLoaded, so any loader that runs
+     afterwards sees auth.uid() === member.id and RLS works. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/ffp-api-integration.js"></script>
 
 <style>
 :root {
