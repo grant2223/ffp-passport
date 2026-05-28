@@ -1,10 +1,37 @@
 <!-- ════════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v92
-     v92 changes (from v91, 2026-05-28):
-     - Cleared all hardcoded "Grant Hermanus Goes" prototype data
-     - Stats zeroed, leaderboard self-entry removed, photo defaulted to plain circle
-     - Structure / classes / IDs / data-field attrs preserved (loaders untouched)
-     Rollback: paste v91 from project knowledge back over this file.
+     FFP MEMBER DASHBOARD — v97
+     v97 changes (from v96, 2026-05-28):
+     - Bottom nav reordered per Grant's spec:
+       Passport / Meet & Move / Events / Experiences / Challenges / Deals
+       (was: Passport / Deals / Events / Experiences / Meet & Move / Challenges)
+       Pure HTML reordering of the 6 .nav-item buttons; data-panel attributes
+       preserved so all click → panel routing works unchanged.
+     v96 changes (from v95, 2026-05-28):
+     - RESTORED file truncation. v93/v94/v95 were silently missing the
+       last ~80 bytes of the file (the rest of scalePassportCard(), the
+       window.addEventListener calls, the init() call, and </script>
+       </body> </html> closing tags). Without init() being called, NO
+       click handlers were wired up — panels and avatar menu were dead.
+       Tail restored from ffp-member-dashboard-LIVE.html (the file Grant
+       downloaded from GitHub Raw, which has the correct ending).
+     - All v95 seed-data scrubbing intact below this header.
+     v95 changes (from v94, 2026-05-28):
+     - Per-panel seed/demo data SCRUBBED. Every prototype data structure
+       (Profile, Fitness Stats, Earnings, Calorie Tracker, Meet & Move,
+       Challenges) has its values blanked while structure is preserved.
+       New users now see empty/zero placeholders instead of fake activity
+       (Sarah K. referrals, AED 175 balance, 95kg bench, 22:30 5K, etc.).
+       Loaders that overlay real DB data still work unchanged because
+       all object shapes / keys / arrays are preserved.
+     - Known follow-up: some loaders may fall back to seed data when DB
+       returns empty for a new user. If panels look broken (not just
+       empty) after this paste, the loader needs patching to render
+       empty-state UI instead of bailing.
+     v94 changes (from v93): cleared hardcoded TYPE F / COUNTRY UAE in
+       passport-card header.
+     v93 changes (from v92): deep cleanup of identity values across JS
+       literals.
+     Rollback: v94/v93/v92 still in working folder.
      ════════════════════════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="en">
@@ -3789,7 +3816,7 @@ input[type="number"] {
         <div class="pass-worldwide">WORLDWIDE</div>
         <div class="pass-top-right">
           <div class="pass-top-label">PASSPORT NO.</div>
-          <div class="pass-passnum">F1206250001</div>
+          <div class="pass-passnum">—</div>
         </div>
       </div>
       
@@ -3797,11 +3824,11 @@ input[type="number"] {
       <div class="pass-type-row">
         <div>
           <div class="pass-mini-label">TYPE</div>
-          <div class="pass-mini-val">F</div>
+          <div class="pass-mini-val">—</div>
         </div>
         <div>
           <div class="pass-mini-label">COUNTRY</div>
-          <div class="pass-mini-val">UNITED ARAB EMIRATES</div>
+          <div class="pass-mini-val">—</div>
         </div>
       </div>
       
@@ -4860,11 +4887,11 @@ input[type="number"] {
 <!-- BOTTOM NAV -->
 <div class="bottom-nav">
   <button class="nav-item active" data-panel="panel-passport"><span class="material-icons">card_membership</span><span>Passport</span></button>
-  <button class="nav-item" data-panel="panel-deals"><span class="material-icons">local_offer</span><span>Deals</span></button>
+  <button class="nav-item" data-panel="panel-meet"><span class="material-icons">group</span><span>Meet &amp; Move</span></button>
   <button class="nav-item" data-panel="panel-events"><span class="material-icons">event</span><span>Events</span></button>
   <button class="nav-item" data-panel="panel-experiences"><span class="material-icons">flight</span><span>Experiences</span></button>
-  <button class="nav-item" data-panel="panel-meet"><span class="material-icons">group</span><span>Meet &amp; Move</span></button>
   <button class="nav-item" data-panel="panel-challenges"><span class="material-icons">whatshot</span><span>Challenges</span></button>
+  <button class="nav-item" data-panel="panel-deals"><span class="material-icons">local_offer</span><span>Deals</span></button>
 </div>
 
 <!-- ADD CITY MODAL -->
@@ -5554,44 +5581,11 @@ input[type="number"] {
 // ============================================================
 
 // ===== DATA =====
-const LOGS = [
-  { activity: 'Run 5km', icon: 'directions_run', city: 'Dubai', country: 'UAE', venue: 'Al Marmoom', daysAgo: 0, partner: false },
-  { activity: 'Strength training', icon: 'fitness_center', city: 'Dubai', country: 'UAE', venue: 'Forge Fitness', daysAgo: 1, partner: true },
-  { activity: 'Hot yoga', icon: 'self_improvement', city: 'Dubai', country: 'UAE', venue: 'The Yoga Studio JBR', daysAgo: 2, partner: true },
-  { activity: 'Padel', icon: 'sports_tennis', city: 'Dubai', country: 'UAE', venue: 'Ace Padel Club', daysAgo: 3, partner: true },
-  { activity: 'Cryotherapy', icon: 'ac_unit', city: 'Dubai', country: 'UAE', venue: 'Dubai Longevity Centre', daysAgo: 4, partner: true },
-  { activity: 'Run 5km', icon: 'directions_run', city: 'Dubai', country: 'UAE', venue: 'Al Marmoom', daysAgo: 5, partner: false },
-  { activity: 'Strength training', icon: 'fitness_center', city: 'Dubai', country: 'UAE', venue: 'Forge Fitness', daysAgo: 8, partner: true },
-  { activity: 'Padel', icon: 'sports_tennis', city: 'Dubai', country: 'UAE', venue: 'Ace Padel Club', daysAgo: 10, partner: true },
-  { activity: 'Hot yoga', icon: 'self_improvement', city: 'Dubai', country: 'UAE', venue: 'The Yoga Studio JBR', daysAgo: 12, partner: true },
-  { activity: 'Hot yoga', icon: 'self_improvement', city: 'London', country: 'UK', venue: 'The Power Yoga Co.', daysAgo: 14, partner: true },
-  { activity: 'Trail run', icon: 'directions_run', city: 'Abu Dhabi', country: 'UAE', venue: 'Jebel Hafeet', daysAgo: 18, partner: false },
-  { activity: 'Strength training', icon: 'fitness_center', city: 'Abu Dhabi', country: 'UAE', venue: 'Reform Athletica', daysAgo: 20, partner: true },
-  { activity: 'Ice bath', icon: 'ac_unit', city: 'Dubai', country: 'UAE', venue: 'Cryo Recovery DXB', daysAgo: 22, partner: true },
-  { activity: 'Padel', icon: 'sports_tennis', city: 'Dubai', country: 'UAE', venue: 'Hayya Padel', daysAgo: 25, partner: true },
-  { activity: 'Cryotherapy', icon: 'ac_unit', city: 'Dubai', country: 'UAE', venue: 'Dubai Longevity Centre', daysAgo: 28, partner: true },
-  { activity: 'Hot yoga', icon: 'self_improvement', city: 'London', country: 'UK', venue: 'The Power Yoga Co.', daysAgo: 35, partner: true },
-  { activity: 'Pilates mat', icon: 'self_improvement', city: 'Dubai', country: 'UAE', venue: 'The Yoga Studio JBR', daysAgo: 42, partner: true },
-  { activity: 'Run 10km', icon: 'directions_run', city: 'Dubai', country: 'UAE', venue: 'Creekside Track', daysAgo: 50, partner: false },
-  { activity: 'Strength training', icon: 'fitness_center', city: 'Dubai', country: 'UAE', venue: 'Forge Fitness', daysAgo: 55, partner: true },
-  { activity: 'Padel', icon: 'sports_tennis', city: 'Abu Dhabi', country: 'UAE', venue: 'Yas Padel', daysAgo: 65, partner: true },
-  { activity: 'Hot yoga', icon: 'self_improvement', city: 'Bali', country: 'Indonesia', venue: 'Yoga Barn Ubud', daysAgo: 75, partner: false },
-  { activity: 'Surfing', icon: 'surfing', city: 'Bali', country: 'Indonesia', venue: 'Padang Padang Beach', daysAgo: 78, partner: false },
-  { activity: 'Meditation', icon: 'self_improvement', city: 'Bali', country: 'Indonesia', venue: 'Yoga Barn Ubud', daysAgo: 80, partner: false },
-  { activity: 'Padel', icon: 'sports_tennis', city: 'Dubai', country: 'UAE', venue: 'Ace Padel Club', daysAgo: 100, partner: true },
-  { activity: 'Tennis', icon: 'sports_tennis', city: 'Tokyo', country: 'Japan', venue: 'Tokyo Tennis Club', daysAgo: 150, partner: false },
-  { activity: 'Hiking', icon: 'hiking', city: 'Tokyo', country: 'Japan', venue: 'Mt Takao', daysAgo: 155, partner: false }
-];
+const LOGS = [];
 
-const WISHLIST = [
-  { name: 'Paris', country: 'France', favorite: false },
-  { name: 'New York', country: 'United States', favorite: true },
-  { name: 'Sydney', country: 'Australia', favorite: false },
-  { name: 'Cape Town', country: 'South Africa', favorite: false },
-  { name: 'Reykjavik', country: 'Iceland', favorite: false }
-];
+const WISHLIST = [];
 
-const FAVORITES = ['Dubai', 'Bali'];
+const FAVORITES = [];
 
 const CITY_COORDS = {
   'Bariloche': { lng: -71.31, lat: -41.13 },
@@ -6694,7 +6688,7 @@ function renderMapPins() {
 // ===== QR CODE =====
 function renderQR() {
   const N = 21;
-  let h = 0; const seed = 'F1206250001';
+  let h = 0; const seed = '';
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
   const cells = [];
   for (let y = 0; y < N; y++) { cells[y] = []; for (let x = 0; x < N; x++) cells[y][x] = 0; }
@@ -7114,32 +7108,32 @@ function closePicker()      { Picker.close(); }
 const MemberProfile = {
   data: {
     // Identity (shared with passport card)
-    givenNames: 'Grant',
-    surname: 'Hermanus Goes',
+    givenNames: '',
+    surname: '',
     
     // Contact
-    email: 'grant@ffppassport.com',
-    phoneCountryCode: '+971',
-    phoneNumber: '56 261 7359',
+    email: '',
+    phoneCountryCode: '',
+    phoneNumber: '',
     
     // DOB
-    dobDay: '12',
-    dobMonth: '06',
-    dobYear: '1990',
+    dobDay: '',
+    dobMonth: '',
+    dobYear: '',
     
-    gender: 'Male',
+    gender: '',
     
     // Location
-    country: 'United Arab Emirates',  // where you LIVE
-    city: 'Dubai',
-    nationality: 'New Zealander',     // passport country (demonym)
+    country: '',  // where you LIVE
+    city: '',
+    nationality: '',     // passport country (demonym)
     
     // Account meta
-    tier: 'Passport Premium Member',
-    memberSince: '23 MAY 2024',
-    passportNumber: 'F1206250001',
-    issueDate: '23 MAY 2024',
-    expiryDate: '31 DEC 2030',
+    tier: '',
+    memberSince: '',
+    passportNumber: '',
+    issueDate: '',
+    expiryDate: '',
     hasPin: false,
     
     // VERIFICATION (admin-set in production — read-only on this profile)
@@ -7147,25 +7141,17 @@ const MemberProfile = {
     //   professional.roles  : array of { role, verified }
     //                         Each role independently verified by admin.
     //                         null/empty → not a professional profile
-    verified: true,
+    verified: false,
     professional: {
-      roles: [
-        { role: 'Weightlifting Coach', verified: true  },
-        { role: 'Mobility Coach',      verified: false }
-      ]
+      roles: []
     },
     
-    sports: [
-      { name: 'Padel',             level: 'Advanced'     },
-      { name: 'Running',           level: 'Intermediate' },
-      { name: 'Strength Training', level: 'Advanced'     },
-      { name: 'Yoga',              level: 'Beginner'     }
-    ],
+    sports: [],
     
     preferences: {
-      notifications: true,
-      newsletter: true,
-      publicProfile: true
+      notifications: false,
+      newsletter: false,
+      publicProfile: false
     }
   },
   
@@ -8178,61 +8164,31 @@ const KCAL_PER_KG_FAT = 7700;
 
 const CalorieTracker = {
   // v78 — Goal: currentWeight → targetWeight over targetWeeks. activity tunes maintenance.
-  currentWeight: 78,   // kg — where you are now
-  targetWeight: 75,    // kg — where you want to be
-  targetWeeks: 12,     // weeks to get there
+  currentWeight: 0,   // kg — where you are now
+  targetWeight: 0,    // kg — where you want to be
+  targetWeeks: 0,     // weeks to get there
   activity: 'mod',     // 'low' / 'mod' / 'high' — for maintenance calc
   
   tab: 'today',        // 'today' | 'week'
   
   // Today's meals — sample
   meals: {
-    breakfast: [{ foodId:'f10', amount:50  }, { foodId:'f5', amount:100 }],
-    lunch:     [{ foodId:'f1',  amount:150 }, { foodId:'f11', amount:120 }, { foodId:'f25', amount:80 }],
+    breakfast: [],
+    lunch:     [],
     dinner:    [],
-    snacks:    [{ foodId:'f28', amount:120 }]
+    snacks:    []
   },
   
   // Today's activities. Each entry stores the picked activity name + category-derived icon.
-  activities: [
-    { id:1, name:'Run 5km',          category:'Running & walking', icon:'directions_run',  duration:35, kcal:350 },
-    { id:2, name:'Strength training',category:'Strength & fitness',icon:'fitness_center',  duration:30, kcal:180 }
-  ],
-  _nextActId: 3,
+  activities: [],
+  _nextActId: 1,
   
   // Past 6 days sample data (week is Mon-Sun, today is Sun in this sample)
-  weekHistory: [
-    { day:'Mon', date:22, intake:1850, burned:320 },
-    { day:'Tue', date:23, intake:2100, burned:180 },
-    { day:'Wed', date:24, intake:1950, burned:450 },
-    { day:'Thu', date:25, intake:2050, burned:290 },
-    { day:'Fri', date:26, intake:1800, burned:380 },
-    { day:'Sat', date:27, intake:2300, burned:200 }
-  ],
+  weekHistory: [],
   
   // v79 — Last 30 days sample data. Last 6 days line up with weekHistory above.
   // 29 days ago → 1 day ago. Today is appended dynamically.
-  monthHistory: [
-    { idx:-29, intake:1900, burned:250 }, { idx:-28, intake:2050, burned:300 },
-    { idx:-27, intake:1850, burned:400 }, { idx:-26, intake:2200, burned:150 },
-    { idx:-25, intake:1750, burned:380 }, { idx:-24, intake:2100, burned:220 },
-    { idx:-23, intake:1900, burned:340 }, { idx:-22, intake:2300, burned:180 },
-    { idx:-21, intake:1850, burned:420 }, { idx:-20, intake:1950, burned:320 },
-    { idx:-19, intake:2050, burned:290 }, { idx:-18, intake:1800, burned:380 },
-    { idx:-17, intake:2400, burned:150 }, { idx:-16, intake:1950, burned:430 },
-    { idx:-15, intake:1850, burned:360 }, { idx:-14, intake:2150, burned:230 },
-    { idx:-13, intake:1900, burned:400 }, { idx:-12, intake:2000, burned:310 },
-    { idx:-11, intake:2050, burned:280 }, { idx:-10, intake:1850, burned:380 },
-    { idx:-9,  intake:2250, burned:200 }, { idx:-8,  intake:1900, burned:340 },
-    { idx:-7,  intake:1950, burned:300 }, // 7 days ago
-    { idx:-6,  intake:1850, burned:320 }, // Mon (matches weekHistory[0])
-    { idx:-5,  intake:2100, burned:180 }, // Tue
-    { idx:-4,  intake:1950, burned:450 }, // Wed
-    { idx:-3,  intake:2050, burned:290 }, // Thu
-    { idx:-2,  intake:1800, burned:380 }, // Fri
-    { idx:-1,  intake:2300, burned:200 }  // Sat
-    // idx 0 = today (live)
-  ],
+  monthHistory: [],
   
   // Food picker / food add state
   _pickerSearch: '',
@@ -8951,28 +8907,28 @@ const FitnessStats = {
   
   // Member fitness profile — chronAge/gender/city would flow from passport in production
   profile: {
-    chronAge: 35,
-    weight: 78,        // kg — used for strength-to-bodyweight calc
-    height: 178,       // cm
-    gender: 'male',    // 'male' / 'female'
-    city: 'Dubai'
+    chronAge: 0,
+    weight: 0,        // kg — used for strength-to-bodyweight calc
+    height: 0,       // cm
+    gender: '',    // 'male' / 'female'
+    city: ''
   },
   
   // Personal records. Each record: { value, date } or null if not logged.
   // Strength values in kg. Cardio values in SECONDS. VO2 in ml/kg/min.
   // Body fat in %. Visceral fat rating 1-20. Sleep avg in hours.
   records: {
-    bench1RM:    { value: 95,    date: '2025-02-14' },
-    squat1RM:    { value: 130,   date: '2025-01-22' },
-    deadlift1RM: { value: 165,   date: '2025-03-08' },
-    run5K:       { value: 1350,  date: '2025-03-15' },  // 22:30
-    run10K:      { value: 2895,  date: '2025-02-20' },  // 48:15
-    run21K:      { value: 6720,  date: '2024-11-12' },  // 1:52:00
-    runMara:     null,                                  // not logged
-    swim1K:      { value: 1380,  date: '2025-01-30' },  // 23:00 / km
-    vo2max:      { value: 48.5,  date: '2025-03-01' },
-    bodyFat:     { value: 16.2,  date: '2025-03-20' },
-    visceralFat: { value: 7,     date: '2025-03-20' }
+    bench1RM:    null,
+    squat1RM:    null,
+    deadlift1RM: null,
+    run5K:       null,
+    run10K:      null,
+    run21K:      null,
+    runMara:     null,
+    swim1K:      null,
+    vo2max:      null,
+    bodyFat:     null,
+    visceralFat: null
     // sleepAvgHrs is COMPUTED from sleepLogs below (v82)
   },
   
@@ -8980,20 +8936,20 @@ const FitnessStats = {
   // Key = daysAgo (0 = last night), value = hours slept (or null if not logged).
   // Production: GET /api/members/me/sleep-logs?days=30
   sleepLogs: {
-    1:  7.5,  // last night
-    2:  6.8,
-    3:  7.2,
-    4:  8.0,
-    5:  6.5,
-    6:  7.3,
-    7:  7.8,
-    8:  6.9,
-    9:  7.1,
-    10: 7.4,
-    11: 6.7,
-    12: 8.2,
-    13: 7.0,
-    14: 7.5
+    1:  null,
+    2:  null,
+    3:  null,
+    4:  null,
+    5:  null,
+    6:  null,
+    7:  null,
+    8:  null,
+    9:  null,
+    10: null,
+    11: null,
+    12: null,
+    13: null,
+    14: null
   },
   
   // Computed: rolling 7-day sleep average. Returns null if no recent logs.
@@ -9028,9 +8984,9 @@ const FitnessStats = {
   // Community percentile ranks (Top X%). Production: GET /api/community/rankings?stat=X&group=Y
   // Lower X = better. These are samples for the default 'age_gender' group.
   ranks: {
-    bench1RM: 22, squat1RM: 18, deadlift1RM: 12,
-    run5K: 35, run10K: 30, run21K: 28, runMara: null, swim1K: 40,
-    vo2max: 18, bodyFat: 25, visceralFat: 20, sleepAvgHrs: 22
+    bench1RM: null, squat1RM: null, deadlift1RM: null,
+    run5K: null, run10K: null, run21K: null, runMara: null, swim1K: null,
+    vo2max: null, bodyFat: null, visceralFat: null, sleepAvgHrs: null
   },
   
   // PR field definitions used by render + edit modal
@@ -9530,7 +9486,7 @@ const FitnessStats = {
   // ─────────── SLEEP LOG MODAL ───────────
   // v82 — Members log hours per night; the system computes the rolling 7-night average.
   _sleepEditDaysAgo: 1,
-  _sleepEditHours:   7.5,
+  _sleepEditHours:   0,
   
   openSleepLog() {
     this._sleepEditDaysAgo = 1;
@@ -9612,9 +9568,9 @@ function closeSleepLogIfBackdrop(e) { if (e.target.id === 'sleep-log-backdrop') 
 const Earnings = {
   // v87 — Real AED, tier system (Member/Supporter/Ambassador), 7 categories, 5 live ways to earn.
   
-  balance: 175,
+  balance: 0,
   pendingPayouts: 0,
-  tier: 'supporter',  // computed
+  tier: 'member',  // computed
   
   referralCode: '',
   
@@ -9661,13 +9617,13 @@ const Earnings = {
   },
   
   categories: [
-    { key: 'referrals', label: 'Members referred',     icon: 'group_add',      current: 3 },
-    { key: 'deals',     label: 'Deals claimed',         icon: 'local_offer',   current: 5 },
-    { key: 'events',    label: 'Events attended',       icon: 'event',         current: 4 },
-    { key: 'providers', label: 'Providers checked in',  icon: 'storefront',    current: 6 },
-    { key: 'logs',      label: 'Activities logged',     icon: 'fitness_center', current: 12 },
-    { key: 'meet',      label: 'Meet & Move sessions',  icon: 'group',         current: 2 },
-    { key: 'challenges',label: 'Challenges entered',    icon: 'whatshot',      current: 1 }
+    { key: 'referrals', label: 'Members referred',     icon: 'group_add',      current: 0 },
+    { key: 'deals',     label: 'Deals claimed',         icon: 'local_offer',   current: 0 },
+    { key: 'events',    label: 'Events attended',       icon: 'event',         current: 0 },
+    { key: 'providers', label: 'Providers checked in',  icon: 'storefront',    current: 0 },
+    { key: 'logs',      label: 'Activities logged',     icon: 'fitness_center', current: 0 },
+    { key: 'meet',      label: 'Meet & Move sessions',  icon: 'group',         current: 0 },
+    { key: 'challenges',label: 'Challenges entered',    icon: 'whatshot',      current: 0 }
   ],
   
   SUPPORTER_THRESHOLD: 2,          // need 2+ in a category to count toward Supporter
@@ -9675,7 +9631,7 @@ const Earnings = {
   AMBASSADOR_THRESHOLD: 8,         // need 8+ in a category to count toward Ambassador
   AMBASSADOR_CATEGORIES: 4,        // need 4 of 7 categories at Ambassador level
   
-  referralStats: { total: 3, earned: 150, pending: 1 },
+  referralStats: { total: 0, earned: 0, pending: 0 },
   
   // v90 — 5 ways to earn. Only "refer" is active in Phase 1; the rest are coming soon.
   ways: [
@@ -9724,14 +9680,7 @@ const Earnings = {
     }
   ],
   
-  transactions: [
-    { type: 'in',  amount: 50,  source: 'Referral: Sarah K. joined',      daysAgo: 2,  category: 'Referral reward' },
-    { type: 'in',  amount: 50,  source: 'Referral: Ahmed M. joined',      daysAgo: 8,  category: 'Referral reward' },
-    { type: 'out', amount: 100, source: 'Payout request — bank transfer', daysAgo: 14, category: 'Payout', status: 'paid' },
-    { type: 'in',  amount: 50,  source: 'Referral: Priya R. joined',      daysAgo: 21, category: 'Referral reward' },
-    { type: 'in',  amount: 25,  source: 'Referral: James W. joined',      daysAgo: 45, category: 'Referral reward (Member tier)' },
-    { type: 'out', amount: 100, source: 'Payout request — bank transfer', daysAgo: 60, category: 'Payout', status: 'paid' }
-  ],
+  transactions: [],
   
   _payoutAmount: 0,
   _openWay: null,
@@ -10077,27 +10026,15 @@ const Deals = {
   city: 'all',
   sort: 'location',
   search: '',
-  favourites: new Set(['d3']),  // demo: cryo recovery starts favourited
+  favourites: new Set(),
   claimed: new Set(),           // approved one-time-use claims
-  expandedProviders: new Set(['Ace Padel Club']),  // demo: PadelHaus expanded by default
+  expandedProviders: new Set(),
   
   // Active claim state
   _activeClaim: null,
   _claimTimer: null,
   
-  data: [
-    { id:'d1', venue:'Forge Fitness',          letter:'F', perk:'Train with a friend — they go free',           breakdown:'Bring a friend to any class — they train free, you keep your member rate. Limit 1 per session.', about:'Boutique S&C gym in JLT. Coaches lead small-group strength, conditioning and Hyrox-prep classes.', category:'Fitness',   area:'JLT, Dubai',          valid:'All week (off-peak preferred)', booking:'Walk-in or book via Forge app', limits:'1 guest per visit', frequency:'Unlimited', providerType:'Boutique Gym', service:'Group classes', city:'Dubai', verified:true, featured:true,  hot:true , img:'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&q=70' },
-    { id:'d2', venue:'Ace Padel Club',         letter:'A', perk:'Book a court, partner plays free',   breakdown:'Member books any off-peak court; your partner plays at no charge. Free racquet hire included.', about:'Premier padel club in Al Quoz — 6 indoor courts, coaching, league play.', category:'Sports',    area:'Al Quoz, Dubai',      valid:'Mon–Thu, 10am–4pm', booking:'Via ClubPadel app or +971 4 555 0123', limits:'No team-booking restriction', frequency:'Unlimited (off-peak)', providerType:'Padel Club', service:'Court hire', city:'Dubai', verified:true, featured:true,  hot:false, img:'https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=400&q=70' },
-    { id:'d2b', venue:'Ace Padel Club',         letter:'A', perk:'Member rate on 1-hour private coaching', breakdown:'Member-only rate on private coaching with any club pro. Save 25% on standard hourly rate. One session per month.', about:'Premier padel club in Al Quoz — 6 indoor courts, coaching, league play.', category:'Sports',    providerType:'Padel Club', service:'Private coaching', city:'Dubai', area:'Al Quoz, Dubai',      valid:'Mon–Fri, 10am–6pm', booking:'Via ClubPadel app', limits:'1 session per member per month', frequency:'Monthly', verified:true, featured:false, hot:false, img:'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=400&q=70' },
-    { id:'d3', venue:'Cryo Recovery DXB',      letter:'C', perk:'Free cryo session every month',       breakdown:'One complimentary 3-minute whole-body cryo session per calendar month. Show passport at front desk.', about:'Specialist recovery centre — whole-body cryotherapy, IV therapy, compression boots, lymphatic drainage.', category:'Wellness',  area:'Business Bay, Dubai', valid:'Once per calendar month', booking:'Walk-in or book online', limits:'1 session per member per month', frequency:'Monthly', providerType:'Recovery Centre', service:'Cryotherapy', city:'Dubai', verified:true, featured:true,  hot:true , img:'https://images.unsplash.com/photo-1599058917212-d750089bc07e?w=400&q=70' },
-    { id:'d4', venue:'Power Yoga Co.',         letter:'P', perk:'10-class pack + 10 bonus classes',            breakdown:'Buy a 10-class pack at AED 800; get 10 extra classes added on the house. Valid 6 months.', about:'Hot yoga and power flow studio with 3 Dubai locations.', category:'Wellness',  area:'JBR, Dubai',          valid:'Any class', booking:'Via Mindbody app', limits:'1 pack per quarter', frequency:'Quarterly', providerType:'Yoga Studio', service:'Class packs', city:'Dubai', verified:true, featured:false, hot:false, img:'https://images.unsplash.com/photo-1545205597-3d9d02c29597?w=400&q=70' },
-    { id:'d5', venue:'Hayya Padel',            letter:'H', perk:'Court hire + free partner play', breakdown:'Member books court; partner plays free + complimentary racquet hire (worth AED 50).', about:'8-court padel facility in Al Khawaneej — outdoor courts, café, pro shop.', category:'Sports',    area:'Al Khawaneej, Dubai', valid:'All week', booking:'Via PlayTomic', limits:'No restriction', frequency:'Unlimited', providerType:'Padel Club', service:'Court hire', city:'Dubai', verified:true, featured:false, hot:false, img:'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=400&q=70' },
-    { id:'d6', venue:'Reform Athletica',       letter:'R', perk:'5 reformer classes + 5 free',  breakdown:'Member-only intro: buy 5 reformer classes at AED 500, get 5 extra classes free (worth AED 500).', about:'Boutique reformer pilates studio in DIFC. Small classes (max 8), expert instructors.', category:'Fitness',   area:'DIFC, Dubai',         valid:'New customers only', booking:'Via Mindbody', limits:'One-time offer', frequency:'Once', providerType:'Pilates Studio', service:'Reformer classes', city:'Dubai', verified:true, featured:true,  hot:false, img:'https://images.unsplash.com/photo-1591291621164-2c6367723315?w=400&q=70' },
-    { id:'d7', venue:'Dubai Longevity Centre', letter:'D', perk:'IV therapy + free guest session', breakdown:'Book your IV therapy package quarterly; bring a guest to receive a free standard IV alongside you.', about:'Functional medicine and longevity clinic — IV therapy, hormone testing, sleep studies, nutrition coaching.', category:'Wellness',  area:'Jumeirah, Dubai',     valid:'Quarterly', booking:'Book via clinic reception', limits:'1 per quarter', frequency:'Quarterly', providerType:'Longevity Clinic', service:'IV therapy', city:'Dubai', verified:true, featured:true,  hot:true , img:'https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=400&q=70' },
-    { id:'d8', venue:'Hatta Mountain Reserve', letter:'H', perk:'Weekend entry — bring a +1 free',         breakdown:'Free park entry (worth AED 30) on Sat/Sun for you + one guest. Includes guided Hatta Trail hike monthly.', about:'Hatta Conservation Reserve — protected mountain reserve with trail running, hiking, mountain biking, kayaking.', category:'Adventure', area:'Hatta, Dubai',        valid:'Weekends', booking:'No booking — show passport at gate', limits:'No restriction', frequency:'Unlimited', providerType:'Conservation Reserve', service:'Hiking access', city:'Hatta', verified:true, featured:false, hot:false, img:'https://images.unsplash.com/photo-1547036967-23d11aacaee0?w=400&q=70' },
-    { id:'d9', venue:'The Yoga Studio JBR',    letter:'Y', perk:'Class pack + bonus pack',     breakdown:'Buy any class pack (5, 10 or 20 classes); receive a bonus pack of equal size at no extra cost.', about:'Yoga, breathwork, sound healing and meditation studio on the JBR beach walk.', category:'Wellness',  area:'JBR, Dubai',          valid:'All classes', booking:'Via studio app', limits:'First-class-free is one-time', frequency:'Unlimited (pack discount)', providerType:'Yoga Studio', service:'Class packs', city:'Dubai', verified:true, featured:false, hot:false, img:'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400&q=70' },
-    { id:'d10',venue:'Inertia Gym',            letter:'I', perk:'Day pass — bring a friend free',           breakdown:'Buy a day pass at AED 75; your friend joins on the same pass at no charge. Includes pool + classes.', about:'24/7 strength and conditioning gym with classes, pool, and recovery zone.', category:'Fitness',   area:'Al Wasl, Dubai',      valid:'Any day', booking:'Walk-in', limits:'No restriction', frequency:'Unlimited', providerType:'24/7 Gym', service:'Day pass', city:'Dubai', verified:true, featured:false, hot:false, img:'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=400&q=70' }
-  ],
+  data: [],
   
   init() {
     document.querySelectorAll('#deals-tabs .tabs-underline-btn').forEach(b => {
@@ -10450,19 +10387,9 @@ const Events = {
   city: 'all',
   cat: 'all',
   search: '',
-  rsvped: new Set(['e1','e4']),
+  rsvped: new Set(),
   
-  data: [
-    { id:'e1', title:'Sunrise Yoga at Kite Beach',     date:'Sat 12 Apr', time:'6:00 AM',  venue:'Kite Beach',           city:'Dubai',     organizer:'The Yoga Studio JBR', orgLetter:'Y', category:'Wellness',  spots:30, joined:18, cost:'Free for members',     daysAway:5,  setting:'Outdoor', parking:'Free parking along beach road', facilities:'Restrooms, showers, café next door', weather:'Cancelled in severe heat warning. Decision sent the day before.', intensity:'Low', about:'Slow Hatha flow facing the Burj Al Arab sunrise. Bring a towel and water — mats provided.', bring:'Towel, water bottle. Mats provided.', who:'Open to all levels, mixed group, ages 18+.', img:'https://images.unsplash.com/photo-1545205597-3d9d02c29597?w=400&q=70', verified:true },
-    { id:'e2', title:'Dubai Marina 10K',                date:'Sun 13 Apr', time:'6:30 AM',  venue:'Marina Walk',          city:'Dubai',     organizer:'Run Society UAE',     orgLetter:'R', category:'Sports',    spots:200,joined:142,cost:'AED 75',                daysAway:6,  setting:'Outdoor', parking:'Public parking at Marina Mall', facilities:'Water stations every 2.5km, finish-line photos', weather:'Cancelled in storms.', intensity:'High', about:'Flat, fast 10K loop along Marina Walk. Chip-timed with finish photos and a recovery brunch at the end.', bring:'Comfortable running shoes, hat, sunscreen. Race bib provided.', who:'All levels welcome. 50-min cut-off for closing course.', img:'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=400&q=70', verified:true },
-    { id:'e3', title:'F45 Open Workout — Bring a Friend',date:'Tue 15 Apr', time:'6:30 PM', venue:'F45 JLT',              city:'Dubai',     organizer:'F45 JLT',             orgLetter:'F', category:'Fitness',   spots:24, joined:24, cost:'Free for members',      daysAway:8,  setting:'Indoor', parking:'Underground parking at JLT cluster N', facilities:'Showers, towels, water', intensity:'High', about:'45-minute high-intensity team training. Bring a friend (non-member welcome).', bring:'Training shoes, water, towel.', who:'All levels. Modifications offered for beginners.', full:true, img:'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&q=70', verified:true },
-    { id:'e4', title:'Hatta Trail Hike',                date:'Sat 19 Apr', time:'5:30 AM', venue:'Hatta Reserve',        city:'Hatta',     organizer:'UAE Adventure Club',  orgLetter:'U', category:'Adventure', spots:20, joined:12, cost:'AED 150',               daysAway:12, setting:'Outdoor', parking:'At Hatta dam entrance', facilities:'No facilities on trail — bring everything', weather:'Cancelled in heavy rain.', intensity:'Moderate', about:'Guided 7km trail through Hatta Conservation Reserve. Moderate climb, sweeping mountain views.', bring:'Sturdy shoes, 2L water, hat, sunscreen, light snack.', who:'Reasonable fitness required. Not for absolute beginners.', img:'https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&q=70', verified:true },
-    { id:'e5', title:'Padel Tournament — Open Doubles', date:'Sat 26 Apr', time:'2:00 PM', venue:'Ace Padel Club',       city:'Dubai',     organizer:'Ace Padel Club',      orgLetter:'A', category:'Sports',    spots:32, joined:21, cost:'AED 100 per team',      daysAway:19, setting:'Indoor', parking:'Free on-site parking', facilities:'Pro shop, café, showers', intensity:'High', about:'8-team round-robin tournament. Mixed doubles. Prizes for top 3 teams.', bring:'Padel racquet (rental available), court shoes, water.', who:'Intermediate level recommended. Beginners can play but bracket is competitive.', img:'https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=400&q=70', verified:true },
-    { id:'e6', title:'Breathwork & Sound Healing',      date:'Sun 27 Apr', time:'7:00 PM', venue:'Dubai Longevity Centre',city:'Dubai',    organizer:'Layla M.',            orgLetter:'L', category:'Wellness',  spots:15, joined:9,  cost:'AED 85',                daysAway:20, setting:'Indoor', parking:'Valet at venue', facilities:'Mats provided, tea after', intensity:'Low', about:'90-minute breathwork journey with guided sound bath using crystal bowls and gongs.', bring:'Comfortable clothes, eye mask if you have one.', who:'All levels. Pregnant women please consult instructor first.', img:'https://images.unsplash.com/photo-1545389336-cf090694435e?w=400&q=70', verified:false },
-    { id:'e7', title:'Community Run + Coffee',          date:'Sat 5 Apr',  time:'6:00 AM', venue:'JBR Walk',             city:'Dubai',     organizer:'Run Society UAE',     orgLetter:'R', category:'Community', spots:50, joined:32, cost:'Free',                 daysAway:-2, setting:'Outdoor', parking:'Public lot 1 JBR', intensity:'Social', about:'5K social run. Pace groups for 5:00-7:30 per km. Coffee at Brewing Society after.', bring:'Just yourself.', who:'Open to all levels. Walkers welcome.', img:'https://images.unsplash.com/photo-1486218119243-13883505764c?w=400&q=70', verified:true },
-    { id:'e8', title:'Open Water Swim Practice',        date:'Sun 6 Apr',  time:'6:30 AM', venue:'Kite Beach',           city:'Dubai',     organizer:'Swim UAE',            orgLetter:'S', category:'Sports',    spots:25, joined:25, cost:'Free for members',      daysAway:-1, setting:'Outdoor', parking:'Free along beach road', intensity:'Moderate', about:'1km open-water swim practice with lifeguard support.', bring:'Wetsuit (optional), goggles, swim cap.', who:'Must be confident swimming 500m unaided.', full:true, img:'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=400&q=70', verified:true },
-    { id:'e9', title:'Family Fun Run — Yas Island',     date:'Sat 17 May', time:'5:00 PM', venue:'Yas Marina Circuit',   city:'Abu Dhabi', organizer:'Yas Sports Club',     orgLetter:'Y', category:'Community', spots:300,joined:84, cost:'AED 50 adults, kids free', daysAway:40, setting:'Outdoor', intensity:'Social', about:'5K family-friendly fun run on the F1 circuit. Kids 1km too.', bring:'Comfortable clothes, water.', who:'All ages. Kids under 12 with adult.', img:'https://images.unsplash.com/photo-1530143584546-02191bc84eb5?w=400&q=70', verified:true }
-  ],
+  data: [],
   
   init() {
     document.querySelectorAll('#events-tabs .tabs-underline-btn').forEach(b => {
@@ -10707,14 +10634,7 @@ const Experiences = {
   search: '',
   applied: new Set(),
   
-  data: [
-    { id:'x1', title:'Cape Town Trail Running Retreat', location:'Cape Town, South Africa', dates:'10–19 Oct 2026', duration:'9 nights', from:'AED 14,500', deposit:'AED 3,000', organizer:'FFP Travels',          orgLetter:'F', category:'Retreat',     spots:12, taken:8,  cover:'retreat',   img:'https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=400&q=70', verified:true,  fitness:'Intermediate', about:'9 days of coached trail running across Table Mountain, the Camps Bay coastline and Cape Point. Twin-share villa with ocean views. 6 coached runs, 2 strength sessions, ice-bath access, plus winelands and Cape Point day trips.', includes:[{cat:'Accommodation', text:'9 nights in Camps Bay villa, twin-share'},{cat:'Activities', text:'6 coached runs, 2 strength sessions, Table Mountain summit'},{cat:'Meals', text:'Daily breakfast, 5 group dinners, welcome braai'},{cat:'Transport', text:'Airport transfers, all training transport'}], notIncluded:'Flights, travel insurance, personal extras, optional safari day', who:'Runners doing 30+ km/week and confident on trail. Not for absolute beginners.' },
-    { id:'x2', title:'Bali Yoga & Surf Retreat',         location:'Canggu, Bali',             dates:'5–12 Nov 2026',  duration:'7 nights', from:'AED 11,800', deposit:'AED 2,500', organizer:'The Yoga Studio JBR', orgLetter:'Y', category:'Retreat',     spots:14, taken:14, cover:'retreat',   img:'https://images.unsplash.com/photo-1537953773345-d172ccf13cf1?w=400&q=70', verified:true,  fitness:'All levels',    about:'Daily Vinyasa, surf lessons (all levels welcome), sunrise meditation, breathwork. Private villa with pool, plant-based meals.', includes:[{cat:'Accommodation', text:'7 nights private villa, single rooms'},{cat:'Activities', text:'14 yoga classes, 5 surf lessons, daily meditation'},{cat:'Meals', text:'All meals plant-based, fresh-pressed juices'},{cat:'Wellness', text:'2 massages, sound bath, Ubud day trip'}], notIncluded:'Flights, visa, alcohol', who:'Yogis at any level. Surf experience not required.', full:true },
-    { id:'x3', title:'Hyrox Berlin 2026',                 location:'Berlin, Germany',          dates:'18–21 Sep 2026', duration:'3 nights', from:'AED 6,900',  deposit:'AED 1,500', organizer:'Forge Fitness',       orgLetter:'F', category:'Sports Event',spots:20, taken:11, cover:'sports',    img:'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=400&q=70', verified:true,  fitness:'Advanced',      about:'Compete in Hyrox Berlin with the Forge crew. Race entry, group training in the lead-up, race-day support, recovery sessions.', includes:[{cat:'Race', text:'Hyrox Berlin race entry (singles or doubles)'},{cat:'Accommodation', text:'3 nights central Berlin hotel'},{cat:'Coaching', text:'4 lead-up training sessions in Dubai'},{cat:'Recovery', text:'Post-race ice bath + sauna'}], notIncluded:'Flights, visa', who:'Members who train Hyrox-style 3+ x/week. Not for first-timers.' },
-    { id:'x4', title:'Patagonia Trekking Expedition',     location:'El Chaltén, Argentina',    dates:'2–14 Jan 2027',  duration:'12 nights',from:'AED 22,500', deposit:'AED 5,000', organizer:'UAE Adventure Club',  orgLetter:'U', category:'Adventure',   spots:8,  taken:3,  cover:'adventure', img:'https://images.unsplash.com/photo-1455156218388-5e61b526818b?w=400&q=70', verified:true,  fitness:'Elite',         about:'12-day expedition trekking the Patagonia ice field with experienced guides. Tents, lodges, dramatic landscapes.', includes:[{cat:'Guides', text:'Expert mountain guides, all equipment'},{cat:'Accommodation', text:'10 nights tents, 2 nights lodge'},{cat:'Meals', text:'All meals expedition-style'},{cat:'Permits', text:'All park permits and registrations'}], notIncluded:'Flights to El Calafate, personal gear (kit list provided)', who:'Experienced trekkers only. Must be able to carry 15kg pack 8 hours/day.' },
-    { id:'x5', title:'Padel Tournament & Training Camp',  location:'Marbella, Spain',          dates:'15–20 Oct 2026', duration:'5 nights', from:'AED 9,400',  deposit:'AED 2,000', organizer:'Ace Padel Club',      orgLetter:'A', category:'Sports Event',spots:16, taken:6,  cover:'sports',    img:'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=400&q=70', verified:true,  fitness:'Intermediate',  about:'5-day padel training camp ending in a friendly tournament. Daily coached sessions, beach recovery, evening tapas.', includes:[{cat:'Coaching', text:'4 hours daily coached padel'},{cat:'Accommodation', text:'5 nights Marbella beachfront hotel'},{cat:'Tournament', text:'Round-robin tournament entry'},{cat:'Meals', text:'Breakfast daily, 3 group dinners'}], notIncluded:'Flights, racquet rental (available)', who:'Members playing padel 1+ year, comfortable in doubles play.' },
-    { id:'x6', title:'Bhutan Mindfulness Trek',           location:'Paro, Bhutan',             dates:'8–18 Mar 2027',  duration:'10 nights',from:'AED 18,200', deposit:'AED 4,000', organizer:'Dubai Longevity Centre',orgLetter:'D', category:'Retreat',  spots:10, taken:2,  cover:'retreat',   img:'https://images.unsplash.com/photo-1543158266-0066955047b0?w=400&q=70', verified:false, fitness:'Intermediate',  about:'10-day mindfulness retreat in Bhutan combining temple visits, guided treks (4–8km/day), daily meditation and breathwork.', includes:[{cat:'Accommodation', text:'10 nights boutique lodges'},{cat:'Activities', text:'Daily guided meditation, 6 temple visits, 5 treks'},{cat:'Meals', text:'All meals — traditional Bhutanese'},{cat:'Permits', text:'Bhutan tourist permits included'}], notIncluded:'Flights, visa, gratuities', who:'All fitness levels welcome. Open mind required.' }
-  ],
+  data: [],
   
   init() {
     document.querySelectorAll('#xp-tabs .tabs-underline-btn').forEach(b => {
@@ -10950,63 +10870,9 @@ const MeetMove = {
   level: 'all',
   
   // Matched members (sample) — production: GET /api/meet/matches?member_id=me
-  matches: [
-    { id:'u2', name:'Sarah K.', letter:'S', age:'30s', gender:'female', city:'Dubai', match:92, joined:'2026-01-15', verified:true,
-      bio:'Runs 3x/wk · Berlin marathon · also yoga + HIIT', interests:['early morning workouts','coffee after'],
-      memberType:'public',
-      sports:[{name:'Running',level:'Advanced',shared:true},{name:'Yoga',level:'Intermediate',shared:true},{name:'HIIT',level:'Intermediate',shared:false}],
-      matchSports:[
-        {sport:'Running',icon:'directions_run',pct:96,points:[{l:'Level',v:'Both Intermediate–Advanced'},{l:'Group',v:'Any gender'},{l:'Age',v:'Both 30s'}]},
-        {sport:'Yoga',icon:'self_improvement',pct:88,points:[{l:'Level',v:'You Beginner, them Intermediate — close'},{l:'Group',v:'Any gender'},{l:'Age',v:'Both 30s'}]}
-      ],
-      matchOther:[{l:'Same city',v:'Dubai'},{l:'Shared interest',v:'Early morning workouts · coffee after'}],
-      trust:10.0, meetups:24, hosted:8 },
-    { id:'u1', name:'Mike H.', letter:'M', age:'30s', gender:'male', city:'Dubai', match:85, joined:'2026-01-15', verified:true,
-      bio:'Padel 2x/wk · ex-tennis · also enjoys hiking', interests:['coffee after','consistent partners'],
-      memberType:'public',
-      sports:[{name:'Padel',level:'Intermediate',shared:true},{name:'Tennis',level:'Intermediate',shared:false},{name:'Hiking',level:'Beginner',shared:true}],
-      matchSports:[
-        {sport:'Padel',icon:'sports_tennis',pct:96,points:[{l:'Level',v:'Both Intermediate'},{l:'Group',v:'Any gender'},{l:'Age',v:'Both 30s'}]},
-        {sport:'Hiking',icon:'hiking',pct:82,points:[{l:'Level',v:'Both Beginner'},{l:'Group',v:'Any gender'},{l:'Age',v:'Both 30s'}]}
-      ],
-      matchOther:[{l:'Same city',v:'Dubai'},{l:'Shared interest',v:'Coffee after sessions'}],
-      trust:9.8, meetups:18, hosted:5 },
-    { id:'u3', name:'Layla M.', letter:'L', age:'30s', gender:'female', city:'Dubai', match:79, joined:'2026-03-15', verified:false,
-      bio:'200-hr yoga teacher · outdoor sunrise sessions · also pilates + hiking', interests:['early morning workouts','outdoor','small groups'],
-      memberType:'professional', profession:'Yoga Instructor',
-      sports:[{name:'Yoga',level:'Professional',shared:true},{name:'Pilates',level:'Advanced',shared:false},{name:'Hiking',level:'Intermediate',shared:true}],
-      matchSports:[
-        {sport:'Yoga',icon:'self_improvement',pct:78,points:[{l:'Level',v:'You Beginner, them Professional — teaches all levels'},{l:'Group',v:'Ladies only'},{l:'Age',v:'Both 30s'}]},
-        {sport:'Hiking',icon:'hiking',pct:84,points:[{l:'Level',v:'You Beginner, them Intermediate — close'},{l:'Group',v:'Any gender'},{l:'Age',v:'Both 30s'}]}
-      ],
-      matchOther:[{l:'Same city',v:'Dubai'},{l:'Shared interest',v:'Outdoor, early morning'}],
-      trust:9.6, meetups:9, hosted:6 },
-    { id:'u5', name:'Ahmed B.', letter:'A', age:'20s', gender:'male', city:'Dubai', match:73, joined:'2025-12-15', verified:true,
-      bio:'V4 climber working V5 · patient with beginners · also calisthenics + trail running', interests:['outdoor','teaching newcomers'],
-      memberType:'public',
-      sports:[{name:'Bouldering',level:'Advanced',shared:false},{name:'Calisthenics',level:'Advanced',shared:false},{name:'Trail Run',level:'Intermediate',shared:true}],
-      matchSports:[{sport:'Trail Run',icon:'directions_run',pct:91,points:[{l:'Level',v:'Both Intermediate'},{l:'Group',v:'Any gender'},{l:'Age',v:'Yours 30s, theirs 20s'}]}],
-      matchOther:[{l:'Same city',v:'Dubai'},{l:'Shared interest',v:'Outdoor sessions'}],
-      trust:9.7, meetups:12, hosted:4 },
-    { id:'u4', name:'Daniel R.', letter:'D', age:'30s', gender:'male', city:'Dubai', match:61, joined:'2025-05-15', verified:true,
-      bio:'CrossFit 5x/wk · also road cycling + boxing · early morning sessions', interests:['early morning workouts'],
-      memberType:'public',
-      sports:[{name:'CrossFit',level:'Advanced',shared:false},{name:'F45',level:'Intermediate',shared:false},{name:'Boxing',level:'Intermediate',shared:false}],
-      matchSports:[],
-      matchOther:[{l:'Same city',v:'Dubai'},{l:'Shared interest',v:'Early morning workouts'},{l:'Age',v:'Both 30s'}],
-      trust:9.9, meetups:15, hosted:3 }
-  ],
+  matches: [],
   
-  data: [
-    { id:'m1', activity:'Padel doubles — need a 4th',     cat:'racquet',    icon:'sports_tennis',   host:'Mike H.',    hostInitial:'M', hostTrust:9.8,  when:'Sat · 5 Apr · 7:00 AM',  whenSlot:'this-weekend',venue:'Ace Padel Club',     area:'Al Quoz',     capacity:4, joined:3, level:'Intermediate', gender:'any',   cost:'AED 75 split',          joinedByMe:true,  about:'Regular Sunday hit — three of us play every week. Looking for a fourth.', img:'https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=400&q=70' },
-    { id:'m2', activity:'Saturday Kite Beach 5K',         cat:'running',    icon:'directions_run',  host:'Sarah K.',   hostInitial:'S', hostTrust:10.0, when:'Sat · 5 Apr · 6:00 AM',  whenSlot:'this-weekend',venue:'Kite Beach',         area:'Umm Suqeim',  capacity:8, joined:4, level:'Beginner',     gender:'any',   cost:'Free',                  joinedByMe:true,  about:'Easy 5K. Conversational pace, walk-jog welcome. Coffee at Bru Box after.', img:'https://images.unsplash.com/photo-1502904550040-7534597429ae?w=400&q=70' },
-    { id:'m3', activity:'Sunrise yoga at Zabeel Park',    cat:'mind-body',  icon:'self_improvement',host:'Layla M.',   hostInitial:'L', hostTrust:9.6,  when:'Sun · 6 Apr · 6:30 AM',  whenSlot:'this-weekend',venue:'Zabeel Park, Gate 2',area:'Zabeel',      capacity:6, joined:1, level:'Beginner',     gender:'women', cost:'Free — bring a mat',    joinedByMe:false, about:'Slow vinyasa, breath-led, no music. 200-hr RYT teacher.', img:'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400&q=70' },
-    { id:'m4', activity:'F45 JLT 6:30 — gym buddy',       cat:'fitness',    icon:'fitness_center',  host:'Ahmed F.',   hostInitial:'A', hostTrust:9.4,  when:'Tue · 8 Apr · 6:30 PM',  whenSlot:'this-week',   venue:'F45 JLT',            area:'JLT',         capacity:2, joined:0, level:'Intermediate', gender:'any',   cost:'Pay direct to F45',     joinedByMe:false, about:'Need an accountability partner for Tue/Thu class.', img:'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=400&q=70' },
-    { id:'m5', activity:'Open water swim — 1km loop',     cat:'swimming',   icon:'pool',            host:'Hassan A.',  hostInitial:'H', hostTrust:9.6,  when:'Fri · 11 Apr · 6:00 AM', whenSlot:'next-week',   venue:'Kite Beach',         area:'Umm Suqeim',  capacity:6, joined:2, level:'Advanced',     gender:'any',   cost:'Free',                  joinedByMe:false, about:'1km open-water loop. Confidence required.', img:'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=400&q=70' },
-    { id:'m6', activity:'Hatta trail hike — moderate',    cat:'adventure',  icon:'hiking',          host:'Nina P.',    hostInitial:'N', hostTrust:9.9,  when:'Sat · 12 Apr · 5:30 AM', whenSlot:'next-week',   venue:'Hatta dam start',    area:'Hatta',       capacity:8, joined:8, level:'Intermediate', gender:'any',   cost:'AED 30 per car',        joinedByMe:false, full:true, about:'7km loop, moderate climb. Carpool from Mirdif.', img:'https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&q=70' },
-    { id:'m7', activity:'Pilates reformer buddies',        cat:'mind-body',  icon:'self_improvement',host:'Reem T.',    hostInitial:'R', hostTrust:9.7,  when:'Mon · 7 Apr · 7:00 PM',  whenSlot:'this-week',   venue:'Reform Athletica',   area:'DIFC',        capacity:3, joined:1, level:'Beginner',     gender:'women', cost:'AED 95 per class',      joinedByMe:false, about:'Looking for 2 women to take reformer class together — small studio.', img:'https://images.unsplash.com/photo-1591291621164-2c6367723315?w=400&q=70' },
-    { id:'m8', activity:'Boxing rounds — sparring 5x5',    cat:'combat',     icon:'sports_mma',      host:'Omar D.',    hostInitial:'O', hostTrust:9.3,  when:'Wed · 9 Apr · 7:30 PM',  whenSlot:'this-week',   venue:'Lions Boxing',       area:'Al Quoz',     capacity:4, joined:2, level:'Intermediate', gender:'men',   cost:'AED 50 mat fee',        joinedByMe:false, about:'Sparring rounds — full kit and 16oz gloves. Be a real intermediate.', img:'https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=400&q=70' }
-  ],
+  data: [],
   hostingIds: new Set(),
   
   init() {
@@ -11378,242 +11244,9 @@ const Challenges = {
   type: 'all',
   sport: 'all',
   search: '',
-  joined: new Set(['c1','m2']),
+  joined: new Set(),
   
-  data: [
-    // PROVIDER CHALLENGES
-    {
-      id:'c1', kind:'provider',
-      img:'https://images.unsplash.com/photo-1502904550040-7534597429ae?w=400&q=70',
-      title:'5K Sunrise Time Trial',
-      desc:'Beat your best 5K time on the JBR Beach loop. Single attempt counts.',
-      rules:'Run the marked 5K loop at JBR Beach. Submit your GPS-recorded time at the front desk — staff uploads to the leaderboard. Best time wins.',
-      organizer:'Run Society UAE', organizerLetter:'R', organizerVerified:true,
-      cat:'running', sport:'Running', icon:'directions_run',
-      metric:'Fastest time (mm:ss)',
-      venue:'JBR Beach', city:'Dubai',
-      startDate:'1 Mar 2026', endDate:'31 Mar 2026',
-      dateBadge:{top:'MAR',mid:'31',bot:'2026'},
-      daysLeft:12, status:'active',
-      prize:'Free month at Run Society + branded race kit',
-      participants:47,
-      leaderboard:[
-        { rank:1, name:'Sarah K.',  letter:'S', score:'18:42', verified:true, submitted:'15 Mar' },
-        { rank:2, name:'Mike H.',   letter:'M', score:'19:15', verified:true, submitted:'20 Mar' },
-        { rank:3, name:'Alex P.',   letter:'A', score:'19:48', verified:true, submitted:'12 Mar' },
-        
-        { rank:5, name:'Ahmed B.',  letter:'A', score:'20:30', verified:true, submitted:'14 Mar' },
-        { rank:6, name:'Layla M.',  letter:'L', score:'21:14', verified:true, submitted:'10 Mar' }
-      ]
-    },
-    {
-      id:'c2', kind:'provider',
-      img:'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&q=70',
-      title:'Forge 30-Day Challenge',
-      desc:'Most Forge classes attended in 30 days.',
-      rules:'Attend Forge Fitness classes during the challenge window. Coach checks you in. Total classes count.',
-      organizer:'Forge Fitness', organizerLetter:'F', organizerVerified:true,
-      cat:'fitness', sport:'Fitness', icon:'fitness_center',
-      metric:'Most classes attended',
-      venue:'Forge Fitness JLT', city:'Dubai',
-      endDate:'15 Apr 2026',
-      dateBadge:{top:'APR',mid:'15',bot:'2026'},
-      daysLeft:24, status:'active',
-      prize:'3-month unlimited Forge pass (AED 1,800 value)',
-      participants:62,
-      leaderboard:[
-        { rank:1, name:'Daniel R.', letter:'D', score:'22 classes', verified:true, submitted:'auto' },
-        { rank:2, name:'Priya V.',  letter:'P', score:'19 classes', verified:true, submitted:'auto' },
-        { rank:3, name:'Khalid A.', letter:'K', score:'17 classes', verified:true, submitted:'auto' }
-      ]
-    },
-    {
-      id:'c3', kind:'provider',
-      img:'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=400&q=70',
-      title:'Ace Padel Ladder',
-      desc:'Most match wins on Ace Padel courts this month.',
-      rules:'Play any booked match at Ace Padel. Front desk logs match wins. Top of the ladder at month end takes the prize.',
-      organizer:'Ace Padel Club', organizerLetter:'A', organizerVerified:true,
-      cat:'racquet', sport:'Padel', icon:'sports_tennis',
-      metric:'Match wins',
-      venue:'Ace Padel Club', city:'Dubai',
-      endDate:'30 Apr 2026',
-      dateBadge:{top:'APR',mid:'30',bot:'2026'},
-      daysLeft:39, status:'active',
-      prize:'Pair of Bullpadel racquets + 10-court session pack',
-      participants:34,
-      leaderboard:[
-        { rank:1, name:'Faisal R.', letter:'F', score:'14 wins', verified:true, submitted:'auto' },
-        { rank:2, name:'Maya L.',   letter:'M', score:'11 wins', verified:true, submitted:'auto' }
-      ]
-    },
-    {
-      id:'c4', kind:'provider',
-      img:'https://images.unsplash.com/photo-1599058917212-d750089bc07e?w=400&q=70',
-      title:'Cryo 30 Days',
-      desc:'Most cryo sessions in 30 days.',
-      rules:'Attend cryo sessions at Cryo Recovery DXB. Each session logged. Most sessions wins.',
-      organizer:'Cryo Recovery DXB', organizerLetter:'C', organizerVerified:true,
-      cat:'wellness', sport:'Wellness', icon:'spa',
-      metric:'Most sessions',
-      venue:'Cryo Recovery DXB', city:'Dubai',
-      endDate:'20 Apr 2026',
-      dateBadge:{top:'APR',mid:'20',bot:'2026'},
-      daysLeft:29, status:'active',
-      prize:'10-session cryo pack + recovery kit',
-      participants:18,
-      leaderboard:[
-        { rank:1, name:'Hannah W.', letter:'H', score:'12 sessions', verified:true, submitted:'auto' }
-      ]
-    },
-    {
-      id:'c5', kind:'provider',
-      img:'https://images.unsplash.com/photo-1547036967-23d11aacaee0?w=400&q=70',
-      title:'Hatta Trail King',
-      desc:'Fastest known time on the 7km Hatta loop.',
-      rules:'Run, hike or mix on the marked Hatta Conservation Reserve 7km trail. Submit GPS time at gate. Best single attempt wins.',
-      organizer:'Hatta Reserve', organizerLetter:'H', organizerVerified:true,
-      cat:'adventure', sport:'Hiking', icon:'hiking',
-      metric:'Fastest time',
-      venue:'Hatta Reserve', city:'Hatta',
-      endDate:'31 May 2026',
-      dateBadge:{top:'MAY',mid:'31',bot:'2026'},
-      daysLeft:71, status:'active',
-      prize:'Full Salomon trail kit (shoes + pack + jacket)',
-      participants:12,
-      leaderboard:[
-        { rank:1, name:'Theo B.',   letter:'T', score:'42:18', verified:true, submitted:'5 Apr' },
-        { rank:2, name:'Ines M.',   letter:'I', score:'46:55', verified:true, submitted:'8 Apr' }
-      ]
-    },
-    
-    // MEMBER CHALLENGES
-    {
-      id:'m1', kind:'member',
-      img:'https://images.unsplash.com/photo-1486218119243-13883505764c?w=400&q=70',
-      title:'Marina Bridge Crossings',
-      desc:'Most crossings of the Marina pedestrian bridge in 7 days. Run, bike or walk — your call.',
-      rules:'Track your crossings between 1–7 April. Submit total at end. Verification optional — have another FFP member confirm to add the verified badge.',
-      organizer:'Layla M.', organizerLetter:'L', organizerType:'member',
-      cat:'running', sport:'Running', icon:'route',
-      metric:'Most crossings',
-      venue:'Marina Bridge', city:'Dubai',
-      endDate:'7 Apr 2026',
-      dateBadge:{top:'APR',mid:'7',bot:'2026'},
-      daysLeft:16, status:'active',
-      prize:'Bragging rights + recovery shake from host',
-      participants:18,
-      leaderboard:[
-        { rank:1, name:'Layla M.',  letter:'L', score:'24 crossings', verified:true,  submitted:'22 Mar' },
-        { rank:2, name:'Ahmed B.',  letter:'A', score:'19 crossings', verified:true,  submitted:'21 Mar' },
-        { rank:3, name:'Priya V.',  letter:'P', score:'17 crossings', verified:false, submitted:'20 Mar' },
-        { rank:4, name:'Sarah K.',  letter:'S', score:'15 crossings', verified:true,  submitted:'19 Mar' }
-      ]
-    },
-    {
-      id:'m2', kind:'member',
-      img:'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400&q=70',
-      title:'Sunrise Yoga Streak',
-      desc:'Most consecutive sunrise yoga sessions logged.',
-      rules:'Log your daily yoga session before 7am. Photo or screenshot from your tracker submitted with score. Verification by another member adds verified badge.',
-      organizer:'Sarah K.', organizerLetter:'S', organizerType:'member',
-      cat:'mind-body', sport:'Yoga', icon:'self_improvement',
-      metric:'Longest streak (days)',
-      venue:'Any location', city:'Dubai',
-      endDate:'30 Apr 2026',
-      dateBadge:{top:'APR',mid:'30',bot:'2026'},
-      daysLeft:39, status:'active',
-      prize:'Lululemon yoga mat + breathwork book',
-      participants:11,
-      leaderboard:[
-        { rank:1, name:'Sarah K.',  letter:'S', score:'21 days', verified:true,  submitted:'21 Mar' },
-        { rank:2, name:'Grant G.',  letter:'G', score:'14 days', verified:false, submitted:'18 Mar', isMe:true },
-        { rank:3, name:'Layla M.',  letter:'L', score:'9 days',  verified:true,  submitted:'15 Mar' }
-      ]
-    },
-    {
-      id:'m3', kind:'member',
-      img:'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&q=70',
-      title:'Wildest Workout Photo',
-      desc:'Best photo of the most unusual workout location. Beach yoga, desert HIIT, rooftop runs — get creative.',
-      rules:'Post your workout photo with location tag. Members vote with thumbs up. Top votes wins.',
-      organizer:'Mike H.', organizerLetter:'M', organizerType:'member',
-      cat:'fitness', sport:'Multi-sport', icon:'photo_camera',
-      metric:'Most votes',
-      venue:'Anywhere', city:'Anywhere',
-      endDate:'15 Apr 2026',
-      dateBadge:{top:'APR',mid:'15',bot:'2026'},
-      daysLeft:24, status:'active',
-      prize:'GoPro Hero 12 from sponsor',
-      participants:24,
-      leaderboard:[
-        { rank:1, name:'Ahmed B.',  letter:'A', score:'42 votes', verified:true,  submitted:'18 Mar' },
-        { rank:2, name:'Mike H.',   letter:'M', score:'31 votes', verified:false, submitted:'15 Mar' }
-      ]
-    },
-    {
-      id:'m4', kind:'member',
-      img:'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=400&q=70',
-      title:'Padel Doubles Tour',
-      desc:'Most doubles matches played with different partners. Build the FFP padel network.',
-      rules:'Play padel matches with different FFP members. Each unique partner counts. Submit list of partners at end.',
-      organizer:'Faisal R.', organizerLetter:'F', organizerType:'member',
-      cat:'racquet', sport:'Padel', icon:'sports_tennis',
-      metric:'Most unique partners',
-      venue:'Any club', city:'Dubai',
-      endDate:'30 Apr 2026',
-      dateBadge:{top:'APR',mid:'30',bot:'2026'},
-      daysLeft:39, status:'active',
-      prize:'New padel racquet of choice',
-      participants:9,
-      leaderboard:[
-        { rank:1, name:'Faisal R.', letter:'F', score:'8 partners', verified:true,  submitted:'20 Mar' },
-        { rank:2, name:'Theo B.',   letter:'T', score:'5 partners', verified:false, submitted:'17 Mar' }
-      ]
-    },
-    
-    // PAST CHALLENGES
-    {
-      id:'p1', kind:'provider',
-      title:'February Yoga 30',
-      desc:'30 days of daily yoga at The Yoga Studio JBR.',
-      rules:'Logged at front desk per visit.',
-      organizer:'The Yoga Studio JBR', organizerLetter:'Y', organizerVerified:true,
-      cat:'mind-body', sport:'Yoga', icon:'self_improvement',
-      metric:'Most classes',
-      venue:'The Yoga Studio JBR', city:'Dubai',
-      endDate:'28 Feb 2026',
-      dateBadge:{top:'FEB',mid:'28',bot:'2026'},
-      daysLeft:-22, status:'past',
-      prize:'10-class pack',
-      participants:38,
-      leaderboard:[
-        { rank:1, name:'Hannah W.', letter:'H', score:'28 classes', verified:true,  submitted:'auto' },
-        { rank:2, name:'Sarah K.',  letter:'S', score:'25 classes', verified:true,  submitted:'auto' },
-        { rank:3, name:'Maya L.',   letter:'M', score:'22 classes', verified:true,  submitted:'auto' }
-      ]
-    },
-    {
-      id:'p2', kind:'member',
-      title:'First Quarter Cycling Distance',
-      desc:'Most km cycled Jan–Mar 2026.',
-      rules:'Strava-verified totals. Submit at end of Mar.',
-      organizer:'Daniel R.', organizerLetter:'D', organizerType:'member',
-      cat:'cycling', sport:'Cycling', icon:'directions_bike',
-      metric:'Total distance',
-      venue:'Anywhere', city:'Dubai',
-      endDate:'31 Mar 2026',
-      dateBadge:{top:'MAR',mid:'31',bot:'2026'},
-      daysLeft:-1, status:'past',
-      prize:'Castelli kit set',
-      participants:22,
-      leaderboard:[
-        { rank:1, name:'Daniel R.', letter:'D', score:'1,420 km', verified:true,  submitted:'31 Mar' },
-        { rank:2, name:'Theo B.',   letter:'T', score:'1,150 km', verified:true,  submitted:'31 Mar' },
-        { rank:3, name:'Ahmed B.',  letter:'A', score:'980 km',   verified:false, submitted:'31 Mar' }
-      ]
-    }
-  ],
+  data: [],
   
   init() {
     document.querySelectorAll('#chal-tabs .tabs-underline-btn').forEach(b => {
@@ -11831,10 +11464,6 @@ const Challenges = {
           <label class="submit-score-label">Verification (optional)</label>
           <select id="ss-verify">
             <option value="none">Submit unverified — counts as unverified entry</option>
-            <option value="sarah">Have Sarah K. verify</option>
-            <option value="mike">Have Mike H. verify</option>
-            <option value="layla">Have Layla M. verify</option>
-            <option value="ahmed">Have Ahmed B. verify</option>
           </select>
           <div class="submit-score-hint">Verified entries are marked with a green badge on the leaderboard. The chosen member confirms your result before it locks in.</div>
         </div>
@@ -11857,8 +11486,8 @@ const Challenges = {
     const newRank = c.leaderboard.length + 1;
     c.leaderboard.push({
       rank: newRank,
-      name: 'Grant G.',
-      letter: 'G',
+      name: '',
+      letter: '',
       score,
       verified,
       submitted: 'Just now',
@@ -12272,12 +11901,12 @@ function init() {
 // 4. Browser/iOS automatically opens "Add to Apple Wallet" prompt
 function addToAppleWallet() {
   const memberData = {
-    memberID: 'F1206250001',
-    firstName: 'GRANT',
-    lastName: 'HERMANUS',
-    nationality: 'SOUTH AFRICAN',
-    issueDate: '2024-05-23',
-    expiryDate: '2030-12-31'
+    memberID: '',
+    firstName: '',
+    lastName: '',
+    nationality: '',
+    issueDate: '',
+    expiryDate: ''
   };
   
   // PRODUCTION: Replace with actual endpoint
@@ -12294,9 +11923,9 @@ function addToAppleWallet() {
 // 3. Redirect to Google's save link
 function addToGoogleWallet() {
   const memberData = {
-    memberID: 'F1206250001',
-    firstName: 'GRANT',
-    lastName: 'HERMANUS'
+    memberID: '',
+    firstName: '',
+    lastName: ''
   };
   
   // PRODUCTION: Replace with actual endpoint
