@@ -1,5 +1,28 @@
 <!-- ════════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v101
+     FFP MEMBER DASHBOARD — v104
+     v104 changes (from v103, 2026-05-29):
+     - Passport card COUNTRY now reads from this.data.country (the
+       country the member entered in Profile → Location → Country),
+       not a hardcoded "United Arab Emirates". Falls back to "—" if
+       blank, so a fresh signup still shows the placeholder instead
+       of an empty space.
+     v103 changes (from v102, 2026-05-29):
+     - Passport card TYPE renders as single letter (M / S / A) mapped
+       from tier (Member / Supporter / Ambassador). Defaults to 'M'.
+     - Passport card COUNTRY renders full country name
+       ("United Arab Emirates" — FFP is UAE-issued).
+     v102 changes (from v101, 2026-05-29):
+     - Passport card 5-field fix: TYPE / COUNTRY / PASSPORT NO. /
+       ISSUE DATE / EXPIRY DATE were all rendering as "—" for a
+       signed-in member because (a) TYPE & COUNTRY divs had no
+       data-field attrs and the memberPassport object had no slots,
+       (b) the passport-number div had no data-field attr, and (c)
+       the v100 hydration block did not populate issueDate or
+       expiryDate. v102 adds the data-field attrs (type / passportCountry /
+       passportNumber), extends memberPassport with type+passportCountry,
+       updates syncToPassport to drive both, and hydrates issueDate
+       from members.created_at + expiryDate as +1 year. Tier defaults
+       to "MEMBER" if blank so TYPE is never empty.
      v101 changes (from v100, 2026-05-28 late evening):
      - Profile panel: DOB single date input replaced with 3 dropdowns
        (Day/Month/Year) — mirrors profile-complete v11. dobDay/dobMonth/
@@ -3839,7 +3862,7 @@ input[type="number"] {
         <div class="pass-worldwide">WORLDWIDE</div>
         <div class="pass-top-right">
           <div class="pass-top-label">PASSPORT NO.</div>
-          <div class="pass-passnum">—</div>
+          <div class="pass-passnum" data-field="passportNumber">—</div>
         </div>
       </div>
       
@@ -3847,11 +3870,11 @@ input[type="number"] {
       <div class="pass-type-row">
         <div>
           <div class="pass-mini-label">TYPE</div>
-          <div class="pass-mini-val">—</div>
+          <div class="pass-mini-val" data-field="type">—</div>
         </div>
         <div>
           <div class="pass-mini-label">COUNTRY</div>
-          <div class="pass-mini-val">—</div>
+          <div class="pass-mini-val" data-field="passportCountry">—</div>
         </div>
       </div>
       
@@ -6263,7 +6286,9 @@ const memberPassport = {
   issueDate: '',
   expiryDate: '',
   expiryMRZ: '',  // YYMMDD
-  passportNumber: ''
+  passportNumber: '',
+  type: 'M',                                   // v103: M=Member · S=Supporter · A=Ambassador
+  passportCountry: ''                          // v104: filled from this.data.country in syncToPassport
 };
 
 // Function to apply passport data to the card (called on profile update)
@@ -7288,6 +7313,11 @@ const MemberProfile = {
     memberPassport.issueDate      = this.data.issueDate;
     memberPassport.expiryDate     = this.data.expiryDate;
     memberPassport.passportNumber = this.data.passportNumber;
+    // v103: TYPE shows as single letter — M / S / A (Member / Supporter / Ambassador).
+    // Any unknown / blank tier defaults to 'M'.
+    var t = (this.data.tier || 'Member').toString().trim().toLowerCase();
+    memberPassport.type = (t === 'supporter') ? 'S' : (t === 'ambassador') ? 'A' : 'M';
+    memberPassport.passportCountry = this.data.country || '—';                     // v104: member's listed country
     
     if (typeof applyPassportData === 'function') applyPassportData();
     if (typeof renderQR === 'function')          renderQR();
@@ -11977,6 +12007,9 @@ function init() {
           memberSince:      m.created_at ? String(m.created_at).slice(0, 10) : '',
           passportNumber:   m.passport_no || '',
           verified:         !!m.verified,
+          issueDate:        m.created_at ? String(m.created_at).slice(0, 10) : '',
+          expiryDate:       m.created_at ? (() => { const d = new Date(m.created_at); d.setFullYear(d.getFullYear() + 1); return d.toISOString().slice(0, 10); })() : '',
+          tier:             m.tier || 'Member',
         });
       }
     }
