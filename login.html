@@ -1,9 +1,31 @@
+<!--
+═══════════════════════════════════════════════════════════════════════
+  FFP PASSPORT — login.html v3
+  ───────────────────────────────────────────────────────────────────────
+  v3 changes (2026-05-28): two literal text edits per Grant —
+    - signin email-screen subtitle: "Enter your email address then your
+      6-digit code." → "Enter your email address to receive your 6-digit
+      code."
+    - signin email-screen button: "Continue" → "Get My Code"
+  v2 change (2026-05-28): added the Supabase SDK CDN script tag in <head>,
+  BEFORE assets/ffp-api-integration.js. Without it, window.supabase is
+  undefined when FFPApi.requestCode runs → the request silently bails,
+  no /api/auth/reset call is made, no code email is sent, but the UI
+  still advances to the "Enter Your Code" screen because the JS doesn't
+  surface the failure. This was confirmed by DevTools showing 0 Fetch/XHR
+  requests after clicking Continue, plus the console warning:
+    [FFP] Supabase SDK not found — ensure the CDN script tag loads BEFORE
+    ffp-api-integration.js
+═══════════════════════════════════════════════════════════════════════
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
 <title>FFP Passport</title>
+<!-- v2: Supabase SDK loaded FIRST so window.supabase exists when ffp-api-integration.js runs -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/ffp-api-integration.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -67,7 +89,6 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 <div class="logo-sub">Find Fit People</div>
 </div>
 <div class="wrap">
-
 <!-- SCREEN 1: PORTAL SELECT -->
 <div class="screen active" id="screen-portal">
 <div style="font-size:11px;font-weight:800;color:#6a90a8;letter-spacing:2px;text-transform:uppercase;text-align:center;margin-bottom:20px;">Sign in as</div>
@@ -97,7 +118,6 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 <hr class="divider">
 <div class="link-row">New member? <a onclick="goToSignUp()">Become A Member</a></div>
 </div>
-
 <!-- SCREEN 2: SIGN IN (email) -->
 <div class="screen" id="screen-signin-email">
 <button class="btn-back" onclick="goTo('screen-portal')">
@@ -106,17 +126,16 @@ Back
 </button>
 <div class="screen-badge" id="signin-badge"></div>
 <div class="screen-title">Sign In</div>
-<div class="screen-sub">Enter your email address then your 6-digit code.</div>
+<div class="screen-sub">Enter your email address to receive your 6-digit code.</div>
 <div class="field">
 <div class="field-label">Email Address</div>
 <input class="field-input" type="email" id="signin-email" placeholder="you@email.com" autocomplete="email">
 </div>
-<button class="btn-primary" id="signin-email-btn" onclick="requestCode('signin')">Continue</button>
+<button class="btn-primary" id="signin-email-btn" onclick="requestCode('signin')">Get My Code</button>
 <div class="error-msg" id="signin-email-err"></div>
 <hr class="divider">
 <div class="link-row">No account yet? <a onclick="goToSignUp()">Become A Member</a></div>
 </div>
-
 <!-- SCREEN 3: ENTER CODE (sign in) -->
 <div class="screen" id="screen-signin-code">
 <button class="btn-back" onclick="goTo('screen-signin-email')">
@@ -138,14 +157,12 @@ Back
 <div class="error-msg" id="signin-code-err"></div>
 <div class="resend-row">Lost or forgot your code? <a onclick="goTo('screen-reset')">Get new code</a></div>
 </div>
-
 <!-- SCREEN 4: BECOME A MEMBER -->
 <div class="screen" id="screen-signup">
 <button class="btn-back" onclick="goTo('screen-portal')">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
 Back
 </button>
-
 <!-- HERO IMAGE -->
 <div style="position:relative;margin-bottom:14px;border-radius:14px;overflow:hidden;aspect-ratio:16/10;background:linear-gradient(135deg,#0e5a7a 0%,#1980AD 60%,#081420 100%);">
   <img src="assets/group-of-5.jpg" alt="FFP Passport community" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.style.display='none'">
@@ -156,7 +173,6 @@ Back
     <div style="font-size:12px;color:#cfe4ee;margin-top:6px;font-weight:500;">Meet people. Move together.</div>
   </div>
 </div>
-
 <!-- CTA -->
 <a href="https://buy.stripe.com/test_bJe5kCaiO3ESgEs4jV3Nm00" class="btn-primary" style="display:flex;align-items:center;justify-content:center;text-decoration:none;gap:8px;">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
@@ -166,8 +182,6 @@ Become A Member &mdash; AED 499
 Secure payment via Stripe. Access code emailed after checkout.<br>
 Once-off payment &middot; Full access until 31 Dec 2026 &middot; 2027 renewal at then-current rate.
 </div>
-
-
 <!-- BULLET LIST -->
 <div style="margin-bottom:22px;margin-top:24px;">
   <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
@@ -179,7 +193,6 @@ Once-off payment &middot; Full access until 31 Dec 2026 &middot; 2027 renewal at
       <div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Active people who share your sports and lifestyle</div>
     </div>
   </div>
-
   <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
     <div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -189,7 +202,6 @@ Once-off payment &middot; Full access until 31 Dec 2026 &middot; 2027 renewal at
       <div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Meet &amp; Move matching, local groups, member meet-ups</div>
     </div>
   </div>
-
   <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
     <div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -199,7 +211,6 @@ Once-off payment &middot; Full access until 31 Dec 2026 &middot; 2027 renewal at
       <div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Regular FFP events and gatherings across the UAE</div>
     </div>
   </div>
-
   <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
     <div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -209,7 +220,6 @@ Once-off payment &middot; Full access until 31 Dec 2026 &middot; 2027 renewal at
       <div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Group experiences and overseas trips</div>
     </div>
   </div>
-
   <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
     <div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -219,7 +229,6 @@ Once-off payment &middot; Full access until 31 Dec 2026 &middot; 2027 renewal at
       <div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Compete, win prizes, climb the city rankings</div>
     </div>
   </div>
-
   <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
     <div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -229,7 +238,6 @@ Once-off payment &middot; Full access until 31 Dec 2026 &middot; 2027 renewal at
       <div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Earn status by supporting the community</div>
     </div>
   </div>
-
   <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
     <div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -239,7 +247,6 @@ Once-off payment &middot; Full access until 31 Dec 2026 &middot; 2027 renewal at
       <div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Workout timer, calorie tracker and personal stats</div>
     </div>
   </div>
-
   <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
     <div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -250,17 +257,14 @@ Once-off payment &middot; Full access until 31 Dec 2026 &middot; 2027 renewal at
     </div>
   </div>
 </div>
-
 <!-- PRICE -->
 <div style="text-align:center;padding:18px 0;border-top:1px solid rgba(43,168,224,.15);border-bottom:1px solid rgba(43,168,224,.15);margin-bottom:20px;">
   <div style="font-size:34px;font-weight:900;color:#fff;line-height:1;letter-spacing:-.5px;">AED 499</div>
   <div style="font-size:11px;color:#9dbdd0;margin-top:8px;font-weight:600;letter-spacing:.3px;">2026 Full Access</div>
 </div>
-
 <hr class="divider">
 <div class="link-row">Already paid? <a onclick="goTo('screen-portal')">Sign in with your code</a></div>
 </div>
-
 <!-- SCREEN 5: ENTER CODE (sign up) -->
 <div class="screen" id="screen-signup-code">
 <button class="btn-back" onclick="goTo('screen-signup')">
@@ -281,7 +285,6 @@ Back
 <div class="error-msg" id="signup-code-err"></div>
 <div class="resend-row">Didn&rsquo;t receive it? <a onclick="requestCode('signup')">Resend code</a></div>
 </div>
-
 <!-- SCREEN 6: RESET CODE -->
 <div class="screen" id="screen-reset">
 <button class="btn-back" onclick="goTo('screen-signin-email')">
@@ -297,7 +300,6 @@ Back
 <button class="btn-primary" onclick="requestCode('reset')">Send New Code</button>
 <div class="error-msg" id="reset-err"></div>
 </div>
-
 <!-- SCREEN 7: CODE SENT CONFIRMATION -->
 <div class="screen" id="screen-sent">
 <div style="text-align:center;padding:20px 0;">
@@ -310,26 +312,21 @@ Back
 <button class="btn-primary" id="sent-btn" onclick="">Done</button>
 </div>
 </div>
-
 </div>
 </div>
-
 <script>
 var selectedPortal = 'member';
 var currentFlow = 'signin';
-
 var portalColors = {
   member:   { btn:'#2ba8e0', badge:'color:#2ba8e0;', label:'Member Sign In' },
   provider: { btn:'#22c55e', badge:'color:#22c55e;', label:'Partner Sign In' },
   admin:    { btn:'#facc15;color:#081420', badge:'color:#facc15;', label:'Admin Sign In' }
 };
-
 var destinations = {
   member:   'ffp-member-dashboard.html',
   provider: 'ffp-provider.html',
   admin:    'ffp-admin.html'
 };
-
 function handleAuthRedirect(response) {
   if (response.member && !response.member.profile_complete) {
     sessionStorage.setItem('member_id', response.member.id);
@@ -339,19 +336,16 @@ function handleAuthRedirect(response) {
     window.location.href = destinations[role] || destinations.member;
   }
 }
-
 function selectPortal(el, portal) {
   document.querySelectorAll('.portal-card').forEach(function (c) { c.classList.remove('selected'); });
   el.classList.add('selected');
   selectedPortal = portal;
 }
-
 function goTo(screenId) {
   document.querySelectorAll('.screen').forEach(function (s) { s.classList.remove('active'); });
   document.getElementById(screenId).classList.add('active');
   window.scrollTo(0, 0);
 }
-
 function setBadge(elId, portal) {
   var el = document.getElementById(elId);
   if (!el) return;
@@ -361,7 +355,6 @@ function setBadge(elId, portal) {
     '" stroke-width="2" width="18" height="18"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>' +
     '<span class="screen-badge-label" style="' + p.badge + '">' + p.label + '</span>';
 }
-
 function goToSignIn() {
   setBadge('signin-badge', selectedPortal);
   setBadge('signin-code-badge', selectedPortal);
@@ -370,17 +363,14 @@ function goToSignIn() {
   currentFlow = 'signin';
   goTo('screen-signin-email');
 }
-
 function goToSignUp() {
   currentFlow = 'signup';
   goTo('screen-signup');
 }
-
 function showError(elId, msg) {
   var el = document.getElementById(elId);
   if (el) el.textContent = msg || '';
 }
-
 function setBusy(btnId, busy, normalLabel) {
   var b = document.getElementById(btnId);
   if (!b) return;
@@ -392,7 +382,6 @@ function setBusy(btnId, busy, normalLabel) {
     b.textContent = normalLabel || b.dataset.label || b.textContent;
   }
 }
-
 async function requestCode(flow) {
   var emailEl = document.getElementById(flow + '-email') || document.getElementById('signin-email');
   var email = emailEl ? emailEl.value.trim() : '';
@@ -401,18 +390,15 @@ async function requestCode(flow) {
     return;
   }
   if (emailEl) emailEl.style.borderColor = '';
-
   var errIds = { signin: 'signin-email-err', signup: 'signup-err', reset: 'reset-err' };
   var btnIds = { signin: 'signin-email-btn', signup: 'signup-btn' };
   showError(errIds[flow], '');
   if (btnIds[flow]) setBusy(btnIds[flow], true);
-
   var fullName = null;
   if (flow === 'signup') {
     var nameEl = document.getElementById('signup-name');
     fullName = nameEl ? nameEl.value.trim() : '';
   }
-
   try {
     var res = await FFPApi.requestCode(email, fullName, flow);
     if (res && res.error) {
@@ -440,26 +426,22 @@ async function requestCode(flow) {
     if (btnIds[flow]) setBusy(btnIds[flow], false);
   }
 }
-
 async function verifyCode(flow) {
   var wrapId = flow === 'signup' ? 'screen-signup-code' : 'screen-signin-code';
   var digits = document.querySelectorAll('#' + wrapId + ' .code-digit');
   var code = '';
   digits.forEach(function (d) { code += d.value; });
-
   if (code.length < 6) {
     digits.forEach(function (d) { d.style.borderColor = '#ef4444'; });
     setTimeout(function () { digits.forEach(function (d) { d.style.borderColor = ''; }); }, 800);
     return;
   }
-
   var emailEl = document.getElementById(flow === 'signup' ? 'signup-email' : 'signin-email');
   var email = emailEl ? emailEl.value.trim() : '';
   var errId = flow === 'signup' ? 'signup-code-err' : 'signin-code-err';
   var btnId = flow === 'signup' ? 'signup-code-btn' : 'signin-code-btn';
   showError(errId, '');
   setBusy(btnId, true);
-
   try {
     var res = await FFPApi.verifyCode(email, code, flow);
     if (res && res.error) {
@@ -475,7 +457,6 @@ async function verifyCode(flow) {
     setBusy(btnId, false);
   }
 }
-
 function moveNext(el, pos, flow) {
   el.value = el.value.replace(/[^0-9]/g, '');
   if (el.value && pos < 6) {
@@ -484,7 +465,6 @@ function moveNext(el, pos, flow) {
     if (next) next.focus();
   }
 }
-
 function movePrev(e, el, flow) {
   if (e.key === 'Backspace' && !el.value) {
     var wrap = el.closest('.code-wrap');
@@ -493,7 +473,6 @@ function movePrev(e, el, flow) {
     if (idx > 0) d[idx - 1].focus();
   }
 }
-
 // NEW IN THIS VERSION: route to signup screen if URL has #signup hash
 // (so the landing page Become A Member CTA lands directly on the signup view)
 document.addEventListener('DOMContentLoaded', function () {
