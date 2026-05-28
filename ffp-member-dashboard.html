@@ -1,5 +1,17 @@
 <!-- ════════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v105
+     FFP MEMBER DASHBOARD — v106
+     v106 changes (from v105, 2026-05-29):
+     - Wires the first member loader: ffp-earnings-loader.js. Adds a
+       single <script> tag after ffp-api-integration. The loader reads
+       payouts + transactions + referrals tables via window.supabase
+       (now JWT-authenticated thanks to v105+v7-of-integration). On the
+       Earnings panel it injects: a full "Your Payouts" section with
+       status pills (pending → approved → paid / rejected), summary
+       stats, time filters (this month / last month / 6mo / 1yr / all),
+       receipt buttons for paid payouts, and reorganises the panel
+       into the v10-target layout (Refer → How tiers/Ways → Progression
+       → Your Payouts → Earnings log). Empty for new members until they
+       refer their first signup — that's correct behaviour.
      v105 changes (from v104, 2026-05-29):
      - JWT bridge frontend half. Loads Supabase JS SDK + ffp-api-integration
        v5 so window.supabase exists and v5's autoInit can call
@@ -106,6 +118,10 @@
      afterwards sees auth.uid() === member.id and RLS works. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/ffp-api-integration.js"></script>
+<!-- v106: First member loader wired. Earnings panel gets the full
+     Payouts section + reorganised layout. RLS-authenticated via the
+     JWT bridge (v6/v7 of ffp-api-integration). -->
+<script src="assets/ffp-earnings-loader.js"></script>
 
 <style>
 :root {
