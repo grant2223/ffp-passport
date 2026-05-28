@@ -1,9 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   FFP PASSPORT LOADER (v4)
-   ───────────────────────────────────────────────────────────────────────
-   v4 changes:
-   - TYPE field now shows single letter: M (Member), S (Supporter), A (Ambassador)
-   - All previous v3 features retained
+  FFP PASSPORT LOADER (v5)
+   v5: Adds ffp_member localStorage fallback for FFP custom auth (members + Stripe onboard)
 ═══════════════════════════════════════════════════════════════════════ */
 
 (function () {
@@ -74,31 +71,41 @@
     }
 
     try {
-      // Check session — redirect to login if not signed in
+      // Check session — try Supabase Auth first, then fall back to ffp_member cache (custom auth)
+      let member = null;
       const sessionRes = await window.supabase.auth.getSession();
-      if (!sessionRes.data || !sessionRes.data.session) {
-        console.warn('[FFP Passport Loader] No active session — redirecting to login.');
-        window.location.href = 'login.html';
-        return;
-      }
 
-      const uid = sessionRes.data.session.user.id;
+      if (sessionRes.data && sessionRes.data.session) {
+        // Supabase Auth path — fetch member row from DB
+        const uid = sessionRes.data.session.user.id;
+        const memberRes = await window.supabase
+          .from('members')
+          .select('*')
+          .eq('id', uid)
+          .single();
 
-      // Fetch member row
-      const memberRes = await window.supabase
-        .from('members')
-        .select('*')
-        .eq('id', uid)
-        .single();
+        if (memberRes.error) {
+          console.error('[FFP Passport Loader] Could not load member:', memberRes.error);
+          return;
+        }
+        member = memberRes.data;
+        if (!member) {
+          console.warn('[FFP Passport Loader] No member row found for uid:', uid);
+          return;
+        }
+      } else {
+        // FFP custom auth fallback — use ffp_member from localStorage
+        try {
+          const cached = localStorage.getItem('ffp_member');
+          if (cached) member = JSON.parse(cached);
+        } catch (e) {}
 
-      if (memberRes.error) {
-        console.error('[FFP Passport Loader] Could not load member:', memberRes.error);
-        return;
-      }
-      const member = memberRes.data;
-      if (!member) {
-        console.warn('[FFP Passport Loader] No member row found for uid:', uid);
-        return;
+        if (!member || !member.id) {
+          console.warn('[FFP Passport Loader] No active session — redirecting to login.');
+          window.location.href = 'login.html';
+          return;
+        }
+        console.log('[FFP Passport Loader] Using ffp_member from localStorage (custom auth path)');
       }
 
       // Build the updated passport object
