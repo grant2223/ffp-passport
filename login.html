@@ -1,7 +1,15 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-  FFP PASSPORT — login.html v3
+  FFP PASSPORT — login.html v4
   ───────────────────────────────────────────────────────────────────────
+  v4 changes (2026-05-28 evening): TWO frontend redirect fixes
+  (backend v11 alone wasn't enough — frontend overrides backend redirect):
+    - destinations map URLs corrected:
+        provider: 'ffp-provider.html'  → 'ffp-provider-dashboard.html'
+        admin:    'ffp-admin.html'     → 'ffp-admin-dashboard.html'
+    - handleAuthRedirect() mirrors backend v11: only members need
+      profile_complete=true before dashboard. Admins and providers go
+      straight to their dashboard (they aren't created via Stripe).
   v3 changes (2026-05-28): two literal text edits per Grant —
     - signin email-screen subtitle: "Enter your email address then your
       6-digit code." → "Enter your email address to receive your 6-digit
@@ -324,17 +332,20 @@ var portalColors = {
 };
 var destinations = {
   member:   'ffp-member-dashboard.html',
-  provider: 'ffp-provider.html',
-  admin:    'ffp-admin.html'
+  provider: 'ffp-provider-dashboard.html',
+  admin:    'ffp-admin-dashboard.html'
 };
 function handleAuthRedirect(response) {
-  if (response.member && !response.member.profile_complete) {
+  if (!response.member) return;
+  var role = response.member.role;
+  // v4: only members need profile_complete=true before dashboard.
+  // Admins/providers go straight to their dashboard.
+  if (role === 'member' && !response.member.profile_complete) {
     sessionStorage.setItem('member_id', response.member.id);
     window.location.href = 'ffp-profile-complete.html?id=' + response.member.id;
-  } else {
-    var role = response.member.role;
-    window.location.href = destinations[role] || destinations.member;
+    return;
   }
+  window.location.href = destinations[role] || destinations.member;
 }
 function selectPortal(el, portal) {
   document.querySelectorAll('.portal-card').forEach(function (c) { c.classList.remove('selected'); });
