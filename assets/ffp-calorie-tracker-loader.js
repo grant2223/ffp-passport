@@ -1,4 +1,9 @@
-/* FFP Calorie Tracker Loader — v2
+/* FFP Calorie Tracker Loader — v3
+   v3 (2026-05-29) clean-build refactor: uses FFPAuth.getMember()
+   instead of window.supabase.auth.getUser(). FFP custom-auth
+   members have no auth.users row — getUser would fail. JWT still
+   carries auth.uid() for RLS via the Bearer header.
+   
    Wires CalorieTracker module in ffp-member-dashboard.html to Supabase.
    Reads:  profile_meta (goal), activity_logs (today + 29 days back), food_logs (today + 29 days back)
    Writes: confirmAddActivity, removeActivity, confirmAdd, removeItem, saveGoalConfig
@@ -131,12 +136,17 @@
     injectStyles();
 
     try {
-      var userRes = await window.supabase.auth.getUser();
-      if (userRes.error || !userRes.data || !userRes.data.user) {
-        console.log('[FFP Calorie Tracker] No user — keeping sample');
+      // Read current member from FFP custom auth (FFPAuth.getMember).
+      // We don't use supabase.auth.getUser() — FFP members live in the
+      // `members` table only and have no auth.users row. RLS still
+      // sees auth.uid() correctly because the JWT is set as a Bearer
+      // header on the Supabase client by ffp-api-integration v8.
+      var member = window.FFPAuth && window.FFPAuth.getMember();
+      if (!member || !member.id) {
+        console.log('[FFP Calorie Tracker] No FFP member — keeping sample');
         return;
       }
-      currentUserId = userRes.data.user.id;
+      currentUserId = member.id;
 
       // 1. Goal from profile_meta
       var pm = await window.supabase
