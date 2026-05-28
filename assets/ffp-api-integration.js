@@ -1,5 +1,14 @@
 /* =============================================================
-   FFP Passport — API Integration Module (v6)
+   FFP Passport — API Integration Module (v8)
+   v8 (2026-05-29) — CLEAN BUILD. The v7 monkey-patch on
+       window.supabase.auth.getUser has been REMOVED. Loaders now
+       explicitly call window.FFPAuth.getMember() instead of pretending
+       to be in a Supabase Auth session. The architecture is now
+       explicit: FFP has its own auth abstraction (FFPAuth), loaders
+       use it directly, Supabase is the database layer accessed via
+       JWT-authenticated queries. This pattern translates 1:1 to native
+       iOS/Android (their FFPAuth equivalent holds member, loaders
+       consume same shape). No shim, no lying to library code.
    v6 (2026-05-29) — FIX: setSession was failing with "Auth session
        missing" because Supabase Auth's setSession validates that the
        user exists in auth.users — but our custom-auth members live in
@@ -49,6 +58,7 @@
   // with the client instance. We need it to rebuild the client later when
   // a JWT arrives (the client instance doesn't have createClient on it).
   var SUPABASE_SDK = null;
+
   if (window.supabase && window.supabase.createClient) {
     SUPABASE_SDK = window.supabase;
     try {
@@ -108,10 +118,10 @@
             headers: { Authorization: 'Bearer ' + jwt }
           }
         });
-        console.log('[FFP v6] Supabase client rebuilt with JWT — auth.uid() will resolve to member.id in RLS');
+        console.log('[FFP v8] Supabase client rebuilt with JWT — auth.uid() will resolve to member.id in RLS');
         return Promise.resolve({ success: true });
       } catch (e) {
-        console.error('[FFP v6] Failed to rebuild client with JWT:', e);
+        console.error('[FFP v8] Failed to rebuild client with JWT:', e);
         return Promise.resolve({ error: e });
       }
     },
