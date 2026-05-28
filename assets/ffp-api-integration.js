@@ -1,5 +1,21 @@
 /* =============================================================
-   FFP Passport — API Integration Module (v4)
+   FFP Passport — API Integration Module (v5)
+   v5 (2026-05-29) — JWT BRIDGE for Supabase RLS:
+       Backend v13 now returns a Supabase-compatible HS256 JWT in
+       signin and onboard responses. v5 of this module:
+         - Stores the jwt in localStorage.ffp_jwt alongside ffp_token
+           and ffp_member
+         - Calls window.supabase.auth.setSession({access_token: jwt,
+           refresh_token: ''}) so auth.uid() returns member.id inside
+           Postgres
+         - autoInit re-applies the session on every page load (so a
+           reloaded dashboard doesn't lose its Supabase Auth context)
+         - ffpLogout clears the jwt AND calls supabase.auth.signOut
+       Effect: every existing RLS policy (member_id = auth.uid() OR
+       is_admin()) now evaluates correctly for custom-auth members.
+       Loaders can hit Supabase directly without per-call backend
+       round-trips. provider_hours RLS bug (task #32) also fixes.
+
    Backend: https://ffp-passport-backend.vercel.app
    Endpoints: /api/auth/signup, /api/auth/signin, /api/auth/reset
    v4: SIGNIN flow now calls /api/auth/reset (generates + emails a
@@ -31,6 +47,7 @@
   var API_BASE = 'https://ffp-passport-backend.vercel.app';
   var TOKEN_KEY = 'ffp_token';
   var MEMBER_KEY = 'ffp_member';
+  var JWT_KEY    = 'ffp_jwt';      // v5: Supabase-compatible HS256 JWT for RLS auth.uid()
   var FFPAuth = {
     getToken: function () {
       try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; }
@@ -47,11 +64,49 @@
     setMember: function (member) {
       try { localStorage.setItem(MEMBER_KEY, JSON.stringify(member)); } catch (e) {}
     },
+    // v5: JWT bridge helpers
+    getJwt: function () {
+      try { return localStorage.getItem(JWT_KEY); } catch (e) { return null; }
+    },
+    setJwt: function (jwt) {
+      try { localStorage.setItem(JWT_KEY, jwt || ''); } catch (e) {}
+    },
+    // v5: Apply the stored JWT as a Supabase Auth session so auth.uid()
+    // resolves to member.id inside Postgres. Safe to call multiple times —
+    // setSession is idempotent. Returns a promise that resolves once the
+    // session is set (or immediately if no JWT or no SDK is available).
+    applySupabaseSession: function () {
+      var jwt = this.getJwt();
+      if (!jwt) return Promise.resolve(null);
+      if (!window.supabase || !window.supabase.auth || !window.supabase.auth.setSession) {
+        console.warn('[FFP v5] Cannot apply Supabase session — supabase client not initialised');
+        return Promise.resolve(null);
+      }
+      return window.supabase.auth.setSession({
+        access_token: jwt,
+        refresh_token: ''
+      }).then(function (result) {
+        if (result && result.error) {
+          console.warn('[FFP v5] supabase.auth.setSession returned error:', result.error.message);
+        } else {
+          console.log('[FFP v5] Supabase session applied — auth.uid() now equals member.id');
+        }
+        return result;
+      }).catch(function (e) {
+        console.warn('[FFP v5] supabase.auth.setSession threw:', e);
+        return null;
+      });
+    },
     clear: function () {
       try {
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(MEMBER_KEY);
+        localStorage.removeItem(JWT_KEY);  // v5
       } catch (e) {}
+      // v5: also sign out of Supabase Auth so any in-flight queries lose their session
+      if (window.supabase && window.supabase.auth && window.supabase.auth.signOut) {
+        try { window.supabase.auth.signOut(); } catch (e) {}
+      }
     },
     isAuthenticated: function () {
       return !!this.getToken();
@@ -111,9 +166,28 @@
         if (res && res.token) {
           FFPAuth.setToken(res.token);
           if (res.member) FFPAuth.setMember(res.member);
+          // v5: store JWT + apply Supabase session before resolving so the
+          // page that called verifyCode can immediately use window.supabase
+          // with the correct auth.uid().
+          if (res.jwt) {
+            FFPAuth.setJwt(res.jwt);
+            return FFPAuth.applySupabaseSession().then(function () { return res; });
+          }
         }
         return res;
       });
+    },
+    // v5: helper for profile-complete and any other page that calls
+    // /api/onboard/from-stripe directly (not via verifyCode). Pass the
+    // response object — if it has a jwt, we persist + apply the session.
+    applyOnboardResponse: function (res) {
+      if (!res) return Promise.resolve(res);
+      if (res.member) FFPAuth.setMember(res.member);
+      if (res.jwt) {
+        FFPAuth.setJwt(res.jwt);
+        return FFPAuth.applySupabaseSession().then(function () { return res; });
+      }
+      return Promise.resolve(res);
     },
     getMemberProfile: function () { return call('/api/members/me'); },
     getDeals: function (filters) {
@@ -133,6 +207,13 @@
     alert(msg);
   }
   function autoInit() {
+    // v5: Re-apply Supabase Auth session on every page load — without this,
+    // a reloaded dashboard would have no auth.uid() and every RLS-protected
+    // query would silently fail. Fires asynchronously; loaders that run
+    // before this resolves will retry (they already poll for window.supabase).
+    if (FFPAuth.getJwt()) {
+      FFPAuth.applySupabaseSession();
+    }
     var path = window.location.pathname.toLowerCase();
     if (path.indexOf('ffp-member-dashboard') !== -1) {
       if (!FFPAuth.isAuthenticated()) return;
