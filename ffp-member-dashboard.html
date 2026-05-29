@@ -3952,7 +3952,17 @@ input[type="number"] {
 #panel-quests .qc-reward .material-icons{ font-size:14px; }
 #panel-quests .qc-foot-val{ font-size:11.5px; font-weight:800; color:var(--q-yellow); white-space:nowrap; }
 /* Quest detail (rendered inside the shared detail modal) */
-.q-cover{ height:140px; border-radius:14px; margin-bottom:16px; background-size:cover; background-position:center; background-color:rgba(43,168,224,0.12); }
+.q-cover{ height:150px; border-radius:16px; margin-bottom:18px; position:relative; overflow:hidden; background-size:cover; background-position:center; background-color:rgba(43,168,224,0.12); }
+.q-cover.cov-fitness{ background-image:linear-gradient(135deg,#ff6b4a,#b23a1c); }
+.q-cover.cov-sports{ background-image:linear-gradient(135deg,#2ba8e0,#155e85); }
+.q-cover.cov-wellness{ background-image:linear-gradient(135deg,#36c5b0,#0d6b5f); }
+.q-cover.cov-recovery{ background-image:linear-gradient(135deg,#8b7cf0,#4c2c9c); }
+.q-cover.cov-adventure{ background-image:linear-gradient(135deg,#f5a623,#a85e08); }
+.q-cover.cov-food{ background-image:linear-gradient(135deg,#4ade80,#15803d); }
+.q-cover-pill{ position:absolute; top:12px; left:12px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:#fff; background:rgba(0,0,0,0.45); border-radius:20px; padding:5px 12px; }
+.q-cover-spon{ position:absolute; left:0; right:0; bottom:0; display:flex; align-items:center; gap:8px; padding:9px 12px; background:linear-gradient(0deg,rgba(0,0,0,0.7),transparent); }
+.q-cover-spon .ss-logo{ width:22px; height:22px; border-radius:6px; background:#0b0b0b; color:var(--q-yellow,#FFCC00); display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:900; border:1px solid rgba(255,255,255,0.25); }
+.q-cover-spon .ss-txt{ font-size:10.5px; font-weight:700; color:#fff; }
 .q-spon-row{ display:flex; align-items:center; gap:10px; margin-bottom:14px; }
 .q-spon-row .spon-by{ font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.6px; color:var(--q-muted); }
 .q-spon-row .spon-name{ font-size:13px; font-weight:800; color:var(--q-text); }
@@ -10459,12 +10469,14 @@ const Quests = {
     const pc = (detail && detail.progress) ? (detail.progress.completed_count || 0) : this._pc(q);
     const scopeCap = (q.scope || '').charAt(0).toUpperCase() + (q.scope || '').slice(1);
     const isPrize = q.reward_type === 'prize';
-    const cover = q.hero_image_url
-      ? 'background-image:linear-gradient(180deg,rgba(8,20,32,0.30) 40%,rgba(8,20,32,0.85)),url(\'' + q.hero_image_url + '\');'
+    const catCover = (this.CAT[q.category] && this.CAT[q.category].cover) || '';
+    const coverPill = '<span class="q-cover-pill">' + scopeCap + ' · ' + escHtml(q.category || '') + '</span>';
+    const coverSpon = q.sponsors
+      ? '<div class="q-cover-spon"><span class="ss-logo">' + escHtml(q.sponsors.logo || '') + '</span><span class="ss-txt">Brought to you by ' + escHtml(q.sponsors.name || '') + '</span></div>'
       : '';
-    const sponsorRow = q.sponsors
-      ? '<div class="q-spon-row"><span class="ss-logo">' + escHtml(q.sponsors.logo || '') + '</span><div><div class="spon-by">Brought to you by</div><div class="spon-name">' + escHtml(q.sponsors.name || '') + '</div></div></div>'
-      : '';
+    const coverDiv = q.hero_image_url
+      ? '<div class="q-cover" style="background-image:linear-gradient(180deg,rgba(8,20,32,0.20),rgba(8,20,32,0.55)),url(\'' + q.hero_image_url + '\');">' + coverPill + coverSpon + '</div>'
+      : '<div class="q-cover ' + catCover + '">' + coverPill + coverSpon + '</div>';
     const venuesHtml = venues.length
       ? venues.map(v => '<div class="q-venue"><span class="material-icons">place</span> ' + escHtml((v.providers && v.providers.business_name) || 'Venue') + '</div>').join('')
       : '<div class="q-venue muted">Venues announced soon.</div>';
@@ -10473,10 +10485,8 @@ const Quests = {
       : 'Complete all ' + q.target_count + ' to earn your stamp — it counts toward your next tier.';
     const html =
       '<div class="q-detail">' +
-        (cover ? '<div class="q-cover" style="' + cover + '"></div>' : '') +
+        coverDiv +
         '<div class="q-detail-body">' +
-          sponsorRow +
-          '<div class="q-scope-pill">' + scopeCap + ' · ' + escHtml(q.category || '') + '</div>' +
           '<h3 class="q-title">' + escHtml(q.title) + '</h3>' +
           '<p class="q-desc">' + escHtml(q.description || '') + '</p>' +
           '<div class="q-reward-box ' + (isPrize ? 'prize' : 'stamp') + '">' +
@@ -10486,7 +10496,6 @@ const Quests = {
           '<div class="q-progress">' + pc + ' of ' + q.target_count + ' stamped</div>' +
           '<div class="qc-stamps big">' + this.dots(pc, q.target_count) + '</div>' +
           '<div class="q-venues-title">Where to go</div>' + venuesHtml +
-          '<button class="btn-primary-yellow q-qr-btn" onclick="closeDetailModal(); var b=document.querySelector(&quot;.nav-item[data-panel=\'panel-passport\']&quot;); if(b) b.click();"><span class="material-icons">qr_code_2</span> Show my QR to check in</button>' +
         '</div>' +
       '</div>';
     openDetailModal(html);
@@ -12113,6 +12122,6 @@ else init();
 setTimeout(scalePassportCard, 50);
 setTimeout(scalePassportCard, 200);
 </script>
-<script src="ffp-member-quest-scan-loader-v1.js"></script>
+<script src="ffp-member-quest-scan-loader.js"></script>
 </body>
 </html>
