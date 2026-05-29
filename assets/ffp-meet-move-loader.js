@@ -1,4 +1,5 @@
-/* FFP Meet & Move Loader — v5
+/* FFP Meet & Move Loader — v6
+   v6 (2026-05-29): re-inject Your circle after every panel render so it can't be wiped.
    v5 (2026-05-29):
    - YOUR CIRCLE: shows members you've connected with (accepted) + incoming
      connect requests (Accept / Ignore). From a connection: "Invite to a meet-up".
@@ -14,6 +15,7 @@
   var currentUserId = null;
   var wrapped = false;
   var circleData = { friends: [], incoming: [] };
+  var renderWrapped = false;
 
   function esc(s) {
     if (typeof window.escHtml === 'function') return window.escHtml(s);
@@ -148,6 +150,13 @@
     reload: loadConnections
   };
 
+  function wrapRender() {
+    if (renderWrapped || typeof MeetMove === 'undefined' || typeof MeetMove.render !== 'function') return;
+    renderWrapped = true;
+    var origRender = MeetMove.render.bind(MeetMove);
+    MeetMove.render = function () { origRender(); try { renderCircle(); } catch (e) {} };
+  }
+
   async function loadFromSupabase() {
     if (!window.supabase || typeof MeetMove === 'undefined') {
       if (retries < MAX_RETRIES) { retries++; setTimeout(loadFromSupabase, 200); }
@@ -158,6 +167,7 @@
       var member = window.FFPAuth && window.FFPAuth.getMember();
       if (!member || !member.id) { console.log('[FFP Meet & Move] No FFP member'); return; }
       currentUserId = member.id;
+      wrapRender();
 
       await loadMatches();
       await loadConnections();
