@@ -4280,7 +4280,7 @@ input[type="number"] {
   <div id="panel-quests" class="panel-view">
     <div class="user-panel-head">
       <h2>Quests</h2>
-      <div class="user-panel-sub">Collect stamps as you go — solo or with a friend. Take on City, Country and Global quests, and win prizes from our partners.</div>
+      <div class="user-panel-sub">Go on a solo or partner quest discovering top services in the region.</div>
     </div>
 
     <!-- HERO + TIER -->
@@ -4322,7 +4322,7 @@ input[type="number"] {
   <div id="panel-events" class="panel-view">
     <div class="user-panel-head">
       <h2>Events</h2>
-      <div class="user-panel-sub">Classes, races and community activations organised by FFP partners. RSVP to hold your spot — the organiser manages the guest list.</div>
+      <div class="user-panel-sub">Attend sessions, races and community activations nearby.</div>
     </div>
     
     <!-- Tabs — text with underline -->
@@ -4370,7 +4370,7 @@ input[type="number"] {
   <div id="panel-experiences" class="panel-view">
     <div class="user-panel-head">
       <h2>Experiences</h2>
-      <div class="user-panel-sub">Multi-day trips, retreats and overseas sport events. Application-based — organiser reviews and confirms by email within 48 hours.</div>
+      <div class="user-panel-sub">Join multi-day experiences locally or abroad — retreats, sports events, race events and more.</div>
     </div>
     
     <!-- Tabs — text with underline -->
@@ -4410,7 +4410,7 @@ input[type="number"] {
   <div id="panel-meet" class="panel-view">
     <div class="user-panel-head">
       <h2>Meet &amp; Move</h2>
-      <div class="user-panel-sub">Small-group sessions hosted by other members in your city. Maximum 8 people. A 4th for padel, a running partner, a fourball.</div>
+      <div class="user-panel-sub">Connect with other people who enjoy the same activities you do.</div>
     </div>
     
     <!-- "Members you'd click with" — unified section: icon + text on left, View All on right, cards inside -->
@@ -4499,7 +4499,7 @@ input[type="number"] {
   <div id="panel-challenges" class="panel-view">
     <div class="user-panel-head">
       <h2>Challenges</h2>
-      <div class="user-panel-sub">Compete in provider and member challenges. Submit your scores, climb the leaderboard, win prizes from partner venues.</div>
+      <div class="user-panel-sub">Fancy a challenge — see how you rank against others.</div>
     </div>
     
     <!-- Tabs — text with underline -->
@@ -10394,19 +10394,22 @@ const Quests = {
     const nextLbl = done >= 12
       ? 'Top tier reached'
       : ((done >= 6 ? (12 - done) : (6 - done)) + ' more stamps to ' + (done >= 6 ? 'Navigator' : 'Adventurer'));
+    let pct;
+    if (done >= 12) pct = 100;
+    else if (done >= 6) pct = Math.round(((done - 6) / 6) * 100);
+    else pct = Math.round((done / 6) * 100);
+    pct = Math.max(0, Math.min(100, pct));
     el.innerHTML =
       '<div class="hero-top">' +
         '<div class="hero-tier-badge"><span class="material-icons">' + tierIcon + '</span></div>' +
-        '<div class="hero-tier-info" style="flex:1;">' +
+        '<div class="hero-tier-info" style="min-width:0;">' +
           '<div class="tier-name">' + tierName + '</div>' +
           '<div class="tier-meta"><b>' + done + '</b> stamps collected</div>' +
         '</div>' +
-      '</div>' +
-      '<div class="tier-next">' + nextLbl + '</div>' +
-      '<div class="hero-stats">' +
-        '<div class="hero-stat"><div class="num blue">' + inProg + '</div><div class="lbl">In progress</div></div>' +
-        '<div class="hero-stat"><div class="num gold">' + done + '</div><div class="lbl">Completed</div></div>' +
-        '<div class="hero-stat"><div class="num">' + explore + '</div><div class="lbl">To explore</div></div>' +
+        '<div class="quest-tier-prog" style="flex:1; min-width:110px;">' +
+          '<div class="chal-progress-bar"><div class="chal-progress-bar-fill" style="width:' + pct + '%;"></div></div>' +
+          '<div style="font-size:10px; color:var(--muted); margin-top:6px; text-align:right; font-weight:700;">' + nextLbl + '</div>' +
+        '</div>' +
       '</div>';
   },
 
@@ -12109,7 +12112,7 @@ function init() {
   // Picker modal click-outside is wired inside the Picker module
   document.getElementById('city-search').addEventListener('input', e => renderCityList(e.target.value));
   renderAll();
-  console.log('FFP Dashboard v18 - lean meetup cards');
+  console.log('FFP Dashboard v20 - quest explorer progress bar');
 }
 
 // ===== APPLE WALLET INTEGRATION =====
