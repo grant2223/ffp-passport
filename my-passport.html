@@ -345,9 +345,12 @@ html, body {
     var ctaHtml = '';
     if (!isSignedIn()) {
       var firstName = ((m.given_names || '').trim().split(/\s+/)[0]) || ((m.full_name || '').trim().split(/\s+/)[0]) || 'a friend';
+      // Direct to /login#signup with ref carried through — fewer hops than
+      // routing via homepage. login.html v5 captures ?ref= → localStorage,
+      // then the Stripe checkout button there appends client_reference_id.
       var refUrl = m.referral_code
-        ? '/?ref=' + encodeURIComponent(m.referral_code)
-        : '/';
+        ? '/login.html?ref=' + encodeURIComponent(m.referral_code) + '#signup'
+        : '/login.html#signup';
       ctaHtml =
         '<div class="cta">' +
           '<div class="cta-eyebrow">Find Your People. Move Together.</div>' +
