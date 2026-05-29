@@ -1,28 +1,3 @@
-<!--
-═══════════════════════════════════════════════════════════════════════
-     FFP ADMIN DASHBOARD — v3
-     v3 changes (2026-05-28 late evening):
-     - Wired the topbar-user click to actually log out. Was a placeholder
-       toast "Logout menu coming soon". Now: confirm dialog → clear
-       localStorage.ffp_token + ffp_member → redirect to /login.
-       Uses window.ffpLogout() from ffp-api-integration.js if available,
-       defensive fallback otherwise.
-     v2 changes (2026-05-28):
-     - FFP Team row email: grant@ffppassport.com → grant@findfitpeople.com
-       (Grant's actual super-admin identity)
-     - Cleared all 10 admin module seed arrays to []:
-       AdminProviders, AdminMembers, AdminContent, AdminPayouts,
-       AdminReferrals, AdminDeals, AdminEvents, AdminExperiences,
-       AdminChallenges, AdminMeetups
-     - AuditLog.entries seed (6 fake audit entries with Sarah K /
-       Mike H / Grant G. payouts) cleared to []
-     - Recent Activity table — 6 hardcoded fake-name rows (Sarah K /
-       Mike H / Priya R / Layla M / Ace Padel Club / Forge Fitness)
-       replaced with empty-state "No activity yet"
-     - Structure / classes / IDs / loader hooks all preserved
-     Rollback: ffp-admin-dashboard-LIVE.html still in working folder.
-═══════════════════════════════════════════════════════════════════════
--->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -42,6 +17,7 @@
 <script src="ffp-admin-content-loader.js"></script>
 <script src="ffp-admin-members-loader.js"></script>
 <script src="ffp-admin-deals-loader.js"></script>
+<script src="ffp-admin-quests-loader-v1.js"></script>
 <script src="ffp-admin-events-loader.js"></script>
 <script src="ffp-admin-experiences-loader.js"></script>
 <script src="ffp-admin-challenges-loader.js"></script>
@@ -1340,6 +1316,7 @@ input, select, textarea { font-family: inherit; }
         <span class="material-icons">people</span>Members
       </a>
       <a class="sidebar-link" data-panel="panel-deals" onclick="App.go('panel-deals')">
+      <a class="sidebar-link" data-panel="panel-quests" onclick="App.go('panel-quests')"><span class="material-icons">flag</span>Quests</a>
         <span class="material-icons">local_offer</span>Deals
       </a>
       <a class="sidebar-link" data-panel="panel-events" onclick="App.go('panel-events')">
@@ -1383,28 +1360,13 @@ input, select, textarea { font-family: inherit; }
         <span class="material-icons">search</span>
         <input type="text" id="global-search-input" placeholder="Search members, providers, listings..." oninput="GlobalSearch.onInput(this.value)" onfocus="GlobalSearch.onInput(this.value)" onblur="setTimeout(()=>GlobalSearch.close(),200)">
       </div>
-      <div class="topbar-user" onclick="adminLogout()" title="Click to logout">
+      <div class="topbar-user" onclick="showToast('Logout menu coming soon')">
         <div class="topbar-user-avatar">G</div>
         <div class="topbar-user-info">
           <div class="topbar-user-name">Grant Goes</div>
           <div class="topbar-user-role">Super Admin</div>
         </div>
       </div>
-      <script>
-        // v3: real logout (was placeholder toast)
-        function adminLogout() {
-          if (!confirm('Are you sure you want to logout?')) return;
-          if (typeof window.ffpLogout === 'function') {
-            window.ffpLogout();
-          } else {
-            try {
-              localStorage.removeItem('ffp_token');
-              localStorage.removeItem('ffp_member');
-            } catch (e) {}
-            window.location.href = '/login';
-          }
-        }
-      </script>
     </div>
   </header>
   
@@ -1500,7 +1462,12 @@ input, select, textarea { font-family: inherit; }
               <tr><th>When</th><th>Who</th><th>What</th></tr>
             </thead>
             <tbody id="activity-feed">
-              <tr><td colspan="3" class="text-muted" style="text-align:center;padding:24px;">No activity yet</td></tr>
+              <tr><td class="text-muted nowrap">2 min ago</td><td><span class="cell-avatar">S</span><span class="cell-name">Sarah K.</span></td><td>Signed up &middot; <span class="text-yellow">AED 499 paid</span></td></tr>
+              <tr><td class="text-muted nowrap">14 min ago</td><td><span class="cell-avatar" style="background:var(--yellow); color:#0a0a0a;">A</span><span class="cell-name">Ace Padel Club</span></td><td>Submitted provider application</td></tr>
+              <tr><td class="text-muted nowrap">28 min ago</td><td><span class="cell-avatar">M</span><span class="cell-name">Mike H.</span></td><td>Requested payout &middot; <span class="text-yellow">AED 750</span></td></tr>
+              <tr><td class="text-muted nowrap">42 min ago</td><td><span class="cell-avatar">P</span><span class="cell-name">Priya R.</span></td><td>Claimed deal at <strong>Cryo Recovery DXB</strong></td></tr>
+              <tr><td class="text-muted nowrap">1h ago</td><td><span class="cell-avatar">L</span><span class="cell-name">Layla M.</span></td><td>Created Meet &amp; Move &middot; Sunrise yoga</td></tr>
+              <tr><td class="text-muted nowrap">2h ago</td><td><span class="cell-avatar" style="background:var(--yellow); color:#0a0a0a;">F</span><span class="cell-name">Forge Fitness</span></td><td>Added new deal &middot; pending approval</td></tr>
             </tbody>
           </table>
         </div>
@@ -1674,6 +1641,7 @@ input, select, textarea { font-family: inherit; }
     </section>
     
     <!-- ========== DEALS ========== -->
+    <section class="panel" id="panel-quests"></section>
     <section class="panel" id="panel-deals">
       <div class="panel-head">
         <h1>Deals</h1>
@@ -1873,7 +1841,7 @@ input, select, textarea { font-family: inherit; }
             <tbody>
               <tr>
                 <td><span class="cell-avatar">G</span><span class="cell-name">Grant Goes</span></td>
-                <td class="text-muted">grant@findfitpeople.com</td>
+                <td class="text-muted">grant@ffppassport.com</td>
                 <td><span class="pill pill-ambassador">Super Admin</span></td>
                 <td class="text-muted">Founder</td>
                 <td></td>
@@ -2135,6 +2103,7 @@ const App = {
     'panel-payouts':     'Payouts',
     'panel-referrals':   'Referrals',
     'panel-deals':       'Deals',
+    'panel-quests':      'Quests',
     'panel-events':      'Events',
     'panel-experiences': 'Experiences',
     'panel-challenges':  'Challenges',
@@ -2188,7 +2157,25 @@ const AdminProviders = {
   tab: 'pending',
   search: '',
   
-  data: [],
+  data: [
+    // Pending
+    { id:'p1', business_name:'Ace Padel Club',          letter:'A', category:'Sports',    city:'Dubai',     status:'pending',  daysAgo:2, featured:false },
+    { id:'p2', business_name:'Boxing Academy DXB',      letter:'B', category:'Fitness',   city:'Dubai',     status:'pending',  daysAgo:5, featured:false },
+    { id:'p3', business_name:'Yas Marina F45',          letter:'Y', category:'Fitness',   city:'Abu Dhabi', status:'pending',  daysAgo:1, featured:false },
+    // Approved
+    { id:'p4', business_name:'Forge Fitness',           letter:'F', category:'Fitness',   city:'Dubai',     status:'approved', daysAgo:30, featured:true },
+    { id:'p5', business_name:'Cryo Recovery DXB',       letter:'C', category:'Wellness',  city:'Dubai',     status:'approved', daysAgo:45, featured:true },
+    { id:'p6', business_name:'Power Yoga Co.',          letter:'P', category:'Wellness',  city:'Dubai',     status:'approved', daysAgo:60, featured:false },
+    { id:'p7', business_name:'Hayya Padel',             letter:'H', category:'Sports',    city:'Dubai',     status:'approved', daysAgo:75, featured:false },
+    { id:'p8', business_name:'Reform Athletica',        letter:'R', category:'Fitness',   city:'Dubai',     status:'approved', daysAgo:90, featured:true },
+    { id:'p9', business_name:'Dubai Longevity Centre',  letter:'D', category:'Wellness',  city:'Dubai',     status:'approved', daysAgo:50, featured:true },
+    { id:'p10',business_name:'Hatta Mountain Reserve',  letter:'H', category:'Adventure', city:'Hatta',     status:'approved', daysAgo:120,featured:false },
+    { id:'p11',business_name:'The Yoga Studio JBR',     letter:'Y', category:'Wellness',  city:'Dubai',     status:'approved', daysAgo:100,featured:false },
+    { id:'p12',business_name:'Inertia Gym',             letter:'I', category:'Fitness',   city:'Dubai',     status:'approved', daysAgo:80, featured:false },
+    { id:'p13',business_name:'Run Society UAE',         letter:'R', category:'Sports',    city:'Dubai',     status:'approved', daysAgo:25, featured:true },
+    // Suspended
+    { id:'p14',business_name:'Old Gym (Closed)',        letter:'O', category:'Fitness',   city:'Sharjah',   status:'suspended',daysAgo:200,featured:false }
+  ],
   
   init() {
     this.render();
@@ -2283,7 +2270,20 @@ const AdminMembers = {
   filter: 'all',
   search: '',
   
-  data: [],
+  data: [
+    { id:'m1', full_name:'Grant Hermanus Goes', initial:'G', email:'grant@ffppassport.com', city:'Dubai',     tier:'ambassador', balance:175,  daysAgo:120, status:'active' },
+    { id:'m2', full_name:'Sarah Kelley',         initial:'S', email:'sarah.k@example.com',    city:'Dubai',     tier:'supporter',  balance:250,  daysAgo:85,  status:'active' },
+    { id:'m3', full_name:'Mike Henderson',       initial:'M', email:'mike.h@example.com',     city:'Dubai',     tier:'supporter',  balance:825,  daysAgo:70,  status:'active' },
+    { id:'m4', full_name:'Priya Raman',          initial:'P', email:'priya.r@example.com',    city:'Dubai',     tier:'member',     balance:75,   daysAgo:60,  status:'active' },
+    { id:'m5', full_name:'Ahmed Mansour',        initial:'A', email:'ahmed.m@example.com',    city:'Abu Dhabi', tier:'member',     balance:50,   daysAgo:45,  status:'active' },
+    { id:'m6', full_name:'Layla Mariam',         initial:'L', email:'layla.m@example.com',    city:'Dubai',     tier:'supporter',  balance:400,  daysAgo:50,  status:'active' },
+    { id:'m7', full_name:'James Williams',       initial:'J', email:'james.w@example.com',    city:'Dubai',     tier:'member',     balance:25,   daysAgo:30,  status:'active' },
+    { id:'m8', full_name:'Nina Patel',           initial:'N', email:'nina.p@example.com',     city:'Sharjah',   tier:'member',     balance:0,    daysAgo:14,  status:'active' },
+    { id:'m9', full_name:'Hassan Al-Qassimi',    initial:'H', email:'hassan.a@example.com',   city:'Abu Dhabi', tier:'member',     balance:0,    daysAgo:7,   status:'active' },
+    { id:'m10',full_name:'Reem Tariq',           initial:'R', email:'reem.t@example.com',     city:'Dubai',     tier:'member',     balance:0,    daysAgo:3,   status:'active' },
+    { id:'m11',full_name:'Omar Diallo',          initial:'O', email:'omar.d@example.com',     city:'Dubai',     tier:'member',     balance:0,    daysAgo:1,   status:'active' },
+    { id:'m12',full_name:'Test User (suspended)',initial:'T', email:'test@example.com',       city:'Dubai',     tier:'member',     balance:0,    daysAgo:200, status:'suspended' }
+  ],
   
   init() { this.render(); },
   
@@ -2344,7 +2344,13 @@ const AdminContent = {
   tab: 'pending',
   search: '',
   
-  data: [],
+  data: [
+    { id:'c1', member:'Sarah K.', initial:'S', type:'review', title:'Forge Fitness — best gym in JLT',     status:'pending',  daysAgo:1 },
+    { id:'c2', member:'Mike H.',  initial:'M', type:'post',   title:'My first padel tournament experience', status:'pending',  daysAgo:2 },
+    { id:'c3', member:'Priya R.', initial:'P', type:'review', title:'Cryo Recovery DXB — recovery game changer', status:'pending', daysAgo:3 },
+    { id:'c4', member:'Layla M.', initial:'L', type:'photo',  title:'Sunrise yoga at Zabeel Park',         status:'pending',  daysAgo:4 },
+    { id:'c5', member:'Ahmed M.', initial:'A', type:'review', title:'Hayya Padel review',                  status:'pending',  daysAgo:5 }
+  ],
   
   init() { this.render(); },
   setTab(tab) {
@@ -2421,7 +2427,12 @@ const AdminPayouts = {
   tab: 'pending',
   search: '',
   
-  data: [],
+  data: [
+    { id:'po1', member:'Mike H.',   initial:'M', amount:750,  method:'bank',  status:'pending',  daysAgo:1 },
+    { id:'po2', member:'Layla M.',  initial:'L', amount:500,  method:'bank',  status:'pending',  daysAgo:3 },
+    { id:'po3', member:'Sarah K.',  initial:'S', amount:1000, method:'bank',  status:'approved', daysAgo:5 },
+    { id:'po4', member:'Grant G.',  initial:'G', amount:500,  method:'bank',  status:'paid',     daysAgo:14 }
+  ],
   
   init() { this.render(); },
   setTab(tab) {
@@ -2487,7 +2498,13 @@ const AdminReferrals = {
   tab: 'pending',
   search: '',
   
-  data: [],
+  data: [
+    { id:'r1', referrer:'Grant G.',  rInit:'G', refTier:'ambassador', referred:'Sarah K.',  bInit:'S', reward:100, status:'pending', daysAgo:2 },
+    { id:'r2', referrer:'Grant G.',  rInit:'G', refTier:'ambassador', referred:'Mike H.',   bInit:'M', reward:100, status:'pending', daysAgo:5 },
+    { id:'r3', referrer:'Sarah K.',  rInit:'S', refTier:'supporter',  referred:'Layla M.',  bInit:'L', reward:50,  status:'pending', daysAgo:3 },
+    { id:'r4', referrer:'Mike H.',   rInit:'M', refTier:'supporter',  referred:'Ahmed M.',  bInit:'A', reward:50,  status:'pending', daysAgo:1 },
+    { id:'r5', referrer:'Priya R.',  rInit:'P', refTier:'member',     referred:'Nina P.',   bInit:'N', reward:25,  status:'paid',    daysAgo:30 }
+  ],
   
   init() { this.render(); },
   setTab(tab) {
@@ -2548,7 +2565,17 @@ const AdminReferrals = {
 const AdminDeals = {
   tab: 'live',
   search: '',
-  data: [],
+  data: [
+    { id:'d1', provider:'Forge Fitness',         pLetter:'F', perk:'Train with a friend — they go free',  category:'Fitness',  status:'live',    featured:false, hot:true  },
+    { id:'d2', provider:'Ace Padel Club',        pLetter:'A', perk:'Book a court, partner plays free',    category:'Sports',   status:'live',    featured:true,  hot:false },
+    { id:'d3', provider:'Cryo Recovery DXB',     pLetter:'C', perk:'Free cryo session every month',       category:'Wellness', status:'live',    featured:true,  hot:true  },
+    { id:'d4', provider:'Power Yoga Co.',        pLetter:'P', perk:'10-class pack + 10 bonus classes',    category:'Wellness', status:'live',    featured:false, hot:false },
+    { id:'d5', provider:'Hayya Padel',           pLetter:'H', perk:'Court hire + free partner play',      category:'Sports',   status:'live',    featured:false, hot:false },
+    { id:'d6', provider:'Reform Athletica',      pLetter:'R', perk:'5 reformer classes + 5 free',         category:'Fitness',  status:'live',    featured:true,  hot:false },
+    { id:'d7', provider:'Dubai Longevity Centre',pLetter:'D', perk:'IV therapy + free guest session',     category:'Wellness', status:'live',    featured:true,  hot:true  },
+    { id:'d8', provider:'Hatta Mountain Reserve',pLetter:'H', perk:'Weekend entry — bring a +1 free',     category:'Adventure',status:'live',    featured:false, hot:false },
+    { id:'d9', provider:'New Provider',          pLetter:'N', perk:'Intro class pack',                    category:'Fitness',  status:'pending', featured:false, hot:false }
+  ],
   init() { this.render(); },
   setTab(tab) {
     this.tab = tab;
@@ -2595,7 +2622,13 @@ const AdminDeals = {
 const AdminEvents = {
   tab: 'upcoming',
   search: '',
-  data: [],
+  data: [
+    { id:'e1', title:'Padel Tournament — Open Doubles',     organizer:'Ace Padel Club',   date:'Sat 26 Apr',  rsvps:21 },
+    { id:'e2', title:'Sunrise Beach Bootcamp',              organizer:'Forge Fitness',    date:'Sun 27 Apr',  rsvps:14 },
+    { id:'e3', title:'Hatta Trail Run 10K',                 organizer:'Run Society UAE',  date:'Sat 3 May',   rsvps:42 },
+    { id:'e4', title:'Yoga + Sound Healing',                organizer:'Power Yoga Co.',   date:'Fri 9 May',   rsvps:8  },
+    { id:'e5', title:'Cryo + Recovery Day',                 organizer:'Cryo Recovery DXB',date:'Sat 10 May',  rsvps:11 }
+  ],
   init() { this.render(); },
   setTab(tab) { this.tab = tab; document.querySelectorAll('#panel-events .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab)); this.render(); },
   onSearch(q) { this.search = (q || '').toLowerCase().trim(); this.render(); },
@@ -2621,7 +2654,12 @@ const AdminEvents = {
 
 const AdminExperiences = {
   search: '',
-  data: [],
+  data: [
+    { id:'x1', title:'Bali Wellness Retreat',          type:'Retreat',      organizer:'Power Yoga Co.',     dates:'12-19 May',  apps:3 },
+    { id:'x2', title:'Sri Lanka Cycling Tour',         type:'Adventure',    organizer:'Adventure Co.',      dates:'1-8 June',   apps:5 },
+    { id:'x3', title:'Greece Padel Camp',              type:'Sports Event', organizer:'Ace Padel Club',     dates:'15-22 June', apps:8 },
+    { id:'x4', title:'Oman Mountain Hike',             type:'Adventure',    organizer:'Hatta Mountain Reserve', dates:'5-9 July', apps:2 }
+  ],
   init() { this.render(); },
   onSearch(q) { this.search = (q || '').toLowerCase().trim(); this.render(); },
   render() {
@@ -2647,7 +2685,19 @@ const AdminExperiences = {
 const AdminChallenges = {
   tab: 'provider',
   search: '',
-  data: [],
+  data: [
+    // Provider
+    { id:'c1', title:'5K Sunrise Time Trial',      sport:'Running', organizer:'Run Society UAE',    ends:'31 Mar',  participants:47, kind:'provider' },
+    { id:'c2', title:'Forge 30-Day Challenge',     sport:'Fitness', organizer:'Forge Fitness',      ends:'30 Apr',  participants:32, kind:'provider' },
+    { id:'c3', title:'Ace Padel Ladder',           sport:'Padel',   organizer:'Ace Padel Club',     ends:'15 May',  participants:24, kind:'provider' },
+    { id:'c4', title:'Cryo 30 Days',               sport:'Wellness',organizer:'Cryo Recovery DXB', ends:'30 May',  participants:18, kind:'provider' },
+    { id:'c5', title:'Hatta Trail King',           sport:'Hiking',  organizer:'Hatta Mountain Reserve',ends:'5 Jun',participants:11, kind:'provider' },
+    // Member
+    { id:'cm1',title:'Marina Bridge Crossings',    sport:'Running', organizer:'Mike H.',           ends:'12 Apr',  participants:8,  kind:'member' },
+    { id:'cm2',title:'Sunrise Yoga Streak',        sport:'Yoga',    organizer:'Layla M.',          ends:'19 Apr',  participants:6,  kind:'member' },
+    { id:'cm3',title:'Wildest Workout Photo',      sport:'Multi',   organizer:'Sarah K.',          ends:'1 May',   participants:14, kind:'member' },
+    { id:'cm4',title:'Padel Doubles Tour',         sport:'Padel',   organizer:'Mike H.',           ends:'15 May',  participants:4,  kind:'member' }
+  ],
   init() { this.render(); },
   setTab(tab) { this.tab = tab; document.querySelectorAll('#panel-challenges .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab)); this.render(); },
   onSearch(q) { this.search = (q || '').toLowerCase().trim(); this.render(); },
@@ -2674,7 +2724,12 @@ const AdminChallenges = {
 
 const AdminMeetups = {
   search: '',
-  data: [],
+  data: [
+    { id:'mt1', activity:'Padel doubles — need a 4th',  host:'Mike H.',  hInit:'M', when:'Sat 5 Apr, 7:00 AM',  cap:'3/4' },
+    { id:'mt2', activity:'Saturday Kite Beach 5K',      host:'Sarah K.', hInit:'S', when:'Sat 5 Apr, 6:00 AM',  cap:'4/8' },
+    { id:'mt3', activity:'Sunrise yoga at Zabeel Park', host:'Layla M.', hInit:'L', when:'Sun 6 Apr, 6:30 AM',  cap:'1/6' },
+    { id:'mt4', activity:'Hatta trail hike (FULL)',     host:'Nina P.',  hInit:'N', when:'Sat 12 Apr, 5:30 AM', cap:'8/8' }
+  ],
   init() { this.render(); },
   onSearch(q) { this.search = (q || '').toLowerCase().trim(); this.render(); },
   render() {
@@ -2966,7 +3021,14 @@ const Drawer = {
 // AUDIT LOG — every admin action gets logged
 // =====================================================================
 const AuditLog = {
-  entries: [],
+  entries: [
+    { actor: 'Grant', action: 'opened admin dashboard', daysAgo: 0, mins: 1 },
+    { actor: 'Grant', action: 'reviewed payout queue', daysAgo: 0, mins: 30 },
+    { actor: 'Grant', action: 'approved provider Forge Fitness', daysAgo: 1, mins: 0 },
+    { actor: 'Grant', action: 'approved content from Sarah K. (AED 50)', daysAgo: 2, mins: 0 },
+    { actor: 'Grant', action: 'verified referral by Mike H. (AED 50)', daysAgo: 3, mins: 0 },
+    { actor: 'Grant', action: 'marked payout AED 500 to Grant G. as paid', daysAgo: 14, mins: 0 }
+  ],
   
   init() { this.render(); },
   
