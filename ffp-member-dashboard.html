@@ -1,5 +1,20 @@
 <!-- ════════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v107
+     FFP MEMBER DASHBOARD — v108
+     v108 changes (from v107, 2026-05-29):
+     - Profile photo upload + crop wired. Cropper.js (CDN, ~30KB) for the
+       square-crop step, ffp-photo-upload.js v1 wraps the flow:
+         tap photo → native picker (camera or library on mobile, file
+         dialog on desktop) → crop modal (touch-first, full-screen on
+         mobile) → save → resize to 1024x1024 + JPEG 85% (200-400KB) →
+         upload to Supabase Storage avatars/{member.id}.jpg → PUT
+         photo_url to /api/members/:id → refresh passport card + Profile
+         header avatar live. JWT bridge (v9 of integration) means storage
+         RLS lets the member write only their own path.
+     - Overrides the dashboard's stub MemberProfile.changeAvatar() that
+       was alerting "wires up when built".
+     - Also makes the passport card photo itself clickable to change.
+     - Applies existing photo_url to displays on first paint for members
+       who already have one saved.
      v107 changes (from v106, 2026-05-29):
      - Wires the FFPRealtime helper (assets/ffp-realtime.js) BEFORE all
        loaders. Without it, loaders log a warning and disable auto-update
@@ -139,6 +154,11 @@
      afterwards sees auth.uid() === member.id and RLS works. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/ffp-api-integration.js"></script>
+<!-- v108: Cropper.js for the square-crop step on photo upload. Tiny
+     library, MIT licensed, well-supported, touch-friendly on mobile. -->
+<link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>
+<script src="assets/ffp-photo-upload.js"></script>
 <!-- v107: Realtime helper loaded BEFORE any loader. Loaders register
      postgres_changes subscriptions via FFPRealtime.subscribe so panels
      auto-refresh when underlying DB rows change. -->
