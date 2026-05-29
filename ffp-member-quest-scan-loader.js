@@ -1,7 +1,8 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP MEMBER QUEST SCAN / CHECK-IN LOADER · v1
-   File path: ffp-member-quest-scan-loader-v1.js (repo root)
-   On-load log: [FFP Quest Scan v1] Loaded ✓
+   FFP MEMBER QUEST SCAN / CHECK-IN LOADER · v2
+   File path: ffp-member-quest-scan-loader.js (repo root)
+   On-load log: [FFP Quest Scan v2] Loaded ✓
+   v2: "Check in at a venue" button now sits directly under the Explorer/tier hero.
 
    Adds the member-side check-in flow to the Quests panel:
    1. "Check in at a venue" button → in-app camera QR scan (html5-qrcode, loaded
@@ -239,13 +240,16 @@
   function injectButton() {
     var panel = document.getElementById('panel-quests');
     if (!panel || document.getElementById('q-scan-btn')) return;
+    var hero = document.getElementById('quest-hero');     // the Explorer / tier block
     var head = panel.querySelector('.user-panel-head');
     var btn = document.createElement('button');
     btn.id = 'q-scan-btn';
     btn.className = 'q-scan-btn';
     btn.innerHTML = '<span class="material-icons">qr_code_scanner</span> Check in at a venue';
     btn.addEventListener('click', startScan);
-    if (head && head.parentNode) head.parentNode.insertBefore(btn, head.nextSibling);
+    // place it directly UNDER the Explorer/hero section
+    if (hero && hero.parentNode) hero.parentNode.insertBefore(btn, hero.nextSibling);
+    else if (head && head.parentNode) head.parentNode.insertBefore(btn, head.nextSibling);
     else panel.insertBefore(btn, panel.firstChild);
   }
 
@@ -261,7 +265,7 @@
       if (navBtn) navBtn.click();
       setTimeout(function () { openContext(v); }, 400);
     }
-    console.log('[FFP Quest Scan v1] Loaded ✓');
+    console.log('[FFP Quest Scan v2] Loaded \u2713');
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
