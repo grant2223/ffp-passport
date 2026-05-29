@@ -1,4 +1,8 @@
-/* FFP Admin Payouts Loader — v7
+/* FFP Admin Payouts Loader v8 (2026-05-29)
+   v8: PostgREST embed disambiguation. payouts table now has TWO FKs to
+   members (member_id + processed_by) after the FK migration. Changed
+   'members(...)' to 'members!member_id(...)' to embed the payee member.
+ — v7
    v7 changes:
    - Refactored to use shared FFPRealtime helper (assets/ffp-realtime.js)
      instead of inline channel subscription. Cleaner, consistent platform-wide
@@ -106,7 +110,7 @@
   async function fetchPayouts() {
     var res = await window.supabase
       .from('payouts')
-      .select('id, member_id, amount_aed, method, status, processed_by, processed_at, bank_details, notes, receipt_url, requested_at, members(full_name, given_names, email)')
+      .select('id, member_id, amount_aed, method, status, processed_by, processed_at, bank_details, notes, receipt_url, requested_at, members!member_id(full_name, given_names, email)')
       .order('requested_at', { ascending: false });
     if (res.error) {
       console.error('[FFP Admin Payouts] fetch:', res.error);
