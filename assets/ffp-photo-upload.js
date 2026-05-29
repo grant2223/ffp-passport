@@ -1,4 +1,14 @@
-/* FFP Photo Upload — v1 (2026-05-29)
+/* FFP Photo Upload — v2 (2026-05-29)
+   v2: Switch from square crop to OFFICIAL PASSPORT RATIO 35:45 (35mm x
+       45mm — the actual government passport photo standard, which is
+       also what the dashboard's .pass-photo-new slot uses via
+       aspect-ratio:35/45). One uploaded photo serves both displays:
+         - Passport card: full 35:45 photo fills the slot perfectly.
+         - Profile avatar circle: same photo, background-position:top
+           center so the face shows when masked to a circle.
+       Output canvas bumped to 700x900 (20x the mm dimensions) so the
+       photo stays crisp on retina screens at any zoom level.
+
    Profile photo upload + crop + resize + Supabase Storage upload.
    - Mobile-first: native file picker (camera or library) on phone.
    - Touch-friendly Cropper.js for the square-crop step.
@@ -135,7 +145,7 @@
       '  <div class="pm-title">Crop Your Photo</div>',
       '  <button class="pm-close" aria-label="Close" onclick="window.FFPPhotoUpload.close()">&times;</button>',
       '</div>',
-      '<div class="pm-hint">Drag to reposition · pinch to zoom · square crop is your passport photo</div>',
+      '<div class="pm-hint">Drag to reposition · pinch to zoom · 35:45 passport crop fits your passport card + avatar</div>',
       '<div class="pm-body">',
       '  <div class="pm-img-wrap">',
       '    <img id="ffp-photo-cropper-img" alt="">',
@@ -158,7 +168,7 @@
     img.onload = function () {
       if (cropper) { cropper.destroy(); cropper = null; }
       cropper = new Cropper(img, {
-        aspectRatio: 1,                       // Square — passport photo
+        aspectRatio: 35 / 45,                 // OFFICIAL passport ratio — matches .pass-photo-new
         viewMode: 1,
         autoCropArea: 0.9,
         dragMode: 'move',
@@ -200,10 +210,11 @@
     btn.disabled   = true;
 
     try {
-      // Crop + resize to 1024x1024 (passport-card-quality on retina screens)
+      // Crop + resize to 700x900 (20x the official 35x45mm dimensions —
+      // crisp on retina even at full passport-card display size).
       var canvas = cropper.getCroppedCanvas({
-        width:  1024,
-        height: 1024,
+        width:  700,
+        height: 900,
         imageSmoothingEnabled: true,
         imageSmoothingQuality: 'high',
         fillColor: '#0f5a7a'
@@ -280,12 +291,14 @@
       if (initials) initials.style.display = 'none';
     }
 
-    // Profile header avatar — convert from initials circle to photo bg
+    // Profile header avatar — same photo, but show the TOP portion when
+    // the 35:45 portrait is masked into a circle (face is at the top of
+    // a proper passport-style photo, so we anchor to top center).
     var avatar = document.querySelector('.ph-avatar');
     if (avatar) {
       avatar.style.backgroundImage    = 'url("' + url + '")';
       avatar.style.backgroundSize     = 'cover';
-      avatar.style.backgroundPosition = 'center';
+      avatar.style.backgroundPosition = 'top center';   // v2: face-up anchor
       // Clear the text initials (keep the edit-photo button child)
       Array.from(avatar.childNodes).forEach(function (n) {
         if (n.nodeType === 3) n.nodeValue = '';
