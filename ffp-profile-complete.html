@@ -17,7 +17,16 @@ v8 (clean rewrite, no webhook dependency):
 
 <!--
 ═══════════════════════════════════════════════════════════════════════
-     FFP PROFILE COMPLETE — v11
+     FFP PROFILE COMPLETE — v12
+     v12 changes (from v11, 2026-05-29):
+     - JWT bridge wired. Backend v13's /api/onboard/from-stripe now returns
+       a Supabase-compatible JWT alongside the member object. v12 loads
+       supabase-js + ffp-api-integration v8, then on successful onboard
+       hands the response to FFPApi.applyOnboardResponse() which stores
+       member + jwt + applies the Supabase session. The dashboard the
+       user lands on then has auth.uid() = member.id for RLS — same as a
+       returning signin via /login. Without this, brand-new signups would
+       land on the dashboard JWT-less and hit RLS errors on every loader.
      v11 changes (from v10, 2026-05-28):
      - Welcome title text: "Welcome, [name]" → "The Active Lifestyle Community"
      - Welcome subtitle: "Let's complete your passport." → "Let's get your passport ready"
@@ -50,7 +59,11 @@ v8 (clean rewrite, no webhook dependency):
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
 <title>Complete Your Profile — FFP Passport</title>
-<!-- v8: no Supabase or ffp-api-integration.js needed. All DB calls go through the backend. -->
+<!-- v12: Supabase SDK + ffp-api-integration v8 loaded so we can apply the
+     JWT bridge session after onboard (without this, brand-new signups arrive
+     at the dashboard JWT-less and every loader hits RLS errors). -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/ffp-api-integration.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
 <style>
@@ -484,7 +497,7 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 
 
 <script>
-console.log('[FFP Profile Complete v8] Loaded — submit-time onboarding (no webhook dependency)');
+console.log('[FFP Profile Complete v12] Loaded — JWT bridge wired for new signups');
 
 // Backend URL — keep in sync with deployed backend
 var BACKEND_URL = 'https://ffp-passport-backend.vercel.app';
@@ -979,10 +992,26 @@ async function submitProfile() {
       throw new Error((data && data.error) || ('HTTP ' + resp.status));
     }
 
-    // Cache member for dashboard
+    // v12: route the onboard response through FFPApi so member + jwt are
+    // both stored AND the Supabase session is applied before navigation.
+    // The dashboard the user lands on then sees auth.uid() === member.id
+    // and every RLS-protected loader query works on first paint.
     try {
-      localStorage.setItem('ffp_member', JSON.stringify(data.member));
-    } catch (e) {}
+      if (window.FFPApi && typeof window.FFPApi.applyOnboardResponse === 'function') {
+        await window.FFPApi.applyOnboardResponse(data);
+      } else {
+        // Fallback if ffp-api-integration somehow failed to load: at least
+        // cache the member so the dashboard's inline hydration still works.
+        console.warn('[profile-complete v12] FFPApi not available — falling back to raw localStorage');
+        localStorage.setItem('ffp_member', JSON.stringify(data.member));
+        if (data.jwt) localStorage.setItem('ffp_jwt', data.jwt);
+      }
+    } catch (e) {
+      console.error('[profile-complete v12] applyOnboardResponse threw:', e);
+      // Still navigate — better to land on dashboard with a broken session
+      // than block the user. The dashboard's autoInit will re-apply the JWT
+      // from localStorage on its own.
+    }
 
     window.location.href = 'ffp-member-dashboard.html';
   } catch (err) {
