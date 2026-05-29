@@ -1,4 +1,6 @@
-/* FFP Meet & Move Loader — v7
+/* FFP Meet & Move Loader — v8
+   v8 (2026-05-29): Your circle moved INTO the View-all popup as a 2nd tab
+     ("Might click with" / "Your circle"); removed the on-page circle block.
    v7 (2026-05-29): FIX — panel id is 'panel-meet' not 'panel-meet-move'; renderCircle
      was returning early so Your circle never injected. Now renders.
    v6 (2026-05-29): re-inject Your circle after every panel render so it can't be wiped.
@@ -17,7 +19,7 @@
   var currentUserId = null;
   var wrapped = false;
   var circleData = { friends: [], incoming: [] };
-  var renderWrapped = false;
+  var gridOverridden = false;
 
   function esc(s) {
     if (typeof window.escHtml === 'function') return window.escHtml(s);
@@ -32,22 +34,20 @@
       '*::-webkit-scrollbar{display:none !important;width:0 !important;height:0 !important;}',
       '*{-ms-overflow-style:none !important;scrollbar-width:none !important;}',
       '.dm-cover.ffp-img-cover{background-size:cover !important;background-position:center !important;background-repeat:no-repeat !important;}',
-      '#ffp-circle{margin:16px 0 22px;}',
-      '#ffp-circle .cir-card{background:rgba(15,30,46,0.6);border:1px solid var(--border-mid,rgba(43,168,224,0.2));border-radius:14px;padding:16px;}',
-      '#ffp-circle .cir-head{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800;color:var(--text,#e8eef4);margin-bottom:4px;}',
-      '#ffp-circle .cir-head .material-icons{color:var(--yellow,#FFCC00);font-size:18px;}',
-      '#ffp-circle .cir-pill{font-size:11px;font-weight:800;background:rgba(43,168,224,0.2);color:var(--blue,#2ba8e0);border-radius:20px;padding:2px 8px;}',
-      '#ffp-circle .cir-sub{font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted,#8a99a8);margin:14px 0 8px;}',
-      '#ffp-circle .cir-row{display:flex;align-items:center;gap:11px;padding:8px 0;border-top:1px solid rgba(255,255,255,0.05);}',
-      '#ffp-circle .cir-av{width:38px;height:38px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--blue-dk,#1980AD),var(--blue,#2ba8e0));color:#fff;font-weight:800;font-size:15px;}',
-      '#ffp-circle .cir-name{flex:1;min-width:0;font-size:13px;font-weight:800;color:var(--text,#e8eef4);}',
-      '#ffp-circle .cir-city{font-size:11px;font-weight:600;color:var(--muted,#8a99a8);margin-top:1px;}',
-      '#ffp-circle .cir-acts{display:flex;gap:6px;flex-shrink:0;}',
-      '#ffp-circle .cir-btn{border:none;border-radius:8px;padding:7px 11px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;}',
-      '#ffp-circle .cir-btn.yellow{background:var(--yellow,#FFCC00);color:#000;}',
-      '#ffp-circle .cir-btn.blue{background:var(--blue,#2ba8e0);color:#fff;}',
-      '#ffp-circle .cir-btn.ghost{background:rgba(255,255,255,0.08);color:var(--text,#e8eef4);}',
-      '#ffp-circle .cir-empty{font-size:12px;color:var(--muted,#8a99a8);padding:6px 0;line-height:1.5;}'
+      '.ffp-mtabs{display:flex;gap:6px;margin:4px 0 16px;border-bottom:1px solid var(--border-mid,rgba(43,168,224,0.18));}',
+      '.ffp-mtab{flex:1;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted,#8a99a8);font-size:12px;font-weight:800;letter-spacing:0.4px;padding:9px 4px;cursor:pointer;font-family:inherit;}',
+      '.ffp-mtab.active{color:var(--text,#e8eef4);border-bottom-color:var(--blue,#2ba8e0);}',
+      '.ffp-circle-scope .cir-sub{font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted,#8a99a8);margin:14px 0 8px;}',
+      '.ffp-circle-scope .cir-row{display:flex;align-items:center;gap:11px;padding:10px 0;border-top:1px solid rgba(255,255,255,0.05);}',
+      '.ffp-circle-scope .cir-av{width:38px;height:38px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--blue-dk,#1980AD),var(--blue,#2ba8e0));color:#fff;font-weight:800;font-size:15px;}',
+      '.ffp-circle-scope .cir-name{flex:1;min-width:0;font-size:13px;font-weight:800;color:var(--text,#e8eef4);}',
+      '.ffp-circle-scope .cir-city{font-size:11px;font-weight:600;color:var(--muted,#8a99a8);margin-top:1px;}',
+      '.ffp-circle-scope .cir-acts{display:flex;gap:6px;flex-shrink:0;}',
+      '.ffp-circle-scope .cir-btn{border:none;border-radius:8px;padding:7px 11px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;}',
+      '.ffp-circle-scope .cir-btn.yellow{background:var(--yellow,#FFCC00);color:#000;}',
+      '.ffp-circle-scope .cir-btn.blue{background:var(--blue,#2ba8e0);color:#fff;}',
+      '.ffp-circle-scope .cir-btn.ghost{background:rgba(255,255,255,0.08);color:var(--text,#e8eef4);}',
+      '.ffp-circle-scope .cir-empty{font-size:12px;color:var(--muted,#8a99a8);padding:10px 0;line-height:1.5;}'
     ].join('');
     document.head.appendChild(s);
   }
@@ -99,32 +99,25 @@
       ? '<div class="cir-av" style="background:#0a1825 url(\'' + esc(p.photo) + '\') center/cover;"></div>'
       : '<div class="cir-av">' + esc((p.name || 'M').charAt(0).toUpperCase()) + '</div>';
   }
-  function renderCircle() {
-    var panel = document.getElementById('panel-meet');
-    if (!panel) return;
-    var host = document.getElementById('ffp-circle');
-    if (!host) {
-      host = document.createElement('div'); host.id = 'ffp-circle';
-      var ms = document.getElementById('meet-match-scroll');
-      var sec = ms && (ms.closest ? ms.closest('.match-section') : null);
-      sec = sec || (ms && ms.parentNode);
-      if (sec && sec.parentNode) sec.parentNode.insertBefore(host, sec.nextSibling);
-      else panel.insertBefore(host, panel.firstChild);
-    }
+  // Builds the "Your circle" list (used inside the View-all modal's second tab).
+  function circleListHtml() {
     var inc = circleData.incoming || [], fr = circleData.friends || [];
     var incHtml = inc.length ? '<div class="cir-sub">Requests to connect</div>' + inc.map(function (p) {
       return '<div class="cir-row">' + avatarHtml(p) + '<div class="cir-name">' + esc(p.name) + '</div>' +
         '<div class="cir-acts"><button class="cir-btn ghost" onclick="FFPCircle.decline(\'' + p.id + '\')">Ignore</button>' +
         '<button class="cir-btn yellow" onclick="FFPCircle.accept(\'' + p.id + '\')">Accept</button></div></div>';
     }).join('') : '';
-    var frHtml = fr.length ? fr.map(function (p) {
+    var frHtml = fr.length ? '<div class="cir-sub">Connected (' + fr.length + ')</div>' + fr.map(function (p) {
       return '<div class="cir-row">' + avatarHtml(p) +
         '<div class="cir-name">' + esc(p.name) + (p.city ? '<div class="cir-city">' + esc(p.city) + '</div>' : '') + '</div>' +
         '<div class="cir-acts"><button class="cir-btn blue" onclick="FFPCircle.invite(\'' + p.id + '\')">Invite to a meet-up</button></div></div>';
-    }).join('') : '<div class="cir-empty">No connections yet — tap a match above and Request to connect to build your circle.</div>';
-    host.innerHTML = '<div class="cir-card"><div class="cir-head"><span class="material-icons">group</span> Your circle' +
-      (fr.length ? ' <span class="cir-pill">' + fr.length + '</span>' : '') + '</div>' +
-      incHtml + '<div class="cir-sub">Connected</div>' + frHtml + '</div>';
+    }).join('') : '<div class="cir-empty">No connections yet — open “Might click with”, tap someone and Request to connect.</div>';
+    return '<div class="ffp-circle-scope">' + incHtml + frHtml + '</div>';
+  }
+  // If the View-all modal is open on the circle tab, refresh it in place.
+  function renderCircle() {
+    var host = document.getElementById('ffp-mtab-body-circle');
+    if (host) host.innerHTML = circleListHtml();
   }
   async function loadConnections() {
     if (!currentUserId) return;
@@ -152,12 +145,53 @@
     reload: loadConnections
   };
 
-  function wrapRender() {
-    if (renderWrapped || typeof MeetMove === 'undefined' || typeof MeetMove.render !== 'function') return;
-    renderWrapped = true;
-    var origRender = MeetMove.render.bind(MeetMove);
-    MeetMove.render = function () { origRender(); try { renderCircle(); } catch (e) {} };
+  function matchCardHtml(m) {
+    return '<div class="match-card" style="flex:auto;" onclick="closeDetailModal(); setTimeout(function(){MeetMove.openMemberDetail(\'' + m.id + '\')},100);">' +
+      '<div class="match-card-avatar"' + (m.photo ? ' style="background:#0a1825 url(\'' + m.photo + '\') center/cover;"' : '') + '>' + (m.photo ? '' : esc(m.letter)) + '</div>' +
+      '<div class="match-card-name">' + esc(m.name) + '</div>' +
+      '<div class="match-card-meta">' + esc(m.age) + ' &middot; ' + esc(m.city) + '</div>' +
+      '<div class="match-card-pct">' + m.match + '% MATCH</div>' +
+    '</div>';
   }
+
+  // Replace the dashboard's "View all" grid with a 2-tab modal:
+  //   "Might click with" (matches) + "Your circle" (connections).
+  function installMatchesGridOverride() {
+    if (typeof MeetMove === 'undefined' || gridOverridden) return;
+    gridOverridden = true;
+    MeetMove.openMatchesGrid = function () {
+      var matches = this.matches || [];
+      var grid = matches.length
+        ? '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">' + matches.map(matchCardHtml).join('') + '</div>'
+        : '<div class="cir-empty" style="color:var(--muted);font-size:13px;padding:10px 0;">No matches yet — more appear as members join.</div>';
+      var body =
+        '<div class="dm-body">' +
+          '<div class="dm-title">Meet &amp; Move people</div>' +
+          '<div class="ffp-mtabs">' +
+            '<button class="ffp-mtab active" id="ffp-mtab-click" onclick="FFPMatchTabs.show(\'click\')">Might click with</button>' +
+            '<button class="ffp-mtab" id="ffp-mtab-circle" onclick="FFPMatchTabs.show(\'circle\')">Your circle</button>' +
+          '</div>' +
+          '<div id="ffp-mtab-body-click">' +
+            '<div style="font-size:12px;color:var(--muted);margin-bottom:14px;">Matched on shared sports, level, city and age.</div>' + grid +
+          '</div>' +
+          '<div id="ffp-mtab-body-circle" style="display:none;">' + circleListHtml() + '</div>' +
+        '</div>';
+      openDetailModal(body);
+    };
+  }
+
+  window.FFPMatchTabs = {
+    show: function (t) {
+      var c = document.getElementById('ffp-mtab-body-click'), r = document.getElementById('ffp-mtab-body-circle');
+      var bc = document.getElementById('ffp-mtab-click'), br = document.getElementById('ffp-mtab-circle');
+      if (!c || !r) return;
+      var circle = (t === 'circle');
+      c.style.display = circle ? 'none' : 'block';
+      r.style.display = circle ? 'block' : 'none';
+      if (bc) bc.classList.toggle('active', !circle);
+      if (br) br.classList.toggle('active', circle);
+    }
+  };
 
   async function loadFromSupabase() {
     if (!window.supabase || typeof MeetMove === 'undefined') {
@@ -169,7 +203,7 @@
       var member = window.FFPAuth && window.FFPAuth.getMember();
       if (!member || !member.id) { console.log('[FFP Meet & Move] No FFP member'); return; }
       currentUserId = member.id;
-      wrapRender();
+      installMatchesGridOverride();
 
       await loadMatches();
       await loadConnections();
@@ -224,7 +258,7 @@
       wrapWrites();
       var panel = document.getElementById('panel-meet');
       if (panel && panel.classList.contains('active') && typeof MeetMove.render === 'function') MeetMove.render();
-      console.log('[FFP Meet & Move] Loaded ' + MeetMove.data.length + ' meetups ✓ (v7)');
+      console.log('[FFP Meet & Move] Loaded ' + MeetMove.data.length + ' meetups ✓ (v8)');
     } catch (err) { console.error('[FFP Meet & Move] Unexpected error:', err); }
   }
 
