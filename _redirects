@@ -1,5 +1,7 @@
-/login    /login.html                  200
-/member   /ffp-member-dashboard.html   200
-/provider /ffp-provider.html           200
-/admin    /ffp-admin.html              200
-/*        /index.html                  200
+/login          /login.html                    200
+/member         /ffp-member-dashboard.html     200
+/provider       /ffp-provider-dashboard.html   200
+/admin          /ffp-admin-dashboard.html      200
+/verify         /verify.html                   200
+/verify.html    /verify.html                   200!
+/*              /index.html                    200
