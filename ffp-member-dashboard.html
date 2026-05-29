@@ -3977,7 +3977,7 @@ input[type="number"] {
 .q-reward-box.prize .material-icons{ color:var(--q-yellow); }
 .q-progress{ font-size:11px; font-weight:800; letter-spacing:1px; text-transform:uppercase; color:var(--q-muted); }
 .q-venues-title{ font-size:11px; font-weight:800; letter-spacing:1px; text-transform:uppercase; color:var(--q-muted); margin:6px 0 10px; }
-.q-venue{ display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--q-text); padding:8px 0; border-bottom:1px solid var(--q-border); }
+.q-venue{ display:flex; align-items:flex-start; gap:8px; font-size:13px; font-weight:600; color:var(--q-text); padding:8px 0; border-bottom:1px solid var(--q-border); }.q-venue-name{ font-weight:700; }.q-venue-task{ font-size:11.5px; color:var(--q-muted); font-weight:600; margin-top:2px; }
 .q-venue .material-icons{ font-size:17px; color:var(--q-blue); }
 .q-venue.muted{ color:var(--q-muted); border-bottom:none; }
 .q-qr-btn{ width:100%; margin-top:18px; display:flex; align-items:center; justify-content:center; gap:8px; }
@@ -10478,7 +10478,7 @@ const Quests = {
       ? '<div class="q-cover" style="background-image:linear-gradient(180deg,rgba(8,20,32,0.20),rgba(8,20,32,0.55)),url(\'' + q.hero_image_url + '\');">' + coverPill + coverSpon + '</div>'
       : '<div class="q-cover ' + catCover + '">' + coverPill + coverSpon + '</div>';
     const venuesHtml = venues.length
-      ? venues.map(v => '<div class="q-venue"><span class="material-icons">place</span> ' + escHtml((v.providers && v.providers.business_name) || 'Venue') + '</div>').join('')
+      ? venues.map(v => '<div class="q-venue"><span class="material-icons">place</span><div><div class="q-venue-name">' + escHtml((v.providers && v.providers.business_name) || 'Venue') + '</div>' + (v.task ? '<div class="q-venue-task">' + escHtml(v.task) + '</div>' : '') + '</div></div>').join('')
       : '<div class="q-venue muted">Venues announced soon.</div>';
     const rewardLine = isPrize
       ? 'Win 1 of ' + (q.prize_total || '?') + ' prizes from <b>' + escHtml((q.sponsors && q.sponsors.name) || 'our partner') + '</b> — the first ' + (q.prize_total || '') + ' to finish. Everyone who completes still earns the stamp.'
