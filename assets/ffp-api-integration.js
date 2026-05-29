@@ -1,5 +1,14 @@
 /* =============================================================
-   FFP Passport — API Integration Module (v8)
+   FFP Passport — API Integration Module (v9)
+   v9 (2026-05-29) — AUTH-PROTECTED DASHBOARD REDIRECT. When any FFP
+       dashboard page (member/provider/admin) is loaded without a session
+       (no ffp_member in localStorage), autoInit now redirects to /login
+       instead of letting the page render in a broken empty state. Fixes
+       the welcome-email scenario: customer signs up on laptop, clicks
+       "Go To Dashboard" in the welcome email on their phone, lands on
+       a JWT-less dashboard. With v9 they get bounced to /login, sign in
+       with the 6-digit code, then see their populated dashboard. Same
+       pattern every legit service uses for auth-protected pages.
    v8 (2026-05-29) — CLEAN BUILD. The v7 monkey-patch on
        window.supabase.auth.getUser has been REMOVED. Loaders now
        explicitly call window.FFPAuth.getMember() instead of pretending
@@ -118,10 +127,10 @@
             headers: { Authorization: 'Bearer ' + jwt }
           }
         });
-        console.log('[FFP v8] Supabase client rebuilt with JWT — auth.uid() will resolve to member.id in RLS');
+        console.log('[FFP v9] Supabase client rebuilt with JWT — auth.uid() will resolve to member.id in RLS');
         return Promise.resolve({ success: true });
       } catch (e) {
-        console.error('[FFP v8] Failed to rebuild client with JWT:', e);
+        console.error('[FFP v9] Failed to rebuild client with JWT:', e);
         return Promise.resolve({ error: e });
       }
     },
@@ -238,22 +247,37 @@
     alert(msg);
   }
   function autoInit() {
+    var path = window.location.pathname.toLowerCase();
+
+    // v9: Auth-protected page guard. If we're on a dashboard page without
+    // a session, bounce to /login. Without this, opening a dashboard URL
+    // fresh (e.g. clicking the welcome email's "Go To Dashboard" button
+    // on a different device) renders an empty broken page instead of
+    // prompting the user to sign in.
+    var isDashboardPage = (
+      path.indexOf('ffp-member-dashboard')   !== -1 ||
+      path.indexOf('ffp-provider-dashboard') !== -1 ||
+      path.indexOf('ffp-admin-dashboard')    !== -1
+    );
+    if (isDashboardPage && !FFPAuth.isAuthenticated()) {
+      console.warn('[FFP v9] Dashboard requires auth — redirecting to /login');
+      window.location.href = '/login';
+      return;
+    }
+
     // v5: Re-apply Supabase Auth session on every page load — without this,
     // a reloaded dashboard would have no auth.uid() and every RLS-protected
-    // query would silently fail. Fires asynchronously; loaders that run
-    // before this resolves will retry (they already poll for window.supabase).
+    // query would silently fail.
     if (FFPAuth.getJwt()) {
       FFPAuth.applySupabaseSession();
     }
-    var path = window.location.pathname.toLowerCase();
+
     if (path.indexOf('ffp-member-dashboard') !== -1) {
-      if (!FFPAuth.isAuthenticated()) return;
       var stored = FFPAuth.getMember();
       if (stored) applyProfileToDashboard(stored);
       return;
     }
     if (path.indexOf('ffp-provider') !== -1) {
-      if (!FFPAuth.isAuthenticated()) return;
       var v = FFPAuth.getMember();
       if (v) {
         var nameEl = document.querySelector('[data-venue-name]');
