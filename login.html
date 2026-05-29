@@ -2,6 +2,14 @@
 ═══════════════════════════════════════════════════════════════════════
   FFP PASSPORT — login.html v4
   ───────────────────────────────────────────────────────────────────────
+  v5 changes (2026-05-29): Referral pass-through to Stripe checkout.
+  When a buyer arrives with a referral code in localStorage (set by the
+  homepage v4 capture), the "Become a Member" Stripe link gets the code
+  appended as ?client_reference_id=CODE so Stripe records it on the
+  checkout session. Backend v16's /api/onboard/from-stripe reads it back
+  and credits the referrer. Also captures ?ref=CODE if a buyer lands
+  directly on /login (not via homepage) so referral works either way.
+
   v4 changes (2026-05-28 evening): TWO frontend redirect fixes
   (backend v11 alone wasn't enough — frontend overrides backend redirect):
     - destinations map URLs corrected:
@@ -491,6 +499,41 @@ document.addEventListener('DOMContentLoaded', function () {
     goToSignUp();
   }
 });
+</script>
+<!-- v5: Referral pass-through. (a) Capture ?ref=CODE if buyer landed
+     directly on /login (not via homepage). (b) On every load, read the
+     stored ffp_ref and append ?client_reference_id=CODE to the Stripe
+     payment link so Stripe records it on the checkout session for the
+     backend to credit on /api/onboard/from-stripe. -->
+<script>
+(function () {
+  'use strict';
+
+  // (a) Capture ?ref if present in URL
+  var params = new URLSearchParams(window.location.search);
+  var refFromUrl = params.get('ref');
+  if (refFromUrl) {
+    try { localStorage.setItem('ffp_ref', refFromUrl); } catch (e) {}
+  }
+
+  // (b) Read stored ref + rewrite the Stripe link if any
+  var ref = null;
+  try { ref = localStorage.getItem('ffp_ref'); } catch (e) {}
+  if (!ref) return;
+
+  // Find all anchors pointing at buy.stripe.com and append ?client_reference_id
+  var anchors = document.querySelectorAll('a[href*="buy.stripe.com"]');
+  anchors.forEach(function (a) {
+    try {
+      var u = new URL(a.href);
+      // Don't overwrite if already set
+      if (!u.searchParams.has('client_reference_id')) {
+        u.searchParams.set('client_reference_id', ref);
+        a.href = u.toString();
+      }
+    } catch (e) { /* malformed href — skip */ }
+  });
+})();
 </script>
 </body>
 </html>
