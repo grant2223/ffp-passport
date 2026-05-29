@@ -1,4 +1,6 @@
-/* FFP Meet & Move Loader — v6
+/* FFP Meet & Move Loader — v7
+   v7 (2026-05-29): FIX — panel id is 'panel-meet' not 'panel-meet-move'; renderCircle
+     was returning early so Your circle never injected. Now renders.
    v6 (2026-05-29): re-inject Your circle after every panel render so it can't be wiped.
    v5 (2026-05-29):
    - YOUR CIRCLE: shows members you've connected with (accepted) + incoming
@@ -98,7 +100,7 @@
       : '<div class="cir-av">' + esc((p.name || 'M').charAt(0).toUpperCase()) + '</div>';
   }
   function renderCircle() {
-    var panel = document.getElementById('panel-meet-move');
+    var panel = document.getElementById('panel-meet');
     if (!panel) return;
     var host = document.getElementById('ffp-circle');
     if (!host) {
@@ -177,7 +179,7 @@
       var meetups = mRes.data || [];
       if (meetups.length === 0) {
         MeetMove.data = [];
-        var p0 = document.getElementById('panel-meet-move');
+        var p0 = document.getElementById('panel-meet');
         if (p0 && typeof MeetMove.render === 'function') { try { MeetMove.render(); } catch (e) {} }
         console.log('[FFP Meet & Move] No meetups — empty state');
         return;
@@ -220,9 +222,9 @@
       });
       installOverrides();
       wrapWrites();
-      var panel = document.getElementById('panel-meet-move');
+      var panel = document.getElementById('panel-meet');
       if (panel && panel.classList.contains('active') && typeof MeetMove.render === 'function') MeetMove.render();
-      console.log('[FFP Meet & Move] Loaded ' + MeetMove.data.length + ' meetups ✓');
+      console.log('[FFP Meet & Move] Loaded ' + MeetMove.data.length + ' meetups ✓ (v7)');
     } catch (err) { console.error('[FFP Meet & Move] Unexpected error:', err); }
   }
 
