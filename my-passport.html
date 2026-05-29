@@ -69,6 +69,8 @@ html, body {
   color: #e8eef4;
   font-family: 'Montserrat', sans-serif;
   -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;   /* iOS: don't auto-bloat tiny fonts */
+  text-size-adjust: 100%;
 }
 .wrap {
   min-height: 100vh;
@@ -418,15 +420,15 @@ html, body {
       ctaHtml +
       futureSections;
 
-    // Render the QR — same encoding as the dashboard one (verify URL),
-    // so scanning it from this page goes right back to this same page
-    // for the same member. Self-referential and consistent.
+    // Render the QR with the same passport URL — scanning it from this
+    // page loops back to this same page for the same member. Self-
+    // referential and consistent with the dashboard QR.
     try {
       var qrTarget = document.getElementById('pass-qr');
       if (qrTarget && window.QRCode && m.passport_no) {
-        var verifyUrl = 'https://ffppassport.com/my-passport.html?p=' + encodeURIComponent(m.passport_no);
+        var passportUrl = 'https://ffppassport.com/my-passport.html?p=' + encodeURIComponent(m.passport_no);
         new QRCode(qrTarget, {
-          text: verifyUrl,
+          text: passportUrl,
           width: 86, height: 86,
           colorDark: '#1a2937', colorLight: '#ffffff',
           correctLevel: QRCode.CorrectLevel.M
@@ -461,13 +463,13 @@ html, body {
         return;
       }
       if (!res.ok || !data.success) {
-        renderError('Verification failed', (data && data.error) || ('HTTP ' + res.status), passportNo);
+        renderError('Lookup failed', (data && data.error) || ('HTTP ' + res.status), passportNo);
         return;
       }
       renderCard(data.member);
     } catch (e) {
       console.error('[my-passport] error in lookup/render:', e, e && e.stack);
-      renderError('Network error', (e && e.message) ? ('Error: ' + e.message) : 'Could not reach the verification service. Try again in a moment.', passportNo);
+      renderError('Network error', (e && e.message) ? ('Error: ' + e.message) : 'Could not reach the passport service. Try again in a moment.', passportNo);
     }
   }
 
