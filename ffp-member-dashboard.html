@@ -2972,6 +2972,7 @@ input[type="number"] {
 .pm-form-textarea:focus { border-color: var(--blue); }
 .pm-form-textarea { min-height: 60px; resize: vertical; }
 .pm-form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width:560px){ .pm-form-grid-2 { grid-template-columns: 1fr; } }
 
 /* Provider vs Community challenges */
 .chal-group-head { font-size: 11px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: var(--blue); margin: 16px 0 8px; display: flex; align-items: center; gap: 6px; }
@@ -5303,18 +5304,8 @@ input[type="number"] {
       </div>
       <div class="pm-form-grid-2">
         <div class="pm-form-field">
-          <label class="pm-form-label">Category</label>
-          <select class="ffp-select" id="pmf-cat">
-            <option value="racquet">Racquet</option>
-            <option value="running">Running</option>
-            <option value="cycling">Cycling</option>
-            <option value="swimming">Swimming / Watersports</option>
-            <option value="team">Team sport</option>
-            <option value="combat">Combat</option>
-            <option value="fitness">Fitness</option>
-            <option value="mind-body">Yoga / Mind-body</option>
-            <option value="adventure">Adventure</option>
-          </select>
+          <label class="pm-form-label">Activity</label>
+          <select class="ffp-select" id="pmf-cat"></select>
         </div>
         <div class="pm-form-field">
           <label class="pm-form-label">Level</label>
@@ -5327,38 +5318,18 @@ input[type="number"] {
           </select>
         </div>
       </div>
-      <div class="pm-form-grid-2">
-        <div class="pm-form-field">
-          <label class="pm-form-label">Date</label>
-          <div style="display:flex; gap:8px;">
-            <select class="ffp-select" id="pmf-day"></select>
-            <select class="ffp-select" id="pmf-month"></select>
-            <select class="ffp-select" id="pmf-year"></select>
-          </div>
+      <div class="pm-form-field">
+        <label class="pm-form-label">Date</label>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+          <select class="ffp-select" id="pmf-day"></select>
+          <select class="ffp-select" id="pmf-month"></select>
+          <select class="ffp-select" id="pmf-year"></select>
         </div>
+      </div>
+      <div class="pm-form-grid-2">
         <div class="pm-form-field">
           <label class="pm-form-label">Time</label>
           <select class="ffp-select" id="pmf-time"></select>
-        </div>
-      </div>
-      <div class="pm-form-grid-2">
-        <div class="pm-form-field">
-          <label class="pm-form-label">Venue</label>
-          <input type="text" class="pm-form-input" id="pmf-venue" placeholder="e.g. Ace Padel Club">
-        </div>
-        <div class="pm-form-field">
-          <label class="pm-form-label">Area / City</label>
-          <input type="text" class="pm-form-input" id="pmf-area" placeholder="e.g. Al Quoz, Dubai">
-        </div>
-      </div>
-      <div class="pm-form-grid-2">
-        <div class="pm-form-field">
-          <label class="pm-form-label">Group</label>
-          <select class="ffp-select" id="pmf-gender">
-            <option value="any">Any gender</option>
-            <option value="women">Ladies only</option>
-            <option value="men">Men only</option>
-          </select>
         </div>
         <div class="pm-form-field">
           <label class="pm-form-label">Capacity (incl. you)</label>
@@ -5374,6 +5345,42 @@ input[type="number"] {
         </div>
       </div>
       <div class="pm-form-field">
+        <label class="pm-form-label">Venue</label>
+        <input type="text" class="pm-form-input" id="pmf-venue" placeholder="e.g. Ace Padel Club">
+      </div>
+      <div class="pm-form-grid-2">
+        <div class="pm-form-field">
+          <label class="pm-form-label">Country</label>
+          <select class="ffp-select" id="pmf-country"></select>
+        </div>
+        <div class="pm-form-field">
+          <label class="pm-form-label">City</label>
+          <input type="text" class="pm-form-input" id="pmf-city" placeholder="e.g. Dubai">
+        </div>
+      </div>
+      <div class="pm-form-grid-2">
+        <div class="pm-form-field">
+          <label class="pm-form-label">Group</label>
+          <select class="ffp-select" id="pmf-gender">
+            <option value="any">Any gender</option>
+            <option value="women">Ladies only</option>
+            <option value="men">Men only</option>
+          </select>
+        </div>
+        <div class="pm-form-field">
+          <label class="pm-form-label">Age range</label>
+          <select class="ffp-select" id="pmf-age">
+            <option value="">Select…</option>
+            <option value="18–25">18–25</option>
+            <option value="26–35">26–35</option>
+            <option value="36–45">36–45</option>
+            <option value="46–55">46–55</option>
+            <option value="56+">56+</option>
+            <option value="All ages">All ages</option>
+          </select>
+        </div>
+      </div>
+      <div class="pm-form-field">
         <label class="pm-form-label">Cost</label>
         <input type="text" class="pm-form-input" id="pmf-cost" placeholder="e.g. AED 75 split, or Free">
       </div>
@@ -5381,8 +5388,7 @@ input[type="number"] {
         <label class="pm-form-label">Description</label>
         <textarea class="pm-form-textarea" id="pmf-desc" placeholder="What you're looking for — pace, vibe, after-session plans..."></textarea>
       </div>
-    </div>
-    <div class="dm-footer">
+    </div>    <div class="dm-footer">
       <button class="btn-primary-blue" onclick="MeetMove.submitPost()">Post Meetup</button>
       <div class="dm-footer-note">Bigger than 8 people? Switch to an Event — contact FFP admin to host.</div>
     </div>
@@ -11347,9 +11353,11 @@ const MeetMove = {
     var monS = document.getElementById('pmf-month');
     var yrS = document.getElementById('pmf-year');
     var tmS = document.getElementById('pmf-time');
+    var actS = document.getElementById('pmf-cat');
+    var cnyS = document.getElementById('pmf-country');
     if (dayS && dayS.options.length === 0) {
-      for (var d = 1; d <= 31; d++) dayS.add(new Option(d, d));
-      var MN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      for (var d = 1; d <= 31; d++) dayS.add(new Option(String(d).padStart(2, '0'), d));
+      var MN = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
       MN.forEach(function (m, i) { monS.add(new Option(m, i + 1)); });
       var y0 = new Date().getFullYear();
       for (var y = y0; y <= y0 + 1; y++) yrS.add(new Option(y, y));
@@ -11360,6 +11368,22 @@ const MeetMove = {
           tmS.add(new Option(lab, hh + ':' + m2));
         }
       }
+    }
+    // Activity taxonomy (grouped, A–Z) — once
+    if (actS && actS.options.length === 0) {
+      var groups = {};
+      ACTIVITIES_DB.forEach(function (a) { (groups[a.c] = groups[a.c] || []).push(a.n); });
+      actS.add(new Option('Select activity…', ''));
+      Object.keys(groups).sort().forEach(function (g) {
+        var og = document.createElement('optgroup'); og.label = g;
+        groups[g].slice().sort().forEach(function (n) { og.appendChild(new Option(n, n)); });
+        actS.appendChild(og);
+      });
+    }
+    // Countries (A–Z) — once
+    if (cnyS && cnyS.options.length === 0) {
+      cnyS.add(new Option('Select country…', ''));
+      Object.keys(CITIES_DB).sort().forEach(function (c) { cnyS.add(new Option(c, c)); });
     }
     var t = new Date(); t.setDate(t.getDate() + 1);
     if (dayS) dayS.value = t.getDate();
@@ -11374,10 +11398,18 @@ const MeetMove = {
   },
   
   async submitPost() {
-    var title = document.getElementById('pmf-title').value.trim();
-    var venue = document.getElementById('pmf-venue').value.trim();
-    var area = document.getElementById('pmf-area').value.trim();
-    if (!title || !venue) { alert('Add a title and venue at minimum.'); return; }
+    var title    = document.getElementById('pmf-title').value.trim();
+    var activity = document.getElementById('pmf-cat').value;
+    var venue    = document.getElementById('pmf-venue').value.trim();
+    var country  = document.getElementById('pmf-country').value;
+    var city     = document.getElementById('pmf-city').value.trim();
+    var ageRange = document.getElementById('pmf-age').value;
+    if (!title)    { alert('Add a title.'); return; }
+    if (!activity) { alert('Pick an activity.'); return; }
+    if (!venue)    { alert('Add a venue.'); return; }
+    if (!country)  { alert('Select a country.'); return; }
+    if (!city)     { alert('Add a city.'); return; }
+    if (!ageRange) { alert('Select an age range.'); return; }
     var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
     if (!member || !member.id) { alert('Please sign in again to post a meetup.'); return; }
     var day = document.getElementById('pmf-day').value;
@@ -11390,10 +11422,12 @@ const MeetMove = {
     var payload = {
       host_member_id: member.id,
       title: title,
-      sport: document.getElementById('pmf-cat').value,
+      sport: activity,
       meets_at: meetsAt,
       venue: venue,
-      city: area,
+      city: city,
+      country: country,
+      age_range: ageRange,
       max_people: parseInt(document.getElementById('pmf-capacity').value, 10) || 8,
       fitness_level: document.getElementById('pmf-level').value,
       group_filter: groupFilter,
@@ -11406,11 +11440,7 @@ const MeetMove = {
     } catch (e) { alert('Could not post the meetup. Please try again.'); return; }
     this.closePostForm();
     showToast('Meetup posted — visible to matched members', 'send');
-    document.getElementById('pmf-title').value = '';
-    document.getElementById('pmf-venue').value = '';
-    document.getElementById('pmf-area').value = '';
-    document.getElementById('pmf-cost').value = '';
-    document.getElementById('pmf-desc').value = '';
+    ['pmf-title','pmf-venue','pmf-city','pmf-cost','pmf-desc'].forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ''; });
     if (typeof window.ffpReloadMeetMove === 'function') { try { window.ffpReloadMeetMove(); } catch (e) {} }
   }
 };
@@ -12123,7 +12153,7 @@ function init() {
   // Picker modal click-outside is wired inside the Picker module
   document.getElementById('city-search').addEventListener('input', e => renderCityList(e.target.value));
   renderAll();
-  console.log('FFP Dashboard v25 - profile auto-save');
+  console.log('FFP Dashboard v26 - meetup form rebuild');
 }
 
 // ===== APPLE WALLET INTEGRATION =====
