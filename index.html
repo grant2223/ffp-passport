@@ -16,7 +16,7 @@
   Changes from v5:
     - Richer referral banner. Now shows the referrer's avatar circle
       (their FFP passport photo or initials fallback), full name, and
-      a "see their passport →" link that opens /verify.html?p={their
+      a "see their passport →" link that opens /my-passport.html?p={their
       passport_no} for instant social proof — visitor sees a real
       FFP-branded passport card belonging to a real human they know.
       Backend v17 returns photo_url + passport_no + full_name in the
@@ -743,7 +743,7 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
 
 <!-- v5: referral capture — reads ?ref=CODE from URL, persists in localStorage,
      fetches richer referrer payload (name + avatar + passport_no), renders the
-     personalised banner with link to their verify card. localStorage persistence
+     personalised banner with link to their personalised passport view. localStorage persistence
      means a visitor can browse for days before signing up and still attribute. -->
 <script>
 (function () {
@@ -798,9 +798,9 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
         }
       }
 
-      // Link to their verify card (the personalised FFP-branded passport view)
+      // Link to their personalised FFP-branded passport view
       if (link && j.passport_no) {
-        link.href = '/verify.html?p=' + encodeURIComponent(j.passport_no);
+        link.href = '/my-passport.html?p=' + encodeURIComponent(j.passport_no);
       } else if (link) {
         link.style.display = 'none';   // hide link if no passport_no
       }
