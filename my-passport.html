@@ -454,7 +454,6 @@ html, body {
         renderError('No passport number', 'This URL is missing the member identifier. Sign in or scan a valid FFP Passport QR.', null);
         return;
       }
-      return;
     }
     try {
       var res = await fetch(API_BASE + '/api/passport/' + encodeURIComponent(passportNo));
@@ -469,7 +468,8 @@ html, body {
       }
       renderCard(data.member);
     } catch (e) {
-      renderError('Network error', 'Could not reach the verification service. Try again in a moment.', passportNo);
+      console.error('[my-passport] error in lookup/render:', e, e && e.stack);
+      renderError('Network error', (e && e.message) ? ('Error: ' + e.message) : 'Could not reach the verification service. Try again in a moment.', passportNo);
     }
   }
 
