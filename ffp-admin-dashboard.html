@@ -16,7 +16,6 @@
 <script src="ffp-admin-referrals-loader.js"></script>
 <script src="ffp-admin-content-loader.js"></script>
 <script src="ffp-admin-members-loader.js"></script>
-<script src="ffp-admin-deals-loader.js"></script>
 <script src="ffp-admin-quests-loader-v1.js"></script>
 <script src="ffp-admin-events-loader.js"></script>
 <script src="ffp-admin-experiences-loader.js"></script>
@@ -1315,7 +1314,6 @@ input, select, textarea { font-family: inherit; }
       <a class="sidebar-link" data-panel="panel-members" onclick="App.go('panel-members')">
         <span class="material-icons">people</span>Members
       </a>
-      <a class="sidebar-link" data-panel="panel-deals" onclick="App.go('panel-deals')">
       <a class="sidebar-link" data-panel="panel-quests" onclick="App.go('panel-quests')"><span class="material-icons">flag</span>Quests</a>
         <span class="material-icons">local_offer</span>Deals
       </a>
@@ -2102,7 +2100,6 @@ const App = {
     'panel-content':     'Content Moderation',
     'panel-payouts':     'Payouts',
     'panel-referrals':   'Referrals',
-    'panel-deals':       'Deals',
     'panel-quests':      'Quests',
     'panel-events':      'Events',
     'panel-experiences': 'Experiences',
@@ -2118,7 +2115,6 @@ const App = {
     AdminContent.init();
     AdminPayouts.init();
     AdminReferrals.init();
-    AdminDeals.init();
     AdminEvents.init();
     AdminExperiences.init();
     AdminChallenges.init();
