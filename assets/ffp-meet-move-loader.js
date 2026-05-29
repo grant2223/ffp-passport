@@ -1,4 +1,6 @@
-/* FFP Meet & Move Loader — v8
+/* FFP Meet & Move Loader — v9
+   v9 (2026-05-29): top strip collapsed to ONE compact bar (avatars + count) —
+     all match cards live in the popup; popup fixed-height across both tabs.
    v8 (2026-05-29): Your circle moved INTO the View-all popup as a 2nd tab
      ("Might click with" / "Your circle"); removed the on-page circle block.
    v7 (2026-05-29): FIX — panel id is 'panel-meet' not 'panel-meet-move'; renderCircle
@@ -34,6 +36,13 @@
       '*::-webkit-scrollbar{display:none !important;width:0 !important;height:0 !important;}',
       '*{-ms-overflow-style:none !important;scrollbar-width:none !important;}',
       '.dm-cover.ffp-img-cover{background-size:cover !important;background-position:center !important;background-repeat:no-repeat !important;}',
+      '.ffp-mbar{display:flex;align-items:center;gap:12px;cursor:pointer;padding:6px 2px;}',
+      '.ffp-mbar-avs{display:flex;align-items:center;flex-shrink:0;}',
+      '.ffp-mbar-av{width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--blue-dk,#1980AD),var(--blue,#2ba8e0));color:#fff;font-weight:800;font-size:14px;border:2px solid var(--bg,#0a1825);}',
+      '.ffp-mbar-txt{flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--muted,#8a99a8);}',
+      '.ffp-mbar-txt b{color:var(--text,#e8eef4);font-weight:800;}',
+      '.ffp-mbar-arrow{color:var(--blue,#2ba8e0);flex-shrink:0;}',
+      '.ffp-mtab-wrap{min-height:56vh;}',
       '.ffp-mtabs{display:flex;gap:6px;margin:4px 0 16px;border-bottom:1px solid var(--border-mid,rgba(43,168,224,0.18));}',
       '.ffp-mtab{flex:1;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted,#8a99a8);font-size:12px;font-weight:800;letter-spacing:0.4px;padding:9px 4px;cursor:pointer;font-family:inherit;}',
       '.ffp-mtab.active{color:var(--text,#e8eef4);border-bottom-color:var(--blue,#2ba8e0);}',
@@ -154,11 +163,43 @@
     '</div>';
   }
 
-  // Replace the dashboard's "View all" grid with a 2-tab modal:
+  // Compact bar shown on the main page in place of the 5 tall cards:
+  // overlapping avatars + count, taps through to the modal.
+  function barAvatars(matches) {
+    return matches.slice(0, 5).map(function (m, i) {
+      var style = 'margin-left:' + (i === 0 ? '0' : '-12px') + ';z-index:' + (10 - i) + ';';
+      return m.photo
+        ? '<span class="ffp-mbar-av" style="' + style + 'background:#0a1825 url(\'' + m.photo + '\') center/cover;"></span>'
+        : '<span class="ffp-mbar-av" style="' + style + '">' + esc((m.name || 'M').charAt(0).toUpperCase()) + '</span>';
+    }).join('');
+  }
+  // Replace the tall match strip with one compact bar.
+  function installMatchStripOverride() {
+    if (typeof MeetMove === 'undefined') return;
+    MeetMove.renderMatchStrip = function () {
+      var scroll = document.getElementById('meet-match-scroll');
+      if (!scroll) return;
+      var matches = this.matches || [];
+      if (!matches.length) {
+        scroll.innerHTML = '<div style="padding:10px 4px;color:var(--muted);font-size:12px;line-height:1.5;">More members are joining — matches show up here as the community grows.</div>';
+        return;
+      }
+      var n = matches.length;
+      scroll.innerHTML =
+        '<div class="ffp-mbar" onclick="MeetMove.openMatchesGrid()">' +
+          '<div class="ffp-mbar-avs">' + barAvatars(matches) + '</div>' +
+          '<div class="ffp-mbar-txt"><b>' + n + ' ' + (n === 1 ? 'member' : 'members') + '</b> you\'d click with</div>' +
+          '<span class="material-icons ffp-mbar-arrow">chevron_right</span>' +
+        '</div>';
+    };
+  }
+
+  // Replace the dashboard's "View all" grid with a 2-tab, fixed-height modal:
   //   "Might click with" (matches) + "Your circle" (connections).
   function installMatchesGridOverride() {
     if (typeof MeetMove === 'undefined' || gridOverridden) return;
     gridOverridden = true;
+    installMatchStripOverride();
     MeetMove.openMatchesGrid = function () {
       var matches = this.matches || [];
       var grid = matches.length
@@ -171,10 +212,10 @@
             '<button class="ffp-mtab active" id="ffp-mtab-click" onclick="FFPMatchTabs.show(\'click\')">Might click with</button>' +
             '<button class="ffp-mtab" id="ffp-mtab-circle" onclick="FFPMatchTabs.show(\'circle\')">Your circle</button>' +
           '</div>' +
-          '<div id="ffp-mtab-body-click">' +
-            '<div style="font-size:12px;color:var(--muted);margin-bottom:14px;">Matched on shared sports, level, city and age.</div>' + grid +
+          '<div class="ffp-mtab-wrap">' +
+            '<div id="ffp-mtab-body-click">' + grid + '</div>' +
+            '<div id="ffp-mtab-body-circle" style="display:none;">' + circleListHtml() + '</div>' +
           '</div>' +
-          '<div id="ffp-mtab-body-circle" style="display:none;">' + circleListHtml() + '</div>' +
         '</div>';
       openDetailModal(body);
     };
@@ -258,7 +299,7 @@
       wrapWrites();
       var panel = document.getElementById('panel-meet');
       if (panel && panel.classList.contains('active') && typeof MeetMove.render === 'function') MeetMove.render();
-      console.log('[FFP Meet & Move] Loaded ' + MeetMove.data.length + ' meetups ✓ (v8)');
+      console.log('[FFP Meet & Move] Loaded ' + MeetMove.data.length + ' meetups ✓ (v9)');
     } catch (err) { console.error('[FFP Meet & Move] Unexpected error:', err); }
   }
 
