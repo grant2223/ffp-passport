@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════
    FFP ADMIN QUESTS LOADER · v1
-   File path: ffp-admin-quests-loader-v1.js (repo root)
+   File path: ffp-admin-quests-loader.js (repo root)
    On-load log: [FFP Admin Quests v1] Loaded ✓
 
    Builds the admin "Quests" panel: list quests, create/edit a quest, pick or
