@@ -3997,7 +3997,7 @@ input[type="number"] {
     <div class="menu-wrap">
       <button class="icon-btn" id="notif-btn">
         <span class="material-icons">notifications</span>
-        <span class="badge" id="notif-badge">3</span>
+        <span class="badge" id="notif-badge" style="display:none;">0</span>
       </button>
       <div class="menu" id="notif-menu">
         <div class="menu-header">
@@ -4005,18 +4005,7 @@ input[type="number"] {
           <div class="menu-action" onclick="clearNotifs()">Clear all</div>
         </div>
         <div id="notif-list">
-          <div class="notif-item unread">
-            <div class="notif-icon"><span class="material-icons" style="font-size:18px;">event</span></div>
-            <div><div class="notif-msg">Your Padel match at Dubai Padel Club is in 2 hours</div><div class="notif-time">5 mins ago</div></div>
-          </div>
-          <div class="notif-item unread">
-            <div class="notif-icon"><span class="material-icons" style="font-size:18px;">local_offer</span></div>
-            <div><div class="notif-msg">New deal: 20% off at FitZone Gym</div><div class="notif-time">1 hour ago</div></div>
-          </div>
-          <div class="notif-item unread">
-            <div class="notif-icon"><span class="material-icons" style="font-size:18px;">card_membership</span></div>
-            <div><div class="notif-msg">You earned AED 150 from referrals</div><div class="notif-time">3 hours ago</div></div>
-          </div>
+          <div class="empty-state" style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">Loading…</div>
         </div>
       </div>
     </div>
@@ -6947,7 +6936,7 @@ function setupTopbar() {
   const userBtn = document.getElementById('user-btn');
   const userMenu = document.getElementById('user-menu');
   
-  notifBtn.addEventListener('click', e => { e.stopPropagation(); notifMenu.classList.toggle('show'); userMenu.classList.remove('show'); });
+  notifBtn.addEventListener('click', e => { e.stopPropagation(); var opening = !notifMenu.classList.contains('show'); notifMenu.classList.toggle('show'); userMenu.classList.remove('show'); if (opening) markNotifsSeen(); });
   userBtn.addEventListener('click', e => { e.stopPropagation(); userMenu.classList.toggle('show'); notifMenu.classList.remove('show'); });
   document.addEventListener('click', e => {
     if (!e.target.closest('.menu-wrap')) { notifMenu.classList.remove('show'); userMenu.classList.remove('show'); }
@@ -6969,6 +6958,38 @@ function setupTopbar() {
       }
     });
   }
+}
+
+var FFP_API_NOTIF = 'https://ffp-passport-backend.vercel.app';
+function escNotif(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function notifTime(iso){ if(!iso) return ''; var d=Date.now()-new Date(iso).getTime(); var m=Math.floor(d/60000); if(m<1)return 'just now'; if(m<60)return m+'m ago'; var h=Math.floor(m/60); if(h<24)return h+'h ago'; return Math.floor(h/24)+'d ago'; }
+async function loadNotifications() {
+  var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
+  if (!member || !member.id) return;
+  try {
+    var res = await fetch(FFP_API_NOTIF + '/api/notifications/' + member.id);
+    var json = await res.json();
+    var list = (json && json.notifications) || [];
+    var listEl = document.getElementById('notif-list');
+    if (listEl) {
+      listEl.innerHTML = list.length ? list.map(function (n) {
+        return '<div class="notif-item"><div class="notif-icon"><span class="material-icons" style="font-size:18px;">' + escNotif(n.icon || 'campaign') + '</span></div>' +
+          '<div><div class="notif-msg">' + escNotif(n.title) + (n.body ? ' \u2014 ' + escNotif(n.body) : '') + '</div><div class="notif-time">' + notifTime(n.created_at) + '</div></div></div>';
+      }).join('') : '<div class="empty-state" style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">No notifications yet</div>';
+    }
+    var badge = document.getElementById('notif-badge');
+    if (badge) {
+      var u = (json && json.unread) || 0;
+      if (u > 0) { badge.textContent = u > 9 ? '9+' : String(u); badge.style.display = ''; }
+      else { badge.style.display = 'none'; }
+    }
+  } catch (e) { console.error('[FFP Notif] load:', e); }
+}
+async function markNotifsSeen() {
+  var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
+  if (!member || !member.id) return;
+  var badge = document.getElementById('notif-badge'); if (badge) badge.style.display = 'none';
+  try { await fetch(FFP_API_NOTIF + '/api/notifications/seen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ member_id: member.id }) }); } catch (e) {}
 }
 
 function clearNotifs() {
@@ -12186,6 +12207,7 @@ function init() {
   FitnessStats.init();
   Earnings.init();
   loadJourneyLogs();
+  loadNotifications();
   window.Quests = Quests;
   Quests.init();
   Events.init();
@@ -12215,7 +12237,7 @@ function init() {
   // Picker modal click-outside is wired inside the Picker module
   document.getElementById('city-search').addEventListener('input', e => renderCityList(e.target.value));
   renderAll();
-  console.log('FFP Dashboard v29 - wallet buttons + log activity label');
+  console.log('FFP Dashboard v30 - live notifications bell');
 }
 
 // ===== APPLE WALLET INTEGRATION =====
