@@ -1,17 +1,16 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP PROVIDER QUEST CHECK-INS LOADER · v1
+   FFP PROVIDER QUEST CHECK-INS LOADER · v2
    File path: ffp-provider-quests-loader.js (repo root)
-   On-load log: [FFP Quest Check-ins v1] Loaded ✓
+   On-load log: [FFP Quest Check-ins v2] Loaded ✓
 
-   Injects a "Quest check-ins" card into #panel-checkins. Lists pending
-   quest check-in requests for this provider (members who scanned in for a
-   quest) and lets staff Approve / Decline. Approve calls the backend award
-   transaction, which stamps the step and — on completion — awards the stamp,
-   claims a prize slot if first-N, and recomputes the member's tier.
+   Injects a "Quest check-ins" card into #panel-checkins: lists pending quest
+   check-in requests for this provider and lets staff Approve / Decline.
+   Approve calls the backend award transaction (stamps the step; on completion
+   awards the stamp, claims a prize slot if first-N, recomputes tier).
 
-   Self-contained: reads window.FFP_PROVIDER (set by ffp-provider-auth) and
-   talks to the FFP backend over HTTPS. No Supabase writes here — all award
-   logic is server-side.
+   v2: render rows with the dashboard's native .checkin-row / .checkin-avatar /
+       .btn classes (fixes v1's stretched-button layout); add a visitor count
+       (total approved quest check-ins at this venue).
    ═══════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
@@ -59,26 +58,21 @@
     s.id = 'ffp-q-checkins-css';
     s.textContent = [
       '#ffp-q-checkins{margin-bottom:22px;}',
-      '#ffp-q-checkins .qcard{background:var(--ffp-bg-2,#0f1e2e);border:1px solid rgba(43,168,224,0.18);border-radius:14px;padding:18px;}',
-      '#ffp-q-checkins .qhead{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800;margin-bottom:4px;}',
-      '#ffp-q-checkins .qhead .ms{color:#FFCC00;}',
-      '#ffp-q-checkins .qsub{font-size:12px;color:var(--ffp-text-muted,#8a99a8);margin-bottom:14px;}',
-      '#ffp-q-checkins .qrow{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid rgba(255,255,255,0.06);}',
-      '#ffp-q-checkins .qav{width:40px;height:40px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(43,168,224,0.15);color:#2ba8e0;font-weight:800;background-size:cover;background-position:center;}',
-      '#ffp-q-checkins .qinfo{flex:1;min-width:0;}',
-      '#ffp-q-checkins .qname{font-size:13px;font-weight:800;}',
-      '#ffp-q-checkins .qmeta{font-size:11px;color:var(--ffp-text-muted,#8a99a8);margin-top:2px;}',
-      '#ffp-q-checkins .qbtns{display:flex;gap:8px;flex-shrink:0;}',
-      '#ffp-q-checkins .qbtn{border:none;border-radius:9px;padding:8px 12px;font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:4px;}',
-      '#ffp-q-checkins .qbtn .ms{font-size:16px;}',
-      '#ffp-q-checkins .qbtn.app{background:#FFCC00;color:#000;}',
-      '#ffp-q-checkins .qbtn.dec{background:rgba(255,255,255,0.08);color:#e8eef4;}',
-      '#ffp-q-checkins .qempty{font-size:13px;color:var(--ffp-text-muted,#8a99a8);padding:8px 0;}'
+      '#ffp-q-checkins .qc-head{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:800;margin-bottom:4px;}',
+      '#ffp-q-checkins .qc-head .ms{color:var(--ffp-yellow,#FFCC00);}',
+      '#ffp-q-checkins .qc-pill{font-size:11px;font-weight:800;background:rgba(43,168,224,0.18);color:var(--ffp-blue,#2ba8e0);border-radius:20px;padding:2px 9px;}',
+      '#ffp-q-checkins .qc-sub{font-size:12px;color:var(--ffp-text-muted,#8a99a8);margin-bottom:14px;}',
+      '#ffp-q-checkins .qc-actions{display:flex;gap:8px;flex-shrink:0;}',
+      '#ffp-q-checkins .qc-empty{font-size:13px;color:var(--ffp-text-muted,#8a99a8);padding:10px 2px;}',
+      '#ffp-q-checkins .qc-visitors{display:flex;align-items:center;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--ffp-border,rgba(43,168,224,0.10));font-size:12px;font-weight:700;color:var(--ffp-text-muted,#8a99a8);}',
+      '#ffp-q-checkins .qc-visitors b{color:var(--ffp-text,#e8eef4);font-size:15px;}',
+      '#ffp-q-checkins .qc-visitors .ms{color:var(--ffp-yellow,#FFCC00);font-size:18px;}'
     ].join('');
     document.head.appendChild(s);
   }
 
   var rows = [];
+  var approvedCount = 0;
 
   function ensureContainer() {
     var panel = document.getElementById('panel-checkins');
@@ -93,36 +87,53 @@
     return el;
   }
 
+  function rowHtml(r) {
+    var m = r.members || {}, q = r.quests || {};
+    var avatar = m.photo_url
+      ? '<div class="checkin-avatar" style="background:#0a1825 url(' + esc(m.photo_url) + ') center/cover;"></div>'
+      : '<div class="checkin-avatar">' + esc(letterFor(m)) + '</div>';
+    return '<div class="checkin-row" id="qrow-' + r.id + '">' +
+        avatar +
+        '<div class="checkin-info">' +
+          '<div class="checkin-name">' + esc(fullName(m)) + '</div>' +
+          '<div class="checkin-listing">' + esc(q.title || 'Quest') + ' · ' + relTime(r.requested_at) + '</div>' +
+        '</div>' +
+        '<div class="qc-actions">' +
+          '<button class="btn btn-ghost" onclick="FFPQuestCheckins.decline(\'' + r.id + '\')">Decline</button>' +
+          '<button class="btn btn-pri" onclick="FFPQuestCheckins.approve(\'' + r.id + '\')"><span class="ms">check</span> Approve</button>' +
+        '</div>' +
+      '</div>';
+  }
+
   function render() {
     var el = ensureContainer();
     if (!el) return;
     var list = rows.length
-      ? rows.map(function (r) {
-          var m = r.members || {}, q = r.quests || {};
-          var av = m.photo_url
-            ? '<div class="qav" style="background-image:url(' + esc(m.photo_url) + ')"></div>'
-            : '<div class="qav">' + esc(letterFor(m)) + '</div>';
-          return '<div class="qrow" id="qrow-' + r.id + '">' + av +
-            '<div class="qinfo"><div class="qname">' + esc(fullName(m)) + '</div>' +
-            '<div class="qmeta">' + esc(q.title || 'Quest') + ' · ' + relTime(r.requested_at) + '</div></div>' +
-            '<div class="qbtns">' +
-              '<button class="qbtn dec" onclick="FFPQuestCheckins.decline(\'' + r.id + '\')">Decline</button>' +
-              '<button class="qbtn app" onclick="FFPQuestCheckins.approve(\'' + r.id + '\')"><span class="ms">check</span> Approve</button>' +
-            '</div></div>';
-        }).join('')
-      : '<div class="qempty">No pending quest check-ins right now.</div>';
-    el.innerHTML = '<div class="qcard"><div class="qhead"><span class="ms">flag</span> Quest check-ins</div>' +
-      '<div class="qsub">Members who scanned in for a quest. Approve to stamp their step.</div>' + list + '</div>';
+      ? '<div class="checkin-list">' + rows.map(rowHtml).join('') + '</div>'
+      : '<div class="qc-empty">No pending quest check-ins right now.</div>';
+    var pill = rows.length ? '<span class="qc-pill">' + rows.length + '</span>' : '';
+    var visitors = '<div class="qc-visitors"><span class="ms">flag</span> <b>' +
+      (approvedCount >= 100 ? '100+' : approvedCount) + '</b> quest check-ins approved at your venue</div>';
+    el.innerHTML =
+      '<div class="qc-head"><span class="ms">flag</span> Quest check-ins ' + pill + '</div>' +
+      '<div class="qc-sub">Members who scanned in for a quest. Approve to stamp their step.</div>' +
+      list + visitors;
+  }
+
+  async function fetchList(status) {
+    var pid = providerId();
+    if (!pid) return [];
+    try {
+      var res = await fetch(API + '/api/quests/provider/' + pid + '/checkins?status=' + status);
+      var json = await res.json();
+      return (json && json.checkins) ? json.checkins : [];
+    } catch (e) { return []; }
   }
 
   async function load() {
-    var pid = providerId();
-    if (!pid) return;
-    try {
-      var res = await fetch(API + '/api/quests/provider/' + pid + '/checkins?status=pending');
-      var json = await res.json();
-      rows = (json && json.checkins) ? json.checkins : [];
-    } catch (e) { rows = []; }
+    rows = await fetchList('pending');
+    var approved = await fetchList('approved');
+    approvedCount = approved.length;
     render();
   }
 
@@ -136,6 +147,7 @@
       if (!res.ok || !json.success) { toast((json && json.error) || 'Approve failed', 'error'); return; }
       toast(json.completed ? 'Approved — quest complete! Stamp awarded.' : 'Approved — step stamped.', 'success');
       rows = rows.filter(function (r) { return r.id !== id; });
+      approvedCount += 1;
       render();
     } catch (e) { toast('Approve failed', 'error'); }
   }
@@ -162,9 +174,12 @@
     injectStyles();
     await load();
     setInterval(load, 20000);   // light poll so new requests appear without a manual refresh
-    console.log('[FFP Quest Check-ins v1] Loaded ✓');
+    console.log('[FFP Quest Check-ins v2] Loaded ✓');
   }
 
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 })();
