@@ -1,7 +1,11 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP ADMIN QUESTS LOADER · v1
+   FFP ADMIN QUESTS LOADER · v2
    File path: ffp-admin-quests-loader.js (repo root)
-   On-load log: [FFP Admin Quests v1] Loaded ✓
+   On-load log: [FFP Admin Quests v2] Loaded ✓
+
+   v2 (2026-05-29): Hero image is now an UPLOAD (Supabase Storage bucket
+   'quest-images') instead of a pasted URL. Stored public URL still lands in
+   quests.hero_image_url, so the member quest modal renders it unchanged.
 
    Builds the admin "Quests" panel: list quests, create/edit a quest, pick or
    create the stamp it awards, pick or create a sponsor (for prize quests),
@@ -168,7 +172,12 @@
           '<div id="q-sponsor-new" style="display:none;margin-top:10px;" class="qf-two"><div><input class="qf-input" id="q-sponsor-name" placeholder="Sponsor name"></div><div><input class="qf-input" id="q-sponsor-logo" placeholder="Logo text (e.g. GS)"></div></div></div>' +
         '<div class="qf-row"><label>Number of prizes (first N to finish win)</label><input class="qf-input" id="q-prize-total" type="number" min="1" value="' + (q && q.prize_total != null ? q.prize_total : 5) + '"></div>' +
       '</div>' +
-      '<div class="qf-row"><label>Hero image URL (optional)</label><input class="qf-input" id="q-hero" value="' + esc(q ? (q.hero_image_url || '') : '') + '" placeholder="https://…"></div>' +
+      '<div class="qf-row"><label>Hero image</label>' +
+        '<div id="q-hero-preview" style="height:120px;border-radius:12px;background-color:#0f2335;background-size:cover;background-position:center;background-repeat:no-repeat;border:1px solid rgba(43,168,224,0.25);margin-bottom:8px;' + (q && q.hero_image_url ? "background-image:url('" + esc(q.hero_image_url) + "');" : '') + '"></div>' +
+        '<input type="file" id="q-hero-file" accept="image/*" style="display:none" onchange="AdminQuests.uploadHero(this)">' +
+        '<button type="button" class="btn btn-ghost" onclick="document.getElementById(\'q-hero-file\').click()"><span class="material-icons">upload</span> Upload image</button>' +
+        '<input type="hidden" id="q-hero" value="' + esc(q ? (q.hero_image_url || '') : '') + '">' +
+      '</div>' +
       '<div class="qf-row"><label>Venues that count toward this quest</label><div class="qf-venues">' + venueRows + '</div></div>';
 
     var foot = '<button class="btn btn-ghost" onclick="closeQuestModal()">Cancel</button>' +
@@ -301,10 +310,50 @@
   }
   window.closeQuestModal = function () { var o = document.getElementById('ffp-quest-modal-overlay'); if (o) o.remove(); };
 
+  // ── Hero image upload (Supabase Storage, public bucket 'quest-images') ──
+  var HERO_BUCKET = 'quest-images';
+  function compressImage(file, maxW, quality) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      var url = URL.createObjectURL(file);
+      img.onload = function () {
+        var scale = Math.min(1, maxW / img.width);
+        var w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+        var c = document.createElement('canvas'); c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        c.toBlob(function (b) { b ? resolve(b) : reject(new Error('Could not process image')); }, 'image/jpeg', quality || 0.82);
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('Could not read image')); };
+      img.src = url;
+    });
+  }
+  async function uploadHero(input) {
+    var file = input && input.files && input.files[0];
+    if (!file) return;
+    if (!window.supabase) { toast('Storage not ready — try again', 'error'); return; }
+    toast('Uploading image…');
+    try {
+      var blob = await compressImage(file, 1280, 0.82);
+      var path = 'q-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.jpg';
+      var up = await window.supabase.storage.from(HERO_BUCKET).upload(path, blob, { contentType: 'image/jpeg', upsert: true, cacheControl: '3600' });
+      if (up.error) throw up.error;
+      var pub = window.supabase.storage.from(HERO_BUCKET).getPublicUrl(path);
+      var publicUrl = pub && pub.data && pub.data.publicUrl;
+      if (!publicUrl) throw new Error('Could not resolve image URL');
+      var hid = document.getElementById('q-hero'); if (hid) hid.value = publicUrl;
+      var pv = document.getElementById('q-hero-preview'); if (pv) pv.style.backgroundImage = "url('" + publicUrl + "')";
+      toast('Image uploaded ✓', 'success');
+    } catch (e) {
+      toast((e && e.message) || 'Upload failed — check the quest-images bucket exists', 'error');
+    } finally { try { input.value = ''; } catch (e) {} }
+  }
+
   window.AdminQuests = {
     openForm: openForm, save: save, setStatus: setStatus, refresh: refresh,
     setTab: function (t) { S.tab = t; renderList(); },
-    toggleReward: toggleReward, toggleStamp: toggleStamp, toggleSponsor: toggleSponsor
+    toggleReward: toggleReward, toggleStamp: toggleStamp, toggleSponsor: toggleSponsor,
+    uploadHero: uploadHero
   };
 
   async function init() {
@@ -314,7 +363,7 @@
     if (window.App && window.App.panelNames) window.App.panelNames['panel-quests'] = 'Quests';
     injectStyles();
     buildScaffold();
-    try { await refresh(); console.log('[FFP Admin Quests v1] Loaded \u2713'); }
+    try { await refresh(); console.log('[FFP Admin Quests v2] Loaded ✓'); }
     catch (e) { console.error('[FFP Admin Quests] initial load:', e); }
   }
 
