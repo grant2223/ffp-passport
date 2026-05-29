@@ -5327,11 +5327,15 @@ input[type="number"] {
       <div class="pm-form-grid-2">
         <div class="pm-form-field">
           <label class="pm-form-label">Date</label>
-          <input type="date" class="pm-form-input" id="pmf-date">
+          <div style="display:flex; gap:8px;">
+            <select class="ffp-select" id="pmf-day"></select>
+            <select class="ffp-select" id="pmf-month"></select>
+            <select class="ffp-select" id="pmf-year"></select>
+          </div>
         </div>
         <div class="pm-form-field">
           <label class="pm-form-label">Time</label>
-          <input type="time" class="pm-form-input" id="pmf-time">
+          <select class="ffp-select" id="pmf-time"></select>
         </div>
       </div>
       <div class="pm-form-grid-2">
@@ -11327,10 +11331,29 @@ const MeetMove = {
   },
   
   openPostForm() {
-    // Set default date to tomorrow
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    document.getElementById('pmf-date').value = tomorrow.toISOString().split('T')[0];
+    var dayS = document.getElementById('pmf-day');
+    var monS = document.getElementById('pmf-month');
+    var yrS = document.getElementById('pmf-year');
+    var tmS = document.getElementById('pmf-time');
+    if (dayS && dayS.options.length === 0) {
+      for (var d = 1; d <= 31; d++) dayS.add(new Option(d, d));
+      var MN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      MN.forEach(function (m, i) { monS.add(new Option(m, i + 1)); });
+      var y0 = new Date().getFullYear();
+      for (var y = y0; y <= y0 + 1; y++) yrS.add(new Option(y, y));
+      for (var h = 5; h <= 22; h++) {
+        for (var mm = 0; mm < 60; mm += 30) {
+          var hh = String(h).padStart(2, '0'), m2 = String(mm).padStart(2, '0');
+          var lab = ((h % 12) || 12) + ':' + m2 + ' ' + (h < 12 ? 'AM' : 'PM');
+          tmS.add(new Option(lab, hh + ':' + m2));
+        }
+      }
+    }
+    var t = new Date(); t.setDate(t.getDate() + 1);
+    if (dayS) dayS.value = t.getDate();
+    if (monS) monS.value = t.getMonth() + 1;
+    if (yrS) yrS.value = t.getFullYear();
+    if (tmS) tmS.value = '18:00';
     document.getElementById('post-meetup-backdrop').classList.add('open');
   },
   
@@ -11338,20 +11361,45 @@ const MeetMove = {
     document.getElementById('post-meetup-backdrop').classList.remove('open');
   },
   
-  submitPost() {
-    const title = document.getElementById('pmf-title').value.trim();
-    const venue = document.getElementById('pmf-venue').value.trim();
-    const area = document.getElementById('pmf-area').value.trim();
+  async submitPost() {
+    var title = document.getElementById('pmf-title').value.trim();
+    var venue = document.getElementById('pmf-venue').value.trim();
+    var area = document.getElementById('pmf-area').value.trim();
     if (!title || !venue) { alert('Add a title and venue at minimum.'); return; }
-    // PRODUCTION: POST /api/meet/create with all form fields
+    var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
+    if (!member || !member.id) { alert('Please sign in again to post a meetup.'); return; }
+    var day = document.getElementById('pmf-day').value;
+    var mon = String(document.getElementById('pmf-month').value).padStart(2, '0');
+    var yr = document.getElementById('pmf-year').value;
+    var tm = document.getElementById('pmf-time').value || '18:00';
+    var meetsAt = yr + '-' + mon + '-' + String(day).padStart(2, '0') + 'T' + tm + ':00';
+    var g = document.getElementById('pmf-gender').value;
+    var groupFilter = g === 'women' ? 'women_only' : (g === 'men' ? 'men_only' : null);
+    var payload = {
+      host_member_id: member.id,
+      title: title,
+      sport: document.getElementById('pmf-cat').value,
+      meets_at: meetsAt,
+      venue: venue,
+      city: area,
+      max_people: parseInt(document.getElementById('pmf-capacity').value, 10) || 8,
+      fitness_level: document.getElementById('pmf-level').value,
+      group_filter: groupFilter,
+      description: document.getElementById('pmf-desc').value.trim(),
+      status: 'open'
+    };
+    try {
+      var res = await window.supabase.from('meetups').insert(payload);
+      if (res.error) { alert('Could not post: ' + res.error.message); return; }
+    } catch (e) { alert('Could not post the meetup. Please try again.'); return; }
     this.closePostForm();
-    showToast(`Meetup posted — visible to matched members`, 'send');
-    // Clear form for next time
+    showToast('Meetup posted — visible to matched members', 'send');
     document.getElementById('pmf-title').value = '';
     document.getElementById('pmf-venue').value = '';
     document.getElementById('pmf-area').value = '';
     document.getElementById('pmf-cost').value = '';
     document.getElementById('pmf-desc').value = '';
+    if (typeof window.ffpReloadMeetMove === 'function') { try { window.ffpReloadMeetMove(); } catch (e) {} }
   }
 };
 
