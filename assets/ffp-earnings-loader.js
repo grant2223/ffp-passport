@@ -1,8 +1,18 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP EARNINGS LOADER · CURRENT VERSION: v12
+   FFP EARNINGS LOADER · CURRENT VERSION: v13
    File path: assets/ffp-earnings-loader.js
    On-load log: [FFP Earnings v12] Loaded from Supabase ✓
    ═══════════════════════════════════════════════════════════════ */
+/* WHAT v13 CHANGES (from v12):
+   - Adds a Share button into the existing .earn-refer-cta block. Uses
+     the Web Share API on mobile (native iOS/Android share sheet —
+     WhatsApp/iMessage/Email/SMS prefilled with personalised invite +
+     link ffppassport.com/?ref={member.referral_code}). Falls back to
+     copy-to-clipboard on browsers without navigator.share. Reads
+     referral_code from members table (already loaded into
+     Earnings.referralCode in the existing init). Triggers a small
+     "Link copied!" toast on the fallback path.
+*/
 /* WHAT v12 CHANGES (from v11):
    - CLEAN-BUILD refactor. Replaces window.supabase.auth.getUser()
      (which validates against auth.users — a table FFP custom-auth
@@ -53,6 +63,75 @@
   var DEFAULT_VISIBLE_ROWS = 3;    // v11+ (was 5 in v9-v10)
   var layoutBuilt = false;
 
+  // v13: Build the Share button + wire it. Idempotent — safe to call on
+  // every panel render. Uses navigator.share (mobile native sheet) when
+  // available, falls back to navigator.clipboard.writeText with a toast.
+  function setupReferralShare(panel) {
+    if (!panel) return;
+    var cta = panel.querySelector('.earn-refer-cta');
+    if (!cta) return;
+    if (cta.querySelector('.ffp-share-btn')) return;  // already added
+
+    var btn = document.createElement('button');
+    btn.className = 'ffp-share-btn';
+    btn.type = 'button';
+    btn.style.cssText = 'display:inline-flex;align-items:center;gap:8px;margin-top:12px;padding:10px 18px;background:#2ba8e0;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;';
+    btn.innerHTML = '<span class="material-icons" style="font-size:18px;">share</span>Share Your Referral Link';
+
+    btn.addEventListener('click', function () {
+      var code = (typeof Earnings !== 'undefined' && Earnings.referralCode) || '';
+      if (!code) { showToast('Referral code not loaded yet — refresh and try again', 'error'); return; }
+
+      var url = 'https://ffppassport.com/?ref=' + encodeURIComponent(code);
+      var firstName = '';
+      try {
+        var m = JSON.parse(localStorage.getItem('ffp_member') || 'null');
+        firstName = (m && m.given_names) ? String(m.given_names).split(/\s+/)[0] : '';
+      } catch (e) {}
+      var msg = (firstName ? firstName + ' here! ' : '') +
+                'I joined FFP Passport — the UAE\'s active lifestyle membership. ' +
+                'Use my link to sign up: ' + url;
+
+      if (navigator.share) {
+        navigator.share({
+          title: 'FFP Passport',
+          text:  msg,
+          url:   url
+        }).catch(function () { /* user cancelled — no-op */ });
+      } else if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(msg).then(function () {
+          showToast('Invite link copied to clipboard!', 'success');
+        }).catch(function () {
+          fallbackCopy(msg);
+        });
+      } else {
+        fallbackCopy(msg);
+      }
+    });
+
+    cta.appendChild(btn);
+  }
+
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); showToast('Invite link copied!', 'success'); }
+    catch (e) { showToast('Could not copy — long-press the link to copy manually', 'error'); }
+    document.body.removeChild(ta);
+  }
+
+  function showToast(msg, kind) {
+    var t = document.createElement('div');
+    t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:12px 20px;border-radius:8px;font-size:14px;font-weight:600;z-index:99999;background:' + (kind==='error'?'#f87171':'#22c55e') + ';color:#fff;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(function () { t.style.opacity='0'; t.style.transition='opacity 0.3s'; }, 1800);
+    setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 2200);
+  }
+
   function injectStyles() {
     if (document.getElementById('ffp-earnings-loader-styles')) return;
     var s = document.createElement('style');
@@ -92,6 +171,11 @@
   function renderPayoutsSection() {
     var panel = document.getElementById('panel-earnings');
     if (!panel) return;
+
+    // v13: ensure the Share button is set up on every render cycle.
+    // The Refer-a-friend CTA (.earn-refer-cta) is rendered by the dashboard
+    // inline code; we enhance it here once per panel render.
+    setupReferralShare(panel);
 
     var section = document.getElementById('ffp-payouts-section');
     if (!section) {
