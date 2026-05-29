@@ -1,8 +1,18 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP EARNINGS LOADER · CURRENT VERSION: v14
+   FFP EARNINGS LOADER · CURRENT VERSION: v15
    File path: assets/ffp-earnings-loader.js
    On-load log: [FFP Earnings v12] Loaded from Supabase ✓
    ═══════════════════════════════════════════════════════════════ */
+/* WHAT v15 CHANGES (from v14):
+   - Fix Web Share API duplicating the URL. The Web Share API treats
+     'text' and 'url' as separate fields — apps that consume both
+     (WhatsApp, iMessage) end up appending the url field to the text,
+     duplicating any URL the text already contained. Fix: keep the URL
+     OUT of the text body; only include it in the dedicated 'url' field.
+     Receiving apps then render a proper link preview card on its own.
+     The clipboard fallback path still embeds the URL in the text since
+     there's no separate URL field for clipboard.
+*/
 /* WHAT v14 CHANGES (from v13):
    - Share button URL switched from /?ref=CODE to /join?ref=CODE.
      /join is the canonical invite URL (one less hop — friend lands
@@ -94,24 +104,31 @@
         var m = JSON.parse(localStorage.getItem('ffp_member') || 'null');
         firstName = (m && m.given_names) ? String(m.given_names).split(/\s+/)[0] : '';
       } catch (e) {}
-      var msg = (firstName ? firstName + ' here! ' : '') +
-                'I joined FFP Passport — the UAE\'s active lifestyle membership. ' +
-                'Use my link to sign up: ' + url;
+
+      // v15: Web Share API needs URL in the 'url' field ONLY (not also
+      // baked into 'text') or apps like WhatsApp/iMessage duplicate it.
+      var shareText = (firstName ? firstName + ' here! ' : '') +
+                      'I joined FFP Passport — the UAE\'s active lifestyle membership. ' +
+                      'Use my link to sign up:';
+
+      // Clipboard fallback DOES want the URL inline since clipboard has no
+      // separate url field — it's just plain text the user pastes anywhere.
+      var clipboardText = shareText + ' ' + url;
 
       if (navigator.share) {
         navigator.share({
           title: 'FFP Passport',
-          text:  msg,
+          text:  shareText,
           url:   url
         }).catch(function () { /* user cancelled — no-op */ });
       } else if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(msg).then(function () {
+        navigator.clipboard.writeText(clipboardText).then(function () {
           showToast('Invite link copied to clipboard!', 'success');
         }).catch(function () {
-          fallbackCopy(msg);
+          fallbackCopy(clipboardText);
         });
       } else {
-        fallbackCopy(msg);
+        fallbackCopy(clipboardText);
       }
     });
 
