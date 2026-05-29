@@ -11031,7 +11031,7 @@ const MeetMove = {
       return `
         <div class="match-card-v2" onclick="MeetMove.openMemberDetail('${m.id}')">
           <div class="match-card-v2-pct">${m.match}%</div>
-          <div class="match-card-v2-avatar">${m.letter}</div>
+          <div class="match-card-v2-avatar"${m.photo ? ` style="background:#0a1825 url('${m.photo}') center/cover;"` : ''}>${m.photo ? '' : m.letter}</div>
           <div class="match-card-v2-name">${escHtml(m.name)}</div>
           <div class="match-card-v2-meta">${escHtml(m.age)} &middot; ${escHtml(m.city)}</div>
           <div class="match-card-v2-sports">${sportsText}</div>
@@ -11265,7 +11265,7 @@ const MeetMove = {
     
     const body = `
       <div class="pm-head">
-        <div class="pm-avatar">${u.letter}</div>
+        <div class="pm-avatar"${u.photo ? ` style="background:#0a1825 url('${u.photo}') center/cover;"` : ''}>${u.photo ? '' : u.letter}</div>
         <div class="pm-name">
           ${escHtml(u.name)}${u.verified ? ' <span class="material-icons" style="font-size:18px; color:var(--blue);">verified</span>' : ''}
         </div>
@@ -11294,19 +11294,29 @@ const MeetMove = {
         </div>
       </div>
       <div class="dm-footer">
-        <button class="btn-primary-blue" onclick="MeetMove.sendMessage('${u.id}')">Say hi to ${escHtml(u.name.split(' ')[0])}</button>
-        <div class="dm-footer-note">Direct messages route through FFP — only after match accepts.</div>
+        ${u.connection === 'connected' ? '<button class="btn-primary-blue" disabled style="opacity:.7;">\u2713 Connected</button>' : (u.connection === 'requested' ? '<button class="btn-primary-blue" disabled style="opacity:.7;">Request sent</button>' : `<button class="btn-primary-blue" onclick="MeetMove.requestConnect('${u.id}')">${u.connection === 'incoming' ? 'Accept connection' : 'Request to connect'}</button>`)}
+        <div class="dm-footer-note">Connecting adds them to your circle — your meet-ups will reach them.</div>
       </div>
     `;
     openDetailModal(body);
   },
   
-  sendMessage(uid) {
+  async requestConnect(uid) {
     const u = this.matches.find(x => x.id === uid);
-    if (!u) return;
+    const member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
+    if (!u || !member) { closeDetailModal(); return; }
+    try {
+      const res = await fetch('https://ffp-passport-backend.vercel.app/api/connections/request', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ member_id: member.id, target_id: uid })
+      });
+      const json = await res.json();
+      if (json && json.success) {
+        u.connection = (json.status === 'connected') ? 'connected' : 'requested';
+        showToast((json.status === 'connected') ? (`You're connected with ` + u.name.split(' ')[0]) : (`Request sent to ` + u.name.split(' ')[0]));
+      } else { showToast('Could not send request — try again'); }
+    } catch (e) { showToast('Could not send request — try again'); }
     closeDetailModal();
-    showToast(`Message sent to ${u.name.split(' ')[0]}`);
-    // PRODUCTION: POST /api/members/{uid}/messages
   },
   
   openMatchesGrid() {
@@ -11318,7 +11328,7 @@ const MeetMove = {
         <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:10px;">
           ${this.matches.map(m => `
             <div class="match-card" style="flex:auto;" onclick="closeDetailModal(); setTimeout(() => MeetMove.openMemberDetail('${m.id}'), 100);">
-              <div class="match-card-avatar">${m.letter}</div>
+              <div class="match-card-avatar"${m.photo ? ` style="background:#0a1825 url('${m.photo}') center/cover;"` : ''}>${m.photo ? '' : m.letter}</div>
               <div class="match-card-name">${escHtml(m.name)}</div>
               <div class="match-card-meta">${escHtml(m.age)} &middot; ${escHtml(m.city)}</div>
               <div class="match-card-pct">${m.match}% MATCH</div>
