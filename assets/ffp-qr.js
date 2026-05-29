@@ -1,4 +1,10 @@
-/* FFP Identity QR — v1 (2026-05-29)
+/* FFP Identity QR — v2 (2026-05-29)
+   v2: QR now encodes https://ffppassport.com/my-passport.html?p={...}
+   (was /verify.html — page renamed). Old QRs in the wild keep working
+   thanks to Netlify _redirects rewrite from /verify.html to the new
+   path. No regeneration needed for any deployed cards.
+
+   v1 (2026-05-29):
    Replaces the dashboard's inline renderQR() (which drew a FAKE 21x21
    random pattern that looked QR-shaped but was unscannable) with a
    real scannable QR encoding the member's verification URL:
@@ -22,14 +28,14 @@
 (function () {
   'use strict';
 
-  var VERIFY_BASE = 'https://ffppassport.com/verify.html';
+  var VERIFY_BASE = 'https://ffppassport.com/my-passport.html';
   var qrInstance  = null;
 
   function whenReady(check, cb, retries) {
     retries = retries || 0;
     if (check()) { cb(); return; }
     if (retries > 60) {
-      console.warn('[FFP QR v1] Gave up waiting for dependencies after 60 retries');
+      console.warn('[FFP QR v2] Gave up waiting for dependencies after 60 retries');
       return;
     }
     setTimeout(function () { whenReady(check, cb, retries + 1); }, 100);
@@ -52,7 +58,7 @@
     // Trigger an immediate render in case the passport card already
     // mounted with the fake QR.
     generateRealQR();
-    console.log('[FFP QR v1] Loaded — real scannable QR encoding verify URL');
+    console.log('[FFP QR v2] Loaded — real scannable QR encoding my-passport URL');
   }
 
   function generateRealQR() {
@@ -101,7 +107,7 @@
         img.style.display = 'block';
       }
     } catch (e) {
-      console.error('[FFP QR v1] generate failed:', e);
+      console.error('[FFP QR v2] generate failed:', e);
       target.innerHTML = '';
     }
   }
