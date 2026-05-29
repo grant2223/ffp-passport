@@ -100,6 +100,25 @@ html, body {
 .status-pending    { background: rgba(43,168,224,0.15); color: #60c7ed; border: 1px solid rgba(43,168,224,0.35); }
 .status-unknown    { background: rgba(138,153,168,0.15); color: #aab8c5; border: 1px solid rgba(138,153,168,0.35); }
 
+/* Verified badge — separate from membership status. Only renders when
+   members.verified === true (admin-approved identity check). */
+.verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin: 0 0 18px;
+  background: rgba(43,168,224,0.15);
+  color: #60c7ed;
+  border: 1px solid rgba(43,168,224,0.35);
+}
+.verified-badge .material-icons { font-size: 16px; }
+
 .meta-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -199,7 +218,9 @@ html, body {
   }
   function statusMeta(s) {
     s = (s || 'unknown').toLowerCase();
-    if (s === 'active')    return { cls: 'status-active',    icon: 'verified',         label: 'Verified Member' };
+    // NOTE: 'Verified' is NOT a membership status — it's a separate admin-set
+    // identity flag (members.verified). Status labels here are lifecycle only.
+    if (s === 'active')    return { cls: 'status-active',    icon: 'check_circle',     label: 'Active Member' };
     if (s === 'expired')   return { cls: 'status-expired',   icon: 'schedule',         label: 'Membership Expired' };
     if (s === 'suspended') return { cls: 'status-suspended', icon: 'block',            label: 'Suspended' };
     if (s === 'pending')   return { cls: 'status-pending',   icon: 'hourglass_top',    label: 'Pending' };
@@ -235,6 +256,10 @@ html, body {
       : '';
     var photoInitials = m.photo_url ? '' : escape(initials(m.full_name));
 
+    var verifiedBadge = m.verified
+      ? '<div class="verified-badge"><span class="material-icons">verified</span>Identity Verified</div>'
+      : '';
+
     content.innerHTML =
       '<div class="card">' +
         '<div class="photo-wrap" style="' + photoStyle + '">' + photoInitials + '</div>' +
@@ -244,6 +269,7 @@ html, body {
           '<span class="material-icons">' + sm.icon + '</span>' +
           sm.label +
         '</div>' +
+        verifiedBadge +
         '<div class="meta-grid">' +
           '<div class="meta">' +
             '<div class="meta-label">Tier</div>' +
