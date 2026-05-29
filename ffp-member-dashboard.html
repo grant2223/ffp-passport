@@ -3947,6 +3947,8 @@ input[type="number"] {
 .qc-dot.done .material-icons{ font-size:12px; }
 .qc-stamps.big .qc-dot.done .material-icons{ font-size:15px; }
 .qc-dot.todo{ border:1.5px dashed rgba(138,153,168,0.4); }
+.qc-dot.emblem{ background:url('assets/ffp-emblem.png') center/cover no-repeat; border:none; filter:grayscale(1) brightness(1.15) opacity(0.45); transition:filter .35s ease; }
+.qc-dot.emblem.lit{ filter:none; box-shadow:0 0 0 1px rgba(244,215,122,0.55), 0 2px 8px rgba(244,215,122,0.35); }
 #panel-quests .qc-foot{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:auto; padding-top:10px; border-top:1px solid var(--q-border); min-height:35px; }
 #panel-quests .qc-reward{ display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; color:var(--q-gold); }
 #panel-quests .qc-reward .material-icons{ font-size:14px; }
@@ -10417,9 +10419,10 @@ const Quests = {
   dots(done, target) {
     let h = '';
     const t = target || 0;
+    const complete = t > 0 && done >= t;
     for (let i = 0; i < t; i++) {
       h += i < done
-        ? '<span class="qc-dot done"><span class="material-icons">check</span></span>'
+        ? '<span class="qc-dot emblem' + (complete ? ' lit' : '') + '"></span>'
         : '<span class="qc-dot todo"></span>';
     }
     return h;
@@ -12113,7 +12116,7 @@ function init() {
   // Picker modal click-outside is wired inside the Picker module
   document.getElementById('city-search').addEventListener('input', e => renderCityList(e.target.value));
   renderAll();
-  console.log('FFP Dashboard v21 - quest modal layout');
+  console.log('FFP Dashboard v22 - emblem stamps');
 }
 
 // ===== APPLE WALLET INTEGRATION =====
