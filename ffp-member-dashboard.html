@@ -3890,6 +3890,88 @@ input[type="number"] {
   .pass-worldwide { font-size: 22px; letter-spacing: 1.5px; }
 }
 </style>
+<style id="ffp-quests-css">
+/* FFP Quests panel — self-contained, prefixed --q- vars (no clobber of existing CSS) */
+:root{
+  --q-blue:#2ba8e0; --q-yellow:#FFCC00; --q-gold:#b8965a; --q-green:#4ade80;
+  --q-muted:#8a99a8; --q-text:#e8eef4; --q-border:rgba(43,168,224,0.10);
+  --q-border-mid:rgba(43,168,224,0.20); --q-card:rgba(15,30,46,0.5); --q-bg2:#0f1e2e;
+}
+#panel-quests .quest-hero{ background:linear-gradient(135deg,rgba(43,168,224,0.12),rgba(255,204,0,0.06)); border:1px solid var(--q-border-mid); border-radius:18px; padding:20px; margin-bottom:22px; position:relative; overflow:hidden; }
+#panel-quests .hero-top{ display:flex; align-items:center; gap:14px; margin-bottom:12px; }
+#panel-quests .hero-tier-badge{ width:58px; height:58px; border-radius:50%; background:radial-gradient(circle at 35% 30%,#f4d77a,var(--q-gold)); display:flex; align-items:center; justify-content:center; color:#3a2c10; flex-shrink:0; box-shadow:0 4px 14px rgba(184,150,90,0.4); border:2px solid rgba(255,255,255,0.35); }
+#panel-quests .hero-tier-badge .material-icons{ font-size:30px; }
+#panel-quests .tier-name{ font-size:17px; font-weight:800; }
+#panel-quests .tier-meta{ font-size:12px; color:var(--q-muted); margin-top:2px; }
+#panel-quests .tier-meta b{ color:var(--q-yellow); }
+#panel-quests .tier-next{ font-size:12px; color:var(--q-text); margin:2px 0 14px; font-weight:600; }
+#panel-quests .hero-stats{ display:flex; gap:10px; }
+#panel-quests .hero-stat{ flex:1; background:rgba(8,20,32,0.5); border:1px solid var(--q-border); border-radius:12px; padding:12px; text-align:center; }
+#panel-quests .hero-stat .num{ font-size:22px; font-weight:900; color:var(--q-text); line-height:1; }
+#panel-quests .hero-stat .lbl{ font-size:10px; color:var(--q-muted); margin-top:6px; text-transform:uppercase; letter-spacing:0.5px; font-weight:700; }
+#panel-quests .hero-stat .num.gold{ color:var(--q-yellow); }
+#panel-quests .hero-stat .num.blue{ color:var(--q-blue); }
+#panel-quests .cat-row{ display:flex; gap:5px; margin:18px 0; }
+#panel-quests .cat-item{ flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; gap:5px; background:none; border:none; padding:2px 0; color:var(--q-muted); cursor:pointer; }
+#panel-quests .cat-ic{ width:100%; max-width:48px; aspect-ratio:1; border-radius:13px; background:rgba(43,168,224,0.06); border:1px solid var(--q-border-mid); display:flex; align-items:center; justify-content:center; }
+#panel-quests .cat-ic .material-icons{ font-size:20px; }
+#panel-quests .cat-lbl{ font-size:8.5px; font-weight:700; white-space:nowrap; }
+#panel-quests .cat-item.active{ color:var(--q-text); }
+#panel-quests .cat-item.active .cat-ic{ background:var(--q-yellow); border-color:var(--q-yellow); color:#000; }
+#panel-quests .scope-seg{ display:flex; gap:6px; background:rgba(8,20,32,0.5); border:1px solid var(--q-border-mid); border-radius:12px; padding:5px; margin-bottom:16px; }
+#panel-quests .scope-btn{ flex:1; display:flex; align-items:center; justify-content:center; gap:6px; font-size:12px; font-weight:700; color:var(--q-muted); background:transparent; border:none; border-radius:8px; padding:9px 6px; cursor:pointer; }
+#panel-quests .scope-btn .material-icons{ font-size:16px; }
+#panel-quests .scope-btn.active{ background:var(--q-blue); color:#fff; }
+#panel-quests .quest-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+#panel-quests .quest-card{ background:var(--q-card); border:1px solid var(--q-border); border-radius:14px; overflow:hidden; cursor:pointer; display:flex; flex-direction:column; transition:border-color .15s,transform .15s; }
+#panel-quests .quest-card:hover{ border-color:var(--q-border-mid); transform:translateY(-2px); }
+#panel-quests .qc-cover{ height:104px; position:relative; overflow:hidden; background-color:rgba(43,168,224,0.12); }
+#panel-quests .qc-cover.image{ background-size:cover; background-position:center; }
+#panel-quests .cov-fitness{ background:linear-gradient(135deg,#ff6b4a,#b23a1c); }
+#panel-quests .cov-sports{ background:linear-gradient(135deg,#2ba8e0,#155e85); }
+#panel-quests .cov-wellness{ background:linear-gradient(135deg,#36c5b0,#0d6b5f); }
+#panel-quests .cov-recovery{ background:linear-gradient(135deg,#8b7cf0,#4c2c9c); }
+#panel-quests .cov-adventure{ background:linear-gradient(135deg,#f5a623,#a85e08); }
+#panel-quests .cov-food{ background:linear-gradient(135deg,#4ade80,#15803d); }
+#panel-quests .qc-scope-pill{ position:absolute; top:8px; left:8px; font-size:9px; font-weight:800; letter-spacing:0.4px; text-transform:uppercase; color:#fff; background:rgba(0,0,0,0.4); border-radius:20px; padding:3px 9px; }
+#panel-quests .qc-spon-strip{ position:absolute; left:0; right:0; bottom:0; display:flex; align-items:center; gap:7px; padding:6px 9px; background:linear-gradient(0deg,rgba(0,0,0,0.6),transparent); }
+#panel-quests .ss-logo,.q-spon-row .ss-logo{ width:20px; height:20px; border-radius:5px; background:#0b0b0b; color:var(--q-yellow); display:flex; align-items:center; justify-content:center; font-size:8px; font-weight:900; flex-shrink:0; border:1px solid rgba(255,255,255,0.25); }
+#panel-quests .ss-txt{ font-size:9.5px; font-weight:700; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,0.7); }
+#panel-quests .qc-pad{ padding:13px 14px 14px; display:flex; flex-direction:column; gap:10px; flex:1; }
+#panel-quests .qc-title{ font-size:15px; font-weight:800; }
+.qc-stamps{ display:flex; gap:6px; flex-wrap:wrap; }
+.qc-stamps.big{ gap:8px; margin:6px 0 16px; }
+.qc-dot{ width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.qc-stamps.big .qc-dot{ width:24px; height:24px; }
+.qc-dot.done{ background:radial-gradient(circle at 35% 30%,#f4d77a,var(--q-gold)); color:#2a1f0a; }
+.qc-dot.done .material-icons{ font-size:12px; }
+.qc-stamps.big .qc-dot.done .material-icons{ font-size:15px; }
+.qc-dot.todo{ border:1.5px dashed rgba(138,153,168,0.4); }
+#panel-quests .qc-foot{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:auto; padding-top:10px; border-top:1px solid var(--q-border); min-height:35px; }
+#panel-quests .qc-reward{ display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; color:var(--q-gold); }
+#panel-quests .qc-reward .material-icons{ font-size:14px; }
+#panel-quests .qc-foot-val{ font-size:11.5px; font-weight:800; color:var(--q-yellow); white-space:nowrap; }
+/* Quest detail (rendered inside the shared detail modal) */
+.q-cover{ height:140px; border-radius:14px; margin-bottom:16px; background-size:cover; background-position:center; background-color:rgba(43,168,224,0.12); }
+.q-spon-row{ display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+.q-spon-row .spon-by{ font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.6px; color:var(--q-muted); }
+.q-spon-row .spon-name{ font-size:13px; font-weight:800; color:var(--q-text); }
+.q-scope-pill{ display:inline-block; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.4px; color:var(--q-yellow); margin-bottom:6px; }
+.q-title{ font-size:21px; font-weight:800; margin:0 0 8px; color:var(--q-text); }
+.q-desc{ font-size:13.5px; color:var(--q-text); line-height:1.6; margin-bottom:16px; }
+.q-reward-box{ display:flex; gap:12px; align-items:flex-start; border-radius:14px; padding:14px 16px; margin-bottom:18px; font-size:13px; line-height:1.5; color:var(--q-text); }
+.q-reward-box .material-icons{ flex-shrink:0; }
+.q-reward-box.stamp{ background:rgba(184,150,90,0.10); border:1px solid rgba(184,150,90,0.3); }
+.q-reward-box.stamp .material-icons{ color:var(--q-gold); }
+.q-reward-box.prize{ background:rgba(255,204,0,0.08); border:1px solid rgba(255,204,0,0.3); }
+.q-reward-box.prize .material-icons{ color:var(--q-yellow); }
+.q-progress{ font-size:11px; font-weight:800; letter-spacing:1px; text-transform:uppercase; color:var(--q-muted); }
+.q-venues-title{ font-size:11px; font-weight:800; letter-spacing:1px; text-transform:uppercase; color:var(--q-muted); margin:6px 0 10px; }
+.q-venue{ display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--q-text); padding:8px 0; border-bottom:1px solid var(--q-border); }
+.q-venue .material-icons{ font-size:17px; color:var(--q-blue); }
+.q-venue.muted{ color:var(--q-muted); border-bottom:none; }
+.q-qr-btn{ width:100%; margin-top:18px; display:flex; align-items:center; justify-content:center; gap:8px; }
+</style>
 </head>
 <body>
 
@@ -4185,49 +4267,42 @@ input[type="number"] {
   <!-- ═══════════════════════════════════════════════════════════════
        PANEL: DEALS — v68 — matches Meet & Move tab + filter design
        ═══════════════════════════════════════════════════════════════ -->
-  <div id="panel-deals" class="panel-view">
+  <div id="panel-quests" class="panel-view">
     <div class="user-panel-head">
-      <h2>Deals</h2>
-      <div class="user-panel-sub">Member Perks at FFP partner venues — train with a friend, share the perk. Tap Claim → provider confirms → show approval at the counter.</div>
+      <h2>Quests</h2>
+      <div class="user-panel-sub">Collect stamps as you go — solo or with a friend. Take on City, Country and Global quests, and win prizes from our partners.</div>
     </div>
-    
-    <!-- Tabs — text with underline (same as Meet & Move / Events / Experiences) -->
-    <div class="tabs-underline" id="deals-tabs">
-      <button class="tabs-underline-btn active" data-deals-tab="featured">Featured <span class="count-pill" id="dl-feat-count">0</span></button>
-      <button class="tabs-underline-btn" data-deals-tab="all">Deals <span class="count-pill" id="dl-all-count">0</span></button>
-      <button class="tabs-underline-btn" data-deals-tab="providers">Providers <span class="count-pill" id="dl-prov-count">0</span></button>
-      <button class="tabs-underline-btn" data-deals-tab="favourites">Favourites <span class="count-pill" id="dl-fav-count">0</span></button>
+
+    <!-- HERO + TIER -->
+    <div class="quest-hero" id="quest-hero"></div>
+
+    <!-- CATEGORY NAV -->
+    <div class="cat-row" id="quest-cat-row">
+      <button class="cat-item active" data-cat="all"><span class="cat-ic"><span class="material-icons">grid_view</span></span><span class="cat-lbl">All</span></button>
+      <button class="cat-item" data-cat="fitness"><span class="cat-ic"><span class="material-icons">exercise</span></span><span class="cat-lbl">Fitness</span></button>
+      <button class="cat-item" data-cat="sports"><span class="cat-ic"><span class="material-icons">sports_tennis</span></span><span class="cat-lbl">Sports</span></button>
+      <button class="cat-item" data-cat="wellness"><span class="cat-ic"><span class="material-icons">self_improvement</span></span><span class="cat-lbl">Wellness</span></button>
+      <button class="cat-item" data-cat="recovery"><span class="cat-ic"><span class="material-icons">spa</span></span><span class="cat-lbl">Recovery</span></button>
+      <button class="cat-item" data-cat="adventure"><span class="cat-ic"><span class="material-icons">hiking</span></span><span class="cat-lbl">Adventure</span></button>
+      <button class="cat-item" data-cat="food"><span class="cat-ic"><span class="material-icons">restaurant</span></span><span class="cat-lbl">Food</span></button>
     </div>
-    
-    <!-- Filters — search + dropdowns (same row class as Meet & Move) -->
-    <div class="meet-filter-row">
-      <div class="panel-search">
-        <span class="material-icons">search</span>
-        <input type="text" id="deals-search" placeholder="Search offer, venue or provider type">
-      </div>
-      <select class="ffp-select" id="deals-cat">
-        <option value="all">All categories</option>
-        <option value="Sports">Sports</option>
-        <option value="Fitness">Fitness</option>
-        <option value="Wellness">Wellness</option>
-        <option value="Adventure">Adventure</option>
-      </select>
-      <select class="ffp-select" id="deals-city">
-        <option value="all">All locations</option>
-        <option value="Dubai">Dubai</option>
-        <option value="Abu Dhabi">Abu Dhabi</option>
-        <option value="Sharjah">Sharjah</option>
-        <option value="Hatta">Hatta</option>
-        <option value="Ras Al Khaimah">Ras Al Khaimah</option>
-      </select>
-      <select class="ffp-select" id="deals-sort">
-        <option value="location">Sort: Location</option>
-        <option value="category">Sort: Category</option>
-        <option value="featured">Sort: Featured first</option>
-      </select>
+
+    <!-- SCOPE -->
+    <div class="scope-seg" id="quest-scope-seg">
+      <button class="scope-btn active" data-scope="all"><span class="material-icons">apps</span> All</button>
+      <button class="scope-btn" data-scope="city"><span class="material-icons">location_city</span> City</button>
+      <button class="scope-btn" data-scope="country"><span class="material-icons">map</span> Country</button>
+      <button class="scope-btn" data-scope="global"><span class="material-icons">public</span> Global</button>
     </div>
-    
-    <div class="meetup-grid" id="deals-grid"></div>
+
+    <!-- TABS -->
+    <div class="tabs-underline" id="quest-tabs">
+      <button class="tabs-underline-btn active" data-quest-tab="active">In progress <span class="count-pill" id="q-active-count">0</span></button>
+      <button class="tabs-underline-btn" data-quest-tab="browse">Browse <span class="count-pill" id="q-browse-count">0</span></button>
+      <button class="tabs-underline-btn" data-quest-tab="completed">Completed <span class="count-pill" id="q-done-count">0</span></button>
+    </div>
+
+    <div class="quest-grid" id="quest-grid"></div>
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════════
@@ -5037,10 +5112,10 @@ input[type="number"] {
 <div class="bottom-nav">
   <button class="nav-item active" data-panel="panel-passport"><span class="material-icons">card_membership</span><span>Passport</span></button>
   <button class="nav-item" data-panel="panel-meet"><span class="material-icons">group</span><span>Meet &amp; Move</span></button>
+  <button class="nav-item" data-panel="panel-quests"><span class="material-icons">flag</span><span>Quests</span></button>
   <button class="nav-item" data-panel="panel-events"><span class="material-icons">event</span><span>Events</span></button>
   <button class="nav-item" data-panel="panel-experiences"><span class="material-icons">flight</span><span>Experiences</span></button>
   <button class="nav-item" data-panel="panel-challenges"><span class="material-icons">whatshot</span><span>Challenges</span></button>
-  <button class="nav-item" data-panel="panel-deals"><span class="material-icons">local_offer</span><span>Deals</span></button>
 </div>
 
 <!-- ADD CITY MODAL -->
@@ -5196,44 +5271,6 @@ input[type="number"] {
   </div>
 </div>
 
-<!-- Claim flow modal (Deals) — waiting → approved → declined states -->
-<div class="detail-backdrop" id="claim-backdrop">
-  <div class="detail-modal" style="max-width:380px;" role="dialog" aria-modal="true">
-    <!-- WAITING -->
-    <div class="await-state" id="claim-state-waiting">
-      <div class="await-orb"><span class="await-logo" id="claim-logo">F</span></div>
-      <div class="await-title">Waiting for <span id="claim-partner-w"></span></div>
-      <div class="await-deal" id="claim-deal-w"></div>
-      <div class="dots-row"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
-      <div class="await-note">The provider has been notified on their portal. They'll confirm or decline this request shortly.</div>
-      <button class="await-cancel" onclick="Deals.cancelClaim()">Cancel request</button>
-      <button class="await-sim-decline" onclick="Deals.simulateDecline()">Demo: simulate decline</button>
-    </div>
-    <!-- APPROVED -->
-    <div class="await-state" id="claim-state-approved" style="display:none;">
-      <div class="result-icon approved"><span class="material-icons">check</span></div>
-      <div class="result-title">Approved by <span id="claim-partner-a"></span></div>
-      <div class="await-deal" id="claim-deal-a"></div>
-      <div class="result-note"><strong>Show this screen at the counter.</strong> The provider confirms in person to redeem your perk.</div>
-      <div class="result-passport">
-        <div class="rp-row">
-          <div><div class="rp-label">Member</div><div class="rp-val" id="claim-member-name"></div></div>
-          <div><div class="rp-label">Approved at</div><div class="rp-val" id="claim-time"></div></div>
-        </div>
-        <div class="rp-stamp">CLAIM #<span id="claim-id"></span> &middot; ONE-TIME USE</div>
-      </div>
-      <div style="padding:0 22px 18px;"><button class="btn-primary-yellow" onclick="Deals.closeClaim()">Done</button></div>
-    </div>
-    <!-- DECLINED -->
-    <div class="await-state" id="claim-state-declined" style="display:none;">
-      <div class="result-icon declined"><span class="material-icons">close</span></div>
-      <div class="result-title">Declined by <span id="claim-partner-d"></span></div>
-      <div class="await-deal" id="claim-deal-d"></div>
-      <div class="result-note">The provider couldn't approve this request right now. The deal stays in your list — try again later.</div>
-      <div style="padding:0 22px 18px;"><button class="btn-primary-yellow" onclick="Deals.closeClaim()">OK</button></div>
-    </div>
-  </div>
-</div>
 
 <!-- Post Meetup form modal -->
 <div class="detail-backdrop" id="post-meetup-backdrop" onclick="closePostMeetupIfBackdrop(event)">
@@ -6966,7 +7003,7 @@ function setupPanelNav() {
     });
   });
   
-  // Open panel from URL hash on load (e.g. #panel-deals, #panel-workout-timer)
+  // Open panel from URL hash on load (e.g. #panel-quests, #panel-workout-timer)
   const initialHash = window.location.hash.replace('#', '');
   if (initialHash && document.getElementById(initialHash)) {
     showPanel(initialHash);
@@ -9850,7 +9887,7 @@ const Earnings = {
   
   categories: [
     { key: 'referrals', label: 'Members referred',     icon: 'group_add',      current: 0 },
-    { key: 'deals',     label: 'Deals claimed',         icon: 'local_offer',   current: 0 },
+    { key: 'stamps',    label: 'Stamps earned',         icon: 'approval',      current: 0 },
     { key: 'events',    label: 'Events attended',       icon: 'event',         current: 0 },
     { key: 'providers', label: 'Providers checked in',  icon: 'storefront',    current: 0 },
     { key: 'logs',      label: 'Activities logged',     icon: 'fitness_center', current: 0 },
@@ -10252,359 +10289,207 @@ function relDays(d) { return d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : d === -1
 // Claim flow: Request → Waiting (provider notified) → Approved / Declined.
 // Approved claims become one-time-use and lock the card.
 // =====================================================================
-const Deals = {
-  tab: 'featured',
-  filter: 'all',
-  city: 'all',
-  sort: 'location',
-  search: '',
-  favourites: new Set(),
-  claimed: new Set(),           // approved one-time-use claims
-  expandedProviders: new Set(),
-  
-  // Active claim state
-  _activeClaim: null,
-  _claimTimer: null,
-  
+const Quests = {
+  base: 'https://ffp-passport-backend.vercel.app',
+  cat: 'all',
+  scope: 'all',
+  tab: 'active',
   data: [],
-  
-  init() {
-    document.querySelectorAll('#deals-tabs .tabs-underline-btn').forEach(b => {
+
+  memberId() {
+    try { return (JSON.parse(localStorage.getItem('ffp_member') || '{}')).id || ''; }
+    catch (e) { return ''; }
+  },
+
+  CAT: {
+    fitness:   { cover: 'cov-fitness' },
+    sports:    { cover: 'cov-sports' },
+    wellness:  { cover: 'cov-wellness' },
+    recovery:  { cover: 'cov-recovery' },
+    adventure: { cover: 'cov-adventure' },
+    food:      { cover: 'cov-food' }
+  },
+
+  async init() {
+    document.querySelectorAll('#quest-cat-row .cat-item').forEach(b => {
       b.addEventListener('click', () => {
-        document.querySelectorAll('#deals-tabs .tabs-underline-btn').forEach(x => x.classList.remove('active'));
+        document.querySelectorAll('#quest-cat-row .cat-item').forEach(x => x.classList.remove('active'));
         b.classList.add('active');
-        this.tab = b.dataset.dealsTab;
+        this.cat = b.dataset.cat;
         this.render();
       });
     });
-    document.getElementById('deals-cat').addEventListener('change', e => {
-      this.filter = e.target.value;
-      this.render();
+    document.querySelectorAll('#quest-scope-seg .scope-btn').forEach(b => {
+      b.addEventListener('click', () => {
+        document.querySelectorAll('#quest-scope-seg .scope-btn').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        this.scope = b.dataset.scope;
+        this.render();
+      });
     });
-    document.getElementById('deals-city').addEventListener('change', e => {
-      this.city = e.target.value;
-      this.render();
+    document.querySelectorAll('#quest-tabs .tabs-underline-btn').forEach(b => {
+      b.addEventListener('click', () => {
+        document.querySelectorAll('#quest-tabs .tabs-underline-btn').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        this.tab = b.dataset.questTab;
+        this.render();
+      });
     });
-    document.getElementById('deals-sort').addEventListener('change', e => {
-      this.sort = e.target.value;
-      this.render();
-    });
-    document.getElementById('deals-search').addEventListener('input', e => {
-      this.search = e.target.value.toLowerCase();
-      this.render();
-    });
+    await this.load();
+  },
+
+  async load() {
+    const grid = document.getElementById('quest-grid');
+    if (grid) grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--q-muted);padding:30px;">Loading quests…</div>';
+    try {
+      const mid = this.memberId();
+      const res = await fetch(this.base + '/api/quests' + (mid ? ('?member_id=' + encodeURIComponent(mid)) : ''));
+      const json = await res.json();
+      this.data = (json && json.quests) ? json.quests : [];
+    } catch (e) {
+      this.data = [];
+      if (grid) grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--q-muted);padding:30px;">Couldn\'t load quests right now.</div>';
+    }
+    this.renderHero();
     this.render();
   },
-  
+
+  _pc(q)     { return (q.progress && q.progress.completed_count) || 0; },
+  _isDone(q) { return q.progress && q.progress.status === 'completed'; },
+  _isActive(q) { return !this._isDone(q) && this._pc(q) > 0; },
+
   filtered() {
     let items = this.data.slice();
-    if (this.tab === 'featured')   items = items.filter(d => d.featured);
-    if (this.tab === 'favourites') items = items.filter(d => this.favourites.has(d.id));
-    if (this.filter !== 'all') items = items.filter(d => d.category === this.filter);
-    if (this.city !== 'all') items = items.filter(d => d.city === this.city);
-    if (this.search) {
-      // Search across venue, providerType, service, perk, area
-      items = items.filter(d =>
-        d.venue.toLowerCase().includes(this.search) ||
-        (d.providerType || '').toLowerCase().includes(this.search) ||
-        (d.service || '').toLowerCase().includes(this.search) ||
-        d.perk.toLowerCase().includes(this.search) ||
-        d.area.toLowerCase().includes(this.search));
-    }
-    // Sort
-    if (this.sort === 'location') {
-      items.sort((a,b) => (a.city || '').localeCompare(b.city || '') || a.area.localeCompare(b.area));
-    } else if (this.sort === 'category') {
-      items.sort((a,b) => a.category.localeCompare(b.category) || a.venue.localeCompare(b.venue));
-    } else if (this.sort === 'featured') {
-      items.sort((a,b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0));
-    }
+    if (this.cat !== 'all')   items = items.filter(q => q.category === this.cat);
+    if (this.scope !== 'all') items = items.filter(q => q.scope === this.scope);
+    if (this.tab === 'active')    items = items.filter(q => this._isActive(q));
+    else if (this.tab === 'completed') items = items.filter(q => this._isDone(q));
+    else if (this.tab === 'browse')    items = items.filter(q => !this._isDone(q));
     return items;
   },
-  
-  // Group flat perks by provider name → for Providers tab.
-  // Each provider may have 1+ perks. Applies cat/city/search filters.
-  groupedProviders() {
-    let items = this.data.slice();
-    if (this.filter !== 'all') items = items.filter(d => d.category === this.filter);
-    if (this.city !== 'all')   items = items.filter(d => d.city === this.city);
-    if (this.search) {
-      items = items.filter(d =>
-        d.venue.toLowerCase().includes(this.search) ||
-        (d.providerType || '').toLowerCase().includes(this.search) ||
-        (d.service || '').toLowerCase().includes(this.search) ||
-        d.perk.toLowerCase().includes(this.search) ||
-        d.area.toLowerCase().includes(this.search));
-    }
-    const map = {};
-    items.forEach(d => {
-      const key = d.venue;
-      if (!map[key]) {
-        map[key] = {
-          name: d.venue,
-          letter: d.letter,
-          providerType: d.providerType,
-          category: d.category,
-          city: d.city,
-          area: d.area,
-          perks: []
-        };
-      }
-      map[key].perks.push(d);
-    });
-    const providers = Object.values(map);
-    // Sort
-    if (this.sort === 'location') {
-      providers.sort((a,b) => (a.city || '').localeCompare(b.city || '') || a.area.localeCompare(b.area));
-    } else if (this.sort === 'category') {
-      providers.sort((a,b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
-    } else {
-      providers.sort((a,b) => a.name.localeCompare(b.name));
-    }
-    return providers;
+
+  renderHero() {
+    const el = document.getElementById('quest-hero');
+    if (!el) return;
+    const all = this.data;
+    const inProg = all.filter(q => this._isActive(q)).length;
+    const done   = all.filter(q => this._isDone(q)).length;
+    const explore = all.filter(q => !this._isDone(q) && this._pc(q) === 0).length;
+    const tierName = done >= 12 ? 'Navigator' : done >= 6 ? 'Adventurer' : 'Explorer';
+    const tierIcon = done >= 12 ? 'travel_explore' : done >= 6 ? 'hiking' : 'explore';
+    const nextLbl = done >= 12
+      ? 'Top tier reached'
+      : ((done >= 6 ? (12 - done) : (6 - done)) + ' more stamps to ' + (done >= 6 ? 'Navigator' : 'Adventurer'));
+    el.innerHTML =
+      '<div class="hero-top">' +
+        '<div class="hero-tier-badge"><span class="material-icons">' + tierIcon + '</span></div>' +
+        '<div class="hero-tier-info" style="flex:1;">' +
+          '<div class="tier-name">' + tierName + '</div>' +
+          '<div class="tier-meta"><b>' + done + '</b> stamps collected</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="tier-next">' + nextLbl + '</div>' +
+      '<div class="hero-stats">' +
+        '<div class="hero-stat"><div class="num blue">' + inProg + '</div><div class="lbl">In progress</div></div>' +
+        '<div class="hero-stat"><div class="num gold">' + done + '</div><div class="lbl">Completed</div></div>' +
+        '<div class="hero-stat"><div class="num">' + explore + '</div><div class="lbl">To explore</div></div>' +
+      '</div>';
   },
-  
-  // Toggle a provider row expand/collapse
-  toggleProvider(name) {
-    if (this.expandedProviders.has(name)) this.expandedProviders.delete(name);
-    else this.expandedProviders.add(name);
-    this.render();
+
+  dots(done, target) {
+    let h = '';
+    const t = target || 0;
+    for (let i = 0; i < t; i++) {
+      h += i < done
+        ? '<span class="qc-dot done"><span class="material-icons">check</span></span>'
+        : '<span class="qc-dot todo"></span>';
+    }
+    return h;
   },
-  
+
   render() {
-    // Tab counts
-    const uniqueProviders = new Set(this.data.map(d => d.venue));
-    document.getElementById('dl-feat-count').textContent = this.data.filter(d => d.featured).length;
-    document.getElementById('dl-all-count').textContent  = this.data.length;
-    document.getElementById('dl-prov-count').textContent = uniqueProviders.size;
-    document.getElementById('dl-fav-count').textContent  = this.favourites.size;
-    
-    const grid = document.getElementById('deals-grid');
-    
-    // PROVIDERS TAB: directory list
-    if (this.tab === 'providers') {
-      const providers = this.groupedProviders();
-      if (providers.length === 0) {
-        grid.innerHTML = `<div class="feed-empty">No providers match.</div>`;
-        return;
-      }
-      // Switch the grid container into list mode
-      grid.className = 'providers-list';
-      grid.innerHTML = providers.map(p => {
-        const isOpen = this.expandedProviders.has(p.name);
-        const perkCount = p.perks.length;
-        const badgeCls = perkCount > 1 ? 'multi' : 'single';
-        const badgeText = `${perkCount} ${perkCount === 1 ? 'Perk' : 'Perks'}`;
-        const perksHtml = isOpen ? `
-          <div class="provider-perks-list">
-            ${p.perks.map(perk => `
-              <div class="perk-item" onclick="event.stopPropagation(); Deals.openDetail('${perk.id}')">
-                <div class="perk-item-text">${escHtml(perk.perk)}</div>
-                <div class="perk-item-cat">${escHtml(perk.service || perk.category)}</div>
-                <span class="material-icons perk-item-arrow">arrow_forward_ios</span>
-              </div>
-            `).join('')}
-          </div>
-        ` : '';
-        return `
-          <div class="provider-row ${isOpen ? 'expanded' : ''}">
-            <div class="provider-row-head" onclick="Deals.toggleProvider('${escHtml(p.name).replace(/'/g, "\\'")}')">
-              <div class="provider-row-avatar">${p.letter}</div>
-              <div class="provider-row-info">
-                <div class="provider-row-name">${escHtml(p.name)}</div>
-                <div class="provider-row-loc"><span class="material-icons">location_on</span>${escHtml(p.area)}</div>
-              </div>
-              <span class="provider-perks-badge ${badgeCls}">${badgeText}</span>
-              <span class="material-icons provider-row-chevron">expand_more</span>
-            </div>
-            ${perksHtml}
-          </div>
-        `;
-      }).join('');
-      return;
-    }
-    
-    // Other tabs: flat perk cards (Featured / Deals / Favourites)
-    grid.className = 'meetup-grid';
+    const setC = (id, n) => { const e = document.getElementById(id); if (e) e.textContent = n; };
+    setC('q-active-count', this.data.filter(q => this._isActive(q)).length);
+    setC('q-browse-count', this.data.filter(q => !this._isDone(q)).length);
+    setC('q-done-count',   this.data.filter(q => this._isDone(q)).length);
+
+    const grid = document.getElementById('quest-grid');
+    if (!grid) return;
     const items = this.filtered();
-    if (items.length === 0) {
-      grid.innerHTML = `<div class="feed-empty">${
-        this.tab === 'favourites' ? 'No favourites yet. Tap the heart on a deal to save it.' : 'No deals match.'
-      }</div>`;
+    if (!items.length) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--q-muted);padding:30px;">No quests here yet.</div>';
       return;
     }
-    grid.innerHTML = items.map(d => {
-      const isClaimed = this.claimed.has(d.id);
-      // Status badge (bottom-left of cover)
-      let statusBadge = '';
-      if (isClaimed)        statusBadge = '<div class="meetup-status-badge green">Claimed</div>';
-      else if (d.featured && d.hot) statusBadge = '<div class="meetup-status-badge">Featured</div>';
-      else if (d.hot)       statusBadge = '<div class="meetup-status-badge">Popular</div>';
-      else if (d.featured)  statusBadge = '<div class="meetup-status-badge">Featured</div>';
-      
-      // Eyebrow: providerType
-      const eyebrow = `<span class="cat">${escHtml(d.providerType || d.category)}</span>`;
-      
-      // Tag pills
-      const pills = [];
-      pills.push(d.category.toUpperCase());
-      if (d.service)   pills.push(d.service.toUpperCase());
-      if (d.frequency) pills.push(d.frequency.toUpperCase());
-      const pillsHtml = pills.slice(0,3).map(p => `<span class="meetup-tag-pill">${escHtml(p)}</span>`).join('');
-      
-      const catKey = d.category.toLowerCase();
-      
-      return `
-        <div class="meetup-card" onclick="Deals.openDetail('${d.id}')">
-          <div class="meetup-cover-v2 ${d.img ? 'image' : catKey}" ${d.img ? `style="background-image:url('${escHtml(d.img)}');"` : ''}>
-            ${statusBadge}
-          </div>
-          <div class="meetup-body">
-            <div class="meetup-eyebrow"><span class="cat">${escHtml(d.providerType || d.category)}</span></div>
-            <div class="meetup-title-v2">${escHtml(d.perk)}</div>
-            <div class="meetup-org-row">
-              <div class="meetup-org-avatar">${d.letter}</div>
-              <div class="meetup-org-info">
-                <div class="meetup-org-name" style="font-size:13px;">${escHtml(d.venue)}</div>
-                <div class="meetup-org-loc"><span class="material-icons">location_on</span>${escHtml(d.area)}</div>
-              </div>
-            </div>
-            ${pillsHtml ? `<div class="meetup-tag-pills">${pillsHtml}</div>` : ''}
-            <button class="meetup-view-btn" onclick="event.stopPropagation(); Deals.openDetail('${d.id}')">
-              View Details <span class="material-icons">arrow_forward</span>
-            </button>
-          </div>
-        </div>
-      `;
+    grid.innerHTML = items.map(q => {
+      const c = this.CAT[q.category] || { cover: '' };
+      const cover = q.hero_image_url
+        ? '<div class="qc-cover image" style="background-image:url(\'' + q.hero_image_url + '\');">'
+        : '<div class="qc-cover ' + c.cover + '">';
+      const spon = q.sponsors
+        ? '<div class="qc-spon-strip"><span class="ss-logo">' + escHtml(q.sponsors.logo || '') + '</span><span class="ss-txt">Brought to you by <b>' + escHtml(q.sponsors.name || '') + '</b></span></div>'
+        : '';
+      const scopeCap = (q.scope || '').charAt(0).toUpperCase() + (q.scope || '').slice(1);
+      const rewardPill = q.reward_type === 'prize'
+        ? '<span class="qc-reward"><span class="material-icons">redeem</span> Prize</span>'
+        : '<span class="qc-reward"><span class="material-icons">approval</span> Stamp</span>';
+      const footVal = (q.reward_type === 'prize' && q.prize_total != null)
+        ? '<span class="qc-foot-val">' + q.prize_remaining + ' of ' + q.prize_total + ' left</span>'
+        : '';
+      return '<div class="quest-card" onclick="Quests.openDetail(\'' + q.id + '\')">' +
+          cover + '<span class="qc-scope-pill">' + scopeCap + '</span>' + spon + '</div>' +
+          '<div class="qc-pad">' +
+            '<div class="qc-title">' + escHtml(q.title) + '</div>' +
+            '<div class="qc-stamps">' + this.dots(this._pc(q), q.target_count) + '</div>' +
+            '<div class="qc-foot">' + rewardPill + footVal + '</div>' +
+          '</div>' +
+        '</div>';
     }).join('');
   },
-  
-  openDetail(id) {
-    const d = this.data.find(x => x.id === id);
-    if (!d) return;
-    const isClaimed = this.claimed.has(id);
-    const isFav = this.favourites.has(id);
-    const body = `
-      <div class="dm-cover deals">
-        <span class="dm-cover-tag">${escHtml(d.category)}</span>
-      </div>
-      <div class="dm-body">
-        <div class="dm-title">${escHtml(d.venue)}</div>
-        <div class="dm-meta-row">
-          <span class="item"><span class="material-icons">location_on</span>${escHtml(d.area)}</span>
-        </div>
-        <div style="font-size:14px; font-weight:700; color:var(--yellow); padding:10px 12px; background:rgba(255,204,0,0.06); border:1px solid rgba(255,204,0,0.20); border-radius:8px; display:flex; align-items:center; gap:8px;">
-          <span class="material-icons" style="font-size:18px;">card_giftcard</span>
-          ${escHtml(d.perk)}
-        </div>
-      </div>
-      <div class="dm-section">
-        <div class="dm-section-label">What you get</div>
-        <p>${escHtml(d.breakdown)}</p>
-      </div>
-      <div class="dm-section">
-        <div class="dm-section-label">About the venue</div>
-        <p>${escHtml(d.about)}</p>
-      </div>
-      <div class="dm-section">
-        <div class="dm-section-label">The details</div>
-        <div class="dm-info-grid">
-          <div class="dm-info-cell"><div class="k">Valid</div><div class="v">${escHtml(d.valid)}</div></div>
-          <div class="dm-info-cell"><div class="k">Booking</div><div class="v">${escHtml(d.booking)}</div></div>
-          <div class="dm-info-cell"><div class="k">Limits</div><div class="v">${escHtml(d.limits)}</div></div>
-          <div class="dm-info-cell"><div class="k">Frequency</div><div class="v">${escHtml(d.frequency)}</div></div>
-        </div>
-      </div>
-      <div class="dm-footer">
-        <div style="display:flex; gap:10px;">
-          <button onclick="Deals.toggleFavourite('${d.id}')" style="width:44px; height:44px; border-radius:10px; background:${isFav ? 'rgba(239,68,68,0.15)' : 'rgba(43,168,224,0.06)'}; border:1px solid ${isFav ? '#ef4444' : 'var(--border-mid)'}; cursor:pointer; display:flex; align-items:center; justify-content:center;">
-            <span class="material-icons" style="font-size:20px; color:${isFav ? '#ef4444' : 'var(--muted)'};">${isFav ? 'favorite' : 'favorite_border'}</span>
-          </button>
-          <button class="btn-primary-yellow" style="flex:1;" ${isClaimed ? 'disabled' : ''} onclick="Deals.askConfirm('${d.id}')">
-            ${isClaimed ? 'Claimed — One-Time Use' : 'Claim This Deal'}
-          </button>
-        </div>
-      </div>
-    `;
-    openDetailModal(body);
-  },
-  
-  toggleFavourite(id) {
-    if (this.favourites.has(id)) this.favourites.delete(id);
-    else this.favourites.add(id);
-    // Re-render the detail body
-    closeDetailModal();
-    setTimeout(() => this.openDetail(id), 50);
-    this.render();
-  },
-  
-  askConfirm(id) {
-    const d = this.data.find(x => x.id === id);
-    if (!d) return;
-    closeDetailModal();
-    setTimeout(() => {
-      openConfirmModal({
-        icon: 'task_alt',
-        title: 'Send claim request?',
-        event: d.perk,
-        when: d.venue + ' · ' + d.area,
-        note: 'Your request will be sent to the provider. Once they confirm, your perk is unlocked — and this deal becomes <strong>one-time-use</strong> on your account.',
-        actionLabel: 'Send Request',
-        actionColor: 'yellow',
-        onConfirm: () => this.startClaim(id)
-      });
-    }, 50);
-  },
-  
-  startClaim(id) {
-    const d = this.data.find(x => x.id === id);
-    if (!d) return;
-    this._activeClaim = d;
-    document.getElementById('claim-state-waiting').style.display = '';
-    document.getElementById('claim-state-approved').style.display = 'none';
-    document.getElementById('claim-state-declined').style.display = 'none';
-    document.getElementById('claim-partner-w').textContent = d.venue;
-    document.getElementById('claim-deal-w').textContent = d.perk;
-    document.getElementById('claim-logo').textContent = d.letter;
-    document.getElementById('claim-backdrop').classList.add('open');
-    // PRODUCTION: POST /api/deals/{id}/claim → real-time provider response via websocket
-    // Demo: auto-approve after 3.5s
-    this._claimTimer = setTimeout(() => this.simulateApprove(), 3500);
-  },
-  
-  simulateApprove() {
-    const d = this._activeClaim;
-    if (!d) return;
-    clearTimeout(this._claimTimer);
-    this.claimed.add(d.id);
-    document.getElementById('claim-partner-a').textContent = d.venue;
-    document.getElementById('claim-deal-a').textContent = d.perk;
-    const time = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-    document.getElementById('claim-time').textContent = time;
-    document.getElementById('claim-id').textContent = String(Date.now()).slice(-6);
-    document.getElementById('claim-state-waiting').style.display = 'none';
-    document.getElementById('claim-state-approved').style.display = '';
-    this.render();
-  },
-  
-  simulateDecline() {
-    const d = this._activeClaim;
-    if (!d) return;
-    clearTimeout(this._claimTimer);
-    document.getElementById('claim-partner-d').textContent = d.venue;
-    document.getElementById('claim-deal-d').textContent = d.perk;
-    document.getElementById('claim-state-waiting').style.display = 'none';
-    document.getElementById('claim-state-declined').style.display = '';
-  },
-  
-  cancelClaim() {
-    clearTimeout(this._claimTimer);
-    this.closeClaim();
-  },
-  
-  closeClaim() {
-    document.getElementById('claim-backdrop').classList.remove('open');
-    this._activeClaim = null;
+
+  async openDetail(id) {
+    const mid = this.memberId();
+    let detail = null;
+    try {
+      const res = await fetch(this.base + '/api/quests/' + id + (mid ? ('?member_id=' + encodeURIComponent(mid)) : ''));
+      detail = await res.json();
+    } catch (e) {}
+    const q = (detail && detail.quest) ? detail.quest : this.data.find(x => x.id === id);
+    if (!q) return;
+    const venues = (detail && detail.venues) ? detail.venues : [];
+    const pc = (detail && detail.progress) ? (detail.progress.completed_count || 0) : this._pc(q);
+    const scopeCap = (q.scope || '').charAt(0).toUpperCase() + (q.scope || '').slice(1);
+    const isPrize = q.reward_type === 'prize';
+    const cover = q.hero_image_url
+      ? 'background-image:linear-gradient(180deg,rgba(8,20,32,0.30) 40%,rgba(8,20,32,0.85)),url(\'' + q.hero_image_url + '\');'
+      : '';
+    const sponsorRow = q.sponsors
+      ? '<div class="q-spon-row"><span class="ss-logo">' + escHtml(q.sponsors.logo || '') + '</span><div><div class="spon-by">Brought to you by</div><div class="spon-name">' + escHtml(q.sponsors.name || '') + '</div></div></div>'
+      : '';
+    const venuesHtml = venues.length
+      ? venues.map(v => '<div class="q-venue"><span class="material-icons">place</span> ' + escHtml((v.providers && v.providers.business_name) || 'Venue') + '</div>').join('')
+      : '<div class="q-venue muted">Venues announced soon.</div>';
+    const rewardLine = isPrize
+      ? 'Win 1 of ' + (q.prize_total || '?') + ' prizes from <b>' + escHtml((q.sponsors && q.sponsors.name) || 'our partner') + '</b> — the first ' + (q.prize_total || '') + ' to finish. Everyone who completes still earns the stamp.'
+      : 'Complete all ' + q.target_count + ' to earn your stamp — it counts toward your next tier.';
+    const html =
+      '<div class="q-detail">' +
+        (cover ? '<div class="q-cover" style="' + cover + '"></div>' : '') +
+        '<div class="q-detail-body">' +
+          sponsorRow +
+          '<div class="q-scope-pill">' + scopeCap + ' · ' + escHtml(q.category || '') + '</div>' +
+          '<h3 class="q-title">' + escHtml(q.title) + '</h3>' +
+          '<p class="q-desc">' + escHtml(q.description || '') + '</p>' +
+          '<div class="q-reward-box ' + (isPrize ? 'prize' : 'stamp') + '">' +
+            '<span class="material-icons">' + (isPrize ? 'redeem' : 'approval') + '</span>' +
+            '<div>' + rewardLine + '</div>' +
+          '</div>' +
+          '<div class="q-progress">' + pc + ' of ' + q.target_count + ' stamped</div>' +
+          '<div class="qc-stamps big">' + this.dots(pc, q.target_count) + '</div>' +
+          '<div class="q-venues-title">Where to go</div>' + venuesHtml +
+          '<button class="btn-primary-yellow q-qr-btn" onclick="closeDetailModal(); var b=document.querySelector(&quot;.nav-item[data-panel=\'panel-passport\']&quot;); if(b) b.click();"><span class="material-icons">qr_code_2</span> Show my QR to check in</button>' +
+        '</div>' +
+      '</div>';
+    openDetailModal(html);
   }
 };
 
@@ -12130,7 +12015,7 @@ function init() {
   CalorieTracker.init();
   FitnessStats.init();
   Earnings.init();
-  Deals.init();
+  Quests.init();
   Events.init();
   Experiences.init();
   MeetMove.init();
