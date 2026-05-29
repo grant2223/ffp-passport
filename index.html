@@ -2,8 +2,31 @@
 <!--
   ============================================================
   FFP PASSPORT HOMEPAGE — index.html
-  Version: v6
+  Version: v8
   Date: 2026-05-29
+  Changes from v7 (b):
+    - Pricing benefits list: added a "Quests" bullet near the top (3rd,
+      after Meet & Move) and moved the "Pro Network" bullet lower down
+      (now after Challenges/leaderboards).
+  Changes from v7:
+    - "Five ways in" card 03 changed from Pro Network → Quests teaser
+      (step "03 — Gamified", title "Quests"). Section sub updated:
+      "Tap into professional networks" → "Take on quests to explore".
+    - Dedicated Quests section MOVED from after Ecosystem to before
+      "Local and global" (now directly follows Five ways in), and given
+      a .section-img photo at the top (assets/quests.jpg — add this image
+      to the assets folder; matches the other section-top photos).
+  Changes from v6:
+    - Added a dedicated "Quests" section (id="quests") between the
+      Ecosystem and Unlocks sections. Surfaces the platform's Quests
+      feature on the homepage: tier ladder (Explorer → Adventurer →
+      Navigator), three feature cards (collect stamps / solo or with a
+      friend / City-Country-Global scope), and a sponsored-prize callout.
+      New CSS lives in a "QUESTS" block just above the PRICING styles.
+    - Removed "deals" language from the Member Perks unlock card. Copy
+      changed from "Deals at FFP partner venues" to "Member-only access
+      and extras at FFP partner venues"; icon changed local_offer →
+      loyalty. ("Not a coupon book" line intentionally left as-is.)
   Changes from v5:
     - Banner positioning fix. v5 banner sat at top of body but was
       invisible because <nav> is position:fixed top:0 z-index:100 and
@@ -233,6 +256,31 @@ section{padding:56px 0;}
 .amb-text{font-size:14px;color:var(--text-soft);line-height:1.7;max-width:680px;}
 @media (min-width:900px){.amb-card{padding:48px 40px;} .amb-title{font-size:36px;}}
 
+/* QUESTS */
+.quests{background:linear-gradient(180deg,rgba(43,168,224,.05),rgba(255,204,0,.035));}
+.q-tiers{display:flex;align-items:center;gap:0;margin:6px 0 36px;max-width:540px;}
+.q-tier{display:flex;flex-direction:column;align-items:center;gap:9px;flex:0 0 auto;}
+.q-tier-dot{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid var(--accent-line);background:var(--bg-elev);color:var(--text-dim);}
+.q-tier-dot .material-icons{font-size:24px !important;}
+.q-tier.active .q-tier-dot{background:var(--yellow);border-color:var(--yellow);color:#081420;box-shadow:0 0 0 5px rgba(255,204,0,.16);}
+.q-tier-lbl{font-size:11px;font-weight:800;letter-spacing:.5px;color:var(--text-dim);text-transform:uppercase;}
+.q-tier.active .q-tier-lbl{color:var(--yellow);}
+.q-tier-line{flex:1;height:3px;background:var(--accent-line);margin:0 6px 28px;border-radius:2px;}
+.q-grid{display:grid;gap:14px;grid-template-columns:1fr;}
+@media (min-width:700px){.q-grid{grid-template-columns:repeat(3,1fr);}}
+.q-card{border:1px solid var(--accent-line);border-radius:var(--radius);padding:24px 22px;background:var(--bg-elev);transition:border-color .2s,transform .2s;}
+.q-card:hover{transform:translateY(-2px);border-color:rgba(43,168,224,.5);}
+.q-card .q-ic{color:var(--accent);font-size:30px !important;margin-bottom:12px;display:inline-block;}
+.q-card h4{font-size:16px;font-weight:900;margin-bottom:6px;}
+.q-card p{font-size:12px;color:var(--text-soft);line-height:1.6;}
+.q-prize{margin-top:14px;border:1.5px solid rgba(255,204,0,.3);border-radius:var(--radius-lg);background:linear-gradient(135deg,rgba(255,204,0,.07),rgba(255,204,0,.02));padding:22px 24px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
+.q-prize-badge{width:54px;height:54px;border-radius:14px;background:rgba(255,204,0,.14);border:1px solid rgba(255,204,0,.4);display:flex;align-items:center;justify-content:center;color:var(--yellow);flex-shrink:0;}
+.q-prize-badge .material-icons{font-size:28px !important;}
+.q-prize-text{flex:1;min-width:220px;}
+.q-prize-eyebrow{font-size:10px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:var(--yellow);margin-bottom:5px;}
+.q-prize-title{font-size:17px;font-weight:900;margin-bottom:5px;letter-spacing:-.2px;}
+.q-prize-desc{font-size:12px;color:var(--text-soft);line-height:1.6;}
+
 /* PRICING */
 .pricing{background:var(--bg-elev);position:relative;overflow:hidden;}
 .pricing::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at top,rgba(43,168,224,.08),transparent 60%);pointer-events:none;}
@@ -360,7 +408,7 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
   <div class="col">
     <span class="eyebrow">What the passport opens</span>
     <h2 class="sec-heading">Five ways in.</h2>
-    <p class="sec-sub">Match with people. Host or join meet-ups. Tap into professional networks. Get into provider events. Travel together for full experiences. Each one a different door to people, places and possibilities.</p>
+    <p class="sec-sub">Match with people. Host or join meet-ups. Take on quests to explore. Get into provider events. Travel together for full experiences. Each one a different door to people, places and possibilities.</p>
     <div class="ways-grid">
 
       <div class="way-card">
@@ -384,12 +432,12 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
       </div>
 
       <div class="way-card">
-        <div class="way-img"><img src="assets/ladies-lifting.jpg" alt="Pro network"></div>
+        <div class="way-img"><img src="assets/ladies-lifting.jpg" alt="Quests"></div>
         <div class="way-body">
-          <div class="way-step">03 &mdash; Professionals</div>
-          <div class="way-title">Pro Network</div>
-          <div class="way-desc">A dedicated space for coaches, professional athletes, entrepreneurs and serious practitioners who want to connect with their peers.</div>
-          <div class="way-eg">Coaches sharing methodology. Pros training with pros. Entrepreneurs in the active-life space.</div>
+          <div class="way-step">03 &mdash; Gamified</div>
+          <div class="way-title">Quests</div>
+          <div class="way-desc">Take on City, Country and Global quests &mdash; solo or with a friend. Visit new venues, collect official passport stamps, and climb the tiers.</div>
+          <div class="way-eg">A city sport-sampler. A partner quest with a friend. A sponsored quest with a real prize to win.</div>
         </div>
       </div>
 
@@ -414,6 +462,65 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
       </div>
 
     </div>
+  </div>
+</section>
+
+<!-- QUESTS -->
+<section class="quests" id="quests">
+  <div class="col">
+    <div class="section-img"><img src="assets/quests.jpg" alt="FFP Passport Quests"></div>
+    <span class="eyebrow">Explore. Collect. Win.</span>
+    <h2 class="sec-heading">Quests turn the UAE into your playground.</h2>
+    <p class="sec-sub">Take on City, Country and Global quests &mdash; solo or with a friend. Visit new venues, collect official passport stamps, and climb the tiers. Some quests are sponsored by our partners, with real prizes for those who finish.</p>
+
+    <div class="q-tiers">
+      <div class="q-tier active">
+        <div class="q-tier-dot"><span class="material-icons">explore</span></div>
+        <div class="q-tier-lbl">Explorer</div>
+      </div>
+      <div class="q-tier-line"></div>
+      <div class="q-tier">
+        <div class="q-tier-dot"><span class="material-icons">hiking</span></div>
+        <div class="q-tier-lbl">Adventurer</div>
+      </div>
+      <div class="q-tier-line"></div>
+      <div class="q-tier">
+        <div class="q-tier-dot"><span class="material-icons">travel_explore</span></div>
+        <div class="q-tier-lbl">Navigator</div>
+      </div>
+    </div>
+
+    <div class="q-grid">
+
+      <div class="q-card">
+        <span class="material-icons q-ic">approval</span>
+        <h4>Collect official stamps</h4>
+        <p>Every quest you finish stamps your passport. Build a collection across fitness, sports, wellness, recovery, adventure and food.</p>
+      </div>
+
+      <div class="q-card">
+        <span class="material-icons q-ic">handshake</span>
+        <h4>Solo or with a friend</h4>
+        <p>Take them on alone, or bring someone along. Partner quests earn you both a Companion stamp for every place you explore together.</p>
+      </div>
+
+      <div class="q-card">
+        <span class="material-icons q-ic">public</span>
+        <h4>City, Country &amp; Global</h4>
+        <p>Quests scale from your city, to the whole UAE, to global challenges &mdash; climbing you from Explorer to Adventurer to Navigator.</p>
+      </div>
+
+    </div>
+
+    <div class="q-prize">
+      <div class="q-prize-badge"><span class="material-icons">redeem</span></div>
+      <div class="q-prize-text">
+        <div class="q-prize-eyebrow">Sponsored quests</div>
+        <div class="q-prize-title">Win real prizes from our partners</div>
+        <div class="q-prize-desc">Brands across the region put up the rewards &mdash; finish a sponsored quest and you could win a prize on top of the stamp. Everyone who completes still earns it.</div>
+      </div>
+    </div>
+
   </div>
 </section>
 
@@ -536,10 +643,10 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
       </div>
 
       <div class="unlock-card">
-        <div class="unlock-icon"><span class="material-icons">local_offer</span></div>
+        <div class="unlock-icon"><span class="material-icons">loyalty</span></div>
         <div class="unlock-text">
           <div class="unlock-title">Member Perks</div>
-          <div class="unlock-desc">Deals at FFP partner venues &mdash; designed to get more people active together.</div>
+          <div class="unlock-desc">Member-only access and extras at FFP partner venues &mdash; designed to get more people active together.</div>
         </div>
       </div>
 
@@ -644,11 +751,12 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
       <ul class="benefits">
         <li><span class="material-icons">check_circle</span><span>Matching with verified members in your city &mdash; <b>by sport, level, age and area</b></span></li>
         <li><span class="material-icons">check_circle</span><span><b>Unlimited Meet &amp; Move</b> &mdash; host or join, up to 8 people</span></li>
-        <li><span class="material-icons">check_circle</span><span><b>Pro Network</b> for coaches, athletes and entrepreneurs</span></li>
+        <li><span class="material-icons">check_circle</span><span><b>Quests</b> &mdash; explore venues, collect passport stamps, win partner prizes</span></li>
         <li><span class="material-icons">check_circle</span><span><b>All FFP events</b> across the UAE</span></li>
         <li><span class="material-icons">check_circle</span><span><b>Apply for multi-day Experiences</b> and overseas travel</span></li>
         <li><span class="material-icons">check_circle</span><span><b>Member Perks</b> at FFP partner venues</span></li>
         <li><span class="material-icons">check_circle</span><span><b>Challenges, leaderboards</b> and city rankings</span></li>
+        <li><span class="material-icons">check_circle</span><span><b>Pro Network</b> for coaches, athletes and entrepreneurs</span></li>
         <li><span class="material-icons">check_circle</span><span><b>Calorie tracker, fitness stats</b> and activity passport</span></li>
         <li><span class="material-icons">check_circle</span><span><b>Ambassador programme</b> &mdash; earn AED from referrals</span></li>
         <li><span class="material-icons">check_circle</span><span><b>Invitations</b> to product launches and brand events</span></li>
