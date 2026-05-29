@@ -7530,10 +7530,9 @@ const MemberProfile = {
           ${this.renderPickerCard('nationality', 'Nationality', d.nationality, true)}
         </div>
 
-        <!-- v101: SAVE PROFILE button — PUTs current MemberProfile.data to backend -->
-        <div style="margin-top:24px;text-align:center;">
-          <button class="btn" style="min-width:200px;padding:14px 28px;font-size:14px;font-weight:800;letter-spacing:0.3px;border-radius:10px;cursor:pointer;background:#FFCC00;color:#081420;border:none;text-align:center;display:inline-flex;align-items:center;justify-content:center;" onclick="MemberProfile.saveProfile(this)">Save Profile</button>
-          <div id="profile-save-status" style="margin-top:10px;font-size:12px;color:#9dbdd0;min-height:18px;"></div>
+        <!-- Auto-save: every change saves automatically; this line shows status -->
+        <div style="margin-top:18px;text-align:center;">
+          <div id="profile-save-status" style="font-size:12px;color:#6b8298;min-height:18px;">Changes save automatically</div>
         </div>
 
         <!-- PROFESSIONAL PROFILE — member self-declares role; admin verifies separately -->
@@ -7563,20 +7562,6 @@ const MemberProfile = {
                 <div class="sport-card-level">${this.escape(s.level)}</div>
               </div>
             `).join('')}
-        </div>
-
-        <!-- SECURITY (PIN only) -->
-        <div class="profile-section-title">Security</div>
-        <div class="security-card">
-          <div class="security-card-info">
-            <div class="security-card-label">6-digit Sign-in PIN</div>
-            <div class="security-card-status ${d.hasPin ? 'set' : ''}">
-              ${d.hasPin
-                ? '<span class="pin-display">' + Array(6).fill('<span class="pin-dot"></span>').join('') + '</span> &middot; Active'
-                : 'Not yet set'}
-            </div>
-          </div>
-          <button class="security-btn" onclick="MemberProfile.openPinModal()">${d.hasPin ? 'Change PIN' : 'Set PIN'}</button>
         </div>
 
         <!-- PREFERENCES -->
@@ -7693,13 +7678,13 @@ const MemberProfile = {
       <div class="field-card field-card-dob">
         <div class="field-card-label-top">Date of Birth</div>
         <div style="display:grid;grid-template-columns:1fr 1.4fr 1.2fr;gap:6px;margin-top:6px;">
-          <select class="field-card-input-flat" onchange="MemberProfile.data.dobDay = this.value; MemberProfile.render();">
+          <select class="field-card-input-flat" onchange="MemberProfile.data.dobDay = this.value; MemberProfile.render(); MemberProfile.autoSave();">
             <option value="">Day</option>${selected(dayOpts, d.dobDay)}
           </select>
-          <select class="field-card-input-flat" onchange="MemberProfile.data.dobMonth = this.value; MemberProfile.render();">
+          <select class="field-card-input-flat" onchange="MemberProfile.data.dobMonth = this.value; MemberProfile.render(); MemberProfile.autoSave();">
             <option value="">Month</option>${selected(monthOpts, d.dobMonth)}
           </select>
-          <select class="field-card-input-flat" onchange="MemberProfile.data.dobYear = this.value; MemberProfile.render();">
+          <select class="field-card-input-flat" onchange="MemberProfile.data.dobYear = this.value; MemberProfile.render(); MemberProfile.autoSave();">
             <option value="">Year</option>${selected(yearOpts, d.dobYear)}
           </select>
         </div>
@@ -7721,8 +7706,16 @@ const MemberProfile = {
   },
   
   // ===== v101: SAVE PROFILE — PUTs all editable fields to backend /api/members/:id =====
-  async saveProfile(btn) {
-    const statusEl = document.getElementById('profile-save-status');
+  autoSave() {
+    clearTimeout(this._saveTimer);
+    var statusEl = document.getElementById('profile-save-status');
+    if (statusEl) { statusEl.innerHTML = 'Saving\u2026'; statusEl.style.color = '#9dbdd0'; }
+    var self = this;
+    this._saveTimer = setTimeout(function () { self.saveProfile(); }, 600);
+  },
+
+  async saveProfile(btn, opts) {
+    const statusEl = (opts && opts.silent) ? null : document.getElementById('profile-save-status');
     if (statusEl) { statusEl.textContent = 'Saving...'; statusEl.style.color = '#9dbdd0'; }
     if (btn) btn.disabled = true;
     try {
@@ -7747,7 +7740,9 @@ const MemberProfile = {
         gender:             d.gender || null,
         nationality:        d.nationality || null,
         country:            d.country || null,
-        city:               d.city || null
+        city:               d.city || null,
+        skills:             Array.isArray(d.sports) ? d.sports : [],
+        preferences:        d.preferences || {}
       };
       const res = await fetch('https://ffp-passport-backend.vercel.app/api/members/' + stored.id, {
         method: 'PUT',
@@ -7782,8 +7777,8 @@ const MemberProfile = {
     if (!trimmed) { this.render(); return; }    // revert empty
     if (this.data[field] === trimmed) return;   // no change
     this.data[field] = trimmed;
-    // PRODUCTION: PATCH /api/members/me { [field]: trimmed }
     this.render();
+    this.autoSave();
   },
   
   // ===== PHONE COUNTRY CODE =====
@@ -7882,6 +7877,7 @@ const MemberProfile = {
         }
         this.data[field] = val;
         this.render();
+        this.autoSave();
       }
     });
   },
@@ -7949,6 +7945,7 @@ const MemberProfile = {
             onPick: (level) => {
               this.data.sports.push({ name: sportName, level });
               this.render();
+              this.autoSave();
             }
           });
         }, 80);
@@ -7961,14 +7958,14 @@ const MemberProfile = {
     if (!sport) return;
     // No confirm — easy to re-add via the picker if removed by mistake.
     this.data.sports.splice(index, 1);
-    // PRODUCTION: DELETE /api/members/me/skills/{id}
     this.render();
+    this.autoSave();
   },
   
   // ===== PREFERENCES =====
   setPref(key, value) {
     this.data.preferences[key] = value;
-    // PRODUCTION: PATCH /api/profile/preferences { [key]: value }
+    this.autoSave();
   }
 };
 
@@ -12071,6 +12068,16 @@ function init() {
           expiryDate:       m.created_at ? (() => { const d = new Date(m.created_at); d.setFullYear(d.getFullYear() + 1); return d.toISOString().slice(0, 10); })() : '',
           tier:             m.tier || 'Member',
         });
+        if (Array.isArray(m.skills)) {
+          MemberProfile.data.sports = m.skills.map(function (s) {
+            return (s && typeof s === 'object')
+              ? { name: s.name || s.skill || s.sport || '', level: s.level || 'All levels' }
+              : { name: String(s), level: 'All levels' };
+          }).filter(function (s) { return s.name; });
+        }
+        if (m.preferences && typeof m.preferences === 'object') {
+          Object.assign(MemberProfile.data.preferences, m.preferences);
+        }
       }
     }
   } catch (e) {
@@ -12116,7 +12123,7 @@ function init() {
   // Picker modal click-outside is wired inside the Picker module
   document.getElementById('city-search').addEventListener('input', e => renderCityList(e.target.value));
   renderAll();
-  console.log('FFP Dashboard v23 - profile polish');
+  console.log('FFP Dashboard v25 - profile auto-save');
 }
 
 // ===== APPLE WALLET INTEGRATION =====
