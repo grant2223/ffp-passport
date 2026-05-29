@@ -4149,6 +4149,12 @@ input[type="number"] {
     </button>
   </div>
   
+  <!-- LOG: scan a provider QR or enter manually -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;">
+    <button class="btn btn-block" style="padding:13px;background:#FFCC00;color:#081420;border:none;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;cursor:pointer;font-family:inherit;" onclick="openScanLog()"><span class="material-icons" style="font-size:18px;">qr_code_scanner</span> Scan QR</button>
+    <button class="btn btn-block" style="padding:13px;background:#FFCC00;color:#081420;border:none;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;cursor:pointer;font-family:inherit;" onclick="openLogModal()"><span class="material-icons" style="font-size:18px;">edit</span> Manual input</button>
+  </div>
+
   <!-- JOURNEY -->
   <div class="journey-header">
     <h2>Your journey</h2>
@@ -4270,12 +4276,7 @@ input[type="number"] {
     </button>
   </div>
   
-  <!-- LOG EXPERIENCE BUTTON -->
-  <button class="btn btn-blue btn-block" style="padding:14px;margin-bottom:20px;" onclick="openLogModal()">
-    <span class="material-icons" style="font-size:18px;">add_circle</span>
-    Log experience
-  </button>
-  
+
   </div><!-- /panel-passport -->
 
   <!-- ═══════════════════════════════════════════════════════════════
@@ -4976,15 +4977,20 @@ input[type="number"] {
         </div>
       </div>
       
-      <!-- Comparison filter -->
-      <div class="fs-compare-row">
-        <label class="fs-compare-label">Compare against</label>
-        <select class="fs-compare-select" id="fs-compare-select">
-          <option value="all">All FFP members</option>
-          <option value="age">Your age group (30&ndash;39)</option>
-          <option value="age_gender" selected>Same age &amp; gender</option>
-          <option value="age_gender_city">Same age, gender &amp; city</option>
-        </select>
+      <!-- Comparison filter — collapsed by default; tap to show -->
+      <button type="button" onclick="var r=document.getElementById('fs-compare-wrap');var open=(r.style.display==='none');r.style.display=open?'block':'none';this.querySelector('.fst-chev').textContent=open?'expand_less':'expand_more';" style="display:inline-flex;align-items:center;gap:6px;background:rgba(43,168,224,0.08);border:1px solid var(--border-mid);color:var(--text);font-size:12px;font-weight:700;padding:9px 14px;border-radius:9px;cursor:pointer;font-family:inherit;margin-bottom:10px;">
+        <span class="material-icons" style="font-size:16px;">tune</span> Filters <span class="material-icons fst-chev" style="font-size:18px;">expand_more</span>
+      </button>
+      <div id="fs-compare-wrap" style="display:none;">
+        <div class="fs-compare-row">
+          <label class="fs-compare-label">Compare against</label>
+          <select class="fs-compare-select" id="fs-compare-select">
+            <option value="all">All FFP members</option>
+            <option value="age">Your age group (30&ndash;39)</option>
+            <option value="age_gender" selected>Same age &amp; gender</option>
+            <option value="age_gender_city">Same age, gender &amp; city</option>
+          </select>
+        </div>
       </div>
       
       <!-- Strength -->
@@ -5161,18 +5167,14 @@ input[type="number"] {
       <button class="modal-close" onclick="closeLogModal()">&times;</button>
     </div>
     <div class="modal-body">
-      <div class="form-field">
-        <label class="form-label">Activity</label>
-        <div class="input-wrap">
-          <input type="text" id="log-activity" class="form-input" placeholder="Search activities..." autocomplete="off">
-          <div class="picker-dropdown" id="activity-picker"></div>
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Country</label>
+          <select id="log-country" class="form-input"></select>
         </div>
-      </div>
-      <div class="form-field">
-        <label class="form-label">Location</label>
-        <div class="input-wrap">
-          <input type="text" id="log-location" class="form-input" placeholder="Search any city worldwide..." autocomplete="off">
-          <div class="picker-dropdown" id="location-picker"></div>
+        <div class="form-field">
+          <label class="form-label">City</label>
+          <input type="text" id="log-city" class="form-input" placeholder="City">
         </div>
       </div>
       <div class="form-row">
@@ -5184,17 +5186,29 @@ input[type="number"] {
           <label class="form-label">Time</label>
           <input type="time" id="log-time" class="form-input">
         </div>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Activity</label>
+        <div class="input-wrap">
+          <input type="text" id="log-activity" class="form-input" placeholder="Search activities..." autocomplete="off">
+          <div class="picker-dropdown" id="activity-picker"></div>
+        </div>
+      </div>
+      <div class="form-row">
         <div class="form-field">
-          <label class="form-label">Duration (min)</label>
-          <input type="number" id="log-duration" class="form-input" placeholder="60">
+          <label class="form-label">Duration</label>
+          <select id="log-duration" class="form-input"></select>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Calories</label>
+          <input type="number" id="log-calories" class="form-input" inputmode="numeric" placeholder="e.g. 400">
         </div>
       </div>
       <div class="form-field">
-        <label class="form-label">Notes</label>
-        <textarea id="log-notes" class="form-input" rows="3" placeholder="How did it feel?"></textarea>
+        <label class="form-label">Notes (optional)</label>
+        <textarea id="log-notes" class="form-input" rows="2" placeholder="How did it feel?"></textarea>
       </div>
-    </div>
-    <div class="modal-footer">
+    </div>    <div class="modal-footer">
       <button class="btn" onclick="closeLogModal()">Cancel</button>
       <button class="btn btn-blue" onclick="saveLog()">Save activity</button>
     </div>
@@ -11998,14 +12012,54 @@ function toggleFavorite(cityName) {
 // ===== LOG MODAL =====
 function openLogModal() {
   document.getElementById('log-modal').classList.add('show');
-  document.getElementById('log-date').value = new Date().toISOString().substring(0,10);
-  document.getElementById('log-location').value = 'Dubai';
+  var durS = document.getElementById('log-duration');
+  if (durS && durS.options.length === 0) {
+    [15,20,30,45,60,75,90,120,150,180].forEach(function (v) { durS.add(new Option(v + ' min', v)); });
+    durS.value = 60;
+  }
+  var cnyS = document.getElementById('log-country');
+  if (cnyS && cnyS.options.length === 0) {
+    cnyS.add(new Option('Select country…', ''));
+    Object.keys(CITIES_DB).sort().forEach(function (c) { cnyS.add(new Option(c, c)); });
+  }
+  var prof = (window.MemberProfile && MemberProfile.data) || {};
+  if (cnyS && prof.country) cnyS.value = prof.country;
+  var cityI = document.getElementById('log-city');
+  if (cityI && !cityI.value) cityI.value = prof.city || '';
+  var now = new Date();
+  document.getElementById('log-date').value = now.toISOString().substring(0, 10);
+  var tEl = document.getElementById('log-time');
+  if (tEl) tEl.value = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+}
+function openScanLog() {
+  if (typeof showToast === 'function') showToast('Scan check-in is coming soon — log it manually for now');
+  openLogModal();
 }
 function closeLogModal() { document.getElementById('log-modal').classList.remove('show'); }
 function saveLog() {
-  const act = document.getElementById('log-activity').value;
-  if (!act) { alert('Please select an activity'); return; }
-  alert(`Saved: ${act}`);
+  const act = document.getElementById('log-activity').value.trim();
+  if (!act) { alert('Please pick an activity'); return; }
+  const country = document.getElementById('log-country').value;
+  const city = document.getElementById('log-city').value.trim();
+  if (!country || !city) { alert('Add a country and city so it lands on your map.'); return; }
+  const entry = {
+    activity: act,
+    venue: '',
+    city: city,
+    country: country,
+    date: document.getElementById('log-date').value || new Date().toISOString().substring(0, 10),
+    daysAgo: 0,
+    duration: parseInt(document.getElementById('log-duration').value, 10) || 0,
+    calories: parseInt(document.getElementById('log-calories').value, 10) || 0,
+    notes: document.getElementById('log-notes').value.trim(),
+    partner: false
+  };
+  // Adds to the journey immediately — a new city/country shows up on the map.
+  if (typeof LOGS !== 'undefined') LOGS.push(entry);
+  if (typeof renderAll === 'function') renderAll();
+  // NOTE: server persistence (activity_logs) is the next wiring step — this
+  // updates the map for the session; a reload currently clears it.
+  if (typeof showToast === 'function') showToast('Logged ' + act + (city ? ' in ' + city : ''), 'success');
   closeLogModal();
 }
 
@@ -12153,7 +12207,7 @@ function init() {
   // Picker modal click-outside is wired inside the Picker module
   document.getElementById('city-search').addEventListener('input', e => renderCityList(e.target.value));
   renderAll();
-  console.log('FFP Dashboard v26 - meetup form rebuild');
+  console.log('FFP Dashboard v27 - passport log + fitness filter');
 }
 
 // ===== APPLE WALLET INTEGRATION =====
