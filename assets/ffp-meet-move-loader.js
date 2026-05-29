@@ -1,16 +1,4 @@
-/* FFP Meet & Move Loader — v4
-   v4 (2026-05-29):
-   - MATCHING NOW REAL: loads "people you'd click with" from
-     GET /api/members/:id/matches (scored by shared sports/interests/city/level)
-     into MeetMove.matches, renders the top strip, and shows a clean empty state
-     when the member pool is still small. Tapping a match opens their real profile.
-   - No more fake meetups: when there are no real meetups, show an empty state
-     instead of keeping the built-in sample data.
-
-   v3: uses FFPAuth.getMember() instead of supabase.auth.getUser().
-   Reads:  meetups, members, profile_meta, meetup_attendees, /api/members/:id/matches
-   Writes: requestJoin → INSERT meetup_attendees status='joined'
-*/
+/*
 (function () {
   'use strict';
   var API = 'https://ffp-passport-backend.vercel.app';
