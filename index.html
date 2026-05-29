@@ -2,8 +2,25 @@
 <!--
   ============================================================
   FFP PASSPORT HOMEPAGE — index.html
-  Version: v3
-  Date: 2026-05-28
+  Version: v5
+  Date: 2026-05-29
+  Changes from v4:
+    - Richer referral banner. Now shows the referrer's avatar circle
+      (their FFP passport photo or initials fallback), full name, and
+      a "see their passport →" link that opens /verify.html?p={their
+      passport_no} for instant social proof — visitor sees a real
+      FFP-branded passport card belonging to a real human they know.
+      Backend v17 returns photo_url + passport_no + full_name in the
+      /api/referrer/:code response. Banner gracefully degrades to text
+      only if no photo on file.
+  Changes from v3:
+    - Referral capture: reads ?ref=CODE from URL, stores in localStorage
+      under 'ffp_ref' (persists across browser sessions), fetches
+      /api/referrer/:code to look up the referrer's first name, and
+      shows a small banner at the top of the page: "Invited by Jamie —
+      welcome to FFP Passport." Banner only renders if a valid ref is
+      present. Referrer earns credit when the visitor completes signup
+      (handled in backend v16 onboard flow via Stripe client_reference_id).
   Changes from v2:
     - Removed the "Ambassador Programme" standalone section ("Your active life, supported financially too.")
     - Ambassador status still mentioned in the Unlocks grid and Pricing bullets (intentional)
@@ -269,6 +286,19 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
 </style>
 </head>
 <body>
+<!-- v5: rich referral banner — avatar + name + link to referrer's passport.
+     Shows only when ?ref=CODE in URL resolves to a valid referrer. -->
+<div id="ffp-ref-banner" style="display:none; padding:14px 20px; background:linear-gradient(90deg,rgba(43,168,224,0.15),rgba(43,168,224,0.05)); border-bottom:1px solid rgba(43,168,224,0.3); color:#9dbdd0; font-family:'Montserrat',sans-serif;">
+  <div style="max-width:560px; margin:0 auto; display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:center;">
+    <div id="ffp-ref-avatar" style="width:44px; height:44px; border-radius:50%; background:#0f5a7a; background-size:cover; background-position:top center; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:15px; letter-spacing:0.5px; border:2px solid rgba(43,168,224,0.5);">—</div>
+    <div style="text-align:left; font-size:14px; line-height:1.4;">
+      <div><strong id="ffp-ref-name" style="color:#fff;">a friend</strong> invited you to FFP Passport</div>
+      <div style="font-size:13px; color:#9dbdd0; margin-top:2px;">
+        <a id="ffp-ref-link" href="#" target="_blank" rel="noopener" style="color:#2ba8e0; text-decoration:none; font-weight:600;">See their passport →</a>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- NAV -->
 <nav>
@@ -702,5 +732,74 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
   </div>
 </footer>
 
+<!-- v5: referral capture — reads ?ref=CODE from URL, persists in localStorage,
+     fetches richer referrer payload (name + avatar + passport_no), renders the
+     personalised banner with link to their verify card. localStorage persistence
+     means a visitor can browse for days before signing up and still attribute. -->
+<script>
+(function () {
+  'use strict';
+  var BACKEND = 'https://ffp-passport-backend.vercel.app';
+
+  // 1) Capture ?ref=CODE from URL (overwrites any previous value)
+  var params = new URLSearchParams(window.location.search);
+  var refFromUrl = params.get('ref');
+  if (refFromUrl) {
+    try { localStorage.setItem('ffp_ref', refFromUrl); } catch (e) {}
+  }
+
+  // 2) Read whatever ref is currently stored
+  var ref = null;
+  try { ref = localStorage.getItem('ffp_ref'); } catch (e) {}
+  if (!ref) return;
+
+  function initialsFrom(name) {
+    if (!name) return '—';
+    var parts = String(name).trim().split(/\s+/);
+    var first = parts[0] ? parts[0][0] : '';
+    var last  = parts.length > 1 ? parts[parts.length - 1][0] : '';
+    return (first + last).toUpperCase() || '—';
+  }
+
+  // 3) Look up the referrer + render rich banner
+  fetch(BACKEND + '/api/referrer/' + encodeURIComponent(ref))
+    .then(function (r) { return r.json(); })
+    .then(function (j) {
+      if (!j || !j.success) {
+        // Stale or invalid code — clear it
+        try { localStorage.removeItem('ffp_ref'); } catch (e) {}
+        return;
+      }
+      var banner = document.getElementById('ffp-ref-banner');
+      var name   = document.getElementById('ffp-ref-name');
+      var avatar = document.getElementById('ffp-ref-avatar');
+      var link   = document.getElementById('ffp-ref-link');
+      if (!banner) return;
+
+      // Name (use full_name when available so visitor sees who they actually know)
+      if (name) name.textContent = j.full_name || j.first_name || 'a friend';
+
+      // Avatar — photo if available, initials fallback
+      if (avatar) {
+        if (j.photo_url) {
+          avatar.style.backgroundImage = "url('" + j.photo_url + "')";
+          avatar.textContent = '';
+        } else {
+          avatar.textContent = initialsFrom(j.full_name || j.first_name || '');
+        }
+      }
+
+      // Link to their verify card (the personalised FFP-branded passport view)
+      if (link && j.passport_no) {
+        link.href = '/verify.html?p=' + encodeURIComponent(j.passport_no);
+      } else if (link) {
+        link.style.display = 'none';   // hide link if no passport_no
+      }
+
+      banner.style.display = 'block';
+    })
+    .catch(function () { /* network blip — banner stays hidden, ref stays cached */ });
+})();
+</script>
 </body>
 </html>
