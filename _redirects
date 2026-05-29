@@ -3,5 +3,6 @@
 /provider         /ffp-provider-dashboard.html   200
 /admin            /ffp-admin-dashboard.html      200
 /my-passport      /my-passport.html              200
+/join             /login.html#signup             301!
 
 /*                /index.html                    200
