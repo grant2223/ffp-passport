@@ -83,16 +83,25 @@ html, body {
 .brand-sub { font-size: 10px; font-weight: 700; color: #6a90a8; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
 
 /* ─── Passport card (matches dashboard 1:1) ─── */
+/* Match dashboard's approach: shell is fixed 540x340, parent .pass-card
+   uses JS-applied transform: scale() to fit any container width. Without
+   this scaling, the fixed-pixel content inside the shell (fonts, photo,
+   QR slot) doesn't fit when the card is smaller than 540px and gets
+   clipped by overflow: hidden. */
 .pass-card {
   width: 100%;
   max-width: 540px;
-  aspect-ratio: 540 / 340;
-  position: relative;
   margin: 0 auto;
+  position: relative;
+  height: 340px;          /* updated by scalePassportCard() to scaled height */
 }
 .pass-shell {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: 540px;
+  height: 340px;
+  transform-origin: top left;
   border-radius: 14px;
   overflow: hidden;
   background: linear-gradient(135deg, #eff2f6 0%, #d8e1ea 100%);
@@ -142,10 +151,9 @@ html, body {
   border-top: 1px solid rgba(26,41,55,0.12); width: calc(100% + 36px); text-align: center;
 }
 .pass-mrz-line { display: block; letter-spacing: 1.5px; white-space: nowrap; overflow: hidden; }
-@media (max-width: 580px) {
-  .pass-main { grid-template-columns: 110px 1fr 100px; }
-  .pass-photo { width: 110px; height: 140px; font-size: 44px; }
-}
+/* No mobile @media override — the pass-shell is always rendered at 540
+   logical width and transform: scale() handles narrow viewports. Mobile
+   media queries would apply desktop-shell styles inconsistently. */
 
 /* ─── Status badges (sit below the card) ─── */
 .badges-row { margin: 20px auto 0; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; max-width: 540px; }
@@ -462,6 +470,29 @@ html, body {
       renderError('Network error', (e && e.message) ? ('Error: ' + e.message) : 'Could not reach the verification service. Try again in a moment.', passportNo);
     }
   }
+
+  // Dashboard-style scaling: measure .pass-card parent width and apply
+  // transform: scale() so the fixed-540x340 .pass-shell fits cleanly into
+  // any container size (desktop and mobile both). Run after every renderCard
+  // and on window resize.
+  function scalePassportCard() {
+    var card  = document.querySelector('.pass-card');
+    var shell = document.querySelector('.pass-shell');
+    if (!card || !shell) return;
+    var availW = card.parentElement.clientWidth - 32;  // minus wrap padding (16px each side)
+    var targetW = Math.min(availW, 540);
+    var scale = targetW / 540;
+    shell.style.transform = 'scale(' + scale + ')';
+    card.style.width  = (540 * scale) + 'px';
+    card.style.height = (340 * scale) + 'px';
+  }
+  // Hook into the existing render flow: scale once renderCard has painted.
+  // We can't add into renderCard from out here easily, so observe DOM changes.
+  var scaleObserver = new MutationObserver(function () {
+    if (document.querySelector('.pass-shell')) scalePassportCard();
+  });
+  scaleObserver.observe(document.getElementById('content'), { childList: true, subtree: false });
+  window.addEventListener('resize', scalePassportCard);
 
   lookup();
 })();
