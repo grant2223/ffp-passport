@@ -1,4 +1,9 @@
-/* FFP Photo Upload — v2 (2026-05-29)
+/* FFP Photo Upload — v3 (2026-05-29)
+   v3: Dependency-wait fix. Dashboard declares MemberProfile with const
+       (not var), so it's accessible as a global identifier but NOT as
+       window.MemberProfile. v2 was checking window.MemberProfile which
+       is always undefined, so init() timed out after 60 retries. v3
+       uses typeof to check the global identifier directly.
    v2: Switch from square crop to OFFICIAL PASSPORT RATIO 35:45 (35mm x
        45mm — the actual government passport photo standard, which is
        also what the dashboard's .pass-photo-new slot uses via
@@ -40,7 +45,7 @@
     retries = retries || 0;
     if (check()) { cb(); return; }
     if (retries > 60) {
-      console.warn('[FFP Photo Upload v1] Gave up waiting for dependencies after 60 retries');
+      console.warn('[FFP Photo Upload v3] Gave up waiting for dependencies after 60 retries');
       return;
     }
     setTimeout(function () { whenReady(check, cb, retries + 1); }, 100);
@@ -48,7 +53,15 @@
 
   whenReady(
     function () {
-      return window.MemberProfile && window.supabase && window.FFPAuth && window.Cropper;
+      // v3: MemberProfile is declared with `const` in the dashboard so it
+      // does NOT appear as window.MemberProfile — use typeof on the global
+      // identifier instead. FFPAuth and supabase ARE on window (set via
+      // window.X = ... assignments in ffp-api-integration). Cropper is on
+      // window because cropperjs CDN registers itself globally.
+      return (typeof MemberProfile !== 'undefined')
+          && window.supabase
+          && window.FFPAuth
+          && window.Cropper;
     },
     init
   );
@@ -56,7 +69,8 @@
   function init() {
     // Override the dashboard's existing stub:
     //   changeAvatar() { alert('Change avatar — wires up to image upload when built.'); }
-    window.MemberProfile.changeAvatar = openPicker;
+    // MemberProfile is in the global lexical scope (const, not window-attached).
+    MemberProfile.changeAvatar = openPicker;
 
     // Make the passport card photo clickable too — same flow.
     var passPhoto = document.querySelector('[data-field="photo"]');
@@ -73,7 +87,7 @@
     // Desktop drag-drop onto the profile avatar (5% of users).
     setupAvatarDragDrop();
 
-    console.log('[FFP Photo Upload v1] Loaded — profile photo upload + crop ready');
+    console.log('[FFP Photo Upload v3] Loaded — profile photo upload + crop ready');
   }
 
   // ─── Open native file picker (camera or library on mobile) ───────────
@@ -270,9 +284,9 @@
       applyPhotoToDisplays(publicUrl + '?t=' + Date.now());
 
       closeCropModal();
-      console.log('[FFP Photo Upload v1] Saved →', publicUrl);
+      console.log('[FFP Photo Upload v3] Saved →', publicUrl);
     } catch (e) {
-      console.error('[FFP Photo Upload v1] Upload failed:', e);
+      console.error('[FFP Photo Upload v3] Upload failed:', e);
       alert('Upload failed: ' + (e.message || 'unknown error'));
       btn.textContent = origText;
       btn.disabled   = false;
