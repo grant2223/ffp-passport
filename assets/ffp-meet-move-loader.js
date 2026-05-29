@@ -1,17 +1,19 @@
-/* FFP Meet & Move Loader — v3
-   v3 (2026-05-29) clean-build refactor: uses FFPAuth.getMember()
-   instead of window.supabase.auth.getUser(). RLS still works via
-   JWT Bearer header (set by ffp-api-integration v8).
-   
-   v2 fixes:
-   - Block "Request to Join" when current user is the host
-   - Inject hero image (m.img) into the detail modal cover (was a CSS class cover only)
-   Reads:  meetups (host_member_id, sport, etc.), members (host name lookup),
-           profile_meta (reliability_score on each host), meetup_attendees (joinedByMe)
-   Writes: wrapped requestJoin → INSERT meetup_attendees with status='joined'
+/* FFP Meet & Move Loader — v4
+   v4 (2026-05-29):
+   - MATCHING NOW REAL: loads "people you'd click with" from
+     GET /api/members/:id/matches (scored by shared sports/interests/city/level)
+     into MeetMove.matches, renders the top strip, and shows a clean empty state
+     when the member pool is still small. Tapping a match opens their real profile.
+   - No more fake meetups: when there are no real meetups, show an empty state
+     instead of keeping the built-in sample data.
+
+   v3: uses FFPAuth.getMember() instead of supabase.auth.getUser().
+   Reads:  meetups, members, profile_meta, meetup_attendees, /api/members/:id/matches
+   Writes: requestJoin → INSERT meetup_attendees status='joined'
 */
 (function () {
   'use strict';
+  var API = 'https://ffp-passport-backend.vercel.app';
   var retries = 0;
   var MAX_RETRIES = 30;
   var currentUserId = null;
@@ -24,7 +26,6 @@
     s.textContent =
       '*::-webkit-scrollbar{display:none !important;width:0 !important;height:0 !important;}' +
       '*{-ms-overflow-style:none !important;scrollbar-width:none !important;}' +
-      /* v2 — detail modal cover image */
       '.dm-cover.ffp-img-cover{background-size:cover !important;background-position:center !important;background-repeat:no-repeat !important;}';
     document.head.appendChild(s);
   }
@@ -76,6 +77,30 @@
     return src.charAt(0).toUpperCase();
   }
 
+  // ── MATCHING: real "people you'd click with" ──
+  async function loadMatches() {
+    if (typeof MeetMove === 'undefined' || !currentUserId) return;
+    try {
+      var res = await fetch(API + '/api/members/' + currentUserId + '/matches');
+      var json = await res.json();
+      var matches = (json && json.matches) ? json.matches : [];
+      matches.forEach(function (mm) {
+        (mm.matchSports || []).forEach(function (ms) { ms.icon = metaForSport(ms.sport).icon; });
+      });
+      MeetMove.matches = matches;
+    } catch (e) {
+      MeetMove.matches = [];
+      console.error('[FFP Meet & Move] matches load:', e);
+    }
+    if (typeof MeetMove.renderMatchStrip === 'function') {
+      try { MeetMove.renderMatchStrip(); } catch (e) {}
+    }
+    var scroll = document.getElementById('meet-match-scroll');
+    if (scroll && (!MeetMove.matches || MeetMove.matches.length === 0)) {
+      scroll.innerHTML = '<div style="padding:14px 4px;color:var(--muted);font-size:12px;line-height:1.5;">More members are joining — people who match your sports and interests will show up here as the community grows.</div>';
+    }
+  }
+
   async function loadFromSupabase() {
     if (!window.supabase || typeof MeetMove === 'undefined') {
       if (retries < MAX_RETRIES) { retries++; setTimeout(loadFromSupabase, 200); }
@@ -84,17 +109,15 @@
     injectStyles();
 
     try {
-      // Read current member from FFP custom auth (FFPAuth.getMember).
-      // We don't use supabase.auth.getUser() — FFP members live in the
-      // `members` table only and have no auth.users row. RLS still
-      // sees auth.uid() correctly because the JWT is set as a Bearer
-      // header on the Supabase client by ffp-api-integration v8.
       var member = window.FFPAuth && window.FFPAuth.getMember();
       if (!member || !member.id) {
-        console.log('[FFP Meet & Move] No FFP member — keeping sample');
+        console.log('[FFP Meet & Move] No FFP member — not loading');
         return;
       }
       currentUserId = member.id;
+
+      // Load real matches (independent of meetups)
+      await loadMatches();
 
       // 1. Load live meetups
       var mRes = await window.supabase
@@ -103,9 +126,16 @@
         .in('status', ['open', 'full']);
       if (mRes.error) { console.error('[FFP Meet & Move] meetups read:', mRes.error); return; }
       var meetups = mRes.data || [];
-      if (meetups.length === 0) { console.log('[FFP Meet & Move] No meetups — keeping sample'); return; }
+      if (meetups.length === 0) {
+        // No real meetups → empty state, NOT sample data
+        MeetMove.data = [];
+        var panel0 = document.getElementById('panel-meet-move');
+        if (panel0 && typeof MeetMove.render === 'function') { try { MeetMove.render(); } catch (e) {} }
+        console.log('[FFP Meet & Move] No meetups — empty state');
+        return;
+      }
 
-      // 2. Host lookup (host_member_id references auth.users — get member rows by id)
+      // 2. Host lookup
       var hostIds = Array.from(new Set(meetups.map(function (m) { return m.host_member_id; }).filter(Boolean)));
       var hostMap = {};
       if (hostIds.length > 0) {
@@ -117,7 +147,7 @@
         (hRes.data || []).forEach(function (m) { hostMap[m.id] = m; });
       }
 
-      // 3. Host trust (reliability_score) from profile_meta
+      // 3. Host trust from profile_meta
       var trustMap = {};
       if (hostIds.length > 0) {
         var tRes = await window.supabase
@@ -137,7 +167,7 @@
         .in('status', ['joined', 'attended']);
       var joinedSet = new Set((myAttRes.data || []).map(function (r) { return r.meetup_id; }));
 
-      // 5. Attendee counts per meetup
+      // 5. Attendee counts
       var meetupIds = meetups.map(function (m) { return m.id; });
       var countMap = {};
       if (meetupIds.length > 0) {
@@ -155,10 +185,8 @@
       MeetMove.data = meetups.map(function (m) {
         var host = hostMap[m.host_member_id] || null;
         var meta = metaForSport(m.sport);
-        var startIso = m.meets_at;
         var attendeeCount = countMap[m.id] || 0;
         var isHostedByMe = m.host_member_id === currentUserId;
-
         return {
           id: m.id,
           activity: m.title || m.sport || 'Meetup',
@@ -167,12 +195,12 @@
           host: memberDisplayName(host),
           hostInitial: memberLetter(host),
           hostTrust: trustMap[m.host_member_id] != null ? trustMap[m.host_member_id] : 9.0,
-          when: fmtWhen(startIso),
+          when: fmtWhen(m.meets_at),
           whenSlot: 'this-week',
           venue: m.venue || '',
           area: m.city || '',
           capacity: m.max_people || 8,
-          joined: 1 + attendeeCount,  // host counts toward total
+          joined: 1 + attendeeCount,
           level: m.fitness_level || 'All',
           gender: genderMap(m.group_filter),
           cost: 'Free',
@@ -199,21 +227,17 @@
   }
 
   function installOverrides() {
-    // Override openMeetupDetail to (a) include hero image, (b) handle own-meetup state
     var orig = MeetMove.openMeetupDetail.bind(MeetMove);
     MeetMove.openMeetupDetail = function (id) {
       orig(id);
       var m = this.data.find(function (x) { return x.id === id; });
       if (!m) return;
-      // After the original renders, patch the DOM:
       setTimeout(function () {
-        // (a) Cover → use real image
         var cover = document.querySelector('.dm-cover');
         if (cover && m.img) {
           cover.classList.add('ffp-img-cover');
           cover.style.backgroundImage = "url('" + m.img + "')";
         }
-        // (b) If hosted by me, swap the join button to a "You're hosting" pill
         if (m.isHostedByMe) {
           var btn = document.querySelector('.dm-footer .btn-primary-yellow');
           if (btn) {
@@ -233,18 +257,15 @@
   function wrapWrites() {
     if (wrapped) return;
     wrapped = true;
-
     var origRequestJoin = MeetMove.requestJoin.bind(MeetMove);
     MeetMove.requestJoin = async function (id) {
       var m = this.data.find(function (x) { return x.id === id; });
       if (!m) return;
-      // Block self-RSVP
       if (m.isHostedByMe) {
         if (typeof showToast === 'function') showToast("You're hosting this meetup");
         return;
       }
       if (m.joinedByMe) return origRequestJoin(id);
-
       origRequestJoin(id);
       if (!currentUserId) return;
       try {
