@@ -1,5 +1,15 @@
 <!-- ════════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v109
+     FFP MEMBER DASHBOARD — v110
+     v110 changes (from v109, 2026-05-29):
+     - Real scannable Identity QR. Dashboard's inline renderQR() drew a
+       FAKE 21x21 random pattern that looked QR-shaped but was not
+       actually scannable. v110 loads qrcode.js (~5KB from cdnjs) and
+       ffp-qr.js which overrides renderQR() with a real generator that
+       encodes https://ffppassport.com/verify.html?p={passport_no}. A
+       provider scanning the QR with their phone camera will (once the
+       /verify page ships, next round) see the member's name + status
+       + photo + tier so they can confirm the person presenting the
+       passport at a venue is a legitimate active member.
      v109 changes (from v108, 2026-05-29):
      - CSS fix for passport-card photo overlap. .pass-main grid is
        'grid-template-columns: 95px 1fr 100px' but the mobile media
@@ -168,6 +178,9 @@
 <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>
 <script src="assets/ffp-photo-upload.js"></script>
+<!-- v110: qrcode.js for real scannable Identity QR (verify URL). -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="assets/ffp-qr.js"></script>
 <!-- v107: Realtime helper loaded BEFORE any loader. Loaders register
      postgres_changes subscriptions via FFPRealtime.subscribe so panels
      auto-refresh when underlying DB rows change. -->
