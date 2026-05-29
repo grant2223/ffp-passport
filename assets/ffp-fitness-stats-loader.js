@@ -1,8 +1,6 @@
-/* FFP Fitness Stats Loader — v9
-   v9 (2026-05-29) clean-build refactor: uses FFPAuth.getMember()
-   instead of window.supabase.auth.getUser(). RLS still works via
-   JWT Bearer header (set by ffp-api-integration v8).
-   
+/* FFP Fitness Stats Loader — v10
+   v10: member id comes from FFPAuth.getMember() (custom auth), NOT supabase.auth.getUser()
+        (members are not Supabase-Auth users, so getUser() was null -> all reads empty).
    v8 fix: Override renderRecords() directly (not wrap render). v7 wrapped render() which
    meant the dashboard's original renderRecords still ran and tried to populate pr-strength
    / pr-cardio / pr-health divs that the new layout removed → null innerHTML crash on tab
@@ -950,24 +948,19 @@
   // ─────────── LOAD ───────────
 
   async function loadFromSupabase() {
-    if (!window.supabase || typeof FitnessStats === 'undefined') {
+    if (!window.supabase || typeof FitnessStats === 'undefined' || !(window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember() && window.FFPAuth.getMember().id)) {
       if (retries < MAX_RETRIES) { retries++; setTimeout(loadFromSupabase, 200); }
       return;
     }
     injectStyles();
 
     try {
-      // Read current member from FFP custom auth (FFPAuth.getMember).
-      // We don't use supabase.auth.getUser() — FFP members live in the
-      // `members` table only and have no auth.users row. RLS still
-      // sees auth.uid() correctly because the JWT is set as a Bearer
-      // header on the Supabase client by ffp-api-integration v8.
-      var member = window.FFPAuth && window.FFPAuth.getMember();
-      if (!member || !member.id) {
+      var ffpM = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
+      if (!ffpM || !ffpM.id) {
         console.log('[FFP Fitness Stats] No FFP member — keeping sample');
         return;
       }
-      currentUserId = member.id;
+      currentUserId = ffpM.id;
 
       var memRes = await window.supabase
         .from('members').select('date_of_birth, gender, city, country, nationality')
@@ -1036,7 +1029,7 @@
         FitnessStats.render();
       }
 
-      console.log('[FFP Fitness Stats] Loaded \u2713 (' + activityCache.length + ' activities, ' + rankingPool.length + ' members in pool)');
+      console.log('[FFP Fitness Stats v10] Loaded \u2713 (' + activityCache.length + ' activities, ' + rankingPool.length + ' members in pool)');
     } catch (err) {
       console.error('[FFP Fitness Stats] Unexpected error:', err);
     }
