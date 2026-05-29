@@ -1,4 +1,6 @@
-/* FFP Meet & Move Loader — v9
+/* FFP Meet & Move Loader — v10
+   v10 (2026-05-29): detail popup now shows "Who's going" (tappable attendees +
+     host), cost box de-emphasised, details font bumped.
    v9 (2026-05-29): top strip collapsed to ONE compact bar (avatars + count) —
      all match cards live in the popup; popup fixed-height across both tabs.
    v8 (2026-05-29): Your circle moved INTO the View-all popup as a 2nd tab
@@ -22,6 +24,7 @@
   var wrapped = false;
   var circleData = { friends: [], incoming: [] };
   var gridOverridden = false;
+  var peopleById = {};
 
   function esc(s) {
     if (typeof window.escHtml === 'function') return window.escHtml(s);
@@ -36,6 +39,18 @@
       '*::-webkit-scrollbar{display:none !important;width:0 !important;height:0 !important;}',
       '*{-ms-overflow-style:none !important;scrollbar-width:none !important;}',
       '.dm-cover.ffp-img-cover{background-size:cover !important;background-position:center !important;background-repeat:no-repeat !important;}',
+      '.dm-cost-box{margin:12px 22px !important;padding:9px 14px !important;}',
+      '.dm-cost-amount{font-size:15px !important;}',
+      '.dm-info-cell{font-size:13px !important;}',
+      '.dm-info-cell .v{font-size:13px !important;line-height:1.4;}',
+      '.ffp-wg-list{margin-top:4px;}',
+      '.ffp-wg-row{display:flex;align-items:center;gap:11px;padding:9px 0;border-top:1px solid rgba(255,255,255,0.05);cursor:pointer;}',
+      '.ffp-wg-av{width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--blue-dk,#1980AD),var(--blue,#2ba8e0));color:#fff;font-weight:800;font-size:14px;}',
+      '.ffp-wg-name{flex:1;min-width:0;font-size:13px;font-weight:800;color:var(--text,#e8eef4);}',
+      '.ffp-wg-host{font-size:9px;font-weight:800;color:var(--yellow,#FFCC00);border:1px solid var(--yellow,#FFCC00);border-radius:20px;padding:1px 6px;margin-left:4px;}',
+      '.ffp-wg-city{font-size:11px;font-weight:600;color:var(--muted,#8a99a8);margin-top:1px;}',
+      '.ffp-wg-arrow{color:var(--blue,#2ba8e0);flex-shrink:0;}',
+      '.ffp-wg-empty{font-size:12px;color:var(--muted,#8a99a8);padding:8px 0;}',
       '.ffp-mbar{display:flex;align-items:center;gap:12px;cursor:pointer;padding:6px 2px;}',
       '.ffp-mbar-avs{display:flex;align-items:center;flex-shrink:0;}',
       '.ffp-mbar-av{width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--blue-dk,#1980AD),var(--blue,#2ba8e0));color:#fff;font-weight:800;font-size:14px;border:2px solid var(--bg,#0a1825);}',
@@ -163,6 +178,69 @@
     '</div>';
   }
 
+  // ── Who's going (attendees) ─────────────────────────────────────────
+  function personShape(mp, isHost) {
+    if (!mp) return null;
+    return { id: mp.id, name: (mp.given_names || mp.full_name || 'Member'), photo: mp.photo_url || null, city: mp.city || '', isHost: !!isHost };
+  }
+  function buildAttendees(m, ids, peopleMap) {
+    var out = [], seen = {};
+    var hp = peopleMap[m.host_member_id];
+    if (hp) { var hs = personShape(hp, true); if (hs) { out.push(hs); seen[hp.id] = 1; } }
+    (ids || []).forEach(function (idv) {
+      if (!idv || seen[idv]) return; seen[idv] = 1;
+      var ps = personShape(peopleMap[idv], false); if (ps) out.push(ps);
+    });
+    return out;
+  }
+  function whosGoingHtml(m) {
+    var people = m.attendees || [];
+    var rows = people.length ? '<div class="ffp-wg-list">' + people.map(function (p) {
+      var av = p.photo
+        ? '<span class="ffp-wg-av" style="background:#0a1825 url(\'' + esc(p.photo) + '\') center/cover;"></span>'
+        : '<span class="ffp-wg-av">' + esc((p.name || 'M').charAt(0).toUpperCase()) + '</span>';
+      return '<div class="ffp-wg-row" onclick="FFPMeet.openAttendee(\'' + p.id + '\')">' + av +
+        '<div class="ffp-wg-name">' + esc(p.name) + (p.isHost ? ' <span class="ffp-wg-host">HOST</span>' : '') +
+        (p.city ? '<div class="ffp-wg-city">' + esc(p.city) + '</div>' : '') + '</div>' +
+        '<span class="material-icons ffp-wg-arrow">chevron_right</span></div>';
+    }).join('') + '</div>' : '<div class="ffp-wg-empty">Be the first to join.</div>';
+    return '<div class="dm-section-label">Who\'s going (' + m.joined + '/' + m.capacity + ')</div>' + rows;
+  }
+  function openAttendeeModal(p) {
+    var body =
+      '<div class="pm-head">' +
+        '<div class="pm-avatar"' + (p.photo ? ' style="background:#0a1825 url(\'' + esc(p.photo) + '\') center/cover;"' : '') + '>' + (p.photo ? '' : esc((p.name || 'M').charAt(0).toUpperCase())) + '</div>' +
+        '<div class="pm-name">' + esc(p.name) + '</div>' +
+        '<div class="pm-meta">' + esc(p.city || '') + '</div>' +
+      '</div>' +
+      '<div class="dm-section"><p style="font-size:12px;color:var(--muted);line-height:1.5;">FFP member' + (p.city ? ' in ' + esc(p.city) : '') + '. Connect to add them to your circle.</p></div>' +
+      '<div class="dm-footer"><button class="btn-primary-blue" onclick="FFPMeet.connect(\'' + p.id + '\')">Request to connect</button>' +
+        '<div class="dm-footer-note">Connecting adds them to your circle.</div></div>';
+    openDetailModal(body);
+  }
+  window.FFPMeet = {
+    openAttendee: function (id) {
+      if (window.MeetMove && (MeetMove.matches || []).some(function (x) { return x.id === id; })) {
+        return MeetMove.openMemberDetail(id);
+      }
+      var p = peopleById[id];
+      if (p) openAttendeeModal(p);
+    },
+    connect: async function (id) {
+      if (!currentUserId) { closeDetailModal(); return; }
+      try {
+        var res = await fetch(API + '/api/connections/request', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ member_id: currentUserId, target_id: id })
+        });
+        var j = await res.json();
+        if (typeof showToast === 'function') showToast(j && j.status === 'connected' ? 'Connected' : 'Request sent');
+      } catch (e) { if (typeof showToast === 'function') showToast('Could not send request'); }
+      closeDetailModal();
+      if (typeof loadConnections === 'function') { try { loadConnections(); } catch (e) {} }
+    }
+  };
+
   // Compact bar shown on the main page in place of the 5 tall cards:
   // overlapping avatars + count, taps through to the modal.
   function barAvatars(matches) {
@@ -274,10 +352,23 @@
       var myAttRes = await window.supabase.from('meetup_attendees').select('meetup_id, status').eq('member_id', currentUserId).in('status', ['joined', 'attended']);
       var joinedSet = new Set((myAttRes.data || []).map(function (r) { return r.meetup_id; }));
       var meetupIds = meetups.map(function (m) { return m.id; });
-      var countMap = {};
+      var countMap = {}, attMap = {};
       if (meetupIds.length) {
-        var aRes = await window.supabase.from('meetup_attendees').select('meetup_id').in('meetup_id', meetupIds).in('status', ['joined', 'attended']);
-        (aRes.data || []).forEach(function (r) { countMap[r.meetup_id] = (countMap[r.meetup_id] || 0) + 1; });
+        var aRes = await window.supabase.from('meetup_attendees').select('meetup_id, member_id').in('meetup_id', meetupIds).in('status', ['joined', 'attended']);
+        (aRes.data || []).forEach(function (r) {
+          countMap[r.meetup_id] = (countMap[r.meetup_id] || 0) + 1;
+          (attMap[r.meetup_id] = attMap[r.meetup_id] || []).push(r.member_id);
+        });
+      }
+      // fetch member info for attendees + hosts (powers "Who's going")
+      var attIdSet = {};
+      Object.keys(attMap).forEach(function (k) { attMap[k].forEach(function (idv) { if (idv) attIdSet[idv] = 1; }); });
+      meetups.forEach(function (mm) { if (mm.host_member_id) attIdSet[mm.host_member_id] = 1; });
+      var attPeopleIds = Object.keys(attIdSet);
+      var peopleMap = {};
+      if (attPeopleIds.length) {
+        var pRes = await window.supabase.from('members').select('id, full_name, given_names, surname, photo_url, city').in('id', attPeopleIds);
+        (pRes.data || []).forEach(function (mp) { peopleMap[mp.id] = mp; var ps = personShape(mp); if (ps) peopleById[mp.id] = ps; });
       }
       MeetMove.data = meetups.map(function (m) {
         var host = hostMap[m.host_member_id] || null;
@@ -292,14 +383,15 @@
           gender: genderMap(m.group_filter), cost: 'Free',
           joinedByMe: joinedSet.has(m.id) || isHostedByMe, isHostedByMe: isHostedByMe,
           host_member_id: m.host_member_id, full: m.status === 'full',
-          about: m.description || 'Member-hosted meetup.', img: meta.img
+          about: m.description || 'Member-hosted meetup.', img: meta.img,
+          attendees: buildAttendees(m, attMap[m.id] || [], peopleMap)
         };
       });
       installOverrides();
       wrapWrites();
       var panel = document.getElementById('panel-meet');
       if (panel && panel.classList.contains('active') && typeof MeetMove.render === 'function') MeetMove.render();
-      console.log('[FFP Meet & Move] Loaded ' + MeetMove.data.length + ' meetups ✓ (v9)');
+      console.log('[FFP Meet & Move] Loaded ' + MeetMove.data.length + ' meetups ✓ (v10)');
     } catch (err) { console.error('[FFP Meet & Move] Unexpected error:', err); }
   }
 
@@ -312,6 +404,15 @@
       setTimeout(function () {
         var cover = document.querySelector('.dm-cover');
         if (cover && m.img) { cover.classList.add('ffp-img-cover'); cover.style.backgroundImage = "url('" + m.img + "')"; }
+        try {
+          var footer = document.querySelector('.dm-footer');
+          if (footer && footer.parentNode && !document.getElementById('ffp-whos-going')) {
+            var sec = document.createElement('div');
+            sec.id = 'ffp-whos-going'; sec.className = 'dm-section';
+            sec.innerHTML = whosGoingHtml(m);
+            footer.parentNode.insertBefore(sec, footer);
+          }
+        } catch (e) {}
         if (m.isHostedByMe) {
           var btn = document.querySelector('.dm-footer .btn-primary-yellow');
           if (btn) { btn.textContent = "You're hosting this"; btn.disabled = true; btn.onclick = function (e) { e.preventDefault(); }; btn.style.opacity = '0.7'; btn.style.cursor = 'default'; }
