@@ -1,8 +1,14 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP EARNINGS LOADER · CURRENT VERSION: v13
+   FFP EARNINGS LOADER · CURRENT VERSION: v14
    File path: assets/ffp-earnings-loader.js
    On-load log: [FFP Earnings v12] Loaded from Supabase ✓
    ═══════════════════════════════════════════════════════════════ */
+/* WHAT v14 CHANGES (from v13):
+   - Share button URL switched from /?ref=CODE to /join?ref=CODE.
+     /join is the canonical invite URL (one less hop — friend lands
+     directly on /login#signup with ref captured, rather than going
+     through the homepage detour first). See [[shorter-funnel]].
+*/
 /* WHAT v13 CHANGES (from v12):
    - Adds a Share button into the existing .earn-refer-cta block. Uses
      the Web Share API on mobile (native iOS/Android share sheet —
@@ -82,7 +88,7 @@
       var code = (typeof Earnings !== 'undefined' && Earnings.referralCode) || '';
       if (!code) { showToast('Referral code not loaded yet — refresh and try again', 'error'); return; }
 
-      var url = 'https://ffppassport.com/?ref=' + encodeURIComponent(code);
+      var url = 'https://ffppassport.com/join?ref=' + encodeURIComponent(code);
       var firstName = '';
       try {
         var m = JSON.parse(localStorage.getItem('ffp_member') || 'null');
