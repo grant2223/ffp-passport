@@ -3952,7 +3952,8 @@ input[type="number"] {
 #panel-quests .qc-reward .material-icons{ font-size:14px; }
 #panel-quests .qc-foot-val{ font-size:11.5px; font-weight:800; color:var(--q-yellow); white-space:nowrap; }
 /* Quest detail (rendered inside the shared detail modal) */
-.q-cover{ height:150px; border-radius:16px; margin-bottom:18px; position:relative; overflow:hidden; background-size:cover; background-position:center; background-color:rgba(43,168,224,0.12); }
+.q-cover{ height:172px; border-radius:18px 18px 0 0; margin:0; position:relative; overflow:hidden; background-size:cover; background-position:center; background-color:#0f2335; }
+.q-detail-body{ padding:18px 20px 24px; }
 .q-cover.cov-fitness{ background-image:linear-gradient(135deg,#ff6b4a,#b23a1c); }
 .q-cover.cov-sports{ background-image:linear-gradient(135deg,#2ba8e0,#155e85); }
 .q-cover.cov-wellness{ background-image:linear-gradient(135deg,#36c5b0,#0d6b5f); }
@@ -12112,7 +12113,7 @@ function init() {
   // Picker modal click-outside is wired inside the Picker module
   document.getElementById('city-search').addEventListener('input', e => renderCityList(e.target.value));
   renderAll();
-  console.log('FFP Dashboard v20 - quest explorer progress bar');
+  console.log('FFP Dashboard v21 - quest modal layout');
 }
 
 // ===== APPLE WALLET INTEGRATION =====
