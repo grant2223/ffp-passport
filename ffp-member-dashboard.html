@@ -3867,6 +3867,8 @@ input[type="number"] {
 .form-field { margin-bottom: 14px; }
 .form-label { display: block; font-size: 11px; font-weight: 800; letter-spacing: 0.5px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
 .form-input { width: 100%; box-sizing: border-box; min-width: 0; padding: 10px 12px; background: rgba(43,168,224,0.05); border: 1px solid var(--border-mid); border-radius: 6px; color: var(--text); font-size: 13px; outline: none; }
+.log-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 560px) { .log-grid2 { grid-template-columns: 1fr; } }
 .form-input:focus { border-color: var(--blue); }
 .form-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 .input-wrap { position: relative; }
@@ -5157,7 +5159,7 @@ input[type="number"] {
       <button class="modal-close" onclick="closeLogModal()">&times;</button>
     </div>
     <div class="modal-body">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="log-grid2">
         <div class="form-field">
           <label class="form-label">Country</label>
           <select id="log-country" class="form-input" onchange="fillLogCities()"></select>
@@ -5167,7 +5169,7 @@ input[type="number"] {
           <select id="log-city" class="form-input"></select>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+      <div class="log-grid2" style="margin-top:10px;">
         <div class="form-field">
           <label class="form-label">Date</label>
           <input type="date" id="log-date" class="form-input">
@@ -12134,18 +12136,15 @@ async function saveLog() {
 
 // Load a member's saved activity logs (with a place) into the journey/map on sign-in.
 async function loadJourneyLogs() {
-  for (var i = 0; i < 40 && !window.supabase; i++) { await new Promise(function (r) { setTimeout(r, 150); }); }
   var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
-  if (!member || !member.id || !window.supabase || typeof LOGS === 'undefined') return;
+  if (!member || !member.id || typeof LOGS === 'undefined') return;
   try {
-    var res = await window.supabase.from('activity_logs')
-      .select('activity, city, country, duration_min, calories, logged_at')
-      .eq('member_id', member.id)
-      .not('city', 'is', null)
-      .order('logged_at', { ascending: false });
-    if (res.error) { console.error('[FFP Journey] load:', res.error); return; }
+    // Load via backend (service-role) — reliable for member sessions.
+    var res = await fetch('https://ffp-passport-backend.vercel.app/api/members/' + member.id + '/activity-logs');
+    var json = await res.json();
+    var rows = (json && json.logs) || [];
     var now = Date.now();
-    (res.data || []).forEach(function (r) {
+    rows.forEach(function (r) {
       if (!r.city) return;
       var dt = r.logged_at ? new Date(r.logged_at) : new Date();
       LOGS.push({
@@ -12156,7 +12155,7 @@ async function loadJourneyLogs() {
       });
     });
     if (typeof renderAll === 'function') renderAll();
-    console.log('[FFP Journey] loaded ' + (res.data ? res.data.length : 0) + ' saved logs');
+    console.log('[FFP Journey] loaded ' + rows.length + ' saved logs (backend)');
   } catch (e) { console.error('[FFP Journey] load:', e); }
 }
 
@@ -12278,7 +12277,7 @@ function init() {
   // Picker modal click-outside is wired inside the Picker module
   document.getElementById('city-search').addEventListener('input', e => renderCityList(e.target.value));
   renderAll();
-  console.log('FFP Dashboard v33 - ambassador progress wired');
+  console.log('FFP Dashboard v35 - journey loads via backend');
 }
 
 // ===== APPLE WALLET INTEGRATION =====
