@@ -60,7 +60,9 @@
       '.qf-two{display:flex;gap:12px;}.qf-two>div{flex:1;}',
       '.qf-check{display:flex;align-items:center;gap:8px;font-size:13px;color:#cfd6dc;}',
       '.qf-venues{max-height:160px;overflow-y:auto;border:1px solid #1a2f44;border-radius:9px;padding:10px;}',
-      '.qf-venue{display:flex;align-items:center;gap:8px;font-size:13px;color:#cfd6dc;padding:5px 0;}'
+      '.qf-venue{display:flex;align-items:center;gap:8px;font-size:13px;color:#cfd6dc;padding:5px 0;}',
+      '.qf-venue-row{padding:7px 0;border-bottom:1px solid #14283c;}',
+      '.qf-task{margin-top:6px;font-size:12px;padding:8px 10px;}'
     ].join('');
     document.head.appendChild(css);
   }
@@ -79,7 +81,7 @@
 
   async function fetchAll() {
     var q = await window.supabase.from('quests')
-      .select('*, sponsors(name, logo), quest_venues(provider_id)')
+      .select('*, sponsors(name, logo), quest_venues(provider_id, task)')
       .order('created_at', { ascending: false });
     if (q.error) { console.error('[Admin Quests] quests:', q.error); toast('Could not load quests', 'error'); }
     S.quests = q.data || [];
@@ -129,6 +131,8 @@
     var q = id ? S.quests.find(function (x) { return x.id === id; }) : null;
     S.editing = q || null;
     var stakedIds = q ? (q.quest_venues || []).map(function (v) { return v.provider_id; }) : [];
+    var stakedTask = {};
+    if (q) (q.quest_venues || []).forEach(function (v) { stakedTask[v.provider_id] = v.task || ''; });
 
     var stampOpts = '<option value="__new">+ New stamp…</option>' + S.stamps.map(function (s) {
       return '<option value="' + s.id + '"' + (q && q.stamp_id === s.id ? ' selected' : '') + '>' + esc(s.name) + '</option>';
@@ -139,7 +143,11 @@
     var catOpts = CATS.map(function (c) { return '<option value="' + c + '"' + (q && q.category === c ? ' selected' : '') + '>' + cap(c) + '</option>'; }).join('');
     var scopeOpts = ['city', 'country', 'global'].map(function (c) { return '<option value="' + c + '"' + (q && q.scope === c ? ' selected' : '') + '>' + cap(c) + '</option>'; }).join('');
     var venueRows = S.providers.map(function (p) {
-      return '<label class="qf-venue"><input type="checkbox" id="qv-' + p.id + '"' + (stakedIds.indexOf(p.id) >= 0 ? ' checked' : '') + '> ' + esc(p.business_name) + '</label>';
+      var on = stakedIds.indexOf(p.id) >= 0;
+      return '<div class="qf-venue-row">' +
+        '<label class="qf-venue"><input type="checkbox" id="qv-' + p.id + '"' + (on ? ' checked' : '') + '> ' + esc(p.business_name) + '</label>' +
+        '<input class="qf-input qf-task" id="qvt-' + p.id + '" placeholder="What to do here — e.g. a class, ice bath, main meal" value="' + esc(stakedTask[p.id] || '') + '">' +
+        '</div>';
     }).join('') || '<div style="color:#8a99a8;font-size:13px;">No providers yet.</div>';
 
     var body =
@@ -246,7 +254,7 @@
       var selected = S.providers.filter(function (p) { return checked('qv-' + p.id); }).map(function (p) { return p.id; });
       await window.supabase.from('quest_venues').delete().eq('quest_id', questId);
       if (selected.length) {
-        var rows = selected.map(function (pid) { return { quest_id: questId, provider_id: pid }; });
+        var rows = selected.map(function (pid) { return { quest_id: questId, provider_id: pid, task: (val('qvt-' + pid) || null) }; });
         var iv = await window.supabase.from('quest_venues').insert(rows);
         if (iv.error) throw iv.error;
       }
@@ -306,7 +314,7 @@
     if (window.App && window.App.panelNames) window.App.panelNames['panel-quests'] = 'Quests';
     injectStyles();
     buildScaffold();
-    try { await refresh(); console.log('[FFP Admin Quests v1] Loaded ✓'); }
+    try { await refresh(); console.log('[FFP Admin Quests v1] Loaded \u2713'); }
     catch (e) { console.error('[FFP Admin Quests] initial load:', e); }
   }
 
