@@ -1,0 +1,480 @@
+<!--
+═══════════════════════════════════════════════════════════════════════
+     FFP MY PASSPORT — v3 (2026-05-29)
+     PUBLIC MEMBER LANDING PAGE (was verify.html v2)
+     URL pattern: /my-passport.html?p=FFP-2026-XXXX
+       - Also resolves /verify.html?p=... via Netlify _redirects rewrite
+         so all existing QRs and shared links keep working forever.
+       - If a signed-in member visits with NO ?p=, page auto-resolves
+         to their own passport_no from localStorage and shows THEIR
+         card (so the bare URL becomes 'my passport page').
+
+     PHILOSOPHY: this URL is a passport holder's living public page on
+     FFP. Today: passport card + status + signup CTA. Tomorrow: bio,
+     'Add me on Meet & Move', recommended providers, public
+     achievements, hosted events. Hidden &lt;section&gt; placeholders
+     below the card are reserved for those — CSS-hidden today, wired
+     and revealed feature-by-feature later. No need to rev verify
+     URLs or QRs as features land — same page, more content.
+
+     Reached by:
+       - Anonymous scanning a member's Identity QR (camera/QR app).
+       - Anyone clicking a referral link's "See their passport" CTA.
+
+     What it shows:
+       - The member's actual FFP Passport card (matching the dashboard
+         design 1:1 — same photo, same fields, same Identity QR).
+       - Status badge (Active / Expired / Suspended / Pending).
+       - Verified badge IF members.verified === true (admin identity check).
+       - Marketing CTA below: "Get your own FFP Passport — invited by
+         [Name]" with the viewed member's referral_code baked into the
+         signup link, so any conversion from this view auto-credits the
+         member whose card is being viewed.
+
+     Smart attribution insight: the passport_no on this page IS the
+     referrer. Sharing your QR / passport card = sharing your referral
+     link. Universal-identity QR model per [[qr-multi-purpose]].
+
+     Auth-aware behaviour: if the visitor is a signed-in member
+     (localStorage.ffp_member exists), the marketing CTA is hidden —
+     they already have a passport, no need to sell.
+═══════════════════════════════════════════════════════════════════════
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,viewport-fit=cover">
+<title>My Passport — FFP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&family=Special+Elite&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+:root {
+  --bg: #081420;
+  --pass-paper: #e8eef3;
+  --pass-paper-2: #d8e1ea;
+  --pass-paper-3: #c4d1dc;
+  --pass-ink: #1a2937;
+  --pass-ink-dim: #4a5d72;
+  --pass-gold: #b8965a;
+  --pass-blue: #1d5d8a;
+  --accent: #2ba8e0;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: #e8eef4;
+  font-family: 'Montserrat', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 16px 40px;
+}
+.brand { text-align: center; margin-bottom: 22px; }
+.brand-name { font-size: 18px; font-weight: 900; letter-spacing: 3px; }
+.brand-name span { color: var(--accent); }
+.brand-sub { font-size: 10px; font-weight: 700; color: #6a90a8; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+
+/* ─── Passport card (matches dashboard 1:1) ─── */
+.pass-card {
+  width: 100%;
+  max-width: 540px;
+  aspect-ratio: 540 / 340;
+  position: relative;
+  margin: 0 auto;
+}
+.pass-shell {
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #eff2f6 0%, #d8e1ea 100%);
+  box-shadow: 0 30px 80px -20px rgba(0,0,0,0.5), 0 8px 24px -8px rgba(0,0,0,0.3);
+  color: var(--pass-ink);
+}
+.pass-bg-emblem {
+  position: absolute; inset: 0;
+  background-size: 130%;
+  background-position: center 45%;
+  background-repeat: no-repeat;
+  opacity: 0.10;
+  pointer-events: none;
+  z-index: 0;
+}
+.pass-inner { position: relative; z-index: 1; padding: 12px 18px; height: 100%; display: flex; flex-direction: column; }
+.pass-top { display: grid; grid-template-columns: auto 1fr auto; align-items: start; gap: 12px; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(26,41,55,0.08); }
+.pass-top-label { font-size: 7px; font-weight: 700; letter-spacing: 1.2px; color: var(--pass-ink-dim); text-transform: uppercase; line-height: 1.3; }
+.pass-top-sub { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; color: var(--pass-ink-dim); }
+.pass-worldwide { text-align: center; font-size: 22px; font-weight: 900; letter-spacing: 1.5px; color: var(--pass-ink); }
+.pass-top-right { text-align: right; }
+.pass-passnum { font-size: 13px; font-weight: 800; color: var(--pass-ink); letter-spacing: 0.5px; margin-top: 2px; }
+.pass-type-row { display: grid; grid-template-columns: 50px 1fr; gap: 12px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(26,41,55,0.08); }
+.pass-mini-label { font-size: 7px; font-weight: 700; letter-spacing: 1px; color: var(--pass-ink-dim); text-transform: uppercase; margin-bottom: 2px; }
+.pass-mini-val { font-size: 11px; font-weight: 700; color: var(--pass-ink); letter-spacing: 0.3px; }
+.pass-main { display: grid; grid-template-columns: 95px 1fr 100px; gap: 12px; margin-bottom: 8px; align-items: start; }
+.pass-photo {
+  width: 95px; aspect-ratio: 35 / 45; height: auto; border-radius: 3px;
+  background: linear-gradient(180deg, #3a4856 0%, #1f2a35 100%);
+  background-size: cover; background-position: center top;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 900; font-size: 40px; letter-spacing: 1px;
+  flex-shrink: 0; border: 1px solid rgba(26,41,55,0.15); overflow: hidden;
+}
+.pass-fields { display: flex; flex-direction: column; gap: 5px; padding-top: 0; min-width: 0; }
+.pf-lbl { font-size: 6.5px; font-weight: 700; letter-spacing: 1px; color: var(--pass-ink-dim); text-transform: uppercase; margin-bottom: 1px; }
+.pf-val { font-size: 10.5px; font-weight: 700; color: var(--pass-ink); letter-spacing: 0.3px; }
+.pf-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.pass-qr-side { display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 2px; }
+.pass-qr { width: 94px; height: 94px; background: #fff; padding: 4px; border-radius: 4px; border: 1px solid rgba(26,41,55,0.18); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.pass-qr img, .pass-qr canvas { width: 100% !important; height: 100% !important; display: block; }
+.pass-qr-label { font-size: 7.5px; font-weight: 800; letter-spacing: 1.3px; color: var(--pass-ink); text-transform: uppercase; }
+.pass-mrz {
+  font-family: 'Special Elite', monospace; font-size: 9px; color: var(--pass-ink);
+  background: rgba(232, 238, 243, 0.6); padding: 8px 20px 10px;
+  line-height: 1.7; margin-top: auto; margin-left: -18px; margin-right: -18px;
+  border-top: 1px solid rgba(26,41,55,0.12); width: calc(100% + 36px); text-align: center;
+}
+.pass-mrz-line { display: block; letter-spacing: 1.5px; white-space: nowrap; overflow: hidden; }
+@media (max-width: 580px) {
+  .pass-main { grid-template-columns: 110px 1fr 100px; }
+  .pass-photo { width: 110px; height: 140px; font-size: 44px; }
+}
+
+/* ─── Status badges (sit below the card) ─── */
+.badges-row { margin: 20px auto 0; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; max-width: 540px; }
+.badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 9px 16px; border-radius: 999px;
+  font-size: 13px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;
+}
+.badge .material-icons { font-size: 16px; }
+.status-active     { background: rgba(34,197,94,0.15);  color: #4ade80; border: 1px solid rgba(34,197,94,0.35); }
+.status-expired    { background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.35); }
+.status-suspended  { background: rgba(239,68,68,0.15);  color: #f87171; border: 1px solid rgba(239,68,68,0.35); }
+.status-pending    { background: rgba(43,168,224,0.15); color: #60c7ed; border: 1px solid rgba(43,168,224,0.35); }
+.status-unknown    { background: rgba(138,153,168,0.15); color: #aab8c5; border: 1px solid rgba(138,153,168,0.35); }
+.verified-badge    { background: rgba(43,168,224,0.18); color: #60c7ed; border: 1px solid rgba(43,168,224,0.45); }
+
+/* ─── Marketing CTA (hidden for signed-in members) ─── */
+.cta {
+  margin: 28px auto 0; width: 100%; max-width: 540px;
+  background: linear-gradient(180deg, rgba(15,30,46,0.85), rgba(15,30,46,0.5));
+  border: 1px solid rgba(43,168,224,0.25); border-radius: 18px;
+  padding: 24px 22px; text-align: center;
+}
+.cta-eyebrow { font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 2.5px; text-transform: uppercase; margin-bottom: 10px; }
+.cta-headline { font-size: 22px; font-weight: 800; line-height: 1.25; margin-bottom: 8px; color: #fff; }
+.cta-headline strong { color: var(--accent); }
+.cta-sub { font-size: 13px; color: #9dbdd0; line-height: 1.5; margin-bottom: 18px; }
+.cta-price { font-size: 28px; font-weight: 900; color: #FFCC00; margin-bottom: 4px; letter-spacing: -0.5px; }
+.cta-price-fine { font-size: 10px; color: #6a90a8; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 18px; }
+.cta-btn {
+  display: inline-block; padding: 14px 32px; border-radius: 10px;
+  background: var(--accent); color: #fff; text-decoration: none;
+  font-size: 15px; font-weight: 800; letter-spacing: 0.3px;
+  transition: transform 0.15s; min-width: 240px;
+}
+.cta-btn:hover { transform: translateY(-1px); }
+.cta-fine { font-size: 11px; color: var(--accent); margin-top: 12px; letter-spacing: 0.5px; }
+
+.footer-note {
+  margin-top: 24px; font-size: 11px; color: #6a90a8;
+  text-align: center; line-height: 1.5;
+}
+.footer-note a { color: var(--accent); text-decoration: none; }
+
+.loading, .error {
+  width: 100%; max-width: 420px; text-align: center;
+  padding: 40px 20px; color: #8aa3b8; font-size: 14px;
+}
+.error .material-icons { font-size: 48px; color: #f87171; display: block; margin: 0 auto 12px; }
+.error-title { font-size: 18px; font-weight: 700; color: #e8eef4; margin-bottom: 8px; }
+.error-passport { font-family: 'Courier New', monospace; color: #8aa3b8; margin-top: 8px; }
+.spinner {
+  width: 32px; height: 32px;
+  border: 3px solid rgba(43,168,224,0.25); border-top-color: var(--accent);
+  border-radius: 50%; margin: 0 auto 12px;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <div class="brand-name">FFP <span>PASSPORT</span></div>
+    <div class="brand-sub">Member Passport</div>
+  </div>
+
+  <div id="content">
+    <div class="loading">
+      <div class="spinner"></div>
+      <div>Looking up member…</div>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    Powered by FFP Passport · <a href="https://ffppassport.com">ffppassport.com</a>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+(function () {
+  'use strict';
+  var API_BASE = 'https://ffp-passport-backend.vercel.app';
+  var content = document.getElementById('content');
+
+  function getParam(name) {
+    var m = new RegExp('[?&]' + name + '=([^&]+)').exec(window.location.search);
+    return m ? decodeURIComponent(m[1]) : null;
+  }
+  function esc(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+    });
+  }
+  function initials(name) {
+    if (!name) return '—';
+    var parts = String(name).trim().split(/\s+/);
+    var first = parts[0] ? parts[0][0] : '';
+    var last  = parts.length > 1 ? parts[parts.length - 1][0] : '';
+    return (first + last).toUpperCase() || '—';
+  }
+  function statusMeta(s) {
+    s = (s || 'unknown').toLowerCase();
+    if (s === 'active')    return { cls: 'status-active',    icon: 'check_circle',  label: 'Active Member' };
+    if (s === 'expired')   return { cls: 'status-expired',   icon: 'schedule',      label: 'Expired' };
+    if (s === 'suspended') return { cls: 'status-suspended', icon: 'block',         label: 'Suspended' };
+    if (s === 'pending')   return { cls: 'status-pending',   icon: 'hourglass_top', label: 'Pending' };
+    return { cls: 'status-unknown', icon: 'help_outline', label: s.charAt(0).toUpperCase() + s.slice(1) };
+  }
+  function tierLetter(t) {
+    t = (t || 'Member').toString().toLowerCase().trim();
+    if (t === 'supporter')  return 'S';
+    if (t === 'ambassador') return 'A';
+    return 'M';
+  }
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    try {
+      var d = new Date(iso);
+      var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+    } catch (e) { return iso; }
+  }
+  function isoMMDD(iso) {
+    if (!iso) return '';
+    return String(iso).slice(0,10).replace(/-/g, '-');
+  }
+  function buildMrz(m) {
+    var givenU   = (m.given_names || '').toUpperCase().replace(/\s+/g, '<');
+    var surnameU = (m.surname || '').toUpperCase().replace(/\s+/g, '<');
+    var natCode  = 'XXX';
+    if (m.nationality && /^[A-Za-z]+$/.test(m.nationality.slice(0,3))) {
+      natCode = m.nationality.slice(0,3).toUpperCase();
+    }
+    var line1 = ('>>>>>>>>>>>>>' + natCode + '>' + givenU + '>' + surnameU);
+    var line2 = ('>>>>>>>>>>>>>' + (m.passport_no || '') + '>>PNO.>>UAE');
+    var padTo = 53;
+    line1 = (line1 + '<'.repeat(Math.max(0, padTo - line1.length))).slice(0, padTo);
+    line2 = (line2 + '<'.repeat(Math.max(0, padTo - line2.length))).slice(0, padTo);
+    return [line1, line2];
+  }
+
+  function isSignedIn() {
+    try {
+      var raw = localStorage.getItem('ffp_member');
+      if (!raw) return false;
+      var m = JSON.parse(raw);
+      return !!(m && m.id);
+    } catch (e) { return false; }
+  }
+
+  function renderError(title, detail, passportNo) {
+    // v3 (my-passport.html): hidden placeholder sections reserved for future
+    // features ("Add me on Meet & Move", recommended providers, public
+    // achievements, hosted events). All CSS-hidden today via .future-section
+    // — wired and revealed feature-by-feature later. Same URL, more content.
+    var futureSections =
+      '<section class="future-section" data-section="meet-move-invite" style="display:none;">' +
+        '<!-- Future: "Add me on Meet & Move" button. Member visits another\'s passport,\n' +
+        '             taps to send a meet-up invite. Wired post-launch when scan\n' +
+        '             workflows ship (task #62). -->' +
+      '</section>' +
+      '<section class="future-section" data-section="recommended-providers" style="display:none;">' +
+        '<!-- Future: providers this member recommends / has visited. -->' +
+      '</section>' +
+      '<section class="future-section" data-section="public-achievements" style="display:none;">' +
+        '<!-- Future: privacy-controlled public stats / badges / hosted events. -->' +
+      '</section>' +
+      '<section class="future-section" data-section="bio" style="display:none;">' +
+        '<!-- Future: member bio + social links (optional, privacy-controlled). -->' +
+      '</section>';
+
+    content.innerHTML =
+      '<div class="error">' +
+        '<span class="material-icons">error_outline</span>' +
+        '<div class="error-title">' + esc(title) + '</div>' +
+        '<div>' + esc(detail) + '</div>' +
+        (passportNo ? '<div class="error-passport">' + esc(passportNo) + '</div>' : '') +
+      '</div>';
+  }
+
+  function renderCard(m) {
+    var photoStyle = m.photo_url
+      ? 'background-image:url(\'' + esc(m.photo_url) + '\'); background-color:#0f5a7a;'
+      : 'background-color:#0f5a7a;';
+    var photoInitials = m.photo_url ? '' : esc(initials(m.full_name));
+    var mrz = buildMrz(m);
+    var statusM = statusMeta(m.status);
+    var verifiedBadge = m.verified
+      ? '<div class="badge verified-badge"><span class="material-icons">verified</span>Identity Verified</div>'
+      : '';
+    var countryDisplay = m.country || '—';
+
+    // CTA — hidden if signed-in member
+    var ctaHtml = '';
+    if (!isSignedIn()) {
+      var firstName = ((m.given_names || '').trim().split(/\s+/)[0]) || ((m.full_name || '').trim().split(/\s+/)[0]) || 'a friend';
+      var refUrl = m.referral_code
+        ? '/?ref=' + encodeURIComponent(m.referral_code)
+        : '/';
+      ctaHtml =
+        '<div class="cta">' +
+          '<div class="cta-eyebrow">Find Your People. Move Together.</div>' +
+          '<div class="cta-headline">Get your own <strong>FFP Passport</strong> &mdash; invited by ' + esc(firstName) + '</div>' +
+          '<div class="cta-sub">Match with active members, host meet-ups, join events, unlock partner venues across the UAE.</div>' +
+          '<div class="cta-price">AED 499</div>' +
+          '<div class="cta-price-fine">2026 Full Access</div>' +
+          '<a class="cta-btn" href="' + refUrl + '">Secure Your 2026 Passport</a>' +
+          '<div class="cta-fine">Secure checkout via Stripe</div>' +
+        '</div>';
+    }
+
+    content.innerHTML =
+      '<div class="pass-card">' +
+        '<div class="pass-shell">' +
+          '<div class="pass-bg-emblem"></div>' +
+          '<div class="pass-inner">' +
+            '<div class="pass-top">' +
+              '<div>' +
+                '<div class="pass-top-label">PASSPORT</div>' +
+                '<div class="pass-top-sub">URUWHENUA</div>' +
+              '</div>' +
+              '<div class="pass-worldwide">WORLDWIDE</div>' +
+              '<div class="pass-top-right">' +
+                '<div class="pass-top-label">PASSPORT NO.</div>' +
+                '<div class="pass-passnum">' + esc(m.passport_no) + '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="pass-type-row">' +
+              '<div>' +
+                '<div class="pass-mini-label">TYPE</div>' +
+                '<div class="pass-mini-val">' + esc(tierLetter(m.tier)) + '</div>' +
+              '</div>' +
+              '<div>' +
+                '<div class="pass-mini-label">COUNTRY</div>' +
+                '<div class="pass-mini-val">' + esc(countryDisplay) + '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="pass-main">' +
+              '<div class="pass-photo" style="' + photoStyle + '">' + photoInitials + '</div>' +
+              '<div class="pass-fields">' +
+                '<div><div class="pf-lbl">SURNAME</div><div class="pf-val">' + esc((m.surname || '—').toUpperCase()) + '</div></div>' +
+                '<div><div class="pf-lbl">GIVEN NAMES</div><div class="pf-val">' + esc((m.given_names || '—').toUpperCase()) + '</div></div>' +
+                '<div><div class="pf-lbl">NATIONALITY</div><div class="pf-val">' + esc((m.nationality || '—').toUpperCase()) + '</div></div>' +
+                '<div class="pf-grid-2">' +
+                  '<div><div class="pf-lbl">GENDER</div><div class="pf-val">' + esc((m.gender || '—').toUpperCase()) + '</div></div>' +
+                  '<div><div class="pf-lbl">DATE OF BIRTH</div><div class="pf-val">' + esc(fmtDate(m.date_of_birth).toUpperCase()) + '</div></div>' +
+                '</div>' +
+                '<div class="pf-grid-2">' +
+                  '<div><div class="pf-lbl">ISSUE DATE</div><div class="pf-val">' + esc(isoMMDD(m.member_since) || '—') + '</div></div>' +
+                  '<div><div class="pf-lbl">EXPIRY DATE</div><div class="pf-val">' + esc(isoMMDD(m.expires) || '—') + '</div></div>' +
+                '</div>' +
+              '</div>' +
+              '<div class="pass-qr-side">' +
+                '<div class="pass-qr" id="pass-qr"></div>' +
+                '<div class="pass-qr-label">IDENTITY QR</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="pass-mrz">' +
+              '<span class="pass-mrz-line">' + esc(mrz[0]) + '</span>' +
+              '<span class="pass-mrz-line">' + esc(mrz[1]) + '</span>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="badges-row">' +
+        '<div class="badge ' + statusM.cls + '"><span class="material-icons">' + statusM.icon + '</span>' + statusM.label + '</div>' +
+        verifiedBadge +
+      '</div>' +
+      ctaHtml +
+      futureSections;
+
+    // Render the QR — same encoding as the dashboard one (verify URL),
+    // so scanning it from this page goes right back to this same page
+    // for the same member. Self-referential and consistent.
+    try {
+      var qrTarget = document.getElementById('pass-qr');
+      if (qrTarget && window.QRCode && m.passport_no) {
+        var verifyUrl = 'https://ffppassport.com/my-passport.html?p=' + encodeURIComponent(m.passport_no);
+        new QRCode(qrTarget, {
+          text: verifyUrl,
+          width: 86, height: 86,
+          colorDark: '#1a2937', colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      }
+    } catch (e) { /* QR is decorative on this page — silent fail OK */ }
+  }
+
+  async function lookup() {
+    var passportNo = getParam('p');
+    if (!passportNo) {
+      // Auto-resolve: signed-in member visiting bare /my-passport.html sees THEIR card.
+      try {
+        var raw = localStorage.getItem('ffp_member');
+        if (raw) {
+          var me = JSON.parse(raw);
+          if (me && me.passport_no) {
+            passportNo = me.passport_no;
+          }
+        }
+      } catch (e) {}
+      if (!passportNo) {
+        renderError('No passport number', 'This URL is missing the member identifier. Sign in or scan a valid FFP Passport QR.', null);
+        return;
+      }
+      return;
+    }
+    try {
+      var res = await fetch(API_BASE + '/api/passport/' + encodeURIComponent(passportNo));
+      var data = await res.json();
+      if (res.status === 404) {
+        renderError('Member not found', 'No FFP Passport matches this identifier.', passportNo);
+        return;
+      }
+      if (!res.ok || !data.success) {
+        renderError('Verification failed', (data && data.error) || ('HTTP ' + res.status), passportNo);
+        return;
+      }
+      renderCard(data.member);
+    } catch (e) {
+      renderError('Network error', 'Could not reach the verification service. Try again in a moment.', passportNo);
+    }
+  }
+
+  lookup();
+})();
+</script>
+</body>
+</html>
