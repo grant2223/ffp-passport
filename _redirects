@@ -2,12 +2,6 @@
 /member           /ffp-member-dashboard.html     200
 /provider         /ffp-provider-dashboard.html   200
 /admin            /ffp-admin-dashboard.html      200
-
-# v2 2026-05-29: verify.html renamed to my-passport.html. Keep
-# /verify.html serving the new page forever — every QR ever scanned
-# encoded the old path and they all must keep working.
-/verify           /my-passport.html              200
-/verify.html      /my-passport.html              200!
 /my-passport      /my-passport.html              200
 
 /*                /index.html                    200
