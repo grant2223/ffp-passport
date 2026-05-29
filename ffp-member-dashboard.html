@@ -3866,7 +3866,7 @@ input[type="number"] {
 /* LOG MODAL */
 .form-field { margin-bottom: 14px; }
 .form-label { display: block; font-size: 11px; font-weight: 800; letter-spacing: 0.5px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
-.form-input { width: 100%; padding: 10px 12px; background: rgba(43,168,224,0.05); border: 1px solid var(--border-mid); border-radius: 6px; color: var(--text); font-size: 13px; outline: none; }
+.form-input { width: 100%; box-sizing: border-box; min-width: 0; padding: 10px 12px; background: rgba(43,168,224,0.05); border: 1px solid var(--border-mid); border-radius: 6px; color: var(--text); font-size: 13px; outline: none; }
 .form-input:focus { border-color: var(--blue); }
 .form-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 .input-wrap { position: relative; }
@@ -4141,7 +4141,7 @@ input[type="number"] {
   
   <!-- LOG: scan a provider QR or enter manually -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;">
-    <button class="btn btn-block" style="padding:13px;background:#FFCC00;color:#081420;border:none;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;cursor:pointer;font-family:inherit;" onclick="openScanLog()"><span class="material-icons" style="font-size:18px;">qr_code_scanner</span> Scan QR</button>
+    <button class="btn btn-block" disabled title="Coming soon" style="padding:13px;background:#13283c;color:#5b738c;border:1px solid var(--border-mid);font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;cursor:not-allowed;font-family:inherit;opacity:0.7;"><span class="material-icons" style="font-size:18px;">qr_code_scanner</span> Scan QR (soon)</button>
     <button class="btn btn-block" style="padding:13px;background:#FFCC00;color:#081420;border:none;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;cursor:pointer;font-family:inherit;" onclick="openLogModal()"><span class="material-icons" style="font-size:18px;">edit</span> Log Activity</button>
   </div>
 
@@ -5157,17 +5157,17 @@ input[type="number"] {
       <button class="modal-close" onclick="closeLogModal()">&times;</button>
     </div>
     <div class="modal-body">
-      <div class="form-row">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div class="form-field">
           <label class="form-label">Country</label>
-          <select id="log-country" class="form-input"></select>
+          <select id="log-country" class="form-input" onchange="fillLogCities()"></select>
         </div>
         <div class="form-field">
           <label class="form-label">City</label>
-          <input type="text" id="log-city" class="form-input" placeholder="City">
+          <select id="log-city" class="form-input"></select>
         </div>
       </div>
-      <div class="form-row">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
         <div class="form-field">
           <label class="form-label">Date</label>
           <input type="date" id="log-date" class="form-input">
@@ -5177,28 +5177,31 @@ input[type="number"] {
           <input type="time" id="log-time" class="form-input">
         </div>
       </div>
-      <div class="form-field">
+      <div class="form-field" style="margin-top:10px;">
         <label class="form-label">Activity</label>
         <div class="input-wrap">
           <input type="text" id="log-activity" class="form-input" placeholder="Search activities..." autocomplete="off">
           <div class="picker-dropdown" id="activity-picker"></div>
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-field">
-          <label class="form-label">Duration</label>
-          <select id="log-duration" class="form-input"></select>
-        </div>
-        <div class="form-field">
-          <label class="form-label">Calories</label>
-          <input type="number" id="log-calories" class="form-input" inputmode="numeric" placeholder="e.g. 400">
+      <div class="form-field" style="margin-top:10px;">
+        <label class="form-label">Duration</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+          <select id="log-dur-h" class="form-input"></select>
+          <select id="log-dur-m" class="form-input"></select>
+          <select id="log-dur-s" class="form-input"></select>
         </div>
       </div>
-      <div class="form-field">
+      <div class="form-field" style="margin-top:10px;">
+        <label class="form-label">Calories</label>
+        <input type="number" id="log-calories" class="form-input" inputmode="numeric" placeholder="e.g. 400">
+      </div>
+      <div class="form-field" style="margin-top:10px;">
         <label class="form-label">Notes (optional)</label>
         <textarea id="log-notes" class="form-input" rows="2" placeholder="How did it feel?"></textarea>
       </div>
-    </div>    <div class="modal-footer">
+    </div>
+    <div class="modal-footer">    </div>    <div class="modal-footer">
       <button class="btn" onclick="closeLogModal()">Cancel</button>
       <button class="btn btn-blue" onclick="saveLog()">Save activity</button>
     </div>
@@ -6823,7 +6826,8 @@ function renderMapPins() {
   
   // Render pins for all filtered cities
   cities.forEach(city => {
-    const c = CITY_COORDS[city.name];
+    let c = CITY_COORDS[city.name];
+    if (!c) { c = estimateCityCoords(city.name, city.country); CITY_COORDS[city.name] = c; }
     if (!c) return;
     const [x, y] = mapProjection([c.lng, c.lat]);
     const isSelected = state.selectedCity === city.name;
@@ -10013,6 +10017,22 @@ const Earnings = {
   
   init() {
     this.render();
+    this.loadTierStats();
+  },
+
+  // Wire the Ambassador progression to real counts (4 of 7 categories have data).
+  async loadTierStats() {
+    var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
+    if (!member || !member.id) return;
+    try {
+      var res = await fetch('https://ffp-passport-backend.vercel.app/api/members/' + member.id + '/stats');
+      var stx = await res.json();
+      if (!stx || !stx.success) return;
+      var map = { referrals: stx.referrals, stamps: stx.quests_completed, providers: stx.providers, logs: stx.activities };
+      this.categories.forEach(function (c) { if (map[c.key] != null) c.current = map[c.key]; });
+      this.tier = this.computedTier();
+      this.render();
+    } catch (e) { console.error('[FFP Tier] stats:', e); }
   },
   
   // ─────────── COMPUTED ───────────
@@ -10435,7 +10455,7 @@ const Quests = {
     const tierIcon = done >= 12 ? 'travel_explore' : done >= 6 ? 'hiking' : 'explore';
     const nextLbl = done >= 12
       ? 'Top tier reached'
-      : ((done >= 6 ? (12 - done) : (6 - done)) + ' more stamps to ' + (done >= 6 ? 'Navigator' : 'Adventurer'));
+      : ((done >= 6 ? (12 - done) : (6 - done)) + ' more quests to ' + (done >= 6 ? 'Navigator' : 'Adventurer'));
     let pct;
     if (done >= 12) pct = 100;
     else if (done >= 6) pct = Math.round(((done - 6) / 6) * 100);
@@ -10446,7 +10466,7 @@ const Quests = {
         '<div class="hero-tier-badge"><span class="material-icons">' + tierIcon + '</span></div>' +
         '<div class="hero-tier-info" style="min-width:0;">' +
           '<div class="tier-name">' + tierName + '</div>' +
-          '<div class="tier-meta"><b>' + done + '</b> stamps collected</div>' +
+          '<div class="tier-meta"><b>' + done + '</b> quests completed</div>' +
         '</div>' +
         '<div class="quest-tier-prog" style="flex:1; min-width:110px;">' +
           '<div class="chal-progress-bar"><div class="chal-progress-bar-fill" style="width:' + pct + '%;"></div></div>' +
@@ -12032,22 +12052,39 @@ function toggleFavorite(cityName) {
 }
 
 // ===== LOG MODAL =====
+function fillLogCities() {
+  var cnyS = document.getElementById('log-country');
+  var cityS = document.getElementById('log-city');
+  if (!cnyS || !cityS) return;
+  var country = cnyS.value;
+  var list = (country && CITIES_DB[country]) ? CITIES_DB[country].slice().sort() : [];
+  cityS.innerHTML = '';
+  cityS.add(new Option(country ? 'Select city…' : 'Pick a country first', ''));
+  list.forEach(function (c) { cityS.add(new Option(c, c)); });
+}
 function openLogModal() {
   document.getElementById('log-modal').classList.add('show');
-  var durS = document.getElementById('log-duration');
-  if (durS && durS.options.length === 0) {
-    [15,20,30,45,60,75,90,120,150,180].forEach(function (v) { durS.add(new Option(v + ' min', v)); });
-    durS.value = 60;
-  }
+  var prof = (window.MemberProfile && MemberProfile.data) || {};
+  // Country (A–Z), default to profile
   var cnyS = document.getElementById('log-country');
   if (cnyS && cnyS.options.length === 0) {
     cnyS.add(new Option('Select country…', ''));
     Object.keys(CITIES_DB).sort().forEach(function (c) { cnyS.add(new Option(c, c)); });
   }
-  var prof = (window.MemberProfile && MemberProfile.data) || {};
-  if (cnyS && prof.country) cnyS.value = prof.country;
-  var cityI = document.getElementById('log-city');
-  if (cityI && !cityI.value) cityI.value = prof.city || '';
+  if (cnyS && prof.country && CITIES_DB[prof.country]) cnyS.value = prof.country;
+  // Cities for that country, default to profile city
+  fillLogCities();
+  var cityS = document.getElementById('log-city');
+  if (cityS && prof.city) { for (var i = 0; i < cityS.options.length; i++) { if (cityS.options[i].value === prof.city) { cityS.value = prof.city; break; } } }
+  // Duration H / M / S
+  var hS = document.getElementById('log-dur-h'), mS = document.getElementById('log-dur-m'), sS = document.getElementById('log-dur-s');
+  if (hS && hS.options.length === 0) {
+    for (var h = 0; h <= 12; h++) hS.add(new Option(h + ' h', h));
+    for (var m = 0; m <= 59; m++) mS.add(new Option(m + ' min', m));
+    for (var se = 0; se <= 59; se++) sS.add(new Option(se + ' sec', se));
+    hS.value = 0; mS.value = 30; sS.value = 0;
+  }
+  // Date today, time now
   var now = new Date();
   document.getElementById('log-date').value = now.toISOString().substring(0, 10);
   var tEl = document.getElementById('log-time');
@@ -12062,13 +12099,17 @@ async function saveLog() {
   const act = document.getElementById('log-activity').value.trim();
   if (!act) { alert('Please pick an activity'); return; }
   const country = document.getElementById('log-country').value;
-  const city = document.getElementById('log-city').value.trim();
-  if (!country || !city) { alert('Add a country and city so it lands on your map.'); return; }
+  const city = document.getElementById('log-city').value;
+  if (!country || !city) { alert('Pick a country and city so it lands on your map.'); return; }
   const dateStr = document.getElementById('log-date').value || new Date().toISOString().substring(0, 10);
+  const h = parseInt(document.getElementById('log-dur-h').value, 10) || 0;
+  const mm = parseInt(document.getElementById('log-dur-m').value, 10) || 0;
+  const ss = parseInt(document.getElementById('log-dur-s').value, 10) || 0;
+  const durationMin = Math.round((h * 3600 + mm * 60 + ss) / 60);
   const entry = {
     activity: act, venue: '', city: city, country: country,
     date: dateStr, daysAgo: 0,
-    duration: parseInt(document.getElementById('log-duration').value, 10) || 0,
+    duration: durationMin,
     calories: parseInt(document.getElementById('log-calories').value, 10) || 0,
     notes: document.getElementById('log-notes').value.trim(), partner: false
   };
@@ -12237,7 +12278,7 @@ function init() {
   // Picker modal click-outside is wired inside the Picker module
   document.getElementById('city-search').addEventListener('input', e => renderCityList(e.target.value));
   renderAll();
-  console.log('FFP Dashboard v30 - live notifications bell');
+  console.log('FFP Dashboard v33 - ambassador progress wired');
 }
 
 // ===== APPLE WALLET INTEGRATION =====
