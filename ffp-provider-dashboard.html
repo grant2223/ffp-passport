@@ -15,7 +15,6 @@
 <script src="ffp-provider-auth.js"></script>
 <script src="ffp-provider-profile-loader.js"></script>
 <script src="ffp-provider-events-loader.js"></script>
-<script src="ffp-provider-deals-loader.js"></script>
 <script src="ffp-provider-experiences-loader.js"></script>
 <script src="ffp-provider-challenges-loader.js"></script>
 <script src="ffp-provider-checkins-loader.js"></script>
@@ -2042,13 +2041,6 @@ a { color: var(--ffp-blue); text-decoration: none; }
               <div class="section-title">Quick actions</div>
             </div>
             <div class="quick-actions">
-              <button class="qa" onclick="openDealModal()">
-                <div class="qa-icon yellow"><span class="ms">local_offer</span></div>
-                <div class="qa-body">
-                  <div class="qa-title">New deal</div>
-                  <div class="qa-sub">Member perk</div>
-                </div>
-              </button>
               <button class="qa" onclick="openEventModal()">
                 <div class="qa-icon"><span class="ms">event</span></div>
                 <div class="qa-body">
@@ -2621,36 +2613,7 @@ let providerProfile = {
   }
 };
 
-let deals = [
-  {
-    id: uid(), perk: 'Member rate on monthly unlimited',
-    breakdown: '600 AED instead of 850 AED for the first month, then standard pricing.',
-    about: 'Unlimited group classes for 30 days. Includes mobility, strength, conditioning, and Saturday team class.',
-    category: 'Fitness', service: 'Monthly membership',
-    valid: '7 days a week', booking: 'Walk in or book in app',
-    limits: 'Once per member, new joiners only', frequency: 'one-time',
-    hero_url: null, status: 'live', featured: true,
-    claims: 47, claims_this_month: 12, created_at: '2025-12-15'
-  },
-  {
-    id: uid(), perk: 'First class free',
-    breakdown: 'Walk in for any group class, no commitment.',
-    about: 'Try us out. Pick any class on the schedule from the app.', category: 'Fitness',
-    service: 'Drop-in trial', valid: 'Weekdays only', booking: 'Book in app',
-    limits: 'New members only', frequency: 'one-time',
-    hero_url: null, status: 'live', featured: false,
-    claims: 134, claims_this_month: 28, created_at: '2025-11-02'
-  },
-  {
-    id: uid(), perk: '20% off InBody scan + consult',
-    breakdown: '120 AED instead of 150 AED for a full body composition scan with 20-minute coach consult.',
-    about: 'Quarterly check-in tool. Comes with a printable report you can share with your doctor.', category: 'Wellness',
-    service: 'Body composition', valid: 'Weekdays only', booking: 'WhatsApp +971 50 123 4567',
-    limits: 'Once per quarter', frequency: 'quarterly',
-    hero_url: null, status: 'pending', featured: false,
-    claims: 0, claims_this_month: 0, created_at: '2026-05-20'
-  }
-];
+let deals = [];
 
 let events = [
   {
@@ -2764,7 +2727,6 @@ const sampleRsvps = [
 const NAV = [
   { id: 'overview',    icon: 'dashboard',       label: 'Overview',    section: 'manage' },
   { id: 'analytics',   icon: 'analytics',       label: 'Analytics',   section: 'manage' },
-  { id: 'deals',       icon: 'local_offer',     label: 'Deals',       section: 'listings' },
   { id: 'events',      icon: 'event',           label: 'Events',      section: 'listings' },
   { id: 'experiences', icon: 'flight',          label: 'Experiences', section: 'listings' },
   { id: 'challenges',  icon: 'emoji_events',    label: 'Challenges',  section: 'listings' },
