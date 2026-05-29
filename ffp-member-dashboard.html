@@ -483,19 +483,20 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
 }
 
 /* WALLET BUTTONS */
-.wallet-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 28px; }
+.wallet-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 540px; margin: 0 auto 24px; }
 .wallet-btn { 
-  display: flex; align-items: center; justify-content: center; gap: 10px; 
-  background: #000; color: #fff; border-radius: 9px; padding: 12px 18px; 
-  border: 1px solid #2a2a2a; font-size: 14px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; gap: 7px; 
+  background: #000; color: #fff; border-radius: 8px; padding: 8px 10px; 
+  border: 1px solid #2a2a2a; font-size: 12px; font-weight: 600;
   transition: all 0.15s;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
+.wallet-btn svg { width: 17px; height: 17px; }
 .wallet-btn:hover { background: #1a1a1a; border-color: #3a3a3a; }
 .wallet-btn:active { transform: scale(0.98); }
 .wallet-txt { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.1; }
-.wallet-add { font-size: 10px; font-weight: 400; opacity: 0.85; letter-spacing: 0.3px; }
-.wallet-name { font-size: 15px; font-weight: 600; letter-spacing: 0.2px; }
+.wallet-add { font-size: 9px; font-weight: 400; opacity: 0.85; letter-spacing: 0.3px; }
+.wallet-name { font-size: 12px; font-weight: 600; letter-spacing: 0.2px; }
 
 
 /* JOURNEY HEADER */
@@ -3883,7 +3884,7 @@ input[type="number"] {
   .hero-stat-lbl { font-size: 8px; }
   .hero-stat { padding: 10px 4px; }
   .form-row { grid-template-columns: 1fr; }
-  .wallet-row { grid-template-columns: 1fr; }
+  .wallet-row { grid-template-columns: 1fr 1fr; }
   
   .pf-row-with-emblem { grid-template-columns: 1fr auto; }
   .pass-main { grid-template-columns: 110px 1fr 100px; }   /* v109: match photo width to prevent overflow */
@@ -4152,7 +4153,7 @@ input[type="number"] {
   <!-- LOG: scan a provider QR or enter manually -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;">
     <button class="btn btn-block" style="padding:13px;background:#FFCC00;color:#081420;border:none;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;cursor:pointer;font-family:inherit;" onclick="openScanLog()"><span class="material-icons" style="font-size:18px;">qr_code_scanner</span> Scan QR</button>
-    <button class="btn btn-block" style="padding:13px;background:#FFCC00;color:#081420;border:none;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;cursor:pointer;font-family:inherit;" onclick="openLogModal()"><span class="material-icons" style="font-size:18px;">edit</span> Manual input</button>
+    <button class="btn btn-block" style="padding:13px;background:#FFCC00;color:#081420;border:none;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;cursor:pointer;font-family:inherit;" onclick="openLogModal()"><span class="material-icons" style="font-size:18px;">edit</span> Log Activity</button>
   </div>
 
   <!-- JOURNEY -->
@@ -12036,31 +12037,65 @@ function openScanLog() {
   openLogModal();
 }
 function closeLogModal() { document.getElementById('log-modal').classList.remove('show'); }
-function saveLog() {
+async function saveLog() {
   const act = document.getElementById('log-activity').value.trim();
   if (!act) { alert('Please pick an activity'); return; }
   const country = document.getElementById('log-country').value;
   const city = document.getElementById('log-city').value.trim();
   if (!country || !city) { alert('Add a country and city so it lands on your map.'); return; }
+  const dateStr = document.getElementById('log-date').value || new Date().toISOString().substring(0, 10);
   const entry = {
-    activity: act,
-    venue: '',
-    city: city,
-    country: country,
-    date: document.getElementById('log-date').value || new Date().toISOString().substring(0, 10),
-    daysAgo: 0,
+    activity: act, venue: '', city: city, country: country,
+    date: dateStr, daysAgo: 0,
     duration: parseInt(document.getElementById('log-duration').value, 10) || 0,
     calories: parseInt(document.getElementById('log-calories').value, 10) || 0,
-    notes: document.getElementById('log-notes').value.trim(),
-    partner: false
+    notes: document.getElementById('log-notes').value.trim(), partner: false
   };
-  // Adds to the journey immediately — a new city/country shows up on the map.
+  // Immediate: appears on the map this session
   if (typeof LOGS !== 'undefined') LOGS.push(entry);
   if (typeof renderAll === 'function') renderAll();
-  // NOTE: server persistence (activity_logs) is the next wiring step — this
-  // updates the map for the session; a reload currently clears it.
+  // Persist to activity_logs so it sticks and rebuilds the map on next sign-in
+  var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
+  if (member && member.id && window.supabase) {
+    try {
+      var res = await window.supabase.from('activity_logs').insert({
+        member_id: member.id, activity: act, city: city, country: country,
+        duration_min: entry.duration, calories: entry.calories,
+        logged_at: new Date(dateStr + 'T12:00:00').toISOString()
+      });
+      if (res.error) console.error('[FFP Journey] save:', res.error);
+    } catch (e) { console.error('[FFP Journey] save:', e); }
+  }
   if (typeof showToast === 'function') showToast('Logged ' + act + (city ? ' in ' + city : ''), 'success');
   closeLogModal();
+}
+
+// Load a member's saved activity logs (with a place) into the journey/map on sign-in.
+async function loadJourneyLogs() {
+  for (var i = 0; i < 40 && !window.supabase; i++) { await new Promise(function (r) { setTimeout(r, 150); }); }
+  var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
+  if (!member || !member.id || !window.supabase || typeof LOGS === 'undefined') return;
+  try {
+    var res = await window.supabase.from('activity_logs')
+      .select('activity, city, country, duration_min, calories, logged_at')
+      .eq('member_id', member.id)
+      .not('city', 'is', null)
+      .order('logged_at', { ascending: false });
+    if (res.error) { console.error('[FFP Journey] load:', res.error); return; }
+    var now = Date.now();
+    (res.data || []).forEach(function (r) {
+      if (!r.city) return;
+      var dt = r.logged_at ? new Date(r.logged_at) : new Date();
+      LOGS.push({
+        activity: r.activity || 'Activity', venue: '', city: r.city, country: r.country || '',
+        date: dt.toISOString().substring(0, 10),
+        daysAgo: Math.max(0, Math.floor((now - dt.getTime()) / 86400000)),
+        duration: r.duration_min || 0, calories: r.calories || 0, notes: '', partner: false
+      });
+    });
+    if (typeof renderAll === 'function') renderAll();
+    console.log('[FFP Journey] loaded ' + (res.data ? res.data.length : 0) + ' saved logs');
+  } catch (e) { console.error('[FFP Journey] load:', e); }
 }
 
 function setupLogPickers() {
@@ -12086,39 +12121,11 @@ function setupLogPickers() {
   aInput.addEventListener('focus', () => { renderActPicker(aInput.value); aPicker.classList.add('show'); });
   aInput.addEventListener('input', () => { renderActPicker(aInput.value); aPicker.classList.add('show'); });
   
-  // Location picker
-  const lInput = document.getElementById('log-location');
-  const lPicker = document.getElementById('location-picker');
-  function renderLocPicker(filter) {
-    const f = (filter||'').toLowerCase().trim();
-    let html = '', count = 0;
-    Object.keys(CITIES_DB).forEach(country => {
-      const cities = CITIES_DB[country];
-      let matches = cities;
-      if (f) {
-        if (country.toLowerCase().includes(f)) matches = cities;
-        else matches = cities.filter(c => c.toLowerCase().includes(f));
-      }
-      if (matches.length === 0) return;
-      html += `<div class="picker-group-label">${country}</div>`;
-      matches.forEach(city => {
-        count++;
-        html += `<div class="picker-item" onclick="document.getElementById('log-location').value='${city.replace(/'/g, "\'")}'; document.getElementById('location-picker').classList.remove('show');"><span class="material-icons" style="font-size:14px;color:var(--blue);">location_on</span>${city}</div>`;
-      });
-    });
-    if (count === 0) html = '<div class="picker-item" style="color:var(--muted);">No locations</div>';
-    lPicker.innerHTML = html;
-  }
-  lInput.addEventListener('focus', () => { renderLocPicker(lInput.value); lPicker.classList.add('show'); });
-  lInput.addEventListener('input', () => { renderLocPicker(lInput.value); lPicker.classList.add('show'); });
-  
   document.addEventListener('click', e => {
     if (!e.target.closest('.input-wrap')) {
       aPicker.classList.remove('show');
-      lPicker.classList.remove('show');
     }
-  });
-}
+  });}
 
 // ===== INIT =====
 function init() {
@@ -12178,6 +12185,7 @@ function init() {
   CalorieTracker.init();
   FitnessStats.init();
   Earnings.init();
+  loadJourneyLogs();
   window.Quests = Quests;
   Quests.init();
   Events.init();
@@ -12207,7 +12215,7 @@ function init() {
   // Picker modal click-outside is wired inside the Picker module
   document.getElementById('city-search').addEventListener('input', e => renderCityList(e.target.value));
   renderAll();
-  console.log('FFP Dashboard v27 - passport log + fitness filter');
+  console.log('FFP Dashboard v29 - wallet buttons + log activity label');
 }
 
 // ===== APPLE WALLET INTEGRATION =====
