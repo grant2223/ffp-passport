@@ -1,5 +1,14 @@
 <!-- ════════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v108
+     FFP MEMBER DASHBOARD — v109
+     v109 changes (from v108, 2026-05-29):
+     - CSS fix for passport-card photo overlap. .pass-main grid is
+       'grid-template-columns: 95px 1fr 100px' but the mobile media
+       query bumps .pass-photo-new width to 110px without widening its
+       grid column. Result: photo overflows 15px into the fields column,
+       covering the left edge of SURNAME / GIVEN NAMES / NATIONALITY /
+       GENDER labels (only visible once a real photo is uploaded — the
+       prior placeholder box hid the issue). Fix: mobile media query
+       now also updates grid-template-columns to match the wider photo.
      v108 changes (from v107, 2026-05-29):
      - Profile photo upload + crop wired. Cropper.js (CDN, ~30KB) for the
        square-crop step, ffp-photo-upload.js v1 wraps the flow:
@@ -3863,6 +3872,7 @@ input[type="number"] {
   .wallet-row { grid-template-columns: 1fr; }
   
   .pf-row-with-emblem { grid-template-columns: 1fr auto; }
+  .pass-main { grid-template-columns: 110px 1fr 100px; }   /* v109: match photo width to prevent overflow */
   .pass-photo-new { width: 110px; height: 140px; font-size: 44px; }
   .pass-worldwide { font-size: 22px; letter-spacing: 1.5px; }
 }
