@@ -1,17 +1,32 @@
-# During active development: never cache HTML or JS.
-# Images can cache for 24 hours since they rarely change.
-# When we go to production with stable releases, change /*.js to long max-age
-# and use versioned filenames (e.g. ffp-deals-loader.v2.js) for cache-busting.
+# HTML files: NEVER cache anywhere. Force fresh fetch every visit.
+# Three directives (no-store + no-cache + Pragma + Expires) to handle
+# legacy browsers + iOS Safari's aggressive cache + intermediate CDNs.
+# During active development we want every push to land on every device
+# the next time the user opens the page.
 
 /*
-  Cache-Control: public, max-age=0, must-revalidate
+  Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0
+  Pragma: no-cache
+  Expires: 0
 
 /*.html
-  Cache-Control: public, max-age=0, must-revalidate
+  Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0
+  Pragma: no-cache
+  Expires: 0
 
+# JS files in assets: same — never cache while we're iterating quickly.
+# At production stability, switch to long max-age + versioned filenames
+# (e.g. ffp-earnings-loader.v12.js) for proper cache-busting.
 /assets/*.js
-  Cache-Control: public, max-age=0, must-revalidate
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+  Pragma: no-cache
 
+# CSS — same as JS, no cache during dev
+/assets/*.css
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+  Pragma: no-cache
+
+# Images: cache for 24 hours since they rarely change.
 /assets/*.png
   Cache-Control: public, max-age=86400
 
