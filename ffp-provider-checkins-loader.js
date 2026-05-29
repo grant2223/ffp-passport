@@ -88,7 +88,7 @@
     // RLS limits to claims on my deals. We want verified ones, recent first.
     var res = await window.supabase
       .from('claims')
-      .select('id, member_id, deal_id, claim_code, status, verified_at, created_at, members(full_name, given_names, photo_url, tier), deals(title)')
+      .select('id, member_id, deal_id, claim_code, status, verified_at, created_at, members!member_id(full_name, given_names, photo_url, tier), deals(title)')
       .order('verified_at', { ascending: false, nullsFirst: false })
       .limit(50);
     if (res.error) {
@@ -125,7 +125,7 @@
   async function lookupClaim(code) {
     var res = await window.supabase
       .from('claims')
-      .select('id, member_id, deal_id, claim_code, status, verified_at, created_at, members(full_name, given_names, photo_url, tier), deals(title)')
+      .select('id, member_id, deal_id, claim_code, status, verified_at, created_at, members!member_id(full_name, given_names, photo_url, tier), deals(title)')
       .eq('claim_code', code)
       .maybeSingle();
     if (res.error) {
