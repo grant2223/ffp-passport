@@ -300,26 +300,6 @@ html, body {
   }
 
   function renderError(title, detail, passportNo) {
-    // v3 (my-passport.html): hidden placeholder sections reserved for future
-    // features ("Add me on Meet & Move", recommended providers, public
-    // achievements, hosted events). All CSS-hidden today via .future-section
-    // — wired and revealed feature-by-feature later. Same URL, more content.
-    var futureSections =
-      '<section class="future-section" data-section="meet-move-invite" style="display:none;">' +
-        '<!-- Future: "Add me on Meet & Move" button. Member visits another\'s passport,\n' +
-        '             taps to send a meet-up invite. Wired post-launch when scan\n' +
-        '             workflows ship (task #62). -->' +
-      '</section>' +
-      '<section class="future-section" data-section="recommended-providers" style="display:none;">' +
-        '<!-- Future: providers this member recommends / has visited. -->' +
-      '</section>' +
-      '<section class="future-section" data-section="public-achievements" style="display:none;">' +
-        '<!-- Future: privacy-controlled public stats / badges / hosted events. -->' +
-      '</section>' +
-      '<section class="future-section" data-section="bio" style="display:none;">' +
-        '<!-- Future: member bio + social links (optional, privacy-controlled). -->' +
-      '</section>';
-
     content.innerHTML =
       '<div class="error">' +
         '<span class="material-icons">error_outline</span>' +
@@ -330,6 +310,16 @@ html, body {
   }
 
   function renderCard(m) {
+    // v3: hidden placeholder sections reserved for future features
+    // (Add me on Meet & Move, recommended providers, public achievements,
+    // bio). CSS-hidden today via display:none — wired feature-by-feature
+    // later. Same URL, more content.
+    var futureSections =
+      '<section class="future-section" data-section="meet-move-invite" style="display:none;"></section>' +
+      '<section class="future-section" data-section="recommended-providers" style="display:none;"></section>' +
+      '<section class="future-section" data-section="public-achievements" style="display:none;"></section>' +
+      '<section class="future-section" data-section="bio" style="display:none;"></section>';
+
     var photoStyle = m.photo_url
       ? 'background-image:url(\'' + esc(m.photo_url) + '\'); background-color:#0f5a7a;'
       : 'background-color:#0f5a7a;';
