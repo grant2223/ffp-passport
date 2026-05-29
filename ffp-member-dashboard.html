@@ -11151,9 +11151,7 @@ const MeetMove = {
             </div>
             <div class="meetup-meta-row">
               <span class="item"><span class="material-icons">calendar_today</span><span class="date-blue">${escHtml(m.when.replace(/·.*?·/, '·').trim())}</span></span>
-              <span class="item"><span class="material-icons">people</span>${capacityTxt}</span>
             </div>
-            ${pillsHtml ? `<div class="meetup-tag-pills">${pillsHtml}</div>` : ''}
             <button class="meetup-view-btn" onclick="event.stopPropagation(); MeetMove.openMeetupDetail('${m.id}')">
               View Details <span class="material-icons">arrow_forward</span>
             </button>
@@ -12111,7 +12109,7 @@ function init() {
   // Picker modal click-outside is wired inside the Picker module
   document.getElementById('city-search').addEventListener('input', e => renderCityList(e.target.value));
   renderAll();
-  console.log('FFP Dashboard v17 - clean build loaded');
+  console.log('FFP Dashboard v18 - lean meetup cards');
 }
 
 // ===== APPLE WALLET INTEGRATION =====
