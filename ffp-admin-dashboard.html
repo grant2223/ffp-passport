@@ -13,18 +13,12 @@
 <script src="ffp-admin-auth.js"></script>
 <script src="ffp-admin-providers-loader.js"></script>
 <script src="ffp-admin-payouts-loader.js"></script>
-<script src="ffp-admin-referrals-loader.js"></script>
-<script src="ffp-admin-content-loader.js"></script>
-<script src="ffp-admin-members-loader.js"></script>
-<script src="ffp-admin-quests-loader-v2.js"></script>
+<script src="ffp-admin-quests-loader.js"></script>
 <script src="ffp-admin-events-loader.js"></script>
 <script src="ffp-admin-experiences-loader.js"></script>
 <script src="ffp-admin-challenges-loader.js"></script>
-<script src="ffp-admin-meetups-loader.js"></script>
-<script src="ffp-admin-overview-loader.js"></script>
-<script src="ffp-admin-analytics-loader.js"></script>
-<script src="ffp-admin-taxonomies-loader.js"></script>
-<script src="ffp-admin-settings-loader.js"></script>
+<!-- v7: removed 8 phantom loader refs that 404'd (referrals/content/members/meetups/overview/analytics/taxonomies/settings — those panels run on their inline modules). Normalized quests loader ref to the plain GitHub filename. -->
+
   
 <style>
 :root {
@@ -1315,8 +1309,6 @@ input, select, textarea { font-family: inherit; }
         <span class="material-icons">people</span>Members
       </a>
       <a class="sidebar-link" data-panel="panel-quests" onclick="App.go('panel-quests')"><span class="material-icons">flag</span>Quests</a>
-        <span class="material-icons">local_offer</span>Deals
-      </a>
       <a class="sidebar-link" data-panel="panel-events" onclick="App.go('panel-events')">
         <span class="material-icons">event</span>Events
       </a>
@@ -1358,7 +1350,7 @@ input, select, textarea { font-family: inherit; }
         <span class="material-icons">search</span>
         <input type="text" id="global-search-input" placeholder="Search members, providers, listings..." oninput="GlobalSearch.onInput(this.value)" onfocus="GlobalSearch.onInput(this.value)" onblur="setTimeout(()=>GlobalSearch.close(),200)">
       </div>
-      <div class="topbar-user" onclick="showToast('Logout menu coming soon')">
+      <div class="topbar-user" onclick="if(confirm('Sign out of FFP Admin?')) ffpLogout()" title="Sign out">
         <div class="topbar-user-avatar">G</div>
         <div class="topbar-user-info">
           <div class="topbar-user-name">Grant Goes</div>
