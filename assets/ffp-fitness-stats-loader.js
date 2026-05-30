@@ -990,75 +990,78 @@
       var sleepRec = (typeof this.getRecord === 'function') ? this.getRecord('sleepAvgHrs') : null;
       function fmtSecs(s2) { var m = Math.floor(s2 / 60), ss = s2 % 60; return m + ':' + (ss < 10 ? '0' : '') + ss; }
       function pctOf(cur, tgt) { return Math.min(100, Math.max(0, (cur / tgt) * 100)); }
-      function upTier(cur, tiers, suffix) {
+      function upTier(cur, tiers) {
         var t = tiers[tiers.length - 1], maxed = true;
         for (var i = 0; i < tiers.length; i++) { if (cur < tiers[i]) { t = tiers[i]; maxed = false; break; } }
-        return { unlocked: maxed, pct: maxed ? 100 : pctOf(cur, t),
-          text: maxed ? (tiers[tiers.length - 1] + (suffix || '') + ' \u00b7 maxed') : (Math.floor(cur) + ' / ' + t + (suffix || '')) };
+        return { unlocked: maxed, pct: maxed ? 100 : pctOf(cur, t), stat: maxed ? (tiers[tiers.length - 1] + '+') : (Math.floor(cur) + ' / ' + t) };
       }
-      function bin(done, doneTxt, todoTxt) {
-        return { unlocked: !!done, pct: done ? 100 : 0, text: done ? (doneTxt || 'Unlocked') : (todoTxt || 'Not yet') };
-      }
+      function bin(done) { return { unlocked: !!done, pct: done ? 100 : 0, stat: done ? 'Done' : 'Not started' }; }
       function ratioTier(rec, tiers) {
-        if (!rec) return { unlocked: false, pct: 0, text: 'Log this lift' };
-        if (!p.weight) return { unlocked: false, pct: 0, text: rec.value + 'kg \u00b7 add weight in profile' };
+        if (!rec) return { unlocked: false, pct: 0, stat: 'Not logged' };
+        if (!p.weight) return { unlocked: false, pct: 6, stat: 'Add weight' };
         var ratio = rec.value / p.weight, t = tiers[tiers.length - 1], maxed = true;
         for (var i = 0; i < tiers.length; i++) { if (ratio < tiers[i]) { t = tiers[i]; maxed = false; break; } }
-        return { unlocked: maxed, pct: maxed ? 100 : pctOf(ratio, t),
-          text: maxed ? (tiers[tiers.length - 1] + '\u00d7+ \u00b7 maxed') : (ratio.toFixed(2) + '\u00d7 / ' + t + '\u00d7 bodyweight') };
+        return { unlocked: maxed, pct: maxed ? 100 : pctOf(ratio, t), stat: maxed ? (ratio.toFixed(1) + '×') : (ratio.toFixed(2) + ' / ' + t + '×') };
       }
-      function fastTier(rec, secs, labels) {
-        if (!rec) return { unlocked: false, pct: 0, text: 'Log a 5K time' };
+      function fastTier(rec, secs) {
+        if (!rec) return { unlocked: false, pct: 0, stat: 'Not logged' };
         var v = rec.value;
-        for (var i = 0; i < secs.length; i++) { if (v > secs[i]) return { unlocked: false, pct: 40, text: fmtSecs(v) + ' \u00b7 next: ' + labels[i] }; }
-        return { unlocked: true, pct: 100, text: fmtSecs(v) + ' \u00b7 ' + labels[labels.length - 1] + ' \u2713' };
+        for (var i = 0; i < secs.length; i++) { if (v > secs[i]) return { unlocked: false, pct: 45, stat: fmtSecs(v) }; }
+        return { unlocked: true, pct: 100, stat: fmtSecs(v) };
       }
-      function rankTier(rank, goals) {
-        for (var i = 0; i < goals.length; i++) { if (rank < goals[i].min) return { unlocked: false, pct: pctOf(rank, goals[i].min), text: 'Reach ' + goals[i].label }; }
-        return { unlocked: true, pct: 100, text: goals[goals.length - 1].label + ' \u2713' };
+      function rankTier(rank, minGoals, curLabel) {
+        if (rank < 0) return { unlocked: false, pct: 0, stat: 'Not logged' };
+        for (var i = 0; i < minGoals.length; i++) { if (rank < minGoals[i]) return { unlocked: false, pct: pctOf(rank, minGoals[i]), stat: curLabel }; }
+        return { unlocked: true, pct: 100, stat: curLabel };
       }
-      var bfRank = r.bodyFat ? ({ Lean: 3, Healthy: 2, Overweight: 1, Obese: 0 })[self.bodyFatBand(r.bodyFat.value, p.gender, p.chronAge).label] : -1;
-      var vo2Rank = r.vo2max ? ({ Superior: 4, Excellent: 3, Good: 2, Fair: 1, Poor: 0 })[self.vo2Band(r.vo2max.value, p.gender, p.chronAge).label] : -1;
-      var gripRank = r.grip ? ({ Strong: 3, Good: 2, Fair: 1, Low: 0 })[self.gripBand(r.grip.value, p.gender, p.chronAge).label] : -1;
-      var rhrRank = -1;
-      if (r.restingHR) { var _f = (p.gender || '').toLowerCase().charAt(0) === 'f' ? 3 : 0; var _v = r.restingHR.value - _f; rhrRank = _v <= 49 ? 3 : _v <= 59 ? 2 : _v <= 69 ? 1 : 0; }
+      var bfLabel = r.bodyFat ? self.bodyFatBand(r.bodyFat.value, p.gender, p.chronAge).label : null;
+      var bfRank = bfLabel ? ({ Lean: 3, Healthy: 2, Overweight: 1, Obese: 0 })[bfLabel] : -1;
+      var vo2Label = r.vo2max ? self.vo2Band(r.vo2max.value, p.gender, p.chronAge).label : null;
+      var vo2Rank = vo2Label ? ({ Superior: 4, Excellent: 3, Good: 2, Fair: 1, Poor: 0 })[vo2Label] : -1;
+      var gripLabel = r.grip ? self.gripBand(r.grip.value, p.gender, p.chronAge).label : null;
+      var gripRank = gripLabel ? ({ Strong: 3, Good: 2, Fair: 1, Low: 0 })[gripLabel] : -1;
+      var rhrRank = -1, rhrLabel = null;
+      if (r.restingHR) { var _f = (p.gender || '').toLowerCase().charAt(0) === 'f' ? 3 : 0; var _v = r.restingHR.value - _f; rhrRank = _v <= 49 ? 3 : _v <= 59 ? 2 : _v <= 69 ? 1 : 0; rhrLabel = ['Above ideal','Good','Excellent','Athlete'][rhrRank]; }
       var whtr = (r.waist && p.height) ? (r.waist.value / p.height) : null;
       var GROUPS = [
         { cat: 'Consistency', items: [
-          { name: 'Activities Logged', icon: 'flag', m: upTier(logs.length, [10, 25, 50, 100, 250]) },
-          { name: 'Activity Streak', icon: 'local_fire_department', m: upTier(streak, [7, 14, 30, 60, 100], ' days') },
-          { name: 'Sport Variety', icon: 'sports', m: upTier(sportCount, [3, 5, 8, 12], ' sports') },
-          { name: 'Cities Active', icon: 'public', m: upTier(cityCount, [1, 3, 5, 10], ' cities') }
+          { name: 'Activities Logged', icon: 'flag', desc: 'Log your workouts to build history', m: upTier(logs.length, [10, 25, 50, 100, 250]) },
+          { name: 'Activity Streak', icon: 'local_fire_department', desc: 'Log something every day', m: upTier(streak, [7, 14, 30, 60, 100]) },
+          { name: 'Sport Variety', icon: 'sports', desc: 'Try different activities', m: upTier(sportCount, [3, 5, 8, 12]) },
+          { name: 'Cities Active', icon: 'public', desc: 'Log activity in new cities', m: upTier(cityCount, [1, 3, 5, 10]) }
         ] },
         { cat: 'Max Lifts', items: [
-          { name: 'Deadlift', icon: 'fitness_center', m: ratioTier(r.deadlift1RM, [1, 1.5, 2, 2.5]) },
-          { name: 'Squat', icon: 'fitness_center', m: ratioTier(r.squat1RM, [1, 1.5, 2]) },
-          { name: 'Bench Press', icon: 'fitness_center', m: ratioTier(r.bench1RM, [0.75, 1, 1.25, 1.5]) }
+          { name: 'Deadlift', icon: 'fitness_center', desc: 'Deadlift more vs your bodyweight', m: ratioTier(r.deadlift1RM, [1, 1.5, 2, 2.5]) },
+          { name: 'Squat', icon: 'fitness_center', desc: 'Squat more vs your bodyweight', m: ratioTier(r.squat1RM, [1, 1.5, 2]) },
+          { name: 'Bench Press', icon: 'fitness_center', desc: 'Bench more vs your bodyweight', m: ratioTier(r.bench1RM, [0.75, 1, 1.25, 1.5]) }
         ] },
         { cat: 'Endurance', items: [
-          { name: '5K Speed', icon: 'directions_run', m: fastTier(r.run5K, [1800, 1500, 1320], ['sub-30', 'sub-25', 'sub-22']) },
-          { name: '10K', icon: 'directions_run', m: bin(!!r.run10K, 'Completed', 'Log a 10K') },
-          { name: 'Half Marathon', icon: 'directions_run', m: bin(!!r.run21K, 'Completed', 'Log a Half') },
-          { name: 'Marathon', icon: 'emoji_events', m: bin(!!r.runMara, 'Completed', 'Log a Marathon') }
+          { name: '5K Speed', icon: 'directions_run', desc: 'Run a faster 5K (sub-30 → 25 → 22)', m: fastTier(r.run5K, [1800, 1500, 1320]) },
+          { name: '10K', icon: 'directions_run', desc: 'Log a 10K time', m: bin(!!r.run10K) },
+          { name: 'Half Marathon', icon: 'directions_run', desc: 'Log a half marathon', m: bin(!!r.run21K) },
+          { name: 'Marathon', icon: 'emoji_events', desc: 'Log a full marathon', m: bin(!!r.runMara) }
         ] },
         { cat: 'Health', items: [
-          { name: 'Body Fat', icon: 'monitor_weight', m: (bfRank < 0 ? bin(false, '', 'Log body fat %') : rankTier(bfRank, [{ min: 2, label: 'healthy body fat' }, { min: 3, label: 'lean body fat' }])) },
-          { name: 'VO\u2082 Max', icon: 'favorite', m: (vo2Rank < 0 ? bin(false, '', 'Log VO\u2082 max') : rankTier(vo2Rank, [{ min: 2, label: 'Good VO\u2082' }, { min: 3, label: 'Excellent VO\u2082' }, { min: 4, label: 'Superior VO\u2082' }])) },
-          { name: 'Resting HR', icon: 'monitor_heart', m: (rhrRank < 0 ? bin(false, '', 'Log resting HR') : rankTier(rhrRank, [{ min: 1, label: 'Good (\u226469)' }, { min: 2, label: 'Excellent (\u226459)' }, { min: 3, label: 'Athlete (\u226449)' }])) },
-          { name: 'Restful Sleep', icon: 'bedtime', m: bin(sleepRec && sleepRec.value >= 7 && sleepRec.value <= 9, '7\u20139 hr avg \u2713', 'Sleep 7\u20139 hrs') },
-          { name: 'Healthy Waist', icon: 'straighten', m: (whtr == null ? bin(false, '', (p.height ? 'Log waist' : 'Add height + waist')) : bin(whtr < 0.5, 'WHtR ' + whtr.toFixed(2) + ' \u2713', 'WHtR ' + whtr.toFixed(2) + ' \u00b7 aim <0.50')) },
-          { name: 'Strong Grip', icon: 'pan_tool', m: (gripRank < 0 ? bin(false, '', 'Log grip strength') : rankTier(gripRank, [{ min: 2, label: 'Good grip' }, { min: 3, label: 'Strong grip' }])) }
+          { name: 'Body Fat', icon: 'monitor_weight', desc: 'Lower body fat to a healthy range', m: rankTier(bfRank, [2, 3], bfLabel) },
+          { name: 'VO₂ Max', icon: 'favorite', desc: 'Build aerobic fitness', m: rankTier(vo2Rank, [2, 3, 4], vo2Label) },
+          { name: 'Resting HR', icon: 'monitor_heart', desc: 'Lower your resting heart rate', m: rankTier(rhrRank, [1, 2, 3], rhrLabel) },
+          { name: 'Restful Sleep', icon: 'bedtime', desc: 'Average 7–9 hours sleep', m: bin(sleepRec && sleepRec.value >= 7 && sleepRec.value <= 9) },
+          { name: 'Healthy Waist', icon: 'straighten', desc: 'Keep waist under half your height', m: (whtr == null ? bin(false) : { unlocked: whtr < 0.5, pct: whtr < 0.5 ? 100 : 60, stat: 'WHtR ' + whtr.toFixed(2) }) },
+          { name: 'Strong Grip', icon: 'pan_tool', desc: 'Build grip strength', m: rankTier(gripRank, [2, 3], gripLabel) }
         ] }
       ];
       var total = 0, unlockedN = 0;
       var html = GROUPS.map(function (g) {
         var rows = g.items.map(function (it) {
           total++; if (it.m.unlocked) unlockedN++;
-          return '<div class="achievement ' + (it.m.unlocked ? 'unlocked' : 'locked') + '">' +
+          var state = it.m.unlocked ? 'unlocked' : (it.m.pct > 0 ? 'progress' : 'inactive');
+          return '<div class="achievement ' + state + '">' +
             '<div class="achievement-icon"><span class="material-icons">' + it.icon + '</span></div>' +
-            '<div class="achievement-body"><div class="achievement-name">' + escText(it.name) + '</div>' +
-            '<div class="achievement-text">' + escText(it.m.text) + '</div>' +
-            '<div class="achievement-progress"><div class="achievement-progress-fill" style="width:' + Math.round(it.m.pct) + '%;"></div></div></div></div>';
+            '<div class="achievement-body">' +
+              '<div class="achievement-toprow"><div class="achievement-name">' + escText(it.name) + '</div><div class="achievement-stat">' + escText(it.m.stat) + '</div></div>' +
+              '<div class="achievement-desc">' + escText(it.desc) + '</div>' +
+              '<div class="achievement-progress"><div class="achievement-progress-fill" style="width:' + Math.round(it.m.pct) + '%;"></div></div>' +
+            '</div></div>';
         }).join('');
         return '<div class="achievement-cat">' + escText(g.cat) + '</div>' + rows;
       }).join('');
