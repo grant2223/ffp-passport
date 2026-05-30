@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Become a Provider — FFP Passport</title>
+<meta name="description" content="Bring your community through the door. FFP Passport connects fitness, sport, wellness and adventure businesses anywhere in the world with members who show up. Apply to join.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --blue:#2ba8e0; --blue-dk:#1980AD; --bg:#081420; --bg-2:#0f1e2e; --bg-3:#142a3f;
+  --yellow:#FFCC00; --green:#4ade80; --red:#ef4444;
+  --text:#e8eef4; --muted:#8a99a8; --border:rgba(43,168,224,.22); --border-str:rgba(43,168,224,.40);
+  --r:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font-family:'Montserrat',system-ui,sans-serif;font-weight:500;line-height:1.55;-webkit-font-smoothing:antialiased;min-height:100%}
+.ms{font-family:'Material Symbols Outlined';font-size:20px;line-height:1;vertical-align:middle;font-variation-settings:'FILL' 0,'wght' 500,'GRAD' 0,'opsz' 24}
+a{color:var(--blue);text-decoration:none}
+.wrap{max-width:880px;margin:0 auto;padding:0 20px}
+.topbar{padding:20px 0;border-bottom:1px solid var(--border);background:rgba(8,20,32,.7);position:sticky;top:0;z-index:10;backdrop-filter:blur(12px)}
+.brand{font-size:16px;font-weight:900;letter-spacing:2px}
+.brand span{color:var(--blue)}
+.brand .sub{display:block;font-size:9px;font-weight:800;letter-spacing:1.6px;color:var(--yellow);text-transform:uppercase;margin-top:3px}
+.hero{padding:56px 0 36px;text-align:center;background:radial-gradient(ellipse at top,#0a1825 0%,var(--bg) 70%)}
+.hero h1{font-size:34px;font-weight:900;letter-spacing:-.6px;line-height:1.12;margin-bottom:14px}
+.hero h1 em{color:var(--yellow);font-style:normal}
+.hero p{font-size:15px;color:var(--muted);max-width:580px;margin:0 auto;font-weight:500}
+.benefits{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin:30px 0 0}
+.benefit{display:flex;align-items:center;gap:8px;background:var(--bg-2);border:1px solid var(--border);border-radius:100px;padding:9px 16px;font-size:12px;font-weight:700}
+.benefit .ms{font-size:16px;color:var(--blue)}
+.card{background:var(--bg-2);border:1px solid var(--border);border-radius:18px;padding:30px 28px;margin:34px 0 60px}
+.card h2{font-size:19px;font-weight:800;margin-bottom:4px}
+.card .lead{font-size:13px;color:var(--muted);margin-bottom:24px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px 18px}
+.full{grid-column:1/-1}
+.field{display:flex;flex-direction:column;gap:6px}
+label{font-size:10px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:var(--muted)}
+label .req{color:var(--yellow);margin-left:2px}
+label .hint{font-weight:600;letter-spacing:0;text-transform:none;color:var(--muted)}
+input,select,textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;font-weight:600;padding:12px 14px;outline:none;transition:border-color .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--blue)}
+input::placeholder,textarea::placeholder{color:var(--muted);font-weight:500}
+textarea{resize:vertical;min-height:96px;line-height:1.6;font-weight:500}
+select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a99a8' stroke-width='2.5'><polyline points='6 9 12 15 18 9'/></svg>");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px;color-scheme:dark}
+select option{background:var(--bg-2);color:var(--text)}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.btn{width:100%;margin-top:24px;background:var(--yellow);color:#082335;border:none;border-radius:10px;padding:15px;font-size:14px;font-weight:800;letter-spacing:.4px;cursor:pointer;font-family:inherit;transition:filter .15s}
+.btn:hover:not(:disabled){filter:brightness(1.06)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.err{color:var(--red);font-size:12px;font-weight:700;margin-top:12px;min-height:16px;text-align:center}
+.foot{font-size:11px;color:var(--muted);text-align:center;padding:0 0 40px}
+.success{display:none;text-align:center;padding:24px 10px}
+.success.show{display:block}
+.success-icon{width:72px;height:72px;border-radius:50%;background:rgba(74,222,128,.14);color:var(--green);display:flex;align-items:center;justify-content:center;margin:0 auto 18px}
+.success-icon .ms{font-size:38px}
+.success h2{font-size:22px;font-weight:900;margin-bottom:10px}
+.success p{font-size:14px;color:var(--muted);max-width:440px;margin:0 auto 8px}
+@media (max-width:640px){.grid{grid-template-columns:1fr}.hero h1{font-size:27px}.card{padding:24px 18px}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap"><div class="brand">FFP <span>PASSPORT</span><span class="sub">Provider Partnerships</span></div></div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <h1>We bring the <em>community</em> to you.</h1>
+  </div>
+</section>
+
+<div class="wrap">
+  <div class="card" id="form-card">
+    <h2>Apply to become a provider</h2>
+    <div class="lead">Tell us about your business and we'll be in touch. We review new providers within 48 hours and email you when you're approved.</div>
+    <form id="apply-form" novalidate>
+      <div class="hp"><label>Do not fill<input type="text" id="company_url_hp" tabindex="-1" autocomplete="off"></label></div>
+      <div class="grid">
+        <div class="field full">
+          <label>Business name <span class="req">*</span></label>
+          <input type="text" id="business_name" placeholder="e.g. Forge Fitness" maxlength="120" required>
+        </div>
+
+        <div class="field">
+          <label>Contact first name <span class="req">*</span></label>
+          <input type="text" id="first_name" placeholder="First name" maxlength="60" autocomplete="given-name" required>
+        </div>
+        <div class="field">
+          <label>Contact last name <span class="req">*</span></label>
+          <input type="text" id="last_name" placeholder="Last name" maxlength="60" autocomplete="family-name" required>
+        </div>
+
+        <div class="field">
+          <label>Email <span class="req">*</span></label>
+          <input type="email" id="email" placeholder="bookings@yourbusiness.com" maxlength="120" autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label>Phone <span class="hint">— with country code</span></label>
+          <input type="tel" id="phone" placeholder="+1 555 123 4567" maxlength="40">
+        </div>
+
+        <div class="field">
+          <label>Country <span class="req">*</span></label>
+          <input list="country-list" id="country" placeholder="Start typing your country" maxlength="60" autocomplete="country-name" required>
+          <datalist id="country-list">
+            <option value="United Arab Emirates"><option value="Saudi Arabia"><option value="Qatar"><option value="Bahrain">
+            <option value="Kuwait"><option value="Oman"><option value="United Kingdom"><option value="Ireland">
+            <option value="United States"><option value="Canada"><option value="Australia"><option value="New Zealand">
+            <option value="South Africa"><option value="India"><option value="Pakistan"><option value="Singapore">
+            <option value="Malaysia"><option value="Philippines"><option value="Indonesia"><option value="Thailand">
+            <option value="Germany"><option value="France"><option value="Spain"><option value="Italy"><option value="Portugal">
+            <option value="Netherlands"><option value="Belgium"><option value="Switzerland"><option value="Austria">
+            <option value="Sweden"><option value="Norway"><option value="Denmark"><option value="Finland"><option value="Poland">
+            <option value="Greece"><option value="Turkey"><option value="Egypt"><option value="Jordan"><option value="Lebanon">
+            <option value="Morocco"><option value="Nigeria"><option value="Kenya"><option value="Brazil"><option value="Argentina">
+            <option value="Mexico"><option value="Chile"><option value="Japan"><option value="South Korea"><option value="China">
+            <option value="Hong Kong"><option value="Vietnam"><option value="Sri Lanka"><option value="Other">
+          </datalist>
+        </div>
+        <div class="field">
+          <label>City <span class="req">*</span></label>
+          <input type="text" id="city" placeholder="e.g. Dubai, London, Cape Town" maxlength="80" required>
+        </div>
+
+        <div class="field">
+          <label>Category <span class="req">*</span></label>
+          <select id="category" required>
+            <option value="">Choose category</option>
+            <option>Gym / Fitness studio</option>
+            <option>Sports club</option>
+            <option>Yoga / Pilates studio</option>
+            <option>Martial arts &amp; Combat</option>
+            <option>Climbing &amp; Bouldering</option>
+            <option>Wellness &amp; Spa</option>
+            <option>Recovery &amp; Performance</option>
+            <option>Adventure &amp; Outdoor</option>
+            <option>Nutrition &amp; Cafe</option>
+            <option>Coaching &amp; Personal Training</option>
+            <option>Sports retail</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Type <span class="hint">— your main activity / discipline</span></label>
+          <input list="type-list" id="provider_type" placeholder="e.g. Padel, Tennis, CrossFit, Reformer Pilates" maxlength="60">
+          <datalist id="type-list">
+            <option value="Padel"><option value="Tennis"><option value="Football"><option value="Swimming">
+            <option value="CrossFit"><option value="HIIT"><option value="Functional training"><option value="Bodybuilding">
+            <option value="Boxing"><option value="MMA"><option value="Jiu-Jitsu"><option value="Muay Thai">
+            <option value="Yoga"><option value="Pilates"><option value="Reformer Pilates"><option value="Running">
+            <option value="Cycling / Spin"><option value="Climbing"><option value="Rowing"><option value="Golf">
+            <option value="Cryotherapy"><option value="Physiotherapy"><option value="Massage / Spa"><option value="Nutrition">
+            <option value="Multi-sport"><option value="Other">
+          </datalist>
+        </div>
+
+        <div class="field full">
+          <label>Website <span class="hint">— or main social link</span></label>
+          <input type="url" id="website" placeholder="https://yourbusiness.com" maxlength="200">
+        </div>
+        <div class="field full">
+          <label>Tell us about your business <span class="req">*</span></label>
+          <textarea id="about" placeholder="What you offer, who you serve, and what makes you different." maxlength="1000" required></textarea>
+        </div>
+      </div>
+      <button type="submit" class="btn" id="submit-btn">Submit application</button>
+      <div class="err" id="err"></div>
+    </form>
+  </div>
+
+  <div class="card success" id="success-card">
+    <div class="success-icon"><span class="ms">check_circle</span></div>
+    <h2>Application received</h2>
+    <p>Thanks — we've got your application. Our team reviews new providers within <strong>48 hours</strong>.</p>
+    <p>If approved, we'll email you at <strong id="success-email"></strong> with how to access your provider dashboard.</p>
+  </div>
+
+  <div class="foot">FFP Passport · Questions? <a href="mailto:providers@findfitpeople.com">providers@findfitpeople.com</a></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var SUPABASE_URL = 'https://kxzyuofecmtymablnmak.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4enl1b2ZlY210eW1hYmxubWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NDM1MTYsImV4cCI6MjA5NTAxOTUxNn0.cWn0x1AeD-x9C-HHf9MShXbFRWdkWi5RMgHLgWJwOuE';
+  var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  var form = document.getElementById('apply-form');
+  var btn = document.getElementById('submit-btn');
+  var errEl = document.getElementById('err');
+  function val(id){ return (document.getElementById(id).value || '').trim(); }
+  function showErr(m){ errEl.textContent = m || ''; }
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    showErr('');
+    if (val('company_url_hp')) { return; } // honeypot
+
+    var business_name = val('business_name');
+    var first_name = val('first_name');
+    var last_name  = val('last_name');
+    var email      = val('email').toLowerCase();
+    var country    = val('country');
+    var city       = val('city');
+    var category    = val('category');
+    var about      = val('about');
+    if (!business_name || !first_name || !last_name || !email || !country || !city || !category || !about) {
+      showErr('Please fill in all required fields.'); return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showErr('Please enter a valid email address.'); return; }
+
+    btn.disabled = true; btn.textContent = 'Submitting…';
+    try {
+      var res = await sb.from('provider_applications').insert({
+        business_name: business_name,
+        contact_name: (first_name + ' ' + last_name).trim(),
+        email: email,
+        phone: val('phone') || null,
+        country: country,
+        city: city,
+        category: category,
+        provider_type: val('provider_type') || null,
+        website: val('website') || null,
+        about: about,
+        status: 'pending'
+      });
+      if (res.error) throw res.error;
+      document.getElementById('success-email').textContent = email;
+      document.getElementById('form-card').style.display = 'none';
+      document.getElementById('success-card').classList.add('show');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      console.error('[FFP Apply] submit failed:', err);
+      showErr('Something went wrong submitting your application. Please try again, or email providers@findfitpeople.com.');
+      btn.disabled = false; btn.textContent = 'Submit application';
+    }
+  });
+})();
+</script>
+</body>
+</html>
