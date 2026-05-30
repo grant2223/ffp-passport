@@ -4956,53 +4956,12 @@ input[type="number"] {
     
     <!-- ============ RECORDS TAB ============ -->
     <div id="fs-records-view" style="display:none;">
-      <!-- v81 — Data source banner: tells members exactly where values come from -->
-      <div class="fs-data-source">
-        <span class="material-icons">info</span>
-        <div>
-          <div class="fs-data-source-title">You log these values yourself</div>
-          <div class="fs-data-source-sub">Tap any card to enter or update. Wearable sync (Apple Health, Garmin, Whoop, Oura) coming soon.</div>
-        </div>
-      </div>
-      
-      <!-- Comparison filter — collapsed by default; tap to show -->
-      <button type="button" onclick="var r=document.getElementById('fs-compare-wrap');var open=(r.style.display==='none');r.style.display=open?'block':'none';this.querySelector('.fst-chev').textContent=open?'expand_less':'expand_more';" style="display:inline-flex;align-items:center;gap:6px;background:rgba(43,168,224,0.08);border:1px solid var(--border-mid);color:var(--text);font-size:12px;font-weight:700;padding:9px 14px;border-radius:9px;cursor:pointer;font-family:inherit;margin-bottom:10px;">
-        <span class="material-icons" style="font-size:16px;">tune</span> Filters <span class="material-icons fst-chev" style="font-size:18px;">expand_more</span>
-      </button>
-      <div id="fs-compare-wrap" style="display:none;">
-        <div class="fs-compare-row">
-          <label class="fs-compare-label">Compare against</label>
-          <select class="fs-compare-select" id="fs-compare-select">
-            <option value="all">All FFP members</option>
-            <option value="age">Your age group (30&ndash;39)</option>
-            <option value="age_gender" selected>Same age &amp; gender</option>
-            <option value="age_gender_city">Same age, gender &amp; city</option>
-          </select>
-        </div>
-      </div>
-      
-      <!-- Strength -->
-      <div class="ct-section">
-        <div class="ct-section-head">
-          <div class="ct-section-title">Strength (1RM)</div>
-        </div>
-        <div class="pr-grid" id="pr-strength"></div>
-      </div>
-      
-      <!-- Cardio -->
-      <div class="ct-section">
-        <div class="ct-section-head">
-          <div class="ct-section-title">Cardio (personal best times)</div>
-        </div>
-        <div class="pr-grid" id="pr-cardio"></div>
-      </div>
-      
-      <!-- Health metrics -->
-      <div class="ct-section">
-        <div class="ct-section-head">
-          <div class="ct-section-title">Health metrics</div>
-        </div>
-        <div class="pr-grid" id="pr-health"></div>
+      <!-- v88 — Records UI is rendered by the fitness-stats loader (metric switcher + leaderboard);
+           it replaces this container's contents on first render. This placeholder shows only until
+           then. If the loader fails to load, inline renderRecords() writes a refresh hint here —
+           so the old strength/cardio/health grids can never reappear. -->
+      <div id="fs-records-fallback" style="padding:26px 14px;text-align:center;color:var(--muted);font-size:13px;line-height:1.6;">
+        Loading your records…
       </div>
     </div>
     
@@ -9405,7 +9364,8 @@ const FitnessStats = {
       });
     });
     // Compare group select
-    document.getElementById('fs-compare-select').addEventListener('change', e => {
+    const _csEl = document.getElementById('fs-compare-select');
+    if (_csEl) _csEl.addEventListener('change', e => {
       this.compareGroup = e.target.value;
       this.render();
     });
@@ -9785,11 +9745,11 @@ const FitnessStats = {
   },
   
   renderRecords() {
-    const groups = { strength: 'pr-strength', cardio: 'pr-cardio', health: 'pr-health' };
-    Object.entries(groups).forEach(([group, mountId]) => {
-      const keys = Object.entries(this.prDefs).filter(([_,d]) => d.group === group).map(([k]) => k);
-      document.getElementById(mountId).innerHTML = keys.map(k => this.renderPrCard(k)).join('');
-    });
+    // Records is owned by the fitness-stats loader (metric switcher + leaderboard); when the loader
+    // is present it overrides this method. This fallback only runs if the loader didn't load —
+    // show a hint, never the old strength/cardio/health grid.
+    const el = document.getElementById('fs-records-fallback');
+    if (el) el.innerHTML = 'Records couldn\'t load. Please refresh — if it keeps happening, let us know.';
   },
   
   renderPrCard(key) {
