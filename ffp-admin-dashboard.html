@@ -1290,7 +1290,7 @@ input, select, textarea { font-family: inherit; }
       <div class="sidebar-section-label">Approvals</div>
       <a class="sidebar-link" data-panel="panel-providers" onclick="App.go('panel-providers')">
         <span class="material-icons">storefront</span>Providers
-        <span class="sidebar-link-badge" id="badge-providers">3</span>
+        
       </a>
       <a class="sidebar-link" data-panel="panel-content" onclick="App.go('panel-content')">
         <span class="material-icons">rate_review</span>Content
@@ -1470,7 +1470,6 @@ input, select, textarea { font-family: inherit; }
       <div class="panel-head">
         <h1>Providers</h1>
         <div class="panel-head-actions">
-          <button class="btn btn-primary" onclick="AdminProviders.openAddModal()"><span class="material-icons">add</span>Add Provider</button>
         </div>
       </div>
       
@@ -1483,8 +1482,7 @@ input, select, textarea { font-family: inherit; }
           <div class="search-meta" id="AdminProviders-meta"></div>
         </div>
         <div class="tabs" id="providers-tabs">
-          <button class="tab-btn active" data-tab="pending" onclick="AdminProviders.setTab('pending')">Pending <span class="count" id="prov-count-pending">3</span></button>
-          <button class="tab-btn" data-tab="approved" onclick="AdminProviders.setTab('approved')">Approved <span class="count" id="prov-count-approved">10</span></button>
+          <button class="tab-btn active" data-tab="approved" onclick="AdminProviders.setTab('approved')">Approved <span class="count" id="prov-count-approved">10</span></button>
           <button class="tab-btn" data-tab="featured" onclick="AdminProviders.setTab('featured')">Featured <span class="count" id="prov-count-featured">5</span></button>
           <button class="tab-btn" data-tab="suspended" onclick="AdminProviders.setTab('suspended')">Suspended <span class="count" id="prov-count-suspended">1</span></button>
         </div>
@@ -2143,7 +2141,7 @@ const App = {
 // PROVIDERS MODULE
 // =====================================================================
 const AdminProviders = {
-  tab: 'pending',
+  tab: 'approved',
   search: '',
   
   data: [
