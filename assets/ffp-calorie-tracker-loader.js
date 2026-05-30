@@ -346,7 +346,8 @@
       try {
         var res = await window.supabase.from('profile_meta').upsert({
           member_id: currentUserId,
-          current_weight_kg: snapshot.currentWeight,
+          // v4 — current_weight_kg is owned by Fitness Stats (Bio Age body-weight tile).
+          // The Calorie Tracker only READS it (above); it must NOT overwrite the shared value here.
           target_weight_kg:  snapshot.targetWeight,
           target_weeks:      snapshot.targetWeeks,
           activity_factor:   activityToFactor(snapshot.activity),
