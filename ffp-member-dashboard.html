@@ -507,7 +507,7 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
 .journey-header h2 { margin-bottom: 4px; }
 .journey-header p { font-size: 12px; color: var(--muted); }
 /* v154 — Activity day streak badge (to the right of "Your journey") */
-.journey-streak { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 14px; background: rgba(255,204,0,0.08); border: 1px solid rgba(255,204,0,0.30); border-radius: 14px; line-height: 1; }
+.journey-streak { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4px 6px; line-height: 1; }
 .journey-streak-top { display: flex; align-items: center; gap: 3px; }
 .journey-streak .material-icons { font-size: 18px; color: var(--yellow); }
 .journey-streak-num { font-size: 22px; font-weight: 800; color: var(--yellow); font-variant-numeric: tabular-nums; }
@@ -5788,15 +5788,15 @@ input[type="number"] {
     <button class="dm-close" onclick="CalorieTracker.closeGoalConfig()"><span class="material-icons">close</span></button>
     <div class="dm-body">
       <div class="dm-title">Your goal</div>
-      <div style="font-size:12px; color:var(--muted);">Set current weight, target weight, and how long you want to take. Daily calories are calculated to hit the target.</div>
+      <div style="font-size:12px; color:var(--muted);">Your current weight comes from Fitness Stats. Set your target weight and timeframe &mdash; daily calories are calculated to hit it.</div>
     </div>
     <div class="goal-config-form">
+      <!-- v156 — current weight is read-only here; owned by Fitness Stats (Bio Age body-weight tile) -->
       <div class="goal-config-row">
         <label class="goal-config-label">Current weight (kg)</label>
-        <div class="tw-adjuster" style="justify-content:center; padding:8px 0;">
-          <button class="tw-adj-btn" onclick="CalorieTracker.adjGoal('currentWeight', -1)">&minus;</button>
-          <div class="tw-adj-value" id="gc-current">78</div>
-          <button class="tw-adj-btn" onclick="CalorieTracker.adjGoal('currentWeight', 1)">+</button>
+        <div class="tw-adjuster" style="justify-content:center; padding:8px 0; flex-direction:column; gap:4px;">
+          <div class="tw-adj-value" id="gc-current">&mdash;</div>
+          <div style="font-size:10px; color:var(--muted); text-align:center; line-height:1.4;">Pulled from Fitness Stats &middot; update it on the Bio Age tab</div>
         </div>
       </div>
       <div class="goal-config-row">
@@ -9226,9 +9226,24 @@ const CalorieTracker = {
   },
   
   // ─────────── GOAL CONFIG ───────────
+  // v156 — current weight is owned by Fitness Stats (Bio Age body-weight tile).
+  // Pull the freshest shared value; the goal modal only reads it, never edits it.
+  syncWeightFromFitness() {
+    try {
+      var fs = window.FitnessStats;
+      var w = null;
+      if (fs) {
+        if (fs.records && fs.records.weight && fs.records.weight.value != null) w = Number(fs.records.weight.value);
+        else if (fs.profile && fs.profile.weight != null) w = Number(fs.profile.weight);
+      }
+      if (w && w > 0) this.currentWeight = w;
+    } catch (e) {}
+  },
+
   openGoalConfig() {
+    this.syncWeightFromFitness();
     // Populate the steppers from current state
-    document.getElementById('gc-current').textContent = this.currentWeight;
+    document.getElementById('gc-current').textContent = (this.currentWeight && this.currentWeight > 0) ? this.currentWeight : '—';
     document.getElementById('gc-target').textContent  = this.targetWeight;
     document.getElementById('gc-weeks').textContent   = this.targetWeeks;
     document.querySelectorAll('#goal-config-backdrop [data-act]').forEach(b =>
@@ -9242,15 +9257,14 @@ const CalorieTracker = {
   },
   
   adjGoal(field, delta) {
+    // v156 — currentWeight removed (owned by Fitness Stats); only target + timeframe adjust here
     const limits = {
-      currentWeight: { min: 30,  max: 200 },
       targetWeight:  { min: 30,  max: 200 },
       targetWeeks:   { min: 1,   max: 104 }
     };
     const lim = limits[field];
     if (!lim) return;
     this[field] = Math.max(lim.min, Math.min(lim.max, this[field] + delta));
-    document.getElementById('gc-current').textContent = this.currentWeight;
     document.getElementById('gc-target').textContent  = this.targetWeight;
     document.getElementById('gc-weeks').textContent   = this.targetWeeks;
     this.renderGoalConfigResult();
@@ -10144,7 +10158,7 @@ const Earnings = {
       reqHighlight: '',
       perks: [
         '5% per referral',
-        '$7 per accepted content piece',
+        '— per accepted content piece',
         'Access to all member perks'
       ]
     },
@@ -10156,8 +10170,8 @@ const Earnings = {
       reqHighlight: 'Supporter level (2+) in 4 of 7 categories',
       perks: [
         '10% per referral',
-        '$14 per accepted content piece',
-        '$5 per member you bring to a provider',
+        '— per accepted content piece',
+        '— per member you bring to a provider',
         'Priority on event hosting applications'
       ]
     },
@@ -10169,9 +10183,9 @@ const Earnings = {
       reqHighlight: 'Ambassador level (8+) in 4 of 7 categories',
       perks: [
         '20% per referral',
-        '$27 per accepted content piece',
-        '$11 per member you bring to a provider',
-        '$109 for hosting an event',
+        '— per accepted content piece',
+        '— per member you bring to a provider',
+        '— for hosting an event',
         'Top of provider partnership applications'
       ]
     }
@@ -10208,7 +10222,7 @@ const Earnings = {
       key: 'provider', name: 'Promote a provider', icon: 'storefront',
       status: 'soon',
       how: 'Bring other FFP members to a partner provider. You earn a percentage of what they spend at the venue.',
-      rates: { member: '5%', supporter: '10%', ambassador: '20%' },
+      rates: { member: '—', supporter: '—', ambassador: '—' },
       unit: 'of member spend',
       ratesNote: 'Requires provider approval. Available providers will be listed once partners join the program.',
       actionLabel: 'Coming soon', action: null
@@ -10217,7 +10231,7 @@ const Earnings = {
       key: 'host', name: 'Host an event', icon: 'event',
       status: 'soon',
       how: 'Apply to host. Once approved by FFP, the event runs on the platform and you earn per event hosted.',
-      rates: { member: 100, supporter: 200, ambassador: 400 },
+      rates: { member: '—', supporter: '—', ambassador: '—' },
       unit: 'per event hosted',
       actionLabel: 'Coming soon', action: null
     },
@@ -10225,7 +10239,7 @@ const Earnings = {
       key: 'content', name: 'Create content', icon: 'edit_note',
       status: 'soon',
       how: 'Write reviews, post photos or videos for FFP. Every piece needs FFP team approval before payment is released.',
-      rates: { member: 25, supporter: 50, ambassador: 100 },
+      rates: { member: '—', supporter: '—', ambassador: '—' },
       unit: 'per accepted piece',
       ratesNote: 'Requires FFP approval.',
       actionLabel: 'Coming soon', action: null
