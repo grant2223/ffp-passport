@@ -994,76 +994,76 @@
       function fmtSecs(x) { var m = Math.floor(x / 60), ss = x % 60; return m + ':' + (ss < 10 ? '0' : '') + ss; }
       function pctOf(c, t) { return Math.min(100, Math.max(0, (c / t) * 100)); }
       function ab(a, h70) { return (h70 && a >= 70) ? 70 : a >= 60 ? 60 : a >= 50 ? 50 : a >= 40 ? 40 : a >= 30 ? 30 : 20; }
-      function upTier(cur, tiers) {
+      function upTier(cur, tiers, noun) {
         var t = tiers[tiers.length - 1], maxed = true;
         for (var i = 0; i < tiers.length; i++) { if (cur < tiers[i]) { t = tiers[i]; maxed = false; break; } }
-        if (maxed) return { unlocked: true, pct: 100, line: Math.floor(cur) + ' · top tier ✓' };
-        return { unlocked: false, pct: pctOf(cur, t), line: Math.floor(cur) + ' / ' + t + ' · ' + (t - Math.floor(cur)) + ' to go' };
+        return maxed ? { unlocked: true, pct: 100, now: Math.floor(cur) + ' ' + noun, next: 'Maxed ✓' }
+                     : { unlocked: false, pct: pctOf(cur, t), now: Math.floor(cur) + ' ' + noun, next: t + ' ' + noun };
       }
-      function binM(done) { return done ? { unlocked: true, pct: 100, line: 'Done ✓' } : { unlocked: false, pct: 0, line: 'Not logged yet' }; }
+      function binM(done, target) { return done ? { unlocked: true, pct: 100, now: 'Completed', next: 'Done ✓' } : { unlocked: false, pct: 0, now: 'Not logged', next: target }; }
       function ratioM(rec, tiers) {
-        if (!rec) return { unlocked: false, pct: 0, line: 'Not logged yet' };
-        if (!p.weight) return { unlocked: false, pct: 6, line: 'Add body weight to track ratio' };
+        if (!rec) return { unlocked: false, pct: 0, now: 'Not logged', next: tiers[0] + '× bw' };
+        if (!p.weight) return { unlocked: false, pct: 6, now: 'Add body weight', next: tiers[0] + '× bw' };
         var ratio = rec.value / p.weight, t = tiers[tiers.length - 1], maxed = true;
         for (var i = 0; i < tiers.length; i++) { if (ratio < tiers[i]) { t = tiers[i]; maxed = false; break; } }
-        if (maxed) return { unlocked: true, pct: 100, line: ratio.toFixed(1) + '× bodyweight · top tier ✓' };
-        return { unlocked: false, pct: pctOf(ratio, t), line: ratio.toFixed(1) + '× bodyweight · next ' + t + '×' };
+        return maxed ? { unlocked: true, pct: 100, now: ratio.toFixed(1) + '× bw', next: 'Maxed ✓' }
+                     : { unlocked: false, pct: pctOf(ratio, t), now: ratio.toFixed(1) + '× bw', next: t + '× bw' };
       }
       function fastM(rec, secs, labels) {
-        if (!rec) return { unlocked: false, pct: 0, line: 'Not logged yet' };
+        if (!rec) return { unlocked: false, pct: 0, now: 'Not logged', next: labels[0] };
         var v = rec.value;
-        for (var i = 0; i < secs.length; i++) { if (v > secs[i]) return { unlocked: false, pct: pctOf(secs[i], v), line: fmtSecs(v) + ' · ' + fmtSecs(v - secs[i]) + ' to ' + labels[i] }; }
-        return { unlocked: true, pct: 100, line: fmtSecs(v) + ' · ' + labels[labels.length - 1] + ' ✓' };
+        for (var i = 0; i < secs.length; i++) { if (v > secs[i]) return { unlocked: false, pct: pctOf(secs[i], v), now: fmtSecs(v), next: labels[i] }; }
+        return { unlocked: true, pct: 100, now: fmtSecs(v), next: 'Maxed ✓' };
       }
       function bodyFatM() {
-        if (!r.bodyFat) return { unlocked: false, pct: 0, line: 'Not logged yet' };
+        if (!r.bodyFat) return { unlocked: false, pct: 0, now: 'Not logged', next: 'Healthy' };
         var v = r.bodyFat.value, row = self.BF_BANDS[sex][ab(age, false)], band = self.bodyFatBand(v, p.gender, age).label;
-        if (band === 'Lean') return { unlocked: true, pct: 100, line: v + '% · Lean ✓ (≤' + row[0] + '%)' };
-        if (band === 'Healthy') return { unlocked: true, pct: 100, line: v + '% · Healthy · ' + (v - row[0]).toFixed(0) + '% to Lean' };
-        return { unlocked: false, pct: pctOf(row[1], v), line: v + '% · ' + band + ' · ' + (v - row[1]).toFixed(0) + '% to Healthy' };
+        if (band === 'Lean') return { unlocked: true, pct: 100, now: v + '% · Lean', next: 'Maxed ✓' };
+        if (band === 'Healthy') return { unlocked: true, pct: 100, now: v + '% · Healthy', next: 'Lean ≤' + row[0] + '%' };
+        return { unlocked: false, pct: pctOf(row[1], v), now: v + '% · ' + band, next: 'Healthy ≤' + row[1] + '%' };
       }
       function vo2M() {
-        if (!r.vo2max) return { unlocked: false, pct: 0, line: 'Not logged yet' };
+        if (!r.vo2max) return { unlocked: false, pct: 0, now: 'Not logged', next: 'Good' };
         var v = r.vo2max.value, row = self.VO2_BANDS[sex][ab(age, true)], band = self.vo2Band(v, p.gender, age).label, nx = null, nl = null;
         if (v < row[1]) { nx = row[1]; nl = 'Good'; } else if (v < row[2]) { nx = row[2]; nl = 'Excellent'; } else if (v < row[3]) { nx = row[3]; nl = 'Superior'; }
         var unlocked = (band === 'Good' || band === 'Excellent' || band === 'Superior');
-        if (nx == null) return { unlocked: true, pct: 100, line: v + ' · Superior ✓' };
-        return { unlocked: unlocked, pct: unlocked ? 100 : pctOf(v, nx), line: v + ' · ' + band + ' · +' + (nx - v).toFixed(0) + ' to ' + nl };
+        return (nx == null) ? { unlocked: true, pct: 100, now: v + ' · Superior', next: 'Maxed ✓' }
+                            : { unlocked: unlocked, pct: unlocked ? 100 : pctOf(v, nx), now: v + ' · ' + band, next: nl + ' ' + nx };
       }
       function rhrM() {
-        if (!r.restingHR) return { unlocked: false, pct: 0, line: 'Not logged yet' };
+        if (!r.restingHR) return { unlocked: false, pct: 0, now: 'Not logged', next: 'Good' };
         var off = sex === 'female' ? 3 : 0, bpm = r.restingHR.value, v = bpm - off;
         var band = v <= 49 ? 'Athlete' : v <= 59 ? 'Excellent' : v <= 69 ? 'Good' : 'Above ideal', nx = null, nl = null;
         if (v > 69) { nx = 69; nl = 'Good'; } else if (v > 59) { nx = 59; nl = 'Excellent'; } else if (v > 49) { nx = 49; nl = 'Athlete'; }
-        if (nx == null) return { unlocked: true, pct: 100, line: bpm + ' bpm · Athlete ✓' };
         var unlocked = v <= 69;
-        return { unlocked: unlocked, pct: unlocked ? 100 : pctOf(69, v), line: bpm + ' bpm · ' + band + ' · ' + (v - nx) + ' to ' + nl };
+        return (nx == null) ? { unlocked: true, pct: 100, now: bpm + ' bpm · Athlete', next: 'Maxed ✓' }
+                            : { unlocked: unlocked, pct: unlocked ? 100 : pctOf(69, v), now: bpm + ' bpm · ' + band, next: nl + ' ≤' + (nx + off) };
       }
       function gripM() {
-        if (!r.grip) return { unlocked: false, pct: 0, line: 'Not logged yet' };
+        if (!r.grip) return { unlocked: false, pct: 0, now: 'Not logged', next: 'Good' };
         var v = r.grip.value, norm = self.GRIP_NORM[sex][ab(age, true)], band = self.gripBand(v, p.gender, age).label, goodT = norm * 0.85, strongT = norm * 1.1;
-        if (band === 'Strong') return { unlocked: true, pct: 100, line: v + 'kg · Strong ✓' };
-        if (band === 'Good') return { unlocked: true, pct: 100, line: v + 'kg · Good · ' + Math.max(0, strongT - v).toFixed(0) + 'kg to Strong' };
-        return { unlocked: false, pct: pctOf(v, goodT), line: v + 'kg · ' + band + ' · ' + Math.max(0, goodT - v).toFixed(0) + 'kg to Good' };
+        if (band === 'Strong') return { unlocked: true, pct: 100, now: v + 'kg · Strong', next: 'Maxed ✓' };
+        if (band === 'Good') return { unlocked: true, pct: 100, now: v + 'kg · Good', next: 'Strong ' + Math.round(strongT) + 'kg' };
+        return { unlocked: false, pct: pctOf(v, goodT), now: v + 'kg · ' + band, next: 'Good ' + Math.round(goodT) + 'kg' };
       }
       function waistM() {
-        if (!(r.waist && p.height)) return { unlocked: false, pct: 0, line: 'Not logged yet' };
+        if (!(r.waist && p.height)) return { unlocked: false, pct: 0, now: 'Not logged', next: '<0.50' };
         var whtr = r.waist.value / p.height;
-        if (whtr < 0.5) return { unlocked: true, pct: 100, line: whtr.toFixed(2) + ' ratio · healthy ✓' };
-        return { unlocked: false, pct: pctOf(0.5, whtr), line: whtr.toFixed(2) + ' ratio · ' + (whtr - 0.5).toFixed(2) + ' to <0.50' };
+        return (whtr < 0.5) ? { unlocked: true, pct: 100, now: whtr.toFixed(2) + ' ratio', next: 'Maxed ✓' }
+                            : { unlocked: false, pct: pctOf(0.5, whtr), now: whtr.toFixed(2) + ' ratio', next: '<0.50' };
       }
       function sleepM() {
-        if (!sleepRec) return { unlocked: false, pct: 0, line: 'Not logged yet' };
+        if (!sleepRec) return { unlocked: false, pct: 0, now: 'Not logged', next: '7–9 hrs' };
         var h = sleepRec.value;
-        if (h >= 7 && h <= 9) return { unlocked: true, pct: 100, line: h + ' hr avg · in zone ✓' };
-        return { unlocked: false, pct: 60, line: h + ' hr avg · aim 7–9' };
+        return (h >= 7 && h <= 9) ? { unlocked: true, pct: 100, now: h + ' hr avg', next: 'In zone ✓' }
+                                  : { unlocked: false, pct: 60, now: h + ' hr avg', next: '7–9 hrs' };
       }
       var GROUPS = [
         { cat: 'Consistency', items: [
-          { name: 'Activities Logged', icon: 'flag', m: upTier(logs.length, [10, 25, 50, 100, 250]) },
-          { name: 'Activity Streak', icon: 'local_fire_department', m: upTier(streak, [7, 14, 30, 60, 100]) },
-          { name: 'Sport Variety', icon: 'sports', m: upTier(sportCount, [3, 5, 8, 12]) },
-          { name: 'Cities Active', icon: 'public', m: upTier(cityCount, [1, 3, 5, 10]) }
+          { name: 'Activities Logged', icon: 'flag', m: upTier(logs.length, [10, 25, 50, 100, 250], 'logged') },
+          { name: 'Activity Streak', icon: 'local_fire_department', m: upTier(streak, [7, 14, 30, 60, 100], 'days') },
+          { name: 'Sport Variety', icon: 'sports', m: upTier(sportCount, [3, 5, 8, 12], 'sports') },
+          { name: 'Cities Active', icon: 'public', m: upTier(cityCount, [1, 3, 5, 10], 'cities') }
         ] },
         { cat: 'Max Lifts', items: [
           { name: 'Deadlift', icon: 'fitness_center', m: ratioM(r.deadlift1RM, [1, 1.5, 2, 2.5]) },
@@ -1072,9 +1072,9 @@
         ] },
         { cat: 'Endurance', items: [
           { name: '5K Speed', icon: 'directions_run', m: fastM(r.run5K, [1800, 1500, 1320], ['sub-30', 'sub-25', 'sub-22']) },
-          { name: '10K', icon: 'directions_run', m: binM(!!r.run10K) },
-          { name: 'Half Marathon', icon: 'directions_run', m: binM(!!r.run21K) },
-          { name: 'Marathon', icon: 'emoji_events', m: binM(!!r.runMara) }
+          { name: '10K', icon: 'directions_run', m: binM(!!r.run10K, 'Finish a 10K') },
+          { name: 'Half Marathon', icon: 'directions_run', m: binM(!!r.run21K, 'Finish a half') },
+          { name: 'Marathon', icon: 'emoji_events', m: binM(!!r.runMara, 'Finish a marathon') }
         ] },
         { cat: 'Health', items: [
           { name: 'Body Fat', icon: 'monitor_weight', m: bodyFatM() },
@@ -1094,7 +1094,10 @@
             '<div class="achievement-icon"><span class="material-icons">' + it.icon + '</span></div>' +
             '<div class="achievement-body">' +
               '<div class="achievement-name">' + escText(it.name) + '</div>' +
-              '<div class="achievement-goal">' + escText(it.m.line) + '</div>' +
+              '<div class="achievement-nownext">' +
+                '<span class="achievement-now"><span class="achievement-lbl">Now</span><span class="achievement-val">' + escText(it.m.now) + '</span></span>' +
+                '<span class="achievement-next"><span class="achievement-lbl">Next</span><span class="achievement-val">' + escText(it.m.next) + '</span></span>' +
+              '</div>' +
               '<div class="achievement-progress"><div class="achievement-progress-fill" style="width:' + Math.round(it.m.pct) + '%;"></div></div>' +
             '</div></div>';
         }).join('');
