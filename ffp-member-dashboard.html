@@ -191,7 +191,7 @@
      the current user — no Supabase Auth dependency. -->
 <script src="assets/ffp-earnings-loader.js"></script>
 <script src="assets/ffp-calorie-tracker-loader.js"></script>
-<script src="assets/ffp-fitness-stats-loader.js"></script>
+<script src="assets/ffp-fitness-stats-loader-v15.js"></script>
 <script src="assets/ffp-meet-move-loader.js"></script>
 
 <style>
@@ -9501,6 +9501,32 @@ const FitnessStats = {
       });
     }
     
+    // Resting HR (v86)
+    if (r.restingHR) {
+      const band = this.restingHrBand(r.restingHR.value, p.gender);
+      bio += band.years;
+      drivers.push({ key: 'rhr', name: 'Resting HR', icon: 'monitor_heart', detail: `${r.restingHR.value} bpm — for your sex`, band: band, deltaYears: band.years });
+    }
+    // HRV (v86)
+    if (r.hrv) {
+      const band = this.hrvBand(r.hrv.value, p.chronAge);
+      bio += band.years;
+      drivers.push({ key: 'hrv', name: 'HRV', icon: 'vital_signs', detail: `${r.hrv.value} ms — for your age`, band: band, deltaYears: band.years });
+    }
+    // Grip strength (v86)
+    if (r.grip) {
+      const band = this.gripBand(r.grip.value, p.gender, p.chronAge);
+      bio += band.years;
+      drivers.push({ key: 'grip', name: 'Grip Strength', icon: 'pan_tool', detail: `${r.grip.value} kg — for your age & sex`, band: band, deltaYears: band.years });
+    }
+    // Waist via waist-to-height ratio (v86) — needs height
+    if (r.waist && p.height) {
+      const whtr = r.waist.value / p.height;
+      const band = this.waistBand(whtr);
+      bio += band.years;
+      drivers.push({ key: 'waist', name: 'Waist', icon: 'straighten', detail: `Waist-to-height ${whtr.toFixed(2)} (${r.waist.value}cm)`, band: band, deltaYears: band.years });
+    }
+
     return { bioAge: Math.max(18, Math.round(bio)), drivers, chronAge: p.chronAge };
   },
   
@@ -9546,6 +9572,47 @@ const FitnessStats = {
     if (vo2 >= row[1]) return { label: 'Good',      color: '#4ade80', bg: 'rgba(74,222,128,0.14)' };
     if (vo2 >= row[0]) return { label: 'Fair',      color: '#f59e0b', bg: 'rgba(245,158,11,0.14)' };
     return                     { label: 'Poor',      color: '#ef4444', bg: 'rgba(239,68,68,0.14)' };
+  },
+
+  // v86 — Resting HR band (lower better; women run ~3 bpm higher → offset).
+  restingHrBand(bpm, gender) {
+    const v = bpm - ((gender || '').toLowerCase().charAt(0) === 'f' ? 3 : 0);
+    if (v <= 49) return { label: 'Athlete',   color: '#38bdf8', bg: 'rgba(56,189,248,0.14)', years: -1.5 };
+    if (v <= 59) return { label: 'Excellent', color: '#4ade80', bg: 'rgba(74,222,128,0.14)', years: -1 };
+    if (v <= 69) return { label: 'Good',      color: '#4ade80', bg: 'rgba(74,222,128,0.14)', years: -0.5 };
+    if (v <= 84) return { label: 'Average',   color: '#f59e0b', bg: 'rgba(245,158,11,0.14)', years: 0 };
+    return         { label: 'High',      color: '#ef4444', bg: 'rgba(239,68,68,0.14)', years: 1.5 };
+  },
+  // v86 — HRV (RMSSD) vs age norm (declines with age). Higher better; noisy → modest impact.
+  hrvNorm(age) { return age < 30 ? 70 : age < 40 ? 58 : age < 50 ? 46 : age < 60 ? 36 : 28; },
+  hrvBand(ms, age) {
+    const n = this.hrvNorm(age);
+    if (ms >= n * 1.25) return { label: 'Excellent', color: '#38bdf8', bg: 'rgba(56,189,248,0.14)', years: -1.5 };
+    if (ms >= n)        return { label: 'Good',      color: '#4ade80', bg: 'rgba(74,222,128,0.14)', years: -0.5 };
+    if (ms >= n * 0.7)  return { label: 'Fair',      color: '#f59e0b', bg: 'rgba(245,158,11,0.14)', years: 0.5 };
+    return                 { label: 'Low',       color: '#ef4444', bg: 'rgba(239,68,68,0.14)', years: 1.5 };
+  },
+  // v86 — Grip strength vs age/sex norm (kg). Clinical at-risk: men <27, women <16.
+  GRIP_NORM: {
+    male:   { 20:50, 30:49, 40:47, 50:43, 60:39, 70:32 },
+    female: { 20:31, 30:31, 40:29, 50:26, 60:23, 70:19 }
+  },
+  gripBand(kg, gender, age) {
+    const sex = (gender || '').toLowerCase().charAt(0) === 'f' ? 'female' : 'male';
+    const a = age >= 70 ? 70 : age >= 60 ? 60 : age >= 50 ? 50 : age >= 40 ? 40 : age >= 30 ? 30 : 20;
+    const n = this.GRIP_NORM[sex][a];
+    const atRisk = sex === 'female' ? 16 : 27;
+    if (kg < atRisk)    return { label: 'Low',    color: '#ef4444', bg: 'rgba(239,68,68,0.14)', years: 2 };
+    if (kg >= n * 1.1)  return { label: 'Strong', color: '#38bdf8', bg: 'rgba(56,189,248,0.14)', years: -1.5 };
+    if (kg >= n * 0.85) return { label: 'Good',   color: '#4ade80', bg: 'rgba(74,222,128,0.14)', years: -0.5 };
+    return                 { label: 'Fair',   color: '#f59e0b', bg: 'rgba(245,158,11,0.14)', years: 0 };
+  },
+  // v86 — Waist via waist-to-height ratio (NICE thresholds). Needs height.
+  waistBand(whtr) {
+    if (whtr < 0.4) return { label: 'Low',         color: '#38bdf8', bg: 'rgba(56,189,248,0.14)', years: -0.5 };
+    if (whtr < 0.5) return { label: 'Healthy',     color: '#4ade80', bg: 'rgba(74,222,128,0.14)', years: 0 };
+    if (whtr < 0.6) return { label: 'Take Care',   color: '#f59e0b', bg: 'rgba(245,158,11,0.14)', years: 1.5 };
+    return             { label: 'Take Action', color: '#ef4444', bg: 'rgba(239,68,68,0.14)', years: 3 };
   },
   
   // v81 — Streak calculation from LOGS. Current = consecutive days back from today.
@@ -9603,7 +9670,7 @@ const FitnessStats = {
     }
     
     // Drivers — fixed order: VO₂, Body fat, Visceral fat, Sleep, then others (v85, Grant)
-    const ORDER = ['vo2', 'bf', 'vf', 'sleep', 'dl'];
+    const ORDER = ['vo2', 'bf', 'vf', 'rhr', 'hrv', 'grip', 'waist', 'sleep', 'dl'];
     const sorted = calc.drivers.slice().sort((a, b) => {
       const ia = ORDER.indexOf(a.key), ib = ORDER.indexOf(b.key);
       return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
