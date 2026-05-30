@@ -2730,8 +2730,8 @@ input[type="number"] {
 .payout-note > .material-icons { color: var(--blue); font-size: 16px; flex-shrink: 0; margin-top: 1px; }
 
 /* Transaction row (now AED) */
-.earn-tx-amount.in.aed::before { content: 'AED '; font-size: 0.75em; font-weight: 700; opacity: 0.8; }
-.earn-tx-amount.out.aed::before { content: 'AED '; font-size: 0.75em; font-weight: 700; opacity: 0.8; }
+.earn-tx-amount.in.aed::before { content: '$'; font-size: 0.75em; font-weight: 700; opacity: 0.8; }
+.earn-tx-amount.out.aed::before { content: '$'; font-size: 0.75em; font-weight: 700; opacity: 0.8; }
 
 .earn-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
 .earn-summary-tile { background: rgba(43,168,224,0.06); border: 1px solid var(--border-mid); border-radius: 12px; padding: 14px; }
@@ -5071,10 +5071,10 @@ input[type="number"] {
     <div class="earn-hero">
       <div class="earn-hero-label">Available Balance</div>
       <div class="earn-hero-balance">
-        <span class="earn-currency">AED</span>
+        <span class="earn-currency">$</span>
         <span id="earn-balance">0</span>
       </div>
-      <div class="earn-hero-meta" id="earn-balance-meta">Ready to withdraw &middot; minimum AED 500</div>
+      <div class="earn-hero-meta" id="earn-balance-meta">Ready to withdraw &middot; minimum $250</div>
       <button class="earn-payout-btn" id="earn-payout-btn" onclick="Earnings.openPayout()">
         <span class="material-icons">account_balance</span>Request Payout
       </button>
@@ -5097,7 +5097,7 @@ input[type="number"] {
       <span class="material-icons">group_add</span>
       <div class="earn-refer-text">
         <div class="earn-refer-main">Refer a friend</div>
-        <div class="earn-refer-sub">Get AED <span id="earn-refer-rate">50</span> when they join</div>
+        <div class="earn-refer-sub">Get <span id="earn-refer-rate">$4.95</span> when they join</div>
       </div>
       <span class="material-icons earn-refer-arrow">chevron_right</span>
     </button>
@@ -5629,7 +5629,7 @@ input[type="number"] {
     <button class="dm-close" onclick="Earnings.closeReferModal()"><span class="material-icons">close</span></button>
     <div class="dm-body">
       <div class="dm-title">Refer a friend</div>
-      <div style="font-size:12px; color:var(--muted);">Share your code. When they sign up, you earn <span id="rm-rate" style="color:var(--yellow); font-weight:800;">AED 50</span>.</div>
+      <div style="font-size:12px; color:var(--muted);">Share your code. When they sign up, you earn <span id="rm-rate" style="color:var(--yellow); font-weight:800;">$4.95</span>.</div>
     </div>
     <div style="padding: 0 16px 16px;">
       <div class="refer-code-block">
@@ -5667,7 +5667,7 @@ input[type="number"] {
           <div class="refer-stat-label">Total referrals</div>
         </div>
         <div class="refer-stat">
-          <div class="refer-stat-num"><span style="font-size:14px;">AED</span> <span id="rm-earned">0</span></div>
+          <div class="refer-stat-num"><span style="font-size:14px;">$</span> <span id="rm-earned">0</span></div>
           <div class="refer-stat-label">From referrals</div>
         </div>
         <div class="refer-stat">
@@ -5690,12 +5690,12 @@ input[type="number"] {
     <div style="padding: 0 16px 16px;">
       <div class="payout-amount-display">
         <div class="payout-amount-label">Withdraw amount</div>
-        <div class="payout-amount-value"><span class="payout-amount-currency">AED</span> <span id="po-amount">0</span></div>
-        <div class="payout-amount-sub">Available balance: AED <span id="po-available">0</span></div>
+        <div class="payout-amount-value"><span class="payout-amount-currency">$</span> <span id="po-amount">0</span></div>
+        <div class="payout-amount-sub">Available balance: $<span id="po-available">0</span></div>
       </div>
       <div class="payout-stepper-row">
+        <button class="po-quick" onclick="Earnings.setPayoutAmount(250)">250</button>
         <button class="po-quick" onclick="Earnings.setPayoutAmount(500)">500</button>
-        <button class="po-quick" onclick="Earnings.setPayoutAmount(750)">750</button>
         <button class="po-quick" onclick="Earnings.setPayoutAmount(1000)">1000</button>
         <button class="po-quick" id="po-all-btn" onclick="Earnings.setPayoutAmountAll()">All</button>
       </div>
@@ -5717,7 +5717,7 @@ input[type="number"] {
       </div>
       <div class="payout-note">
         <span class="material-icons">info</span>
-        <div>Payouts are reviewed by the FFP team within 3&ndash;5 business days. Minimum AED 500.</div>
+        <div>Payouts are reviewed by the FFP team within 3&ndash;5 business days. Minimum $250. Payouts are available in the UAE only for now.</div>
       </div>
     </div>
     <div class="dm-footer">
@@ -10144,7 +10144,7 @@ const Earnings = {
       reqHighlight: '',
       perks: [
         '5% per referral',
-        'AED 25 per accepted content piece',
+        '$7 per accepted content piece',
         'Access to all member perks'
       ]
     },
@@ -10156,8 +10156,8 @@ const Earnings = {
       reqHighlight: 'Supporter level (2+) in 4 of 7 categories',
       perks: [
         '10% per referral',
-        'AED 50 per accepted content piece',
-        'AED 20 per member you bring to a provider',
+        '$14 per accepted content piece',
+        '$5 per member you bring to a provider',
         'Priority on event hosting applications'
       ]
     },
@@ -10169,9 +10169,9 @@ const Earnings = {
       reqHighlight: 'Ambassador level (8+) in 4 of 7 categories',
       perks: [
         '20% per referral',
-        'AED 100 per accepted content piece',
-        'AED 40 per member you bring to a provider',
-        'AED 400 for hosting an event',
+        '$27 per accepted content piece',
+        '$11 per member you bring to a provider',
+        '$109 for hosting an event',
         'Top of provider partnership applications'
       ]
     }
@@ -10246,7 +10246,34 @@ const Earnings = {
   _payoutAmount: 0,
   _openWay: null,
   _tierCardsOpen: false,    // v88 — Show/hide "How tiers work" cards
-  
+
+  // ─────────── v155: USD EARNINGS ───────────
+  MEMBERSHIP_USD: 99,                                       // referral reward = pct × $99
+  REFERRAL_PCT: { member: 5, supporter: 10, ambassador: 20 },
+  MIN_PAYOUT_USD: 250,                                      // minimum withdrawal
+  AED_PER_USD: 3.6725,                                      // fixed AED↔USD peg
+  // The real balance/referral numbers are injected by the external ffp-earnings-loader.js.
+  // If that loader feeds AED (live balance reads ~3.67× too high), flip BALANCE_IS_AED to true
+  // and it is converted to USD once on first render. Default: treat the injected value as USD.
+  BALANCE_IS_AED: false,
+  _normalized: false,
+  referralUsd(tier) { return (this.REFERRAL_PCT[tier] || 5) / 100 * this.MEMBERSHIP_USD; },
+  fmtUsd(v) { return (Math.round(v * 100) % 100 === 0) ? String(Math.round(v)) : Number(v).toFixed(2); },
+  aedToUsd(aed) { return Math.round(aed / this.AED_PER_USD); },
+  isUaeMember() {
+    var m = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || {};
+    var c = (m.country || '').trim().toLowerCase();
+    return c === 'united arab emirates' || c === 'uae' || c === 'u.a.e.' || c === 'united arab emirates (uae)';
+  },
+  // Convert injected AED figures to USD exactly once (only if BALANCE_IS_AED).
+  normalizeToUsd() {
+    if (!this.BALANCE_IS_AED || this._normalized) return;
+    this.balance = this.balance / this.AED_PER_USD;
+    if (this.referralStats && typeof this.referralStats.earned === 'number') this.referralStats.earned = this.referralStats.earned / this.AED_PER_USD;
+    if (Array.isArray(this.transactions)) this.transactions.forEach(t => { if (typeof t.amount === 'number') t.amount = Math.round(t.amount / this.AED_PER_USD * 100) / 100; });
+    this._normalized = true;
+  },
+
   init() {
     this.render();
     this.loadTierStats();
@@ -10282,18 +10309,25 @@ const Earnings = {
   
   // ─────────── RENDER ───────────
   render() {
+    this.normalizeToUsd();           // v155 — convert injected AED → USD once, if needed
     this.tier = this.computedTier();
     const t = this.tiers[this.tier];
-    
-    // Hero balance
-    document.getElementById('earn-balance').textContent = this.balance.toLocaleString();
+
+    // Hero balance (USD)
+    document.getElementById('earn-balance').textContent = this.balance.toLocaleString(undefined, { maximumFractionDigits: 2 });
     const payoutBtn = document.getElementById('earn-payout-btn');
-    if (this.balance < 500) {
+    const metaEl = document.getElementById('earn-balance-meta');
+    const MIN = this.MIN_PAYOUT_USD;
+    // v155 — payout is UAE-only for now; everyone still sees their balance.
+    if (!this.isUaeMember()) {
       payoutBtn.disabled = true;
-      document.getElementById('earn-balance-meta').textContent = `Need AED ${500 - this.balance} more before you can withdraw`;
+      metaEl.textContent = 'Payouts available in the UAE only for now';
+    } else if (this.balance < MIN) {
+      payoutBtn.disabled = true;
+      metaEl.textContent = `Need $${this.fmtUsd(MIN - this.balance)} more before you can withdraw`;
     } else {
       payoutBtn.disabled = false;
-      document.getElementById('earn-balance-meta').textContent = `Ready to withdraw · minimum AED 500`;
+      metaEl.textContent = `Ready to withdraw · minimum $${MIN}`;
     }
     
     // Tier badge
@@ -10306,8 +10340,8 @@ const Earnings = {
     document.getElementById('tier-rate').textContent = referRate;
     document.getElementById('tier-icon-mount').innerHTML = `<span class="material-icons">${t.icon}</span>`;
     
-    // Refer CTA
-    document.getElementById('earn-refer-rate').textContent = referRate;
+    // Refer CTA — show the dollar amount earned per referral (pct × $99)
+    document.getElementById('earn-refer-rate').textContent = '$' + this.fmtUsd(this.referralUsd(this.tier));
     
     // HOW TIERS WORK
     document.getElementById('tier-cards').innerHTML = ['member','supporter','ambassador'].map(k => {
@@ -10329,7 +10363,7 @@ const Earnings = {
             <div class="tier-card-icon"><span class="material-icons">${td.icon}</span></div>
             <div class="tier-card-title">
               <div class="tier-card-name">${escHtml(td.name)}</div>
-              <div class="tier-card-rate"><span class="num">${refRate}</span> AED per referral</div>
+              <div class="tier-card-rate"><span class="num">${refRate}</span> per referral</div>
             </div>
             ${statusPill}
           </div>
@@ -10379,7 +10413,7 @@ const Earnings = {
       const myRate = w.rates[this.tier];
       const isOpen = this._openWay === w.key;
       const isSoon = w.status === 'soon';
-      const rateDisplay = (typeof myRate === 'number') ? `<span class="num">AED ${myRate}</span>` : `<span class="num">${myRate}</span>`;
+      const rateDisplay = (typeof myRate === 'number') ? `<span class="num">$${this.aedToUsd(myRate)}</span>` : `<span class="num">${myRate}</span>`;
       const soonPill = isSoon ? '<div class="way-soon-pill">Coming Soon</div>' : '';
       const actionBtn = isSoon
         ? `<button class="way-card-action soon" disabled><span class="material-icons">schedule</span>${escHtml(w.actionLabel)}</button>`
@@ -10403,7 +10437,7 @@ const Earnings = {
               ${['member','supporter','ambassador'].map(tk => {
                 const isMine = tk === this.tier;
                 const r = w.rates[tk];
-                const disp = (typeof r === 'number') ? `AED ${r}` : r;
+                const disp = (typeof r === 'number') ? `$${this.aedToUsd(r)}` : r;
                 return `
                   <div class="way-rate-cell ${isMine ? 'current' : ''}">
                     <div class="way-rate-cell-tier">${this.tiers[tk].name}${isMine ? ' · You' : ''}</div>
@@ -10461,12 +10495,11 @@ const Earnings = {
   
   // ─────────── REFER MODAL ───────────
   openReferModal() {
-    const rate = this.ways.find(w => w.key === 'refer').rates[this.tier];
-    document.getElementById('rm-rate').textContent = rate;
+    document.getElementById('rm-rate').textContent = '$' + this.fmtUsd(this.referralUsd(this.tier));
     document.getElementById('rm-code').textContent = this.referralCode;
     document.getElementById('rm-link').value = `https://ffppassport.com/join?ref=${this.referralCode}`;
     document.getElementById('rm-total').textContent   = this.referralStats.total;
-    document.getElementById('rm-earned').textContent  = this.referralStats.earned.toLocaleString();
+    document.getElementById('rm-earned').textContent  = this.referralStats.earned.toLocaleString(undefined, { maximumFractionDigits: 2 });
     document.getElementById('rm-pending').textContent = this.referralStats.pending;
     document.getElementById('refer-modal-backdrop').classList.add('open');
   },
@@ -10490,9 +10523,10 @@ const Earnings = {
   
   // ─────────── PAYOUT MODAL ───────────
   openPayout() {
-    if (this.balance < 500) { showToast('Minimum payout is AED 500'); return; }
+    if (!this.isUaeMember()) { showToast('Payouts are available in the UAE only for now'); return; }
+    if (this.balance < this.MIN_PAYOUT_USD) { showToast('Minimum payout is $' + this.MIN_PAYOUT_USD); return; }
     this._payoutAmount = 0;
-    document.getElementById('po-available').textContent = this.balance.toLocaleString();
+    document.getElementById('po-available').textContent = this.balance.toLocaleString(undefined, { maximumFractionDigits: 2 });
     document.getElementById('po-amount').textContent = '0';
     document.getElementById('po-amount-input').value = '';
     document.querySelectorAll('.po-quick').forEach(b => b.classList.remove('active'));
@@ -10522,7 +10556,8 @@ const Earnings = {
     document.querySelectorAll('.po-quick').forEach(b => b.classList.remove('active'));
   },
   submitPayout() {
-    if (this._payoutAmount < 500) { showToast('Minimum payout is AED 500'); return; }
+    if (!this.isUaeMember()) { showToast('Payouts are available in the UAE only for now'); return; }
+    if (this._payoutAmount < this.MIN_PAYOUT_USD) { showToast('Minimum payout is $' + this.MIN_PAYOUT_USD); return; }
     if (this._payoutAmount > this.balance) { showToast('Amount exceeds balance'); return; }
     const method = document.querySelector('input[name="po-method"]:checked').value;
     this.balance -= this._payoutAmount;
@@ -10536,7 +10571,7 @@ const Earnings = {
     });
     this.closePayout();
     this.render();
-    showToast(`Payout request submitted — AED ${this._payoutAmount.toLocaleString()}`);
+    showToast(`Payout request submitted — $${this._payoutAmount.toLocaleString()}`);
     // PRODUCTION: POST /api/members/me/payouts { amount, method }
   }
 };
