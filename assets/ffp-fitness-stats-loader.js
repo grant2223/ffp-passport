@@ -156,8 +156,8 @@
       '.ffp-filters-foot{margin-top:10px;padding-top:10px;border-top:1px solid var(--border-mid);display:flex;align-items:center;justify-content:space-between;gap:10px;}',
       '.ffp-filters-sample{font-size:12px;color:var(--muted);}',
       '.ffp-filters-sample b{color:var(--text);}',
-      '.ffp-filters-reset{background:transparent;border:1px solid var(--border-mid);color:var(--muted);padding:5px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;}',
-      '.ffp-filters-reset:hover{border-color:var(--text);color:var(--text);}',
+      '.ffp-filters-reset{background:var(--yellow);border:none;color:#08111a;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;}',
+      '.ffp-filters-reset:hover{filter:brightness(1.08);}',
 
       // Leaderboard
       '.ffp-lb-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;}',
@@ -365,7 +365,6 @@
         '<div class="ffp-filters-head" id="ffp-filters-head">' +
           '<div class="ffp-filters-title">' +
             '<span class="material-icons" style="font-size:14px;">tune</span> Filters' +
-            '<span class="ffp-filters-count" id="ffp-filters-count">All members</span>' +
           '</div>' +
           '<button class="ffp-filters-toggle"><span class="material-icons" id="ffp-filters-caret">expand_more</span></button>' +
         '</div>' +
