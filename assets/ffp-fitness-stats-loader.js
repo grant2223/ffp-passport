@@ -36,6 +36,15 @@
   var activityCache = [];
   var activityPeriod = 'all';
   window.ffpSetActivityPeriod = function (p) { activityPeriod = p; if (typeof FitnessStats !== 'undefined' && FitnessStats.renderActivity) FitnessStats.renderActivity(); };
+  // v16 — open a metric's leaderboard from the Bio Age health cards (Health metrics no longer in the Records chip strip).
+  window.ffpShowLeaderboard = function (key) {
+    filters.metric = key;
+    if (typeof saveFilters === 'function') saveFilters();
+    var rb = document.querySelector('#fs-tabs [data-fs-tab="records"]');
+    if (rb) rb.click();
+    if (typeof updateMetricChips === 'function') updateMetricChips();
+    if (typeof renderRecordsContent === 'function') renderRecordsContent();
+  };
   var rankingPool = [];
   var myDemo = null;
   var recordsBuilt = false;
@@ -315,7 +324,7 @@
     if (!view) return;
     if (recordsBuilt) return;
 
-    var metricChips = METRICS.map(function (m) {
+    var metricChips = METRICS.filter(function (m) { return m.group !== 'Health'; }).map(function (m) {
       var active = filters.metric === m.key ? ' active' : '';
       return '<button class="ffp-metric-chip' + active + '" data-metric="' + m.key + '">' +
         '<span class="material-icons">' + m.icon + '</span>' + m.label +
