@@ -9255,7 +9255,8 @@ const FitnessStats = {
     hrv:         null,
     grip:        null,
     muscleMass:  null,
-    waist:       null
+    waist:       null,
+    weight:      null
     // sleepAvgHrs is COMPUTED from sleepLogs below (v82)
   },
   
@@ -9333,7 +9334,8 @@ const FitnessStats = {
     hrv:         { name: 'HRV (RMSSD)', icon: 'vital_signs',   type: 'kg',      unit: 'ms',  step: 1,   max: 250, group: 'health' },
     grip:        { name: 'Grip Strength',icon: 'pan_tool',     type: 'decimal', unit: 'kg',  step: 1,   max: 120, group: 'health' },
     muscleMass:  { name: 'Muscle Mass', icon: 'exercise',      type: 'decimal', unit: 'kg',  step: 0.5, max: 80,  group: 'health' },
-    waist:       { name: 'Waist',       icon: 'straighten',    type: 'decimal', unit: 'cm',  step: 0.5, max: 200, group: 'health' }
+    waist:       { name: 'Waist',       icon: 'straighten',    type: 'decimal', unit: 'cm',  step: 0.5, max: 200, group: 'health' },
+    weight:      { name: 'Body Weight', icon: 'monitor_weight', type: 'decimal', unit: 'kg',  step: 0.5, max: 300, group: 'health' }
     // v84 — Sleep removed from PR cards. Logged via daily input on Bio Age tab (sleep-mini-card).
   },
   
@@ -9639,7 +9641,8 @@ const FitnessStats = {
       { key: 'hrv',         drv: 'hrv',   name: 'HRV',           icon: 'vital_signs' },
       { key: 'grip',        drv: 'grip',  name: 'Grip Strength', icon: 'pan_tool' },
       { key: 'muscleMass',  drv: null,    name: 'Muscle Mass',   icon: 'exercise' },
-      { key: 'waist',       drv: 'waist', name: 'Waist',         icon: 'straighten' }
+      { key: 'waist',       drv: 'waist', name: 'Waist',         icon: 'straighten' },
+      { key: 'weight',      drv: null,    name: 'Body Weight',   icon: 'monitor_weight', noLb: true }
     ];
     document.getElementById('bio-drivers').innerHTML = HEALTH.map(h => {
       const rec = this.records[h.key];
@@ -9661,7 +9664,7 @@ const FitnessStats = {
             <div class="bio-driver-detail">${valueText}</div>
           </div>
           ${deltaTxt ? `<div class="bio-driver-delta ${cls}">${deltaTxt}</div>` : ''}
-          <button class="bio-driver-lb" onclick="event.stopPropagation(); if(window.ffpShowLeaderboard) window.ffpShowLeaderboard('${h.key}');" aria-label="Leaderboard"><span class="material-icons">leaderboard</span></button>
+          ${h.noLb ? '' : `<button class="bio-driver-lb" onclick="event.stopPropagation(); if(window.ffpShowLeaderboard) window.ffpShowLeaderboard('${h.key}');" aria-label="Leaderboard"><span class="material-icons">leaderboard</span></button>`}
         </div>
       `;
     }).join('');
