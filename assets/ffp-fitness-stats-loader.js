@@ -980,41 +980,92 @@
 
   function overrideRenderMilestones() {
     FitnessStats.renderMilestones = function () {
-      var logs = activityCache;
-      var r = this.records;
-      var p = this.profile;
-      var dlRatio = (r.deadlift1RM && p.weight) ? r.deadlift1RM.value / p.weight : 0;
-      var sportCount = new Set(logs.map(function (l) { return l.activity; })).size;
-      var bfHealthyMax = p.gender === 'male' ? 18 : 25;
-      var sleepRec = this.getRecord('sleepAvgHrs');
-      var sleepGood = sleepRec && sleepRec.value >= 7 && sleepRec.value <= 9 ? 1 : 0;
-      var currentStreak = this.computeStreak().current;
-      var milestones = [
-        { name: '10 Activities',   desc: 'Log 10 activities',           icon: 'flag',           current: logs.length, target: 10 },
-        { name: '5 Sport Types',   desc: 'Try 5 different sports',      icon: 'sports',         current: sportCount,  target: 5  },
-        { name: 'On a Roll',       desc: '14-day activity streak',      icon: 'local_fire_department', current: currentStreak, target: 14 },
-        { name: 'Strong as an Ox', desc: 'Deadlift 2\u00d7 bodyweight', icon: 'fitness_center', current: dlRatio,     target: 2, decimals: 2, unit: '\u00d7' },
-        { name: 'Half Marathoner', desc: 'Log a 21K PR',                icon: 'directions_run', current: r.run21K  ? 1 : 0, target: 1, binary: true },
-        { name: 'Marathon Club',   desc: 'Log a Marathon PR',           icon: 'emoji_events',   current: r.runMara ? 1 : 0, target: 1, binary: true },
-        { name: 'VO\u2082 Elite',  desc: 'VO\u2082 max above 50',       icon: 'favorite',       current: r.vo2max ? r.vo2max.value : 0, target: 50, decimals: 1 },
-        { name: 'Healthy Heart',   desc: 'Body fat under ' + bfHealthyMax + '%', icon: 'monitor_weight', current: r.bodyFat && r.bodyFat.value <= bfHealthyMax ? 1 : 0, target: 1, binary: true },
-        { name: 'Well-Rested',     desc: 'Sleep avg 7\u20139 hrs',      icon: 'bedtime',        current: sleepGood,   target: 1, binary: true }
-      ];
-      var gridEl = document.getElementById('achievements-grid');
-      if (gridEl) {
-        gridEl.innerHTML = milestones.map(function (m) {
-          var unlocked = m.current >= m.target;
-          var pct = Math.min(100, Math.max(0, (m.current / m.target) * 100));
-          var progressText;
-          if (m.binary)        progressText = unlocked ? 'Unlocked' : 'Not yet';
-          else if (m.decimals) progressText = (+m.current).toFixed(m.decimals) + (m.unit || '') + ' / ' + m.target + (m.unit || '');
-          else                 progressText = m.current + ' / ' + m.target;
-          return '<div class="achievement ' + (unlocked ? 'unlocked' : 'locked') + '"><div class="achievement-icon"><span class="material-icons">' + m.icon + '</span></div><div class="achievement-name">' + escText(m.name) + '</div><div class="achievement-desc">' + escText(m.desc) + '</div><div class="achievement-count">' + progressText + '</div><div class="achievement-progress"><div class="achievement-progress-fill" style="width:' + pct + '%;"></div></div></div>';
-        }).join('');
+      var logs = activityCache || [];
+      var r = this.records || {};
+      var p = this.profile || {};
+      var self = this;
+      var streak = (typeof this.computeStreak === 'function') ? this.computeStreak().current : 0;
+      var sportCount = new Set(logs.map(function (l) { return l.activity; }).filter(Boolean)).size;
+      var cityCount = new Set(logs.map(function (l) { return l.city; }).filter(Boolean)).size;
+      var sleepRec = (typeof this.getRecord === 'function') ? this.getRecord('sleepAvgHrs') : null;
+      function fmtSecs(s2) { var m = Math.floor(s2 / 60), ss = s2 % 60; return m + ':' + (ss < 10 ? '0' : '') + ss; }
+      function pctOf(cur, tgt) { return Math.min(100, Math.max(0, (cur / tgt) * 100)); }
+      function upTier(cur, tiers, suffix) {
+        var t = tiers[tiers.length - 1], maxed = true;
+        for (var i = 0; i < tiers.length; i++) { if (cur < tiers[i]) { t = tiers[i]; maxed = false; break; } }
+        return { unlocked: maxed, pct: maxed ? 100 : pctOf(cur, t),
+          text: maxed ? (tiers[tiers.length - 1] + (suffix || '') + ' \u00b7 maxed') : (Math.floor(cur) + ' / ' + t + (suffix || '')) };
       }
-      var unlockedCount = milestones.filter(function (m) { return m.current >= m.target; }).length;
+      function bin(done, doneTxt, todoTxt) {
+        return { unlocked: !!done, pct: done ? 100 : 0, text: done ? (doneTxt || 'Unlocked') : (todoTxt || 'Not yet') };
+      }
+      function ratioTier(rec, tiers) {
+        if (!rec) return { unlocked: false, pct: 0, text: 'Log this lift' };
+        if (!p.weight) return { unlocked: false, pct: 0, text: rec.value + 'kg \u00b7 add weight in profile' };
+        var ratio = rec.value / p.weight, t = tiers[tiers.length - 1], maxed = true;
+        for (var i = 0; i < tiers.length; i++) { if (ratio < tiers[i]) { t = tiers[i]; maxed = false; break; } }
+        return { unlocked: maxed, pct: maxed ? 100 : pctOf(ratio, t),
+          text: maxed ? (tiers[tiers.length - 1] + '\u00d7+ \u00b7 maxed') : (ratio.toFixed(2) + '\u00d7 / ' + t + '\u00d7 bodyweight') };
+      }
+      function fastTier(rec, secs, labels) {
+        if (!rec) return { unlocked: false, pct: 0, text: 'Log a 5K time' };
+        var v = rec.value;
+        for (var i = 0; i < secs.length; i++) { if (v > secs[i]) return { unlocked: false, pct: 40, text: fmtSecs(v) + ' \u00b7 next: ' + labels[i] }; }
+        return { unlocked: true, pct: 100, text: fmtSecs(v) + ' \u00b7 ' + labels[labels.length - 1] + ' \u2713' };
+      }
+      function rankTier(rank, goals) {
+        for (var i = 0; i < goals.length; i++) { if (rank < goals[i].min) return { unlocked: false, pct: pctOf(rank, goals[i].min), text: 'Reach ' + goals[i].label }; }
+        return { unlocked: true, pct: 100, text: goals[goals.length - 1].label + ' \u2713' };
+      }
+      var bfRank = r.bodyFat ? ({ Lean: 3, Healthy: 2, Overweight: 1, Obese: 0 })[self.bodyFatBand(r.bodyFat.value, p.gender, p.chronAge).label] : -1;
+      var vo2Rank = r.vo2max ? ({ Superior: 4, Excellent: 3, Good: 2, Fair: 1, Poor: 0 })[self.vo2Band(r.vo2max.value, p.gender, p.chronAge).label] : -1;
+      var gripRank = r.grip ? ({ Strong: 3, Good: 2, Fair: 1, Low: 0 })[self.gripBand(r.grip.value, p.gender, p.chronAge).label] : -1;
+      var rhrRank = -1;
+      if (r.restingHR) { var _f = (p.gender || '').toLowerCase().charAt(0) === 'f' ? 3 : 0; var _v = r.restingHR.value - _f; rhrRank = _v <= 49 ? 3 : _v <= 59 ? 2 : _v <= 69 ? 1 : 0; }
+      var whtr = (r.waist && p.height) ? (r.waist.value / p.height) : null;
+      var GROUPS = [
+        { cat: 'Consistency', items: [
+          { name: 'Activities Logged', icon: 'flag', m: upTier(logs.length, [10, 25, 50, 100, 250]) },
+          { name: 'Activity Streak', icon: 'local_fire_department', m: upTier(streak, [7, 14, 30, 60, 100], ' days') },
+          { name: 'Sport Variety', icon: 'sports', m: upTier(sportCount, [3, 5, 8, 12], ' sports') },
+          { name: 'Cities Active', icon: 'public', m: upTier(cityCount, [1, 3, 5, 10], ' cities') }
+        ] },
+        { cat: 'Max Lifts', items: [
+          { name: 'Deadlift', icon: 'fitness_center', m: ratioTier(r.deadlift1RM, [1, 1.5, 2, 2.5]) },
+          { name: 'Squat', icon: 'fitness_center', m: ratioTier(r.squat1RM, [1, 1.5, 2]) },
+          { name: 'Bench Press', icon: 'fitness_center', m: ratioTier(r.bench1RM, [0.75, 1, 1.25, 1.5]) }
+        ] },
+        { cat: 'Endurance', items: [
+          { name: '5K Speed', icon: 'directions_run', m: fastTier(r.run5K, [1800, 1500, 1320], ['sub-30', 'sub-25', 'sub-22']) },
+          { name: '10K', icon: 'directions_run', m: bin(!!r.run10K, 'Completed', 'Log a 10K') },
+          { name: 'Half Marathon', icon: 'directions_run', m: bin(!!r.run21K, 'Completed', 'Log a Half') },
+          { name: 'Marathon', icon: 'emoji_events', m: bin(!!r.runMara, 'Completed', 'Log a Marathon') }
+        ] },
+        { cat: 'Health', items: [
+          { name: 'Body Fat', icon: 'monitor_weight', m: (bfRank < 0 ? bin(false, '', 'Log body fat %') : rankTier(bfRank, [{ min: 2, label: 'healthy body fat' }, { min: 3, label: 'lean body fat' }])) },
+          { name: 'VO\u2082 Max', icon: 'favorite', m: (vo2Rank < 0 ? bin(false, '', 'Log VO\u2082 max') : rankTier(vo2Rank, [{ min: 2, label: 'Good VO\u2082' }, { min: 3, label: 'Excellent VO\u2082' }, { min: 4, label: 'Superior VO\u2082' }])) },
+          { name: 'Resting HR', icon: 'monitor_heart', m: (rhrRank < 0 ? bin(false, '', 'Log resting HR') : rankTier(rhrRank, [{ min: 1, label: 'Good (\u226469)' }, { min: 2, label: 'Excellent (\u226459)' }, { min: 3, label: 'Athlete (\u226449)' }])) },
+          { name: 'Restful Sleep', icon: 'bedtime', m: bin(sleepRec && sleepRec.value >= 7 && sleepRec.value <= 9, '7\u20139 hr avg \u2713', 'Sleep 7\u20139 hrs') },
+          { name: 'Healthy Waist', icon: 'straighten', m: (whtr == null ? bin(false, '', (p.height ? 'Log waist' : 'Add height + waist')) : bin(whtr < 0.5, 'WHtR ' + whtr.toFixed(2) + ' \u2713', 'WHtR ' + whtr.toFixed(2) + ' \u00b7 aim <0.50')) },
+          { name: 'Strong Grip', icon: 'pan_tool', m: (gripRank < 0 ? bin(false, '', 'Log grip strength') : rankTier(gripRank, [{ min: 2, label: 'Good grip' }, { min: 3, label: 'Strong grip' }])) }
+        ] }
+      ];
+      var total = 0, unlockedN = 0;
+      var html = GROUPS.map(function (g) {
+        var rows = g.items.map(function (it) {
+          total++; if (it.m.unlocked) unlockedN++;
+          return '<div class="achievement ' + (it.m.unlocked ? 'unlocked' : 'locked') + '">' +
+            '<div class="achievement-icon"><span class="material-icons">' + it.icon + '</span></div>' +
+            '<div class="achievement-body"><div class="achievement-name">' + escText(it.name) + '</div>' +
+            '<div class="achievement-text">' + escText(it.m.text) + '</div>' +
+            '<div class="achievement-progress"><div class="achievement-progress-fill" style="width:' + Math.round(it.m.pct) + '%;"></div></div></div></div>';
+        }).join('');
+        return '<div class="achievement-cat">' + escText(g.cat) + '</div>' + rows;
+      }).join('');
+      var gridEl = document.getElementById('achievements-grid');
+      if (gridEl) gridEl.innerHTML = html;
       var countEl = document.getElementById('ms-unlocked-count');
-      if (countEl) countEl.textContent = unlockedCount + ' of ' + milestones.length + ' unlocked';
+      if (countEl) countEl.textContent = unlockedN + ' of ' + total + ' unlocked';
     };
   }
 
