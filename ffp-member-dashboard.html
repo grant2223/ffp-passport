@@ -1873,6 +1873,19 @@ input[type="number"] {
 }
 .sleep-mini-cta:hover { background: #8b6fe8; }
 .sleep-mini-cta .material-icons { font-size: 14px; }
+.weight-mini-card { display: flex; align-items: center; gap: 12px; background: linear-gradient(135deg, rgba(43,168,224,0.10), rgba(43,168,224,0.05)); border: 1px solid rgba(43,168,224,0.28); border-radius: 14px; padding: 12px 14px; margin-bottom: 14px; cursor: pointer; transition: all 0.15s; }
+.weight-mini-card:hover { border-color: rgba(43,168,224,0.5); }
+.weight-mini-icon { width: 38px; height: 38px; border-radius: 50%; background: rgba(43,168,224,0.18); border: 1px solid rgba(43,168,224,0.35); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.weight-mini-icon .material-icons { font-size: 20px; color: var(--blue); }
+.weight-mini-info { flex: 1; min-width: 0; }
+.weight-mini-label { font-size: 9px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.weight-mini-value { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; }
+.weight-mini-value > span:first-child { font-family: 'Montserrat', sans-serif; font-size: 22px; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--text); line-height: 1; }
+.weight-mini-unit { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+.weight-mini-sub { font-size: 10px; font-weight: 600; color: var(--muted); margin-left: 6px; }
+.weight-mini-cta { display: flex; align-items: center; gap: 4px; background: var(--blue); border: none; border-radius: 100px; padding: 7px 12px 7px 8px; color: #fff; font-family: inherit; font-size: 11px; font-weight: 800; letter-spacing: 0.3px; cursor: pointer; flex-shrink: 0; transition: filter 0.15s; }
+.weight-mini-cta:hover { filter: brightness(1.1); }
+.weight-mini-cta .material-icons { font-size: 14px; }
 @media (max-width: 360px) {
   .sleep-mini-cta { padding: 7px 10px; font-size: 10px; }
 }
@@ -1992,21 +2005,52 @@ input[type="number"] {
   line-height: 1.4;
 }
 
-/* v81 — Milestone progress bar (shown on locked + unlocked milestones) */
+/* v153 — Milestone strap: Now / Next progress bar */
 .achievement-progress {
   margin-top: 8px;
-  height: 4px;
+  height: 5px;
   background: rgba(138,153,168,0.15);
-  border-radius: 2px;
+  border-radius: 3px;
   overflow: hidden;
 }
 .achievement-progress-fill {
   height: 100%;
   background: var(--blue);
-  border-radius: 2px;
+  border-radius: 3px;
   transition: width 0.3s;
 }
 .achievement.unlocked .achievement-progress-fill { background: var(--yellow); }
+/* Now / Next row — current state (bold/bright) vs next target (muted, right) */
+.achievement-nownext {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  margin-top: 6px;
+}
+.achievement-now { display: flex; flex-direction: column; }
+.achievement-next { display: flex; flex-direction: column; text-align: right; }
+.achievement-lbl {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+  font-weight: 800;
+  margin-bottom: 2px;
+}
+.achievement-now .achievement-val {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.achievement.unlocked .achievement-now .achievement-val { color: var(--yellow); }
+.achievement-next .achievement-val {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
 
 /* Drivers list */
 .bio-section-title { font-size: 9px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); margin: 2px 0 8px; }
@@ -2273,18 +2317,31 @@ input[type="number"] {
 .stats-top-bar-fill { height: 100%; background: var(--blue); border-radius: 2px; }
 .stats-top-count { font-size: 12px; font-weight: 700; color: var(--muted); }
 
-.achievements-grid { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
-.achievement-cat { font-size: 14px; font-weight: 800; letter-spacing: 0.2px; color: var(--text); margin: 16px 0 6px; }
+/* v153 — Milestones: flat straps (no panel), grouped by category, Now/Next layout */
+.achievements-grid { display: flex; flex-direction: column; gap: 0; }
+.achievement-cat { font-size: 14px; font-weight: 800; color: var(--text); letter-spacing: 0.3px; margin: 16px 0 2px; }
 .achievement-cat:first-child { margin-top: 0; }
-.achievement { display: flex; align-items: center; gap: 12px; background: rgba(43,168,224,0.05); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; text-align: left; }
-.achievement.inactive { opacity: 0.5; }
-.achievement-icon { width: 38px; height: 38px; border-radius: 50%; background: rgba(255,204,0,0.12); border: 1px solid rgba(255,204,0,0.30); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.achievement-icon .material-icons { font-size: 20px; color: var(--yellow); }
+.achievement {
+  display: flex; align-items: center; gap: 12px;
+  background: transparent; border: none; border-bottom: 1px solid var(--border); border-radius: 0;
+  padding: 12px 2px;
+}
+.achievement:last-child { border-bottom: none; }
+.achievement-icon {
+  flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(255,204,0,0.10); border: 1px solid rgba(255,204,0,0.30);
+  display: flex; align-items: center; justify-content: center;
+}
+.achievement-icon .material-icons { font-size: 22px; color: var(--yellow); }
+.achievement-body { flex: 1 1 auto; min-width: 0; }
+.achievement-name { font-size: 13px; font-weight: 800; color: var(--text); }
+/* progress state: blue, title + icon fully lit (any value logged) */
+.achievement.progress .achievement-icon { background: rgba(43,168,224,0.12); border-color: rgba(43,168,224,0.35); }
+.achievement.progress .achievement-icon .material-icons { color: var(--blue); }
+/* inactive state: nothing logged → dimmed */
+.achievement.inactive { opacity: 0.45; }
 .achievement.inactive .achievement-icon { background: rgba(138,153,168,0.10); border-color: var(--border); }
 .achievement.inactive .achievement-icon .material-icons { color: var(--muted); }
-.achievement-body { flex: 1; min-width: 0; }
-.achievement-name { font-size: 13px; font-weight: 800; color: var(--text); }
-.achievement-goal { font-size: 11px; color: var(--muted); line-height: 1.35; margin-top: 1px; }
 
 /* ----- EARNINGS ----- */
 /* v87 — Earnings panel: real AED, tier system, refer-a-friend */
@@ -4909,6 +4966,21 @@ input[type="number"] {
         </button>
       </div>
 
+      <!-- 2b. Body Weight quick-log — under sleep tracker (update regularly) -->
+      <div class="weight-mini-card" onclick="FitnessStats.openPrEdit('weight')">
+        <div class="weight-mini-icon"><span class="material-icons">monitor_weight</span></div>
+        <div class="weight-mini-info">
+          <div class="weight-mini-label">Body Weight</div>
+          <div class="weight-mini-value">
+            <span id="weight-mini-val">&mdash;</span><span class="weight-mini-unit">kg</span>
+            <span class="weight-mini-sub">powers your lift ratios</span>
+          </div>
+        </div>
+        <button class="weight-mini-cta" onclick="event.stopPropagation(); FitnessStats.openPrEdit('weight')">
+          <span class="material-icons">add</span>Update
+        </button>
+      </div>
+
       <!-- 3. What's driving it — strap rows, no outer card -->
       <div class="bio-section-title">What's driving it</div>
       <div class="bio-drivers" id="bio-drivers"></div>
@@ -4961,11 +5033,11 @@ input[type="number"] {
       </div>
     </div>
     
-    <!-- ============ MILESTONES TAB ============ -->
+    <!-- ============ MILESTONES TAB (v153 — flat straps, no panel) ============ -->
     <div id="fs-milestones-view" style="display:none;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-        <div class="bio-section-title" style="margin:0;">Milestones</div>
-        <div id="ms-unlocked-count" style="font-size:11px;font-weight:800;color:var(--yellow);">0 unlocked</div>
+      <div style="display:flex; align-items:baseline; justify-content:space-between; margin:2px 2px 10px;">
+        <div style="font-size:16px; font-weight:800; color:var(--text);">Milestones</div>
+        <div style="font-size:12px; font-weight:700; color:var(--muted);" id="ms-unlocked-count">0 unlocked</div>
       </div>
       <div class="achievements-grid" id="achievements-grid"></div>
     </div>
@@ -9641,8 +9713,7 @@ const FitnessStats = {
       { key: 'hrv',         drv: 'hrv',   name: 'HRV',           icon: 'vital_signs' },
       { key: 'grip',        drv: 'grip',  name: 'Grip Strength', icon: 'pan_tool' },
       { key: 'muscleMass',  drv: null,    name: 'Muscle Mass',   icon: 'exercise' },
-      { key: 'waist',       drv: 'waist', name: 'Waist',         icon: 'straighten' },
-      { key: 'weight',      drv: null,    name: 'Body Weight',   icon: 'monitor_weight', noLb: true }
+      { key: 'waist',       drv: 'waist', name: 'Waist',         icon: 'straighten' }
     ];
     document.getElementById('bio-drivers').innerHTML = HEALTH.map(h => {
       const rec = this.records[h.key];
@@ -9664,7 +9735,7 @@ const FitnessStats = {
             <div class="bio-driver-detail">${valueText}</div>
           </div>
           ${deltaTxt ? `<div class="bio-driver-delta ${cls}">${deltaTxt}</div>` : ''}
-          ${h.noLb ? '' : `<button class="bio-driver-lb" onclick="event.stopPropagation(); if(window.ffpShowLeaderboard) window.ffpShowLeaderboard('${h.key}');" aria-label="Leaderboard"><span class="material-icons">leaderboard</span></button>`}
+          <button class="bio-driver-lb" onclick="event.stopPropagation(); if(window.ffpShowLeaderboard) window.ffpShowLeaderboard('${h.key}');" aria-label="Leaderboard"><span class="material-icons">leaderboard</span></button>
         </div>
       `;
     }).join('');
@@ -9673,6 +9744,8 @@ const FitnessStats = {
     const sleepAvg = this.getSleepAvg();
     const sleepMiniEl = document.getElementById('sleep-mini-avg');
     if (sleepMiniEl) sleepMiniEl.textContent = sleepAvg != null ? sleepAvg.toFixed(1) : '\u2014';
+    const wMiniEl = document.getElementById('weight-mini-val');
+    if (wMiniEl) { const wr = this.records.weight; wMiniEl.textContent = (wr && wr.value != null) ? wr.value : '\u2014'; }
   },
   
   // v84 — Activity tab: streak (consistency) + 30-day activity tiles
