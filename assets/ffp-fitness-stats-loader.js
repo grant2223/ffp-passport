@@ -1014,6 +1014,7 @@
         if (p) {
           if (p.chrono_age != null) FitnessStats.profile.chronAge = Number(p.chrono_age);
           if (p.current_weight_kg != null) FitnessStats.profile.weight = Number(p.current_weight_kg);
+          if (p.height_cm != null) FitnessStats.profile.height = Number(p.height_cm);
           var prDates = (p.pr_dates && typeof p.pr_dates === 'object') ? p.pr_dates : {};
           var rec = {};
           Object.keys(PR_MAP).forEach(function (key) {
