@@ -5034,7 +5034,7 @@ input[type="number"] {
       <div class="tier-badge-info">
         <div class="tier-badge-eyebrow">Your Tier</div>
         <div class="tier-badge-name" id="tier-name">Supporter</div>
-        <div class="tier-badge-rate"><span id="tier-rate">50</span> AED per referral</div>
+        <div class="tier-badge-rate"><span id="tier-rate">10%</span> per referral</div>
       </div>
       <div class="tier-badge-icon" id="tier-icon-mount">
         <span class="material-icons">workspace_premium</span>
@@ -7813,7 +7813,8 @@ const MemberProfile = {
         country:            d.country || null,
         city:               d.city || null,
         skills:             Array.isArray(d.sports) ? d.sports : [],
-        preferences:        d.preferences || {}
+        preferences:        d.preferences || {},
+        professional:       (this.data.professional !== undefined ? this.data.professional : null)
       };
       const res = await fetch('https://ffp-passport-backend.vercel.app/api/members/' + stored.id, {
         method: 'PUT',
@@ -7900,9 +7901,9 @@ const MemberProfile = {
           }
           if (!this.data.professional) this.data.professional = { roles: [] };
           this.data.professional.roles.push({ role: val, verified: false });
-          // PRODUCTION: POST /api/members/me/professional-roles { role: val }
         }
         this.render();
+        this.autoSave();
       }
     });
   },
@@ -7914,8 +7915,8 @@ const MemberProfile = {
     if (this.data.professional.roles.length === 0) {
       this.data.professional = null;
     }
-    // PRODUCTION: DELETE /api/members/me/professional-roles/{id}
     this.render();
+    this.autoSave();
   },
   
   // ===== DOB (native date picker) =====
@@ -9924,7 +9925,7 @@ const Earnings = {
       reqLine: 'Default tier when you sign up.',
       reqHighlight: '',
       perks: [
-        'AED 25 per referral',
+        '5% per referral',
         'AED 25 per accepted content piece',
         'Access to all member perks'
       ]
@@ -9936,7 +9937,7 @@ const Earnings = {
       reqLine: 'Reach Supporter level (2+) in 4 of 7 categories.',
       reqHighlight: 'Supporter level (2+) in 4 of 7 categories',
       perks: [
-        'AED 50 per referral',
+        '10% per referral',
         'AED 50 per accepted content piece',
         'AED 20 per member you bring to a provider',
         'Priority on event hosting applications'
@@ -9949,7 +9950,7 @@ const Earnings = {
       reqLine: 'Reach Ambassador level (8+) in 4 of 7 categories.',
       reqHighlight: 'Ambassador level (8+) in 4 of 7 categories',
       perks: [
-        'AED 100 per referral',
+        '20% per referral',
         'AED 100 per accepted content piece',
         'AED 40 per member you bring to a provider',
         'AED 400 for hosting an event',
@@ -9980,8 +9981,8 @@ const Earnings = {
     {
       key: 'refer', name: 'Refer a friend', icon: 'group_add',
       status: 'active',
-      how: 'Share your code or link. When they sign up and pay AED 499, you earn the reward.',
-      rates: { member: 25, supporter: 50, ambassador: 100 },
+      how: 'Share your code or link. When they sign up and pay $99, you earn the reward.',
+      rates: { member: '5%', supporter: '10%', ambassador: '20%' },
       unit: 'per referral',
       actionLabel: 'Refer now', action: 'openReferModal'
     },
@@ -10243,7 +10244,7 @@ const Earnings = {
   // ─────────── REFER MODAL ───────────
   openReferModal() {
     const rate = this.ways.find(w => w.key === 'refer').rates[this.tier];
-    document.getElementById('rm-rate').textContent = `AED ${rate}`;
+    document.getElementById('rm-rate').textContent = rate;
     document.getElementById('rm-code').textContent = this.referralCode;
     document.getElementById('rm-link').value = `https://ffppassport.com/join?ref=${this.referralCode}`;
     document.getElementById('rm-total').textContent   = this.referralStats.total;
@@ -12240,6 +12241,7 @@ function init() {
         if (m.preferences && typeof m.preferences === 'object') {
           Object.assign(MemberProfile.data.preferences, m.preferences);
         }
+        if (m.professional !== undefined) MemberProfile.data.professional = m.professional;
       }
     }
   } catch (e) {
@@ -12288,7 +12290,7 @@ function init() {
   // Picker modal click-outside is wired inside the Picker module
   document.getElementById('city-search').addEventListener('input', e => renderCityList(e.target.value));
   renderAll();
-  console.log('FFP Dashboard v40 - activity swap passport-fitness');
+  console.log('FFP Dashboard v42 - professional roles persist');
 }
 
 // ===== APPLE WALLET INTEGRATION =====
