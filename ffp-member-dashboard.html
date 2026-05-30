@@ -4757,17 +4757,6 @@ input[type="number"] {
         </div>
       </div>
       
-      <!-- Activity section — single Log Activity button -->
-      <div class="ct-section">
-        <div class="ct-section-head">
-          <div class="ct-section-title">Activity today</div>
-          <div class="ct-section-total" id="ct-activity-total">0 kcal burned</div>
-        </div>
-        <button class="ct-log-btn" onclick="CalorieTracker.openActivityLog()">
-          <span class="material-icons">add</span>Log activity
-        </button>
-        <div class="ct-activity-items" id="ct-activity-items"></div>
-      </div>
       
       <!-- Food section — single Log Food button + grouped meal sections below -->
       <div class="ct-section">
@@ -5153,7 +5142,7 @@ input[type="number"] {
   <div class="modal">
     <div class="modal-header">
       <div>
-        <div class="modal-title">Log experience</div>
+        <div class="modal-title">Log activity</div>
         <div class="modal-subtitle">Add what you did. Optional fields are optional.</div>
       </div>
       <button class="modal-close" onclick="closeLogModal()">&times;</button>
@@ -5169,7 +5158,7 @@ input[type="number"] {
           <select id="log-city" class="form-input"></select>
         </div>
       </div>
-      <div class="log-grid2" style="margin-top:10px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
         <div class="form-field">
           <label class="form-label">Date</label>
           <input type="date" id="log-date" class="form-input">
@@ -5203,9 +5192,9 @@ input[type="number"] {
         <textarea id="log-notes" class="form-input" rows="2" placeholder="How did it feel?"></textarea>
       </div>
     </div>
-    <div class="modal-footer">    </div>    <div class="modal-footer">
+    <div class="modal-footer">
       <button class="btn" onclick="closeLogModal()">Cancel</button>
-      <button class="btn btn-blue" onclick="saveLog()">Save activity</button>
+      <button class="btn" style="background:#FFCC00;color:#081420;border:none;font-weight:800;" onclick="saveLog()">Save activity</button>
     </div>
   </div>
 </div>
@@ -8703,24 +8692,12 @@ const CalorieTracker = {
     document.getElementById('cal-carbs-bar').style.width   = Math.min(100, (consumed.c / t.c) * 100) + '%';
     document.getElementById('cal-fat-bar').style.width     = Math.min(100, (consumed.f / t.f) * 100) + '%';
     
-    // Activity totals + list
-    document.getElementById('ct-activity-total').textContent = `${burned.toLocaleString()} kcal burned`;
-    document.getElementById('ct-activity-items').innerHTML = this.activities.length === 0
-      ? '<div style="font-size:11px; color:var(--muted); font-style:italic; padding:6px 0; text-align:center;">No activity logged yet today.</div>'
-      : this.activities.map(a => {
-          const icon = a.icon || 'fitness_center';
-          return `
-            <div class="ct-activity-item">
-              <div class="ct-activity-item-icon"><span class="material-icons">${icon}</span></div>
-              <div class="ct-activity-item-info">
-                <div class="ct-activity-item-name">${escHtml(a.name)}</div>
-                <div class="ct-activity-item-sub">${a.duration} min</div>
-              </div>
-              <div class="ct-activity-item-kcal">${a.kcal}</div>
-              <button class="ct-activity-item-x" onclick="CalorieTracker.removeActivity(${a.id})" aria-label="Remove"><span class="material-icons">close</span></button>
-            </div>
-          `;
-        }).join('');
+    // Activity section removed (Calorie Tracker is food-only). `burned` is still
+    // computed above from Passport activities and used in the net calc below.
+    var _ctTot = document.getElementById('ct-activity-total');
+    if (_ctTot) _ctTot.textContent = `${burned.toLocaleString()} kcal burned`;
+    var _ctItems = document.getElementById('ct-activity-items');
+    if (_ctItems) _ctItems.innerHTML = '';
     
     // Food total + meal sections
     document.getElementById('ct-food-total').textContent = `${consumed.kcal.toLocaleString()} kcal eaten`;
@@ -12277,7 +12254,7 @@ function init() {
   // Picker modal click-outside is wired inside the Picker module
   document.getElementById('city-search').addEventListener('input', e => renderCityList(e.target.value));
   renderAll();
-  console.log('FFP Dashboard v35 - journey loads via backend');
+  console.log('FFP Dashboard v37 - log activity modal polish');
 }
 
 // ===== APPLE WALLET INTEGRATION =====
