@@ -1,4 +1,5 @@
-/* FFP Meet & Move Loader — v10
+/* FFP Meet & Move Loader — v11
+   v11: maps is_professional -> isProfessional (Professionals meet-up option).
    v10 (2026-05-29): detail popup now shows "Who's going" (tappable attendees +
      host), cost box de-emphasised, details font bumped.
    v9 (2026-05-29): top strip collapsed to ONE compact bar (avatars + count) —
@@ -382,6 +383,7 @@
           capacity: m.max_people || 8, joined: 1 + (countMap[m.id] || 0), level: m.fitness_level || 'All',
           gender: genderMap(m.group_filter), cost: 'Free',
           joinedByMe: joinedSet.has(m.id) || isHostedByMe, isHostedByMe: isHostedByMe,
+          isProfessional: !!m.is_professional,
           host_member_id: m.host_member_id, full: m.status === 'full',
           about: m.description || 'Member-hosted meetup.', img: meta.img,
           attendees: buildAttendees(m, attMap[m.id] || [], peopleMap)
@@ -391,7 +393,7 @@
       wrapWrites();
       var panel = document.getElementById('panel-meet');
       if (panel && panel.classList.contains('active') && typeof MeetMove.render === 'function') MeetMove.render();
-      console.log('[FFP Meet & Move] Loaded ' + MeetMove.data.length + ' meetups ✓ (v10)');
+      console.log('[FFP Meet & Move] Loaded ' + MeetMove.data.length + ' meetups ✓ (v11)');
     } catch (err) { console.error('[FFP Meet & Move] Unexpected error:', err); }
   }
 
