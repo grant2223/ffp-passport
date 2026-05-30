@@ -1,4 +1,7 @@
-/* FFP Fitness Stats Loader — v11
+/* FFP Fitness Stats Loader — v13
+   v13: Activity tab = per-activity breakdown (x times + hours) + recent activity list
+        (recent moved here from the Passport). Removed the "last 30 days" tiles.
+   v12: Records filters collapsed by default (tap Filters to expand).
    v11: member reads (demographics, profile_meta, activity_logs) go via the BACKEND
         (service-role) like the Passport journey — browser reads return nothing for
         member sessions. Ranking pool stays on the get_ranking_pool RPC.
@@ -328,9 +331,9 @@
             '<span class="material-icons" style="font-size:14px;">tune</span> Filters' +
             '<span class="ffp-filters-count" id="ffp-filters-count">All members</span>' +
           '</div>' +
-          '<button class="ffp-filters-toggle"><span class="material-icons" id="ffp-filters-caret">expand_less</span></button>' +
+          '<button class="ffp-filters-toggle"><span class="material-icons" id="ffp-filters-caret">expand_more</span></button>' +
         '</div>' +
-        '<div class="ffp-filters-body" id="ffp-filters-body">' +
+        '<div class="ffp-filters-body collapsed" id="ffp-filters-body">' +
 
           '<div class="ffp-filter-row">' +
             '<div class="ffp-filter-label">Gender</div>' +
@@ -879,23 +882,39 @@
         else                                  metaText = 'Keep the chain alive';
         metaEl.textContent = metaText;
       }
-      var last30 = activityCache.filter(function (l) { return l.daysAgo <= 30; });
-      var totalCount  = last30.length;
-      var totalMin    = last30.reduce(function (s, l) { return s + (l.duration_min || 0); }, 0);
-      var totalHours  = Math.round(totalMin / 60);
-      var activeDays  = new Set(last30.map(function (l) { return l.daysAgo; })).size;
-      var sportsCount = new Set(last30.map(function (l) { return l.activity; })).size;
-      var tiles = [
-        { icon: 'fitness_center', value: totalCount,       label: 'Activities' },
-        { icon: 'schedule',       value: totalHours + 'h', label: 'Hours' },
-        { icon: 'calendar_today', value: activeDays,       label: 'Active days' },
-        { icon: 'sports',         value: sportsCount,      label: 'Sports' }
-      ];
-      var tilesEl = document.getElementById('stats-tiles');
-      if (tilesEl) {
-        tilesEl.innerHTML = tiles.map(function (t) {
-          return '<div class="stats-tile"><div class="stats-tile-icon"><span class="material-icons">' + t.icon + '</span></div><div class="stats-tile-value">' + t.value + '</div><div class="stats-tile-label">' + t.label + '</div></div>';
-        }).join('');
+      function fmtDur(min) { var h = Math.floor(min / 60), m = Math.round(min % 60); return (h ? h + 'h ' : '') + m + 'm'; }
+      var rowCss = 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-top:1px solid rgba(255,255,255,0.06);';
+      var nameCss = 'font-size:13px;font-weight:800;color:var(--text,#e8eef4);';
+      var metaCss = 'font-size:12px;font-weight:700;color:var(--muted,#8a99a8);white-space:nowrap;';
+      var emptyCss = 'font-size:12px;color:var(--muted,#8a99a8);padding:10px 0;';
+
+      // Per-activity breakdown (x times + total hours), most-done first
+      var byAct = {};
+      activityCache.forEach(function (l) {
+        var k = l.activity || 'Activity';
+        if (!byAct[k]) byAct[k] = { count: 0, min: 0 };
+        byAct[k].count++; byAct[k].min += (l.duration_min || 0);
+      });
+      var bd = Object.keys(byAct).map(function (k) { return { name: k, count: byAct[k].count, min: byAct[k].min }; })
+        .sort(function (a, b) { return b.count - a.count || b.min - a.min; });
+      var bdEl = document.getElementById('fs-breakdown');
+      if (bdEl) {
+        bdEl.innerHTML = bd.length ? bd.map(function (a) {
+          return '<div style="' + rowCss + '"><div style="' + nameCss + '">' + escText(a.name) + '</div>' +
+            '<div style="' + metaCss + '">\u00d7' + a.count + ' \u00b7 ' + fmtDur(a.min) + '</div></div>';
+        }).join('') : '<div style="' + emptyCss + '">No activities logged yet \u2014 log one from your Passport.</div>';
+      }
+
+      // Recent activity (moved from Passport)
+      var recent = activityCache.slice().sort(function (a, b) { return a.daysAgo - b.daysAgo; }).slice(0, 12);
+      var rcEl = document.getElementById('fs-recent');
+      if (rcEl) {
+        rcEl.innerHTML = recent.length ? recent.map(function (l) {
+          var when = l.daysAgo === 0 ? 'today' : (l.daysAgo === 1 ? 'yesterday' : l.daysAgo + 'd ago');
+          var sub = (l.city ? escText(l.city) + ' \u00b7 ' : '') + fmtDur(l.duration_min || 0) + ' \u00b7 ' + when;
+          return '<div style="' + rowCss + '"><div style="' + nameCss + '">' + escText(l.activity || 'Activity') + '</div>' +
+            '<div style="' + metaCss + '">' + sub + '</div></div>';
+        }).join('') : '<div style="' + emptyCss + '">No recent activity.</div>';
       }
     };
   }
@@ -1002,8 +1021,8 @@
         var alJson = await alRes.json();
         var rows = (alJson && alJson.logs) || [];
         activityCache = rows.map(function (r) {
-          return { activity: r.activity || '', duration_min: r.duration_min || 0, daysAgo: daysAgoFromIso(r.logged_at) };
-        }).filter(function (a) { return a.daysAgo <= 90; });
+          return { activity: r.activity || '', duration_min: r.duration_min || 0, calories: r.calories || 0, city: r.city || '', country: r.country || '', daysAgo: daysAgoFromIso(r.logged_at) };
+        });
       } catch (e) { console.error('[FFP Fitness Stats] activity_logs read:', e); activityCache = []; }
 
       var poolRes = await window.supabase.rpc('get_ranking_pool');
@@ -1024,7 +1043,7 @@
         FitnessStats.render();
       }
 
-      console.log('[FFP Fitness Stats v11] Loaded \u2713 (' + activityCache.length + ' activities, ' + rankingPool.length + ' members in pool)');
+      console.log('[FFP Fitness Stats v13] Loaded \u2713 (' + activityCache.length + ' activities, ' + rankingPool.length + ' members in pool)');
     } catch (err) {
       console.error('[FFP Fitness Stats] Unexpected error:', err);
     }
