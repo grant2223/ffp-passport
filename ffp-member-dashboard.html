@@ -4258,18 +4258,6 @@ input[type="number"] {
     </button>
   </div>
   
-  <!-- RECENT -->
-  <div class="card-block">
-    <div class="card-head">
-      <div class="card-head-title"><span class="material-icons card-head-icon">schedule</span><h3>Recent Activity</h3></div>
-      <span class="card-head-sub">Tap to edit</span>
-    </div>
-    <div class="list-block" id="recent-list"></div>
-    <button class="btn btn-block view-more-btn" id="recent-view-all" style="display:none;">
-      <span class="vm-label">View full history</span>
-      <span class="material-icons" style="font-size:14px;">expand_more</span>
-    </button>
-  </div>
   
 
   </div><!-- /panel-passport -->
@@ -4941,12 +4929,19 @@ input[type="number"] {
         <div class="streak-card-meta" id="streak-meta">Log an activity today to start a streak</div>
       </div>
       
-      <!-- Activity totals (last 30 days) -->
+      <!-- Per-activity breakdown -->
       <div class="ct-section">
         <div class="ct-section-head">
-          <div class="ct-section-title">Activity (last 30 days)</div>
+          <div class="ct-section-title">Activity breakdown</div>
         </div>
-        <div class="stats-tiles" id="stats-tiles"></div>
+        <div id="fs-breakdown"></div>
+      </div>
+      <!-- Recent activity (moved from Passport) -->
+      <div class="ct-section">
+        <div class="ct-section-head">
+          <div class="ct-section-title">Recent activity</div>
+        </div>
+        <div id="fs-recent"></div>
       </div>
     </div>
     
@@ -6535,7 +6530,6 @@ function renderAll() {
   renderStats(logs);
   renderActivities(logs);
   renderVenues(logs);
-  renderRecent(logs);
   renderCities();
   renderMapPins();
 }
@@ -11823,7 +11817,6 @@ function setupCityFilters() {
 function setupViewAll() {
   document.getElementById('activities-view-all').addEventListener('click', () => { state.expandedActivities = !state.expandedActivities; renderActivities(getFilteredLogs()); });
   document.getElementById('venues-view-all').addEventListener('click', () => { state.expandedVenues = !state.expandedVenues; renderVenues(getFilteredLogs()); });
-  document.getElementById('recent-view-all').addEventListener('click', () => { state.expandedRecent = !state.expandedRecent; renderRecent(getFilteredLogs()); });
 }
 
 // ===== MAP CONTROLS =====
@@ -12295,7 +12288,7 @@ function init() {
   // Picker modal click-outside is wired inside the Picker module
   document.getElementById('city-search').addEventListener('input', e => renderCityList(e.target.value));
   renderAll();
-  console.log('FFP Dashboard v39 - meet+move renamed connections');
+  console.log('FFP Dashboard v40 - activity swap passport-fitness');
 }
 
 // ===== APPLE WALLET INTEGRATION =====
