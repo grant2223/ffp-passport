@@ -1,4 +1,7 @@
-/* FFP Fitness Stats Loader — v10
+/* FFP Fitness Stats Loader — v11
+   v11: member reads (demographics, profile_meta, activity_logs) go via the BACKEND
+        (service-role) like the Passport journey — browser reads return nothing for
+        member sessions. Ranking pool stays on the get_ranking_pool RPC.
    v10: member id comes from FFPAuth.getMember() (custom auth), NOT supabase.auth.getUser()
         (members are not Supabase-Auth users, so getUser() was null -> all reads empty).
    v8 fix: Override renderRecords() directly (not wrap render). v7 wrapped render() which
@@ -962,54 +965,46 @@
       }
       currentUserId = ffpM.id;
 
-      var memRes = await window.supabase
-        .from('members').select('date_of_birth, gender, city, country, nationality')
-        .eq('id', currentUserId).maybeSingle();
-      if (!memRes.error && memRes.data) {
-        var ageFromDob = computeAgeFromDob(memRes.data.date_of_birth);
-        if (ageFromDob != null) FitnessStats.profile.chronAge = ageFromDob;
-        if (memRes.data.gender) FitnessStats.profile.gender = memRes.data.gender;
-        if (memRes.data.city)   FitnessStats.profile.city   = memRes.data.city;
-        myDemo = {
-          gender: memRes.data.gender || null,
-          age: ageFromDob,
-          city: memRes.data.city || null,
-          country: memRes.data.country || null,
-          nationality: memRes.data.nationality || null
-        };
-      }
+      var API = 'https://ffp-passport-backend.vercel.app';
+      // Demographics from the cached member (set at sign-in) — no browser read needed.
+      var ageFromDob = computeAgeFromDob(ffpM.date_of_birth);
+      if (ageFromDob != null) FitnessStats.profile.chronAge = ageFromDob;
+      if (ffpM.gender) FitnessStats.profile.gender = ffpM.gender;
+      if (ffpM.city)   FitnessStats.profile.city   = ffpM.city;
+      myDemo = {
+        gender: ffpM.gender || null, age: ageFromDob,
+        city: ffpM.city || null, country: ffpM.country || null, nationality: ffpM.nationality || null
+      };
 
-      var pm = await window.supabase
-        .from('profile_meta')
-        .select('chrono_age, current_weight_kg, sleep_logs, pr_dates, ' +
-                'pr_bench_kg, pr_squat_kg, pr_deadlift_kg, ' +
-                'pr_5k_seconds, pr_10k_seconds, pr_21k_seconds, pr_marathon_sec, pr_swim1k_sec, ' +
-                'vo2_max, body_fat_pct, visceral_fat')
-        .eq('member_id', currentUserId).maybeSingle();
-      if (pm.error) console.error('[FFP Fitness Stats] profile_meta read:', pm.error);
-      else if (pm.data) {
-        var p = pm.data;
-        if (p.chrono_age != null) FitnessStats.profile.chronAge = Number(p.chrono_age);
-        if (p.current_weight_kg != null) FitnessStats.profile.weight = Number(p.current_weight_kg);
-        var prDates = (p.pr_dates && typeof p.pr_dates === 'object') ? p.pr_dates : {};
-        var rec = {};
-        Object.keys(PR_MAP).forEach(function (key) {
-          var col = PR_MAP[key].col;
-          if (p[col] == null) { rec[key] = null; return; }
-          rec[key] = { value: Number(p[col]), date: prDates[key] || null };
-        });
-        FitnessStats.records = rec;
-        FitnessStats.sleepLogs = sleepFromDb(p.sleep_logs);
-      }
+      // profile_meta via backend (service-role)
+      try {
+        var pmRes = await fetch(API + '/api/members/' + currentUserId + '/profile-meta');
+        var pmJson = await pmRes.json();
+        var p = pmJson && pmJson.meta;
+        if (p) {
+          if (p.chrono_age != null) FitnessStats.profile.chronAge = Number(p.chrono_age);
+          if (p.current_weight_kg != null) FitnessStats.profile.weight = Number(p.current_weight_kg);
+          var prDates = (p.pr_dates && typeof p.pr_dates === 'object') ? p.pr_dates : {};
+          var rec = {};
+          Object.keys(PR_MAP).forEach(function (key) {
+            var col = PR_MAP[key].col;
+            if (p[col] == null) { rec[key] = null; return; }
+            rec[key] = { value: Number(p[col]), date: prDates[key] || null };
+          });
+          FitnessStats.records = rec;
+          FitnessStats.sleepLogs = sleepFromDb(p.sleep_logs);
+        }
+      } catch (e) { console.error('[FFP Fitness Stats] profile_meta read:', e); }
 
-      var sinceIso = new Date(Date.now() - 90 * 86400000).toISOString();
-      var actRes = await window.supabase
-        .from('activity_logs').select('activity, duration_min, logged_at')
-        .eq('member_id', currentUserId).gte('logged_at', sinceIso);
-      if (actRes.error) { console.error('[FFP Fitness Stats] activity_logs read:', actRes.error); activityCache = []; }
-      else activityCache = (actRes.data || []).map(function (r) {
-        return { activity: r.activity || '', duration_min: r.duration_min || 0, daysAgo: daysAgoFromIso(r.logged_at) };
-      });
+      // activity_logs via backend (service-role)
+      try {
+        var alRes = await fetch(API + '/api/members/' + currentUserId + '/activity-logs');
+        var alJson = await alRes.json();
+        var rows = (alJson && alJson.logs) || [];
+        activityCache = rows.map(function (r) {
+          return { activity: r.activity || '', duration_min: r.duration_min || 0, daysAgo: daysAgoFromIso(r.logged_at) };
+        }).filter(function (a) { return a.daysAgo <= 90; });
+      } catch (e) { console.error('[FFP Fitness Stats] activity_logs read:', e); activityCache = []; }
 
       var poolRes = await window.supabase.rpc('get_ranking_pool');
       if (poolRes.error) { console.error('[FFP Fitness Stats] ranking_pool RPC:', poolRes.error); rankingPool = []; }
@@ -1029,7 +1024,7 @@
         FitnessStats.render();
       }
 
-      console.log('[FFP Fitness Stats v10] Loaded \u2713 (' + activityCache.length + ' activities, ' + rankingPool.length + ' members in pool)');
+      console.log('[FFP Fitness Stats v11] Loaded \u2713 (' + activityCache.length + ' activities, ' + rankingPool.length + ' members in pool)');
     } catch (err) {
       console.error('[FFP Fitness Stats] Unexpected error:', err);
     }
