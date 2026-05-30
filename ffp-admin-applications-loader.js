@@ -1,4 +1,4 @@
-/* FFP Admin — Provider Applications queue — v1
+/* FFP Admin — Provider Applications queue — v3
    Self-injecting admin panel for reviewing provider_applications.
    - Adds an "Applications" sidebar link + panel to the admin dashboard.
    - Reads pending/approved/rejected applications via window.supabase (admin RLS).
@@ -98,7 +98,6 @@
           '</div>' +
           '<div class="tabs" id="apps-tabs">' +
             '<button class="tab-btn active" data-tab="pending" onclick="AdminApplications.setTab(\'pending\')">Pending <span class="count" id="apps-count-pending">0</span></button>' +
-            '<button class="tab-btn" data-tab="approved" onclick="AdminApplications.setTab(\'approved\')">Approved <span class="count" id="apps-count-approved">0</span></button>' +
             '<button class="tab-btn" data-tab="rejected" onclick="AdminApplications.setTab(\'rejected\')">Rejected <span class="count" id="apps-count-rejected">0</span></button>' +
           '</div>' +
           '<div class="section-body"><table class="table"><thead>' +
@@ -297,7 +296,7 @@
         var out = await res.json().catch(function () { return {}; });
         if (!res.ok || out.error) throw new Error(out.error || ('HTTP ' + res.status));
         if (typeof window.closeModal === 'function') window.closeModal();
-        toast('Provider approved + invited', 'check');
+        toast('Provider created + invited - refreshing...', 'check'); setTimeout(function(){ location.reload(); }, 1100);
         try { if (typeof AuditLog !== 'undefined' && AuditLog.add) AuditLog.add('Admin', 'approved provider application'); } catch (e) {}
         await this.load();
       } catch (e) {
