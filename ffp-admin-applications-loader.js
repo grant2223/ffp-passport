@@ -65,8 +65,8 @@
 
   // ─── Inject sidebar link + panel ───
   function injectUI() {
-    // Register the panel name with the router
-    try { if (window.App && window.App.panelNames) window.App.panelNames['panel-applications'] = 'Applications'; } catch (e) {}
+    // Register the panel name with the router (App is a bare global const, not on window)
+    try { if (typeof App !== 'undefined' && App.panelNames) App.panelNames['panel-applications'] = 'Applications'; } catch (e) {}
 
     // Sidebar link — placed right after Providers (Approvals section)
     if (!$('.sidebar-link[data-panel="panel-applications"]')) {
@@ -298,10 +298,8 @@
         if (!res.ok || out.error) throw new Error(out.error || ('HTTP ' + res.status));
         if (typeof window.closeModal === 'function') window.closeModal();
         toast('Provider approved + invited', 'check');
-        if (window.AuditLog && window.AuditLog.add) { try { window.AuditLog.add('Admin', 'approved provider application'); } catch (e) {} }
+        try { if (typeof AuditLog !== 'undefined' && AuditLog.add) AuditLog.add('Admin', 'approved provider application'); } catch (e) {}
         await this.load();
-        // refresh the Providers panel if its loader is present
-        try { if (window.AdminProviders && typeof window.AdminProviders.render === 'function') { /* providers loader self-refreshes on its own fetch */ } } catch (e) {}
       } catch (e) {
         console.error('[FFP Applications] provision:', e);
         toast(e.message || 'Approval failed', 'error');
@@ -316,7 +314,7 @@
 
   async function boot() {
     var ok = await waitFor(function () {
-      return window.supabase && window.supabase.from && window.App && document.querySelector('.main');
+      return window.supabase && window.supabase.from && (typeof App !== 'undefined') && document.querySelector('.main');
     }, 15000);
     if (!ok) { console.error('[FFP Applications] dependencies never loaded'); return; }
     await waitFor(function () { return !!window.FFP_ADMIN; }, 10000);
