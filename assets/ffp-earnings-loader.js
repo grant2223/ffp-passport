@@ -79,6 +79,17 @@
   var DEFAULT_VISIBLE_ROWS = 3;    // v11+ (was 5 in v9-v10)
   var layoutBuilt = false;
 
+  // ─────────── v16: USD display ───────────
+  // Amounts (balance, payouts, transactions) now show in US dollars.
+  // If the DB stores these in AED, flip AMOUNT_IS_AED to true and every
+  // display + the injected balance converts via the fixed 3.6725 peg.
+  // (Leave the dashboard's BALANCE_IS_AED = false — this loader feeds USD.)
+  var AMOUNT_IS_AED = false;
+  var AED_PER_USD = 3.6725;
+  function toUsdNum(n) { n = Number(n) || 0; return AMOUNT_IS_AED ? (n / AED_PER_USD) : n; }
+  function usd(n) { return '$' + Math.round(toUsdNum(n)).toLocaleString(); }
+  var MIN_PAYOUT_USD = 250;
+
   // v13: Build the Share button + wire it. Idempotent — safe to call on
   // every panel render. Uses navigator.share (mobile native sheet) when
   // available, falls back to navigator.clipboard.writeText with a toast.
@@ -231,7 +242,7 @@
       section.innerHTML = titleRow +
         '<div class="ffp-po-list">' +
           '<div class="ffp-po-empty">' +
-            'No payouts yet. When your balance reaches AED 500, request your first one above.' +
+            'No payouts yet. When your balance reaches $250, request your first one above.' +
           '</div>' +
         '</div>';
       return;
@@ -272,7 +283,7 @@
 
       return '<div class="ffp-po-row">' +
         '<div>' +
-          '<div class="ffp-po-amount">AED ' + amt.toLocaleString() + '</div>' +
+          '<div class="ffp-po-amount">' + usd(amt) + '</div>' +
           '<div class="ffp-po-method">' + escHtml(p.method || 'bank') + ' transfer</div>' +
           '<div class="ffp-po-dates">' + dates + '</div>' +
           rejectionBlock +
@@ -339,8 +350,7 @@
     s.id = 'ffp-earnings-v8-styles';
     s.textContent =
       // Two-column row for dropdowns
-      '#ffp-bottom-dropdowns{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px;}' +
-      '@media(max-width:560px){#ffp-bottom-dropdowns{grid-template-columns:1fr;}}' +
+      '#ffp-bottom-dropdowns{display:grid;grid-template-columns:1fr;gap:12px;margin-top:18px;}' +  /* v16: single column — Ways to earn stacks directly under How tiers work */
       '.ffp-dd{background:rgba(43,168,224,0.04);border:1px solid var(--border-mid,rgba(43,168,224,0.30));border-radius:12px;overflow:hidden;}' +
       '.ffp-dd-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;user-select:none;}' +
       '.ffp-dd-head:hover{background:rgba(43,168,224,0.06);}' +
@@ -519,9 +529,9 @@
 
     var summary =
       '<div class="ffp-summary">' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Paid</div><div class="ffp-summary-val green">AED ' + Math.round(totalPaid).toLocaleString() + '</div></div>' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">In progress</div><div class="ffp-summary-val yellow">AED ' + Math.round(totalPending).toLocaleString() + '</div></div>' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Rejected</div><div class="ffp-summary-val red">AED ' + Math.round(totalRejected).toLocaleString() + '</div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Paid</div><div class="ffp-summary-val green">' + usd(totalPaid) + '</div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">In progress</div><div class="ffp-summary-val yellow">' + usd(totalPending) + '</div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Rejected</div><div class="ffp-summary-val red">' + usd(totalRejected) + '</div></div>' +
       '</div>';
 
     var rowsHtml;
@@ -566,7 +576,7 @@
 
         return '<div class="ffp-po-row">' +
           '<div>' +
-            '<div class="ffp-po-amount">AED ' + amt.toLocaleString() + '</div>' +
+            '<div class="ffp-po-amount">' + usd(amt) + '</div>' +
             '<div class="ffp-po-method">' + escHtml(p.method || 'bank') + ' transfer</div>' +
             '<div class="ffp-po-dates">' + dates + '</div>' +
             rejectionBlock +
@@ -653,8 +663,8 @@
 
     var summary =
       '<div class="ffp-summary two">' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Earned</div><div class="ffp-summary-val green">AED ' + Math.round(totalEarned).toLocaleString() + '</div></div>' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Pending</div><div class="ffp-summary-val yellow">AED ' + Math.round(totalPending).toLocaleString() + '</div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Earned</div><div class="ffp-summary-val green">' + usd(totalEarned) + '</div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Pending</div><div class="ffp-summary-val yellow">' + usd(totalPending) + '</div></div>' +
       '</div>';
 
     var listHtml;
@@ -863,7 +873,7 @@
       } else {
         var txRows = txRes.data || [];
         allTransactions = txRows;  // v8: keep full list for time filtering
-        Earnings.balance = computeBalance(txRows);
+        Earnings.balance = toUsdNum(computeBalance(txRows));  // v16: feed USD to the dashboard
 
         // For paid payouts, fetch the receipt URL from payouts table
         var paidPayoutIds = txRows
@@ -1292,7 +1302,7 @@
       // Capture amount + method BEFORE original runs (original closes modal + clears state)
       var amount = this._payoutAmount;
       // Guard amount before collecting bank details
-      if (amount < 500) { showToast('Minimum payout is AED 500', 'error'); return; }
+      if (amount < MIN_PAYOUT_USD) { showToast('Minimum payout is $' + MIN_PAYOUT_USD, 'error'); return; }
       if (amount > this.balance) { showToast('Amount exceeds balance', 'error'); return; }
 
       // Collect + validate bank/other details BEFORE the original closes the modal
@@ -1300,7 +1310,7 @@
       if (!details) return;  // validation failed, modal stays open
 
       // Final confirmation — this is real money
-      if (!confirm('Submit payout request for AED ' + amount.toLocaleString() + ' via ' + details.method + '?\n\nAdmin will review and contact you within 3\u20135 business days.')) {
+      if (!confirm('Submit payout request for $' + amount.toLocaleString() + ' via ' + details.method + '?\n\nAdmin will review and contact you within 3\u20135 business days.')) {
         return;
       }
 
