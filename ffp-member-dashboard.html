@@ -505,7 +505,7 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
 .journey-header p { font-size: 12px; color: var(--muted); }
 
 /* HERO STATS */
-.hero-stats { display: grid; grid-template-columns: repeat(5,1fr); gap: 1px; background: var(--border-mid); border: 1px solid var(--border-mid); border-radius: 14px; overflow: hidden; margin-bottom: 18px; }
+.hero-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 1px; background: var(--border-mid); border: 1px solid var(--border-mid); border-radius: 14px; overflow: hidden; margin-bottom: 18px; }
 .hero-stat { background: var(--bg-2); padding: 14px 8px; text-align: center; }
 .hero-stat-num { font-size: 26px; font-weight: 900; color: var(--text); line-height: 1; letter-spacing: -0.5px; }
 .hero-stat-num.accent { color: var(--blue); }
@@ -4155,11 +4155,14 @@ input[type="number"] {
   
   <!-- HERO STATS -->
   <div class="hero-stats">
-    <div class="hero-stat"><div class="hero-stat-num" id="stat-activities">0</div><div class="hero-stat-lbl">Activities</div></div>
-    <div class="hero-stat"><div class="hero-stat-num" id="stat-venues">0</div><div class="hero-stat-lbl">Venues</div></div>
-    <div class="hero-stat"><div class="hero-stat-num accent" id="stat-cities">0</div><div class="hero-stat-lbl">Cities</div></div>
     <div class="hero-stat"><div class="hero-stat-num" id="stat-countries">0</div><div class="hero-stat-lbl">Countries</div></div>
-    <div class="hero-stat"><div class="hero-stat-num" id="stat-partner">0</div><div class="hero-stat-lbl">Partner</div></div>
+    <div class="hero-stat"><div class="hero-stat-num accent" id="stat-cities">0</div><div class="hero-stat-lbl">Cities</div></div>
+    <div class="hero-stat"><div class="hero-stat-num" id="stat-activities">0</div><div class="hero-stat-lbl">Activities</div></div>
+    <div class="hero-stat"><div class="hero-stat-num" id="stat-sports">0</div><div class="hero-stat-lbl">Sports</div></div>
+    <div class="hero-stat"><div class="hero-stat-num" id="stat-days">0</div><div class="hero-stat-lbl">Days</div></div>
+    <div class="hero-stat"><div class="hero-stat-num" id="stat-hours">0</div><div class="hero-stat-lbl">Hours</div></div>
+    <div class="hero-stat"><div class="hero-stat-num" id="stat-meets">0</div><div class="hero-stat-lbl">Meets</div></div>
+    <div class="hero-stat"><div class="hero-stat-num" id="stat-partner">0</div><div class="hero-stat-lbl">Partners</div></div>
   </div>
   
   <!-- TIME CHIPS -->
@@ -4406,7 +4409,7 @@ input[type="number"] {
        ═══════════════════════════════════════════════════════════════ -->
   <div id="panel-meet" class="panel-view">
     <div class="user-panel-head">
-      <h2>Meet &amp; Move</h2>
+      <h2>Connections</h2>
       <div class="user-panel-sub">Connect with other people who enjoy the same activities you do.</div>
     </div>
     
@@ -5112,7 +5115,7 @@ input[type="number"] {
 <!-- BOTTOM NAV -->
 <div class="bottom-nav">
   <button class="nav-item active" data-panel="panel-passport"><span class="material-icons">card_membership</span><span>Passport</span></button>
-  <button class="nav-item" data-panel="panel-meet"><span class="material-icons">group</span><span>Meet &amp; Move</span></button>
+  <button class="nav-item" data-panel="panel-meet"><span class="material-icons">group</span><span>Connections</span></button>
   <button class="nav-item" data-panel="panel-quests"><span class="material-icons">flag</span><span>Quests</span></button>
   <button class="nav-item" data-panel="panel-events"><span class="material-icons">event</span><span>Events</span></button>
   <button class="nav-item" data-panel="panel-experiences"><span class="material-icons">flight</span><span>Experiences</span></button>
@@ -5789,6 +5792,7 @@ input[type="number"] {
 
 // ===== DATA =====
 const LOGS = [];
+var MEETS = [];
 
 const WISHLIST = [];
 
@@ -6536,15 +6540,36 @@ function renderAll() {
   renderMapPins();
 }
 
+function getMeetsCount() {
+  if (typeof MEETS === 'undefined') return 0;
+  const r = state.timeRange;
+  if (r === '7d')  return MEETS.filter(m => m.daysAgo <= 7).length;
+  if (r === '30d') return MEETS.filter(m => m.daysAgo <= 30).length;
+  if (r === '90d') return MEETS.filter(m => m.daysAgo <= 90).length;
+  if (r === 'year') { const y = new Date().getFullYear(); return MEETS.filter(m => m.year === y).length; }
+  return MEETS.length;
+}
 function renderStats(logs) {
-  const venues = new Set(), cities = new Set(), countries = new Set();
-  let partner = 0;
-  logs.forEach(l => { venues.add(l.venue); cities.add(l.city); countries.add(l.country); if (l.partner) partner++; });
-  document.getElementById('stat-activities').textContent = logs.length;
-  document.getElementById('stat-venues').textContent = venues.size;
-  document.getElementById('stat-cities').textContent = cities.size;
-  document.getElementById('stat-countries').textContent = countries.size;
-  document.getElementById('stat-partner').textContent = partner;
+  const cities = new Set(), countries = new Set(), sports = new Set(), days = new Set();
+  let partner = 0, totalMin = 0;
+  logs.forEach(l => {
+    if (l.city) cities.add(l.city);
+    if (l.country) countries.add(l.country);
+    if (l.activity) sports.add(l.activity);
+    if (l.date) days.add(l.date);
+    totalMin += (l.duration || 0);
+    if (l.partner) partner++;
+  });
+  const hours = totalMin / 60;
+  const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  setTxt('stat-countries', countries.size);
+  setTxt('stat-cities', cities.size);
+  setTxt('stat-activities', logs.length);
+  setTxt('stat-sports', sports.size);
+  setTxt('stat-days', days.size);
+  setTxt('stat-hours', hours >= 10 ? Math.round(hours) : Math.round(hours * 10) / 10);
+  setTxt('stat-meets', getMeetsCount());
+  setTxt('stat-partner', partner);
 }
 
 function renderActivities(logs) {
@@ -6958,6 +6983,21 @@ function setupTopbar() {
 var FFP_API_NOTIF = 'https://ffp-passport-backend.vercel.app';
 function escNotif(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function notifTime(iso){ if(!iso) return ''; var d=Date.now()-new Date(iso).getTime(); var m=Math.floor(d/60000); if(m<1)return 'just now'; if(m<60)return m+'m ago'; var h=Math.floor(m/60); if(h<24)return h+'h ago'; return Math.floor(h/24)+'d ago'; }
+async function loadMeets() {
+  var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
+  if (!member || !member.id) return;
+  try {
+    var res = await fetch('https://ffp-passport-backend.vercel.app/api/members/' + member.id + '/meetups-attended');
+    var json = await res.json();
+    var now = Date.now();
+    MEETS = ((json && json.meetups) || []).map(function (m) {
+      var dt = m.meets_at ? new Date(m.meets_at) : new Date();
+      return { daysAgo: Math.max(0, Math.floor((now - dt.getTime()) / 86400000)), year: dt.getFullYear() };
+    });
+    if (typeof renderAll === 'function') renderAll();
+    console.log('[FFP Meets] loaded ' + MEETS.length + ' attended');
+  } catch (e) { console.error('[FFP Meets] load:', e); }
+}
 async function loadNotifications() {
   var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
   if (!member || !member.id) return;
@@ -7613,7 +7653,7 @@ const MemberProfile = {
             <input type="checkbox" ${d.preferences.newsletter ? 'checked' : ''} onchange="MemberProfile.setPref('newsletter', this.checked)">
           </label>
           <label class="pref-toggle">
-            <span>Public Profile (Meet &amp; Move)</span>
+            <span>Public Profile (Connections)</span>
             <input type="checkbox" ${d.preferences.publicProfile ? 'checked' : ''} onchange="MemberProfile.setPref('publicProfile', this.checked)">
           </label>
         </div>
@@ -11218,7 +11258,7 @@ const MeetMove = {
     else if (isFull)  { btnLabel = 'Full'; btnDisabled = 'disabled'; btnClass = 'sold-out'; }
     const body = `
       <div class="dm-cover ${m.cat === 'racquet' ? 'sports' : m.cat === 'mind-body' ? 'wellness' : m.cat === 'fitness' ? 'fitness' : m.cat === 'adventure' ? 'adventure' : 'sports'}">
-        <span class="dm-cover-tag">Meet &amp; Move</span>
+        <span class="dm-cover-tag">Meet-up</span>
       </div>
       <div class="dm-body">
         <div class="dm-title">${escHtml(m.activity)}</div>
@@ -12224,6 +12264,7 @@ function init() {
   FitnessStats.init();
   Earnings.init();
   loadJourneyLogs();
+  loadMeets();
   loadNotifications();
   window.Quests = Quests;
   Quests.init();
@@ -12254,7 +12295,7 @@ function init() {
   // Picker modal click-outside is wired inside the Picker module
   document.getElementById('city-search').addEventListener('input', e => renderCityList(e.target.value));
   renderAll();
-  console.log('FFP Dashboard v37 - log activity modal polish');
+  console.log('FFP Dashboard v39 - meet+move renamed connections');
 }
 
 // ===== APPLE WALLET INTEGRATION =====
