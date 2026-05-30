@@ -7413,7 +7413,8 @@ const MemberProfile = {
     dobYear: '',
     
     gender: '',
-    
+    height: '',   // cm — set-once physical attribute (drives waist-to-height + muscle index)
+
     // Location
     country: '',  // where you LIVE
     city: '',
@@ -7600,6 +7601,9 @@ const MemberProfile = {
         <div class="fields-grid" style="margin-top:10px;">
           ${this.renderDOBCard()}
           ${this.renderPickerCard('gender', 'Gender', d.gender)}
+        </div>
+        <div class="fields-grid" style="margin-top:10px;">
+          ${this.renderPickerCard('height', 'Height', d.height ? d.height + ' cm' : '')}
         </div>
 
         <!-- LOCATION — Country + City on one row (2-col), Nationality on its own row -->
@@ -7820,6 +7824,7 @@ const MemberProfile = {
         phone_country_code: d.phoneCountryCode || null,
         date_of_birth:      dobISO,
         gender:             d.gender || null,
+        height_cm:          d.height ? Number(d.height) : null,
         nationality:        d.nationality || null,
         country:            d.country || null,
         city:               d.city || null,
@@ -7966,6 +7971,11 @@ const MemberProfile = {
   },
   
   pickerConfigFor(field) {
+    if (field === 'height') {
+      const heights = [];
+      for (let cm = 120; cm <= 220; cm++) heights.push({ value: String(cm), label: cm + ' cm' });
+      return { title: 'Height', subtitle: 'Set once', options: heights, searchPlaceholder: 'Search cm...' };
+    }
     if (field === 'gender')      return { title: 'Gender',      options: GENDERS,                searchPlaceholder: 'Search...' };
     if (field === 'nationality') return { title: 'Nationality', options: NATIONALITIES,          searchPlaceholder: 'Search nationalities...' };
     if (field === 'country')     return { title: 'Country',     options: Object.keys(CITIES_DB), searchPlaceholder: 'Search countries...' };
@@ -12307,6 +12317,7 @@ function init() {
           dobMonth:         dobParts[1] || '',
           dobDay:           dobParts[2] || '',
           gender:           m.gender || '',
+          height:           (m.height_cm != null ? String(m.height_cm) : ''),
           country:          m.country || '',
           city:             m.city || '',
           nationality:      m.nationality || '',
