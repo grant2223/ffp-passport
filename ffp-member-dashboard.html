@@ -2016,24 +2016,25 @@ input[type="number"] {
 .achievement.unlocked .achievement-count { color: #4ade80; }
 
 /* Drivers list */
-.bio-drivers { display: flex; flex-direction: column; gap: 8px; }
+.bio-section-title { font-size: 9px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); margin: 2px 0 8px; }
+.bio-drivers { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
 .bio-driver {
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: rgba(43,168,224,0.04);
+  gap: 12px;
+  background: rgba(43,168,224,0.05);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 12px;
+  border-radius: 14px;
+  padding: 12px 14px;
 }
 .bio-driver-icon {
-  width: 32px; height: 32px;
+  width: 38px; height: 38px;
   border-radius: 50%;
   background: rgba(43,168,224,0.12);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-.bio-driver-icon .material-icons { font-size: 18px; color: var(--blue); }
+.bio-driver-icon .material-icons { font-size: 20px; color: var(--blue); }
 .bio-driver.positive .bio-driver-icon { background: rgba(74,222,128,0.12); }
 .bio-driver.positive .bio-driver-icon .material-icons { color: #4ade80; }
 .bio-driver.negative .bio-driver-icon { background: rgba(239,68,68,0.12); }
@@ -4892,15 +4893,7 @@ input[type="number"] {
         <div class="bio-hero-chrono">Chronological age: <span id="bio-chrono">40</span></div>
       </div>
       
-      <!-- 2. What's driving it (explains the bio age above) -->
-      <div class="ct-section">
-        <div class="ct-section-head">
-          <div class="ct-section-title">What's driving it</div>
-        </div>
-        <div class="bio-drivers" id="bio-drivers"></div>
-      </div>
-      
-      <!-- 3. Sleep Tracker quick-log (daily input that drives bio age) -->
+      <!-- 2. Sleep Tracker quick-log — pinned under hero (logged daily) -->
       <div class="sleep-mini-card" onclick="FitnessStats.openSleepLog()">
         <div class="sleep-mini-icon"><span class="material-icons">bedtime</span></div>
         <div class="sleep-mini-info">
@@ -4914,6 +4907,10 @@ input[type="number"] {
           <span class="material-icons">add</span>Log last night
         </button>
       </div>
+
+      <!-- 3. What's driving it — strap rows, no outer card -->
+      <div class="bio-section-title">What's driving it</div>
+      <div class="bio-drivers" id="bio-drivers"></div>
     </div>
     
     <!-- ============ ACTIVITY TAB (NEW) ============ -->
@@ -9400,26 +9397,28 @@ const FitnessStats = {
     const drivers = [];
     
     // VO2 max — strongest indicator. Each unit above age-norm = -0.4 yrs.
+    // VO₂ max — strongest CRF signal, but bounded by age/sex category (v86).
     if (r.vo2max) {
-      const norm = this.vo2Norm(p.chronAge, p.gender);
-      const delta = (r.vo2max.value - norm) * 0.4;
-      bio -= delta;
+      const band = this.vo2Band(r.vo2max.value, p.gender, p.chronAge);
+      const VO2_YEARS = { Superior: -3, Excellent: -2, Good: -1, Fair: 0, Poor: 2 };
+      const delta = VO2_YEARS[band.label] || 0;
+      bio += delta;
       drivers.push({
         key: 'vo2',
         name: 'VO₂ Max',
         icon: 'favorite',
         detail: `${r.vo2max.value} ml/kg/min — for your age & sex`,
-        band: this.vo2Band(r.vo2max.value, p.gender, p.chronAge),
-        deltaYears: -delta
+        band: band,
+        deltaYears: delta
       });
     }
     
-    // Body fat % — above norm = older. Category by sex + age (v85).
+    // Body fat — bounded by age/sex category (v86).
     if (r.bodyFat) {
-      const norm = p.gender === 'male' ? 17 : 22;
-      const delta = (r.bodyFat.value - norm) * 0.3;
-      bio += delta;
       const band = this.bodyFatBand(r.bodyFat.value, p.gender, p.chronAge);
+      const BF_YEARS = { Lean: -0.5, Healthy: 0, Overweight: 1.5, Obese: 3 };
+      const delta = BF_YEARS[band.label] || 0;
+      bio += delta;
       drivers.push({
         key: 'bf',
         name: 'Body Fat',
@@ -9430,11 +9429,13 @@ const FitnessStats = {
       });
     }
     
-    // Visceral fat — only counts heavily above 12.
+    // Visceral fat — bounded (v86).
     if (r.visceralFat) {
       let delta = 0;
-      if (r.visceralFat.value > 12)      delta = (r.visceralFat.value - 12) * 0.5;
-      else if (r.visceralFat.value <= 5) delta = -0.5;
+      const v = r.visceralFat.value;
+      if (v > 12)       delta = 1.5;
+      else if (v >= 10) delta = 0.5;
+      else if (v <= 5)  delta = -0.5;
       bio += delta;
       drivers.push({
         key: 'vf',
