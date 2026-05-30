@@ -502,9 +502,16 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
 
 
 /* JOURNEY HEADER */
-.journey-header { margin-bottom: 20px; }
+.journey-header { margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.journey-header-text { min-width: 0; }
 .journey-header h2 { margin-bottom: 4px; }
 .journey-header p { font-size: 12px; color: var(--muted); }
+/* v154 — Activity day streak badge (to the right of "Your journey") */
+.journey-streak { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 14px; background: rgba(255,204,0,0.08); border: 1px solid rgba(255,204,0,0.30); border-radius: 14px; line-height: 1; }
+.journey-streak-top { display: flex; align-items: center; gap: 3px; }
+.journey-streak .material-icons { font-size: 18px; color: var(--yellow); }
+.journey-streak-num { font-size: 22px; font-weight: 800; color: var(--yellow); font-variant-numeric: tabular-nums; }
+.journey-streak-lbl { font-size: 9px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: var(--muted); margin-top: 3px; }
 
 /* HERO STATS */
 .hero-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 1px; background: var(--border-mid); border: 1px solid var(--border-mid); border-radius: 14px; overflow: hidden; margin-bottom: 18px; }
@@ -4209,8 +4216,18 @@ input[type="number"] {
 
   <!-- JOURNEY -->
   <div class="journey-header">
-    <h2>Your journey</h2>
-    <p>Activities, venues, and cities you've explored</p>
+    <div class="journey-header-text">
+      <h2>Your journey</h2>
+      <p>Activities, venues, and cities you've explored</p>
+    </div>
+    <!-- v154 — Activity day streak: consecutive days with a logged activity -->
+    <div class="journey-streak" id="journey-streak" title="Days in a row with a logged activity">
+      <div class="journey-streak-top">
+        <span class="material-icons">local_fire_department</span>
+        <span class="journey-streak-num" id="journey-streak-num">0</span>
+      </div>
+      <span class="journey-streak-lbl">day streak</span>
+    </div>
   </div>
   
   <!-- HERO STATS -->
@@ -6605,6 +6622,13 @@ function renderStats(logs) {
   setTxt('stat-hours', hours >= 10 ? Math.round(hours) : Math.round(hours * 10) / 10);
   setTxt('stat-meets', getMeetsCount());
   setTxt('stat-partner', partner);
+
+  // v154 — Activity day streak: consecutive days back from today with a logged
+  // activity. All-time (uses global LOGS), independent of the time-range filter.
+  const streakDays = new Set((typeof LOGS !== 'undefined' ? LOGS : []).map(l => l.daysAgo));
+  let streakCur = 0;
+  for (let d = 0; d < 365; d++) { if (streakDays.has(d)) streakCur++; else break; }
+  setTxt('journey-streak-num', streakCur);
 }
 
 function renderActivities(logs) {
@@ -12533,8 +12557,8 @@ function addToAppleWallet() {
   // PRODUCTION: Replace with actual endpoint
   // window.location.href = `https://api.ffppassport.com/wallet/apple/generate?memberID=${memberData.memberID}`;
   
-  // For now, show what will happen
-  alert('Apple Wallet Integration Ready\n\nGoing live requires:\n• Apple Developer Account ($99/yr)\n• Pass Type ID Certificate\n• Backend endpoint to generate signed .pkpass files\n\nMember ID: ' + memberData.memberID);
+  // v154 — wallet integration deferred; simple "coming soon" notice for now
+  alert('Apple Wallet — coming soon');
 }
 
 // ===== GOOGLE WALLET INTEGRATION =====
@@ -12552,7 +12576,8 @@ function addToGoogleWallet() {
   // PRODUCTION: Replace with actual endpoint
   // window.location.href = `https://api.ffppassport.com/wallet/google/save?memberID=${memberData.memberID}`;
   
-  alert('Google Wallet Integration Ready\n\nGoing live requires:\n• Google Cloud project + Wallet API enabled\n• Issuer account (free)\n• Service account credentials\n• Backend endpoint to generate JWT save links\n\nMember ID: ' + memberData.memberID);
+  // v154 — wallet integration deferred; simple "coming soon" notice for now
+  alert('Google Wallet — coming soon');
 }
 
 // ===== PASSPORT CARD RESPONSIVE SCALING =====
