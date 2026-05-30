@@ -9292,7 +9292,12 @@ const FitnessStats = {
     swim1K:      null,
     vo2max:      null,
     bodyFat:     null,
-    visceralFat: null
+    visceralFat: null,
+    restingHR:   null,
+    hrv:         null,
+    grip:        null,
+    muscleMass:  null,
+    waist:       null
     // sleepAvgHrs is COMPUTED from sleepLogs below (v82)
   },
   
@@ -9365,7 +9370,12 @@ const FitnessStats = {
     swim1K:      { name: 'Swim 1km',    icon: 'pool',           type: 'time',    unit: 'mm:ss',  group: 'cardio' },
     vo2max:      { name: 'VO₂ Max',     icon: 'favorite',      type: 'decimal', unit: 'ml/kg/min', step: 0.5, max: 90,  group: 'health' },
     bodyFat:     { name: 'Body Fat',    icon: 'monitor_weight', type: 'decimal', unit: '%',      step: 0.5, max: 60,  group: 'health' },
-    visceralFat: { name: 'Visceral Fat',icon: 'medical_information', type: 'kg', unit: 'rating', step: 1,   max: 30,  group: 'health' }
+    visceralFat: { name: 'Visceral Fat',icon: 'medical_information', type: 'kg', unit: 'rating', step: 1,   max: 30,  group: 'health' },
+    restingHR:   { name: 'Resting HR',  icon: 'monitor_heart', type: 'kg',      unit: 'bpm', step: 1,   max: 220, group: 'health' },
+    hrv:         { name: 'HRV (RMSSD)', icon: 'vital_signs',   type: 'kg',      unit: 'ms',  step: 1,   max: 250, group: 'health' },
+    grip:        { name: 'Grip Strength',icon: 'pan_tool',     type: 'decimal', unit: 'kg',  step: 1,   max: 120, group: 'health' },
+    muscleMass:  { name: 'Muscle Mass', icon: 'exercise',      type: 'decimal', unit: 'kg',  step: 0.5, max: 80,  group: 'health' },
+    waist:       { name: 'Waist',       icon: 'straighten',    type: 'decimal', unit: 'cm',  step: 0.5, max: 200, group: 'health' }
     // v84 — Sleep removed from PR cards. Logged via daily input on Bio Age tab (sleep-mini-card).
   },
   
