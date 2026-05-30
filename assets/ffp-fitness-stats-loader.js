@@ -1,4 +1,5 @@
-/* FFP Fitness Stats Loader — v13
+/* FFP Fitness Stats Loader — v14
+   v14: Activity breakdown has a period filter (Week/Month/3M/6M/Year/All).
    v13: Activity tab = per-activity breakdown (x times + hours) + recent activity list
         (recent moved here from the Passport). Removed the "last 30 days" tiles.
    v12: Records filters collapsed by default (tap Filters to expand).
@@ -33,6 +34,8 @@
   var currentUserId = null;
   var wrapped = false;
   var activityCache = [];
+  var activityPeriod = 'all';
+  window.ffpSetActivityPeriod = function (p) { activityPeriod = p; if (typeof FitnessStats !== 'undefined' && FitnessStats.renderActivity) FitnessStats.renderActivity(); };
   var rankingPool = [];
   var myDemo = null;
   var recordsBuilt = false;
@@ -888,9 +891,16 @@
       var metaCss = 'font-size:12px;font-weight:700;color:var(--muted,#8a99a8);white-space:nowrap;';
       var emptyCss = 'font-size:12px;color:var(--muted,#8a99a8);padding:10px 0;';
 
-      // Per-activity breakdown (x times + total hours), most-done first
+      // Per-activity breakdown (x times + total hours) over the selected period
+      var PERIODS = [['week','Week',7],['month','Month',30],['3m','3M',90],['6m','6M',180],['year','Year',365],['all','All',1000000]];
+      var _cutoff = (PERIODS.filter(function(x){return x[0]===activityPeriod;})[0] || PERIODS[5])[2];
+      var _inP = activityCache.filter(function (l) { return l.daysAgo <= _cutoff; });
+      var chips = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">' + PERIODS.map(function (x) {
+        var on = x[0] === activityPeriod;
+        return '<button onclick="ffpSetActivityPeriod(\'' + x[0] + '\')" style="border:1px solid ' + (on ? 'var(--blue,#2ba8e0)' : 'var(--border-mid,rgba(43,168,224,0.2))') + ';background:' + (on ? 'var(--blue,#2ba8e0)' : 'transparent') + ';color:' + (on ? '#fff' : 'var(--muted,#8a99a8)') + ';font-size:11px;font-weight:800;padding:6px 11px;border-radius:20px;cursor:pointer;font-family:inherit;">' + x[1] + '</button>';
+      }).join('') + '</div>';
       var byAct = {};
-      activityCache.forEach(function (l) {
+      _inP.forEach(function (l) {
         var k = l.activity || 'Activity';
         if (!byAct[k]) byAct[k] = { count: 0, min: 0 };
         byAct[k].count++; byAct[k].min += (l.duration_min || 0);
@@ -899,10 +909,11 @@
         .sort(function (a, b) { return b.count - a.count || b.min - a.min; });
       var bdEl = document.getElementById('fs-breakdown');
       if (bdEl) {
-        bdEl.innerHTML = bd.length ? bd.map(function (a) {
+        var listHtml = bd.length ? bd.map(function (a) {
           return '<div style="' + rowCss + '"><div style="' + nameCss + '">' + escText(a.name) + '</div>' +
             '<div style="' + metaCss + '">\u00d7' + a.count + ' \u00b7 ' + fmtDur(a.min) + '</div></div>';
-        }).join('') : '<div style="' + emptyCss + '">No activities logged yet \u2014 log one from your Passport.</div>';
+        }).join('') : '<div style="' + emptyCss + '">No activities in this period.</div>';
+        bdEl.innerHTML = chips + listHtml;
       }
 
       // Recent activity (moved from Passport)
@@ -1043,7 +1054,7 @@
         FitnessStats.render();
       }
 
-      console.log('[FFP Fitness Stats v13] Loaded \u2713 (' + activityCache.length + ' activities, ' + rankingPool.length + ' members in pool)');
+      console.log('[FFP Fitness Stats v14] Loaded \u2713 (' + activityCache.length + ' activities, ' + rankingPool.length + ' members in pool)');
     } catch (err) {
       console.error('[FFP Fitness Stats] Unexpected error:', err);
     }
