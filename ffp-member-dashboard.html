@@ -191,7 +191,7 @@
      the current user — no Supabase Auth dependency. -->
 <script src="assets/ffp-earnings-loader.js"></script>
 <script src="assets/ffp-calorie-tracker-loader.js"></script>
-<script src="assets/ffp-fitness-stats-loader-v15.js"></script>
+<script src="assets/ffp-fitness-stats-loader-v16.js"></script>
 <script src="assets/ffp-meet-move-loader.js"></script>
 
 <style>
@@ -2042,6 +2042,11 @@ input[type="number"] {
 .bio-driver-info { flex: 1; min-width: 0; }
 .bio-driver-name { font-size: 13px; font-weight: 700; color: var(--text); }
 .bf-band { display: inline-block; margin-left: 7px; padding: 1px 7px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: .02em; vertical-align: middle; }
+.bio-driver { cursor: pointer; }
+.bio-driver.empty { opacity: 0.72; }
+.bio-driver-lb { background: transparent; border: none; color: var(--muted); cursor: pointer; padding: 4px; margin-left: 4px; display: flex; align-items: center; flex-shrink: 0; }
+.bio-driver-lb .material-icons { font-size: 18px; }
+.bio-driver-lb:hover { color: var(--blue); }
 .bio-driver-detail { font-size: 11px; color: var(--muted); margin-top: 1px; }
 .bio-driver-delta {
   font-family: 'Montserrat', sans-serif;
@@ -9669,32 +9674,43 @@ const FitnessStats = {
       gapIcon.textContent = 'horizontal_rule';
     }
     
-    // Drivers — fixed order: VO₂, Body fat, Visceral fat, Sleep, then others (v85, Grant)
-    const ORDER = ['vo2', 'bf', 'vf', 'rhr', 'hrv', 'grip', 'waist', 'sleep', 'dl'];
-    const sorted = calc.drivers.slice().sort((a, b) => {
-      const ia = ORDER.indexOf(a.key), ib = ORDER.indexOf(b.key);
-      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
-    });
-    document.getElementById('bio-drivers').innerHTML = sorted.length === 0
-      ? '<div style="font-size:12px; color:var(--muted); padding:12px; text-align:center;">Log VO₂, body fat, sleep, or strength records to see what\'s driving your biological age.</div>'
-      : sorted.map(d => {
-          const delta = d.deltaYears;
-          const cls = delta < -0.1 ? 'positive' : delta > 0.1 ? 'negative' : '';
-          const deltaTxt = Math.abs(delta) < 0.1 ? '±0 yrs' : `${delta < 0 ? '−' : '+'}${Math.abs(delta).toFixed(1)} yrs`;
-          const bandChip = d.band
-            ? `<span class="bf-band" style="background:${d.band.bg}; color:${d.band.color};">${escHtml(d.band.label)}</span>`
-            : '';
-          return `
-            <div class="bio-driver ${cls}">
-              <div class="bio-driver-icon"><span class="material-icons">${d.icon}</span></div>
-              <div class="bio-driver-info">
-                <div class="bio-driver-name">${escHtml(d.name)}${bandChip}</div>
-                <div class="bio-driver-detail">${escHtml(d.detail)}</div>
-              </div>
-              <div class="bio-driver-delta ${cls}">${deltaTxt}</div>
-            </div>
-          `;
-        }).join('');
+    // Health markers — tap-to-add cards (entry + leaderboard live here now; Records = strength+cardio). v87
+    const driverByKey = {};
+    calc.drivers.forEach(d => { driverByKey[d.key] = d; });
+    const HEALTH = [
+      { key: 'vo2max',      drv: 'vo2',   name: 'VO₂ Max',       icon: 'favorite' },
+      { key: 'bodyFat',     drv: 'bf',    name: 'Body Fat',      icon: 'monitor_weight' },
+      { key: 'visceralFat', drv: 'vf',    name: 'Visceral Fat',  icon: 'medical_information' },
+      { key: 'restingHR',   drv: 'rhr',   name: 'Resting HR',    icon: 'monitor_heart' },
+      { key: 'hrv',         drv: 'hrv',   name: 'HRV',           icon: 'vital_signs' },
+      { key: 'grip',        drv: 'grip',  name: 'Grip Strength', icon: 'pan_tool' },
+      { key: 'muscleMass',  drv: null,    name: 'Muscle Mass',   icon: 'exercise' },
+      { key: 'waist',       drv: 'waist', name: 'Waist',         icon: 'straighten' }
+    ];
+    document.getElementById('bio-drivers').innerHTML = HEALTH.map(h => {
+      const rec = this.records[h.key];
+      const hasVal = rec && rec.value != null;
+      const drv = h.drv ? driverByKey[h.drv] : null;
+      const def = this.prDefs[h.key] || {};
+      const delta = drv ? drv.deltaYears : 0;
+      const cls = delta < -0.1 ? 'positive' : delta > 0.1 ? 'negative' : '';
+      const deltaTxt = (drv && Math.abs(delta) >= 0.1) ? `${delta < 0 ? '−' : '+'}${Math.abs(delta).toFixed(1)} yrs` : '';
+      const bandChip = (drv && drv.band)
+        ? `<span class="bf-band" style="background:${drv.band.bg}; color:${drv.band.color};">${escHtml(drv.band.label)}</span>`
+        : '';
+      const valueText = hasVal ? `${rec.value} ${escHtml(def.unit || '')}` : 'Tap to add';
+      return `
+        <div class="bio-driver ${cls}${hasVal ? '' : ' empty'}" onclick="FitnessStats.openPrEdit('${h.key}')">
+          <div class="bio-driver-icon"><span class="material-icons">${h.icon}</span></div>
+          <div class="bio-driver-info">
+            <div class="bio-driver-name">${escHtml(h.name)}${bandChip}</div>
+            <div class="bio-driver-detail">${valueText}</div>
+          </div>
+          ${deltaTxt ? `<div class="bio-driver-delta ${cls}">${deltaTxt}</div>` : ''}
+          <button class="bio-driver-lb" onclick="event.stopPropagation(); if(window.ffpShowLeaderboard) window.ffpShowLeaderboard('${h.key}');" aria-label="Leaderboard"><span class="material-icons">leaderboard</span></button>
+        </div>
+      `;
+    }).join('');
     
     // v83 — Sleep mini-card (Bio Age tab quick-log)
     const sleepAvg = this.getSleepAvg();
