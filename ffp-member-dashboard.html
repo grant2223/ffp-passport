@@ -4477,6 +4477,12 @@ input[type="number"] {
       </select>
     </div>
     
+    <div id="meet-pro-chip-row" style="display:none;margin-bottom:14px;">
+      <button id="meet-pro-chip" onclick="MeetMove.toggleProOnly()" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,204,0,0.10);border:1px solid rgba(255,204,0,0.4);color:#FFCC00;font-size:12px;font-weight:800;padding:8px 14px;border-radius:20px;cursor:pointer;font-family:inherit;">
+        <span class="material-icons" style="font-size:15px;">workspace_premium</span> Professionals only
+      </button>
+    </div>
+    
     <div class="meetup-grid" id="meet-grid"></div>
   </div>
 
@@ -5375,6 +5381,13 @@ input[type="number"] {
             <option value="All ages">All ages</option>
           </select>
         </div>
+      </div>
+      <div class="pm-form-field" id="pmf-pro-field" style="display:none;">
+        <label class="pm-form-label">Professionals</label>
+        <label style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text);cursor:pointer;background:#08131f;border:1px solid #1a2f44;border-radius:8px;padding:11px 12px;">
+          <input type="checkbox" id="pmf-professional" style="width:18px;height:18px;flex-shrink:0;">
+          <span>Professionals networking meet-up <span style="color:var(--muted);font-weight:600;">&middot; only Professionals can see &amp; join</span></span>
+        </label>
       </div>
       <div class="pm-form-field">
         <label class="pm-form-label">Cost</label>
@@ -11071,6 +11084,11 @@ const Experiences = {
 //   - Native dropdowns (NOT chip buttons): category / when / gender
 //   - Member detail modal with per-sport match %, shared interests, trust
 // =====================================================================
+function isMemberProfessional() {
+  var pro = (window.MemberProfile && MemberProfile.data && MemberProfile.data.professional) || null;
+  return !!(pro && pro.roles && pro.roles.length > 0);
+}
+
 const MeetMove = {
   tab: 'discover',
   search: '',
@@ -11078,6 +11096,7 @@ const MeetMove = {
   when: 'all',
   gender: 'all',
   level: 'all',
+  proOnly: false,
   
   // Matched members (sample) — production: GET /api/meet/matches?member_id=me
   matches: [],
@@ -11135,6 +11154,8 @@ const MeetMove = {
     if (this.when !== 'all') items = items.filter(m => m.whenSlot === this.when);
     if (this.gender !== 'all') items = items.filter(m => m.gender === this.gender);
     if (this.level !== 'all') items = items.filter(m => m.level === this.level);
+    if (!isMemberProfessional()) items = items.filter(m => !m.isProfessional);
+    if (this.proOnly) items = items.filter(m => m.isProfessional);
     return items;
   },
   
@@ -11154,7 +11175,19 @@ const MeetMove = {
     return m ? m[1].toUpperCase() : '';
   },
   
+  toggleProOnly() {
+    this.proOnly = !this.proOnly;
+    var chip = document.getElementById('meet-pro-chip');
+    if (chip) {
+      chip.style.background = this.proOnly ? '#FFCC00' : 'rgba(255,204,0,0.10)';
+      chip.style.color = this.proOnly ? '#081420' : '#FFCC00';
+    }
+    this.render();
+  },
+
   render() {
+    var _chipRow = document.getElementById('meet-pro-chip-row');
+    if (_chipRow) _chipRow.style.display = isMemberProfessional() ? '' : 'none';
     // Tab counts
     const joinedCount = this.data.filter(m => m.joinedByMe).length;
     const hostingCount = this.hostingIds.size;
@@ -11221,6 +11254,7 @@ const MeetMove = {
           </div>
           <div class="meetup-body">
             <div class="meetup-eyebrow">${eyebrow}</div>
+            ${m.isProfessional ? '<span style="display:inline-block;margin-bottom:6px;font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#FFCC00;background:rgba(255,204,0,0.12);border:1px solid rgba(255,204,0,0.4);border-radius:6px;padding:3px 8px;">Professionals</span>' : ''}
             <div class="meetup-title-v2">${escHtml(m.activity)}</div>
             <div class="meetup-org-row">
               <div class="meetup-org-avatar">${m.hostInitial}</div>
@@ -11460,6 +11494,10 @@ const MeetMove = {
     if (monS) monS.value = t.getMonth() + 1;
     if (yrS) yrS.value = t.getFullYear();
     if (tmS) tmS.value = '18:00';
+    var _proField = document.getElementById('pmf-pro-field');
+    var _proCb = document.getElementById('pmf-professional');
+    if (_proCb) _proCb.checked = false;
+    if (_proField) _proField.style.display = isMemberProfessional() ? '' : 'none';
     document.getElementById('post-meetup-backdrop').classList.add('open');
   },
   
@@ -11502,6 +11540,7 @@ const MeetMove = {
       fitness_level: document.getElementById('pmf-level').value,
       group_filter: groupFilter,
       description: document.getElementById('pmf-desc').value.trim(),
+      is_professional: !!(document.getElementById('pmf-professional') && document.getElementById('pmf-professional').checked),
       status: 'open'
     };
     try {
@@ -12290,7 +12329,7 @@ function init() {
   // Picker modal click-outside is wired inside the Picker module
   document.getElementById('city-search').addEventListener('input', e => renderCityList(e.target.value));
   renderAll();
-  console.log('FFP Dashboard v42 - professional roles persist');
+  console.log('FFP Dashboard v44 - professionals filter chip');
 }
 
 // ===== APPLE WALLET INTEGRATION =====
