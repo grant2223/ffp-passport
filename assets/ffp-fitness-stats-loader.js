@@ -188,7 +188,14 @@
     { key: 'vo2max',      label: 'VO\u2082',  icon: 'favorite',           col: 'vo2_max',         unit: 'ml/kg/min', dir: 'higher', kind: 'num',  group: 'Health' },
     { key: 'bodyFat',     label: 'Body Fat',  icon: 'monitor_weight',     col: 'body_fat_pct',    unit: '%',         dir: 'lower',  kind: 'num',  group: 'Health' },
     { key: 'visceralFat', label: 'Visceral',  icon: 'medical_information',col: 'visceral_fat',    unit: 'rating',    dir: 'lower',  kind: 'num',  group: 'Health' },
-    { key: 'sleepAvgHrs', label: 'Sleep',     icon: 'bedtime',            col: 'sleep_avg_hours', unit: 'hrs',       dir: 'higher', kind: 'num',  group: 'Health' }
+    { key: 'sleepAvgHrs', label: 'Sleep',     icon: 'bedtime',            col: 'sleep_avg_hours', unit: 'hrs',       dir: 'higher', kind: 'num',  group: 'Health' },
+    { key: 'restingHR',   label: 'Resting HR',icon: 'monitor_heart',      col: 'resting_hr',      unit: 'bpm',       dir: 'lower',  kind: 'num',  group: 'Health' },
+    { key: 'hrv',         label: 'HRV',       icon: 'vital_signs',        col: 'hrv_ms',          unit: 'ms',        dir: 'higher', kind: 'num',  group: 'Health' },
+    { key: 'grip',        label: 'Grip',      icon: 'pan_tool',           col: 'grip_strength_kg',unit: 'kg',        dir: 'higher', kind: 'num',  group: 'Health' },
+    { key: 'muscleMass',  label: 'Muscle',    icon: 'exercise',           col: 'muscle_mass_kg',  unit: 'kg',        dir: 'higher', kind: 'num',  group: 'Health',
+      derive: function (r) { var h = r.height_cm; if (r.muscle_mass_kg == null || !h) return null; return r.muscle_mass_kg / Math.pow(h / 100, 2); }, lbUnit: 'kg/m\u00b2', lbDecimals: 1 },
+    { key: 'waist',       label: 'Waist',     icon: 'straighten',         col: 'waist_cm',        unit: 'cm',        dir: 'lower',  kind: 'num',  group: 'Health',
+      derive: function (r) { var h = r.height_cm; if (r.waist_cm == null || !h) return null; return r.waist_cm / h; }, lbUnit: 'WHtR', lbDecimals: 2 }
   ];
   var AGE_BUCKETS = [
     { key: 'any',     label: 'Any',      range: null },
@@ -202,6 +209,18 @@
   ];
 
   function metricByKey(k) { return METRICS.find(function (m) { return m.key === k; }); }
+
+  // v15 — value accessor: derived metrics (waist->WHtR, muscle->index) rank by computed
+  // value using height_cm; all others use their raw column.
+  function metricVal(r, metric) {
+    if (!r) return null;
+    if (metric.derive) { var d = metric.derive(r); return (d == null || isNaN(d)) ? null : d; }
+    return r[metric.col] != null ? Number(r[metric.col]) : null;
+  }
+  function formatLbValue(r, metric) {
+    if (metric.derive) { var d = metricVal(r, metric); return d == null ? '\u2014' : d.toFixed(metric.lbDecimals != null ? metric.lbDecimals : 1); }
+    return formatMetricValue(r[metric.col], metric);
+  }
 
   function formatMetricValue(value, metric) {
     if (value == null) return '\u2014';
@@ -231,7 +250,12 @@
     swim1K:      { col: 'pr_swim1k_sec',   cast: 'int',   dir: 'lower'  },
     vo2max:      { col: 'vo2_max',         cast: 'float', dir: 'higher' },
     bodyFat:     { col: 'body_fat_pct',    cast: 'float', dir: 'lower'  },
-    visceralFat: { col: 'visceral_fat',    cast: 'float', dir: 'lower'  }
+    visceralFat: { col: 'visceral_fat',    cast: 'float', dir: 'lower'  },
+    restingHR:   { col: 'resting_hr',      cast: 'int',   dir: 'lower'  },
+    hrv:         { col: 'hrv_ms',          cast: 'int',   dir: 'higher' },
+    grip:        { col: 'grip_strength_kg',cast: 'float', dir: 'higher' },
+    muscleMass:  { col: 'muscle_mass_kg',  cast: 'float', dir: 'higher' },
+    waist:       { col: 'waist_cm',        cast: 'float', dir: 'lower'  }
   };
 
   function computeAgeFromDob(dobStr) {
@@ -686,10 +710,10 @@
 
     // Filter pool + sort by selected metric
     var filtered = filterPool(rankingPool, filters);
-    var withValue = filtered.filter(function (r) { return r[metric.col] != null; });
+    var withValue = filtered.filter(function (r) { return metricVal(r, metric) != null; });
     withValue.sort(function (a, b) {
-      var av = Number(a[metric.col]);
-      var bv = Number(b[metric.col]);
+      var av = metricVal(a, metric);
+      var bv = metricVal(b, metric);
       return metric.dir === 'higher' ? bv - av : av - bv;
     });
 
@@ -711,7 +735,7 @@
       container.innerHTML = '<div class="ffp-lb-empty">No members have logged a ' + metric.label + ' value in this group yet.</div>';
       return;
     }
-    var values = withValue.map(function (r) { return Number(r[metric.col]); });
+    var values = withValue.map(function (r) { return metricVal(r, metric); });
     var maxV = Math.max.apply(null, values);
     var minV = Math.min.apply(null, values);
     function barPctFor(v) {
@@ -734,12 +758,12 @@
     }
 
     var html = rowsToShow.map(function (r, i) {
-      return renderLbRow(r, i + 1, metric, barPctFor(Number(r[metric.col])));
+      return renderLbRow(r, i + 1, metric, barPctFor(metricVal(r, metric)));
     }).join('');
 
     if (meAppended) {
       html += '<div style="text-align:center;color:var(--muted);font-size:11px;padding:6px 0;">\u00b7\u00b7\u00b7</div>';
-      html += renderLbRow(withValue[myIdx], myIdx + 1, metric, barPctFor(Number(withValue[myIdx][metric.col])));
+      html += renderLbRow(withValue[myIdx], myIdx + 1, metric, barPctFor(metricVal(withValue[myIdx], metric)));
     }
 
     if (!meAppended && myIdx < 0 && currentUserId) {
@@ -771,8 +795,9 @@
     else if (rank === 1) rankCls += ' top1';
     else if (rank === 2) rankCls += ' top2';
     else if (rank === 3) rankCls += ' top3';
-    var value = formatMetricValue(r[metric.col], metric);
-    var valueLine = metric.unit === 'time' ? value : (value + ' <span style="color:var(--muted);font-size:11px;font-weight:600;">' + metric.unit + '</span>');
+    var value = formatLbValue(r, metric);
+    var lbU = metric.derive ? (metric.lbUnit || '') : metric.unit;
+    var valueLine = metric.unit === 'time' ? value : (value + (lbU ? ' <span style="color:var(--muted);font-size:11px;font-weight:600;">' + lbU + '</span>' : ''));
     return '<div class="' + rankCls + '">' +
       '<div class="ffp-lb-rank">#' + rank + '</div>' +
       '<div class="ffp-lb-name-bar">' +
@@ -805,8 +830,18 @@
       posLine = 'No value logged yet';
     }
 
+    var myDerived = null;
+    if (metric.derive && rec2) {
+      var _hCm = FitnessStats.profile ? FitnessStats.profile.height : null;
+      var _synth = { height_cm: _hCm }; _synth[metric.col] = rec2.value;
+      myDerived = metricVal(_synth, metric);
+    }
     var valueHtml = rec2
-      ? '<div class="ffp-my-pr-value">' + formatMetricValue(rec2.value, metric) + (metric.unit !== 'time' ? '<span class="ffp-my-pr-value-unit">' + metric.unit + '</span>' : '') + '</div>'
+      ? (metric.derive
+          ? '<div class="ffp-my-pr-value">' + (myDerived == null
+                ? formatMetricValue(rec2.value, metric) + '<span class="ffp-my-pr-value-unit">' + metric.unit + '</span>'
+                : myDerived.toFixed(metric.lbDecimals != null ? metric.lbDecimals : 1) + '<span class="ffp-my-pr-value-unit">' + (metric.lbUnit || '') + '</span>') + '</div>'
+          : '<div class="ffp-my-pr-value">' + formatMetricValue(rec2.value, metric) + (metric.unit !== 'time' ? '<span class="ffp-my-pr-value-unit">' + metric.unit + '</span>' : '') + '</div>')
       : '<div class="ffp-my-pr-empty">No record yet — tap edit to add</div>';
 
     card.innerHTML =
