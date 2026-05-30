@@ -952,10 +952,15 @@
         .sort(function (a, b) { return b.count - a.count || b.min - a.min; });
       var bdEl = document.getElementById('fs-breakdown');
       if (bdEl) {
-        var listHtml = bd.length ? bd.map(function (a) {
-          return '<div style="' + rowCss + '"><div style="' + nameCss + '">' + escText(a.name) + '</div>' +
-            '<div style="' + metaCss + '">\u00d7' + a.count + ' \u00b7 ' + fmtDur(a.min) + '</div></div>';
-        }).join('') : '<div style="' + emptyCss + '">No activities in this period.</div>';
+        var headCss = 'display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.12);font-size:9px;font-weight:800;letter-spacing:0.6px;text-transform:uppercase;color:var(--muted,#8a99a8);';
+        var header = '<div style="' + headCss + '"><div style="flex:1;min-width:0;">Activity</div><div style="width:56px;text-align:right;">Count</div><div style="width:74px;text-align:right;">Time</div></div>';
+        var listHtml = bd.length ? (header + bd.map(function (a) {
+          return '<div style="' + rowCss + '">' +
+            '<div style="flex:1;min-width:0;' + nameCss + '">' + escText(a.name) + '</div>' +
+            '<div style="width:56px;text-align:right;font-size:12px;font-weight:800;color:var(--blue,#2ba8e0);font-variant-numeric:tabular-nums;">\u00d7' + a.count + '</div>' +
+            '<div style="width:74px;text-align:right;font-size:12px;font-weight:700;color:var(--muted,#8a99a8);font-variant-numeric:tabular-nums;">' + fmtDur(a.min) + '</div>' +
+          '</div>';
+        }).join('')) : '<div style="' + emptyCss + '">No activities in this period.</div>';
         bdEl.innerHTML = chips + listHtml;
       }
 
