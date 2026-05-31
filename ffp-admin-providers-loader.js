@@ -829,6 +829,7 @@
     injectModals();
     patchAdminProviders();
     await refresh();
+    if (window.FFPRealtime) window.FFPRealtime.subscribe('admin-providers', 'providers', null, function () { refresh(); });
     console.log('[FFP Admin Providers v4] Wired to Supabase \u2713');
   }
 
