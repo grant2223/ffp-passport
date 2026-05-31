@@ -1,62 +1,6 @@
 /* =============================================================
-   FFP Passport — API Integration Module (v9)
-   v9 (2026-05-29) — AUTH-PROTECTED DASHBOARD REDIRECT. When any FFP
-       dashboard page (member/provider/admin) is loaded without a session
-       (no ffp_member in localStorage), autoInit now redirects to /login
-       instead of letting the page render in a broken empty state. Fixes
-       the welcome-email scenario: customer signs up on laptop, clicks
-       "Go To Dashboard" in the welcome email on their phone, lands on
-       a JWT-less dashboard. With v9 they get bounced to /login, sign in
-       with the 6-digit code, then see their populated dashboard. Same
-       pattern every legit service uses for auth-protected pages.
-   v8 (2026-05-29) — CLEAN BUILD. The v7 monkey-patch on
-       window.supabase.auth.getUser has been REMOVED. Loaders now
-       explicitly call window.FFPAuth.getMember() instead of pretending
-       to be in a Supabase Auth session. The architecture is now
-       explicit: FFP has its own auth abstraction (FFPAuth), loaders
-       use it directly, Supabase is the database layer accessed via
-       JWT-authenticated queries. This pattern translates 1:1 to native
-       iOS/Android (their FFPAuth equivalent holds member, loaders
-       consume same shape). No shim, no lying to library code.
-   v6 (2026-05-29) — FIX: setSession was failing with "Auth session
-       missing" because Supabase Auth's setSession validates that the
-       user exists in auth.users — but our custom-auth members live in
-       the members table only, never in auth.users. The JWT is still
-       cryptographically valid (signed with SUPABASE_JWT_SECRET) and
-       Postgres will happily decode it to expose auth.uid() inside RLS.
-       v6 stops trying to use setSession and instead attaches the JWT
-       as a global Authorization header on the Supabase client by
-       rebuilding the client when JWT changes. This is the standard
-       pattern for externally-issued JWTs (server-side mint, no Supabase
-       Auth user). RLS works because Postgres reads the JWT from the
-       header, decodes its sub claim, and exposes it as auth.uid().
-   v5 (2026-05-29) — JWT BRIDGE for Supabase RLS:
-       Backend v13 now returns a Supabase-compatible HS256 JWT in
-       signin and onboard responses. v5 of this module:
-         - Stores the jwt in localStorage.ffp_jwt alongside ffp_token
-           and ffp_member
-         - Calls window.supabase.auth.setSession({access_token: jwt,
-           refresh_token: ''}) so auth.uid() returns member.id inside
-           Postgres
-         - autoInit re-applies the session on every page load (so a
-           reloaded dashboard doesn't lose its Supabase Auth context)
-         - ffpLogout clears the jwt AND calls supabase.auth.signOut
-       Effect: every existing RLS policy (member_id = auth.uid() OR
-       is_admin()) now evaluates correctly for custom-auth members.
-       Loaders can hit Supabase directly without per-call backend
-       round-trips. provider_hours RLS bug (task #32) also fixes.
-
-   Backend: https://ffp-passport-backend.vercel.app
-   Endpoints: /api/auth/signup, /api/auth/signin, /api/auth/reset
-   v4: SIGNIN flow now calls /api/auth/reset (generates + emails a
-       fresh 6-digit code) instead of the previous no-op early-return.
-       The old "permanent code model" relied on the Stripe webhook
-       emailing the code at signup so users had it stored — backend v7
-       removed that, so signin now needs to fire the email itself.
-       Every login = "send me a code" → email → enter code → in.
-   v3.1: Adds window.supabase client instantiation so admin auth works.
-         Keeps v3 FFPAuth/FFPApi behaviour intact.
-   ============================================================= */
+   v11 FFP Passport — API Integration Module
+=========== */
 (function (window) {
   'use strict';
   // ── Supabase client setup (NEW in v3.1) ──────────────────────
@@ -127,10 +71,10 @@
             headers: { Authorization: 'Bearer ' + jwt }
           }
         });
-        console.log('[FFP v9] Supabase client rebuilt with JWT — auth.uid() will resolve to member.id in RLS');
+        console.log('[FFP v8] Supabase client rebuilt with JWT — auth.uid() will resolve to member.id in RLS');
         return Promise.resolve({ success: true });
       } catch (e) {
-        console.error('[FFP v9] Failed to rebuild client with JWT:', e);
+        console.error('[FFP v8] Failed to rebuild client with JWT:', e);
         return Promise.resolve({ error: e });
       }
     },
@@ -149,7 +93,9 @@
       }
     },
     isAuthenticated: function () {
-      return !!this.getToken();
+      // v10: signed in if we have the member record (onboard AND login both set it).
+      // jwt is applied separately for RLS; token for /api calls.
+      return !!this.getMember();
     }
   };
   function call(path, options) {
@@ -247,37 +193,22 @@
     alert(msg);
   }
   function autoInit() {
-    var path = window.location.pathname.toLowerCase();
-
-    // v9: Auth-protected page guard. If we're on a dashboard page without
-    // a session, bounce to /login. Without this, opening a dashboard URL
-    // fresh (e.g. clicking the welcome email's "Go To Dashboard" button
-    // on a different device) renders an empty broken page instead of
-    // prompting the user to sign in.
-    var isDashboardPage = (
-      path.indexOf('ffp-member-dashboard')   !== -1 ||
-      path.indexOf('ffp-provider-dashboard') !== -1 ||
-      path.indexOf('ffp-admin-dashboard')    !== -1
-    );
-    if (isDashboardPage && !FFPAuth.isAuthenticated()) {
-      console.warn('[FFP v9] Dashboard requires auth — redirecting to /login');
-      window.location.href = '/login';
-      return;
-    }
-
     // v5: Re-apply Supabase Auth session on every page load — without this,
     // a reloaded dashboard would have no auth.uid() and every RLS-protected
-    // query would silently fail.
+    // query would silently fail. Fires asynchronously; loaders that run
+    // before this resolves will retry (they already poll for window.supabase).
     if (FFPAuth.getJwt()) {
       FFPAuth.applySupabaseSession();
     }
-
+    var path = window.location.pathname.toLowerCase();
     if (path.indexOf('ffp-member-dashboard') !== -1) {
+      if (!FFPAuth.isAuthenticated()) { if (path.indexOf('login') === -1) window.location.href = 'login.html'; return; }
       var stored = FFPAuth.getMember();
       if (stored) applyProfileToDashboard(stored);
       return;
     }
     if (path.indexOf('ffp-provider') !== -1) {
+      if (!FFPAuth.isAuthenticated()) return;
       var v = FFPAuth.getMember();
       if (v) {
         var nameEl = document.querySelector('[data-venue-name]');
