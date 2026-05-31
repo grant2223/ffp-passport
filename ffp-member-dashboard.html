@@ -1,12 +1,10 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v170 (2026-05-31)
-     v170: Referral 'share your link' strap no longer breaks on mobile (input min-width:0,
-           long URL clips inside the field). Rolls up the recent member-dashboard work:
-           passport photo + initials monogram + gender + sports show from first paint;
-           tier is ADMIN-CONTROLLED — dashboard pulls the live tier on load and Earnings
-           honours it (no local recompute); tap the passport card to share with referral
-           link; hide-DOB preference toggle.
-     v169: computedTier() returns the stored admin-set tier; refreshMemberFromServer() on load.
+     FFP MEMBER DASHBOARD — v172 (2026-05-31)
+     v172: tier/balance/photo now read straight from the DB via the member's own Supabase
+           session on load (authoritative, never stale) so an admin Ambassador upgrade
+           shows on next open. Passport label stays TYPE (M/S/A). (Reverts the v171 TIER
+           label change.)
+     v170: referral share strap mobile fix; tap card to share w/ referral link; hide-DOB.
      ════════════════════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="en">
@@ -12239,18 +12237,22 @@ function setupLogPickers() {
     }
   });}
 
-// v168: pull server-authoritative fields (tier, balance, photo, skills) on load so an
-// admin change — e.g. an Ambassador upgrade — appears on the next dashboard open without
-// the member having to log out and back in.
+// v172: read tier/balance/photo/skills STRAIGHT FROM THE DATABASE via the member's own
+// authenticated Supabase session on load (RLS lets a member read their own row). This is
+// the authoritative source, so an admin tier change (e.g. Ambassador) shows on next load
+// without a re-login and can never be stale. (v168 used a backend endpoint; replaced.)
 function refreshMemberFromServer() {
   try {
     var m = JSON.parse(localStorage.getItem('ffp_member') || '{}');
-    if (!m || !m.id) return;
-    fetch('https://ffp-passport-backend.vercel.app/api/members/' + m.id)
-      .then(function (r) { return r.json(); })
+    if (!m || !m.id || !window.supabase) return;
+    window.supabase
+      .from('members')
+      .select('tier, balance_aed, photo_url, skills, verified')
+      .eq('id', m.id)
+      .maybeSingle()
       .then(function (res) {
-        if (!res || !res.success || !res.member) return;
-        var sm = res.member;
+        if (!res || res.error || !res.data) { if (res && res.error) console.warn('[FFP] tier refresh:', res.error.message); return; }
+        var sm = res.data;
         var cached = JSON.parse(localStorage.getItem('ffp_member') || '{}');
         ['tier', 'balance_aed', 'photo_url', 'skills', 'verified'].forEach(function (k) {
           if (sm[k] !== undefined && sm[k] !== null) cached[k] = sm[k];
@@ -12258,10 +12260,10 @@ function refreshMemberFromServer() {
         try { localStorage.setItem('ffp_member', JSON.stringify(cached)); } catch (e) {}
         if (sm.tier) MemberProfile.data.tier = sm.tier;
         if (sm.photo_url) MemberProfile.data.photo = sm.photo_url;
-        MemberProfile.syncToPassport();
+        MemberProfile.syncToPassport();                 // updates passport TYPE (M/S/A)
         if (typeof MemberProfile.render === 'function') MemberProfile.render();
-      })
-      .catch(function () {});
+        if (window.Earnings && typeof Earnings.render === 'function') { try { Earnings.render(); } catch (e) {} }  // refresh Earnings tier
+      });
   } catch (e) {}
 }
 
