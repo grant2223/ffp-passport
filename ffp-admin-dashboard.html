@@ -1299,6 +1299,10 @@ input, select, textarea { font-family: inherit; }
         <span class="material-icons">group_add</span>Referrals
         <span class="sidebar-link-badge" id="badge-referrals" style="display:none"></span>
       </a>
+      <a class="sidebar-link" data-panel="panel-feedback" onclick="App.go('panel-feedback')">
+        <span class="material-icons">feedback</span>Feedback
+        <span class="sidebar-link-badge" id="badge-feedback" style="display:none"></span>
+      </a>
       
       <div class="sidebar-section-label">Marketplace</div>
       <a class="sidebar-link" data-panel="panel-members" onclick="App.go('panel-members')">
@@ -1770,6 +1774,31 @@ input, select, textarea { font-family: inherit; }
       </div>
     </section>
     
+    <!-- ========== FEEDBACK ========== -->
+    <section class="panel" id="panel-feedback">
+      <div class="panel-head">
+        <h1>Feedback</h1>
+        <div class="panel-head-sub">Messages from members and providers. Newest first. New items are highlighted until you mark them read or resolved.</div>
+      </div>
+      <div class="section">
+        <div class="search-row">
+          <div class="search-input-wrap">
+            <span class="material-icons">search</span>
+            <input type="text" placeholder="Search message, name, email..." oninput="window.AdminFeedback&&AdminFeedback.onSearch(this.value)">
+          </div>
+          <div class="search-meta" id="AdminFeedback-meta"></div>
+        </div>
+        <div class="section-body">
+          <table class="table">
+            <thead>
+              <tr><th>When</th><th>From</th><th>Type</th><th>Message</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody id="feedback-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <!-- ========== TAXONOMIES ========== -->
     <section class="panel" id="panel-taxonomies">
       <div class="panel-head">
@@ -2077,6 +2106,7 @@ const App = {
     'panel-content':     'Content Moderation',
     'panel-payouts':     'Payouts',
     'panel-referrals':   'Referrals',
+    'panel-feedback':    'Feedback',
     'panel-quests':      'Quests',
     'panel-events':      'Events',
     'panel-experiences': 'Experiences',
@@ -2100,6 +2130,7 @@ const App = {
     'panel-payouts':      'ffp-admin-payouts-loader.js',
     'panel-content':      'ffp-admin-content-loader.js',
     'panel-referrals':    'ffp-admin-referrals-loader.js',
+    'panel-feedback':     'ffp-admin-feedback-loader.js',
     'panel-members':      'ffp-admin-members-loader.js',
     'panel-quests':       'ffp-admin-quests-loader.js',
     'panel-events':       'ffp-admin-events-loader.js',
