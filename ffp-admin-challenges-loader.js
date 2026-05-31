@@ -258,7 +258,6 @@
     if (window.FFPRealtime) window.FFPRealtime.subscribe('admin-challenges', 'challenges', null, function () { refresh(); });
 
     try {
-      await refresh();
       console.log('[FFP Admin Challenges v1] Loaded \u2713');
     } catch (e) { console.error('[FFP Admin Challenges] init load:', e); }
   }
