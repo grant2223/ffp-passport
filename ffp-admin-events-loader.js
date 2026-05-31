@@ -1,4 +1,4 @@
-/* FFP Admin Events Loader — v1
+/* FFP Admin Events Loader — v3 — sidebar pending badge + realtime
    Wires admin Events panel to real Supabase data.
    Tabs: Pending / Live / Past / Cancelled / Archived (replaces upcoming/past/cancelled)
    Default tab = 'pending' so admin sees approval queue first.
@@ -89,6 +89,20 @@
     return c;
   }
 
+  // v2: push the pending count to the sidebar link badge — same pattern as
+  // the applications loader (#badge-applications). Updates live on every render
+  // (load + tab change + after approve/reject), so admin is notified of pending items.
+  function setNavBadge(panel, n) {
+    var link = document.querySelector('.sidebar-link[data-panel="' + panel + '"]');
+    if (!link) return;
+    var b = link.querySelector('.ffp-pending-badge');
+    if (n > 0) {
+      if (!b) { b = document.createElement('span'); b.className = 'sidebar-link-badge ffp-pending-badge'; link.appendChild(b); }
+      b.textContent = n > 99 ? '99+' : String(n);
+      b.style.display = '';
+    } else if (b) { b.style.display = 'none'; }
+  }
+
   function realRender() {
     var ae = getAE();
     if (!ae) return;
@@ -103,6 +117,7 @@
     }
 
     var counts = tabCounts(ae.data || []);
+    setNavBadge('panel-events', counts.pending);
     var tabsHTML =
       '<button class="tab-btn' + (tab === 'pending' ? ' active' : '') + '" data-tab="pending" onclick="AdminEvents.setTab(\'pending\')">Pending <span class="count">' + counts.pending + '</span></button>' +
       '<button class="tab-btn' + (tab === 'live' ? ' active' : '') + '" data-tab="live" onclick="AdminEvents.setTab(\'live\')">Live <span class="count">' + counts.live + '</span></button>' +
@@ -275,6 +290,11 @@
       console.log('[FFP Admin Events v1] Loaded from Supabase \u2713');
     } catch (e) {
       console.error('[FFP Admin Events] initial load:', e);
+    }
+
+    // Real-time: any events change refreshes the table + sidebar pending badge
+    if (window.FFPRealtime) {
+      window.FFPRealtime.subscribe('admin-events', 'events', null, function () { refresh(); });
     }
   }
 
