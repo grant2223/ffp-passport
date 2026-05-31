@@ -1,6 +1,8 @@
 <!--
-FFP Profile Complete v14
+FFP Profile Complete v15
 Last updated: 31 May 2026
+v15: removed embedded lists (countries/activities/levels/nationalities) — read ONLY
+     from FFP_TAX; gender now from FFP_TAX.genders (Male/Female/Non-binary/Prefer).
 v14: country+city cascade now reads the shared taxonomy too (COUNTRIES = FFP_TAX.cities
      || inline) so signup matches every other form's country/city. 
 v13: activities / fitness levels / nationalities now read the shared source
@@ -392,12 +394,8 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
   </div>
   <div>
     <div class="field-label">Gender</div>
-    <select class="field-select" id="f-gender">
+    <select class="field-select" id="f-gender" data-ffp-list="genders">
       <option value="">Select</option>
-      <option value="Male">Male</option>
-      <option value="Female">Female</option>
-      <option value="Other">Other</option>
-      <option value="Prefer not to say">Prefer not to say</option>
     </select>
   </div>
 </div>
@@ -512,65 +510,7 @@ var BACKEND_URL = 'https://ffp-passport-backend.vercel.app';
 // FFP ACTIVITIES_DB — 101 activities, 16 categories
 // Source: ffp-member-dashboard-v91.html (canonical source)
 // ═══════════════════════════════════════════════════════════════════════
-var ACTIVITIES_DB = (window.FFP_TAX && window.FFP_TAX.activities) || [
-  // Running & walking (9)
-  {n:'Walk 2km',c:'Running & walking'},{n:'Walk 5km',c:'Running & walking'},{n:'Walk 10km',c:'Running & walking'},
-  {n:'Run 2km',c:'Running & walking'},{n:'Run 5km',c:'Running & walking'},{n:'Run 10km',c:'Running & walking'},
-  {n:'Half marathon',c:'Running & walking'},{n:'Marathon',c:'Running & walking'},{n:'Trail run',c:'Running & walking'},
-  // Cycling (4)
-  {n:'Road cycling',c:'Cycling'},{n:'Mountain biking',c:'Cycling'},{n:'Indoor cycling',c:'Cycling'},{n:'Track cycling',c:'Cycling'},
-  // Swimming (3)
-  {n:'Pool swim',c:'Swimming'},{n:'Open water swim',c:'Swimming'},{n:'Lap swim',c:'Swimming'},
-  // Watersports (6)
-  {n:'Surfing',c:'Watersports'},{n:'Kitesurfing',c:'Watersports'},{n:'Stand-up paddleboard',c:'Watersports'},
-  {n:'Sailing',c:'Watersports'},{n:'Kayaking',c:'Watersports'},{n:'Scuba diving',c:'Watersports'},
-  // Racquet sports (5)
-  {n:'Tennis',c:'Racquet sports'},{n:'Padel',c:'Racquet sports'},{n:'Pickleball',c:'Racquet sports'},
-  {n:'Squash',c:'Racquet sports'},{n:'Badminton',c:'Racquet sports'},
-  // Team sports (23)
-  {n:'Football (soccer)',c:'Team sports'},{n:'Futsal',c:'Team sports'},
-  {n:'American football',c:'Team sports'},{n:'Australian rules football',c:'Team sports'},
-  {n:'Basketball',c:'Team sports'},{n:'Baseball',c:'Team sports'},{n:'Cricket',c:'Team sports'},
-  {n:'Rugby union',c:'Team sports'},{n:'Rugby league',c:'Team sports'},
-  {n:'Rugby sevens',c:'Team sports'},{n:'Touch rugby',c:'Team sports'},
-  {n:'Ice hockey',c:'Team sports'},{n:'Field hockey',c:'Team sports'},{n:'Lacrosse',c:'Team sports'},
-  {n:'Volleyball',c:'Team sports'},{n:'Beach volleyball',c:'Team sports'},{n:'Water polo',c:'Team sports'},
-  {n:'Netball',c:'Team sports'},{n:'Handball',c:'Team sports'},
-  {n:'Kabaddi',c:'Team sports'},{n:'Dodgeball',c:'Team sports'},
-  {n:'Ultimate frisbee',c:'Team sports'},{n:'Curling',c:'Team sports'},
-  // Combat sports (10)
-  {n:'Boxing',c:'Combat sports'},{n:'Kickboxing',c:'Combat sports'},{n:'Muay Thai',c:'Combat sports'},
-  {n:'Brazilian Jiu-Jitsu',c:'Combat sports'},{n:'MMA',c:'Combat sports'},{n:'Judo',c:'Combat sports'},
-  {n:'Karate',c:'Combat sports'},{n:'Taekwondo',c:'Combat sports'},{n:'Wrestling',c:'Combat sports'},{n:'Fencing',c:'Combat sports'},
-  // Strength & fitness (8)
-  {n:'Strength training',c:'Strength & fitness'},{n:'Powerlifting',c:'Strength & fitness'},
-  {n:'Olympic lifting',c:'Strength & fitness'},{n:'CrossFit',c:'Strength & fitness'},
-  {n:'HIIT',c:'Strength & fitness'},{n:'F45',c:'Strength & fitness'},
-  {n:'Functional training',c:'Strength & fitness'},{n:'Calisthenics',c:'Strength & fitness'},
-  // Mind-body (9)
-  {n:'Vinyasa yoga',c:'Mind-body'},{n:'Hot yoga',c:'Mind-body'},{n:'Yin yoga',c:'Mind-body'},
-  {n:'Pilates mat',c:'Mind-body'},{n:'Pilates reformer',c:'Mind-body'},{n:'Barre',c:'Mind-body'},
-  {n:'Meditation',c:'Mind-body'},{n:'Breathwork',c:'Mind-body'},{n:'Tai Chi',c:'Mind-body'},
-  // Recovery & wellness (5)
-  {n:'Cryotherapy',c:'Recovery & wellness'},{n:'Ice bath',c:'Recovery & wellness'},
-  {n:'Sauna',c:'Recovery & wellness'},{n:'Infrared sauna',c:'Recovery & wellness'},
-  {n:'Sports massage',c:'Recovery & wellness'},
-  // Outdoor & adventure (5)
-  {n:'Hiking',c:'Outdoor & adventure'},{n:'Mountain hike',c:'Outdoor & adventure'},
-  {n:'Indoor climbing',c:'Outdoor & adventure'},{n:'Outdoor climbing',c:'Outdoor & adventure'},
-  {n:'Bouldering',c:'Outdoor & adventure'},
-  // Snow sports (3)
-  {n:'Skiing',c:'Snow sports'},{n:'Snowboarding',c:'Snow sports'},{n:'Cross-country skiing',c:'Snow sports'},
-  // Golf (2)
-  {n:'Golf round',c:'Golf'},{n:'Driving range',c:'Golf'},
-  // Equestrian (2)
-  {n:'Horse riding',c:'Equestrian'},{n:'Polo',c:'Equestrian'},
-  // Air & extreme (3)
-  {n:'Skydiving',c:'Air & extreme'},{n:'Paragliding',c:'Air & extreme'},{n:'Bungee jump',c:'Air & extreme'},
-  // Multi-sport (4)
-  {n:'Triathlon',c:'Multi-sport'},{n:'Ironman',c:'Multi-sport'},
-  {n:'Hyrox',c:'Multi-sport'},{n:'Spartan',c:'Multi-sport'}
-];
+var ACTIVITIES_DB = window.FFP_TAX.activities;
 
 var CAT_META = {
   'Running & walking':   { icon: 'directions_run' },
@@ -593,54 +533,11 @@ var CAT_META = {
 
 var CATEGORIES = ['All','Running & walking','Cycling','Swimming','Watersports','Racquet sports','Team sports','Combat sports','Strength & fitness','Mind-body','Recovery & wellness','Outdoor & adventure','Snow sports','Golf','Equestrian','Air & extreme','Multi-sport'];
 
-var LEVELS = (window.FFP_TAX && window.FFP_TAX.fitnessLevels) || [
-  { id: 'Beginner',     desc: 'New to this. Still learning the basics and getting comfortable.' },
-  { id: 'Intermediate', desc: 'Confident with fundamentals. Regular practice, building consistency.' },
-  { id: 'Advanced',     desc: 'Strong technique. Train consistently. Compete at club or city level.' },
-  { id: 'Elite',        desc: 'Highly competitive. Compete at national or international level.' },
-  { id: 'Professional', desc: 'This is your career. Sponsored or earn income from this sport.' }
-];
+var LEVELS = window.FFP_TAX.fitnessLevels;
 
-var NATIONALITIES = (window.FFP_TAX && window.FFP_TAX.nationalities) || [
-  'Emirati','American','British','Australian','Canadian','South African','Indian',
-  'Pakistani','Filipino','Egyptian','Jordanian','Lebanese','Syrian','Iranian',
-  'French','German','Italian','Spanish','Portuguese','Dutch','Belgian','Swiss',
-  'Polish','Russian','Ukrainian','Czech','Romanian','Greek','Turkish',
-  'Brazilian','Argentinian','Mexican','Colombian','Chilean',
-  'Chinese','Japanese','Korean','Thai','Vietnamese','Singaporean','Malaysian','Indonesian',
-  'Saudi','Kuwaiti','Qatari','Bahraini','Omani','Iraqi',
-  'Nigerian','Kenyan','Ghanaian','Moroccan','Algerian','Tunisian','Ethiopian',
-  'New Zealander','Irish','Scottish','Welsh','Other'
-];
+var NATIONALITIES = window.FFP_TAX.nationalities;
 
-var COUNTRIES = (window.FFP_TAX && window.FFP_TAX.cities) || {
-  'United Arab Emirates': ['Dubai','Abu Dhabi','Sharjah','Ras Al Khaimah','Ajman','Fujairah','Umm Al Quwain','Al Ain'],
-  'Saudi Arabia':         ['Riyadh','Jeddah','Mecca','Medina','Dammam','Khobar'],
-  'Qatar':                ['Doha','Al Rayyan','Lusail'],
-  'Bahrain':              ['Manama','Muharraq','Riffa'],
-  'Kuwait':               ['Kuwait City','Salmiya','Hawalli'],
-  'Oman':                 ['Muscat','Salalah','Sohar'],
-  'United Kingdom':       ['London','Manchester','Birmingham','Edinburgh','Glasgow','Bristol','Leeds','Liverpool'],
-  'United States':        ['New York','Los Angeles','Miami','Chicago','San Francisco','Boston','Austin','Seattle'],
-  'Canada':               ['Toronto','Vancouver','Montreal','Calgary','Ottawa'],
-  'Australia':            ['Sydney','Melbourne','Brisbane','Perth','Adelaide','Gold Coast'],
-  'New Zealand':          ['Auckland','Wellington','Christchurch'],
-  'South Africa':         ['Cape Town','Johannesburg','Durban','Pretoria'],
-  'India':                ['Mumbai','Delhi','Bangalore','Hyderabad','Chennai','Kolkata','Pune'],
-  'Pakistan':             ['Karachi','Lahore','Islamabad'],
-  'Philippines':          ['Manila','Cebu City','Davao'],
-  'Egypt':                ['Cairo','Alexandria','Giza'],
-  'France':               ['Paris','Lyon','Marseille','Nice'],
-  'Germany':              ['Berlin','Munich','Hamburg','Frankfurt'],
-  'Italy':                ['Rome','Milan','Naples','Florence'],
-  'Spain':                ['Madrid','Barcelona','Valencia','Seville'],
-  'Netherlands':          ['Amsterdam','Rotterdam','The Hague'],
-  'Singapore':            ['Singapore'],
-  'Hong Kong':            ['Hong Kong'],
-  'Thailand':             ['Bangkok','Phuket','Chiang Mai'],
-  'Brazil':               ['São Paulo','Rio de Janeiro','Brasília'],
-  'Other':                ['Other']
-};
+var COUNTRIES = window.FFP_TAX.cities;
 
 
 // ─── State ───────────────────────────────────────────────────────────────
@@ -1027,6 +924,9 @@ async function submitProfile() {
     btn.textContent = 'Complete Profile';
   }
 }
+</script>
+<script>
+(function(){var g=document.getElementById('f-gender');if(g&&window.FFP_TAX&&FFP_TAX.genders){FFP_TAX.genders.forEach(function(x){var o=document.createElement('option');o.value=x;o.textContent=x;g.appendChild(o);});}})();
 </script>
 </body>
 </html>
