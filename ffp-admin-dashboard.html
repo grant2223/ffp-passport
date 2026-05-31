@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FFP Admin Dashboard</title>
-<!-- FFP ADMIN DASHBOARD — v16 (2026-05-31): + Feedback panel (sidebar link, panel,
-     ffp-admin-feedback-loader.js, #badge-feedback via admin_overview RPC). Builds on
-     v15 (single-RPC Overview, lazy panel loaders, real sidebar badges). Keep this
-     header in sync with the filename version on every edit. -->
+<!-- FFP ADMIN DASHBOARD — v17 (2026-05-31): topbar now has a dedicated Sign out button;
+     the Grant Goes / Super Admin identity moved to the bottom-left of the sidebar (below
+     Settings, non-clickable). v16: + Feedback panel (sidebar link, panel, loader,
+     #badge-feedback via admin_overview RPC). -->
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -676,6 +676,13 @@ input, select, textarea { font-family: inherit; }
 .topbar-user-info { line-height: 1.2; }
 .topbar-user-name { font-size: 12px; font-weight: 700; }
 .topbar-user-role { font-size: 10px; color: var(--muted); font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+.topbar-signout { display: flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 8px; background: var(--bg-3); border: 1px solid var(--border); color: var(--text); font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.15s; }
+.topbar-signout:hover { border-color: #ef4444; color: #ef4444; }
+.topbar-signout .material-icons { font-size: 16px; }
+.sidebar-user { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-top: 1px solid var(--border); cursor: default; }
+.sidebar-user-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--blue); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px; flex-shrink: 0; }
+.sidebar-user-name { font-size: 12px; font-weight: 700; }
+.sidebar-user-role { font-size: 10px; color: var(--muted); font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
 
 /* ============ SIDEBAR ============ */
 .sidebar {
@@ -1335,6 +1342,13 @@ input, select, textarea { font-family: inherit; }
       </a>
     </nav>
     
+    <div class="sidebar-user" title="Signed in as Grant Goes">
+      <div class="sidebar-user-avatar">G</div>
+      <div>
+        <div class="sidebar-user-name">Grant Goes</div>
+        <div class="sidebar-user-role">Super Admin</div>
+      </div>
+    </div>
     <div class="sidebar-footer">
       v1.0 &middot; FFP Admin
     </div>
@@ -1354,13 +1368,9 @@ input, select, textarea { font-family: inherit; }
         <span class="material-icons">search</span>
         <input type="text" id="global-search-input" placeholder="Search members, providers, listings..." oninput="GlobalSearch.onInput(this.value)" onfocus="GlobalSearch.onInput(this.value)" onblur="setTimeout(()=>GlobalSearch.close(),200)">
       </div>
-      <div class="topbar-user" onclick="if(confirm('Sign out of FFP Admin?')) ffpLogout()" title="Sign out">
-        <div class="topbar-user-avatar">G</div>
-        <div class="topbar-user-info">
-          <div class="topbar-user-name">Grant Goes</div>
-          <div class="topbar-user-role">Super Admin</div>
-        </div>
-      </div>
+      <button class="topbar-signout" onclick="if(confirm('Sign out of FFP Admin?')) ffpLogout()" title="Sign out">
+        <span class="material-icons">logout</span>Sign out
+      </button>
     </div>
   </header>
   
