@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FFP Admin Dashboard</title>
-<!-- FFP ADMIN DASHBOARD — v17 (2026-05-31): topbar now has a dedicated Sign out button;
-     the Grant Goes / Super Admin identity moved to the bottom-left of the sidebar (below
-     Settings, non-clickable). v16: + Feedback panel (sidebar link, panel, loader,
-     #badge-feedback via admin_overview RPC). -->
+<!-- FFP ADMIN DASHBOARD — v18 (2026-05-31): Content panel tab counts (Pending/Approved/
+     Rejected) now reflect REAL content_submissions data (were hardcoded demo 5/28/7).
+     v17: dedicated Sign out button in topbar; Grant Goes / Super Admin identity moved to
+     bottom-left of the sidebar (non-clickable). -->
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1552,9 +1552,9 @@ input, select, textarea { font-family: inherit; }
           <div class="search-meta" id="AdminContent-meta"></div>
         </div>
         <div class="tabs">
-          <button class="tab-btn active" data-tab="pending" onclick="AdminContent.setTab('pending')">Pending <span class="count">5</span></button>
-          <button class="tab-btn" data-tab="approved" onclick="AdminContent.setTab('approved')">Approved <span class="count">28</span></button>
-          <button class="tab-btn" data-tab="rejected" onclick="AdminContent.setTab('rejected')">Rejected <span class="count">7</span></button>
+          <button class="tab-btn active" data-tab="pending" onclick="AdminContent.setTab('pending')">Pending <span class="count" id="content-ct-pending">0</span></button>
+          <button class="tab-btn" data-tab="approved" onclick="AdminContent.setTab('approved')">Approved <span class="count" id="content-ct-approved">0</span></button>
+          <button class="tab-btn" data-tab="rejected" onclick="AdminContent.setTab('rejected')">Rejected <span class="count" id="content-ct-rejected">0</span></button>
         </div>
         <div class="section-body">
           <table class="table">
@@ -2394,6 +2394,11 @@ const AdminContent = {
   render() {
     const rows = this.filtered();
     document.getElementById('AdminContent-meta').textContent = `${rows.length} item${rows.length === 1 ? '' : 's'}`;
+    var _d = this.data || [];
+    var _setC = function (id, n) { var e = document.getElementById(id); if (e) e.textContent = n; };
+    _setC('content-ct-pending', _d.filter(function (c) { return c.status === 'pending'; }).length);
+    _setC('content-ct-approved', _d.filter(function (c) { return c.status === 'approved'; }).length);
+    _setC('content-ct-rejected', _d.filter(function (c) { return c.status === 'rejected'; }).length);
     document.getElementById('content-tbody').innerHTML = rows.map(c => `
       <tr>
         <td><span class="cell-avatar">${c.initial}</span><span class="cell-name">${escHtml(c.member)}</span></td>
