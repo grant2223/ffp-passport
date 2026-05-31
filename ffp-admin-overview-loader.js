@@ -1,4 +1,4 @@
-/* FFP Admin Overview Loader — v4 (realtime) (2026-05-31)
+/* FFP Admin Overview Loader — v5 (realtime + owns sidebar pending badges) (2026-05-31)
    v3: fills EMPTY hooks in the cleaned Overview (demo data removed from the HTML
        per the no-patches rule). No overwriting, no text-matching.
    Replaces the static demo numbers on the admin Overview with REAL data.
@@ -54,6 +54,13 @@
 
   // ── DOM hooks (stable IDs + route selectors only) ──
   function setKpi(id, txt) { var el = document.getElementById(id); if (el) el.textContent = txt; }
+  function setNavBadge(panel, n) {
+    var link = document.querySelector('.sidebar-link[data-panel="' + panel + '"]');
+    if (!link) return;
+    var b = link.querySelector('.ffp-pending-badge');
+    if (n > 0) { if (!b) { b = document.createElement('span'); b.className = 'sidebar-link-badge ffp-pending-badge'; link.appendChild(b); } b.textContent = n > 99 ? '99+' : String(n); b.style.display = ''; }
+    else if (b) { b.style.display = 'none'; }
+  }
   function setDeltaFor(id, txt) {
     var el = document.getElementById(id); if (!el) return;
     var tile = el.closest('.kpi-tile'); if (!tile) return;
@@ -132,6 +139,7 @@
     var appsPending = r[4], refsPending = r[5];
     var payoutCount = r[6].length, payoutSum = r[6].reduce(function (a, p) { return a + (p.amount_aed || 0); }, 0);
     var contentPending = r[7] + r[8] + r[9];
+    setNavBadge('panel-events', r[7]); setNavBadge('panel-experiences', r[8]); setNavBadge('panel-challenges', r[9]);
 
     // KPIs (by stable ID)
     setKpi('kpi-total-members', membersTotal.toLocaleString());
