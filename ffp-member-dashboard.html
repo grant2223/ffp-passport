@@ -1,5 +1,8 @@
 <!-- ════════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v156
+     FFP MEMBER DASHBOARD — v157
+     v157 (2026-05-31): Feedback moved into the topbar as an icon button next to the
+       bell (feedback icon); floating button suppressed on member via data-fab="off".
+       (Provider still uses the floating button.)
      v156 (2026-05-31): Lazy panel loaders — page load fetches nothing; each panel's
        loader script is injected on first open (instant Passport view). Restored the
        member-discovery loader (was missing on this branch). Added the shared feedback
@@ -192,7 +195,7 @@
      auto-refresh when underlying DB rows change. -->
 <script src="assets/ffp-realtime.js"></script>
 <!-- Feedback widget (shared) -> public.feedback -> admin Feedback panel -->
-<script src="assets/ffp-feedback-widget.js" data-source="member"></script>
+<script src="assets/ffp-feedback-widget.js" data-source="member" data-fab="off"></script>
 <!-- v156: member loaders are NO LONGER eager. Each panel's loader script is
      injected on the panel's first open (see ensurePanelLoader in setupPanelNav),
      so a plain load fires zero data queries -> the Passport view is instant and
@@ -4068,6 +4071,9 @@ input[type="number"] {
 <div class="topbar">
   <div class="topbar-logo">FFP Passport</div>
   <div class="topbar-icons">
+    <button class="icon-btn" id="ffp-feedback-btn" title="Send feedback" aria-label="Send feedback" onclick="window.FFPFeedback && window.FFPFeedback.open()">
+      <span class="material-icons">feedback</span>
+    </button>
     <div class="menu-wrap">
       <button class="icon-btn" id="notif-btn">
         <span class="material-icons">notifications</span>
