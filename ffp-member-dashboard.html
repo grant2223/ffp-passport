@@ -1,5 +1,8 @@
 <!-- ════════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v158 (2026-05-31)
+     FFP MEMBER DASHBOARD — v159 (2026-05-31)
+     v159: Earnings config (membership $99 / referral 5-10-20% / min payout $250) now reads
+           the shared single source assets/ffp-constants.js (fallback = same values, so no
+           behaviour change). Included ffp-constants.js.
      v158: Feedback topbar icon styled BLUE to stand out (drive daily feedback).
      v157: Feedback moved into the topbar next to the bell (feedback icon); floating
            button suppressed via data-fab="off". Carries v156: lazy panel loaders
@@ -34,6 +37,7 @@
 <!-- v107: Realtime helper loaded BEFORE any loader. Loaders register
      postgres_changes subscriptions via FFPRealtime.subscribe so panels
      auto-refresh when underlying DB rows change. -->
+<script src="assets/ffp-constants.js"></script>
 <script src="assets/ffp-realtime.js"></script>
 <!-- Feedback widget (shared) -> public.feedback -> admin Feedback panel -->
 <script src="assets/ffp-feedback-widget.js" data-source="member" data-fab="off"></script>
@@ -10138,9 +10142,9 @@ const Earnings = {
   _tierCardsOpen: false,    // v88 — Show/hide "How tiers work" cards
 
   // ─────────── v155: USD EARNINGS ───────────
-  MEMBERSHIP_USD: 99,                                       // referral reward = pct × $99
-  REFERRAL_PCT: { member: 5, supporter: 10, ambassador: 20 },
-  MIN_PAYOUT_USD: 250,                                      // minimum withdrawal
+  MEMBERSHIP_USD: (window.FFP_CONST && window.FFP_CONST.membershipUsd) || 99,   // source: ffp-constants.js
+  REFERRAL_PCT: (window.FFP_CONST && window.FFP_CONST.referralPct) || { member: 5, supporter: 10, ambassador: 20 },
+  MIN_PAYOUT_USD: (window.FFP_CONST && window.FFP_CONST.minPayoutUsd) || 250,   // source: ffp-constants.js
   AED_PER_USD: 3.6725,                                      // fixed AED↔USD peg
   // The real balance/referral numbers are injected by the external ffp-earnings-loader.js.
   // If that loader feeds AED (live balance reads ~3.67× too high), flip BALANCE_IS_AED to true
