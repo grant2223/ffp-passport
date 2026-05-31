@@ -1884,29 +1884,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
         <div class="field full">
           <div class="label">Phone <span class="req">*</span></div>
           <div class="phone-input">
-            <select class="phone-cc" id="ap-phone-cc">
-              <option value="+971">+971 UAE</option>
-              <option value="+966">+966 Saudi Arabia</option>
-              <option value="+965">+965 Kuwait</option>
-              <option value="+968">+968 Oman</option>
-              <option value="+973">+973 Bahrain</option>
-              <option value="+974">+974 Qatar</option>
-              <option value="+962">+962 Jordan</option>
-              <option value="+961">+961 Lebanon</option>
-              <option value="+20">+20 Egypt</option>
-              <option value="+44">+44 UK</option>
-              <option value="+1">+1 USA / Canada</option>
-              <option value="+91">+91 India</option>
-              <option value="+92">+92 Pakistan</option>
-              <option value="+63">+63 Philippines</option>
-              <option value="+27">+27 South Africa</option>
-              <option value="+90">+90 Turkey</option>
-              <option value="+49">+49 Germany</option>
-              <option value="+33">+33 France</option>
-              <option value="+39">+39 Italy</option>
-              <option value="+34">+34 Spain</option>
-              <option value="+61">+61 Australia</option>
-            </select>
+            <select class="phone-cc" id="ap-phone-cc"></select>
             <input class="input phone-num" id="ap-phone-num" placeholder="50 123 4567" inputmode="tel">
           </div>
         </div>
@@ -2164,29 +2142,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
             <div class="field">
               <div class="label">Phone</div>
               <div class="phone-input">
-                <select class="phone-cc" id="pf-phone-cc">
-                  <option value="+971">+971 UAE</option>
-                  <option value="+966">+966 Saudi Arabia</option>
-                  <option value="+965">+965 Kuwait</option>
-                  <option value="+968">+968 Oman</option>
-                  <option value="+973">+973 Bahrain</option>
-                  <option value="+974">+974 Qatar</option>
-                  <option value="+962">+962 Jordan</option>
-                  <option value="+961">+961 Lebanon</option>
-                  <option value="+20">+20 Egypt</option>
-                  <option value="+44">+44 UK</option>
-                  <option value="+1">+1 USA / Canada</option>
-                  <option value="+91">+91 India</option>
-                  <option value="+92">+92 Pakistan</option>
-                  <option value="+63">+63 Philippines</option>
-                  <option value="+27">+27 South Africa</option>
-                  <option value="+90">+90 Turkey</option>
-                  <option value="+49">+49 Germany</option>
-                  <option value="+33">+33 France</option>
-                  <option value="+39">+39 Italy</option>
-                  <option value="+34">+34 Spain</option>
-                  <option value="+61">+61 Australia</option>
-                </select>
+                <select class="phone-cc" id="pf-phone-cc"></select>
                 <input class="input phone-num" id="pf-phone-num" placeholder="50 123 4567" inputmode="tel">
               </div>
             </div>
@@ -2524,7 +2480,9 @@ a { color: var(--ffp-blue); text-decoration: none; }
 
 <script>
 /* ════════════════════════════════════════════════
-   FFP PROVIDER DASHBOARD — v16 (2026-05-31)
+   FFP PROVIDER DASHBOARD — v17 (2026-05-31)
+   v17: phone country codes now from shared FFP_TAX.phoneCodes (removed two embedded
+        21-option lists + inline PHONE_CODES array).
    v16: profile Country + City now use the shared FFPLocation cascade (assets/
         ffp-location-picker.js + ffp-taxonomy.js) — identical to apply/member/signup.
         Added Country field; city cascades from country. +taxonomy/picker includes.
@@ -2875,7 +2833,7 @@ function saveProfile() {
 // ════════════════════════════════════════════════
 // PHONE — country code split helpers
 // ════════════════════════════════════════════════
-const PHONE_CODES = ['+971','+966','+965','+968','+973','+974','+962','+961','+20','+44','+1','+91','+92','+63','+27','+90','+49','+33','+39','+34','+61'];
+const PHONE_CODES = (window.FFP_TAX && window.FFP_TAX.phoneCodes) ? window.FFP_TAX.phoneCodes.map(function(c){return c.code;}) : [];
 
 function setPhoneValue(full) {
   full = (full || '').trim();
@@ -4577,6 +4535,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Escape') closeModal();
   });
 });
+</script>
+<script>
+(function(){ if(!(window.FFP_TAX&&window.FFP_TAX.phoneCodes))return;
+  document.querySelectorAll('select.phone-cc').forEach(function(sel){ if(sel.options.length)return;
+    window.FFP_TAX.phoneCodes.forEach(function(c){ var o=document.createElement('option'); o.value=c.code; o.textContent=c.code+' '+c.country; sel.appendChild(o); }); });
+})();
 </script>
 </body>
 </html>
