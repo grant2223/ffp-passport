@@ -1,6 +1,8 @@
 <!--
-FFP Profile Complete v17
+FFP Profile Complete v18
 Last updated: 31 May 2026
+v18: sports picker — REMOVED category chips (search-only, fixes the "auto-selects Walking"
+     + tap-offset); Back on the level step now returns to the sport list (was closing the picker).
 v17: Nationality moved up next to Gender (same row) — frees vertical space; DOB stays full-width above.
 v16: FIX signup regressions — fitness LEVELS rebuilt as {id,desc} objects (names from
      FFP_TAX + descriptions) so the sports "level" step no longer shows undefined; DOB row
@@ -473,7 +475,7 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 <div class="picker" id="picker">
 <div class="picker-wrap">
 
-<button class="btn-back" onclick="closeSportPicker()">
+<button class="btn-back" onclick="pickerBack()">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
   Back
 </button>
@@ -481,14 +483,13 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 <!-- Stage A: Choose Sport -->
 <div id="picker-stage-sport">
   <div class="picker-title">Choose a Sport</div>
-  <div class="picker-sub">Search or browse by category.</div>
+  <div class="picker-sub">Search for your sport or activity.</div>
 
   <div class="picker-search">
     <span class="material-icons-outlined">search</span>
     <input type="text" id="sport-search" placeholder="Search sports, activities or categories" oninput="filterActivities()">
   </div>
 
-  <div class="picker-cats" id="picker-cats"></div>
 
   <div class="activity-list" id="activity-list"></div>
 </div>
@@ -580,7 +581,7 @@ async function initialise() {
 
   populateNationalities();
   populateCountries();
-  buildCategoryChips();
+  /* v18: category chips removed — search only */
   buildLevelList();
   renderActivities();
   renderSportsList();
@@ -777,6 +778,13 @@ function closeSportPicker() {
   pickerMode = null;
   pickerActivity = null;
   pickerLevel = null;
+}
+
+// v18: Back is context-aware — on the level step it returns to the sport list,
+// otherwise it closes the picker.
+function pickerBack() {
+  var onLevel = document.getElementById('picker-stage-level').style.display !== 'none';
+  if (onLevel) { showPickerStage('sport'); } else { closeSportPicker(); }
 }
 
 function showPickerStage(stage) {
