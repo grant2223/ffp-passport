@@ -1,6 +1,9 @@
 <!--
-FFP Profile Complete v8
-Last updated: 28 May 2026
+FFP Profile Complete v13
+Last updated: 31 May 2026
+v13: activities / fitness levels / nationalities now read the shared source
+     assets/ffp-taxonomy.js (inline lists kept as fallback) so signup matches the
+     rest of the platform. +ffp-taxonomy.js include. (Prior internal header read v8.)
 
 v8 (clean rewrite, no webhook dependency):
 - Page no longer looks up member by stripe_session_id on load. Form shows
@@ -64,6 +67,7 @@ v8 (clean rewrite, no webhook dependency):
      at the dashboard JWT-less and every loader hits RLS errors). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/ffp-api-integration.js"></script>
+<script src="assets/ffp-taxonomy.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
 <style>
@@ -506,7 +510,7 @@ var BACKEND_URL = 'https://ffp-passport-backend.vercel.app';
 // FFP ACTIVITIES_DB — 101 activities, 16 categories
 // Source: ffp-member-dashboard-v91.html (canonical source)
 // ═══════════════════════════════════════════════════════════════════════
-var ACTIVITIES_DB = [
+var ACTIVITIES_DB = (window.FFP_TAX && window.FFP_TAX.activities) || [
   // Running & walking (9)
   {n:'Walk 2km',c:'Running & walking'},{n:'Walk 5km',c:'Running & walking'},{n:'Walk 10km',c:'Running & walking'},
   {n:'Run 2km',c:'Running & walking'},{n:'Run 5km',c:'Running & walking'},{n:'Run 10km',c:'Running & walking'},
@@ -587,7 +591,7 @@ var CAT_META = {
 
 var CATEGORIES = ['All','Running & walking','Cycling','Swimming','Watersports','Racquet sports','Team sports','Combat sports','Strength & fitness','Mind-body','Recovery & wellness','Outdoor & adventure','Snow sports','Golf','Equestrian','Air & extreme','Multi-sport'];
 
-var LEVELS = [
+var LEVELS = (window.FFP_TAX && window.FFP_TAX.fitnessLevels) || [
   { id: 'Beginner',     desc: 'New to this. Still learning the basics and getting comfortable.' },
   { id: 'Intermediate', desc: 'Confident with fundamentals. Regular practice, building consistency.' },
   { id: 'Advanced',     desc: 'Strong technique. Train consistently. Compete at club or city level.' },
@@ -595,7 +599,7 @@ var LEVELS = [
   { id: 'Professional', desc: 'This is your career. Sponsored or earn income from this sport.' }
 ];
 
-var NATIONALITIES = [
+var NATIONALITIES = (window.FFP_TAX && window.FFP_TAX.nationalities) || [
   'Emirati','American','British','Australian','Canadian','South African','Indian',
   'Pakistani','Filipino','Egyptian','Jordanian','Lebanese','Syrian','Iranian',
   'French','German','Italian','Spanish','Portuguese','Dutch','Belgian','Swiss',
