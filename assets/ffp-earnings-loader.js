@@ -176,9 +176,10 @@
 
     injectV8Styles();
 
-    if (!layoutBuilt) {
+    // v19: re-apply if the dropdown container is missing (survives panel re-renders),
+    // instead of a one-time flag that left "Ways to earn" stranded below progression.
+    if (!document.getElementById('ffp-bottom-dropdowns')) {
       moveTiersAndWaysToBottomRow(panel);
-      layoutBuilt = true;
     }
 
     renderEarningsLog();
@@ -222,7 +223,7 @@
     s.id = 'ffp-earnings-v8-styles';
     s.textContent =
       // Two-column row for dropdowns
-      '#ffp-bottom-dropdowns{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px;}' +
+      '#ffp-bottom-dropdowns{display:grid;grid-template-columns:1fr;gap:12px;margin-top:18px;}' +
       '@media(max-width:560px){#ffp-bottom-dropdowns{grid-template-columns:1fr;}}' +
       '.ffp-dd{background:rgba(43,168,224,0.04);border:1px solid var(--border-mid,rgba(43,168,224,0.30));border-radius:12px;overflow:hidden;}' +
       '.ffp-dd-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;user-select:none;}' +
@@ -299,8 +300,8 @@
     var bottomRow = document.createElement('div');
     bottomRow.id = 'ffp-bottom-dropdowns';
 
-    if (tiersSection) bottomRow.appendChild(wrapAsDropdown('How tiers work', tiersSection));
-    if (waysSection) bottomRow.appendChild(wrapAsDropdown('Ways to earn', waysSection));
+    if (tiersSection && !tiersSection.closest('.ffp-dd')) bottomRow.appendChild(wrapAsDropdown('How tiers work', tiersSection));
+    if (waysSection && !waysSection.closest('.ffp-dd')) bottomRow.appendChild(wrapAsDropdown('Ways to earn', waysSection));
 
     // Append bottom row to end of panel
     panel.appendChild(bottomRow);
@@ -817,42 +818,19 @@
         };
       }
 
-      // 4. Category counters (parallel) — drive tier computation
-      var counters = await Promise.all([
-        // referrals: signed up or paid
-        countRows('referrals', function (q) {
-          return q.eq('referrer_id', currentUserId).in('status', ['signed_up', 'paid']);
-        }),
-        // deals: claims
-        countRows('claims', function (q) {
-          return q.eq('member_id', currentUserId);
-        }),
-        // events: rsvps marked attended
-        countRows('rsvps', function (q) {
-          return q.eq('member_id', currentUserId).eq('status', 'attended');
-        }),
-        // providers: no check-in feature yet
-        Promise.resolve(0),
-        // activities logged
-        countRows('activity_logs', function (q) {
-          return q.eq('member_id', currentUserId);
-        }),
-        // meet & move attended
-        countRows('meetup_attendees', function (q) {
-          return q.eq('member_id', currentUserId).eq('status', 'attended');
-        }),
-        // challenges entered
-        countRows('challenge_entries', function (q) {
-          return q.eq('member_id', currentUserId);
-        })
-      ]);
-
-      // Dashboard categories order: referrals, deals, events, providers, logs, meet, challenges
-      var catKeys = ['referrals', 'deals', 'events', 'providers', 'logs', 'meet', 'challenges'];
-      Earnings.categories.forEach(function (cat, i) {
-        var idx = catKeys.indexOf(cat.key);
-        if (idx >= 0 && idx < counters.length) cat.current = counters[idx];
-      });
+      // 4. Tier progress — the 8 tracked sections, counted SERVER-SIDE over the rolling
+      //    30 days by the member_tier_progress() RPC (keys match Earnings.categories).
+      try {
+        var progRes = await window.supabase.rpc('member_tier_progress');
+        if (progRes && !progRes.error && progRes.data) {
+          var p = progRes.data;
+          Earnings.categories.forEach(function (cat) {
+            if (p[cat.key] !== undefined && p[cat.key] !== null) cat.current = Number(p[cat.key]) || 0;
+          });
+        } else if (progRes && progRes.error) {
+          console.warn('[FFP Earnings] tier progress:', progRes.error.message);
+        }
+      } catch (e) { console.warn('[FFP Earnings] tier progress threw:', e); }
 
       // 5. Fetch dedicated payouts list for the Payouts section
       var poRes = await window.supabase
