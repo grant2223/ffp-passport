@@ -1,4 +1,4 @@
-/* FFP Member Discovery Loader — v1 (2026-05-31)
+/* FFP Member Discovery Loader — v2 (realtime) (2026-05-31)
    PURPOSE — close the core launch loop:
      Members can now SEE and act on real provider listings. Populates the
      member dashboard's Events, Experiences and Challenges panels from Supabase
@@ -252,6 +252,20 @@
 
     // expose a manual refresh hook
     window.FFPDiscovery = { reload: async function () { await loadEvents(); await loadExperiences(); await loadChallenges(); } };
+
+    // Real-time: new/edited live listings appear instantly; own RSVP/apply state stays in sync
+    if (window.FFPRealtime) {
+      var _dT = null;
+      var _reload = function () { clearTimeout(_dT); _dT = setTimeout(function () { window.FFPDiscovery.reload(); }, 600); };
+      ['events', 'experiences', 'challenges'].forEach(function (t) {
+        window.FFPRealtime.subscribe('member-disc-' + t, t, null, _reload);
+      });
+      var _mid = memberId();
+      if (_mid) {
+        window.FFPRealtime.subscribe('member-disc-rsvps', 'rsvps', 'member_id=eq.' + _mid, function () { loadEvents(); });
+        window.FFPRealtime.subscribe('member-disc-apps', 'applications', 'member_id=eq.' + _mid, function () { loadExperiences(); });
+      }
+    }
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
