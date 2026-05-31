@@ -17,8 +17,16 @@
 <script src="ffp-provider-events-loader.js"></script>
 <script src="ffp-provider-experiences-loader.js"></script>
 <script src="ffp-provider-challenges-loader.js"></script>
-<script src="ffp-provider-checkins-loader.js"></script>
+<!-- v12: notifications loader restored (this branch was missing it) — wires the
+     topbar bell to real data AND overrides signOut() to do a real ffpLogout()
+     instead of the inline demo that showed a blank screen. -->
 <script src="ffp-provider-notifications-loader.js"></script>
+<!-- v12: check-ins loader now loads on first open of the Check-ins panel
+     (see ensureProviderLoader in showPanel) — not needed on initial load. -->
+<script src="ffp-provider-quests-loader.js"></script>
+<script src="ffp-provider-venue-qr-loader.js"></script>
+<script src="ffp-provider-quest-analytics-loader.js"></script>
+<!-- Removed 2026-05-30: phantom refs to loaders that don't exist (earnings/overview/analytics/team/settings). Overview & Analytics render inline. Normalized quests/venue-qr/quest-analytics refs to plain GitHub filenames. -->
    
 <style>
 /* ════════════════════════════════════════════════
@@ -2764,7 +2772,22 @@ function renderNav() {
   nav.innerHTML = html;
 }
 
+// v12: load a panel's data loader the first time that panel is opened.
+// Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js' };
+var _provLoaded = {};
+function ensureProviderLoader(id) {
+  var src = _provLoaderSrc[id];
+  if (!src || _provLoaded[src]) return;
+  _provLoaded[src] = true;
+  var sc = document.createElement('script');
+  sc.src = src; sc.async = false;
+  sc.onerror = function () { console.error('[FFP] failed to load ' + src); };
+  document.body.appendChild(sc);
+}
+
 function showPanel(id) {
+  ensureProviderLoader(id);
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   const el = document.getElementById('panel-' + id);
   if (el) el.classList.add('active');
@@ -4534,13 +4557,6 @@ function openConfirm(title, body, onConfirm) {
 function openCreatePicker() {
   openModalShell('sm', 'Create new listing', `
     <div style="display: flex; flex-direction: column; gap: 10px;">
-      <button class="qa" onclick="closeModal(); openDealModal()">
-        <div class="qa-icon yellow"><span class="ms">local_offer</span></div>
-        <div class="qa-body">
-          <div class="qa-title">Deal</div>
-          <div class="qa-sub">A member perk at your business</div>
-        </div>
-      </button>
       <button class="qa" onclick="closeModal(); openEventModal()">
         <div class="qa-icon"><span class="ms">event</span></div>
         <div class="qa-body">
