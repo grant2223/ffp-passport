@@ -1,6 +1,11 @@
 <!--
-FFP Profile Complete v15
+FFP Profile Complete v17
 Last updated: 31 May 2026
+v17: Nationality moved up next to Gender (same row) — frees vertical space; DOB stays full-width above.
+v16: FIX signup regressions — fitness LEVELS rebuilt as {id,desc} objects (names from
+     FFP_TAX + descriptions) so the sports "level" step no longer shows undefined; DOB row
+     made full-width so Day/Month/Year aren't clipped; forced Material Icons Outlined font +
+     clip so the activity picker icons don't render as raw text.
 v15: removed embedded lists (countries/activities/levels/nationalities) — read ONLY
      from FFP_TAX; gender now from FFP_TAX.genders (Male/Female/Non-binary/Prefer).
 v14: country+city cascade now reads the shared taxonomy too (COUNTRIES = FFP_TAX.cities
@@ -111,6 +116,11 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 .field-input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(60%) sepia(15%) saturate(800%) hue-rotate(170deg);cursor:pointer;}
 .field-select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236a90a8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");background-position:right 14px center;background-repeat:no-repeat;background-size:14px;padding-right:40px;cursor:pointer;}
 .field-select option{background:#0b1c28;color:#fff;}
+.material-icons-outlined{font-family:'Material Icons Outlined' !important;line-height:1;font-weight:normal;font-style:normal;letter-spacing:normal;text-transform:none;white-space:nowrap;direction:ltr;-webkit-font-feature-settings:'liga';-webkit-font-smoothing:antialiased;}
+.activity-row-icon{overflow:hidden;}
+.cat-chip .material-icons-outlined{overflow:hidden;max-width:16px;display:inline-block;}
+.dob-cell{grid-column:1 / -1;}
+.dob-grid .field-select{padding-left:10px;padding-right:26px;background-position:right 8px center;}
 
 .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
 @media(max-width:400px){.field-grid{grid-template-columns:1fr;}}
@@ -249,9 +259,9 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 
 <!-- v9: DOB now 3 dropdowns (Day / Month / Year). Gender field added. -->
 <div class="field-grid">
-  <div>
+  <div class="dob-cell">
     <div class="field-label">Date of Birth</div>
-    <div style="display:grid;grid-template-columns:1fr 1.4fr 1.2fr;gap:6px;">
+    <div class="dob-grid" style="display:grid;grid-template-columns:1fr 1.4fr 1.2fr;gap:6px;">
       <select class="field-select" id="f-dob-day">
         <option value="">Day</option>
         <option value="01">01</option>
@@ -398,17 +408,12 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
       <option value="">Select</option>
     </select>
   </div>
-</div>
-
-<!-- v10: Nationality on its own row; Country + City paired below -->
-<div class="field-grid">
   <div>
     <div class="field-label">Nationality</div>
     <select class="field-select" id="f-nationality">
       <option value="">Select</option>
     </select>
   </div>
-  <div></div>
 </div>
 
 <div class="field-grid">
@@ -533,7 +538,15 @@ var CAT_META = {
 
 var CATEGORIES = ['All','Running & walking','Cycling','Swimming','Watersports','Racquet sports','Team sports','Combat sports','Strength & fitness','Mind-body','Recovery & wellness','Outdoor & adventure','Snow sports','Golf','Equestrian','Air & extreme','Multi-sport'];
 
-var LEVELS = window.FFP_TAX.fitnessLevels;
+var LEVEL_DESC = {
+  'Beginner':     'New to this. Still learning the basics and getting comfortable.',
+  'Intermediate': 'Confident with fundamentals. Regular practice, building consistency.',
+  'Advanced':     'Strong technique. Train consistently. Compete at club or city level.',
+  'Elite':        'Highly competitive. Compete at national or international level.',
+  'Professional': 'This is your career. Sponsored or earn income from this sport.'
+};
+var LEVELS = ((window.FFP_TAX && window.FFP_TAX.fitnessLevels) || ['Beginner','Intermediate','Advanced','Elite','Professional'])
+  .map(function (n) { return { id: n, desc: LEVEL_DESC[n] || '' }; });
 
 var NATIONALITIES = window.FFP_TAX.nationalities;
 
