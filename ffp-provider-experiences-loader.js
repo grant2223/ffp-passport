@@ -1,4 +1,4 @@
-/* FFP Provider Experiences Loader — v5
+/* FFP Provider Experiences Loader — v6 (realtime)
    v5: Applications button lists real applicants via provider_experience_applications RPC
        (owner-scoped); card shows real application count. (was: dummy/no list)
    v4: reference bare renderExperiences (it is a global, NOT on window) so init +
@@ -849,6 +849,18 @@
     window.saveExperience          = realSaveExperience;
     window.confirmDeleteExperience = realDeleteExperience;
     window.viewApplications        = realViewApplications;
+    // Real-time (self-inject the helper — provider dashboard doesn't load it — then subscribe)
+    (function () {
+      function go() {
+        var pid = window.FFP_PROVIDER && window.FFP_PROVIDER.id; if (!pid) return;
+        window.FFPRealtime.subscribe('provider-experiences', 'experiences', 'provider_id=eq.' + pid, function () { refresh(); });
+        window.FFPRealtime.subscribe('provider-exp-apps', 'applications', null, function () { refresh(); });
+      }
+      if (window.FFPRealtime) { go(); return; }
+      var _ex = document.getElementById('ffp-realtime-js');
+      if (!_ex) { var _sc = document.createElement('script'); _sc.id = 'ffp-realtime-js'; _sc.src = 'assets/ffp-realtime.js'; _sc.onload = function () { if (window.FFPRealtime) go(); }; document.head.appendChild(_sc); }
+      else { var _n = 0, _t = setInterval(function () { if (window.FFPRealtime) { clearInterval(_t); go(); } else if (++_n > 60) clearInterval(_t); }, 100); }
+    })();
 
     // Expose pickers for events/deals loaders to reuse
     window.FFPPicker = {
