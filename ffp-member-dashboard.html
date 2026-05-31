@@ -2500,7 +2500,7 @@ input[type="number"] {
 }
 .refer-code-row { display: flex; align-items: stretch; gap: 8px; }
 .refer-code-value {
-  flex: 1;
+  flex: 1; min-width: 0;
   background: linear-gradient(135deg, rgba(255,204,0,0.12), rgba(43,168,224,0.06));
   border: 1px solid rgba(255,204,0,0.35); border-radius: 10px;
   padding: 12px 14px;
@@ -2518,9 +2518,10 @@ input[type="number"] {
 .refer-copy-btn .material-icons { font-size: 14px; }
 .refer-link-row { display: flex; align-items: stretch; gap: 8px; }
 .refer-link-row input {
-  flex: 1; background: rgba(43,168,224,0.06);
+  flex: 1; min-width: 0; background: rgba(43,168,224,0.06);
   border: 1px solid var(--border-mid); border-radius: 10px;
   color: var(--text); font-family: inherit; font-size: 11px; padding: 10px 12px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;  /* v170: stop long URL breaking the row on mobile */
 }
 .refer-share-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
 .refer-share-btn {
@@ -10061,13 +10062,14 @@ const Earnings = {
   
   // ─────────── COMPUTED ───────────
   computedTier() {
-    // Ambassador: 8+ in at least 4 of 7 categories
-    const atAmb = this.categories.filter(c => c.current >= this.AMBASSADOR_THRESHOLD).length;
-    if (atAmb >= this.AMBASSADOR_CATEGORIES) return 'ambassador';
-    // Supporter: 2+ in at least 4 of 7 categories
-    const atSup = this.categories.filter(c => c.current >= this.SUPPORTER_THRESHOLD).length;
-    if (atSup >= this.SUPPORTER_CATEGORIES) return 'supporter';
-    return 'member';
+    // v169: tier is ADMIN-CONTROLLED for now (manual grant + Founding Ambassador promo),
+    // so the source of truth is the member's stored tier — NOT a local activity calc.
+    // (The activity-based auto-evaluation is parked in assets/ffp-tiers.js for later.)
+    try {
+      var t = (typeof MemberProfile !== 'undefined' && MemberProfile.data && MemberProfile.data.tier)
+              || (JSON.parse(localStorage.getItem('ffp_member') || '{}').tier) || 'member';
+      return String(t).toLowerCase();
+    } catch (e) { return 'member'; }
   },
   
   rateForWay(way) { return way.rates[this.tier]; },
