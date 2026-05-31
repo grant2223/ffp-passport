@@ -1,4 +1,4 @@
-/* FFP Admin Experiences Loader — v2 — sidebar pending badge
+/* FFP Admin Experiences Loader — v3 — sidebar pending badge + realtime
    Wires admin Experiences panel to real Supabase data.
    Tabs: Pending / Live / Past / Closed / Archived (injected — panel had none)
    Default tab = 'pending'.
@@ -269,6 +269,7 @@
     ax.feature = feature;
     ax.view = viewExperience;
     ax.refresh = refresh;
+    if (window.FFPRealtime) window.FFPRealtime.subscribe('admin-experiences', 'experiences', null, function () { refresh(); });
 
     try {
       await refresh();
