@@ -1,4 +1,7 @@
-/* FFP Admin Overview Loader — v8 (2026-05-31)
+/* FFP Admin Overview Loader — v9 (2026-05-31)
+   v9: event-driven — loads on confirmed admin session (ffp-admin-ready), never races a
+       timeout into an unauthenticated "not authorized" call.
+   v8 (history):
    v8: Content badge + queue card now use REAL content_submissions pending count
        (content_pending) instead of the events/experiences/challenges rollup — those
        pending listings already show on their own sidebar badges (Events/etc.).
@@ -101,9 +104,12 @@
   async function init() {
     var ready = await waitFor(function () { return window.supabase && document.getElementById('panel-overview'); }, 20000);
     if (!ready) return;
-    await waitFor(function () { return window.FFP_ADMIN || (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()); }, 20000);
-    try { await load(); console.log('[FFP Admin Overview v7] loaded ✓ (single RPC)'); } catch (e) { console.error(e); }
     window.FFPAdminOverview = { refresh: load };
+    // v9: NEVER fire admin_overview unauthenticated. Load only once the admin session is
+    // confirmed — either it's already set, or when ffp-admin-auth dispatches 'ffp-admin-ready'
+    // (also covers a sign-in that happens after this loader initialised).
+    document.addEventListener('ffp-admin-ready', function () { load(); });
+    if (window.FFP_ADMIN) { try { await load(); console.log('[FFP Admin Overview v9] loaded ✓'); } catch (e) { console.error(e); } }
     if (window.FFPRealtime) {
       var t = null, bump = function () { clearTimeout(t); t = setTimeout(load, 800); };
       ['events', 'experiences', 'challenges', 'provider_applications', 'payouts', 'referrals', 'members', 'providers', 'activity_logs'].forEach(function (tbl) {
