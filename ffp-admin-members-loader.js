@@ -1,4 +1,7 @@
-/* FFP Admin Members Loader — v3 (2026-05-31)
+/* FFP Admin Members Loader — v4 (2026-05-31)
+   v4: event-driven fetch on confirmed admin session (ffp-admin-ready) — fixes empty list
+       when the loader initialised before sign-in.
+   v3 (history):
    v3: also fetch tier_expires_at so the admin can see/set a tier expiry per member.
    v1 (history):
    Wires the admin Members panel to real Supabase data + real-time.
@@ -58,14 +61,14 @@
   async function init() {
     var ok = await waitFor(function () { return window.supabase && typeof AdminMembers !== 'undefined'; }, 15000);
     if (!ok) { console.error('[FFP Admin Members] dependencies never loaded'); return; }
-    await waitFor(function () { return !!window.FFP_ADMIN; }, 20000);
-
     var am = getAM();
     am.init = function () { refresh(); };
     am.refresh = refresh;
 
-    try { console.log('[FFP Admin Members v1] Loaded from Supabase ✓'); }
-    catch (e) { console.error('[FFP Admin Members] initial load:', e); }
+    // v4: fetch only when the admin session is confirmed (event-driven, no race).
+    document.addEventListener('ffp-admin-ready', function () { refresh(); });
+    if (window.FFP_ADMIN) refresh();
+    console.log('[FFP Admin Members v4] ready');
 
     if (window.FFPRealtime) {
       window.FFPRealtime.subscribe('admin-members', 'members', null, function () { refresh(); });
