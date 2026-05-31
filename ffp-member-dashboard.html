@@ -39,6 +39,8 @@
 <script src="assets/ffp-photo-upload.js"></script>
 <!-- v110: qrcode.js for real scannable Identity QR (verify URL). -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<!-- v165: html2canvas to render the passport card to a shareable image -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="assets/ffp-qr.js"></script>
 <!-- v107: Realtime helper loaded BEFORE any loader. Loaders register
      postgres_changes subscriptions via FFPRealtime.subscribe so panels
@@ -4062,6 +4064,11 @@ input[type="number"] {
   <div id="pp-disciplines" class="pp-disciplines" style="display:none;"></div>
 
   <!-- WALLET BUTTONS - Official designs ready for live integration -->
+  <!-- v165: Share my passport (renders the card to an image) -->
+  <div style="max-width:540px;margin:0 auto 12px;">
+    <button class="btn btn-block" id="share-passport-btn" onclick="sharePassportCard()" style="padding:14px;background:#FFCC00;color:#081420;border:none;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:10px;cursor:pointer;font-family:inherit;width:100%;font-size:14px;"><span class="material-icons" style="font-size:18px;">share</span> Share my passport</button>
+  </div>
+
   <div class="wallet-row">
     <button class="wallet-btn wallet-apple" onclick="addToAppleWallet()" aria-label="Add to Apple Wallet">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff" xmlns="http://www.w3.org/2000/svg">
@@ -6353,6 +6360,14 @@ function applyPassportData() {
       if (_pinit) { _pinit.textContent = memberPassport.initials || 'M'; _pinit.style.display = ''; }
     }
   }
+
+  // v164: privacy — hide the Date of Birth field on the card when the member opts in.
+  var _dobVal = document.querySelector('[data-field="dob"]');
+  if (_dobVal) {
+    var _hideDob = !!(typeof MemberProfile !== 'undefined' && MemberProfile.data && MemberProfile.data.preferences && MemberProfile.data.preferences.hideDob);
+    var _dobWrap = _dobVal.closest('.pf-field') || _dobVal;
+    _dobWrap.style.display = _hideDob ? 'none' : '';
+  }
   
   // Build custom MRZ-style lines
   // Format: >>>>>>NZL>Given>Surname<<<<<<<<<<
@@ -7218,7 +7233,8 @@ const MemberProfile = {
     preferences: {
       notifications: false,
       newsletter: false,
-      publicProfile: false
+      publicProfile: false,
+      hideDob: false        // v164: hide Date of Birth on the passport card
     }
   },
   
@@ -7441,6 +7457,10 @@ const MemberProfile = {
           <label class="pref-toggle">
             <span>Public Profile (Connections)</span>
             <input type="checkbox" ${d.preferences.publicProfile ? 'checked' : ''} onchange="MemberProfile.setPref('publicProfile', this.checked)">
+          </label>
+          <label class="pref-toggle">
+            <span>Hide date of birth on passport</span>
+            <input type="checkbox" ${d.preferences.hideDob ? 'checked' : ''} onchange="MemberProfile.setPref('hideDob', this.checked)">
           </label>
         </div>
       </div>
@@ -7771,7 +7791,7 @@ const MemberProfile = {
     var inp = document.getElementById('ffp-avatar-input');
     if (!inp) {
       inp = document.createElement('input');
-      inp.type = 'file'; inp.accept = 'image/*'; inp.capture = 'user';
+      inp.type = 'file'; inp.accept = 'image/*';
       inp.id = 'ffp-avatar-input'; inp.style.display = 'none';
       inp.addEventListener('change', function () {
         var file = inp.files && inp.files[0]; if (!file) return;
@@ -7868,6 +7888,7 @@ const MemberProfile = {
   // ===== PREFERENCES =====
   setPref(key, value) {
     this.data.preferences[key] = value;
+    if (key === 'hideDob') this.syncToPassport();   // reflect on the card immediately
     this.autoSave();
   }
 };
@@ -12350,6 +12371,52 @@ function init() {
 // 2. The endpoint requires Apple Developer Account + Pass Type ID + signing certificate
 // 3. The .pkpass file is signed and contains the member's data
 // 4. Browser/iOS automatically opens "Add to Apple Wallet" prompt
+// v165: render the passport card to a PNG and share it (native share sheet on mobile,
+// download fallback elsewhere). Captures the live card, so it respects the hide-DOB setting.
+async function sharePassportCard() {
+  var btn = document.getElementById('share-passport-btn');
+  var shell = document.querySelector('.pass-shell');
+  if (!shell || typeof html2canvas === 'undefined') {
+    if (typeof showToast === 'function') showToast('Sharing not ready — try again', 'error');
+    return;
+  }
+  var prevLabel = btn ? btn.innerHTML : '';
+  function restore() { if (btn) { btn.disabled = false; btn.innerHTML = prevLabel; } }
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-icons" style="font-size:18px;">hourglass_empty</span> Preparing...'; }
+
+  var prevTransform = shell.style.transform;
+  shell.style.transform = 'none';   // capture at full design resolution, not the responsive scale
+  try {
+    var canvas = await html2canvas(shell, { backgroundColor: null, scale: 2, useCORS: true, logging: false });
+    shell.style.transform = prevTransform;
+    canvas.toBlob(async function (blob) {
+      if (!blob) { restore(); return; }
+      var nm = ((typeof MemberProfile !== 'undefined' && MemberProfile.getFullName && MemberProfile.getFullName()) || 'member').replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '') || 'member';
+      var file = new File([blob], 'passport-' + nm + '.png', { type: 'image/png' });
+      var shared = false;
+      try {
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: 'My Passport', text: "I'm officially part of the community." });
+          shared = true;
+        }
+      } catch (e) { restore(); return; } // user cancelled the share sheet
+      if (!shared) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = file.name;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        if (typeof showToast === 'function') showToast('Passport image saved', 'success');
+      }
+      restore();
+    }, 'image/png');
+  } catch (err) {
+    shell.style.transform = prevTransform;
+    restore();
+    if (typeof showToast === 'function') showToast('Could not create image — try again', 'error');
+  }
+}
+
 function addToAppleWallet() {
   const memberData = {
     memberID: '',
