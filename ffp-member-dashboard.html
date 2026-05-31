@@ -12243,6 +12243,32 @@ function setupLogPickers() {
     }
   });}
 
+// v168: pull server-authoritative fields (tier, balance, photo, skills) on load so an
+// admin change — e.g. an Ambassador upgrade — appears on the next dashboard open without
+// the member having to log out and back in.
+function refreshMemberFromServer() {
+  try {
+    var m = JSON.parse(localStorage.getItem('ffp_member') || '{}');
+    if (!m || !m.id) return;
+    fetch('https://ffp-passport-backend.vercel.app/api/members/' + m.id)
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (!res || !res.success || !res.member) return;
+        var sm = res.member;
+        var cached = JSON.parse(localStorage.getItem('ffp_member') || '{}');
+        ['tier', 'balance_aed', 'photo_url', 'skills', 'verified'].forEach(function (k) {
+          if (sm[k] !== undefined && sm[k] !== null) cached[k] = sm[k];
+        });
+        try { localStorage.setItem('ffp_member', JSON.stringify(cached)); } catch (e) {}
+        if (sm.tier) MemberProfile.data.tier = sm.tier;
+        if (sm.photo_url) MemberProfile.data.photo = sm.photo_url;
+        MemberProfile.syncToPassport();
+        if (typeof MemberProfile.render === 'function') MemberProfile.render();
+      })
+      .catch(function () {});
+  } catch (e) {}
+}
+
 // ===== INIT =====
 function init() {
   // v100: hydrate MemberProfile.data from localStorage.ffp_member (set by /api/auth/signin
@@ -12297,6 +12323,7 @@ function init() {
   MemberProfile.syncToPassport();  // profile is source of truth — sync before card render
   applyPassportData();
   renderQR();
+  refreshMemberFromServer();        // v168: reconcile tier/balance/photo from server
   setupTopbar();
   setupPanelNav();
   MemberProfile.render();
