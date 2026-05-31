@@ -13,6 +13,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/ffp-api-integration.js"></script>
 <script src="assets/ffp-constants.js"></script>
+<script src="assets/ffp-taxonomy.js"></script>
+<script src="assets/ffp-location-picker.js"></script>
 <script src="ffp-provider-auth.js"></script>
 <script src="ffp-provider-profile-loader.js"></script>
 <script src="ffp-provider-events-loader.js"></script>
@@ -2144,18 +2146,12 @@ a { color: var(--ffp-blue); text-decoration: none; }
               </select>
             </div>
             <div class="field">
+              <div class="label">Country <span class="req">*</span></div>
+              <select class="select" id="pf-country" data-ffp-loc="country" data-ffp-group="provider"></select>
+            </div>
+            <div class="field">
               <div class="label">City <span class="req">*</span></div>
-              <select class="select" id="pf-city">
-                <option value="">Choose city</option>
-                <option>Dubai</option>
-                <option>Abu Dhabi</option>
-                <option>Sharjah</option>
-                <option>Ajman</option>
-                <option>Ras Al Khaimah</option>
-                <option>Fujairah</option>
-                <option>Al Ain</option>
-                <option>Umm Al Quwain</option>
-              </select>
+              <select class="select" id="pf-city" data-ffp-loc="city" data-ffp-group="provider"></select>
             </div>
             <div class="field">
               <div class="label">Area / Neighbourhood</div>
@@ -2528,7 +2524,10 @@ a { color: var(--ffp-blue); text-decoration: none; }
 
 <script>
 /* ════════════════════════════════════════════════
-   FFP PROVIDER DASHBOARD — v15 (2026-05-31)
+   FFP PROVIDER DASHBOARD — v16 (2026-05-31)
+   v16: profile Country + City now use the shared FFPLocation cascade (assets/
+        ffp-location-picker.js + ffp-taxonomy.js) — identical to apply/member/signup.
+        Added Country field; city cascades from country. +taxonomy/picker includes.
    v15: provider Category (profile) now reads the canonical list from assets/ffp-constants.js
         (single source of truth, matches the Apply form). Included ffp-constants.js.
    v14: Feedback moved into the topbar (replaces the Help button) as a BLUE button;
@@ -2796,7 +2795,7 @@ function loadProfile() {
   document.getElementById('pf-business-name').value = providerProfile.business_name || '';
   document.getElementById('pf-category').value = providerProfile.category || '';
   document.getElementById('pf-type').value = providerProfile.provider_type || '';
-  document.getElementById('pf-city').value = providerProfile.city || '';
+  if (window.FFPLocation) { FFPLocation.setValue('provider', providerProfile.country || '', providerProfile.city || ''); } else { var _pc = document.getElementById('pf-city'); if (_pc) _pc.value = providerProfile.city || ''; }
   document.getElementById('pf-area').value = providerProfile.area || '';
   document.getElementById('pf-address').value = providerProfile.address || '';
   setPhoneValue(providerProfile.phone || '');
@@ -2850,6 +2849,7 @@ function saveProfile() {
   providerProfile.business_name = document.getElementById('pf-business-name').value.trim();
   providerProfile.category      = document.getElementById('pf-category').value;
   providerProfile.provider_type = document.getElementById('pf-type').value;
+  providerProfile.country       = (document.getElementById('pf-country') || {}).value || '';
   providerProfile.city          = document.getElementById('pf-city').value;
   providerProfile.area          = document.getElementById('pf-area').value.trim();
   providerProfile.address       = document.getElementById('pf-address').value.trim();
