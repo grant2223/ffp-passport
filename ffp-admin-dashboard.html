@@ -12,19 +12,7 @@
 <script src="assets/ffp-api-integration.js"></script>
   <script src="assets/ffp-realtime.js"></script>
 <script src="ffp-admin-auth.js"></script>
-<script src="ffp-admin-providers-loader.js"></script>
   <script src="ffp-admin-overview-loader.js"></script>
-  <script src="ffp-admin-analytics-loader.js"></script>
-  <script src="ffp-admin-members-loader.js"></script>
-  <script src="ffp-admin-referrals-loader.js"></script>
-  <script src="ffp-admin-meetups-loader.js"></script>
-  <script src="ffp-admin-content-loader.js"></script>
-<script src="ffp-admin-payouts-loader.js"></script>
-<script src="ffp-admin-quests-loader.js"></script>
-<script src="ffp-admin-events-loader.js"></script>
-<script src="ffp-admin-experiences-loader.js"></script>
-<script src="ffp-admin-challenges-loader.js"></script>
-<script src="ffp-admin-applications-loader.js"></script>
 <!-- v7: removed 8 phantom loader refs that 404'd (referrals/content/members/meetups/overview/analytics/taxonomies/settings — those panels run on their inline modules). Normalized quests loader ref to the plain GitHub filename. -->
 
   
@@ -1301,15 +1289,15 @@ input, select, textarea { font-family: inherit; }
       </a>
       <a class="sidebar-link" data-panel="panel-content" onclick="App.go('panel-content')">
         <span class="material-icons">rate_review</span>Content
-        <span class="sidebar-link-badge" id="badge-content">5</span>
+        <span class="sidebar-link-badge" id="badge-content" style="display:none"></span>
       </a>
       <a class="sidebar-link" data-panel="panel-payouts" onclick="App.go('panel-payouts')">
         <span class="material-icons">account_balance</span>Payouts
-        <span class="sidebar-link-badge" id="badge-payouts">2</span>
+        <span class="sidebar-link-badge" id="badge-payouts" style="display:none"></span>
       </a>
       <a class="sidebar-link" data-panel="panel-referrals" onclick="App.go('panel-referrals')">
         <span class="material-icons">group_add</span>Referrals
-        <span class="sidebar-link-badge" id="badge-referrals">4</span>
+        <span class="sidebar-link-badge" id="badge-referrals" style="display:none"></span>
       </a>
       
       <div class="sidebar-section-label">Marketplace</div>
@@ -2104,19 +2092,38 @@ const App = {
        load via their own loaders. Nothing else is fetched on page load. */
   },
   _opened: {},
+  // Each panel's loader script is fetched ONLY when the panel is first opened, so the
+  // page load fires no panel queries (the Overview RPC always wins a connection -> instant).
+  _panelScript: {
+    'panel-providers':    'ffp-admin-providers-loader.js',
+    'panel-applications': 'ffp-admin-applications-loader.js',
+    'panel-payouts':      'ffp-admin-payouts-loader.js',
+    'panel-content':      'ffp-admin-content-loader.js',
+    'panel-referrals':    'ffp-admin-referrals-loader.js',
+    'panel-members':      'ffp-admin-members-loader.js',
+    'panel-quests':       'ffp-admin-quests-loader.js',
+    'panel-events':       'ffp-admin-events-loader.js',
+    'panel-experiences':  'ffp-admin-experiences-loader.js',
+    'panel-challenges':   'ffp-admin-challenges-loader.js',
+    'panel-meetups':      'ffp-admin-meetups-loader.js',
+    'panel-analytics':    'ffp-admin-analytics-loader.js'
+  },
   _lazyInit(panelId) {
     if (this._opened[panelId]) return;
+    var src = this._panelScript[panelId];
+    if (!src) return;                 // overview/taxonomies/settings need no loader
     this._opened[panelId] = true;
     try {
-      if (panelId === 'panel-members')          AdminMembers.init();
-      else if (panelId === 'panel-content')     AdminContent.init();
-      else if (panelId === 'panel-referrals')   AdminReferrals.init();
-      else if (panelId === 'panel-events')      AdminEvents.init();
-      else if (panelId === 'panel-experiences') AdminExperiences.init();
-      else if (panelId === 'panel-challenges')  AdminChallenges.init();
-      else if (panelId === 'panel-meetups')     AdminMeetups.init();
-      else if (panelId === 'panel-analytics')   Analytics.init();
-    } catch (e) { console.warn('[FFP] lazy init failed for ' + panelId, e); }
+      var sc = document.createElement('script');
+      sc.src = src; sc.async = false;
+      sc.onload = function () {
+        if (panelId === 'panel-analytics') {
+          setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 80);
+        }
+      };
+      sc.onerror = function () { console.error('[FFP] failed to load ' + src); };
+      document.body.appendChild(sc);
+    } catch (e) { console.warn('[FFP] lazy load failed for ' + panelId, e); }
   },
   
   go(panelId) {
