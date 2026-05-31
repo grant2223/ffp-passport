@@ -1,70 +1,11 @@
 <!--
-FFP Profile Complete v18
+FFP Profile Complete v21
 Last updated: 31 May 2026
-v18: sports picker — REMOVED category chips (search-only, fixes the "auto-selects Walking"
-     + tap-offset); Back on the level step now returns to the sport list (was closing the picker).
-v17: Nationality moved up next to Gender (same row) — frees vertical space; DOB stays full-width above.
-v16: FIX signup regressions — fitness LEVELS rebuilt as {id,desc} objects (names from
-     FFP_TAX + descriptions) so the sports "level" step no longer shows undefined; DOB row
-     made full-width so Day/Month/Year aren't clipped; forced Material Icons Outlined font +
-     clip so the activity picker icons don't render as raw text.
-v15: removed embedded lists (countries/activities/levels/nationalities) — read ONLY
-     from FFP_TAX; gender now from FFP_TAX.genders (Male/Female/Non-binary/Prefer).
-v14: country+city cascade now reads the shared taxonomy too (COUNTRIES = FFP_TAX.cities
-     || inline) so signup matches every other form's country/city. 
-v13: activities / fitness levels / nationalities now read the shared source
-     assets/ffp-taxonomy.js (inline lists kept as fallback) so signup matches the
-     rest of the platform. +ffp-taxonomy.js include. (Prior internal header read v8.)
-
-v8 (clean rewrite, no webhook dependency):
-- Page no longer looks up member by stripe_session_id on load. Form shows
-  immediately. The webhook is OFF the critical path — even if it never
-  fires or always fails, onboarding still works.
-- On submit, page POSTs everything (session_id + form data) to one new
-  backend endpoint: /api/onboard/from-stripe. That endpoint asks Stripe
-  directly for the email/name, then writes one atomic UPSERT to the
-  members table.
-- Result: no PostgREST schema cache games, no race conditions between
-  webhook and frontend, no "Setting up your account" wait-state.
-- User-facing flow is identical to v7: pay → form → dashboard.
--->
-
-<!--
-═══════════════════════════════════════════════════════════════════════
-     FFP PROFILE COMPLETE — v12
-     v12 changes (from v11, 2026-05-29):
-     - JWT bridge wired. Backend v13's /api/onboard/from-stripe now returns
-       a Supabase-compatible JWT alongside the member object. v12 loads
-       supabase-js + ffp-api-integration v8, then on successful onboard
-       hands the response to FFPApi.applyOnboardResponse() which stores
-       member + jwt + applies the Supabase session. The dashboard the
-       user lands on then has auth.uid() = member.id for RLS — same as a
-       returning signin via /login. Without this, brand-new signups would
-       land on the dashboard JWT-less and hit RLS errors on every loader.
-     v11 changes (from v10, 2026-05-28):
-     - Welcome title text: "Welcome, [name]" → "The Active Lifestyle Community"
-     - Welcome subtitle: "Let's complete your passport." → "Let's get your passport ready"
-     - The dynamic <span id="greet-name"> removed (no JS reference to it).
-     v10 changes (from v9, 2026-05-28):
-     - REMOVED visible "FFP Profile Complete v8" version marker div (was
-       rendering blue text at top of page to every user — violation of
-       no-visible-version-markers rule).
-     - REMOVED "Takes 2 minutes." from welcome subtitle.
-     - Layout: Nationality now sits alone on its own row, Country and
-       City pair together on the row below (per Grant's spec).
-       Final field order: GivenNames/Surname → DOB/Gender → Nationality
-       (alone) → Country/City.
-     v9 changes (from v8, 2026-05-28):
-     - Field order swap: Given Names FIRST, then Surname (per Grant)
-     - Placeholders "Goes" and "Grant" REMOVED from name inputs
-     - Date of Birth converted from single <input type="date"> to three
-       <select> dropdowns (Day / Month / Year) — cross-browser consistent
-     - Gender field ADDED (Male / Female / Other / Prefer not to say)
-     - Validation + submit payload updated to match new fields
-     NOTE: backend /api/onboard/from-stripe (v9) does NOT yet accept gender
-     in its req.body destructure — needs a small backend v10 update for
-     gender to actually persist to the members table. v9 frontend sends
-     gender regardless; backend silently drops it until v10 ships.
+v21: Back button reverted to plain text (no background box, still 15px + 44px tap area);
+     bumped "Your Sports" section label 10->13px and its helper text 12->15px (were tiny on mobile).
+v20: sports picker readability — bumped text sizes for mobile (search 16px/52px,
+     activity rows + names 16px, level cards 16px/desc 14px, subtitle 15px, taller rows).
+     [Platform-wide min readable-size standard to follow across member/provider/admin.]
 ═══════════════════════════════════════════════════════════════════════
 -->
 <!DOCTYPE html>
@@ -109,7 +50,7 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 .progress-line{width:24px;height:1.5px;background:rgba(43,168,224,.2);}
 .progress-line.done{background:#22c55e;}
 
-.section-label{font-size:10px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#2ba8e0;margin-bottom:14px;}
+.section-label{font-size:13px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#2ba8e0;margin-bottom:14px;}
 .field-label{font-size:10px;font-weight:800;color:#6a90a8;letter-spacing:1px;text-transform:uppercase;margin-bottom:7px;}
 .field-input,.field-select{width:100%;background:rgba(43,168,224,.06);border:1px solid rgba(43,168,224,.2);border-radius:10px;padding:13px 16px;font-size:15px;font-weight:600;color:#fff;font-family:'Montserrat',sans-serif;outline:none;transition:border-color .15s;height:48px;}
 .field-input:focus,.field-select:focus{border-color:#2ba8e0;}
@@ -132,14 +73,15 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 .btn-primary:disabled{opacity:.5;cursor:not-allowed;}
 .btn-secondary{display:flex;align-items:center;justify-content:center;width:100%;padding:13px;border-radius:12px;font-size:14px;font-weight:700;border:1.5px solid rgba(43,168,224,.3);cursor:pointer;font-family:'Montserrat',sans-serif;color:#9dbdd0;background:transparent;transition:all .15s;text-align:center;gap:8px;}
 .btn-secondary:hover{border-color:#2ba8e0;color:#fff;}
-.btn-back{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#6a90a8;background:none;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;padding:0;margin-bottom:20px;}
+.btn-back{display:inline-flex;align-items:center;gap:8px;font-size:15px;font-weight:700;color:#9fb4c4;background:none;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;padding:8px 4px;margin-bottom:16px;min-height:44px;}
+.btn-back svg{width:18px;height:18px;}
 .btn-back:hover{color:#2ba8e0;}
 
 .step{display:none;}
 .step.active{display:block;animation:fadeIn .25s ease;}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
 
-.sports-helper{font-size:12px;color:#9dbdd0;margin-bottom:18px;line-height:1.6;}
+.sports-helper{font-size:15px;color:#9dbdd0;margin-bottom:18px;line-height:1.6;}
 .sports-list{margin-bottom:14px;}
 .sport-row{display:flex;align-items:center;gap:12px;background:rgba(43,168,224,.08);border:1px solid rgba(43,168,224,.22);border-radius:11px;padding:13px 14px;margin-bottom:8px;}
 .sport-row-icon{width:34px;height:34px;border-radius:9px;background:rgba(43,168,224,.15);display:flex;align-items:center;justify-content:center;color:#2ba8e0;flex-shrink:0;}
@@ -157,12 +99,12 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 .picker.active{display:block;animation:fadeIn .2s ease;}
 .picker-wrap{width:100%;max-width:480px;margin:0 auto;}
 .picker-title{font-size:22px;font-weight:900;margin-bottom:6px;letter-spacing:-.3px;}
-.picker-sub{font-size:13px;color:#9dbdd0;margin-bottom:20px;line-height:1.6;}
+.picker-sub{font-size:15px;color:#9dbdd0;margin-bottom:20px;line-height:1.6;}
 
 /* Search input */
-.picker-search{position:relative;margin-bottom:14px;}
+.picker-search{position:relative;margin-bottom:22px;}
 .picker-search .material-icons-outlined{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#6a90a8;font-size:18px;pointer-events:none;}
-.picker-search input{width:100%;background:rgba(43,168,224,.06);border:1px solid rgba(43,168,224,.2);border-radius:10px;padding:13px 16px 13px 42px;font-size:14px;font-weight:600;color:#fff;font-family:'Montserrat',sans-serif;outline:none;transition:border-color .15s;height:46px;}
+.picker-search input{width:100%;background:rgba(43,168,224,.06);border:1px solid rgba(43,168,224,.2);border-radius:10px;padding:15px 16px 15px 44px;font-size:16px;font-weight:600;color:#fff;font-family:'Montserrat',sans-serif;outline:none;transition:border-color .15s;height:52px;}
 .picker-search input:focus{border-color:#2ba8e0;}
 .picker-search input::placeholder{color:#6a90a8;font-weight:500;}
 
@@ -175,16 +117,16 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 .cat-chip .material-icons-outlined{font-size:14px;}
 
 /* Activity list */
-.activity-list{display:flex;flex-direction:column;gap:6px;margin-bottom:18px;max-height:50vh;overflow-y:auto;padding-right:4px;}
-.activity-row{background:rgba(43,168,224,.05);border:1.5px solid rgba(43,168,224,.18);border-radius:10px;padding:11px 14px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;transition:all .15s;text-align:left;display:flex;align-items:center;gap:12px;font-family:'Montserrat',sans-serif;}
+.activity-list{display:flex;flex-direction:column;gap:8px;margin-top:6px;margin-bottom:18px;max-height:50vh;overflow-y:auto;padding-right:4px;}
+.activity-row{background:rgba(43,168,224,.05);border:1.5px solid rgba(43,168,224,.18);border-radius:10px;padding:15px 14px;min-height:58px;font-size:16px;font-weight:700;color:#fff;cursor:pointer;transition:all .15s;text-align:left;display:flex;align-items:center;gap:12px;font-family:'Montserrat',sans-serif;}
 .activity-row:hover{border-color:#2ba8e0;background:rgba(43,168,224,.1);}
 .activity-row:disabled{opacity:.35;cursor:not-allowed;}
 .activity-row:disabled:hover{border-color:rgba(43,168,224,.18);background:rgba(43,168,224,.05);}
-.activity-row-icon{width:28px;height:28px;border-radius:7px;background:rgba(43,168,224,.15);display:flex;align-items:center;justify-content:center;color:#2ba8e0;flex-shrink:0;}
-.activity-row-icon .material-icons-outlined{font-size:17px;}
+.activity-row-icon{width:32px;height:32px;border-radius:7px;background:rgba(43,168,224,.15);display:flex;align-items:center;justify-content:center;color:#2ba8e0;flex-shrink:0;}
+.activity-row-icon .material-icons-outlined{font-size:19px;}
 .activity-row-info{flex:1;min-width:0;}
-.activity-row-name{font-size:13px;font-weight:700;color:#fff;}
-.activity-row-cat{font-size:10px;font-weight:600;color:#6a90a8;margin-top:2px;letter-spacing:.3px;}
+.activity-row-name{font-size:16px;font-weight:700;color:#fff;}
+.activity-row-cat{font-size:12px;font-weight:600;color:#6a90a8;margin-top:2px;letter-spacing:.3px;}
 .activity-row-arrow{color:#6a90a8;flex-shrink:0;}
 .activity-row:hover .activity-row-arrow{color:#2ba8e0;}
 .activity-empty{padding:20px;text-align:center;font-size:12px;color:#6a90a8;border:1px dashed rgba(43,168,224,.18);border-radius:10px;}
@@ -198,8 +140,8 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 .level-card.selected .level-radio{border-color:#2ba8e0;background:#2ba8e0;}
 .level-card.selected .level-radio::after{content:"";width:7px;height:7px;border-radius:50%;background:#fff;}
 .level-info{flex:1;}
-.level-name{font-size:14px;font-weight:800;color:#fff;margin-bottom:3px;letter-spacing:.2px;}
-.level-desc{font-size:12px;color:#9dbdd0;line-height:1.5;font-weight:500;}
+.level-name{font-size:16px;font-weight:800;color:#fff;margin-bottom:3px;letter-spacing:.2px;}
+.level-desc{font-size:14px;color:#9dbdd0;line-height:1.5;font-weight:500;}
 
 .error-msg{color:#ef4444;font-size:12px;font-weight:700;margin-top:10px;text-align:center;min-height:18px;}
 .loading-screen{position:fixed;inset:0;background:#081420;display:flex;align-items:center;justify-content:center;z-index:200;}
