@@ -1,5 +1,11 @@
 <!-- ════════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v110
+     FFP MEMBER DASHBOARD — v156
+     v156 (2026-05-31): Lazy panel loaders — page load fetches nothing; each panel's
+       loader script is injected on first open (instant Passport view). Restored the
+       member-discovery loader (was missing on this branch). Added the shared feedback
+       widget (assets/ffp-feedback-widget.js, data-source="member"). Header version is
+       now kept in sync with the filename (was stale at v110 through v155).
+     ---- earlier history ----
      v110 changes (from v109, 2026-05-29):
      - Real scannable Identity QR. Dashboard's inline renderQR() drew a
        FAKE 21x21 random pattern that looked QR-shaped but was not
