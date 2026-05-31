@@ -185,15 +185,11 @@
      postgres_changes subscriptions via FFPRealtime.subscribe so panels
      auto-refresh when underlying DB rows change. -->
 <script src="assets/ffp-realtime.js"></script>
-<!-- Member loaders. Each one is JWT-authenticated via the bridge
-     (ffp-api-integration v8 sets the JWT as a Bearer header on
-     window.supabase). All loaders call FFPAuth.getMember() to identify
-     the current user — no Supabase Auth dependency. -->
-<script src="assets/ffp-earnings-loader.js"></script>
-<script src="assets/ffp-calorie-tracker-loader.js"></script>
-<script src="assets/ffp-fitness-stats-loader.js"></script>
-<script src="assets/ffp-meet-move-loader.js"></script>
-<script src="assets/ffp-member-discovery-loader.js"></script>
+<!-- v156: member loaders are NO LONGER eager. Each panel's loader script is
+     injected on the panel's first open (see ensurePanelLoader in setupPanelNav),
+     so a plain load fires zero data queries -> the Passport view is instant and
+     deterministic. Realtime subscriptions also start lazily, per panel.
+     (member-discovery loader added here too — it was missing from this branch.) -->
 
 <style>
 :root {
@@ -7107,10 +7103,34 @@ function setupPanelNav() {
     Array.from(navItems).map(n => n.getAttribute('data-panel')).filter(Boolean)
   );
   
+  // v156: load a panel's data-loader script the first time that panel is opened.
+  // Keeps page load free of panel queries; the default Passport view needs none.
+  const _panelLoaderSrc = {
+    'panel-earnings':        'assets/ffp-earnings-loader.js',
+    'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
+    'panel-fitness-stats':   'assets/ffp-fitness-stats-loader.js',
+    'panel-meet':            'assets/ffp-meet-move-loader.js',
+    'panel-events':          'assets/ffp-member-discovery-loader.js',
+    'panel-experiences':     'assets/ffp-member-discovery-loader.js',
+    'panel-challenges':      'assets/ffp-member-discovery-loader.js'
+  };
+  const _loadedLoaderSrc = {};
+  function ensurePanelLoader(panelId) {
+    const src = _panelLoaderSrc[panelId];
+    if (!src || _loadedLoaderSrc[src]) return;
+    _loadedLoaderSrc[src] = true;
+    const sc = document.createElement('script');
+    sc.src = src; sc.async = false;
+    sc.onerror = function () { console.error('[FFP] failed to load ' + src); };
+    document.body.appendChild(sc);
+  }
+
   function showPanel(panelId) {
     // Validate panel exists
     const target = document.getElementById(panelId);
     if (!target) return;
+    // v156: lazy-load this panel's data loader on first open
+    ensurePanelLoader(panelId);
     
     // Swap panel visibility
     document.querySelectorAll('.panel-view').forEach(p => p.classList.remove('active'));
