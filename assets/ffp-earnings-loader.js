@@ -190,12 +190,13 @@
   }
 
   // v10: target order
-  //   .earn-refer-cta  →  #ffp-bottom-dropdowns  →  Your progression ct-section
+  //   .earn-refer-cta  →  tier-badge (status)  →  Your progression  →  #ffp-bottom-dropdowns
   //                    →  #ffp-payouts-section   →  #ffp-earnings-log
   function reorderToTargetOrder(panel) {
     var anchor = panel.querySelector('.earn-refer-cta');
     if (!anchor) return;
 
+    var status = document.getElementById('tier-badge-card');   // v22: the "Your Tier" status card
     var bottomDd = document.getElementById('ffp-bottom-dropdowns');
     var payouts = document.getElementById('ffp-payouts-section');
     var earnings = document.getElementById('ffp-earnings-log');
@@ -209,7 +210,7 @@
 
     // Insert each one after the previous, starting with anchor (Refer-a-friend)
     var prev = anchor;
-    [bottomDd, progression, payouts, earnings].forEach(function (el) {
+    [status, progression, bottomDd, payouts, earnings].forEach(function (el) {
       if (!el) return;
       if (el.parentNode) el.parentNode.removeChild(el);
       prev.parentNode.insertBefore(el, prev.nextSibling);
