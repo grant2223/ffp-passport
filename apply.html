@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/ffp-constants.js"></script>
 <style>
 :root{
   --blue:#2ba8e0; --blue-dk:#1980AD; --bg:#081420; --bg-2:#0f1e2e; --bg-3:#142a3f;
@@ -131,18 +132,6 @@ select option{background:var(--bg-2);color:var(--text)}
           <label>Category <span class="req">*</span></label>
           <select id="category" required>
             <option value="">Choose category</option>
-            <option>Gym / Fitness studio</option>
-            <option>Sports club</option>
-            <option>Yoga / Pilates studio</option>
-            <option>Martial arts &amp; Combat</option>
-            <option>Climbing &amp; Bouldering</option>
-            <option>Wellness &amp; Spa</option>
-            <option>Recovery &amp; Performance</option>
-            <option>Adventure &amp; Outdoor</option>
-            <option>Nutrition &amp; Cafe</option>
-            <option>Coaching &amp; Personal Training</option>
-            <option>Sports retail</option>
-            <option>Other</option>
           </select>
         </div>
         <div class="field">
@@ -240,6 +229,15 @@ select option{background:var(--bg-2);color:var(--text)}
       btn.disabled = false; btn.textContent = 'Submit application';
     }
   });
+})();
+</script>
+<script>
+(function () {
+  var sel = document.getElementById('category');
+  if (!sel) return;
+  var cats = (window.FFP_CONST && window.FFP_CONST.providerCategories) ||
+    ['Fitness','Wellness','Padel','Yoga & Pilates','Climbing','Combat sports','Recovery','Adventure','Nutrition','Coaching','Retail','Other'];
+  cats.forEach(function (c) { var o = document.createElement('option'); o.textContent = c; sel.appendChild(o); });
 })();
 </script>
 </body>
