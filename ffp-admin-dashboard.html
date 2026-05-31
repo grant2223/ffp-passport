@@ -1,4 +1,4 @@
-<!-- FFP Admin Dashboard v24 (2026-05-31) — Members: tier dropdown + expiry date; tier changes admin-only (DB trigger). -->
+<!-- FFP Admin Dashboard v25 (2026-05-31) — FIX: own clean Supabase client (dropped member ffp-api-integration that broke is_admin/admin_overview). v24: tier dropdown + expiry. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -14,7 +14,22 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="assets/ffp-api-integration.js"></script>
+<!-- v25: Admin dashboard owns a CLEAN Supabase client. The member auth module
+     (ffp-api-integration.js) is intentionally NOT loaded here: it rebuilt window.supabase
+     around member-JWT logic and stripped the admin session off requests, so is_admin() saw
+     no user and admin_overview returned "not authorized". ffp-admin-auth.js owns the
+     Supabase Auth session on THIS client. -->
+<script>
+(function () {
+  var SDK = window.supabase; // supabase-js UMD from the CDN tag above
+  window.supabase = SDK.createClient('https://kxzyuofecmtymablnmak.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4enl1b2ZlY210eW1hYmxubWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NDM1MTYsImV4cCI6MjA5NTAxOTUxNn0.cWn0x1AeD-x9C-HHf9MShXbFRWdkWi5RMgHLgWJwOuE');
+  // Admin sign out (topbar button): clear the admin session and re-show the auth gate.
+  window.ffpLogout = function () {
+    try { window.supabase.auth.signOut(); } catch (e) {}
+    setTimeout(function () { window.location.reload(); }, 120);
+  };
+})();
+</script>
   <script src="assets/ffp-constants.js"></script>
   <script src="assets/ffp-taxonomy.js"></script>
   <script src="assets/ffp-realtime.js"></script>
