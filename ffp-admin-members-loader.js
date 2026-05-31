@@ -1,4 +1,6 @@
-/* FFP Admin Members Loader — v1 (2026-05-31)
+/* FFP Admin Members Loader — v3 (2026-05-31)
+   v3: also fetch tier_expires_at so the admin can see/set a tier expiry per member.
+   v1 (history):
    Wires the admin Members panel to real Supabase data + real-time.
    Per-panel-loader pattern: overrides AdminMembers' data + render with live rows
    (the inline demo array is stripped from the dashboard). Renders into #members-tbody
@@ -28,6 +30,7 @@
       email: row.email || '',
       city: row.city || '',
       tier: row.tier || 'member',
+      tier_expires_at: row.tier_expires_at || null,
       balance: Number(row.balance_aed || 0),
       daysAgo: days,
       status: row.status || 'active'
@@ -38,7 +41,7 @@
     try {
       var res = await window.supabase
         .from('members')
-        .select('id, full_name, given_names, email, city, tier, balance_aed, status, created_at')
+        .select('id, full_name, given_names, email, city, tier, tier_expires_at, balance_aed, status, created_at')
         .order('created_at', { ascending: false });
       if (res.error) { console.error('[FFP Admin Members] fetch:', res.error); toast('Could not load members', 'error'); return []; }
       return (res.data || []).map(mapForUi);
