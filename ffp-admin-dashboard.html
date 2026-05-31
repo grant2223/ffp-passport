@@ -1,4 +1,4 @@
-<!-- FFP Admin Dashboard v25 (2026-05-31) — FIX: own clean Supabase client (dropped member ffp-api-integration that broke is_admin/admin_overview). v24: tier dropdown + expiry. -->
+<!-- FFP Admin Dashboard v26 (2026-05-31) — v25 clean client fix + dynamic admin identity (shows logged-in admin email) + bulletproof admin sign-out. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -24,9 +24,10 @@
   var SDK = window.supabase; // supabase-js UMD from the CDN tag above
   window.supabase = SDK.createClient('https://kxzyuofecmtymablnmak.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4enl1b2ZlY210eW1hYmxubWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NDM1MTYsImV4cCI6MjA5NTAxOTUxNn0.cWn0x1AeD-x9C-HHf9MShXbFRWdkWi5RMgHLgWJwOuE');
   // Admin sign out (topbar button): clear the admin session and re-show the auth gate.
-  window.ffpLogout = function () {
-    try { window.supabase.auth.signOut(); } catch (e) {}
-    setTimeout(function () { window.location.reload(); }, 120);
+  window.ffpLogout = async function () {
+    try { await window.supabase.auth.signOut(); } catch (e) {}
+    try { Object.keys(localStorage).forEach(function(k){ if (k.indexOf('sb-')===0) localStorage.removeItem(k); }); } catch(e){}
+    window.location.reload();
   };
 })();
 </script>
@@ -1364,11 +1365,11 @@ input, select, textarea { font-family: inherit; }
       </a>
     </nav>
     
-    <div class="sidebar-user" title="Signed in as Grant Goes">
-      <div class="sidebar-user-avatar">G</div>
+    <div class="sidebar-user" id="ffp-admin-identity" title="Signed in">
+      <div class="sidebar-user-avatar" id="ffp-admin-avatar">—</div>
       <div>
-        <div class="sidebar-user-name">Grant Goes</div>
-        <div class="sidebar-user-role">Super Admin</div>
+        <div class="sidebar-user-name" id="ffp-admin-name">Admin</div>
+        <div class="sidebar-user-role" id="ffp-admin-role">—</div>
       </div>
     </div>
     <div class="sidebar-footer">
