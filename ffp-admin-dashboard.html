@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FFP Admin Dashboard</title>
-<!-- FFP ADMIN DASHBOARD — v18 (2026-05-31): Content panel tab counts (Pending/Approved/
-     Rejected) now reflect REAL content_submissions data (were hardcoded demo 5/28/7).
-     v17: dedicated Sign out button in topbar; Grant Goes / Super Admin identity moved to
-     bottom-left of the sidebar (non-clickable). -->
+<!-- FFP ADMIN DASHBOARD — v19 (2026-05-31): Referrals tab counts wired to REAL data;
+     Providers/Payouts static tab defaults zeroed (their loaders set real counts on open).
+     No demo numbers remain on Content/Providers/Payouts/Referrals tabs. v18: Content tab
+     counts real (were demo 5/28/7). -->
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1486,9 +1486,9 @@ input, select, textarea { font-family: inherit; }
           <div class="search-meta" id="AdminProviders-meta"></div>
         </div>
         <div class="tabs" id="providers-tabs">
-          <button class="tab-btn active" data-tab="approved" onclick="AdminProviders.setTab('approved')">Approved <span class="count" id="prov-count-approved">10</span></button>
-          <button class="tab-btn" data-tab="featured" onclick="AdminProviders.setTab('featured')">Featured <span class="count" id="prov-count-featured">5</span></button>
-          <button class="tab-btn" data-tab="suspended" onclick="AdminProviders.setTab('suspended')">Suspended <span class="count" id="prov-count-suspended">1</span></button>
+          <button class="tab-btn active" data-tab="approved" onclick="AdminProviders.setTab('approved')">Approved <span class="count" id="prov-count-approved">0</span></button>
+          <button class="tab-btn" data-tab="featured" onclick="AdminProviders.setTab('featured')">Featured <span class="count" id="prov-count-featured">0</span></button>
+          <button class="tab-btn" data-tab="suspended" onclick="AdminProviders.setTab('suspended')">Suspended <span class="count" id="prov-count-suspended">0</span></button>
         </div>
         <div class="section-body">
           <table class="table">
@@ -1586,9 +1586,9 @@ input, select, textarea { font-family: inherit; }
           <div class="search-meta" id="AdminPayouts-meta"></div>
         </div>
         <div class="tabs">
-          <button class="tab-btn active" data-tab="pending" onclick="AdminPayouts.setTab('pending')">Pending <span class="count">2</span></button>
-          <button class="tab-btn" data-tab="approved" onclick="AdminPayouts.setTab('approved')">Approved <span class="count">1</span></button>
-          <button class="tab-btn" data-tab="paid" onclick="AdminPayouts.setTab('paid')">Paid <span class="count">8</span></button>
+          <button class="tab-btn active" data-tab="pending" onclick="AdminPayouts.setTab('pending')">Pending <span class="count">0</span></button>
+          <button class="tab-btn" data-tab="approved" onclick="AdminPayouts.setTab('approved')">Approved <span class="count">0</span></button>
+          <button class="tab-btn" data-tab="paid" onclick="AdminPayouts.setTab('paid')">Paid <span class="count">0</span></button>
           <button class="tab-btn" data-tab="rejected" onclick="AdminPayouts.setTab('rejected')">Rejected <span class="count">0</span></button>
         </div>
         <div class="section-body">
@@ -1618,9 +1618,9 @@ input, select, textarea { font-family: inherit; }
           <div class="search-meta" id="AdminReferrals-meta"></div>
         </div>
         <div class="tabs">
-          <button class="tab-btn active" data-tab="pending" onclick="AdminReferrals.setTab('pending')">Pending <span class="count">4</span></button>
-          <button class="tab-btn" data-tab="paid" onclick="AdminReferrals.setTab('paid')">Paid <span class="count">12</span></button>
-          <button class="tab-btn" data-tab="invalid" onclick="AdminReferrals.setTab('invalid')">Invalid <span class="count">1</span></button>
+          <button class="tab-btn active" data-tab="pending" onclick="AdminReferrals.setTab('pending')">Pending <span class="count" id="ref-ct-pending">0</span></button>
+          <button class="tab-btn" data-tab="paid" onclick="AdminReferrals.setTab('paid')">Paid <span class="count" id="ref-ct-paid">0</span></button>
+          <button class="tab-btn" data-tab="invalid" onclick="AdminReferrals.setTab('invalid')">Invalid <span class="count" id="ref-ct-invalid">0</span></button>
         </div>
         <div class="section-body">
           <table class="table">
@@ -2543,6 +2543,11 @@ const AdminReferrals = {
     let rows = this.data.filter(r => r.status === this.tab);
     if (this.search) rows = rows.filter(r => r.referrer.toLowerCase().includes(this.search) || r.referred.toLowerCase().includes(this.search));
     document.getElementById('AdminReferrals-meta').textContent = `${rows.length} item${rows.length === 1 ? '' : 's'}`;
+    var _rd = this.data || [];
+    var _setR = function (id, n) { var e = document.getElementById(id); if (e) e.textContent = n; };
+    _setR('ref-ct-pending', _rd.filter(function (r) { return r.status === 'pending'; }).length);
+    _setR('ref-ct-paid', _rd.filter(function (r) { return r.status === 'paid'; }).length);
+    _setR('ref-ct-invalid', _rd.filter(function (r) { return r.status === 'invalid'; }).length);
     document.getElementById('referrals-tbody').innerHTML = rows.map(r => `
       <tr>
         <td>
