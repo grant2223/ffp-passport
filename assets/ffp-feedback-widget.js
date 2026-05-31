@@ -1,7 +1,9 @@
-/* FFP Feedback Widget - v2 (2026-05-31)
-   v2: exposes window.FFPFeedback.open()/close() so a host page can trigger the modal
-       from its own button (member dashboard puts a feedback icon next to the bell);
-       data-fab="off" suppresses the floating button (used on member). v1: initial.
+/* FFP Feedback Widget - v3 (2026-05-31)
+   v3: category chips are now TEXT-ONLY (removed Material icon spans) so they render
+       cleanly on both dashboards regardless of which icon font the host loads
+       (provider uses Material Symbols, member uses Material Icons).
+   v2: exposes window.FFPFeedback.open()/close() so a host page can trigger the modal;
+       data-fab="off" suppresses the floating button (used on member/provider topbars).
    Shared widget included by BOTH the member and provider dashboards. Injects a
    floating "Feedback" button + modal, and writes a row to public.feedback via the
    JWT-authenticated window.supabase client. Admin reads these live in the Feedback panel.
@@ -82,7 +84,7 @@
   function catChips() {
     return CATS.map(function (c) {
       return '<button type="button" class="ffp-fb-cat' + (c.id === picked ? ' on' : '') +
-        '" data-cat="' + c.id + '"><span class="material-icons">' + c.icon + '</span>' + esc(c.label) + '</button>';
+        '" data-cat="' + c.id + '">' + esc(c.label) + '</button>';
     }).join('');
   }
 
@@ -93,7 +95,7 @@
       var fab = document.createElement('button');
       fab.className = 'ffp-fb-fab';
       fab.type = 'button';
-      fab.innerHTML = '<span class="material-icons">forum</span>Feedback';
+      fab.innerHTML = 'Feedback';
       fab.onclick = open;
       document.body.appendChild(fab);
     }
