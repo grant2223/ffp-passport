@@ -1,4 +1,4 @@
-/* FFP Admin Overview Loader — v3 (2026-05-31)
+/* FFP Admin Overview Loader — v4 (realtime) (2026-05-31)
    v3: fills EMPTY hooks in the cleaned Overview (demo data removed from the HTML
        per the no-patches rule). No overwriting, no text-matching.
    Replaces the static demo numbers on the admin Overview with REAL data.
@@ -162,6 +162,12 @@
     try { await loadOverview(); console.log('[FFP Admin Overview v3] loaded ✓'); }
     catch (e) { console.error('[FFP Admin Overview] init:', e); }
     window.FFPAdminOverview = { refresh: loadOverview };
+    if (window.FFPRealtime) {
+      var _ovTables = ['events','experiences','challenges','provider_applications','payouts','referrals','members','providers','activity_logs'];
+      var _ovT = null;
+      var _ovBump = function () { clearTimeout(_ovT); _ovT = setTimeout(loadOverview, 800); };
+      _ovTables.forEach(function (tbl) { window.FFPRealtime.subscribe('admin-ov-' + tbl, tbl, null, _ovBump); });
+    }
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
