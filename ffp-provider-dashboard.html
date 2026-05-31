@@ -2481,6 +2481,8 @@ a { color: var(--ffp-blue); text-decoration: none; }
 <script>
 /* ════════════════════════════════════════════════
    FFP PROVIDER DASHBOARD — v17 (2026-05-31)
+   v18: phone country code shown uniformly as FLAG + + + digits (e.g. 🇦🇪 +971), from
+        shared ffp-taxonomy.js v4 — matches member dashboard.
    v17: phone country codes now from shared FFP_TAX.phoneCodes (removed two embedded
         21-option lists + inline PHONE_CODES array).
    v16: profile Country + City now use the shared FFPLocation cascade (assets/
@@ -4539,7 +4541,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <script>
 (function(){ if(!(window.FFP_TAX&&window.FFP_TAX.phoneCodes))return;
   document.querySelectorAll('select.phone-cc').forEach(function(sel){ if(sel.options.length)return;
-    window.FFP_TAX.phoneCodes.forEach(function(c){ var o=document.createElement('option'); o.value=c.code; o.textContent=c.code+' '+c.country; sel.appendChild(o); }); });
+    window.FFP_TAX.phoneCodes.forEach(function(c){ var o=document.createElement('option'); o.value=c.code; o.textContent=(c.flag?c.flag+' ':'')+c.code; sel.appendChild(o); }); });  // v18: uniform flag + + + digits
 })();
 </script>
 </body>
