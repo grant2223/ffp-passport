@@ -1,4 +1,7 @@
-/* FFP Feedback Widget - v1 (2026-05-31)
+/* FFP Feedback Widget - v2 (2026-05-31)
+   v2: exposes window.FFPFeedback.open()/close() so a host page can trigger the modal
+       from its own button (member dashboard puts a feedback icon next to the bell);
+       data-fab="off" suppresses the floating button (used on member). v1: initial.
    Shared widget included by BOTH the member and provider dashboards. Injects a
    floating "Feedback" button + modal, and writes a row to public.feedback via the
    JWT-authenticated window.supabase client. Admin reads these live in the Feedback panel.
@@ -14,9 +17,11 @@
   'use strict';
 
   var SOURCE = 'member';
+  var SHOW_FAB = true;
   try {
     var cs = document.currentScript;
     if (cs && cs.dataset && cs.dataset.source) SOURCE = cs.dataset.source;
+    if (cs && cs.dataset && cs.dataset.fab === 'off') SHOW_FAB = false;
   } catch (e) {}
 
   function esc(s) {
@@ -84,12 +89,14 @@
   function build() {
     injectCss();
 
-    var fab = document.createElement('button');
-    fab.className = 'ffp-fb-fab';
-    fab.type = 'button';
-    fab.innerHTML = '<span class="material-icons">forum</span>Feedback';
-    fab.onclick = open;
-    document.body.appendChild(fab);
+    if (SHOW_FAB) {
+      var fab = document.createElement('button');
+      fab.className = 'ffp-fb-fab';
+      fab.type = 'button';
+      fab.innerHTML = '<span class="material-icons">forum</span>Feedback';
+      fab.onclick = open;
+      document.body.appendChild(fab);
+    }
 
     var back = document.createElement('div');
     back.className = 'ffp-fb-back';
@@ -121,6 +128,9 @@
       picked = b.dataset.cat;
       document.querySelectorAll('#ffp-fb-cats .ffp-fb-cat').forEach(function (x) { x.classList.toggle('on', x.dataset.cat === picked); });
     });
+
+    // Let host pages trigger the modal from their own UI (e.g. topbar icon)
+    window.FFPFeedback = { open: open, close: close };
   }
 
   function open() { document.getElementById('ffp-fb-back').classList.add('open'); setTimeout(function () { var t = document.getElementById('ffp-fb-msg'); if (t) t.focus(); }, 50); }
