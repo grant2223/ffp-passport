@@ -318,6 +318,7 @@
     if (!ok) { console.error('[FFP Applications] dependencies never loaded'); return; }
     await waitFor(function () { return !!window.FFP_ADMIN; }, 10000);
     AdminApplications.init();
+    if (window.FFPRealtime) window.FFPRealtime.subscribe('admin-applications', 'provider_applications', null, function () { AdminApplications.load(); });
     console.log('[FFP Admin Applications v1] Loaded ✓');
   }
 
