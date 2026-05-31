@@ -1,4 +1,4 @@
-/* FFP Provider Notifications + Session Loader — v2 (2026-05-31)
+/* FFP Provider Notifications + Session Loader — v3 (realtime; replaced 60s poll) (2026-05-31)
    v2: Sign out now does a REAL logout via ffpLogout() (clears session →
        login.html). v1 called the inline demo signOut() → blank page.
    PURPOSE
@@ -224,7 +224,18 @@
     });
     cache = await buildNotifs();
     renderBadge();
-    setInterval(async function () { try { cache = await buildNotifs(); renderBadge(); } catch (e) {} }, 60000);
+    // Real-time (self-inject the helper — provider dashboard doesn't load it — then subscribe)
+    (function () {
+      function go() {
+        ['rsvps','applications','events','experiences','challenges'].forEach(function (t) {
+          window.FFPRealtime.subscribe('provider-notif-' + t, t, null, async function () { try { cache = await buildNotifs(); renderBadge(); } catch (e) {} });
+        });
+      }
+      if (window.FFPRealtime) { go(); return; }
+      var _ex = document.getElementById('ffp-realtime-js');
+      if (!_ex) { var _sc = document.createElement('script'); _sc.id = 'ffp-realtime-js'; _sc.src = 'assets/ffp-realtime.js'; _sc.onload = function () { if (window.FFPRealtime) go(); }; document.head.appendChild(_sc); }
+      else { var _n = 0, _t = setInterval(function () { if (window.FFPRealtime) { clearInterval(_t); go(); } else if (++_n > 60) clearInterval(_t); }, 100); }
+    })();
   }
 
   // ── sign-out: topbar button + hide the one next to Delete ───────────────────
