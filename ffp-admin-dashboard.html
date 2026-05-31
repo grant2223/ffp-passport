@@ -2099,17 +2099,24 @@ const App = {
   },
   
   init() {
-    AdminProviders.init();
-    AdminMembers.init();
-    AdminContent.init();
-    AdminPayouts.init();
-    AdminReferrals.init();
-    AdminEvents.init();
-    AdminExperiences.init();
-    AdminChallenges.init();
-    AdminMeetups.init();
-    AuditLog.init();
-    Analytics.init();
+    /* LAZY: heavy panels load on first open (see go()/_lazyInit). Providers, Payouts and
+       Applications self-initialize in their own loaders. Overview data + sidebar badges
+       load via their own loaders. Nothing else is fetched on page load. */
+  },
+  _opened: {},
+  _lazyInit(panelId) {
+    if (this._opened[panelId]) return;
+    this._opened[panelId] = true;
+    try {
+      if (panelId === 'panel-members')          AdminMembers.init();
+      else if (panelId === 'panel-content')     AdminContent.init();
+      else if (panelId === 'panel-referrals')   AdminReferrals.init();
+      else if (panelId === 'panel-events')      AdminEvents.init();
+      else if (panelId === 'panel-experiences') AdminExperiences.init();
+      else if (panelId === 'panel-challenges')  AdminChallenges.init();
+      else if (panelId === 'panel-meetups')     AdminMeetups.init();
+      else if (panelId === 'panel-analytics')   Analytics.init();
+    } catch (e) { console.warn('[FFP] lazy init failed for ' + panelId, e); }
   },
   
   go(panelId) {
@@ -2118,6 +2125,7 @@ const App = {
     document.getElementById(panelId).classList.add('active');
     document.querySelector(`.sidebar-link[data-panel="${panelId}"]`)?.classList.add('active');
     document.getElementById('topbar-panel-name').textContent = this.panelNames[panelId] || '';
+    this._lazyInit(panelId);
     document.getElementById('sidebar').classList.remove('open');
     document.getElementById('sidebar-backdrop').classList.remove('show');
     GlobalSearch.close();
