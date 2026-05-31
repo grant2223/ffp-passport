@@ -1,4 +1,4 @@
-/* FFP Admin Experiences Loader — v1
+/* FFP Admin Experiences Loader — v2 — sidebar pending badge
    Wires admin Experiences panel to real Supabase data.
    Tabs: Pending / Live / Past / Closed / Archived (injected — panel had none)
    Default tab = 'pending'.
@@ -91,6 +91,20 @@
     return c;
   }
 
+  // v2: push the pending count to the sidebar link badge — same pattern as
+  // the applications loader (#badge-applications). Updates live on every render
+  // (load + tab change + after approve/reject), so admin is notified of pending items.
+  function setNavBadge(panel, n) {
+    var link = document.querySelector('.sidebar-link[data-panel="' + panel + '"]');
+    if (!link) return;
+    var b = link.querySelector('.ffp-pending-badge');
+    if (n > 0) {
+      if (!b) { b = document.createElement('span'); b.className = 'sidebar-link-badge ffp-pending-badge'; link.appendChild(b); }
+      b.textContent = n > 99 ? '99+' : String(n);
+      b.style.display = '';
+    } else if (b) { b.style.display = 'none'; }
+  }
+
   function realRender() {
     var ax = getAX();
     if (!ax) return;
@@ -106,6 +120,7 @@
     }
 
     var counts = tabCounts(ax.data || []);
+    setNavBadge('panel-experiences', counts.pending);
     var tabsHTML =
       '<button class="tab-btn' + (tab === 'pending' ? ' active' : '') + '" data-tab="pending" onclick="AdminExperiences.setTab(\'pending\')">Pending <span class="count">' + counts.pending + '</span></button>' +
       '<button class="tab-btn' + (tab === 'live' ? ' active' : '') + '" data-tab="live" onclick="AdminExperiences.setTab(\'live\')">Live <span class="count">' + counts.live + '</span></button>' +
