@@ -1,5 +1,8 @@
 <!-- ════════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v159 (2026-05-31)
+     FFP MEMBER DASHBOARD — v160 (2026-05-31)
+     v160: cities/activities/fitness-levels/nationalities now read the shared source
+           assets/ffp-taxonomy.js (inline lists kept as fallback = no behaviour change).
+           Single editable taxonomy across the platform. +ffp-taxonomy.js include.
      v159: Earnings config (membership $99 / referral 5-10-20% / min payout $250) now reads
            the shared single source assets/ffp-constants.js (fallback = same values, so no
            behaviour change). Included ffp-constants.js.
@@ -38,6 +41,7 @@
      postgres_changes subscriptions via FFPRealtime.subscribe so panels
      auto-refresh when underlying DB rows change. -->
 <script src="assets/ffp-constants.js"></script>
+<script src="assets/ffp-taxonomy.js"></script>
 <script src="assets/ffp-realtime.js"></script>
 <!-- Feedback widget (shared) -> public.feedback -> admin Feedback panel -->
 <script src="assets/ffp-feedback-widget.js" data-source="member" data-fab="off"></script>
@@ -6247,7 +6251,7 @@ const CITY_COORDS = {
   'Sapa': { lng: 103.84, lat: 22.34 }
 };
 
-const CITIES_DB = {
+const CITIES_DB = (window.FFP_TAX && window.FFP_TAX.cities) || {
   'Argentina': ['Bariloche','Buenos Aires','Cordoba','El Calafate','Iguazu','Mendoza','Salta','Ushuaia'],
   'Australia': ['Adelaide','Brisbane','Byron Bay','Cairns','Canberra','Darwin','Gold Coast','Hobart','Melbourne','Newcastle','Perth','Sunshine Coast','Sydney','Wollongong'],
   'Austria': ['Bregenz','Graz','Hallstatt','Innsbruck','Kitzbuhel','Klagenfurt','Linz','Salzburg','Vienna'],
@@ -6308,7 +6312,7 @@ const CITIES_DB = {
   'Vietnam': ['Da Nang','Dalat','Halong Bay','Hanoi','Ho Chi Minh City','Hoi An','Hue','Nha Trang','Phu Quoc','Sapa']
 };
 
-const ACTIVITIES_DB = [
+const ACTIVITIES_DB = (window.FFP_TAX && window.FFP_TAX.activities) || [
   {n:'Walk 2km',c:'Running & walking'},{n:'Walk 5km',c:'Running & walking'},{n:'Walk 10km',c:'Running & walking'},
   {n:'Run 2km',c:'Running & walking'},{n:'Run 5km',c:'Running & walking'},{n:'Run 10km',c:'Running & walking'},
   {n:'Half marathon',c:'Running & walking'},{n:'Marathon',c:'Running & walking'},{n:'Trail run',c:'Running & walking'},
@@ -7065,7 +7069,7 @@ function setupPanelNav() {
 //   SPORTS & SKILL LEVELS  (× to remove each)
 //   PREFERENCES
 
-const NATIONALITIES = [
+const NATIONALITIES = (window.FFP_TAX && window.FFP_TAX.nationalities) || [
   'Argentinian','Australian','Austrian','Belgian','Brazilian','British','Bulgarian',
   'Canadian','Chilean','Chinese','Colombian','Croatian','Czech','Danish','Dutch',
   'Egyptian','Emirati','Filipino','Finnish','French','German','Greek','Hungarian',
@@ -7095,7 +7099,7 @@ const NATIONALITY_ISO = {
 
 const GENDERS = ['Male', 'Female', 'Non-binary', 'Prefer not to say'];
 
-const FFP_FITNESS_LEVELS = ['Beginner', 'Intermediate', 'Advanced', 'Elite', 'Professional'];
+const FFP_FITNESS_LEVELS = (window.FFP_TAX && window.FFP_TAX.fitnessLevels) || ['Beginner', 'Intermediate', 'Advanced', 'Elite', 'Professional'];
 
 // FFP Professional Roles — full taxonomy (FFP-PROFESSIONAL-ROLES-TAXONOMY.md)
 // SKILL-SPECIFIC ONLY — no generic titles like "Personal Trainer" or "Sports Coach".
