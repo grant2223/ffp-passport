@@ -4,16 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FFP Admin Dashboard</title>
-<!-- FFP ADMIN DASHBOARD — v19 (2026-05-31): Referrals tab counts wired to REAL data;
-     Providers/Payouts static tab defaults zeroed (their loaders set real counts on open).
-     No demo numbers remain on Content/Providers/Payouts/Referrals tabs. v18: Content tab
-     counts real (were demo 5/28/7). -->
+<!-- FFP ADMIN DASHBOARD — v20 (2026-05-31): Settings + Taxonomies now reflect the REAL
+     platform values from assets/ffp-constants.js (USD membership $99 / min payout $250 /
+     referral 5-10-20% of membership; 12 canonical provider categories) instead of demo
+     AED figures. v19: Referrals tab counts real; Providers/Payouts static defaults zeroed. -->
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/ffp-api-integration.js"></script>
+  <script src="assets/ffp-constants.js"></script>
   <script src="assets/ffp-realtime.js"></script>
 <script src="ffp-admin-auth.js"></script>
   <script src="ffp-admin-overview-loader.js"></script>
@@ -1833,8 +1834,8 @@ input, select, textarea { font-family: inherit; }
         </div>
         <div class="kpi-tile" onclick="showToast('Categories editor coming')" style="cursor:pointer;">
           <div class="kpi-label">Provider Categories</div>
-          <div class="kpi-value">5</div>
-          <div class="kpi-delta"><span class="text-muted">Fitness, Sports, Wellness, Adventure, Recovery</span></div>
+          <div class="kpi-value" id="tax-cat-count">12</div>
+          <div class="kpi-delta"><span class="text-muted" id="tax-cat-list">Fitness, Wellness, Padel, Yoga &amp; Pilates, Climbing, Combat sports, Recovery, Adventure, Nutrition, Coaching, Retail, Other</span></div>
         </div>
         <div class="kpi-tile">
           <div class="kpi-label">Fitness Levels (locked)</div>
@@ -1874,29 +1875,29 @@ input, select, textarea { font-family: inherit; }
         <div class="section-body padded">
           <div class="field-row">
             <div class="field">
-              <label class="field-label">Membership Price (AED)</label>
-              <input class="field-input" value="499" type="number">
+              <label class="field-label">Membership Price (USD)</label>
+              <input class="field-input" id="cfg-membership" value="99" type="number" readonly>
             </div>
             <div class="field">
-              <label class="field-label">Min Payout (AED)</label>
-              <input class="field-input" value="500" type="number">
+              <label class="field-label">Min Payout (USD)</label>
+              <input class="field-input" id="cfg-minpayout" value="250" type="number" readonly>
             </div>
           </div>
           <div class="field-row">
             <div class="field">
-              <label class="field-label">Member Referral (AED)</label>
-              <input class="field-input" value="25" type="number">
+              <label class="field-label">Member Referral (% of membership)</label>
+              <input class="field-input" id="cfg-ref-member" value="5" type="number" readonly>
             </div>
             <div class="field">
-              <label class="field-label">Supporter Referral (AED)</label>
-              <input class="field-input" value="50" type="number">
+              <label class="field-label">Supporter Referral (% of membership)</label>
+              <input class="field-input" id="cfg-ref-supporter" value="10" type="number" readonly>
             </div>
             <div class="field">
-              <label class="field-label">Ambassador Referral (AED)</label>
-              <input class="field-input" value="100" type="number">
+              <label class="field-label">Ambassador Referral (% of membership)</label>
+              <input class="field-input" id="cfg-ref-ambassador" value="20" type="number" readonly>
             </div>
           </div>
-          <button class="btn btn-primary" onclick="showToast('Settings saved')">Save Config</button>
+          <div class="text-muted" style="font-size:12px;">These are the live platform values (source: assets/ffp-constants.js). Editable config is a fast-follow.</div>
         </div>
       </div>
       
@@ -3197,6 +3198,20 @@ const GlobalSearch = {
 // BOOT
 // =====================================================================
 document.addEventListener('DOMContentLoaded', () => App.init());
+</script>
+<script>
+(function () {
+  var C = window.FFP_CONST; if (!C) return;
+  var set = function (id, v) { var e = document.getElementById(id); if (e != null && v != null) e.value = v; };
+  set('cfg-membership', C.membershipUsd);
+  set('cfg-minpayout', C.minPayoutUsd);
+  set('cfg-ref-member', C.referralPct.member);
+  set('cfg-ref-supporter', C.referralPct.supporter);
+  set('cfg-ref-ambassador', C.referralPct.ambassador);
+  var cats = C.providerCategories || [];
+  var cc = document.getElementById('tax-cat-count'); if (cc) cc.textContent = cats.length;
+  var cl = document.getElementById('tax-cat-list'); if (cl) cl.textContent = cats.join(', ');
+})();
 </script>
 </body>
 </html>
