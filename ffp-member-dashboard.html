@@ -185,6 +185,8 @@
      postgres_changes subscriptions via FFPRealtime.subscribe so panels
      auto-refresh when underlying DB rows change. -->
 <script src="assets/ffp-realtime.js"></script>
+<!-- Feedback widget (shared) -> public.feedback -> admin Feedback panel -->
+<script src="assets/ffp-feedback-widget.js" data-source="member"></script>
 <!-- v156: member loaders are NO LONGER eager. Each panel's loader script is
      injected on the panel's first open (see ensurePanelLoader in setupPanelNav),
      so a plain load fires zero data queries -> the Passport view is instant and
