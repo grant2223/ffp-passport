@@ -1,10 +1,9 @@
 <!--
-FFP Profile Complete v26
+FFP Profile Complete v28
 Last updated: 31 May 2026
-v26: Photo-step copy rewritten around belonging / community welcome (no brand reference):
-     "You're one of us now. Add your photo so the community can put a face to your name -
-     everyone here is excited to meet you."
-v25: Passport photo REQUIRED (no skip); all primary CTAs FFP yellow (#FFCC00) on dark.
+v28: Photo step now lets members UPLOAD from gallery OR take a photo (removed capture="user"
+     which forced the camera only). Mobile now shows the native Take Photo / Photo Library chooser.
+v27: Photo step large blue heading "Add your passport photo" + welcome subtext.
 -->
 
 <!DOCTYPE html>
@@ -426,14 +425,14 @@ button,input,.activity-row,.level-card,.btn-back{touch-action:manipulation;}
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
   Back
 </button>
-<div class="section-label" style="font-size:18px;letter-spacing:.2px;text-transform:none;margin-bottom:8px;">Your passport photo</div>
-<div class="sports-helper">You're one of us now. Add your photo so the community can put a face to your name — everyone here is excited to meet you.</div>
+<div class="section-label" style="font-size:26px;letter-spacing:.2px;text-transform:none;margin-bottom:10px;">Add your passport photo</div>
+<div class="sports-helper">The last piece of your passport that makes it all official — welcome to the community!</div>
 <div class="photo-step-wrap">
   <button type="button" class="photo-frame" id="photo-tile" onclick="document.getElementById('photo-input').click()" aria-label="Add your passport photo">
     <span class="material-icons-outlined pt-cam">photo_camera</span>
     <span class="photo-frame-hint">Tap to add</span>
   </button>
-  <input type="file" id="photo-input" accept="image/*" capture="user" style="display:none" onchange="onPhotoPicked(this)">
+  <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="onPhotoPicked(this)">
 </div>
 <button class="btn-primary" id="submit-btn" onclick="submitProfile()">
   Complete Profile
