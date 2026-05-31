@@ -1,4 +1,4 @@
-<!-- FFP Admin Dashboard v27 (2026-05-31) — tier/expiry edit no longer rebuilds the row mid-change (fixes the expiry-date year not sticking). v26: clean client + dynamic identity + sign-out. -->
+<!-- FFP Admin Dashboard v28 (2026-05-31) — USD labels (balance + payout min) per USD-display decision. v27: tier/expiry edit no longer rebuilds the row mid-change. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1285,7 +1285,7 @@ input, select, textarea { font-family: inherit; }
 .text-blue { color: var(--blue); }
 .text-green { color: var(--green); }
 .text-red { color: var(--red); }
-.aed::before { content: 'AED '; font-size: 0.75em; opacity: 0.7; font-weight: 700; }
+.aed::before { content: '$'; font-size: 0.75em; opacity: 0.7; font-weight: 700; }
 .nowrap { white-space: nowrap; }
 .f-tabular { font-variant-numeric: tabular-nums; }
 .tier-select{background:#0f2236;color:#e8eef4;border:1px solid rgba(43,168,224,.3);border-radius:8px;padding:5px 9px;font-family:inherit;font-size:12px;font-weight:700;text-transform:capitalize;cursor:pointer;}
@@ -1594,7 +1594,7 @@ input, select, textarea { font-family: inherit; }
     <section class="panel" id="panel-payouts">
       <div class="panel-head">
         <h1>Payouts</h1>
-        <div class="panel-head-sub">Review and process member payout requests. Min AED 500.</div>
+        <div class="panel-head-sub">Review and process member payout requests. Min $250.</div>
         <div class="panel-head-actions">
           <button class="btn btn-outline" onclick="showToast('CSV export coming soon')"><span class="material-icons">download</span>Bank Batch CSV</button>
         </div>
