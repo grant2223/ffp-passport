@@ -1,44 +1,8 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP EARNINGS LOADER · CURRENT VERSION: v15
+   FFP EARNINGS LOADER · CURRENT VERSION: v11
    File path: assets/ffp-earnings-loader.js
-   On-load log: [FFP Earnings v12] Loaded from Supabase ✓
+   On-load log: [FFP Earnings v11] Loaded from Supabase ✓
    ═══════════════════════════════════════════════════════════════ */
-/* WHAT v15 CHANGES (from v14):
-   - Fix Web Share API duplicating the URL. The Web Share API treats
-     'text' and 'url' as separate fields — apps that consume both
-     (WhatsApp, iMessage) end up appending the url field to the text,
-     duplicating any URL the text already contained. Fix: keep the URL
-     OUT of the text body; only include it in the dedicated 'url' field.
-     Receiving apps then render a proper link preview card on its own.
-     The clipboard fallback path still embeds the URL in the text since
-     there's no separate URL field for clipboard.
-*/
-/* WHAT v14 CHANGES (from v13):
-   - Share button URL switched from /?ref=CODE to /join?ref=CODE.
-     /join is the canonical invite URL (one less hop — friend lands
-     directly on /login#signup with ref captured, rather than going
-     through the homepage detour first). See [[shorter-funnel]].
-*/
-/* WHAT v13 CHANGES (from v12):
-   - Adds a Share button into the existing .earn-refer-cta block. Uses
-     the Web Share API on mobile (native iOS/Android share sheet —
-     WhatsApp/iMessage/Email/SMS prefilled with personalised invite +
-     link ffppassport.com/?ref={member.referral_code}). Falls back to
-     copy-to-clipboard on browsers without navigator.share. Reads
-     referral_code from members table (already loaded into
-     Earnings.referralCode in the existing init). Triggers a small
-     "Link copied!" toast on the fallback path.
-*/
-/* WHAT v12 CHANGES (from v11):
-   - CLEAN-BUILD refactor. Replaces window.supabase.auth.getUser()
-     (which validates against auth.users — a table FFP custom-auth
-     members don't exist in) with window.FFPAuth.getMember() which
-     reads localStorage.ffp_member synchronously. Architecture is
-     now explicit: loaders use FFP auth, Supabase is the database.
-     RLS still works because the JWT (set as Bearer header by
-     ffp-api-integration v8) carries auth.uid() = member.id.
-*/
-
 
 /* WHAT v11 CHANGES (from v10):
    - Default visible rows in Payouts and Earnings log: 5 → 3.
@@ -76,95 +40,8 @@
   var earningsFilter = 'all';
   var payoutShowAll = false;       // v9
   var earningsShowAll = false;     // v9
-  var DEFAULT_VISIBLE_ROWS = 3;    // v11+ (was 5 in v9-v10)
+  var DEFAULT_VISIBLE_ROWS = 3;    // v11 (was 5 in v9-v10)
   var layoutBuilt = false;
-
-  // ─────────── v16: USD display ───────────
-  // Amounts (balance, payouts, transactions) now show in US dollars.
-  // If the DB stores these in AED, flip AMOUNT_IS_AED to true and every
-  // display + the injected balance converts via the fixed 3.6725 peg.
-  // (Leave the dashboard's BALANCE_IS_AED = false — this loader feeds USD.)
-  var AMOUNT_IS_AED = false;
-  var AED_PER_USD = 3.6725;
-  function toUsdNum(n) { n = Number(n) || 0; return AMOUNT_IS_AED ? (n / AED_PER_USD) : n; }
-  function usd(n) { return '$' + Math.round(toUsdNum(n)).toLocaleString(); }
-  var MIN_PAYOUT_USD = 250;
-
-  // v13: Build the Share button + wire it. Idempotent — safe to call on
-  // every panel render. Uses navigator.share (mobile native sheet) when
-  // available, falls back to navigator.clipboard.writeText with a toast.
-  function setupReferralShare(panel) {
-    if (!panel) return;
-    var cta = panel.querySelector('.earn-refer-cta');
-    if (!cta) return;
-    if (cta.querySelector('.ffp-share-btn')) return;  // already added
-
-    var btn = document.createElement('button');
-    btn.className = 'ffp-share-btn';
-    btn.type = 'button';
-    btn.style.cssText = 'display:inline-flex;align-items:center;gap:8px;margin-top:12px;padding:10px 18px;background:#2ba8e0;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;';
-    btn.innerHTML = '<span class="material-icons" style="font-size:18px;">share</span>Share Your Referral Link';
-
-    btn.addEventListener('click', function () {
-      var code = (typeof Earnings !== 'undefined' && Earnings.referralCode) || '';
-      if (!code) { showToast('Referral code not loaded yet — refresh and try again', 'error'); return; }
-
-      var url = 'https://ffppassport.com/join?ref=' + encodeURIComponent(code);
-      var firstName = '';
-      try {
-        var m = JSON.parse(localStorage.getItem('ffp_member') || 'null');
-        firstName = (m && m.given_names) ? String(m.given_names).split(/\s+/)[0] : '';
-      } catch (e) {}
-
-      // v15: Web Share API needs URL in the 'url' field ONLY (not also
-      // baked into 'text') or apps like WhatsApp/iMessage duplicate it.
-      var shareText = (firstName ? firstName + ' here! ' : '') +
-                      'I joined FFP Passport — the UAE\'s active lifestyle membership. ' +
-                      'Use my link to sign up:';
-
-      // Clipboard fallback DOES want the URL inline since clipboard has no
-      // separate url field — it's just plain text the user pastes anywhere.
-      var clipboardText = shareText + ' ' + url;
-
-      if (navigator.share) {
-        navigator.share({
-          title: 'FFP Passport',
-          text:  shareText,
-          url:   url
-        }).catch(function () { /* user cancelled — no-op */ });
-      } else if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(clipboardText).then(function () {
-          showToast('Invite link copied to clipboard!', 'success');
-        }).catch(function () {
-          fallbackCopy(clipboardText);
-        });
-      } else {
-        fallbackCopy(clipboardText);
-      }
-    });
-
-    cta.appendChild(btn);
-  }
-
-  function fallbackCopy(text) {
-    var ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;';
-    document.body.appendChild(ta);
-    ta.select();
-    try { document.execCommand('copy'); showToast('Invite link copied!', 'success'); }
-    catch (e) { showToast('Could not copy — long-press the link to copy manually', 'error'); }
-    document.body.removeChild(ta);
-  }
-
-  function showToast(msg, kind) {
-    var t = document.createElement('div');
-    t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:12px 20px;border-radius:8px;font-size:14px;font-weight:600;z-index:99999;background:' + (kind==='error'?'#f87171':'#22c55e') + ';color:#fff;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
-    t.textContent = msg;
-    document.body.appendChild(t);
-    setTimeout(function () { t.style.opacity='0'; t.style.transition='opacity 0.3s'; }, 1800);
-    setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 2200);
-  }
 
   function injectStyles() {
     if (document.getElementById('ffp-earnings-loader-styles')) return;
@@ -206,11 +83,6 @@
     var panel = document.getElementById('panel-earnings');
     if (!panel) return;
 
-    // v13: ensure the Share button is set up on every render cycle.
-    // The Refer-a-friend CTA (.earn-refer-cta) is rendered by the dashboard
-    // inline code; we enhance it here once per panel render.
-    setupReferralShare(panel);
-
     var section = document.getElementById('ffp-payouts-section');
     if (!section) {
       section = document.createElement('div');
@@ -242,7 +114,7 @@
       section.innerHTML = titleRow +
         '<div class="ffp-po-list">' +
           '<div class="ffp-po-empty">' +
-            'No payouts yet. When your balance reaches $250, request your first one above.' +
+            'No payouts yet. When your balance reaches AED 500, request your first one above.' +
           '</div>' +
         '</div>';
       return;
@@ -283,7 +155,7 @@
 
       return '<div class="ffp-po-row">' +
         '<div>' +
-          '<div class="ffp-po-amount">' + usd(amt) + '</div>' +
+          '<div class="ffp-po-amount">AED ' + amt.toLocaleString() + '</div>' +
           '<div class="ffp-po-method">' + escHtml(p.method || 'bank') + ' transfer</div>' +
           '<div class="ffp-po-dates">' + dates + '</div>' +
           rejectionBlock +
@@ -350,7 +222,8 @@
     s.id = 'ffp-earnings-v8-styles';
     s.textContent =
       // Two-column row for dropdowns
-      '#ffp-bottom-dropdowns{display:grid;grid-template-columns:1fr;gap:12px;margin-top:18px;}' +  /* v16: single column — Ways to earn stacks directly under How tiers work */
+      '#ffp-bottom-dropdowns{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px;}' +
+      '@media(max-width:560px){#ffp-bottom-dropdowns{grid-template-columns:1fr;}}' +
       '.ffp-dd{background:rgba(43,168,224,0.04);border:1px solid var(--border-mid,rgba(43,168,224,0.30));border-radius:12px;overflow:hidden;}' +
       '.ffp-dd-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;user-select:none;}' +
       '.ffp-dd-head:hover{background:rgba(43,168,224,0.06);}' +
@@ -529,9 +402,9 @@
 
     var summary =
       '<div class="ffp-summary">' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Paid</div><div class="ffp-summary-val green">' + usd(totalPaid) + '</div></div>' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">In progress</div><div class="ffp-summary-val yellow">' + usd(totalPending) + '</div></div>' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Rejected</div><div class="ffp-summary-val red">' + usd(totalRejected) + '</div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Paid</div><div class="ffp-summary-val green">AED ' + Math.round(totalPaid).toLocaleString() + '</div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">In progress</div><div class="ffp-summary-val yellow">AED ' + Math.round(totalPending).toLocaleString() + '</div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Rejected</div><div class="ffp-summary-val red">AED ' + Math.round(totalRejected).toLocaleString() + '</div></div>' +
       '</div>';
 
     var rowsHtml;
@@ -576,7 +449,7 @@
 
         return '<div class="ffp-po-row">' +
           '<div>' +
-            '<div class="ffp-po-amount">' + usd(amt) + '</div>' +
+            '<div class="ffp-po-amount">AED ' + amt.toLocaleString() + '</div>' +
             '<div class="ffp-po-method">' + escHtml(p.method || 'bank') + ' transfer</div>' +
             '<div class="ffp-po-dates">' + dates + '</div>' +
             rejectionBlock +
@@ -663,8 +536,8 @@
 
     var summary =
       '<div class="ffp-summary two">' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Earned</div><div class="ffp-summary-val green">' + usd(totalEarned) + '</div></div>' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Pending</div><div class="ffp-summary-val yellow">' + usd(totalPending) + '</div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Earned</div><div class="ffp-summary-val green">AED ' + Math.round(totalEarned).toLocaleString() + '</div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Pending</div><div class="ffp-summary-val yellow">AED ' + Math.round(totalPending).toLocaleString() + '</div></div>' +
       '</div>';
 
     var listHtml;
@@ -835,27 +708,31 @@
     injectStyles();
 
     try {
-      // Read current member from FFP custom auth (FFPAuth.getMember).
-      // We don't use supabase.auth.getUser() — FFP members live in the
-      // `members` table only and have no auth.users row. RLS still
-      // sees auth.uid() correctly because the JWT is set as a Bearer
-      // header on the Supabase client by ffp-api-integration v8.
-      var member = window.FFPAuth && window.FFPAuth.getMember();
-      if (!member || !member.id) {
-        console.log('[FFP Earnings] No FFP member — keeping sample');
+      var userRes = await window.supabase.auth.getUser();
+      if (userRes.error || !userRes.data || !userRes.data.user) {
+        console.log('[FFP Earnings] No user — keeping sample');
         return;
       }
-      currentUserId = member.id;
+      currentUserId = userRes.data.user.id;
 
       // 1. Referral code from members
       var memRes = await window.supabase
         .from('members')
-        .select('referral_code')
+        .select('referral_code, tier')
         .eq('id', currentUserId)
         .maybeSingle();
 
-      if (!memRes.error && memRes.data && memRes.data.referral_code) {
-        Earnings.referralCode = memRes.data.referral_code;
+      if (!memRes.error && memRes.data) {
+        if (memRes.data.referral_code) Earnings.referralCode = memRes.data.referral_code;
+        // v17: tier is admin-controlled — take it from the DB so the Earnings section shows
+        // the real tier (e.g. Ambassador / 20%). Feed it where computedTier() reads from.
+        if (memRes.data.tier) {
+          try {
+            if (typeof MemberProfile !== 'undefined' && MemberProfile.data) MemberProfile.data.tier = memRes.data.tier;
+            var cm = JSON.parse(localStorage.getItem('ffp_member') || '{}'); cm.tier = memRes.data.tier;
+            localStorage.setItem('ffp_member', JSON.stringify(cm));
+          } catch (e) {}
+        }
       } else if (memRes.error) {
         console.error('[FFP Earnings] members read:', memRes.error);
       }
@@ -873,7 +750,7 @@
       } else {
         var txRows = txRes.data || [];
         allTransactions = txRows;  // v8: keep full list for time filtering
-        Earnings.balance = toUsdNum(computeBalance(txRows));  // v16: feed USD to the dashboard
+        Earnings.balance = computeBalance(txRows);
 
         // For paid payouts, fetch the receipt URL from payouts table
         var paidPayoutIds = txRows
@@ -1005,7 +882,7 @@
       // 8. Subscribe to real-time updates so the panel auto-updates
       subscribeRealtime();
 
-      console.log('[FFP Earnings v12] Loaded from Supabase \u2713');
+      console.log('[FFP Earnings v11] Loaded from Supabase \u2713');
     } catch (err) {
       console.error('[FFP Earnings] Unexpected error:', err);
     }
@@ -1302,7 +1179,7 @@
       // Capture amount + method BEFORE original runs (original closes modal + clears state)
       var amount = this._payoutAmount;
       // Guard amount before collecting bank details
-      if (amount < MIN_PAYOUT_USD) { showToast('Minimum payout is $' + MIN_PAYOUT_USD, 'error'); return; }
+      if (amount < 500) { showToast('Minimum payout is AED 500', 'error'); return; }
       if (amount > this.balance) { showToast('Amount exceeds balance', 'error'); return; }
 
       // Collect + validate bank/other details BEFORE the original closes the modal
@@ -1310,7 +1187,7 @@
       if (!details) return;  // validation failed, modal stays open
 
       // Final confirmation — this is real money
-      if (!confirm('Submit payout request for $' + amount.toLocaleString() + ' via ' + details.method + '?\n\nAdmin will review and contact you within 3\u20135 business days.')) {
+      if (!confirm('Submit payout request for AED ' + amount.toLocaleString() + ' via ' + details.method + '?\n\nAdmin will review and contact you within 3\u20135 business days.')) {
         return;
       }
 
