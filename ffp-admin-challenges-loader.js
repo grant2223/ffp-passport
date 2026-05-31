@@ -1,4 +1,4 @@
-/* FFP Admin Challenges Loader — v1
+/* FFP Admin Challenges Loader — v3 — sidebar pending badge + realtime
    Wires admin Challenges panel to real Supabase data.
    Tabs: Pending / Live / Past / Archived (replaces ffp/provider/member kind filter)
    Default tab = 'pending'.
@@ -85,6 +85,20 @@
     return c;
   }
 
+  // v2: push the pending count to the sidebar link badge — same pattern as
+  // the applications loader (#badge-applications). Updates live on every render
+  // (load + tab change + after approve/reject), so admin is notified of pending items.
+  function setNavBadge(panel, n) {
+    var link = document.querySelector('.sidebar-link[data-panel="' + panel + '"]');
+    if (!link) return;
+    var b = link.querySelector('.ffp-pending-badge');
+    if (n > 0) {
+      if (!b) { b = document.createElement('span'); b.className = 'sidebar-link-badge ffp-pending-badge'; link.appendChild(b); }
+      b.textContent = n > 99 ? '99+' : String(n);
+      b.style.display = '';
+    } else if (b) { b.style.display = 'none'; }
+  }
+
   function realRender() {
     var ac = getAC();
     if (!ac) return;
@@ -99,6 +113,7 @@
     }
 
     var counts = tabCounts(ac.data || []);
+    setNavBadge('panel-challenges', counts.pending);
     var tabsHTML =
       '<button class="tab-btn' + (tab === 'pending' ? ' active' : '') + '" data-tab="pending" onclick="AdminChallenges.setTab(\'pending\')">Pending <span class="count">' + counts.pending + '</span></button>' +
       '<button class="tab-btn' + (tab === 'live' ? ' active' : '') + '" data-tab="live" onclick="AdminChallenges.setTab(\'live\')">Live <span class="count">' + counts.live + '</span></button>' +
@@ -240,6 +255,7 @@
     ac.feature = feature;
     ac.view = viewChallenge;
     ac.refresh = refresh;
+    if (window.FFPRealtime) window.FFPRealtime.subscribe('admin-challenges', 'challenges', null, function () { refresh(); });
 
     try {
       await refresh();
