@@ -1,4 +1,6 @@
-/* FFP Provider Notifications + Session Loader — v1 (2026-05-31)
+/* FFP Provider Notifications + Session Loader — v2 (2026-05-31)
+   v2: Sign out now does a REAL logout via ffpLogout() (clears session →
+       login.html). v1 called the inline demo signOut() → blank page.
    PURPOSE
    1. Wires the topbar bell to REAL data:
         - New RSVPs to events this provider owns
@@ -226,7 +228,21 @@
   }
 
   // ── sign-out: topbar button + hide the one next to Delete ───────────────────
+  // v2: real logout — inline signOut() only shows a demo screen that does not
+  // exist on the live build, causing a blank page. Use ffpLogout() (api-integration).
+  function doLogout() {
+    if (!confirm('Sign out of FFP Passport?')) return;
+    if (typeof window.ffpLogout === 'function') { window.ffpLogout(); return; }
+    try {
+      localStorage.removeItem('ffp_token');
+      localStorage.removeItem('ffp_member');
+      localStorage.removeItem('ffp_jwt');
+    } catch (e) {}
+    window.location.href = 'login.html';
+  }
+
   function fixSignOut() {
+    window.signOut = doLogout; // any caller now does a real logout
     // 1) Add a Sign out button to the topbar actions (always visible, safe location)
     var actions = document.querySelector('.tb-actions');
     if (actions && !document.getElementById('ffp-tb-signout')) {
@@ -235,11 +251,7 @@
       btn.id = 'ffp-tb-signout';
       btn.title = 'Sign out';
       btn.innerHTML = '<span class="ms">logout</span><span>Sign out</span>';
-      btn.addEventListener('click', function () {
-        if (confirm('Sign out of FFP Passport?')) {
-          if (typeof window.signOut === 'function') window.signOut();
-        }
-      });
+      btn.addEventListener('click', doLogout);
       actions.appendChild(btn);
     }
     // 2) Hide the Settings "Sign out" button (sat next to Close-account → mis-click risk)
