@@ -39,7 +39,7 @@
 <script src="assets/ffp-photo-upload.js"></script>
 <!-- v110: qrcode.js for real scannable Identity QR (verify URL). -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<!-- v165: html2canvas to render the passport card to a shareable image -->
+<!-- v167: html2canvas to render the passport card to a shareable image (tap-to-share) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="assets/ffp-qr.js"></script>
 <!-- v107: Realtime helper loaded BEFORE any loader. Loaders register
@@ -257,12 +257,6 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
   overflow: hidden;
 }
 .pass-photo-new span { z-index: 1; }
-.pp-disciplines { margin: 0 0 18px; }
-.pp-disc-label { font-size: 9px; font-weight: 800; letter-spacing: 1.4px; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
-.pp-disc-row { display: flex; flex-wrap: wrap; gap: 7px; }
-.pp-disc { display: inline-flex; align-items: center; gap: 6px; background: rgba(43,168,224,0.08); border: 1px solid rgba(43,168,224,0.28); border-radius: 100px; padding: 6px 12px; }
-.pp-disc-name { font-size: 12px; font-weight: 700; color: #e8eef4; }
-.pp-disc-lvl { font-size: 10px; font-weight: 800; letter-spacing: .3px; color: var(--yellow); text-transform: uppercase; }
 .pass-fields-new {
   display: flex;
   flex-direction: column;
@@ -3977,7 +3971,7 @@ input[type="number"] {
   <div id="panel-passport" class="panel-view active">
   
   <!-- PASSPORT CARD -->
-  <div class="pass-container">
+  <div class="pass-container" id="pass-card-tap" onclick="sharePassportCard()" role="button" tabindex="0" title="Tap to share your passport" style="cursor:pointer;">
     <div class="pass-shell">
     <div class="pass-bg-emblem"></div>
     <div class="pass-inner">
@@ -4060,15 +4054,11 @@ input[type="number"] {
     </div>
   </div>
   
-  <!-- v162: YOUR DISCIPLINES — instant from cached sports -->
-  <div id="pp-disciplines" class="pp-disciplines" style="display:none;"></div>
-
-  <!-- WALLET BUTTONS - Official designs ready for live integration -->
-  <!-- v165: Share my passport (renders the card to an image) -->
-  <div style="max-width:540px;margin:0 auto 12px;">
-    <button class="btn btn-block" id="share-passport-btn" onclick="sharePassportCard()" style="padding:14px;background:#FFCC00;color:#081420;border:none;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:10px;cursor:pointer;font-family:inherit;width:100%;font-size:14px;"><span class="material-icons" style="font-size:18px;">share</span> Share my passport</button>
+  <div style="text-align:center;font-size:11px;font-weight:700;letter-spacing:.3px;color:var(--muted);margin:-4px 0 18px;display:flex;align-items:center;justify-content:center;gap:5px;">
+    <span class="material-icons" style="font-size:14px;">ios_share</span> Tap your passport to share &amp; invite friends
   </div>
 
+  <!-- WALLET BUTTONS - Official designs ready for live integration -->
   <div class="wallet-row">
     <button class="wallet-btn wallet-apple" onclick="addToAppleWallet()" aria-label="Add to Apple Wallet">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff" xmlns="http://www.w3.org/2000/svg">
@@ -6321,21 +6311,6 @@ function ffpDownscaleImage(file, cb) {
     reader.readAsDataURL(file);
   } catch (err) { cb(null); }
 }
-function ppEsc(str){ return String(str==null?'':str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-// v162: instant "Your Disciplines" strip under the passport card (from cached sports).
-function renderDisciplines() {
-  var el = document.getElementById('pp-disciplines');
-  if (!el) return;
-  var sports = (typeof MemberProfile !== 'undefined' && MemberProfile.data && MemberProfile.data.sports) || [];
-  if (!sports.length) { el.innerHTML = ''; el.style.display = 'none'; return; }
-  el.style.display = '';
-  var chips = sports.map(function (sp) {
-    var lvl = (sp.level && sp.level !== 'All levels') ? '<span class="pp-disc-lvl">' + ppEsc(sp.level) + '</span>' : '';
-    return '<span class="pp-disc"><span class="pp-disc-name">' + ppEsc(sp.name) + '</span>' + lvl + '</span>';
-  }).join('');
-  el.innerHTML = '<div class="pp-disc-label">YOUR DISCIPLINES</div><div class="pp-disc-row">' + chips + '</div>';
-}
-
 // Function to apply passport data to the card (called on profile update)
 function applyPassportData() {
   document.querySelectorAll('[data-field]').forEach(el => {
@@ -7353,7 +7328,6 @@ const MemberProfile = {
     
     if (typeof applyPassportData === 'function') applyPassportData();
     if (typeof renderQR === 'function')          renderQR();
-    if (typeof renderDisciplines === 'function') renderDisciplines();
   },
   
   // ===== RENDER =====
@@ -12371,48 +12345,54 @@ function init() {
 // 2. The endpoint requires Apple Developer Account + Pass Type ID + signing certificate
 // 3. The .pkpass file is signed and contains the member's data
 // 4. Browser/iOS automatically opens "Add to Apple Wallet" prompt
-// v165: render the passport card to a PNG and share it (native share sheet on mobile,
-// download fallback elsewhere). Captures the live card, so it respects the hide-DOB setting.
+// v167: tap the passport card to share it. Renders the live card to a PNG and opens the
+// native share sheet with the member\'s referral link so new signups can be credited to
+// them. Falls back to copying the link + saving the image on desktop / unsupported browsers.
 async function sharePassportCard() {
-  var btn = document.getElementById('share-passport-btn');
   var shell = document.querySelector('.pass-shell');
   if (!shell || typeof html2canvas === 'undefined') {
     if (typeof showToast === 'function') showToast('Sharing not ready — try again', 'error');
     return;
   }
-  var prevLabel = btn ? btn.innerHTML : '';
-  function restore() { if (btn) { btn.disabled = false; btn.innerHTML = prevLabel; } }
-  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-icons" style="font-size:18px;">hourglass_empty</span> Preparing...'; }
+  var m = {};
+  try { m = JSON.parse(localStorage.getItem('ffp_member') || '{}'); } catch (e) {}
+  var code = m.referral_code || '';
+  var refLink = 'https://ffppassport.com/join?ref=' + encodeURIComponent(code);
+  var shareText = "I'm part of the community — come join me.";
 
+  if (typeof showToast === 'function') showToast('Preparing your passport...', 'success');
   var prevTransform = shell.style.transform;
-  shell.style.transform = 'none';   // capture at full design resolution, not the responsive scale
+  shell.style.transform = 'none';
   try {
     var canvas = await html2canvas(shell, { backgroundColor: null, scale: 2, useCORS: true, logging: false });
     shell.style.transform = prevTransform;
     canvas.toBlob(async function (blob) {
-      if (!blob) { restore(); return; }
+      if (!blob) return;
       var nm = ((typeof MemberProfile !== 'undefined' && MemberProfile.getFullName && MemberProfile.getFullName()) || 'member').replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '') || 'member';
       var file = new File([blob], 'passport-' + nm + '.png', { type: 'image/png' });
-      var shared = false;
+      var sharedFile = false;
       try {
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: 'My Passport', text: "I'm officially part of the community." });
-          shared = true;
+          await navigator.share({ files: [file], title: 'My Passport', text: shareText, url: refLink });
+          sharedFile = true;
         }
-      } catch (e) { restore(); return; } // user cancelled the share sheet
-      if (!shared) {
+      } catch (e) { return; } // user cancelled
+      if (!sharedFile) {
+        try {
+          if (navigator.share) { await navigator.share({ title: 'My Passport', text: shareText, url: refLink }); return; }
+        } catch (e) { return; }
+        // final fallback: copy link + download image
+        try { await navigator.clipboard.writeText(refLink); } catch (e) {}
         var url = URL.createObjectURL(blob);
         var a = document.createElement('a');
         a.href = url; a.download = file.name;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-        if (typeof showToast === 'function') showToast('Passport image saved', 'success');
+        if (typeof showToast === 'function') showToast('Invite link copied + passport saved', 'success');
       }
-      restore();
     }, 'image/png');
   } catch (err) {
     shell.style.transform = prevTransform;
-    restore();
     if (typeof showToast === 'function') showToast('Could not create image — try again', 'error');
   }
 }
