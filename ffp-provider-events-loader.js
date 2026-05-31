@@ -1,4 +1,4 @@
-/* FFP Provider Events Loader — v6
+/* FFP Provider Events Loader — v7 (realtime)
    v6: RSVPs button now lists real attendees via provider_event_rsvps RPC
        (SECURITY DEFINER, scoped to the event's owner; members RLS stays locked).
    v5: count real RSVPs per event (batched rsvps query, rsvps_provider_read RLS)
@@ -464,6 +464,18 @@
     window.saveEvent = realSaveEvent;
     window.confirmDeleteEvent = realDeleteEvent;
     window.viewRsvps = realViewRsvps;
+    // Real-time (self-inject the helper — provider dashboard doesn't load it — then subscribe)
+    (function () {
+      function go() {
+        var pid = window.FFP_PROVIDER && window.FFP_PROVIDER.id; if (!pid) return;
+        window.FFPRealtime.subscribe('provider-events', 'events', 'provider_id=eq.' + pid, function () { refresh(); });
+        window.FFPRealtime.subscribe('provider-events-rsvps', 'rsvps', null, function () { refresh(); });
+      }
+      if (window.FFPRealtime) { go(); return; }
+      var _ex = document.getElementById('ffp-realtime-js');
+      if (!_ex) { var _sc = document.createElement('script'); _sc.id = 'ffp-realtime-js'; _sc.src = 'assets/ffp-realtime.js'; _sc.onload = function () { if (window.FFPRealtime) go(); }; document.head.appendChild(_sc); }
+      else { var _n = 0, _t = setInterval(function () { if (window.FFPRealtime) { clearInterval(_t); go(); } else if (++_n > 60) clearInterval(_t); }, 100); }
+    })();
   }
 
   if (document.readyState === 'loading') {
