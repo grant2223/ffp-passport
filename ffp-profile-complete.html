@@ -1,9 +1,9 @@
 <!--
-FFP Profile Complete v28
+FFP Profile Complete v29
 Last updated: 31 May 2026
-v28: Photo step now lets members UPLOAD from gallery OR take a photo (removed capture="user"
-     which forced the camera only). Mobile now shows the native Take Photo / Photo Library chooser.
-v27: Photo step large blue heading "Add your passport photo" + welcome subtext.
+v29: Referral capture wired into signup — reads the landing page's stored ffp_ref and
+     passes it to onboard as `ref` (credits the referrer), then clears it on success.
+v28: Photo step lets members UPLOAD from gallery OR take a photo (removed capture="user").
 -->
 
 <!DOCTYPE html>
@@ -933,8 +933,11 @@ async function submitProfile() {
     var dobMonth = document.getElementById('f-dob-month').value;
     var dobYear  = document.getElementById('f-dob-year').value;
     var dobISO   = (dobYear && dobMonth && dobDay) ? (dobYear + '-' + dobMonth + '-' + dobDay) : '';
+    var referralCode = null;
+    try { referralCode = localStorage.getItem('ffp_ref'); } catch (e) {}
     var payload = {
       session_id: stripeSessionId,
+      ref: referralCode || null,
       given_names: document.getElementById('f-given').value.trim(),
       surname: document.getElementById('f-surname').value.trim(),
       date_of_birth: dobISO,
@@ -991,6 +994,7 @@ async function submitProfile() {
       if (avatarDataUrl) cached.photo_url = avatarDataUrl;
       localStorage.setItem('ffp_member', JSON.stringify(cached));
     } catch (e) {}
+    try { localStorage.removeItem('ffp_ref'); } catch (e) {}   // referral consumed
     window.location.href = 'ffp-member-dashboard.html';
   } catch (err) {
     console.error('[profile-complete v8] submit failed:', err);
