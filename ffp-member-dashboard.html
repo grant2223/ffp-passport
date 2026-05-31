@@ -1,8 +1,9 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v174 (2026-06-01)
-     v174: Phone country code shown uniformly as FLAG + + + digits (e.g. 🇦🇪 +971),
-           in both the picker and the field, sourced from shared ffp-taxonomy.js (v4).
-     v173: phone code background removed + saves on pick; height save end-to-end (col+PUT).
+     FFP MEMBER DASHBOARD — v175 (2026-06-01)
+     v175: Earnings 'Your progression' now tracks the real 8 sections, each with its OWN
+           Supporter/Ambassador target (mirrors ffp-tiers.js), fed by the member_tier_progress()
+           RPC (counts over rolling 30 days). 4-of-8 rule shown for both tiers.
+     v174: phone code uniform flag + + + digits; (v172 tier from DB; v173 height/phone save).
      ════════════════════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="en">
@@ -4980,7 +4981,7 @@ input[type="number"] {
         <div class="ct-section-title">Your progression</div>
         <div class="ct-section-total" id="progression-summary">0 / 4 needed at Ambassador level</div>
       </div>
-      <div style="font-size:11px; color:var(--muted); margin-bottom:12px; line-height:1.5;">Each category counts toward your tier. The blue line is Supporter level (2). The yellow line is Ambassador level (8). Hit 4 of 7 categories at either level to unlock that tier.</div>
+      <div style="font-size:11px; color:var(--muted); margin-bottom:12px; line-height:1.5;">Each section has its own target. The blue line is Supporter level, the yellow line is Ambassador level. Reach the level in <b>4 of 8</b> sections to unlock that tier. Counted over the last 30 days.</div>
       <div class="progression-list" id="progression-list"></div>
     </div>
     
@@ -9939,20 +9940,23 @@ const Earnings = {
     }
   },
   
+  // v175: the 8 tracked sections, each with its OWN Supporter/Ambassador target
+  // (mirrors assets/ffp-tiers.js). Counts come from the member_tier_progress() RPC.
   categories: [
-    { key: 'referrals', label: 'Members referred',     icon: 'group_add',      current: 0 },
-    { key: 'stamps',    label: 'Stamps earned',         icon: 'approval',      current: 0 },
-    { key: 'events',    label: 'Events attended',       icon: 'event',         current: 0 },
-    { key: 'providers', label: 'Providers checked in',  icon: 'storefront',    current: 0 },
-    { key: 'logs',      label: 'Activities logged',     icon: 'fitness_center', current: 0 },
-    { key: 'meet',      label: 'Meet & Move sessions',  icon: 'group',         current: 0 },
-    { key: 'challenges',label: 'Challenges entered',    icon: 'whatshot',      current: 0 }
+    { key: 'members_referred',     label: 'Members referred',     icon: 'group_add',      current: 0, supporter: 2, ambassador: 8 },
+    { key: 'connections_made',     label: 'Connections made',     icon: 'handshake',      current: 0, supporter: 2, ambassador: 8 },
+    { key: 'meetups_hosted',       label: 'Meet-ups hosted',      icon: 'groups',         current: 0, supporter: 1, ambassador: 4 },
+    { key: 'provider_checkins',    label: 'Providers visited',    icon: 'storefront',     current: 0, supporter: 2, ambassador: 8 },
+    { key: 'quests_completed',     label: 'Quests completed',     icon: 'flag',           current: 0, supporter: 1, ambassador: 2 },
+    { key: 'events_attended',      label: 'Events attended',      icon: 'event',          current: 0, supporter: 1, ambassador: 4 },
+    { key: 'activities_logged',    label: 'Activities logged',    icon: 'fitness_center', current: 0, supporter: 8, ambassador: 24 },
+    { key: 'challenges_completed', label: 'Challenges completed', icon: 'whatshot',       current: 0, supporter: 2, ambassador: 4 }
   ],
   
   SUPPORTER_THRESHOLD: 2,          // need 2+ in a category to count toward Supporter
-  SUPPORTER_CATEGORIES: 4,         // need 4 of 7 categories at Supporter level
+  SUPPORTER_CATEGORIES: 4,         // need 4 of 8 sections at Supporter level
   AMBASSADOR_THRESHOLD: 8,         // need 8+ in a category to count toward Ambassador
-  AMBASSADOR_CATEGORIES: 4,        // need 4 of 7 categories at Ambassador level
+  AMBASSADOR_CATEGORIES: 4,        // need 4 of 8 sections at Ambassador level
   
   referralStats: { total: 0, earned: 0, pending: 0 },
   
@@ -10139,15 +10143,16 @@ const Earnings = {
     }).join('');
     
     // YOUR PROGRESSION
-    const ambassadorCount = this.categories.filter(c => c.current >= this.AMBASSADOR_THRESHOLD).length;
-    document.getElementById('progression-summary').textContent = `${ambassadorCount} / ${this.AMBASSADOR_CATEGORIES} needed at Ambassador level`;
+    const ambassadorCount = this.categories.filter(c => c.current >= c.ambassador).length;
+    const supporterCount  = this.categories.filter(c => c.current >= c.supporter).length;
+    document.getElementById('progression-summary').textContent = `${ambassadorCount} / ${this.AMBASSADOR_CATEGORIES} sections at Ambassador · ${supporterCount} / ${this.SUPPORTER_CATEGORIES} at Supporter`;
     document.getElementById('progression-list').innerHTML = this.categories.map(c => {
-      const atAmb = c.current >= this.AMBASSADOR_THRESHOLD;
-      const atSup = c.current >= this.SUPPORTER_THRESHOLD;
-      const max = Math.max(10, c.current);
+      const atAmb = c.current >= c.ambassador;
+      const atSup = c.current >= c.supporter;
+      const max = Math.max(c.ambassador, c.current);
       const fillPct = Math.min(100, (c.current / max) * 100);
-      const supPct  = (this.SUPPORTER_THRESHOLD / max) * 100;
-      const ambPct  = (this.AMBASSADOR_THRESHOLD / max) * 100;
+      const supPct  = (c.supporter / max) * 100;
+      const ambPct  = (c.ambassador / max) * 100;
       let pillCls = 'none', pillText = 'Not started';
       if (atAmb)              { pillCls = 'ambassador'; pillText = 'Ambassador level'; }
       else if (atSup)         { pillCls = 'supporter';  pillText = 'Supporter level'; }
@@ -10157,7 +10162,7 @@ const Earnings = {
           <div class="prog-row-head">
             <div class="prog-row-icon"><span class="material-icons">${c.icon}</span></div>
             <div class="prog-row-name">${escHtml(c.label)}</div>
-            <div class="prog-row-count">${c.current}<span class="target"> / ${this.AMBASSADOR_THRESHOLD}</span></div>
+            <div class="prog-row-count">${c.current}<span class="target"> / ${c.ambassador}</span></div>
             <div class="prog-row-status-pill ${pillCls}">${pillText}</div>
           </div>
           <div class="prog-bar-wrap">
