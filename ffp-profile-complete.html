@@ -1,54 +1,12 @@
 <!--
-FFP Profile Complete v22
+FFP Profile Complete v26
 Last updated: 31 May 2026
-v22: FIXED sports-picker tap-offset bug. Picker was position:fixed, which the mobile
-     keyboard shifted so taps hit the row BELOW what you saw (tapping Search opened
-     "Walking"; Back only worked when pressed above it). Picker is now an in-flow
-     full-screen view (main page hidden behind it), keyboard is dismissed on open,
-     and a 350ms arm guard stops a stray tap from auto-selecting the first activity.
-     touch-action:manipulation added to kill the 300ms ghost-tap.
-     Also: Sports heading -> "Select a few of your interests" (18px), new description copy.
-v21: Back button plain text (no box, 15px, 44px tap area); "Your Sports" label 13px / helper 15px.
+v26: Photo-step copy rewritten around belonging / community welcome (no brand reference):
+     "You're one of us now. Add your photo so the community can put a face to your name -
+     everyone here is excited to meet you."
+v25: Passport photo REQUIRED (no skip); all primary CTAs FFP yellow (#FFCC00) on dark.
 -->
 
-<!--
-═══════════════════════════════════════════════════════════════════════
-     FFP PROFILE COMPLETE — v12
-     v12 changes (from v11, 2026-05-29):
-     - JWT bridge wired. Backend v13's /api/onboard/from-stripe now returns
-       a Supabase-compatible JWT alongside the member object. v12 loads
-       supabase-js + ffp-api-integration v8, then on successful onboard
-       hands the response to FFPApi.applyOnboardResponse() which stores
-       member + jwt + applies the Supabase session. The dashboard the
-       user lands on then has auth.uid() = member.id for RLS — same as a
-       returning signin via /login. Without this, brand-new signups would
-       land on the dashboard JWT-less and hit RLS errors on every loader.
-     v11 changes (from v10, 2026-05-28):
-     - Welcome title text: "Welcome, [name]" → "The Active Lifestyle Community"
-     - Welcome subtitle: "Let's complete your passport." → "Let's get your passport ready"
-     - The dynamic <span id="greet-name"> removed (no JS reference to it).
-     v10 changes (from v9, 2026-05-28):
-     - REMOVED visible "FFP Profile Complete v8" version marker div (was
-       rendering blue text at top of page to every user — violation of
-       no-visible-version-markers rule).
-     - REMOVED "Takes 2 minutes." from welcome subtitle.
-     - Layout: Nationality now sits alone on its own row, Country and
-       City pair together on the row below (per Grant's spec).
-       Final field order: GivenNames/Surname → DOB/Gender → Nationality
-       (alone) → Country/City.
-     v9 changes (from v8, 2026-05-28):
-     - Field order swap: Given Names FIRST, then Surname (per Grant)
-     - Placeholders "Goes" and "Grant" REMOVED from name inputs
-     - Date of Birth converted from single <input type="date"> to three
-       <select> dropdowns (Day / Month / Year) — cross-browser consistent
-     - Gender field ADDED (Male / Female / Other / Prefer not to say)
-     - Validation + submit payload updated to match new fields
-     NOTE: backend /api/onboard/from-stripe (v9) does NOT yet accept gender
-     in its req.body destructure — needs a small backend v10 update for
-     gender to actually persist to the members table. v9 frontend sends
-     gender regardless; backend silently drops it until v10 ships.
-═══════════════════════════════════════════════════════════════════════
--->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -109,8 +67,8 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
 @media(max-width:400px){.field-grid{grid-template-columns:1fr;}}
 
-.btn-primary{display:flex;align-items:center;justify-content:center;width:100%;padding:15px;border-radius:12px;font-size:15px;font-weight:800;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;color:#fff;background:#2ba8e0;transition:background .15s;text-align:center;gap:8px;margin-top:8px;}
-.btn-primary:hover{background:#1980AD;}
+.btn-primary{display:flex;align-items:center;justify-content:center;width:100%;padding:15px;border-radius:12px;font-size:15px;font-weight:800;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;color:#081420;background:#FFCC00;transition:background .15s;text-align:center;gap:8px;margin-top:8px;}
+.btn-primary:hover{background:#e6b800;}
 .btn-primary:disabled{opacity:.5;cursor:not-allowed;}
 .btn-secondary{display:flex;align-items:center;justify-content:center;width:100%;padding:13px;border-radius:12px;font-size:14px;font-weight:700;border:1.5px solid rgba(43,168,224,.3);cursor:pointer;font-family:'Montserrat',sans-serif;color:#9dbdd0;background:transparent;transition:all .15s;text-align:center;gap:8px;}
 .btn-secondary:hover{border-color:#2ba8e0;color:#fff;}
@@ -189,6 +147,13 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 .spinner{width:32px;height:32px;border:3px solid rgba(43,168,224,.2);border-top-color:#2ba8e0;border-radius:50%;animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .hidden{display:none !important;}
+.photo-step-wrap{display:flex;justify-content:center;margin:14px 0 26px;}
+.photo-frame{position:relative;width:188px;aspect-ratio:35/45;border-radius:12px;border:2px dashed rgba(43,168,224,.45);background:rgba(43,168,224,.06);background-size:cover;background-position:center top;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;cursor:pointer;overflow:hidden;padding:0;font-family:'Montserrat',sans-serif;}
+.photo-frame.has-photo{border-style:solid;border-color:#2ba8e0;}
+.photo-frame .pt-cam{color:#2ba8e0;font-size:38px;}
+.photo-frame .photo-frame-hint{font-size:13px;font-weight:700;color:#9dbdd0;}
+.photo-frame.has-photo .pt-cam,.photo-frame.has-photo .photo-frame-hint{display:none;}
+.photo-frame.has-photo::after{content:'edit';font-family:'Material Icons Outlined';position:absolute;right:7px;bottom:7px;width:30px;height:30px;border-radius:50%;background:#081420;color:#fff;font-size:16px;display:flex;align-items:center;justify-content:center;}
 button,input,.activity-row,.level-card,.btn-back{touch-action:manipulation;}
 </style>
 </head>
@@ -210,18 +175,22 @@ button,input,.activity-row,.level-card,.btn-back{touch-action:manipulation;}
 
 <div class="welcome">
   <div class="welcome-h">The Active Lifestyle Community</div>
-  <div class="welcome-sub">Let's get your passport ready</div>
 </div>
 
 <div class="progress" id="progress">
   <div class="progress-step">
     <div class="progress-dot active" id="dot-1">1</div>
-    <span>Personal</span>
+    <span>Details</span>
   </div>
   <div class="progress-line" id="line-1"></div>
   <div class="progress-step">
     <div class="progress-dot" id="dot-2">2</div>
     <span>Sports</span>
+  </div>
+  <div class="progress-line" id="line-2"></div>
+  <div class="progress-step">
+    <div class="progress-dot" id="dot-3">3</div>
+    <span>Photo</span>
   </div>
 </div>
 
@@ -444,11 +413,32 @@ button,input,.activity-row,.level-card,.btn-back{touch-action:manipulation;}
   <span id="add-btn-label">Add a Sport</span>
 </button>
 
-<button class="btn-primary" id="submit-btn" onclick="submitProfile()" style="margin-top:24px;">
-  Complete Profile
+<button class="btn-primary" onclick="goToStep3()" style="margin-top:24px;">
+  Continue
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
 </button>
 <div class="error-msg" id="step2-err"></div>
 
+</div>
+<!-- STEP 3 — PASSPORT PHOTO -->
+<div class="step" id="step-3">
+<button class="btn-back" onclick="backToStep2()">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
+  Back
+</button>
+<div class="section-label" style="font-size:18px;letter-spacing:.2px;text-transform:none;margin-bottom:8px;">Your passport photo</div>
+<div class="sports-helper">You're one of us now. Add your photo so the community can put a face to your name — everyone here is excited to meet you.</div>
+<div class="photo-step-wrap">
+  <button type="button" class="photo-frame" id="photo-tile" onclick="document.getElementById('photo-input').click()" aria-label="Add your passport photo">
+    <span class="material-icons-outlined pt-cam">photo_camera</span>
+    <span class="photo-frame-hint">Tap to add</span>
+  </button>
+  <input type="file" id="photo-input" accept="image/*" capture="user" style="display:none" onchange="onPhotoPicked(this)">
+</div>
+<button class="btn-primary" id="submit-btn" onclick="submitProfile()">
+  Complete Profile
+</button>
+<div class="error-msg" id="step3-err"></div>
 </div>
 
 </div>
@@ -546,6 +536,7 @@ var currentSearch = '';
 var pickerMode = null;
 var pickerActivity = null;
 var pickerLevel = null;
+var avatarDataUrl = null; // downscaled JPEG data URL for the passport photo
 var pickerArmed = false; // guards against a stray tap auto-selecting on open
 
 
@@ -650,6 +641,28 @@ function goToStep1() {
   document.getElementById('dot-1').textContent = '1';
   document.getElementById('line-1').classList.remove('done');
   document.getElementById('dot-2').classList.remove('active');
+  window.scrollTo(0, 0);
+}
+function goToStep3() {
+  showError('step2-err', '');
+  if (selectedSports.length === 0) return showError('step2-err', 'Add at least one sport to continue');
+  document.getElementById('step-2').classList.remove('active');
+  document.getElementById('step-3').classList.add('active');
+  document.getElementById('dot-2').classList.remove('active');
+  document.getElementById('dot-2').classList.add('done');
+  document.getElementById('dot-2').innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" width="11" height="11"><polyline points="20 6 9 17 4 12"/></svg>';
+  document.getElementById('line-2').classList.add('done');
+  document.getElementById('dot-3').classList.add('active');
+  window.scrollTo(0, 0);
+}
+function backToStep2() {
+  document.getElementById('step-3').classList.remove('active');
+  document.getElementById('step-2').classList.add('active');
+  document.getElementById('dot-3').classList.remove('active');
+  document.getElementById('line-2').classList.remove('done');
+  document.getElementById('dot-2').classList.remove('done');
+  document.getElementById('dot-2').classList.add('active');
+  document.getElementById('dot-2').textContent = '2';
   window.scrollTo(0, 0);
 }
 
@@ -860,16 +873,55 @@ function showError(elId, msg) {
   if (el) el.textContent = msg || '';
 }
 
+// Downscale any picked image to a centered 480px square JPEG (~40-90KB) so it
+// stores cleanly on the member row and renders crisply on the passport card.
+function ffpDownscaleImage(file, cb) {
+  try {
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var size = 480, c = document.createElement('canvas');
+          c.width = size; c.height = size;
+          var ctx = c.getContext('2d');
+          var sdim = Math.min(img.width, img.height);
+          var sx = (img.width - sdim) / 2, sy = (img.height - sdim) / 2;
+          ctx.drawImage(img, sx, sy, sdim, sdim, 0, 0, size, size);
+          cb(c.toDataURL('image/jpeg', 0.82));
+        } catch (err) { console.warn('[FFP] downscale failed', err); cb(null); }
+      };
+      img.onerror = function () { cb(null); };
+      img.src = e.target.result;
+    };
+    reader.onerror = function () { cb(null); };
+    reader.readAsDataURL(file);
+  } catch (err) { cb(null); }
+}
+function onPhotoPicked(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  ffpDownscaleImage(file, function (durl) {
+    if (!durl) return;
+    avatarDataUrl = durl;
+    var tile = document.getElementById('photo-tile');
+    tile.style.backgroundImage = "url('" + durl + "')";
+    tile.classList.add('has-photo');
+  });
+}
 async function submitProfile() {
-  showError('step2-err', '');
+  showError('step3-err', '');
 
   if (!stripeSessionId) {
-    showError('step2-err', 'No Stripe session in URL. This page must be opened after completing payment.');
+    showError('step3-err', 'No Stripe session in URL. This page must be opened after completing payment.');
     return;
   }
 
   if (selectedSports.length === 0) {
-    return showError('step2-err', 'Add at least one sport to continue');
+    return showError('step3-err', 'Add at least one sport to continue');
+  }
+  if (!avatarDataUrl) {
+    return showError('step3-err', 'Add your passport photo to continue');
   }
 
   var btn = document.getElementById('submit-btn');
@@ -891,6 +943,7 @@ async function submitProfile() {
       nationality: document.getElementById('f-nationality').value,
       country: document.getElementById('f-country').value,
       city: document.getElementById('f-city').value,
+      photo_url: avatarDataUrl || null,
       skills: selectedSports.map(function (sp) {
         return { name: sp.name, category: sp.category, level: sp.level, shared: false };
       })
@@ -929,10 +982,20 @@ async function submitProfile() {
       // from localStorage on its own.
     }
 
+    // Ensure the cached member carries gender, sports and photo so the passport
+    // card is complete on the very first dashboard paint (covers the case where a
+    // not-yet-redeployed onboard endpoint omitted them from its response).
+    try {
+      var cached = JSON.parse(localStorage.getItem('ffp_member') || '{}');
+      if (payload.gender) cached.gender = payload.gender;
+      if (payload.skills && payload.skills.length) cached.skills = payload.skills;
+      if (avatarDataUrl) cached.photo_url = avatarDataUrl;
+      localStorage.setItem('ffp_member', JSON.stringify(cached));
+    } catch (e) {}
     window.location.href = 'ffp-member-dashboard.html';
   } catch (err) {
     console.error('[profile-complete v8] submit failed:', err);
-    showError('step2-err', 'Could not save: ' + (err.message || 'unknown error'));
+    showError('step3-err', 'Could not save: ' + (err.message || 'unknown error'));
     btn.disabled = false;
     btn.textContent = 'Complete Profile';
   }
