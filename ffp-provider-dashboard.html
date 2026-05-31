@@ -12,6 +12,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/ffp-api-integration.js"></script>
+<script src="assets/ffp-constants.js"></script>
 <script src="ffp-provider-auth.js"></script>
 <script src="ffp-provider-profile-loader.js"></script>
 <script src="ffp-provider-events-loader.js"></script>
@@ -2128,20 +2129,8 @@ a { color: var(--ffp-blue); text-decoration: none; }
               <div class="label">Category <span class="req">*</span></div>
               <select class="select" id="pf-category">
                 <option value="">Choose category</option>
-                <option>Fitness studio</option>
-                <option>Wellness centre</option>
-                <option>Padel club</option>
-                <option>Pilates / Yoga</option>
-                <option>Climbing</option>
-                <option>Combat sports</option>
-                <option>Recovery / Spa</option>
-                <option>Performance lab</option>
-                <option>Nutrition / Cafe</option>
-                <option>Adventure / Outdoor</option>
-                <option>Coach / Trainer</option>
-                <option>Retail</option>
-                <option>Other</option>
               </select>
+              <script>(function(){var s=document.getElementById('pf-category');if(!s)return;var c=(window.FFP_CONST&&window.FFP_CONST.providerCategories)||['Fitness','Wellness','Padel','Yoga & Pilates','Climbing','Combat sports','Recovery','Adventure','Nutrition','Coaching','Retail','Other'];c.forEach(function(x){var o=document.createElement('option');o.textContent=x;s.appendChild(o);});})();</script>
             </div>
             <div class="field">
               <div class="label">Provider type</div>
@@ -2539,7 +2528,9 @@ a { color: var(--ffp-blue); text-decoration: none; }
 
 <script>
 /* ════════════════════════════════════════════════
-   FFP PROVIDER DASHBOARD — v14 (2026-05-31)
+   FFP PROVIDER DASHBOARD — v15 (2026-05-31)
+   v15: provider Category (profile) now reads the canonical list from assets/ffp-constants.js
+        (single source of truth, matches the Apply form). Included ffp-constants.js.
    v14: Feedback moved into the topbar (replaces the Help button) as a BLUE button;
         floating button suppressed (data-fab="off").
    v13: full demo scrub (empty events/experiences/challenges/check-ins, no fake KPI
