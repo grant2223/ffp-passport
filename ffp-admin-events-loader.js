@@ -286,7 +286,6 @@
     ae.refresh = refresh;
 
     try {
-      await refresh();
       console.log('[FFP Admin Events v1] Loaded from Supabase \u2713');
     } catch (e) {
       console.error('[FFP Admin Events] initial load:', e);
