@@ -1,3 +1,6 @@
+<!-- FFP APPLY PAGE — v2 (2026-05-31): country+city use shared FFPLocation cascade
+     (assets/ffp-location-picker.js + ffp-taxonomy.js); category from ffp-constants.js.
+     v1: original public provider application form. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -11,6 +14,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/ffp-constants.js"></script>
+<script src="assets/ffp-taxonomy.js"></script>
+<script src="assets/ffp-location-picker.js"></script>
 <style>
 :root{
   --blue:#2ba8e0; --blue-dk:#1980AD; --bg:#081420; --bg-2:#0f1e2e; --bg-3:#142a3f;
@@ -107,25 +112,11 @@ select option{background:var(--bg-2);color:var(--text)}
 
         <div class="field">
           <label>Country <span class="req">*</span></label>
-          <input list="country-list" id="country" placeholder="Start typing your country" maxlength="60" autocomplete="country-name" required>
-          <datalist id="country-list">
-            <option value="United Arab Emirates"><option value="Saudi Arabia"><option value="Qatar"><option value="Bahrain">
-            <option value="Kuwait"><option value="Oman"><option value="United Kingdom"><option value="Ireland">
-            <option value="United States"><option value="Canada"><option value="Australia"><option value="New Zealand">
-            <option value="South Africa"><option value="India"><option value="Pakistan"><option value="Singapore">
-            <option value="Malaysia"><option value="Philippines"><option value="Indonesia"><option value="Thailand">
-            <option value="Germany"><option value="France"><option value="Spain"><option value="Italy"><option value="Portugal">
-            <option value="Netherlands"><option value="Belgium"><option value="Switzerland"><option value="Austria">
-            <option value="Sweden"><option value="Norway"><option value="Denmark"><option value="Finland"><option value="Poland">
-            <option value="Greece"><option value="Turkey"><option value="Egypt"><option value="Jordan"><option value="Lebanon">
-            <option value="Morocco"><option value="Nigeria"><option value="Kenya"><option value="Brazil"><option value="Argentina">
-            <option value="Mexico"><option value="Chile"><option value="Japan"><option value="South Korea"><option value="China">
-            <option value="Hong Kong"><option value="Vietnam"><option value="Sri Lanka"><option value="Other">
-          </datalist>
+          <select id="country" data-ffp-loc="country" data-ffp-group="apply" required></select>
         </div>
         <div class="field">
           <label>City <span class="req">*</span></label>
-          <input type="text" id="city" placeholder="e.g. Dubai, London, Cape Town" maxlength="80" required>
+          <select id="city" data-ffp-loc="city" data-ffp-group="apply" required></select>
         </div>
 
         <div class="field">
