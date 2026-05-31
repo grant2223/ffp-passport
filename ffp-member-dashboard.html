@@ -1,19 +1,13 @@
-<!-- ════════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v161 (2026-05-31)
-     v161: removed ALL embedded reference lists (cities/activities/nationalities/fitness
-           levels/genders/phone codes/professional roles) — now read ONLY from the shared
-           assets/ffp-taxonomy.js (no inline duplicates). v160: pointed lists at FFP_TAX.
-     v160: cities/activities/fitness-levels/nationalities now read the shared source
-           assets/ffp-taxonomy.js (inline lists kept as fallback = no behaviour change).
-           Single editable taxonomy across the platform. +ffp-taxonomy.js include.
-     v159: Earnings config (membership $99 / referral 5-10-20% / min payout $250) now reads
-           the shared single source assets/ffp-constants.js (fallback = same values, so no
-           behaviour change). Included ffp-constants.js.
-     v158: Feedback topbar icon styled BLUE to stand out (drive daily feedback).
-     v157: Feedback moved into the topbar next to the bell (feedback icon); floating
-           button suppressed via data-fab="off". Carries v156: lazy panel loaders
-           (instant load), member-discovery loader restored, shared feedback widget.
-     ════════════════════════════════════════════════════════════════════════ -->
+<!-- ════════════════════════════════════════════════════════════════════
+     FFP MEMBER DASHBOARD — v170 (2026-05-31)
+     v170: Referral 'share your link' strap no longer breaks on mobile (input min-width:0,
+           long URL clips inside the field). Rolls up the recent member-dashboard work:
+           passport photo + initials monogram + gender + sports show from first paint;
+           tier is ADMIN-CONTROLLED — dashboard pulls the live tier on load and Earnings
+           honours it (no local recompute); tap the passport card to share with referral
+           link; hide-DOB preference toggle.
+     v169: computedTier() returns the stored admin-set tier; refreshMemberFromServer() on load.
+     ════════════════════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
