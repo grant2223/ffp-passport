@@ -16,6 +16,9 @@
   <script src="ffp-admin-overview-loader.js"></script>
   <script src="ffp-admin-analytics-loader.js"></script>
   <script src="ffp-admin-members-loader.js"></script>
+  <script src="ffp-admin-referrals-loader.js"></script>
+  <script src="ffp-admin-meetups-loader.js"></script>
+  <script src="ffp-admin-content-loader.js"></script>
 <script src="ffp-admin-payouts-loader.js"></script>
 <script src="ffp-admin-quests-loader.js"></script>
 <script src="ffp-admin-events-loader.js"></script>
@@ -2313,13 +2316,7 @@ const AdminContent = {
   tab: 'pending',
   search: '',
   
-  data: [
-    { id:'c1', member:'Sarah K.', initial:'S', type:'review', title:'Forge Fitness — best gym in JLT',     status:'pending',  daysAgo:1 },
-    { id:'c2', member:'Mike H.',  initial:'M', type:'post',   title:'My first padel tournament experience', status:'pending',  daysAgo:2 },
-    { id:'c3', member:'Priya R.', initial:'P', type:'review', title:'Cryo Recovery DXB — recovery game changer', status:'pending', daysAgo:3 },
-    { id:'c4', member:'Layla M.', initial:'L', type:'photo',  title:'Sunrise yoga at Zabeel Park',         status:'pending',  daysAgo:4 },
-    { id:'c5', member:'Ahmed M.', initial:'A', type:'review', title:'Hayya Padel review',                  status:'pending',  daysAgo:5 }
-  ],
+  data: [],
   
   init() { this.render(); },
   setTab(tab) {
@@ -2467,13 +2464,7 @@ const AdminReferrals = {
   tab: 'pending',
   search: '',
   
-  data: [
-    { id:'r1', referrer:'Grant G.',  rInit:'G', refTier:'ambassador', referred:'Sarah K.',  bInit:'S', reward:100, status:'pending', daysAgo:2 },
-    { id:'r2', referrer:'Grant G.',  rInit:'G', refTier:'ambassador', referred:'Mike H.',   bInit:'M', reward:100, status:'pending', daysAgo:5 },
-    { id:'r3', referrer:'Sarah K.',  rInit:'S', refTier:'supporter',  referred:'Layla M.',  bInit:'L', reward:50,  status:'pending', daysAgo:3 },
-    { id:'r4', referrer:'Mike H.',   rInit:'M', refTier:'supporter',  referred:'Ahmed M.',  bInit:'A', reward:50,  status:'pending', daysAgo:1 },
-    { id:'r5', referrer:'Priya R.',  rInit:'P', refTier:'member',     referred:'Nina P.',   bInit:'N', reward:25,  status:'paid',    daysAgo:30 }
-  ],
+  data: [],
   
   init() { this.render(); },
   setTab(tab) {
@@ -2693,12 +2684,7 @@ const AdminChallenges = {
 
 const AdminMeetups = {
   search: '',
-  data: [
-    { id:'mt1', activity:'Padel doubles — need a 4th',  host:'Mike H.',  hInit:'M', when:'Sat 5 Apr, 7:00 AM',  cap:'3/4' },
-    { id:'mt2', activity:'Saturday Kite Beach 5K',      host:'Sarah K.', hInit:'S', when:'Sat 5 Apr, 6:00 AM',  cap:'4/8' },
-    { id:'mt3', activity:'Sunrise yoga at Zabeel Park', host:'Layla M.', hInit:'L', when:'Sun 6 Apr, 6:30 AM',  cap:'1/6' },
-    { id:'mt4', activity:'Hatta trail hike (FULL)',     host:'Nina P.',  hInit:'N', when:'Sat 12 Apr, 5:30 AM', cap:'8/8' }
-  ],
+  data: [],
   init() { this.render(); },
   onSearch(q) { this.search = (q || '').toLowerCase().trim(); this.render(); },
   render() {
