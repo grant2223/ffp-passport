@@ -1,4 +1,4 @@
-/* FFP Admin Overview Loader — v6 (2026-05-31)
+/* FFP Admin Overview Loader — v7 (2026-05-31)
    ONE round-trip: calls admin_overview() RPC for every KPI, action-queue count,
    sidebar pending badge, and recent-activity row (was ~13 separate queries → the
    page was serializing them behind the browser's 6-connection limit ≈ 15s).
@@ -33,6 +33,7 @@
     if (n > 0) { if (!b) { b = document.createElement('span'); b.className = 'sidebar-link-badge ffp-pending-badge'; link.appendChild(b); } b.textContent = n > 99 ? '99+' : String(n); b.style.display = ''; }
     else if (b) { b.style.display = 'none'; }
   }
+  function setIdBadge(id, n) { var b = document.getElementById(id); if (!b) return; b.textContent = n > 99 ? '99+' : String(n); b.style.display = n > 0 ? '' : 'none'; }
   function setContentBadge(n) { var b = document.getElementById('badge-content'); if (!b) return; b.textContent = n > 99 ? '99+' : String(n); b.style.display = n > 0 ? '' : 'none'; }
   function setQueue(route, count, meta) {
     var card = document.querySelector('#panel-overview .queue-card[onclick*="' + route + '"]');
@@ -77,6 +78,8 @@
       setNavBadge('panel-experiences', d.experiences_pending);
       setNavBadge('panel-challenges', d.challenges_pending);
       setContentBadge(content);
+      setIdBadge('badge-payouts', d.payouts_pending_count);
+      setIdBadge('badge-referrals', d.referrals_pending);
 
       var feed = document.getElementById('activity-feed');
       if (feed) {
@@ -94,7 +97,7 @@
     var ready = await waitFor(function () { return window.supabase && document.getElementById('panel-overview'); }, 20000);
     if (!ready) return;
     await waitFor(function () { return window.FFP_ADMIN || (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()); }, 20000);
-    try { await load(); console.log('[FFP Admin Overview v6] loaded ✓ (single RPC)'); } catch (e) { console.error(e); }
+    try { await load(); console.log('[FFP Admin Overview v7] loaded ✓ (single RPC)'); } catch (e) { console.error(e); }
     window.FFPAdminOverview = { refresh: load };
     if (window.FFPRealtime) {
       var t = null, bump = function () { clearTimeout(t); t = setTimeout(load, 800); };
