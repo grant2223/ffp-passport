@@ -1,4 +1,6 @@
-/* FFP Provider Events Loader — v5
+/* FFP Provider Events Loader — v6
+   v6: RSVPs button now lists real attendees via provider_event_rsvps RPC
+       (SECURITY DEFINER, scoped to the event's owner; members RLS stays locked).
    v5: count real RSVPs per event (batched rsvps query, rsvps_provider_read RLS)
        so the card shows live RSVP count + filled %. Was hardcoded 0.
    v4 changes (Grant's feedback):
@@ -379,6 +381,53 @@
   }
 
   // ─── Init ───
+  function relTime(ts) {
+    if (typeof window.fmtRelative === 'function') { try { return window.fmtRelative(ts); } catch (e) {} }
+    if (!ts) return '';
+    var diff = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+    return Math.floor(diff/86400) + 'd ago';
+  }
+
+  // v6: real attendee list via SECURITY DEFINER RPC (owner-scoped). Reuses the
+  // dashboard's modal + .member-row markup so the look is unchanged.
+  async function realViewRsvps(id) {
+    var e = (typeof events !== 'undefined') ? events.find(function (x) { return x.id === id; }) : null;
+    var title = e ? e.title : 'Event';
+    var cap = (e && e.capacity) ? e.capacity : '\u221e';
+    var when = (e && typeof window.fmtDate === 'function') ? window.fmtDate(e.event_date) : '';
+    if (typeof window.openModalShell === 'function') {
+      window.openModalShell('', escHtmlSafe(title) + ' \u2014 RSVPs',
+        '<div class="psub" id="ffp-rsvp-sub" style="margin-bottom:14px;">Loading\u2026</div>' +
+        '<div class="member-list" id="ffp-rsvp-list"></div>',
+        '<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
+    }
+    try {
+      var res = await window.supabase.rpc('provider_event_rsvps', { p_event_id: id });
+      if (res.error) throw res.error;
+      var rows = res.data || [];
+      var subEl = document.getElementById('ffp-rsvp-sub');
+      var listEl = document.getElementById('ffp-rsvp-list');
+      if (subEl) subEl.textContent = rows.length + ' of ' + cap + ' confirmed' + (when ? ' for ' + when : '');
+      if (listEl) {
+        listEl.innerHTML = rows.length ? rows.map(function (r) {
+          var name = r.member_name || 'Member';
+          var initial = name.charAt(0).toUpperCase();
+          var sub = (r.member_city ? escHtmlSafe(r.member_city) + ' \u00b7 ' : '') + 'RSVP\u2019d ' + escHtmlSafe(relTime(r.created_at));
+          return '<div class="member-row"><div class="member-avatar">' + escHtmlSafe(initial) + '</div>' +
+                 '<div class="member-info"><div class="member-name">' + escHtmlSafe(name) + '</div>' +
+                 '<div class="member-sub">' + sub + '</div></div></div>';
+        }).join('') : '<div class="empty-sub" style="text-align:left;">No RSVPs yet.</div>';
+      }
+    } catch (err) {
+      console.error('[FFP Provider Events] viewRsvps:', err);
+      var le = document.getElementById('ffp-rsvp-list');
+      if (le) le.innerHTML = '<div class="empty-sub" style="text-align:left;">Could not load RSVPs.</div>';
+    }
+  }
+
   async function init() {
     var ok = await waitFor(function () {
       return window.supabase && window.supabase.auth &&
@@ -397,7 +446,7 @@
 
     try {
       await refresh();
-      console.log('[FFP Provider Events v5] Loaded from Supabase \u2713');
+      console.log('[FFP Provider Events v6] Loaded from Supabase \u2713');
     } catch (e) {
       console.error('[FFP Provider Events] initial load:', e);
     }
@@ -414,6 +463,7 @@
 
     window.saveEvent = realSaveEvent;
     window.confirmDeleteEvent = realDeleteEvent;
+    window.viewRsvps = realViewRsvps;
   }
 
   if (document.readyState === 'loading') {
