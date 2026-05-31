@@ -1,6 +1,8 @@
 <!--
-FFP Profile Complete v13
+FFP Profile Complete v14
 Last updated: 31 May 2026
+v14: country+city cascade now reads the shared taxonomy too (COUNTRIES = FFP_TAX.cities
+     || inline) so signup matches every other form's country/city. 
 v13: activities / fitness levels / nationalities now read the shared source
      assets/ffp-taxonomy.js (inline lists kept as fallback) so signup matches the
      rest of the platform. +ffp-taxonomy.js include. (Prior internal header read v8.)
@@ -611,7 +613,7 @@ var NATIONALITIES = (window.FFP_TAX && window.FFP_TAX.nationalities) || [
   'New Zealander','Irish','Scottish','Welsh','Other'
 ];
 
-var COUNTRIES = {
+var COUNTRIES = (window.FFP_TAX && window.FFP_TAX.cities) || {
   'United Arab Emirates': ['Dubai','Abu Dhabi','Sharjah','Ras Al Khaimah','Ajman','Fujairah','Umm Al Quwain','Al Ain'],
   'Saudi Arabia':         ['Riyadh','Jeddah','Mecca','Medina','Dammam','Khobar'],
   'Qatar':                ['Doha','Al Rayyan','Lusail'],
