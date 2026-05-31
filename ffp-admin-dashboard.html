@@ -1,4 +1,4 @@
-<!-- FFP Admin Dashboard v26 (2026-05-31) — v25 clean client fix + dynamic admin identity (shows logged-in admin email) + bulletproof admin sign-out. -->
+<!-- FFP Admin Dashboard v27 (2026-05-31) — tier/expiry edit no longer rebuilds the row mid-change (fixes the expiry-date year not sticking). v26: clean client + dynamic identity + sign-out. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2416,7 +2416,8 @@ const AdminMembers = {
       if (res.error) { console.error('[AdminMembers] commitTier:', res.error); if (window.showToast) showToast('Could not update tier', 'error'); return; }
       const m = this.data.find(x => x.id === id); if (m) { m.tier = tier; m.tier_expires_at = expiry; }
       if (window.showToast) showToast(expiry ? ('Tier: ' + tier + ' until ' + expiry) : ('Tier set to ' + tier), 'success');
-      this.render();
+      // v27: do NOT re-render here — the row already reflects the change, and a rebuild
+      // would destroy the date picker the admin is using.
     } catch (e) { console.error('[AdminMembers] commitTier:', e); if (window.showToast) showToast('Could not update tier', 'error'); }
   }
 };
