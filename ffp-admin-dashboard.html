@@ -15,6 +15,7 @@
 <script src="ffp-admin-providers-loader.js"></script>
   <script src="ffp-admin-overview-loader.js"></script>
   <script src="ffp-admin-analytics-loader.js"></script>
+  <script src="ffp-admin-members-loader.js"></script>
 <script src="ffp-admin-payouts-loader.js"></script>
 <script src="ffp-admin-quests-loader.js"></script>
 <script src="ffp-admin-events-loader.js"></script>
@@ -2251,20 +2252,7 @@ const AdminMembers = {
   filter: 'all',
   search: '',
   
-  data: [
-    { id:'m1', full_name:'Grant Hermanus Goes', initial:'G', email:'grant@ffppassport.com', city:'Dubai',     tier:'ambassador', balance:175,  daysAgo:120, status:'active' },
-    { id:'m2', full_name:'Sarah Kelley',         initial:'S', email:'sarah.k@example.com',    city:'Dubai',     tier:'supporter',  balance:250,  daysAgo:85,  status:'active' },
-    { id:'m3', full_name:'Mike Henderson',       initial:'M', email:'mike.h@example.com',     city:'Dubai',     tier:'supporter',  balance:825,  daysAgo:70,  status:'active' },
-    { id:'m4', full_name:'Priya Raman',          initial:'P', email:'priya.r@example.com',    city:'Dubai',     tier:'member',     balance:75,   daysAgo:60,  status:'active' },
-    { id:'m5', full_name:'Ahmed Mansour',        initial:'A', email:'ahmed.m@example.com',    city:'Abu Dhabi', tier:'member',     balance:50,   daysAgo:45,  status:'active' },
-    { id:'m6', full_name:'Layla Mariam',         initial:'L', email:'layla.m@example.com',    city:'Dubai',     tier:'supporter',  balance:400,  daysAgo:50,  status:'active' },
-    { id:'m7', full_name:'James Williams',       initial:'J', email:'james.w@example.com',    city:'Dubai',     tier:'member',     balance:25,   daysAgo:30,  status:'active' },
-    { id:'m8', full_name:'Nina Patel',           initial:'N', email:'nina.p@example.com',     city:'Sharjah',   tier:'member',     balance:0,    daysAgo:14,  status:'active' },
-    { id:'m9', full_name:'Hassan Al-Qassimi',    initial:'H', email:'hassan.a@example.com',   city:'Abu Dhabi', tier:'member',     balance:0,    daysAgo:7,   status:'active' },
-    { id:'m10',full_name:'Reem Tariq',           initial:'R', email:'reem.t@example.com',     city:'Dubai',     tier:'member',     balance:0,    daysAgo:3,   status:'active' },
-    { id:'m11',full_name:'Omar Diallo',          initial:'O', email:'omar.d@example.com',     city:'Dubai',     tier:'member',     balance:0,    daysAgo:1,   status:'active' },
-    { id:'m12',full_name:'Test User (suspended)',initial:'T', email:'test@example.com',       city:'Dubai',     tier:'member',     balance:0,    daysAgo:200, status:'suspended' }
-  ],
+  data: [],
   
   init() { this.render(); },
   
