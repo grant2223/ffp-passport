@@ -1,4 +1,8 @@
-/* FFP Admin Overview Loader — v7 (2026-05-31)
+/* FFP Admin Overview Loader — v8 (2026-05-31)
+   v8: Content badge + queue card now use REAL content_submissions pending count
+       (content_pending) instead of the events/experiences/challenges rollup — those
+       pending listings already show on their own sidebar badges (Events/etc.).
+   v7 (2026-05-31)
    ONE round-trip: calls admin_overview() RPC for every KPI, action-queue count,
    sidebar pending badge, and recent-activity row (was ~13 separate queries → the
    page was serializing them behind the browser's 6-connection limit ≈ 15s).
@@ -66,20 +70,21 @@
       setDeltaFor('kpi-active', d.members_total ? (Math.round(d.active_30d / d.members_total * 100) + '% of members') : '');
       setDeltaFor('kpi-providers', d.apps_pending + ' pending');
 
-      var content = (d.events_pending || 0) + (d.experiences_pending || 0) + (d.challenges_pending || 0);
+      var contentPending = (d.content_pending || 0);
       setQueue('panel-providers', d.apps_pending, d.apps_pending ? 'Awaiting review' : 'None waiting');
       setQueue('panel-payouts', d.payouts_pending_count, d.payouts_pending_count ? ('$' + dnum(d.payouts_pending_sum) + ' total') : 'None pending');
-      setQueue('panel-content', content, content ? 'Listings to review' : 'None pending');
+      setQueue('panel-content', contentPending, contentPending ? 'Submissions to review' : 'None pending');
       setQueue('panel-referrals', d.referrals_pending, d.referrals_pending ? 'To verify' : 'None pending');
-      var total = (d.apps_pending || 0) + (d.payouts_pending_count || 0) + content + (d.referrals_pending || 0);
+      var total = (d.apps_pending || 0) + (d.payouts_pending_count || 0) + contentPending + (d.referrals_pending || 0);
       setKpi('queue-total-count', total + ' item' + (total === 1 ? '' : 's'));
 
       setNavBadge('panel-events', d.events_pending);
       setNavBadge('panel-experiences', d.experiences_pending);
       setNavBadge('panel-challenges', d.challenges_pending);
-      setContentBadge(content);
+      setContentBadge(contentPending);
       setIdBadge('badge-payouts', d.payouts_pending_count);
       setIdBadge('badge-referrals', d.referrals_pending);
+      setIdBadge('badge-feedback', d.feedback_new);
 
       var feed = document.getElementById('activity-feed');
       if (feed) {
