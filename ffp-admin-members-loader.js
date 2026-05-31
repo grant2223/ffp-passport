@@ -61,7 +61,7 @@
     am.init = function () { refresh(); };
     am.refresh = refresh;
 
-    try { await refresh(); console.log('[FFP Admin Members v1] Loaded from Supabase ✓'); }
+    try { console.log('[FFP Admin Members v1] Loaded from Supabase ✓'); }
     catch (e) { console.error('[FFP Admin Members] initial load:', e); }
 
     if (window.FFPRealtime) {
