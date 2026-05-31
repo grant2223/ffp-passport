@@ -27,7 +27,7 @@
 <script src="ffp-provider-venue-qr-loader.js"></script>
 <script src="ffp-provider-quest-analytics-loader.js"></script>
 <!-- Feedback widget (shared) -> public.feedback -> admin Feedback panel -->
-<script src="assets/ffp-feedback-widget.js" data-source="provider"></script>
+<script src="assets/ffp-feedback-widget.js" data-source="provider" data-fab="off"></script>
 <!-- Removed 2026-05-30: phantom refs to loaders that don't exist (earnings/overview/analytics/team/settings). Overview & Analytics render inline. Normalized quests/venue-qr/quest-analytics refs to plain GitHub filenames. -->
    
 <style>
@@ -2006,8 +2006,8 @@ a { color: var(--ffp-blue); text-decoration: none; }
       <div class="tb-title" id="tb-title">Overview</div>
       <div class="tb-status" id="tb-status">Live</div>
       <div class="tb-actions">
-        <button class="tb-btn" onclick="showToast('Help center opens here', 'info')">
-          <span class="ms">support_agent</span><span>Help</span>
+        <button class="tb-btn" id="ffp-feedback-btn" title="Send feedback" onclick="window.FFPFeedback && window.FFPFeedback.open()" style="background:#2ba8e0;color:#fff;border-color:#2ba8e0;">
+          <span class="ms">feedback</span><span>Feedback</span>
         </button>
         <button class="tb-bell" onclick="showToast('1 new RSVP, 1 new application', 'info')">
           <span class="ms">notifications</span>
@@ -2539,7 +2539,9 @@ a { color: var(--ffp-blue); text-decoration: none; }
 
 <script>
 /* ════════════════════════════════════════════════
-   FFP PROVIDER DASHBOARD — v13 (2026-05-31)
+   FFP PROVIDER DASHBOARD — v14 (2026-05-31)
+   v14: Feedback moved into the topbar (replaces the Help button) as a BLUE button;
+        floating button suppressed (data-fab="off").
    v13: full demo scrub (empty events/experiences/challenges/check-ins, no fake KPI
         deltas, "No activity yet" feed, "Your business" identity); Analytics shows an
         honest empty state (was fabricated numbers); notifications loader restored
