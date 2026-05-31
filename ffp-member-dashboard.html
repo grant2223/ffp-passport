@@ -255,6 +255,12 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
   overflow: hidden;
 }
 .pass-photo-new span { z-index: 1; }
+.pp-disciplines { margin: 0 0 18px; }
+.pp-disc-label { font-size: 9px; font-weight: 800; letter-spacing: 1.4px; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+.pp-disc-row { display: flex; flex-wrap: wrap; gap: 7px; }
+.pp-disc { display: inline-flex; align-items: center; gap: 6px; background: rgba(43,168,224,0.08); border: 1px solid rgba(43,168,224,0.28); border-radius: 100px; padding: 6px 12px; }
+.pp-disc-name { font-size: 12px; font-weight: 700; color: #e8eef4; }
+.pp-disc-lvl { font-size: 10px; font-weight: 800; letter-spacing: .3px; color: var(--yellow); text-transform: uppercase; }
 .pass-fields-new {
   display: flex;
   flex-direction: column;
@@ -4052,6 +4058,9 @@ input[type="number"] {
     </div>
   </div>
   
+  <!-- v162: YOUR DISCIPLINES — instant from cached sports -->
+  <div id="pp-disciplines" class="pp-disciplines" style="display:none;"></div>
+
   <!-- WALLET BUTTONS - Official designs ready for live integration -->
   <div class="wallet-row">
     <button class="wallet-btn wallet-apple" onclick="addToAppleWallet()" aria-label="Add to Apple Wallet">
@@ -6277,8 +6286,48 @@ const memberPassport = {
   expiryMRZ: '',  // YYMMDD
   passportNumber: '',
   type: 'M',                                   // v103: M=Member · S=Supporter · A=Ambassador
-  passportCountry: ''                          // v104: filled from this.data.country in syncToPassport
+  passportCountry: '',                         // v104: filled from this.data.country in syncToPassport
+  photo: ''                                    // v162: passport photo (data URL / remote URL)
 };
+
+// v162: shared image downscaler (used by the in-dashboard change-photo button).
+function ffpDownscaleImage(file, cb) {
+  try {
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var size = 480, c = document.createElement('canvas');
+          c.width = size; c.height = size;
+          var ctx = c.getContext('2d');
+          var sdim = Math.min(img.width, img.height);
+          var sx = (img.width - sdim) / 2, sy = (img.height - sdim) / 2;
+          ctx.drawImage(img, sx, sy, sdim, sdim, 0, 0, size, size);
+          cb(c.toDataURL('image/jpeg', 0.82));
+        } catch (err) { cb(null); }
+      };
+      img.onerror = function () { cb(null); };
+      img.src = e.target.result;
+    };
+    reader.onerror = function () { cb(null); };
+    reader.readAsDataURL(file);
+  } catch (err) { cb(null); }
+}
+function ppEsc(str){ return String(str==null?'':str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+// v162: instant "Your Disciplines" strip under the passport card (from cached sports).
+function renderDisciplines() {
+  var el = document.getElementById('pp-disciplines');
+  if (!el) return;
+  var sports = (typeof MemberProfile !== 'undefined' && MemberProfile.data && MemberProfile.data.sports) || [];
+  if (!sports.length) { el.innerHTML = ''; el.style.display = 'none'; return; }
+  el.style.display = '';
+  var chips = sports.map(function (sp) {
+    var lvl = (sp.level && sp.level !== 'All levels') ? '<span class="pp-disc-lvl">' + ppEsc(sp.level) + '</span>' : '';
+    return '<span class="pp-disc"><span class="pp-disc-name">' + ppEsc(sp.name) + '</span>' + lvl + '</span>';
+  }).join('');
+  el.innerHTML = '<div class="pp-disc-label">YOUR DISCIPLINES</div><div class="pp-disc-row">' + chips + '</div>';
+}
 
 // Function to apply passport data to the card (called on profile update)
 function applyPassportData() {
@@ -6288,6 +6337,22 @@ function applyPassportData() {
       el.textContent = memberPassport[field];
     }
   });
+
+  // v162: passport photo — show the member image if we have one, otherwise a
+  // polished initials monogram so the card never looks empty on first paint.
+  var _photoEl = document.querySelector('.pass-photo-new');
+  if (_photoEl) {
+    var _pinit = _photoEl.querySelector('[data-field="initials"]');
+    if (memberPassport.photo) {
+      _photoEl.style.backgroundImage = "url('" + memberPassport.photo + "')";
+      _photoEl.style.backgroundColor = 'transparent';
+      if (_pinit) _pinit.style.display = 'none';
+    } else {
+      _photoEl.style.backgroundImage = 'none';
+      _photoEl.style.backgroundColor = '#1f2a35';
+      if (_pinit) { _pinit.textContent = memberPassport.initials || 'M'; _pinit.style.display = ''; }
+    }
+  }
   
   // Build custom MRZ-style lines
   // Format: >>>>>>NZL>Given>Surname<<<<<<<<<<
@@ -7110,6 +7175,7 @@ const MemberProfile = {
     // Identity (shared with passport card)
     givenNames: '',
     surname: '',
+    photo: '',          // data URL or remote URL for the passport photo
     
     // Contact
     email: '',
@@ -7267,9 +7333,11 @@ const MemberProfile = {
     var t = (this.data.tier || 'Member').toString().trim().toLowerCase();
     memberPassport.type = (t === 'supporter') ? 'S' : (t === 'ambassador') ? 'A' : 'M';
     memberPassport.passportCountry = this.data.country || '—';                     // v104: member's listed country
+    memberPassport.photo           = this.data.photo || '';                        // v162
     
     if (typeof applyPassportData === 'function') applyPassportData();
     if (typeof renderQR === 'function')          renderQR();
+    if (typeof renderDisciplines === 'function') renderDisciplines();
   },
   
   // ===== RENDER =====
@@ -7282,8 +7350,8 @@ const MemberProfile = {
       <div class="profile-menu">
         <!-- HEADER -->
         <div class="profile-header">
-          <div class="ph-avatar">
-            ${this.getInitials()}
+          <div class="ph-avatar"${this.data.photo ? ` style="background-image:url('${this.data.photo}');background-size:cover;background-position:center;color:transparent;"` : ''}>
+            ${this.data.photo ? '' : this.getInitials()}
             <button class="ph-avatar-edit" onclick="MemberProfile.changeAvatar()" title="Change photo">
               <span class="material-icons">photo_camera</span>
             </button>
@@ -7699,7 +7767,40 @@ const MemberProfile = {
   },
   
   // ===== AVATAR =====
-  changeAvatar() { alert('Change avatar — wires up to image upload when built.'); },
+  changeAvatar() {
+    var inp = document.getElementById('ffp-avatar-input');
+    if (!inp) {
+      inp = document.createElement('input');
+      inp.type = 'file'; inp.accept = 'image/*'; inp.capture = 'user';
+      inp.id = 'ffp-avatar-input'; inp.style.display = 'none';
+      inp.addEventListener('change', function () {
+        var file = inp.files && inp.files[0]; if (!file) return;
+        ffpDownscaleImage(file, function (durl) {
+          if (!durl) return;
+          MemberProfile.data.photo = durl;
+          MemberProfile.syncToPassport();
+          MemberProfile.render();
+          MemberProfile.persistPhoto(durl);
+        });
+        inp.value = '';
+      });
+      document.body.appendChild(inp);
+    }
+    inp.click();
+  },
+  persistPhoto(durl) {
+    try {
+      var stored = JSON.parse(localStorage.getItem('ffp_member') || '{}');
+      stored.photo_url = durl;
+      localStorage.setItem('ffp_member', JSON.stringify(stored));
+      if (stored.id) {
+        fetch('https://ffp-passport-backend.vercel.app/api/members/' + stored.id, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ photo_url: durl })
+        }).catch(function(){});
+      }
+    } catch (e) {}
+  },
   
   // ===== PIN =====
   openPinModal() {
@@ -12161,6 +12262,7 @@ function init() {
         Object.assign(MemberProfile.data, {
           givenNames:       m.given_names || '',
           surname:          m.surname || '',
+          photo:            m.photo_url || '',
           email:            m.email || '',
           phoneCountryCode: m.phone_country_code || '',
           phoneNumber:      m.phone || '',
