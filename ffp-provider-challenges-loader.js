@@ -1,16 +1,41 @@
-/* FFP Admin Challenges Loader — v2 — sidebar pending badge
-   Wires admin Challenges panel to real Supabase data.
-   Tabs: Pending / Live / Past / Archived (replaces ffp/provider/member kind filter)
-   Default tab = 'pending'.
-   Both provider AND member-hosted challenges show in same queue with a Kind column.
+/* FFP Provider Challenges Loader — v2
+   v2: reference bare renderChallenges (global, not on window) so init + refresh work.
+       (Live file had ADMIN loader code mis-deployed; this is the real provider one.)
+   Wires the provider dashboard's Challenges panel to real Supabase data.
+   Provider challenges only: organizer sets rules and uploads results at end.
+   (Member-hosted challenges are a separate flow — schema decision pending.)
+
+   What it does:
+   - Waits for FFP_PROVIDER, fetches challenges WHERE provider_id = me, challenge_type='provider'
+   - Replaces in-memory `challenges` array, calls renderChallenges()
+   - Overrides openChallengeModal with activity picker (uses window.FFPPicker)
+   - Overrides saveChallenge() → INSERT / UPDATE
+   - Overrides confirmDeleteChallenge() → DELETE
+   - Re-approval rule on edit of live/paused
+   - Scrollbar hide + thin chevron + picker btn CSS
+
+   Schema mapping:
+     cm-title       → title
+     cm-description → description
+     cm-activity    → activity (NEW, via picker) + category (auto-derived)
+     cm-metric      → metric
+     cm-venue       → venue
+     cm-prize       → prize_description
+     cm-start       → starts_at (date stored as timestamptz at 00:00)
+     cm-end         → ends_at
+     photo          → hero_image_url
+     challenge_type → 'provider' (hardcoded — member challenges are separate)
+
+   Participant counts deferred — shows 0 (real counts from challenge_entries in Phase 2).
 */
 (function () {
   'use strict';
 
-  function getAC() { return (typeof AdminChallenges !== 'undefined') ? AdminChallenges : null; }
   function toast(msg, kind) {
-    if (typeof window.showToast === 'function') { try { window.showToast(msg, kind || 'info'); return; } catch (e) {} }
-    console.log('[FFP Admin Challenges]', msg);
+    if (typeof window.showToast === 'function') {
+      try { window.showToast(msg, kind || 'info'); return; } catch (e) {}
+    }
+    console.log('[FFP Provider Challenges]', msg);
   }
   async function waitFor(check, ms) {
     var tries = 0; var limit = Math.ceil((ms || 15000) / 100);
@@ -25,47 +50,92 @@
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
-  function letterFor(name) { return (name && name.length) ? name[0].toUpperCase() : '?'; }
 
-  function fmtDate(iso) {
-    if (!iso) return '—';
-    var d = new Date(iso);
-    if (isNaN(d.getTime())) return '—';
-    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return d.getDate() + ' ' + months[d.getMonth()];
+  function injectStyles() {
+    if (document.getElementById('ffp-provider-challenges-css')) return;
+    var css = document.createElement('style');
+    css.id = 'ffp-provider-challenges-css';
+    css.textContent = [
+      // Kill native scrollbars (FFP-wide rule)
+      '*::-webkit-scrollbar{display:none !important;width:0 !important;height:0 !important;}',
+      '*{-ms-overflow-style:none !important;scrollbar-width:none !important;}',
+      '#panel-challenges{overflow-x:hidden;}',
+      // Thin chevron on selects
+      'select.select, select.input, #panel-challenges select, .modal select, .modal-body select {' +
+        'appearance:none;-webkit-appearance:none;-moz-appearance:none;' +
+        'background-image:url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%238a99a8\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'%3E%3C/polyline%3E%3C/svg%3E");' +
+        'background-repeat:no-repeat;background-position:right 12px center;background-size:16px;' +
+        'padding-right:36px;color-scheme:dark;}',
+      '.modal select option{background:#0f1e2e !important;color:#f5f7fa !important;}',
+      'input.input[type="date"]{color-scheme:dark;}',
+      // Picker button — matches other content loaders
+      '.ffp-picker-btn{' +
+        'width:100%;display:flex;align-items:center;justify-content:space-between;' +
+        'background:#0a1825;border:1px solid #1a2f44;border-radius:10px;' +
+        'padding:11px 14px;color:#e8eef4;font-size:14px;font-family:inherit;cursor:pointer;' +
+        'text-align:left;}',
+      '.ffp-picker-btn:hover{border-color:#2a4564;}',
+      '.ffp-picker-btn.placeholder{color:#6c7a8b;}',
+      '.ffp-picker-btn .caret{flex-shrink:0;margin-left:10px;color:#8a99a8;}',
+      '.ffp-picker-btn .picked{display:flex;flex-direction:column;line-height:1.3;gap:1px;overflow:hidden;}',
+      '.ffp-picker-btn .picked .name{color:#e8eef4;font-weight:500;}',
+      '.ffp-picker-btn .picked .group{color:#8a99a8;font-size:11px;}'
+    ].join('');
+    document.head.appendChild(css);
   }
 
+  function setActivityBtn(btn, name, category) {
+    btn.dataset.value = name || '';
+    btn.dataset.category = category || '';
+    if (name) {
+      btn.classList.remove('placeholder');
+      btn.innerHTML =
+        '<div class="picked"><div class="name">' + escHtml(name) + '</div>' +
+        (category ? '<div class="group">' + escHtml(category) + '</div>' : '') +
+        '</div>' +
+        '<span class="ms caret">expand_more</span>';
+    } else {
+      btn.classList.add('placeholder');
+      btn.innerHTML = '<span>Choose activity…</span><span class="ms caret">expand_more</span>';
+    }
+  }
+
+  // ─── DB → UI shape ───
   function mapForUi(row) {
-    var p = row.providers || {};
+    var startD = row.starts_at ? row.starts_at.slice(0, 10) : '';
+    var endD   = row.ends_at   ? row.ends_at.slice(0, 10)   : '';
     return {
       id: row.id,
       title: row.title || '',
-      kind: row.challenge_type || 'provider',
-      organizer: p.business_name || (row.challenge_type === 'member' ? 'Member' : 'Unknown'),
+      description: row.description || '',
+      challenge_type: row.challenge_type || 'provider',
       activity: row.activity || '',
       category: row.category || '',
       metric: row.metric || '',
       venue: row.venue || '',
-      ends: fmtDate(row.ends_at),
-      starts_at: row.starts_at || '',
-      ends_at: row.ends_at || '',
+      city: row.city || '',
+      start_date: startD,
+      end_date: endD,
       prize: row.prize_description || '',
-      participants: 0,
+      hero_url: row.hero_image_url || null,
       status: row.status || 'pending',
       featured: !!row.featured,
-      hero_url: row.hero_image_url || null,
-      description: row.description || '',
+      participants: 0,  // Wired in Phase 2
+      results_uploaded: row.status === 'past',
+      created_at: row.created_at ? row.created_at.slice(0, 10) : '',
       _raw: row
     };
   }
 
   async function fetchChallenges() {
+    if (!window.FFP_PROVIDER || !window.FFP_PROVIDER.id) return [];
     var res = await window.supabase
       .from('challenges')
-      .select('id, title, description, activity, category, challenge_type, hero_image_url, metric, venue, city, starts_at, ends_at, prize_description, verification, status, featured, created_at, providers(business_name, letter_mark)')
-      .order('created_at', { ascending: false });
+      .select('id, provider_id, challenge_type, title, description, activity, category, hero_image_url, metric, venue, city, starts_at, ends_at, prize_description, verification, status, featured, created_at, updated_at')
+      .eq('provider_id', window.FFP_PROVIDER.id)
+      .order('starts_at', { ascending: false });
     if (res.error) {
-      console.error('[FFP Admin Challenges] fetch:', res.error);
+      console.error('[FFP Challenges] fetch:', res.error);
       toast('Could not load challenges', 'error');
       return [];
     }
@@ -73,196 +143,241 @@
   }
 
   async function refresh() {
-    var ac = getAC();
-    if (!ac) return;
-    ac.data = await fetchChallenges();
-    realRender();
+    if (typeof challenges === 'undefined') return;
+    var rows = await fetchChallenges();
+    challenges.length = 0;
+    rows.forEach(function (r) { challenges.push(r); });
+    if (typeof renderChallenges === 'function') { try { renderChallenges(); } catch (e) {} }
+    if (typeof window.renderNav === 'function')        { try { window.renderNav();        } catch (e) {} }
   }
 
-  function tabCounts(data) {
-    var c = { pending: 0, live: 0, past: 0, archived: 0 };
-    data.forEach(function (d) { if (c[d.status] != null) c[d.status]++; });
-    return c;
-  }
-
-  // v2: push the pending count to the sidebar link badge — same pattern as
-  // the applications loader (#badge-applications). Updates live on every render
-  // (load + tab change + after approve/reject), so admin is notified of pending items.
-  function setNavBadge(panel, n) {
-    var link = document.querySelector('.sidebar-link[data-panel="' + panel + '"]');
-    if (!link) return;
-    var b = link.querySelector('.ffp-pending-badge');
-    if (n > 0) {
-      if (!b) { b = document.createElement('span'); b.className = 'sidebar-link-badge ffp-pending-badge'; link.appendChild(b); }
-      b.textContent = n > 99 ? '99+' : String(n);
-      b.style.display = '';
-    } else if (b) { b.style.display = 'none'; }
-  }
-
-  function realRender() {
-    var ac = getAC();
-    if (!ac) return;
-    var tab = ac.tab || 'pending';
-    var rows = (ac.data || []).filter(function (d) { return d.status === tab; });
-    if (ac.search) {
-      rows = rows.filter(function (d) {
-        return d.title.toLowerCase().indexOf(ac.search) >= 0 ||
-               d.organizer.toLowerCase().indexOf(ac.search) >= 0 ||
-               (d.activity || '').toLowerCase().indexOf(ac.search) >= 0;
-      });
-    }
-
-    var counts = tabCounts(ac.data || []);
-    setNavBadge('panel-challenges', counts.pending);
-    var tabsHTML =
-      '<button class="tab-btn' + (tab === 'pending' ? ' active' : '') + '" data-tab="pending" onclick="AdminChallenges.setTab(\'pending\')">Pending <span class="count">' + counts.pending + '</span></button>' +
-      '<button class="tab-btn' + (tab === 'live' ? ' active' : '') + '" data-tab="live" onclick="AdminChallenges.setTab(\'live\')">Live <span class="count">' + counts.live + '</span></button>' +
-      '<button class="tab-btn' + (tab === 'past' ? ' active' : '') + '" data-tab="past" onclick="AdminChallenges.setTab(\'past\')">Past <span class="count">' + counts.past + '</span></button>' +
-      '<button class="tab-btn' + (tab === 'archived' ? ' active' : '') + '" data-tab="archived" onclick="AdminChallenges.setTab(\'archived\')">Archived <span class="count">' + counts.archived + '</span></button>';
-
-    var tabsEl = document.querySelector('#panel-challenges .tabs');
-    if (tabsEl) tabsEl.innerHTML = tabsHTML;
-
-    var metaEl = document.getElementById('AdminChallenges-meta');
-    if (metaEl) metaEl.textContent = rows.length + ' item' + (rows.length === 1 ? '' : 's');
-
-    var body = document.getElementById('challenges-tbody');
-    if (!body) return;
-    body.innerHTML = rows.length === 0
-      ? '<tr><td colspan="6" class="text-muted" style="text-align:center; padding:30px;">No challenges in this tab</td></tr>'
-      : rows.map(function (d) {
-          var actBtns = '';
-          if (d.status === 'pending') {
-            actBtns += '<button class="btn btn-sm btn-blue" onclick="AdminChallenges.approve(\'' + d.id + '\')"><span class="material-icons">check</span>Approve</button>';
-            actBtns += '<button class="btn btn-sm btn-danger" onclick="AdminChallenges.reject(\'' + d.id + '\')"><span class="material-icons">close</span>Reject</button>';
-          } else if (d.status === 'live') {
-            actBtns += '<button class="btn btn-sm btn-ghost" onclick="AdminChallenges.feature(\'' + d.id + '\')" title="' + (d.featured ? 'Unfeature' : 'Feature') + '"><span class="material-icons">' + (d.featured ? 'star' : 'star_border') + '</span></button>';
-          }
-          actBtns += '<button class="btn btn-sm btn-ghost" onclick="AdminChallenges.view(\'' + d.id + '\')" title="View"><span class="material-icons">visibility</span></button>';
-
-          var kindPill = d.kind === 'member'
-            ? '<span class="pill pill-supporter">Member</span>'
-            : '<span class="pill pill-verified">Provider</span>';
-
-          return '<tr>' +
-            '<td><strong>' + escHtml(d.title) + '</strong>' + (d.featured ? ' <span class="pill pill-featured">Featured</span>' : '') + '</td>' +
-            '<td>' + kindPill + '</td>' +
-            '<td class="text-muted">' + escHtml(d.activity || d.category) + '</td>' +
-            '<td class="text-muted">' + escHtml(d.organizer) + '</td>' +
-            '<td class="text-muted nowrap">' + escHtml(d.ends) + '</td>' +
-            '<td><div class="table-actions">' + actBtns + '</div></td>' +
-          '</tr>';
-        }).join('');
-  }
-
-  async function approve(id) {
-    try {
-      var res = await window.supabase.from('challenges').update({ status: 'live' }).eq('id', id);
-      if (res.error) throw res.error;
-      toast('Challenge approved — now live', 'success');
-      await refresh();
-    } catch (e) { console.error(e); toast(e.message || 'Approve failed', 'error'); }
-  }
-  async function reject(id) {
-    if (!confirm('Reject this challenge? It will be archived.')) return;
-    try {
-      var res = await window.supabase.from('challenges').update({ status: 'archived' }).eq('id', id);
-      if (res.error) throw res.error;
-      toast('Challenge rejected', 'success');
-      await refresh();
-    } catch (e) { console.error(e); toast(e.message || 'Reject failed', 'error'); }
-  }
-  async function feature(id) {
-    var ac = getAC();
-    var d = ac.data.find(function (x) { return x.id === id; });
-    if (!d) return;
-    var newVal = !d.featured;
-    try {
-      var res = await window.supabase.from('challenges').update({ featured: newVal }).eq('id', id);
-      if (res.error) throw res.error;
-      toast(newVal ? 'Featured' : 'Unfeatured', 'success');
-      await refresh();
-    } catch (e) { console.error(e); toast(e.message || 'Feature toggle failed', 'error'); }
-  }
-
-  function viewChallenge(id) {
-    var ac = getAC();
-    var d = ac.data.find(function (x) { return x.id === id; });
-    if (!d) return;
-    var heroHtml = d.hero_url
-      ? '<div style="height:160px;background:#0a1825 url(' + escHtml(d.hero_url) + ') center/cover;border-radius:12px;margin-bottom:16px;"></div>'
-      : '<div style="height:90px;background:#0a1825;border-radius:12px;margin-bottom:16px;display:flex;align-items:center;justify-content:center;color:#6c7a8b;">No photo</div>';
-
-    var content =
-      heroHtml +
-      '<h2 style="margin:0 0 4px;color:#e8eef4;font-size:18px;">' + escHtml(d.title) + '</h2>' +
-      '<div style="color:#8a99a8;font-size:13px;margin-bottom:14px;">' + escHtml(d.organizer) + ' · ' + escHtml(d.kind === 'member' ? 'Member-hosted' : 'Provider') + ' · ' + escHtml(d.activity || d.category) + '</div>' +
-      (d.metric ? '<div style="color:#cfd6dc;font-size:13px;margin-bottom:8px;"><b style="color:#8a99a8;">Metric:</b> ' + escHtml(d.metric) + '</div>' : '') +
-      (d.venue ? '<div style="color:#cfd6dc;font-size:13px;margin-bottom:8px;"><b style="color:#8a99a8;">Venue:</b> ' + escHtml(d.venue) + '</div>' : '') +
-      (d.prize ? '<div style="color:#cfd6dc;font-size:13px;margin-bottom:14px;"><b style="color:#8a99a8;">Prize:</b> ' + escHtml(d.prize) + '</div>' : '') +
-      (d.description ? '<div style="color:#cfd6dc;font-size:14px;line-height:1.5;margin-bottom:14px;white-space:pre-wrap;">' + escHtml(d.description) + '</div>' : '') +
-      '<div style="color:#cfd6dc;font-size:13px;margin-bottom:8px;"><b style="color:#8a99a8;">Ends:</b> ' + escHtml(d.ends) + '</div>' +
-      '<div style="color:#6c7a8b;font-size:12px;">Status: <span class="pill pill-' + d.status + '">' + d.status + '</span></div>';
-
-    var foot = '<button class="btn btn-ghost" onclick="closeAdminModal()">Close</button>';
-    if (d.status === 'pending') {
-      foot = '<button class="btn btn-danger" onclick="closeAdminModal(); AdminChallenges.reject(\'' + d.id + '\')"><span class="material-icons">close</span>Reject</button>' +
-             '<button class="btn btn-blue" onclick="closeAdminModal(); AdminChallenges.approve(\'' + d.id + '\')"><span class="material-icons">check</span>Approve</button>';
-    }
-    if (typeof window.openAdminModal === 'function') {
-      window.openAdminModal('Challenge preview', content, foot);
-    } else { _openAdminModal('Challenge preview', content, foot); }
-  }
-
-  function _openAdminModal(title, content, footer) {
-    if (typeof window.closeAdminModal === 'function') window.closeAdminModal();
-    var overlay = document.createElement('div');
-    overlay.id = 'ffp-admin-modal-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,8,20,0.75);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;';
-    overlay.innerHTML =
-      '<div style="background:#0f1e2e;border:1px solid #1a2f44;border-radius:16px;width:100%;max-width:540px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.5);overflow:hidden;">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid #1a2f44;">' +
-          '<div style="color:#e8eef4;font-size:16px;font-weight:600;">' + escHtml(title) + '</div>' +
-          '<button onclick="closeAdminModal()" style="background:transparent;border:none;color:#8a99a8;cursor:pointer;font-size:24px;line-height:1;padding:0 4px;">&times;</button>' +
-        '</div>' +
-        '<div style="padding:20px;overflow-y:auto;flex:1;">' + content + '</div>' +
-        '<div style="display:flex;gap:10px;justify-content:flex-end;padding:14px 20px;border-top:1px solid #1a2f44;">' + footer + '</div>' +
-      '</div>';
-    overlay.addEventListener('click', function (e) { if (e.target === overlay) window.closeAdminModal(); });
-    document.body.appendChild(overlay);
-    window.closeAdminModal = function () {
-      var ov = document.getElementById('ffp-admin-modal-overlay');
-      if (ov) ov.remove();
+  // ─── Modal — full override ───
+  function realOpenChallengeModal(id) {
+    var editing = id ? challenges.find(function (x) { return x.id === id; }) : null;
+    var defaultVenue = (window.providerProfile && window.providerProfile.business_name) || '';
+    var c = editing || {
+      title: '', description: '', activity: '', category: '',
+      metric: '', venue: defaultVenue,
+      start_date: '', end_date: '', prize: '',
+      hero_url: null, status: ''
     };
+
+    var body =
+      '<div class="help-strip">' +
+        '<span class="ms">info</span>' +
+        '<div><b>Provider challenge:</b> you set the rules and upload results at the end. Members see a leaderboard with your results. No FFP coins — prizes are physical only.</div>' +
+      '</div>' +
+      '<div class="form-section">' +
+        '<div class="form-section-title">Photo</div>' +
+        '<div id="listing-photo-slot" data-url="' + escHtml(c.hero_url || '') + '"></div>' +
+      '</div>' +
+      '<div class="form-section">' +
+        '<div class="form-section-title">Challenge</div>' +
+        '<div class="form-grid">' +
+          '<div class="field full">' +
+            '<div class="label">Title <span class="req">*</span></div>' +
+            '<input class="input" id="cm-title" value="' + escHtml(c.title) + '" placeholder="e.g. Forge May Strength Push">' +
+          '</div>' +
+          '<div class="field full">' +
+            '<div class="label">Description</div>' +
+            '<textarea class="textarea" id="cm-description" rows="3" placeholder="The rules — what entrants do, how scores are recorded">' + escHtml(c.description) + '</textarea>' +
+          '</div>' +
+          '<div class="field">' +
+            '<div class="label">Activity <span class="req">*</span> <span class="label-hint">— what is it?</span></div>' +
+            '<button type="button" class="ffp-picker-btn placeholder" id="cm-activity-btn" data-value="" data-category="">' +
+              '<span>Choose activity…</span><span class="ms caret">expand_more</span>' +
+            '</button>' +
+          '</div>' +
+          '<div class="field">' +
+            '<div class="label">Metric <span class="label-hint">— how scores are measured</span></div>' +
+            '<input class="input" id="cm-metric" value="' + escHtml(c.metric) + '" placeholder="e.g. Combined PR kg increase">' +
+          '</div>' +
+          '<div class="field">' +
+            '<div class="label">Venue</div>' +
+            '<input class="input" id="cm-venue" value="' + escHtml(c.venue) + '" placeholder="Where it happens">' +
+          '</div>' +
+          '<div class="field">' +
+            '<div class="label">Prize <span class="label-hint">— physical gift only</span></div>' +
+            '<input class="input" id="cm-prize" value="' + escHtml(c.prize) + '" placeholder="e.g. Recovery kit for top 3">' +
+          '</div>' +
+          '<div class="field">' +
+            '<div class="label">Start date <span class="req">*</span></div>' +
+            '<input class="input" type="date" id="cm-start" value="' + escHtml(c.start_date) + '">' +
+          '</div>' +
+          '<div class="field">' +
+            '<div class="label">End date <span class="req">*</span></div>' +
+            '<input class="input" type="date" id="cm-end" value="' + escHtml(c.end_date) + '">' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      (editing && (c.status === 'live' || c.status === 'paused')
+        ? '<div class="help-strip" style="margin-top:14px;"><span class="ms">info</span><div><b>This challenge is approved.</b> Saving changes will send it back to admin for re-approval.</div></div>'
+        : '');
+
+    var foot =
+      (editing ? '<button class="btn btn-ghost left" onclick="confirmDeleteChallenge(\'' + editing.id + '\'); closeModal()"><span class="ms">delete</span> Delete</button>' : '') +
+      '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>' +
+      '<button class="btn btn-pri" onclick="saveChallenge(\'' + (editing ? editing.id : '') + '\')">' +
+        (editing ? 'Save changes' : 'Submit for review') +
+      '</button>';
+
+    if (typeof window.openModalShell === 'function') {
+      window.openModalShell('lg', (editing ? 'Edit challenge' : 'New challenge'), body, foot);
+    }
+    if (typeof window.renderListingUploader === 'function') {
+      try { window.renderListingUploader(c.hero_url); } catch (e) {}
+    }
+
+    // Wire activity picker
+    setTimeout(function () {
+      var btn = document.getElementById('cm-activity-btn');
+      if (!btn) return;
+      if (c.activity || c.category) {
+        setActivityBtn(btn, c.activity || c.category, c.category);
+      }
+      btn.addEventListener('click', function () {
+        if (window.FFPPicker && typeof window.FFPPicker.openActivity === 'function') {
+          window.FFPPicker.openActivity(btn.dataset.value, function (name, cat) {
+            setActivityBtn(btn, name, cat);
+          });
+        } else {
+          console.error('[FFP Challenges] FFPPicker not loaded');
+          toast('Activity picker not ready', 'error');
+        }
+      });
+    }, 50);
   }
 
+  // ─── Save ───
+  function dateToTimestamp(dateStr) {
+    if (!dateStr) return null;
+    var d = new Date(dateStr + 'T00:00:00');
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  }
+
+  async function realSaveChallenge(id) {
+    if (!window.FFP_PROVIDER || !window.FFP_PROVIDER.id) { toast('Provider not loaded', 'error'); return; }
+    var get = function (key) {
+      var el = document.getElementById('cm-' + key);
+      return el ? (el.value || '').trim() : '';
+    };
+
+    var title = get('title');
+    var actBtn = document.getElementById('cm-activity-btn');
+    var activity = actBtn ? actBtn.dataset.value : '';
+    var category = actBtn ? actBtn.dataset.category : '';
+    var startDate = get('start');
+    var endDate = get('end');
+
+    if (!title)     { toast('Title is required', 'error'); return; }
+    if (!activity)  { toast('Activity is required', 'error'); return; }
+    if (!startDate) { toast('Start date is required', 'error'); return; }
+    if (!endDate)   { toast('End date is required', 'error'); return; }
+
+    var photoSlot = document.getElementById('listing-photo-slot');
+    var heroUrl = (photoSlot && photoSlot.dataset.url) ? photoSlot.dataset.url : null;
+    if (heroUrl === '') heroUrl = null;
+
+    var payload = {
+      title:             title,
+      description:       get('description') || null,
+      activity:          activity,
+      category:          category || null,
+      metric:            get('metric') || null,
+      venue:             get('venue') || null,
+      prize_description: get('prize') || null,
+      starts_at:         dateToTimestamp(startDate),
+      ends_at:           dateToTimestamp(endDate),
+      hero_image_url:    heroUrl
+    };
+
+    var reapprovalNote = '';
+    try {
+      if (id) {
+        var existing = challenges.find(function (x) { return x.id === id; });
+        if (existing && (existing.status === 'live' || existing.status === 'paused')) {
+          payload.status = 'pending';
+          reapprovalNote = ' (sent back for re-approval)';
+        }
+        var upd = await window.supabase.from('challenges').update(payload).eq('id', id);
+        if (upd.error) throw upd.error;
+        toast('Challenge updated' + reapprovalNote, 'success');
+        if (typeof window.closeModal === 'function') window.closeModal();
+      } else {
+        payload.provider_id = window.FFP_PROVIDER.id;
+        payload.challenge_type = 'provider';
+        payload.status = 'pending';
+        payload.featured = false;
+        var ins = await window.supabase.from('challenges').insert(payload).select().single();
+        if (ins.error) throw ins.error;
+        if (typeof window.closeModal === 'function') window.closeModal();
+        if (typeof window.showSubmittedModal === 'function') {
+          try { window.showSubmittedModal('challenge'); } catch (e) {}
+        } else {
+          toast('Submitted for review', 'success');
+        }
+      }
+      await refresh();
+    } catch (e) {
+      console.error('[FFP Challenges] save:', e);
+      var msg = e.message || 'Save failed';
+      if (/policy|permission|denied|rls/i.test(msg)) msg = 'Save blocked by RLS';
+      else if (/does not exist/i.test(msg))         msg = 'Schema mismatch — run the challenges SQL';
+      toast(msg, 'error');
+    }
+  }
+
+  async function realDeleteChallenge(id) {
+    if (!id) return;
+    var doDelete = async function () {
+      try {
+        var res = await window.supabase.from('challenges').delete().eq('id', id);
+        if (res.error) throw res.error;
+        toast('Challenge deleted', 'success');
+        await refresh();
+      } catch (e) {
+        console.error('[FFP Challenges] delete:', e);
+        toast(e.message || 'Delete failed', 'error');
+      }
+    };
+    if (typeof window.openConfirm === 'function') {
+      window.openConfirm('Delete this challenge?', 'Members who entered keep their record, but no new entries can be made. This cannot be undone.', doDelete);
+    } else {
+      if (confirm('Delete this challenge?')) await doDelete();
+    }
+  }
+
+  // ─── Init ───
   async function init() {
     var ok = await waitFor(function () {
-      return window.supabase && typeof AdminChallenges !== 'undefined';
+      return window.supabase && window.supabase.auth &&
+             typeof renderChallenges === 'function' &&
+             typeof challenges !== 'undefined';
     }, 15000);
-    if (!ok) { console.error('[FFP Admin Challenges] deps never loaded'); return; }
-    var authed = await waitFor(function () { return !!(window.FFP_ADMIN); }, 30000);
-    if (!authed) { console.warn('[FFP Admin Challenges] FFP_ADMIN not set'); return; }
+    if (!ok) { console.error('[FFP Challenges] dependencies never loaded'); return; }
 
-    var ac = getAC();
-    ac.tab = 'pending';
-    ac.init = function () { refresh(); };
-    ac.setTab = function (tab) { ac.tab = tab; realRender(); };
-    ac.onSearch = function (q) { ac.search = (q || '').toLowerCase().trim(); realRender(); };
-    ac.render = realRender;
-    ac.approve = approve;
-    ac.reject = reject;
-    ac.feature = feature;
-    ac.view = viewChallenge;
-    ac.refresh = refresh;
+    var authed = await waitFor(function () {
+      return !!(window.FFP_PROVIDER && window.FFP_PROVIDER.id);
+    }, 30000);
+    if (!authed) { console.warn('[FFP Challenges] FFP_PROVIDER not set'); return; }
+
+    injectStyles();
 
     try {
       await refresh();
-      console.log('[FFP Admin Challenges v1] Loaded \u2713');
-    } catch (e) { console.error('[FFP Admin Challenges] init load:', e); }
+      console.log('[FFP Challenges v1] Loaded from Supabase \u2713');
+    } catch (e) {
+      console.error('[FFP Challenges] initial load:', e);
+    }
+
+    window.openChallengeModal     = realOpenChallengeModal;
+    window.saveChallenge          = realSaveChallenge;
+    window.confirmDeleteChallenge = realDeleteChallenge;
   }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
-  } else { init(); }
+  } else {
+    init();
+  }
 })();
