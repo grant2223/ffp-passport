@@ -709,12 +709,17 @@
     injectStyles();
 
     try {
-      var userRes = await window.supabase.auth.getUser();
-      if (userRes.error || !userRes.data || !userRes.data.user) {
-        console.log('[FFP Earnings] No user — keeping sample');
-        return;
+      // v20: Members authenticate with a custom JWT (sub = members.id), NOT a Supabase Auth
+      // user — so supabase.auth.getUser() FAILS for them and the whole loader used to bail
+      // (no layout move, no real data). Get the id from FFPAuth/localStorage instead; the
+      // client already carries the JWT so RLS/RPC resolve auth.uid() = members.id.
+      var meRec = null;
+      try { meRec = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || JSON.parse(localStorage.getItem('ffp_member') || 'null'); } catch (e) {}
+      currentUserId = meRec && meRec.id;
+      if (!currentUserId) {
+        try { var u = await window.supabase.auth.getUser(); if (u && u.data && u.data.user) currentUserId = u.data.user.id; } catch (e) {}
       }
-      currentUserId = userRes.data.user.id;
+      if (!currentUserId) { console.log('[FFP Earnings] no member id — keeping sample'); return; }
 
       // 1. Referral code from members
       var memRes = await window.supabase
