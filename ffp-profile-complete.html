@@ -1,11 +1,52 @@
 <!--
-FFP Profile Complete v21
+FFP Profile Complete v22
 Last updated: 31 May 2026
-v21: Back button reverted to plain text (no background box, still 15px + 44px tap area);
-     bumped "Your Sports" section label 10->13px and its helper text 12->15px (were tiny on mobile).
-v20: sports picker readability — bumped text sizes for mobile (search 16px/52px,
-     activity rows + names 16px, level cards 16px/desc 14px, subtitle 15px, taller rows).
-     [Platform-wide min readable-size standard to follow across member/provider/admin.]
+v22: FIXED sports-picker tap-offset bug. Picker was position:fixed, which the mobile
+     keyboard shifted so taps hit the row BELOW what you saw (tapping Search opened
+     "Walking"; Back only worked when pressed above it). Picker is now an in-flow
+     full-screen view (main page hidden behind it), keyboard is dismissed on open,
+     and a 350ms arm guard stops a stray tap from auto-selecting the first activity.
+     touch-action:manipulation added to kill the 300ms ghost-tap.
+     Also: Sports heading -> "Select a few of your interests" (18px), new description copy.
+v21: Back button plain text (no box, 15px, 44px tap area); "Your Sports" label 13px / helper 15px.
+-->
+
+<!--
+═══════════════════════════════════════════════════════════════════════
+     FFP PROFILE COMPLETE — v12
+     v12 changes (from v11, 2026-05-29):
+     - JWT bridge wired. Backend v13's /api/onboard/from-stripe now returns
+       a Supabase-compatible JWT alongside the member object. v12 loads
+       supabase-js + ffp-api-integration v8, then on successful onboard
+       hands the response to FFPApi.applyOnboardResponse() which stores
+       member + jwt + applies the Supabase session. The dashboard the
+       user lands on then has auth.uid() = member.id for RLS — same as a
+       returning signin via /login. Without this, brand-new signups would
+       land on the dashboard JWT-less and hit RLS errors on every loader.
+     v11 changes (from v10, 2026-05-28):
+     - Welcome title text: "Welcome, [name]" → "The Active Lifestyle Community"
+     - Welcome subtitle: "Let's complete your passport." → "Let's get your passport ready"
+     - The dynamic <span id="greet-name"> removed (no JS reference to it).
+     v10 changes (from v9, 2026-05-28):
+     - REMOVED visible "FFP Profile Complete v8" version marker div (was
+       rendering blue text at top of page to every user — violation of
+       no-visible-version-markers rule).
+     - REMOVED "Takes 2 minutes." from welcome subtitle.
+     - Layout: Nationality now sits alone on its own row, Country and
+       City pair together on the row below (per Grant's spec).
+       Final field order: GivenNames/Surname → DOB/Gender → Nationality
+       (alone) → Country/City.
+     v9 changes (from v8, 2026-05-28):
+     - Field order swap: Given Names FIRST, then Surname (per Grant)
+     - Placeholders "Goes" and "Grant" REMOVED from name inputs
+     - Date of Birth converted from single <input type="date"> to three
+       <select> dropdowns (Day / Month / Year) — cross-browser consistent
+     - Gender field ADDED (Male / Female / Other / Prefer not to say)
+     - Validation + submit payload updated to match new fields
+     NOTE: backend /api/onboard/from-stripe (v9) does NOT yet accept gender
+     in its req.body destructure — needs a small backend v10 update for
+     gender to actually persist to the members table. v9 frontend sends
+     gender regardless; backend silently drops it until v10 ships.
 ═══════════════════════════════════════════════════════════════════════
 -->
 <!DOCTYPE html>
@@ -95,7 +136,7 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 .sports-empty{padding:24px;text-align:center;font-size:12px;color:#6a90a8;border:1px dashed rgba(43,168,224,.22);border-radius:11px;background:rgba(43,168,224,.03);margin-bottom:12px;line-height:1.6;}
 
 /* Picker overlay */
-.picker{display:none;position:fixed;inset:0;background:#081420;z-index:100;overflow-y:auto;padding:32px 20px 60px;}
+.picker{display:none;background:#081420;padding:32px 20px 60px;min-height:100vh;}
 .picker.active{display:block;animation:fadeIn .2s ease;}
 .picker-wrap{width:100%;max-width:480px;margin:0 auto;}
 .picker-title{font-size:22px;font-weight:900;margin-bottom:6px;letter-spacing:-.3px;}
@@ -148,6 +189,7 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 .spinner{width:32px;height:32px;border:3px solid rgba(43,168,224,.2);border-top-color:#2ba8e0;border-radius:50%;animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .hidden{display:none !important;}
+button,input,.activity-row,.level-card,.btn-back{touch-action:manipulation;}
 </style>
 </head>
 <body>
@@ -392,8 +434,8 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
   Back
 </button>
 
-<div class="section-label">Your Sports</div>
-<div class="sports-helper">Add the sports you do and rate your level. Pick at least one — you can change these later.</div>
+<div class="section-label" style="font-size:18px;letter-spacing:.2px;text-transform:none;margin-bottom:8px;">Select a few of your interests</div>
+<div class="sports-helper">Select the activities you are interested in, along with your current skill level.</div>
 
 <div class="sports-list" id="sports-list"></div>
 
@@ -504,6 +546,7 @@ var currentSearch = '';
 var pickerMode = null;
 var pickerActivity = null;
 var pickerLevel = null;
+var pickerArmed = false; // guards against a stray tap auto-selecting on open
 
 
 // ─── Init ────────────────────────────────────────────────────────────────
@@ -691,14 +734,15 @@ function openSportPicker() {
   pickerLevel = null;
   currentSearch = '';
   currentCategory = 'All';
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   document.getElementById('sport-search').value = '';
-  document.querySelectorAll('.cat-chip').forEach(function (c) { c.classList.remove('active'); });
-  var allChip = document.querySelector('.cat-chip[data-cat="All"]');
-  if (allChip) allChip.classList.add('active');
   renderActivities();
   showPickerStage('sport');
+  document.getElementById('main-page').classList.add('hidden');
   document.getElementById('picker').classList.add('active');
-  document.body.style.overflow = 'hidden';
+  window.scrollTo(0, 0);
+  pickerArmed = false;
+  setTimeout(function () { pickerArmed = true; }, 350);
 }
 
 function openEditPicker(activityName) {
@@ -707,19 +751,24 @@ function openEditPicker(activityName) {
   pickerActivity = found || { n: activityName, c: 'Other' };
   var existing = selectedSports.find(function (s) { return s.name === activityName; });
   pickerLevel = existing ? existing.level : null;
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   document.getElementById('picker-sport-name').textContent = activityName;
   setLevelSelection(pickerLevel);
   showPickerStage('level');
+  document.getElementById('main-page').classList.add('hidden');
   document.getElementById('picker').classList.add('active');
-  document.body.style.overflow = 'hidden';
+  window.scrollTo(0, 0);
+  pickerArmed = true;
 }
 
 function closeSportPicker() {
   document.getElementById('picker').classList.remove('active');
+  document.getElementById('main-page').classList.remove('hidden');
   document.body.style.overflow = '';
   pickerMode = null;
   pickerActivity = null;
   pickerLevel = null;
+  window.scrollTo(0, 0);
 }
 
 // v18: Back is context-aware — on the level step it returns to the sport list,
@@ -736,6 +785,7 @@ function showPickerStage(stage) {
 }
 
 function pickActivity(activityName) {
+  if (!pickerArmed) return; // ignore the stray tap that can land right after the picker opens
   var found = ACTIVITIES_DB.find(function (a) { return a.n === activityName; });
   pickerActivity = found;
   pickerLevel = null;
