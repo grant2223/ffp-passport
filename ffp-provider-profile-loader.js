@@ -1,6 +1,7 @@
-/* FFP Provider Profile Loader — v5
-   v5 fix: kill the visible scrollbar on the panel (FFP rule: no native scrollbars anywhere).
-   Content still scrolls — only the visible bar is hidden via -webkit-scrollbar + scrollbar-width.
+/* FFP Provider Profile Loader — v6
+   v6: country + city use the shared FFPLocation cascade (assets/ffp-location-picker.js) —
+       no longer wraps pf-city as its own searchable picker; loads/saves provider.country.
+   v5: hide native scrollbar on the panel (content still scrolls).
 */
 (function () {
   'use strict';
@@ -134,7 +135,6 @@
     // Wire up the custom dark pickers on top of existing <select>s
     wrapSelectAsPicker('pf-category',  'Choose category');
     wrapSelectAsPicker('pf-type',      'Choose type');
-    wrapSelectAsPicker('pf-city',      'Choose city');
     wrapSelectAsPicker('pf-phone-cc',  'Code');
   }
 
@@ -251,6 +251,7 @@
       category:      p.category || '',
       provider_type: p.provider_type || '',
       city:          p.city || '',
+      country:       p.country || '',
       area:          p.area || '',
       address:       p.address || '',
       phone:         p.contact_phone || '',
@@ -283,6 +284,7 @@
     var category     = document.getElementById('pf-category').value;
     var providerType = document.getElementById('pf-type').value;
     var city         = document.getElementById('pf-city').value;
+    var country      = (document.getElementById('pf-country') || {}).value || '';
     var area         = (document.getElementById('pf-area').value || '').trim();
     var address      = (document.getElementById('pf-address').value || '').trim();
     var phone        = (typeof window.getPhoneValue === 'function') ? window.getPhoneValue() : '';
@@ -331,6 +333,7 @@
         category:       category,
         provider_type:  providerType || null,
         city:           city,
+        country:        country || null,
         area:           area || null,
         address:        address || null,
         contact_phone:  phone || null,
@@ -355,6 +358,7 @@
         providerProfile.category      = category;
         providerProfile.provider_type = providerType;
         providerProfile.city          = city;
+        providerProfile.country       = country;
         providerProfile.area          = area;
         providerProfile.address       = address;
         providerProfile.phone         = phone;
@@ -423,7 +427,7 @@
         if (profilePanel && profilePanel.classList.contains('active')) {
           try { window.loadProfile(); } catch (e) {}
           // After loadProfile, refresh picker labels (selects got new values)
-          ['pf-category', 'pf-type', 'pf-city', 'pf-phone-cc'].forEach(function (id) {
+          ['pf-category', 'pf-type', 'pf-phone-cc'].forEach(function (id) {
             var s = document.getElementById(id);
             if (s) refreshPickerLabel(s);
           });
@@ -443,7 +447,7 @@
     window.loadProfile = function () {
       try { origLoadProfile(); } catch (e) {}
       refineUI();
-      ['pf-category', 'pf-type', 'pf-city', 'pf-phone-cc'].forEach(function (id) {
+      ['pf-category', 'pf-type', 'pf-phone-cc'].forEach(function (id) {
         var s = document.getElementById(id);
         if (s) refreshPickerLabel(s);
       });
