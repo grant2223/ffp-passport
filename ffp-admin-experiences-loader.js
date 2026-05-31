@@ -272,7 +272,6 @@
     if (window.FFPRealtime) window.FFPRealtime.subscribe('admin-experiences', 'experiences', null, function () { refresh(); });
 
     try {
-      await refresh();
       console.log('[FFP Admin Experiences v1] Loaded \u2713');
     } catch (e) { console.error('[FFP Admin Experiences] init load:', e); }
   }
