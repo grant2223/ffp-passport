@@ -1,22 +1,33 @@
-/* FFP Realtime Helper — v1
+/* FFP Realtime Helper — v2
    Shared utility used by every loader to subscribe to Supabase postgres_changes.
    One consistent pattern across admin, provider, and member dashboards.
 
-   Usage in a loader:
-     FFPRealtime.subscribe('ffp-admin-deals', 'deals', null, refresh);
-     FFPRealtime.subscribe('ffp-member-events', 'rsvps', 'member_id=eq.' + uid, refresh);
-     FFPRealtime.subscribe('ffp-provider-checkins', 'claims', null, refresh);
+   v2 (2026-05-31) — FIX: authenticate the realtime SOCKET with our custom JWT.
+   ffp-api-integration applies the JWT as an HTTP Authorization header (for REST/RLS
+   reads) but the realtime websocket has its own auth and was connecting as ANON —
+   so RLS-protected tables delivered NO change events. v2 calls
+   supabase.realtime.setAuth(ffp_jwt) before subscribing, so the socket authenticates
+   as the member/admin and RLS policies (member_id = auth.uid() / is_admin / provider)
+   authorise the change stream. (Requires REPLICA IDENTITY FULL on the tables — done.)
 
-   Args:
-     channelName: unique string per panel (avoids dup subscriptions)
-     table:       table name in public schema
-     filter:      postgres-style filter string or null for all rows
-     callback:    runs on every INSERT/UPDATE/DELETE that matches
+   Usage in a loader:
+     FFPRealtime.subscribe('ffp-admin-events', 'events', null, refresh);
+     FFPRealtime.subscribe('ffp-member-events', 'rsvps', 'member_id=eq.' + uid, refresh);
 */
 (function () {
   'use strict';
 
   var channels = {};
+
+  function applyRealtimeAuth() {
+    try {
+      var jwt = localStorage.getItem('ffp_jwt');
+      if (jwt && window.supabase && window.supabase.realtime &&
+          typeof window.supabase.realtime.setAuth === 'function') {
+        window.supabase.realtime.setAuth(jwt);
+      }
+    } catch (e) { /* non-fatal */ }
+  }
 
   function waitForSupabase(cb) {
     if (window.supabase && typeof window.supabase.channel === 'function') {
@@ -29,6 +40,10 @@
   function doSubscribe(channelName, table, filter, callback) {
     if (channels[channelName]) return;
     try {
+      // v2: authenticate the realtime socket with the JWT so RLS-protected
+      // tables deliver changes (our JWT lives in localStorage, not a Supabase session).
+      applyRealtimeAuth();
+
       var config = { event: '*', schema: 'public', table: table };
       if (filter) config.filter = filter;
 
@@ -39,7 +54,7 @@
       });
       ch.subscribe(function (status) {
         if (status === 'SUBSCRIBED') {
-          console.log('[FFPRealtime] \u2713 ' + channelName + ' (table: ' + table + ', filter: ' + (filter || 'none') + ')');
+          console.log('[FFPRealtime] ✓ ' + channelName + ' (table: ' + table + ', filter: ' + (filter || 'none') + ')');
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           console.warn('[FFPRealtime] ' + status + ' for ' + channelName);
         }
