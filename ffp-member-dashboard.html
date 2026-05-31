@@ -1,5 +1,8 @@
 <!-- ════════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v160 (2026-05-31)
+     FFP MEMBER DASHBOARD — v161 (2026-05-31)
+     v161: removed ALL embedded reference lists (cities/activities/nationalities/fitness
+           levels/genders/phone codes/professional roles) — now read ONLY from the shared
+           assets/ffp-taxonomy.js (no inline duplicates). v160: pointed lists at FFP_TAX.
      v160: cities/activities/fitness-levels/nationalities now read the shared source
            assets/ffp-taxonomy.js (inline lists kept as fallback = no behaviour change).
            Single editable taxonomy across the platform. +ffp-taxonomy.js include.
@@ -6251,101 +6254,9 @@ const CITY_COORDS = {
   'Sapa': { lng: 103.84, lat: 22.34 }
 };
 
-const CITIES_DB = (window.FFP_TAX && window.FFP_TAX.cities) || {
-  'Argentina': ['Bariloche','Buenos Aires','Cordoba','El Calafate','Iguazu','Mendoza','Salta','Ushuaia'],
-  'Australia': ['Adelaide','Brisbane','Byron Bay','Cairns','Canberra','Darwin','Gold Coast','Hobart','Melbourne','Newcastle','Perth','Sunshine Coast','Sydney','Wollongong'],
-  'Austria': ['Bregenz','Graz','Hallstatt','Innsbruck','Kitzbuhel','Klagenfurt','Linz','Salzburg','Vienna'],
-  'Bahrain': ['Manama','Muharraq','Riffa'],
-  'Belgium': ['Antwerp','Bruges','Brussels','Ghent','Leuven','Liege','Mechelen','Namur'],
-  'Brazil': ['Brasilia','Buzios','Florianopolis','Fortaleza','Iguazu Falls','Manaus','Recife','Rio de Janeiro','Salvador','Sao Paulo'],
-  'Canada': ['Banff','Calgary','Edmonton','Halifax','Mont-Tremblant','Montreal','Niagara Falls','Ottawa','Quebec City','Toronto','Vancouver','Victoria','Whistler','Winnipeg'],
-  'Chile': ['Atacama','Easter Island','Patagonia','Pucon','Punta Arenas','Santiago','Valparaiso'],
-  'China': ['Beijing','Chengdu','Chongqing','Guangzhou','Hangzhou','Hong Kong','Lhasa','Macau','Sanya','Shanghai','Shenzhen','Suzhou','Xian'],
-  'Costa Rica': ['La Fortuna','Manuel Antonio','Monteverde','Puerto Viejo','San Jose','Tamarindo'],
-  'Czech Republic': ['Brno','Cesky Krumlov','Karlovy Vary','Liberec','Olomouc','Ostrava','Plzen','Prague'],
-  'Denmark': ['Aalborg','Aarhus','Copenhagen','Esbjerg','Helsingor','Odense','Roskilde'],
-  'Egypt': ['Alexandria','Aswan','Cairo','Dahab','Hurghada','Luxor','Marsa Alam','Sharm El Sheikh'],
-  'Finland': ['Espoo','Helsinki','Lapland','Oulu','Rovaniemi','Tampere','Turku','Vantaa'],
-  'France': ['Aix-en-Provence','Avignon','Biarritz','Bordeaux','Cannes','Chamonix','Lille','Lyon','Marseille','Montpellier','Nantes','Nice','Paris','Saint-Tropez','Strasbourg','Toulouse'],
-  'Germany': ['Baden-Baden','Berlin','Bremen','Cologne','Dresden','Dusseldorf','Frankfurt','Hamburg','Hannover','Heidelberg','Leipzig','Munich','Nuremberg','Stuttgart'],
-  'Greece': ['Athens','Corfu','Crete','Kos','Mykonos','Naxos','Paros','Patras','Rhodes','Santorini','Skiathos','Thessaloniki','Zakynthos'],
-  'Hungary': ['Budapest','Debrecen','Eger','Gyor','Miskolc','Pecs','Szeged'],
-  'Iceland': ['Akureyri','Hofn','Husavik','Keflavik','Reykjavik','Selfoss','Vik'],
-  'India': ['Agra','Bangalore','Chennai','Darjeeling','Goa','Hyderabad','Jaipur','Kerala','Kolkata','Mumbai','New Delhi','Pune','Rishikesh','Udaipur','Varanasi'],
-  'Indonesia': ['Bali','Bandung','Gili Islands','Jakarta','Komodo','Lombok','Seminyak','Surabaya','Ubud','Yogyakarta'],
-  'Ireland': ['Belfast','Cork','Dublin','Galway','Kilkenny','Killarney','Limerick','Waterford'],
-  'Israel': ['Eilat','Haifa','Jerusalem','Nazareth','Tel Aviv','Tiberias'],
-  'Italy': ['Amalfi','Bologna','Capri','Cinque Terre','Florence','Genoa','Lake Como','Milan','Naples','Palermo','Pisa','Positano','Rome','Sardinia','Sicily','Turin','Venice','Verona'],
-  'Japan': ['Fukuoka','Hakone','Hiroshima','Kanazawa','Kobe','Kyoto','Nagoya','Nara','Nikko','Niseko','Okinawa','Osaka','Sapporo','Sendai','Takayama','Tokyo','Yokohama'],
-  'Jordan': ['Amman','Aqaba','Dead Sea','Jerash','Petra','Wadi Rum'],
-  'Kenya': ['Diani Beach','Kisumu','Lamu','Maasai Mara','Mombasa','Nairobi','Nakuru'],
-  'Kuwait': ['Hawalli','Kuwait City','Salmiya'],
-  'Lebanon': ['Baalbek','Beirut','Byblos','Sidon','Tripoli'],
-  'Malaysia': ['Borneo','Ipoh','Johor Bahru','Kota Kinabalu','Kuala Lumpur','Kuching','Langkawi','Malacca','Penang'],
-  'Maldives': ['Hulhumale','Maafushi','Male'],
-  'Mexico': ['Cabo San Lucas','Cancun','Cozumel','Guadalajara','Isla Mujeres','Merida','Mexico City','Oaxaca','Playa del Carmen','Puerto Vallarta','Tulum'],
-  'Morocco': ['Agadir','Casablanca','Chefchaouen','Essaouira','Fez','Marrakech','Meknes','Rabat','Tangier'],
-  'Netherlands': ['Amsterdam','Delft','Eindhoven','Groningen','Haarlem','Leiden','Maastricht','Rotterdam','The Hague','Utrecht'],
-  'New Zealand': ['Auckland','Christchurch','Dunedin','Hamilton','Napier','Nelson','Queenstown','Rotorua','Tauranga','Wellington'],
-  'Norway': ['Alesund','Bergen','Geiranger','Lofoten','Oslo','Stavanger','Tromso','Trondheim'],
-  'Oman': ['Khasab','Muscat','Nizwa','Salalah','Sur'],
-  'Philippines': ['Boracay','Bohol','Cebu','Coron','Davao','El Nido','Manila','Palawan','Siargao'],
-  'Poland': ['Gdansk','Krakow','Lodz','Lublin','Poznan','Warsaw','Wroclaw','Zakopane'],
-  'Portugal': ['Albufeira','Azores','Braga','Cascais','Coimbra','Faro','Funchal','Lagos','Lisbon','Madeira','Porto','Sintra'],
-  'Qatar': ['Al Khor','Al Wakrah','Doha','Lusail'],
-  'Russia': ['Kazan','Moscow','Novosibirsk','Saint Petersburg','Sochi','Vladivostok','Yekaterinburg'],
-  'Saudi Arabia': ['AlUla','Dammam','Jeddah','Khobar','Mecca','Medina','NEOM','Riyadh'],
-  'Singapore': ['Singapore'],
-  'South Africa': ['Cape Town','Durban','Hermanus','Johannesburg','Knysna','Plettenberg Bay','Port Elizabeth','Pretoria','Stellenbosch'],
-  'South Korea': ['Busan','Daegu','Daejeon','Gwangju','Gyeongju','Incheon','Jeju','Seoul','Suwon'],
-  'Spain': ['Barcelona','Bilbao','Cordoba','Granada','Gran Canaria','Ibiza','Madrid','Malaga','Mallorca','Marbella','Salamanca','San Sebastian','Seville','Tenerife','Valencia'],
-  'Sri Lanka': ['Anuradhapura','Colombo','Ella','Galle','Kandy','Mirissa','Negombo','Nuwara Eliya'],
-  'Sweden': ['Gothenburg','Kiruna','Lapland','Lund','Malmo','Stockholm','Uppsala','Vasteras'],
-  'Switzerland': ['Basel','Bern','Davos','Geneva','Interlaken','Lausanne','Lucerne','Lugano','Montreux','St. Moritz','Zermatt','Zurich'],
-  'Taiwan': ['Hualien','Kaohsiung','Taichung','Tainan','Taipei','Taroko'],
-  'Tanzania': ['Arusha','Dar es Salaam','Kilimanjaro','Serengeti','Stone Town','Zanzibar'],
-  'Thailand': ['Bangkok','Chiang Mai','Chiang Rai','Hua Hin','Koh Phi Phi','Koh Samui','Koh Tao','Krabi','Pattaya','Phuket'],
-  'Turkey': ['Ankara','Antalya','Bodrum','Cappadocia','Fethiye','Istanbul','Izmir','Marmaris','Pamukkale'],
-  'United Arab Emirates': ['Abu Dhabi','Ajman','Al Ain','Dubai','Fujairah','Ras Al Khaimah','Sharjah','Umm Al Quwain'],
-  'United Kingdom': ['Aberdeen','Bath','Belfast','Birmingham','Brighton','Bristol','Cambridge','Cardiff','Edinburgh','Glasgow','Leeds','Liverpool','London','Manchester','Newcastle','Oxford','Sheffield','York'],
-  'United States': ['Aspen','Atlanta','Austin','Boston','Chicago','Dallas','Denver','Honolulu','Houston','Las Vegas','Los Angeles','Miami','Nashville','New Orleans','New York','Park City','Philadelphia','Phoenix','Portland','San Antonio','San Diego','San Francisco','Seattle','Washington DC'],
-  'Vietnam': ['Da Nang','Dalat','Halong Bay','Hanoi','Ho Chi Minh City','Hoi An','Hue','Nha Trang','Phu Quoc','Sapa']
-};
+const CITIES_DB = window.FFP_TAX.cities;
 
-const ACTIVITIES_DB = (window.FFP_TAX && window.FFP_TAX.activities) || [
-  {n:'Walk 2km',c:'Running & walking'},{n:'Walk 5km',c:'Running & walking'},{n:'Walk 10km',c:'Running & walking'},
-  {n:'Run 2km',c:'Running & walking'},{n:'Run 5km',c:'Running & walking'},{n:'Run 10km',c:'Running & walking'},
-  {n:'Half marathon',c:'Running & walking'},{n:'Marathon',c:'Running & walking'},{n:'Trail run',c:'Running & walking'},
-  {n:'Road cycling',c:'Cycling'},{n:'Mountain biking',c:'Cycling'},{n:'Indoor cycling',c:'Cycling'},{n:'Track cycling',c:'Cycling'},
-  {n:'Pool swim',c:'Swimming'},{n:'Open water swim',c:'Swimming'},{n:'Lap swim',c:'Swimming'},
-  {n:'Surfing',c:'Watersports'},{n:'Kitesurfing',c:'Watersports'},{n:'Stand-up paddleboard',c:'Watersports'},{n:'Sailing',c:'Watersports'},{n:'Kayaking',c:'Watersports'},{n:'Scuba diving',c:'Watersports'},
-  {n:'Tennis',c:'Racquet sports'},{n:'Padel',c:'Racquet sports'},{n:'Pickleball',c:'Racquet sports'},{n:'Squash',c:'Racquet sports'},{n:'Badminton',c:'Racquet sports'},
-  {n:'Football (soccer)',c:'Team sports'},{n:'Futsal',c:'Team sports'},{n:'American football',c:'Team sports'},{n:'Australian rules football',c:'Team sports'},
-  {n:'Basketball',c:'Team sports'},{n:'Baseball',c:'Team sports'},{n:'Cricket',c:'Team sports'},
-  {n:'Rugby union',c:'Team sports'},{n:'Rugby league',c:'Team sports'},{n:'Rugby sevens',c:'Team sports'},{n:'Touch rugby',c:'Team sports'},
-  {n:'Ice hockey',c:'Team sports'},{n:'Field hockey',c:'Team sports'},{n:'Lacrosse',c:'Team sports'},
-  {n:'Volleyball',c:'Team sports'},{n:'Beach volleyball',c:'Team sports'},{n:'Water polo',c:'Team sports'},
-  {n:'Netball',c:'Team sports'},{n:'Handball',c:'Team sports'},{n:'Kabaddi',c:'Team sports'},{n:'Dodgeball',c:'Team sports'},
-  {n:'Ultimate frisbee',c:'Team sports'},{n:'Curling',c:'Team sports'},
-  {n:'Boxing',c:'Combat sports'},{n:'Kickboxing',c:'Combat sports'},{n:'Muay Thai',c:'Combat sports'},
-  {n:'Brazilian Jiu-Jitsu',c:'Combat sports'},{n:'MMA',c:'Combat sports'},{n:'Judo',c:'Combat sports'},
-  {n:'Karate',c:'Combat sports'},{n:'Taekwondo',c:'Combat sports'},{n:'Wrestling',c:'Combat sports'},{n:'Fencing',c:'Combat sports'},
-  {n:'Strength training',c:'Strength & fitness'},{n:'Powerlifting',c:'Strength & fitness'},{n:'Olympic lifting',c:'Strength & fitness'},
-  {n:'CrossFit',c:'Strength & fitness'},{n:'HIIT',c:'Strength & fitness'},{n:'F45',c:'Strength & fitness'},
-  {n:'Functional training',c:'Strength & fitness'},{n:'Calisthenics',c:'Strength & fitness'},
-  {n:'Vinyasa yoga',c:'Mind-body'},{n:'Hot yoga',c:'Mind-body'},{n:'Yin yoga',c:'Mind-body'},
-  {n:'Pilates mat',c:'Mind-body'},{n:'Pilates reformer',c:'Mind-body'},{n:'Barre',c:'Mind-body'},
-  {n:'Meditation',c:'Mind-body'},{n:'Breathwork',c:'Mind-body'},{n:'Tai Chi',c:'Mind-body'},
-  {n:'Cryotherapy',c:'Recovery & wellness'},{n:'Ice bath',c:'Recovery & wellness'},{n:'Sauna',c:'Recovery & wellness'},
-  {n:'Infrared sauna',c:'Recovery & wellness'},{n:'Sports massage',c:'Recovery & wellness'},
-  {n:'Hiking',c:'Outdoor & adventure'},{n:'Mountain hike',c:'Outdoor & adventure'},{n:'Indoor climbing',c:'Outdoor & adventure'},
-  {n:'Outdoor climbing',c:'Outdoor & adventure'},{n:'Bouldering',c:'Outdoor & adventure'},
-  {n:'Skiing',c:'Snow sports'},{n:'Snowboarding',c:'Snow sports'},{n:'Cross-country skiing',c:'Snow sports'},
-  {n:'Golf round',c:'Golf'},{n:'Driving range',c:'Golf'},
-  {n:'Horse riding',c:'Equestrian'},{n:'Polo',c:'Equestrian'},
-  {n:'Skydiving',c:'Air & extreme'},{n:'Paragliding',c:'Air & extreme'},{n:'Bungee jump',c:'Air & extreme'},
-  {n:'Triathlon',c:'Multi-sport'},{n:'Ironman',c:'Multi-sport'},{n:'Hyrox',c:'Multi-sport'},{n:'Spartan',c:'Multi-sport'}
-];
+const ACTIVITIES_DB = window.FFP_TAX.activities;
 
 // ===== FILTER STATE =====
 // ===== MEMBER PASSPORT DATA =====
@@ -7069,16 +6980,7 @@ function setupPanelNav() {
 //   SPORTS & SKILL LEVELS  (× to remove each)
 //   PREFERENCES
 
-const NATIONALITIES = (window.FFP_TAX && window.FFP_TAX.nationalities) || [
-  'Argentinian','Australian','Austrian','Belgian','Brazilian','British','Bulgarian',
-  'Canadian','Chilean','Chinese','Colombian','Croatian','Czech','Danish','Dutch',
-  'Egyptian','Emirati','Filipino','Finnish','French','German','Greek','Hungarian',
-  'Indian','Indonesian','Irish','Israeli','Italian','Japanese','Jordanian','Kenyan',
-  'Kuwaiti','Lebanese','Malaysian','Mexican','Moroccan','New Zealander','Nigerian',
-  'Norwegian','Omani','Pakistani','Peruvian','Polish','Portuguese','Qatari','Romanian',
-  'Russian','Saudi Arabian','Singaporean','South African','South Korean','Spanish',
-  'Sri Lankan','Swedish','Swiss','Thai','Turkish','Ukrainian','American','Vietnamese'
-];
+const NATIONALITIES = window.FFP_TAX.nationalities;
 
 // Map nationality -> 3-letter ISO code (used on the passport card MRZ line)
 const NATIONALITY_ISO = {
@@ -7097,111 +6999,14 @@ const NATIONALITY_ISO = {
   'American':'USA','Vietnamese':'VNM'
 };
 
-const GENDERS = ['Male', 'Female', 'Non-binary', 'Prefer not to say'];
+const GENDERS = window.FFP_TAX.genders;
 
-const FFP_FITNESS_LEVELS = (window.FFP_TAX && window.FFP_TAX.fitnessLevels) || ['Beginner', 'Intermediate', 'Advanced', 'Elite', 'Professional'];
+const FFP_FITNESS_LEVELS = window.FFP_TAX.fitnessLevels;
 
 // FFP Professional Roles — full taxonomy (FFP-PROFESSIONAL-ROLES-TAXONOMY.md)
 // SKILL-SPECIFIC ONLY — no generic titles like "Personal Trainer" or "Sports Coach".
 // Member self-declares any number of roles. Admin verifies each role separately.
-const FFP_PROFESSIONAL_ROLES = {
-  'Strength & Body Composition': [
-    'Powerlifting Coach','Weightlifting Coach (Olympic)','Bodybuilding Coach',
-    'Strongman Coach','Calisthenics Coach','Kettlebell Coach','Gymnastic Strength Coach',
-    'Animal Flow Coach','Weight Loss Coach','Fat Loss Coach','Body Recomposition Coach',
-    'Lean Bulk Coach','Contest Prep Coach','Pre/Postnatal Strength Coach',
-    'Youth Strength Coach','Senior Strength Coach'
-  ],
-  'Functional & Conditioning': [
-    'CrossFit Coach','HIIT Coach','Plyometric Coach','Mobility Coach',
-    'Functional Training Coach','Bootcamp Coach','F45 Coach','Hyrox Coach',
-    'TRX / Suspension Coach','Sandbag Training Coach','Battle Rope Coach',
-    'Stability & Balance Coach'
-  ],
-  'Endurance & Running': [
-    'Running Coach','Trail Running Coach','Marathon Coach','Ultra Endurance Coach',
-    'Triathlon Coach','Cycling Coach','Mountain Bike Coach','Indoor Cycling / Spin Instructor',
-    'Speed & Agility Coach','Sprinting Coach','Track & Field Coach','Walking / Hiking Coach'
-  ],
-  'Sport-Specific Coaching': [
-    'Tennis Coach','Padel Coach','Pickleball Coach','Squash Coach','Badminton Coach',
-    'Table Tennis Coach','Football (Soccer) Coach','Futsal Coach','American Football Coach',
-    'Basketball Coach','Cricket Coach','Rugby Coach','Volleyball Coach',
-    'Beach Volleyball Coach','Baseball Coach','Field Hockey Coach','Ice Hockey Coach',
-    'Lacrosse Coach','Ultimate Frisbee Coach','Handball Coach','Golf Coach',
-    'Skateboarding Coach','BMX Coach','Equestrian Coach','Archery Coach','Shooting Coach'
-  ],
-  'Combat Sports & Martial Arts': [
-    'Boxing Coach','Muay Thai Coach','Kickboxing Coach','Brazilian Jiu-Jitsu Instructor',
-    'MMA Coach','Karate Sensei','Taekwondo Instructor','Judo Coach','Wrestling Coach',
-    'Krav Maga Instructor','Self-Defense Instructor','Fencing Coach','Capoeira Instructor',
-    'Aikido Instructor'
-  ],
-  'Yoga, Pilates & Movement': [
-    'Yoga Instructor (Hatha)','Yoga Instructor (Vinyasa)','Yoga Instructor (Ashtanga)',
-    'Hot Yoga Instructor','Yin Yoga Instructor','Aerial Yoga Instructor',
-    'Pilates Instructor (Mat)','Reformer Pilates Instructor','Barre Instructor',
-    'Pole Fitness Instructor','Movement Specialist','Posture Coach','Stretching Coach'
-  ],
-  'Dance & Rhythm': [
-    'Contemporary Dance Instructor','Choreographer','Ballet Teacher',
-    'Latin Dance Instructor','Hip Hop Dance Instructor','Ballroom Dance Instructor',
-    'Zumba Instructor'
-  ],
-  'Mind & Mental Performance': [
-    'Meditation Teacher','Mindfulness Coach','Breathwork Coach',
-    'Mental Performance Coach','Sports Psychologist','Mental Health Coach',
-    'Therapist / Counsellor','Hypnotherapist','Stress Management Coach','Life Coach'
-  ],
-  'Sports Therapy & Bodywork': [
-    'Physiotherapist','Sports Physiotherapist','Osteopath','Chiropractor',
-    'Sports Therapist','Biomechanics Specialist','Rehabilitation Coach',
-    'Injury Prevention Coach','Sports Doctor','Sports Scientist',
-    'Massage Therapist','Sports Massage Therapist','Deep Tissue Therapist',
-    'Stretching Therapist','Reflexologist'
-  ],
-  'Recovery & Wellness Practices': [
-    'Cryotherapy Specialist','Sauna / Heat Therapy Practitioner','Cold Exposure Practitioner',
-    'IV Therapy Specialist','Float Tank Therapist','Acupuncturist','Aromatherapist',
-    'Reiki Practitioner','Sound Healer','Energy Healer'
-  ],
-  'Nutrition & Health': [
-    'Nutritionist','Sports Nutritionist','Performance Nutritionist','Registered Dietitian',
-    'Holistic Nutrition Coach','Plant-Based Nutrition Coach','Health Coach','Wellness Coach',
-    'Holistic Health Practitioner','Naturopath','Sleep Coach','Hormone Coach',
-    'Gut Health Coach','Functional Medicine Practitioner'
-  ],
-  'Adventure & Outdoor': [
-    'Adventure Guide','Mountain Guide','Trekking Guide','Hiking Guide',
-    'Climbing Instructor','Bouldering Coach','Ski Instructor','Snowboard Instructor',
-    'Wilderness Instructor','Survival Instructor','Bike Tour Guide','Bushcraft Instructor',
-    'Canyoning Guide'
-  ],
-  'Watersports': [
-    'Swim Coach','Open Water Swim Coach','Surfing Instructor','Kitesurfing Instructor',
-    'Windsurfing Instructor','SUP (Paddleboard) Instructor','Sailing Instructor',
-    'Scuba Diving Instructor','Freediving Instructor','Spearfishing Guide',
-    'Wakeboard Coach','Watersports Guide','Lifeguard / Aquatic Safety',
-    'Underwater Photographer','Kayaking Instructor'
-  ],
-  'Industry & Business': [
-    'Studio Owner','Gym Owner','Brand Owner','Sports Apparel Brand','Supplement Brand',
-    'Equipment Brand','Event Organizer','Race Director','Tournament Organizer',
-    'Sports Photographer','Action Videographer','Sports Journalist','Sports Commentator',
-    'Sports Agent','Athlete Manager','Sports Marketing Specialist','Sponsorship Specialist',
-    'Sports PR'
-  ],
-  'Athletes & Creators': [
-    'Professional Athlete','Sponsored Athlete','National Team Athlete',
-    'Olympic / Paralympic Athlete','Adventure Athlete','Content Creator',
-    'Fitness Influencer','Wellness Influencer','Adventure Influencer',
-    'Author / Educator','Podcast Host','Public Speaker'
-  ],
-  'Other': [
-    'Entrepreneur','Investor','Consultant','Sports Tech Founder','Wellness Tech Founder',
-    'Researcher','Educator','Other'
-  ]
-};
+const FFP_PROFESSIONAL_ROLES = window.FFP_TAX.professionalRoles;
 
 const MONTHS = [
   { num: '01', short: 'JAN', long: 'January' },
@@ -7218,41 +7023,7 @@ const MONTHS = [
   { num: '12', short: 'DEC', long: 'December' }
 ];
 
-const COUNTRY_CODES = [
-  { code: '+971', country: 'United Arab Emirates' },
-  { code: '+93',  country: 'Afghanistan' },{ code: '+54',  country: 'Argentina' },
-  { code: '+61',  country: 'Australia' },{ code: '+43',  country: 'Austria' },
-  { code: '+973', country: 'Bahrain' },{ code: '+32',  country: 'Belgium' },
-  { code: '+55',  country: 'Brazil' },{ code: '+359', country: 'Bulgaria' },
-  { code: '+1',   country: 'Canada' },{ code: '+56',  country: 'Chile' },
-  { code: '+86',  country: 'China' },{ code: '+57',  country: 'Colombia' },
-  { code: '+385', country: 'Croatia' },{ code: '+420', country: 'Czech Republic' },
-  { code: '+45',  country: 'Denmark' },{ code: '+20',  country: 'Egypt' },
-  { code: '+358', country: 'Finland' },{ code: '+33',  country: 'France' },
-  { code: '+49',  country: 'Germany' },{ code: '+30',  country: 'Greece' },
-  { code: '+852', country: 'Hong Kong' },{ code: '+36',  country: 'Hungary' },
-  { code: '+91',  country: 'India' },{ code: '+62',  country: 'Indonesia' },
-  { code: '+98',  country: 'Iran' },{ code: '+353', country: 'Ireland' },
-  { code: '+972', country: 'Israel' },{ code: '+39',  country: 'Italy' },
-  { code: '+81',  country: 'Japan' },{ code: '+962', country: 'Jordan' },
-  { code: '+254', country: 'Kenya' },{ code: '+965', country: 'Kuwait' },
-  { code: '+961', country: 'Lebanon' },{ code: '+60',  country: 'Malaysia' },
-  { code: '+52',  country: 'Mexico' },{ code: '+212', country: 'Morocco' },
-  { code: '+31',  country: 'Netherlands' },{ code: '+64',  country: 'New Zealand' },
-  { code: '+234', country: 'Nigeria' },{ code: '+47',  country: 'Norway' },
-  { code: '+968', country: 'Oman' },{ code: '+92',  country: 'Pakistan' },
-  { code: '+51',  country: 'Peru' },{ code: '+63',  country: 'Philippines' },
-  { code: '+48',  country: 'Poland' },{ code: '+351', country: 'Portugal' },
-  { code: '+974', country: 'Qatar' },{ code: '+40',  country: 'Romania' },
-  { code: '+7',   country: 'Russia' },{ code: '+966', country: 'Saudi Arabia' },
-  { code: '+65',  country: 'Singapore' },{ code: '+27',  country: 'South Africa' },
-  { code: '+82',  country: 'South Korea' },{ code: '+34',  country: 'Spain' },
-  { code: '+94',  country: 'Sri Lanka' },{ code: '+46',  country: 'Sweden' },
-  { code: '+41',  country: 'Switzerland' },{ code: '+66',  country: 'Thailand' },
-  { code: '+90',  country: 'Turkey' },{ code: '+380', country: 'Ukraine' },
-  { code: '+44',  country: 'United Kingdom' },{ code: '+1',   country: 'United States' },
-  { code: '+84',  country: 'Vietnam' }
-];
+const COUNTRY_CODES = window.FFP_TAX.phoneCodes;
 
 // =====================================================================
 // UNIVERSAL PICKER
