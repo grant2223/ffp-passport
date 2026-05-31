@@ -1,10 +1,8 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v172 (2026-05-31)
-     v172: tier/balance/photo now read straight from the DB via the member's own Supabase
-           session on load (authoritative, never stale) so an admin Ambassador upgrade
-           shows on next open. Passport label stays TYPE (M/S/A). (Reverts the v171 TIER
-           label change.)
-     v170: referral share strap mobile fix; tap card to share w/ referral link; hide-DOB.
+     FFP MEMBER DASHBOARD — v174 (2026-06-01)
+     v174: Phone country code shown uniformly as FLAG + + + digits (e.g. 🇦🇪 +971),
+           in both the picker and the field, sourced from shared ffp-taxonomy.js (v4).
+     v173: phone code background removed + saves on pick; height save end-to-end (col+PUT).
      ════════════════════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="en">
@@ -625,8 +623,8 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
 .field-card-picker .pt-chevron { color: var(--blue); font-size: 20px; flex-shrink: 0; }
 
 /* Phone card sub-fields — always shown (no edit mode) */
-.field-card-phone .phone-cc { flex: 0 0 90px; display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; background: rgba(43,168,224,0.10); border: 1px solid var(--border-mid); border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 700; color: var(--text); transition: background 0.15s, border-color 0.15s; }
-.field-card-phone .phone-cc:hover { background: rgba(43,168,224,0.18); border-color: var(--blue); }
+.field-card-phone .phone-cc { flex: 0 0 90px; display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; background: transparent; border: 1px solid var(--border-mid); border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 700; color: var(--text); transition: background 0.15s, border-color 0.15s; }
+.field-card-phone .phone-cc:hover { background: transparent; border-color: var(--blue); }
 .field-card-phone .phone-cc .material-icons { font-size: 16px; color: var(--blue); margin-left: 2px; }
 .field-card-phone .phone-num { flex: 1; min-width: 0; }
 
@@ -7496,7 +7494,7 @@ const MemberProfile = {
         <div class="field-card-label-top">Phone</div>
         <div class="field-card-row">
           <button class="phone-cc" onclick="MemberProfile.pickPhoneCC()">
-            <span>${this.escape(this.data.phoneCountryCode)}</span>
+            <span>${this.escape(this.phoneCcDisplay())}</span>
             <span class="material-icons">arrow_drop_down</span>
           </button>
           <input type="tel"
@@ -7634,13 +7632,19 @@ const MemberProfile = {
   },
   
   // ===== PHONE COUNTRY CODE =====
+  // Uniform phone code display: flag + + + digits (e.g. "🇦🇪 +971"), from shared taxonomy.
+  phoneCcDisplay() {
+    var cc = this.data.phoneCountryCode || '';
+    try { var e = COUNTRY_CODES.find(function (x) { return x.code === cc; }); if (e && e.flag) return e.flag + ' ' + e.code; } catch (err) {}
+    return cc;
+  },
   pickPhoneCC() {
     openPicker({
       title: 'Country Code',
       searchPlaceholder: 'Search countries or codes...',
-      options: COUNTRY_CODES.map(c => ({ value: c.code, label: c.code, sub: c.country })),
+      options: COUNTRY_CODES.map(c => ({ value: c.code, label: (c.flag ? c.flag + ' ' : '') + c.code, sub: c.country })),
       current: this.data.phoneCountryCode,
-      onPick: (val) => { this.data.phoneCountryCode = val; this.render(); }
+      onPick: (val) => { this.data.phoneCountryCode = val; this.render(); this.autoSave(); }
     });
   },
   
