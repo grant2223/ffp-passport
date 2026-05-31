@@ -1,4 +1,7 @@
-/* FFP Admin Members Loader — v4 (2026-05-31)
+/* FFP Admin Members Loader — v5 (2026-05-31)
+   v5: realtime refresh is suppressed while an admin is editing a tier/expiry control, so
+       the expiry date picker is not destroyed mid-selection.
+   v4 (history):
    v4: event-driven fetch on confirmed admin session (ffp-admin-ready) — fixes empty list
        when the loader initialised before sign-in.
    v3 (history):
@@ -71,7 +74,13 @@
     console.log('[FFP Admin Members v4] ready');
 
     if (window.FFPRealtime) {
-      window.FFPRealtime.subscribe('admin-members', 'members', null, function () { refresh(); });
+      window.FFPRealtime.subscribe('admin-members', 'members', null, function () {
+        // v5: never rebuild the table while the admin is mid-edit on a tier/expiry control,
+        // or we'd wipe the open date picker. Re-render once they're done.
+        var ae = document.activeElement;
+        if (ae && ae.classList && (ae.classList.contains('tier-select') || ae.classList.contains('tier-expiry'))) return;
+        refresh();
+      });
     }
   }
 
