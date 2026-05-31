@@ -1,4 +1,4 @@
-/* FFP Provider Challenges Loader — v2
+/* FFP Provider Challenges Loader — v3 (realtime)
    v2: reference bare renderChallenges (global, not on window) so init + refresh work.
        (Live file had ADMIN loader code mis-deployed; this is the real provider one.)
    Wires the provider dashboard's Challenges panel to real Supabase data.
@@ -373,6 +373,17 @@
     window.openChallengeModal     = realOpenChallengeModal;
     window.saveChallenge          = realSaveChallenge;
     window.confirmDeleteChallenge = realDeleteChallenge;
+    // Real-time (self-inject the helper — provider dashboard doesn't load it — then subscribe)
+    (function () {
+      function go() {
+        var pid = window.FFP_PROVIDER && window.FFP_PROVIDER.id; if (!pid) return;
+        window.FFPRealtime.subscribe('provider-challenges', 'challenges', 'provider_id=eq.' + pid, function () { refresh(); });
+      }
+      if (window.FFPRealtime) { go(); return; }
+      var _ex = document.getElementById('ffp-realtime-js');
+      if (!_ex) { var _sc = document.createElement('script'); _sc.id = 'ffp-realtime-js'; _sc.src = 'assets/ffp-realtime.js'; _sc.onload = function () { if (window.FFPRealtime) go(); }; document.head.appendChild(_sc); }
+      else { var _n = 0, _t = setInterval(function () { if (window.FFPRealtime) { clearInterval(_t); go(); } else if (++_n > 60) clearInterval(_t); }, 100); }
+    })();
   }
 
   if (document.readyState === 'loading') {
