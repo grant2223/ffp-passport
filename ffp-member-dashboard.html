@@ -1,9 +1,9 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v176 (2026-06-01)
-     v176: 'Your progression' redesigned — clean title (no summary clutter), new descriptive
-           copy, and triangular gradient straps (blue->yellow, taller toward Ambassador) with
-           just the threshold numbers; removed counts, status pills and word labels.
-     v175: progression tracks the real 8 sections via member_tier_progress() RPC.
+     FFP MEMBER DASHBOARD — v178 (2026-06-01)
+     v178: progression bars are clean (numbers removed) — the detail (your current count +
+           Supporter/Ambassador targets) now lives in the tap-icon modal. Panel order set in
+           the loader: balance -> refer -> status -> progression -> How tiers/Ways.
+     v177: larger tappable icon + larger bar; tap icon -> explainer modal.
      ════════════════════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="en">
@@ -2340,13 +2340,15 @@ input[type="number"] {
 /* Progression: dual-threshold bars */
 .progression-list { display: flex; flex-direction: column; gap: 4px; }
 .prog-strap { display: flex; align-items: center; gap: 10px; padding: 8px 2px; }
-.prog-strap-icon { width: 26px; height: 26px; border-radius: 7px; background: rgba(43,168,224,0.12); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.prog-strap-icon .material-icons { font-size: 15px; color: var(--blue); }
+.prog-strap-icon { width: 38px; height: 38px; border-radius: 10px; background: rgba(43,168,224,0.12); border: 1px solid rgba(43,168,224,0.22); display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; padding: 0; transition: background .15s, transform .1s; }
+.prog-strap-icon:hover { background: rgba(43,168,224,0.22); }
+.prog-strap-icon:active { transform: scale(0.93); }
+.prog-strap-icon .material-icons { font-size: 21px; color: var(--blue); }
 .prog-strap.at-amb .prog-strap-icon { background: rgba(255,204,0,0.20); }
 .prog-strap.at-amb .prog-strap-icon .material-icons { color: var(--yellow); }
 .prog-strap-name { width: 112px; flex-shrink: 0; font-size: 11.5px; font-weight: 700; color: var(--text); line-height: 1.2; }
-.prog-wedge { position: relative; flex: 1; height: 26px; }
-.prog-wedge-bg, .prog-wedge-clip { position: absolute; left: 0; right: 0; top: 0; bottom: 8px; clip-path: polygon(0 72%, 100% 4%, 100% 100%, 0 100%); }
+.prog-wedge { position: relative; flex: 1; height: 34px; }
+.prog-wedge-bg, .prog-wedge-clip { position: absolute; left: 0; right: 0; top: 0; bottom: 0; clip-path: polygon(0 72%, 100% 4%, 100% 100%, 0 100%); }
 .prog-wedge-bg { background: rgba(125,160,180,0.13); }
 .prog-wedge-fill { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #2ba8e0 0%, #62c7ef 45%, #FFCC00 100%); border-right: 2px solid rgba(255,255,255,0.7); transition: width .55s cubic-bezier(.2,.7,.2,1); }
 .prog-tick { position: absolute; bottom: -2px; font-size: 9px; font-weight: 800; }
@@ -5496,6 +5498,27 @@ input[type="number"] {
   </div>
 </div>
 
+<!-- v177 — tap a progression icon to learn how to progress that discipline -->
+<div id="section-info-modal" onclick="if(event.target===this)Earnings.closeSectionInfo()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:9500;align-items:center;justify-content:center;padding:20px;">
+  <div style="width:100%;max-width:380px;background:#0f1e2e;border:1px solid rgba(43,168,224,.25);border-radius:16px;padding:22px;color:#e8eef4;font-family:'Montserrat',sans-serif;text-align:center;">
+    <div style="width:54px;height:54px;border-radius:14px;background:rgba(43,168,224,.15);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;"><span class="material-icons" id="si-icon" style="font-size:28px;color:#2ba8e0;">flag</span></div>
+    <div id="si-title" style="font-size:18px;font-weight:900;margin-bottom:8px;">—</div>
+    <div id="si-blurb" style="font-size:13px;color:#9dbdd0;line-height:1.55;margin-bottom:14px;">—</div>
+    <div id="si-current" style="font-size:13px;font-weight:800;color:#e8eef4;margin-bottom:16px;">—</div>
+    <div style="display:flex;gap:10px;margin-bottom:14px;">
+      <div style="flex:1;background:rgba(43,168,224,.10);border:1px solid rgba(43,168,224,.35);border-radius:12px;padding:12px 8px;">
+        <div id="si-sup" style="font-size:24px;font-weight:900;color:#2ba8e0;">—</div>
+        <div style="font-size:10px;font-weight:800;letter-spacing:.5px;color:#9dbdd0;text-transform:uppercase;margin-top:2px;">for Supporter</div>
+      </div>
+      <div style="flex:1;background:rgba(255,204,0,.10);border:1px solid rgba(255,204,0,.4);border-radius:12px;padding:12px 8px;">
+        <div id="si-amb" style="font-size:24px;font-weight:900;color:#FFCC00;">—</div>
+        <div style="font-size:10px;font-weight:800;letter-spacing:.5px;color:#9dbdd0;text-transform:uppercase;margin-top:2px;">for Ambassador</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:#6a90a8;line-height:1.5;margin-bottom:16px;">Counted over the last 30 days. Reach the level in 4 of 8 sections to unlock that overall status.</div>
+    <button onclick="Earnings.closeSectionInfo()" style="width:100%;padding:12px;border-radius:10px;background:#FFCC00;color:#081420;font-weight:800;border:none;cursor:pointer;font-family:inherit;">Got it</button>
+  </div>
+</div>
 <!-- v87 — Refer a friend modal -->
 <div class="detail-backdrop" id="refer-modal-backdrop" onclick="closeReferModalIfBackdrop(event)">
   <div class="detail-modal" style="max-width:420px;" role="dialog" aria-modal="true">
@@ -9955,14 +9978,14 @@ const Earnings = {
   // v175: the 8 tracked sections, each with its OWN Supporter/Ambassador target
   // (mirrors assets/ffp-tiers.js). Counts come from the member_tier_progress() RPC.
   categories: [
-    { key: 'members_referred',     label: 'Members referred',     icon: 'group_add',      current: 0, supporter: 2, ambassador: 8 },
-    { key: 'connections_made',     label: 'Connections made',     icon: 'handshake',      current: 0, supporter: 2, ambassador: 8 },
-    { key: 'meetups_hosted',       label: 'Meet-ups hosted',      icon: 'groups',         current: 0, supporter: 1, ambassador: 4 },
-    { key: 'provider_checkins',    label: 'Providers visited',    icon: 'storefront',     current: 0, supporter: 2, ambassador: 8 },
-    { key: 'quests_completed',     label: 'Quests completed',     icon: 'flag',           current: 0, supporter: 1, ambassador: 2 },
-    { key: 'events_attended',      label: 'Events attended',      icon: 'event',          current: 0, supporter: 1, ambassador: 4 },
-    { key: 'activities_logged',    label: 'Activities logged',    icon: 'fitness_center', current: 0, supporter: 8, ambassador: 24 },
-    { key: 'challenges_completed', label: 'Challenges completed', icon: 'whatshot',       current: 0, supporter: 2, ambassador: 4 }
+    { key: 'members_referred',     label: 'Members referred',     icon: 'group_add',      current: 0, supporter: 2, ambassador: 8,  blurb: 'Refer friends who join and pay — they sign up through your personal link.' },
+    { key: 'connections_made',     label: 'Connections made',     icon: 'handshake',      current: 0, supporter: 2, ambassador: 8,  blurb: 'Connect with other members you meet on the platform.' },
+    { key: 'meetups_hosted',       label: 'Meet-ups hosted',      icon: 'groups',         current: 0, supporter: 1, ambassador: 4,  blurb: 'Host meet-ups that other members come along to.' },
+    { key: 'provider_checkins',    label: 'Providers visited',    icon: 'storefront',     current: 0, supporter: 2, ambassador: 8,  blurb: 'Check in at partner venues — each different provider counts once.' },
+    { key: 'quests_completed',     label: 'Quests completed',     icon: 'flag',           current: 0, supporter: 1, ambassador: 2,  blurb: 'Finish quests across the platform.' },
+    { key: 'events_attended',      label: 'Events attended',      icon: 'event',          current: 0, supporter: 1, ambassador: 4,  blurb: 'Attend events you RSVP to.' },
+    { key: 'activities_logged',    label: 'Activities logged',    icon: 'fitness_center', current: 0, supporter: 8, ambassador: 24, blurb: 'Log what you do — gym, sport, a walk, stretch or recovery.' },
+    { key: 'challenges_completed', label: 'Challenges completed', icon: 'whatshot',       current: 0, supporter: 2, ambassador: 4,  blurb: 'Complete challenges you enter.' }
   ],
   
   SUPPORTER_THRESHOLD: 2,          // need 2+ in a category to count toward Supporter
@@ -10085,6 +10108,25 @@ const Earnings = {
   },
   
   rateForWay(way) { return way.rates[this.tier]; },
+
+  // v177 — explain a progression discipline + its Supporter/Ambassador targets
+  openSectionInfo(key) {
+    var c = (this.categories || []).find(function (x) { return x.key === key; });
+    if (!c) return;
+    document.getElementById('si-icon').textContent = c.icon;
+    document.getElementById('si-title').textContent = c.label;
+    document.getElementById('si-blurb').textContent = c.blurb || '';
+    document.getElementById('si-sup').textContent = c.supporter;
+    document.getElementById('si-amb').textContent = c.ambassador;
+    var lvl = (c.current >= c.ambassador) ? 'Ambassador level reached ✓'
+            : (c.current >= c.supporter) ? 'Supporter level reached ✓'
+            : (c.current > 0 ? 'Keep going!' : 'Not started yet');
+    document.getElementById('si-current').textContent = 'You: ' + c.current + ' in the last 30 days · ' + lvl;
+    document.getElementById('section-info-modal').style.display = 'flex';
+  },
+  closeSectionInfo() {
+    var m = document.getElementById('section-info-modal'); if (m) m.style.display = 'none';
+  },
   
   // ─────────── RENDER ───────────
   render() {
@@ -10163,13 +10205,10 @@ const Earnings = {
       const supPct  = Math.min(100, (c.supporter / max) * 100);
       return `
         <div class="prog-strap ${atAmb ? 'at-amb' : (atSup ? 'at-sup' : '')}">
-          <span class="prog-strap-icon"><span class="material-icons">${c.icon}</span></span>
-          <span class="prog-strap-name">${escHtml(c.label)}</span>
+          <button class="prog-strap-icon" onclick="Earnings.openSectionInfo('${c.key}')" aria-label="${escHtml(c.label)} — how to progress"><span class="material-icons">${c.icon}</span></button>
           <span class="prog-wedge">
             <span class="prog-wedge-bg"></span>
             <span class="prog-wedge-clip"><span class="prog-wedge-fill" style="width:${fillPct}%;"></span></span>
-            <span class="prog-tick sup" style="left:${supPct}%;">${c.supporter}</span>
-            <span class="prog-tick amb">${c.ambassador}</span>
           </span>
         </div>
       `;
