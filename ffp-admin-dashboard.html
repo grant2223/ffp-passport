@@ -10,8 +10,10 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/ffp-api-integration.js"></script>
+  <script src="assets/ffp-realtime.js"></script>
 <script src="ffp-admin-auth.js"></script>
 <script src="ffp-admin-providers-loader.js"></script>
+  <script src="ffp-admin-overview-loader.js"></script>
 <script src="ffp-admin-payouts-loader.js"></script>
 <script src="ffp-admin-quests-loader.js"></script>
 <script src="ffp-admin-events-loader.js"></script>
@@ -1369,102 +1371,93 @@ input, select, textarea { font-family: inherit; }
       <div class="panel-head">
         <h1>Overview</h1>
         <div class="panel-head-actions">
-          <button class="btn btn-outline" onclick="showToast('Refreshed')"><span class="material-icons">refresh</span>Refresh</button>
+          <button class="btn btn-outline" onclick="window.FFPAdminOverview && window.FFPAdminOverview.refresh()"><span class="material-icons">refresh</span>Refresh</button>
         </div>
       </div>
-      
-      <!-- KPIs -->
+
+      <!-- KPIs (values filled by ffp-admin-overview-loader) -->
       <div class="kpi-grid">
         <div class="kpi-tile">
           <div class="kpi-label">Total Members</div>
-          <div class="kpi-value" id="kpi-total-members">147</div>
-          <div class="kpi-delta up"><span class="material-icons">trending_up</span>+12 this week</div>
+          <div class="kpi-value" id="kpi-total-members">—</div>
         </div>
         <div class="kpi-tile">
           <div class="kpi-label">Active 30 days</div>
-          <div class="kpi-value" id="kpi-active">98</div>
-          <div class="kpi-delta up"><span class="material-icons">trending_up</span>67% engagement</div>
+          <div class="kpi-value" id="kpi-active">—</div>
+          <div class="kpi-delta"></div>
         </div>
         <div class="kpi-tile">
           <div class="kpi-label">MRR</div>
-          <div class="kpi-value f-tabular"><span style="font-size:14px; color:var(--muted);">AED</span> 6,103</div>
-          <div class="kpi-delta up"><span class="material-icons">trending_up</span>+AED 499 this week</div>
+          <div class="kpi-value f-tabular" id="kpi-mrr">—</div>
         </div>
         <div class="kpi-tile">
           <div class="kpi-label">Approved Providers</div>
-          <div class="kpi-value" id="kpi-providers">24</div>
-          <div class="kpi-delta up"><span class="material-icons">trending_up</span>3 pending</div>
+          <div class="kpi-value" id="kpi-providers">—</div>
+          <div class="kpi-delta"></div>
         </div>
       </div>
-      
-      <!-- Action Queue -->
+
+      <!-- Action Queue (counts + meta filled by loader) -->
       <div class="section">
         <div class="section-head">
           <div class="section-title">Action Queue</div>
-          <span class="section-count">14 items</span>
+          <span class="section-count" id="queue-total-count"></span>
         </div>
         <div class="section-body padded">
           <div class="queue-grid">
-            <div class="queue-card urgent" onclick="App.go('panel-providers')">
+            <div class="queue-card" onclick="App.go('panel-providers')">
               <div class="queue-card-head">
                 <div class="queue-card-icon"><span class="material-icons">storefront</span></div>
                 <div class="queue-card-title">Provider applications</div>
               </div>
-              <div class="queue-card-count">3</div>
-              <div class="queue-card-meta">Awaiting review &middot; oldest 2 days</div>
+              <div class="queue-card-count"></div>
+              <div class="queue-card-meta"></div>
             </div>
-            <div class="queue-card urgent" onclick="App.go('panel-payouts')">
+            <div class="queue-card" onclick="App.go('panel-payouts')">
               <div class="queue-card-head">
                 <div class="queue-card-icon"><span class="material-icons">account_balance</span></div>
                 <div class="queue-card-title">Payout requests</div>
               </div>
-              <div class="queue-card-count">2</div>
-              <div class="queue-card-meta">AED 1,250 total</div>
+              <div class="queue-card-count"></div>
+              <div class="queue-card-meta"></div>
             </div>
             <div class="queue-card" onclick="App.go('panel-content')">
               <div class="queue-card-head">
                 <div class="queue-card-icon"><span class="material-icons">rate_review</span></div>
                 <div class="queue-card-title">Content submissions</div>
               </div>
-              <div class="queue-card-count">5</div>
-              <div class="queue-card-meta">3 reviews &middot; 2 posts</div>
+              <div class="queue-card-count"></div>
+              <div class="queue-card-meta"></div>
             </div>
             <div class="queue-card" onclick="App.go('panel-referrals')">
               <div class="queue-card-head">
                 <div class="queue-card-icon"><span class="material-icons">group_add</span></div>
                 <div class="queue-card-title">Referrals to verify</div>
               </div>
-              <div class="queue-card-count">4</div>
-              <div class="queue-card-meta">All paid signups</div>
+              <div class="queue-card-count"></div>
+              <div class="queue-card-meta"></div>
             </div>
           </div>
         </div>
       </div>
-      
-      <!-- Recent Activity -->
+
+      <!-- Recent Activity (rows filled by loader) -->
       <div class="section">
         <div class="section-head">
           <div class="section-title">Recent activity</div>
-          <span class="section-count">Last 24 hours</span>
+          <span class="section-count">Latest</span>
         </div>
         <div class="section-body">
           <table class="table">
             <thead>
               <tr><th>When</th><th>Who</th><th>What</th></tr>
             </thead>
-            <tbody id="activity-feed">
-              <tr><td class="text-muted nowrap">2 min ago</td><td><span class="cell-avatar">S</span><span class="cell-name">Sarah K.</span></td><td>Signed up &middot; <span class="text-yellow">AED 499 paid</span></td></tr>
-              <tr><td class="text-muted nowrap">14 min ago</td><td><span class="cell-avatar" style="background:var(--yellow); color:#0a0a0a;">A</span><span class="cell-name">Ace Padel Club</span></td><td>Submitted provider application</td></tr>
-              <tr><td class="text-muted nowrap">28 min ago</td><td><span class="cell-avatar">M</span><span class="cell-name">Mike H.</span></td><td>Requested payout &middot; <span class="text-yellow">AED 750</span></td></tr>
-              <tr><td class="text-muted nowrap">42 min ago</td><td><span class="cell-avatar">P</span><span class="cell-name">Priya R.</span></td><td>Claimed deal at <strong>Cryo Recovery DXB</strong></td></tr>
-              <tr><td class="text-muted nowrap">1h ago</td><td><span class="cell-avatar">L</span><span class="cell-name">Layla M.</span></td><td>Created Meet &amp; Move &middot; Sunrise yoga</td></tr>
-              <tr><td class="text-muted nowrap">2h ago</td><td><span class="cell-avatar" style="background:var(--yellow); color:#0a0a0a;">F</span><span class="cell-name">Forge Fitness</span></td><td>Added new deal &middot; pending approval</td></tr>
-            </tbody>
+            <tbody id="activity-feed"></tbody>
           </table>
         </div>
       </div>
     </section>
-    
+
     <!-- ========== PROVIDERS ========== -->
     <section class="panel" id="panel-providers">
       <div class="panel-head">
