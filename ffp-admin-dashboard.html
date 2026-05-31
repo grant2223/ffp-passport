@@ -4,10 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FFP Admin Dashboard</title>
-<!-- FFP ADMIN DASHBOARD — v21 (2026-05-31): Taxonomies panel now shows REAL counts from
-     assets/ffp-taxonomy.js (cities/countries/activities/categories) + categories from
-     ffp-constants.js. v20: Settings + provider-categories sourced from ffp-constants.js
-     (USD $99 / $250 / 5-10-20%); was demo AED. -->
+<!-- FFP ADMIN DASHBOARD — v22 (2026-05-31): FIX — lazy panels were injecting their loader
+     script but never fetching (router didn't call the bound refresh/init), so Members/Events/
+     Referrals/etc. opened EMPTY. v22 polls for the panel module's refresh()/init() after the
+     loader binds it and calls it once → panels load real data. v21: Taxonomies real counts
+     from ffp-taxonomy.js; Settings/categories from ffp-constants.js. -->
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -2155,17 +2156,46 @@ const App = {
     'panel-meetups':      'ffp-admin-meetups-loader.js',
     'panel-analytics':    'ffp-admin-analytics-loader.js'
   },
+  // v22: which module each panel's loader binds (refresh/init). The loader only BINDS
+  // these during its async init; the router must call them so the panel actually fetches.
+  _modGetter: {
+    'panel-members':      function () { return (typeof AdminMembers      !== 'undefined') ? AdminMembers      : null; },
+    'panel-events':       function () { return (typeof AdminEvents       !== 'undefined') ? AdminEvents       : null; },
+    'panel-experiences':  function () { return (typeof AdminExperiences  !== 'undefined') ? AdminExperiences  : null; },
+    'panel-challenges':   function () { return (typeof AdminChallenges   !== 'undefined') ? AdminChallenges   : null; },
+    'panel-referrals':    function () { return (typeof AdminReferrals    !== 'undefined') ? AdminReferrals    : null; },
+    'panel-meetups':      function () { return (typeof AdminMeetups      !== 'undefined') ? AdminMeetups      : null; },
+    'panel-content':      function () { return (typeof AdminContent      !== 'undefined') ? AdminContent      : null; },
+    'panel-providers':    function () { return (typeof AdminProviders    !== 'undefined') ? AdminProviders    : null; },
+    'panel-payouts':      function () { return (typeof AdminPayouts      !== 'undefined') ? AdminPayouts      : null; },
+    'panel-applications': function () { return (typeof AdminApplications !== 'undefined') ? AdminApplications : null; },
+    'panel-feedback':     function () { return (typeof AdminFeedback     !== 'undefined') ? AdminFeedback     : null; },
+    'panel-analytics':    function () { return (typeof Analytics         !== 'undefined') ? Analytics         : null; }
+  },
   _lazyInit(panelId) {
     if (this._opened[panelId]) return;
     var src = this._panelScript[panelId];
     if (!src) return;                 // overview/taxonomies/settings need no loader
     this._opened[panelId] = true;
+    var getter = this._modGetter[panelId];
     try {
       var sc = document.createElement('script');
       sc.src = src; sc.async = false;
       sc.onload = function () {
+        // The loader binds Module.refresh during its async init; the router only injects
+        // the script, so poll for the bound fn and call it once → the panel fetches.
+        if (getter) {
+          var tries = 0;
+          var iv = setInterval(function () {
+            tries++;
+            var m = null; try { m = getter(); } catch (e) {}
+            var fn = m && (m.refresh || m.init);
+            if (typeof fn === 'function') { clearInterval(iv); try { fn.call(m); } catch (e) {} }
+            else if (tries > 100) clearInterval(iv);
+          }, 80);
+        }
         if (panelId === 'panel-analytics') {
-          setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 80);
+          setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 200);
         }
       };
       sc.onerror = function () { console.error('[FFP] failed to load ' + src); };
