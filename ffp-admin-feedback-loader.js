@@ -108,9 +108,10 @@
   async function init() {
     var ok = await waitFor(function () { return window.supabase && document.getElementById('feedback-tbody'); }, 15000);
     if (!ok) { console.error('[FFP Admin Feedback] deps never loaded'); return; }
-    await waitFor(function () { return window.FFP_ADMIN || (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()); }, 20000);
     window.AdminFeedback = AF;
-    try { await AF.refresh(); console.log('[FFP Admin Feedback v1] loaded ✓'); } catch (e) { console.error(e); }
+    // v2: event-driven — load on confirmed admin session, never unauthenticated.
+    document.addEventListener('ffp-admin-ready', function () { AF.refresh(); });
+    if (window.FFP_ADMIN) { try { await AF.refresh(); } catch (e) { console.error(e); } }
     if (window.FFPRealtime) {
       window.FFPRealtime.subscribe('admin-feedback', 'feedback', null, function () { AF.refresh(); });
     }
