@@ -1,9 +1,9 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v179 (2026-06-01)
-     v179: Progression modals clearer — dropped the current-count line; targets now read
-           e.g. "2 referrals" / "8 referrals" (unit per discipline); footer note changed to
-           "Keep these active within a 30-day period to maintain your status." (all 8).
-     v178: clean bars (numbers moved to modal); order balance->refer->status->progression->How/Ways.
+     FFP MEMBER DASHBOARD — v180 (2026-06-01)
+     v180: progression modal target boxes drop the 'Supporter'/'Ambassador' words — colour
+           conveys the tier (blue = Supporter, yellow = Ambassador). Each box now reads e.g.
+           '8 ACTIVITIES' (blue) / '24 ACTIVITIES' (yellow).
+     v179: modal targets show number + unit; footer 'Keep these active within 30 days...'.
      ════════════════════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="en">
@@ -5505,13 +5505,11 @@ input[type="number"] {
     <div id="si-title" style="font-size:18px;font-weight:900;margin-bottom:8px;">—</div>
     <div id="si-blurb" style="font-size:13px;color:#9dbdd0;line-height:1.55;margin-bottom:16px;">—</div>
     <div style="display:flex;gap:10px;margin-bottom:14px;">
-      <div style="flex:1;background:rgba(43,168,224,.10);border:1px solid rgba(43,168,224,.35);border-radius:12px;padding:14px 8px;">
-        <div style="font-size:22px;font-weight:900;color:#2ba8e0;line-height:1;"><span id="si-sup">—</span> <span id="si-sup-unit" style="font-size:12px;font-weight:700;color:#9dbdd0;">—</span></div>
-        <div style="font-size:11px;font-weight:800;letter-spacing:.5px;color:#2ba8e0;text-transform:uppercase;margin-top:6px;">Supporter</div>
+      <div style="flex:1;background:rgba(43,168,224,.10);border:1px solid rgba(43,168,224,.35);border-radius:12px;padding:18px 8px;display:flex;align-items:center;justify-content:center;">
+        <div style="font-size:20px;font-weight:900;color:#2ba8e0;line-height:1.15;text-transform:uppercase;letter-spacing:.3px;"><span id="si-sup">—</span> <span id="si-sup-unit">—</span></div>
       </div>
-      <div style="flex:1;background:rgba(255,204,0,.10);border:1px solid rgba(255,204,0,.4);border-radius:12px;padding:14px 8px;">
-        <div style="font-size:22px;font-weight:900;color:#FFCC00;line-height:1;"><span id="si-amb">—</span> <span id="si-amb-unit" style="font-size:12px;font-weight:700;color:#9dbdd0;">—</span></div>
-        <div style="font-size:11px;font-weight:800;letter-spacing:.5px;color:#FFCC00;text-transform:uppercase;margin-top:6px;">Ambassador</div>
+      <div style="flex:1;background:rgba(255,204,0,.10);border:1px solid rgba(255,204,0,.4);border-radius:12px;padding:18px 8px;display:flex;align-items:center;justify-content:center;">
+        <div style="font-size:20px;font-weight:900;color:#FFCC00;line-height:1.15;text-transform:uppercase;letter-spacing:.3px;"><span id="si-amb">—</span> <span id="si-amb-unit">—</span></div>
       </div>
     </div>
     <div style="font-size:11px;color:#6a90a8;line-height:1.5;margin-bottom:16px;">Keep these active within a 30-day period to maintain your status.</div>
