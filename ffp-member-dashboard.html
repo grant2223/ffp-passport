@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v205 (2026-06-01)
+<!-- FFP MEMBER DASHBOARD — v206 (2026-06-01)
+     v206: ROOT-CAUSE FIX for "modal not full-screen on mobile" — full-screen rule used height:100%, which
+           iOS Safari ignores on a fixed parent (modal collapsed to a centered box). Now uses min-height:100vh
+           + overflow-y:auto, matching the Post-a-Meetup modal that works. Log Activity Date & Time back on ONE
+           line (.log-row2, never stacks; min-width:0 prevents the v204 overlap). Taxonomy confirmed: Log Activity
+           activity + country/city read from the SAME assets/ffp-taxonomy.js (FFP_TAX) as every other form.
      v205: FIX Post-a-Meetup modal not opening — regression from the v203 date swap left dead references
            (hrS/mnS/dayS/monS/yrS/apS) in openPostForm that threw a ReferenceError before the modal opened.
            Removed the dead time-select + default-setting code. (Host-in-"Who's going" is already handled by
@@ -2952,8 +2957,10 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 /* v203: data-entry & content modals fill the screen on mobile (Log activity, Add city, PIN, pickers, detail cards).
    Small yes/no confirms (#confirm-backdrop / .confirm-modal) stay a centered dialog on purpose. */
 @media (max-width: 640px) {
-  .modal-overlay { padding: 0; align-items: stretch; }
-  .modal-overlay > .modal { max-width: 100%; width: 100%; height: 100%; max-height: 100%; border-radius: 0; border: none; }
+  /* v206: use min-height:100vh (NOT height:100%) — iOS Safari ignores % height on a fixed parent,
+     which is why the modal kept collapsing to a centered box. This matches #post-meetup-backdrop. */
+  .modal-overlay { padding: 0; align-items: stretch; overflow-y: auto; }
+  .modal-overlay > .modal { max-width: 100%; width: 100%; min-height: 100vh; max-height: none; height: auto; border-radius: 0; border: none; }
   .detail-backdrop:not(#confirm-backdrop) { padding: 0; align-items: stretch; }
   .detail-backdrop:not(#confirm-backdrop) > .detail-modal { max-width: 100%; width: 100%; min-height: 100vh; max-height: none; border-radius: 0; border: none; margin: 0; }
 }
@@ -3878,6 +3885,9 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 .form-input { width: 100%; box-sizing: border-box; min-width: 0; padding: 10px 12px; background: rgba(43,168,224,0.05); border: 1px solid var(--border-mid); border-radius: 6px; color: var(--text); font-size: 13px; outline: none; }
 .log-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 @media (max-width: 560px) { .log-grid2 { grid-template-columns: 1fr; } }
+/* v206: Date/Time stay on ONE line at every width; min-width:0 stops the native pickers overlapping */
+.log-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.log-row2 > * { min-width: 0; }
 .form-input:focus { border-color: var(--blue); }
 .form-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 .input-wrap { position: relative; }
@@ -5188,7 +5198,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
           <select id="log-city" class="form-input"></select>
         </div>
       </div>
-      <div class="log-grid2" style="margin-top:10px;">
+      <div class="log-row2" style="margin-top:10px;">
         <div class="form-field">
           <label class="form-label">Date</label>
           <input type="date" id="log-date" class="form-input">
