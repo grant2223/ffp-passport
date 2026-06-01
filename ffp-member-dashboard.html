@@ -1,8 +1,7 @@
-<!-- FFP MEMBER DASHBOARD — v200 (2026-06-01)
-     v200: listing cards (Meet-up, Events, Experiences, Challenges) — removed host/organiser row;
-     show day/time + location only. Experience badge = first day of trip; Challenge badge = last day
-     to enter (start). Cross-ref: discovery-loader v4 supplies startBadge + dateBadge-as-object.
-     v199: deck % + meet-up detail modal. -->
+<!-- FFP MEMBER DASHBOARD — v201 (2026-06-01)
+     v201: Matches = wrap-around carousel (right/swipe-right = number UP 1->10->1, left = DOWN; no stop).
+     Button 'Add passport' saves that member to your passports (notified when they host a meet & move).
+     Deck shows all matches. Cross-ref: loaders unchanged (deck is dashboard-only). -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -11659,7 +11658,7 @@ const MeetMove = {
         </div>
       </div>
       <div class="dm-footer">
-        ${u.connection === 'connected' ? '<button class="btn-primary-blue" disabled style="opacity:.7;">\u2713 Connected</button>' : (u.connection === 'requested' ? '<button class="btn-primary-yellow" disabled style="opacity:.6;">Passport shared ✓</button>' : `<button class="btn-primary-yellow" onclick="MeetMove.requestConnect('${u.id}')">${u.connection === 'incoming' ? 'Share back' : 'Share my passport'}</button>`)}
+        ${u.connection === 'connected' ? '<button class="btn-primary-blue" disabled style="opacity:.7;">\u2713 Connected</button>' : (u.connection === 'requested' ? '<button class="btn-primary-yellow" disabled style="opacity:.6;">Added ✓</button>' : `<button class="btn-primary-yellow" onclick="MeetMove.requestConnect('${u.id}')">Add passport</button>`)}
         <div class="dm-footer-note">Connecting adds them to your circle — your meet-ups will reach them.</div>
       </div>
     `;
@@ -12938,10 +12937,9 @@ setTimeout(scalePassportCard, 200);
         var r=await window.supabase.rpc("handle_connection",{ p_me:member.id, p_target:uid });
         if(r.error){ if(window.showToast)showToast("Could not connect — try again"); return false; }
         var status=r.data;
-        if(u){ u.connection = (status==="connected")?"connected":((status==="requested"||status==="pending")?"requested":u.connection); }
+        if(u){ u.connection = (status==="connected"||status==="requested"||status==="pending")?"requested":u.connection; }
         var nm=(u&&u.name)?u.name.split(" ")[0]:"them";
-        if(status==="connected"){ this._celebrate(nm); }
-        else if(window.showToast){ showToast("Passport shared with "+nm+" — they'll see you'd like to connect"); }
+        if(window.showToast){ showToast("Added "+nm+" — you'll be notified when they host a meet & move"); }
         if(this.renderMatchStrip)this.renderMatchStrip();
         return true;
       }catch(e){ if(window.showToast)showToast("Could not connect — try again"); return false; }
@@ -12976,18 +12974,18 @@ setTimeout(scalePassportCard, 200);
           "<button class='ffp-deck-icon flip' id='ffp-act-flip' aria-label='Flip card'><span class='material-icons'>flip_camera_android</span></button>"+
           "<button class='ffp-deck-icon' id='ffp-act-right' aria-label='Move right'><span class='material-icons'>arrow_forward</span></button>"+
         "</div></div>"+
-        "<div class='ffp-deck-instr'>Scroll with the arrows or swipe · tap the passport to flip · share yours to reach out</div>"+
-        "<button class='ffp-deck-connect' id='ffp-act-connect'>Request to connect</button>";
+        "<div class='ffp-deck-instr'>Browse with the arrows or swipe · tap to flip · add a passport to follow their meet-ups</div>"+
+        "<button class='ffp-deck-connect' id='ffp-act-connect'>Add passport</button>";
       document.body.appendChild(o);
       document.getElementById("ffp-deck-x").addEventListener("click", function(){ self.closeDeck(); });
-      document.getElementById("ffp-act-left").addEventListener("click", function(){ self.deckNext(); });
-      document.getElementById("ffp-act-right").addEventListener("click", function(){ self.deckPrev(); });
+      document.getElementById("ffp-act-left").addEventListener("click", function(){ self.deckGo(-1); });
+      document.getElementById("ffp-act-right").addEventListener("click", function(){ self.deckGo(1); });
       document.getElementById("ffp-act-flip").addEventListener("click", function(){ self.deckFlip(); });
       document.getElementById("ffp-act-connect").addEventListener("click", function(){ self.deckShare(); });
     },
     openDeck: function(){
       this._ensureDeckDom();
-      this.deck=(this.matches||[]).filter(function(m){ return m.connection!=="connected"; });
+      this.deck=(this.matches||[]).slice();
       this.deckIndex=0;
       document.getElementById("ffp-deck-overlay").classList.add("open");
       this.renderDeck();
@@ -13002,7 +13000,7 @@ setTimeout(scalePassportCard, 200);
       var acts=document.getElementById("ffp-deck-actions");
       var cbtn=document.getElementById("ffp-act-connect");
       var instr=document.querySelector(".ffp-deck-instr");
-      if(i>=d.length){
+      if(!d.length){
         stack.innerHTML="<div class='ffp-deck-empty'><span class='material-icons' style='font-size:42px;color:#2ba8e0;'>flight_takeoff</span><div style='margin-top:10px;font-size:15px;color:#e8eef4;font-weight:700;'>You're all caught up</div><div style='margin-top:4px;font-size:12px;'>New faces land tomorrow.</div></div>";
         if(cnt)cnt.textContent="0 to view";
         if(meta)meta.innerHTML="";
@@ -13016,9 +13014,9 @@ setTimeout(scalePassportCard, 200);
       if(instr)instr.style.display="";
       var m=d[i];
       if(meta){ meta.innerHTML="<span class='ffp-meta-pct'>"+m.match+"%</span>"; }
-      var html="";
-      for(var k=Math.min(i+2,d.length-1); k>=i; k--){
-        var depth=k-i, mm=d[k], top=(k===i);
+      var html="", n=d.length, maxDepth=Math.min(2, n-1);
+      for(var depth=maxDepth; depth>=0; depth--){
+        var mm=d[(i+depth)%n], top=(depth===0);
         var tf="translateY(calc(-50% + "+(depth*12)+"px)) scale("+(1-depth*0.05)+")";
         html+="<div class='ffp-deck-card"+(top?" is-top":"")+"'"+(top?" id='ffp-top'":"")+" style='z-index:"+(20-depth)+";transform:"+tf+";'>"+
           window.FFPPassportCard.render(mm,{ context:"match", flippable:false })+
@@ -13034,13 +13032,11 @@ setTimeout(scalePassportCard, 200);
       var btn=document.getElementById("ffp-act-connect"); if(!btn)return;
       var m=(this.deck||[])[this.deckIndex||0]; if(!m){ btn.style.display="none"; return; }
       btn.style.display="";
-      if(m.connection==="requested"){ btn.textContent="Passport shared ✓"; btn.disabled=true; }
-      else if(m.connection==="incoming"){ btn.textContent="Share back"; btn.disabled=false; }
-      else { btn.textContent="Share my passport"; btn.disabled=false; }
+      if(m.connection==="requested"||m.connection==="connected"){ btn.textContent="Added ✓"; btn.disabled=true; }
+      else { btn.textContent="Add passport"; btn.disabled=false; }
     },
     _fly: function(card,dir){ if(!card)return; card.style.transition="transform .3s ease, opacity .3s ease"; card.style.transform="translateY(-50%) translateX("+(dir*640)+"px) rotate("+(dir*26)+"deg)"; card.style.opacity="0"; },
-    deckNext: function(){ var self=this; if((this.deckIndex||0) >= ((this.deck||[]).length-1)) return; var c=document.getElementById("ffp-top"); if(c)this._fly(c,-1); this.deckIndex=(this.deckIndex||0)+1; setTimeout(function(){ self.renderDeck(); },260); },
-    deckPrev: function(){ var self=this; if((this.deckIndex||0) <= 0) return; var c=document.getElementById("ffp-top"); if(c)this._fly(c,1); this.deckIndex=(this.deckIndex||0)-1; setTimeout(function(){ self.renderDeck(); },260); },
+    deckGo: function(dir){ var self=this; var n=(this.deck||[]).length; if(!n)return; var c=document.getElementById("ffp-top"); if(c)this._fly(c,dir); this.deckIndex=((((this.deckIndex||0)+dir)%n)+n)%n; setTimeout(function(){ self.renderDeck(); },260); },
     deckFlip: function(){ var pc=document.querySelector("#ffp-top .ffp-pc"); if(pc)pc.classList.toggle("flipped"); },
     deckShare: function(){ var self=this; var m=(this.deck||[])[this.deckIndex||0]; if(!m)return; if(m.connection==="requested"||m.connection==="connected")return; var p=this.connectViaRpc(m.id); if(p&&p.then){ p.then(function(){ self._updateConnectBtn(); }); } else { self._updateConnectBtn(); } },
     _bindTop: function(){
@@ -13049,8 +13045,8 @@ setTimeout(scalePassportCard, 200);
       function pt(e){ var t=(e.touches&&e.touches[0])?e.touches[0]:e; return {x:t.clientX,y:t.clientY}; }
       function move(e){ if(!active)return; var p=pt(e); dx=p.x-startX; dy=p.y-startY; if(Math.abs(dx)>6||Math.abs(dy)>6)moved=true; card.style.transform="translateY(-50%) translateX("+dx+"px) rotate("+(dx*0.05)+"deg)"; if(moved&&e.cancelable&&Math.abs(dx)>Math.abs(dy))e.preventDefault(); }
       function end(){ if(!active)return; active=false; card.classList.remove("dragging"); cleanup();
-        if(dx<-120){ self.deckNext(); return; }
-        if(dx>120){ self.deckPrev(); return; }
+        if(dx>120){ self.deckGo(1); return; }
+        if(dx<-120){ self.deckGo(-1); return; }
         if(!moved && (Date.now()-t0)<320){ var pc=card.querySelector(".ffp-pc"); if(pc)pc.classList.toggle("flipped"); }
         card.style.transform="translateY(-50%)";
       }
@@ -13071,7 +13067,7 @@ setTimeout(scalePassportCard, 200);
       try{
         var ov=document.getElementById("ffp-deck-overlay");
         if(ov && ov.classList.contains("open")){
-          this.deck=(this.matches||[]).filter(function(m){ return m.connection!=="connected"; });
+          this.deck=(this.matches||[]).slice();
           if((this.deckIndex||0) > this.deck.length) this.deckIndex=0;
           this.renderDeck();
         }
