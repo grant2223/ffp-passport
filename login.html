@@ -1,7 +1,12 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-  FFP PASSPORT — login.html v4
+  FFP PASSPORT — login.html v6
   ───────────────────────────────────────────────────────────────────────
+  v6 changes (2026-06-01): Provider self-signup landing. DOMContentLoaded now
+  handles ?verified=1&email= (preselect Partner portal, prefill email, show
+  "Email confirmed" prompt) and ?verify=expired|error (fresh-code prompt).
+  Part of Phase-1 provider self-signup (provider-signup.html + backend
+  /api/provider/signup + /api/provider/verify).
   v5 changes (2026-05-29): Referral pass-through to Stripe checkout.
   When a buyer arrives with a referral code in localStorage (set by the
   homepage v4 capture), the "Become a Member" Stripe link gets the code
@@ -507,6 +512,28 @@ document.addEventListener('DOMContentLoaded', function () {
   if (window.location.hash === '#signup') {
     goToSignUp();
   }
+  // Provider self-signup: after confirming their email, the verify link sends
+  // them here as ?verified=1&email=… — drop them on the Partner sign-in screen
+  // with their email prefilled so they just tap "Get My Code".
+  try {
+    var qs = new URLSearchParams(window.location.search);
+    if (qs.get('verified') === '1') {
+      var pc = document.querySelector('.portal-card[onclick*="provider"]');
+      if (pc) selectPortal(pc, 'provider');
+      var em = (qs.get('email') || '').trim();
+      goToSignIn();
+      var inp = document.getElementById('signin-email');
+      if (inp && em) inp.value = em;
+      var sub = document.querySelector('#screen-signin-email .screen-sub');
+      if (sub) sub.innerHTML = '<span style="color:#22c55e;font-weight:700;">Email confirmed.</span> Tap below and we&rsquo;ll send your 6-digit code.';
+    } else if (qs.get('verify') === 'expired' || qs.get('verify') === 'error') {
+      var pc2 = document.querySelector('.portal-card[onclick*="provider"]');
+      if (pc2) selectPortal(pc2, 'provider');
+      goToSignIn();
+      var sub2 = document.querySelector('#screen-signin-email .screen-sub');
+      if (sub2) sub2.innerHTML = 'That confirmation link has expired. Enter your email and we&rsquo;ll send you a fresh 6-digit code.';
+    }
+  } catch (e) {}
 });
 </script>
 <!-- v5: Referral pass-through. (a) Capture ?ref=CODE if buyer landed
