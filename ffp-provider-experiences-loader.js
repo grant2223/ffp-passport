@@ -1,8 +1,5 @@
-/* FFP Provider Experiences Loader — v6 (realtime)
-   v5: Applications button lists real applicants via provider_experience_applications RPC
-       (owner-scoped); card shows real application count. (was: dummy/no list)
-   v4: reference bare renderExperiences (it is a global, NOT on window) so init +
-       refresh work. (Live file had ADMIN loader code mis-deployed; this is the real one.)
+/* close edit modal after delete
+/*  Provider Experiences Loader — v3
    v3 changes (Grant's feedback):
    - Added "Experience type" field back with 6 clear, distinct options:
      Training camp / Competition trip / Spectator trip / Wellness retreat /
@@ -408,10 +405,9 @@
   async function refresh() {
     if (typeof experiences === 'undefined') return;
     var rows = await fetchExperiences();
-    await attachAppCounts(rows);
     experiences.length = 0;
     rows.forEach(function (r) { experiences.push(r); });
-    if (typeof renderExperiences === 'function') { try { renderExperiences(); } catch (e) {} }
+    if (typeof window.renderExperiences === 'function') { try { window.renderExperiences(); } catch (e) {} }
     if (typeof window.renderNav === 'function')         { try { window.renderNav();         } catch (e) {} }
   }
 
@@ -744,6 +740,7 @@
         var res = await window.supabase.from('experiences').delete().eq('id', id);
         if (res.error) throw res.error;
         toast('Experience deleted', 'success');
+        if (typeof window.closeModal === 'function') window.closeModal();
         await refresh();
       } catch (e) {
         console.error('[FFP Experiences] delete:', e);
@@ -757,73 +754,13 @@
     }
   }
 
-  // v5: count real applications per experience (batched, applications_provider_read RLS)
-  async function attachAppCounts(rows) {
-    if (!rows || !rows.length) return rows;
-    var ids = rows.map(function (r) { return r.id; });
-    try {
-      var res = await window.supabase.from('applications').select('experience_id, status').in('experience_id', ids);
-      if (res.error) { console.warn('[FFP Experiences] app counts:', res.error.message); return rows; }
-      var tally = {};
-      (res.data || []).forEach(function (x) { if (x.status !== 'withdrawn') tally[x.experience_id] = (tally[x.experience_id] || 0) + 1; });
-      rows.forEach(function (r) { r.applications = tally[r.id] || 0; });
-    } catch (e) { console.warn('[FFP Experiences] app counts threw:', e); }
-    return rows;
-  }
-
-  function relTimeExp(ts) {
-    if (typeof window.fmtRelative === 'function') { try { return window.fmtRelative(ts); } catch (e) {} }
-    if (!ts) return '';
-    var diff = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
-    if (diff < 60) return 'just now';
-    if (diff < 3600) return Math.floor(diff/60) + 'm ago';
-    if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
-    return Math.floor(diff/86400) + 'd ago';
-  }
-
-  // v5: real applicant list via owner-scoped SECURITY DEFINER RPC. Reuses .member-row markup.
-  async function realViewApplications(id) {
-    var e = (typeof experiences !== 'undefined') ? experiences.find(function (x) { return x.id === id; }) : null;
-    var title = e ? e.title : 'Experience';
-    var cap = (e && e.capacity) ? e.capacity : '\u221e';
-    if (typeof window.openModalShell === 'function') {
-      window.openModalShell('', escHtml(title) + ' \u2014 Applications',
-        '<div class="psub" id="ffp-app-sub" style="margin-bottom:14px;">Loading\u2026</div>' +
-        '<div class="member-list" id="ffp-app-list"></div>',
-        '<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
-    }
-    try {
-      var res = await window.supabase.rpc('provider_experience_applications', { p_experience_id: id });
-      if (res.error) throw res.error;
-      var rows = res.data || [];
-      var subEl = document.getElementById('ffp-app-sub');
-      var listEl = document.getElementById('ffp-app-list');
-      if (subEl) subEl.textContent = rows.length + ' of ' + cap + ' applied';
-      if (listEl) {
-        listEl.innerHTML = rows.length ? rows.map(function (r) {
-          var name = r.member_name || 'Member';
-          var initial = name.charAt(0).toUpperCase();
-          var statusPill = r.status ? ' \u00b7 ' + escHtml(r.status) : '';
-          var sub = (r.member_city ? escHtml(r.member_city) + ' \u00b7 ' : '') + 'Applied ' + escHtml(relTimeExp(r.created_at)) + statusPill;
-          return '<div class="member-row"><div class="member-avatar">' + escHtml(initial) + '</div>' +
-                 '<div class="member-info"><div class="member-name">' + escHtml(name) + '</div>' +
-                 '<div class="member-sub">' + sub + '</div></div></div>';
-        }).join('') : '<div class="empty-sub" style="text-align:left;">No applications yet.</div>';
-      }
-    } catch (err) {
-      console.error('[FFP Experiences] viewApplications:', err);
-      var le = document.getElementById('ffp-app-list');
-      if (le) le.innerHTML = '<div class="empty-sub" style="text-align:left;">Could not load applications.</div>';
-    }
-  }
-
   // ════════════════════════════════════════════════════════════════════════
   // Init
   // ════════════════════════════════════════════════════════════════════════
   async function init() {
     var ok = await waitFor(function () {
       return window.supabase && window.supabase.auth &&
-             typeof renderExperiences === 'function' &&
+             typeof window.renderExperiences === 'function' &&
              typeof experiences !== 'undefined';
     }, 15000);
     if (!ok) { console.error('[FFP Experiences] dependencies never loaded'); return; }
@@ -840,7 +777,7 @@
 
     try {
       await refresh();
-      console.log('[FFP Experiences v5] Loaded from Supabase \u2713');
+      console.log('[FFP Experiences v2] Loaded from Supabase \u2713');
     } catch (e) {
       console.error('[FFP Experiences] initial load:', e);
     }
@@ -848,19 +785,6 @@
     window.openExperienceModal     = realOpenExperienceModal;
     window.saveExperience          = realSaveExperience;
     window.confirmDeleteExperience = realDeleteExperience;
-    window.viewApplications        = realViewApplications;
-    // Real-time (self-inject the helper — provider dashboard doesn't load it — then subscribe)
-    (function () {
-      function go() {
-        var pid = window.FFP_PROVIDER && window.FFP_PROVIDER.id; if (!pid) return;
-        window.FFPRealtime.subscribe('provider-experiences', 'experiences', 'provider_id=eq.' + pid, function () { refresh(); });
-        window.FFPRealtime.subscribe('provider-exp-apps', 'applications', null, function () { refresh(); });
-      }
-      if (window.FFPRealtime) { go(); return; }
-      var _ex = document.getElementById('ffp-realtime-js');
-      if (!_ex) { var _sc = document.createElement('script'); _sc.id = 'ffp-realtime-js'; _sc.src = 'assets/ffp-realtime.js'; _sc.onload = function () { if (window.FFPRealtime) go(); }; document.head.appendChild(_sc); }
-      else { var _n = 0, _t = setInterval(function () { if (window.FFPRealtime) { clearInterval(_t); go(); } else if (++_n > 60) clearInterval(_t); }, 100); }
-    })();
 
     // Expose pickers for events/deals loaders to reuse
     window.FFPPicker = {
