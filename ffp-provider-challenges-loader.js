@@ -293,18 +293,16 @@
     var reapprovalNote = '';
     try {
       if (id) {
-        // v(next): provider edits keep their current status — no forced re-approval.
-        var upd = await window.supabase.from('challenges').update(payload).eq('id', id);
+        // edit via SECURITY DEFINER RPC (auth.uid trap blocks direct .update). Keeps current status.
+        var upd = await window.supabase.rpc('provider_save_listing', { p_kind: 'challenge', p_provider: (window.FFP_PROVIDER || {}).id, p_id: id, p: payload });
         if (upd.error) throw upd.error;
+        if (!upd.data) throw new Error('Update failed — not found or not permitted');
         toast('Challenge updated', 'success');
         if (typeof window.closeModal === 'function') window.closeModal();
       } else {
-        payload.provider_id = window.FFP_PROVIDER.id;
-        payload.challenge_type = 'provider';
-        payload.status = 'pending';
-        payload.featured = false;
-        var ins = await window.supabase.from('challenges').insert(payload).select().single();
+        var ins = await window.supabase.rpc('provider_save_listing', { p_kind: 'challenge', p_provider: (window.FFP_PROVIDER || {}).id, p_id: null, p: payload });
         if (ins.error) throw ins.error;
+        if (!ins.data) throw new Error('Submit failed — please try again');
         if (typeof window.closeModal === 'function') window.closeModal();
         if (typeof window.showSubmittedModal === 'function') {
           try { window.showSubmittedModal('challenge'); } catch (e) {}
