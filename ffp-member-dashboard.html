@@ -1,10 +1,9 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v185 (2026-06-01)
-     v185: Connections filters reworked — search bar always visible (left) + filter icon
-           (right); tapping it drops down the filters incl. a Country->City cascade (shared
-           FFP_TAX.cities, default UAE) + Category/Gender/Time/Level. Template for the other
-           browse panels (Events/Experiences/Challenges) next.
-     v184: skill levels Not Tried..Professional; Matches modal two tabs.
+     FFP MEMBER DASHBOARD — v186 (2026-06-01)
+     v186: Connections filters are now a MODAL (bottom-sheet) opened by the filter icon —
+           cleaner than the inline panel; search bar + icon aligned (stretch). Template for
+           Events/Experiences/Challenges next.
+     v185: search-left/filter-icon-right + Country->City cascade (inline panel).
      ════════════════════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="en">
@@ -2342,11 +2341,19 @@ input[type="number"] {
 .progression-list { display: flex; flex-direction: column; gap: 4px; }
 .mm-tab { flex: 1; background: rgba(43,168,224,0.06); border: 1px solid var(--border-mid); color: var(--muted); font-size: 12px; font-weight: 800; padding: 9px; border-radius: 8px; cursor: pointer; font-family: inherit; }
 .mm-tab.active { background: rgba(43,168,224,0.18); border-color: var(--blue); color: var(--text); }
-.filter-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
-.filter-bar .panel-search { flex: 1; }
-.filter-icon-btn { flex-shrink: 0; width: 42px; height: 42px; border-radius: 10px; background: rgba(43,168,224,0.08); border: 1px solid var(--border-mid); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.filter-bar { display: flex; gap: 8px; align-items: stretch; margin-bottom: 14px; }
+.filter-bar .panel-search { flex: 1; margin: 0; }
+.filter-icon-btn { flex-shrink: 0; width: 46px; border-radius: 10px; background: rgba(43,168,224,0.08); border: 1px solid var(--border-mid); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .filter-icon-btn:hover { border-color: var(--blue); color: var(--blue); }
-.filter-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; padding: 12px; background: rgba(43,168,224,0.04); border: 1px solid var(--border); border-radius: 10px; }
+.filter-modal { position: fixed; inset: 0; background: rgba(0,0,0,.72); z-index: 9400; display: none; align-items: flex-end; justify-content: center; }
+.filter-modal-card { width: 100%; max-width: 460px; background: #0f1e2e; border: 1px solid rgba(43,168,224,0.22); border-radius: 18px 18px 0 0; padding: 20px; max-height: 86vh; overflow-y: auto; }
+@media (min-width: 560px) { .filter-modal { align-items: center; } .filter-modal-card { border-radius: 16px; } }
+.filter-modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.filter-modal-title { font-size: 17px; font-weight: 900; color: var(--text); }
+.filter-modal-x { background: #142a3f; border: none; color: var(--muted); width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 20px; line-height: 1; }
+.filter-modal-body { display: flex; flex-direction: column; gap: 10px; }
+.filter-modal-body .ffp-select { width: 100%; }
+.filter-modal-done { width: 100%; margin-top: 18px; padding: 13px; border-radius: 10px; background: #FFCC00; color: #081420; font-weight: 800; border: none; cursor: pointer; font-family: inherit; font-size: 14px; }
 .prog-strap { display: flex; align-items: center; gap: 10px; padding: 8px 2px; }
 .prog-strap-icon { width: 38px; height: 38px; border-radius: 10px; background: rgba(43,168,224,0.12); border: 1px solid rgba(43,168,224,0.22); display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; padding: 0; transition: background .15s, transform .1s; }
 .prog-strap-icon:hover { background: rgba(43,168,224,0.22); }
@@ -4398,8 +4405,14 @@ input[type="number"] {
       </div>
       <button class="filter-icon-btn" onclick="MeetMove.toggleFilters()" aria-label="Filters"><span class="material-icons">tune</span></button>
     </div>
-    <div id="meet-filters-wrap" class="filter-panel" style="display:none;">
-      <select class="ffp-select" id="meet-filter-country"></select>
+    <div id="meet-filters-wrap" class="filter-modal" style="display:none;" onclick="if(event.target===this)MeetMove.toggleFilters()">
+      <div class="filter-modal-card">
+        <div class="filter-modal-head">
+          <div class="filter-modal-title">Filters</div>
+          <button class="filter-modal-x" onclick="MeetMove.toggleFilters()" aria-label="Close">&times;</button>
+        </div>
+        <div class="filter-modal-body">
+          <select class="ffp-select" id="meet-filter-country"></select>
       <select class="ffp-select" id="meet-filter-city"></select>
       <select class="ffp-select" id="meet-filter-cat">
         <option value="all">All categories</option>
@@ -4439,7 +4452,9 @@ input[type="number"] {
         <span class="material-icons" style="font-size:15px;">workspace_premium</span> Professionals only
       </button>
     </div>
-    
+        </div>
+        <button class="filter-modal-done" onclick="MeetMove.toggleFilters()">Done</button>
+      </div>
     </div><!-- /meet-filters-wrap -->
     <div class="meetup-grid" id="meet-grid"></div>
   </div>
@@ -11221,7 +11236,7 @@ const MeetMove = {
 
   toggleFilters() {
     var w = document.getElementById('meet-filters-wrap');
-    if (w) w.style.display = (w.style.display === 'none' || !w.style.display) ? 'block' : 'none';
+    if (w) w.style.display = (w.style.display === 'none' || !w.style.display) ? 'flex' : 'none';
   },
 
   // v182: weighted matching from get_match_pool() RPC. Factors: shared activities + skill-level
