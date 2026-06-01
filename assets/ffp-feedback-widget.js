@@ -164,16 +164,17 @@
     try {
       var who = await resolveIdentity();
       if (!who.uid) { toast('Please sign in first', 'error'); return; }
-      var row = {
-        source: SOURCE,
-        member_id: who.uid,
-        provider_id: who.provider_id,
-        submitter_name: who.name,
-        submitter_email: who.email,
-        category: picked,
-        message: msg
-      };
-      var res = await window.supabase.from('feedback').insert(row);
+      // v2: submit via SECURITY DEFINER RPC — members can't satisfy the feedback RLS
+      // (member_id = auth.uid()) because custom-JWT members don't resolve auth.uid().
+      var res = await window.supabase.rpc('submit_feedback', {
+        p_source: SOURCE,
+        p_member_id: who.uid,
+        p_provider_id: who.provider_id,
+        p_name: who.name,
+        p_email: who.email,
+        p_category: picked,
+        p_message: msg
+      });
       if (res.error) {
         console.error('[FFP Feedback]', res.error);
         toast('Could not send - please try again', 'error');
