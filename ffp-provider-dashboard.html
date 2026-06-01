@@ -3324,7 +3324,7 @@ function confirmDeleteEvent(id) {
 
 function openEventModal(id) {
   const editing = id ? events.find(e => e.id === id) : null;
-  const e = editing || { title: '', description: '', about: '', category: '', event_date: '', event_time: '', venue: providerProfile.business_name, city: providerProfile.city, area: providerProfile.area, capacity: '', cost: '', intensity: 'Beginner', setting: '', parking: '', facilities: '', bring: '', who: '', hero_url: null };
+  const e = editing || { title: '', description: '', about: '', category: '', activity: '', event_date: '', event_time: '', end_date: '', end_time: '', country: (providerProfile.country || 'United Arab Emirates'), city: (providerProfile.city || ''), area: (providerProfile.area || ''), venue: '', capacity: '', price_aed: '', intensity: 'Social', parking: '', facilities: '', bring: '', hero_url: null };
   openModalShell('lg', (editing ? 'Edit event' : 'New event'), `
     <div class="form-section">
       <div class="form-section-title">Photo</div>
@@ -3335,35 +3335,29 @@ function openEventModal(id) {
       <div class="form-grid">
         <div class="field full">
           <div class="label">Title <span class="req">*</span></div>
-          <input class="input" id="em-title" value="${escHtml(e.title)}" placeholder="e.g. Saturday Team WOD">
-        </div>
-        <div class="field full">
-          <div class="label">Short description</div>
-          <input class="input" id="em-description" value="${escHtml(e.description)}" placeholder="One-sentence summary shown on cards">
-        </div>
-        <div class="field full">
-          <div class="label">About</div>
-          <textarea class="textarea" id="em-about" rows="3" placeholder="Full details — what to expect, format, vibe">${escHtml(e.about)}</textarea>
+          <input class="input" id="em-title" value="${escHtml(e.title)}" placeholder="e.g. Sunset beach padel social">
         </div>
         <div class="field">
-          <div class="label">Category</div>
-          <select class="select" id="em-category">
-            ${['Fitness','Wellness','Padel','Yoga / Pilates','Running','Climbing','Combat','Recovery','Social','Other'].map(c => `<option ${e.category===c?'selected':''}>${c}</option>`).join('')}
-          </select>
+          <div class="label">Activity <span class="req">*</span></div>
+          <select class="select" id="em-category"><option ${e.category?'selected':''}>${escHtml(e.category||'')}</option></select>
         </div>
         <div class="field">
-          <div class="label">Intensity / Level</div>
+          <div class="label">Level</div>
           <select class="select" id="em-intensity">
             ${['Not Tried','Social','Competitive','Representative','Professional'].map(l => `<option ${e.intensity===l?'selected':''}>${l}</option>`).join('')}
           </select>
         </div>
+        <div class="field full">
+          <div class="label">Description</div>
+          <textarea class="textarea" id="em-description" rows="3" placeholder="What to expect — format, vibe, who it's for">${escHtml(e.description || e.about || '')}</textarea>
+        </div>
       </div>
     </div>
     <div class="form-section">
-      <div class="form-section-title">When & where</div>
+      <div class="form-section-title">When</div>
       <div class="form-grid">
         <div class="field">
-          <div class="label">Date <span class="req">*</span></div>
+          <div class="label">Starts <span class="req">*</span></div>
           <input class="input" type="date" id="em-date" value="${escHtml(e.event_date)}">
         </div>
         <div class="field">
@@ -3371,37 +3365,55 @@ function openEventModal(id) {
           <input class="input" type="time" id="em-time" value="${escHtml(e.event_time)}">
         </div>
         <div class="field">
-          <div class="label">Location</div>
-          <input class="input" id="em-venue" value="${escHtml(e.venue)}" placeholder="e.g. Kite Beach, Dubai">
-          <a class="label-hint" style="cursor:pointer;color:#2ba8e0;display:inline-flex;align-items:center;gap:4px;margin-top:5px;" onclick="ffpOpenMap('em-venue')"><span class="ms" style="font-size:14px;">place</span> View on Google Maps</a>
+          <div class="label">Ends</div>
+          <input class="input" type="date" id="em-end-date" value="${escHtml(e.end_date)}">
         </div>
         <div class="field">
-          <div class="label">City</div>
-          <input class="input" id="em-city" value="${escHtml(e.city)}">
-        </div>
-        <div class="field">
-          <div class="label">Area</div>
-          <input class="input" id="em-area" value="${escHtml(e.area)}" placeholder="Neighbourhood">
-        </div>
-        <div class="field">
-          <div class="label">Setting</div>
-          <select class="select" id="em-setting">
-            ${['','Indoor','Outdoor','Beach','Studio','Park','Track','Pool','Gym'].map(s => `<option ${e.setting===s?'selected':''}>${s || 'Choose setting'}</option>`).join('')}
-          </select>
+          <div class="label">Time</div>
+          <input class="input" type="time" id="em-end-time" value="${escHtml(e.end_time)}">
         </div>
       </div>
     </div>
     <div class="form-section">
-      <div class="form-section-title">Logistics</div>
+      <div class="form-section-title">Where</div>
       <div class="form-grid">
+        <div class="field">
+          <div class="label">Country <span class="req">*</span></div>
+          <select class="select" id="em-country"></select>
+        </div>
+        <div class="field">
+          <div class="label">City <span class="req">*</span></div>
+          <select class="select" id="em-city"></select>
+        </div>
+        <div class="field">
+          <div class="label">Area</div>
+          <input class="input" id="em-area" value="${escHtml(e.area)}" placeholder="Neighbourhood (optional)">
+        </div>
+        <div class="field">
+          <div class="label">Venue</div>
+          <input class="input" id="em-venue" value="${escHtml(e.venue)}" placeholder="e.g. Kite Beach courts (optional)">
+        </div>
+        <div class="field full">
+          <a class="label-hint" style="cursor:pointer;color:#2ba8e0;display:inline-flex;align-items:center;gap:4px;" onclick="ffpOpenMap('em-venue')"><span class="ms" style="font-size:14px;">place</span> Location pin — view on Google Maps</a>
+        </div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Pricing & capacity</div>
+      <div class="form-grid">
+        <div class="field">
+          <div class="label">Price (AED)</div>
+          <input class="input" type="number" id="em-price" value="${escHtml(e.price_aed)}" placeholder="0 = Free">
+        </div>
         <div class="field">
           <div class="label">Capacity</div>
           <input class="input" type="number" id="em-capacity" value="${escHtml(e.capacity)}" placeholder="e.g. 24">
         </div>
-        <div class="field">
-          <div class="label">Cost</div>
-          <input class="input" id="em-cost" value="${escHtml(e.cost)}" placeholder="e.g. Free for members, AED 75 guests">
-        </div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Good to know</div>
+      <div class="form-grid">
         <div class="field">
           <div class="label">Parking</div>
           <input class="input" id="em-parking" value="${escHtml(e.parking)}" placeholder="e.g. Free on site">
@@ -3413,10 +3425,6 @@ function openEventModal(id) {
         <div class="field full">
           <div class="label">What to bring</div>
           <input class="input" id="em-bring" value="${escHtml(e.bring)}" placeholder="e.g. Water bottle, training shoes">
-        </div>
-        <div class="field full">
-          <div class="label">Who this is for</div>
-          <input class="input" id="em-who" value="${escHtml(e.who)}" placeholder="e.g. Open to all FFP members">
         </div>
       </div>
     </div>
@@ -4557,6 +4565,6 @@ document.addEventListener('DOMContentLoaded', () => {
 })();
 </script>
 <script>window.ffpOpenMap=function(id){var el=document.getElementById(id);var v=el?(el.value||'').trim():'';if(v)window.open('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(v),'_blank');};</script>
-<div id="ffp-build-stamp" style="position:fixed;bottom:4px;left:6px;font-size:9px;font-family:monospace;color:rgba(255,255,255,0.28);z-index:99999;pointer-events:none;">FFP build v23</div>
+<div id="ffp-build-stamp" style="position:fixed;bottom:4px;left:6px;font-size:9px;font-family:monospace;color:rgba(255,255,255,0.28);z-index:99999;pointer-events:none;">FFP build v24 — events form rebuilt</div>
 </body>
 </html>
