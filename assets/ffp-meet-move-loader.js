@@ -1,4 +1,7 @@
-/* FFP Meet & Move Loader — v13
+/* FFP Meet & Move Loader — v14
+   v14 (2026-06-01): scale attendee passport cards after they're injected (official .pass-shell
+     is 540x540-design, needs ffpScaleCards to fit).
+   v13
    v13 (2026-06-01): "Who's going" now renders each attendee as the reusable FFPPassportCard
      (tap to flip to activities + record). Attendee fetch widened to include gender, country,
      tier, skills, created_at so the passport back has real data.
@@ -430,7 +433,7 @@
       wrapWrites();
       var panel = document.getElementById('panel-meet');
       if (panel && panel.classList.contains('active') && typeof MeetMove.render === 'function') MeetMove.render();
-      console.log('[FFP Meet & Move] Loaded ' + MeetMove.data.length + ' meetups ✓ (v13 — passport-card attendees; matches owned by dashboard)');
+      console.log('[FFP Meet & Move] Loaded ' + MeetMove.data.length + ' meetups ✓ (v14 — scaled passport-card attendees; matches owned by dashboard)');
     } catch (err) { console.error('[FFP Meet & Move] Unexpected error:', err); }
   }
 
@@ -450,6 +453,7 @@
             sec.id = 'ffp-whos-going'; sec.className = 'dm-section';
             sec.innerHTML = whosGoingHtml(m);
             footer.parentNode.insertBefore(sec, footer);
+            if (window.ffpScaleCards) { setTimeout(function () { try { window.ffpScaleCards(sec); } catch (e) {} }, 0); }
           }
         } catch (e) {}
         if (m.isHostedByMe) {
