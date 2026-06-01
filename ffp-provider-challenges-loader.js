@@ -210,7 +210,7 @@
         '</div>' +
       '</div>' +
       (editing && (c.status === 'live' || c.status === 'paused')
-        ? '<div class="help-strip" style="margin-top:14px;"><span class="ms">info</span><div><b>This challenge is approved.</b> Saving changes will send it back to admin for re-approval.</div></div>'
+        ? ''
         : '');
 
     var foot =
@@ -293,14 +293,10 @@
     var reapprovalNote = '';
     try {
       if (id) {
-        var existing = challenges.find(function (x) { return x.id === id; });
-        if (existing && (existing.status === 'live' || existing.status === 'paused')) {
-          payload.status = 'pending';
-          reapprovalNote = ' (sent back for re-approval)';
-        }
+        // v(next): provider edits keep their current status — no forced re-approval.
         var upd = await window.supabase.from('challenges').update(payload).eq('id', id);
         if (upd.error) throw upd.error;
-        toast('Challenge updated' + reapprovalNote, 'success');
+        toast('Challenge updated', 'success');
         if (typeof window.closeModal === 'function') window.closeModal();
       } else {
         payload.provider_id = window.FFP_PROVIDER.id;
