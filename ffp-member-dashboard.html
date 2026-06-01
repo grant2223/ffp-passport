@@ -1,9 +1,9 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v194 (2026-06-01)
-     v194: Match card fidelity — restored DATE OF BIRTH (privacy-gated) / ISSUE DATE /
-           EXPIRY DATE; TYPE shows M/S/A; fixed photo↔fields overlap (gap). Deck: % shown
-           big above card (no 'match' word / no reason text); counter uses brand font.
-     v193: launch fix — host/log via RPC.
+     FFP MEMBER DASHBOARD — v195 (2026-06-01)
+     v195: Meet-up form to FFP form standards — activity search+Level, time hour/min/AM-PM,
+           Country->City cascade, age From-To, yellow Post button, removed blue cover.
+           FIX: Going/Hosting tabs no longer hidden by Discover browse filters.
+     v194: match card fidelity.
      ════════════════════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="en">
@@ -2923,6 +2923,11 @@ input[type="number"] {
 .pm-form-input:focus,
 .pm-form-textarea:focus { border-color: var(--blue); }
 .pm-form-textarea { min-height: 60px; resize: vertical; }
+.pmf-ac-wrap { position: relative; }
+.pmf-ac-results { display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 50; background: #0f1e2e; border: 1px solid var(--border-mid); border-radius: 8px; max-height: 210px; overflow-y: auto; }
+.pmf-ac-item { padding: 9px 12px; font-size: 13px; color: var(--text); cursor: pointer; border-bottom: 1px solid rgba(43,168,224,0.08); }
+.pmf-ac-item:active, .pmf-ac-item:hover { background: rgba(43,168,224,0.14); }
+.pmf-ac-empty { padding: 9px 12px; font-size: 12px; color: var(--muted); }
 .pm-form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 @media (max-width:560px){ .pm-form-grid-2 { grid-template-columns: 1fr; } }
 
@@ -5253,9 +5258,6 @@ input[type="number"] {
 <div class="detail-backdrop" id="post-meetup-backdrop" onclick="closePostMeetupIfBackdrop(event)">
   <div class="detail-modal" role="dialog" aria-modal="true">
     <button class="dm-close" onclick="MeetMove.closePostForm()"><span class="material-icons">close</span></button>
-    <div class="dm-cover">
-      <span class="dm-cover-tag">New Meetup</span>
-    </div>
     <div class="dm-body">
       <div class="dm-title">Post a meetup</div>
       <div style="font-size:12px; color:var(--muted); margin-bottom:14px;">Up to 8 members. You'll approve who's in. Be honest about level and intent.</div>
@@ -5268,7 +5270,11 @@ input[type="number"] {
       <div class="pm-form-grid-2">
         <div class="pm-form-field">
           <label class="pm-form-label">Activity</label>
-          <select class="ffp-select" id="pmf-cat"></select>
+          <div class="pmf-ac-wrap">
+            <input type="text" class="pm-form-input" id="pmf-cat-search" placeholder="Search activity…" autocomplete="off" oninput="MeetMove.acFilter(this.value)" onfocus="MeetMove.acFilter(this.value)">
+            <input type="hidden" id="pmf-cat">
+            <div class="pmf-ac-results" id="pmf-cat-results"></div>
+          </div>
         </div>
         <div class="pm-form-field">
           <label class="pm-form-label">Level</label>
@@ -5292,7 +5298,11 @@ input[type="number"] {
       <div class="pm-form-grid-2">
         <div class="pm-form-field">
           <label class="pm-form-label">Time</label>
-          <select class="ffp-select" id="pmf-time"></select>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+            <select class="ffp-select" id="pmf-hour" aria-label="Hour"></select>
+            <select class="ffp-select" id="pmf-min" aria-label="Minute"></select>
+            <select class="ffp-select" id="pmf-ap" aria-label="AM/PM"><option>AM</option><option selected>PM</option></select>
+          </div>
         </div>
         <div class="pm-form-field">
           <label class="pm-form-label">Capacity (incl. you)</label>
@@ -5318,7 +5328,7 @@ input[type="number"] {
         </div>
         <div class="pm-form-field">
           <label class="pm-form-label">City</label>
-          <input type="text" class="pm-form-input" id="pmf-city" placeholder="e.g. Dubai">
+          <select class="ffp-select" id="pmf-city"></select>
         </div>
       </div>
       <div class="pm-form-grid-2">
@@ -5332,15 +5342,11 @@ input[type="number"] {
         </div>
         <div class="pm-form-field">
           <label class="pm-form-label">Age range</label>
-          <select class="ffp-select" id="pmf-age">
-            <option value="">Select…</option>
-            <option value="18–25">18–25</option>
-            <option value="26–35">26–35</option>
-            <option value="36–45">36–45</option>
-            <option value="46–55">46–55</option>
-            <option value="56+">56+</option>
-            <option value="All ages">All ages</option>
-          </select>
+          <div style="display:grid; grid-template-columns:1fr auto 1fr; gap:8px; align-items:center;">
+            <select class="ffp-select" id="pmf-age-from" aria-label="Age from"></select>
+            <span style="color:var(--muted);font-size:12px;">to</span>
+            <select class="ffp-select" id="pmf-age-to" aria-label="Age to"></select>
+          </div>
         </div>
       </div>
       <div class="pm-form-field" id="pmf-pro-field" style="display:none;">
@@ -5359,7 +5365,7 @@ input[type="number"] {
         <textarea class="pm-form-textarea" id="pmf-desc" placeholder="What you're looking for — pace, vibe, after-session plans..."></textarea>
       </div>
     </div>    <div class="dm-footer">
-      <button class="btn-primary-blue" onclick="MeetMove.submitPost()">Post Meetup</button>
+      <button class="btn-primary-yellow" onclick="MeetMove.submitPost()">Post Meetup</button>
       <div class="dm-footer-note">Bigger than 8 people? Switch to an Event — contact FFP admin to host.</div>
     </div>
   </div>
@@ -11369,22 +11375,25 @@ const MeetMove = {
   
   filtered() {
     let items = this.data.slice();
-    if (this.tab === 'joined')  items = items.filter(m => m.joinedByMe);
-    if (this.tab === 'hosting') items = items.filter(m => this.hostingIds.has(m.id));
-    if (this.tab === 'past')    items = []; // no past sample data
-    if (this.search) items = items.filter(m =>
-      m.activity.toLowerCase().includes(this.search) || m.host.toLowerCase().includes(this.search) || m.venue.toLowerCase().includes(this.search));
-    if (this.cat !== 'all') items = items.filter(m => m.cat === this.cat);
-    if (this.when !== 'all') items = items.filter(m => m.whenSlot === this.when);
-    if (this.gender !== 'all') items = items.filter(m => m.gender === this.gender);
-    if (this.level !== 'all') items = items.filter(m => m.level === this.level);
-    if (this.country !== 'all' && this.city === 'all') {
-      var cc = (window.FFP_TAX && FFP_TAX.cities[this.country]) || [];
-      items = items.filter(m => cc.indexOf(m.city) >= 0);
+    if (this.tab === 'joined')       items = items.filter(m => m.joinedByMe);
+    else if (this.tab === 'hosting') items = items.filter(m => this.hostingIds.has(m.id) || m.isHostedByMe);
+    else if (this.tab === 'past')    items = [];
+    else if (this.tab === 'discover') {
+      // v195: browse filters apply ONLY on Discover — never hide your own Going/Hosting items
+      if (this.search) items = items.filter(m =>
+        m.activity.toLowerCase().includes(this.search) || m.host.toLowerCase().includes(this.search) || m.venue.toLowerCase().includes(this.search));
+      if (this.cat !== 'all') items = items.filter(m => m.cat === this.cat);
+      if (this.when !== 'all') items = items.filter(m => m.whenSlot === this.when);
+      if (this.gender !== 'all') items = items.filter(m => m.gender === this.gender);
+      if (this.level !== 'all') items = items.filter(m => m.level === this.level);
+      if (this.country !== 'all' && this.city === 'all') {
+        var cc = (window.FFP_TAX && FFP_TAX.cities[this.country]) || [];
+        items = items.filter(m => cc.indexOf(m.city) >= 0);
+      }
+      if (this.city !== 'all') items = items.filter(m => (m.city || '') === this.city);
+      if (this.proOnly) items = items.filter(m => m.isProfessional);
     }
-    if (this.city !== 'all') items = items.filter(m => (m.city || '') === this.city);
     if (!isMemberProfessional()) items = items.filter(m => !m.isProfessional);
-    if (this.proOnly) items = items.filter(m => m.isProfessional);
     return items;
   },
   
@@ -11705,52 +11714,73 @@ const MeetMove = {
   },
   
   openPostForm() {
-    var dayS = document.getElementById('pmf-day');
-    var monS = document.getElementById('pmf-month');
-    var yrS = document.getElementById('pmf-year');
-    var tmS = document.getElementById('pmf-time');
-    var actS = document.getElementById('pmf-cat');
-    var cnyS = document.getElementById('pmf-country');
+    var g = function (id) { return document.getElementById(id); };
+    var dayS = g('pmf-day'), monS = g('pmf-month'), yrS = g('pmf-year');
+    var hrS = g('pmf-hour'), mnS = g('pmf-min'), apS = g('pmf-ap');
+    var cnyS = g('pmf-country'), citS = g('pmf-city');
+    var afS = g('pmf-age-from'), atS = g('pmf-age-to');
     if (dayS && dayS.options.length === 0) {
       for (var d = 1; d <= 31; d++) dayS.add(new Option(String(d).padStart(2, '0'), d));
       var MN = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
       MN.forEach(function (m, i) { monS.add(new Option(m, i + 1)); });
       var y0 = new Date().getFullYear();
       for (var y = y0; y <= y0 + 1; y++) yrS.add(new Option(y, y));
-      for (var h = 5; h <= 22; h++) {
-        for (var mm = 0; mm < 60; mm += 30) {
-          var hh = String(h).padStart(2, '0'), m2 = String(mm).padStart(2, '0');
-          var lab = ((h % 12) || 12) + ':' + m2 + ' ' + (h < 12 ? 'AM' : 'PM');
-          tmS.add(new Option(lab, hh + ':' + m2));
-        }
-      }
     }
-    // Activity taxonomy (grouped, A–Z) — once
-    if (actS && actS.options.length === 0) {
-      var groups = {};
-      ACTIVITIES_DB.forEach(function (a) { (groups[a.c] = groups[a.c] || []).push(a.n); });
-      actS.add(new Option('Select activity…', ''));
-      Object.keys(groups).sort().forEach(function (g) {
-        var og = document.createElement('optgroup'); og.label = g;
-        groups[g].slice().sort().forEach(function (n) { og.appendChild(new Option(n, n)); });
-        actS.appendChild(og);
-      });
+    // Time — hour 1-12 + minute (5-min steps) + AM/PM (standard scroll selects)
+    if (hrS && hrS.options.length === 0) {
+      for (var h = 1; h <= 12; h++) hrS.add(new Option(String(h), h));
+      for (var mi = 0; mi < 60; mi += 5) { var mz = String(mi).padStart(2, '0'); mnS.add(new Option(mz, mz)); }
     }
-    // Countries (A–Z) — once
-    if (cnyS && cnyS.options.length === 0) {
+    // Country -> City cascade (single unit, FFP_TAX.cities)
+    if (cnyS && cnyS.options.length === 0 && window.FFP_TAX && FFP_TAX.cities) {
+      var fillCities = function (country) {
+        citS.innerHTML = '';
+        var list = (country && FFP_TAX.cities[country]) ? FFP_TAX.cities[country] : [];
+        citS.add(new Option(list.length ? 'Select city…' : 'Select a country first', ''));
+        list.forEach(function (c) { citS.add(new Option(c, c)); });
+      };
       cnyS.add(new Option('Select country…', ''));
-      Object.keys(CITIES_DB).sort().forEach(function (c) { cnyS.add(new Option(c, c)); });
+      Object.keys(FFP_TAX.cities).forEach(function (c) { cnyS.add(new Option(c, c)); });
+      cnyS.addEventListener('change', function () { fillCities(this.value); });
+      if (FFP_TAX.cities['United Arab Emirates']) { cnyS.value = 'United Arab Emirates'; fillCities('United Arab Emirates'); }
+      else { fillCities(''); }
+    }
+    // Age From / To
+    if (afS && afS.options.length === 0) {
+      for (var a = 16; a <= 80; a++) { afS.add(new Option(String(a), a)); atS.add(new Option(String(a), a)); }
+      afS.value = '18'; atS.value = '45';
     }
     var t = new Date(); t.setDate(t.getDate() + 1);
     if (dayS) dayS.value = t.getDate();
     if (monS) monS.value = t.getMonth() + 1;
     if (yrS) yrS.value = t.getFullYear();
-    if (tmS) tmS.value = '18:00';
-    var _proField = document.getElementById('pmf-pro-field');
-    var _proCb = document.getElementById('pmf-professional');
+    if (hrS) hrS.value = 6;
+    if (mnS) mnS.value = '00';
+    if (apS) apS.value = 'PM';
+    var acI = g('pmf-cat-search'), acV = g('pmf-cat'), acR = g('pmf-cat-results');
+    if (acI) acI.value = ''; if (acV) acV.value = ''; if (acR) { acR.innerHTML = ''; acR.style.display = 'none'; }
+    var _proField = g('pmf-pro-field'), _proCb = g('pmf-professional');
     if (_proCb) _proCb.checked = false;
     if (_proField) _proField.style.display = isMemberProfessional() ? '' : 'none';
-    document.getElementById('post-meetup-backdrop').classList.add('open');
+    g('post-meetup-backdrop').classList.add('open');
+  },
+
+  acFilter(q) {
+    var acR = document.getElementById('pmf-cat-results'); if (!acR) return;
+    q = String(q || '').trim().toLowerCase();
+    var list = (window.FFP_TAX && FFP_TAX.activities) ? FFP_TAX.activities : (window.ACTIVITIES_DB || []);
+    var names = list.map(function (a) { return a.n || a.name || a; });
+    var matched = names.filter(function (n) { return !q || String(n).toLowerCase().indexOf(q) >= 0; }).slice(0, 50);
+    if (!matched.length) { acR.innerHTML = '<div class="pmf-ac-empty">No activities found</div>'; acR.style.display = 'block'; return; }
+    acR.innerHTML = matched.map(function (n) {
+      var safe = String(n).replace(/'/g, "\\'");
+      return '<div class="pmf-ac-item" onclick="MeetMove.acPick(\'' + safe + '\')">' + (window.escHtml ? escHtml(n) : n) + '</div>';
+    }).join('');
+    acR.style.display = 'block';
+  },
+  acPick(name) {
+    var acI = document.getElementById('pmf-cat-search'), acV = document.getElementById('pmf-cat'), acR = document.getElementById('pmf-cat-results');
+    if (acI) acI.value = name; if (acV) acV.value = name; if (acR) { acR.innerHTML = ''; acR.style.display = 'none'; }
   },
   
   closePostForm() {
@@ -11763,19 +11793,26 @@ const MeetMove = {
     var venue    = document.getElementById('pmf-venue').value.trim();
     var country  = document.getElementById('pmf-country').value;
     var city     = document.getElementById('pmf-city').value.trim();
-    var ageRange = document.getElementById('pmf-age').value;
+    var ageFrom  = document.getElementById('pmf-age-from').value;
+    var ageTo    = document.getElementById('pmf-age-to').value;
+    var ageRange = (ageFrom && ageTo) ? (ageFrom + '-' + ageTo) : '';
     if (!title)    { alert('Add a title.'); return; }
     if (!activity) { alert('Pick an activity.'); return; }
     if (!venue)    { alert('Add a venue.'); return; }
     if (!country)  { alert('Select a country.'); return; }
     if (!city)     { alert('Add a city.'); return; }
-    if (!ageRange) { alert('Select an age range.'); return; }
+    if (!ageFrom || !ageTo) { alert('Select an age range (from and to).'); return; }
+    if (parseInt(ageFrom, 10) > parseInt(ageTo, 10)) { alert('Age "from" must be less than or equal to "to".'); return; }
     var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
     if (!member || !member.id) { alert('Please sign in again to post a meetup.'); return; }
     var day = document.getElementById('pmf-day').value;
     var mon = String(document.getElementById('pmf-month').value).padStart(2, '0');
     var yr = document.getElementById('pmf-year').value;
-    var tm = document.getElementById('pmf-time').value || '18:00';
+    var hr12 = parseInt(document.getElementById('pmf-hour').value, 10) || 6;
+    var mnv  = document.getElementById('pmf-min').value || '00';
+    var apv  = document.getElementById('pmf-ap').value || 'PM';
+    var hr24 = (apv === 'PM') ? (hr12 === 12 ? 12 : hr12 + 12) : (hr12 === 12 ? 0 : hr12);
+    var tm = String(hr24).padStart(2, '0') + ':' + mnv;
     var meetsAt = yr + '-' + mon + '-' + String(day).padStart(2, '0') + 'T' + tm + ':00';
     var g = document.getElementById('pmf-gender').value;
     var groupFilter = g === 'women' ? 'women_only' : (g === 'men' ? 'men_only' : null);
@@ -11801,7 +11838,7 @@ const MeetMove = {
     } catch (e) { alert('Could not post the meetup. Please try again.'); return; }
     this.closePostForm();
     showToast('Meetup posted — visible to matched members', 'send');
-    ['pmf-title','pmf-venue','pmf-city','pmf-cost','pmf-desc'].forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ''; });
+    ['pmf-title','pmf-venue','pmf-cost','pmf-desc','pmf-cat-search','pmf-cat'].forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ''; });
     if (typeof window.ffpReloadMeetMove === 'function') { try { window.ffpReloadMeetMove(); } catch (e) {} }
   }
 };
