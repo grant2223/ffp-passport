@@ -1,9 +1,9 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v180 (2026-06-01)
-     v180: progression modal target boxes drop the 'Supporter'/'Ambassador' words — colour
-           conveys the tier (blue = Supporter, yellow = Ambassador). Each box now reads e.g.
-           '8 ACTIVITIES' (blue) / '24 ACTIVITIES' (yellow).
-     v179: modal targets show number + unit; footer 'Keep these active within 30 days...'.
+     FFP MEMBER DASHBOARD — v181 (2026-06-01)
+     v181: MATCHING wired — MeetMove.loadMatches() pulls real members from the get_match_pool()
+           RPC (RLS-safe), scores by shared sports + city; connect button writes to
+           member_connections via Supabase (the old /api/connections/request never existed).
+     v180: progression modal targets colour-coded (no Supporter/Ambassador words).
      ════════════════════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="en">
@@ -11162,6 +11162,7 @@ const MeetMove = {
     document.getElementById('meet-filter-level').addEventListener('change', e => { this.level = e.target.value; this.render(); });
     this.renderMatchStrip();
     this.render();
+    this.loadMatches();
   },
   
   renderMatchStrip() {
@@ -11183,6 +11184,39 @@ const MeetMove = {
         </div>
       `;
     }).join('');
+  },
+
+  // v181: real matches from get_match_pool() RPC (RLS-safe). Score = shared sports + city.
+  async loadMatches() {
+    if (!window.supabase || typeof MemberProfile === 'undefined') return;
+    try {
+      var res = await window.supabase.rpc('get_match_pool');
+      if (res.error || !res.data) { if (res.error) console.warn('[FFP Matches]', res.error.message); return; }
+      var meSports = ((MemberProfile.data && MemberProfile.data.sports) || []).map(function (x) { return String(x.name || '').toLowerCase(); });
+      var meCity = String((MemberProfile.data && MemberProfile.data.city) || '').toLowerCase();
+      this.matches = (res.data || []).map(function (r) {
+        var skills = Array.isArray(r.skills) ? r.skills : [];
+        var sports = skills.map(function (sk) {
+          var nm = sk.name || sk.skill || sk.sport || '';
+          return { name: nm, level: sk.level || 'All levels', shared: meSports.indexOf(String(nm).toLowerCase()) >= 0 };
+        }).filter(function (sp) { return sp.name; });
+        var shared = sports.filter(function (sp) { return sp.shared; });
+        var cityMatch = !!(meCity && r.city && meCity === String(r.city).toLowerCase());
+        var score = Math.min(99, 50 + shared.length * 12 + (cityMatch ? 15 : 0));
+        var nm = r.name || 'Member';
+        var conn = r.incoming ? 'incoming' : (r.conn_status === 'accepted' ? 'connected' : (r.conn_status === 'pending' ? 'requested' : 'none'));
+        return {
+          id: r.id, name: nm, letter: (nm[0] || '?').toUpperCase(), photo: r.photo_url || '',
+          age: '', city: r.city || '', gender: '', sports: sports,
+          match: score, trust: 5.0, verified: false, joined: Date.now(), bio: '',
+          meetups: 0, hosted: 0, memberType: '', profession: '',
+          matchSports: shared.map(function (sp) { return { icon: 'fitness_center', sport: sp.name, pct: 100, points: [] }; }),
+          matchOther: cityMatch ? [{ l: 'Same city', v: r.city }] : [],
+          connection: conn
+        };
+      });
+      this.renderMatchStrip();
+    } catch (e) { console.warn('[FFP Matches] load threw:', e); }
   },
   
   filtered() {
@@ -11455,20 +11489,26 @@ const MeetMove = {
     openDetailModal(body);
   },
   
+  // v181: connect via Supabase (RLS: requester_id must be me). Accept if they invited me.
   async requestConnect(uid) {
     const u = this.matches.find(x => x.id === uid);
     const member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
-    if (!u || !member) { closeDetailModal(); return; }
+    if (!u || !member || !window.supabase) { closeDetailModal(); return; }
     try {
-      const res = await fetch('https://ffp-passport-backend.vercel.app/api/connections/request', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ member_id: member.id, target_id: uid })
-      });
-      const json = await res.json();
-      if (json && json.success) {
-        u.connection = (json.status === 'connected') ? 'connected' : 'requested';
-        showToast((json.status === 'connected') ? (`You're connected with ` + u.name.split(' ')[0]) : (`Request sent to ` + u.name.split(' ')[0]));
-      } else { showToast('Could not send request — try again'); }
+      if (u.connection === 'incoming') {
+        const up = await window.supabase.from('member_connections').update({ status: 'accepted' })
+          .eq('requester_id', uid).eq('addressee_id', member.id);
+        if (up.error) { showToast('Could not connect — try again'); closeDetailModal(); return; }
+        u.connection = 'connected';
+        showToast(`You're connected with ` + u.name.split(' ')[0]);
+      } else {
+        const ins = await window.supabase.from('member_connections')
+          .insert({ requester_id: member.id, addressee_id: uid, status: 'pending' });
+        if (ins.error) { console.warn('[FFP Matches] connect:', ins.error.message); showToast('Could not send request — try again'); closeDetailModal(); return; }
+        u.connection = 'requested';
+        showToast(`Request sent to ` + u.name.split(' ')[0]);
+      }
+      this.renderMatchStrip();
     } catch (e) { showToast('Could not send request — try again'); }
     closeDetailModal();
   },
