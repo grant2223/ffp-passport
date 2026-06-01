@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v206 (2026-06-01)
+<!-- FFP MEMBER DASHBOARD — v207 (2026-06-01)
+     v207: Log Activity modal REBUILT on the SAME system as Post-a-Meetup (the one that works) instead of the
+           legacy .modal + media-query patch. Now uses .detail-backdrop/.detail-modal + .pm-form/.ffp-select,
+           and #log-modal-backdrop shares #post-meetup-backdrop's full-screen rule → identical full-screen
+           behaviour + Date/Time side-by-side, no patching. Same field IDs, so saveLog()/setupLogPickers() and
+           the log_activity RPC are unchanged. Removed the old #log-modal click-listener (would throw on null).
      v206: ROOT-CAUSE FIX for "modal not full-screen on mobile" — full-screen rule used height:100%, which
            iOS Safari ignores on a fixed parent (modal collapsed to a centered box). Now uses min-height:100vh
            + overflow-y:auto, matching the Post-a-Meetup modal that works. Log Activity Date & Time back on ONE
@@ -2950,8 +2955,8 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 .pmf-ac-item { padding: 9px 12px; font-size: 13px; color: var(--text); cursor: pointer; border-bottom: 1px solid rgba(43,168,224,0.08); }
 .pmf-ac-item:active, .pmf-ac-item:hover { background: rgba(43,168,224,0.14); }
 .pmf-ac-empty { padding: 9px 12px; font-size: 12px; color: var(--muted); }
-#post-meetup-backdrop { align-items: stretch; padding: 0; }
-#post-meetup-backdrop .detail-modal { max-width: 640px; width: 100%; min-height: 100vh; max-height: none; border-radius: 0; border: none; margin: 0; }
+#post-meetup-backdrop, #log-modal-backdrop { align-items: stretch; padding: 0; }
+#post-meetup-backdrop .detail-modal, #log-modal-backdrop .detail-modal { max-width: 640px; width: 100%; min-height: 100vh; max-height: none; border-radius: 0; border: none; margin: 0; }
 .detail-backdrop.dm-full { align-items: stretch; padding: 0; }
 .detail-backdrop.dm-full .detail-modal { max-width: 560px; width: 100%; min-height: 100vh; max-height: none; border-radius: 0; margin: 0; }
 /* v203: data-entry & content modals fill the screen on mobile (Log activity, Add city, PIN, pickers, detail cards).
@@ -5171,63 +5176,61 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 </div>
 
 <!-- LOG EXPERIENCE MODAL -->
-<div class="modal-overlay" id="log-modal">
-  <div class="modal">
-    <div class="modal-header">
-      <div>
-        <div class="modal-title">Log activity</div>
-        <div class="modal-subtitle">Add what you did. Optional fields are optional.</div>
-      </div>
-      <button class="modal-close" onclick="closeLogModal()">&times;</button>
+<div class="detail-backdrop" id="log-modal-backdrop" onclick="closeLogIfBackdrop(event)">
+  <div class="detail-modal" role="dialog" aria-modal="true">
+    <button class="dm-close" onclick="closeLogModal()"><span class="material-icons">close</span></button>
+    <div class="dm-body">
+      <div class="dm-title">Log activity</div>
+      <div style="font-size:12px; color:var(--muted); margin-bottom:14px;">Add what you did. Optional fields are optional.</div>
     </div>
-    <div class="modal-body">
-      <div class="form-field">
-        <label class="form-label">Activity</label>
+    <div class="pm-form">
+      <div class="pm-form-field">
+        <label class="pm-form-label">Activity</label>
         <div class="input-wrap">
-          <input type="text" id="log-activity" class="form-input" placeholder="Search activities..." autocomplete="off">
+          <input type="text" id="log-activity" class="pm-form-input" placeholder="Search activities..." autocomplete="off">
           <div class="picker-dropdown" id="activity-picker"></div>
         </div>
       </div>
-      <div class="log-grid2" style="margin-top:10px;">
-        <div class="form-field">
-          <label class="form-label">Country</label>
-          <select id="log-country" class="form-input" onchange="fillLogCities()"></select>
+      <div class="pm-form-grid-2">
+        <div class="pm-form-field">
+          <label class="pm-form-label">Country</label>
+          <select id="log-country" class="ffp-select" onchange="fillLogCities()"></select>
         </div>
-        <div class="form-field">
-          <label class="form-label">City</label>
-          <select id="log-city" class="form-input"></select>
-        </div>
-      </div>
-      <div class="log-row2" style="margin-top:10px;">
-        <div class="form-field">
-          <label class="form-label">Date</label>
-          <input type="date" id="log-date" class="form-input">
-        </div>
-        <div class="form-field">
-          <label class="form-label">Time</label>
-          <input type="time" id="log-time" class="form-input">
+        <div class="pm-form-field">
+          <label class="pm-form-label">City</label>
+          <select id="log-city" class="ffp-select"></select>
         </div>
       </div>
-      <div class="form-field" style="margin-top:10px;">
-        <label class="form-label">Duration</label>
+      <div class="pm-form-grid-2">
+        <div class="pm-form-field">
+          <label class="pm-form-label">Date</label>
+          <input type="date" id="log-date" class="pm-form-input">
+        </div>
+        <div class="pm-form-field">
+          <label class="pm-form-label">Time</label>
+          <input type="time" id="log-time" class="pm-form-input">
+        </div>
+      </div>
+      <div class="pm-form-field">
+        <label class="pm-form-label">Duration</label>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
-          <select id="log-dur-h" class="form-input"></select>
-          <select id="log-dur-m" class="form-input"></select>
-          <select id="log-dur-s" class="form-input"></select>
+          <select id="log-dur-h" class="ffp-select"></select>
+          <select id="log-dur-m" class="ffp-select"></select>
+          <select id="log-dur-s" class="ffp-select"></select>
         </div>
       </div>
-      <div class="form-field" style="margin-top:10px;">
-        <label class="form-label">Calories</label>
-        <input type="number" id="log-calories" class="form-input" inputmode="numeric" placeholder="e.g. 400">
+      <div class="pm-form-field">
+        <label class="pm-form-label">Calories</label>
+        <input type="number" id="log-calories" class="pm-form-input" inputmode="numeric" placeholder="e.g. 400">
       </div>
-      <div class="form-field" style="margin-top:10px;">
-        <label class="form-label">Notes (optional)</label>
-        <textarea id="log-notes" class="form-input" rows="2" placeholder="How did it feel?"></textarea>
+      <div class="pm-form-field">
+        <label class="pm-form-label">Notes (optional)</label>
+        <textarea id="log-notes" class="pm-form-textarea" rows="2" placeholder="How did it feel?"></textarea>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeLogModal()">Cancel</button>
-      <button class="btn" style="background:#FFCC00;color:#081420;border:none;font-weight:800;" onclick="saveLog()">Save activity</button>
+    <div class="dm-footer">
+      <button class="btn-primary-yellow" onclick="saveLog()">Save activity</button>
+      <div class="dm-footer-note">Logs to your passport map and stats.</div>
     </div>
   </div>
 </div>
@@ -12439,7 +12442,7 @@ function fillLogCities() {
   list.forEach(function (c) { cityS.add(new Option(c, c)); });
 }
 function openLogModal() {
-  document.getElementById('log-modal').classList.add('show');
+  document.getElementById('log-modal-backdrop').classList.add('open');
   var prof = (window.MemberProfile && MemberProfile.data) || {};
   // Country (A–Z), default to profile
   var cnyS = document.getElementById('log-country');
@@ -12470,7 +12473,8 @@ function openScanLog() {
   if (typeof showToast === 'function') showToast('Scan check-in is coming soon — log it manually for now');
   openLogModal();
 }
-function closeLogModal() { document.getElementById('log-modal').classList.remove('show'); }
+function closeLogModal() { document.getElementById('log-modal-backdrop').classList.remove('open'); }
+function closeLogIfBackdrop(e) { if (e.target.id === 'log-modal-backdrop') closeLogModal(); }
 async function saveLog() {
   const act = document.getElementById('log-activity').value.trim();
   if (!act) { alert('Please pick an activity'); return; }
@@ -12681,7 +12685,6 @@ function init() {
   setupLogPickers();
   document.getElementById('add-city-btn').addEventListener('click', openAddCity);
   document.getElementById('add-city-modal').addEventListener('click', e => { if (e.target.id === 'add-city-modal') closeAddCity(); });
-  document.getElementById('log-modal').addEventListener('click', e => { if (e.target.id === 'log-modal') closeLogModal(); });
   document.getElementById('pin-modal').addEventListener('click', e => { if (e.target.id === 'pin-modal') closePinModal(); });
   // Picker modal click-outside is wired inside the Picker module
   document.getElementById('city-search').addEventListener('input', e => renderCityList(e.target.value));
