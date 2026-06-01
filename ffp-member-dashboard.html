@@ -1,8 +1,9 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v189 (2026-06-01)
-     v189: Matches FIX — loadMatches() now calls get_match_pool(p_me) with the member id
-           (custom-JWT members don't set auth.uid() client-side). Retries until id ready.
-     v188: Events/Experiences/Challenges filter modals (Country->City + per-panel).
+     FFP MEMBER DASHBOARD — v190 (2026-06-01)
+     v190: MATCHES OVERHAUL — reusable FFPPassportCard (passport ID page, tap to flip to
+           activities+record); full-screen swipe deck (drag L=pass / R=connect, invite,
+           daily counter); connect via handle_connection RPC; list kept as secondary view.
+     v189: get_match_pool(p_me) — matches no longer depend on auth.uid().
      ════════════════════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="en">
@@ -11345,9 +11346,17 @@ const MeetMove = {
         if (recent) matchOther.push({ l: 'Recently active', v: 'last 30 days' });
         return {
           id: r.id, name: nm, letter: (nm[0] || '?').toUpperCase(), photo: r.photo_url || '',
-          age: r.age || '', city: r.city || '', gender: String(r.gender || '').toLowerCase(), sports: sports,
+          givenNames: r.given_names || (nm.split(' ')[0] || ''),
+          surname: r.surname || (nm.split(' ').slice(1).join(' ') || ''),
+          age: r.age || '', city: r.city || '', country: r.country || '',
+          gender: String(r.gender || '').toLowerCase(), sports: sports,
+          memberType: r.tier || 'member',
+          memberSince: (r.member_since != null ? r.member_since : null),
+          meetupsHosted: (r.meetups_hosted != null ? Number(r.meetups_hosted) : null),
+          reliability: (r.reliability != null ? Number(r.reliability) : null),
+          recent: recent,
           match: score, trust: 5.0, verified: false, joined: Date.now(), bio: '',
-          meetups: 0, hosted: 0, memberType: '', profession: '',
+          meetups: 0, hosted: 0, profession: '',
           matchSports: matchSports, matchOther: matchOther, connection: conn
         };
       }).sort(function (a, b) { return b.match - a.match; });
@@ -12728,6 +12737,254 @@ else init();
 // Initial scale after DOM ready
 setTimeout(scalePassportCard, 50);
 setTimeout(scalePassportCard, 200);
+</script>
+<style id="ffp-pc-styles">
+.ffp-pc{ position:relative; width:100%; aspect-ratio:1.586/1; perspective:1300px; }
+.ffp-pc-flip{ position:absolute; inset:0; transform-style:preserve-3d; transition:transform .55s cubic-bezier(.2,.7,.2,1); }
+.ffp-pc.flipped .ffp-pc-flip{ transform:rotateY(180deg); }
+.ffp-pc-face{ position:absolute; inset:0; -webkit-backface-visibility:hidden; backface-visibility:hidden; border-radius:14px; overflow:hidden; background:#eff2f6; color:#1a2937; box-shadow:0 20px 50px -16px rgba(0,0,0,0.6); }
+.ffp-pc-back{ transform:rotateY(180deg); }
+.ffp-pc-emblem{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(29,93,138,0.05); pointer-events:none; }
+.ffp-pc-emblem .material-icons{ font-size:150px; }
+.ffp-pc-photo{ width:70px; height:90px; flex-shrink:0; background:#0f5a7a; border:2px solid #fff; border-radius:3px; box-shadow:0 2px 6px rgba(0,0,0,0.18); display:flex; align-items:center; justify-content:center; color:#bfe0f0; font-size:26px; font-weight:700; background-size:cover; background-position:center top; }
+.ffp-pc-mrz{ position:absolute; left:0; right:0; bottom:0; background:#dde5ed; border-top:1px solid #c4d1dc; padding:5px 13px; font-family:monospace; font-size:10px; letter-spacing:.5px; color:#3a4b5e; line-height:1.5; white-space:nowrap; overflow:hidden; }
+.ffp-pc-lbl{ font-size:6.5px; letter-spacing:1px; color:#4a5d72; }
+.ffp-pc-val{ font-weight:600; color:#1a2937; line-height:1.15; }
+.ffp-pc-cell{ background:#e2e9f0; border:0.5px solid #cdd7e1; border-radius:4px; padding:5px 7px; }
+.ffp-pc-cell .ffp-pc-val{ font-size:12px; font-weight:700; }
+.ffp-pc-corner{ width:60px; flex-shrink:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.ffp-pc-ring{ width:54px; height:54px; border-radius:50%; border:3px solid #b8965a; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.ffp-pc-badge{ font-size:10px; font-weight:800; letter-spacing:1px; color:#1d5d8a; border:1.5px solid #1d5d8a; border-radius:6px; padding:3px 8px; }
+.ffp-deck-overlay{ position:fixed; inset:0; z-index:9600; background:#081420; display:none; flex-direction:column; padding:14px 16px 22px; }
+.ffp-deck-overlay.open{ display:flex; }
+.ffp-deck-head{ display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.ffp-deck-title{ color:#e8eef4; font-size:18px; font-weight:800; }
+.ffp-deck-seg{ display:flex; gap:4px; background:#0f1e2e; border:1px solid var(--border-mid); border-radius:10px; padding:3px; margin-left:auto; }
+.ffp-deck-seg button{ border:none; background:transparent; color:#8a99a8; font-size:12px; font-weight:800; padding:6px 12px; border-radius:8px; cursor:pointer; font-family:inherit; }
+.ffp-deck-seg button.active{ background:#FFCC00; color:#081420; }
+.ffp-deck-x{ background:#0f1e2e; border:1px solid var(--border-mid); color:#e8eef4; width:36px; height:36px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.ffp-deck-count{ color:#8a99a8; font-size:12px; font-family:monospace; letter-spacing:1px; margin:0 0 12px; }
+.ffp-deck-stack{ position:relative; flex:1; min-height:0; }
+.ffp-deck-card{ position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); transition:transform .3s ease, opacity .3s ease; touch-action:pan-y; }
+.ffp-deck-card.dragging{ transition:none; }
+.ffp-deck-hint{ position:absolute; top:16px; z-index:5; padding:5px 12px; border-radius:8px; font-size:15px; font-weight:900; letter-spacing:1px; opacity:0; pointer-events:none; }
+.ffp-deck-hint.pass{ right:16px; color:#ff6b6b; border:2px solid #ff6b6b; transform:rotate(12deg); }
+.ffp-deck-hint.like{ left:16px; color:#FFCC00; border:2px solid #FFCC00; transform:rotate(-12deg); }
+.ffp-deck-actions{ display:flex; align-items:center; justify-content:center; gap:24px; margin-top:16px; }
+.ffp-deck-btn{ border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; border:none; }
+.ffp-deck-empty{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:#8a99a8; padding:30px; }
+.ffp-deck-flash{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(8,20,32,0.66); opacity:0; transition:opacity .2s; z-index:30; }
+.ffp-deck-flash.show{ opacity:1; }
+.ffp-deck-hint-tap{ text-align:center; color:rgba(255,255,255,0.34); font-size:11px; margin-top:10px; }
+</style>
+<script>
+(function(){
+  "use strict";
+  function esc(s){ return (window.escHtml?escHtml(s):String(s==null?"":s)); }
+  function cap(s){ s=String(s||""); return s? s.charAt(0).toUpperCase()+s.slice(1):""; }
+  var LV={ "not tried":0, social:1, competitive:2, representative:3, professional:4 };
+
+  window.FFPPassportCard = {
+    ccode:function(country){ var w=String(country||"").trim().split(/\s+/); if(w.length>1) return w.map(function(x){return x[0];}).join("").slice(0,3).toUpperCase(); return String(country||"").slice(0,3).toUpperCase(); },
+    meter:function(level){ var n=LV[String(level||"").toLowerCase()]||0; var out=""; for(var i=0;i<4;i++){ out+="<span style='flex:1;height:4px;border-radius:2px;background:"+(i<n?"#b8965a":"#cdd7e1")+";'></span>"; } return "<div style='display:flex;gap:3px;margin-top:3px;'>"+out+"</div>"; },
+    field:function(lbl,val,sz){ return "<div style='margin-bottom:4px;'><div class='ffp-pc-lbl'>"+lbl+"</div><div class='ffp-pc-val' style='font-size:"+(sz||13)+"px;'>"+val+"</div></div>"; },
+    cell:function(lbl,val,color){ return "<div class='ffp-pc-cell'><div class='ffp-pc-lbl'>"+lbl+"</div><div class='ffp-pc-val'"+(color?" style='color:"+color+"'":"")+">"+val+"</div></div>"; },
+    render:function(m,opts){
+      opts=opts||{}; var self=this;
+      var given=m.givenNames||(String(m.name||"").split(" ")[0])||"";
+      var surname=m.surname||(String(m.name||"").split(" ").slice(1).join(" "))||"";
+      var initials=((given[0]||"")+(surname[0]||"")).toUpperCase()||(m.letter||"?");
+      var photoStyle=m.photo? "background-image:url('"+m.photo+"');" : "";
+      var ccode=this.ccode(m.country);
+      var sportsStr=(m.sports||[]).map(function(s){return s.name;}).slice(0,3).join(" · ")||"—";
+      var corner;
+      if(opts.context==="attendee"){ corner="<div class='ffp-pc-corner'><div class='ffp-pc-badge'>"+(opts.role||"GOING")+"</div></div>"; }
+      else { var pct=(opts.cornerPct!=null?opts.cornerPct:(m.match||"")); corner="<div class='ffp-pc-corner'><div class='ffp-pc-ring'><div style='font-size:17px;font-weight:800;color:#b8965a;line-height:1;'>"+pct+"</div><div class='ffp-pc-lbl'>PERCENT</div></div><div class='ffp-pc-lbl' style='margin-top:5px;letter-spacing:1.5px;'>MATCH</div></div>"; }
+      var memno=ccode+"·"+String(m.id||"").replace(/[^a-z0-9]/gi,"").slice(0,4).toUpperCase();
+      var front="<div class='ffp-pc-face ffp-pc-front'>"+
+        "<div class='ffp-pc-emblem'><span class='material-icons'>public</span></div>"+
+        "<div style='position:relative;padding:9px 13px 0;display:flex;align-items:flex-start;justify-content:space-between;'>"+
+          "<div><div style='font-size:10px;font-weight:800;letter-spacing:2px;'>PASSPORT</div><div class='ffp-pc-lbl' style='letter-spacing:1.5px;'>FELLOW MEMBER</div></div>"+
+          "<div style='font-size:14px;font-weight:800;letter-spacing:2px;color:#1d5d8a;'>WORLDWIDE</div>"+
+          "<div style='text-align:right;'><div class='ffp-pc-lbl'>MEMBER NO.</div><div style='font-size:10px;font-weight:700;font-family:monospace;'>"+memno+"</div></div>"+
+        "</div>"+
+        "<div style='height:2px;background:#b8965a;margin:7px 13px 0;opacity:.8;'></div>"+
+        "<div style='position:relative;display:flex;gap:11px;padding:8px 13px 0;'>"+
+          "<div class='ffp-pc-photo' style='"+photoStyle+"'>"+(m.photo?"":esc(initials))+"</div>"+
+          "<div style='flex:1;min-width:0;'>"+
+            self.field("SURNAME", esc(surname||"—"),13)+
+            self.field("GIVEN NAMES", esc(given||"—"),13)+
+            self.field("NATIONALITY", esc(m.country||"—"),11)+
+            "<div style='display:flex;gap:16px;'>"+
+              "<div><div class='ffp-pc-lbl'>GENDER</div><div class='ffp-pc-val' style='font-size:11px;'>"+(cap(m.gender)||"—")+"</div></div>"+
+              "<div style='min-width:0;'><div class='ffp-pc-lbl'>SPORTS</div><div class='ffp-pc-val' style='font-size:11px;'>"+esc(sportsStr)+"</div></div>"+
+            "</div>"+
+          "</div>"+
+          corner+
+        "</div>"+
+        "<div class='ffp-pc-mrz'>P&lt;"+ccode+"&lt;"+esc(surname.toUpperCase().replace(/\s/g,"&lt;"))+"&lt;&lt;"+esc(given.toUpperCase().replace(/\s/g,"&lt;"))+new Array(16).join("&lt;")+"<br>"+(m.sports||[]).map(function(s){return String(s.name).slice(0,3).toUpperCase();}).join("&lt;&lt;")+new Array(8).join("&lt;")+ccode+new Array(6).join("&lt;")+String(m.match||"")+"</div>"+
+      "</div>";
+
+      var skills=(m.sports||[]).slice(0,3);
+      var skillRows=skills.map(function(s){ return "<div style='margin-bottom:8px;'><div style='display:flex;justify-content:space-between;align-items:baseline;'><span style='font-size:12px;font-weight:600;'>"+esc(s.name)+"</span><span style='font-size:10px;color:#4a5d72;'>"+cap(s.level)+"</span></div>"+self.meter(s.level)+"</div>"; }).join("");
+      var cells=[];
+      if(m.memberSince) cells.push(self.cell("MEMBER SINCE", m.memberSince));
+      cells.push(self.cell("TYPE", cap(m.memberType||"Member")));
+      if(m.meetupsHosted!=null) cells.push(self.cell("MEET-UPS HOSTED", m.meetupsHosted));
+      if(m.reliability!=null) cells.push(self.cell("RELIABILITY", Number(m.reliability).toFixed(1), "#1d5d8a"));
+      var back="<div class='ffp-pc-face ffp-pc-back'>"+
+        "<div class='ffp-pc-emblem'><span class='material-icons'>approval</span></div>"+
+        "<div style='position:relative;padding:9px 13px 0;display:flex;align-items:center;justify-content:space-between;'>"+
+          "<div style='font-size:9px;font-weight:800;letter-spacing:2px;'>ACTIVITIES &amp; RECORD</div>"+
+          "<div style='font-size:10px;font-weight:700;color:#1d5d8a;'>"+esc((given+" "+surname).trim()||m.name||"")+"</div>"+
+        "</div>"+
+        "<div style='height:2px;background:#b8965a;margin:7px 13px 0;opacity:.8;'></div>"+
+        "<div style='position:relative;display:flex;gap:14px;padding:9px 13px 0;'>"+
+          "<div style='flex:1.2;min-width:0;'><div class='ffp-pc-lbl' style='margin-bottom:6px;'>SPORTS &amp; LEVELS</div>"+(skillRows||"<div style='font-size:11px;color:#4a5d72;'>No activities logged yet</div>")+"</div>"+
+          "<div style='flex:1;display:grid;grid-template-columns:1fr 1fr;gap:6px;align-content:start;'>"+cells.join("")+"</div>"+
+        "</div>"+
+        "<div class='ffp-pc-mrz'>VISA&lt;"+(skills[0]?String(skills[0].name).slice(0,5).toUpperCase():"")+"&lt;&lt;"+new Array(20).join("&lt;")+"</div>"+
+      "</div>";
+
+      var clickAttr = opts.flippable ? " onclick=\"this.classList.toggle('flipped')\" style='cursor:pointer;'" : "";
+      return "<div class='ffp-pc'"+clickAttr+"><div class='ffp-pc-flip'>"+front+back+"</div></div>";
+    }
+  };
+
+  if(typeof MeetMove==="undefined") return;
+  var _oldList = (typeof MeetMove.openMatchesGrid==="function") ? MeetMove.openMatchesGrid.bind(MeetMove) : null;
+
+  Object.assign(MeetMove, {
+    connectViaRpc: async function(uid){
+      var u=(this.matches||[]).find(function(x){return x.id===uid;});
+      var member=(window.FFPAuth&&FFPAuth.getMember&&FFPAuth.getMember())||null;
+      if(!member||!window.supabase){ if(window.showToast)showToast("Please sign in again"); return false; }
+      try{
+        var r=await window.supabase.rpc("handle_connection",{ p_me:member.id, p_target:uid });
+        if(r.error){ if(window.showToast)showToast("Could not connect — try again"); return false; }
+        var status=r.data;
+        if(u){ u.connection = (status==="connected")?"connected":((status==="requested"||status==="pending")?"requested":u.connection); }
+        var nm=(u&&u.name)?u.name.split(" ")[0]:"them";
+        if(status==="connected"){ this._celebrate(nm); }
+        else if(window.showToast){ showToast("Request sent to "+nm); }
+        if(this.renderMatchStrip)this.renderMatchStrip();
+        return true;
+      }catch(e){ if(window.showToast)showToast("Could not connect — try again"); return false; }
+    },
+    requestConnect: async function(uid){ var ok=await this.connectViaRpc(uid); if(typeof closeDetailModal==="function")closeDetailModal(); return ok; },
+    _celebrate: function(name){
+      if(window.showToast) showToast("You're connected with "+name+"!");
+      var o=document.getElementById("ffp-deck-overlay");
+      if(o&&o.classList.contains("open")){
+        var fl=document.createElement("div"); fl.className="ffp-deck-flash";
+        fl.innerHTML="<div style='text-align:center;'><span class='material-icons' style='font-size:44px;color:#FFCC00;'>verified</span><div style='margin-top:8px;font-weight:800;color:#fff;'>Connected with "+esc(name)+"</div><div style='font-size:12px;color:#8a99a8;margin-top:4px;'>Invite them to a meet-up</div></div>";
+        o.appendChild(fl); setTimeout(function(){ fl.classList.add("show"); },10);
+        setTimeout(function(){ if(fl.parentNode)fl.parentNode.removeChild(fl); },1700);
+      }
+    },
+    openMatchesGrid: function(){ this.openDeck(); },
+    openListView: function(){ this.closeDeck(); if(_oldList)_oldList(); },
+    _ensureDeckDom: function(){
+      if(document.getElementById("ffp-deck-overlay")) return;
+      var self=this;
+      var o=document.createElement("div"); o.id="ffp-deck-overlay"; o.className="ffp-deck-overlay";
+      o.innerHTML=
+        "<div class='ffp-deck-head'>"+
+          "<div class='ffp-deck-title'>Matches</div>"+
+          "<div class='ffp-deck-seg'><button id='ffp-seg-deck' class='active'>Deck</button><button id='ffp-seg-list'>List</button></div>"+
+          "<button class='ffp-deck-x' id='ffp-deck-x' aria-label='Close'><span class='material-icons'>close</span></button>"+
+        "</div>"+
+        "<div class='ffp-deck-count' id='ffp-deck-count'></div>"+
+        "<div class='ffp-deck-stack' id='ffp-deck-stack'></div>"+
+        "<div class='ffp-deck-hint-tap'>Tap the passport to flip · swipe or use the buttons</div>"+
+        "<div class='ffp-deck-actions' id='ffp-deck-actions'>"+
+          "<button class='ffp-deck-btn' id='ffp-act-pass' aria-label='Pass' style='width:56px;height:56px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.22);color:rgba(255,255,255,0.75);'><span class='material-icons' style='font-size:24px;'>close</span></button>"+
+          "<button class='ffp-deck-btn' id='ffp-act-connect' aria-label='Connect' style='width:68px;height:68px;background:#b8965a;color:#1a1206;'><span class='material-icons' style='font-size:29px;'>person_add</span></button>"+
+          "<button class='ffp-deck-btn' id='ffp-act-invite' aria-label='Invite to a meet-up' style='width:56px;height:56px;background:rgba(255,255,255,0.04);border:1px solid rgba(43,168,224,0.5);color:#58c0ee;'><span class='material-icons' style='font-size:23px;'>event</span></button>"+
+        "</div>";
+      document.body.appendChild(o);
+      document.getElementById("ffp-deck-x").addEventListener("click", function(){ self.closeDeck(); });
+      document.getElementById("ffp-seg-deck").addEventListener("click", function(){ this.classList.add("active"); document.getElementById("ffp-seg-list").classList.remove("active"); });
+      document.getElementById("ffp-seg-list").addEventListener("click", function(){ self.openListView(); });
+      document.getElementById("ffp-act-pass").addEventListener("click", function(){ var c=document.getElementById("ffp-top"); if(c)self._fly(c,-1); self.deckPass(); });
+      document.getElementById("ffp-act-connect").addEventListener("click", function(){ var c=document.getElementById("ffp-top"); if(c)self._fly(c,1); self.deckConnect(); });
+      document.getElementById("ffp-act-invite").addEventListener("click", function(){ self.deckInvite(); });
+    },
+    openDeck: function(){
+      this._ensureDeckDom();
+      this.deck=(this.matches||[]).filter(function(m){ return m.connection!=="connected"; });
+      this.deckIndex=0;
+      document.getElementById("ffp-deck-overlay").classList.add("open");
+      document.getElementById("ffp-seg-deck").classList.add("active");
+      document.getElementById("ffp-seg-list").classList.remove("active");
+      this.renderDeck();
+      if((!this.matches||!this.matches.length) && this.loadMatches){ this.loadMatches(); }
+    },
+    closeDeck: function(){ var o=document.getElementById("ffp-deck-overlay"); if(o)o.classList.remove("open"); },
+    renderDeck: function(){
+      var stack=document.getElementById("ffp-deck-stack"); if(!stack)return;
+      var d=this.deck||[], i=this.deckIndex||0;
+      var cnt=document.getElementById("ffp-deck-count");
+      var acts=document.getElementById("ffp-deck-actions");
+      if(i>=d.length){
+        stack.innerHTML="<div class='ffp-deck-empty'><span class='material-icons' style='font-size:42px;color:#2ba8e0;'>flight_takeoff</span><div style='margin-top:10px;font-size:15px;color:#e8eef4;font-weight:700;'>You're all caught up</div><div style='margin-top:4px;font-size:12px;'>New faces land tomorrow. Check your connections meanwhile.</div></div>";
+        if(cnt)cnt.textContent="0 to view";
+        if(acts)acts.style.visibility="hidden";
+        return;
+      }
+      if(acts)acts.style.visibility="visible";
+      var html="";
+      for(var k=Math.min(i+2,d.length-1); k>=i; k--){
+        var depth=k-i, m=d[k], top=(k===i);
+        var tf="translateY(calc(-50% + "+(depth*12)+"px)) scale("+(1-depth*0.05)+")";
+        html+="<div class='ffp-deck-card"+(top?" is-top":"")+"'"+(top?" id='ffp-top'":"")+" style='z-index:"+(20-depth)+";transform:"+tf+";'>"+
+          (top?"<div class='ffp-deck-hint like'>CONNECT</div><div class='ffp-deck-hint pass'>PASS</div>":"")+
+          window.FFPPassportCard.render(m,{ context:"match", cornerPct:m.match, flippable:false })+
+        "</div>";
+      }
+      stack.innerHTML=html;
+      if(cnt)cnt.textContent=(d.length-i)+" to view";
+      this._bindTop();
+    },
+    _fly: function(card,dir){ if(!card)return; card.style.transition="transform .3s ease, opacity .3s ease"; card.style.transform="translateY(-50%) translateX("+(dir*640)+"px) rotate("+(dir*28)+"deg)"; card.style.opacity="0"; },
+    _bindTop: function(){
+      var self=this; var card=document.getElementById("ffp-top"); if(!card)return;
+      var startX=0,startY=0,dx=0,dy=0,t0=0,active=false,moved=false;
+      var like=card.querySelector(".ffp-deck-hint.like"), pass=card.querySelector(".ffp-deck-hint.pass");
+      function pt(e){ var t=(e.touches&&e.touches[0])?e.touches[0]:e; return {x:t.clientX,y:t.clientY}; }
+      function down(e){ active=true; moved=false; t0=Date.now(); var p=pt(e); startX=p.x; startY=p.y; card.classList.add("dragging"); }
+      function move(e){ if(!active)return; var p=pt(e); dx=p.x-startX; dy=p.y-startY; if(Math.abs(dx)>6||Math.abs(dy)>6)moved=true; card.style.transform="translateY(-50%) translateX("+dx+"px) rotate("+(dx*0.05)+"deg)"; if(like)like.style.opacity=Math.max(0,Math.min(1,dx/120)); if(pass)pass.style.opacity=Math.max(0,Math.min(1,-dx/120)); if(moved&&e.cancelable&&Math.abs(dx)>Math.abs(dy))e.preventDefault(); }
+      function up(){ if(!active)return; active=false; card.classList.remove("dragging"); cleanup();
+        if(dx>120){ self._fly(card,1); self.deckConnect(); return; }
+        if(dx<-120){ self._fly(card,-1); self.deckPass(); return; }
+        if(!moved && (Date.now()-t0)<320){ var pc=card.querySelector(".ffp-pc"); if(pc)pc.classList.toggle("flipped"); }
+        card.style.transform="translateY(-50%)"; if(like)like.style.opacity=0; if(pass)pass.style.opacity=0;
+      }
+      function cleanup(){ window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up); window.removeEventListener("touchmove",move); window.removeEventListener("touchend",up); }
+      card.addEventListener("pointerdown",down); window.addEventListener("pointermove",move); window.addEventListener("pointerup",up);
+      card.addEventListener("touchstart",down,{passive:true}); window.addEventListener("touchmove",move,{passive:false}); window.addEventListener("touchend",up);
+    },
+    deckPass: function(){ var self=this; this.deckIndex=(this.deckIndex||0)+1; setTimeout(function(){ self.renderDeck(); },280); },
+    deckConnect: function(){ var self=this; var m=(this.deck||[])[this.deckIndex||0]; if(m)this.connectViaRpc(m.id); this.deckIndex=(this.deckIndex||0)+1; setTimeout(function(){ self.renderDeck(); },280); },
+    deckInvite: function(){ var m=(this.deck||[])[this.deckIndex||0]; this.closeDeck(); if(typeof this.openPostForm==="function")this.openPostForm(); }
+  });
+
+  var _origLoadMatches = (typeof MeetMove.loadMatches==="function") ? MeetMove.loadMatches.bind(MeetMove) : null;
+  if(_origLoadMatches){
+    MeetMove.loadMatches = async function(){
+      var r = await _origLoadMatches();
+      try{
+        var ov=document.getElementById("ffp-deck-overlay");
+        if(ov && ov.classList.contains("open")){
+          this.deck=(this.matches||[]).filter(function(m){ return m.connection!=="connected"; });
+          if((this.deckIndex||0) > this.deck.length) this.deckIndex=0;
+          this.renderDeck();
+        }
+      }catch(e){}
+      return r;
+    };
+  }
+})();
 </script>
 <script src="ffp-member-quest-scan-loader-v2.js"></script>
 </body>
