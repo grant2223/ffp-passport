@@ -1,10 +1,10 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v192 (2026-06-01)
-     v192: Matches polish — % moved ABOVE the card (card stays clean official passport);
-           back = 'Activities + Level' with 5 thicker blue level dashes; arrows/flip larger,
-           no background (left sends card left, right sends right); instructional text above
-           the yellow Request-to-connect button.
-     v191: deck uses real .pass-shell card; deck-only; swipe/tap bind fix.
+     FFP MEMBER DASHBOARD — v193 (2026-06-01)
+     v193: LAUNCH FIX — host-meetup + log-activity now go through SECURITY DEFINER RPCs
+           (host_meetup / log_activity) instead of direct inserts that failed on auth.uid()
+           for members. (join-meetup fixed in meet-move loader v15.) meetups.fitness_level
+           constraint updated to new skill taxonomy; meetups gains country + age_range.
+     v192: matches polish (% above card, activities+level, arrows/flip, instr text).
      ════════════════════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="en">
@@ -11794,7 +11794,7 @@ const MeetMove = {
       status: 'open'
     };
     try {
-      var res = await window.supabase.from('meetups').insert(payload);
+      var res = await window.supabase.rpc('host_meetup', { p_me: member.id, p: payload });
       if (res.error) { alert('Could not post: ' + res.error.message); return; }
     } catch (e) { alert('Could not post the meetup. Please try again.'); return; }
     this.closePostForm();
@@ -12427,12 +12427,12 @@ async function saveLog() {
   var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
   if (member && member.id && window.supabase) {
     try {
-      var res = await window.supabase.from('activity_logs').insert({
-        member_id: member.id, activity: act, city: city, country: country,
-        duration_min: entry.duration, calories: entry.calories,
-        logged_at: new Date(dateStr + 'T12:00:00').toISOString()
+      var res = await window.supabase.rpc('log_activity', {
+        p_me: member.id, p_activity: act, p_city: city, p_country: country,
+        p_duration_min: entry.duration, p_calories: entry.calories,
+        p_logged_at: new Date(dateStr + 'T12:00:00').toISOString(), p_notes: entry.notes
       });
-      if (res.error) console.error('[FFP Journey] save:', res.error);
+      if (res.error) console.error('[FFP Journey] save:', res.error.message);
     } catch (e) { console.error('[FFP Journey] save:', e); }
   }
   if (typeof showToast === 'function') showToast('Logged ' + act + (city ? ' in ' + city : ''), 'success');
