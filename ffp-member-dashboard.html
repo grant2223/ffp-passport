@@ -1,10 +1,8 @@
-<!-- ════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v198 (2026-06-01)
-     v198: Matches — % sits directly over the card (stack fixed to card aspect); arrows 2x
-           bigger, centred vertically between card and Share button; left arrow moves card
-           LEFT / right arrow moves it RIGHT; +space between passport photo and fields.
-     v197: meet-up form to standards.
-     ════════════════════════════════════════════════════════════════════ -->
+<!-- FFP MEMBER DASHBOARD — v199 (2026-06-01)
+     v199: deck — card stays centred, % drops onto it. Meet-up DETAIL modal: full-screen; quick details up top;
+     cost moved to cover tag (was oversized strap); Details above About; 'Hosted by' strap removed (host now
+     shows first in Who's going). Cross-ref: meet-move-loader v15 unchanged (inserts Who's-going + host-first).
+     v198: matches % over card + big arrows. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2930,6 +2928,8 @@ input[type="number"] {
 .pmf-ac-empty { padding: 9px 12px; font-size: 12px; color: var(--muted); }
 #post-meetup-backdrop { align-items: stretch; padding: 0; }
 #post-meetup-backdrop .detail-modal { max-width: 640px; width: 100%; min-height: 100vh; max-height: none; border-radius: 0; border: none; margin: 0; }
+.detail-backdrop.dm-full { align-items: stretch; padding: 0; }
+.detail-backdrop.dm-full .detail-modal { max-width: 560px; width: 100%; min-height: 100vh; max-height: none; border-radius: 0; margin: 0; }
 .pm-form-pick { display: flex; align-items: center; justify-content: space-between; cursor: pointer; text-align: left; }
 .pmf-pick-ph { color: var(--muted); }
 #pmf-cat-display.set { color: var(--text); font-weight: 700; }
@@ -10485,10 +10485,12 @@ function showToast(msg, icon) {
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2800);
 }
-function openDetailModal(htmlBody) {
+function openDetailModal(htmlBody, fullscreen) {
   document.getElementById('detail-modal-body').innerHTML = htmlBody;
   document.getElementById('detail-modal').scrollTop = 0;
-  document.getElementById('detail-backdrop').classList.add('open');
+  var _bd = document.getElementById('detail-backdrop');
+  _bd.classList.toggle('dm-full', !!fullscreen);
+  _bd.classList.add('open');
 }
 function closeDetailModal() {
   document.getElementById('detail-backdrop').classList.remove('open');
@@ -11571,48 +11573,34 @@ const MeetMove = {
     else if (isFull)  { btnLabel = 'Full'; btnDisabled = 'disabled'; btnClass = 'sold-out'; }
     const body = `
       <div class="dm-cover ${m.cat === 'racquet' ? 'sports' : m.cat === 'mind-body' ? 'wellness' : m.cat === 'fitness' ? 'fitness' : m.cat === 'adventure' ? 'adventure' : 'sports'}">
-        <span class="dm-cover-tag">Meet-up</span>
+        <span class="dm-cover-tag">${escHtml(m.cost || 'Free')}</span>
       </div>
       <div class="dm-body">
         <div class="dm-title">${escHtml(m.activity)}</div>
         <div class="dm-meta-row">
           <span class="item"><span class="material-icons">schedule</span>${escHtml(m.when)}</span>
           <span class="item"><span class="material-icons">location_on</span>${escHtml(m.venue)}, ${escHtml(m.area)}</span>
+          <span class="item"><span class="material-icons">signal_cellular_alt</span>${escHtml(m.level)}</span>
         </div>
-      </div>
-      <div class="dm-cost-box">
-        <div class="dm-cost-label">Cost</div>
-        <div class="dm-cost-amount">${escHtml(m.cost)}</div>
-      </div>
-      <div class="dm-section">
-        <div class="dm-section-label">About this meetup</div>
-        <p>${escHtml(m.about || 'Member-hosted meetup.')}</p>
       </div>
       <div class="dm-section">
         <div class="dm-section-label">Details</div>
         <div class="dm-info-grid">
           <div class="dm-info-cell"><div class="k">Level</div><div class="v">${escHtml(m.level)}</div></div>
-          <div class="dm-info-cell"><div class="k">Group</div><div class="v">${m.gender === 'any' ? 'Any gender' : (m.gender === 'women' ? 'Ladies only' : 'Men only')}</div></div>
+          <div class="dm-info-cell"><div class="k">Gender</div><div class="v">${m.gender === 'any' ? 'Any gender' : (m.gender === 'women' ? 'Female only' : 'Male only')}</div></div>
           <div class="dm-info-cell"><div class="k">Capacity</div><div class="v">${m.joined} of ${m.capacity}</div></div>
-          <div class="dm-info-cell"><div class="k">Cost</div><div class="v">${escHtml(m.cost)}</div></div>
         </div>
       </div>
       <div class="dm-section">
-        <div class="dm-section-label">Hosted by</div>
-        <div style="display:flex; align-items:center; gap:12px;">
-          <div class="meet-host-avatar" style="width:42px; height:42px; font-size:16px;">${m.hostInitial}</div>
-          <div style="flex:1;">
-            <div style="font-size:14px; font-weight:800;">${escHtml(m.host)}</div>
-            <div style="font-size:11px; color:var(--muted);"><span class="material-icons" style="font-size:11px; color:var(--yellow); vertical-align:-1px;">star</span> ${m.hostTrust.toFixed(1)} trust &middot; FFP verified member</div>
-          </div>
-        </div>
+        <div class="dm-section-label">About this meetup</div>
+        <p>${escHtml(m.about || 'Member-hosted meetup.')}</p>
       </div>
       <div class="dm-footer">
         <button class="btn-primary-yellow ${btnClass}" ${btnDisabled} onclick="MeetMove.requestJoin('${m.id}')">${btnLabel}</button>
         <div class="dm-footer-note">Host approves who's in. Cancellation up to 12 hours before.</div>
       </div>
     `;
-    openDetailModal(body);
+    openDetailModal(body, true);
   },
   
   requestJoin(id) {
@@ -12842,6 +12830,7 @@ setTimeout(scalePassportCard, 200);
 .ffp-deck-meta{ text-align:center; margin:0 0 4px; line-height:1; position:relative; z-index:2; }
 .ffp-meta-pct{ color:#FFCC00; font-weight:900; font-size:72px; letter-spacing:0.5px; line-height:1; }
 .ffp-deck-stack{ position:relative; width:100%; aspect-ratio:540/340; flex:none; }
+.ffp-deck-top{ flex:1; }
 .ffp-deck-mid{ flex:1; display:flex; align-items:center; justify-content:center; }
 .ffp-deck-card{ position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); transition:transform .3s ease, opacity .3s ease; touch-action:pan-y; }
 .ffp-deck-card.dragging{ transition:none; }
@@ -13005,6 +12994,7 @@ setTimeout(scalePassportCard, 200);
           "<div class='ffp-deck-count' id='ffp-deck-count'></div>"+
           "<button class='ffp-deck-x' id='ffp-deck-x' aria-label='Close'><span class='material-icons'>close</span></button>"+
         "</div>"+
+        "<div class='ffp-deck-top'></div>"+
         "<div class='ffp-deck-meta' id='ffp-deck-meta'></div>"+
         "<div class='ffp-deck-stack' id='ffp-deck-stack'></div>"+
         "<div class='ffp-deck-mid'><div class='ffp-deck-actions'>"+
