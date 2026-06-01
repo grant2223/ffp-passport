@@ -20,7 +20,9 @@
 <script src="ffp-provider-events-loader.js"></script>
 <script src="ffp-provider-experiences-loader.js"></script>
 <script src="ffp-provider-challenges-loader.js"></script>
-<!-- v20 (2026-06-01): E/E/C create forms to FFP form standards — labels not bold; Venue->Location
+<!-- v21 (2026-06-01): FIX delete-from-edit-modal — removed the 'confirmDeleteX(id); closeModal()'
+     race that instantly dismissed the confirm dialog (delete never fired). Card + modal delete now work.
+     v20 (2026-06-01): E/E/C create forms to FFP form standards — labels not bold; Venue->Location
      + Google Maps link (events, challenges) + map link on experience destination. Time/date already
      native. Country/City cascade intentionally NOT forced (experiences international). -->
 <!-- v12: notifications loader restored (this branch was missing it) — wires the
@@ -3227,7 +3229,7 @@ function openDealModal(id) {
       </div>
     </div>
   `, `
-    ${editing ? '<button class="btn btn-ghost left" onclick="confirmDeleteDeal(\''+editing.id+'\'); closeModal()"><span class="ms">delete</span> Delete</button>' : ''}
+    ${editing ? '<button class="btn btn-ghost left" onclick="confirmDeleteDeal(\''+editing.id+'\'"><span class="ms">delete</span> Delete</button>' : ''}
     <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
     <button class="btn btn-pri" onclick="saveDeal('${editing ? editing.id : ''}')">${editing ? 'Save changes' : 'Submit for review'}</button>
   `);
@@ -3415,7 +3417,7 @@ function openEventModal(id) {
       </div>
     </div>
   `, `
-    ${editing ? '<button class="btn btn-ghost left" onclick="confirmDeleteEvent(\''+editing.id+'\'); closeModal()"><span class="ms">delete</span> Delete</button>' : ''}
+    ${editing ? '<button class="btn btn-ghost left" onclick="confirmDeleteEvent(\''+editing.id+'\'"><span class="ms">delete</span> Delete</button>' : ''}
     <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
     <button class="btn btn-pri" onclick="saveEvent('${editing ? editing.id : ''}')">${editing ? 'Save changes' : 'Submit for review'}</button>
   `);
@@ -3656,7 +3658,7 @@ function openExperienceModal(id) {
       </div>
     </div>
   `, `
-    ${editing ? '<button class="btn btn-ghost left" onclick="confirmDeleteExperience(\''+editing.id+'\'); closeModal()"><span class="ms">delete</span> Delete</button>' : ''}
+    ${editing ? '<button class="btn btn-ghost left" onclick="confirmDeleteExperience(\''+editing.id+'\'"><span class="ms">delete</span> Delete</button>' : ''}
     <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
     <button class="btn btn-pri" onclick="saveExperience('${editing ? editing.id : ''}')">${editing ? 'Save changes' : 'Submit for review'}</button>
   `);
@@ -3896,7 +3898,7 @@ function openChallengeModal(id) {
       </div>
     </div>
   `, `
-    ${editing ? '<button class="btn btn-ghost left" onclick="confirmDeleteChallenge(\''+editing.id+'\'); closeModal()"><span class="ms">delete</span> Delete</button>' : ''}
+    ${editing ? '<button class="btn btn-ghost left" onclick="confirmDeleteChallenge(\''+editing.id+'\'"><span class="ms">delete</span> Delete</button>' : ''}
     <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
     <button class="btn btn-pri" onclick="saveChallenge('${editing ? editing.id : ''}')">${editing ? 'Save changes' : 'Submit for review'}</button>
   `);
