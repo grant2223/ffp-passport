@@ -573,7 +573,7 @@
         '</div>' +
       '</div>' +
       (editing && (e.status === 'live' || e.status === 'paused')
-        ? '<div class="help-strip" style="margin-top:14px;"><span class="ms">info</span><div><b>This experience is approved.</b> Saving changes will send it back to admin for re-approval.</div></div>'
+        ? ''
         : '');
 
     var foot =
@@ -701,14 +701,10 @@
     var reapprovalNote = '';
     try {
       if (id) {
-        var existing = experiences.find(function (x) { return x.id === id; });
-        if (existing && (existing.status === 'live' || existing.status === 'paused')) {
-          payload.status = 'pending';
-          reapprovalNote = ' (sent back for re-approval)';
-        }
+        // v(next): provider edits keep their current status — no forced re-approval.
         var upd = await window.supabase.from('experiences').update(payload).eq('id', id);
         if (upd.error) throw upd.error;
-        toast('Experience updated' + reapprovalNote, 'success');
+        toast('Experience updated', 'success');
         if (typeof window.closeModal === 'function') window.closeModal();
       } else {
         payload.provider_id = window.FFP_PROVIDER.id;
