@@ -1,4 +1,6 @@
-/* FFP Meet & Move Loader — v15
+/* FFP Meet & Move Loader — v16
+   v16: Who's going count = people.length (host + accepted attendees) so the host is included.
+   v15
    v15 (2026-06-01): join a meetup via join_meetup() RPC (direct meetup_attendees insert failed
      on auth.uid() for members).
    v14
@@ -226,7 +228,7 @@
   }
   function whosGoingHtml(m) {
     var people = m.attendees || [];
-    var header = '<div class="dm-section-label">Who\'s going (' + m.joined + '/' + m.capacity + ')</div>';
+    var header = '<div class="dm-section-label">Who\'s going (' + people.length + '/' + m.capacity + ')</div>';
     if (!people.length) return header + '<div class="ffp-wg-empty">Be the first to join.</div>';
     // v13: reuse the FFPPassportCard component (tap to flip). Fall back to compact rows if missing.
     if (window.FFPPassportCard && typeof window.FFPPassportCard.render === 'function') {
