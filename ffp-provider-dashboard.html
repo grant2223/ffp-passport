@@ -3345,7 +3345,7 @@ function openEventModal(id) {
         <div class="field">
           <div class="label">Intensity / Level</div>
           <select class="select" id="em-intensity">
-            ${['Beginner','Intermediate','Advanced','Elite','Professional'].map(l => `<option ${e.intensity===l?'selected':''}>${l}</option>`).join('')}
+            ${['Not Tried','Social','Competitive','Representative','Professional'].map(l => `<option ${e.intensity===l?'selected':''}>${l}</option>`).join('')}
           </select>
         </div>
       </div>
@@ -3542,7 +3542,7 @@ function openExperienceModal(id) {
     country: '', destination: '', price_aed: '',
     price_includes: [], price_excludes: [],
     accommodation: '', flights: '', travel_reqs: '',
-    fitness_reqs: '', fitness_level: 'Beginner',
+    fitness_reqs: '', fitness_level: 'Social',
     itinerary: [], hero_url: null, capacity: ''
   };
   modalItinerary = JSON.parse(JSON.stringify(e.itinerary || []));
@@ -3577,7 +3577,7 @@ function openExperienceModal(id) {
         <div class="field">
           <div class="label">Fitness level required</div>
           <select class="select" id="xm-fitness-level">
-            ${['Beginner','Intermediate','Advanced','Elite','Professional'].map(l => `<option ${e.fitness_level===l?'selected':''}>${l}</option>`).join('')}
+            ${['Not Tried','Social','Competitive','Representative','Professional'].map(l => `<option ${e.fitness_level===l?'selected':''}>${l}</option>`).join('')}
           </select>
         </div>
       </div>
