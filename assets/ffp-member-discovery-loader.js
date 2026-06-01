@@ -1,4 +1,6 @@
-/* FFP Member Discovery Loader — v4 (2026-06-01)
+/* FFP Member Discovery Loader — v5 (2026-06-01)
+   v5: Challenge card badge = LAST day of challenge (ends_at), per request (was starts_at).
+   v4 (2026-06-01)
    v4: card date badges — Experience = first day of trip (startBadge); Challenge dateBadge is now
        an OBJECT (was a string -> blank badge bug) = last day to enter (starts_at).
    v3 (2026-06-01)
@@ -223,7 +225,7 @@
       prize: r.prize_description || '',
       rules: r.description || '',
       endDate: fmtDay(r.ends_at),
-      dateBadge: fmtDayBadge(r.starts_at),
+      dateBadge: fmtDayBadge(r.ends_at),
       img: r.hero_image_url || '',
       organizer: p.business_name || 'FFP Provider',
       organizerLetter: letter(p, r.title),
