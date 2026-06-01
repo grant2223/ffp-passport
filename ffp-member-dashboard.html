@@ -1,9 +1,10 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v181 (2026-06-01)
-     v181: MATCHING wired — MeetMove.loadMatches() pulls real members from the get_match_pool()
-           RPC (RLS-safe), scores by shared sports + city; connect button writes to
-           member_connections via Supabase (the old /api/connections/request never existed).
-     v180: progression modal targets colour-coded (no Supporter/Ambassador words).
+     FFP MEMBER DASHBOARD — v183 (2026-06-01)
+     v183: Connections panel decluttered — 'For You' strip replaced by a single 'People You
+           Might Click With' button (with a count pill); filters collapsed behind a Filters
+           toggle so meet-ups are visible; matches modal retitled 'Matches' with two lists
+           (suggestions + your connections).
+     v182: weighted matching (shared activities+level, location, gender, age, recency).
      ════════════════════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="en">
@@ -4354,20 +4355,13 @@ input[type="number"] {
       <div class="user-panel-sub">Connect with other people who enjoy the same activities you do.</div>
     </div>
     
-    <!-- "Members you'd click with" — unified section: icon + text on left, View All on right, cards inside -->
-    <div class="match-section">
-      <div class="match-section-head">
-        <div class="match-section-icon"><span class="material-icons">auto_awesome</span></div>
-        <div class="match-section-text">
-          <div class="match-section-eyebrow">For You</div>
-          <div class="match-section-title">Members you'd click with</div>
-        </div>
-        <button class="match-section-cta" onclick="MeetMove.openMatchesGrid()">
-          View all <span class="material-icons">arrow_forward</span>
-        </button>
-      </div>
-      <div class="match-section-scroll" id="meet-match-scroll"></div>
-    </div>
+    <!-- v183: single button -> opens the Matches modal (frees space so meet-ups show) -->
+    <button class="ppl-click-btn" onclick="MeetMove.openMatchesGrid()" style="width:100%;display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,rgba(43,168,224,0.15),rgba(255,204,0,0.08));border:1px solid rgba(43,168,224,0.32);border-radius:12px;padding:14px 16px;cursor:pointer;font-family:inherit;color:var(--text);margin-bottom:14px;">
+      <span class="material-icons" style="color:var(--blue);">auto_awesome</span>
+      <span style="font-size:14px;font-weight:800;">People You Might Click With</span>
+      <span id="meet-match-count" style="margin-left:auto;background:var(--blue);color:#fff;font-size:11px;font-weight:800;padding:2px 9px;border-radius:100px;display:none;"></span>
+      <span class="material-icons" style="color:var(--muted);">chevron_right</span>
+    </button>
     
     <!-- Host a Session CTA — yellow -->
     <div class="host-cta-yellow">
@@ -4389,7 +4383,13 @@ input[type="number"] {
       <button class="tabs-underline-btn" data-meet-tab="past">Past</button>
     </div>
     
-    <!-- Filters — search + 4 dropdowns -->
+    <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+      <button id="meet-filters-toggle" onclick="MeetMove.toggleFilters()" style="display:inline-flex;align-items:center;gap:6px;background:rgba(43,168,224,0.08);border:1px solid var(--border-mid);color:var(--text);font-size:12px;font-weight:700;padding:7px 12px;border-radius:8px;cursor:pointer;font-family:inherit;">
+        <span class="material-icons" style="font-size:16px;">tune</span> Filters
+      </button>
+    </div>
+    <!-- Filters — search + 4 dropdowns (collapsed by default) -->
+    <div id="meet-filters-wrap" style="display:none;">
     <div class="meet-filter-row">
       <div class="panel-search">
         <span class="material-icons">search</span>
@@ -4436,6 +4436,7 @@ input[type="number"] {
       </button>
     </div>
     
+    </div><!-- /meet-filters-wrap -->
     <div class="meetup-grid" id="meet-grid"></div>
   </div>
 
@@ -11166,7 +11167,14 @@ const MeetMove = {
   },
   
   renderMatchStrip() {
-    const scroll = document.getElementById('meet-match-scroll');
+    // v183: the strip was replaced by a button + count pill.
+    var pill = document.getElementById('meet-match-count');
+    if (pill) {
+      var n = (this.matches || []).filter(function (m) { return m.connection !== 'connected'; }).length;
+      if (n > 0) { pill.textContent = n; pill.style.display = ''; } else { pill.style.display = 'none'; }
+    }
+    var scroll = document.getElementById('meet-match-scroll');
+    if (!scroll) return;
     scroll.innerHTML = this.matches.slice(0, 8).map(m => {
       // Top 3 sports for display
       const sportsText = m.sports.slice(0, 3).map(s => escHtml(s.name)).join(' &middot; ');
@@ -11186,35 +11194,69 @@ const MeetMove = {
     }).join('');
   },
 
-  // v181: real matches from get_match_pool() RPC (RLS-safe). Score = shared sports + city.
+  toggleFilters() {
+    var w = document.getElementById('meet-filters-wrap');
+    if (w) w.style.display = (w.style.display === 'none' || !w.style.display) ? 'block' : 'none';
+  },
+
+  // v182: weighted matching from get_match_pool() RPC. Factors: shared activities + skill-level
+  // closeness, location (city>country), gender, age closeness, recent activity.
   async loadMatches() {
     if (!window.supabase || typeof MemberProfile === 'undefined') return;
     try {
       var res = await window.supabase.rpc('get_match_pool');
       if (res.error || !res.data) { if (res.error) console.warn('[FFP Matches]', res.error.message); return; }
-      var meSports = ((MemberProfile.data && MemberProfile.data.sports) || []).map(function (x) { return String(x.name || '').toLowerCase(); });
-      var meCity = String((MemberProfile.data && MemberProfile.data.city) || '').toLowerCase();
+      var md = MemberProfile.data || {};
+      var LV = { beginner: 0, intermediate: 1, advanced: 2, elite: 3, professional: 4 };
+      var myCity = String(md.city || '').toLowerCase();
+      var myCountry = String(md.country || '').toLowerCase();
+      var myGender = String(md.gender || '').toLowerCase();
+      var myAge = md.dobYear ? (new Date().getFullYear() - parseInt(md.dobYear, 10)) : null;
+      var mySkills = {};
+      ((md.sports) || []).forEach(function (sp) { if (sp.name) mySkills[String(sp.name).toLowerCase()] = LV[String(sp.level || '').toLowerCase()]; });
+      var now = Date.now();
       this.matches = (res.data || []).map(function (r) {
         var skills = Array.isArray(r.skills) ? r.skills : [];
         var sports = skills.map(function (sk) {
           var nm = sk.name || sk.skill || sk.sport || '';
-          return { name: nm, level: sk.level || 'All levels', shared: meSports.indexOf(String(nm).toLowerCase()) >= 0 };
+          return { name: nm, level: sk.level || 'All levels', shared: mySkills.hasOwnProperty(String(nm).toLowerCase()) };
         }).filter(function (sp) { return sp.name; });
-        var shared = sports.filter(function (sp) { return sp.shared; });
-        var cityMatch = !!(meCity && r.city && meCity === String(r.city).toLowerCase());
-        var score = Math.min(99, 50 + shared.length * 12 + (cityMatch ? 15 : 0));
+        var pts = 0, matchSports = [];
+        sports.forEach(function (sp) {
+          if (!sp.shared) return;
+          pts += 16;
+          var mine = mySkills[String(sp.name).toLowerCase()], theirs = LV[String(sp.level || '').toLowerCase()], lvlPct = 70;
+          if (typeof mine === 'number' && typeof theirs === 'number') {
+            var d = Math.abs(mine - theirs);
+            if (d === 0) { pts += 10; lvlPct = 100; } else if (d === 1) { pts += 5; lvlPct = 85; }
+          }
+          matchSports.push({ icon: 'fitness_center', sport: sp.name, pct: lvlPct, points: [{ l: 'Level', v: sp.level }] });
+        });
+        var cityMatch = !!(myCity && r.city && myCity === String(r.city).toLowerCase());
+        var countryMatch = !cityMatch && !!(myCountry && r.country && myCountry === String(r.country).toLowerCase());
+        if (cityMatch) pts += 20; else if (countryMatch) pts += 8;
+        var genderMatch = !!(myGender && r.gender && myGender === String(r.gender).toLowerCase());
+        if (genderMatch) pts += 8;
+        var ageClose = false, ad = (myAge && r.age) ? Math.abs(myAge - r.age) : null;
+        if (ad !== null) { if (ad <= 5) { pts += 15; ageClose = true; } else if (ad <= 10) { pts += 8; } }
+        var recent = false;
+        if (r.last_active) { var days = (now - new Date(r.last_active).getTime()) / 86400000; if (days <= 30) { pts += 10; recent = true; } else if (days <= 90) { pts += 4; } }
+        var score = Math.max(35, Math.min(99, pts + 35));
         var nm = r.name || 'Member';
         var conn = r.incoming ? 'incoming' : (r.conn_status === 'accepted' ? 'connected' : (r.conn_status === 'pending' ? 'requested' : 'none'));
+        var matchOther = [];
+        if (cityMatch) matchOther.push({ l: 'Same city', v: r.city }); else if (countryMatch) matchOther.push({ l: 'Same country', v: r.country });
+        if (genderMatch) matchOther.push({ l: 'Same gender', v: (r.gender || '') });
+        if (ageClose) matchOther.push({ l: 'Similar age', v: 'within 5 years' });
+        if (recent) matchOther.push({ l: 'Recently active', v: 'last 30 days' });
         return {
           id: r.id, name: nm, letter: (nm[0] || '?').toUpperCase(), photo: r.photo_url || '',
-          age: '', city: r.city || '', gender: '', sports: sports,
+          age: r.age || '', city: r.city || '', gender: String(r.gender || '').toLowerCase(), sports: sports,
           match: score, trust: 5.0, verified: false, joined: Date.now(), bio: '',
           meetups: 0, hosted: 0, memberType: '', profession: '',
-          matchSports: shared.map(function (sp) { return { icon: 'fitness_center', sport: sp.name, pct: 100, points: [] }; }),
-          matchOther: cityMatch ? [{ l: 'Same city', v: r.city }] : [],
-          connection: conn
+          matchSports: matchSports, matchOther: matchOther, connection: conn
         };
-      });
+      }).sort(function (a, b) { return b.match - a.match; });
       this.renderMatchStrip();
     } catch (e) { console.warn('[FFP Matches] load threw:', e); }
   },
@@ -11514,21 +11556,29 @@ const MeetMove = {
   },
   
   openMatchesGrid() {
-    // PRODUCTION: open full matches grid page with filters
-    const body = `
-      <div class="dm-body">
-        <div class="dm-title">Members you'd click with</div>
-        <div style="font-size:12px; color:var(--muted); margin-bottom:14px;">Matched on shared sports, level compatibility, city, age range and stated interests.</div>
-        <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:10px;">
-          ${this.matches.map(m => `
-            <div class="match-card" style="flex:auto;" onclick="closeDetailModal(); setTimeout(() => MeetMove.openMemberDetail('${m.id}'), 100);">
+    var mk = function (m) {
+      return `<div class="match-card" style="flex:auto;" onclick="closeDetailModal(); setTimeout(() => MeetMove.openMemberDetail('${m.id}'), 100);">
               <div class="match-card-avatar"${m.photo ? ` style="background:#0a1825 url('${m.photo}') center/cover;"` : ''}>${m.photo ? '' : m.letter}</div>
               <div class="match-card-name">${escHtml(m.name)}</div>
               <div class="match-card-meta">${escHtml(m.age)} &middot; ${escHtml(m.city)}</div>
               <div class="match-card-pct">${m.match}% MATCH</div>
-            </div>
-          `).join('')}
-        </div>
+            </div>`;
+    };
+    var grid = function (list, empty) {
+      return list.length
+        ? `<div style="display:grid; grid-template-columns:repeat(2,1fr); gap:10px;">${list.map(mk).join('')}</div>`
+        : `<div style="font-size:12px;color:var(--muted);padding:12px 0 4px;">${empty}</div>`;
+    };
+    var suggestions = (this.matches || []).filter(function (m) { return m.connection !== 'connected'; });
+    var connected = (this.matches || []).filter(function (m) { return m.connection === 'connected'; });
+    const body = `
+      <div class="dm-body">
+        <div class="dm-title">Matches</div>
+        <div class="dm-section-label" style="margin-top:8px;">People you might click with</div>
+        <div style="font-size:11px; color:var(--muted); margin-bottom:10px;">Matched on shared activities, skill level, location, age and how active you both are.</div>
+        ${grid(suggestions, 'No suggestions yet — check back as more people join.')}
+        <div class="dm-section-label" style="margin-top:18px;">Your connections</div>
+        ${grid(connected, 'No connections yet — connect with someone above to start your circle.')}
       </div>
     `;
     openDetailModal(body);
