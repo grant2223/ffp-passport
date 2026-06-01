@@ -1,10 +1,10 @@
 <!--
-FFP Profile Complete v29
-Last updated: 31 May 2026
-v29: Referral capture wired into signup — reads the landing page's stored ffp_ref and
-     passes it to onboard as `ref` (credits the referrer), then clears it on success.
-v28: Photo step lets members UPLOAD from gallery OR take a photo (removed capture="user").
+FFP Profile Complete v30
+Last updated: 2026-06-01
+v30: skill levels = Not Tried / Social / Competitive / Representative / Professional (new descriptions).
+v29: referral capture passes ffp_ref to onboard.
 -->
+
 
 <!DOCTYPE html>
 <html lang="en">
@@ -513,13 +513,13 @@ var CAT_META = {
 var CATEGORIES = ['All','Running & walking','Cycling','Swimming','Watersports','Racquet sports','Team sports','Combat sports','Strength & fitness','Mind-body','Recovery & wellness','Outdoor & adventure','Snow sports','Golf','Equestrian','Air & extreme','Multi-sport'];
 
 var LEVEL_DESC = {
-  'Beginner':     'New to this. Still learning the basics and getting comfortable.',
-  'Intermediate': 'Confident with fundamentals. Regular practice, building consistency.',
-  'Advanced':     'Strong technique. Train consistently. Compete at club or city level.',
-  'Elite':        'Highly competitive. Compete at national or international level.',
-  'Professional': 'This is your career. Sponsored or earn income from this sport.'
+  'Not Tried':      'Keen to give it a go — not started yet.',
+  'Social':         'Just for fun and the social side, no pressure.',
+  'Competitive':    'Train and compete — club, league or amateur events.',
+  'Representative': 'Represent a team, region or country.',
+  'Professional':   'Your career — sponsored or earning from this sport.'
 };
-var LEVELS = ((window.FFP_TAX && window.FFP_TAX.fitnessLevels) || ['Beginner','Intermediate','Advanced','Elite','Professional'])
+var LEVELS = ((window.FFP_TAX && window.FFP_TAX.fitnessLevels) || ['Not Tried','Social','Competitive','Representative','Professional'])
   .map(function (n) { return { id: n, desc: LEVEL_DESC[n] || '' }; });
 
 var NATIONALITIES = window.FFP_TAX.nationalities;
