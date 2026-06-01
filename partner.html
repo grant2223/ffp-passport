@@ -1,10 +1,17 @@
+<!-- FFP PARTNER PAGE — v4 (2026-06-01): dropped "Unlimited" claim from free panel (→ "Build Events,
+     Experiences & Challenges"); founder photo → assets/grant-goes-outdoors.jpg.
+     v3 (2026-06-01): image-led rebuild using the real assets/ photo library
+     (hero bg, community photo band, activity cards, offer cards, founder). Facts aligned to the
+     LIVE model: self-signup → build Events/Experiences/Challenges → admin approves → live to members;
+     FREE during research-preview, full tiers after. Removed unverifiable stats/demographics/$ tiers.
+     v2: Try-Free CTAs. v1: original "Become A Partner" info page. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Become A Partner &mdash; FFP Passport</title>
-<meta name="description" content="Partner with FFP Passport. Reach the UAE's most active sports, fitness and wellness community. List free. Host events. Grow with us.">
+<meta name="description" content="Partner with FFP Passport — the UAE's active-lifestyle membership platform. Create a free provider account, build events, experiences and challenges, and reach members who turn up. Free while we're in preview.">
 <link rel="icon" type="image/png" href="assets/ffp-emblem.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -39,7 +46,7 @@ img { display: block; max-width: 100%; }
 @media (min-width: 1200px) { .col { padding: 0 60px; } }
 
 /* NAV */
-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(8,20,32,.97); backdrop-filter: blur(12px); border-bottom: 1px solid var(--accent-line-dim); padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(8,20,32,.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--accent-line-dim); padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
 .nav-brand { display: flex; align-items: center; gap: 10px; }
 .nav-brand img { height: 32px; }
 .nav-brand .wordmark { font-size: 13px; font-weight: 800; letter-spacing: 2px; }
@@ -49,113 +56,121 @@ nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba
 .nav-link:hover { color: #fff; border-color: rgba(43,168,224,.6); }
 .nav-cta { background: var(--accent); color: #fff; font-size: 13px; font-weight: 800; padding: 10px 22px; border-radius: 10px; transition: transform .15s; }
 .nav-cta:hover { transform: translateY(-1px); }
-@media (min-width: 900px) { nav { padding: 20px 40px; } }
+@media (min-width: 900px) { nav { padding: 18px 40px; } }
 
 /* HERO */
-.partner-hero { padding: 130px 0 50px; text-align: center; }
-.partner-hero .eyebrow { display: inline-block; background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 100px; padding: 6px 18px; font-size: 10px; font-weight: 900; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); margin-bottom: 20px; }
-.partner-hero h1 { font-size: 38px; font-weight: 900; line-height: 1.05; letter-spacing: -1px; margin-bottom: 16px; max-width: 760px; margin-left: auto; margin-right: auto; }
+.partner-hero { position: relative; padding: 140px 0 70px; text-align: center; overflow: hidden; }
+.hero-bg { position: absolute; inset: 0; z-index: 0; }
+.hero-bg img { width: 100%; height: 100%; object-fit: cover; }
+.hero-bg::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8,20,32,.68) 0%, rgba(8,20,32,.82) 55%, var(--bg) 100%); }
+.partner-hero .col { position: relative; z-index: 1; }
+.partner-hero .eyebrow { display: inline-block; background: rgba(43,168,224,.18); border: 1px solid var(--accent-line); border-radius: 100px; padding: 6px 18px; font-size: 10px; font-weight: 900; letter-spacing: 3px; text-transform: uppercase; color: #cdeaf8; margin-bottom: 20px; }
+.partner-hero h1 { font-size: 38px; font-weight: 900; line-height: 1.05; letter-spacing: -1px; margin-bottom: 16px; max-width: 800px; margin-left: auto; margin-right: auto; text-shadow: 0 2px 24px rgba(0,0,0,.4); }
 .partner-hero h1 span { color: var(--accent); }
-.partner-hero .lede { font-size: 16px; line-height: 1.7; color: var(--text-soft); max-width: 600px; margin: 0 auto 32px; }
+.partner-hero .lede { font-size: 16px; line-height: 1.7; color: #d3e6f0; max-width: 620px; margin: 0 auto 32px; }
 .hero-ctas { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
-.btn-primary { display: inline-block; background: var(--accent); color: #fff; padding: 15px 32px; border-radius: 12px; font-size: 14px; font-weight: 800; letter-spacing: .3px; transition: transform .15s; }
+.btn-primary { display: inline-block; background: var(--accent); color: #fff; padding: 15px 32px; border-radius: 12px; font-size: 14px; font-weight: 800; letter-spacing: .3px; transition: transform .15s; box-shadow: 0 8px 28px rgba(43,168,224,.28); }
 .btn-primary:hover { transform: translateY(-1px); }
-.btn-secondary { display: inline-block; background: transparent; color: var(--accent); border: 1.5px solid var(--accent); padding: 13.5px 30px; border-radius: 12px; font-size: 14px; font-weight: 800; letter-spacing: .3px; transition: all .15s; }
-.btn-secondary:hover { background: var(--accent); color: #fff; }
-@media (min-width: 900px) { .partner-hero { padding: 160px 0 70px; } .partner-hero h1 { font-size: 56px; } .partner-hero .lede { font-size: 18px; } }
+.btn-secondary { display: inline-block; background: rgba(8,20,32,.5); color: #fff; border: 1.5px solid rgba(255,255,255,.35); padding: 13.5px 30px; border-radius: 12px; font-size: 14px; font-weight: 800; letter-spacing: .3px; transition: all .15s; }
+.btn-secondary:hover { border-color: var(--accent); }
+.hero-note { margin-top: 18px; font-size: 12px; font-weight: 700; color: #bfe0f0; letter-spacing: .3px; }
+.hero-note b { color: var(--yellow); }
+@media (min-width: 900px) { .partner-hero { padding: 175px 0 90px; } .partner-hero h1 { font-size: 56px; } .partner-hero .lede { font-size: 18px; } }
 
-/* STATS STRIP */
-.stats-strip { background: var(--bg-elev); border-top: 1px solid var(--accent-line-dim); border-bottom: 1px solid var(--accent-line-dim); padding: 32px 0; }
-.stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; text-align: center; }
-.stat-num { font-size: 28px; font-weight: 900; color: var(--yellow); line-height: 1; letter-spacing: -1px; margin-bottom: 6px; }
-.stat-label { font-size: 10px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: var(--text-mute); }
-@media (min-width: 700px) { .stats-grid { grid-template-columns: repeat(4, 1fr); } .stat-num { font-size: 40px; } }
+/* PHOTO BAND */
+.photo-band-wrap { background: var(--bg-deep); border-top: 1px solid var(--accent-line-dim); border-bottom: 1px solid var(--accent-line-dim); padding: 18px 0; }
+.photo-band { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.pb-item { position: relative; aspect-ratio: 1/1; border-radius: 12px; overflow: hidden; }
+.pb-item img { width: 100%; height: 100%; object-fit: cover; transition: transform .5s ease; }
+.pb-item:hover img { transform: scale(1.07); }
+.pb-item::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, rgba(5,13,22,.78)); }
+.pb-item span { position: absolute; left: 12px; bottom: 10px; z-index: 2; font-size: 11px; font-weight: 800; letter-spacing: .5px; text-shadow: 0 1px 8px rgba(0,0,0,.8); }
+@media (min-width: 640px) { .photo-band { grid-template-columns: repeat(4, 1fr); } }
+@media (min-width: 1000px) { .photo-band { grid-template-columns: repeat(8, 1fr); gap: 10px; } }
 
 /* SECTIONS */
-section { padding: 60px 0; }
-@media (min-width: 900px) { section { padding: 90px 0; } }
+section { padding: 56px 0; }
+@media (min-width: 900px) { section { padding: 84px 0; } }
 .sec-head { text-align: center; max-width: 720px; margin: 0 auto 40px; }
 .sec-head .eyebrow { display: inline-block; background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 100px; padding: 6px 18px; font-size: 10px; font-weight: 900; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); margin-bottom: 16px; }
 .sec-head h2 { font-size: 30px; font-weight: 900; line-height: 1.1; letter-spacing: -.5px; margin-bottom: 12px; }
 .sec-head p { font-size: 14px; color: var(--text-soft); line-height: 1.7; }
 @media (min-width: 900px) { .sec-head h2 { font-size: 40px; } .sec-head p { font-size: 16px; } }
 
-/* TWO TRACKS */
-.tracks { display: grid; grid-template-columns: 1fr; gap: 20px; }
-.track { background: var(--bg-elev); border: 1px solid var(--accent-line); border-radius: var(--radius-lg); padding: 28px; position: relative; overflow: hidden; }
-.track-num { position: absolute; top: 20px; right: 24px; font-size: 64px; font-weight: 900; color: rgba(43,168,224,.08); line-height: 1; }
-.track h3 { font-size: 22px; font-weight: 900; margin-bottom: 8px; letter-spacing: -.3px; position: relative; }
-.track .track-tagline { font-size: 12px; font-weight: 800; color: var(--accent); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 16px; }
-.track p { font-size: 14px; color: var(--text-soft); line-height: 1.7; margin-bottom: 14px; }
-.track ul { list-style: none; margin: 14px 0; }
-.track ul li { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; font-size: 13px; color: var(--text-soft); line-height: 1.5; }
-.track ul li svg { flex-shrink: 0; color: var(--accent); margin-top: 3px; }
-@media (min-width: 900px) { .tracks { grid-template-columns: 1fr 1fr; gap: 24px; } .track { padding: 36px; } }
+/* HOW IT WORKS — STEPS */
+.steps { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.step { background: var(--bg-elev); border: 1px solid var(--accent-line); border-radius: var(--radius-lg); padding: 26px; position: relative; }
+.step-n { width: 40px; height: 40px; border-radius: 11px; background: rgba(43,168,224,.12); border: 1px solid var(--accent-line); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 900; margin-bottom: 16px; }
+.step h3 { font-size: 18px; font-weight: 900; margin-bottom: 8px; letter-spacing: -.2px; }
+.step p { font-size: 13.5px; color: var(--text-soft); line-height: 1.65; }
+@media (min-width: 800px) { .steps { grid-template-columns: repeat(3, 1fr); gap: 20px; } }
+
+/* OFFER CARDS (Events / Experiences / Challenges) */
+.offers { display: grid; grid-template-columns: 1fr; gap: 18px; }
+.offer { background: var(--bg-elev); border: 1px solid var(--accent-line); border-radius: var(--radius-lg); overflow: hidden; display: flex; flex-direction: column; }
+.offer-img { aspect-ratio: 16/10; overflow: hidden; }
+.offer-img img { width: 100%; height: 100%; object-fit: cover; transition: transform .5s ease; }
+.offer:hover .offer-img img { transform: scale(1.05); }
+.offer-body { padding: 22px 24px 26px; }
+.offer-body h3 { font-size: 19px; font-weight: 900; margin-bottom: 8px; letter-spacing: -.2px; }
+.offer-body p { font-size: 13.5px; color: var(--text-soft); line-height: 1.65; }
+@media (min-width: 800px) { .offers { grid-template-columns: repeat(3, 1fr); gap: 22px; } }
 
 /* AUDIENCE */
 .audience { background: var(--bg-elev); }
-.audience-grid { display: grid; grid-template-columns: 1fr; gap: 32px; align-items: center; }
-.audience-demo { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.demo-card { background: var(--bg); border: 1px solid var(--accent-line); border-radius: var(--radius); padding: 18px 14px; text-align: center; }
-.demo-num { font-size: 24px; font-weight: 900; color: var(--yellow); line-height: 1; margin-bottom: 6px; }
-.demo-label { font-size: 9px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-mute); }
+.act-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 36px; }
+.act-card { position: relative; aspect-ratio: 3/4; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--accent-line-dim); }
+.act-card img { width: 100%; height: 100%; object-fit: cover; transition: transform .5s ease; }
+.act-card:hover img { transform: scale(1.06); }
+.act-card::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, rgba(5,13,22,.85)); }
+.act-card span { position: absolute; left: 12px; bottom: 12px; z-index: 2; font-size: 13px; font-weight: 800; text-shadow: 0 1px 8px rgba(0,0,0,.8); }
 .audience-list { background: var(--bg); border: 1px solid var(--accent-line); border-radius: var(--radius); padding: 24px; }
 .audience-list h4 { font-size: 11px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 16px; }
-.audience-list ul { list-style: none; display: grid; grid-template-columns: 1fr; gap: 8px; }
+.audience-list ul { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .audience-list li { display: flex; gap: 10px; align-items: center; font-size: 13px; color: var(--text-soft); }
 .audience-list li svg { color: var(--accent); flex-shrink: 0; }
-@media (min-width: 900px) { .audience-grid { grid-template-columns: 1fr 1fr; gap: 56px; } .audience-list ul { grid-template-columns: 1fr 1fr; gap: 10px; } }
+@media (min-width: 700px) { .act-grid { grid-template-columns: repeat(4, 1fr); } .audience-list ul { grid-template-columns: repeat(4, 1fr); } }
 
-/* PRICING TIERS */
-.tiers { display: grid; grid-template-columns: 1fr; gap: 20px; align-items: stretch; }
-.tier { background: var(--bg-elev); border: 1px solid var(--accent-line); border-radius: var(--radius-lg); padding: 28px; display: flex; flex-direction: column; position: relative; }
-.tier.featured { border-color: var(--accent); background: linear-gradient(180deg, rgba(43,168,224,.06), var(--bg-elev)); }
-.tier-badge { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #fff; font-size: 9px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; padding: 5px 14px; border-radius: 100px; }
-.tier-name { font-size: 11px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
-.tier-headline { font-size: 18px; font-weight: 900; margin-bottom: 4px; letter-spacing: -.2px; }
-.tier-tag { font-size: 12px; color: var(--text-mute); font-weight: 600; margin-bottom: 20px; min-height: 32px; line-height: 1.4; }
-.tier-price { font-size: 42px; font-weight: 900; color: #fff; line-height: 1; letter-spacing: -1.5px; margin-bottom: 4px; }
-.tier-price-sub { font-size: 11px; color: var(--text-mute); font-weight: 700; letter-spacing: .5px; margin-bottom: 24px; }
-.tier ul { list-style: none; margin: 0 0 24px; flex-grow: 1; }
-.tier ul li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; font-size: 12.5px; color: var(--text-soft); line-height: 1.5; border-bottom: 1px solid var(--accent-line-dim); }
-.tier ul li:last-child { border: none; }
-.tier ul li svg { flex-shrink: 0; color: var(--green); margin-top: 2px; }
-.tier ul li b { color: #fff; font-weight: 800; }
-.tier-cta { display: block; text-align: center; padding: 13px; border-radius: 10px; font-size: 13px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; transition: all .15s; }
-.tier-cta.outline { color: var(--accent); border: 1.5px solid var(--accent); }
-.tier-cta.outline:hover { background: var(--accent); color: #fff; }
-.tier-cta.filled { background: var(--accent); color: #fff; }
-.tier-cta.filled:hover { transform: translateY(-1px); }
-@media (min-width: 900px) { .tiers { grid-template-columns: repeat(3, 1fr); gap: 24px; } }
+/* FREE PREVIEW PANEL */
+.preview-panel { max-width: 780px; margin: 0 auto; background: linear-gradient(180deg, rgba(43,168,224,.08), var(--bg-elev)); border: 1px solid var(--accent); border-radius: var(--radius-lg); padding: 40px 28px; text-align: center; }
+.preview-panel .pp-badge { display: inline-block; background: var(--green); color: #04210f; font-size: 10px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; padding: 6px 16px; border-radius: 100px; margin-bottom: 18px; }
+.preview-panel h3 { font-size: 26px; font-weight: 900; letter-spacing: -.4px; margin-bottom: 10px; }
+.preview-panel .pp-price { font-size: 48px; font-weight: 900; color: #fff; letter-spacing: -2px; line-height: 1; margin-bottom: 6px; }
+.preview-panel .pp-sub { font-size: 13px; color: var(--text-mute); font-weight: 700; margin-bottom: 26px; }
+.pp-list { list-style: none; max-width: 460px; margin: 0 auto 28px; text-align: left; }
+.pp-list li { display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; font-size: 13.5px; color: var(--text-soft); line-height: 1.5; border-bottom: 1px solid var(--accent-line-dim); }
+.pp-list li:last-child { border: none; }
+.pp-list li svg { flex-shrink: 0; color: var(--green); margin-top: 2px; }
+.pp-list li b { color: #fff; font-weight: 800; }
+.pp-foot { font-size: 12px; color: var(--text-dim); margin-top: 18px; line-height: 1.6; }
 
 /* MEDIA SERVICES */
-.media-services { background: var(--bg-deep); border-radius: var(--radius-lg); padding: 32px 24px; text-align: center; max-width: 900px; margin: 0 auto; }
+.media-services { background: var(--bg-deep); border-radius: var(--radius-lg); padding: 32px 24px; text-align: center; max-width: 900px; margin: 40px auto 0; border: 1px solid var(--accent-line-dim); }
 .media-services h3 { font-size: 11px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
-.media-services .ms-tag { font-size: 20px; font-weight: 900; margin-bottom: 20px; letter-spacing: -.3px; }
+.media-services .ms-tag { font-size: 19px; font-weight: 900; margin-bottom: 20px; letter-spacing: -.3px; }
 .ms-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-.ms-item { display: flex; gap: 8px; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--text-soft); padding: 8px; border: 1px solid var(--accent-line-dim); border-radius: 8px; }
+.ms-item { display: flex; gap: 8px; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--text-soft); padding: 10px; border: 1px solid var(--accent-line-dim); border-radius: 8px; }
 .ms-item svg { color: var(--accent); flex-shrink: 0; }
 @media (min-width: 700px) { .ms-grid { grid-template-columns: repeat(3, 1fr); } }
 @media (min-width: 900px) { .ms-grid { grid-template-columns: repeat(6, 1fr); } .media-services { padding: 36px; } }
 
 /* FOUNDER */
-.founder { padding: 60px 0; }
+.founder { padding: 56px 0; }
 .founder-card { display: grid; grid-template-columns: 1fr; gap: 24px; background: var(--bg-elev); border: 1px solid var(--accent-line); border-radius: var(--radius-lg); padding: 32px 24px; align-items: center; }
-.founder-img { aspect-ratio: 4/5; border-radius: var(--radius); overflow: hidden; max-width: 320px; background: linear-gradient(135deg, var(--bg), var(--bg-deep)); }
+.founder-img { aspect-ratio: 4/5; border-radius: var(--radius); overflow: hidden; max-width: 340px; background: linear-gradient(135deg, var(--bg), var(--bg-deep)); }
 .founder-img img { width: 100%; height: 100%; object-fit: cover; }
 .founder-text .eyebrow { display: inline-block; background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 100px; padding: 6px 14px; font-size: 9px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 14px; }
 .founder-text h3 { font-size: 22px; font-weight: 900; margin-bottom: 4px; }
 .founder-text .role { font-size: 12px; color: var(--text-dim); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 16px; }
 .founder-text p { font-size: 14px; line-height: 1.7; color: var(--text-soft); margin-bottom: 12px; }
 .founder-text .quote { font-style: italic; color: var(--accent); font-size: 15px; padding: 14px 18px; background: rgba(43,168,224,.05); border-left: 3px solid var(--accent); border-radius: 4px; margin-top: 18px; }
-.creds { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
-.cred { background: rgba(43,168,224,.08); border: 1px solid var(--accent-line-dim); border-radius: 100px; padding: 6px 14px; font-size: 11px; font-weight: 700; color: var(--text-mute); }
 @media (min-width: 800px) { .founder-card { grid-template-columns: auto 1fr; gap: 48px; padding: 48px; } }
 
 /* CONTACT CTA */
-.contact { text-align: center; padding: 60px 24px; background: linear-gradient(135deg, var(--bg-elev), var(--bg)); border-top: 1px solid var(--accent-line-dim); }
+.contact { text-align: center; padding: 64px 24px; background: linear-gradient(135deg, var(--bg-elev), var(--bg)); border-top: 1px solid var(--accent-line-dim); }
 .contact h2 { font-size: 32px; font-weight: 900; letter-spacing: -.5px; margin-bottom: 12px; }
-.contact .contact-sub { font-size: 14px; color: var(--text-soft); margin-bottom: 28px; max-width: 480px; margin-left: auto; margin-right: auto; }
+.contact .contact-sub { font-size: 14px; color: var(--text-soft); margin-bottom: 28px; max-width: 520px; margin-left: auto; margin-right: auto; line-height: 1.6; }
+.contact-cta-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-bottom: 34px; }
 .contact-methods { display: grid; grid-template-columns: 1fr; gap: 16px; max-width: 720px; margin: 0 auto; }
 .contact-method { background: var(--bg); border: 1px solid var(--accent-line); border-radius: var(--radius); padding: 22px; display: flex; gap: 14px; align-items: center; text-align: left; transition: all .15s; }
 .contact-method:hover { border-color: var(--accent); transform: translateY(-2px); }
@@ -185,67 +200,98 @@ footer { background: var(--bg-deep); border-top: 1px solid var(--accent-line-dim
   </a>
   <div class="nav-right">
     <a href="/login" class="nav-link">Log In</a>
-    <a href="/login#signup" class="nav-cta">Join Now</a>
+    <a href="/provider-signup.html" class="nav-cta">Try Free</a>
   </div>
 </nav>
 
 <!-- HERO -->
 <section class="partner-hero">
+  <div class="hero-bg"><img src="assets/ffp-hero.jpg" alt="Active community in the UAE" loading="eager"></div>
   <div class="col">
     <span class="eyebrow">Become A Partner</span>
     <h1>Reach the UAE&rsquo;s most active <span>sports, fitness &amp; wellness</span> community.</h1>
-    <p class="lede">FFP Passport is the membership platform connecting active people in the UAE with the venues, services and experiences they love. List your business free. Host events. Grow with the community that turns up.</p>
+    <p class="lede">FFP Passport connects active people with the venues, coaches and experiences they love. Create your provider account, build your events, experiences and challenges, and grow with the community that turns up.</p>
     <div class="hero-ctas">
-      <a href="#tiers" class="btn-primary">See Partnership Options</a>
-      <a href="#contact" class="btn-secondary">Talk To Us</a>
+      <a href="/provider-signup.html" class="btn-primary">Try For Free</a>
+      <a href="#how" class="btn-secondary">How It Works</a>
     </div>
+    <div class="hero-note"><b>Free</b> while we&rsquo;re in preview &middot; No card required</div>
   </div>
 </section>
 
-<!-- STATS STRIP -->
-<div class="stats-strip">
+<!-- PHOTO BAND -->
+<div class="photo-band-wrap">
   <div class="col">
-    <div class="stats-grid">
-      <div><div class="stat-num">271+</div><div class="stat-label">Listings</div></div>
-      <div><div class="stat-num">7,643</div><div class="stat-label">Database</div></div>
-      <div><div class="stat-num">14K</div><div class="stat-label">Social</div></div>
-      <div><div class="stat-num">320K</div><div class="stat-label">Reach</div></div>
+    <div class="photo-band">
+      <div class="pb-item"><img src="assets/padel-high-five.jpg" alt="Padel" loading="lazy"><span>Padel</span></div>
+      <div class="pb-item"><img src="assets/lady-yoga.jpg" alt="Yoga" loading="lazy"><span>Yoga</span></div>
+      <div class="pb-item"><img src="assets/guys-running.jpg" alt="Running" loading="lazy"><span>Running</span></div>
+      <div class="pb-item"><img src="assets/ladies-lifting.jpg" alt="Strength" loading="lazy"><span>Strength</span></div>
+      <div class="pb-item"><img src="assets/basketball-play.jpg" alt="Basketball" loading="lazy"><span>Basketball</span></div>
+      <div class="pb-item"><img src="assets/pickel-ball.jpg" alt="Pickleball" loading="lazy"><span>Pickleball</span></div>
+      <div class="pb-item"><img src="assets/golf-celebration.jpg" alt="Golf" loading="lazy"><span>Golf</span></div>
+      <div class="pb-item"><img src="assets/ocr-racer.jpg" alt="Obstacle racing" loading="lazy"><span>OCR</span></div>
     </div>
   </div>
 </div>
 
-<!-- TWO TRACKS -->
-<section>
+<!-- HOW IT WORKS -->
+<section id="how">
   <div class="col">
     <div class="sec-head">
       <span class="eyebrow">How It Works</span>
-      <h2>Two ways to partner with FFP.</h2>
-      <p>Start free with a listing that automatically becomes a Member Perk on FFP Passport. Upgrade when you&rsquo;re ready to host events, experiences and challenges for our community.</p>
+      <h2>From signup to live in three steps.</h2>
+      <p>No applications, no waiting to get started. Create your account, build your listings, and our team reviews them before they go live to members.</p>
     </div>
-    <div class="tracks">
-      <div class="track">
-        <div class="track-num">01</div>
-        <div class="track-tagline">Start Here &middot; Always Free</div>
-        <h3>List Your Business.</h3>
-        <p>Create a free listing on <b>findfitpeople.com</b> &mdash; the UAE&rsquo;s sports, fitness and wellness directory. Your listing becomes a Member Perk on FFP Passport automatically.</p>
-        <ul>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Unlimited service listings</li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Member Perk badge on FFP Passport (bring-a-friend, member rate, etc.)</li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Self-managed provider account</li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Free promo video (limited-time introductory offer)</li>
-        </ul>
+    <div class="steps">
+      <div class="step">
+        <div class="step-n">1</div>
+        <h3>Create your free account</h3>
+        <p>Sign up in under a minute &mdash; business name, your details and location. Confirm your email and you&rsquo;re straight into your provider dashboard.</p>
       </div>
-      <div class="track">
-        <div class="track-num">02</div>
-        <div class="track-tagline">Upgrade Anytime</div>
-        <h3>Host Events &amp; Experiences.</h3>
-        <p>Pro Members and Featured Partners unlock the ability to host <b>Events, Experiences and Challenges</b> for FFP Passport members &mdash; the most engaged active-lifestyle audience in the UAE.</p>
-        <ul>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Run community events at your venue</li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Offer experiences &amp; group trips</li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Create challenges with leaderboards</li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Sales boosters &amp; promo support from the FFP team</li>
-        </ul>
+      <div class="step">
+        <div class="step-n">2</div>
+        <h3>Build your listings</h3>
+        <p>Add your Events, Experiences and Challenges with photos, details and pricing. Everything stays private to you while you build it out.</p>
+      </div>
+      <div class="step">
+        <div class="step-n">3</div>
+        <h3>We approve &amp; members discover you</h3>
+        <p>Our team reviews each listing for quality, then publishes it to the FFP Passport community &mdash; the active people most likely to show up.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHAT YOU CAN OFFER -->
+<section style="padding-top:0;">
+  <div class="col">
+    <div class="sec-head">
+      <span class="eyebrow">What You Can Run</span>
+      <h2>Three ways to bring the community to you.</h2>
+      <p>List as much or as little as you like &mdash; all from one self-managed dashboard.</p>
+    </div>
+    <div class="offers">
+      <div class="offer">
+        <div class="offer-img"><img src="assets/group-of-5.jpg" alt="Events" loading="lazy"></div>
+        <div class="offer-body">
+          <h3>Events</h3>
+          <p>Run community sessions, classes and meet-ups at your venue. Members RSVP through the app and turn up ready to move.</p>
+        </div>
+      </div>
+      <div class="offer">
+        <div class="offer-img"><img src="assets/yoga-retreat.jpg" alt="Experiences" loading="lazy"></div>
+        <div class="offer-body">
+          <h3>Experiences</h3>
+          <p>Offer retreats, group trips and signature sessions. Set your dates, capacity and pricing &mdash; members apply and book.</p>
+        </div>
+      </div>
+      <div class="offer">
+        <div class="offer-img"><img src="assets/ocr-racer.jpg" alt="Challenges" loading="lazy"></div>
+        <div class="offer-body">
+          <h3>Challenges</h3>
+          <p>Create challenges that keep members coming back &mdash; goals, metrics and prizes that drive repeat visits to your business.</p>
+        </div>
       </div>
     </div>
   </div>
@@ -257,123 +303,58 @@ footer { background: var(--bg-deep); border-top: 1px solid var(--accent-line-dim
     <div class="sec-head">
       <span class="eyebrow">Audience</span>
       <h2>Who you&rsquo;ll reach.</h2>
-      <p>FFP&rsquo;s community is high-intent, UAE-based and built around active living &mdash; the exact people sports, fitness and wellness businesses want as customers.</p>
+      <p>FFP&rsquo;s community is built around active living &mdash; the exact people sports, fitness and wellness businesses want as customers.</p>
     </div>
-    <div class="audience-grid">
-      <div>
-        <div class="audience-demo">
-          <div class="demo-card">
-            <div class="demo-num">70%</div>
-            <div class="demo-label">Age 25&ndash;55</div>
-          </div>
-          <div class="demo-card">
-            <div class="demo-num">86%</div>
-            <div class="demo-label">UAE Based</div>
-          </div>
-          <div class="demo-card">
-            <div class="demo-num">62%</div>
-            <div class="demo-label">Male</div>
-          </div>
-        </div>
-        <p style="font-size:13px;color:var(--text-mute);margin-top:18px;line-height:1.6;">Engaged audience across Dubai, Abu Dhabi and the Northern Emirates &mdash; with 38% female and growing.</p>
-      </div>
-      <div class="audience-list">
-        <h4>Audience Includes</h4>
-        <ul>
-          <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Fitness enthusiasts</li>
-          <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Fitness trainers</li>
-          <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Sports athletes</li>
-          <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Sports coaches</li>
-          <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Wellness-minded</li>
-          <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Health-conscious</li>
-          <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Active-living families</li>
-          <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Recovery &amp; nutrition</li>
-        </ul>
-      </div>
+    <div class="act-grid">
+      <div class="act-card"><img src="assets/hands-in.jpg" alt="Teams &amp; clubs" loading="lazy"><span>Teams &amp; Clubs</span></div>
+      <div class="act-card"><img src="assets/ladies-drinking-smoothies.jpg" alt="Wellness" loading="lazy"><span>Wellness</span></div>
+      <div class="act-card"><img src="assets/people-against-wall.jpg" alt="Fitness community" loading="lazy"><span>Fitness</span></div>
+      <div class="act-card"><img src="assets/experiences.jpg" alt="Adventure" loading="lazy"><span>Adventure</span></div>
+    </div>
+    <div class="audience-list">
+      <h4>The community includes</h4>
+      <ul>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Fitness enthusiasts</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Trainers &amp; coaches</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Sports athletes</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Wellness-minded</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Health-conscious</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Active families</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Recovery &amp; nutrition</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Newcomers to the UAE</li>
+      </ul>
     </div>
   </div>
 </section>
 
-<!-- PRICING TIERS -->
-<section id="tiers">
+<!-- PRICING / FREE PREVIEW -->
+<section id="pricing">
   <div class="col">
     <div class="sec-head">
-      <span class="eyebrow">Partnership Tiers</span>
-      <h2>Pick the level that fits your business.</h2>
-      <p>Start with a free listing. Upgrade when you&rsquo;re ready to host events or want us actively selling for you.</p>
+      <span class="eyebrow">Pricing</span>
+      <h2>Free while we&rsquo;re in preview.</h2>
+      <p>We&rsquo;re onboarding our founding partners right now. Build and publish to members at no cost &mdash; full partner tiers arrive after preview, and early partners keep the best rates.</p>
     </div>
-    <div class="tiers">
-
-      <!-- FREE TIER -->
-      <div class="tier">
-        <div class="tier-name">Free Listing</div>
-        <div class="tier-headline">List &amp; Get Discovered</div>
-        <div class="tier-tag">For providers who want to be found by the FFP community.</div>
-        <div class="tier-price">$0</div>
-        <div class="tier-price-sub">No charge &middot; Always free</div>
-        <ul>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span><b>FFP Provider account</b> &mdash; self-managed</span></li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span><b>Unlimited listings</b> on findfitpeople.com</span></li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span><b>Member Perk badge</b> on FFP Passport</span></li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span><b>Bring-a-friend</b> deal visibility to all members</span></li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span><b>Promo video</b> &mdash; limited-time introductory offer</span></li>
-        </ul>
-        <a href="https://www.findfitpeople.com" target="_blank" rel="noopener" class="tier-cta outline">Start Free Listing</a>
-      </div>
-
-      <!-- PRO MEMBER (FEATURED) -->
-      <div class="tier featured">
-        <div class="tier-badge">Most Popular</div>
-        <div class="tier-name">Pro Member</div>
-        <div class="tier-headline">Host &amp; Grow</div>
-        <div class="tier-tag">For providers who want regular introductions to new clients.</div>
-        <div class="tier-price">$149</div>
-        <div class="tier-price-sub">Per month</div>
-        <ul>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span><b>Everything in Free Listing</b></span></li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span><b>Host Events</b> on FFP Passport</span></li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span><b>Run Experiences</b> &mdash; group trips, retreats, sessions</span></li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span><b>Create Challenges</b> with live leaderboards</span></li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span>Client activation event</span></li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span>Optimised listing &amp; review building</span></li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span>Access to VIP customers</span></li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span>Networking access &amp; promo opportunities</span></li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span>Ambassador support &amp; email boost</span></li>
-        </ul>
-        <a href="#contact" class="tier-cta filled">Become A Pro Member</a>
-      </div>
-
-      <!-- FEATURED PARTNER -->
-      <div class="tier">
-        <div class="tier-name">Featured Partner</div>
-        <div class="tier-headline">Done-For-You Sales</div>
-        <div class="tier-tag">For providers who want us actively selling your services.</div>
-        <div class="tier-price">$1,999</div>
-        <div class="tier-price-sub">Per month</div>
-        <ul>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span><b>Everything in Pro Member</b></span></li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span><b>Dedicated account manager</b></span></li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span><b>Featured listings</b> &mdash; top-of-page placements</span></li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span>Multiple guest visits</span></li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span>Priority guest-list invitations</span></li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span>2x content capture per month</span></li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span>Batch-record podcast appearances</span></li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span>Access to inbound tour groups</span></li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span>Local + global visibility</span></li>
-        </ul>
-        <a href="#contact" class="tier-cta outline">Apply To Be Featured</a>
-      </div>
-
+    <div class="preview-panel">
+      <div class="pp-badge">Founding Partner &middot; Preview</div>
+      <h3>Provider account</h3>
+      <div class="pp-price">Free</div>
+      <div class="pp-sub">No charge during the research-preview &middot; no card required</div>
+      <ul class="pp-list">
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span><b>Self-managed provider dashboard</b></span></li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span><b>Build Events, Experiences &amp; Challenges</b></span></li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span>Published to FFP Passport members after a quick quality review</span></li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span>Member RSVPs, applications and results in your dashboard</span></li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span>Founding-partner pricing locked in for when tiers launch</span></li>
+      </ul>
+      <a href="/provider-signup.html" class="btn-primary">Try For Free</a>
+      <div class="pp-foot">Full partner tiers (hosting volume, featured placement, done-for-you sales &amp; media) will be introduced after preview. Want the details early? <a href="#contact" style="color:var(--accent);font-weight:700;">Talk to us.</a></div>
     </div>
-  </div>
-</section>
 
-<!-- MEDIA SERVICES -->
-<section style="padding-top:0;">
-  <div class="col">
+    <!-- MEDIA SERVICES -->
     <div class="media-services">
-      <h3>Media Services</h3>
-      <div class="ms-tag">Add-on production for any tier.</div>
+      <h3>Optional Add-On</h3>
+      <div class="ms-tag">Content &amp; media production support.</div>
       <div class="ms-grid">
         <div class="ms-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>Video Capture</div>
         <div class="ms-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Social Management</div>
@@ -391,23 +372,16 @@ footer { background: var(--bg-deep); border-top: 1px solid var(--accent-line-dim
   <div class="col">
     <div class="founder-card">
       <div class="founder-img">
-        <img src="assets/ffp-travels-passport.jpeg" alt="Grant Goes, FFP Founder">
+        <img src="assets/grant-goes-outdoors.jpg" alt="Grant Goes, FFP Founder" loading="lazy" onerror="this.parentNode.style.display='none'">
       </div>
       <div class="founder-text">
         <span class="eyebrow">From the Founder</span>
         <h3>Grant Goes</h3>
         <div class="role">Founder &middot; FFP</div>
-        <p>I&rsquo;ve spent 15 years living and breathing the active lifestyle in the UAE. Training, competing, coaching, presenting, and connecting with some of the most passionate sports, fitness and wellness people in this city.</p>
-        <p>What I&rsquo;ve seen &mdash; every single day &mdash; is how much this community gives to the people in it. Better health. Better performance. Better quality of life.</p>
-        <p>FFP exists to connect those people with the businesses that support them. To make it easier for anyone who wants to live actively to find exactly the right support &mdash; and to make sure the brilliant providers delivering that support get the recognition, the reach, and the customers they deserve.</p>
+        <p>I&rsquo;ve spent years living and breathing the active lifestyle in the UAE &mdash; training, competing, coaching and connecting with some of the most passionate sports, fitness and wellness people in this city.</p>
+        <p>What I see every day is how much this community gives to the people in it: better health, better performance, a better quality of life.</p>
+        <p>FFP exists to connect those people with the businesses that support them &mdash; and to make sure the brilliant providers delivering that support get the reach, recognition and customers they deserve.</p>
         <div class="quote">&ldquo;Active people live better. Let&rsquo;s help more people live that way.&rdquo;</div>
-        <div class="creds">
-          <span class="cred">Les Mills Presenter</span>
-          <span class="cred">2025 World Cup</span>
-          <span class="cred">UAE FIT Awards</span>
-          <span class="cred">Dubai Fitness 2012</span>
-          <span class="cred">Brand Ambassador</span>
-        </div>
       </div>
     </div>
   </div>
@@ -416,8 +390,11 @@ footer { background: var(--bg-deep); border-top: 1px solid var(--accent-line-dim
 <!-- CONTACT -->
 <section id="contact" class="contact">
   <div class="col">
-    <h2>Let&rsquo;s talk.</h2>
-    <p class="contact-sub">Ready to partner with FFP? Reach out and we&rsquo;ll set up a quick call to find the right tier for your business.</p>
+    <h2>Let&rsquo;s get you onboard.</h2>
+    <p class="contact-sub">Start your free account now, or reach out and we&rsquo;ll walk you through it on a quick call.</p>
+    <div class="contact-cta-row">
+      <a href="/provider-signup.html" class="btn-primary">Try For Free</a>
+    </div>
     <div class="contact-methods">
       <a href="https://wa.me/971562617359" target="_blank" rel="noopener" class="contact-method">
         <div class="cm-icon">
