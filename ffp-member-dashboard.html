@@ -1,4 +1,12 @@
-<!-- FFP MEMBER DASHBOARD — v209 (2026-06-01)
+<!-- FFP MEMBER DASHBOARD — v211 (2026-06-01)
+     v211: UNIFIED passport card behind ONE resolver — window.FFPCard, keyed by member id (members.id uuid).
+           Single snake/camel-tolerant mapper + cache. Data sources REGISTER rows (get_match_pool rows; meet-move
+           loader member fetch); renderers RESOLVE by id (Who's going now pulls FFPCard.resolve; self → MemberProfile,
+           minus DOB). No surface hand-builds its own card object anymore. Works with the existing live loader
+           (attendees fall back through FFPCard.mapRow); loader registration is an optional later enhancement.
+     v210: "Who's going" passport cards show the REAL passport details. The current user's card is built from
+           MemberProfile.data (same source as the passport page) so it matches exactly, minus DOB. Card NATIONALITY
+           now reads m.nationality (falls back to country). Other attendees pass nationality/issue/expiry through.
      v209: "Who's going" GUARANTEES the host is on the list, first — whosGoingInline() prepends a host entry
            from the meetup's own fields if m.attendees lacks one (no dependence on loader version/data). If the
            viewer is the host (m.isHostedByMe), their entry is labelled "(You)" so they see themselves listed.
@@ -11400,6 +11408,7 @@ const MeetMove = {
       ((md.sports) || []).forEach(function (sp) { if (sp.name) mySkills[String(sp.name).toLowerCase()] = LV[String(sp.level || '').toLowerCase()]; });
       var now = Date.now();
       this.matches = (res.data || []).map(function (r) {
+        if (window.FFPCard) window.FFPCard.register(r); // feed the one canonical card cache (keyed by id)
         var skills = Array.isArray(r.skills) ? r.skills : [];
         var sports = skills.map(function (sk) {
           var nm = sk.name || sk.skill || sk.sport || '';
@@ -11637,22 +11646,19 @@ const MeetMove = {
   // Who's going — rendered INLINE as part of the modal (host first). Data (m.attendees) is host-first
   // from the meet-move loader's buildAttendees(); reuses the FFPPassportCard component (defined in this file).
   whosGoingInline(m) {
+    // ONE source of truth: every card resolves through window.FFPCard (keyed by member id).
+    // Self → MemberProfile.data; others → the shared cache fed by the loader / matches RPC.
+    const FC = window.FFPCard;
+    const myId = FC ? FC._myId() : null;
     let people = ((m && m.attendees) || []).slice();
-    // THE HOST ALWAYS SHOWS, FIRST — never depend on the loader having put them in m.attendees.
+    // THE HOST ALWAYS SHOWS, FIRST — independent of loader/data.
     if (m) {
       const hostIdx = people.findIndex(p => p && p.isHost);
       if (hostIdx === -1) {
-        people.unshift({
-          id: m.host_member_id || 'host', name: m.host || 'Host', givenNames: '', surname: '',
-          photo: m.hostPhoto || null, city: m.area || m.city || '', country: m.country || '',
-          gender: '', memberType: 'member', memberSince: null, sports: [], isHost: true
-        });
+        people.unshift({ id: m.host_member_id || (m.isHostedByMe ? myId : null) || 'host',
+          name: m.host || 'Host', city: m.area || m.city || '', country: m.country || '', isHost: true });
       } else if (hostIdx > 0) {
         people.unshift(people.splice(hostIdx, 1)[0]);
-      }
-      // If I'm the host, it's me on the list — label it so it's clear.
-      if (m.isHostedByMe && people[0] && people[0].isHost && !/\(You\)$/.test(people[0].name || '')) {
-        people[0] = Object.assign({}, people[0], { name: (people[0].name || 'Host') + ' (You)' });
       }
     }
     const cap = (m && (m.capacity || m.spots)) || '';
@@ -11660,20 +11666,21 @@ const MeetMove = {
     if (!people.length) {
       return header + `<div style="font-size:12px;color:var(--muted);">Be the first to join.</div>`;
     }
-    const canCard = window.FFPPassportCard && typeof window.FFPPassportCard.render === 'function';
-    if (canCard) {
-      const cards = people.map(p => {
-        const member = { id: p.id, name: p.name, givenNames: p.givenNames, surname: p.surname, photo: p.photo,
-          city: p.city, country: p.country, gender: p.gender, memberType: p.memberType, memberSince: p.memberSince, sports: p.sports };
-        return `<div style="margin-bottom:12px;">${window.FFPPassportCard.render(member, { context: 'attendee', role: (p.isHost ? 'HOST' : 'GOING'), flippable: true })}</div>`;
-      }).join('');
+    const card = (p) => (FC ? (FC.resolve(p) || p) : p);
+    if (window.FFPPassportCard && FC) {
+      const cards = people.map(p =>
+        `<div style="margin-bottom:12px;">${window.FFPPassportCard.render(card(p), { context: 'attendee', role: (p.isHost ? 'HOST' : 'GOING'), flippable: true })}</div>`
+      ).join('');
       return header + `<div style="font-size:11px;color:var(--muted);margin:-4px 0 10px;">Tap a passport to flip it</div>` + cards;
     }
     const rows = people.map(p => {
-      const av = p.photo
-        ? `<span style="width:36px;height:36px;border-radius:50%;display:inline-block;flex-shrink:0;background:#0a1825 url('${p.photo}') center/cover;"></span>`
-        : `<span style="width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;background:#13314a;color:#cfe3f2;font-weight:800;">${escHtml((p.name || 'M').charAt(0).toUpperCase())}</span>`;
-      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">${av}<div><div style="font-weight:700;font-size:13px;">${escHtml(p.name)}${p.isHost ? ' <span style="font-size:9px;font-weight:800;color:#FFCC00;border:1px solid #FFCC00;border-radius:20px;padding:1px 7px;vertical-align:1px;">HOST</span>' : ''}</div>${p.city ? `<div style="font-size:11px;color:var(--muted);">${escHtml(p.city)}</div>` : ''}</div></div>`;
+      const d = card(p);
+      const mine = myId && d && d.id === myId;
+      const nm = escHtml(d.name || 'Member') + (mine ? ' (You)' : '');
+      const av = d.photo
+        ? `<span style="width:36px;height:36px;border-radius:50%;display:inline-block;flex-shrink:0;background:#0a1825 url('${d.photo}') center/cover;"></span>`
+        : `<span style="width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;background:#13314a;color:#cfe3f2;font-weight:800;">${escHtml((d.name || 'M').charAt(0).toUpperCase())}</span>`;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">${av}<div><div style="font-weight:700;font-size:13px;">${nm}${p.isHost ? ' <span style="font-size:9px;font-weight:800;color:#FFCC00;border:1px solid #FFCC00;border-radius:20px;padding:1px 7px;vertical-align:1px;">HOST</span>' : ''}</div>${d.city ? `<div style="font-size:11px;color:var(--muted);">${escHtml(d.city)}</div>` : ''}</div></div>`;
     }).join('');
     return header + rows;
   },
@@ -12946,7 +12953,7 @@ setTimeout(scalePassportCard, 200);
             "<div class='pass-fields-new'>"+
               "<div class='pf-field'><div class='pf-lbl'>SURNAME</div><div class='pf-val'>"+esc(surname||"—")+"</div></div>"+
               "<div class='pf-field'><div class='pf-lbl'>GIVEN NAMES</div><div class='pf-val'>"+esc(given||"—")+"</div></div>"+
-              "<div class='pf-field'><div class='pf-lbl'>NATIONALITY</div><div class='pf-val'>"+esc(m.country||"—")+"</div></div>"+
+              "<div class='pf-field'><div class='pf-lbl'>NATIONALITY</div><div class='pf-val'>"+esc(m.nationality||m.country||"—")+"</div></div>"+
               "<div class='pf-grid-2'>"+
                 "<div class='pf-field'><div class='pf-lbl'>GENDER</div><div class='pf-val'>"+(cap(m.gender)||"—")+"</div></div>"+
                 "<div class='pf-field'><div class='pf-lbl'>DATE OF BIRTH</div><div class='pf-val'>"+(m.dob||"—")+"</div></div>"+
@@ -13006,6 +13013,59 @@ setTimeout(scalePassportCard, 200);
     });
   };
   window.addEventListener("resize", function(){ window.ffpScaleCards(); });
+
+  /* ── FFPCard: the ONE canonical passport-card resolver, keyed by member id (members.id, uuid). ──
+     Every surface that needs a passport card resolves through this — no surface hand-builds its own
+     member object. Tolerant of snake_case (DB rows / RPC) and camelCase (MemberProfile.data). Data
+     sources call FFPCard.register(row); renderers call FFPCard.resolve(idOrObj). Self → MemberProfile. */
+  window.FFPCard = {
+    _cache: {},
+    _pick: function(o){ for(var i=1;i<arguments.length;i++){ var k=arguments[i]; if(o[k]!=null && o[k]!=="") return o[k]; } return undefined; },
+    _sports: function(v){
+      if(typeof v==="string"){ try{ v=JSON.parse(v); }catch(e){ v=[]; } }
+      if(!Array.isArray(v)) return [];
+      return v.map(function(s){ return (typeof s==="string")?{name:s,level:""}:{name:(s.name||s.activity||""),level:(s.level||"")}; });
+    },
+    mapRow: function(row){
+      if(!row) return null;
+      var P=this._pick;
+      var nm=P(row,"name","full_name");
+      var given=P(row,"givenNames","given_names")||(nm?String(nm).split(" ")[0]:"")||"";
+      var surname=P(row,"surname")||(nm?String(nm).split(" ").slice(1).join(" "):"")||"";
+      var created=P(row,"created_at","joined_at");
+      var fmt=window.ffpFmtPassDate||function(d){return d||"";};
+      var msRaw=P(row,"memberSince","member_since");
+      return {
+        id: P(row,"id")||null,
+        passportNo: P(row,"passportNumber","passport_no")||"",
+        name: nm||(given+" "+surname).trim(),
+        givenNames: given, surname: surname,
+        photo: P(row,"photo","photo_url")||null,
+        country: P(row,"country")||"",
+        nationality: P(row,"nationality")||"",
+        gender: P(row,"gender")||"",
+        dob: P(row,"dob")||"",
+        issueDate: P(row,"issueDate")||(created?fmt(created):""),
+        expiryDate: P(row,"expiryDate")||(created?fmt(created,1):""),
+        memberType: String(P(row,"memberType","tier")||"member").toLowerCase(),
+        memberSince: (msRaw!=null?msRaw:(created?new Date(created).getFullYear():"")),
+        sports: this._sports(P(row,"sports","skills")),
+        meetupsHosted: P(row,"meetupsHosted","meetups_hosted"),
+        reliability: P(row,"reliability","reliability_score"),
+        city: P(row,"city")||""
+      };
+    },
+    register: function(row){ var c=this.mapRow(row); if(c&&c.id){ this._cache[c.id]=Object.assign(this._cache[c.id]||{},c); } return c; },
+    _myId: function(){ return ((window.FFPAuth&&FFPAuth.getMember&&FFPAuth.getMember())||{}).id||null; },
+    fromProfile: function(){
+      var prof=(window.MemberProfile&&MemberProfile.data)||{};
+      var c=this.mapRow(Object.assign({}, prof, { id:this._myId(), dob:"" })); /* self card omits DOB */
+      if(c&&c.id) this._cache[c.id]=c;
+      return c;
+    },
+    get: function(id){ if(!id) return null; if(id===this._myId()) return this.fromProfile(); return this._cache[id]||null; },
+    resolve: function(p){ if(!p) return null; if(typeof p==="string") return this.get(p); return this.get(p.id)||this.mapRow(p); }
+  };
 
   if(typeof MeetMove==="undefined") return;
 
