@@ -4,6 +4,9 @@
            Post-a-Meetup form: Date -> single-tap native calendar (default today, no past); Time/select overshoot
            fixed (min-width:0 + box-sizing); Time & Capacity stay side-by-side on mobile; Location + Maps link moved
            under City; Title capped at a concise 40 chars with live counter.
+           Log Activity form: Activity field moved to the TOP (fast entry); Country/City already default to the
+           member's profile location (editable), Date=today + Time=now prefilled, Duration = 3 scroll columns,
+           no level field; modal is full-screen on mobile (shared .modal rule above).
      v202: FIX Experiences not showing — filter defaulted to UAE, hiding international experiences.
      Experiences country filter now defaults to All countries. (Events/Challenges keep UAE default.)
      v201: matches carousel + Add passport. -->
@@ -5159,7 +5162,14 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
       <button class="modal-close" onclick="closeLogModal()">&times;</button>
     </div>
     <div class="modal-body">
-      <div class="log-grid2">
+      <div class="form-field">
+        <label class="form-label">Activity</label>
+        <div class="input-wrap">
+          <input type="text" id="log-activity" class="form-input" placeholder="Search activities..." autocomplete="off">
+          <div class="picker-dropdown" id="activity-picker"></div>
+        </div>
+      </div>
+      <div class="log-grid2" style="margin-top:10px;">
         <div class="form-field">
           <label class="form-label">Country</label>
           <select id="log-country" class="form-input" onchange="fillLogCities()"></select>
@@ -5177,13 +5187,6 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         <div class="form-field">
           <label class="form-label">Time</label>
           <input type="time" id="log-time" class="form-input">
-        </div>
-      </div>
-      <div class="form-field" style="margin-top:10px;">
-        <label class="form-label">Activity</label>
-        <div class="input-wrap">
-          <input type="text" id="log-activity" class="form-input" placeholder="Search activities..." autocomplete="off">
-          <div class="picker-dropdown" id="activity-picker"></div>
         </div>
       </div>
       <div class="form-field" style="margin-top:10px;">
