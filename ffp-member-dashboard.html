@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v203 (2026-06-01)
+<!-- FFP MEMBER DASHBOARD — v204 (2026-06-01)
+     v204: FIX Log Activity Date/Time overlapping on mobile — the Date/Time row was a raw inline grid (no mobile
+           stacking); now uses .log-grid2 (stacks ≤560px) + min-width:0 on .form-field grid cells so native
+           date/time pickers can't overflow their column. (Full-screen modal rule from v203 only takes effect
+           once this file is actually DEPLOYED — live was still v202.)
      v203: Modals full-screen on mobile (Log activity, Add city, PIN, pickers, detail cards; confirms stay centered).
            Notifications converted from bottom pill to prominent TOP banner (desktop + mobile).
            Post-a-Meetup form: Date -> single-tap native calendar (default today, no past); Time/select overshoot
@@ -3864,7 +3868,8 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 .city-pick .material-icons { font-size: 14px; color: var(--blue); }
 
 /* LOG MODAL */
-.form-field { margin-bottom: 14px; }
+.form-field { margin-bottom: 14px; min-width: 0; }
+.log-grid2 > * { min-width: 0; }
 .form-label { display: block; font-size: 11px; font-weight: 800; letter-spacing: 0.5px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
 .form-input { width: 100%; box-sizing: border-box; min-width: 0; padding: 10px 12px; background: rgba(43,168,224,0.05); border: 1px solid var(--border-mid); border-radius: 6px; color: var(--text); font-size: 13px; outline: none; }
 .log-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -5179,7 +5184,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
           <select id="log-city" class="form-input"></select>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+      <div class="log-grid2" style="margin-top:10px;">
         <div class="form-field">
           <label class="form-label">Date</label>
           <input type="date" id="log-date" class="form-input">
