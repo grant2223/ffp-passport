@@ -1,4 +1,4 @@
-<!-- FFP Admin Dashboard v29 (skill levels display: Not Tried/Social/Competitive/Representative/Professional). v28 (2026-05-31) — USD labels (balance + payout min) per USD-display decision. v27: tier/expiry edit no longer rebuilds the row mid-change. -->
+<!-- FFP Admin Dashboard v30 (2026-06-01): Providers panel now has a PENDING tab (default landing) so self-signup providers (status='pending') are visible + approvable — previously only Approved/Featured/Suspended existed, so pending providers were fetched+counted but had no tab to display in. v29 (skill levels display: Not Tried/Social/Competitive/Representative/Professional). v28 (2026-05-31) — USD labels (balance + payout min) per USD-display decision. v27: tier/expiry edit no longer rebuilds the row mid-change. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -36,6 +36,7 @@
   <script src="assets/ffp-realtime.js"></script>
 <script src="ffp-admin-auth.js"></script>
   <script src="ffp-admin-overview-loader.js"></script>
+  <script src="ffp-admin-applications-loader.js"></script><!-- v8: restored — self-injects the Applications tab (was wrongly removed in v7, so provider applications had nowhere to show) -->
 <!-- v7: removed 8 phantom loader refs that 404'd (referrals/content/members/meetups/overview/analytics/taxonomies/settings — those panels run on their inline modules). Normalized quests loader ref to the plain GitHub filename. -->
 
   
@@ -1509,7 +1510,8 @@ input, select, textarea { font-family: inherit; }
           <div class="search-meta" id="AdminProviders-meta"></div>
         </div>
         <div class="tabs" id="providers-tabs">
-          <button class="tab-btn active" data-tab="approved" onclick="AdminProviders.setTab('approved')">Approved <span class="count" id="prov-count-approved">0</span></button>
+          <button class="tab-btn active" data-tab="pending" onclick="AdminProviders.setTab('pending')">Pending <span class="count" id="prov-count-pending">0</span></button>
+          <button class="tab-btn" data-tab="approved" onclick="AdminProviders.setTab('approved')">Approved <span class="count" id="prov-count-approved">0</span></button>
           <button class="tab-btn" data-tab="featured" onclick="AdminProviders.setTab('featured')">Featured <span class="count" id="prov-count-featured">0</span></button>
           <button class="tab-btn" data-tab="suspended" onclick="AdminProviders.setTab('suspended')">Suspended <span class="count" id="prov-count-suspended">0</span></button>
         </div>
@@ -2222,7 +2224,7 @@ const App = {
 // PROVIDERS MODULE
 // =====================================================================
 const AdminProviders = {
-  tab: 'approved',
+  tab: 'pending',
   search: '',
   
   data: [
