@@ -1,4 +1,5 @@
-/* close edit modal after delete
+/* FFP Provider Challenges Loader — v3 (rebuilt form: Basics→The challenge[Metric/Verification/Prize]→When→Where[Country/City taxonomy cascade required, Venue optional, Location pin]; create/edit via provider_save_listing RPC)
+   close edit modal after delete
 /*  Provider Challenges Loader — v1
    Wires the provider dashboard's Challenges panel to real Supabase data.
    Provider challenges only: organizer sets rules and uploads results at end.
@@ -111,7 +112,9 @@
       activity: row.activity || '',
       category: row.category || '',
       metric: row.metric || '',
+      verification: row.verification || '',
       venue: row.venue || '',
+      country: row.country || '',
       city: row.city || '',
       start_date: startD,
       end_date: endD,
@@ -130,7 +133,7 @@
     if (!window.FFP_PROVIDER || !window.FFP_PROVIDER.id) return [];
     var res = await window.supabase
       .from('challenges')
-      .select('id, provider_id, challenge_type, title, description, activity, category, hero_image_url, metric, venue, city, starts_at, ends_at, prize_description, verification, status, featured, created_at, updated_at')
+      .select('id, provider_id, challenge_type, title, description, activity, category, hero_image_url, metric, venue, country, city, starts_at, ends_at, prize_description, verification, status, featured, created_at, updated_at')
       .eq('provider_id', window.FFP_PROVIDER.id)
       .order('starts_at', { ascending: false });
     if (res.error) {
@@ -150,36 +153,53 @@
     if (typeof window.renderNav === 'function')        { try { window.renderNav();        } catch (e) {} }
   }
 
+  // Populate Country + City selects from the shared taxonomy (FFP_TAX.cities), with a country->city cascade.
+  function fillChallengeLocation(c) {
+    var TAX = window.FFP_TAX;
+    var cny = document.getElementById('cm-country');
+    var cty = document.getElementById('cm-city');
+    if (!cny || !cty || !TAX || !TAX.cities) return;
+    var countries = Object.keys(TAX.cities).sort();
+    var selCountry = (c && c.country) || 'United Arab Emirates';
+    var selCity = (c && c.city) || '';
+    if (countries.indexOf(selCountry) === -1) selCountry = countries[0] || '';
+    cny.innerHTML = countries.map(function (x) { return '<option' + (x === selCountry ? ' selected' : '') + '>' + x + '</option>'; }).join('');
+    function fillCities(country, keepCity) {
+      var list = (TAX.cities[country] || []).slice();
+      cty.innerHTML = '<option value="">Select city…</option>' + list.map(function (x) { return '<option' + (x === keepCity ? ' selected' : '') + '>' + x + '</option>'; }).join('');
+    }
+    fillCities(cny.value, selCity);
+    cny.addEventListener('change', function () { fillCities(cny.value, ''); });
+  }
+
   // ─── Modal — full override ───
   function realOpenChallengeModal(id) {
     var editing = id ? challenges.find(function (x) { return x.id === id; }) : null;
     var defaultVenue = (window.providerProfile && window.providerProfile.business_name) || '';
     var c = editing || {
       title: '', description: '', activity: '', category: '',
-      metric: '', venue: defaultVenue,
-      start_date: '', end_date: '', prize: '',
+      metric: '', verification: '', venue: '', prize: '',
+      start_date: '', end_date: '',
+      country: (window.providerProfile && providerProfile.country) || 'United Arab Emirates',
+      city: (window.providerProfile && providerProfile.city) || '',
       hero_url: null, status: ''
     };
 
     var body =
       '<div class="help-strip">' +
         '<span class="ms">info</span>' +
-        '<div><b>Provider challenge:</b> you set the rules and upload results at the end. Members see a leaderboard with your results. No FFP coins — prizes are physical only.</div>' +
+        '<div><b>Provider challenge:</b> members attempt this at your venue. You set the rules and upload results at the end; members see a leaderboard. Physical prizes only — no FFP coins.</div>' +
       '</div>' +
       '<div class="form-section">' +
         '<div class="form-section-title">Photo</div>' +
         '<div id="listing-photo-slot" data-url="' + escHtml(c.hero_url || '') + '"></div>' +
       '</div>' +
       '<div class="form-section">' +
-        '<div class="form-section-title">Challenge</div>' +
+        '<div class="form-section-title">Basics</div>' +
         '<div class="form-grid">' +
           '<div class="field full">' +
             '<div class="label">Title <span class="req">*</span></div>' +
-            '<input class="input" id="cm-title" value="' + escHtml(c.title) + '" placeholder="e.g. Forge May Strength Push">' +
-          '</div>' +
-          '<div class="field full">' +
-            '<div class="label">Description</div>' +
-            '<textarea class="textarea" id="cm-description" rows="3" placeholder="The rules — what entrants do, how scores are recorded">' + escHtml(c.description) + '</textarea>' +
+            '<input class="input" id="cm-title" value="' + escHtml(c.title) + '" placeholder="e.g. 30-day rowing distance challenge">' +
           '</div>' +
           '<div class="field">' +
             '<div class="label">Activity <span class="req">*</span> <span class="label-hint">— what is it?</span></div>' +
@@ -187,31 +207,62 @@
               '<span>Choose activity…</span><span class="ms caret">expand_more</span>' +
             '</button>' +
           '</div>' +
+          '<div class="field full">' +
+            '<div class="label">Description</div>' +
+            '<textarea class="textarea" id="cm-description" rows="3" placeholder="The rules — what members do and how it works">' + escHtml(c.description) + '</textarea>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="form-section">' +
+        '<div class="form-section-title">The challenge</div>' +
+        '<div class="form-grid">' +
           '<div class="field">' +
-            '<div class="label">Metric <span class="label-hint">— how scores are measured</span></div>' +
-            '<input class="input" id="cm-metric" value="' + escHtml(c.metric) + '" placeholder="e.g. Combined PR kg increase">' +
+            '<div class="label">Metric <span class="req">*</span> <span class="label-hint">— what is measured</span></div>' +
+            '<input class="input" id="cm-metric" value="' + escHtml(c.metric) + '" placeholder="e.g. Total metres rowed">' +
           '</div>' +
           '<div class="field">' +
-            '<div class="label">Venue</div>' +
-            '<input class="input" id="cm-venue" value="' + escHtml(c.venue) + '" placeholder="Where it happens">' +
+            '<div class="label">How results are verified</div>' +
+            '<input class="input" id="cm-verification" value="' + escHtml(c.verification || '') + '" placeholder="e.g. Erg screen photo at front desk">' +
           '</div>' +
-          '<div class="field">' +
+          '<div class="field full">' +
             '<div class="label">Prize <span class="label-hint">— physical gift only</span></div>' +
-            '<input class="input" id="cm-prize" value="' + escHtml(c.prize) + '" placeholder="e.g. Recovery kit for top 3">' +
+            '<input class="input" id="cm-prize" value="' + escHtml(c.prize) + '" placeholder="e.g. 3-month membership + kit">' +
           '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="form-section">' +
+        '<div class="form-section-title">When</div>' +
+        '<div class="form-grid">' +
           '<div class="field">' +
-            '<div class="label">Start date <span class="req">*</span></div>' +
+            '<div class="label">Starts <span class="req">*</span></div>' +
             '<input class="input" type="date" id="cm-start" value="' + escHtml(c.start_date) + '">' +
           '</div>' +
           '<div class="field">' +
-            '<div class="label">End date <span class="req">*</span></div>' +
+            '<div class="label">Ends <span class="req">*</span></div>' +
             '<input class="input" type="date" id="cm-end" value="' + escHtml(c.end_date) + '">' +
           '</div>' +
         '</div>' +
       '</div>' +
-      (editing && (c.status === 'live' || c.status === 'paused')
-        ? ''
-        : '');
+      '<div class="form-section">' +
+        '<div class="form-section-title">Where</div>' +
+        '<div class="form-grid">' +
+          '<div class="field">' +
+            '<div class="label">Country <span class="req">*</span></div>' +
+            '<select class="select" id="cm-country"></select>' +
+          '</div>' +
+          '<div class="field">' +
+            '<div class="label">City <span class="req">*</span></div>' +
+            '<select class="select" id="cm-city"></select>' +
+          '</div>' +
+          '<div class="field">' +
+            '<div class="label">Venue <span class="label-hint">— optional</span></div>' +
+            '<input class="input" id="cm-venue" value="' + escHtml(c.venue) + '" placeholder="e.g. Forge Fitness, Al Quoz">' +
+          '</div>' +
+          '<div class="field">' +
+            '<a class="label-hint" style="cursor:pointer;color:#2ba8e0;display:inline-flex;align-items:center;gap:4px;" onclick="ffpOpenMap(\'cm-venue\')"><span class="ms" style="font-size:14px;">place</span> Location pin — view on Google Maps</a>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
 
     var foot =
       (editing ? '<button class="btn btn-ghost left" onclick="confirmDeleteChallenge(\'' + editing.id + '\')"><span class="ms">delete</span> Delete</button>' : '') +
@@ -227,8 +278,9 @@
       try { window.renderListingUploader(c.hero_url); } catch (e) {}
     }
 
-    // Wire activity picker
+    // Wire activity picker + populate Country/City from the shared taxonomy
     setTimeout(function () {
+      fillChallengeLocation(c);
       var btn = document.getElementById('cm-activity-btn');
       if (!btn) return;
       if (c.activity || c.category) {
@@ -267,11 +319,17 @@
     var category = actBtn ? actBtn.dataset.category : '';
     var startDate = get('start');
     var endDate = get('end');
+    var country = get('country');
+    var city = get('city');
+    var metric = get('metric');
 
     if (!title)     { toast('Title is required', 'error'); return; }
     if (!activity)  { toast('Activity is required', 'error'); return; }
+    if (!metric)    { toast('Metric is required', 'error'); return; }
     if (!startDate) { toast('Start date is required', 'error'); return; }
     if (!endDate)   { toast('End date is required', 'error'); return; }
+    if (!country)   { toast('Country is required', 'error'); return; }
+    if (!city)      { toast('City is required', 'error'); return; }
 
     var photoSlot = document.getElementById('listing-photo-slot');
     var heroUrl = (photoSlot && photoSlot.dataset.url) ? photoSlot.dataset.url : null;
@@ -282,8 +340,11 @@
       description:       get('description') || null,
       activity:          activity,
       category:          category || null,
-      metric:            get('metric') || null,
+      metric:            metric || null,
+      verification:      get('verification') || null,
       venue:             get('venue') || null,
+      country:           country || null,
+      city:              city || null,
       prize_description: get('prize') || null,
       starts_at:         dateToTimestamp(startDate),
       ends_at:           dateToTimestamp(endDate),
@@ -360,7 +421,7 @@
 
     try {
       await refresh();
-      console.log('[FFP Challenges v1] Loaded from Supabase \u2713');
+      console.log('[FFP Challenges] loaded v3 \u2014 rebuilt form (taxonomy country/city, metric, verification) \u2713');
     } catch (e) {
       console.error('[FFP Challenges] initial load:', e);
     }
