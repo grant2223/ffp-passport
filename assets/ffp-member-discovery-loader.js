@@ -1,4 +1,7 @@
-/* FFP Member Discovery Loader — v3 (2026-06-01)
+/* FFP Member Discovery Loader — v4 (2026-06-01)
+   v4: card date badges — Experience = first day of trip (startBadge); Challenge dateBadge is now
+       an OBJECT (was a string -> blank badge bug) = last day to enter (starts_at).
+   v3 (2026-06-01)
    v3: Events RSVP + Experiences apply now go through SECURITY DEFINER RPCs (rsvp_event /
        apply_experience) — the direct rsvps/applications inserts failed on auth.uid() for
        custom-JWT members (same class of bug as matches/connect). Reads unchanged.
@@ -55,6 +58,7 @@
 
   // ── date formatting ──────────────────────────────────────────────────────────
   function fmtDay(d) { var dt = new Date(d); if (isNaN(dt)) return ''; return dt.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); }
+  function fmtDayBadge(d) { var dt = new Date(d); if (isNaN(dt)) return { top: '', mid: '', bot: '' }; var DN = ['SUN','MON','TUE','WED','THU','FRI','SAT'], MN = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']; return { top: DN[dt.getDay()], mid: String(dt.getDate()), bot: MN[dt.getMonth()] }; }
   function fmtTime(d) { var dt = new Date(d); if (isNaN(dt)) return ''; return dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); }
   function daysAway(d) { var dt = new Date(d); if (isNaN(dt)) return 0; return Math.round((dt - new Date()) / 86400000); }
   function mo(dt) { return dt.toLocaleDateString('en-GB', { month: 'short' }); }
@@ -150,6 +154,7 @@
       verified: true,
       location: [r.destination, r.country].filter(Boolean).join(', '),
       dates: fmtRange(r.starts_at, r.ends_at),
+      startBadge: fmtDayBadge(r.starts_at),
       from: r.price_aed ? ('AED ' + r.price_aed) : 'On request',
       duration: r.duration_days ? (r.duration_days + ' days') : '',
       fitness: r.fitness_level || '',
@@ -218,7 +223,7 @@
       prize: r.prize_description || '',
       rules: r.description || '',
       endDate: fmtDay(r.ends_at),
-      dateBadge: fmtRange(r.starts_at, r.ends_at),
+      dateBadge: fmtDayBadge(r.starts_at),
       img: r.hero_image_url || '',
       organizer: p.business_name || 'FFP Provider',
       organizerLetter: letter(p, r.title),
