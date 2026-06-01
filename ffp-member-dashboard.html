@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v204 (2026-06-01)
+<!-- FFP MEMBER DASHBOARD — v205 (2026-06-01)
+     v205: FIX Post-a-Meetup modal not opening — regression from the v203 date swap left dead references
+           (hrS/mnS/dayS/monS/yrS/apS) in openPostForm that threw a ReferenceError before the modal opened.
+           Removed the dead time-select + default-setting code. (Host-in-"Who's going" is already handled by
+           assets/ffp-meet-move-loader.js v16 — that file must also be deployed for the HOST badge to appear.)
      v204: FIX Log Activity Date/Time overlapping on mobile — the Date/Time row was a raw inline grid (no mobile
            stacking); now uses .log-grid2 (stacks ≤560px) + min-width:0 on .form-field grid cells so native
            date/time pickers can't overflow their column. (Full-screen modal rule from v203 only takes effect
@@ -11762,11 +11766,6 @@ const MeetMove = {
       dateI.min = _today;
       if (!dateI.value) dateI.value = _today;
     }
-    // Time — hour 1-12 + minute (5-min steps) + AM/PM (standard scroll selects)
-    if (hrS && hrS.options.length === 0) {
-      for (var h = 1; h <= 12; h++) hrS.add(new Option(String(h), h));
-      for (var mi = 0; mi < 60; mi += 5) { var mz = String(mi).padStart(2, '0'); mnS.add(new Option(mz, mz)); }
-    }
     // Country -> City cascade (single unit, FFP_TAX.cities)
     if (cnyS && cnyS.options.length === 0 && window.FFP_TAX && FFP_TAX.cities) {
       var fillCities = function (country) {
@@ -11786,14 +11785,7 @@ const MeetMove = {
       for (var a = 18; a <= 99; a++) { afS.add(new Option(String(a), a)); atS.add(new Option(String(a), a)); }
       afS.value = '18'; atS.value = '45';
     }
-    var t = new Date(); t.setDate(t.getDate() + 1);
-    if (dayS) dayS.value = t.getDate();
-    if (monS) monS.value = t.getMonth() + 1;
-    if (yrS) yrS.value = t.getFullYear();
-    if (hrS) hrS.value = 6;
-    if (mnS) mnS.value = '00';
-    if (apS) apS.value = 'PM';
-    var tmEl = g('pmf-time'); if (tmEl) tmEl.value = '18:00';
+    var tmEl = g('pmf-time'); if (tmEl && !tmEl.value) tmEl.value = '18:00';
     var acV = g('pmf-cat'), acL = g('pmf-level'), acD = g('pmf-cat-display');
     if (acV) acV.value = ''; if (acL) acL.value = '';
     if (acD) { acD.textContent = 'Choose activity & level'; acD.classList.remove('set'); }
