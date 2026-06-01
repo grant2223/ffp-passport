@@ -169,7 +169,7 @@
     { n: 'Hyrox', c: 'Multi-sport' },
     { n: 'Spartan', c: 'Multi-sport' }
   ],
-    fitnessLevels: ['Beginner','Intermediate','Advanced','Elite','Professional'],
+    fitnessLevels: ['Not Tried','Social','Competitive','Representative','Professional'],
     nationalities: [
       'Argentinian','Australian','Austrian','Belgian','Brazilian','British','Bulgarian',
       'Canadian','Chilean','Chinese','Colombian','Croatian','Czech','Danish','Dutch',
