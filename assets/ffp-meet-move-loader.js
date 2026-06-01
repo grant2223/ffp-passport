@@ -1,4 +1,11 @@
-/* FFP Meet & Move Loader — v11
+/* FFP Meet & Move Loader — v12
+   v12 (2026-06-01): STOP overriding the matches UI. The member dashboard (v188) now owns
+     matching via the get_match_pool() Supabase RPC + the "Matches" modal
+     (tabs: Matching with / Connected with). This loader previously replaced that with an
+     old REST endpoint (/api/members/:id/matches) and a "Meet & Move people" modal, which
+     hid the real matches. Now the loader ONLY loads real meetups (+ Who's going) and leaves
+     matches entirely to the inline dashboard code.
+     - Removed calls: installMatchesGridOverride(), loader loadMatches(). (defs left dormant)
    v11: maps is_professional -> isProfessional (Professionals meet-up option).
    v10 (2026-05-29): detail popup now shows "Who's going" (tappable attendees +
      host), cost box de-emphasised, details font bumped.
@@ -323,9 +330,8 @@
       var member = window.FFPAuth && window.FFPAuth.getMember();
       if (!member || !member.id) { console.log('[FFP Meet & Move] No FFP member'); return; }
       currentUserId = member.id;
-      installMatchesGridOverride();
-
-      await loadMatches();
+      // v12: matches are handled by the inline dashboard (get_match_pool RPC + "Matches" modal).
+      // Do NOT install the old grid/strip overrides or fetch the old REST matches here.
       await loadConnections();
 
       var mRes = await window.supabase.from('meetups').select('*').in('status', ['open', 'full']);
@@ -393,7 +399,7 @@
       wrapWrites();
       var panel = document.getElementById('panel-meet');
       if (panel && panel.classList.contains('active') && typeof MeetMove.render === 'function') MeetMove.render();
-      console.log('[FFP Meet & Move] Loaded ' + MeetMove.data.length + ' meetups ✓ (v11)');
+      console.log('[FFP Meet & Move] Loaded ' + MeetMove.data.length + ' meetups ✓ (v12 — matches owned by dashboard)');
     } catch (err) { console.error('[FFP Meet & Move] Unexpected error:', err); }
   }
 
