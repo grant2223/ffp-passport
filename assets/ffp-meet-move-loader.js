@@ -1,4 +1,8 @@
-/* FFP Meet & Move Loader — v12
+/* FFP Meet & Move Loader — v13
+   v13 (2026-06-01): "Who's going" now renders each attendee as the reusable FFPPassportCard
+     (tap to flip to activities + record). Attendee fetch widened to include gender, country,
+     tier, skills, created_at so the passport back has real data.
+   v12
    v12 (2026-06-01): STOP overriding the matches UI. The member dashboard (v188) now owns
      matching via the get_match_pool() Supabase RPC + the "Matches" modal
      (tabs: Matching with / Connected with). This loader previously replaced that with an
@@ -189,7 +193,20 @@
   // ── Who's going (attendees) ─────────────────────────────────────────
   function personShape(mp, isHost) {
     if (!mp) return null;
-    return { id: mp.id, name: (mp.given_names || mp.full_name || 'Member'), photo: mp.photo_url || null, city: mp.city || '', isHost: !!isHost };
+    return {
+      id: mp.id,
+      name: (mp.full_name || mp.given_names || 'Member'),
+      givenNames: mp.given_names || '',
+      surname: mp.surname || '',
+      photo: mp.photo_url || null,
+      city: mp.city || '',
+      country: mp.country || '',
+      gender: mp.gender || '',
+      memberType: mp.tier || 'member',
+      memberSince: (mp.created_at ? new Date(mp.created_at).getFullYear() : null),
+      sports: Array.isArray(mp.skills) ? mp.skills : [],
+      isHost: !!isHost
+    };
   }
   function buildAttendees(m, ids, peopleMap) {
     var out = [], seen = {};
@@ -203,7 +220,21 @@
   }
   function whosGoingHtml(m) {
     var people = m.attendees || [];
-    var rows = people.length ? '<div class="ffp-wg-list">' + people.map(function (p) {
+    var header = '<div class="dm-section-label">Who\'s going (' + m.joined + '/' + m.capacity + ')</div>';
+    if (!people.length) return header + '<div class="ffp-wg-empty">Be the first to join.</div>';
+    // v13: reuse the FFPPassportCard component (tap to flip). Fall back to compact rows if missing.
+    if (window.FFPPassportCard && typeof window.FFPPassportCard.render === 'function') {
+      var cards = people.map(function (p) {
+        var member = { id: p.id, name: p.name, givenNames: p.givenNames, surname: p.surname,
+          photo: p.photo, city: p.city, country: p.country, gender: p.gender,
+          memberType: p.memberType, memberSince: p.memberSince, sports: p.sports };
+        return '<div style="margin-bottom:12px;">' +
+          window.FFPPassportCard.render(member, { context: 'attendee', role: (p.isHost ? 'HOST' : 'GOING'), flippable: true }) +
+        '</div>';
+      }).join('');
+      return header + '<div style="font-size:11px;color:var(--muted);margin:-4px 0 10px;">Tap a passport to flip it</div>' + cards;
+    }
+    var rows = '<div class="ffp-wg-list">' + people.map(function (p) {
       var av = p.photo
         ? '<span class="ffp-wg-av" style="background:#0a1825 url(\'' + esc(p.photo) + '\') center/cover;"></span>'
         : '<span class="ffp-wg-av">' + esc((p.name || 'M').charAt(0).toUpperCase()) + '</span>';
@@ -211,8 +242,8 @@
         '<div class="ffp-wg-name">' + esc(p.name) + (p.isHost ? ' <span class="ffp-wg-host">HOST</span>' : '') +
         (p.city ? '<div class="ffp-wg-city">' + esc(p.city) + '</div>' : '') + '</div>' +
         '<span class="material-icons ffp-wg-arrow">chevron_right</span></div>';
-    }).join('') + '</div>' : '<div class="ffp-wg-empty">Be the first to join.</div>';
-    return '<div class="dm-section-label">Who\'s going (' + m.joined + '/' + m.capacity + ')</div>' + rows;
+    }).join('') + '</div>';
+    return header + rows;
   }
   function openAttendeeModal(p) {
     var body =
@@ -374,7 +405,7 @@
       var attPeopleIds = Object.keys(attIdSet);
       var peopleMap = {};
       if (attPeopleIds.length) {
-        var pRes = await window.supabase.from('members').select('id, full_name, given_names, surname, photo_url, city').in('id', attPeopleIds);
+        var pRes = await window.supabase.from('members').select('id, full_name, given_names, surname, photo_url, city, country, gender, tier, skills, created_at').in('id', attPeopleIds);
         (pRes.data || []).forEach(function (mp) { peopleMap[mp.id] = mp; var ps = personShape(mp); if (ps) peopleById[mp.id] = ps; });
       }
       MeetMove.data = meetups.map(function (m) {
@@ -399,7 +430,7 @@
       wrapWrites();
       var panel = document.getElementById('panel-meet');
       if (panel && panel.classList.contains('active') && typeof MeetMove.render === 'function') MeetMove.render();
-      console.log('[FFP Meet & Move] Loaded ' + MeetMove.data.length + ' meetups ✓ (v12 — matches owned by dashboard)');
+      console.log('[FFP Meet & Move] Loaded ' + MeetMove.data.length + ' meetups ✓ (v13 — passport-card attendees; matches owned by dashboard)');
     } catch (err) { console.error('[FFP Meet & Move] Unexpected error:', err); }
   }
 
