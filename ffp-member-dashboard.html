@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v211 (2026-06-01)
+<!-- FFP MEMBER DASHBOARD — v212 (2026-06-01)
+     v212: Meetup detail — Level/Gender/Capacity now one line (.dm-info-3). "Who's going" is now a CAROUSEL
+           (one passport at a time, ‹ › arrows + counter, like the Matches deck) via MeetMove.wgNav().
+           Self/host card forced to resolve from MY profile (people[0].id = myId when isHostedByMe) so the
+           viewer's own passport always shows correctly.
      v211: UNIFIED passport card behind ONE resolver — window.FFPCard, keyed by member id (members.id uuid).
            Single snake/camel-tolerant mapper + cache. Data sources REGISTER rows (get_match_pool rows; meet-move
            loader member fetch); renderers RESOLVE by id (Who's going now pulls FFPCard.resolve; self → MemberProfile,
@@ -2804,6 +2808,13 @@ input[type="number"] {
 .dm-section-label { font-size: 10px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
 .dm-section p { font-size: 13px; line-height: 1.6; color: var(--text); margin: 0; }
 .dm-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 22px; }
+.dm-info-grid.dm-info-3 { grid-template-columns: 1fr 1fr 1fr; gap: 10px 12px; } /* Level / Gender / Capacity on one line */
+/* Who's going carousel — one passport at a time with ‹ › arrows (like the Matches deck) */
+.wg-deck { display: flex; align-items: center; gap: 6px; }
+.wg-stage { flex: 1; min-width: 0; }
+.wg-arrow { flex: none; width: 38px; height: 38px; border-radius: 50%; background: #0f1e2e; border: 1px solid var(--border-mid); color: #e8eef4; font-size: 22px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: inherit; }
+.wg-arrow:active { transform: scale(.93); }
+.wg-counter { text-align: center; font-size: 11px; color: var(--muted); margin-top: 8px; }
 .dm-info-cell { font-size: 12px; }
 .dm-info-cell .k { font-size: 9px; font-weight: 800; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 3px; }
 .dm-info-cell .v { font-weight: 600; color: var(--text); line-height: 1.4; }
@@ -11623,7 +11634,7 @@ const MeetMove = {
       </div>
       <div class="dm-section">
         <div class="dm-section-label">Details</div>
-        <div class="dm-info-grid">
+        <div class="dm-info-grid dm-info-3">
           <div class="dm-info-cell"><div class="k">Level</div><div class="v">${escHtml(m.level)}</div></div>
           <div class="dm-info-cell"><div class="k">Gender</div><div class="v">${m.gender === 'any' ? 'Any gender' : (m.gender === 'women' ? 'Female only' : 'Male only')}</div></div>
           <div class="dm-info-cell"><div class="k">Capacity</div><div class="v">${m.joined} of ${m.capacity}</div></div>
@@ -11651,27 +11662,39 @@ const MeetMove = {
     const FC = window.FFPCard;
     const myId = FC ? FC._myId() : null;
     let people = ((m && m.attendees) || []).slice();
-    // THE HOST ALWAYS SHOWS, FIRST — independent of loader/data.
+    // THE HOST ALWAYS SHOWS, FIRST. If I'm the host, force my id so the card resolves to MY passport.
     if (m) {
       const hostIdx = people.findIndex(p => p && p.isHost);
       if (hostIdx === -1) {
-        people.unshift({ id: m.host_member_id || (m.isHostedByMe ? myId : null) || 'host',
+        people.unshift({ id: (m.isHostedByMe && myId) ? myId : (m.host_member_id || 'host'),
           name: m.host || 'Host', city: m.area || m.city || '', country: m.country || '', isHost: true });
       } else if (hostIdx > 0) {
         people.unshift(people.splice(hostIdx, 1)[0]);
       }
+      if (m.isHostedByMe && myId && people[0]) people[0].id = myId;
     }
     const cap = (m && (m.capacity || m.spots)) || '';
-    const header = `<div class="dm-section-label">Who's going (${people.length}${cap ? '/' + cap : ''})</div>`;
-    if (!people.length) {
+    const n = people.length;
+    const header = `<div class="dm-section-label">Who's going (${n}${cap ? '/' + cap : ''})</div>`;
+    if (!n) {
       return header + `<div style="font-size:12px;color:var(--muted);">Be the first to join.</div>`;
     }
     const card = (p) => (FC ? (FC.resolve(p) || p) : p);
+    // Carousel: one passport at a time with ‹ › arrows (like the Matches deck).
     if (window.FFPPassportCard && FC) {
-      const cards = people.map(p =>
-        `<div style="margin-bottom:12px;">${window.FFPPassportCard.render(card(p), { context: 'attendee', role: (p.isHost ? 'HOST' : 'GOING'), flippable: true })}</div>`
+      const slides = people.map((p, i) =>
+        `<div class="wg-slide" data-i="${i}"${i === 0 ? '' : ' style="display:none;"'}>${window.FFPPassportCard.render(card(p), { context: 'attendee', role: (p.isHost ? 'HOST' : 'GOING'), flippable: true })}</div>`
       ).join('');
-      return header + `<div style="font-size:11px;color:var(--muted);margin:-4px 0 10px;">Tap a passport to flip it</div>` + cards;
+      const arrows = n > 1;
+      return header +
+        `<div class="wg-deck" id="wg-deck" data-idx="0" data-count="${n}">` +
+          (arrows ? `<button class="wg-arrow" onclick="MeetMove.wgNav(-1)" aria-label="Previous">‹</button>` : '') +
+          `<div class="wg-stage">${slides}</div>` +
+          (arrows ? `<button class="wg-arrow" onclick="MeetMove.wgNav(1)" aria-label="Next">›</button>` : '') +
+        `</div>` +
+        (arrows
+          ? `<div class="wg-counter"><span id="wg-pos">1</span> / ${n} · tap a passport to flip</div>`
+          : `<div class="wg-counter">Tap the passport to flip</div>`);
     }
     const rows = people.map(p => {
       const d = card(p);
@@ -11683,6 +11706,18 @@ const MeetMove = {
       return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">${av}<div><div style="font-weight:700;font-size:13px;">${nm}${p.isHost ? ' <span style="font-size:9px;font-weight:800;color:#FFCC00;border:1px solid #FFCC00;border-radius:20px;padding:1px 7px;vertical-align:1px;">HOST</span>' : ''}</div>${d.city ? `<div style="font-size:11px;color:var(--muted);">${escHtml(d.city)}</div>` : ''}</div></div>`;
     }).join('');
     return header + rows;
+  },
+
+  // Who's going carousel navigation (prev/next).
+  wgNav(dir) {
+    const deck = document.getElementById('wg-deck');
+    if (!deck) return;
+    const count = parseInt(deck.getAttribute('data-count'), 10) || 1;
+    let idx = ((parseInt(deck.getAttribute('data-idx'), 10) || 0) + dir + count) % count;
+    deck.setAttribute('data-idx', idx);
+    deck.querySelectorAll('.wg-slide').forEach(s => { s.style.display = (parseInt(s.getAttribute('data-i'), 10) === idx) ? 'block' : 'none'; });
+    const pos = document.getElementById('wg-pos'); if (pos) pos.textContent = idx + 1;
+    if (window.ffpScaleCards) { try { window.ffpScaleCards(deck); } catch (e) {} }
   },
   
   requestJoin(id) {
