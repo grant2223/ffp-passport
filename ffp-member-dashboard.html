@@ -1,10 +1,9 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v197 (2026-06-01)
-     v197: Post-a-meetup form rebuilt to standards — full-screen modal; labels not bold;
-           native tap time field; Venue->Location + Google Maps link; Group->Gender
-           (Any/Male only/Female only, taxonomy); age 18-99; Activity+Level via the
-           Profile-Complete-style full-screen picker (search, categories, level cards).
-     v196: matches share-my-passport + scroll arrows.
+     FFP MEMBER DASHBOARD — v198 (2026-06-01)
+     v198: Matches — % sits directly over the card (stack fixed to card aspect); arrows 2x
+           bigger, centred vertically between card and Share button; left arrow moves card
+           LEFT / right arrow moves it RIGHT; +space between passport photo and fields.
+     v197: meet-up form to standards.
      ════════════════════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="en">
@@ -12840,15 +12839,16 @@ setTimeout(scalePassportCard, 200);
 .ffp-deck-title{ color:#e8eef4; font-size:18px; font-weight:800; }
 .ffp-deck-count{ color:#8a99a8; font-size:13px; font-weight:600; flex:1; }
 .ffp-deck-x{ background:#0f1e2e; border:1px solid var(--border-mid); color:#e8eef4; width:36px; height:36px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; }
-.ffp-deck-meta{ text-align:center; margin:0 0 2px; line-height:1; }
+.ffp-deck-meta{ text-align:center; margin:0 0 4px; line-height:1; position:relative; z-index:2; }
 .ffp-meta-pct{ color:#FFCC00; font-weight:900; font-size:72px; letter-spacing:0.5px; line-height:1; }
-.ffp-deck-stack{ position:relative; flex:1; min-height:0; }
+.ffp-deck-stack{ position:relative; width:100%; aspect-ratio:540/340; flex:none; }
+.ffp-deck-mid{ flex:1; display:flex; align-items:center; justify-content:center; }
 .ffp-deck-card{ position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); transition:transform .3s ease, opacity .3s ease; touch-action:pan-y; }
 .ffp-deck-card.dragging{ transition:none; }
-.ffp-deck-actions{ display:flex; align-items:center; justify-content:center; gap:40px; margin-top:16px; }
+.ffp-deck-actions{ display:flex; align-items:center; justify-content:center; gap:36px; margin-top:0; }
 .ffp-deck-icon{ background:transparent; border:none; color:#cfe0ee; cursor:pointer; padding:6px; display:flex; align-items:center; justify-content:center; }
-.ffp-deck-icon .material-icons{ font-size:40px; }
-.ffp-deck-icon.flip .material-icons{ font-size:32px; }
+.ffp-deck-icon .material-icons{ font-size:76px; }
+.ffp-deck-icon.flip .material-icons{ font-size:44px; }
 .ffp-deck-instr{ text-align:center; color:rgba(255,255,255,0.4); font-size:11px; margin:16px 0 8px; }
 .ffp-deck-connect{ display:block; width:100%; max-width:420px; margin:0 auto; padding:15px; border-radius:12px; background:#FFCC00; color:#081420; font-weight:800; font-size:15px; border:none; cursor:pointer; font-family:inherit; }
 .ffp-deck-connect:disabled{ opacity:.5; cursor:default; }
@@ -12898,7 +12898,7 @@ setTimeout(scalePassportCard, 200);
             "<div><div class='pass-mini-label'>TYPE</div><div class='pass-mini-val'>"+tyAbbr+"</div></div>"+
             "<div><div class='pass-mini-label'>COUNTRY</div><div class='pass-mini-val'>"+esc(m.country||"—")+"</div></div>"+
           "</div>"+
-          "<div class='pass-main' style='grid-template-columns:"+mainCols+";gap:16px;'>"+
+          "<div class='pass-main' style='grid-template-columns:"+mainCols+";gap:24px;'>"+
             "<div class='pass-photo-new' style='"+photoStyle+"'>"+(m.photo?"":esc(initials))+"</div>"+
             "<div class='pass-fields-new'>"+
               "<div class='pf-field'><div class='pf-lbl'>SURNAME</div><div class='pf-val'>"+esc(surname||"—")+"</div></div>"+
@@ -13007,17 +13007,17 @@ setTimeout(scalePassportCard, 200);
         "</div>"+
         "<div class='ffp-deck-meta' id='ffp-deck-meta'></div>"+
         "<div class='ffp-deck-stack' id='ffp-deck-stack'></div>"+
-        "<div class='ffp-deck-actions'>"+
-          "<button class='ffp-deck-icon' id='ffp-act-left' aria-label='Send left'><span class='material-icons'>arrow_back</span></button>"+
+        "<div class='ffp-deck-mid'><div class='ffp-deck-actions'>"+
+          "<button class='ffp-deck-icon' id='ffp-act-left' aria-label='Move left'><span class='material-icons'>arrow_back</span></button>"+
           "<button class='ffp-deck-icon flip' id='ffp-act-flip' aria-label='Flip card'><span class='material-icons'>flip_camera_android</span></button>"+
-          "<button class='ffp-deck-icon' id='ffp-act-right' aria-label='Send right'><span class='material-icons'>arrow_forward</span></button>"+
-        "</div>"+
+          "<button class='ffp-deck-icon' id='ffp-act-right' aria-label='Move right'><span class='material-icons'>arrow_forward</span></button>"+
+        "</div></div>"+
         "<div class='ffp-deck-instr'>Scroll with the arrows or swipe · tap the passport to flip · share yours to reach out</div>"+
         "<button class='ffp-deck-connect' id='ffp-act-connect'>Request to connect</button>";
       document.body.appendChild(o);
       document.getElementById("ffp-deck-x").addEventListener("click", function(){ self.closeDeck(); });
-      document.getElementById("ffp-act-left").addEventListener("click", function(){ self.deckPrev(); });
-      document.getElementById("ffp-act-right").addEventListener("click", function(){ self.deckNext(); });
+      document.getElementById("ffp-act-left").addEventListener("click", function(){ self.deckNext(); });
+      document.getElementById("ffp-act-right").addEventListener("click", function(){ self.deckPrev(); });
       document.getElementById("ffp-act-flip").addEventListener("click", function(){ self.deckFlip(); });
       document.getElementById("ffp-act-connect").addEventListener("click", function(){ self.deckShare(); });
     },
