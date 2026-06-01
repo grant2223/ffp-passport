@@ -1,9 +1,9 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v190 (2026-06-01)
-     v190: MATCHES OVERHAUL — reusable FFPPassportCard (passport ID page, tap to flip to
-           activities+record); full-screen swipe deck (drag L=pass / R=connect, invite,
-           daily counter); connect via handle_connection RPC; list kept as secondary view.
-     v189: get_match_pool(p_me) — matches no longer depend on auth.uid().
+     FFP MEMBER DASHBOARD — v191 (2026-06-01)
+     v191: Matches deck uses the REAL .pass-shell passport card (scaled), flip-back =
+           activities+record. Deck-only (List removed). Buttons: back / flip / next +
+           yellow 'Request to connect'. Fixed swipe/tap dying after first card.
+     v190: matches overhaul (component + deck) + handle_connection RPC.
      ════════════════════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="en">
@@ -12739,120 +12739,140 @@ setTimeout(scalePassportCard, 50);
 setTimeout(scalePassportCard, 200);
 </script>
 <style id="ffp-pc-styles">
-.ffp-pc{ position:relative; width:100%; aspect-ratio:1.586/1; perspective:1300px; }
+.ffp-pc{ position:relative; width:100%; aspect-ratio:540/340; perspective:1400px; }
 .ffp-pc-flip{ position:absolute; inset:0; transform-style:preserve-3d; transition:transform .55s cubic-bezier(.2,.7,.2,1); }
 .ffp-pc.flipped .ffp-pc-flip{ transform:rotateY(180deg); }
-.ffp-pc-face{ position:absolute; inset:0; -webkit-backface-visibility:hidden; backface-visibility:hidden; border-radius:14px; overflow:hidden; background:#eff2f6; color:#1a2937; box-shadow:0 20px 50px -16px rgba(0,0,0,0.6); }
+.ffp-pc-face{ position:absolute; inset:0; -webkit-backface-visibility:hidden; backface-visibility:hidden; border-radius:14px; overflow:hidden; }
 .ffp-pc-back{ transform:rotateY(180deg); }
-.ffp-pc-emblem{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(29,93,138,0.05); pointer-events:none; }
-.ffp-pc-emblem .material-icons{ font-size:150px; }
-.ffp-pc-photo{ width:70px; height:90px; flex-shrink:0; background:#0f5a7a; border:2px solid #fff; border-radius:3px; box-shadow:0 2px 6px rgba(0,0,0,0.18); display:flex; align-items:center; justify-content:center; color:#bfe0f0; font-size:26px; font-weight:700; background-size:cover; background-position:center top; }
-.ffp-pc-mrz{ position:absolute; left:0; right:0; bottom:0; background:#dde5ed; border-top:1px solid #c4d1dc; padding:5px 13px; font-family:monospace; font-size:10px; letter-spacing:.5px; color:#3a4b5e; line-height:1.5; white-space:nowrap; overflow:hidden; }
-.ffp-pc-lbl{ font-size:6.5px; letter-spacing:1px; color:#4a5d72; }
-.ffp-pc-val{ font-weight:600; color:#1a2937; line-height:1.15; }
-.ffp-pc-cell{ background:#e2e9f0; border:0.5px solid #cdd7e1; border-radius:4px; padding:5px 7px; }
-.ffp-pc-cell .ffp-pc-val{ font-size:12px; font-weight:700; }
-.ffp-pc-corner{ width:60px; flex-shrink:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-.ffp-pc-ring{ width:54px; height:54px; border-radius:50%; border:3px solid #b8965a; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-.ffp-pc-badge{ font-size:10px; font-weight:800; letter-spacing:1px; color:#1d5d8a; border:1.5px solid #1d5d8a; border-radius:6px; padding:3px 8px; }
+.ffp-pc-face .pass-shell{ position:absolute; top:0; left:0; box-shadow:none; }
+.ffp-compat-ring{ width:66px; height:66px; border-radius:50%; border:3px solid var(--pass-gold); display:flex; align-items:baseline; justify-content:center; }
+.ffp-compat-num{ font-size:26px; font-weight:900; color:var(--pass-gold); line-height:1; }
+.ffp-compat-pct{ font-size:12px; font-weight:800; color:var(--pass-gold); }
+.ffp-pc-badge{ font-size:12px; font-weight:900; letter-spacing:1px; color:var(--pass-blue); border:2px solid var(--pass-blue); border-radius:8px; padding:6px 10px; }
+.ffp-bk-meter{ display:flex; gap:3px; margin-top:3px; }
+.ffp-bk-cell{ background:rgba(232,238,243,0.7); border:1px solid rgba(26,41,55,0.12); border-radius:5px; padding:6px 8px; }
 .ffp-deck-overlay{ position:fixed; inset:0; z-index:9600; background:#081420; display:none; flex-direction:column; padding:14px 16px 22px; }
 .ffp-deck-overlay.open{ display:flex; }
-.ffp-deck-head{ display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.ffp-deck-head{ display:flex; align-items:center; gap:12px; margin-bottom:10px; }
 .ffp-deck-title{ color:#e8eef4; font-size:18px; font-weight:800; }
-.ffp-deck-seg{ display:flex; gap:4px; background:#0f1e2e; border:1px solid var(--border-mid); border-radius:10px; padding:3px; margin-left:auto; }
-.ffp-deck-seg button{ border:none; background:transparent; color:#8a99a8; font-size:12px; font-weight:800; padding:6px 12px; border-radius:8px; cursor:pointer; font-family:inherit; }
-.ffp-deck-seg button.active{ background:#FFCC00; color:#081420; }
+.ffp-deck-count{ color:#8a99a8; font-size:12px; font-family:monospace; letter-spacing:1px; flex:1; }
 .ffp-deck-x{ background:#0f1e2e; border:1px solid var(--border-mid); color:#e8eef4; width:36px; height:36px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; }
-.ffp-deck-count{ color:#8a99a8; font-size:12px; font-family:monospace; letter-spacing:1px; margin:0 0 12px; }
 .ffp-deck-stack{ position:relative; flex:1; min-height:0; }
 .ffp-deck-card{ position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); transition:transform .3s ease, opacity .3s ease; touch-action:pan-y; }
 .ffp-deck-card.dragging{ transition:none; }
-.ffp-deck-hint{ position:absolute; top:16px; z-index:5; padding:5px 12px; border-radius:8px; font-size:15px; font-weight:900; letter-spacing:1px; opacity:0; pointer-events:none; }
-.ffp-deck-hint.pass{ right:16px; color:#ff6b6b; border:2px solid #ff6b6b; transform:rotate(12deg); }
-.ffp-deck-hint.like{ left:16px; color:#FFCC00; border:2px solid #FFCC00; transform:rotate(-12deg); }
-.ffp-deck-actions{ display:flex; align-items:center; justify-content:center; gap:24px; margin-top:16px; }
-.ffp-deck-btn{ border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; border:none; }
+.ffp-deck-hint{ position:absolute; top:14px; z-index:5; padding:5px 12px; border-radius:8px; font-size:15px; font-weight:900; letter-spacing:1px; opacity:0; pointer-events:none; }
+.ffp-deck-hint.next{ right:14px; color:#9fb2c4; border:2px solid #9fb2c4; transform:rotate(12deg); }
+.ffp-deck-hint.prev{ left:14px; color:#9fb2c4; border:2px solid #9fb2c4; transform:rotate(-12deg); }
+.ffp-deck-actions{ display:flex; align-items:center; justify-content:center; gap:20px; margin-top:14px; }
+.ffp-deck-icon{ width:54px; height:54px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--border-mid); color:#e8eef4; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+.ffp-deck-icon .material-icons{ font-size:24px; }
+.ffp-deck-connect{ display:block; width:100%; max-width:420px; margin:14px auto 0; padding:15px; border-radius:12px; background:#FFCC00; color:#081420; font-weight:800; font-size:15px; border:none; cursor:pointer; font-family:inherit; }
+.ffp-deck-connect:disabled{ opacity:.5; cursor:default; }
 .ffp-deck-empty{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:#8a99a8; padding:30px; }
 .ffp-deck-flash{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(8,20,32,0.66); opacity:0; transition:opacity .2s; z-index:30; }
 .ffp-deck-flash.show{ opacity:1; }
-.ffp-deck-hint-tap{ text-align:center; color:rgba(255,255,255,0.34); font-size:11px; margin-top:10px; }
+.ffp-deck-tap-hint{ text-align:center; color:rgba(255,255,255,0.34); font-size:11px; margin-top:10px; }
 </style>
 <script>
 (function(){
   "use strict";
   function esc(s){ return (window.escHtml?escHtml(s):String(s==null?"":s)); }
   function cap(s){ s=String(s||""); return s? s.charAt(0).toUpperCase()+s.slice(1):""; }
+  function rep(x,n){ return new Array(n+1).join(x); }
   var LV={ "not tried":0, social:1, competitive:2, representative:3, professional:4 };
 
   window.FFPPassportCard = {
     ccode:function(country){ var w=String(country||"").trim().split(/\s+/); if(w.length>1) return w.map(function(x){return x[0];}).join("").slice(0,3).toUpperCase(); return String(country||"").slice(0,3).toUpperCase(); },
-    meter:function(level){ var n=LV[String(level||"").toLowerCase()]||0; var out=""; for(var i=0;i<4;i++){ out+="<span style='flex:1;height:4px;border-radius:2px;background:"+(i<n?"#b8965a":"#cdd7e1")+";'></span>"; } return "<div style='display:flex;gap:3px;margin-top:3px;'>"+out+"</div>"; },
-    field:function(lbl,val,sz){ return "<div style='margin-bottom:4px;'><div class='ffp-pc-lbl'>"+lbl+"</div><div class='ffp-pc-val' style='font-size:"+(sz||13)+"px;'>"+val+"</div></div>"; },
-    cell:function(lbl,val,color){ return "<div class='ffp-pc-cell'><div class='ffp-pc-lbl'>"+lbl+"</div><div class='ffp-pc-val'"+(color?" style='color:"+color+"'":"")+">"+val+"</div></div>"; },
-    render:function(m,opts){
-      opts=opts||{}; var self=this;
+    meter:function(level){ var n=LV[String(level||"").toLowerCase()]||0; var out=""; for(var i=0;i<4;i++){ out+="<span style='flex:1;height:5px;border-radius:2px;background:"+(i<n?"var(--pass-gold)":"#c4d1dc")+";'></span>"; } return "<div class='ffp-bk-meter'>"+out+"</div>"; },
+    cell:function(lbl,val,color){ return "<div class='ffp-bk-cell'><div class='pf-lbl'>"+lbl+"</div><div class='pf-val'"+(color?" style='color:"+color+"'":"")+">"+val+"</div></div>"; },
+    frontShell:function(m,opts){
       var given=m.givenNames||(String(m.name||"").split(" ")[0])||"";
       var surname=m.surname||(String(m.name||"").split(" ").slice(1).join(" "))||"";
       var initials=((given[0]||"")+(surname[0]||"")).toUpperCase()||(m.letter||"?");
-      var photoStyle=m.photo? "background-image:url('"+m.photo+"');" : "";
+      var photoStyle=m.photo? "background-image:url('"+m.photo+"');background-size:cover;background-position:center top;" : "";
       var ccode=this.ccode(m.country);
-      var sportsStr=(m.sports||[]).map(function(s){return s.name;}).slice(0,3).join(" · ")||"—";
-      var corner;
-      if(opts.context==="attendee"){ corner="<div class='ffp-pc-corner'><div class='ffp-pc-badge'>"+(opts.role||"GOING")+"</div></div>"; }
-      else { var pct=(opts.cornerPct!=null?opts.cornerPct:(m.match||"")); corner="<div class='ffp-pc-corner'><div class='ffp-pc-ring'><div style='font-size:17px;font-weight:800;color:#b8965a;line-height:1;'>"+pct+"</div><div class='ffp-pc-lbl'>PERCENT</div></div><div class='ffp-pc-lbl' style='margin-top:5px;letter-spacing:1.5px;'>MATCH</div></div>"; }
       var memno=ccode+"·"+String(m.id||"").replace(/[^a-z0-9]/gi,"").slice(0,4).toUpperCase();
-      var front="<div class='ffp-pc-face ffp-pc-front'>"+
-        "<div class='ffp-pc-emblem'><span class='material-icons'>public</span></div>"+
-        "<div style='position:relative;padding:9px 13px 0;display:flex;align-items:flex-start;justify-content:space-between;'>"+
-          "<div><div style='font-size:10px;font-weight:800;letter-spacing:2px;'>PASSPORT</div><div class='ffp-pc-lbl' style='letter-spacing:1.5px;'>FELLOW MEMBER</div></div>"+
-          "<div style='font-size:14px;font-weight:800;letter-spacing:2px;color:#1d5d8a;'>WORLDWIDE</div>"+
-          "<div style='text-align:right;'><div class='ffp-pc-lbl'>MEMBER NO.</div><div style='font-size:10px;font-weight:700;font-family:monospace;'>"+memno+"</div></div>"+
-        "</div>"+
-        "<div style='height:2px;background:#b8965a;margin:7px 13px 0;opacity:.8;'></div>"+
-        "<div style='position:relative;display:flex;gap:11px;padding:8px 13px 0;'>"+
-          "<div class='ffp-pc-photo' style='"+photoStyle+"'>"+(m.photo?"":esc(initials))+"</div>"+
-          "<div style='flex:1;min-width:0;'>"+
-            self.field("SURNAME", esc(surname||"—"),13)+
-            self.field("GIVEN NAMES", esc(given||"—"),13)+
-            self.field("NATIONALITY", esc(m.country||"—"),11)+
-            "<div style='display:flex;gap:16px;'>"+
-              "<div><div class='ffp-pc-lbl'>GENDER</div><div class='ffp-pc-val' style='font-size:11px;'>"+(cap(m.gender)||"—")+"</div></div>"+
-              "<div style='min-width:0;'><div class='ffp-pc-lbl'>SPORTS</div><div class='ffp-pc-val' style='font-size:11px;'>"+esc(sportsStr)+"</div></div>"+
-            "</div>"+
+      var cornerInner;
+      if(opts && opts.context==="attendee"){ cornerInner="<div class='ffp-pc-badge'>"+(opts.role||"GOING")+"</div><div class='pass-qr-label'>STATUS</div>"; }
+      else { var pct=(opts&&opts.cornerPct!=null)?opts.cornerPct:(m.match||""); cornerInner="<div class='ffp-compat-ring'><span class='ffp-compat-num'>"+pct+"</span><span class='ffp-compat-pct'>%</span></div><div class='pass-qr-label'>MATCH</div>"; }
+      var mrz1="P&lt;"+ccode+esc(surname.toUpperCase())+"&lt;&lt;"+esc(given.toUpperCase())+rep("&lt;",30);
+      var mrz2=(m.sports||[]).map(function(sp){return String(sp.name).slice(0,3).toUpperCase();}).join("&lt;&lt;")+"&lt;&lt;"+ccode+rep("&lt;",10)+String(m.match||"");
+      return "<div class='pass-shell'>"+
+        "<div class='pass-bg-emblem'></div>"+
+        "<div class='pass-inner'>"+
+          "<div class='pass-top'>"+
+            "<div><div class='pass-top-label'>PASSPORT</div><div class='pass-top-sub'>URUWHENUA</div></div>"+
+            "<div class='pass-worldwide'>WORLDWIDE</div>"+
+            "<div class='pass-top-right'><div class='pass-top-label'>MEMBER NO.</div><div class='pass-passnum'>"+memno+"</div></div>"+
           "</div>"+
-          corner+
+          "<div class='pass-type-row'>"+
+            "<div><div class='pass-mini-label'>TYPE</div><div class='pass-mini-val'>"+cap(m.memberType||"Member")+"</div></div>"+
+            "<div><div class='pass-mini-label'>COUNTRY</div><div class='pass-mini-val'>"+esc(m.country||"—")+"</div></div>"+
+          "</div>"+
+          "<div class='pass-main'>"+
+            "<div class='pass-photo-new' style='"+photoStyle+"'>"+(m.photo?"":esc(initials))+"</div>"+
+            "<div class='pass-fields-new'>"+
+              "<div class='pf-field'><div class='pf-lbl'>SURNAME</div><div class='pf-val'>"+esc(surname||"—")+"</div></div>"+
+              "<div class='pf-field'><div class='pf-lbl'>GIVEN NAMES</div><div class='pf-val'>"+esc(given||"—")+"</div></div>"+
+              "<div class='pf-field'><div class='pf-lbl'>NATIONALITY</div><div class='pf-val'>"+esc(m.country||"—")+"</div></div>"+
+              "<div class='pf-grid-2'>"+
+                "<div class='pf-field'><div class='pf-lbl'>GENDER</div><div class='pf-val'>"+(cap(m.gender)||"—")+"</div></div>"+
+                "<div class='pf-field'><div class='pf-lbl'>AGE</div><div class='pf-val'>"+(m.age||"—")+"</div></div>"+
+              "</div>"+
+            "</div>"+
+            "<div class='pass-qr-side'>"+cornerInner+"</div>"+
+          "</div>"+
+          "<div class='pass-mrz'><span class='pass-mrz-line'>"+mrz1+"</span><span class='pass-mrz-line'>"+mrz2+"</span></div>"+
         "</div>"+
-        "<div class='ffp-pc-mrz'>P&lt;"+ccode+"&lt;"+esc(surname.toUpperCase().replace(/\s/g,"&lt;"))+"&lt;&lt;"+esc(given.toUpperCase().replace(/\s/g,"&lt;"))+new Array(16).join("&lt;")+"<br>"+(m.sports||[]).map(function(s){return String(s.name).slice(0,3).toUpperCase();}).join("&lt;&lt;")+new Array(8).join("&lt;")+ccode+new Array(6).join("&lt;")+String(m.match||"")+"</div>"+
       "</div>";
-
-      var skills=(m.sports||[]).slice(0,3);
-      var skillRows=skills.map(function(s){ return "<div style='margin-bottom:8px;'><div style='display:flex;justify-content:space-between;align-items:baseline;'><span style='font-size:12px;font-weight:600;'>"+esc(s.name)+"</span><span style='font-size:10px;color:#4a5d72;'>"+cap(s.level)+"</span></div>"+self.meter(s.level)+"</div>"; }).join("");
+    },
+    backShell:function(m){
+      var given=m.givenNames||(String(m.name||"").split(" ")[0])||"";
+      var surname=m.surname||(String(m.name||"").split(" ").slice(1).join(" "))||"";
+      var skills=(m.sports||[]).slice(0,4); var self=this;
+      var rows=skills.map(function(sp){ return "<div style='margin-bottom:9px;'><div style='display:flex;justify-content:space-between;align-items:baseline;'><span class='pf-val' style='font-size:11px;'>"+esc(sp.name)+"</span><span class='pf-lbl' style='margin:0;'>"+cap(sp.level)+"</span></div>"+self.meter(sp.level)+"</div>"; }).join("");
       var cells=[];
-      if(m.memberSince) cells.push(self.cell("MEMBER SINCE", m.memberSince));
-      cells.push(self.cell("TYPE", cap(m.memberType||"Member")));
-      if(m.meetupsHosted!=null) cells.push(self.cell("MEET-UPS HOSTED", m.meetupsHosted));
-      if(m.reliability!=null) cells.push(self.cell("RELIABILITY", Number(m.reliability).toFixed(1), "#1d5d8a"));
-      var back="<div class='ffp-pc-face ffp-pc-back'>"+
-        "<div class='ffp-pc-emblem'><span class='material-icons'>approval</span></div>"+
-        "<div style='position:relative;padding:9px 13px 0;display:flex;align-items:center;justify-content:space-between;'>"+
-          "<div style='font-size:9px;font-weight:800;letter-spacing:2px;'>ACTIVITIES &amp; RECORD</div>"+
-          "<div style='font-size:10px;font-weight:700;color:#1d5d8a;'>"+esc((given+" "+surname).trim()||m.name||"")+"</div>"+
+      cells.push(this.cell("TYPE", cap(m.memberType||"Member")));
+      if(m.meetupsHosted!=null) cells.push(this.cell("MEET-UPS HOSTED", m.meetupsHosted));
+      if(m.reliability!=null) cells.push(this.cell("RELIABILITY", Number(m.reliability).toFixed(1), "var(--pass-blue)"));
+      if(m.city) cells.push(this.cell("BASED IN", esc(m.city)));
+      var visa="VISA&lt;"+(skills[0]?String(skills[0].name).slice(0,5).toUpperCase():"")+"&lt;&lt;"+rep("&lt;",34);
+      return "<div class='pass-shell'>"+
+        "<div class='pass-bg-emblem'></div>"+
+        "<div class='pass-inner'>"+
+          "<div class='pass-top' style='grid-template-columns:1fr auto;'>"+
+            "<div><div class='pass-top-label'>ACTIVITIES &amp; RECORD</div><div class='pass-top-sub'>"+esc((given+" "+surname).trim()||m.name||"")+"</div></div>"+
+            "<div class='pass-top-right'><div class='pass-top-label'>MEMBER SINCE</div><div class='pass-passnum'>"+(m.memberSince||"—")+"</div></div>"+
+          "</div>"+
+          "<div style='display:grid;grid-template-columns:1.25fr 1fr;gap:18px;flex:1;padding-top:6px;'>"+
+            "<div><div class='pf-lbl' style='margin-bottom:8px;'>SPORTS &amp; LEVELS</div>"+(rows||"<div class='pf-val' style='font-size:11px;'>No activities logged yet</div>")+"</div>"+
+            "<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start;'>"+cells.join("")+"</div>"+
+          "</div>"+
+          "<div class='pass-mrz'><span class='pass-mrz-line'>"+visa+"</span></div>"+
         "</div>"+
-        "<div style='height:2px;background:#b8965a;margin:7px 13px 0;opacity:.8;'></div>"+
-        "<div style='position:relative;display:flex;gap:14px;padding:9px 13px 0;'>"+
-          "<div style='flex:1.2;min-width:0;'><div class='ffp-pc-lbl' style='margin-bottom:6px;'>SPORTS &amp; LEVELS</div>"+(skillRows||"<div style='font-size:11px;color:#4a5d72;'>No activities logged yet</div>")+"</div>"+
-          "<div style='flex:1;display:grid;grid-template-columns:1fr 1fr;gap:6px;align-content:start;'>"+cells.join("")+"</div>"+
-        "</div>"+
-        "<div class='ffp-pc-mrz'>VISA&lt;"+(skills[0]?String(skills[0].name).slice(0,5).toUpperCase():"")+"&lt;&lt;"+new Array(20).join("&lt;")+"</div>"+
       "</div>";
-
+    },
+    render:function(m,opts){
+      opts=opts||{};
       var clickAttr = opts.flippable ? " onclick=\"this.classList.toggle('flipped')\" style='cursor:pointer;'" : "";
-      return "<div class='ffp-pc'"+clickAttr+"><div class='ffp-pc-flip'>"+front+back+"</div></div>";
+      return "<div class='ffp-pc'"+clickAttr+"><div class='ffp-pc-flip'>"+
+        "<div class='ffp-pc-face ffp-pc-front'>"+this.frontShell(m,opts)+"</div>"+
+        "<div class='ffp-pc-face ffp-pc-back'>"+this.backShell(m)+"</div>"+
+      "</div></div>";
     }
   };
 
+  // Scale every passport card we render (the official .pass-shell is 540x340; scale to fit).
+  window.ffpScaleCards = function(scope){
+    var root=scope||document;
+    root.querySelectorAll(".ffp-pc").forEach(function(pc){
+      var w=pc.clientWidth; if(!w)return; var sc=w/540;
+      pc.querySelectorAll(".pass-shell").forEach(function(sh){ sh.style.transform="scale("+sc+")"; });
+    });
+  };
+  window.addEventListener("resize", function(){ window.ffpScaleCards(); });
+
   if(typeof MeetMove==="undefined") return;
-  var _oldList = (typeof MeetMove.openMatchesGrid==="function") ? MeetMove.openMatchesGrid.bind(MeetMove) : null;
 
   Object.assign(MeetMove, {
     connectViaRpc: async function(uid){
@@ -12877,13 +12897,12 @@ setTimeout(scalePassportCard, 200);
       var o=document.getElementById("ffp-deck-overlay");
       if(o&&o.classList.contains("open")){
         var fl=document.createElement("div"); fl.className="ffp-deck-flash";
-        fl.innerHTML="<div style='text-align:center;'><span class='material-icons' style='font-size:44px;color:#FFCC00;'>verified</span><div style='margin-top:8px;font-weight:800;color:#fff;'>Connected with "+esc(name)+"</div><div style='font-size:12px;color:#8a99a8;margin-top:4px;'>Invite them to a meet-up</div></div>";
+        fl.innerHTML="<div style='text-align:center;'><span class='material-icons' style='font-size:44px;color:#FFCC00;'>verified</span><div style='margin-top:8px;font-weight:800;color:#fff;'>Connected with "+esc(name)+"</div></div>";
         o.appendChild(fl); setTimeout(function(){ fl.classList.add("show"); },10);
-        setTimeout(function(){ if(fl.parentNode)fl.parentNode.removeChild(fl); },1700);
+        setTimeout(function(){ if(fl.parentNode)fl.parentNode.removeChild(fl); },1600);
       }
     },
     openMatchesGrid: function(){ this.openDeck(); },
-    openListView: function(){ this.closeDeck(); if(_oldList)_oldList(); },
     _ensureDeckDom: function(){
       if(document.getElementById("ffp-deck-overlay")) return;
       var self=this;
@@ -12891,32 +12910,29 @@ setTimeout(scalePassportCard, 200);
       o.innerHTML=
         "<div class='ffp-deck-head'>"+
           "<div class='ffp-deck-title'>Matches</div>"+
-          "<div class='ffp-deck-seg'><button id='ffp-seg-deck' class='active'>Deck</button><button id='ffp-seg-list'>List</button></div>"+
+          "<div class='ffp-deck-count' id='ffp-deck-count'></div>"+
           "<button class='ffp-deck-x' id='ffp-deck-x' aria-label='Close'><span class='material-icons'>close</span></button>"+
         "</div>"+
-        "<div class='ffp-deck-count' id='ffp-deck-count'></div>"+
         "<div class='ffp-deck-stack' id='ffp-deck-stack'></div>"+
-        "<div class='ffp-deck-hint-tap'>Tap the passport to flip · swipe or use the buttons</div>"+
-        "<div class='ffp-deck-actions' id='ffp-deck-actions'>"+
-          "<button class='ffp-deck-btn' id='ffp-act-pass' aria-label='Pass' style='width:56px;height:56px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.22);color:rgba(255,255,255,0.75);'><span class='material-icons' style='font-size:24px;'>close</span></button>"+
-          "<button class='ffp-deck-btn' id='ffp-act-connect' aria-label='Connect' style='width:68px;height:68px;background:#b8965a;color:#1a1206;'><span class='material-icons' style='font-size:29px;'>person_add</span></button>"+
-          "<button class='ffp-deck-btn' id='ffp-act-invite' aria-label='Invite to a meet-up' style='width:56px;height:56px;background:rgba(255,255,255,0.04);border:1px solid rgba(43,168,224,0.5);color:#58c0ee;'><span class='material-icons' style='font-size:23px;'>event</span></button>"+
-        "</div>";
+        "<div class='ffp-deck-tap-hint'>Tap the passport to flip · swipe or use the arrows</div>"+
+        "<div class='ffp-deck-actions'>"+
+          "<button class='ffp-deck-icon' id='ffp-act-left' aria-label='Previous'><span class='material-icons'>arrow_back</span></button>"+
+          "<button class='ffp-deck-icon' id='ffp-act-flip' aria-label='Flip card'><span class='material-icons'>flip_camera_android</span></button>"+
+          "<button class='ffp-deck-icon' id='ffp-act-right' aria-label='Next'><span class='material-icons'>arrow_forward</span></button>"+
+        "</div>"+
+        "<button class='ffp-deck-connect' id='ffp-act-connect'>Request to connect</button>";
       document.body.appendChild(o);
       document.getElementById("ffp-deck-x").addEventListener("click", function(){ self.closeDeck(); });
-      document.getElementById("ffp-seg-deck").addEventListener("click", function(){ this.classList.add("active"); document.getElementById("ffp-seg-list").classList.remove("active"); });
-      document.getElementById("ffp-seg-list").addEventListener("click", function(){ self.openListView(); });
-      document.getElementById("ffp-act-pass").addEventListener("click", function(){ var c=document.getElementById("ffp-top"); if(c)self._fly(c,-1); self.deckPass(); });
-      document.getElementById("ffp-act-connect").addEventListener("click", function(){ var c=document.getElementById("ffp-top"); if(c)self._fly(c,1); self.deckConnect(); });
-      document.getElementById("ffp-act-invite").addEventListener("click", function(){ self.deckInvite(); });
+      document.getElementById("ffp-act-left").addEventListener("click", function(){ self.deckPrev(); });
+      document.getElementById("ffp-act-right").addEventListener("click", function(){ self.deckNext(); });
+      document.getElementById("ffp-act-flip").addEventListener("click", function(){ self.deckFlip(); });
+      document.getElementById("ffp-act-connect").addEventListener("click", function(){ self.deckConnect(); });
     },
     openDeck: function(){
       this._ensureDeckDom();
       this.deck=(this.matches||[]).filter(function(m){ return m.connection!=="connected"; });
       this.deckIndex=0;
       document.getElementById("ffp-deck-overlay").classList.add("open");
-      document.getElementById("ffp-seg-deck").classList.add("active");
-      document.getElementById("ffp-seg-list").classList.remove("active");
       this.renderDeck();
       if((!this.matches||!this.matches.length) && this.loadMatches){ this.loadMatches(); }
     },
@@ -12926,47 +12942,64 @@ setTimeout(scalePassportCard, 200);
       var d=this.deck||[], i=this.deckIndex||0;
       var cnt=document.getElementById("ffp-deck-count");
       var acts=document.getElementById("ffp-deck-actions");
+      var cbtn=document.getElementById("ffp-act-connect");
       if(i>=d.length){
-        stack.innerHTML="<div class='ffp-deck-empty'><span class='material-icons' style='font-size:42px;color:#2ba8e0;'>flight_takeoff</span><div style='margin-top:10px;font-size:15px;color:#e8eef4;font-weight:700;'>You're all caught up</div><div style='margin-top:4px;font-size:12px;'>New faces land tomorrow. Check your connections meanwhile.</div></div>";
+        stack.innerHTML="<div class='ffp-deck-empty'><span class='material-icons' style='font-size:42px;color:#2ba8e0;'>flight_takeoff</span><div style='margin-top:10px;font-size:15px;color:#e8eef4;font-weight:700;'>You're all caught up</div><div style='margin-top:4px;font-size:12px;'>New faces land tomorrow.</div></div>";
         if(cnt)cnt.textContent="0 to view";
         if(acts)acts.style.visibility="hidden";
+        if(cbtn)cbtn.style.display="none";
         return;
       }
       if(acts)acts.style.visibility="visible";
+      if(cbtn)cbtn.style.display="";
       var html="";
       for(var k=Math.min(i+2,d.length-1); k>=i; k--){
         var depth=k-i, m=d[k], top=(k===i);
         var tf="translateY(calc(-50% + "+(depth*12)+"px)) scale("+(1-depth*0.05)+")";
         html+="<div class='ffp-deck-card"+(top?" is-top":"")+"'"+(top?" id='ffp-top'":"")+" style='z-index:"+(20-depth)+";transform:"+tf+";'>"+
-          (top?"<div class='ffp-deck-hint like'>CONNECT</div><div class='ffp-deck-hint pass'>PASS</div>":"")+
+          (top?"<div class='ffp-deck-hint prev'>BACK</div><div class='ffp-deck-hint next'>NEXT</div>":"")+
           window.FFPPassportCard.render(m,{ context:"match", cornerPct:m.match, flippable:false })+
         "</div>";
       }
       stack.innerHTML=html;
-      if(cnt)cnt.textContent=(d.length-i)+" to view";
+      if(cnt)cnt.textContent=(i+1)+" of "+d.length;
+      window.ffpScaleCards(stack);
+      this._updateConnectBtn();
       this._bindTop();
     },
-    _fly: function(card,dir){ if(!card)return; card.style.transition="transform .3s ease, opacity .3s ease"; card.style.transform="translateY(-50%) translateX("+(dir*640)+"px) rotate("+(dir*28)+"deg)"; card.style.opacity="0"; },
+    _updateConnectBtn: function(){
+      var btn=document.getElementById("ffp-act-connect"); if(!btn)return;
+      var m=(this.deck||[])[this.deckIndex||0]; if(!m){ btn.style.display="none"; return; }
+      btn.style.display="";
+      if(m.connection==="requested"){ btn.textContent="Request sent"; btn.disabled=true; }
+      else if(m.connection==="incoming"){ btn.textContent="Accept connection"; btn.disabled=false; }
+      else { btn.textContent="Request to connect"; btn.disabled=false; }
+    },
+    _fly: function(card,dir){ if(!card)return; card.style.transition="transform .3s ease, opacity .3s ease"; card.style.transform="translateY(-50%) translateX("+(dir*640)+"px) rotate("+(dir*26)+"deg)"; card.style.opacity="0"; },
+    deckPrev: function(){ if((this.deckIndex||0)<=0)return; var self=this; var c=document.getElementById("ffp-top"); if(c)this._fly(c,1); this.deckIndex--; setTimeout(function(){ self.renderDeck(); },260); },
+    deckNext: function(){ var self=this; if((this.deckIndex||0)>=((this.deck||[]).length))return; var c=document.getElementById("ffp-top"); if(c)this._fly(c,-1); this.deckIndex++; setTimeout(function(){ self.renderDeck(); },260); },
+    deckFlip: function(){ var pc=document.querySelector("#ffp-top .ffp-pc"); if(pc)pc.classList.toggle("flipped"); },
+    deckConnect: function(){ var self=this; var m=(this.deck||[])[this.deckIndex||0]; if(!m)return; if(m.connection!=="requested"&&m.connection!=="connected"){ this.connectViaRpc(m.id); } var c=document.getElementById("ffp-top"); if(c)this._fly(c,1); this.deckIndex++; setTimeout(function(){ self.renderDeck(); },300); },
     _bindTop: function(){
       var self=this; var card=document.getElementById("ffp-top"); if(!card)return;
       var startX=0,startY=0,dx=0,dy=0,t0=0,active=false,moved=false;
-      var like=card.querySelector(".ffp-deck-hint.like"), pass=card.querySelector(".ffp-deck-hint.pass");
+      var hintNext=card.querySelector(".ffp-deck-hint.next"), hintPrev=card.querySelector(".ffp-deck-hint.prev");
       function pt(e){ var t=(e.touches&&e.touches[0])?e.touches[0]:e; return {x:t.clientX,y:t.clientY}; }
-      function down(e){ active=true; moved=false; t0=Date.now(); var p=pt(e); startX=p.x; startY=p.y; card.classList.add("dragging"); }
-      function move(e){ if(!active)return; var p=pt(e); dx=p.x-startX; dy=p.y-startY; if(Math.abs(dx)>6||Math.abs(dy)>6)moved=true; card.style.transform="translateY(-50%) translateX("+dx+"px) rotate("+(dx*0.05)+"deg)"; if(like)like.style.opacity=Math.max(0,Math.min(1,dx/120)); if(pass)pass.style.opacity=Math.max(0,Math.min(1,-dx/120)); if(moved&&e.cancelable&&Math.abs(dx)>Math.abs(dy))e.preventDefault(); }
-      function up(){ if(!active)return; active=false; card.classList.remove("dragging"); cleanup();
-        if(dx>120){ self._fly(card,1); self.deckConnect(); return; }
-        if(dx<-120){ self._fly(card,-1); self.deckPass(); return; }
+      function move(e){ if(!active)return; var p=pt(e); dx=p.x-startX; dy=p.y-startY; if(Math.abs(dx)>6||Math.abs(dy)>6)moved=true; card.style.transform="translateY(-50%) translateX("+dx+"px) rotate("+(dx*0.05)+"deg)"; if(hintNext)hintNext.style.opacity=Math.max(0,Math.min(1,-dx/120)); if(hintPrev)hintPrev.style.opacity=Math.max(0,Math.min(1,dx/120)); if(moved&&e.cancelable&&Math.abs(dx)>Math.abs(dy))e.preventDefault(); }
+      function end(){ if(!active)return; active=false; card.classList.remove("dragging"); cleanup();
+        if(dx>120){ self.deckPrev(); return; }
+        if(dx<-120){ self.deckNext(); return; }
         if(!moved && (Date.now()-t0)<320){ var pc=card.querySelector(".ffp-pc"); if(pc)pc.classList.toggle("flipped"); }
-        card.style.transform="translateY(-50%)"; if(like)like.style.opacity=0; if(pass)pass.style.opacity=0;
+        card.style.transform="translateY(-50%)"; if(hintNext)hintNext.style.opacity=0; if(hintPrev)hintPrev.style.opacity=0;
       }
-      function cleanup(){ window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up); window.removeEventListener("touchmove",move); window.removeEventListener("touchend",up); }
-      card.addEventListener("pointerdown",down); window.addEventListener("pointermove",move); window.addEventListener("pointerup",up);
-      card.addEventListener("touchstart",down,{passive:true}); window.addEventListener("touchmove",move,{passive:false}); window.addEventListener("touchend",up);
-    },
-    deckPass: function(){ var self=this; this.deckIndex=(this.deckIndex||0)+1; setTimeout(function(){ self.renderDeck(); },280); },
-    deckConnect: function(){ var self=this; var m=(this.deck||[])[this.deckIndex||0]; if(m)this.connectViaRpc(m.id); this.deckIndex=(this.deckIndex||0)+1; setTimeout(function(){ self.renderDeck(); },280); },
-    deckInvite: function(){ var m=(this.deck||[])[this.deckIndex||0]; this.closeDeck(); if(typeof this.openPostForm==="function")this.openPostForm(); }
+      function cleanup(){ window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",end); window.removeEventListener("touchmove",move); window.removeEventListener("touchend",end); }
+      function start(e){ active=true; moved=false; t0=Date.now(); var p=pt(e); startX=p.x; startY=p.y; card.classList.add("dragging");
+        window.addEventListener("pointermove",move); window.addEventListener("pointerup",end);
+        window.addEventListener("touchmove",move,{passive:false}); window.addEventListener("touchend",end);
+      }
+      card.addEventListener("pointerdown",start);
+      card.addEventListener("touchstart",start,{passive:true});
+    }
   });
 
   var _origLoadMatches = (typeof MeetMove.loadMatches==="function") ? MeetMove.loadMatches.bind(MeetMove) : null;
@@ -12986,6 +13019,7 @@ setTimeout(scalePassportCard, 200);
   }
 })();
 </script>
+
 <script src="ffp-member-quest-scan-loader-v2.js"></script>
 </body>
 </html>
