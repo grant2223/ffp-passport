@@ -338,7 +338,8 @@
     if (!id) return;
     var doDelete = async function () {
       try {
-        var res = await window.supabase.from('events').delete().eq('id', id);
+        var res = await window.supabase.rpc('provider_delete_listing', { p_kind: 'event', p_provider: (window.FFP_PROVIDER||{}).id, p_id: id });
+        if (!res.error && res.data !== 'deleted') throw new Error('Delete failed — not found or not permitted');
         if (res.error) throw res.error;
         toast('Event deleted', 'success');
         if (typeof window.closeModal === 'function') window.closeModal();
