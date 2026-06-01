@@ -1,0 +1,244 @@
+<!-- FFP PROVIDER SELF-SIGNUP — v2 (2026-06-01): trimmed to the essentials per Grant —
+     Business name, Contact First/Last name, Contact email, Contact phone, Country, City.
+     Removed Category, Main activity, About (set later in dashboard/profile).
+     v1: "Try for free" Phase-1 self-signup.
+     Creates a provider account via backend /api/provider/signup (member role=provider +
+     providers row status 'pending'), then emails a verification link. After confirming,
+     the provider logs in (email -> 6-digit code) and lands in the provider dashboard.
+     Listings stay pending until an admin approves them — free during preview.
+     Shares apply.html styling + FFP_TAX taxonomy + FFPLocation country/city cascade. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Try FFP Passport Free — Provider Signup</title>
+<meta name="description" content="Create your FFP Passport provider account free. Build your events, experiences and challenges, and reach the UAE's most active community. No payment while we're in preview.">
+<link rel="icon" type="image/png" href="assets/ffp-emblem.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block" rel="stylesheet">
+<script src="assets/ffp-constants.js"></script>
+<script src="assets/ffp-taxonomy.js"></script>
+<script src="assets/ffp-location-picker.js"></script>
+<style>
+:root{
+  --blue:#2ba8e0; --blue-dk:#1980AD; --bg:#081420; --bg-2:#0f1e2e; --bg-3:#142a3f;
+  --yellow:#FFCC00; --green:#4ade80; --red:#ef4444;
+  --text:#e8eef4; --muted:#8a99a8; --border:rgba(43,168,224,.22); --border-str:rgba(43,168,224,.40);
+  --r:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font-family:'Montserrat',system-ui,sans-serif;font-weight:500;line-height:1.55;-webkit-font-smoothing:antialiased;min-height:100%}
+.ms{font-family:'Material Symbols Outlined';font-size:20px;line-height:1;vertical-align:middle;font-variation-settings:'FILL' 0,'wght' 500,'GRAD' 0,'opsz' 24}
+a{color:var(--blue);text-decoration:none}
+.wrap{max-width:880px;margin:0 auto;padding:0 20px}
+.topbar{padding:20px 0;border-bottom:1px solid var(--border);background:rgba(8,20,32,.7);position:sticky;top:0;z-index:10;backdrop-filter:blur(12px)}
+.topbar .wrap{display:flex;align-items:center;justify-content:space-between}
+.brand{font-size:16px;font-weight:900;letter-spacing:2px}
+.brand span{color:var(--blue)}
+.brand .sub{display:block;font-size:9px;font-weight:800;letter-spacing:1.6px;color:var(--yellow);text-transform:uppercase;margin-top:3px}
+.topbar .login{font-size:12px;font-weight:700;color:var(--muted)}
+.hero{padding:50px 0 28px;text-align:center;background:radial-gradient(ellipse at top,#0a1825 0%,var(--bg) 70%)}
+.hero .eyebrow{font-size:10px;font-weight:800;letter-spacing:2.5px;color:var(--blue);text-transform:uppercase}
+.hero h1{font-size:34px;font-weight:900;letter-spacing:-.6px;line-height:1.12;margin:12px 0 14px}
+.hero h1 em{color:var(--yellow);font-style:normal}
+.hero p{font-size:15px;color:var(--muted);max-width:560px;margin:0 auto;font-weight:500}
+.benefits{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:26px 0 0}
+.benefit{display:flex;align-items:center;gap:8px;background:var(--bg-2);border:1px solid var(--border);border-radius:100px;padding:9px 16px;font-size:12px;font-weight:700}
+.benefit .ms{font-size:16px;color:var(--green)}
+.card{background:var(--bg-2);border:1px solid var(--border);border-radius:18px;padding:30px 28px;margin:30px 0 60px}
+.card h2{font-size:19px;font-weight:800;margin-bottom:4px}
+.card .lead{font-size:13px;color:var(--muted);margin-bottom:24px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px 18px}
+.full{grid-column:1/-1}
+.field{display:flex;flex-direction:column;gap:6px}
+label{font-size:10px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:var(--muted)}
+label .req{color:var(--yellow);margin-left:2px}
+label .hint{font-weight:600;letter-spacing:0;text-transform:none;color:var(--muted)}
+input,select,textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;font-weight:600;padding:12px 14px;outline:none;transition:border-color .15s;min-width:0}
+input:focus,select:focus,textarea:focus{border-color:var(--blue)}
+input::placeholder,textarea::placeholder{color:var(--muted);font-weight:500}
+textarea{resize:vertical;min-height:88px;line-height:1.6;font-weight:500}
+select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a99a8' stroke-width='2.5'><polyline points='6 9 12 15 18 9'/></svg>");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px;color-scheme:dark}
+select option{background:var(--bg-2);color:var(--text)}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.btn{width:100%;margin-top:24px;background:var(--yellow);color:#082335;border:none;border-radius:10px;padding:15px;font-size:14px;font-weight:800;letter-spacing:.4px;cursor:pointer;font-family:inherit;transition:filter .15s}
+.btn:hover:not(:disabled){filter:brightness(1.06)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.err{color:var(--red);font-size:12px;font-weight:700;margin-top:12px;min-height:16px;text-align:center}
+.foot{font-size:11px;color:var(--muted);text-align:center;padding:0 0 40px}
+.signin-row{font-size:12px;color:var(--muted);text-align:center;margin-top:16px}
+.success{display:none;text-align:center;padding:24px 10px}
+.success.show{display:block}
+.success-icon{width:72px;height:72px;border-radius:50%;background:rgba(74,222,128,.14);color:var(--green);display:flex;align-items:center;justify-content:center;margin:0 auto 18px}
+.success-icon .ms{font-size:38px}
+.success h2{font-size:22px;font-weight:900;margin-bottom:10px}
+.success p{font-size:14px;color:var(--muted);max-width:460px;margin:0 auto 10px}
+.success .steps{text-align:left;max-width:380px;margin:18px auto 0;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:18px 20px}
+.success .steps li{font-size:13px;color:var(--text);margin:0 0 9px 0;padding-left:4px}
+.success .steps li:last-child{margin-bottom:0}
+@media (max-width:640px){.grid{grid-template-columns:1fr}.hero h1{font-size:27px}.card{padding:24px 18px}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand">FFP <span>PASSPORT</span><span class="sub">Provider Partnerships</span></div>
+    <a href="/login" class="login">Already a partner? Log in</a>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <span class="eyebrow">Free While We're In Preview</span>
+    <h1>Try FFP Passport <em>free</em>.</h1>
+    <p>Create your provider account in under a minute. Build your events, experiences and challenges straight away — we review them before they go live, and there's nothing to pay during our preview.</p>
+    <div class="benefits">
+      <div class="benefit"><span class="ms">check_circle</span> No card required</div>
+      <div class="benefit"><span class="ms">check_circle</span> Instant dashboard</div>
+      <div class="benefit"><span class="ms">check_circle</span> Reach active members</div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+  <div class="card" id="form-card">
+    <h2>Create your provider account</h2>
+    <div class="lead">Tell us the basics. You'll confirm your email, then sign in to your dashboard.</div>
+    <form id="signup-form" novalidate>
+      <div class="hp"><label>Do not fill<input type="text" id="company_url_hp" tabindex="-1" autocomplete="off"></label></div>
+      <div class="grid">
+        <div class="field full">
+          <label>Business name <span class="req">*</span></label>
+          <input type="text" id="business_name" placeholder="e.g. Forge Fitness" maxlength="120" required>
+        </div>
+
+        <div class="field">
+          <label>Contact first name <span class="req">*</span></label>
+          <input type="text" id="first_name" placeholder="First name" maxlength="60" autocomplete="given-name" required>
+        </div>
+        <div class="field">
+          <label>Contact last name <span class="req">*</span></label>
+          <input type="text" id="last_name" placeholder="Last name" maxlength="60" autocomplete="family-name" required>
+        </div>
+
+        <div class="field">
+          <label>Contact email <span class="req">*</span> <span class="hint">— we'll send a confirmation link here</span></label>
+          <input type="email" id="email" placeholder="you@yourbusiness.com" maxlength="120" autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label>Contact phone <span class="hint">— country code + number</span></label>
+          <div style="display:flex;gap:8px;">
+            <select id="phone-cc" style="flex:0 0 150px;"></select>
+            <input type="tel" id="phone-num" placeholder="56 261 7359" maxlength="30" style="flex:1;">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Country <span class="req">*</span></label>
+          <select id="country" data-ffp-loc="country" data-ffp-group="psignup" required></select>
+        </div>
+        <div class="field">
+          <label>City <span class="req">*</span></label>
+          <select id="city" data-ffp-loc="city" data-ffp-group="psignup" required></select>
+        </div>
+      </div>
+      <button type="submit" class="btn" id="submit-btn">Create my free account</button>
+      <div class="err" id="err"></div>
+      <div class="signin-row">Already have an account? <a href="/login">Log in</a></div>
+    </form>
+  </div>
+
+  <div class="card success" id="success-card">
+    <div class="success-icon"><span class="ms">mark_email_read</span></div>
+    <h2>Check your email</h2>
+    <p>We've sent a confirmation link to <strong id="success-email"></strong>.</p>
+    <ol class="steps">
+      <li><strong>1.</strong> Open the email and tap <strong>Confirm email &amp; log in</strong>.</li>
+      <li><strong>2.</strong> You'll land on the login page — enter your email.</li>
+      <li><strong>3.</strong> We'll email you a 6-digit code; enter it and you're in.</li>
+    </ol>
+    <p style="margin-top:16px;">Didn't get it? Check spam, or <a href="/login">go to login</a> and request a code.</p>
+  </div>
+
+  <div class="foot">FFP Passport · Questions? <a href="mailto:providers@findfitpeople.com">providers@findfitpeople.com</a></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var API_BASE = 'https://ffp-passport-backend.vercel.app';
+
+  var form = document.getElementById('signup-form');
+  var btn = document.getElementById('submit-btn');
+  var errEl = document.getElementById('err');
+  function val(id){ var e = document.getElementById(id); return e ? (e.value || '').trim() : ''; }
+  function showErr(m){ errEl.textContent = m || ''; }
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    showErr('');
+    if (val('company_url_hp')) { return; } // honeypot
+
+    var business_name = val('business_name');
+    var first_name = val('first_name');
+    var last_name  = val('last_name');
+    var email      = val('email').toLowerCase();
+    var country    = val('country');
+    var city       = val('city');
+    if (!business_name || !first_name || !last_name || !email || !country || !city) {
+      showErr('Please fill in all required fields.'); return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showErr('Please enter a valid email address.'); return; }
+
+    btn.disabled = true; btn.textContent = 'Creating your account…';
+    try {
+      var res = await fetch(API_BASE + '/api/provider/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          business_name: business_name,
+          contact_name: (first_name + ' ' + last_name).trim(),
+          email: email,
+          phone: val('phone-num') || null,
+          phone_country_code: val('phone-cc') || null,
+          country: country,
+          city: city
+        })
+      });
+      var data = {};
+      try { data = await res.json(); } catch (_) {}
+      if (!res.ok) { throw new Error(data.error || 'Something went wrong. Please try again.'); }
+
+      document.getElementById('success-email').textContent = email;
+      document.getElementById('form-card').style.display = 'none';
+      document.getElementById('success-card').classList.add('show');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      console.error('[FFP Provider Signup] failed:', err);
+      showErr(err.message || 'Something went wrong. Please try again, or email providers@findfitpeople.com.');
+      btn.disabled = false; btn.textContent = 'Create my free account';
+    }
+  });
+})();
+</script>
+<script>
+(function () {
+  var TAX = window.FFP_TAX || {};
+  // Phone country code — shared taxonomy phoneCodes (default UAE)
+  var cc = document.getElementById('phone-cc');
+  if (cc && TAX.phoneCodes && TAX.phoneCodes.length) {
+    TAX.phoneCodes.forEach(function (p) {
+      var o = document.createElement('option');
+      o.value = p.code;
+      o.textContent = (p.flag ? p.flag + ' ' : '') + p.code + ' · ' + p.country;
+      if (p.code === '+971' && p.country === 'United Arab Emirates') o.selected = true;
+      cc.appendChild(o);
+    });
+  }
+})();
+</script>
+</body>
+</html>
