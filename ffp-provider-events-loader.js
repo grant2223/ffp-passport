@@ -307,14 +307,10 @@
     var reapprovalNote = '';
     try {
       if (id) {
-        var existing = events.find(function (x) { return x.id === id; });
-        if (existing && (existing.status === 'live' || existing.status === 'paused')) {
-          payload.status = 'pending';
-          reapprovalNote = ' (sent back for re-approval)';
-        }
+        // v3: provider edits keep their current status — no forced re-approval.
         var upd = await window.supabase.from('events').update(payload).eq('id', id);
         if (upd.error) throw upd.error;
-        toast('Event updated' + reapprovalNote, 'success');
+        toast('Event updated', 'success');
         if (typeof window.closeModal === 'function') window.closeModal();
       } else {
         payload.provider_id = window.FFP_PROVIDER.id;
@@ -389,7 +385,6 @@
       try { origOpenEventModal(id); } catch (e) { console.error('[FFP Provider Events] orig modal:', e); }
       setTimeout(function () {
         patchModalAfterOpen(id);
-        showReapprovalNoteIfNeeded(id);
       }, 50);
     };
 
