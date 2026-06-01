@@ -1,4 +1,4 @@
-<!-- FFP Admin Dashboard v30 (2026-06-01): Providers panel now has a PENDING tab (default landing) so self-signup providers (status='pending') are visible + approvable — previously only Approved/Featured/Suspended existed, so pending providers were fetched+counted but had no tab to display in. v29 (skill levels display: Not Tried/Social/Competitive/Representative/Professional). v28 (2026-05-31) — USD labels (balance + payout min) per USD-display decision. v27: tier/expiry edit no longer rebuilds the row mid-change. -->
+<!-- FFP Admin Dashboard v31 (2026-06-01): provider accounts are INSTANT + self-serve (no approval) — REMOVED the Applications panel/loader entirely, and reverted the v30 provider "Pending" approval tab (Providers panel is back to Approved/Featured/Suspended, a directory, not an account-approval queue). v29 (skill levels). v28 (2026-05-31) — USD labels. v27: tier/expiry edit no longer rebuilds row mid-change. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,7 +10,7 @@
      ffp-constants.js. v20: Settings + provider-categories sourced from ffp-constants.js
      (USD $99 / $250 / 5-10-20%); was demo AED. -->
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons&display=block" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -36,11 +36,30 @@
   <script src="assets/ffp-realtime.js"></script>
 <script src="ffp-admin-auth.js"></script>
   <script src="ffp-admin-overview-loader.js"></script>
-  <script src="ffp-admin-applications-loader.js"></script><!-- v8: restored — self-injects the Applications tab (was wrongly removed in v7, so provider applications had nowhere to show) -->
+  <!-- Applications panel REMOVED 2026-06-01: providers now self-signup with instant, self-serve accounts — there is no application/approval step, so no Applications panel. -->
 <!-- v7: removed 8 phantom loader refs that 404'd (referrals/content/members/meetups/overview/analytics/taxonomies/settings — those panels run on their inline modules). Normalized quests loader ref to the plain GitHub filename. -->
 
   
 <style>
+/* Base Material Icons rule (self-contained so icons never fall back to raw ligature
+   text like "storefront"/"inbox" if the external Google CSS is slow or blocked). The
+   glyphs come from the <link> above; this guarantees the class + ligature behaviour. */
+.material-icons {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
 :root {
   --blue: #2ba8e0;
   --blue-dk: #1980AD;
@@ -1510,8 +1529,7 @@ input, select, textarea { font-family: inherit; }
           <div class="search-meta" id="AdminProviders-meta"></div>
         </div>
         <div class="tabs" id="providers-tabs">
-          <button class="tab-btn active" data-tab="pending" onclick="AdminProviders.setTab('pending')">Pending <span class="count" id="prov-count-pending">0</span></button>
-          <button class="tab-btn" data-tab="approved" onclick="AdminProviders.setTab('approved')">Approved <span class="count" id="prov-count-approved">0</span></button>
+          <button class="tab-btn active" data-tab="approved" onclick="AdminProviders.setTab('approved')">Approved <span class="count" id="prov-count-approved">0</span></button>
           <button class="tab-btn" data-tab="featured" onclick="AdminProviders.setTab('featured')">Featured <span class="count" id="prov-count-featured">0</span></button>
           <button class="tab-btn" data-tab="suspended" onclick="AdminProviders.setTab('suspended')">Suspended <span class="count" id="prov-count-suspended">0</span></button>
         </div>
@@ -2165,7 +2183,6 @@ const App = {
   // page load fires no panel queries (the Overview RPC always wins a connection -> instant).
   _panelScript: {
     'panel-providers':    'ffp-admin-providers-loader.js',
-    'panel-applications': 'ffp-admin-applications-loader.js',
     'panel-payouts':      'ffp-admin-payouts-loader.js',
     'panel-content':      'ffp-admin-content-loader.js',
     'panel-referrals':    'ffp-admin-referrals-loader.js',
@@ -2224,7 +2241,7 @@ const App = {
 // PROVIDERS MODULE
 // =====================================================================
 const AdminProviders = {
-  tab: 'pending',
+  tab: 'approved',
   search: '',
   
   data: [
