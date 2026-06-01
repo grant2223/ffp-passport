@@ -1,7 +1,7 @@
-<!-- FFP MEMBER DASHBOARD — v201 (2026-06-01)
-     v201: Matches = wrap-around carousel (right/swipe-right = number UP 1->10->1, left = DOWN; no stop).
-     Button 'Add passport' saves that member to your passports (notified when they host a meet & move).
-     Deck shows all matches. Cross-ref: loaders unchanged (deck is dashboard-only). -->
+<!-- FFP MEMBER DASHBOARD — v202 (2026-06-01)
+     v202: FIX Experiences not showing — filter defaulted to UAE, hiding international experiences.
+     Experiences country filter now defaults to All countries. (Events/Challenges keep UAE default.)
+     v201: matches carousel + Add passport. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10743,13 +10743,13 @@ const Quests = {
 // =====================================================================
 // ── Shared browse-panel filter modal helpers (v188) ──
 function ffpToggleFilterModal(id){ var w=document.getElementById(id); if(w) w.style.display=(w.style.display==='none'||!w.style.display)?'flex':'none'; }
-function ffpFillLocationFilter(countrySelId, citySelId, onChange){
+function ffpFillLocationFilter(countrySelId, citySelId, onChange, defaultAll){
   var cs=document.getElementById(countrySelId), ct=document.getElementById(citySelId);
   if(!cs||!ct||!(window.FFP_TAX&&FFP_TAX.cities)) return;
   var countries=Object.keys(FFP_TAX.cities);
   cs.innerHTML='<option value="all">All countries</option>'+countries.map(function(c){return '<option>'+c+'</option>';}).join('');
   function fill(country){ var list=(country!=='all'&&FFP_TAX.cities[country])?FFP_TAX.cities[country]:[]; ct.innerHTML='<option value="all">All cities</option>'+list.map(function(c){return '<option>'+c+'</option>';}).join(''); }
-  var def=FFP_TAX.cities['United Arab Emirates']?'United Arab Emirates':'all';
+  var def=defaultAll ? 'all' : (FFP_TAX.cities['United Arab Emirates']?'United Arab Emirates':'all');
   cs.value=def; fill(def);
   if(onChange) onChange(def,'all');
   cs.addEventListener('change',function(){ fill(this.value); if(onChange) onChange(this.value,'all'); });
@@ -11016,7 +11016,7 @@ const Experiences = {
         this.render();
       });
     });
-    ffpFillLocationFilter('xp-filter-country','xp-filter-city', (country,city)=>{ this.country=country; this.city=city; this.render(); });
+    ffpFillLocationFilter('xp-filter-country','xp-filter-city', (country,city)=>{ this.country=country; this.city=city; this.render(); }, true);
     document.getElementById('xp-cat').addEventListener('change', e => { this.cat = e.target.value; this.render(); });
     document.getElementById('xp-status').addEventListener('change', e => { this.status = e.target.value; this.render(); });
     document.getElementById('xp-search').addEventListener('input', e => { this.search = e.target.value.toLowerCase(); this.render(); });
