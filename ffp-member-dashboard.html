@@ -1,9 +1,9 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v178 (2026-06-01)
-     v178: progression bars are clean (numbers removed) — the detail (your current count +
-           Supporter/Ambassador targets) now lives in the tap-icon modal. Panel order set in
-           the loader: balance -> refer -> status -> progression -> How tiers/Ways.
-     v177: larger tappable icon + larger bar; tap icon -> explainer modal.
+     FFP MEMBER DASHBOARD — v179 (2026-06-01)
+     v179: Progression modals clearer — dropped the current-count line; targets now read
+           e.g. "2 referrals" / "8 referrals" (unit per discipline); footer note changed to
+           "Keep these active within a 30-day period to maintain your status." (all 8).
+     v178: clean bars (numbers moved to modal); order balance->refer->status->progression->How/Ways.
      ════════════════════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="en">
@@ -5503,19 +5503,18 @@ input[type="number"] {
   <div style="width:100%;max-width:380px;background:#0f1e2e;border:1px solid rgba(43,168,224,.25);border-radius:16px;padding:22px;color:#e8eef4;font-family:'Montserrat',sans-serif;text-align:center;">
     <div style="width:54px;height:54px;border-radius:14px;background:rgba(43,168,224,.15);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;"><span class="material-icons" id="si-icon" style="font-size:28px;color:#2ba8e0;">flag</span></div>
     <div id="si-title" style="font-size:18px;font-weight:900;margin-bottom:8px;">—</div>
-    <div id="si-blurb" style="font-size:13px;color:#9dbdd0;line-height:1.55;margin-bottom:14px;">—</div>
-    <div id="si-current" style="font-size:13px;font-weight:800;color:#e8eef4;margin-bottom:16px;">—</div>
+    <div id="si-blurb" style="font-size:13px;color:#9dbdd0;line-height:1.55;margin-bottom:16px;">—</div>
     <div style="display:flex;gap:10px;margin-bottom:14px;">
-      <div style="flex:1;background:rgba(43,168,224,.10);border:1px solid rgba(43,168,224,.35);border-radius:12px;padding:12px 8px;">
-        <div id="si-sup" style="font-size:24px;font-weight:900;color:#2ba8e0;">—</div>
-        <div style="font-size:10px;font-weight:800;letter-spacing:.5px;color:#9dbdd0;text-transform:uppercase;margin-top:2px;">for Supporter</div>
+      <div style="flex:1;background:rgba(43,168,224,.10);border:1px solid rgba(43,168,224,.35);border-radius:12px;padding:14px 8px;">
+        <div style="font-size:22px;font-weight:900;color:#2ba8e0;line-height:1;"><span id="si-sup">—</span> <span id="si-sup-unit" style="font-size:12px;font-weight:700;color:#9dbdd0;">—</span></div>
+        <div style="font-size:11px;font-weight:800;letter-spacing:.5px;color:#2ba8e0;text-transform:uppercase;margin-top:6px;">Supporter</div>
       </div>
-      <div style="flex:1;background:rgba(255,204,0,.10);border:1px solid rgba(255,204,0,.4);border-radius:12px;padding:12px 8px;">
-        <div id="si-amb" style="font-size:24px;font-weight:900;color:#FFCC00;">—</div>
-        <div style="font-size:10px;font-weight:800;letter-spacing:.5px;color:#9dbdd0;text-transform:uppercase;margin-top:2px;">for Ambassador</div>
+      <div style="flex:1;background:rgba(255,204,0,.10);border:1px solid rgba(255,204,0,.4);border-radius:12px;padding:14px 8px;">
+        <div style="font-size:22px;font-weight:900;color:#FFCC00;line-height:1;"><span id="si-amb">—</span> <span id="si-amb-unit" style="font-size:12px;font-weight:700;color:#9dbdd0;">—</span></div>
+        <div style="font-size:11px;font-weight:800;letter-spacing:.5px;color:#FFCC00;text-transform:uppercase;margin-top:6px;">Ambassador</div>
       </div>
     </div>
-    <div style="font-size:11px;color:#6a90a8;line-height:1.5;margin-bottom:16px;">Counted over the last 30 days. Reach the level in 4 of 8 sections to unlock that overall status.</div>
+    <div style="font-size:11px;color:#6a90a8;line-height:1.5;margin-bottom:16px;">Keep these active within a 30-day period to maintain your status.</div>
     <button onclick="Earnings.closeSectionInfo()" style="width:100%;padding:12px;border-radius:10px;background:#FFCC00;color:#081420;font-weight:800;border:none;cursor:pointer;font-family:inherit;">Got it</button>
   </div>
 </div>
@@ -9978,14 +9977,14 @@ const Earnings = {
   // v175: the 8 tracked sections, each with its OWN Supporter/Ambassador target
   // (mirrors assets/ffp-tiers.js). Counts come from the member_tier_progress() RPC.
   categories: [
-    { key: 'members_referred',     label: 'Members referred',     icon: 'group_add',      current: 0, supporter: 2, ambassador: 8,  blurb: 'Refer friends who join and pay — they sign up through your personal link.' },
-    { key: 'connections_made',     label: 'Connections made',     icon: 'handshake',      current: 0, supporter: 2, ambassador: 8,  blurb: 'Connect with other members you meet on the platform.' },
-    { key: 'meetups_hosted',       label: 'Meet-ups hosted',      icon: 'groups',         current: 0, supporter: 1, ambassador: 4,  blurb: 'Host meet-ups that other members come along to.' },
-    { key: 'provider_checkins',    label: 'Providers visited',    icon: 'storefront',     current: 0, supporter: 2, ambassador: 8,  blurb: 'Check in at partner venues — each different provider counts once.' },
-    { key: 'quests_completed',     label: 'Quests completed',     icon: 'flag',           current: 0, supporter: 1, ambassador: 2,  blurb: 'Finish quests across the platform.' },
-    { key: 'events_attended',      label: 'Events attended',      icon: 'event',          current: 0, supporter: 1, ambassador: 4,  blurb: 'Attend events you RSVP to.' },
-    { key: 'activities_logged',    label: 'Activities logged',    icon: 'fitness_center', current: 0, supporter: 8, ambassador: 24, blurb: 'Log what you do — gym, sport, a walk, stretch or recovery.' },
-    { key: 'challenges_completed', label: 'Challenges completed', icon: 'whatshot',       current: 0, supporter: 2, ambassador: 4,  blurb: 'Complete challenges you enter.' }
+    { key: 'members_referred',     label: 'Members referred',     icon: 'group_add',      current: 0, supporter: 2, ambassador: 8,  unit: 'referrals',  blurb: 'Refer friends who join and pay — they sign up through your personal link.' },
+    { key: 'connections_made',     label: 'Connections made',     icon: 'handshake',      current: 0, supporter: 2, ambassador: 8,  unit: 'connections', blurb: 'Connect with other members you meet on the platform.' },
+    { key: 'meetups_hosted',       label: 'Meet-ups hosted',      icon: 'groups',         current: 0, supporter: 1, ambassador: 4,  unit: 'meet-ups',   blurb: 'Host meet-ups that other members come along to.' },
+    { key: 'provider_checkins',    label: 'Providers visited',    icon: 'storefront',     current: 0, supporter: 2, ambassador: 8,  unit: 'providers',  blurb: 'Check in at partner venues — each different provider counts once.' },
+    { key: 'quests_completed',     label: 'Quests completed',     icon: 'flag',           current: 0, supporter: 1, ambassador: 2,  unit: 'quests',     blurb: 'Finish quests across the platform.' },
+    { key: 'events_attended',      label: 'Events attended',      icon: 'event',          current: 0, supporter: 1, ambassador: 4,  unit: 'events',     blurb: 'Attend events you RSVP to.' },
+    { key: 'activities_logged',    label: 'Activities logged',    icon: 'fitness_center', current: 0, supporter: 8, ambassador: 24, unit: 'activities', blurb: 'Log what you do — gym, sport, a walk, stretch or recovery.' },
+    { key: 'challenges_completed', label: 'Challenges completed', icon: 'whatshot',       current: 0, supporter: 2, ambassador: 4,  unit: 'challenges', blurb: 'Complete challenges you enter.' }
   ],
   
   SUPPORTER_THRESHOLD: 2,          // need 2+ in a category to count toward Supporter
@@ -10116,12 +10115,11 @@ const Earnings = {
     document.getElementById('si-icon').textContent = c.icon;
     document.getElementById('si-title').textContent = c.label;
     document.getElementById('si-blurb').textContent = c.blurb || '';
+    var pl = function (n, u) { return (n === 1 && u && u.slice(-1) === 's') ? u.slice(0, -1) : u; };
     document.getElementById('si-sup').textContent = c.supporter;
     document.getElementById('si-amb').textContent = c.ambassador;
-    var lvl = (c.current >= c.ambassador) ? 'Ambassador level reached ✓'
-            : (c.current >= c.supporter) ? 'Supporter level reached ✓'
-            : (c.current > 0 ? 'Keep going!' : 'Not started yet');
-    document.getElementById('si-current').textContent = 'You: ' + c.current + ' in the last 30 days · ' + lvl;
+    document.getElementById('si-sup-unit').textContent = pl(c.supporter, c.unit || '');
+    document.getElementById('si-amb-unit').textContent = pl(c.ambassador, c.unit || '');
     document.getElementById('section-info-modal').style.display = 'flex';
   },
   closeSectionInfo() {
