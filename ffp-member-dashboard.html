@@ -1,9 +1,10 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v195 (2026-06-01)
-     v195: Meet-up form to FFP form standards — activity search+Level, time hour/min/AM-PM,
-           Country->City cascade, age From-To, yellow Post button, removed blue cover.
-           FIX: Going/Hosting tabs no longer hidden by Discover browse filters.
-     v194: match card fidelity.
+     FFP MEMBER DASHBOARD — v197 (2026-06-01)
+     v197: Post-a-meetup form rebuilt to standards — full-screen modal; labels not bold;
+           native tap time field; Venue->Location + Google Maps link; Group->Gender
+           (Any/Male only/Female only, taxonomy); age 18-99; Activity+Level via the
+           Profile-Complete-style full-screen picker (search, categories, level cards).
+     v196: matches share-my-passport + scroll arrows.
      ════════════════════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="en">
@@ -2917,7 +2918,7 @@ input[type="number"] {
 /* Post Meetup form (Meet & Move) */
 .pm-form { padding: 18px 22px; }
 .pm-form-field { margin-bottom: 14px; }
-.pm-form-label { display: block; font-size: 10px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.pm-form-label { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
 .pm-form-input,
 .pm-form-textarea { width: 100%; padding: 10px 12px; background: rgba(43,168,224,0.06); border: 1px solid var(--border-mid); border-radius: 8px; color: var(--text); font-size: 13px; font-family: inherit; outline: none; }
 .pm-form-input:focus,
@@ -2928,6 +2929,30 @@ input[type="number"] {
 .pmf-ac-item { padding: 9px 12px; font-size: 13px; color: var(--text); cursor: pointer; border-bottom: 1px solid rgba(43,168,224,0.08); }
 .pmf-ac-item:active, .pmf-ac-item:hover { background: rgba(43,168,224,0.14); }
 .pmf-ac-empty { padding: 9px 12px; font-size: 12px; color: var(--muted); }
+#post-meetup-backdrop { align-items: stretch; padding: 0; }
+#post-meetup-backdrop .detail-modal { max-width: 640px; width: 100%; min-height: 100vh; max-height: none; border-radius: 0; border: none; margin: 0; }
+.pm-form-pick { display: flex; align-items: center; justify-content: space-between; cursor: pointer; text-align: left; }
+.pmf-pick-ph { color: var(--muted); }
+#pmf-cat-display.set { color: var(--text); font-weight: 700; }
+.pmfp { position: fixed; inset: 0; z-index: 9700; background: #081420; display: none; overflow-y: auto; padding: 20px 18px 60px; }
+.pmfp.open { display: block; }
+.pmfp-wrap { max-width: 480px; margin: 0 auto; }
+.pmfp-back { background: none; border: none; color: #cfe0ee; display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; padding: 6px 0; margin-bottom: 10px; font-family: inherit; }
+.pmfp-title { font-size: 22px; font-weight: 900; color: #fff; margin-bottom: 16px; }
+.pmfp-search { position: relative; margin-bottom: 16px; }
+.pmfp-search .material-icons { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #6a90a8; font-size: 20px; }
+.pmfp-search input { width: 100%; background: rgba(43,168,224,.06); border: 1px solid var(--border-mid); border-radius: 10px; padding: 14px 14px 14px 42px; font-size: 16px; color: #fff; font-family: inherit; outline: none; }
+.pmfp-cats { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 14px; scrollbar-width: none; }
+.pmfp-cats::-webkit-scrollbar { display: none; }
+.pmfp-chip { flex-shrink: 0; background: rgba(43,168,224,.08); border: 1px solid var(--border-mid); color: var(--muted); border-radius: 100px; padding: 8px 14px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; font-family: inherit; }
+.pmfp-chip.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+.pmfp-row { width: 100%; background: rgba(43,168,224,.05); border: 1px solid var(--border-mid); border-radius: 10px; padding: 15px 14px; font-size: 16px; font-weight: 700; color: #fff; cursor: pointer; text-align: left; display: flex; align-items: center; gap: 12px; margin-bottom: 8px; font-family: inherit; }
+.pmfp-row:hover { border-color: var(--blue); }
+.pmfp-row .material-icons { color: var(--blue); font-size: 20px; }
+.pmfp-level { background: rgba(43,168,224,.05); border: 1.5px solid var(--border-mid); border-radius: 12px; padding: 16px; cursor: pointer; display: flex; gap: 14px; margin-bottom: 10px; }
+.pmfp-level:hover { border-color: var(--blue); }
+.pmfp-level-name { font-size: 16px; font-weight: 800; color: #fff; }
+.pmfp-level-desc { font-size: 13px; color: #9dbdd0; margin-top: 3px; line-height: 1.5; }
 .pm-form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 @media (max-width:560px){ .pm-form-grid-2 { grid-template-columns: 1fr; } }
 
@@ -5267,25 +5292,14 @@ input[type="number"] {
         <label class="pm-form-label">Title</label>
         <input type="text" class="pm-form-input" id="pmf-title" placeholder="e.g. Padel doubles — need a 4th">
       </div>
-      <div class="pm-form-grid-2">
-        <div class="pm-form-field">
-          <label class="pm-form-label">Activity</label>
-          <div class="pmf-ac-wrap">
-            <input type="text" class="pm-form-input" id="pmf-cat-search" placeholder="Search activity…" autocomplete="off" oninput="MeetMove.acFilter(this.value)" onfocus="MeetMove.acFilter(this.value)">
-            <input type="hidden" id="pmf-cat">
-            <div class="pmf-ac-results" id="pmf-cat-results"></div>
-          </div>
-        </div>
-        <div class="pm-form-field">
-          <label class="pm-form-label">Level</label>
-          <select class="ffp-select" id="pmf-level">
-            <option>Not Tried</option>
-            <option selected>Social</option>
-            <option>Competitive</option>
-            <option>Representative</option>
-            <option>Professional</option>
-          </select>
-        </div>
+      <div class="pm-form-field">
+        <label class="pm-form-label">Activity &amp; level</label>
+        <button type="button" class="pm-form-input pm-form-pick" onclick="pmfOpenPicker()">
+          <span id="pmf-cat-display" class="pmf-pick-ph">Choose activity &amp; level</span>
+          <span class="material-icons" style="color:var(--muted);">chevron_right</span>
+        </button>
+        <input type="hidden" id="pmf-cat">
+        <input type="hidden" id="pmf-level">
       </div>
       <div class="pm-form-field">
         <label class="pm-form-label">Date</label>
@@ -5298,11 +5312,7 @@ input[type="number"] {
       <div class="pm-form-grid-2">
         <div class="pm-form-field">
           <label class="pm-form-label">Time</label>
-          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
-            <select class="ffp-select" id="pmf-hour" aria-label="Hour"></select>
-            <select class="ffp-select" id="pmf-min" aria-label="Minute"></select>
-            <select class="ffp-select" id="pmf-ap" aria-label="AM/PM"><option>AM</option><option selected>PM</option></select>
-          </div>
+          <input type="time" class="pm-form-input" id="pmf-time" value="18:00">
         </div>
         <div class="pm-form-field">
           <label class="pm-form-label">Capacity (incl. you)</label>
@@ -5318,8 +5328,9 @@ input[type="number"] {
         </div>
       </div>
       <div class="pm-form-field">
-        <label class="pm-form-label">Venue</label>
-        <input type="text" class="pm-form-input" id="pmf-venue" placeholder="e.g. Ace Padel Club">
+        <label class="pm-form-label">Location</label>
+        <input type="text" class="pm-form-input" id="pmf-venue" placeholder="e.g. Kite Beach, Dubai" oninput="pmfUpdateMap()">
+        <a id="pmf-maplink" href="#" target="_blank" rel="noopener" style="display:none; font-size:12px; color:var(--blue); margin-top:6px; align-items:center; gap:4px;"><span class="material-icons" style="font-size:14px;vertical-align:-3px;">place</span> View on Google Maps</a>
       </div>
       <div class="pm-form-grid-2">
         <div class="pm-form-field">
@@ -5333,11 +5344,11 @@ input[type="number"] {
       </div>
       <div class="pm-form-grid-2">
         <div class="pm-form-field">
-          <label class="pm-form-label">Group</label>
+          <label class="pm-form-label">Gender</label>
           <select class="ffp-select" id="pmf-gender">
             <option value="any">Any gender</option>
-            <option value="women">Ladies only</option>
-            <option value="men">Men only</option>
+            <option value="male">Male only</option>
+            <option value="female">Female only</option>
           </select>
         </div>
         <div class="pm-form-field">
@@ -5370,6 +5381,42 @@ input[type="number"] {
     </div>
   </div>
 </div>
+
+<!-- Activity + Level picker (full-screen, platform-standard like Profile Complete) -->
+<div id="pmf-picker" class="pmfp">
+  <div class="pmfp-wrap">
+    <button class="pmfp-back" onclick="pmfPickerBack()"><span class="material-icons">arrow_back</span> Back</button>
+    <div id="pmfp-stage-sport">
+      <div class="pmfp-title">Choose activity</div>
+      <div class="pmfp-search"><span class="material-icons">search</span><input id="pmfp-search" placeholder="Search activities or categories" oninput="pmfFilter()" autocomplete="off"></div>
+      <div class="pmfp-cats" id="pmfp-cats"></div>
+      <div id="pmfp-list"></div>
+    </div>
+    <div id="pmfp-stage-level" style="display:none;">
+      <div class="pmfp-title">Your <span id="pmfp-sport-name"></span> level</div>
+      <div id="pmfp-levels"></div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  var LD={ 'Not Tried':'Keen to give it a go — not started yet.', 'Social':'Just for fun and the social side, no pressure.', 'Competitive':'Train and compete — club, league or amateur events.', 'Representative':'Represent a team, region or country.', 'Professional':'Your career — sponsored or earning from this sport.' };
+  var CATICON={ 'Running & walking':'directions_run','Cycling':'directions_bike','Swimming':'pool','Watersports':'surfing','Racquet sports':'sports_tennis','Team sports':'groups','Combat sports':'sports_mma','Strength & fitness':'fitness_center','Mind-body':'self_improvement','Recovery & wellness':'spa' };
+  var CAT='All', SPORT='';
+  function acts(){ return (window.FFP_TAX&&FFP_TAX.activities)||[]; }
+  function esc(x){ return window.escHtml?escHtml(x):String(x==null?'':x); }
+  function renderCats(){ var el=document.getElementById('pmfp-cats'); if(!el)return; var cats=['All']; acts().forEach(function(a){ if(cats.indexOf(a.c)<0)cats.push(a.c); }); el.innerHTML=cats.map(function(c){ return '<button class="pmfp-chip'+(c===CAT?' active':'')+'" onclick="pmfSetCat(\''+String(c).replace(/'/g,"\\'")+'\')">'+esc(c)+'</button>'; }).join(''); }
+  function renderActs(){ var el=document.getElementById('pmfp-list'); if(!el)return; var q=(document.getElementById('pmfp-search').value||'').trim().toLowerCase(); var list=acts().filter(function(a){ if(CAT!=='All'&&a.c!==CAT)return false; if(q&&String(a.n).toLowerCase().indexOf(q)<0&&String(a.c).toLowerCase().indexOf(q)<0)return false; return true; }); el.innerHTML=list.length?list.map(function(a){ return '<button class="pmfp-row" onclick="pmfChooseActivity(\''+String(a.n).replace(/'/g,"\\'")+'\')"><span class="material-icons">'+(CATICON[a.c]||'fitness_center')+'</span><span>'+esc(a.n)+'</span></button>'; }).join(''):'<div style="color:var(--muted);font-size:13px;padding:10px;">No activities found</div>'; }
+  window.pmfOpenPicker=function(){ CAT='All'; var si=document.getElementById('pmfp-search'); if(si)si.value=''; document.getElementById('pmfp-stage-sport').style.display=''; document.getElementById('pmfp-stage-level').style.display='none'; renderCats(); renderActs(); document.getElementById('pmf-picker').classList.add('open'); };
+  window.pmfClosePicker=function(){ document.getElementById('pmf-picker').classList.remove('open'); };
+  window.pmfPickerBack=function(){ var lv=document.getElementById('pmfp-stage-level'); if(lv.style.display!=='none'){ lv.style.display='none'; document.getElementById('pmfp-stage-sport').style.display=''; } else { window.pmfClosePicker(); } };
+  window.pmfSetCat=function(c){ CAT=c; renderCats(); renderActs(); };
+  window.pmfFilter=function(){ renderActs(); };
+  window.pmfChooseActivity=function(name){ SPORT=name; document.getElementById('pmfp-sport-name').textContent=name; var lv=document.getElementById('pmfp-levels'); var levels=(window.FFP_TAX&&FFP_TAX.fitnessLevels)||['Not Tried','Social','Competitive','Representative','Professional']; lv.innerHTML=levels.map(function(n){ return '<div class="pmfp-level" onclick="pmfPickLevel(\''+String(n).replace(/'/g,"\\'")+'\')"><div><div class="pmfp-level-name">'+esc(n)+'</div><div class="pmfp-level-desc">'+esc(LD[n]||'')+'</div></div></div>'; }).join(''); document.getElementById('pmfp-stage-sport').style.display='none'; document.getElementById('pmfp-stage-level').style.display=''; };
+  window.pmfPickLevel=function(level){ var v=document.getElementById('pmf-cat'), l=document.getElementById('pmf-level'), d=document.getElementById('pmf-cat-display'); if(v)v.value=SPORT; if(l)l.value=level; if(d){ d.textContent=SPORT+' · '+level; d.classList.add('set'); } window.pmfClosePicker(); };
+  window.pmfUpdateMap=function(){ var v=(document.getElementById('pmf-venue').value||'').trim(); var a=document.getElementById('pmf-maplink'); if(!a)return; if(v){ a.href='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(v); a.style.display='inline-flex'; } else { a.style.display='none'; } };
+})();
+</script>
 
 <!-- Toast -->
 <div class="toast" id="ffp-toast">
@@ -11644,7 +11691,7 @@ const MeetMove = {
         </div>
       </div>
       <div class="dm-footer">
-        ${u.connection === 'connected' ? '<button class="btn-primary-blue" disabled style="opacity:.7;">\u2713 Connected</button>' : (u.connection === 'requested' ? '<button class="btn-primary-blue" disabled style="opacity:.7;">Request sent</button>' : `<button class="btn-primary-blue" onclick="MeetMove.requestConnect('${u.id}')">${u.connection === 'incoming' ? 'Accept connection' : 'Request to connect'}</button>`)}
+        ${u.connection === 'connected' ? '<button class="btn-primary-blue" disabled style="opacity:.7;">\u2713 Connected</button>' : (u.connection === 'requested' ? '<button class="btn-primary-yellow" disabled style="opacity:.6;">Passport shared ✓</button>' : `<button class="btn-primary-yellow" onclick="MeetMove.requestConnect('${u.id}')">${u.connection === 'incoming' ? 'Share back' : 'Share my passport'}</button>`)}
         <div class="dm-footer-note">Connecting adds them to your circle — your meet-ups will reach them.</div>
       </div>
     `;
@@ -11747,7 +11794,7 @@ const MeetMove = {
     }
     // Age From / To
     if (afS && afS.options.length === 0) {
-      for (var a = 16; a <= 80; a++) { afS.add(new Option(String(a), a)); atS.add(new Option(String(a), a)); }
+      for (var a = 18; a <= 99; a++) { afS.add(new Option(String(a), a)); atS.add(new Option(String(a), a)); }
       afS.value = '18'; atS.value = '45';
     }
     var t = new Date(); t.setDate(t.getDate() + 1);
@@ -11757,8 +11804,11 @@ const MeetMove = {
     if (hrS) hrS.value = 6;
     if (mnS) mnS.value = '00';
     if (apS) apS.value = 'PM';
-    var acI = g('pmf-cat-search'), acV = g('pmf-cat'), acR = g('pmf-cat-results');
-    if (acI) acI.value = ''; if (acV) acV.value = ''; if (acR) { acR.innerHTML = ''; acR.style.display = 'none'; }
+    var tmEl = g('pmf-time'); if (tmEl) tmEl.value = '18:00';
+    var acV = g('pmf-cat'), acL = g('pmf-level'), acD = g('pmf-cat-display');
+    if (acV) acV.value = ''; if (acL) acL.value = '';
+    if (acD) { acD.textContent = 'Choose activity & level'; acD.classList.remove('set'); }
+    var ml = g('pmf-maplink'); if (ml) ml.style.display = 'none';
     var _proField = g('pmf-pro-field'), _proCb = g('pmf-professional');
     if (_proCb) _proCb.checked = false;
     if (_proField) _proField.style.display = isMemberProfessional() ? '' : 'none';
@@ -11797,7 +11847,7 @@ const MeetMove = {
     var ageTo    = document.getElementById('pmf-age-to').value;
     var ageRange = (ageFrom && ageTo) ? (ageFrom + '-' + ageTo) : '';
     if (!title)    { alert('Add a title.'); return; }
-    if (!activity) { alert('Pick an activity.'); return; }
+    if (!activity || !document.getElementById('pmf-level').value) { alert('Choose an activity and level.'); return; }
     if (!venue)    { alert('Add a venue.'); return; }
     if (!country)  { alert('Select a country.'); return; }
     if (!city)     { alert('Add a city.'); return; }
@@ -11808,14 +11858,10 @@ const MeetMove = {
     var day = document.getElementById('pmf-day').value;
     var mon = String(document.getElementById('pmf-month').value).padStart(2, '0');
     var yr = document.getElementById('pmf-year').value;
-    var hr12 = parseInt(document.getElementById('pmf-hour').value, 10) || 6;
-    var mnv  = document.getElementById('pmf-min').value || '00';
-    var apv  = document.getElementById('pmf-ap').value || 'PM';
-    var hr24 = (apv === 'PM') ? (hr12 === 12 ? 12 : hr12 + 12) : (hr12 === 12 ? 0 : hr12);
-    var tm = String(hr24).padStart(2, '0') + ':' + mnv;
+    var tm = document.getElementById('pmf-time').value || '18:00';
     var meetsAt = yr + '-' + mon + '-' + String(day).padStart(2, '0') + 'T' + tm + ':00';
     var g = document.getElementById('pmf-gender').value;
-    var groupFilter = g === 'women' ? 'women_only' : (g === 'men' ? 'men_only' : null);
+    var groupFilter = g === 'female' ? 'women_only' : (g === 'male' ? 'men_only' : null);
     var payload = {
       host_member_id: member.id,
       title: title,
@@ -12794,8 +12840,8 @@ setTimeout(scalePassportCard, 200);
 .ffp-deck-title{ color:#e8eef4; font-size:18px; font-weight:800; }
 .ffp-deck-count{ color:#8a99a8; font-size:13px; font-weight:600; flex:1; }
 .ffp-deck-x{ background:#0f1e2e; border:1px solid var(--border-mid); color:#e8eef4; width:36px; height:36px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; }
-.ffp-deck-meta{ text-align:center; margin:0 0 12px; color:#8a99a8; font-size:12px; line-height:1.4; }
-.ffp-meta-pct{ color:#FFCC00; font-weight:900; font-size:30px; letter-spacing:0.5px; }
+.ffp-deck-meta{ text-align:center; margin:0 0 2px; line-height:1; }
+.ffp-meta-pct{ color:#FFCC00; font-weight:900; font-size:72px; letter-spacing:0.5px; line-height:1; }
 .ffp-deck-stack{ position:relative; flex:1; min-height:0; }
 .ffp-deck-card{ position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); transition:transform .3s ease, opacity .3s ease; touch-action:pan-y; }
 .ffp-deck-card.dragging{ transition:none; }
@@ -12932,7 +12978,7 @@ setTimeout(scalePassportCard, 200);
         if(u){ u.connection = (status==="connected")?"connected":((status==="requested"||status==="pending")?"requested":u.connection); }
         var nm=(u&&u.name)?u.name.split(" ")[0]:"them";
         if(status==="connected"){ this._celebrate(nm); }
-        else if(window.showToast){ showToast("Request sent to "+nm); }
+        else if(window.showToast){ showToast("Passport shared with "+nm+" — they'll see you'd like to connect"); }
         if(this.renderMatchStrip)this.renderMatchStrip();
         return true;
       }catch(e){ if(window.showToast)showToast("Could not connect — try again"); return false; }
@@ -12966,14 +13012,14 @@ setTimeout(scalePassportCard, 200);
           "<button class='ffp-deck-icon flip' id='ffp-act-flip' aria-label='Flip card'><span class='material-icons'>flip_camera_android</span></button>"+
           "<button class='ffp-deck-icon' id='ffp-act-right' aria-label='Send right'><span class='material-icons'>arrow_forward</span></button>"+
         "</div>"+
-        "<div class='ffp-deck-instr'>Swipe or use the arrows to browse · tap the passport to flip</div>"+
+        "<div class='ffp-deck-instr'>Scroll with the arrows or swipe · tap the passport to flip · share yours to reach out</div>"+
         "<button class='ffp-deck-connect' id='ffp-act-connect'>Request to connect</button>";
       document.body.appendChild(o);
       document.getElementById("ffp-deck-x").addEventListener("click", function(){ self.closeDeck(); });
-      document.getElementById("ffp-act-left").addEventListener("click", function(){ self.deckAdvance(-1); });
-      document.getElementById("ffp-act-right").addEventListener("click", function(){ self.deckAdvance(1); });
+      document.getElementById("ffp-act-left").addEventListener("click", function(){ self.deckPrev(); });
+      document.getElementById("ffp-act-right").addEventListener("click", function(){ self.deckNext(); });
       document.getElementById("ffp-act-flip").addEventListener("click", function(){ self.deckFlip(); });
-      document.getElementById("ffp-act-connect").addEventListener("click", function(){ self.deckConnect(); });
+      document.getElementById("ffp-act-connect").addEventListener("click", function(){ self.deckShare(); });
     },
     openDeck: function(){
       this._ensureDeckDom();
@@ -13024,22 +13070,23 @@ setTimeout(scalePassportCard, 200);
       var btn=document.getElementById("ffp-act-connect"); if(!btn)return;
       var m=(this.deck||[])[this.deckIndex||0]; if(!m){ btn.style.display="none"; return; }
       btn.style.display="";
-      if(m.connection==="requested"){ btn.textContent="Request sent"; btn.disabled=true; }
-      else if(m.connection==="incoming"){ btn.textContent="Accept connection"; btn.disabled=false; }
-      else { btn.textContent="Request to connect"; btn.disabled=false; }
+      if(m.connection==="requested"){ btn.textContent="Passport shared ✓"; btn.disabled=true; }
+      else if(m.connection==="incoming"){ btn.textContent="Share back"; btn.disabled=false; }
+      else { btn.textContent="Share my passport"; btn.disabled=false; }
     },
     _fly: function(card,dir){ if(!card)return; card.style.transition="transform .3s ease, opacity .3s ease"; card.style.transform="translateY(-50%) translateX("+(dir*640)+"px) rotate("+(dir*26)+"deg)"; card.style.opacity="0"; },
-    deckAdvance: function(dir){ var self=this; if((this.deckIndex||0)>=((this.deck||[]).length))return; var c=document.getElementById("ffp-top"); if(c)this._fly(c,dir); this.deckIndex=(this.deckIndex||0)+1; setTimeout(function(){ self.renderDeck(); },280); },
+    deckNext: function(){ var self=this; if((this.deckIndex||0) >= ((this.deck||[]).length-1)) return; var c=document.getElementById("ffp-top"); if(c)this._fly(c,-1); this.deckIndex=(this.deckIndex||0)+1; setTimeout(function(){ self.renderDeck(); },260); },
+    deckPrev: function(){ var self=this; if((this.deckIndex||0) <= 0) return; var c=document.getElementById("ffp-top"); if(c)this._fly(c,1); this.deckIndex=(this.deckIndex||0)-1; setTimeout(function(){ self.renderDeck(); },260); },
     deckFlip: function(){ var pc=document.querySelector("#ffp-top .ffp-pc"); if(pc)pc.classList.toggle("flipped"); },
-    deckConnect: function(){ var self=this; var m=(this.deck||[])[this.deckIndex||0]; if(!m)return; if(m.connection!=="requested"&&m.connection!=="connected"){ this.connectViaRpc(m.id); } var c=document.getElementById("ffp-top"); if(c)this._fly(c,1); this.deckIndex=(this.deckIndex||0)+1; setTimeout(function(){ self.renderDeck(); },300); },
+    deckShare: function(){ var self=this; var m=(this.deck||[])[this.deckIndex||0]; if(!m)return; if(m.connection==="requested"||m.connection==="connected")return; var p=this.connectViaRpc(m.id); if(p&&p.then){ p.then(function(){ self._updateConnectBtn(); }); } else { self._updateConnectBtn(); } },
     _bindTop: function(){
       var self=this; var card=document.getElementById("ffp-top"); if(!card)return;
       var startX=0,startY=0,dx=0,dy=0,t0=0,active=false,moved=false;
       function pt(e){ var t=(e.touches&&e.touches[0])?e.touches[0]:e; return {x:t.clientX,y:t.clientY}; }
       function move(e){ if(!active)return; var p=pt(e); dx=p.x-startX; dy=p.y-startY; if(Math.abs(dx)>6||Math.abs(dy)>6)moved=true; card.style.transform="translateY(-50%) translateX("+dx+"px) rotate("+(dx*0.05)+"deg)"; if(moved&&e.cancelable&&Math.abs(dx)>Math.abs(dy))e.preventDefault(); }
       function end(){ if(!active)return; active=false; card.classList.remove("dragging"); cleanup();
-        if(dx>120){ self.deckAdvance(1); return; }
-        if(dx<-120){ self.deckAdvance(-1); return; }
+        if(dx<-120){ self.deckNext(); return; }
+        if(dx>120){ self.deckPrev(); return; }
         if(!moved && (Date.now()-t0)<320){ var pc=card.querySelector(".ffp-pc"); if(pc)pc.classList.toggle("flipped"); }
         card.style.transform="translateY(-50%)";
       }
