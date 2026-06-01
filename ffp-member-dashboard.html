@@ -1,9 +1,8 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v188 (2026-06-01)
-     v188: Events, Experiences & Challenges filters now use the SAME bottom-sheet modal
-           as Connections — search + filter icon, Country->City cascade + per-panel filters,
-           shared big touch-rows. ffpToggleFilterModal/ffpFillLocationFilter helpers.
-     v187: filter-modal rows enlarged for touch.
+     FFP MEMBER DASHBOARD — v189 (2026-06-01)
+     v189: Matches FIX — loadMatches() now calls get_match_pool(p_me) with the member id
+           (custom-JWT members don't set auth.uid() client-side). Retries until id ready.
+     v188: Events/Experiences/Challenges filter modals (Country->City + per-panel).
      ════════════════════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="en">
@@ -11286,9 +11285,21 @@ const MeetMove = {
   // closeness, location (city>country), gender, age closeness, recent activity.
   async loadMatches() {
     if (!window.supabase || typeof MemberProfile === 'undefined') return;
+    // v189: pass member id explicitly — custom-JWT members don't resolve auth.uid()
+    // reliably client-side (same reason getUser() fails), so get_match_pool(p_me) takes
+    // the id directly. Resolve from FFPAuth/localStorage; retry briefly if not ready yet.
+    var meId = null;
+    try { meId = (window.FFPAuth && window.FFPAuth.getMember && (window.FFPAuth.getMember() || {}).id) || null; } catch (e) {}
+    if (!meId) { try { meId = (JSON.parse(localStorage.getItem('ffp_member') || '{}') || {}).id || null; } catch (e) {} }
+    if (!meId) {
+      this._matchRetries = (this._matchRetries || 0) + 1;
+      if (this._matchRetries <= 20) { var self = this; setTimeout(function () { self.loadMatches(); }, 250); }
+      return;
+    }
     try {
-      var res = await window.supabase.rpc('get_match_pool');
-      if (res.error || !res.data) { if (res.error) console.warn('[FFP Matches]', res.error.message); return; }
+      var res = await window.supabase.rpc('get_match_pool', { p_me: meId });
+      if (res.error) { console.warn('[FFP Matches]', res.error.message); return; }
+      if (!res.data) return;
       var md = MemberProfile.data || {};
       var LV = { 'not tried': 0, social: 1, competitive: 2, representative: 3, professional: 4 };
       var myCity = String(md.city || '').toLowerCase();
