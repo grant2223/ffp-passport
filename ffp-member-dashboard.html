@@ -1,4 +1,7 @@
-<!-- FFP MEMBER DASHBOARD — v208 (2026-06-01)
+<!-- FFP MEMBER DASHBOARD — v209 (2026-06-01)
+     v209: "Who's going" GUARANTEES the host is on the list, first — whosGoingInline() prepends a host entry
+           from the meetup's own fields if m.attendees lacks one (no dependence on loader version/data). If the
+           viewer is the host (m.isHostedByMe), their entry is labelled "(You)" so they see themselves listed.
      v208: "Who's going" is now a BUILT-IN section of the meetup detail modal (host shown FIRST), rendered inline
            via MeetMove.whosGoingInline(m) using m.attendees (host-first from the loader) + FFPPassportCard.
            Was previously injected by ffp-meet-move-loader via setTimeout — fragile, silently vanished if the
@@ -11634,12 +11637,28 @@ const MeetMove = {
   // Who's going — rendered INLINE as part of the modal (host first). Data (m.attendees) is host-first
   // from the meet-move loader's buildAttendees(); reuses the FFPPassportCard component (defined in this file).
   whosGoingInline(m) {
-    const people = (m && m.attendees) || [];
+    let people = ((m && m.attendees) || []).slice();
+    // THE HOST ALWAYS SHOWS, FIRST — never depend on the loader having put them in m.attendees.
+    if (m) {
+      const hostIdx = people.findIndex(p => p && p.isHost);
+      if (hostIdx === -1) {
+        people.unshift({
+          id: m.host_member_id || 'host', name: m.host || 'Host', givenNames: '', surname: '',
+          photo: m.hostPhoto || null, city: m.area || m.city || '', country: m.country || '',
+          gender: '', memberType: 'member', memberSince: null, sports: [], isHost: true
+        });
+      } else if (hostIdx > 0) {
+        people.unshift(people.splice(hostIdx, 1)[0]);
+      }
+      // If I'm the host, it's me on the list — label it so it's clear.
+      if (m.isHostedByMe && people[0] && people[0].isHost && !/\(You\)$/.test(people[0].name || '')) {
+        people[0] = Object.assign({}, people[0], { name: (people[0].name || 'Host') + ' (You)' });
+      }
+    }
     const cap = (m && (m.capacity || m.spots)) || '';
     const header = `<div class="dm-section-label">Who's going (${people.length}${cap ? '/' + cap : ''})</div>`;
     if (!people.length) {
-      const hostName = (m && m.host) ? escHtml(m.host) : 'The host';
-      return header + `<div style="font-size:12px;color:var(--muted);">${hostName} is hosting — be the first to join.</div>`;
+      return header + `<div style="font-size:12px;color:var(--muted);">Be the first to join.</div>`;
     }
     const canCard = window.FFPPassportCard && typeof window.FFPPassportCard.render === 'function';
     if (canCard) {
