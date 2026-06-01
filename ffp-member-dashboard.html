@@ -1,8 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v199 (2026-06-01)
-     v199: deck — card stays centred, % drops onto it. Meet-up DETAIL modal: full-screen; quick details up top;
-     cost moved to cover tag (was oversized strap); Details above About; 'Hosted by' strap removed (host now
-     shows first in Who's going). Cross-ref: meet-move-loader v15 unchanged (inserts Who's-going + host-first).
-     v198: matches % over card + big arrows. -->
+<!-- FFP MEMBER DASHBOARD — v200 (2026-06-01)
+     v200: listing cards (Meet-up, Events, Experiences, Challenges) — removed host/organiser row;
+     show day/time + location only. Experience badge = first day of trip; Challenge badge = last day
+     to enter (start). Cross-ref: discovery-loader v4 supplies startBadge + dateBadge-as-object.
+     v199: deck % + meet-up detail modal. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10881,16 +10881,9 @@ const Events = {
           <div class="meetup-body">
             <div class="meetup-eyebrow">${eyebrow}</div>
             <div class="meetup-title-v2">${escHtml(e.title)}</div>
-            <div class="meetup-org-row">
-              <div class="meetup-org-avatar">${e.orgLetter}</div>
-              <div class="meetup-org-info">
-                <div class="meetup-org-name">${escHtml(e.organizer)}${e.verified ? '<span class="material-icons">verified</span>' : ''}</div>
-                <div class="meetup-org-loc"><span class="material-icons">location_on</span>${escHtml(e.venue)}, ${escHtml(e.city)}</div>
-              </div>
-            </div>
             <div class="meetup-meta-row">
-              <span class="item"><span class="material-icons">calendar_today</span><span class="date-blue">${escHtml(e.date)} &middot; ${escHtml(e.time)}</span></span>
-              <span class="item"><span class="material-icons">people</span>${spotsTxt}</span>
+              <span class="item"><span class="material-icons">schedule</span><span class="date-blue">${escHtml(e.date)} &middot; ${escHtml(e.time)}</span></span>
+              <span class="item"><span class="material-icons">location_on</span>${escHtml(e.venue)}${e.city ? ', ' + escHtml(e.city) : ''}</span>
             </div>
             ${pillsHtml ? `<div class="meetup-tag-pills">${pillsHtml}</div>` : ''}
             <button class="meetup-view-btn" onclick="event.stopPropagation(); Events.openDetail('${e.id}')">
@@ -11078,7 +11071,8 @@ const Experiences = {
       const isApplied = this.applied.has(x.id);
       const spotsLeft = Math.max(0, x.spots - x.taken);
       
-      const badge = this.parseDateBadge(x.dates);
+      let badge = x.startBadge;
+      if (!badge) { badge = this.parseDateBadge(x.dates); badge.mid = String(badge.mid).split(/[\u2013\-]/)[0].trim(); badge.range = false; }
       
       // Status badge (bottom-left) — matches Meet & Move style
       let statusBadge = '';
@@ -11116,16 +11110,9 @@ const Experiences = {
           <div class="meetup-body">
             <div class="meetup-eyebrow">${eyebrow}</div>
             <div class="meetup-title-v2">${escHtml(x.title)}</div>
-            <div class="meetup-org-row">
-              <div class="meetup-org-avatar">${x.orgLetter}</div>
-              <div class="meetup-org-info">
-                <div class="meetup-org-name">${escHtml(x.organizer)}${x.verified ? '<span class="material-icons">verified</span>' : ''}</div>
-                <div class="meetup-org-loc"><span class="material-icons">place</span>${escHtml(x.location)}</div>
-              </div>
-            </div>
             <div class="meetup-meta-row">
-              <span class="item"><span class="material-icons">calendar_today</span><span class="date-blue">${escHtml(x.dates)}</span></span>
-              <span class="item"><span class="material-icons">people</span>${spotsTxt}</span>
+              <span class="item"><span class="material-icons">flight_takeoff</span><span class="date-blue">${escHtml(x.dates)}</span></span>
+              <span class="item"><span class="material-icons">location_on</span>${escHtml(x.location)}</span>
             </div>
             ${pillsHtml ? `<div class="meetup-tag-pills">${pillsHtml}</div>` : ''}
             <button class="meetup-view-btn" onclick="event.stopPropagation(); Experiences.openDetail('${x.id}')">
@@ -11542,15 +11529,9 @@ const MeetMove = {
             <div class="meetup-eyebrow">${eyebrow}</div>
             ${m.isProfessional ? '<span style="display:inline-block;margin-bottom:6px;font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#FFCC00;background:rgba(255,204,0,0.12);border:1px solid rgba(255,204,0,0.4);border-radius:6px;padding:3px 8px;">Professionals</span>' : ''}
             <div class="meetup-title-v2">${escHtml(m.activity)}</div>
-            <div class="meetup-org-row">
-              <div class="meetup-org-avatar">${m.hostInitial}</div>
-              <div class="meetup-org-info">
-                <div class="meetup-org-name">${escHtml(m.host)}<span style="font-size:10px; font-weight:700; color:var(--muted); margin-left:4px;">hosting</span></div>
-                <div class="meetup-org-loc"><span class="material-icons">location_on</span>${escHtml(m.venue)}, ${escHtml(m.area)}</div>
-              </div>
-            </div>
             <div class="meetup-meta-row">
-              <span class="item"><span class="material-icons">calendar_today</span><span class="date-blue">${escHtml(m.when.replace(/·.*?·/, '·').trim())}</span></span>
+              <span class="item"><span class="material-icons">schedule</span><span class="date-blue">${escHtml(m.when.replace(/·.*?·/, '·').trim())}</span></span>
+              <span class="item"><span class="material-icons">location_on</span>${escHtml(m.venue)}${m.area ? ', ' + escHtml(m.area) : ''}</span>
             </div>
             <button class="meetup-view-btn" onclick="event.stopPropagation(); MeetMove.openMeetupDetail('${m.id}')">
               View Details <span class="material-icons">arrow_forward</span>
@@ -11974,16 +11955,9 @@ const Challenges = {
           ${typeBar}
           <div class="meetup-body">
             <div class="meetup-title-v2">${escHtml(c.title)}</div>
-            <div class="meetup-org-row">
-              <div class="meetup-org-avatar">${c.organizerLetter}</div>
-              <div class="meetup-org-info">
-                <div class="meetup-org-name">${escHtml(c.organizer)}${c.organizerVerified ? '<span class="material-icons">verified</span>' : ''}</div>
-                <div class="meetup-org-loc"><span class="material-icons">location_on</span>${escHtml(c.venue)}, ${escHtml(c.city)}</div>
-              </div>
-            </div>
             <div class="meetup-meta-row">
-              <span class="item"><span class="material-icons">leaderboard</span><span class="num-yellow">${c.participants}</span> on leaderboard</span>
-              <span class="item"><span class="material-icons">speed</span>${escHtml(c.metric)}</span>
+              <span class="item"><span class="material-icons">location_on</span>${c.venue ? escHtml(c.venue) + (c.city ? ', ' + escHtml(c.city) : '') : 'Virtual'}</span>
+              <span class="item"><span class="material-icons">leaderboard</span><span class="num-yellow">${c.participants}</span> entered</span>
             </div>
             <button class="meetup-view-btn" onclick="event.stopPropagation(); Challenges.openDetail('${c.id}')">
               View Challenge <span class="material-icons">arrow_forward</span>
