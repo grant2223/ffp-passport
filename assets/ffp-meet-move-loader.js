@@ -1,4 +1,7 @@
-/* FFP Meet & Move Loader — v14
+/* FFP Meet & Move Loader — v15
+   v15 (2026-06-01): join a meetup via join_meetup() RPC (direct meetup_attendees insert failed
+     on auth.uid() for members).
+   v14
    v14 (2026-06-01): scale attendee passport cards after they're injected (official .pass-shell
      is 540x540-design, needs ffpScaleCards to fit).
    v13
@@ -433,7 +436,7 @@
       wrapWrites();
       var panel = document.getElementById('panel-meet');
       if (panel && panel.classList.contains('active') && typeof MeetMove.render === 'function') MeetMove.render();
-      console.log('[FFP Meet & Move] Loaded ' + MeetMove.data.length + ' meetups ✓ (v14 — scaled passport-card attendees; matches owned by dashboard)');
+      console.log('[FFP Meet & Move] Loaded ' + MeetMove.data.length + ' meetups ✓ (v15 — join via RPC; scaled passport-card attendees)');
     } catch (err) { console.error('[FFP Meet & Move] Unexpected error:', err); }
   }
 
@@ -478,8 +481,8 @@
       origRequestJoin(id);
       if (!currentUserId) return;
       try {
-        var res = await window.supabase.from('meetup_attendees').insert({ meetup_id: id, member_id: currentUserId, status: 'joined', created_at: new Date().toISOString() });
-        if (res.error) console.error('[FFP Meet & Move] RSVP insert:', res.error);
+        var res = await window.supabase.rpc('join_meetup', { p_me: currentUserId, p_meetup: id });
+        if (res.error) console.error('[FFP Meet & Move] join:', res.error.message);
       } catch (e) { console.error('[FFP Meet & Move] RSVP insert:', e); }
     };
   }
