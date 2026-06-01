@@ -214,7 +214,7 @@
         : '');
 
     var foot =
-      (editing ? '<button class="btn btn-ghost left" onclick="confirmDeleteChallenge(\'' + editing.id + '\'); closeModal()"><span class="ms">delete</span> Delete</button>' : '') +
+      (editing ? '<button class="btn btn-ghost left" onclick="confirmDeleteChallenge(\'' + editing.id + '\')"><span class="ms">delete</span> Delete</button>' : '') +
       '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>' +
       '<button class="btn btn-pri" onclick="saveChallenge(\'' + (editing ? editing.id : '') + '\')">' +
         (editing ? 'Save changes' : 'Submit for review') +
