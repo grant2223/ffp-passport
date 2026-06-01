@@ -1,10 +1,9 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v183 (2026-06-01)
-     v183: Connections panel decluttered — 'For You' strip replaced by a single 'People You
-           Might Click With' button (with a count pill); filters collapsed behind a Filters
-           toggle so meet-ups are visible; matches modal retitled 'Matches' with two lists
-           (suggestions + your connections).
-     v182: weighted matching (shared activities+level, location, gender, age, recency).
+     FFP MEMBER DASHBOARD — v184 (2026-06-01)
+     v184: skill levels swapped to Not Tried / Social / Competitive / Representative /
+           Professional (filter + post dropdowns + matching order). Matches modal now uses
+           two tabs: 'Matching with' and 'Connected with'.
+     v183: Connections decluttered (single button, collapsible filters, Matches modal).
      ════════════════════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="en">
@@ -2340,6 +2339,8 @@ input[type="number"] {
 
 /* Progression: dual-threshold bars */
 .progression-list { display: flex; flex-direction: column; gap: 4px; }
+.mm-tab { flex: 1; background: rgba(43,168,224,0.06); border: 1px solid var(--border-mid); color: var(--muted); font-size: 12px; font-weight: 800; padding: 9px; border-radius: 8px; cursor: pointer; font-family: inherit; }
+.mm-tab.active { background: rgba(43,168,224,0.18); border-color: var(--blue); color: var(--text); }
 .prog-strap { display: flex; align-items: center; gap: 10px; padding: 8px 2px; }
 .prog-strap-icon { width: 38px; height: 38px; border-radius: 10px; background: rgba(43,168,224,0.12); border: 1px solid rgba(43,168,224,0.22); display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; padding: 0; transition: background .15s, transform .1s; }
 .prog-strap-icon:hover { background: rgba(43,168,224,0.22); }
@@ -4422,10 +4423,10 @@ input[type="number"] {
       </select>
       <select class="ffp-select" id="meet-filter-level">
         <option value="all">All levels</option>
-        <option value="Beginner">Beginner</option>
-        <option value="Intermediate">Intermediate</option>
-        <option value="Advanced">Advanced</option>
-        <option value="Elite">Elite</option>
+        <option value="Not Tried">Not Tried</option>
+        <option value="Social">Social</option>
+        <option value="Competitive">Competitive</option>
+        <option value="Representative">Representative</option>
         <option value="Professional">Professional</option>
       </select>
     </div>
@@ -5233,10 +5234,10 @@ input[type="number"] {
         <div class="pm-form-field">
           <label class="pm-form-label">Level</label>
           <select class="ffp-select" id="pmf-level">
-            <option>Beginner</option>
-            <option selected>Intermediate</option>
-            <option>Advanced</option>
-            <option>Elite</option>
+            <option>Not Tried</option>
+            <option selected>Social</option>
+            <option>Competitive</option>
+            <option>Representative</option>
             <option>Professional</option>
           </select>
         </div>
@@ -11207,7 +11208,7 @@ const MeetMove = {
       var res = await window.supabase.rpc('get_match_pool');
       if (res.error || !res.data) { if (res.error) console.warn('[FFP Matches]', res.error.message); return; }
       var md = MemberProfile.data || {};
-      var LV = { beginner: 0, intermediate: 1, advanced: 2, elite: 3, professional: 4 };
+      var LV = { 'not tried': 0, social: 1, competitive: 2, representative: 3, professional: 4 };
       var myCity = String(md.city || '').toLowerCase();
       var myCountry = String(md.country || '').toLowerCase();
       var myGender = String(md.gender || '').toLowerCase();
@@ -11574,14 +11575,23 @@ const MeetMove = {
     const body = `
       <div class="dm-body">
         <div class="dm-title">Matches</div>
-        <div class="dm-section-label" style="margin-top:8px;">People you might click with</div>
-        <div style="font-size:11px; color:var(--muted); margin-bottom:10px;">Matched on shared activities, skill level, location, age and how active you both are.</div>
-        ${grid(suggestions, 'No suggestions yet — check back as more people join.')}
-        <div class="dm-section-label" style="margin-top:18px;">Your connections</div>
-        ${grid(connected, 'No connections yet — connect with someone above to start your circle.')}
+        <div class="mm-tabs" style="display:flex;gap:8px;margin:10px 0 14px;">
+          <button class="mm-tab active" onclick="MeetMove.matchesTab('suggest', this)">Matching with</button>
+          <button class="mm-tab" onclick="MeetMove.matchesTab('connected', this)">Connected with</button>
+        </div>
+        <div id="mm-list-suggest">${grid(suggestions, 'No matches yet — check back as more people join.')}</div>
+        <div id="mm-list-connected" style="display:none;">${grid(connected, 'No connections yet — open a match and connect to start your circle.')}</div>
       </div>
     `;
     openDetailModal(body);
+  },
+
+  matchesTab(which, btn) {
+    document.querySelectorAll('.mm-tab').forEach(function (b) { b.classList.remove('active'); });
+    if (btn) btn.classList.add('active');
+    var sg = document.getElementById('mm-list-suggest'), cn = document.getElementById('mm-list-connected');
+    if (sg) sg.style.display = (which === 'suggest') ? '' : 'none';
+    if (cn) cn.style.display = (which === 'connected') ? '' : 'none';
   },
   
   openPostForm() {
