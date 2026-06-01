@@ -1,5 +1,6 @@
-/* FFP Provider Events Loader — close edit modal after delete (v3)
-    — v4
+/* FFP Provider Events Loader — v6 (rebuilt form: Country/City taxonomy cascade required, Area+Venue optional,
+   Location pin, End date/time, numeric Price (AED); flow Basics→When→Where→Pricing→Good-to-know; save via provider_save_listing RPC)
+    — v3 close edit modal after delete; v4
    v4 changes (Grant's feedback):
    - Activity picker (379 activities, searchable, grouped by category) replaces
      the broad-category dropdown — pick "Padel" not "Racquet sports".
@@ -86,15 +87,10 @@
   }
 
   function mapForUi(row) {
-    var d = null, t = '';
-    if (row.starts_at) {
-      var dt = new Date(row.starts_at);
-      if (!isNaN(dt.getTime())) {
-        var pad = function (n) { return String(n).padStart(2, '0'); };
-        d = dt.getFullYear() + '-' + pad(dt.getMonth() + 1) + '-' + pad(dt.getDate());
-        t = pad(dt.getHours()) + ':' + pad(dt.getMinutes());
-      }
-    }
+    var pad = function (n) { return String(n).padStart(2, '0'); };
+    var fmt = function (v) { if (!v) return ['', '']; var x = new Date(v); if (isNaN(x.getTime())) return ['', '']; return [x.getFullYear() + '-' + pad(x.getMonth() + 1) + '-' + pad(x.getDate()), pad(x.getHours()) + ':' + pad(x.getMinutes())]; };
+    var sd = fmt(row.starts_at), ed = fmt(row.ends_at);
+    var d = sd[0], t = sd[1];
     return {
       id: row.id,
       title: row.title || '',
@@ -102,14 +98,18 @@
       about: row.about || '',
       activity: row.activity || '',
       category: row.category || '',
-      intensity: row.fitness_level || 'Beginner',
+      intensity: row.fitness_level || 'Social',
       event_date: d || '',
       event_time: t,
+      end_date: ed[0] || '',
+      end_time: ed[1] || '',
+      country: row.country || '',
       venue: row.venue || '',
       city: row.city || '',
       area: row.area || '',
       setting: row.setting || '',
       capacity: row.capacity || 0,
+      price_aed: (row.price_aed != null ? row.price_aed : ''),
       cost: row.cost || '',
       parking: row.parking || '',
       facilities: row.facilities || '',
@@ -131,7 +131,7 @@
     var providerId = window.FFP_PROVIDER.id;
     var res = await window.supabase
       .from('events')
-      .select('id, provider_id, title, description, about, activity, category, fitness_level, group_filter, hero_image_url, city, venue, area, setting, starts_at, ends_at, capacity, price_aed, cost, parking, facilities, bring, who_for, status, featured, created_at, updated_at')
+      .select('id, provider_id, title, description, about, activity, category, fitness_level, group_filter, hero_image_url, country, city, venue, area, setting, starts_at, ends_at, capacity, price_aed, cost, parking, facilities, bring, who_for, status, featured, created_at, updated_at')
       .eq('provider_id', providerId)
       .order('starts_at', { ascending: true });
     if (res.error) {
@@ -222,6 +222,26 @@
     });
   }
 
+  // Populate Country + City selects from the shared taxonomy (FFP_TAX.cities), with a country->city cascade.
+  function fillEventLocation(existing) {
+    var TAX = window.FFP_TAX;
+    var cny = document.getElementById('em-country');
+    var cty = document.getElementById('em-city');
+    if (!cny || !cty || !TAX || !TAX.cities) return;
+    var prof = window.providerProfile || {};
+    var countries = Object.keys(TAX.cities).sort();
+    var selCountry = (existing && existing.country) || prof.country || 'United Arab Emirates';
+    var selCity = (existing && existing.city) || prof.city || '';
+    if (countries.indexOf(selCountry) === -1) selCountry = countries[0] || '';
+    cny.innerHTML = countries.map(function (c) { return '<option' + (c === selCountry ? ' selected' : '') + '>' + c + '</option>'; }).join('');
+    function fillCities(country, keepCity) {
+      var list = (TAX.cities[country] || []).slice();
+      cty.innerHTML = '<option value="">Select city…</option>' + list.map(function (c) { return '<option' + (c === keepCity ? ' selected' : '') + '>' + c + '</option>'; }).join('');
+    }
+    fillCities(cny.value, selCity);
+    cny.addEventListener('change', function () { fillCities(cny.value, ''); });
+  }
+
   function patchModalAfterOpen(editingId) {
     // Find the activity/category for editing event
     var existing = editingId ? events.find(function (x) { return x.id === editingId; }) : null;
@@ -229,6 +249,7 @@
     var currentCategory = existing ? (existing.category || '') : '';
 
     swapCategoryForPicker(currentActivity, currentCategory);
+    fillEventLocation(existing);
 
     // Remove "Who is this for?" field — every event is for FFP members anyway
     var whoEl = document.getElementById('em-who');
@@ -272,32 +293,43 @@
     var actBtn   = document.getElementById('em-activity-btn');
     var activity = actBtn ? actBtn.dataset.value : '';
     var category = actBtn ? actBtn.dataset.category : '';
+    var country  = get('country');
+    var city     = get('city');
     if (!title)    { toast('Title is required', 'error'); return; }
-    if (!date)     { toast('Date is required', 'error'); return; }
     if (!activity) { toast('Activity is required', 'error'); return; }
+    if (!date)     { toast('Start date is required', 'error'); return; }
+    if (!country)  { toast('Country is required', 'error'); return; }
+    if (!city)     { toast('City is required', 'error'); return; }
 
     var startsAt = buildStartsAt(date, get('time'));
+    var endDate  = get('end-date');
+    var endsAt   = endDate ? buildStartsAt(endDate, get('end-time')) : null;
     var photoSlot = document.getElementById('listing-photo-slot');
     var heroUrl = (photoSlot && photoSlot.dataset.url) ? photoSlot.dataset.url : null;
     if (heroUrl === '') heroUrl = null;
     var capRaw = get('capacity');
     var capacity = capRaw ? parseInt(capRaw, 10) : null;
     if (capacity != null && isNaN(capacity)) capacity = null;
+    var priceRaw = get('price');
+    var priceNum = priceRaw ? parseFloat(priceRaw) : null;
+    if (priceNum != null && isNaN(priceNum)) priceNum = null;
+    var desc = get('description');
 
     var payload = {
       title: title,
-      description: get('description') || null,
-      about: get('about') || null,
+      description: desc || null,
+      about: desc || null,
       activity: activity,
       category: category || null,
       fitness_level: get('intensity') || null,
       starts_at: startsAt,
-      venue: get('venue') || null,
-      city: get('city') || null,
+      ends_at: endsAt,
+      country: country || null,
+      city: city || null,
       area: get('area') || null,
-      setting: get('setting') || null,
+      venue: get('venue') || null,
       capacity: capacity,
-      cost: get('cost') || null,
+      price_aed: priceNum,
       parking: get('parking') || null,
       facilities: get('facilities') || null,
       bring: get('bring') || null,
@@ -375,7 +407,7 @@
 
     try {
       await refresh();
-      console.log('[FFP Provider Events v2] Loaded from Supabase \u2713');
+      console.log('[FFP Provider Events] loaded v6 \u2014 rebuilt form (taxonomy country/city, end, price) \u2713');
     } catch (e) {
       console.error('[FFP Provider Events] initial load:', e);
     }
