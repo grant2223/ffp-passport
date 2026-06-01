@@ -20,7 +20,9 @@
 <script src="ffp-provider-events-loader.js"></script>
 <script src="ffp-provider-experiences-loader.js"></script>
 <script src="ffp-provider-challenges-loader.js"></script>
-<!-- v22 (2026-06-01): FIX delete buttons broken in v21 (missing ')' → syntax error). Restored.
+<!-- v23 (2026-06-01): Notifications are now a prominent TOP banner (was an easy-to-miss
+     bottom-right corner toast). Full-width on mobile. Delete confirmed working.
+     v22 (2026-06-01): FIX delete buttons broken in v21 (missing ')' → syntax error). Restored.
      v21 (2026-06-01): (regression) delete-from-edit-modal — removed the 'confirmDeleteX(id); closeModal()'
      race that instantly dismissed the confirm dialog (delete never fired). Card + modal delete now work.
      v20 (2026-06-01): E/E/C create forms to FFP form standards — labels not bold; Venue->Location
@@ -1139,33 +1141,34 @@ a { color: var(--ffp-blue); text-decoration: none; }
 /* TOAST */
 .toast-wrap {
   position: fixed;
-  bottom: 28px; right: 28px;
-  z-index: 200;
-  display: flex; flex-direction: column-reverse; gap: 10px;
+  top: 0; left: 0; right: 0;
+  z-index: 99998;
+  display: flex; flex-direction: column; gap: 8px; align-items: center;
+  padding: 12px 12px 0;
   pointer-events: none;
 }
 .toast {
+  width: 100%; max-width: 560px;
   background: var(--ffp-bg-2);
   border: 1px solid var(--ffp-border-mid);
-  border-left: 3px solid var(--ffp-yellow);
+  border-top: 4px solid var(--ffp-yellow);
   border-radius: var(--r-md);
-  padding: 13px 18px 13px 16px;
-  font-size: 13px; font-weight: 600;
+  padding: 15px 20px;
+  font-size: 15px; font-weight: 700;
   color: var(--ffp-text);
   box-shadow: var(--shadow-pop);
-  min-width: 240px; max-width: 360px;
-  display: flex; align-items: center; gap: 10px;
-  animation: toast-in .25s ease;
+  display: flex; align-items: center; gap: 12px;
+  animation: toast-in .3s ease;
   pointer-events: auto;
 }
-.toast.success { border-left-color: var(--ffp-green); }
-.toast.error { border-left-color: var(--ffp-red); }
-.toast .ms { font-size: 18px; color: var(--ffp-yellow); flex-shrink: 0; }
+.toast.success { border-top-color: var(--ffp-green); }
+.toast.error { border-top-color: var(--ffp-red); }
+.toast .ms { font-size: 22px; color: var(--ffp-yellow); flex-shrink: 0; }
 .toast.success .ms { color: var(--ffp-green); }
 .toast.error .ms { color: var(--ffp-red); }
 @keyframes toast-in {
-  from { transform: translateX(120%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+  from { transform: translateY(-120%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
 /* LOCKED PANEL */
@@ -4554,6 +4557,6 @@ document.addEventListener('DOMContentLoaded', () => {
 })();
 </script>
 <script>window.ffpOpenMap=function(id){var el=document.getElementById(id);var v=el?(el.value||'').trim():'';if(v)window.open('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(v),'_blank');};</script>
-<div id="ffp-build-stamp" style="position:fixed;bottom:4px;left:6px;font-size:9px;font-family:monospace;color:rgba(255,255,255,0.28);z-index:99999;pointer-events:none;">FFP build v22</div>
+<div id="ffp-build-stamp" style="position:fixed;bottom:4px;left:6px;font-size:9px;font-family:monospace;color:rgba(255,255,255,0.28);z-index:99999;pointer-events:none;">FFP build v23</div>
 </body>
 </html>
