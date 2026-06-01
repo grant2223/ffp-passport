@@ -1,9 +1,9 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v186 (2026-06-01)
-     v186: Connections filters are now a MODAL (bottom-sheet) opened by the filter icon —
-           cleaner than the inline panel; search bar + icon aligned (stretch). Template for
-           Events/Experiences/Challenges next.
-     v185: search-left/filter-icon-right + Country->City cascade (inline panel).
+     FFP MEMBER DASHBOARD — v188 (2026-06-01)
+     v188: Events, Experiences & Challenges filters now use the SAME bottom-sheet modal
+           as Connections — search + filter icon, Country->City cascade + per-panel filters,
+           shared big touch-rows. ffpToggleFilterModal/ffpFillLocationFilter helpers.
+     v187: filter-modal rows enlarged for touch.
      ════════════════════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="en">
@@ -2351,8 +2351,8 @@ input[type="number"] {
 .filter-modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .filter-modal-title { font-size: 17px; font-weight: 900; color: var(--text); }
 .filter-modal-x { background: #142a3f; border: none; color: var(--muted); width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 20px; line-height: 1; }
-.filter-modal-body { display: flex; flex-direction: column; gap: 10px; }
-.filter-modal-body .ffp-select { width: 100%; }
+.filter-modal-body { display: flex; flex-direction: column; gap: 12px; }
+.filter-modal-body .ffp-select { width: 100%; min-height: 52px; padding: 15px 16px; font-size: 15px; font-weight: 600; border-radius: 11px; background-position: right 16px center; }
 .filter-modal-done { width: 100%; margin-top: 18px; padding: 13px; border-radius: 10px; background: #FFCC00; color: #081420; font-weight: 800; border: none; cursor: pointer; font-family: inherit; font-size: 14px; }
 .prog-strap { display: flex; align-items: center; gap: 10px; padding: 8px 2px; }
 .prog-strap-icon { width: 38px; height: 38px; border-radius: 10px; background: rgba(43,168,224,0.12); border: 1px solid rgba(43,168,224,0.22); display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; padding: 0; transition: background .15s, transform .1s; }
@@ -4289,31 +4289,30 @@ input[type="number"] {
     </div>
     
     <!-- Filters — search + 2 dropdowns -->
-    <div class="meet-filter-row">
+    <div class="filter-bar">
       <div class="panel-search">
         <span class="material-icons">search</span>
         <input type="text" id="events-search" placeholder="Search events, venues or activities">
       </div>
-      <select class="ffp-select" id="events-city">
-        <option value="all">All UAE</option>
-        <option value="Abu Dhabi">Abu Dhabi</option>
-        <option value="Al Ain">Al Ain</option>
-        <option value="Ajman">Ajman</option>
-        <option value="Dubai">Dubai</option>
-        <option value="Fujairah">Fujairah</option>
-        <option value="Hatta">Hatta</option>
-        <option value="Ras Al Khaimah">Ras Al Khaimah</option>
-        <option value="Sharjah">Sharjah</option>
-        <option value="Umm Al Quwain">Umm Al Quwain</option>
-      </select>
-      <select class="ffp-select" id="events-cat">
-        <option value="all">All categories</option>
-        <option value="Sports">Sports</option>
-        <option value="Fitness">Fitness</option>
-        <option value="Wellness">Wellness</option>
-        <option value="Adventure">Adventure</option>
-        <option value="Community">Community</option>
-      </select>
+      <button class="filter-icon-btn" onclick="ffpToggleFilterModal('events-filters-modal')" aria-label="Filters"><span class="material-icons">tune</span></button>
+    </div>
+    <div id="events-filters-modal" class="filter-modal" style="display:none;" onclick="if(event.target===this)ffpToggleFilterModal('events-filters-modal')">
+      <div class="filter-modal-card">
+        <div class="filter-modal-head"><div class="filter-modal-title">Filters</div><button class="filter-modal-x" onclick="ffpToggleFilterModal('events-filters-modal')" aria-label="Close">&times;</button></div>
+        <div class="filter-modal-body">
+          <select class="ffp-select" id="events-filter-country"></select>
+          <select class="ffp-select" id="events-filter-city"></select>
+          <select class="ffp-select" id="events-cat">
+            <option value="all">All categories</option>
+            <option value="Sports">Sports</option>
+            <option value="Fitness">Fitness</option>
+            <option value="Wellness">Wellness</option>
+            <option value="Adventure">Adventure</option>
+            <option value="Community">Community</option>
+          </select>
+        </div>
+        <button class="filter-modal-done" onclick="ffpToggleFilterModal('events-filters-modal')">Done</button>
+      </div>
     </div>
     
     <div class="meetup-grid" id="events-grid"></div>
@@ -4337,22 +4336,33 @@ input[type="number"] {
     </div>
     
     <!-- Filters — search + 2 dropdowns -->
-    <div class="meet-filter-row">
+    <div class="filter-bar">
       <div class="panel-search">
         <span class="material-icons">search</span>
         <input type="text" id="xp-search" placeholder="Search trips, retreats or destinations">
       </div>
-      <select class="ffp-select" id="xp-cat">
-        <option value="all">All experiences</option>
-        <option value="Adventure">Adventure</option>
-        <option value="Retreat">Retreat</option>
-        <option value="Sports Event">Sports event</option>
-      </select>
-      <select class="ffp-select" id="xp-status">
-        <option value="all">Any availability</option>
-        <option value="open">Open</option>
-        <option value="almost">Almost full</option>
-      </select>
+      <button class="filter-icon-btn" onclick="ffpToggleFilterModal('xp-filters-modal')" aria-label="Filters"><span class="material-icons">tune</span></button>
+    </div>
+    <div id="xp-filters-modal" class="filter-modal" style="display:none;" onclick="if(event.target===this)ffpToggleFilterModal('xp-filters-modal')">
+      <div class="filter-modal-card">
+        <div class="filter-modal-head"><div class="filter-modal-title">Filters</div><button class="filter-modal-x" onclick="ffpToggleFilterModal('xp-filters-modal')" aria-label="Close">&times;</button></div>
+        <div class="filter-modal-body">
+          <select class="ffp-select" id="xp-filter-country"></select>
+          <select class="ffp-select" id="xp-filter-city"></select>
+          <select class="ffp-select" id="xp-cat">
+            <option value="all">All experiences</option>
+            <option value="Adventure">Adventure</option>
+            <option value="Retreat">Retreat</option>
+            <option value="Sports Event">Sports event</option>
+          </select>
+          <select class="ffp-select" id="xp-status">
+            <option value="all">Any availability</option>
+            <option value="open">Open</option>
+            <option value="almost">Almost full</option>
+          </select>
+        </div>
+        <button class="filter-modal-done" onclick="ffpToggleFilterModal('xp-filters-modal')">Done</button>
+      </div>
     </div>
     
     <div class="meetup-grid" id="xp-grid"></div>
@@ -4477,27 +4487,38 @@ input[type="number"] {
     </div>
     
     <!-- Filters — search + dropdowns -->
-    <div class="meet-filter-row">
+    <div class="filter-bar">
       <div class="panel-search">
         <span class="material-icons">search</span>
         <input type="text" id="chal-search" placeholder="Search challenge, sport or organiser">
       </div>
-      <select class="ffp-select" id="chal-type">
-        <option value="all">All challenges</option>
-        <option value="provider">Provider challenges</option>
-        <option value="member">Member challenges</option>
-      </select>
-      <select class="ffp-select" id="chal-sport">
-        <option value="all">All sports</option>
-        <option value="Running">Running</option>
-        <option value="Cycling">Cycling</option>
-        <option value="Swimming">Swimming</option>
-        <option value="Yoga">Yoga</option>
-        <option value="Padel">Padel</option>
-        <option value="Fitness">Fitness</option>
-        <option value="Hiking">Hiking</option>
-        <option value="Multi-sport">Multi-sport</option>
-      </select>
+      <button class="filter-icon-btn" onclick="ffpToggleFilterModal('chal-filters-modal')" aria-label="Filters"><span class="material-icons">tune</span></button>
+    </div>
+    <div id="chal-filters-modal" class="filter-modal" style="display:none;" onclick="if(event.target===this)ffpToggleFilterModal('chal-filters-modal')">
+      <div class="filter-modal-card">
+        <div class="filter-modal-head"><div class="filter-modal-title">Filters</div><button class="filter-modal-x" onclick="ffpToggleFilterModal('chal-filters-modal')" aria-label="Close">&times;</button></div>
+        <div class="filter-modal-body">
+          <select class="ffp-select" id="chal-filter-country"></select>
+          <select class="ffp-select" id="chal-filter-city"></select>
+          <select class="ffp-select" id="chal-type">
+            <option value="all">All challenges</option>
+            <option value="provider">Provider challenges</option>
+            <option value="member">Member challenges</option>
+          </select>
+          <select class="ffp-select" id="chal-sport">
+            <option value="all">All sports</option>
+            <option value="Running">Running</option>
+            <option value="Cycling">Cycling</option>
+            <option value="Swimming">Swimming</option>
+            <option value="Yoga">Yoga</option>
+            <option value="Padel">Padel</option>
+            <option value="Fitness">Fitness</option>
+            <option value="Hiking">Hiking</option>
+            <option value="Multi-sport">Multi-sport</option>
+          </select>
+        </div>
+        <button class="filter-modal-done" onclick="ffpToggleFilterModal('chal-filters-modal')">Done</button>
+      </div>
     </div>
     
     <div class="meetup-grid" id="chal-grid"></div>
@@ -10667,8 +10688,24 @@ const Quests = {
 // Each event is organised by a provider. Members RSVP.
 // City dropdown + Category dropdown. Detail + RSVP confirm modal.
 // =====================================================================
+// ── Shared browse-panel filter modal helpers (v188) ──
+function ffpToggleFilterModal(id){ var w=document.getElementById(id); if(w) w.style.display=(w.style.display==='none'||!w.style.display)?'flex':'none'; }
+function ffpFillLocationFilter(countrySelId, citySelId, onChange){
+  var cs=document.getElementById(countrySelId), ct=document.getElementById(citySelId);
+  if(!cs||!ct||!(window.FFP_TAX&&FFP_TAX.cities)) return;
+  var countries=Object.keys(FFP_TAX.cities);
+  cs.innerHTML='<option value="all">All countries</option>'+countries.map(function(c){return '<option>'+c+'</option>';}).join('');
+  function fill(country){ var list=(country!=='all'&&FFP_TAX.cities[country])?FFP_TAX.cities[country]:[]; ct.innerHTML='<option value="all">All cities</option>'+list.map(function(c){return '<option>'+c+'</option>';}).join(''); }
+  var def=FFP_TAX.cities['United Arab Emirates']?'United Arab Emirates':'all';
+  cs.value=def; fill(def);
+  if(onChange) onChange(def,'all');
+  cs.addEventListener('change',function(){ fill(this.value); if(onChange) onChange(this.value,'all'); });
+  ct.addEventListener('change',function(){ if(onChange) onChange(cs.value, this.value); });
+}
+
 const Events = {
   tab: 'upcoming',
+  country: 'all',
   city: 'all',
   cat: 'all',
   search: '',
@@ -10685,7 +10722,7 @@ const Events = {
         this.render();
       });
     });
-    document.getElementById('events-city').addEventListener('change', e => { this.city = e.target.value; this.render(); });
+    ffpFillLocationFilter('events-filter-country','events-filter-city', (country,city)=>{ this.country=country; this.city=city; this.render(); });
     document.getElementById('events-cat').addEventListener('change', e => { this.cat = e.target.value; this.render(); });
     document.getElementById('events-search').addEventListener('input', e => { this.search = e.target.value.toLowerCase(); this.render(); });
     this.render();
@@ -10696,7 +10733,8 @@ const Events = {
     if (this.tab === 'upcoming') items = items.filter(e => e.daysAway >= 0);
     else if (this.tab === 'going') items = items.filter(e => this.rsvped.has(e.id));
     else if (this.tab === 'past')  items = items.filter(e => e.daysAway < 0);
-    if (this.city !== 'all') items = items.filter(e => e.city === this.city);
+    if (this.country !== 'all' && this.city === 'all') { var ec=(window.FFP_TAX&&FFP_TAX.cities[this.country])||[]; if(ec.length) items = items.filter(e => !e.city || ec.indexOf(e.city)>=0); }
+    if (this.city !== 'all') items = items.filter(e => (e.city||'') === this.city);
     if (this.cat  !== 'all') items = items.filter(e => e.category === this.cat);
     if (this.search) items = items.filter(e =>
       e.title.toLowerCase().includes(this.search) || e.venue.toLowerCase().includes(this.search) || e.organizer.toLowerCase().includes(this.search));
@@ -10914,6 +10952,8 @@ const Events = {
 // =====================================================================
 const Experiences = {
   tab: 'discover',
+  country: 'all',
+  city: 'all',
   cat: 'all',
   status: 'all',
   search: '',
@@ -10930,6 +10970,7 @@ const Experiences = {
         this.render();
       });
     });
+    ffpFillLocationFilter('xp-filter-country','xp-filter-city', (country,city)=>{ this.country=country; this.city=city; this.render(); });
     document.getElementById('xp-cat').addEventListener('change', e => { this.cat = e.target.value; this.render(); });
     document.getElementById('xp-status').addEventListener('change', e => { this.status = e.target.value; this.render(); });
     document.getElementById('xp-search').addEventListener('input', e => { this.search = e.target.value.toLowerCase(); this.render(); });
@@ -10940,6 +10981,8 @@ const Experiences = {
     let items = this.data.slice();
     if (this.tab === 'applied') items = items.filter(x => this.applied.has(x.id));
     if (this.tab === 'past') items = []; // no past sample data
+    if (this.country !== 'all' && this.city === 'all') { var xc=(window.FFP_TAX&&FFP_TAX.cities[this.country])||[]; if(xc.length) items = items.filter(x => { var loc=((x.city||x.location||'')+'').toLowerCase(); return loc==='' || xc.some(function(c){return loc.includes(c.toLowerCase());}); }); }
+    if (this.city !== 'all') items = items.filter(x => { var loc=((x.city||x.location||'')+'').toLowerCase(); return loc==='' || loc.includes(this.city.toLowerCase()); });
     if (this.cat !== 'all') items = items.filter(x => x.category === this.cat);
     if (this.status === 'open')   items = items.filter(x => !x.full);
     if (this.status === 'almost') items = items.filter(x => (x.taken / x.spots) >= 0.75 && !x.full);
@@ -11752,6 +11795,8 @@ const MeetMove = {
 // =====================================================================
 const Challenges = {
   tab: 'active',
+  country: 'all',
+  city: 'all',
   type: 'all',
   sport: 'all',
   search: '',
@@ -11768,6 +11813,7 @@ const Challenges = {
         this.render();
       });
     });
+    ffpFillLocationFilter('chal-filter-country','chal-filter-city', (country,city)=>{ this.country=country; this.city=city; this.render(); });
     document.getElementById('chal-search').addEventListener('input', e => { this.search = e.target.value.toLowerCase(); this.render(); });
     document.getElementById('chal-type').addEventListener('change', e => { this.type = e.target.value; this.render(); });
     document.getElementById('chal-sport').addEventListener('change', e => { this.sport = e.target.value; this.render(); });
@@ -11779,6 +11825,8 @@ const Challenges = {
     if (this.tab === 'active') items = items.filter(c => c.status === 'active');
     if (this.tab === 'past')   items = items.filter(c => c.status === 'past');
     if (this.tab === 'mine')   items = items.filter(c => this.joined.has(c.id));
+    if (this.country !== 'all' && this.city === 'all') { var cc2=(window.FFP_TAX&&FFP_TAX.cities[this.country])||[]; if(cc2.length) items = items.filter(c => !c.city || cc2.indexOf(c.city)>=0); }
+    if (this.city !== 'all') items = items.filter(c => !c.city || (c.city||'') === this.city);
     if (this.type !== 'all')   items = items.filter(c => c.kind === this.type);
     if (this.sport !== 'all')  items = items.filter(c => c.sport === this.sport);
     if (this.search) items = items.filter(c =>
