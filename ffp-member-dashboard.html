@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v202 (2026-06-01)
+<!-- FFP MEMBER DASHBOARD — v203 (2026-06-01)
+     v203: Modals full-screen on mobile (Log activity, Add city, PIN, pickers, detail cards; confirms stay centered).
+           Notifications converted from bottom pill to prominent TOP banner (desktop + mobile).
+           Post-a-Meetup form: Date -> single-tap native calendar (default today, no past); Time/select overshoot
+           fixed (min-width:0 + box-sizing); Time & Capacity stay side-by-side on mobile; Location + Maps link moved
+           under City; Title capped at a concise 40 chars with live counter.
      v202: FIX Experiences not showing — filter defaulted to UAE, hiding international experiences.
      Experiences country filter now defaults to All countries. (Events/Challenges keep UAE default.)
      v201: matches carousel + Add passport. -->
@@ -2801,12 +2806,13 @@ input[type="number"] {
 .cm-footer .btn-primary-blue { flex: 1; padding: 11px; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; box-shadow: none; }
 
 /* Toast */
-.toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(100px); background: #0f1e2e; border: 1px solid var(--blue); border-radius: 100px; padding: 11px 20px; font-size: 12px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; z-index: 10000; box-shadow: 0 8px 24px rgba(0,0,0,0.5); opacity: 0; transition: all 0.3s; pointer-events: none; max-width: calc(100vw - 40px); }
+/* v203: notifications are a prominent TOP banner (was an easy-to-miss bottom pill) — desktop + mobile */
+.toast { position: fixed; top: 0; left: 50%; transform: translateX(-50%) translateY(-130%); background: #0f1e2e; border: 1px solid var(--border-mid); border-top: 4px solid #FFCC00; border-radius: 0 0 14px 14px; padding: 15px 24px; font-size: 15px; font-weight: 800; color: var(--text); display: flex; align-items: center; justify-content: center; gap: 10px; z-index: 100000; box-shadow: 0 12px 32px rgba(0,0,0,0.55); opacity: 0; transition: all 0.32s cubic-bezier(.2,.8,.2,1); pointer-events: none; width: 100%; max-width: 560px; }
 .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
-.toast .material-icons { font-size: 16px; color: #4ade80; }
+.toast .material-icons { font-size: 20px; color: #4ade80; }
 
 /* Native select dropdown — styled to match FFP */
-.ffp-select { width: 100%; padding: 10px 36px 10px 12px; background: rgba(43,168,224,0.06); border: 1px solid var(--border-mid); border-radius: 8px; color: var(--text); font-size: 12px; font-weight: 700; font-family: inherit; outline: none; cursor: pointer; appearance: none; -webkit-appearance: none; -moz-appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a99a8' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>"); background-repeat: no-repeat; background-position: right 10px center; }
+.ffp-select { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; padding: 10px 36px 10px 12px; background: rgba(43,168,224,0.06); border: 1px solid var(--border-mid); border-radius: 8px; color: var(--text); font-size: 12px; font-weight: 700; font-family: inherit; outline: none; cursor: pointer; appearance: none; -webkit-appearance: none; -moz-appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a99a8' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>"); background-repeat: no-repeat; background-position: right 10px center; }
 .ffp-select:focus { border-color: var(--blue); }
 .ffp-select option { background: var(--bg-2); color: var(--text); }
 
@@ -2916,10 +2922,13 @@ input[type="number"] {
 .pm-form-field { margin-bottom: 14px; }
 .pm-form-label { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
 .pm-form-input,
-.pm-form-textarea { width: 100%; padding: 10px 12px; background: rgba(43,168,224,0.06); border: 1px solid var(--border-mid); border-radius: 8px; color: var(--text); font-size: 13px; font-family: inherit; outline: none; }
+.pm-form-textarea { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; padding: 10px 12px; background: rgba(43,168,224,0.06); border: 1px solid var(--border-mid); border-radius: 8px; color: var(--text); font-size: 13px; font-family: inherit; outline: none; }
 .pm-form-input:focus,
 .pm-form-textarea:focus { border-color: var(--blue); }
 .pm-form-textarea { min-height: 60px; resize: vertical; }
+/* native date/time controls otherwise overflow their grid column on iOS */
+input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-appearance: none; appearance: none; }
+.pm-form-help { font-size: 11px; color: var(--muted); margin-top: 5px; }
 .pmf-ac-wrap { position: relative; }
 .pmf-ac-results { display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 50; background: #0f1e2e; border: 1px solid var(--border-mid); border-radius: 8px; max-height: 210px; overflow-y: auto; }
 .pmf-ac-item { padding: 9px 12px; font-size: 13px; color: var(--text); cursor: pointer; border-bottom: 1px solid rgba(43,168,224,0.08); }
@@ -2929,6 +2938,14 @@ input[type="number"] {
 #post-meetup-backdrop .detail-modal { max-width: 640px; width: 100%; min-height: 100vh; max-height: none; border-radius: 0; border: none; margin: 0; }
 .detail-backdrop.dm-full { align-items: stretch; padding: 0; }
 .detail-backdrop.dm-full .detail-modal { max-width: 560px; width: 100%; min-height: 100vh; max-height: none; border-radius: 0; margin: 0; }
+/* v203: data-entry & content modals fill the screen on mobile (Log activity, Add city, PIN, pickers, detail cards).
+   Small yes/no confirms (#confirm-backdrop / .confirm-modal) stay a centered dialog on purpose. */
+@media (max-width: 640px) {
+  .modal-overlay { padding: 0; align-items: stretch; }
+  .modal-overlay > .modal { max-width: 100%; width: 100%; height: 100%; max-height: 100%; border-radius: 0; border: none; }
+  .detail-backdrop:not(#confirm-backdrop) { padding: 0; align-items: stretch; }
+  .detail-backdrop:not(#confirm-backdrop) > .detail-modal { max-width: 100%; width: 100%; min-height: 100vh; max-height: none; border-radius: 0; border: none; margin: 0; }
+}
 .pm-form-pick { display: flex; align-items: center; justify-content: space-between; cursor: pointer; text-align: left; }
 .pmf-pick-ph { color: var(--muted); }
 #pmf-cat-display.set { color: var(--text); font-weight: 700; }
@@ -2952,7 +2969,8 @@ input[type="number"] {
 .pmfp-level-name { font-size: 16px; font-weight: 800; color: #fff; }
 .pmfp-level-desc { font-size: 13px; color: #9dbdd0; margin-top: 3px; line-height: 1.5; }
 .pm-form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-@media (max-width:560px){ .pm-form-grid-2 { grid-template-columns: 1fr; } }
+.pm-form-grid-2 > * { min-width: 0; }
+@media (max-width:560px){ .pm-form-grid-2 { grid-template-columns: 1fr 1fr; gap: 8px; } }
 
 /* Provider vs Community challenges */
 .chal-group-head { font-size: 11px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: var(--blue); margin: 16px 0 8px; display: flex; align-items: center; gap: 6px; }
@@ -5288,7 +5306,8 @@ input[type="number"] {
     <div class="pm-form">
       <div class="pm-form-field">
         <label class="pm-form-label">Title</label>
-        <input type="text" class="pm-form-input" id="pmf-title" placeholder="e.g. Padel doubles — need a 4th">
+        <input type="text" class="pm-form-input" id="pmf-title" maxlength="40" placeholder="e.g. Padel doubles — need a 4th" oninput="pmfTitleCount()">
+        <div class="pm-form-help"><span id="pmf-title-count">0</span>/40 — keep it short and clear</div>
       </div>
       <div class="pm-form-field">
         <label class="pm-form-label">Activity &amp; level</label>
@@ -5301,11 +5320,7 @@ input[type="number"] {
       </div>
       <div class="pm-form-field">
         <label class="pm-form-label">Date</label>
-        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
-          <select class="ffp-select" id="pmf-day"></select>
-          <select class="ffp-select" id="pmf-month"></select>
-          <select class="ffp-select" id="pmf-year"></select>
-        </div>
+        <input type="date" class="pm-form-input" id="pmf-date">
       </div>
       <div class="pm-form-grid-2">
         <div class="pm-form-field">
@@ -5325,11 +5340,6 @@ input[type="number"] {
           </select>
         </div>
       </div>
-      <div class="pm-form-field">
-        <label class="pm-form-label">Location</label>
-        <input type="text" class="pm-form-input" id="pmf-venue" placeholder="e.g. Kite Beach, Dubai" oninput="pmfUpdateMap()">
-        <a id="pmf-maplink" href="#" target="_blank" rel="noopener" style="display:none; font-size:12px; color:var(--blue); margin-top:6px; align-items:center; gap:4px;"><span class="material-icons" style="font-size:14px;vertical-align:-3px;">place</span> View on Google Maps</a>
-      </div>
       <div class="pm-form-grid-2">
         <div class="pm-form-field">
           <label class="pm-form-label">Country</label>
@@ -5339,6 +5349,11 @@ input[type="number"] {
           <label class="pm-form-label">City</label>
           <select class="ffp-select" id="pmf-city"></select>
         </div>
+      </div>
+      <div class="pm-form-field">
+        <label class="pm-form-label">Location</label>
+        <input type="text" class="pm-form-input" id="pmf-venue" placeholder="e.g. Kite Beach, Dubai" oninput="pmfUpdateMap()">
+        <a id="pmf-maplink" href="#" target="_blank" rel="noopener" style="display:none; font-size:12px; color:var(--blue); margin-top:6px; align-items:center; gap:4px;"><span class="material-icons" style="font-size:14px;vertical-align:-3px;">place</span> View on Google Maps</a>
       </div>
       <div class="pm-form-grid-2">
         <div class="pm-form-field">
@@ -5413,6 +5428,7 @@ input[type="number"] {
   window.pmfChooseActivity=function(name){ SPORT=name; document.getElementById('pmfp-sport-name').textContent=name; var lv=document.getElementById('pmfp-levels'); var levels=(window.FFP_TAX&&FFP_TAX.fitnessLevels)||['Not Tried','Social','Competitive','Representative','Professional']; lv.innerHTML=levels.map(function(n){ return '<div class="pmfp-level" onclick="pmfPickLevel(\''+String(n).replace(/'/g,"\\'")+'\')"><div><div class="pmfp-level-name">'+esc(n)+'</div><div class="pmfp-level-desc">'+esc(LD[n]||'')+'</div></div></div>'; }).join(''); document.getElementById('pmfp-stage-sport').style.display='none'; document.getElementById('pmfp-stage-level').style.display=''; };
   window.pmfPickLevel=function(level){ var v=document.getElementById('pmf-cat'), l=document.getElementById('pmf-level'), d=document.getElementById('pmf-cat-display'); if(v)v.value=SPORT; if(l)l.value=level; if(d){ d.textContent=SPORT+' · '+level; d.classList.add('set'); } window.pmfClosePicker(); };
   window.pmfUpdateMap=function(){ var v=(document.getElementById('pmf-venue').value||'').trim(); var a=document.getElementById('pmf-maplink'); if(!a)return; if(v){ a.href='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(v); a.style.display='inline-flex'; } else { a.style.display='none'; } };
+  window.pmfTitleCount=function(){ var t=document.getElementById('pmf-title'), c=document.getElementById('pmf-title-count'); if(t&&c) c.textContent=(t.value||'').length; };
 })();
 </script>
 
@@ -11729,16 +11745,14 @@ const MeetMove = {
   
   openPostForm() {
     var g = function (id) { return document.getElementById(id); };
-    var dayS = g('pmf-day'), monS = g('pmf-month'), yrS = g('pmf-year');
-    var hrS = g('pmf-hour'), mnS = g('pmf-min'), apS = g('pmf-ap');
     var cnyS = g('pmf-country'), citS = g('pmf-city');
     var afS = g('pmf-age-from'), atS = g('pmf-age-to');
-    if (dayS && dayS.options.length === 0) {
-      for (var d = 1; d <= 31; d++) dayS.add(new Option(String(d).padStart(2, '0'), d));
-      var MN = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-      MN.forEach(function (m, i) { monS.add(new Option(m, i + 1)); });
-      var y0 = new Date().getFullYear();
-      for (var y = y0; y <= y0 + 1; y++) yrS.add(new Option(y, y));
+    // Date — native single-tap calendar; default today, can't pick the past.
+    var dateI = g('pmf-date');
+    if (dateI) {
+      var _t = new Date(); var _today = _t.getFullYear() + '-' + String(_t.getMonth() + 1).padStart(2, '0') + '-' + String(_t.getDate()).padStart(2, '0');
+      dateI.min = _today;
+      if (!dateI.value) dateI.value = _today;
     }
     // Time — hour 1-12 + minute (5-min steps) + AM/PM (standard scroll selects)
     if (hrS && hrS.options.length === 0) {
@@ -11822,11 +11836,10 @@ const MeetMove = {
     if (parseInt(ageFrom, 10) > parseInt(ageTo, 10)) { alert('Age "from" must be less than or equal to "to".'); return; }
     var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
     if (!member || !member.id) { alert('Please sign in again to post a meetup.'); return; }
-    var day = document.getElementById('pmf-day').value;
-    var mon = String(document.getElementById('pmf-month').value).padStart(2, '0');
-    var yr = document.getElementById('pmf-year').value;
+    var dateStr = document.getElementById('pmf-date').value;
+    if (!dateStr) { alert('Pick a date.'); return; }
     var tm = document.getElementById('pmf-time').value || '18:00';
-    var meetsAt = yr + '-' + mon + '-' + String(day).padStart(2, '0') + 'T' + tm + ':00';
+    var meetsAt = dateStr + 'T' + tm + ':00';
     var g = document.getElementById('pmf-gender').value;
     var groupFilter = g === 'female' ? 'women_only' : (g === 'male' ? 'men_only' : null);
     var payload = {
@@ -11852,6 +11865,7 @@ const MeetMove = {
     this.closePostForm();
     showToast('Meetup posted — visible to matched members', 'send');
     ['pmf-title','pmf-venue','pmf-cost','pmf-desc','pmf-cat-search','pmf-cat'].forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ''; });
+    if (typeof window.pmfTitleCount === 'function') window.pmfTitleCount();
     if (typeof window.ffpReloadMeetMove === 'function') { try { window.ffpReloadMeetMove(); } catch (e) {} }
   }
 };
