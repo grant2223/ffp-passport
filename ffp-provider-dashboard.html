@@ -20,6 +20,9 @@
 <script src="ffp-provider-events-loader.js"></script>
 <script src="ffp-provider-experiences-loader.js"></script>
 <script src="ffp-provider-challenges-loader.js"></script>
+<!-- v20 (2026-06-01): E/E/C create forms to FFP form standards — labels not bold; Venue->Location
+     + Google Maps link (events, challenges) + map link on experience destination. Time/date already
+     native. Country/City cascade intentionally NOT forced (experiences international). -->
 <!-- v12: notifications loader restored (this branch was missing it) — wires the
      topbar bell to real data AND overrides signOut() to do a real ffpLogout()
      instead of the inline demo that showed a blank screen. -->
@@ -497,8 +500,8 @@ a { color: var(--ffp-blue); text-decoration: none; }
 
 .field { display: flex; flex-direction: column; gap: 6px; }
 .label {
-  font-size: 10px; font-weight: 800;
-  letter-spacing: 1.2px; text-transform: uppercase;
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.6px; text-transform: uppercase;
   color: var(--ffp-text-muted);
 }
 .label .req { color: var(--ffp-yellow); margin-left: 3px; }
@@ -3362,8 +3365,9 @@ function openEventModal(id) {
           <input class="input" type="time" id="em-time" value="${escHtml(e.event_time)}">
         </div>
         <div class="field">
-          <div class="label">Venue</div>
-          <input class="input" id="em-venue" value="${escHtml(e.venue)}" placeholder="Venue name">
+          <div class="label">Location</div>
+          <input class="input" id="em-venue" value="${escHtml(e.venue)}" placeholder="e.g. Kite Beach, Dubai">
+          <a class="label-hint" style="cursor:pointer;color:#2ba8e0;display:inline-flex;align-items:center;gap:4px;margin-top:5px;" onclick="ffpOpenMap('em-venue')"><span class="ms" style="font-size:14px;">place</span> View on Google Maps</a>
         </div>
         <div class="field">
           <div class="label">City</div>
@@ -3600,6 +3604,7 @@ function openExperienceModal(id) {
         <div class="field">
           <div class="label">Destination</div>
           <input class="input" id="xm-destination" value="${escHtml(e.destination)}" placeholder="e.g. Hatta, Dubai">
+          <a class="label-hint" style="cursor:pointer;color:#2ba8e0;display:inline-flex;align-items:center;gap:4px;margin-top:5px;" onclick="ffpOpenMap('xm-destination')"><span class="ms" style="font-size:14px;">place</span> View on Google Maps</a>
         </div>
       </div>
     </div>
@@ -3872,8 +3877,9 @@ function openChallengeModal(id) {
           <input class="input" id="cm-metric" value="${escHtml(c.metric)}" placeholder="e.g. Combined PR kg increase">
         </div>
         <div class="field">
-          <div class="label">Venue</div>
-          <input class="input" id="cm-venue" value="${escHtml(c.venue)}">
+          <div class="label">Location</div>
+          <input class="input" id="cm-venue" value="${escHtml(c.venue)}" placeholder="e.g. Studio, Dubai (or Virtual)">
+          <a class="label-hint" style="cursor:pointer;color:#2ba8e0;display:inline-flex;align-items:center;gap:4px;margin-top:5px;" onclick="ffpOpenMap('cm-venue')"><span class="ms" style="font-size:14px;">place</span> View on Google Maps</a>
         </div>
         <div class="field">
           <div class="label">Prize <span class="label-hint">— physical gift only</span></div>
@@ -4544,5 +4550,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.FFP_TAX.phoneCodes.forEach(function(c){ var o=document.createElement('option'); o.value=c.code; o.textContent=(c.flag?c.flag+' ':'')+c.code; sel.appendChild(o); }); });  // v18: uniform flag + + + digits
 })();
 </script>
+<script>window.ffpOpenMap=function(id){var el=document.getElementById(id);var v=el?(el.value||'').trim():'';if(v)window.open('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(v),'_blank');};</script>
 </body>
 </html>
