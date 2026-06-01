@@ -1,9 +1,10 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v184 (2026-06-01)
-     v184: skill levels swapped to Not Tried / Social / Competitive / Representative /
-           Professional (filter + post dropdowns + matching order). Matches modal now uses
-           two tabs: 'Matching with' and 'Connected with'.
-     v183: Connections decluttered (single button, collapsible filters, Matches modal).
+     FFP MEMBER DASHBOARD — v185 (2026-06-01)
+     v185: Connections filters reworked — search bar always visible (left) + filter icon
+           (right); tapping it drops down the filters incl. a Country->City cascade (shared
+           FFP_TAX.cities, default UAE) + Category/Gender/Time/Level. Template for the other
+           browse panels (Events/Experiences/Challenges) next.
+     v184: skill levels Not Tried..Professional; Matches modal two tabs.
      ════════════════════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="en">
@@ -2341,6 +2342,11 @@ input[type="number"] {
 .progression-list { display: flex; flex-direction: column; gap: 4px; }
 .mm-tab { flex: 1; background: rgba(43,168,224,0.06); border: 1px solid var(--border-mid); color: var(--muted); font-size: 12px; font-weight: 800; padding: 9px; border-radius: 8px; cursor: pointer; font-family: inherit; }
 .mm-tab.active { background: rgba(43,168,224,0.18); border-color: var(--blue); color: var(--text); }
+.filter-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+.filter-bar .panel-search { flex: 1; }
+.filter-icon-btn { flex-shrink: 0; width: 42px; height: 42px; border-radius: 10px; background: rgba(43,168,224,0.08); border: 1px solid var(--border-mid); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.filter-icon-btn:hover { border-color: var(--blue); color: var(--blue); }
+.filter-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; padding: 12px; background: rgba(43,168,224,0.04); border: 1px solid var(--border); border-radius: 10px; }
 .prog-strap { display: flex; align-items: center; gap: 10px; padding: 8px 2px; }
 .prog-strap-icon { width: 38px; height: 38px; border-radius: 10px; background: rgba(43,168,224,0.12); border: 1px solid rgba(43,168,224,0.22); display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; padding: 0; transition: background .15s, transform .1s; }
 .prog-strap-icon:hover { background: rgba(43,168,224,0.22); }
@@ -4384,18 +4390,17 @@ input[type="number"] {
       <button class="tabs-underline-btn" data-meet-tab="past">Past</button>
     </div>
     
-    <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
-      <button id="meet-filters-toggle" onclick="MeetMove.toggleFilters()" style="display:inline-flex;align-items:center;gap:6px;background:rgba(43,168,224,0.08);border:1px solid var(--border-mid);color:var(--text);font-size:12px;font-weight:700;padding:7px 12px;border-radius:8px;cursor:pointer;font-family:inherit;">
-        <span class="material-icons" style="font-size:16px;">tune</span> Filters
-      </button>
-    </div>
-    <!-- Filters — search + 4 dropdowns (collapsed by default) -->
-    <div id="meet-filters-wrap" style="display:none;">
-    <div class="meet-filter-row">
+    <!-- v185: search always visible (left) + filter icon (right); filters drop down below -->
+    <div class="filter-bar">
       <div class="panel-search">
         <span class="material-icons">search</span>
         <input type="text" id="meet-search" placeholder="Search activity, venue or host">
       </div>
+      <button class="filter-icon-btn" onclick="MeetMove.toggleFilters()" aria-label="Filters"><span class="material-icons">tune</span></button>
+    </div>
+    <div id="meet-filters-wrap" class="filter-panel" style="display:none;">
+      <select class="ffp-select" id="meet-filter-country"></select>
+      <select class="ffp-select" id="meet-filter-city"></select>
       <select class="ffp-select" id="meet-filter-cat">
         <option value="all">All categories</option>
         <option value="racquet">Racquet</option>
@@ -4429,9 +4434,7 @@ input[type="number"] {
         <option value="Representative">Representative</option>
         <option value="Professional">Professional</option>
       </select>
-    </div>
-    
-    <div id="meet-pro-chip-row" style="display:none;margin-bottom:14px;">
+      <div id="meet-pro-chip-row" style="display:none;grid-column:1 / -1;">
       <button id="meet-pro-chip" onclick="MeetMove.toggleProOnly()" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,204,0,0.10);border:1px solid rgba(255,204,0,0.4);color:#FFCC00;font-size:12px;font-weight:800;padding:8px 14px;border-radius:20px;cursor:pointer;font-family:inherit;">
         <span class="material-icons" style="font-size:15px;">workspace_premium</span> Professionals only
       </button>
@@ -11140,6 +11143,8 @@ const MeetMove = {
   when: 'all',
   gender: 'all',
   level: 'all',
+  country: 'all',
+  city: 'all',
   proOnly: false,
   
   // Matched members (sample) — production: GET /api/meet/matches?member_id=me
@@ -11162,9 +11167,28 @@ const MeetMove = {
     document.getElementById('meet-filter-when').addEventListener('change', e => { this.when = e.target.value; this.render(); });
     document.getElementById('meet-filter-gender').addEventListener('change', e => { this.gender = e.target.value; this.render(); });
     document.getElementById('meet-filter-level').addEventListener('change', e => { this.level = e.target.value; this.render(); });
+    this.initLocationFilter();
     this.renderMatchStrip();
     this.render();
     this.loadMatches();
+  },
+
+  // v185: Country -> City cascade for the meet-up filters (shared FFP_TAX.cities). Default UAE.
+  initLocationFilter() {
+    var cs = document.getElementById('meet-filter-country');
+    var ct = document.getElementById('meet-filter-city');
+    if (!cs || !ct || !(window.FFP_TAX && FFP_TAX.cities)) return;
+    var self = this;
+    var countries = Object.keys(FFP_TAX.cities);
+    cs.innerHTML = '<option value="all">All countries</option>' + countries.map(function (c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
+    function fillCities(country) {
+      var list = (country !== 'all' && FFP_TAX.cities[country]) ? FFP_TAX.cities[country] : [];
+      ct.innerHTML = '<option value="all">All cities</option>' + list.map(function (c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
+    }
+    if (FFP_TAX.cities['United Arab Emirates']) { cs.value = 'United Arab Emirates'; self.country = 'United Arab Emirates'; fillCities('United Arab Emirates'); }
+    else { fillCities('all'); }
+    cs.addEventListener('change', function () { self.country = this.value; self.city = 'all'; fillCities(this.value); self.render(); });
+    ct.addEventListener('change', function () { self.city = this.value; self.render(); });
   },
   
   renderMatchStrip() {
@@ -11273,6 +11297,11 @@ const MeetMove = {
     if (this.when !== 'all') items = items.filter(m => m.whenSlot === this.when);
     if (this.gender !== 'all') items = items.filter(m => m.gender === this.gender);
     if (this.level !== 'all') items = items.filter(m => m.level === this.level);
+    if (this.country !== 'all' && this.city === 'all') {
+      var cc = (window.FFP_TAX && FFP_TAX.cities[this.country]) || [];
+      items = items.filter(m => cc.indexOf(m.city) >= 0);
+    }
+    if (this.city !== 'all') items = items.filter(m => (m.city || '') === this.city);
     if (!isMemberProfessional()) items = items.filter(m => !m.isProfessional);
     if (this.proOnly) items = items.filter(m => m.isProfessional);
     return items;
