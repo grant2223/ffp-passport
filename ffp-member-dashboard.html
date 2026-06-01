@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v207 (2026-06-01)
+<!-- FFP MEMBER DASHBOARD — v208 (2026-06-01)
+     v208: "Who's going" is now a BUILT-IN section of the meetup detail modal (host shown FIRST), rendered inline
+           via MeetMove.whosGoingInline(m) using m.attendees (host-first from the loader) + FFPPassportCard.
+           Was previously injected by ffp-meet-move-loader via setTimeout — fragile, silently vanished if the
+           loader was stale/slow. Inline section uses id="ffp-whos-going" so the loader's old injection no-ops
+           (no duplicate) regardless of which loader version is live.
      v207: Log Activity modal REBUILT on the SAME system as Post-a-Meetup (the one that works) instead of the
            legacy .modal + media-query patch. Now uses .detail-backdrop/.detail-modal + .pm-form/.ffp-select,
            and #log-modal-backdrop shares #post-meetup-backdrop's full-screen rule → identical full-screen
@@ -11616,12 +11621,42 @@ const MeetMove = {
         <div class="dm-section-label">About this meetup</div>
         <p>${escHtml(m.about || 'Member-hosted meetup.')}</p>
       </div>
+      <div class="dm-section" id="ffp-whos-going">${this.whosGoingInline(m)}</div>
       <div class="dm-footer">
         <button class="btn-primary-yellow ${btnClass}" ${btnDisabled} onclick="MeetMove.requestJoin('${m.id}')">${btnLabel}</button>
         <div class="dm-footer-note">Host approves who's in. Cancellation up to 12 hours before.</div>
       </div>
     `;
     openDetailModal(body, true);
+    if (window.ffpScaleCards) setTimeout(() => { try { window.ffpScaleCards(document.getElementById('ffp-whos-going')); } catch (e) {} }, 0);
+  },
+
+  // Who's going — rendered INLINE as part of the modal (host first). Data (m.attendees) is host-first
+  // from the meet-move loader's buildAttendees(); reuses the FFPPassportCard component (defined in this file).
+  whosGoingInline(m) {
+    const people = (m && m.attendees) || [];
+    const cap = (m && (m.capacity || m.spots)) || '';
+    const header = `<div class="dm-section-label">Who's going (${people.length}${cap ? '/' + cap : ''})</div>`;
+    if (!people.length) {
+      const hostName = (m && m.host) ? escHtml(m.host) : 'The host';
+      return header + `<div style="font-size:12px;color:var(--muted);">${hostName} is hosting — be the first to join.</div>`;
+    }
+    const canCard = window.FFPPassportCard && typeof window.FFPPassportCard.render === 'function';
+    if (canCard) {
+      const cards = people.map(p => {
+        const member = { id: p.id, name: p.name, givenNames: p.givenNames, surname: p.surname, photo: p.photo,
+          city: p.city, country: p.country, gender: p.gender, memberType: p.memberType, memberSince: p.memberSince, sports: p.sports };
+        return `<div style="margin-bottom:12px;">${window.FFPPassportCard.render(member, { context: 'attendee', role: (p.isHost ? 'HOST' : 'GOING'), flippable: true })}</div>`;
+      }).join('');
+      return header + `<div style="font-size:11px;color:var(--muted);margin:-4px 0 10px;">Tap a passport to flip it</div>` + cards;
+    }
+    const rows = people.map(p => {
+      const av = p.photo
+        ? `<span style="width:36px;height:36px;border-radius:50%;display:inline-block;flex-shrink:0;background:#0a1825 url('${p.photo}') center/cover;"></span>`
+        : `<span style="width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;background:#13314a;color:#cfe3f2;font-weight:800;">${escHtml((p.name || 'M').charAt(0).toUpperCase())}</span>`;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">${av}<div><div style="font-weight:700;font-size:13px;">${escHtml(p.name)}${p.isHost ? ' <span style="font-size:9px;font-weight:800;color:#FFCC00;border:1px solid #FFCC00;border-radius:20px;padding:1px 7px;vertical-align:1px;">HOST</span>' : ''}</div>${p.city ? `<div style="font-size:11px;color:var(--muted);">${escHtml(p.city)}</div>` : ''}</div></div>`;
+    }).join('');
+    return header + rows;
   },
   
   requestJoin(id) {
