@@ -1,9 +1,10 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v191 (2026-06-01)
-     v191: Matches deck uses the REAL .pass-shell passport card (scaled), flip-back =
-           activities+record. Deck-only (List removed). Buttons: back / flip / next +
-           yellow 'Request to connect'. Fixed swipe/tap dying after first card.
-     v190: matches overhaul (component + deck) + handle_connection RPC.
+     FFP MEMBER DASHBOARD — v192 (2026-06-01)
+     v192: Matches polish — % moved ABOVE the card (card stays clean official passport);
+           back = 'Activities + Level' with 5 thicker blue level dashes; arrows/flip larger,
+           no background (left sends card left, right sends right); instructional text above
+           the yellow Request-to-connect button.
+     v191: deck uses real .pass-shell card; deck-only; swipe/tap bind fix.
      ════════════════════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="en">
@@ -12745,33 +12746,30 @@ setTimeout(scalePassportCard, 200);
 .ffp-pc-face{ position:absolute; inset:0; -webkit-backface-visibility:hidden; backface-visibility:hidden; border-radius:14px; overflow:hidden; }
 .ffp-pc-back{ transform:rotateY(180deg); }
 .ffp-pc-face .pass-shell{ position:absolute; top:0; left:0; box-shadow:none; }
-.ffp-compat-ring{ width:66px; height:66px; border-radius:50%; border:3px solid var(--pass-gold); display:flex; align-items:baseline; justify-content:center; }
-.ffp-compat-num{ font-size:26px; font-weight:900; color:var(--pass-gold); line-height:1; }
-.ffp-compat-pct{ font-size:12px; font-weight:800; color:var(--pass-gold); }
 .ffp-pc-badge{ font-size:12px; font-weight:900; letter-spacing:1px; color:var(--pass-blue); border:2px solid var(--pass-blue); border-radius:8px; padding:6px 10px; }
-.ffp-bk-meter{ display:flex; gap:3px; margin-top:3px; }
+.ffp-bk-meter{ display:flex; gap:4px; margin-top:4px; }
 .ffp-bk-cell{ background:rgba(232,238,243,0.7); border:1px solid rgba(26,41,55,0.12); border-radius:5px; padding:6px 8px; }
 .ffp-deck-overlay{ position:fixed; inset:0; z-index:9600; background:#081420; display:none; flex-direction:column; padding:14px 16px 22px; }
 .ffp-deck-overlay.open{ display:flex; }
-.ffp-deck-head{ display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+.ffp-deck-head{ display:flex; align-items:center; gap:12px; margin-bottom:8px; }
 .ffp-deck-title{ color:#e8eef4; font-size:18px; font-weight:800; }
 .ffp-deck-count{ color:#8a99a8; font-size:12px; font-family:monospace; letter-spacing:1px; flex:1; }
 .ffp-deck-x{ background:#0f1e2e; border:1px solid var(--border-mid); color:#e8eef4; width:36px; height:36px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.ffp-deck-meta{ text-align:center; margin:0 0 12px; color:#8a99a8; font-size:12px; line-height:1.4; }
+.ffp-meta-pct{ color:#FFCC00; font-weight:900; font-size:17px; }
 .ffp-deck-stack{ position:relative; flex:1; min-height:0; }
 .ffp-deck-card{ position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); transition:transform .3s ease, opacity .3s ease; touch-action:pan-y; }
 .ffp-deck-card.dragging{ transition:none; }
-.ffp-deck-hint{ position:absolute; top:14px; z-index:5; padding:5px 12px; border-radius:8px; font-size:15px; font-weight:900; letter-spacing:1px; opacity:0; pointer-events:none; }
-.ffp-deck-hint.next{ right:14px; color:#9fb2c4; border:2px solid #9fb2c4; transform:rotate(12deg); }
-.ffp-deck-hint.prev{ left:14px; color:#9fb2c4; border:2px solid #9fb2c4; transform:rotate(-12deg); }
-.ffp-deck-actions{ display:flex; align-items:center; justify-content:center; gap:20px; margin-top:14px; }
-.ffp-deck-icon{ width:54px; height:54px; border-radius:50%; background:rgba(255,255,255,0.05); border:1px solid var(--border-mid); color:#e8eef4; display:flex; align-items:center; justify-content:center; cursor:pointer; }
-.ffp-deck-icon .material-icons{ font-size:24px; }
-.ffp-deck-connect{ display:block; width:100%; max-width:420px; margin:14px auto 0; padding:15px; border-radius:12px; background:#FFCC00; color:#081420; font-weight:800; font-size:15px; border:none; cursor:pointer; font-family:inherit; }
+.ffp-deck-actions{ display:flex; align-items:center; justify-content:center; gap:40px; margin-top:16px; }
+.ffp-deck-icon{ background:transparent; border:none; color:#cfe0ee; cursor:pointer; padding:6px; display:flex; align-items:center; justify-content:center; }
+.ffp-deck-icon .material-icons{ font-size:40px; }
+.ffp-deck-icon.flip .material-icons{ font-size:32px; }
+.ffp-deck-instr{ text-align:center; color:rgba(255,255,255,0.4); font-size:11px; margin:16px 0 8px; }
+.ffp-deck-connect{ display:block; width:100%; max-width:420px; margin:0 auto; padding:15px; border-radius:12px; background:#FFCC00; color:#081420; font-weight:800; font-size:15px; border:none; cursor:pointer; font-family:inherit; }
 .ffp-deck-connect:disabled{ opacity:.5; cursor:default; }
 .ffp-deck-empty{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:#8a99a8; padding:30px; }
 .ffp-deck-flash{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(8,20,32,0.66); opacity:0; transition:opacity .2s; z-index:30; }
 .ffp-deck-flash.show{ opacity:1; }
-.ffp-deck-tap-hint{ text-align:center; color:rgba(255,255,255,0.34); font-size:11px; margin-top:10px; }
 </style>
 <script>
 (function(){
@@ -12779,24 +12777,28 @@ setTimeout(scalePassportCard, 200);
   function esc(s){ return (window.escHtml?escHtml(s):String(s==null?"":s)); }
   function cap(s){ s=String(s||""); return s? s.charAt(0).toUpperCase()+s.slice(1):""; }
   function rep(x,n){ return new Array(n+1).join(x); }
-  var LV={ "not tried":0, social:1, competitive:2, representative:3, professional:4 };
 
   window.FFPPassportCard = {
     ccode:function(country){ var w=String(country||"").trim().split(/\s+/); if(w.length>1) return w.map(function(x){return x[0];}).join("").slice(0,3).toUpperCase(); return String(country||"").slice(0,3).toUpperCase(); },
-    meter:function(level){ var n=LV[String(level||"").toLowerCase()]||0; var out=""; for(var i=0;i<4;i++){ out+="<span style='flex:1;height:5px;border-radius:2px;background:"+(i<n?"var(--pass-gold)":"#c4d1dc")+";'></span>"; } return "<div class='ffp-bk-meter'>"+out+"</div>"; },
+    meter:function(level){
+      var idx={ "not tried":1, social:2, competitive:3, representative:4, professional:5 };
+      var n=idx[String(level||"").toLowerCase()]||1; var out="";
+      for(var i=0;i<5;i++){ out+="<span style='flex:1;height:7px;border-radius:2px;background:"+(i<n?"#2ba8e0":"#c4d1dc")+";'></span>"; }
+      return "<div class='ffp-bk-meter'>"+out+"</div>";
+    },
     cell:function(lbl,val,color){ return "<div class='ffp-bk-cell'><div class='pf-lbl'>"+lbl+"</div><div class='pf-val'"+(color?" style='color:"+color+"'":"")+">"+val+"</div></div>"; },
     frontShell:function(m,opts){
+      opts=opts||{};
       var given=m.givenNames||(String(m.name||"").split(" ")[0])||"";
       var surname=m.surname||(String(m.name||"").split(" ").slice(1).join(" "))||"";
       var initials=((given[0]||"")+(surname[0]||"")).toUpperCase()||(m.letter||"?");
       var photoStyle=m.photo? "background-image:url('"+m.photo+"');background-size:cover;background-position:center top;" : "";
       var ccode=this.ccode(m.country);
       var memno=ccode+"·"+String(m.id||"").replace(/[^a-z0-9]/gi,"").slice(0,4).toUpperCase();
-      var cornerInner;
-      if(opts && opts.context==="attendee"){ cornerInner="<div class='ffp-pc-badge'>"+(opts.role||"GOING")+"</div><div class='pass-qr-label'>STATUS</div>"; }
-      else { var pct=(opts&&opts.cornerPct!=null)?opts.cornerPct:(m.match||""); cornerInner="<div class='ffp-compat-ring'><span class='ffp-compat-num'>"+pct+"</span><span class='ffp-compat-pct'>%</span></div><div class='pass-qr-label'>MATCH</div>"; }
+      var thirdCol="", mainCols="95px 1fr";
+      if(opts.context==="attendee"){ mainCols="95px 1fr 100px"; thirdCol="<div class='pass-qr-side'><div class='ffp-pc-badge'>"+(opts.role||"GOING")+"</div><div class='pass-qr-label'>STATUS</div></div>"; }
       var mrz1="P&lt;"+ccode+esc(surname.toUpperCase())+"&lt;&lt;"+esc(given.toUpperCase())+rep("&lt;",30);
-      var mrz2=(m.sports||[]).map(function(sp){return String(sp.name).slice(0,3).toUpperCase();}).join("&lt;&lt;")+"&lt;&lt;"+ccode+rep("&lt;",10)+String(m.match||"");
+      var mrz2=(m.sports||[]).map(function(sp){return String(sp.name).slice(0,3).toUpperCase();}).join("&lt;&lt;")+"&lt;&lt;"+ccode+rep("&lt;",12);
       return "<div class='pass-shell'>"+
         "<div class='pass-bg-emblem'></div>"+
         "<div class='pass-inner'>"+
@@ -12809,7 +12811,7 @@ setTimeout(scalePassportCard, 200);
             "<div><div class='pass-mini-label'>TYPE</div><div class='pass-mini-val'>"+cap(m.memberType||"Member")+"</div></div>"+
             "<div><div class='pass-mini-label'>COUNTRY</div><div class='pass-mini-val'>"+esc(m.country||"—")+"</div></div>"+
           "</div>"+
-          "<div class='pass-main'>"+
+          "<div class='pass-main' style='grid-template-columns:"+mainCols+";'>"+
             "<div class='pass-photo-new' style='"+photoStyle+"'>"+(m.photo?"":esc(initials))+"</div>"+
             "<div class='pass-fields-new'>"+
               "<div class='pf-field'><div class='pf-lbl'>SURNAME</div><div class='pf-val'>"+esc(surname||"—")+"</div></div>"+
@@ -12820,7 +12822,7 @@ setTimeout(scalePassportCard, 200);
                 "<div class='pf-field'><div class='pf-lbl'>AGE</div><div class='pf-val'>"+(m.age||"—")+"</div></div>"+
               "</div>"+
             "</div>"+
-            "<div class='pass-qr-side'>"+cornerInner+"</div>"+
+            thirdCol+
           "</div>"+
           "<div class='pass-mrz'><span class='pass-mrz-line'>"+mrz1+"</span><span class='pass-mrz-line'>"+mrz2+"</span></div>"+
         "</div>"+
@@ -12830,7 +12832,7 @@ setTimeout(scalePassportCard, 200);
       var given=m.givenNames||(String(m.name||"").split(" ")[0])||"";
       var surname=m.surname||(String(m.name||"").split(" ").slice(1).join(" "))||"";
       var skills=(m.sports||[]).slice(0,4); var self=this;
-      var rows=skills.map(function(sp){ return "<div style='margin-bottom:9px;'><div style='display:flex;justify-content:space-between;align-items:baseline;'><span class='pf-val' style='font-size:11px;'>"+esc(sp.name)+"</span><span class='pf-lbl' style='margin:0;'>"+cap(sp.level)+"</span></div>"+self.meter(sp.level)+"</div>"; }).join("");
+      var rows=skills.map(function(sp){ return "<div style='margin-bottom:10px;'><div style='display:flex;justify-content:space-between;align-items:baseline;'><span class='pf-val' style='font-size:11px;'>"+esc(sp.name)+"</span><span class='pf-lbl' style='margin:0;'>"+cap(sp.level)+"</span></div>"+self.meter(sp.level)+"</div>"; }).join("");
       var cells=[];
       cells.push(this.cell("TYPE", cap(m.memberType||"Member")));
       if(m.meetupsHosted!=null) cells.push(this.cell("MEET-UPS HOSTED", m.meetupsHosted));
@@ -12841,11 +12843,11 @@ setTimeout(scalePassportCard, 200);
         "<div class='pass-bg-emblem'></div>"+
         "<div class='pass-inner'>"+
           "<div class='pass-top' style='grid-template-columns:1fr auto;'>"+
-            "<div><div class='pass-top-label'>ACTIVITIES &amp; RECORD</div><div class='pass-top-sub'>"+esc((given+" "+surname).trim()||m.name||"")+"</div></div>"+
+            "<div><div class='pass-top-label'>ACTIVITIES + LEVEL</div><div class='pass-top-sub'>"+esc((given+" "+surname).trim()||m.name||"")+"</div></div>"+
             "<div class='pass-top-right'><div class='pass-top-label'>MEMBER SINCE</div><div class='pass-passnum'>"+(m.memberSince||"—")+"</div></div>"+
           "</div>"+
           "<div style='display:grid;grid-template-columns:1.25fr 1fr;gap:18px;flex:1;padding-top:6px;'>"+
-            "<div><div class='pf-lbl' style='margin-bottom:8px;'>SPORTS &amp; LEVELS</div>"+(rows||"<div class='pf-val' style='font-size:11px;'>No activities logged yet</div>")+"</div>"+
+            "<div><div class='pf-lbl' style='margin-bottom:8px;'>ACTIVITIES + LEVEL</div>"+(rows||"<div class='pf-val' style='font-size:11px;'>No activities logged yet</div>")+"</div>"+
             "<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start;'>"+cells.join("")+"</div>"+
           "</div>"+
           "<div class='pass-mrz'><span class='pass-mrz-line'>"+visa+"</span></div>"+
@@ -12862,7 +12864,6 @@ setTimeout(scalePassportCard, 200);
     }
   };
 
-  // Scale every passport card we render (the official .pass-shell is 540x340; scale to fit).
   window.ffpScaleCards = function(scope){
     var root=scope||document;
     root.querySelectorAll(".ffp-pc").forEach(function(pc){
@@ -12913,18 +12914,19 @@ setTimeout(scalePassportCard, 200);
           "<div class='ffp-deck-count' id='ffp-deck-count'></div>"+
           "<button class='ffp-deck-x' id='ffp-deck-x' aria-label='Close'><span class='material-icons'>close</span></button>"+
         "</div>"+
+        "<div class='ffp-deck-meta' id='ffp-deck-meta'></div>"+
         "<div class='ffp-deck-stack' id='ffp-deck-stack'></div>"+
-        "<div class='ffp-deck-tap-hint'>Tap the passport to flip · swipe or use the arrows</div>"+
         "<div class='ffp-deck-actions'>"+
-          "<button class='ffp-deck-icon' id='ffp-act-left' aria-label='Previous'><span class='material-icons'>arrow_back</span></button>"+
-          "<button class='ffp-deck-icon' id='ffp-act-flip' aria-label='Flip card'><span class='material-icons'>flip_camera_android</span></button>"+
-          "<button class='ffp-deck-icon' id='ffp-act-right' aria-label='Next'><span class='material-icons'>arrow_forward</span></button>"+
+          "<button class='ffp-deck-icon' id='ffp-act-left' aria-label='Send left'><span class='material-icons'>arrow_back</span></button>"+
+          "<button class='ffp-deck-icon flip' id='ffp-act-flip' aria-label='Flip card'><span class='material-icons'>flip_camera_android</span></button>"+
+          "<button class='ffp-deck-icon' id='ffp-act-right' aria-label='Send right'><span class='material-icons'>arrow_forward</span></button>"+
         "</div>"+
+        "<div class='ffp-deck-instr'>Swipe or use the arrows to browse · tap the passport to flip</div>"+
         "<button class='ffp-deck-connect' id='ffp-act-connect'>Request to connect</button>";
       document.body.appendChild(o);
       document.getElementById("ffp-deck-x").addEventListener("click", function(){ self.closeDeck(); });
-      document.getElementById("ffp-act-left").addEventListener("click", function(){ self.deckPrev(); });
-      document.getElementById("ffp-act-right").addEventListener("click", function(){ self.deckNext(); });
+      document.getElementById("ffp-act-left").addEventListener("click", function(){ self.deckAdvance(-1); });
+      document.getElementById("ffp-act-right").addEventListener("click", function(){ self.deckAdvance(1); });
       document.getElementById("ffp-act-flip").addEventListener("click", function(){ self.deckFlip(); });
       document.getElementById("ffp-act-connect").addEventListener("click", function(){ self.deckConnect(); });
     },
@@ -12941,24 +12943,34 @@ setTimeout(scalePassportCard, 200);
       var stack=document.getElementById("ffp-deck-stack"); if(!stack)return;
       var d=this.deck||[], i=this.deckIndex||0;
       var cnt=document.getElementById("ffp-deck-count");
+      var meta=document.getElementById("ffp-deck-meta");
       var acts=document.getElementById("ffp-deck-actions");
       var cbtn=document.getElementById("ffp-act-connect");
+      var instr=document.querySelector(".ffp-deck-instr");
       if(i>=d.length){
         stack.innerHTML="<div class='ffp-deck-empty'><span class='material-icons' style='font-size:42px;color:#2ba8e0;'>flight_takeoff</span><div style='margin-top:10px;font-size:15px;color:#e8eef4;font-weight:700;'>You're all caught up</div><div style='margin-top:4px;font-size:12px;'>New faces land tomorrow.</div></div>";
         if(cnt)cnt.textContent="0 to view";
+        if(meta)meta.innerHTML="";
         if(acts)acts.style.visibility="hidden";
         if(cbtn)cbtn.style.display="none";
+        if(instr)instr.style.display="none";
         return;
       }
       if(acts)acts.style.visibility="visible";
       if(cbtn)cbtn.style.display="";
+      if(instr)instr.style.display="";
+      var m=d[i];
+      if(meta){
+        var reasons=(m.matchOther||[]).map(function(o){return o.l;});
+        if((m.matchSports||[]).length) reasons.unshift("Shared sport");
+        meta.innerHTML="<span class='ffp-meta-pct'>"+m.match+"% match</span>"+(reasons.length?("<br>"+reasons.join(" · ").toLowerCase()):"");
+      }
       var html="";
       for(var k=Math.min(i+2,d.length-1); k>=i; k--){
-        var depth=k-i, m=d[k], top=(k===i);
+        var depth=k-i, mm=d[k], top=(k===i);
         var tf="translateY(calc(-50% + "+(depth*12)+"px)) scale("+(1-depth*0.05)+")";
         html+="<div class='ffp-deck-card"+(top?" is-top":"")+"'"+(top?" id='ffp-top'":"")+" style='z-index:"+(20-depth)+";transform:"+tf+";'>"+
-          (top?"<div class='ffp-deck-hint prev'>BACK</div><div class='ffp-deck-hint next'>NEXT</div>":"")+
-          window.FFPPassportCard.render(m,{ context:"match", cornerPct:m.match, flippable:false })+
+          window.FFPPassportCard.render(mm,{ context:"match", flippable:false })+
         "</div>";
       }
       stack.innerHTML=html;
@@ -12976,21 +12988,19 @@ setTimeout(scalePassportCard, 200);
       else { btn.textContent="Request to connect"; btn.disabled=false; }
     },
     _fly: function(card,dir){ if(!card)return; card.style.transition="transform .3s ease, opacity .3s ease"; card.style.transform="translateY(-50%) translateX("+(dir*640)+"px) rotate("+(dir*26)+"deg)"; card.style.opacity="0"; },
-    deckPrev: function(){ if((this.deckIndex||0)<=0)return; var self=this; var c=document.getElementById("ffp-top"); if(c)this._fly(c,1); this.deckIndex--; setTimeout(function(){ self.renderDeck(); },260); },
-    deckNext: function(){ var self=this; if((this.deckIndex||0)>=((this.deck||[]).length))return; var c=document.getElementById("ffp-top"); if(c)this._fly(c,-1); this.deckIndex++; setTimeout(function(){ self.renderDeck(); },260); },
+    deckAdvance: function(dir){ var self=this; if((this.deckIndex||0)>=((this.deck||[]).length))return; var c=document.getElementById("ffp-top"); if(c)this._fly(c,dir); this.deckIndex=(this.deckIndex||0)+1; setTimeout(function(){ self.renderDeck(); },280); },
     deckFlip: function(){ var pc=document.querySelector("#ffp-top .ffp-pc"); if(pc)pc.classList.toggle("flipped"); },
-    deckConnect: function(){ var self=this; var m=(this.deck||[])[this.deckIndex||0]; if(!m)return; if(m.connection!=="requested"&&m.connection!=="connected"){ this.connectViaRpc(m.id); } var c=document.getElementById("ffp-top"); if(c)this._fly(c,1); this.deckIndex++; setTimeout(function(){ self.renderDeck(); },300); },
+    deckConnect: function(){ var self=this; var m=(this.deck||[])[this.deckIndex||0]; if(!m)return; if(m.connection!=="requested"&&m.connection!=="connected"){ this.connectViaRpc(m.id); } var c=document.getElementById("ffp-top"); if(c)this._fly(c,1); this.deckIndex=(this.deckIndex||0)+1; setTimeout(function(){ self.renderDeck(); },300); },
     _bindTop: function(){
       var self=this; var card=document.getElementById("ffp-top"); if(!card)return;
       var startX=0,startY=0,dx=0,dy=0,t0=0,active=false,moved=false;
-      var hintNext=card.querySelector(".ffp-deck-hint.next"), hintPrev=card.querySelector(".ffp-deck-hint.prev");
       function pt(e){ var t=(e.touches&&e.touches[0])?e.touches[0]:e; return {x:t.clientX,y:t.clientY}; }
-      function move(e){ if(!active)return; var p=pt(e); dx=p.x-startX; dy=p.y-startY; if(Math.abs(dx)>6||Math.abs(dy)>6)moved=true; card.style.transform="translateY(-50%) translateX("+dx+"px) rotate("+(dx*0.05)+"deg)"; if(hintNext)hintNext.style.opacity=Math.max(0,Math.min(1,-dx/120)); if(hintPrev)hintPrev.style.opacity=Math.max(0,Math.min(1,dx/120)); if(moved&&e.cancelable&&Math.abs(dx)>Math.abs(dy))e.preventDefault(); }
+      function move(e){ if(!active)return; var p=pt(e); dx=p.x-startX; dy=p.y-startY; if(Math.abs(dx)>6||Math.abs(dy)>6)moved=true; card.style.transform="translateY(-50%) translateX("+dx+"px) rotate("+(dx*0.05)+"deg)"; if(moved&&e.cancelable&&Math.abs(dx)>Math.abs(dy))e.preventDefault(); }
       function end(){ if(!active)return; active=false; card.classList.remove("dragging"); cleanup();
-        if(dx>120){ self.deckPrev(); return; }
-        if(dx<-120){ self.deckNext(); return; }
+        if(dx>120){ self.deckAdvance(1); return; }
+        if(dx<-120){ self.deckAdvance(-1); return; }
         if(!moved && (Date.now()-t0)<320){ var pc=card.querySelector(".ffp-pc"); if(pc)pc.classList.toggle("flipped"); }
-        card.style.transform="translateY(-50%)"; if(hintNext)hintNext.style.opacity=0; if(hintPrev)hintPrev.style.opacity=0;
+        card.style.transform="translateY(-50%)";
       }
       function cleanup(){ window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",end); window.removeEventListener("touchmove",move); window.removeEventListener("touchend",end); }
       function start(e){ active=true; moved=false; t0=Date.now(); var p=pt(e); startX=p.x; startY=p.y; card.classList.add("dragging");
