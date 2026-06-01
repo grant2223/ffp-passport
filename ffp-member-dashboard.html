@@ -1,10 +1,9 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     FFP MEMBER DASHBOARD — v193 (2026-06-01)
-     v193: LAUNCH FIX — host-meetup + log-activity now go through SECURITY DEFINER RPCs
-           (host_meetup / log_activity) instead of direct inserts that failed on auth.uid()
-           for members. (join-meetup fixed in meet-move loader v15.) meetups.fitness_level
-           constraint updated to new skill taxonomy; meetups gains country + age_range.
-     v192: matches polish (% above card, activities+level, arrows/flip, instr text).
+     FFP MEMBER DASHBOARD — v194 (2026-06-01)
+     v194: Match card fidelity — restored DATE OF BIRTH (privacy-gated) / ISSUE DATE /
+           EXPIRY DATE; TYPE shows M/S/A; fixed photo↔fields overlap (gap). Deck: % shown
+           big above card (no 'match' word / no reason text); counter uses brand font.
+     v193: launch fix — host/log via RPC.
      ════════════════════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="en">
@@ -11355,6 +11354,9 @@ const MeetMove = {
           memberSince: (r.member_since != null ? r.member_since : null),
           meetupsHosted: (r.meetups_hosted != null ? Number(r.meetups_hosted) : null),
           reliability: (r.reliability != null ? Number(r.reliability) : null),
+          dob: (window.ffpFmtPassDate ? window.ffpFmtPassDate(r.dob) : ''),
+          issueDate: (window.ffpFmtPassDate ? window.ffpFmtPassDate(r.joined_at) : ''),
+          expiryDate: (window.ffpFmtPassDate ? window.ffpFmtPassDate(r.joined_at, 1) : ''),
           recent: recent,
           match: score, trust: 5.0, verified: false, joined: Date.now(), bio: '',
           meetups: 0, hosted: 0, profession: '',
@@ -12753,10 +12755,10 @@ setTimeout(scalePassportCard, 200);
 .ffp-deck-overlay.open{ display:flex; }
 .ffp-deck-head{ display:flex; align-items:center; gap:12px; margin-bottom:8px; }
 .ffp-deck-title{ color:#e8eef4; font-size:18px; font-weight:800; }
-.ffp-deck-count{ color:#8a99a8; font-size:12px; font-family:monospace; letter-spacing:1px; flex:1; }
+.ffp-deck-count{ color:#8a99a8; font-size:13px; font-weight:600; flex:1; }
 .ffp-deck-x{ background:#0f1e2e; border:1px solid var(--border-mid); color:#e8eef4; width:36px; height:36px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; }
 .ffp-deck-meta{ text-align:center; margin:0 0 12px; color:#8a99a8; font-size:12px; line-height:1.4; }
-.ffp-meta-pct{ color:#FFCC00; font-weight:900; font-size:17px; }
+.ffp-meta-pct{ color:#FFCC00; font-weight:900; font-size:30px; letter-spacing:0.5px; }
 .ffp-deck-stack{ position:relative; flex:1; min-height:0; }
 .ffp-deck-card{ position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); transition:transform .3s ease, opacity .3s ease; touch-action:pan-y; }
 .ffp-deck-card.dragging{ transition:none; }
@@ -12777,6 +12779,7 @@ setTimeout(scalePassportCard, 200);
   function esc(s){ return (window.escHtml?escHtml(s):String(s==null?"":s)); }
   function cap(s){ s=String(s||""); return s? s.charAt(0).toUpperCase()+s.slice(1):""; }
   function rep(x,n){ return new Array(n+1).join(x); }
+  window.ffpFmtPassDate=function(d,addYears){ if(!d)return ""; var x=new Date(d); if(isNaN(x.getTime()))return ""; if(addYears)x.setFullYear(x.getFullYear()+addYears); var MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]; return x.getDate()+" "+MON[x.getMonth()]+" "+x.getFullYear(); };
 
   window.FFPPassportCard = {
     ccode:function(country){ var w=String(country||"").trim().split(/\s+/); if(w.length>1) return w.map(function(x){return x[0];}).join("").slice(0,3).toUpperCase(); return String(country||"").slice(0,3).toUpperCase(); },
@@ -12795,6 +12798,7 @@ setTimeout(scalePassportCard, 200);
       var photoStyle=m.photo? "background-image:url('"+m.photo+"');background-size:cover;background-position:center top;" : "";
       var ccode=this.ccode(m.country);
       var memno=ccode+"·"+String(m.id||"").replace(/[^a-z0-9]/gi,"").slice(0,4).toUpperCase();
+      var _ty=String(m.memberType||"member").toLowerCase(); var tyAbbr=(_ty==="supporter")?"S":((_ty==="ambassador")?"A":"M");
       var thirdCol="", mainCols="95px 1fr";
       if(opts.context==="attendee"){ mainCols="95px 1fr 100px"; thirdCol="<div class='pass-qr-side'><div class='ffp-pc-badge'>"+(opts.role||"GOING")+"</div><div class='pass-qr-label'>STATUS</div></div>"; }
       var mrz1="P&lt;"+ccode+esc(surname.toUpperCase())+"&lt;&lt;"+esc(given.toUpperCase())+rep("&lt;",30);
@@ -12808,10 +12812,10 @@ setTimeout(scalePassportCard, 200);
             "<div class='pass-top-right'><div class='pass-top-label'>MEMBER NO.</div><div class='pass-passnum'>"+memno+"</div></div>"+
           "</div>"+
           "<div class='pass-type-row'>"+
-            "<div><div class='pass-mini-label'>TYPE</div><div class='pass-mini-val'>"+cap(m.memberType||"Member")+"</div></div>"+
+            "<div><div class='pass-mini-label'>TYPE</div><div class='pass-mini-val'>"+tyAbbr+"</div></div>"+
             "<div><div class='pass-mini-label'>COUNTRY</div><div class='pass-mini-val'>"+esc(m.country||"—")+"</div></div>"+
           "</div>"+
-          "<div class='pass-main' style='grid-template-columns:"+mainCols+";'>"+
+          "<div class='pass-main' style='grid-template-columns:"+mainCols+";gap:16px;'>"+
             "<div class='pass-photo-new' style='"+photoStyle+"'>"+(m.photo?"":esc(initials))+"</div>"+
             "<div class='pass-fields-new'>"+
               "<div class='pf-field'><div class='pf-lbl'>SURNAME</div><div class='pf-val'>"+esc(surname||"—")+"</div></div>"+
@@ -12819,7 +12823,11 @@ setTimeout(scalePassportCard, 200);
               "<div class='pf-field'><div class='pf-lbl'>NATIONALITY</div><div class='pf-val'>"+esc(m.country||"—")+"</div></div>"+
               "<div class='pf-grid-2'>"+
                 "<div class='pf-field'><div class='pf-lbl'>GENDER</div><div class='pf-val'>"+(cap(m.gender)||"—")+"</div></div>"+
-                "<div class='pf-field'><div class='pf-lbl'>AGE</div><div class='pf-val'>"+(m.age||"—")+"</div></div>"+
+                "<div class='pf-field'><div class='pf-lbl'>DATE OF BIRTH</div><div class='pf-val'>"+(m.dob||"—")+"</div></div>"+
+              "</div>"+
+              "<div class='pf-grid-2'>"+
+                "<div class='pf-field'><div class='pf-lbl'>ISSUE DATE</div><div class='pf-val'>"+(m.issueDate||"—")+"</div></div>"+
+                "<div class='pf-field'><div class='pf-lbl'>EXPIRY DATE</div><div class='pf-val'>"+(m.expiryDate||"—")+"</div></div>"+
               "</div>"+
             "</div>"+
             thirdCol+
@@ -12960,11 +12968,7 @@ setTimeout(scalePassportCard, 200);
       if(cbtn)cbtn.style.display="";
       if(instr)instr.style.display="";
       var m=d[i];
-      if(meta){
-        var reasons=(m.matchOther||[]).map(function(o){return o.l;});
-        if((m.matchSports||[]).length) reasons.unshift("Shared sport");
-        meta.innerHTML="<span class='ffp-meta-pct'>"+m.match+"% match</span>"+(reasons.length?("<br>"+reasons.join(" · ").toLowerCase()):"");
-      }
+      if(meta){ meta.innerHTML="<span class='ffp-meta-pct'>"+m.match+"%</span>"; }
       var html="";
       for(var k=Math.min(i+2,d.length-1); k>=i; k--){
         var depth=k-i, mm=d[k], top=(k===i);
