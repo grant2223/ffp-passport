@@ -1,4 +1,8 @@
-/* FFP Member Discovery Loader — v2 (realtime) (2026-05-31)
+/* FFP Member Discovery Loader — v3 (2026-06-01)
+   v3: Events RSVP + Experiences apply now go through SECURITY DEFINER RPCs (rsvp_event /
+       apply_experience) — the direct rsvps/applications inserts failed on auth.uid() for
+       custom-JWT members (same class of bug as matches/connect). Reads unchanged.
+ FFP Member Discovery Loader — v2 (realtime) (2026-05-31)
    PURPOSE — close the core launch loop:
      Members can now SEE and act on real provider listings. Populates the
      member dashboard's Events, Experiences and Challenges panels from Supabase
@@ -119,7 +123,7 @@
       var m = memberId();
       if (!m) { toast('Please sign in again', 'error'); return; }
       try {
-        var res = await window.supabase.from('rsvps').insert({ member_id: m, event_id: id, status: 'going' });
+        var res = await window.supabase.rpc('rsvp_event', { p_me: m, p_event: id });
         if (res.error && !/duplicate|unique/i.test(res.error.message || '')) throw res.error;
         this.rsvped.add(id);
         this.render();
@@ -181,7 +185,7 @@
       var m = memberId();
       if (!m) { toast('Please sign in again', 'error'); return; }
       try {
-        var res = await window.supabase.from('applications').insert({ member_id: m, experience_id: id, status: 'applied' });
+        var res = await window.supabase.rpc('apply_experience', { p_me: m, p_experience: id, p_notes: null });
         if (res.error && !/duplicate|unique/i.test(res.error.message || '')) throw res.error;
         this.applied.add(id);
         this.render();
