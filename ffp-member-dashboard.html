@@ -1,10 +1,19 @@
-<!-- FFP MEMBER DASHBOARD — v220 (2026-06-02)
+<!-- FFP MEMBER DASHBOARD — v221 (2026-06-02)
+     v221: World Map polish — Country + City dropdown selectors (zoom in) beside tappable pins +
+           breadcrumb; tiles desaturated to neutral grey; map heading "World Map"; map box-free +
+           full-bleed on mobile; THREE scoped lists below — Top Activities, Top Places (was Venues),
+           Top Connections (people via member_connections_list, filtered by their city/country).
      v220: "Your journey" map REBUILT on Leaflet (dark CARTO tiles) with a World › Country › City
            drill-down (breadcrumb + country/city chips). City pins (blue) at centroids; venue
            check-ins (yellow) at exact checkin_lat/lng. Selecting a country/city flies the map AND
            scopes the Top Activities / Top Venues / stats below (getFilteredLogs now also filters
            selectedCountry). Dropped Favorites/Wish List + the SVG map (legacy setupMap/loadWorldMap
            now no-op if #world-svg absent). Needs backend v53 for exact venue pins. Leaflet via CDN.
+           SELECT via Country + City dropdowns (zoom in) or tap pins; tiles desaturated to neutral
+           grey (grayscale filter, softer than CARTO's brown); map is box-free + full-bleed on mobile.
+           Map heading = "World Map". THREE lists below scope with the map: Top Activities, Top Places
+           (was Venues), Top Connections (people you're connected with, via member_connections_list RPC,
+           filtered by their city/country).
      v219: Host CANCEL button is now built canonically in openMeetupDetail's footer (red "Cancel
      v219: Host CANCEL button is now built canonically in openMeetupDetail's footer (red "Cancel
            this meet-up" → MeetMove.cancelMeetup) for m.isHostedByMe — no longer reliant on the
@@ -4289,9 +4298,24 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
   
   <!-- ═══ YOUR JOURNEY MAP (Leaflet) — World › Country › City ═══ -->
   <style>
-    #ffp-jmap{height:340px;width:100%;border-radius:12px;overflow:hidden;background:#06121f;z-index:1;}
+    #ffp-jmap{height:340px;width:100%;border-radius:12px;overflow:hidden;background:#0a0d11;z-index:1;}
     .jm-map-wrap{position:relative;}
-    .leaflet-container{background:#06121f;font-family:inherit;}
+    .leaflet-container{background:#0a0d11;font-family:inherit;}
+    /* desaturate CARTO's brownish tiles → clean neutral grey, softer on the eyes */
+    #ffp-jmap .leaflet-tile{filter:grayscale(1) brightness(1.05) contrast(0.92);}
+    /* Country / City selectors */
+    .jm-sel{flex:1;min-width:140px;background:#0f1e2e;border:1px solid var(--border-mid);color:var(--text);border-radius:9px;padding:9px 12px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;}
+    .jm-sel:focus{outline:none;border-color:var(--blue);}
+    .jm-sel:disabled{opacity:.45;cursor:not-allowed;}
+    /* Top Connections avatars */
+    .tc-av{width:34px;height:34px;border-radius:50%;flex:0 0 auto;display:inline-block;}
+    .tc-av-mono{display:inline-flex;align-items:center;justify-content:center;background:rgba(43,168,224,.18);color:#2ba8e0;font-weight:800;font-size:14px;}
+    /* no box around the map section; map goes full-bleed on mobile */
+    .jm-section{margin-bottom:18px;}
+    @media(max-width:640px){
+      .jm-section .jm-map-wrap{margin-left:-20px;margin-right:-20px;}
+      .jm-section #ffp-jmap{border-radius:0;}
+    }
     .jm-crumb{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:13px;font-weight:800;margin:2px 0 10px;}
     .jm-crumb .seg{color:var(--blue);cursor:pointer;display:inline-flex;align-items:center;gap:4px;}
     .jm-crumb .seg.cur{color:var(--text);cursor:default;}
@@ -4313,9 +4337,9 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     .jm-pop-t{font-weight:800;font-size:13px;}
     .jm-pop-s{font-size:11px;color:#9dbdd0;margin-top:2px;}
   </style>
-  <div class="card-block">
+  <div class="jm-section">
     <div class="card-head">
-      <div class="card-head-title"><span class="material-icons card-head-icon">public</span><h3>Where you've been active</h3></div>
+      <div class="card-head-title"><span class="material-icons card-head-icon">public</span><h3>World Map</h3></div>
       <span class="card-head-sub" id="jm-count">0 places</span>
     </div>
     <div class="jm-crumb" id="jm-crumb"></div>
@@ -4340,17 +4364,26 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     </button>
   </div>
   
-  <!-- TOP VENUES -->
+  <!-- TOP PLACES (venues) -->
   <div class="card-block">
     <div class="card-head">
-      <div class="card-head-title"><span class="material-icons card-head-icon">emoji_events</span><h3>Top Venues</h3></div>
-      <span class="card-head-sub" id="venues-count">0 venues</span>
+      <div class="card-head-title"><span class="material-icons card-head-icon">place</span><h3>Top Places</h3></div>
+      <span class="card-head-sub" id="venues-count">0 places</span>
     </div>
     <div class="list-block" id="venues-list"></div>
     <button class="btn btn-block view-more-btn" id="venues-view-all" style="display:none;">
-      <span class="vm-label">View all venues</span>
+      <span class="vm-label">View all places</span>
       <span class="material-icons" style="font-size:14px;">expand_more</span>
     </button>
+  </div>
+
+  <!-- TOP CONNECTIONS (people you're connected with) -->
+  <div class="card-block">
+    <div class="card-head">
+      <div class="card-head-title"><span class="material-icons card-head-icon">group</span><h3>Top Connections</h3></div>
+      <span class="card-head-sub" id="connections-list-count">0 people</span>
+    </div>
+    <div class="list-block" id="connections-list"></div>
   </div>
   
   
@@ -5927,6 +5960,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 const LOGS = [];
 var MEETS = [];
 var MEMBER_CONN_COUNT = 0;   // accepted connections (Your-journey Connections tile)
+var CONNECTIONS = [];        // accepted connections WITH people (id/name/photo/city/country)
 
 const WISHLIST = [];
 
@@ -6628,7 +6662,34 @@ function renderAll() {
   renderStats(logs);
   renderActivities(logs);
   renderVenues(logs);
+  renderConnections();
   if (window.JourneyMap) JourneyMap.render();
+}
+
+// Top Connections — people you're connected with, scoped to the map (country/city via their location).
+function renderConnections() {
+  const list = document.getElementById('connections-list');
+  const cnt = document.getElementById('connections-list-count');
+  if (!list) return;
+  let ppl = (typeof CONNECTIONS !== 'undefined' ? CONNECTIONS : []).slice();
+  if (state.selectedCountry) ppl = ppl.filter(p => p.country === state.selectedCountry);
+  if (state.selectedCity) ppl = ppl.filter(p => p.city === state.selectedCity);
+  if (cnt) cnt.textContent = ppl.length + (ppl.length === 1 ? ' person' : ' people');
+  if (ppl.length === 0) {
+    list.innerHTML = '<div class="empty-state">' + ((state.selectedCity || state.selectedCountry) ? 'No connections here yet.' : 'No connections yet — meet people in Connections.') + '</div>';
+    return;
+  }
+  list.innerHTML = ppl.slice(0, 8).map(p => {
+    const initial = (p.name || 'M').charAt(0).toUpperCase();
+    const av = p.photo
+      ? `<span class="tc-av" style="background:#0a1825 url('${p.photo}') center/cover;"></span>`
+      : `<span class="tc-av tc-av-mono">${initial}</span>`;
+    const loc = [p.city, p.country].filter(Boolean).join(', ');
+    return `<div class="tv-row" style="cursor:pointer;" onclick="MeetMove && MeetMove.openMemberDetail && MeetMove.openMemberDetail('${p.id}')">
+      ${av}
+      <div style="flex:1;min-width:0;"><div class="tv-name">${escHtml(p.name || 'Member')}</div>${loc ? `<div class="tv-sub">${escHtml(loc)}</div>` : ''}</div>
+    </div>`;
+  }).join('');
 }
 
 // ===== JOURNEY MAP (Leaflet) — World › Country › City drill-down =====
@@ -6711,24 +6772,33 @@ window.JourneyMap = (function () {
   }
   function renderChips(cities){
     var el=document.getElementById('jm-chips'); if(!el) return;
-    if (state.selectedCity){ el.innerHTML=''; return; }
-    var html='';
+    if (!cities.length){ el.innerHTML='<div class="jm-empty">Log an activity or check in at a venue to start your map.</div>'; return; }
+    // Country dropdown (A–Z)
+    var byC={}; cities.forEach(function(c){ if(!c.country) return; if(!byC[c.country]) byC[c.country]={country:c.country,count:0}; byC[c.country].count+=c.count; });
+    var countries = Object.keys(byC).map(function(k){return byC[k];}).sort(function(a,b){return a.country.localeCompare(b.country);});
+    var cOpts = '<option value="">🌍  All countries</option>' + countries.map(function(c){
+      return '<option value="'+esc(c.country)+'"'+(c.country===state.selectedCountry?' selected':'')+'>'+esc(c.country)+'  ('+c.count+')</option>';
+    }).join('');
+    // City dropdown (depends on selected country)
+    var cityOpts, cityDis = state.selectedCountry ? '' : ' disabled';
     if (state.selectedCountry){
-      var inC = cities.filter(function(c){return c.country===state.selectedCountry;}).sort(function(a,b){return b.count-a.count;});
-      inC.forEach(function(c){ html += '<button class="jm-chip" onclick="JourneyMap.selectCity(\''+jsStr(c.city)+'\',\''+jsStr(c.country)+'\')">'+esc(c.city)+' <span class="n">'+c.count+'</span></button>'; });
-      if (!inC.length) html = '<div class="jm-empty">No cities logged here yet.</div>';
+      var inC = cities.filter(function(c){return c.country===state.selectedCountry;}).sort(function(a,b){return a.city.localeCompare(b.city);});
+      cityOpts = '<option value="">All cities</option>' + inC.map(function(c){
+        return '<option value="'+esc(c.city)+'"'+(c.city===state.selectedCity?' selected':'')+'>'+esc(c.city)+'  ('+c.count+')</option>';
+      }).join('');
     } else {
-      var byC={}; cities.forEach(function(c){ if(!c.country) return; if(!byC[c.country]) byC[c.country]={country:c.country,count:0}; byC[c.country].count+=c.count; });
-      var arr = Object.keys(byC).map(function(k){return byC[k];}).sort(function(a,b){return b.count-a.count;});
-      arr.forEach(function(c){ html += '<button class="jm-chip" onclick="JourneyMap.selectCountry(\''+jsStr(c.country)+'\')">'+esc(c.country)+' <span class="n">'+c.count+'</span></button>'; });
-      if (!html) html = '<div class="jm-empty">Log an activity or check in at a venue to start your map.</div>';
+      cityOpts = '<option value="">Pick a country first</option>';
     }
-    el.innerHTML = html;
+    el.innerHTML =
+      '<select class="jm-sel" id="jm-country-sel" onchange="JourneyMap._onCountry(this.value)">'+cOpts+'</select>' +
+      '<select class="jm-sel" id="jm-city-sel"'+cityDis+' onchange="JourneyMap._onCity(this.value)">'+cityOpts+'</select>';
   }
+  function onCountry(v){ if(!v) reset(); else selectCountry(v); }
+  function onCity(v){ if(!v){ state.selectedCity=null; if(typeof renderAll==='function') renderAll(); } else selectCity(v, state.selectedCountry); }
   function selectCountry(country){ state.selectedCountry=country||null; state.selectedCity=null; if(typeof renderAll==='function') renderAll(); }
   function selectCity(city,country){ if(country) state.selectedCountry=country; state.selectedCity=city||null; if(typeof renderAll==='function') renderAll(); }
   function reset(){ state.selectedCountry=null; state.selectedCity=null; if(typeof renderAll==='function') renderAll(); }
-  return { init:init, render:render, selectCountry:selectCountry, selectCity:selectCity, reset:reset };
+  return { init:init, render:render, selectCountry:selectCountry, selectCity:selectCity, reset:reset, _onCountry:onCountry, _onCity:onCity };
 })();
 
 function getMeetsCount() {
@@ -7198,17 +7268,19 @@ async function loadMeets() {
     console.log('[FFP Meets] loaded ' + MEETS.length + ' attended');
   } catch (e) { console.error('[FFP Meets] load:', e); }
 }
-// Your-journey "Connections" tile — accepted member_connections (all-time), via RPC.
+// Your-journey connections — accepted member_connections WITH the people (name/photo/city),
+// powering the "Connections" stat tile + the "Top Connections" list (scoped by the map).
 async function loadConnectionsCount() {
   var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
   if (!member || !member.id || !window.supabase) return;
   try {
-    var res = await window.supabase.rpc('member_connections_count', { p_me: member.id });
-    if (!res.error && typeof res.data === 'number') {
-      MEMBER_CONN_COUNT = res.data;
+    var res = await window.supabase.rpc('member_connections_list', { p_me: member.id });
+    if (!res.error && Array.isArray(res.data)) {
+      CONNECTIONS = res.data;
+      MEMBER_CONN_COUNT = CONNECTIONS.length;
       if (typeof renderAll === 'function') renderAll();
     }
-  } catch (e) { console.error('[FFP Connections] count:', e); }
+  } catch (e) { console.error('[FFP Connections] list:', e); }
 }
 async function loadNotifications() {
   var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
