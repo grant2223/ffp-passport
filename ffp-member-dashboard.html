@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v226 (2026-06-02)
+<!-- FFP MEMBER DASHBOARD — v227 (2026-06-02)
+     v227: Meetups — (a) TIME FIX: meets_at now stored as a true instant (new Date(local).toISOString())
+           so 6am no longer shows as 10am (was tz-less → read as UTC → +4 in UAE). (b) HOST CAN EDIT:
+           "Edit meet-up" button on the host detail → opens Post form prefilled → update_meetup RPC
+           (host-only). (c) Listings sorted CHRONOLOGICALLY (meet-move loader v19, ?v=19; soonest first).
      v226: POST-A-MEETUP upgrades — Date + Time now side by side (Capacity on its own row); age range
            defaults 18→99. LOCATION is now a map PICKER (FFPLocPick: Leaflet + OpenStreetMap search +
            drag-to-pin), storing venue name + lat/lng + maps_url (meetups gained those columns;
@@ -7395,7 +7399,7 @@ function setupPanelNav() {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
     'panel-fitness-stats':   'assets/ffp-fitness-stats-loader.js?v=16',
-    'panel-meet':            'assets/ffp-meet-move-loader.js?v=18',
+    'panel-meet':            'assets/ffp-meet-move-loader.js?v=19',
     'panel-events':          'assets/ffp-member-discovery-loader.js',
     'panel-experiences':     'assets/ffp-member-discovery-loader.js',
     'panel-challenges':      'assets/ffp-member-discovery-loader.js'
@@ -11920,8 +11924,9 @@ const MeetMove = {
       <div class="dm-section" id="ffp-whos-going">${this.whosGoingInline(m)}</div>
       <div class="dm-footer">
         ${m.isHostedByMe
-          ? `<button class="btn-primary-yellow" style="background:#ef4444;color:#fff;box-shadow:0 6px 18px rgba(239,68,68,0.30);" onclick="MeetMove.cancelMeetup('${m.id}')">Cancel this meet-up</button>
-             <div class="dm-footer-note">You're hosting this. Anyone who joined will be notified if you cancel.</div>`
+          ? `<button class="btn-primary-yellow" style="margin-bottom:8px;" onclick="MeetMove.editMeetup('${m.id}')"><span class="material-icons" style="font-size:16px;vertical-align:-3px;">edit</span> Edit meet-up</button>
+             <button class="btn-primary-yellow" style="background:#ef4444;color:#fff;box-shadow:0 6px 18px rgba(239,68,68,0.30);" onclick="MeetMove.cancelMeetup('${m.id}')">Cancel this meet-up</button>
+             <div class="dm-footer-note">You're hosting this. Anyone who joined will be notified if you change or cancel it.</div>`
           : `<button class="btn-primary-yellow ${btnClass}" ${btnDisabled} onclick="MeetMove.requestJoin('${m.id}')">${btnLabel}</button>
              <div class="dm-footer-note">Host approves who's in. Cancellation up to 12 hours before.</div>`}
       </div>
@@ -12180,7 +12185,38 @@ const MeetMove = {
     var _proField = g('pmf-pro-field'), _proCb = g('pmf-professional');
     if (_proCb) _proCb.checked = false;
     if (_proField) _proField.style.display = isMemberProfessional() ? '' : 'none';
+    this._editId = null;
+    var _pt = document.querySelector('#post-meetup-backdrop .dm-title'); if (_pt) _pt.textContent = 'Post a meetup';
+    var _pb = document.querySelector('#post-meetup-backdrop .dm-footer .btn-primary-yellow'); if (_pb) _pb.textContent = 'Post Meetup';
     g('post-meetup-backdrop').classList.add('open');
+  },
+
+  editMeetup(id) {
+    var item = (this.data || []).find(function (x) { return x.id === id; });
+    var r = item && item._raw; if (!r) { if (typeof showToast === 'function') showToast('Could not load that meet-up', 'error'); return; }
+    if (typeof closeDetailModal === 'function') closeDetailModal();
+    this.openPostForm();
+    var g = function (i) { return document.getElementById(i); };
+    if (g('pmf-title')) g('pmf-title').value = r.title || '';
+    if (typeof window.pmfTitleCount === 'function') window.pmfTitleCount();
+    if (g('pmf-cat')) g('pmf-cat').value = r.sport || '';
+    if (g('pmf-level')) g('pmf-level').value = r.fitness_level || '';
+    var acD = g('pmf-cat-display'); if (acD && r.sport) { acD.textContent = r.sport + (r.fitness_level ? ' · ' + r.fitness_level : ''); acD.classList.remove('pmf-pick-ph'); acD.classList.add('set'); }
+    if (r.meets_at) { var d = new Date(r.meets_at);
+      if (g('pmf-date')) g('pmf-date').value = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      if (g('pmf-time')) g('pmf-time').value = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    }
+    if (g('pmf-capacity')) g('pmf-capacity').value = String(r.max_people || 4);
+    if (r.country && g('pmf-country')) { g('pmf-country').value = r.country; g('pmf-country').dispatchEvent(new Event('change')); }
+    if (r.city && g('pmf-city')) g('pmf-city').value = r.city;
+    if (typeof pmfSetLocation === 'function') pmfSetLocation({ name: r.venue, lat: r.latitude, lng: r.longitude, maps_url: r.maps_url || ((r.latitude && r.longitude) ? ('https://www.google.com/maps?q=' + r.latitude + ',' + r.longitude) : '') });
+    if (g('pmf-gender')) g('pmf-gender').value = r.group_filter === 'women_only' ? 'female' : (r.group_filter === 'men_only' ? 'male' : 'any');
+    if (r.age_range && String(r.age_range).indexOf('-') >= 0) { var ar = String(r.age_range).split('-'); if (g('pmf-age-from')) g('pmf-age-from').value = ar[0]; if (g('pmf-age-to')) g('pmf-age-to').value = ar[1]; }
+    if (g('pmf-desc')) g('pmf-desc').value = r.description || '';
+    if (g('pmf-professional')) g('pmf-professional').checked = !!r.is_professional;
+    this._editId = id;
+    var pt = document.querySelector('#post-meetup-backdrop .dm-title'); if (pt) pt.textContent = 'Edit meet-up';
+    var pb = document.querySelector('#post-meetup-backdrop .dm-footer .btn-primary-yellow'); if (pb) pb.textContent = 'Save changes';
   },
 
   acFilter(q) {
@@ -12229,7 +12265,11 @@ const MeetMove = {
     var dateStr = document.getElementById('pmf-date').value;
     if (!dateStr) { alert('Pick a date.'); return; }
     var tm = document.getElementById('pmf-time').value || '18:00';
-    var meetsAt = dateStr + 'T' + tm + ':00';
+    // Treat the entered date/time as LOCAL and store the true instant (was stored tz-less →
+    // Postgres read it as UTC, then the card converted to local = +4h in UAE, e.g. 6am→10am).
+    var meetsAt;
+    try { meetsAt = new Date(dateStr + 'T' + tm).toISOString(); }
+    catch (e) { meetsAt = dateStr + 'T' + tm + ':00'; }
     var g = document.getElementById('pmf-gender').value;
     var groupFilter = g === 'female' ? 'women_only' : (g === 'male' ? 'men_only' : null);
     var payload = {
@@ -12251,12 +12291,19 @@ const MeetMove = {
       is_professional: !!(document.getElementById('pmf-professional') && document.getElementById('pmf-professional').checked),
       status: 'open'
     };
+    var isEdit = !!this._editId;
     try {
-      var res = await window.supabase.rpc('host_meetup', { p_me: member.id, p: payload });
-      if (res.error) { alert('Could not post: ' + res.error.message); return; }
-    } catch (e) { alert('Could not post the meetup. Please try again.'); return; }
+      if (isEdit) {
+        var ures = await window.supabase.rpc('update_meetup', { p_me: member.id, p_meetup: this._editId, p: payload });
+        if (ures.error || ures.data !== true) { alert('Could not save changes' + (ures.error ? ': ' + ures.error.message : ' — only the host can edit this.')); return; }
+      } else {
+        var res = await window.supabase.rpc('host_meetup', { p_me: member.id, p: payload });
+        if (res.error) { alert('Could not post: ' + res.error.message); return; }
+      }
+    } catch (e) { alert('Could not save the meetup. Please try again.'); return; }
+    this._editId = null;
     this.closePostForm();
-    showToast('Meetup posted — visible to matched members', 'send');
+    showToast(isEdit ? 'Meet-up updated' : 'Meetup posted — visible to matched members', 'send');
     ['pmf-title','pmf-venue','pmf-cost','pmf-desc','pmf-cat-search','pmf-cat'].forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ''; });
     if (typeof window.pmfTitleCount === 'function') window.pmfTitleCount();
     if (typeof window.ffpReloadMeetMove === 'function') { try { window.ffpReloadMeetMove(); } catch (e) {} }
