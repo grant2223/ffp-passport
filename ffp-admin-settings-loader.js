@@ -1,4 +1,4 @@
-/* FFP Admin Settings Loader — v1 (2026-06-01)
+/* FFP Admin Settings Loader — v2 (2026-06-02)
    Connects the Settings panel: renders the FFP Team from public.admin_users (the signed-in
    admin shows their email via window.FFP_ADMIN), and loads the persisted Audit Log
    (public.admin_audit) via the dashboard's DB-backed AuditLog.load().
