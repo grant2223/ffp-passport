@@ -255,6 +255,7 @@
     ac.feature = feature;
     ac.view = viewChallenge;
     ac.refresh = refresh;
+    refresh(); // render real data now (replaces inline demo — fixes "reverts to old version")
     if (window.FFPRealtime) window.FFPRealtime.subscribe('admin-challenges', 'challenges', null, function () { refresh(); });
 
     try {
