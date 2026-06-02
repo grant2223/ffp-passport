@@ -16,7 +16,7 @@
 <script src="assets/ffp-taxonomy.js"></script>
 <script src="assets/ffp-location-picker.js"></script>
 <script src="ffp-provider-auth.js"></script>
-<script src="ffp-provider-profile-loader.js"></script>
+<script src="ffp-provider-profile-loader.js?v=12"></script>
 <!-- Shared provider picker (FFPPicker) defined HERE in the dashboard so Events/Challenges/Experiences
      activity + country/city pickers never depend on a separately-uploaded loader being present. -->
 <script>
@@ -104,7 +104,10 @@
 <script src="ffp-provider-events-loader.js"></script>
 <script src="ffp-provider-experiences-loader.js"></script>
 <script src="ffp-provider-challenges-loader.js"></script>
-<!-- v25 (2026-06-02): PORTAL RESTRUCTURE. (1) Business profile split into TABS — Branding
+<!-- v26 (2026-06-02): Profile tab order is now Business Details · Activities · Branding (default
+     Business Details); "Business info" renamed "Business Details". Activities input uses our own
+     styled dropdown (profile loader v12, ref ?v=12) instead of the native datalist.
+     v25 (2026-06-02): PORTAL RESTRUCTURE. (1) Business profile split into TABS — Branding
      (name, logo, hero) / Business info (category, type, location + Maps pin, hours, contact, about)
      / Activities (chips). showProfileTab() toggles panes; profile loader v11 injects Activities
      into #pf-activities-host + Maps link after Address. (2) Combined check-ins console split across
@@ -2187,13 +2190,13 @@ a { color: var(--ffp-blue); text-decoration: none; }
         </style>
 
         <div class="pf-tabs" role="tablist">
-          <button class="pf-tab active" data-pftab="branding" onclick="showProfileTab('branding')"><span class="ms">palette</span> Branding</button>
-          <button class="pf-tab" data-pftab="info" onclick="showProfileTab('info')"><span class="ms">storefront</span> Business info</button>
+          <button class="pf-tab active" data-pftab="info" onclick="showProfileTab('info')"><span class="ms">storefront</span> Business Details</button>
           <button class="pf-tab" data-pftab="activities" onclick="showProfileTab('activities')"><span class="ms">fitness_center</span> Activities</button>
+          <button class="pf-tab" data-pftab="branding" onclick="showProfileTab('branding')"><span class="ms">palette</span> Branding</button>
         </div>
 
         <!-- ── BRANDING ── -->
-        <div class="pf-pane active" id="pf-pane-branding">
+        <div class="pf-pane" id="pf-pane-branding">
           <div class="form-grid">
             <div class="field full">
               <div class="label">Business name <span class="req">*</span></div>
@@ -2220,8 +2223,8 @@ a { color: var(--ffp-blue); text-decoration: none; }
           </div>
         </div>
 
-        <!-- ── BUSINESS INFO ── -->
-        <div class="pf-pane" id="pf-pane-info">
+        <!-- ── BUSINESS DETAILS ── -->
+        <div class="pf-pane active" id="pf-pane-info">
           <div class="form-grid">
             <div class="field">
               <div class="label">Category <span class="req">*</span></div>
