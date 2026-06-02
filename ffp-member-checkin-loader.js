@@ -1,19 +1,28 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP MEMBER CHECK-IN LOADER — v1 (2026-06-01)
-   SINGLE source of truth for member venue check-in.
-   Replaces ffp-member-quest-scan-loader.js AND the phantom ...-v2.js ref.
-   (No version suffix in the filename — version lives here + the ?v= cache-bust.)
+   FFP MEMBER CHECK-IN LOADER — v2 (2026-06-02)
+   SINGLE source of truth for member VENUE CHECK-IN (≠ Log Activity).
 
-   Flow: tap "Check in at a venue" (in-app scanner) OR arrive via a phone-camera
-   scan of the venue link (?venue=<provider_id>) → resolve the provider →
-   "You're at [Provider] — what did you do?" showing the PROVIDER'S own activity
-   list → pick one → request GPS → venue_checkin_activity RPC logs it to the
-   member's passport and marks it verified if they're on-site (≤250 m).
+   CHECK-IN (this file) = "I'm physically at a provider's venue."
+     Scan the venue QR (in-app camera) OR arrive via a phone-camera scan of
+     the venue link (?venue=<provider_id>) → resolve the provider → show ONLY
+     that provider's own activities (providers.activities) → tap one → GPS →
+     venue_checkin_activity RPC logs it + marks verified if on-site (≤250 m).
+     It NEVER shows the full activity taxonomy. If the venue has listed no
+     activities, we say so rather than falling back to the full list.
+
+   LOG ACTIVITY (separate — the dashboard's own Log Activity button/modal) =
+     "I did something anywhere" (run, swim, weights…). Full activity list, no
+     provider, no GPS. That lives in ffp-member-dashboard.html, not here.
+
+   v2 changes: removed the full-taxonomy fallback; full-page modal; activities
+   shown as a scrollable list of tappable buttons (not a <select>).
+   (No version suffix in the filename — version lives here + the ?v= cache-bust.)
    ═══════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
   var QR_LIB = 'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js';
   var _h5 = null;
+  var _pickedAct = '';
 
   function sb() { return window.supabase; }
   function memberId() { try { var m = JSON.parse(localStorage.getItem('ffp_member') || '{}'); return m && m.id; } catch (e) { return null; } }
@@ -35,6 +44,17 @@
       '@media(min-width:560px){#ci-back{align-items:center;}}',
       '#ci-back .ci-sheet{width:100%;max-width:480px;background:#0f1e2e;border:1px solid rgba(43,168,224,.22);border-radius:18px 18px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom));max-height:90vh;overflow-y:auto;}',
       '@media(min-width:560px){#ci-back .ci-sheet{border-radius:18px;}}',
+      /* full-page variant for the activity-pick step */
+      '#ci-back .ci-sheet.full{max-width:560px;height:100dvh;max-height:100dvh;border-radius:0;overflow:hidden;display:flex;flex-direction:column;}',
+      '@media(min-width:560px){#ci-back .ci-sheet.full{height:92vh;max-height:92vh;border-radius:18px;}}',
+      '#ci-back .ci-acts{display:flex;flex-direction:column;gap:9px;overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1;min-height:0;margin:2px 0 12px;padding:2px;}',
+      '#ci-back .ci-act{width:100%;text-align:left;background:#081420;border:1.5px solid rgba(43,168,224,.28);border-radius:12px;color:#e8eef4;font-size:15px;font-weight:700;padding:15px 16px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;gap:10px;}',
+      '#ci-back .ci-act:active{transform:scale(.99);}',
+      '#ci-back .ci-act.sel{border-color:#FFCC00;background:rgba(255,204,0,.12);color:#fff;}',
+      '#ci-back .ci-act .tick{opacity:0;color:#FFCC00;font-weight:900;font-size:17px;}',
+      '#ci-back .ci-act.sel .tick{opacity:1;}',
+      '#ci-back .ci-foot{flex:0 0 auto;}',
+      '#ci-back .ci-empty{font-size:14px;color:#9dbdd0;text-align:center;padding:30px 10px;line-height:1.6;}',
       '#ci-back .ci-grip{width:40px;height:4px;border-radius:4px;background:rgba(255,255,255,.18);margin:0 auto 14px;}',
       '#ci-back .ci-title{font-size:18px;font-weight:900;color:#fff;text-align:center;}',
       '#ci-back .ci-sub{font-size:13px;color:#9dbdd0;text-align:center;margin:6px 0 16px;line-height:1.5;}',
@@ -52,10 +72,10 @@
     document.head.appendChild(s);
   }
 
-  function openSheet(html) {
+  function openSheet(html, full) {
     closeSheet();
     var b = document.createElement('div'); b.id = 'ci-back';
-    b.innerHTML = '<div class="ci-sheet"><div class="ci-grip"></div>' + html + '</div>';
+    b.innerHTML = '<div class="ci-sheet' + (full ? ' full' : '') + '"><div class="ci-grip"></div>' + html + '</div>';
     b.addEventListener('click', function (e) { if (e.target === b) closeSheet(); });
     document.body.appendChild(b);
   }
@@ -108,27 +128,52 @@
       prov = r.data;
     } catch (e) {}
     if (!prov) { resultMsg('error', 'Venue not found', 'That QR didn’t match an FFP venue.'); return; }
-    var acts = (prov.activities && prov.activities.length)
-      ? prov.activities
-      : ((window.FFP_TAX && window.FFP_TAX.activities) || []).map(function (a) { return (a && a.n) ? a.n : a; });
-    var opts = acts.map(function (a) { return '<option value="' + esc(a) + '">' + esc(a) + '</option>'; }).join('');
+    _pickedAct = '';
+    // CHECK-IN shows ONLY this provider's own activities. No full-taxonomy fallback —
+    // logging an arbitrary activity (run/swim/weights anywhere) is the separate
+    // "Log Activity" flow on the dashboard, not a venue check-in.
+    var acts = (prov.activities && prov.activities.length) ? prov.activities.slice() : [];
+    var name = esc(prov.business_name || 'this venue');
+    if (!acts.length) {
+      openSheet(
+        '<div class="ci-title">You’re at ' + name + '</div>' +
+        '<div class="ci-empty">This venue hasn’t listed its activities yet, so there’s nothing to check into here right now.<br><br>You can still log a workout from your passport using <b>Log Activity</b>.</div>' +
+        '<div class="ci-foot"><button class="ci-btn ghost" onclick="FFPCheckin.close()">Close</button></div>',
+        true
+      );
+      return;
+    }
+    var items = acts.map(function (a) {
+      return '<button type="button" class="ci-act" data-val="' + esc(a) + '" onclick="FFPCheckin._pick(this)">' +
+             '<span>' + esc(a) + '</span><span class="tick">✓</span></button>';
+    }).join('');
     openSheet(
-      '<div class="ci-title">You’re at ' + esc(prov.business_name || 'this venue') + '</div>' +
-      '<div class="ci-sub">What did you do here? It saves to your passport.</div>' +
-      '<select class="ci-input" id="ci-act">' + (opts || '<option value="">No activities listed</option>') + '</select>' +
-      '<input class="ci-input" id="ci-dur" type="number" inputmode="numeric" placeholder="Minutes (optional)" style="margin-top:10px;">' +
-      '<button class="ci-btn" onclick="FFPCheckin._save(\'' + providerId + '\')">Check in</button>' +
-      '<button class="ci-btn ghost" onclick="FFPCheckin.close()">Cancel</button>'
+      '<div class="ci-title">You’re at ' + name + '</div>' +
+      '<div class="ci-sub">What did you do here? Tap an activity — it saves to your passport.</div>' +
+      '<div class="ci-acts">' + items + '</div>' +
+      '<div class="ci-foot">' +
+        '<input class="ci-input" id="ci-dur" type="number" inputmode="numeric" placeholder="Minutes (optional)">' +
+        '<button class="ci-btn" style="margin-top:12px;" onclick="FFPCheckin._save(\'' + providerId + '\')">Check in</button>' +
+        '<button class="ci-btn ghost" onclick="FFPCheckin.close()">Cancel</button>' +
+      '</div>',
+      true
     );
+  }
+  function pickAct(el) {
+    if (!el) return;
+    _pickedAct = el.getAttribute('data-val') || '';
+    var list = el.parentNode ? el.parentNode.querySelectorAll('.ci-act') : [];
+    for (var i = 0; i < list.length; i++) list[i].classList.remove('sel');
+    el.classList.add('sel');
   }
 
   // ── 3. save (GPS best-effort → RPC) ──
   function save(providerId) {
     var mid = memberId();
     if (!mid) { resultMsg('error', 'Not signed in', 'Sign in to FFP Passport on this phone, then check in again.'); return; }
-    var actEl = document.getElementById('ci-act'), durEl = document.getElementById('ci-dur');
-    var activity = actEl ? actEl.value : '';
-    if (!activity) { toast('Pick an activity first', 'error'); return; }
+    var durEl = document.getElementById('ci-dur');
+    var activity = _pickedAct || '';
+    if (!activity) { toast('Tap an activity first', 'error'); return; }
     var minutes = durEl && durEl.value ? parseInt(durEl.value, 10) : null;
     openSheet('<div class="ci-title">Checking you in…</div><div class="ci-sub">Confirming you’re at the venue.</div><div class="ci-spin"></div>');
     getPosition(function (coords) { doSave(mid, providerId, activity, minutes, coords); });
@@ -165,7 +210,7 @@
   }
 
   // ── public + boot ──
-  window.FFPCheckin = { scan: startScan, close: closeSheet, _manual: manual, _save: save, _context: openContext };
+  window.FFPCheckin = { scan: startScan, close: closeSheet, _manual: manual, _save: save, _context: openContext, _pick: pickAct };
 
   function boot() {
     injectCss();
@@ -174,7 +219,7 @@
     // link also lands here as ?venue=<id> and opens the check-in directly.
     var v = parseVenue(window.location.search);
     if (v) { setTimeout(function () { openContext(v); }, 600); }
-    console.log('[FFP Member Check-in v1] Loaded ✓ (launch: Scan QR button / ?venue link)');
+    console.log('[FFP Member Check-in v2] Loaded ✓ (launch: Scan QR button / ?venue link)');
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
