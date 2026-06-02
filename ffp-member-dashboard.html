@@ -1,4 +1,6 @@
-<!-- FFP MEMBER DASHBOARD — v213 (2026-06-02)
+<!-- FFP MEMBER DASHBOARD — v214 (2026-06-02)
+     v214: check-in sheet decluttered — ffp-member-checkin-loader.js?v=4 (3-across Quest/Event/
+           Challenge row, no "just checking in" button, Minutes + Calories side by side).
      v213: PASSPORT now refreshes on venue check-in — added a document listener for 'ffp-activity-logged'
            that re-runs loadJourneyLogs(). loadJourneyLogs() is now idempotent (LOGS.length=0 rebuild, no
            dupes), keeps venue + verified, and no longer drops logs missing a city. Fixes "Scan QR worked
@@ -13274,6 +13276,6 @@ setTimeout(scalePassportCard, 200);
 })();
 </script>
 
-<script src="ffp-member-checkin-loader.js?v=3"></script>
+<script src="ffp-member-checkin-loader.js?v=4"></script>
 </body>
 </html>
