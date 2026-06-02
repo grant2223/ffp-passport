@@ -472,18 +472,8 @@
             if (window.ffpScaleCards) { setTimeout(function () { try { window.ffpScaleCards(sec); } catch (e) {} }, 0); }
           }
         } catch (e) {}
-        if (m.isHostedByMe) {
-          // host gets a Cancel control (was a disabled "You're hosting this" button)
-          var btn = document.querySelector('.dm-footer .btn-primary-yellow');
-          if (btn) {
-            btn.textContent = 'Cancel this meet-up';
-            btn.disabled = false;
-            btn.style.background = '#ef4444'; btn.style.color = '#fff'; btn.style.opacity = '1'; btn.style.cursor = 'pointer';
-            btn.onclick = function (e) { e.preventDefault(); MeetMove.cancelMeetup(m.id); };
-          }
-          var note = document.querySelector('.dm-footer-note');
-          if (note) note.textContent = "You're hosting this. Anyone who joined will be notified if you cancel.";
-        }
+        // (Host "Cancel this meet-up" footer is now built canonically in the dashboard's
+        // openMeetupDetail — no DOM surgery needed here.)
       }, 0);
     };
 
