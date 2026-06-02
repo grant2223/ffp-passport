@@ -96,7 +96,7 @@
   async function fetchAll() {
     var since = new Date(2024, 0, 1).toISOString();
     var res = await Promise.all([
-      sel('members', 'id, tier, paid, city, nationality, date_of_birth, gender, created_at'),
+      sel('members', 'id, tier, paid, city, nationality, date_of_birth, gender, created_at, role', function (q) { return q.eq('role', 'member'); }), // exclude provider/admin accounts
       sel('transactions', 'amount_aed, type, status, created_at', function (q) { return q.gte('created_at', since); }),
       sel('activity_logs', 'category, logged_at', function (q) { return q.gte('logged_at', since); }),
       sel('claims', 'deal_id, created_at'),
