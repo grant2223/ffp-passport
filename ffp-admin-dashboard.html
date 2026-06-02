@@ -1,4 +1,4 @@
-<!-- FFP Admin Dashboard v35 (2026-06-01): Settings panel CONNECTED — FFP Team from admin_users, Audit Log now DB-backed (public.admin_audit, persists every admin action) via ffp-admin-settings-loader.js. Also: admin Events/Experiences/Challenges loaders now render real data on load (fixes "reverts to old demo version"). v34 (2026-06-01): Taxonomies editor v2 — added Countries, Cities (country→city cascade) + Experience Types; session guard so edits don't fail silently if the admin session expired. v33: Taxonomies panel is now a REAL editor — ffp-admin-taxonomies-loader.js does CRUD on public.taxonomy_items (Activities/Categories/Fitness Levels/Nationalities/Genders/Age Groups): add, rename, reorder, show/hide, delete. assets/ffp-taxonomy.js v4 hydrates FFP_TAX from that table so edits propagate platform-wide (hardcoded fallback if DB unreachable). v32 (2026-06-01): FIX broken icons — added self-contained base `.material-icons` CSS rule (font-family + 'liga') + &display=block on the icon font link, so sidebar/queue icons never fall back to raw ligature text ("storefront", "inbox", etc.) when the external Google CSS is slow/blocked (this was the "design turned shit" issue). v31: provider accounts INSTANT + self-serve — REMOVED Applications panel/loader + reverted the v30 Pending approval tab. v29 (skill levels). v28 USD labels. v27 tier/expiry edit fix. -->
+<!-- FFP Admin Dashboard v36 (2026-06-01): Members panel — verify badge + Verify/Unverify button (members.verified), and EXCLUDES provider/admin login accounts (a provider's contact person no longer shows as a member). Settings Platform Config now editable + saved to public.platform_config. Cache-bust v=36 on lazy loaders. v35 (2026-06-01): Settings panel CONNECTED — FFP Team from admin_users, Audit Log now DB-backed (public.admin_audit, persists every admin action) via ffp-admin-settings-loader.js. Also: admin Events/Experiences/Challenges loaders now render real data on load (fixes "reverts to old demo version"). v34 (2026-06-01): Taxonomies editor v2 — added Countries, Cities (country→city cascade) + Experience Types; session guard so edits don't fail silently if the admin session expired. v33: Taxonomies panel is now a REAL editor — ffp-admin-taxonomies-loader.js does CRUD on public.taxonomy_items (Activities/Categories/Fitness Levels/Nationalities/Genders/Age Groups): add, rename, reorder, show/hide, delete. assets/ffp-taxonomy.js v4 hydrates FFP_TAX from that table so edits propagate platform-wide (hardcoded fallback if DB unreachable). v32 (2026-06-01): FIX broken icons — added self-contained base `.material-icons` CSS rule (font-family + 'liga') + &display=block on the icon font link, so sidebar/queue icons never fall back to raw ligature text ("storefront", "inbox", etc.) when the external Google CSS is slow/blocked (this was the "design turned shit" issue). v31: provider accounts INSTANT + self-serve — REMOVED Applications panel/loader + reverted the v30 Pending approval tab. v29 (skill levels). v28 USD labels. v27 tier/expiry edit fix. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1393,7 +1393,7 @@ input, select, textarea { font-family: inherit; }
       </div>
     </div>
     <div class="sidebar-footer">
-      build v35 &middot; FFP Admin
+      build v36 &middot; FFP Admin
     </div>
   </aside>
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.toggleSidebar()"></div>
@@ -1894,28 +1894,32 @@ input, select, textarea { font-family: inherit; }
           <div class="field-row">
             <div class="field">
               <label class="field-label">Membership Price (USD)</label>
-              <input class="field-input" id="cfg-membership" value="99" type="number" readonly>
+              <input class="field-input" id="cfg-membership" value="99" type="number">
             </div>
             <div class="field">
               <label class="field-label">Min Payout (USD)</label>
-              <input class="field-input" id="cfg-minpayout" value="250" type="number" readonly>
+              <input class="field-input" id="cfg-minpayout" value="250" type="number">
             </div>
           </div>
           <div class="field-row">
             <div class="field">
               <label class="field-label">Member Referral (% of membership)</label>
-              <input class="field-input" id="cfg-ref-member" value="5" type="number" readonly>
+              <input class="field-input" id="cfg-ref-member" value="5" type="number">
             </div>
             <div class="field">
               <label class="field-label">Supporter Referral (% of membership)</label>
-              <input class="field-input" id="cfg-ref-supporter" value="10" type="number" readonly>
+              <input class="field-input" id="cfg-ref-supporter" value="10" type="number">
             </div>
             <div class="field">
               <label class="field-label">Ambassador Referral (% of membership)</label>
-              <input class="field-input" id="cfg-ref-ambassador" value="20" type="number" readonly>
+              <input class="field-input" id="cfg-ref-ambassador" value="20" type="number">
             </div>
           </div>
-          <div class="text-muted" style="font-size:12px;">These are the live platform values (source: assets/ffp-constants.js). Editable config is a fast-follow.</div>
+          <div style="display:flex;align-items:center;gap:14px;margin-top:6px;">
+            <button class="btn btn-primary" id="cfg-save-btn" type="button"><span class="material-icons">save</span>Save config</button>
+            <span class="text-muted" id="cfg-save-msg" style="font-size:12px;"></span>
+          </div>
+          <div class="text-muted" style="font-size:11px;margin-top:10px;line-height:1.5;">Saved to the platform config. Note: the membership price charged at <b>checkout is set in Stripe</b> — update it there too; referral % &amp; min-payout wiring to the backend is a fast-follow.</div>
         </div>
       </div>
       
@@ -2180,7 +2184,9 @@ const App = {
     this._opened[panelId] = true;
     try {
       var sc = document.createElement('script');
-      sc.src = src; sc.async = false;
+      // Cache-bust lazy loaders so a new deploy never serves a stale cached .js.
+      // BUMP this with the dashboard build number on every deploy (matches footer build).
+      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=36'; sc.async = false;
       sc.onload = function () {
         if (panelId === 'panel-analytics') {
           setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 80);
@@ -2372,7 +2378,7 @@ const AdminMembers = {
       <tr>
         <td onclick="Drawer.openMember('${m.id}')" style="cursor:pointer;">
           <span class="cell-avatar">${m.initial}</span>
-          <span class="cell-name">${escHtml(m.full_name)}</span>
+          <span class="cell-name">${escHtml(m.full_name)}${m.verified ? ' <span class="material-icons" title="Verified — checked as a real/safe person" style="font-size:15px;color:#22c55e;vertical-align:middle;">verified</span>' : ''}</span>
           <div class="cell-meta" style="margin-left:36px;">${escHtml(m.email)}</div>
         </td>
         <td class="text-muted">${escHtml(m.city)}</td>
@@ -2391,6 +2397,7 @@ const AdminMembers = {
         <td class="text-muted nowrap">${fmtDays(m.daysAgo)}</td>
         <td>
           <div class="table-actions">
+            <button class="btn btn-sm ${m.verified ? 'btn-ghost' : 'btn-blue'}" title="${m.verified ? 'Verified — click to remove' : 'Mark as verified (checked real/safe)'}" onclick="event.stopPropagation(); AdminMembers.toggleVerified('${m.id}', ${!m.verified})"><span class="material-icons">${m.verified ? 'verified' : 'check_circle'}</span></button>
             <button class="btn btn-sm btn-ghost" onclick="Drawer.openMember('${m.id}')"><span class="material-icons">visibility</span></button>
           </div>
         </td>
