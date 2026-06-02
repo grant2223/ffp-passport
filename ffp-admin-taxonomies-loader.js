@@ -186,7 +186,12 @@
 
   async function addItem(val) {
     val = (val || '').trim();
-    if (!val) return;
+    if (!val) {
+      var inp0 = document.querySelector('#tax-editor #tx-new');
+      if (inp0) { inp0.style.borderColor = '#ef4444'; inp0.focus(); }
+      toast('Type a name in the box first, then tap Add', 'error');
+      return;
+    }
     var rows = curRows();
     if (rows.some(function (r) { return (r.value || '').toLowerCase() === val.toLowerCase(); })) {
       toast('Already in the list', 'error'); return;
@@ -264,7 +269,7 @@
     }
     await fetchAll();
     render();
-    console.log('[FFP Admin Taxonomies] loaded v2.1 ✓ (delegated clicks + add trace)');
+    console.log('[FFP Admin Taxonomies] loaded v2.2 ✓ (empty-input feedback)');
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
