@@ -104,7 +104,10 @@
 <script src="ffp-provider-events-loader.js"></script>
 <script src="ffp-provider-experiences-loader.js"></script>
 <script src="ffp-provider-challenges-loader.js"></script>
-<!-- v26 (2026-06-02): Profile tab order is now Business Details · Activities · Branding (default
+<!-- v27 (2026-06-02): Big GREEN "Save changes" banner sticks under the topbar (#ffp-save-banner),
+     shown only on Profile when there are unsaved changes — calls saveProfile(); hidden on save /
+     when leaving Profile. setSaveBar() toggles it.
+     v26 (2026-06-02): Profile tab order is now Business Details · Activities · Branding (default
      Business Details); "Business info" renamed "Business Details". Activities input uses our own
      styled dropdown (profile loader v12, ref ?v=12) instead of the native datalist.
      v25 (2026-06-02): PORTAL RESTRUCTURE. (1) Business profile split into TABS — Branding
@@ -316,6 +319,16 @@ a { color: var(--ffp-blue); text-decoration: none; }
   display: flex; align-items: center; gap: 14px;
   position: sticky; top: 0; z-index: 20;
 }
+/* Big green save banner — sticks right under the topbar, shown on Profile when there are unsaved changes */
+.ffp-save-banner{display:none;position:sticky;top:62px;z-index:19;align-items:center;justify-content:space-between;gap:14px;background:linear-gradient(90deg,#15a34a,#22c55e);color:#fff;padding:13px 28px;box-shadow:0 10px 26px rgba(0,0,0,.30);}
+.ffp-save-banner.show{display:flex;}
+.ffp-save-banner-msg{font-size:14px;font-weight:800;display:flex;align-items:center;gap:9px;min-width:0;}
+.ffp-save-banner-msg .ms{font-size:20px;flex:0 0 auto;}
+.ffp-save-banner-btn{background:#fff;color:#0b7a37;border:none;border-radius:11px;padding:12px 26px;font-size:15px;font-weight:900;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;box-shadow:0 2px 0 rgba(0,0,0,.14);}
+.ffp-save-banner-btn:hover{filter:brightness(1.06);}
+.ffp-save-banner-btn:disabled{opacity:.7;cursor:default;}
+.ffp-save-banner-btn .ms{font-size:19px;}
+@media(max-width:640px){.ffp-save-banner{padding:11px 16px;} .ffp-save-banner-msg{font-size:12.5px;} .ffp-save-banner-btn{padding:11px 18px;font-size:14px;}}
 .tb-title { font-size: 18px; font-weight: 900; letter-spacing: -.3px; }
 .tb-status {
   font-size: 10px; font-weight: 800; letter-spacing: 1px;
@@ -2102,6 +2115,12 @@ a { color: var(--ffp-blue); text-decoration: none; }
       </div>
     </header>
 
+    <!-- Big green save banner — sticks under the topbar on Profile when there are unsaved changes -->
+    <div class="ffp-save-banner" id="ffp-save-banner">
+      <div class="ffp-save-banner-msg"><span class="ms">error_outline</span> You have unsaved changes to your business profile</div>
+      <button class="ffp-save-banner-btn" id="ffp-save-banner-btn" onclick="saveProfile()"><span class="ms">save</span> Save changes</button>
+    </div>
+
     <div class="panel-wrap">
 
       <!-- ════════ OVERVIEW ════════ -->
@@ -2791,6 +2810,9 @@ function showPanel(id) {
   } else {
     statusPill.style.display = 'none';
   }
+  // The green save banner only belongs on the Profile panel
+  var _sb = document.getElementById('ffp-save-banner');
+  if (_sb && id !== 'profile') _sb.classList.remove('show');
   // Initial render hooks
   if (id === 'overview') renderOverview();
   if (id === 'profile') loadProfile();
@@ -2924,6 +2946,10 @@ function toggleClosed(day, isClosed) {
 }
 
 function setSaveBar(dirty) {
+  // Big green top banner — only on the Profile panel, only when there are unsaved changes.
+  const banner = document.getElementById('ffp-save-banner');
+  const onProfile = !!document.querySelector('#panel-profile.active');
+  if (banner) banner.classList.toggle('show', !!dirty && onProfile);
   const m = document.getElementById('profile-save-msg');
   if (!m) return;
   if (dirty) {
