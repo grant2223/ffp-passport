@@ -1,5 +1,11 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP MEMBER CHECK-IN LOADER — v3 (2026-06-02)
+   FFP MEMBER CHECK-IN LOADER — v4 (2026-06-02)
+   v4: DECLUTTERED the check-in sheet. Active programs are now a single 3-across
+       button row — Quest / Event / Challenge (a type is tappable only if it has
+       live items; tap → that type's list, or straight in if there's only one).
+       Removed the "just checking in — no activity" button. The check-in now has
+       Minutes + Calories side by side (calories persisted via venue_checkin_activity
+       p_calories). Programs/sub-flows + RPCs unchanged from v3.
    v3: ACTIVE PROGRAMS pinned to the TOP of the check-in sheet (yellow), only when
        the venue has a live quest/challenge/event (venue_active_programs RPC). Tap →
        quest: submit task (pending until provider approves, member_quest_submit);
@@ -71,16 +77,18 @@
       '#ci-back .ci-empty{font-size:14px;color:#9dbdd0;text-align:center;padding:30px 10px;line-height:1.6;}',
       '#ci-back .ci-logo{width:64px;height:64px;border-radius:16px;object-fit:cover;background:#081420;border:1px solid rgba(43,168,224,.28);display:block;margin:0 auto 10px;}',
       '#ci-back .ci-logo.mono{display:flex;align-items:center;justify-content:center;color:#FFCC00;font-weight:900;font-size:24px;}',
-      /* active programs pinned at the top (yellow) */
+      /* active programs — 3-across category buttons (Quest / Event / Challenge) */
       '#ci-back .ci-seclbl{font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#9dbdd0;margin:2px 2px 8px;}',
-      '#ci-back .ci-prog{width:100%;text-align:left;background:rgba(255,204,0,.10);border:1.5px solid #FFCC00;border-radius:12px;color:#fff;padding:13px 14px;margin-bottom:9px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:11px;}',
-      '#ci-back .ci-prog:active{transform:scale(.99);}',
-      '#ci-back .ci-prog .pgi{width:30px;height:30px;border-radius:8px;background:#FFCC00;color:#082335;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}',
-      '#ci-back .ci-prog .pgi .material-icons{font-size:18px;}',
-      '#ci-back .ci-prog .pgt{font-size:14px;font-weight:800;line-height:1.25;}',
-      '#ci-back .ci-prog .pgs{font-size:11.5px;color:#cfe1ee;font-weight:600;margin-top:1px;}',
-      '#ci-back .ci-prog .pgtype{margin-left:auto;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.3px;color:#FFCC00;flex:0 0 auto;}',
-      '#ci-back .ci-divlbl{display:flex;align-items:center;gap:10px;color:#9dbdd0;font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;margin:6px 2px 10px;}',
+      '#ci-back .ci-progrow{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:6px;}',
+      '#ci-back .ci-progbtn{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:rgba(255,204,0,.10);border:1.5px solid #FFCC00;border-radius:14px;color:#fff;padding:15px 6px;min-height:80px;cursor:pointer;font-family:inherit;}',
+      '#ci-back .ci-progbtn:active{transform:scale(.98);}',
+      '#ci-back .ci-progbtn .material-icons{font-size:24px;color:#FFCC00;}',
+      '#ci-back .ci-progbtn .lbl{font-size:12.5px;font-weight:800;}',
+      '#ci-back .ci-progbtn .cnt{position:absolute;top:6px;right:8px;font-size:10px;font-weight:900;background:#FFCC00;color:#082335;border-radius:10px;padding:0 6px;line-height:16px;}',
+      '#ci-back .ci-progbtn.off{background:#0b1a28;border-color:rgba(43,168,224,.16);color:#5f7689;cursor:default;}',
+      '#ci-back .ci-progbtn.off .material-icons{color:#3f5568;}',
+      '#ci-back .ci-dur2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}',
+      '#ci-back .ci-divlbl{display:flex;align-items:center;gap:10px;color:#9dbdd0;font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;margin:10px 2px;}',
       '#ci-back .ci-divlbl::before,#ci-back .ci-divlbl::after{content:"";height:1px;flex:1;background:rgba(43,168,224,.22);}',
       '#ci-back .ci-grip{width:40px;height:4px;border-radius:4px;background:rgba(255,255,255,.18);margin:0 auto 14px;}',
       '#ci-back .ci-title{font-size:18px;font-weight:900;color:#fff;text-align:center;}',
@@ -172,12 +180,17 @@
     var acts = (prov.activities && prov.activities.length) ? prov.activities.slice() : [];
     var head = logo + '<div class="ci-title">You’re at ' + name + '</div>';
 
+    var durFields =
+      '<div class="ci-dur2">' +
+        '<input class="ci-input" id="ci-dur" type="number" inputmode="numeric" placeholder="Minutes">' +
+        '<input class="ci-input" id="ci-cal" type="number" inputmode="numeric" placeholder="Calories">' +
+      '</div>';
     if (!acts.length) {
       openSheet(
         head + progHtml +
         '<div class="ci-sub">Check in to log your visit to this venue.</div>' +
         '<div class="ci-foot">' +
-          '<input class="ci-input" id="ci-dur" type="number" inputmode="numeric" placeholder="Minutes (optional)">' +
+          durFields +
           '<button class="ci-btn" style="margin-top:12px;" onclick="FFPCheckin._save(\'' + providerId + '\',\'Visit\')">Check in</button>' +
           '<button class="ci-btn ghost" onclick="FFPCheckin.close()">Cancel</button>' +
         '</div>',
@@ -194,34 +207,54 @@
       head + progHtml + actLabel +
       '<div class="ci-acts">' + items + '</div>' +
       '<div class="ci-foot">' +
-        '<input class="ci-input" id="ci-dur" type="number" inputmode="numeric" placeholder="Minutes (optional)">' +
+        durFields +
         '<button class="ci-btn" style="margin-top:12px;" onclick="FFPCheckin._save(\'' + providerId + '\')">Check in</button>' +
-        '<button class="ci-btn ghost" onclick="FFPCheckin._save(\'' + providerId + '\',\'Visit\')">Just checking in — no activity</button>' +
         '<button class="ci-btn ghost" onclick="FFPCheckin.close()">Cancel</button>' +
       '</div>',
       true
     );
   }
 
-  // Render active programs (quests/challenges/events) as yellow cards pinned at the top.
+  // Active programs as a clean 3-across row: Quest / Event / Challenge.
+  // A type is tappable only if it has live items; tapping opens that type's list
+  // (or goes straight in when there's only one). Hidden entirely if nothing's live.
   function programsHtml() {
-    var p = _programs || {}, out = '';
-    (p.quests || []).forEach(function (q, i) {
-      out += progCard('quest', i, 'flag', q.title, (q.target_count ? ('Complete ' + q.target_count + ' to finish') : 'Quest'));
-    });
-    (p.challenges || []).forEach(function (c, i) {
-      out += progCard('challenge', i, 'emoji_events', c.title, (c.metric ? ('Enter your ' + c.metric) : 'Challenge'));
-    });
-    (p.events || []).forEach(function (e, i) {
-      out += progCard('event', i, 'event', e.title, eventWhen(e.starts_at));
-    });
-    return out ? ('<div class="ci-seclbl">Available here now</div>' + out) : '';
+    var p = _programs || {};
+    var nq = (p.quests || []).length, ne = (p.events || []).length, nc = (p.challenges || []).length;
+    if (!nq && !ne && !nc) return '';
+    return '<div class="ci-seclbl">Available here now</div>' +
+      '<div class="ci-progrow">' +
+        progBtn('quest', 'flag', 'Quest', nq) +
+        progBtn('event', 'event', 'Event', ne) +
+        progBtn('challenge', 'emoji_events', 'Challenge', nc) +
+      '</div>';
   }
-  function progCard(type, idx, icon, title, sub) {
-    return '<button type="button" class="ci-prog" onclick="FFPCheckin._program(\'' + type + '\',' + idx + ')">' +
-           '<span class="pgi"><span class="material-icons">' + icon + '</span></span>' +
-           '<span><span class="pgt">' + esc(title || '') + '</span><span class="pgs">' + esc(sub || '') + '</span></span>' +
-           '<span class="pgtype">' + type + '</span></button>';
+  function progBtn(type, icon, label, n) {
+    if (!n) return '<div class="ci-progbtn off"><span class="material-icons">' + icon + '</span><span class="lbl">' + label + '</span></div>';
+    return '<button type="button" class="ci-progbtn" onclick="FFPCheckin._pickType(\'' + type + '\')">' +
+           (n > 1 ? '<span class="cnt">' + n + '</span>' : '') +
+           '<span class="material-icons">' + icon + '</span><span class="lbl">' + label + '</span></button>';
+  }
+  // Step 2: choose which item of that type (skip straight in when there's only one).
+  function pickType(type) {
+    var list = (_programs && _programs[type + 's']) || [];
+    if (!list.length) return;
+    if (list.length === 1) { program(type, 0); return; }
+    var heading = type === 'quest' ? 'quest' : (type === 'event' ? 'event' : 'challenge');
+    var items = list.map(function (it, i) {
+      var sub = type === 'event' ? eventWhen(it.starts_at)
+              : (type === 'challenge' ? (it.metric ? ('Enter your ' + it.metric) : '')
+              : (it.target_count ? ('Complete ' + it.target_count) : ''));
+      return '<button type="button" class="ci-act" onclick="FFPCheckin._program(\'' + type + '\',' + i + ')">' +
+             '<span>' + esc(it.title || heading) + (sub ? ('<br><span style="font-size:11.5px;color:#9dbdd0;font-weight:600;">' + esc(sub) + '</span>') : '') + '</span>' +
+             '<span class="tick" style="opacity:1;">›</span></button>';
+    }).join('');
+    openSheet(
+      '<div class="ci-seclbl">Choose a ' + esc(heading) + '</div>' +
+      '<div class="ci-acts">' + items + '</div>' +
+      '<div class="ci-foot"><button class="ci-btn ghost" onclick="FFPCheckin._context(\'' + _provId + '\')">Back</button></div>',
+      true
+    );
   }
   function eventWhen(ts) {
     if (!ts) return 'Event';
@@ -245,12 +278,13 @@
   function save(providerId, forced) {
     var mid = memberId();
     if (!mid) { resultMsg('error', 'Not signed in', 'Sign in to FFP Passport on this phone, then check in again.'); return; }
-    var durEl = document.getElementById('ci-dur');
+    var durEl = document.getElementById('ci-dur'), calEl = document.getElementById('ci-cal');
     var activity = forced || _pickedAct || '';
-    if (!activity) { toast('Tap an activity, or use “Just checking in”', 'error'); return; }
+    if (!activity) { toast('Tap an activity first', 'error'); return; }
     var minutes = durEl && durEl.value ? parseInt(durEl.value, 10) : null;
+    var calories = calEl && calEl.value ? parseInt(calEl.value, 10) : null;
     openSheet('<div class="ci-title">Checking you in…</div><div class="ci-sub">Confirming you’re at the venue.</div><div class="ci-spin"></div>');
-    getPosition(function (coords) { doSave(mid, providerId, activity, minutes, coords); });
+    getPosition(function (coords) { doSave(mid, providerId, activity, minutes, calories, coords); });
   }
   function getPosition(cb) {
     if (!navigator.geolocation) { cb(null); return; }
@@ -260,11 +294,12 @@
       function () { if (done) return; done = true; clearTimeout(t); cb(null); },
       { enableHighAccuracy: true, timeout: 7000, maximumAge: 60000 });
   }
-  async function doSave(mid, providerId, activity, minutes, coords) {
+  async function doSave(mid, providerId, activity, minutes, calories, coords) {
     try {
       var res = await sb().rpc('venue_checkin_activity', {
         p_me: mid, p_provider: providerId, p_activity: activity,
-        p_duration_min: (minutes && !isNaN(minutes)) ? minutes : null, p_notes: null,
+        p_duration_min: (minutes && !isNaN(minutes)) ? minutes : null,
+        p_calories: (calories && !isNaN(calories)) ? calories : null, p_notes: null,
         p_lat: coords ? coords.lat : null, p_lng: coords ? coords.lng : null
       });
       if (res.error || !res.data) throw (res.error || new Error('no data'));
@@ -368,7 +403,7 @@
   // ── public + boot ──
   window.FFPCheckin = {
     scan: startScan, close: closeSheet, _manual: manual, _save: save, _context: openContext, _pick: pickAct,
-    _program: program, _questSubmit: questSubmit, _challengeSubmit: challengeSubmit, _eventCheckin: eventCheckin
+    _pickType: pickType, _program: program, _questSubmit: questSubmit, _challengeSubmit: challengeSubmit, _eventCheckin: eventCheckin
   };
 
   function boot() {
@@ -378,7 +413,7 @@
     // link also lands here as ?venue=<id> and opens the check-in directly.
     var v = parseVenue(window.location.search);
     if (v) { setTimeout(function () { openContext(v); }, 600); }
-    console.log('[FFP Member Check-in v3] Loaded ✓ (launch: Scan QR button / ?venue link)');
+    console.log('[FFP Member Check-in v4] Loaded ✓ (launch: Scan QR button / ?venue link)');
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
