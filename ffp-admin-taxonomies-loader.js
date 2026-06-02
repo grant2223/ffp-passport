@@ -1,23 +1,25 @@
-/* FFP Admin Taxonomies Loader — v1 (2026-06-01)
-   Real CRUD editor for the platform-wide taxonomy lists, backed by public.taxonomy_items.
+/* FFP Admin Taxonomies Loader — v2 (2026-06-01)
+   Real CRUD editor for platform-wide taxonomy lists, backed by public.taxonomy_items.
+   v2: added Countries + Cities (cascade: pick a country, edit its cities) + Experience Types.
    Admin (real Supabase Auth, is_admin) reads ALL rows + writes via RLS taxonomy_admin_write.
-   Lists edited here hydrate window.FFP_TAX on every page (assets/ffp-taxonomy.js), so changes
-   propagate across member/provider/apply forms on next load.
+   Edits hydrate window.FFP_TAX on every page (assets/ffp-taxonomy.js) → propagate platform-wide.
    Renders into #tax-editor inside #panel-taxonomies. */
 (function () {
   'use strict';
 
-  // list_key -> friendly name. Order = display order.
   var LISTS = [
-    { key: 'activity',          name: 'Activities' },
-    { key: 'category',          name: 'Provider Categories' },
-    { key: 'fitness_level',     name: 'Fitness Levels' },
-    { key: 'nationality',       name: 'Nationalities' },
-    { key: 'gender',            name: 'Genders' },
-    { key: 'age_group',         name: 'Age Groups' }
+    { key: 'activity',        name: 'Activities' },
+    { key: 'category',        name: 'Provider Categories' },
+    { key: 'experience_type', name: 'Experience Types' },
+    { key: 'fitness_level',   name: 'Fitness Levels' },
+    { key: 'country',         name: 'Countries' },
+    { key: 'city',            name: 'Cities', nested: true },
+    { key: 'nationality',     name: 'Nationalities' },
+    { key: 'gender',          name: 'Genders' },
+    { key: 'age_group',       name: 'Age Groups' }
   ];
 
-  var state = { current: 'activity', data: {} }; // data[list_key] = [rows]
+  var state = { current: 'activity', cityCountry: 'United Arab Emirates', data: {} };
 
   function sb() { return window.supabase; }
   function toast(msg, type) {
@@ -30,6 +32,7 @@
       return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
     });
   }
+  function isNested() { return state.current === 'city'; }
 
   function injectCss() {
     if (document.getElementById('ffp-tax-css')) return;
@@ -44,9 +47,12 @@
       '#tax-editor .tx-listbtn.active{background:#2ba8e0;color:#082335;border-color:#2ba8e0;}',
       '#tax-editor .tx-listbtn.active .c{color:#082335;background:rgba(8,35,53,.18);}',
       '#tax-editor .tx-panel{border:1px solid rgba(43,168,224,.2);border-radius:14px;overflow:hidden;background:#0f1e2e;}',
-      '#tax-editor .tx-add{display:flex;gap:8px;padding:14px;border-bottom:1px solid rgba(43,168,224,.12);}',
-      '#tax-editor .tx-add input{flex:1;background:#081420;border:1px solid rgba(43,168,224,.25);border-radius:9px;color:#e8eef4;padding:10px 12px;font-size:13px;font-family:inherit;}',
-      '#tax-editor .tx-add button{background:#FFCC00;color:#082335;border:none;border-radius:9px;padding:10px 18px;font-weight:800;font-size:13px;cursor:pointer;}',
+      '#tax-editor .tx-bar{display:flex;gap:8px;padding:14px;border-bottom:1px solid rgba(43,168,224,.12);flex-wrap:wrap;align-items:center;}',
+      '#tax-editor .tx-bar input,#tax-editor .tx-bar select{background:#081420;border:1px solid rgba(43,168,224,.25);border-radius:9px;color:#e8eef4;padding:10px 12px;font-size:13px;font-family:inherit;}',
+      '#tax-editor .tx-bar input{flex:1;min-width:160px;}',
+      '#tax-editor .tx-bar .tx-country{flex:0 0 200px;}',
+      '#tax-editor .tx-bar button{background:#FFCC00;color:#082335;border:none;border-radius:9px;padding:10px 18px;font-weight:800;font-size:13px;cursor:pointer;}',
+      '#tax-editor .tx-bar label{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#8a99a8;font-weight:800;}',
       '#tax-editor table{width:100%;border-collapse:collapse;}',
       '#tax-editor th{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#8a99a8;text-align:left;padding:10px 14px;border-bottom:1px solid rgba(43,168,224,.12);}',
       '#tax-editor td{padding:9px 14px;border-bottom:1px solid rgba(43,168,224,.07);font-size:13px;color:#dce8f2;}',
@@ -68,7 +74,7 @@
 
   async function fetchAll() {
     var res = await sb().from('taxonomy_items')
-      .select('id, list_key, value, label, sort_order, active')
+      .select('id, list_key, value, label, sort_order, active, parent')
       .order('list_key', { ascending: true })
       .order('sort_order', { ascending: true });
     if (res.error) { console.error('[Taxonomies] fetch', res.error); toast('Could not load taxonomy', 'error'); return; }
@@ -77,6 +83,14 @@
     (res.data || []).forEach(function (r) { (by[r.list_key] = by[r.list_key] || []).push(r); });
     state.data = by;
   }
+
+  // rows for the currently selected list (cities filtered to the chosen country)
+  function curRows() {
+    var rows = state.data[state.current] || [];
+    if (isNested()) rows = rows.filter(function (r) { return r.parent === state.cityCountry; });
+    return rows.slice().sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
+  }
+  function findRow(id) { return (state.data[state.current] || []).filter(function (r) { return r.id === id; })[0]; }
 
   function render() {
     var host = document.getElementById('tax-editor');
@@ -87,8 +101,28 @@
              '<span>' + esc(l.name) + '</span><span class="c">' + n + '</span></button>';
     }).join('');
 
-    var rows = state.data[state.current] || [];
     var cur = LISTS.filter(function (l) { return l.key === state.current; })[0] || {};
+    var rows = curRows();
+
+    var bar;
+    if (isNested()) {
+      var countries = (state.data.country || []).slice().sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
+      var opts = countries.map(function (c) {
+        var v = c.value;
+        return '<option value="' + esc(v) + '"' + (v === state.cityCountry ? ' selected' : '') + '>' + esc(c.label || v) + '</option>';
+      }).join('');
+      bar = '<div class="tx-bar">' +
+              '<label>Country</label><select id="tx-country" class="tx-country">' + opts + '</select>' +
+              '<input id="tx-new" type="text" placeholder="Add a city to ' + esc(state.cityCountry) + '…">' +
+              '<button id="tx-add-btn" type="button">Add City</button>' +
+            '</div>';
+    } else {
+      bar = '<div class="tx-bar">' +
+              '<input id="tx-new" type="text" placeholder="Add to ' + esc(cur.name || '') + '… e.g. ' + esc((rows[0] && (rows[0].label || rows[0].value)) || 'New item') + '">' +
+              '<button id="tx-add-btn" type="button">Add</button>' +
+            '</div>';
+    }
+
     var rowsHtml = rows.length ? rows.map(function (r, i) {
       return '<tr class="' + (r.active ? '' : 'inactive') + '" data-id="' + r.id + '">' +
         '<td style="width:34px;color:#6a90a8;">' + (i + 1) + '</td>' +
@@ -105,11 +139,7 @@
     host.innerHTML =
       '<div class="tx-wrap">' +
         '<div class="tx-lists">' + listsHtml + '</div>' +
-        '<div class="tx-panel">' +
-          '<div class="tx-add">' +
-            '<input id="tx-new" type="text" placeholder="Add to ' + esc(cur.name || '') + '… e.g. ' + esc((rows[0] && (rows[0].label || rows[0].value)) || 'New item') + '">' +
-            '<button id="tx-add-btn" type="button">Add</button>' +
-          '</div>' +
+        '<div class="tx-panel">' + bar +
           '<table><thead><tr><th>#</th><th>Name</th><th>Status</th><th style="text-align:right;">Actions</th></tr></thead>' +
           '<tbody>' + rowsHtml + '</tbody></table>' +
         '</div>' +
@@ -122,6 +152,8 @@
     host.querySelectorAll('.tx-listbtn').forEach(function (b) {
       b.onclick = function () { state.current = b.dataset.list; render(); };
     });
+    var ctrySel = host.querySelector('#tx-country');
+    if (ctrySel) ctrySel.onchange = function () { state.cityCountry = ctrySel.value; render(); };
     var addBtn = host.querySelector('#tx-add-btn');
     var addInp = host.querySelector('#tx-new');
     if (addBtn) addBtn.onclick = function () { addItem(addInp ? addInp.value : ''); };
@@ -143,9 +175,6 @@
     });
   }
 
-  function curRows() { return state.data[state.current] || []; }
-  function findRow(id) { return curRows().filter(function (r) { return r.id === id; })[0]; }
-
   async function addItem(val) {
     val = (val || '').trim();
     if (!val) return;
@@ -154,11 +183,11 @@
       toast('Already in the list', 'error'); return;
     }
     var maxSort = rows.reduce(function (m, r) { return Math.max(m, r.sort_order || 0); }, -1);
-    var res = await sb().from('taxonomy_items').insert({
-      list_key: state.current, value: val, label: val, sort_order: maxSort + 1, active: true
-    }).select().single();
+    var payload = { list_key: state.current, value: val, label: val, sort_order: maxSort + 1, active: true };
+    if (isNested()) payload.parent = state.cityCountry;
+    var res = await sb().from('taxonomy_items').insert(payload).select().single();
     if (res.error) { console.error(res.error); toast(res.error.message || 'Add failed', 'error'); return; }
-    rows.push(res.data);
+    (state.data[state.current] = state.data[state.current] || []).push(res.data);
     toast('Added "' + val + '"', 'success');
     render();
   }
@@ -183,10 +212,10 @@
 
   async function delItem(id) {
     var r = findRow(id); if (!r) return;
-    if (!confirm('Delete "' + (r.label || r.value) + '" from ' + state.current + '? This removes it everywhere.')) return;
+    if (!confirm('Delete "' + (r.label || r.value) + '"? This removes it everywhere.')) return;
     var res = await sb().from('taxonomy_items').delete().eq('id', id);
     if (res.error) { toast('Delete failed', 'error'); return; }
-    state.data[state.current] = curRows().filter(function (x) { return x.id !== id; });
+    state.data[state.current] = (state.data[state.current] || []).filter(function (x) { return x.id !== id; });
     toast('Deleted', 'success');
     render();
   }
@@ -197,22 +226,34 @@
     var j = idx + dir;
     if (idx < 0 || j < 0 || j >= rows.length) return;
     var a = rows[idx], b = rows[j];
-    var sa = a.sort_order, sb_ = b.sort_order;
-    // swap sort_order in DB
-    var r1 = await sb().from('taxonomy_items').update({ sort_order: sb_ }).eq('id', a.id);
+    var sa = a.sort_order, sbo = b.sort_order;
+    var r1 = await sb().from('taxonomy_items').update({ sort_order: sbo }).eq('id', a.id);
     var r2 = await sb().from('taxonomy_items').update({ sort_order: sa }).eq('id', b.id);
     if ((r1 && r1.error) || (r2 && r2.error)) { toast('Reorder failed', 'error'); return; }
-    a.sort_order = sb_; b.sort_order = sa;
-    rows.sort(function (x, y) { return (x.sort_order || 0) - (y.sort_order || 0); });
+    a.sort_order = sbo; b.sort_order = sa;
     render();
   }
 
   async function init() {
     if (!sb()) { setTimeout(init, 150); return; }
     injectCss();
+    // Edits require a live admin Supabase session (RLS). If it's missing/expired the
+    // lists still READ (public), but Add/rename/delete would silently fail — so say so.
+    var hasSession = true;
+    try {
+      var sres = await sb().auth.getSession();
+      hasSession = !!(sres && sres.data && sres.data.session);
+    } catch (e) { hasSession = false; }
+    if (!hasSession) {
+      var h0 = document.getElementById('tax-editor');
+      if (h0) h0.innerHTML = '<div style="padding:24px;color:#FFCC00;font-weight:700;line-height:1.6;">' +
+        'Your admin session isn’t active, so edits can’t be saved.<br>' +
+        'Please <b>Sign out</b> (top-right) and sign back in, then reopen Taxonomies.</div>';
+      return;
+    }
     await fetchAll();
     render();
-    console.log('[FFP Admin Taxonomies] loaded v1 ✓');
+    console.log('[FFP Admin Taxonomies] loaded v2 ✓');
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
