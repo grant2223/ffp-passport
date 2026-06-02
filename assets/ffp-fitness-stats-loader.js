@@ -1,4 +1,7 @@
-/* FFP Fitness Stats Loader — v16
+/* FFP Fitness Stats Loader — v17
+   v17 (2026-06-02): Records "My PR" card now shows a COMMUNITY BENCHMARK line — "Group avg X ·
+       you’re top Y%" — computed from the current filtered ranking pool (≥3 people), alongside the
+       existing rank + leaderboard.
    v16 (2026-06-02): SAVE moved OUT of this lazy loader into the always-loaded CORE FitnessStats
         (dashboard v229) — records/health/weight/sleep now persist via member_profile_meta_save
         straight from the core, exactly like activity logs, so it no longer depends on this loader
@@ -869,6 +872,19 @@
           : '<div class="ffp-my-pr-value">' + formatMetricValue(rec2.value, metric) + (metric.unit !== 'time' ? '<span class="ffp-my-pr-value-unit">' + metric.unit + '</span>' : '') + '</div>')
       : '<div class="ffp-my-pr-empty">No record yet — tap edit to add</div>';
 
+    // Community benchmark: group average for the current filter + your percentile (needs >=3 people).
+    var benchLine = '';
+    if (sortedFiltered.length >= 3) {
+      var bvals = sortedFiltered.map(function (r) { return metricVal(r, metric); }).filter(function (v) { return v != null && !isNaN(v); });
+      if (bvals.length) {
+        var bavg = bvals.reduce(function (a, b) { return a + b; }, 0) / bvals.length;
+        var bavgStr = metric.derive ? bavg.toFixed(metric.lbDecimals != null ? metric.lbDecimals : 1) : formatMetricValue(bavg, metric);
+        var bavgU = metric.unit === 'time' ? '' : (metric.derive ? (metric.lbUnit || '') : metric.unit);
+        benchLine = 'Group avg ' + bavgStr + (bavgU ? (' ' + bavgU) : '');
+        if (myIdx >= 0) { var bpct = Math.max(1, Math.round(((myIdx + 1) / sortedFiltered.length) * 100)); benchLine += ' \u00b7 you\u2019re top ' + bpct + '%'; }
+      }
+    }
+
     card.innerHTML =
       '<div class="ffp-my-pr-head">' +
         '<div class="ffp-my-pr-title">Your ' + metric.label + (metric.group ? ' \u00b7 ' + metric.group : '') + '</div>' +
@@ -877,6 +893,7 @@
       valueHtml +
       '<div class="ffp-my-pr-meta">' +
         '<div>' + posLine + '</div>' +
+        (benchLine ? '<div class="ffp-my-pr-pos" style="color:var(--blue);">' + benchLine + '</div>' : '') +
         (rec2 && rec2.date ? '<div>PR set ' + escText(rec2.date) + '</div>' : '') +
       '</div>';
 
