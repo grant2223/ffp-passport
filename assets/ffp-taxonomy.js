@@ -211,3 +211,62 @@
     'Other': ['Entrepreneur','Investor','Consultant','Sports Tech Founder','Wellness Tech Founder','Researcher','Educator','Other']
   };
 })();
+
+/* ── DB HYDRATION (v4, 2026-06-01) ──────────────────────────────────────────────
+   The Admin > Taxonomies panel edits public.taxonomy_items. On every page load we
+   pull those lists and OVERRIDE the hardcoded FFP_TAX arrays IN PLACE (so admin
+   changes propagate platform-wide). If the DB is empty/unreachable, the hardcoded
+   lists above remain as a safe fallback — nothing breaks. Exposes window.FFP_TAX_READY
+   (promise) and fires a document 'ffp-tax-ready' event so forms can rebuild if needed. */
+(function () {
+  'use strict';
+  var T = window.FFP_TAX; if (!T) return;
+  var SB_URL = 'https://kxzyuofecmtymablnmak.supabase.co';
+  var SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4enl1b2ZlY210eW1hYmxubWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NDM1MTYsImV4cCI6MjA5NTAxOTUxNn0.cWn0x1AeD-x9C-HHf9MShXbFRWdkWi5RMgHLgWJwOuE';
+
+  // category 'c' would be lost for activities (taxonomy_items has no category),
+  // so capture the original name->c map to preserve grouping for known activities.
+  var actCat = {};
+  (T.activities || []).forEach(function (a) { if (a && a.n) actCat[a.n] = a.c || ''; });
+
+  function getClient() {
+    var sb = window.supabase;
+    if (sb && typeof sb.from === 'function') return sb;                 // already a client (dashboards)
+    if (sb && typeof sb.createClient === 'function') return sb.createClient(SB_URL, SB_ANON); // UMD namespace
+    return null;
+  }
+  function fill(arr, vals) { if (!arr) return; arr.length = 0; vals.forEach(function (v) { arr.push(v); }); }
+
+  function apply(rows) {
+    var by = {};
+    rows.forEach(function (r) { (by[r.list_key] = by[r.list_key] || []).push(r); });
+    function vals(k) {
+      return (by[k] || []).sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); })
+        .map(function (r) { return r.label || r.value; });
+    }
+    if (by.activity) {
+      var names = vals('activity');
+      T.activities.length = 0;
+      names.forEach(function (n) { T.activities.push({ n: n, c: (actCat[n] || '') }); });
+    }
+    if (by.fitness_level) fill(T.fitnessLevels, vals('fitness_level'));
+    if (by.nationality)   fill(T.nationalities, vals('nationality'));
+    if (by.gender)        fill(T.genders, vals('gender'));
+    if (by.age_group)     fill(T.ageGroups, vals('age_group'));
+    if (by.category && window.FFP_CONST && window.FFP_CONST.providerCategories) {
+      fill(window.FFP_CONST.providerCategories, vals('category'));
+    }
+    try { document.dispatchEvent(new CustomEvent('ffp-tax-ready', { detail: { source: 'db' } })); } catch (e) {}
+  }
+
+  window.FFP_TAX_READY = (async function () {
+    try {
+      var c = getClient(); if (!c) return false;
+      var res = await c.from('taxonomy_items')
+        .select('list_key, value, label, sort_order, active').eq('active', true);
+      if (res.error || !res.data || !res.data.length) return false;
+      apply(res.data);
+      return true;
+    } catch (e) { return false; }
+  })();
+})();
