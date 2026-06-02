@@ -269,6 +269,7 @@
     ax.feature = feature;
     ax.view = viewExperience;
     ax.refresh = refresh;
+    refresh(); // render real data now (replaces inline demo — fixes "reverts to old version")
     if (window.FFPRealtime) window.FFPRealtime.subscribe('admin-experiences', 'experiences', null, function () { refresh(); });
 
     try {
