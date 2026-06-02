@@ -1,4 +1,9 @@
-/* FFP Fitness Stats Loader — v17
+/* FFP Fitness Stats Loader — v18
+   v18 (2026-06-02): READ-BACK FIX — records were SAVING fine (confirmed in DB) but the Records tab
+       read them from a backend /profile-meta endpoint that DOESN'T EXIST (404) → FitnessStats.records
+       stayed empty → "No record yet". Now reads via the member_profile_meta_get SECURITY DEFINER RPC
+       (same proven path as the save), so saved records/health/weight/sleep reload correctly. Also: the
+       whole "My PR" card is tappable now (opens the full-screen editor), not just the small button.
    v17 (2026-06-02): Records "My PR" card now shows a COMMUNITY BENCHMARK line — "Group avg X ·
        you’re top Y%" — computed from the current filtered ranking pool (≥3 people), alongside the
        existing rank + leaderboard.
@@ -897,14 +902,13 @@
         (rec2 && rec2.date ? '<div>PR set ' + escText(rec2.date) + '</div>' : '') +
       '</div>';
 
-    var btn = document.getElementById('ffp-my-pr-edit-btn');
-    if (btn) btn.addEventListener('click', function () {
-      if (metric.key === 'sleepAvgHrs' && typeof FitnessStats.openSleepLog === 'function') {
-        FitnessStats.openSleepLog();
-      } else if (typeof FitnessStats.openPrEdit === 'function') {
-        FitnessStats.openPrEdit(metric.key);
-      }
-    });
+    // whole card is tappable (not just the small button) → opens the full-screen editor
+    var _openEd = function () {
+      if (metric.key === 'sleepAvgHrs' && typeof FitnessStats.openSleepLog === 'function') FitnessStats.openSleepLog();
+      else if (typeof FitnessStats.openPrEdit === 'function') FitnessStats.openPrEdit(metric.key);
+    };
+    card.style.cursor = 'pointer';
+    card.onclick = _openEd;
   }
 
   // ─────────── ACTIVITY / MILESTONES OVERRIDES (carried from v4) ───────────
@@ -1189,11 +1193,12 @@
         city: ffpM.city || null, country: ffpM.country || null, nationality: ffpM.nationality || null
       };
 
-      // profile_meta via backend (service-role)
+      // profile_meta READ via SECURITY DEFINER RPC (the backend had NO /profile-meta endpoint →
+      // the old fetch 404'd, so saved records never loaded back into the Records tab). Same proven
+      // RPC path as the SAVE, no backend dependency.
       try {
-        var pmRes = await fetch(API + '/api/members/' + currentUserId + '/profile-meta');
-        var pmJson = await pmRes.json();
-        var p = pmJson && pmJson.meta;
+        var pmRes = await window.supabase.rpc('member_profile_meta_get', { p_me: currentUserId });
+        var p = pmRes && pmRes.data;
         if (p) {
           if (ageFromDob == null && p.chrono_age != null) FitnessStats.profile.chronAge = Number(p.chrono_age); // v21: DOB wins; chrono_age fallback only
           if (p.current_weight_kg != null) FitnessStats.profile.weight = Number(p.current_weight_kg);
