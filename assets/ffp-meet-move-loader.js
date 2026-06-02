@@ -1,4 +1,6 @@
-/* FFP Meet & Move Loader — v17
+/* FFP Meet & Move Loader — v18
+   v18 (2026-06-02): carry meetups.maps_url into MeetMove.data so the meetup detail's location is a
+       tappable link (opens the picked spot in the member's maps app). Set via the new location picker.
    v17 (2026-06-02): (1) HOST CAN CANCEL — host detail modal's footer button is now "Cancel this
         meet-up" (red) → MeetMove.cancelMeetup() → cancel_meetup RPC (host-only; sets the meetup +
         attendee RSVPs to 'cancelled' and inserts a notification for every joined attendee) → reload.
@@ -441,6 +443,7 @@
           joinedByMe: joinedSet.has(m.id) || isHostedByMe, isHostedByMe: isHostedByMe,
           isProfessional: !!m.is_professional,
           host_member_id: m.host_member_id, full: m.status === 'full',
+          maps_url: m.maps_url || '',
           about: m.description || 'Member-hosted meetup.', img: meta.img,
           attendees: buildAttendees(m, attMap[m.id] || [], peopleMap)
         };
