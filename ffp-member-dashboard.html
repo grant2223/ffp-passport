@@ -1,4 +1,10 @@
-<!-- FFP MEMBER DASHBOARD — v217 (2026-06-02)
+<!-- FFP MEMBER DASHBOARD — v218 (2026-06-02)
+     v218: Meetups — (a) Hosting count now counts m.isHostedByMe (was hostingIds.size, never
+           populated → always 0); a meetup you host no longer also counts/shows under Joined.
+           (b) Host can CANCEL from the detail modal (meet-move loader v17 → cancel_meetup RPC,
+           notifies joined attendees). (c) Who's-going passports register into FFPCard for full
+           data. Meet-move lazy ref ?v=17.
+     v217: fitness-stats loader hardened to v15.1 (write-wrappers now install before any network
      v217: fitness-stats loader hardened to v15.1 (write-wrappers now install before any network
            call so saves can't silently no-op) — lazy ref bumped to ?v=16. DB/RPC verified: the
            anon role can execute member_profile_meta_save and it persists, so saving works once
@@ -7162,7 +7168,7 @@ function setupPanelNav() {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
     'panel-fitness-stats':   'assets/ffp-fitness-stats-loader.js?v=16',
-    'panel-meet':            'assets/ffp-meet-move-loader.js',
+    'panel-meet':            'assets/ffp-meet-move-loader.js?v=17',
     'panel-events':          'assets/ffp-member-discovery-loader.js',
     'panel-experiences':     'assets/ffp-member-discovery-loader.js',
     'panel-challenges':      'assets/ffp-member-discovery-loader.js'
@@ -11518,7 +11524,7 @@ const MeetMove = {
   
   filtered() {
     let items = this.data.slice();
-    if (this.tab === 'joined')       items = items.filter(m => m.joinedByMe);
+    if (this.tab === 'joined')       items = items.filter(m => m.joinedByMe && !m.isHostedByMe);
     else if (this.tab === 'hosting') items = items.filter(m => this.hostingIds.has(m.id) || m.isHostedByMe);
     else if (this.tab === 'past')    items = [];
     else if (this.tab === 'discover') {
@@ -11570,8 +11576,8 @@ const MeetMove = {
     var _chipRow = document.getElementById('meet-pro-chip-row');
     if (_chipRow) _chipRow.style.display = isMemberProfessional() ? '' : 'none';
     // Tab counts
-    const joinedCount = this.data.filter(m => m.joinedByMe).length;
-    const hostingCount = this.hostingIds.size;
+    const joinedCount = this.data.filter(m => m.joinedByMe && !m.isHostedByMe).length;
+    const hostingCount = this.data.filter(m => m.isHostedByMe || this.hostingIds.has(m.id)).length;
     document.getElementById('cnt-meet-joined').textContent = joinedCount;
     document.getElementById('cnt-meet-hosting').textContent = hostingCount;
     
