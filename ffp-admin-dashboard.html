@@ -1,4 +1,4 @@
-<!-- FFP Admin Dashboard v31 (2026-06-01): provider accounts are INSTANT + self-serve (no approval) — REMOVED the Applications panel/loader entirely, and reverted the v30 provider "Pending" approval tab (Providers panel is back to Approved/Featured/Suspended, a directory, not an account-approval queue). v29 (skill levels). v28 (2026-05-31) — USD labels. v27: tier/expiry edit no longer rebuilds row mid-change. -->
+<!-- FFP Admin Dashboard v33 (2026-06-01): Taxonomies panel is now a REAL editor — ffp-admin-taxonomies-loader.js does CRUD on public.taxonomy_items (Activities/Categories/Fitness Levels/Nationalities/Genders/Age Groups): add, rename, reorder, show/hide, delete. assets/ffp-taxonomy.js v4 hydrates FFP_TAX from that table so edits propagate platform-wide (hardcoded fallback if DB unreachable). v32 (2026-06-01): FIX broken icons — added self-contained base `.material-icons` CSS rule (font-family + 'liga') + &display=block on the icon font link, so sidebar/queue icons never fall back to raw ligature text ("storefront", "inbox", etc.) when the external Google CSS is slow/blocked (this was the "design turned shit" issue). v31: provider accounts INSTANT + self-serve — REMOVED Applications panel/loader + reverted the v30 Pending approval tab. v29 (skill levels). v28 USD labels. v27 tier/expiry edit fix. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1393,7 +1393,7 @@ input, select, textarea { font-family: inherit; }
       </div>
     </div>
     <div class="sidebar-footer">
-      v1.0 &middot; FFP Admin
+      build v32 &middot; FFP Admin
     </div>
   </aside>
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.toggleSidebar()"></div>
@@ -1860,29 +1860,11 @@ input, select, textarea { font-family: inherit; }
     <section class="panel" id="panel-taxonomies">
       <div class="panel-head">
         <h1>Taxonomies</h1>
-        <div class="panel-head-sub">Cities, activities, and categories used across the platform.</div>
+        <div class="panel-head-sub">Edit the lists used across the whole platform — add, rename, reorder, or hide items. Changes go live everywhere on next page load.</div>
       </div>
-      
-      <div class="kpi-grid">
-        <div class="kpi-tile" onclick="showToast('Cities editor coming')" style="cursor:pointer;">
-          <div class="kpi-label">Cities</div>
-          <div class="kpi-value" id="tax-cities-count">537</div>
-          <div class="kpi-delta"><span class="text-muted" id="tax-countries-count">across 67 countries</span></div>
-        </div>
-        <div class="kpi-tile" onclick="showToast('Activities editor coming')" style="cursor:pointer;">
-          <div class="kpi-label">Activities</div>
-          <div class="kpi-value" id="tax-act-count">101</div>
-          <div class="kpi-delta"><span class="text-muted" id="tax-act-cats">across 16 categories</span></div>
-        </div>
-        <div class="kpi-tile" onclick="showToast('Categories editor coming')" style="cursor:pointer;">
-          <div class="kpi-label">Provider Categories</div>
-          <div class="kpi-value" id="tax-cat-count">12</div>
-          <div class="kpi-delta"><span class="text-muted" id="tax-cat-list">Fitness, Wellness, Padel, Yoga &amp; Pilates, Climbing, Combat sports, Recovery, Adventure, Nutrition, Coaching, Retail, Other</span></div>
-        </div>
-        <div class="kpi-tile">
-          <div class="kpi-label">Fitness Levels (locked)</div>
-          <div class="kpi-value" style="font-size:14px; line-height:1.4;">Not Tried &middot; Social &middot; Competitive<br>Representative &middot; Professional</div>
-        </div>
+
+      <div class="section" id="tax-editor">
+        <div class="text-muted" style="padding:24px;">Loading taxonomy editor…</div>
       </div>
     </section>
     
@@ -2193,7 +2175,8 @@ const App = {
     'panel-experiences':  'ffp-admin-experiences-loader.js',
     'panel-challenges':   'ffp-admin-challenges-loader.js',
     'panel-meetups':      'ffp-admin-meetups-loader.js',
-    'panel-analytics':    'ffp-admin-analytics-loader.js'
+    'panel-analytics':    'ffp-admin-analytics-loader.js',
+    'panel-taxonomies':   'ffp-admin-taxonomies-loader.js'
   },
   _lazyInit(panelId) {
     if (this._opened[panelId]) return;
