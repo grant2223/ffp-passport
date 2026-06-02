@@ -1,6 +1,10 @@
-<!-- FFP MEMBER DASHBOARD — v225 (2026-06-02)
-     v225: Map markers are now slim BALL-HEAD pins (coloured round head on a thin needle, tip on
-           the spot) — replaced the teardrop. Yellow head = venue check-in, blue = city.
+<!-- FFP MEMBER DASHBOARD — v226 (2026-06-02)
+     v226: POST-A-MEETUP upgrades — Date + Time now side by side (Capacity on its own row); age range
+           defaults 18→99. LOCATION is now a map PICKER (FFPLocPick: Leaflet + OpenStreetMap search +
+           drag-to-pin), storing venue name + lat/lng + maps_url (meetups gained those columns;
+           host_meetup writes them). The meetup detail's location is a tappable link to that spot
+           (maps_url) — no more typed addresses / pasted links. Meet-move loader v18 (?v=18).
+           Also (v225) map markers are slim ball-head pins; pin size reduced.
      v224: World Map basemap → CARTO Voyager (light land, blue water, good contrast; removed the
            grayscale filter). Markers were teardrop PINS — superseded by v225 ball-head pins.
      v223: (a) Map tiles LIGHTENED (grayscale brightness 1.55) so water + lines read lighter, base #20252b.
@@ -5439,27 +5443,27 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         <input type="hidden" id="pmf-cat">
         <input type="hidden" id="pmf-level">
       </div>
-      <div class="pm-form-field">
-        <label class="pm-form-label">Date</label>
-        <input type="date" class="pm-form-input" id="pmf-date">
-      </div>
       <div class="pm-form-grid-2">
+        <div class="pm-form-field">
+          <label class="pm-form-label">Date</label>
+          <input type="date" class="pm-form-input" id="pmf-date">
+        </div>
         <div class="pm-form-field">
           <label class="pm-form-label">Time</label>
           <input type="time" class="pm-form-input" id="pmf-time" value="18:00">
         </div>
-        <div class="pm-form-field">
-          <label class="pm-form-label">Capacity (incl. you)</label>
-          <select class="ffp-select" id="pmf-capacity">
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4" selected>4</option>
-            <option value="5">5</option>
-            <option value="6">6</option>
-            <option value="7">7</option>
-            <option value="8">8 (max)</option>
-          </select>
-        </div>
+      </div>
+      <div class="pm-form-field">
+        <label class="pm-form-label">Capacity (incl. you)</label>
+        <select class="ffp-select" id="pmf-capacity">
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4" selected>4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8 (max)</option>
+        </select>
       </div>
       <div class="pm-form-grid-2">
         <div class="pm-form-field">
@@ -5473,8 +5477,12 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
       </div>
       <div class="pm-form-field">
         <label class="pm-form-label">Location</label>
-        <input type="text" class="pm-form-input" id="pmf-venue" placeholder="e.g. Kite Beach, Dubai" oninput="pmfUpdateMap()">
-        <a id="pmf-maplink" href="#" target="_blank" rel="noopener" style="display:none; font-size:12px; color:var(--blue); margin-top:6px; align-items:center; gap:4px;"><span class="material-icons" style="font-size:14px;vertical-align:-3px;">place</span> View on Google Maps</a>
+        <button type="button" class="pm-form-input pm-form-pick" id="pmf-loc-btn" onclick="FFPLocPick.open(pmfSetLocation)">
+          <span id="pmf-loc-display" class="pmf-pick-ph">Add location — search or drop a pin</span>
+          <span class="material-icons" style="color:var(--muted);">place</span>
+        </button>
+        <a id="pmf-maplink" href="#" target="_blank" rel="noopener" style="display:none; font-size:12px; color:var(--blue); margin-top:6px; align-items:center; gap:4px;"><span class="material-icons" style="font-size:14px;vertical-align:-3px;">place</span> View on map</a>
+        <input type="hidden" id="pmf-venue"><input type="hidden" id="pmf-lat"><input type="hidden" id="pmf-lng"><input type="hidden" id="pmf-maps">
       </div>
       <div class="pm-form-grid-2">
         <div class="pm-form-field">
@@ -5512,6 +5520,29 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     </div>    <div class="dm-footer">
       <button class="btn-primary-yellow" onclick="MeetMove.submitPost()">Post Meetup</button>
       <div class="dm-footer-note">Bigger than 8 people? Switch to an Event — contact FFP admin to host.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ LOCATION PICKER (Leaflet + OpenStreetMap search) — pick the meet-up spot on a map ═══ -->
+<div class="detail-backdrop" id="loc-pick-backdrop" onclick="if(event.target.id==='loc-pick-backdrop')FFPLocPick.close()">
+  <div class="detail-modal" role="dialog" aria-modal="true" style="display:flex;flex-direction:column;max-height:100vh;">
+    <button class="dm-close" onclick="FFPLocPick.close()"><span class="material-icons">close</span></button>
+    <div class="dm-body" style="padding-bottom:10px;flex:0 0 auto;">
+      <div class="dm-title">Set the meet-up spot</div>
+      <div style="font-size:12px;color:var(--muted);margin:4px 0 12px;">Search a place, or drag the map so the pin sits exactly where you'll meet.</div>
+      <input type="text" id="lp-search" class="pm-form-input" placeholder="Search a place — e.g. Kite Beach, Dubai" autocomplete="off" oninput="FFPLocPick.onSearch(this.value)">
+      <div id="lp-results"></div>
+    </div>
+    <div style="position:relative;flex:1 1 auto;min-height:280px;">
+      <div id="lp-map" style="position:absolute;inset:0;background:#aadaf0;"></div>
+      <div id="lp-center-pin" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-100%);z-index:600;pointer-events:none;">
+        <svg width="26" height="38" viewBox="0 0 26 38" xmlns="http://www.w3.org/2000/svg"><ellipse cx="13" cy="36" rx="4" ry="1.6" fill="rgba(0,0,0,0.3)"/><rect x="11.7" y="14" width="2.6" height="22" rx="1.3" fill="#3c4854"/><circle cx="13" cy="10" r="9" fill="#FFCC00" stroke="#fff" stroke-width="2"/><circle cx="9.5" cy="7" r="2.2" fill="#fff" opacity="0.5"/></svg>
+      </div>
+    </div>
+    <div class="dm-footer" style="flex:0 0 auto;">
+      <div id="lp-chosen" style="font-size:12.5px;color:var(--text);font-weight:700;margin-bottom:8px;min-height:18px;">Move the map to choose a spot</div>
+      <button class="btn-primary-yellow" onclick="FFPLocPick.use()">Use this location</button>
     </div>
   </div>
 </div>
@@ -6736,12 +6767,12 @@ window.JourneyMap = (function () {
   }
   function dotIcon(color, r){
     // slim location pin with a coloured BALL HEAD on a thin needle; tip sits on the spot
-    var h = '<svg width="16" height="30" viewBox="0 0 16 30" xmlns="http://www.w3.org/2000/svg">'
-      + '<ellipse cx="8" cy="28.6" rx="2.8" ry="1.1" fill="rgba(0,0,0,0.22)"/>'
-      + '<rect x="7.1" y="10.5" width="1.8" height="17.5" rx="0.9" fill="#3c4854"/>'
-      + '<circle cx="8" cy="7" r="6" fill="'+color+'" stroke="#ffffff" stroke-width="1.5"/>'
-      + '<circle cx="5.8" cy="5" r="1.5" fill="#ffffff" opacity="0.5"/></svg>';
-    return L.divIcon({ className:'jm-pin', html:h, iconSize:[16,30], iconAnchor:[8,30], popupAnchor:[0,-28] });
+    var h = '<svg width="13" height="23" viewBox="0 0 13 23" xmlns="http://www.w3.org/2000/svg">'
+      + '<ellipse cx="6.5" cy="22" rx="2.2" ry="0.9" fill="rgba(0,0,0,0.22)"/>'
+      + '<rect x="5.85" y="8" width="1.3" height="14" rx="0.65" fill="#3c4854"/>'
+      + '<circle cx="6.5" cy="5.2" r="4.6" fill="'+color+'" stroke="#ffffff" stroke-width="1.3"/>'
+      + '<circle cx="5" cy="3.9" r="1.1" fill="#ffffff" opacity="0.5"/></svg>';
+    return L.divIcon({ className:'jm-pin', html:h, iconSize:[13,23], iconAnchor:[6.5,23], popupAnchor:[0,-21] });
   }
   function init(){
     if (map || typeof L === 'undefined') return;
@@ -7364,7 +7395,7 @@ function setupPanelNav() {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
     'panel-fitness-stats':   'assets/ffp-fitness-stats-loader.js?v=16',
-    'panel-meet':            'assets/ffp-meet-move-loader.js?v=17',
+    'panel-meet':            'assets/ffp-meet-move-loader.js?v=18',
     'panel-events':          'assets/ffp-member-discovery-loader.js',
     'panel-experiences':     'assets/ffp-member-discovery-loader.js',
     'panel-challenges':      'assets/ffp-member-discovery-loader.js'
@@ -11870,7 +11901,7 @@ const MeetMove = {
         <div class="dm-title">${escHtml(m.activity)}</div>
         <div class="dm-meta-row">
           <span class="item"><span class="material-icons">schedule</span>${escHtml(m.when)}</span>
-          <span class="item"><span class="material-icons">location_on</span>${escHtml(m.venue)}, ${escHtml(m.area)}</span>
+          <span class="item"><span class="material-icons">location_on</span>${m.maps_url ? `<a href="${m.maps_url}" target="_blank" rel="noopener" style="color:var(--blue);text-decoration:none;">${escHtml(m.venue)}${m.area ? ', ' + escHtml(m.area) : ''} <span class="material-icons" style="font-size:13px;vertical-align:-2px;">open_in_new</span></a>` : (escHtml(m.venue) + (m.area ? ', ' + escHtml(m.area) : ''))}</span>
           <span class="item"><span class="material-icons">signal_cellular_alt</span>${escHtml(m.level)}</span>
         </div>
       </div>
@@ -12137,13 +12168,15 @@ const MeetMove = {
     // Age From / To
     if (afS && afS.options.length === 0) {
       for (var a = 18; a <= 99; a++) { afS.add(new Option(String(a), a)); atS.add(new Option(String(a), a)); }
-      afS.value = '18'; atS.value = '45';
+      afS.value = '18'; atS.value = '99';
     }
     var tmEl = g('pmf-time'); if (tmEl && !tmEl.value) tmEl.value = '18:00';
     var acV = g('pmf-cat'), acL = g('pmf-level'), acD = g('pmf-cat-display');
     if (acV) acV.value = ''; if (acL) acL.value = '';
     if (acD) { acD.textContent = 'Choose activity & level'; acD.classList.remove('set'); }
     var ml = g('pmf-maplink'); if (ml) ml.style.display = 'none';
+    ['pmf-venue','pmf-lat','pmf-lng','pmf-maps'].forEach(function (id) { var e = g(id); if (e) e.value = ''; });
+    var ld = g('pmf-loc-display'); if (ld) { ld.textContent = 'Add location — search or drop a pin'; ld.classList.add('pmf-pick-ph'); ld.classList.remove('set'); }
     var _proField = g('pmf-pro-field'), _proCb = g('pmf-professional');
     if (_proCb) _proCb.checked = false;
     if (_proField) _proField.style.display = isMemberProfessional() ? '' : 'none';
@@ -12176,6 +12209,9 @@ const MeetMove = {
     var title    = document.getElementById('pmf-title').value.trim();
     var activity = document.getElementById('pmf-cat').value;
     var venue    = document.getElementById('pmf-venue').value.trim();
+    var mapsUrl  = (document.getElementById('pmf-maps')||{}).value || '';
+    var latV     = (document.getElementById('pmf-lat')||{}).value || '';
+    var lngV     = (document.getElementById('pmf-lng')||{}).value || '';
     var country  = document.getElementById('pmf-country').value;
     var city     = document.getElementById('pmf-city').value.trim();
     var ageFrom  = document.getElementById('pmf-age-from').value;
@@ -12183,7 +12219,7 @@ const MeetMove = {
     var ageRange = (ageFrom && ageTo) ? (ageFrom + '-' + ageTo) : '';
     if (!title)    { alert('Add a title.'); return; }
     if (!activity || !document.getElementById('pmf-level').value) { alert('Choose an activity and level.'); return; }
-    if (!venue)    { alert('Add a venue.'); return; }
+    if (!venue)    { alert('Add a location — tap "Add location" and pick the spot on the map.'); return; }
     if (!country)  { alert('Select a country.'); return; }
     if (!city)     { alert('Add a city.'); return; }
     if (!ageFrom || !ageTo) { alert('Select an age range (from and to).'); return; }
@@ -12202,6 +12238,9 @@ const MeetMove = {
       sport: activity,
       meets_at: meetsAt,
       venue: venue,
+      maps_url: mapsUrl || null,
+      latitude: latV || null,
+      longitude: lngV || null,
       city: city,
       country: country,
       age_range: ageRange,
@@ -13521,6 +13560,90 @@ setTimeout(scalePassportCard, 200);
 })();
 </script>
 
+<script>
+/* ── FFPLocPick: map location picker (Leaflet + OpenStreetMap/Nominatim) ── */
+function pmfSetLocation(loc){
+  if(!loc) return;
+  var v=document.getElementById('pmf-venue'); if(v) v.value=loc.name||'';
+  var la=document.getElementById('pmf-lat'); if(la) la.value=(loc.lat!=null?loc.lat:'');
+  var lo=document.getElementById('pmf-lng'); if(lo) lo.value=(loc.lng!=null?loc.lng:'');
+  var mp=document.getElementById('pmf-maps'); if(mp) mp.value=loc.maps_url||'';
+  var d=document.getElementById('pmf-loc-display'); if(d){ d.textContent=loc.name||'Location set'; d.classList.remove('pmf-pick-ph'); d.classList.add('set'); }
+  var ml=document.getElementById('pmf-maplink'); if(ml && loc.maps_url){ ml.href=loc.maps_url; ml.style.display='inline-flex'; }
+}
+window.FFPLocPick = (function(){
+  var map=null, cb=null, cur=null, searchT=null, geoT=null, results=[];
+  function esc(s){ return (window.escHtml?escHtml(s):String(s==null?'':s)); }
+  function init(){
+    if(map || typeof L==='undefined') return;
+    var el=document.getElementById('lp-map'); if(!el) return;
+    map=L.map(el,{zoomControl:true,attributionControl:false}).setView([25.2048,55.2708],11);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19}).addTo(map);
+    map.on('moveend', schedReverse);
+  }
+  function open(callback){
+    cb=callback||null; cur=null;
+    var bk=document.getElementById('loc-pick-backdrop'); if(!bk) return;
+    bk.classList.add('open');
+    var s=document.getElementById('lp-search'); if(s) s.value='';
+    var r=document.getElementById('lp-results'); if(r) r.innerHTML='';
+    setTimeout(function(){ init(); if(map){ map.invalidateSize(); schedReverse(); } }, 220);
+  }
+  function close(){ var bk=document.getElementById('loc-pick-backdrop'); if(bk) bk.classList.remove('open'); }
+  function schedReverse(){ clearTimeout(geoT); geoT=setTimeout(reverseCenter, 450); }
+  function reverseCenter(){
+    if(!map) return; var c=map.getCenter(); cur={lat:c.lat,lng:c.lng,name:null};
+    var ch=document.getElementById('lp-chosen'); if(ch) ch.textContent='Naming this spot…';
+    fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=16&addressdetails=1&lat='+c.lat+'&lon='+c.lng)
+      .then(function(r){return r.json();}).then(function(j){
+        var nm=shortName(j); if(cur) cur.name=nm;
+        if(ch) ch.textContent = nm || ('Pin: '+c.lat.toFixed(4)+', '+c.lng.toFixed(4));
+      }).catch(function(){ if(ch) ch.textContent='Pin: '+c.lat.toFixed(4)+', '+c.lng.toFixed(4); });
+  }
+  function shortName(j){
+    if(!j) return ''; var a=j.address||{};
+    var spot=j.name||a.leisure||a.amenity||a.tourism||a.building||a.road||'';
+    var city=a.city||a.town||a.village||a.suburb||a.county||'';
+    var p=[]; if(spot)p.push(spot); if(city&&city!==spot)p.push(city);
+    return p.join(', ') || (j.display_name?j.display_name.split(',').slice(0,2).join(', '):'');
+  }
+  function onSearch(q){
+    clearTimeout(searchT); q=(q||'').trim();
+    var r=document.getElementById('lp-results');
+    if(q.length<3){ if(r) r.innerHTML=''; return; }
+    searchT=setTimeout(function(){
+      fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&q='+encodeURIComponent(q))
+        .then(function(res){return res.json();}).then(function(arr){
+          results=arr||[]; if(!r) return;
+          if(!results.length){ r.innerHTML='<div style="padding:9px 4px;font-size:12px;color:var(--muted);">No matches</div>'; return; }
+          r.innerHTML=results.map(function(it,i){
+            var label=(it.display_name||'').split(',').slice(0,3).join(', ');
+            return '<div onclick="FFPLocPick.pick('+i+')" style="padding:10px;border-bottom:1px solid var(--border,#1a2f44);font-size:13px;color:var(--text,#e8eef4);cursor:pointer;">'+esc(label)+'</div>';
+          }).join('');
+        }).catch(function(){});
+    }, 500);
+  }
+  function pick(i){
+    var it=results[i]; if(!it||!map) return;
+    var lat=parseFloat(it.lat), lng=parseFloat(it.lon);
+    var label=(it.display_name||'').split(',').slice(0,2).join(', ');
+    cur={lat:lat,lng:lng,name:label};
+    map.setView([lat,lng],16);
+    var ch=document.getElementById('lp-chosen'); if(ch) ch.textContent=label;
+    var r=document.getElementById('lp-results'); if(r) r.innerHTML='';
+    var s=document.getElementById('lp-search'); if(s) s.value=label;
+  }
+  function use(){
+    if(!map){ close(); return; }
+    var c=map.getCenter();
+    var lat=cur?cur.lat:c.lat, lng=cur?cur.lng:c.lng;
+    var name=(cur&&cur.name)?cur.name:('Pin '+lat.toFixed(4)+', '+lng.toFixed(4));
+    if(typeof cb==='function') cb({ name:name, lat:lat, lng:lng, maps_url:'https://www.google.com/maps?q='+lat+','+lng });
+    close();
+  }
+  return { open:open, close:close, onSearch:onSearch, pick:pick, use:use };
+})();
+</script>
 <script src="ffp-member-checkin-loader.js?v=4"></script>
 </body>
 </html>
