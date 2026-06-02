@@ -12627,20 +12627,26 @@ async function loadJourneyLogs() {
     var json = await res.json();
     var rows = (json && json.logs) || [];
     var now = Date.now();
+    // REBUILD from the DB each time (clear first) so this is idempotent — safe to
+    // re-run after a venue check-in / new log without duplicating rows. The DB is
+    // authoritative; manual logs are persisted too, so they come back here.
+    LOGS.length = 0;
     rows.forEach(function (r) {
-      if (!r.city) return;
       var dt = r.logged_at ? new Date(r.logged_at) : new Date();
       LOGS.push({
-        activity: r.activity || 'Activity', venue: '', city: r.city, country: r.country || '',
+        activity: r.activity || 'Activity', venue: r.venue || '', city: r.city || '', country: r.country || '',
         date: dt.toISOString().substring(0, 10),
         daysAgo: Math.max(0, Math.floor((now - dt.getTime()) / 86400000)),
-        duration: r.duration_min || 0, calories: r.calories || 0, notes: '', partner: false
+        duration: r.duration_min || 0, calories: r.calories || 0, notes: r.notes || '',
+        verified: !!r.verified, partner: false
       });
     });
     if (typeof renderAll === 'function') renderAll();
     console.log('[FFP Journey] loaded ' + rows.length + ' saved logs (backend)');
   } catch (e) { console.error('[FFP Journey] load:', e); }
 }
+// Refresh the passport whenever a check-in / activity is logged (venue check-in fires this).
+document.addEventListener('ffp-activity-logged', function () { loadJourneyLogs(); });
 
 function setupLogPickers() {
   // Activity picker
