@@ -1,4 +1,13 @@
-/* FFP Admin Analytics Loader — v3 (2026-06-03)
+/* FFP Admin Analytics Loader — v4 (2026-06-03)
+   v4: COUNTRY / CITY location filter. Two dropdowns in the panel header scope the WHOLE
+   panel — KPIs, growth, tiers, demographics, categories, engagement, top providers, and
+   Community Health. City is the source of truth on each member; Country is derived from the
+   shared taxonomy (window.FFP_TAX.cities). Engagement/category/provider tables are scoped by
+   the matching member-id set (member_id now fetched for activity_logs/claims/rsvps/meetups,
+   referrer_id for referrals). Community Health is scoped server-side via the new
+   community_health_stats(p_cities text[]) arg. Revenue stays platform-wide (transactions
+   carry no location). Selection persists across period/compare changes.
+   --- prior ---
    v3: Community Health section — community-wide fitness KPIs (body fat, VO2, resting HR,
    weight, etc.), VO2 fit-level + body-composition distributions, and per-city/emirate
    averages. Sourced from the community_health_stats() SECURITY DEFINER RPC (aggregates
@@ -105,13 +114,13 @@
     var res = await Promise.all([
       sel('members', 'id, tier, paid, city, nationality, date_of_birth, gender, created_at, role', function (q) { return q.eq('role', 'member'); }), // exclude provider/admin accounts
       sel('transactions', 'amount_aed, type, status, created_at', function (q) { return q.gte('created_at', since); }),
-      sel('activity_logs', 'category, logged_at', function (q) { return q.gte('logged_at', since); }),
-      sel('claims', 'deal_id, created_at'),
-      sel('rsvps', 'created_at'),
+      sel('activity_logs', 'member_id, category, logged_at', function (q) { return q.gte('logged_at', since); }),
+      sel('claims', 'member_id, deal_id, created_at'),
+      sel('rsvps', 'member_id, created_at'),
       sel('applications', 'created_at'),
-      sel('meetup_attendees', 'created_at'),
+      sel('meetup_attendees', 'member_id, created_at'),
       sel('challenge_entries', 'created_at'),
-      sel('referrals', 'created_at, status'),
+      sel('referrals', 'referrer_id, created_at, status'),
       sel('deals', 'id, provider_id'),
       sel('providers', 'id, business_name')
     ]);
@@ -123,18 +132,57 @@
     };
   }
 
+  // ── GEO filter (Country / City) ──────────────────────────────
+  // '' = all. City is the source of truth on each member; Country is derived from
+  // the shared taxonomy (window.FFP_TAX.cities, country → [cities]). A member with a
+  // city not in the taxonomy is bucketed under "Other".
+  var GEO = { country: '', city: '' };
+  var CITY2COUNTRY = null;
+  function city2country() {
+    if (CITY2COUNTRY) return CITY2COUNTRY;
+    CITY2COUNTRY = {};
+    try {
+      var c = (window.FFP_TAX && window.FFP_TAX.cities) || {};
+      Object.keys(c).forEach(function (country) { (c[country] || []).forEach(function (city) { CITY2COUNTRY[city] = country; }); });
+    } catch (e) {}
+    return CITY2COUNTRY;
+  }
+  function countryOf(city) { if (!city) return null; return city2country()[city] || 'Other'; }
+  // cities included by the current selection; null = all
+  function selectedCities() {
+    if (GEO.city) return [GEO.city];
+    if (GEO.country) {
+      var out = {};
+      (RAW && RAW.members || []).forEach(function (m) { if (m.city && countryOf(m.city) === GEO.country) out[m.city] = 1; });
+      return Object.keys(out);
+    }
+    return null;
+  }
+  function geoActive() { return !!(GEO.country || GEO.city); }
+  function cityAllowed(city) { var sel = selectedCities(); return !sel || sel.indexOf(city) !== -1; }
+  function geoMembers() { return geoActive() ? RAW.members.filter(function (m) { return cityAllowed(m.city); }) : RAW.members; }
+  // map of member_id → true for the current selection; null = no filter
+  function geoIdSet() {
+    if (!geoActive()) return null;
+    var s = {}; geoMembers().forEach(function (m) { if (m.id) s[m.id] = true; }); return s;
+  }
+
   function revenueIn(s, e) { var sum = 0; RAW.tx.forEach(function (t) { if (inRange(t.created_at, s, e)) sum += Number(t.amount_aed || 0); }); return Math.round(sum); }
   function engagementCounts(s, e) {
+    var set = geoIdSet();
+    function cnt(rows, idField, dateField) {
+      var c = 0; for (var i = 0; i < rows.length; i++) { var r = rows[i]; if (set && !set[r[idField]]) continue; if (inRange(r[dateField], s, e)) c++; } return c;
+    }
     return {
-      Logs: countIn(RAW.acts, 'logged_at', s, e),
-      Claims: countIn(RAW.claims, 'created_at', s, e),
-      RSVPs: countIn(RAW.rsvps, 'created_at', s, e),
-      Meet: countIn(RAW.meetA, 'created_at', s, e),
+      Logs: cnt(RAW.acts, 'member_id', 'logged_at'),
+      Claims: cnt(RAW.claims, 'member_id', 'created_at'),
+      RSVPs: cnt(RAW.rsvps, 'member_id', 'created_at'),
+      Meet: cnt(RAW.meetA, 'member_id', 'created_at'),
       Chal: countIn(RAW.chalE, 'created_at', s, e),
-      Refs: countIn(RAW.refs, 'created_at', s, e)
+      Refs: cnt(RAW.refs, 'referrer_id', 'created_at')
     };
   }
-  function cumulativeMembersAt(d) { var c = 0; RAW.members.forEach(function (m) { if (m.created_at && new Date(m.created_at) < d) c++; }); return c; }
+  function cumulativeMembersAt(d) { var c = 0; geoMembers().forEach(function (m) { if (m.created_at && new Date(m.created_at) < d) c++; }); return c; }
 
   // ── render helpers ──
   function demoRows(el, items, color, maxPctScale) {
@@ -178,23 +226,70 @@
     },
 
     renderAll: function () {
+      this.renderGeoFilters();
+      this.updateSummary(); this.renderKPIs(); this._drawCharts();
+      this.renderDemographics(); this.renderTopProviders(); this.renderCategories();
+      this.renderCommunityHealth();
+    },
+    // re-render everything except rebuilding the geo dropdowns (used on geo change)
+    _refresh: function () {
       this.updateSummary(); this.renderKPIs(); this._drawCharts();
       this.renderDemographics(); this.renderTopProviders(); this.renderCategories();
       this.renderCommunityHealth();
     },
 
-    // ── Community Health (all-time snapshot from profile_meta via RPC) ──
-    _chLoaded: false,
+    // ── Country / City location filter ──
+    renderGeoFilters: function () {
+      if (!this._loaded) return;
+      var cSel = document.getElementById('analytics-country');
+      var citySel = document.getElementById('analytics-city');
+      if (!cSel || !citySel) return;
+      var countryCounts = {};
+      RAW.members.forEach(function (m) { if (!m.city) return; var co = countryOf(m.city); countryCounts[co] = (countryCounts[co] || 0) + 1; });
+      var countries = Object.keys(countryCounts).sort();
+      cSel.innerHTML = '<option value="">All countries</option>' + countries.map(function (c) {
+        return '<option value="' + esc(c) + '"' + (c === GEO.country ? ' selected' : '') + '>' + esc(c) + '</option>';
+      }).join('');
+      var cityCounts = {};
+      RAW.members.forEach(function (m) {
+        if (!m.city) return;
+        if (GEO.country && countryOf(m.city) !== GEO.country) return;
+        cityCounts[m.city] = (cityCounts[m.city] || 0) + 1;
+      });
+      var cities = Object.keys(cityCounts).sort();
+      citySel.innerHTML = '<option value="">All cities</option>' + cities.map(function (c) {
+        return '<option value="' + esc(c) + '"' + (c === GEO.city ? ' selected' : '') + '>' + esc(c) + '</option>';
+      }).join('');
+    },
+    setCountry: function (v) {
+      GEO.country = v || ''; GEO.city = '';
+      if (!this._loaded) return;
+      this.renderGeoFilters(); this._refresh();
+    },
+    setCity: function (v) {
+      GEO.city = v || '';
+      if (GEO.city) { var co = countryOf(GEO.city); if (co) GEO.country = co; }
+      if (!this._loaded) return;
+      this.renderGeoFilters(); this._refresh();
+    },
+
+    // ── Community Health (snapshot from profile_meta via RPC, scoped by the city filter) ──
+    _chKey: null, _chData: null,
     renderCommunityHealth: async function () {
-      if (this._chLoaded) return;          // snapshot, not period-dependent — fetch once
+      var cities = selectedCities();
+      var key = cities ? cities.slice().sort().join('|') : '__all__';
+      if (this._chKey === key && this._chData) { this._renderCH(this._chData); return; }
       var H;
       try {
-        var res = await window.supabase.rpc('community_health_stats');
+        var res = await window.supabase.rpc('community_health_stats', cities ? { p_cities: cities } : {});
         if (res.error) { console.warn('[FFP Analytics] community_health_stats:', res.error.message); return; }
         H = res.data;
       } catch (e) { console.warn('[FFP Analytics] community_health_stats', e); return; }
       if (!H) return;
-      this._chLoaded = true;
+      this._chKey = key; this._chData = H;
+      this._renderCH(H);
+    },
+    _renderCH: function (H) {
       var c = H.community || {};
 
       // metric tiles (only metrics with at least one reading get a number)
@@ -291,14 +386,15 @@
     renderKPIs: function () {
       if (!this._loaded) return;
       var r = periodRange(this.period);
+      var mem = geoMembers();
       var cur = {
-        members: countIn(RAW.members, 'created_at', r.start, r.end),
+        members: countIn(mem, 'created_at', r.start, r.end),
         rev: revenueIn(r.start, r.end),
         eng: (function () { var e = engagementCounts(r.start, r.end); return e.Logs + e.Claims + e.RSVPs + e.Meet + e.Chal + e.Refs; })(),
-        paid: RAW.members.filter(function (m) { return m.paid; }).length
+        paid: mem.filter(function (m) { return m.paid; }).length
       };
       var prev = {
-        members: countIn(RAW.members, 'created_at', r.prevStart, r.prevEnd),
+        members: countIn(mem, 'created_at', r.prevStart, r.prevEnd),
         rev: revenueIn(r.prevStart, r.prevEnd),
         eng: (function () { var e = engagementCounts(r.prevStart, r.prevEnd); return e.Logs + e.Claims + e.RSVPs + e.Meet + e.Chal + e.Refs; })()
       };
@@ -334,10 +430,11 @@
         datasets: [{ label: 'Members', data: bk.map(function (b) { return cumulativeMembersAt(b.end); }), borderColor: YELLOW, backgroundColor: 'rgba(255,204,0,0.10)', tension: 0.35, fill: true, pointRadius: 2, pointBackgroundColor: YELLOW }]
       }, {});
 
-      // Tiers (current snapshot)
+      // Tiers (current snapshot, geo-scoped)
+      var memG = geoMembers();
       var tiers = { member: 0, supporter: 0, ambassador: 0 };
-      RAW.members.forEach(function (m) { var t = (m.tier || 'member'); if (tiers[t] == null) tiers[t] = 0; tiers[t]++; });
-      var tmeta = document.getElementById('chart-tiers-meta'); if (tmeta) tmeta.textContent = RAW.members.length + ' members';
+      memG.forEach(function (m) { var t = (m.tier || 'member'); if (tiers[t] == null) tiers[t] = 0; tiers[t]++; });
+      var tmeta = document.getElementById('chart-tiers-meta'); if (tmeta) tmeta.textContent = memG.length + ' members';
       this._chart('tiers', 'chart-tiers', 'doughnut', {
         labels: ['Member', 'Supporter', 'Ambassador'],
         datasets: [{ data: [tiers.member || 0, tiers.supporter || 0, tiers.ambassador || 0], backgroundColor: [MUTE, BLUE, YELLOW], borderWidth: 0, hoverOffset: 8 }]
@@ -375,7 +472,7 @@
 
     renderDemographics: function () {
       if (!this._loaded) return;
-      var m = RAW.members;
+      var m = geoMembers();
       demoRows('demo-cities', tally(m, function (x) { return x.city; }).slice(0, 6), BLUE, false);
       demoRows('demo-nationalities', tally(m, function (x) { return x.nationality; }).slice(0, 7), YELLOW, false);
       demoRows('demo-ages', tally(m, function (x) { return ageBucket(x.date_of_birth); }), BLUE, false);
@@ -384,15 +481,18 @@
     renderCategories: function () {
       if (!this._loaded) return;
       var r = periodRange(this.period);
-      var inP = RAW.acts.filter(function (a) { return inRange(a.logged_at, r.start, r.end); });
+      var set = geoIdSet();
+      var inP = RAW.acts.filter(function (a) { return (!set || set[a.member_id]) && inRange(a.logged_at, r.start, r.end); });
       demoRows('demo-categories', tally(inP, function (x) { return x.category; }).slice(0, 6), null, true);
     },
     renderTopProviders: function () {
       if (!this._loaded) return;
       var cutoff = addDays(new Date(), -30);
+      var set = geoIdSet();
       var counts = {};
       RAW.claims.forEach(function (c) {
         if (!c.created_at || new Date(c.created_at) < cutoff) return;
+        if (set && !set[c.member_id]) return;
         var pid = RAW.dealProv[c.deal_id]; if (!pid) return;
         counts[pid] = (counts[pid] || 0) + 1;
       });
