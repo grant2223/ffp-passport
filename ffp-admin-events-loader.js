@@ -285,8 +285,13 @@
     ae.view = viewEvent;
     ae.refresh = refresh;
 
+    // CRITICAL: render real data NOW that the loader owns the panel. Without this the
+    // inline demo module (Upcoming/Past/Cancelled) stays on screen \u2014 the "reverts to old
+    // version" bug. This makes the loader authoritative on every load.
+    refresh();
+
     try {
-      console.log('[FFP Admin Events v1] Loaded from Supabase \u2713');
+      console.log('[FFP Admin Events v2] Loaded from Supabase \u2713 (renders on load)');
     } catch (e) {
       console.error('[FFP Admin Events] initial load:', e);
     }
