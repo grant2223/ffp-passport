@@ -1,4 +1,10 @@
-<!-- FFP MEMBER DASHBOARD — v228 (2026-06-02)
+<!-- FFP MEMBER DASHBOARD — v229 (2026-06-02)
+     v229: FITNESS STATS SAVE FIX (definitive) — records / health / BioAge drivers / weight / sleep now
+           persist STRAIGHT FROM THE CORE FitnessStats (savePr/clearPr/saveSleepLog → member_profile_meta_save
+           RPC), exactly like activity logs, in the always-loaded dashboard script. No longer depends on the
+           lazy fitness-stats loader installing its wrap (the repeated failure point). Loader v16 (?v=17) now
+           only refreshes the leaderboard locally — no DB write, no double-save. BioAge derives from the saved
+           health records, so it populates once they're entered.
      v228: World Map + location picker now use a CUSTOM VECTOR basemap (OpenFreeMap 'liberty' via
            MapLibre GL + leaflet-maplibre-gl bridge, no key) — restyled to FFP-blue water (#2391c9),
            strong dark land (#1d2832/#212c36), ENGLISH labels (text-field → name:en/name:latin).
@@ -7452,7 +7458,7 @@ function setupPanelNav() {
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
-    'panel-fitness-stats':   'assets/ffp-fitness-stats-loader.js?v=16',
+    'panel-fitness-stats':   'assets/ffp-fitness-stats-loader.js?v=17',
     'panel-meet':            'assets/ffp-meet-move-loader.js?v=19',
     'panel-events':          'assets/ffp-member-discovery-loader.js',
     'panel-experiences':     'assets/ffp-member-discovery-loader.js',
@@ -10301,20 +10307,44 @@ const FitnessStats = {
     document.getElementById('pe-time-s').value = this._editS;
   },
   
+  // v229 — records / health / weight / sleep now save STRAIGHT from the core (like activity logs),
+  // via the member_profile_meta_save RPC. No reliance on the lazy fitness-stats loader.
+  _prCol: {
+    bench1RM:'pr_bench_kg', squat1RM:'pr_squat_kg', deadlift1RM:'pr_deadlift_kg',
+    run5K:'pr_5k_seconds', run10K:'pr_10k_seconds', run21K:'pr_21k_seconds', runMara:'pr_marathon_sec', swim1K:'pr_swim1k_sec',
+    vo2max:'vo2_max', bodyFat:'body_fat_pct', visceralFat:'visceral_fat', restingHR:'resting_hr', hrv:'hrv_ms',
+    grip:'grip_strength_kg', muscleMass:'muscle_mass_kg', waist:'waist_cm', weight:'current_weight_kg'
+  },
+  _prInt: { run5K:1, run10K:1, run21K:1, runMara:1, swim1K:1, restingHR:1, hrv:1, visceralFat:1 },
+  _saveMeta(patch, prKey, prDate) {
+    try {
+      var m = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null;
+      if (!m || !m.id || !window.supabase) { console.warn('[FFP FS] not signed in — save skipped'); return; }
+      window.supabase.rpc('member_profile_meta_save', {
+        p_me: m.id, p_patch: patch || {},
+        p_pr_date_key: prKey || null, p_pr_date_val: (prDate !== undefined ? prDate : null)
+      }).then(function (res) { if (res && res.error) console.error('[FFP FS] save error:', res.error.message); })
+        .catch(function (e) { console.error('[FFP FS] save threw:', e); });
+    } catch (e) { console.error('[FFP FS] save threw:', e); }
+  },
+
   clearPr() {
     if (!this._editKey) return;
     if (!confirm('Clear this record?')) return;
-    this.records[this._editKey] = null;
+    var key = this._editKey;
+    this.records[key] = null;
     this.closePrEdit();
     this.render();
     showToast('Record cleared');
-    // PRODUCTION: DELETE /api/members/me/records/{key}
+    var col = this._prCol[key];
+    if (col) { var p = {}; p[col] = null; this._saveMeta(p, key, null); }
   },
-  
+
   savePr() {
     if (!this._editKey) return;
     const def = this.prDefs[this._editKey];
     const today = new Date().toISOString().slice(0,10);
+    const key = this._editKey;
     let value;
     if (def.type === 'time') {
       value = this._editH * 3600 + this._editM * 60 + this._editS;
@@ -10323,11 +10353,12 @@ const FitnessStats = {
       value = this._editValue;
       if (value <= 0) { showToast('Enter a valid value'); return; }
     }
-    this.records[this._editKey] = { value, date: today };
+    this.records[key] = { value, date: today };
     this.closePrEdit();
     this.render();
     showToast(`${def.name} record saved`);
-    // PRODUCTION: PUT /api/members/me/records/{key}
+    var col = this._prCol[key];
+    if (col) { var v = this._prInt[key] ? Math.round(value) : value; var p = {}; p[col] = v; this._saveMeta(p, key, today); }
   },
   
   // ─────────── SLEEP LOG MODAL ───────────
@@ -10401,7 +10432,16 @@ const FitnessStats = {
     this.closeSleepLog();
     this.render();
     showToast(`Sleep saved \u2014 ${newAvg.toFixed(1)} hr avg`);
-    // PRODUCTION: PUT /api/members/me/sleep-logs/{daysAgo}
+    // persist via RPC (daysAgo \u2192 date map) \u2014 like activity logs, straight from the core
+    var dbShape = {}, self = this;
+    Object.keys(this.sleepLogs).forEach(function (k) {
+      var n = Number(k), hrs = Number(self.sleepLogs[k]);
+      if (isNaN(n) || isNaN(hrs)) return;
+      var d = new Date(); d.setDate(d.getDate() - n);
+      var ds = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      dbShape[ds] = hrs;
+    });
+    this._saveMeta({ sleep_logs: dbShape }, null, null);
   }
 };
 
