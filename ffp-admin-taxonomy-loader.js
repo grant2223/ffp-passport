@@ -1,0 +1,220 @@
+/* FFP Admin Taxonomies Loader — v1 (2026-06-01)
+   Real CRUD editor for the platform-wide taxonomy lists, backed by public.taxonomy_items.
+   Admin (real Supabase Auth, is_admin) reads ALL rows + writes via RLS taxonomy_admin_write.
+   Lists edited here hydrate window.FFP_TAX on every page (assets/ffp-taxonomy.js), so changes
+   propagate across member/provider/apply forms on next load.
+   Renders into #tax-editor inside #panel-taxonomies. */
+(function () {
+  'use strict';
+
+  // list_key -> friendly name. Order = display order.
+  var LISTS = [
+    { key: 'activity',          name: 'Activities' },
+    { key: 'category',          name: 'Provider Categories' },
+    { key: 'fitness_level',     name: 'Fitness Levels' },
+    { key: 'nationality',       name: 'Nationalities' },
+    { key: 'gender',            name: 'Genders' },
+    { key: 'age_group',         name: 'Age Groups' }
+  ];
+
+  var state = { current: 'activity', data: {} }; // data[list_key] = [rows]
+
+  function sb() { return window.supabase; }
+  function toast(msg, type) {
+    if (typeof window.showToast === 'function') return window.showToast(msg, type);
+    if (typeof window.toast === 'function') return window.toast(msg, type);
+    console.log('[Taxonomies]', msg);
+  }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    });
+  }
+
+  function injectCss() {
+    if (document.getElementById('ffp-tax-css')) return;
+    var s = document.createElement('style');
+    s.id = 'ffp-tax-css';
+    s.textContent = [
+      '#tax-editor .tx-wrap{display:grid;grid-template-columns:220px 1fr;gap:18px;align-items:start;}',
+      '@media(max-width:760px){#tax-editor .tx-wrap{grid-template-columns:1fr;}}',
+      '#tax-editor .tx-lists{display:flex;flex-direction:column;gap:6px;}',
+      '#tax-editor .tx-listbtn{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:11px 14px;border-radius:10px;border:1px solid rgba(43,168,224,.2);background:rgba(43,168,224,.05);color:#cfe0ec;font-weight:700;font-size:13px;cursor:pointer;text-align:left;}',
+      '#tax-editor .tx-listbtn .c{font-size:11px;font-weight:800;color:#8a99a8;background:rgba(255,255,255,.06);border-radius:20px;padding:1px 8px;}',
+      '#tax-editor .tx-listbtn.active{background:#2ba8e0;color:#082335;border-color:#2ba8e0;}',
+      '#tax-editor .tx-listbtn.active .c{color:#082335;background:rgba(8,35,53,.18);}',
+      '#tax-editor .tx-panel{border:1px solid rgba(43,168,224,.2);border-radius:14px;overflow:hidden;background:#0f1e2e;}',
+      '#tax-editor .tx-add{display:flex;gap:8px;padding:14px;border-bottom:1px solid rgba(43,168,224,.12);}',
+      '#tax-editor .tx-add input{flex:1;background:#081420;border:1px solid rgba(43,168,224,.25);border-radius:9px;color:#e8eef4;padding:10px 12px;font-size:13px;font-family:inherit;}',
+      '#tax-editor .tx-add button{background:#FFCC00;color:#082335;border:none;border-radius:9px;padding:10px 18px;font-weight:800;font-size:13px;cursor:pointer;}',
+      '#tax-editor table{width:100%;border-collapse:collapse;}',
+      '#tax-editor th{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#8a99a8;text-align:left;padding:10px 14px;border-bottom:1px solid rgba(43,168,224,.12);}',
+      '#tax-editor td{padding:9px 14px;border-bottom:1px solid rgba(43,168,224,.07);font-size:13px;color:#dce8f2;}',
+      '#tax-editor tr.inactive td{opacity:.45;}',
+      '#tax-editor .tx-name{background:transparent;border:1px solid transparent;border-radius:7px;color:#fff;font-size:13px;font-weight:600;padding:5px 8px;font-family:inherit;width:100%;max-width:340px;}',
+      '#tax-editor .tx-name:hover{border-color:rgba(43,168,224,.25);}',
+      '#tax-editor .tx-name:focus{border-color:#2ba8e0;background:#081420;outline:none;}',
+      '#tax-editor .tx-act{display:flex;gap:4px;justify-content:flex-end;}',
+      '#tax-editor .tx-ic{background:rgba(43,168,224,.08);border:1px solid rgba(43,168,224,.18);border-radius:7px;color:#9dbdd0;cursor:pointer;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;}',
+      '#tax-editor .tx-ic:hover{color:#fff;border-color:#2ba8e0;}',
+      '#tax-editor .tx-ic.danger:hover{color:#ef4444;border-color:#ef4444;}',
+      '#tax-editor .tx-ic .material-icons{font-size:16px;}',
+      '#tax-editor .tx-pill{font-size:10px;font-weight:800;padding:2px 9px;border-radius:20px;}',
+      '#tax-editor .tx-pill.on{background:rgba(34,197,94,.14);color:#22c55e;}',
+      '#tax-editor .tx-pill.off{background:rgba(138,153,168,.14);color:#8a99a8;}'
+    ].join('\n');
+    document.head.appendChild(s);
+  }
+
+  async function fetchAll() {
+    var res = await sb().from('taxonomy_items')
+      .select('id, list_key, value, label, sort_order, active')
+      .order('list_key', { ascending: true })
+      .order('sort_order', { ascending: true });
+    if (res.error) { console.error('[Taxonomies] fetch', res.error); toast('Could not load taxonomy', 'error'); return; }
+    var by = {};
+    LISTS.forEach(function (l) { by[l.key] = []; });
+    (res.data || []).forEach(function (r) { (by[r.list_key] = by[r.list_key] || []).push(r); });
+    state.data = by;
+  }
+
+  function render() {
+    var host = document.getElementById('tax-editor');
+    if (!host) return;
+    var listsHtml = LISTS.map(function (l) {
+      var n = (state.data[l.key] || []).length;
+      return '<button class="tx-listbtn' + (l.key === state.current ? ' active' : '') + '" data-list="' + l.key + '">' +
+             '<span>' + esc(l.name) + '</span><span class="c">' + n + '</span></button>';
+    }).join('');
+
+    var rows = state.data[state.current] || [];
+    var cur = LISTS.filter(function (l) { return l.key === state.current; })[0] || {};
+    var rowsHtml = rows.length ? rows.map(function (r, i) {
+      return '<tr class="' + (r.active ? '' : 'inactive') + '" data-id="' + r.id + '">' +
+        '<td style="width:34px;color:#6a90a8;">' + (i + 1) + '</td>' +
+        '<td><input class="tx-name" value="' + esc(r.label || r.value) + '" data-id="' + r.id + '"></td>' +
+        '<td style="width:90px;"><span class="tx-pill ' + (r.active ? 'on' : 'off') + '">' + (r.active ? 'Live' : 'Hidden') + '</span></td>' +
+        '<td style="width:150px;"><div class="tx-act">' +
+          '<button class="tx-ic" data-act="up" title="Move up"><span class="material-icons">arrow_upward</span></button>' +
+          '<button class="tx-ic" data-act="down" title="Move down"><span class="material-icons">arrow_downward</span></button>' +
+          '<button class="tx-ic" data-act="toggle" title="' + (r.active ? 'Hide' : 'Show') + '"><span class="material-icons">' + (r.active ? 'visibility_off' : 'visibility') + '</span></button>' +
+          '<button class="tx-ic danger" data-act="del" title="Delete"><span class="material-icons">delete</span></button>' +
+        '</div></td></tr>';
+    }).join('') : '<tr><td colspan="4" class="text-muted" style="text-align:center;padding:26px;">No items yet — add one above.</td></tr>';
+
+    host.innerHTML =
+      '<div class="tx-wrap">' +
+        '<div class="tx-lists">' + listsHtml + '</div>' +
+        '<div class="tx-panel">' +
+          '<div class="tx-add">' +
+            '<input id="tx-new" type="text" placeholder="Add to ' + esc(cur.name || '') + '… e.g. ' + esc((rows[0] && (rows[0].label || rows[0].value)) || 'New item') + '">' +
+            '<button id="tx-add-btn" type="button">Add</button>' +
+          '</div>' +
+          '<table><thead><tr><th>#</th><th>Name</th><th>Status</th><th style="text-align:right;">Actions</th></tr></thead>' +
+          '<tbody>' + rowsHtml + '</tbody></table>' +
+        '</div>' +
+      '</div>';
+
+    wire(host);
+  }
+
+  function wire(host) {
+    host.querySelectorAll('.tx-listbtn').forEach(function (b) {
+      b.onclick = function () { state.current = b.dataset.list; render(); };
+    });
+    var addBtn = host.querySelector('#tx-add-btn');
+    var addInp = host.querySelector('#tx-new');
+    if (addBtn) addBtn.onclick = function () { addItem(addInp ? addInp.value : ''); };
+    if (addInp) addInp.onkeydown = function (e) { if (e.key === 'Enter') addItem(addInp.value); };
+
+    host.querySelectorAll('.tx-name').forEach(function (inp) {
+      inp.onblur = function () { renameItem(inp.dataset.id, inp.value); };
+      inp.onkeydown = function (e) { if (e.key === 'Enter') inp.blur(); };
+    });
+    host.querySelectorAll('.tx-ic').forEach(function (btn) {
+      var id = btn.closest('tr').dataset.id;
+      btn.onclick = function () {
+        var act = btn.dataset.act;
+        if (act === 'toggle') toggleItem(id);
+        else if (act === 'del') delItem(id);
+        else if (act === 'up') moveItem(id, -1);
+        else if (act === 'down') moveItem(id, 1);
+      };
+    });
+  }
+
+  function curRows() { return state.data[state.current] || []; }
+  function findRow(id) { return curRows().filter(function (r) { return r.id === id; })[0]; }
+
+  async function addItem(val) {
+    val = (val || '').trim();
+    if (!val) return;
+    var rows = curRows();
+    if (rows.some(function (r) { return (r.value || '').toLowerCase() === val.toLowerCase(); })) {
+      toast('Already in the list', 'error'); return;
+    }
+    var maxSort = rows.reduce(function (m, r) { return Math.max(m, r.sort_order || 0); }, -1);
+    var res = await sb().from('taxonomy_items').insert({
+      list_key: state.current, value: val, label: val, sort_order: maxSort + 1, active: true
+    }).select().single();
+    if (res.error) { console.error(res.error); toast(res.error.message || 'Add failed', 'error'); return; }
+    rows.push(res.data);
+    toast('Added "' + val + '"', 'success');
+    render();
+  }
+
+  async function renameItem(id, label) {
+    var r = findRow(id); if (!r) return;
+    label = (label || '').trim();
+    if (!label || label === r.label) { render(); return; }
+    var res = await sb().from('taxonomy_items').update({ label: label }).eq('id', id);
+    if (res.error) { toast('Rename failed', 'error'); return; }
+    r.label = label;
+    toast('Renamed', 'success');
+  }
+
+  async function toggleItem(id) {
+    var r = findRow(id); if (!r) return;
+    var res = await sb().from('taxonomy_items').update({ active: !r.active }).eq('id', id);
+    if (res.error) { toast('Update failed', 'error'); return; }
+    r.active = !r.active;
+    render();
+  }
+
+  async function delItem(id) {
+    var r = findRow(id); if (!r) return;
+    if (!confirm('Delete "' + (r.label || r.value) + '" from ' + state.current + '? This removes it everywhere.')) return;
+    var res = await sb().from('taxonomy_items').delete().eq('id', id);
+    if (res.error) { toast('Delete failed', 'error'); return; }
+    state.data[state.current] = curRows().filter(function (x) { return x.id !== id; });
+    toast('Deleted', 'success');
+    render();
+  }
+
+  async function moveItem(id, dir) {
+    var rows = curRows();
+    var idx = rows.findIndex(function (r) { return r.id === id; });
+    var j = idx + dir;
+    if (idx < 0 || j < 0 || j >= rows.length) return;
+    var a = rows[idx], b = rows[j];
+    var sa = a.sort_order, sb_ = b.sort_order;
+    // swap sort_order in DB
+    var r1 = await sb().from('taxonomy_items').update({ sort_order: sb_ }).eq('id', a.id);
+    var r2 = await sb().from('taxonomy_items').update({ sort_order: sa }).eq('id', b.id);
+    if ((r1 && r1.error) || (r2 && r2.error)) { toast('Reorder failed', 'error'); return; }
+    a.sort_order = sb_; b.sort_order = sa;
+    rows.sort(function (x, y) { return (x.sort_order || 0) - (y.sort_order || 0); });
+    render();
+  }
+
+  async function init() {
+    if (!sb()) { setTimeout(init, 150); return; }
+    injectCss();
+    await fetchAll();
+    render();
+    console.log('[FFP Admin Taxonomies] loaded v1 ✓');
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
