@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v227 (2026-06-02)
+<!-- FFP MEMBER DASHBOARD — v228 (2026-06-02)
+     v228: World Map + location picker now use a CUSTOM VECTOR basemap (OpenFreeMap 'liberty' via
+           MapLibre GL + leaflet-maplibre-gl bridge, no key) — restyled to FFP-blue water (#2391c9),
+           strong dark land (#1d2832/#212c36), ENGLISH labels (text-field → name:en/name:latin).
+           ffpVectorBasemap() applies it to both maps; falls back to Voyager raster if MapLibre
+           fails to load. (Pins/picker logic unchanged.)
      v227: Meetups — (a) TIME FIX: meets_at now stored as a true instant (new Date(local).toISOString())
            so 6am no longer shows as 10am (was tz-less → read as UTC → +4 in UAE). (b) HOST CAN EDIT:
            "Edit meet-up" button on the host detail → opens Post form prefilled → update_meetup RPC
@@ -132,6 +137,10 @@
 <!-- v220: Leaflet for the "Your journey" map (zoom World → Country → City, real pins) -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- v228: MapLibre GL (vector basemap) + Leaflet bridge → custom dark/blue OpenFreeMap style, English labels -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.css">
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"></script>
 <!-- v105: Supabase SDK + ffp-api-integration.js v5 (JWT bridge). The integration
      module initialises window.supabase and applies the stored JWT as a
      Supabase Auth session on DOMContentLoaded, so any loader that runs
@@ -4318,9 +4327,9 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
   
   <!-- ═══ YOUR JOURNEY MAP (Leaflet) — World › Country › City ═══ -->
   <style>
-    #ffp-jmap{height:340px;width:100%;border-radius:12px;overflow:hidden;background:#aadaf0;z-index:1;}
+    #ffp-jmap{height:340px;width:100%;border-radius:12px;overflow:hidden;background:#1d2832;z-index:1;}
     .jm-map-wrap{position:relative;}
-    .leaflet-container{background:#aadaf0;font-family:inherit;}
+    .leaflet-container{background:#1d2832;font-family:inherit;}
     /* CARTO Voyager basemap — light land, blue water, good contrast; no recolour filter */
     /* Country / City selectors */
     .jm-sel{flex:1;min-width:140px;background:#0f1e2e;border:1px solid var(--border-mid);color:var(--text);border-radius:9px;padding:9px 12px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;}
@@ -5539,7 +5548,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
       <div id="lp-results"></div>
     </div>
     <div style="position:relative;flex:1 1 auto;min-height:280px;">
-      <div id="lp-map" style="position:absolute;inset:0;background:#aadaf0;"></div>
+      <div id="lp-map" style="position:absolute;inset:0;background:#1d2832;"></div>
       <div id="lp-center-pin" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-100%);z-index:600;pointer-events:none;">
         <svg width="26" height="38" viewBox="0 0 26 38" xmlns="http://www.w3.org/2000/svg"><ellipse cx="13" cy="36" rx="4" ry="1.6" fill="rgba(0,0,0,0.3)"/><rect x="11.7" y="14" width="2.6" height="22" rx="1.3" fill="#3c4854"/><circle cx="13" cy="10" r="9" fill="#FFCC00" stroke="#fff" stroke-width="2"/><circle cx="9.5" cy="7" r="2.2" fill="#fff" opacity="0.5"/></svg>
       </div>
@@ -6748,6 +6757,51 @@ function renderConnections() {
   }).join('');
 }
 
+// Shared basemap: custom dark + FFP-blue-water VECTOR style (OpenFreeMap, no key) via MapLibre,
+// English labels. Falls back to the Voyager raster if the MapLibre bridge isn't available.
+function ffpVectorBasemap(map){
+  try {
+    if (typeof L === 'undefined' || typeof L.maplibreGL !== 'function') {
+      return L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { subdomains:'abcd', maxZoom:19 }).addTo(map);
+    }
+    var gl = L.maplibreGL({ style: 'https://tiles.openfreemap.org/styles/liberty', attribution: '' }).addTo(map);
+    var apply = function(){
+      var mm; try { mm = gl.getMaplibreMap(); } catch(e){ return; }
+      if (!mm) return;
+      var go = function(){
+        var st = mm.getStyle(); var layers = (st && st.layers) || [];
+        layers.forEach(function(ly){
+          try {
+            var id = ly.id || '', sl = ly['source-layer'] || '';
+            if (ly.type === 'background') { mm.setPaintProperty(id,'background-color','#1d2832'); }
+            else if (ly.type === 'fill') {
+              if (/water/.test(sl) || /water|ocean|sea/.test(id)) mm.setPaintProperty(id,'fill-color','#2391c9');
+              else if (/building/.test(sl)) mm.setPaintProperty(id,'fill-color','#243038');
+              else mm.setPaintProperty(id,'fill-color','#212c36');
+            }
+            else if (ly.type === 'line') {
+              if (/water|waterway/.test(sl)) mm.setPaintProperty(id,'line-color','#2391c9');
+              else if (/transportation|road|bridge|tunnel/.test(sl)) mm.setPaintProperty(id,'line-color','#394754');
+              else if (/boundary/.test(sl)) mm.setPaintProperty(id,'line-color','#42525f');
+            }
+            else if (ly.type === 'symbol') {
+              if (mm.getLayoutProperty(id,'text-field') != null) {
+                try { mm.setLayoutProperty(id,'text-field',['coalesce',['get','name:en'],['get','name:latin'],['get','name']]); } catch(e){}
+              }
+              try { mm.setPaintProperty(id,'text-color','#d6dee6'); mm.setPaintProperty(id,'text-halo-color','#0f1620'); mm.setPaintProperty(id,'text-halo-width',1.3); } catch(e){}
+            }
+          } catch(e){}
+        });
+      };
+      if (mm.isStyleLoaded && mm.isStyleLoaded()) go(); else mm.on('load', go);
+    };
+    apply();
+    return gl;
+  } catch(e){
+    return L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { subdomains:'abcd', maxZoom:19 }).addTo(map);
+  }
+}
+
 // ===== JOURNEY MAP (Leaflet) — World › Country › City drill-down =====
 window.JourneyMap = (function () {
   var map = null, layer = null;
@@ -6782,7 +6836,7 @@ window.JourneyMap = (function () {
     if (map || typeof L === 'undefined') return;
     var el = document.getElementById('ffp-jmap'); if (!el) return;
     map = L.map(el, { zoomControl:true, attributionControl:false, worldCopyJump:true }).setView([20,10], 2);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { subdomains:'abcd', maxZoom:19 }).addTo(map);
+    ffpVectorBasemap(map);
     layer = L.layerGroup().addTo(map);
     setTimeout(function(){ if (map){ map.invalidateSize(); render(); } }, 250);
   }
@@ -13625,7 +13679,7 @@ window.FFPLocPick = (function(){
     if(map || typeof L==='undefined') return;
     var el=document.getElementById('lp-map'); if(!el) return;
     map=L.map(el,{zoomControl:true,attributionControl:false}).setView([25.2048,55.2708],11);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19}).addTo(map);
+    (window.ffpVectorBasemap?ffpVectorBasemap:function(m){L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19}).addTo(m);})(map);
     map.on('moveend', schedReverse);
   }
   function open(callback){
