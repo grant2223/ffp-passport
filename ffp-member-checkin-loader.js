@@ -1,5 +1,12 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP MEMBER CHECK-IN LOADER — v4 (2026-06-02)
+   FFP MEMBER CHECK-IN LOADER — v5 (2026-06-03)
+   v5: 2-HOUR PER-VENUE COOLDOWN. A member can't repeatedly check in at the SAME
+       provider within 2 hours (server-enforced in venue_checkin_activity, which now
+       returns {blocked:true, minutes_left, venue, message} instead of inserting).
+       doSave shows a friendly "Already checked in here" sheet. A check-in at a
+       DIFFERENT venue is unaffected.
+   --- prior ---
+   v4 (2026-06-02)
    v4: DECLUTTERED the check-in sheet. Active programs are now a single 3-across
        button row — Quest / Event / Challenge (a type is tappable only if it has
        live items; tap → that type's list, or straight in if there's only one).
@@ -303,6 +310,12 @@
         p_lat: coords ? coords.lat : null, p_lng: coords ? coords.lng : null
       });
       if (res.error || !res.data) throw (res.error || new Error('no data'));
+      // 2-hour per-venue cooldown: the RPC returns {blocked:true,...} instead of inserting.
+      if (res.data.blocked) {
+        resultMsg('error', 'Already checked in here',
+          res.data.message || 'You can check in again at this venue in a couple of hours.');
+        return;
+      }
       var verified = !!res.data.verified;
       resultMsg('ok', verified ? 'Checked in ✓' : 'Logged ✓',
         activity + ' added to your passport' + (verified ? ' · verified on-site.' : '.'));
