@@ -1,4 +1,4 @@
-<!-- FFP Admin Dashboard v34 (2026-06-01): Taxonomies editor v2 — added Countries, Cities (country→city cascade) + Experience Types; session guard so edits don't fail silently if the admin session expired. v33: Taxonomies panel is now a REAL editor — ffp-admin-taxonomies-loader.js does CRUD on public.taxonomy_items (Activities/Categories/Fitness Levels/Nationalities/Genders/Age Groups): add, rename, reorder, show/hide, delete. assets/ffp-taxonomy.js v4 hydrates FFP_TAX from that table so edits propagate platform-wide (hardcoded fallback if DB unreachable). v32 (2026-06-01): FIX broken icons — added self-contained base `.material-icons` CSS rule (font-family + 'liga') + &display=block on the icon font link, so sidebar/queue icons never fall back to raw ligature text ("storefront", "inbox", etc.) when the external Google CSS is slow/blocked (this was the "design turned shit" issue). v31: provider accounts INSTANT + self-serve — REMOVED Applications panel/loader + reverted the v30 Pending approval tab. v29 (skill levels). v28 USD labels. v27 tier/expiry edit fix. -->
+<!-- FFP Admin Dashboard v35 (2026-06-01): Settings panel CONNECTED — FFP Team from admin_users, Audit Log now DB-backed (public.admin_audit, persists every admin action) via ffp-admin-settings-loader.js. Also: admin Events/Experiences/Challenges loaders now render real data on load (fixes "reverts to old demo version"). v34 (2026-06-01): Taxonomies editor v2 — added Countries, Cities (country→city cascade) + Experience Types; session guard so edits don't fail silently if the admin session expired. v33: Taxonomies panel is now a REAL editor — ffp-admin-taxonomies-loader.js does CRUD on public.taxonomy_items (Activities/Categories/Fitness Levels/Nationalities/Genders/Age Groups): add, rename, reorder, show/hide, delete. assets/ffp-taxonomy.js v4 hydrates FFP_TAX from that table so edits propagate platform-wide (hardcoded fallback if DB unreachable). v32 (2026-06-01): FIX broken icons — added self-contained base `.material-icons` CSS rule (font-family + 'liga') + &display=block on the icon font link, so sidebar/queue icons never fall back to raw ligature text ("storefront", "inbox", etc.) when the external Google CSS is slow/blocked (this was the "design turned shit" issue). v31: provider accounts INSTANT + self-serve — REMOVED Applications panel/loader + reverted the v30 Pending approval tab. v29 (skill levels). v28 USD labels. v27 tier/expiry edit fix. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1393,7 +1393,7 @@ input, select, textarea { font-family: inherit; }
       </div>
     </div>
     <div class="sidebar-footer">
-      build v34 &middot; FFP Admin
+      build v35 &middot; FFP Admin
     </div>
   </aside>
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.toggleSidebar()"></div>
@@ -1881,14 +1881,8 @@ input, select, textarea { font-family: inherit; }
             <thead>
               <tr><th>Name</th><th>Email</th><th>Role</th><th>Added</th><th></th></tr>
             </thead>
-            <tbody>
-              <tr>
-                <td><span class="cell-avatar">G</span><span class="cell-name">Grant Goes</span></td>
-                <td class="text-muted">grant@ffppassport.com</td>
-                <td><span class="pill pill-ambassador">Super Admin</span></td>
-                <td class="text-muted">Founder</td>
-                <td></td>
-              </tr>
+            <tbody id="settings-team-tbody">
+              <tr><td colspan="5" class="text-muted" style="padding:14px;">Loading team…</td></tr>
             </tbody>
           </table>
         </div>
@@ -2176,7 +2170,8 @@ const App = {
     'panel-challenges':   'ffp-admin-challenges-loader.js',
     'panel-meetups':      'ffp-admin-meetups-loader.js',
     'panel-analytics':    'ffp-admin-analytics-loader.js',
-    'panel-taxonomies':   'ffp-admin-taxonomies-loader.js'
+    'panel-taxonomies':   'ffp-admin-taxonomies-loader.js',
+    'panel-settings':     'ffp-admin-settings-loader.js'
   },
   _lazyInit(panelId) {
     if (this._opened[panelId]) return;
@@ -3101,32 +3096,43 @@ const Drawer = {
 // AUDIT LOG — every admin action gets logged
 // =====================================================================
 const AuditLog = {
-  entries: [
-    { actor: 'Grant', action: 'opened admin dashboard', daysAgo: 0, mins: 1 },
-    { actor: 'Grant', action: 'reviewed payout queue', daysAgo: 0, mins: 30 },
-    { actor: 'Grant', action: 'approved provider Forge Fitness', daysAgo: 1, mins: 0 },
-    { actor: 'Grant', action: 'approved content from Sarah K. (AED 50)', daysAgo: 2, mins: 0 },
-    { actor: 'Grant', action: 'verified referral by Mike H. (AED 50)', daysAgo: 3, mins: 0 },
-    { actor: 'Grant', action: 'marked payout AED 500 to Grant G. as paid', daysAgo: 14, mins: 0 }
-  ],
+  entries: [],
   
   init() { this.render(); },
-  
-  add(actor, action) {
-    this.entries.unshift({ actor, action, daysAgo: 0, mins: 0 });
+
+  // Persist every admin action to public.admin_audit and show it immediately.
+  async add(actor, action) {
+    const who = actor || (window.FFP_ADMIN && window.FFP_ADMIN.email) || 'Admin';
+    this.entries.unshift({ actor: who, action: action, created_at: new Date().toISOString() });
     if (this.entries.length > 50) this.entries.pop();
     this.render();
+    try { if (window.supabase) await window.supabase.from('admin_audit').insert({ actor: who, action: action }); }
+    catch (e) { console.warn('[AuditLog] persist failed', e); }
   },
-  
+
+  // Load the last 50 persisted actions (called when the Settings panel opens).
+  async load() {
+    try {
+      if (!window.supabase) return;
+      const res = await window.supabase.from('admin_audit')
+        .select('actor, action, created_at').order('created_at', { ascending: false }).limit(50);
+      if (res.error) { console.warn('[AuditLog] load', res.error); return; }
+      this.entries = (res.data || []).map(r => ({ actor: r.actor || 'Admin', action: r.action, created_at: r.created_at }));
+      this.render();
+    } catch (e) { console.warn('[AuditLog] load failed', e); }
+  },
+
   render() {
     const el = document.getElementById('audit-log');
     if (!el) return;
-    el.innerHTML = this.entries.map(e => `
-      <div class="audit-row">
-        <div class="audit-row-when">${e.daysAgo === 0 ? (e.mins === 0 ? 'just now' : `${e.mins}m ago`) : fmtDays(e.daysAgo)}</div>
-        <div class="audit-row-action"><span class="audit-row-actor">${escHtml(e.actor)}</span> ${escHtml(e.action)}</div>
-      </div>
-    `).join('');
+    if (!this.entries.length) { el.innerHTML = '<div class="text-muted" style="padding:8px;font-size:13px;">No admin actions logged yet.</div>'; return; }
+    el.innerHTML = this.entries.map(e => {
+      const when = e.created_at
+        ? new Date(e.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+        : 'just now';
+      return `<div class="audit-row"><div class="audit-row-when">${when}</div>` +
+             `<div class="audit-row-action"><span class="audit-row-actor">${escHtml(e.actor)}</span> ${escHtml(e.action)}</div></div>`;
+    }).join('');
   }
 };
 
