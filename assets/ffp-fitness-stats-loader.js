@@ -1,4 +1,9 @@
-/* FFP Fitness Stats Loader — v15
+/* FFP Fitness Stats Loader — v15.1
+   v15.1: HARDEN the save fix — the render overrides + write wrappers (wrapWrites) now run
+        IMMEDIATELY after the member id is known, BEFORE any network call. Previously they ran
+        after `await get_ranking_pool`; if that threw, the outer try/catch swallowed it and
+        savePr/clearPr/saveSleepLog were never wrapped → saves silently no-op'd. The pool fetch
+        is now isolated in its own try/catch so it can't abort wrapping. Runtime log says v15.1.
    v15: SAVE FIX — records (PR/health), body weight, and sleep now PERSIST. Writes went via
         window.supabase.from('profile_meta').upsert() directly, which silently affected 0 rows
         for member sessions (custom JWT → auth.uid() trap), so nothing saved (and BioAge, derived
@@ -1141,6 +1146,16 @@
       }
       currentUserId = ffpM.id;
 
+      // v15.1: install the render overrides + WRITE WRAPPERS IMMEDIATELY, before any
+      // network call. Previously these ran AFTER `await get_ranking_pool`; if that call
+      // threw, the outer catch swallowed it and savePr/saveSleepLog were never wrapped →
+      // saves silently no-op'd. Wrapping first guarantees writes persist regardless.
+      overrideComputeStreak();
+      overrideRenderActivity();
+      overrideRenderMilestones();
+      overrideRenderRecords();
+      wrapWrites();
+
       var API = 'https://ffp-passport-backend.vercel.app';
       // Demographics from the cached member (set at sign-in) — no browser read needed.
       var ageFromDob = computeAgeFromDob(ffpM.date_of_birth);
@@ -1183,25 +1198,23 @@
         });
       } catch (e) { console.error('[FFP Fitness Stats] activity_logs read:', e); activityCache = []; }
 
-      var poolRes = await window.supabase.rpc('get_ranking_pool');
-      if (poolRes.error) { console.error('[FFP Fitness Stats] ranking_pool RPC:', poolRes.error); rankingPool = []; }
-      else rankingPool = poolRes.data || [];
+      // ranking pool \u2014 isolated so a failure here can NEVER abort the loader (the write
+      // wrappers are already installed above).
+      try {
+        var poolRes = await window.supabase.rpc('get_ranking_pool');
+        if (poolRes.error) { console.error('[FFP Fitness Stats] ranking_pool RPC:', poolRes.error); rankingPool = []; }
+        else rankingPool = poolRes.data || [];
+      } catch (e) { console.error('[FFP Fitness Stats] ranking_pool threw:', e); rankingPool = []; }
 
       // Old percentile pills no longer used (leaderboard replaces them)
       FitnessStats.ranks = {};
-
-      overrideComputeStreak();
-      overrideRenderActivity();
-      overrideRenderMilestones();
-      overrideRenderRecords();
-      wrapWrites();
 
       var panel = document.getElementById('panel-fitness-stats');
       if (panel && panel.classList.contains('active') && typeof FitnessStats.render === 'function') {
         FitnessStats.render();
       }
 
-      console.log('[FFP Fitness Stats v14] Loaded \u2713 (' + activityCache.length + ' activities, ' + rankingPool.length + ' members in pool)');
+      console.log('[FFP Fitness Stats v15.1] Loaded \u2713 (writes wrapped: ' + wrapped + ', ' + activityCache.length + ' activities, ' + rankingPool.length + ' members in pool)');
     } catch (err) {
       console.error('[FFP Fitness Stats] Unexpected error:', err);
     }
