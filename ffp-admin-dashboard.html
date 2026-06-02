@@ -5,7 +5,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FFP Admin Dashboard</title>
-<!-- FFP ADMIN DASHBOARD — v22 (2026-06-03): Analytics panel gains a Community Health section
+<!-- FFP ADMIN DASHBOARD — v24 (2026-06-03): Analytics gains a Country / City location filter
+     (two dropdowns in the panel header that scope the whole panel incl. Community Health).
+     Analytics loader → v4, lazy cache-bust → v=38.
+     v23 (2026-06-03): UNIFIED AUTH — no more double login. Admin rides the
+     same /login session as members/providers via ffp-api-integration.js (JWT bridge; admin's
+     member.id == admin_users.id so is_admin() passes). ffp-admin-auth.js rewritten to a lightweight
+     role gate (v7) — the separate Supabase-OTP overlay is removed entirely.
+     v22 (2026-06-03): Analytics panel gains a Community Health section
      (community-wide fitness KPIs, VO2 fit-level + body-composition distributions, per-city/emirate
      averages) sourced from new community_health_stats() RPC. Lazy cache-bust bumped to v=37. -->
 <!-- v21 (2026-05-31): Taxonomies panel now shows REAL counts from
@@ -17,23 +24,13 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<!-- v25: Admin dashboard owns a CLEAN Supabase client. The member auth module
-     (ffp-api-integration.js) is intentionally NOT loaded here: it rebuilt window.supabase
-     around member-JWT logic and stripped the admin session off requests, so is_admin() saw
-     no user and admin_overview returned "not authorized". ffp-admin-auth.js owns the
-     Supabase Auth session on THIS client. -->
-<script>
-(function () {
-  var SDK = window.supabase; // supabase-js UMD from the CDN tag above
-  window.supabase = SDK.createClient('https://kxzyuofecmtymablnmak.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4enl1b2ZlY210eW1hYmxubWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NDM1MTYsImV4cCI6MjA5NTAxOTUxNn0.cWn0x1AeD-x9C-HHf9MShXbFRWdkWi5RMgHLgWJwOuE');
-  // Admin sign out (topbar button): clear the admin session and re-show the auth gate.
-  window.ffpLogout = async function () {
-    try { await window.supabase.auth.signOut(); } catch (e) {}
-    try { Object.keys(localStorage).forEach(function(k){ if (k.indexOf('sb-')===0) localStorage.removeItem(k); }); } catch(e){}
-    window.location.reload();
-  };
-})();
-</script>
+<!-- v26 (2026-06-03): UNIFIED AUTH. Admin now uses the SAME session as members/providers.
+     ffp-api-integration.js builds the Supabase client and applies the member JWT (the admin's
+     member.id == their admin_users.id, so auth.uid() resolves and is_admin() passes server-side).
+     The old per-dashboard Supabase-OTP gate is removed — sign-in for ALL roles happens once at
+     /login. ffp-api-integration.js also defines window.ffpLogout (clears session → login), so no
+     inline client/logout is needed here. -->
+<script src="assets/ffp-api-integration.js"></script>
   <script src="assets/ffp-constants.js"></script>
   <script src="assets/ffp-taxonomy.js"></script>
   <script src="assets/ffp-realtime.js"></script>
@@ -1969,6 +1966,13 @@ input, select, textarea { font-family: inherit; }
             <span class="compare-toggle-label">Compare to previous</span>
           </div>
         </div>
+        <div class="time-filter-row" style="margin-top:10px;align-items:center;">
+          <span class="time-filter-label">Location</span>
+          <select id="analytics-country" onchange="Analytics.setCountry(this.value)"
+            style="background:var(--bg-3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;min-width:160px;"></select>
+          <select id="analytics-city" onchange="Analytics.setCity(this.value)"
+            style="background:var(--bg-3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;min-width:160px;"></select>
+        </div>
         <div class="time-period-summary" id="time-period-summary">
           Showing data for <span class="range">last 90 days</span>
         </div>
@@ -2222,7 +2226,7 @@ const App = {
       var sc = document.createElement('script');
       // Cache-bust lazy loaders so a new deploy never serves a stale cached .js.
       // BUMP this with the dashboard build number on every deploy (matches footer build).
-      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=37'; sc.async = false;
+      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=38'; sc.async = false;
       sc.onload = function () {
         if (panelId === 'panel-analytics') {
           setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 80);
