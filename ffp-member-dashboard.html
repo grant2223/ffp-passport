@@ -1,4 +1,11 @@
-<!-- FFP MEMBER DASHBOARD — v219 (2026-06-02)
+<!-- FFP MEMBER DASHBOARD — v220 (2026-06-02)
+     v220: "Your journey" map REBUILT on Leaflet (dark CARTO tiles) with a World › Country › City
+           drill-down (breadcrumb + country/city chips). City pins (blue) at centroids; venue
+           check-ins (yellow) at exact checkin_lat/lng. Selecting a country/city flies the map AND
+           scopes the Top Activities / Top Venues / stats below (getFilteredLogs now also filters
+           selectedCountry). Dropped Favorites/Wish List + the SVG map (legacy setupMap/loadWorldMap
+           now no-op if #world-svg absent). Needs backend v53 for exact venue pins. Leaflet via CDN.
+     v219: Host CANCEL button is now built canonically in openMeetupDetail's footer (red "Cancel
      v219: Host CANCEL button is now built canonically in openMeetupDetail's footer (red "Cancel
            this meet-up" → MeetMove.cancelMeetup) for m.isHostedByMe — no longer reliant on the
            loader's post-render DOM surgery (which wasn't showing). Loader v17 keeps cancelMeetup.
@@ -93,6 +100,9 @@
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<!-- v220: Leaflet for the "Your journey" map (zoom World → Country → City, real pins) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <!-- v105: Supabase SDK + ffp-api-integration.js v5 (JWT bridge). The integration
      module initialises window.supabase and applies the stored JWT as a
      Supabase Auth session on DOMContentLoaded, so any loader that runs
@@ -4277,61 +4287,43 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     <button class="time-chip active" data-range="all">All time</button>
   </div>
   
-  <!-- CITIES -->
-  <div class="cities-header">
-    <h3>Cities</h3>
-    <span class="cities-count" id="cities-count">0 cities</span>
-  </div>
-  <div class="cities-filters">
-    <button class="city-filter active" data-filter="all">All</button>
-    <button class="city-filter" data-filter="visited">Visited</button>
-    <button class="city-filter" data-filter="favorites">Favorites</button>
-    <button class="city-filter" data-filter="wishlist">Wish List</button>
-    <button class="btn btn-blue btn-sm" id="add-city-btn" style="margin-left:auto;">
-      <span class="material-icons" style="font-size:14px;">add</span>Add city
-    </button>
-  </div>
-
-  
-  <!-- MAP -->
+  <!-- ═══ YOUR JOURNEY MAP (Leaflet) — World › Country › City ═══ -->
+  <style>
+    #ffp-jmap{height:340px;width:100%;border-radius:12px;overflow:hidden;background:#06121f;z-index:1;}
+    .jm-map-wrap{position:relative;}
+    .leaflet-container{background:#06121f;font-family:inherit;}
+    .jm-crumb{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:13px;font-weight:800;margin:2px 0 10px;}
+    .jm-crumb .seg{color:var(--blue);cursor:pointer;display:inline-flex;align-items:center;gap:4px;}
+    .jm-crumb .seg.cur{color:var(--text);cursor:default;}
+    .jm-crumb .sep{color:var(--muted);font-weight:600;}
+    .jm-chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px;}
+    .jm-chip{background:rgba(43,168,224,.10);border:1px solid var(--border-mid);color:var(--text);border-radius:100px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;}
+    .jm-chip:hover{border-color:var(--blue);}
+    .jm-chip.active{background:var(--yellow);color:#082335;border-color:var(--yellow);}
+    .jm-chip .n{opacity:.65;font-weight:800;}
+    .jm-empty{font-size:13px;color:var(--muted);padding:8px 2px 0;}
+    .jm-legend{display:flex;gap:16px;margin-top:10px;font-size:11px;color:var(--muted);font-weight:600;}
+    .jm-legend-item{display:flex;align-items:center;gap:6px;}
+    .jm-dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+    .jm-dot.venue{background:#FFCC00;}
+    .jm-dot.city{background:#2ba8e0;}
+    .leaflet-popup-content-wrapper{background:#0f1e2e;color:#e8eef4;border:1px solid rgba(43,168,224,.3);border-radius:10px;}
+    .leaflet-popup-content{margin:9px 12px;}
+    .leaflet-popup-tip{background:#0f1e2e;border:1px solid rgba(43,168,224,.3);}
+    .jm-pop-t{font-weight:800;font-size:13px;}
+    .jm-pop-s{font-size:11px;color:#9dbdd0;margin-top:2px;}
+  </style>
   <div class="card-block">
     <div class="card-head">
-      <div class="card-head-title"><span class="material-icons card-head-icon">public</span><h3>Map</h3></div>
-      <span class="card-head-sub" id="map-sub">Tap any pin to see stats for that city</span>
+      <div class="card-head-title"><span class="material-icons card-head-icon">public</span><h3>Where you've been active</h3></div>
+      <span class="card-head-sub" id="jm-count">0 places</span>
     </div>
-    <div class="map-wrap">
-      <svg id="world-svg" viewBox="0 0 800 400" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <radialGradient id="map-bg-grad" cx="50%" cy="50%" r="65%">
-            <stop offset="0%" stop-color="#0d2238"/>
-            <stop offset="100%" stop-color="#06121f"/>
-          </radialGradient>
-          <filter id="pin-glow">
-            <feGaussianBlur stdDeviation="2" result="b"/>
-            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-          </filter>
-        </defs>
-        <rect width="800" height="400" fill="url(#map-bg-grad)"/>
-        <g id="world-countries"></g>
-        <g id="map-pins"></g>
-      </svg>
-      <div class="map-controls">
-        <button class="map-ctrl-btn" id="zoom-in" title="Zoom in"><span class="material-icons" style="font-size:18px;">add</span></button>
-        <button class="map-ctrl-btn" id="zoom-out" title="Zoom out"><span class="material-icons" style="font-size:18px;">remove</span></button>
-        <button class="map-ctrl-btn" id="zoom-reset" title="Reset view"><span class="material-icons" style="font-size:18px;">public</span></button>
-      </div>
-      <div class="map-pan-controls">
-        <button class="map-ctrl-btn pan-btn pan-up" id="pan-up" title="Pan up"><span class="material-icons" style="font-size:18px;">keyboard_arrow_up</span></button>
-        <button class="map-ctrl-btn pan-btn pan-left" id="pan-left" title="Pan left"><span class="material-icons" style="font-size:18px;">keyboard_arrow_left</span></button>
-        <button class="map-ctrl-btn pan-btn pan-right" id="pan-right" title="Pan right"><span class="material-icons" style="font-size:18px;">keyboard_arrow_right</span></button>
-        <button class="map-ctrl-btn pan-btn pan-down" id="pan-down" title="Pan down"><span class="material-icons" style="font-size:18px;">keyboard_arrow_down</span></button>
-      </div>
-      <div id="map-tooltip" style="display:none;position:absolute;background:rgba(11,28,40,0.95);border:1px solid #2ba8e0;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:700;color:#fff;pointer-events:none;z-index:10;white-space:nowrap;"></div>
-    </div>
-    <div class="map-legend">
-      <div class="legend-item"><span class="legend-dot legend-yellow"></span>Visited</div>
-      <div class="legend-item"><span class="legend-dot legend-red"></span>Favorite</div>
-      <div class="legend-item"><span class="legend-dot legend-silver"></span>Wish list</div>
+    <div class="jm-crumb" id="jm-crumb"></div>
+    <div class="jm-chips" id="jm-chips"></div>
+    <div class="jm-map-wrap"><div id="ffp-jmap"></div></div>
+    <div class="jm-legend">
+      <span class="jm-legend-item"><span class="jm-dot venue"></span>Venue you checked into</span>
+      <span class="jm-legend-item"><span class="jm-dot city"></span>City you were active in</span>
     </div>
   </div>
   
@@ -6597,6 +6589,7 @@ function applyPassportData() {
 const state = {
   timeRange: 'all',
   selectedCity: null,
+  selectedCountry: null,
   cityFilter: 'all',
   expandedActivities: false,
   expandedVenues: false,
@@ -6615,6 +6608,7 @@ function getFilteredLogs() {
     const days = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 1)) / 86400000);
     logs = logs.filter(l => l.daysAgo <= days);
   }
+  if (state.selectedCountry) logs = logs.filter(l => l.country === state.selectedCountry);
   if (state.selectedCity) logs = logs.filter(l => l.city === state.selectedCity);
   return logs;
 }
@@ -6634,9 +6628,108 @@ function renderAll() {
   renderStats(logs);
   renderActivities(logs);
   renderVenues(logs);
-  renderCities();
-  renderMapPins();
+  if (window.JourneyMap) JourneyMap.render();
 }
+
+// ===== JOURNEY MAP (Leaflet) — World › Country › City drill-down =====
+window.JourneyMap = (function () {
+  var map = null, layer = null;
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+  function jsStr(s){ return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
+  function coordsForCity(name, country){
+    if (!name) return null;
+    var c = (typeof CITY_COORDS !== 'undefined' && CITY_COORDS[name]) ? CITY_COORDS[name] : null;
+    if ((!c || c.lat==null) && typeof estimateCityCoords === 'function'){ c = estimateCityCoords(name, country); if (c && typeof CITY_COORDS !== 'undefined') CITY_COORDS[name] = c; }
+    return (c && c.lat!=null && c.lng!=null) ? c : null;
+  }
+  function logsInRange(){
+    var logs = (typeof LOGS !== 'undefined') ? LOGS.slice() : [];
+    var r = state.timeRange;
+    if (r==='7d') logs = logs.filter(function(l){return l.daysAgo<=7;});
+    else if (r==='30d') logs = logs.filter(function(l){return l.daysAgo<=30;});
+    else if (r==='90d') logs = logs.filter(function(l){return l.daysAgo<=90;});
+    else if (r==='year'){ var d=Math.floor((new Date()-new Date(new Date().getFullYear(),0,1))/86400000); logs=logs.filter(function(l){return l.daysAgo<=d;}); }
+    return logs;
+  }
+  function dotIcon(color, r){
+    return L.divIcon({ className:'jm-divicon', html:'<div style="width:'+(r*2)+'px;height:'+(r*2)+'px;border-radius:50%;background:'+color+';border:2px solid #fff;box-shadow:0 0 0 2px rgba(0,0,0,.4);"></div>', iconSize:[r*2,r*2], iconAnchor:[r,r] });
+  }
+  function init(){
+    if (map || typeof L === 'undefined') return;
+    var el = document.getElementById('ffp-jmap'); if (!el) return;
+    map = L.map(el, { zoomControl:true, attributionControl:false, worldCopyJump:true }).setView([20,10], 2);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { subdomains:'abcd', maxZoom:18 }).addTo(map);
+    layer = L.layerGroup().addTo(map);
+    setTimeout(function(){ if (map){ map.invalidateSize(); render(); } }, 250);
+  }
+  function fit(bounds, maxZoom){
+    if (bounds.length>1) map.flyToBounds(bounds, { padding:[45,45], maxZoom:maxZoom, duration:0.6 });
+    else if (bounds.length===1) map.flyTo(bounds[0], Math.min(13,maxZoom+5), { duration:0.6 });
+  }
+  function render(){
+    if (typeof L === 'undefined') return;
+    if (!map){ init(); return; }
+    if (!layer) layer = L.layerGroup().addTo(map);
+    layer.clearLayers(); map.invalidateSize();
+
+    var logs = logsInRange();
+    var cityMap = {};
+    logs.forEach(function(l){ if(!l.city) return; if(!cityMap[l.city]) cityMap[l.city]={city:l.city,country:l.country||'',count:0}; cityMap[l.city].count++; });
+    var cities = Object.keys(cityMap).map(function(k){return cityMap[k];});
+    var bounds = [], countEl = document.getElementById('jm-count');
+
+    if (state.selectedCity){
+      var venues = {};
+      logs.filter(function(l){return l.city===state.selectedCity;}).forEach(function(l){
+        if (l.lat!=null && l.lng!=null){ var vk=l.venue||l.provider_id||(l.lat+','+l.lng); if(!venues[vk]) venues[vk]={name:l.venue||'Venue',lat:l.lat,lng:l.lng,count:0}; venues[vk].count++; }
+      });
+      var vKeys = Object.keys(venues);
+      vKeys.forEach(function(vk){ var v=venues[vk]; L.marker([v.lat,v.lng],{icon:dotIcon('#FFCC00',7)}).addTo(layer).bindPopup('<div class="jm-pop-t">'+esc(v.name)+'</div><div class="jm-pop-s">'+v.count+' check-in'+(v.count===1?'':'s')+'</div>'); bounds.push([v.lat,v.lng]); });
+      if (!vKeys.length){ var cc=coordsForCity(state.selectedCity,state.selectedCountry); if(cc){ L.marker([cc.lat,cc.lng],{icon:dotIcon('#2ba8e0',8)}).addTo(layer).bindPopup('<div class="jm-pop-t">'+esc(state.selectedCity)+'</div><div class="jm-pop-s">Activities logged here</div>'); bounds.push([cc.lat,cc.lng]); } }
+      if (countEl) countEl.textContent = vKeys.length ? (vKeys.length+(vKeys.length===1?' venue':' venues')) : 'City view';
+      fit(bounds, 14);
+    } else if (state.selectedCountry){
+      var inC = cities.filter(function(c){return c.country===state.selectedCountry;});
+      inC.forEach(function(c){ var cc=coordsForCity(c.city,c.country); if(!cc) return; var r=Math.min(13,6+Math.round(Math.sqrt(c.count))); var mk=L.marker([cc.lat,cc.lng],{icon:dotIcon('#2ba8e0',r)}).addTo(layer); mk.bindPopup('<div class="jm-pop-t">'+esc(c.city)+'</div><div class="jm-pop-s">'+c.count+' '+(c.count===1?'activity':'activities')+' · tap to open</div>'); mk.on('click',function(){selectCity(c.city,c.country);}); bounds.push([cc.lat,cc.lng]); });
+      if (countEl) countEl.textContent = inC.length+(inC.length===1?' city':' cities');
+      fit(bounds, 9);
+    } else {
+      cities.forEach(function(c){ var cc=coordsForCity(c.city,c.country); if(!cc) return; var r=Math.min(13,6+Math.round(Math.sqrt(c.count))); var mk=L.marker([cc.lat,cc.lng],{icon:dotIcon('#2ba8e0',r)}).addTo(layer); mk.bindPopup('<div class="jm-pop-t">'+esc(c.city)+(c.country?(', '+esc(c.country)):'')+'</div><div class="jm-pop-s">'+c.count+' '+(c.count===1?'activity':'activities')+' · tap to open</div>'); mk.on('click',function(){selectCity(c.city,c.country);}); bounds.push([cc.lat,cc.lng]); });
+      if (countEl) countEl.textContent = cities.length+(cities.length===1?' city':' cities');
+      if (bounds.length) fit(bounds, 6); else map.setView([20,10],2);
+    }
+    renderCrumb(); renderChips(cities);
+  }
+  function renderCrumb(){
+    var el=document.getElementById('jm-crumb'); if(!el) return;
+    var atWorld = !state.selectedCountry && !state.selectedCity, html='';
+    html += '<span class="seg'+(atWorld?' cur':'')+'" '+(atWorld?'':'onclick="JourneyMap.reset()"')+'><span class="material-icons" style="font-size:15px;">public</span> World</span>';
+    if (state.selectedCountry){ var atC=!state.selectedCity; html += '<span class="sep">›</span><span class="seg'+(atC?' cur':'')+'" '+(atC?'':'onclick="JourneyMap.selectCountry(\''+jsStr(state.selectedCountry)+'\')"')+'>'+esc(state.selectedCountry)+'</span>'; }
+    if (state.selectedCity){ html += '<span class="sep">›</span><span class="seg cur">'+esc(state.selectedCity)+'</span>'; }
+    el.innerHTML = html;
+  }
+  function renderChips(cities){
+    var el=document.getElementById('jm-chips'); if(!el) return;
+    if (state.selectedCity){ el.innerHTML=''; return; }
+    var html='';
+    if (state.selectedCountry){
+      var inC = cities.filter(function(c){return c.country===state.selectedCountry;}).sort(function(a,b){return b.count-a.count;});
+      inC.forEach(function(c){ html += '<button class="jm-chip" onclick="JourneyMap.selectCity(\''+jsStr(c.city)+'\',\''+jsStr(c.country)+'\')">'+esc(c.city)+' <span class="n">'+c.count+'</span></button>'; });
+      if (!inC.length) html = '<div class="jm-empty">No cities logged here yet.</div>';
+    } else {
+      var byC={}; cities.forEach(function(c){ if(!c.country) return; if(!byC[c.country]) byC[c.country]={country:c.country,count:0}; byC[c.country].count+=c.count; });
+      var arr = Object.keys(byC).map(function(k){return byC[k];}).sort(function(a,b){return b.count-a.count;});
+      arr.forEach(function(c){ html += '<button class="jm-chip" onclick="JourneyMap.selectCountry(\''+jsStr(c.country)+'\')">'+esc(c.country)+' <span class="n">'+c.count+'</span></button>'; });
+      if (!html) html = '<div class="jm-empty">Log an activity or check in at a venue to start your map.</div>';
+    }
+    el.innerHTML = html;
+  }
+  function selectCountry(country){ state.selectedCountry=country||null; state.selectedCity=null; if(typeof renderAll==='function') renderAll(); }
+  function selectCity(city,country){ if(country) state.selectedCountry=country; state.selectedCity=city||null; if(typeof renderAll==='function') renderAll(); }
+  function reset(){ state.selectedCountry=null; state.selectedCity=null; if(typeof renderAll==='function') renderAll(); }
+  return { init:init, render:render, selectCountry:selectCountry, selectCity:selectCity, reset:reset };
+})();
 
 function getMeetsCount() {
   if (typeof MEETS === 'undefined') return 0;
@@ -6817,6 +6910,7 @@ function setupMapProjection() {
 }
 
 function loadWorldMap() {
+  if (!document.getElementById('world-svg')) return;   // legacy SVG map removed (v220) — Leaflet JourneyMap now
   // Fetch Natural Earth world map data (public domain, ~30kb)
   fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
     .then(r => r.json())
@@ -12334,10 +12428,11 @@ function setupViewAll() {
   document.getElementById('venues-view-all').addEventListener('click', () => { state.expandedVenues = !state.expandedVenues; renderVenues(getFilteredLogs()); });
 }
 
-// ===== MAP CONTROLS =====
+// ===== MAP CONTROLS (legacy SVG map — replaced by Leaflet JourneyMap; no-ops if removed) =====
 function setupMap() {
   const svg = document.getElementById('world-svg');
-  
+  if (!svg) return;   // SVG map removed in v220 (Leaflet now); skip all legacy control wiring
+
   // Pan state
   state.mapPanX = 0;
   state.mapPanY = 0;
@@ -12688,6 +12783,8 @@ async function loadJourneyLogs() {
       LOGS.push({
         activity: r.activity || 'Activity', venue: r.venue || '', city: r.city || '', country: r.country || '',
         provider_id: r.provider_id || null,
+        lat: (r.checkin_lat != null ? Number(r.checkin_lat) : null),
+        lng: (r.checkin_lng != null ? Number(r.checkin_lng) : null),
         date: dt.toISOString().substring(0, 10),
         daysAgo: Math.max(0, Math.floor((now - dt.getTime()) / 86400000)),
         duration: r.duration_min || 0, calories: r.calories || 0, notes: r.notes || '',
@@ -12848,11 +12945,12 @@ function init() {
     }
   }, 100);
   setupLogPickers();
-  document.getElementById('add-city-btn').addEventListener('click', openAddCity);
-  document.getElementById('add-city-modal').addEventListener('click', e => { if (e.target.id === 'add-city-modal') closeAddCity(); });
-  document.getElementById('pin-modal').addEventListener('click', e => { if (e.target.id === 'pin-modal') closePinModal(); });
+  if (window.JourneyMap) JourneyMap.init();   // v220: Leaflet "Your journey" map
+  var _acb = document.getElementById('add-city-btn'); if (_acb) _acb.addEventListener('click', openAddCity);
+  var _acm = document.getElementById('add-city-modal'); if (_acm) _acm.addEventListener('click', e => { if (e.target.id === 'add-city-modal') closeAddCity(); });
+  var _pm = document.getElementById('pin-modal'); if (_pm) _pm.addEventListener('click', e => { if (e.target.id === 'pin-modal') closePinModal(); });
   // Picker modal click-outside is wired inside the Picker module
-  document.getElementById('city-search').addEventListener('input', e => renderCityList(e.target.value));
+  var _cs = document.getElementById('city-search'); if (_cs) _cs.addEventListener('input', e => renderCityList(e.target.value));
   renderAll();
   console.log('FFP Dashboard v44 - professionals filter chip');
 }
