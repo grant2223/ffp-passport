@@ -39,7 +39,9 @@
       tier_expires_at: row.tier_expires_at || null,
       balance: Number(row.balance_aed || 0),
       daysAgo: days,
-      status: row.status || 'active'
+      status: row.status || 'active',
+      role: row.role || 'member',
+      verified: !!row.verified
     };
   }
 
@@ -47,10 +49,12 @@
     try {
       var res = await window.supabase
         .from('members')
-        .select('id, full_name, given_names, email, city, tier, tier_expires_at, balance_aed, status, created_at')
+        .select('id, full_name, given_names, email, city, tier, tier_expires_at, balance_aed, status, created_at, role, verified')
         .order('created_at', { ascending: false });
       if (res.error) { console.error('[FFP Admin Members] fetch:', res.error); toast('Could not load members', 'error'); return []; }
-      return (res.data || []).map(mapForUi);
+      // Only real members — exclude provider/admin login accounts (e.g. a provider's contact person,
+      // who has a members row with role='provider'). They belong in Providers, not Members.
+      return (res.data || []).map(mapForUi).filter(function (m) { return m.role === 'member'; });
     } catch (e) { console.error('[FFP Admin Members] fetch threw:', e); return []; }
   }
 
@@ -67,6 +71,19 @@
     var am = getAM();
     am.init = function () { refresh(); };
     am.refresh = refresh;
+
+    // Admin marks a member verified (checked as a real/safe person) — or removes it.
+    am.toggleVerified = async function (id, val) {
+      try {
+        var res = await window.supabase.from('members').update({ verified: !!val }).eq('id', id);
+        if (res.error) { console.error('[Members] toggleVerified', res.error); toast('Could not update verified status', 'error'); return; }
+        var row = (am.data || []).filter(function (x) { return x.id === id; })[0];
+        if (row) row.verified = !!val;
+        if (typeof am.render === 'function') am.render();
+        if (window.AuditLog) AuditLog.add(null, (val ? 'verified' : 'un-verified') + ' member ' + (row ? (row.full_name || row.email) : id));
+        toast(val ? 'Member marked verified ✓' : 'Verified status removed', 'success');
+      } catch (e) { console.error('[Members] toggleVerified threw', e); toast('Update failed', 'error'); }
+    };
 
     // v4: fetch only when the admin session is confirmed (event-driven, no race).
     document.addEventListener('ffp-admin-ready', function () { refresh(); });
