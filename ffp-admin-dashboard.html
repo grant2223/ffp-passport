@@ -1,4 +1,4 @@
-<!-- FFP Admin Dashboard v33 (2026-06-01): Taxonomies panel is now a REAL editor — ffp-admin-taxonomies-loader.js does CRUD on public.taxonomy_items (Activities/Categories/Fitness Levels/Nationalities/Genders/Age Groups): add, rename, reorder, show/hide, delete. assets/ffp-taxonomy.js v4 hydrates FFP_TAX from that table so edits propagate platform-wide (hardcoded fallback if DB unreachable). v32 (2026-06-01): FIX broken icons — added self-contained base `.material-icons` CSS rule (font-family + 'liga') + &display=block on the icon font link, so sidebar/queue icons never fall back to raw ligature text ("storefront", "inbox", etc.) when the external Google CSS is slow/blocked (this was the "design turned shit" issue). v31: provider accounts INSTANT + self-serve — REMOVED Applications panel/loader + reverted the v30 Pending approval tab. v29 (skill levels). v28 USD labels. v27 tier/expiry edit fix. -->
+<!-- FFP Admin Dashboard v34 (2026-06-01): Taxonomies editor v2 — added Countries, Cities (country→city cascade) + Experience Types; session guard so edits don't fail silently if the admin session expired. v33: Taxonomies panel is now a REAL editor — ffp-admin-taxonomies-loader.js does CRUD on public.taxonomy_items (Activities/Categories/Fitness Levels/Nationalities/Genders/Age Groups): add, rename, reorder, show/hide, delete. assets/ffp-taxonomy.js v4 hydrates FFP_TAX from that table so edits propagate platform-wide (hardcoded fallback if DB unreachable). v32 (2026-06-01): FIX broken icons — added self-contained base `.material-icons` CSS rule (font-family + 'liga') + &display=block on the icon font link, so sidebar/queue icons never fall back to raw ligature text ("storefront", "inbox", etc.) when the external Google CSS is slow/blocked (this was the "design turned shit" issue). v31: provider accounts INSTANT + self-serve — REMOVED Applications panel/loader + reverted the v30 Pending approval tab. v29 (skill levels). v28 USD labels. v27 tier/expiry edit fix. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1393,7 +1393,7 @@ input, select, textarea { font-family: inherit; }
       </div>
     </div>
     <div class="sidebar-footer">
-      build v32 &middot; FFP Admin
+      build v34 &middot; FFP Admin
     </div>
   </aside>
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.toggleSidebar()"></div>
