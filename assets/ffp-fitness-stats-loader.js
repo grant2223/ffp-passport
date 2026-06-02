@@ -1,4 +1,10 @@
-/* FFP Fitness Stats Loader — v14
+/* FFP Fitness Stats Loader — v15
+   v15: SAVE FIX — records (PR/health), body weight, and sleep now PERSIST. Writes went via
+        window.supabase.from('profile_meta').upsert() directly, which silently affected 0 rows
+        for member sessions (custom JWT → auth.uid() trap), so nothing saved (and BioAge, derived
+        from the health records, stayed empty). savePr/clearPr/saveSleepLog now call the
+        member_profile_meta_save SECURITY DEFINER RPC (whitelisted columns + pr_dates merge,
+        GRANT anon/authenticated). Verified to persist. (Modal full-screen fix is in the dashboard.)
    v14: Activity breakdown has a period filter (Week/Month/3M/6M/Year/All).
    v13: Activity tab = per-activity breakdown (x times + hours) + recent activity list
         (recent moved here from the Passport). Removed the "last 30 days" tiles.
@@ -1215,14 +1221,14 @@
       var rec = this.records[key];
       if (!rec) return;
       var val = map.cast === 'int' ? Math.round(rec.value) : Number(rec.value);
+      var patch = {}; patch[map.col] = val;
       try {
-        var readRes = await window.supabase.from('profile_meta').select('pr_dates').eq('member_id', currentUserId).maybeSingle();
-        var prDates = (readRes.data && readRes.data.pr_dates && typeof readRes.data.pr_dates === 'object') ? readRes.data.pr_dates : {};
-        prDates[key] = rec.date || todayStr();
-        var payload = { member_id: currentUserId, pr_dates: prDates, updated_at: new Date().toISOString() };
-        payload[map.col] = val;
-        var res = await window.supabase.from('profile_meta').upsert(payload, { onConflict: 'member_id' });
-        if (res.error) console.error('[FFP FS] pr save:', res.error);
+        // v15: write via SECURITY DEFINER RPC — members use a custom JWT, so a direct
+        // profile_meta upsert silently affected 0 rows (records never persisted).
+        var res = await window.supabase.rpc('member_profile_meta_save', {
+          p_me: currentUserId, p_patch: patch, p_pr_date_key: key, p_pr_date_val: rec.date || todayStr()
+        });
+        if (res.error || res.data !== true) console.error('[FFP FS] pr save:', res.error || 'did not persist');
         for (var i = 0; i < rankingPool.length; i++) {
           if (rankingPool[i].member_id === currentUserId) { rankingPool[i][map.col] = val; break; }
         }
@@ -1238,14 +1244,12 @@
       if (this.records[key] != null) return;
       var map = PR_MAP[key];
       if (!map) return;
+      var patch = {}; patch[map.col] = null;
       try {
-        var readRes = await window.supabase.from('profile_meta').select('pr_dates').eq('member_id', currentUserId).maybeSingle();
-        var prDates = (readRes.data && readRes.data.pr_dates && typeof readRes.data.pr_dates === 'object') ? readRes.data.pr_dates : {};
-        delete prDates[key];
-        var payload = { member_id: currentUserId, pr_dates: prDates, updated_at: new Date().toISOString() };
-        payload[map.col] = null;
-        var res = await window.supabase.from('profile_meta').upsert(payload, { onConflict: 'member_id' });
-        if (res.error) console.error('[FFP FS] pr clear:', res.error);
+        var res = await window.supabase.rpc('member_profile_meta_save', {
+          p_me: currentUserId, p_patch: patch, p_pr_date_key: key, p_pr_date_val: null
+        });
+        if (res.error || res.data !== true) console.error('[FFP FS] pr clear:', res.error || 'did not persist');
         for (var i = 0; i < rankingPool.length; i++) {
           if (rankingPool[i].member_id === currentUserId) { rankingPool[i][map.col] = null; break; }
         }
@@ -1259,10 +1263,10 @@
       if (!currentUserId) return;
       var dbShape = sleepToDb(this.sleepLogs);
       try {
-        var res = await window.supabase.from('profile_meta').upsert({
-          member_id: currentUserId, sleep_logs: dbShape, updated_at: new Date().toISOString()
-        }, { onConflict: 'member_id' });
-        if (res.error) console.error('[FFP FS] sleep save:', res.error);
+        var res = await window.supabase.rpc('member_profile_meta_save', {
+          p_me: currentUserId, p_patch: { sleep_logs: dbShape }, p_pr_date_key: null, p_pr_date_val: null
+        });
+        if (res.error || res.data !== true) console.error('[FFP FS] sleep save:', res.error || 'did not persist');
         // Recompute sleep avg locally on the pool snapshot of self
         var hrs = [];
         Object.keys(dbShape).forEach(function (k) { var v = Number(dbShape[k]); if (!isNaN(v)) hrs.push(v); });
