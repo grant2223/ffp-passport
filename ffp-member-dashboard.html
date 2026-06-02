@@ -1,7 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v224 (2026-06-02)
+<!-- FFP MEMBER DASHBOARD — v225 (2026-06-02)
+     v225: Map markers are now slim BALL-HEAD pins (coloured round head on a thin needle, tip on
+           the spot) — replaced the teardrop. Yellow head = venue check-in, blue = city.
      v224: World Map basemap → CARTO Voyager (light land, blue water, good contrast; removed the
-           grayscale filter). Markers are now small teardrop PINS (head + point, tip on the spot)
-           instead of big circles — yellow = venue check-in, blue = city.
+           grayscale filter). Markers were teardrop PINS — superseded by v225 ball-head pins.
      v223: (a) Map tiles LIGHTENED (grayscale brightness 1.55) so water + lines read lighter, base #20252b.
            (b) Provider check-ins with a null country now infer country from city (countryForCity via
            CITIES_DB) in loadJourneyLogs → e.g. Dubai groups under United Arab Emirates so the City
@@ -6734,11 +6735,13 @@ window.JourneyMap = (function () {
     return logs;
   }
   function dotIcon(color, r){
-    // small teardrop pin (head + point), not a big circle — tip sits on the location
-    var h = '<svg width="20" height="28" viewBox="0 0 20 28" xmlns="http://www.w3.org/2000/svg">'
-      + '<path d="M10 0C4.5 0 0 4.4 0 9.8c0 6.9 10 18.2 10 18.2s10-11.3 10-18.2C20 4.4 15.5 0 10 0z" fill="'+color+'" stroke="#15314a" stroke-width="1"/>'
-      + '<circle cx="10" cy="9.8" r="3.3" fill="#fff"/></svg>';
-    return L.divIcon({ className:'jm-pin', html:h, iconSize:[20,28], iconAnchor:[10,28], popupAnchor:[0,-26] });
+    // slim location pin with a coloured BALL HEAD on a thin needle; tip sits on the spot
+    var h = '<svg width="16" height="30" viewBox="0 0 16 30" xmlns="http://www.w3.org/2000/svg">'
+      + '<ellipse cx="8" cy="28.6" rx="2.8" ry="1.1" fill="rgba(0,0,0,0.22)"/>'
+      + '<rect x="7.1" y="10.5" width="1.8" height="17.5" rx="0.9" fill="#3c4854"/>'
+      + '<circle cx="8" cy="7" r="6" fill="'+color+'" stroke="#ffffff" stroke-width="1.5"/>'
+      + '<circle cx="5.8" cy="5" r="1.5" fill="#ffffff" opacity="0.5"/></svg>';
+    return L.divIcon({ className:'jm-pin', html:h, iconSize:[16,30], iconAnchor:[8,30], popupAnchor:[0,-28] });
   }
   function init(){
     if (map || typeof L === 'undefined') return;
