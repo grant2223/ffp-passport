@@ -1,4 +1,9 @@
-/* FFP Provider Profile Loader — v11
+/* FFP Provider Profile Loader — v12
+   v12 (2026-06-02): Activities input now uses OUR styled dropdown under the field (filtered list
+       of the activity taxonomy + an "Add ‘x’" custom option), replacing the ugly native
+       <datalist> that rendered a full-height list on the right of the screen. Click to add a chip;
+       outside-click / Esc closes it. (Tab order/labels handled in the dashboard: Business Details
+       · Activities · Branding.)
    v11 (2026-06-02): TABBED profile (Branding / Business info / Activities). The "Activities we
        offer" field now injects into the Activities tab (#pf-activities-host); the "Google Maps
        link" (venue location) stays in Business info, after Address. Falls back to the old
@@ -432,6 +437,7 @@
 
   // ─── Activities offered + venue location (injected into #panel-profile) ───
   var _provExtras = { activities: [], lat: null, lng: null, mapsUrl: '' };
+  var _actsAll = [];   // full activity taxonomy for the custom dropdown
   var GEO_API = 'https://ffp-passport-backend.vercel.app';
 
   function injectExtrasCss() {
@@ -444,7 +450,15 @@
       '.pf-chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px;}' +
       '.pf-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.28);border-radius:100px;padding:5px 6px 5px 12px;font-size:12px;font-weight:700;color:#e8eef4;}' +
       '.pf-chip button{background:rgba(255,255,255,.12);border:none;color:#cfe0ec;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:13px;line-height:1;}' +
-      '.pf-loc-status{display:block;margin-top:6px;font-size:12px;color:#8a99a8;font-weight:600;}';
+      '.pf-loc-status{display:block;margin-top:6px;font-size:12px;color:#8a99a8;font-weight:600;}' +
+      // our own activity dropdown (replaces the native <datalist>)
+      '.pf-ac-wrap{position:relative;flex:1;min-width:160px;}' +
+      '.pf-ac-dd{position:absolute;left:0;right:0;top:calc(100% + 5px);z-index:60;background:#0f1e2e;border:1px solid rgba(43,168,224,.3);border-radius:12px;max-height:260px;overflow-y:auto;box-shadow:0 18px 50px rgba(0,0,0,.55);padding:5px;}' +
+      '.pf-ac-dd::-webkit-scrollbar{width:0;}' +
+      '.pf-ac-item{padding:10px 12px;border-radius:8px;font-size:13px;font-weight:600;color:#e8eef4;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;}' +
+      '.pf-ac-item:hover{background:rgba(43,168,224,.15);}' +
+      '.pf-ac-item .pf-ac-add{font-size:11px;font-weight:800;color:#FFCC00;}' +
+      '.pf-ac-empty{padding:11px 12px;font-size:12px;color:#8a99a8;}';
     document.head.appendChild(s);
   }
   // Inject "Activities we offer" + "Google Maps link" as native form fields, placed right
@@ -454,13 +468,18 @@
     if (document.getElementById('pf-extras-acts')) return;
     var panel = document.getElementById('panel-profile'); if (!panel) return;
     injectExtrasCss();
-    var acts = ((window.FFP_TAX && window.FFP_TAX.activities) || []).map(function (a) { return (a && a.n) ? a.n : a; });
-    var dl = acts.map(function (a) { return '<option value="' + escText(a) + '">'; }).join('');
+    _actsAll = ((window.FFP_TAX && window.FFP_TAX.activities) || []).map(function (a) { return (a && a.n) ? a.n : a; });
 
     var f1 = document.createElement('div'); f1.className = 'field full'; f1.id = 'pf-extras-acts';
     f1.innerHTML =
       '<div class="label">Activities we offer <span class="label-hint">— what members pick when they check in here</span></div>' +
-      '<div class="pf-extras-add"><input id="pf-act-input" class="input" list="pf-act-list" placeholder="Type an activity, then Add"><datalist id="pf-act-list">' + dl + '</datalist><button type="button" id="pf-act-add" class="pf-extras-btn">Add</button></div>' +
+      '<div class="pf-extras-add">' +
+        '<div class="pf-ac-wrap">' +
+          '<input id="pf-act-input" class="input" autocomplete="off" placeholder="Search activities…">' +
+          '<div id="pf-act-dd" class="pf-ac-dd" style="display:none;"></div>' +
+        '</div>' +
+        '<button type="button" id="pf-act-add" class="pf-extras-btn">Add</button>' +
+      '</div>' +
       '<div id="pf-act-chips" class="pf-chips"></div>';
     var f2 = document.createElement('div'); f2.className = 'field full'; f2.id = 'pf-extras-loc';
     f2.innerHTML =
@@ -483,18 +502,53 @@
       if (anchor && anchor.parentNode) { if (!host) anchor.parentNode.insertBefore(f1, anchor); anchor.parentNode.insertBefore(f2, anchor); }
       else { if (!host) panel.appendChild(f1); panel.appendChild(f2); }
     }
-    document.getElementById('pf-act-add').onclick = addAct;
-    document.getElementById('pf-act-input').onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); addAct(); } };
+    var actInput = document.getElementById('pf-act-input');
+    document.getElementById('pf-act-add').onclick = function () { addAct(); };
+    actInput.onfocus = function () { renderActDropdown(this.value); };
+    actInput.oninput = function () { renderActDropdown(this.value); };
+    actInput.onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); addAct(); } else if (e.key === 'Escape') { hideActDropdown(); } };
+    // hide the dropdown when clicking outside it
+    if (!window.__pfAcOutside) {
+      window.__pfAcOutside = true;
+      document.addEventListener('click', function (e) {
+        var wrap = document.querySelector('.pf-ac-wrap');
+        if (wrap && !wrap.contains(e.target)) hideActDropdown();
+      });
+    }
     document.getElementById('pf-loc-btn').onclick = resolveMapsLink;
     var mu = document.getElementById('pf-maps-url');
     if (mu) mu.onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); resolveMapsLink(); } };
     renderActChips();
   }
+  function hideActDropdown() { var dd = document.getElementById('pf-act-dd'); if (dd) dd.style.display = 'none'; }
+  function renderActDropdown(filter) {
+    var dd = document.getElementById('pf-act-dd'); if (!dd) return;
+    var f = (filter || '').toLowerCase().trim();
+    var chosen = _provExtras.activities.map(function (a) { return a.toLowerCase(); });
+    var matches = _actsAll.filter(function (a) {
+      return chosen.indexOf(a.toLowerCase()) === -1 && (!f || a.toLowerCase().indexOf(f) !== -1);
+    }).slice(0, 40);
+    var html = matches.map(function (a) {
+      return '<div class="pf-ac-item" onclick="__pfAddAct(&quot;' + escText(a).replace(/"/g, '') + '&quot;)"><span>' + escText(a) + '</span></div>';
+    }).join('');
+    // allow adding a custom activity that isn't in the list
+    var exact = _actsAll.some(function (a) { return a.toLowerCase() === f; });
+    if (f && !exact) {
+      html += '<div class="pf-ac-item" onclick="__pfAddAct(&quot;' + escText(filter.trim()).replace(/"/g, '') + '&quot;)"><span>Add “' + escText(filter.trim()) + '”</span><span class="pf-ac-add">custom</span></div>';
+    }
+    dd.innerHTML = html || '<div class="pf-ac-empty">No matching activities.</div>';
+    dd.style.display = 'block';
+  }
+  window.__pfAddAct = function (v) {
+    v = (v || '').trim(); if (!v) return;
+    if (!_provExtras.activities.some(function (a) { return a.toLowerCase() === v.toLowerCase(); })) _provExtras.activities.push(v);
+    var inp = document.getElementById('pf-act-input'); if (inp) { inp.value = ''; inp.focus(); }
+    renderActChips(); renderActDropdown('');
+  };
   function addAct() {
     var inp = document.getElementById('pf-act-input'); if (!inp) return;
-    var v = (inp.value || '').trim(); if (!v) return;
-    if (!_provExtras.activities.some(function (a) { return a.toLowerCase() === v.toLowerCase(); })) _provExtras.activities.push(v);
-    inp.value = ''; renderActChips();
+    var v = (inp.value || '').trim(); if (!v) { hideActDropdown(); return; }
+    window.__pfAddAct(v);
   }
   window.__pfRemoveAct = function (v) { _provExtras.activities = _provExtras.activities.filter(function (a) { return a !== v; }); renderActChips(); };
   function renderActChips() {
