@@ -4201,8 +4201,8 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
   
   <!-- LOG: scan a provider QR or enter manually -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;">
-    <button class="btn btn-block" style="padding:13px;background:#13283c;color:#e8eef4;border:1px solid var(--border-mid);font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;cursor:pointer;font-family:inherit;" onclick="openScanLog()"><span class="material-icons" style="font-size:18px;">qr_code_scanner</span> Scan QR</button>
-    <button class="btn btn-block" style="padding:13px;background:#FFCC00;color:#081420;border:none;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;cursor:pointer;font-family:inherit;" onclick="openLogModal()"><span class="material-icons" style="font-size:18px;">edit</span> Log Activity</button>
+    <button class="btn btn-block" style="padding:13px;background:#FFCC00;color:#081420;border:none;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;cursor:pointer;font-family:inherit;" onclick="openScanLog()"><span class="material-icons" style="font-size:18px;">qr_code_scanner</span> Scan QR</button>
+    <button class="btn btn-block" style="padding:13px;background:#13283c;color:#e8eef4;border:1px solid var(--border-mid);font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;cursor:pointer;font-family:inherit;" onclick="openLogModal()"><span class="material-icons" style="font-size:18px;">edit</span> Log Activity</button>
   </div>
 
   <!-- JOURNEY -->
@@ -12591,21 +12591,28 @@ async function saveLog() {
     calories: parseInt(document.getElementById('log-calories').value, 10) || 0,
     notes: document.getElementById('log-notes').value.trim(), partner: false
   };
-  // Immediate: appears on the map this session
+  // PERSIST FIRST — never show an activity as "logged" unless it actually saved to the
+  // database. (Previously it pushed to the map + toasted success even when the DB write was
+  // skipped (no session yet) or errored → the entry vanished on the next load and looked
+  // like data loss. An activity must reach activity_logs before we confirm it.)
+  var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
+  if (!member || !member.id) { if (typeof showToast === 'function') showToast('Couldn’t save — please sign in again', 'error'); return; }
+  if (!window.supabase) { if (typeof showToast === 'function') showToast('Still connecting — try again in a moment', 'error'); return; }
+  try {
+    var res = await window.supabase.rpc('log_activity', {
+      p_me: member.id, p_activity: act, p_city: city, p_country: country,
+      p_duration_min: entry.duration, p_calories: entry.calories,
+      p_logged_at: new Date(dateStr + 'T12:00:00').toISOString(), p_notes: entry.notes
+    });
+    if (res.error) throw res.error;
+  } catch (e) {
+    console.error('[FFP Journey] save failed:', e);
+    if (typeof showToast === 'function') showToast('Couldn’t save your activity — please try again', 'error');
+    return; // do NOT add to the map or claim success
+  }
+  // Saved to the DB ✓ — now reflect it on the map this session
   if (typeof LOGS !== 'undefined') LOGS.push(entry);
   if (typeof renderAll === 'function') renderAll();
-  // Persist to activity_logs so it sticks and rebuilds the map on next sign-in
-  var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
-  if (member && member.id && window.supabase) {
-    try {
-      var res = await window.supabase.rpc('log_activity', {
-        p_me: member.id, p_activity: act, p_city: city, p_country: country,
-        p_duration_min: entry.duration, p_calories: entry.calories,
-        p_logged_at: new Date(dateStr + 'T12:00:00').toISOString(), p_notes: entry.notes
-      });
-      if (res.error) console.error('[FFP Journey] save:', res.error.message);
-    } catch (e) { console.error('[FFP Journey] save:', e); }
-  }
   if (typeof showToast === 'function') showToast('Logged ' + act + (city ? ' in ' + city : ''), 'success');
   closeLogModal();
 }
