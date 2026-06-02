@@ -1,4 +1,12 @@
-/* FFP Provider Profile Loader — v8
+/* FFP Provider Profile Loader — v10
+   v10 (2026-06-02): SAVE now goes through the provider_save_profile SECURITY DEFINER RPC
+       (updates providers incl. activities/latitude/longitude/maps_url + replaces provider_hours
+       in one call). Fixes the auth.uid() trap: the old direct providers.update silently wrote 0
+       rows (activities never saved) and the provider_hours insert hard-failed RLS (42501). RPC is
+       GRANTed to anon+authenticated and verified to persist hours + profile fields.
+   v9 (2026-06-02): moved "Activities we offer" + "Google Maps link" UP into the Business-info
+       section, inserted right after the Address field (under venue/area + provider type) and
+       styled as native form fields — no longer a separate block dumped at the bottom.
    v8 (2026-06-02): "Venue location" is now a Google Maps LINK field — provider pastes their
        Maps link (any format), "Find pin" calls backend /api/geo/resolve to extract the pin
        (providers.latitude/longitude) + stores the link (providers.maps_url) for member Directions.
@@ -338,33 +346,35 @@
     if (saveBtn) saveBtn.disabled = true;
 
     try {
-      var provRes = await window.supabase.from('providers').update({
-        business_name:  businessName,
-        letter_mark:    letterMark,
-        category:       category,
-        provider_type:  providerType || null,
-        city:           city,
-        country:        country || null,
-        area:           area || null,
-        address:        address || null,
-        contact_phone:  phone || null,
-        website:        website || null,
-        about:          about || null,
-        logo_url:       logoUrl,
-        hero_photo_url: heroUrl,
-        activities:     (_provExtras.activities && _provExtras.activities.length) ? _provExtras.activities : null,
-        latitude:       (_provExtras.lat != null) ? _provExtras.lat : null,
-        longitude:      (_provExtras.lng != null) ? _provExtras.lng : null,
-        maps_url:       _provExtras.mapsUrl || null
-      }).eq('id', id);
-      if (provRes.error) throw provRes.error;
-
-      var delRes = await window.supabase.from('provider_hours').delete().eq('provider_id', id);
-      if (delRes.error) throw delRes.error;
-      if (hoursRows.length > 0) {
-        var insRes = await window.supabase.from('provider_hours').insert(hoursRows);
-        if (insRes.error) throw insRes.error;
-      }
+      // Providers/members use a custom JWT → auth.uid() doesn't resolve client-side, so a
+      // direct providers.update silently affects 0 rows and provider_hours insert hits RLS
+      // 42501. Save via the SECURITY DEFINER RPC that takes the provider id explicitly
+      // (same trust model as provider_save_listing).
+      var saveRes = await window.supabase.rpc('provider_save_profile', {
+        p_provider: id,
+        p: {
+          business_name:  businessName,
+          letter_mark:    letterMark,
+          category:       category,
+          provider_type:  providerType || null,
+          city:           city,
+          country:        country || null,
+          area:           area || null,
+          address:        address || null,
+          contact_phone:  phone || null,
+          website:        website || null,
+          about:          about || null,
+          logo_url:       logoUrl,
+          hero_photo_url: heroUrl,
+          activities:     _provExtras.activities || [],
+          latitude:       (_provExtras.lat != null) ? _provExtras.lat : null,
+          longitude:      (_provExtras.lng != null) ? _provExtras.lng : null,
+          maps_url:       _provExtras.mapsUrl || null
+        },
+        p_hours: hoursRows
+      });
+      if (saveRes.error) throw saveRes.error;
+      if (saveRes.data !== true) throw new Error('Save did not complete — please try again');
 
       // Sync providerProfile in memory
       if (typeof providerProfile !== 'undefined') {
@@ -424,43 +434,48 @@
     if (document.getElementById('pf-extras-css')) return;
     var s = document.createElement('style'); s.id = 'pf-extras-css';
     s.textContent =
-      '#pf-extras{margin:6px 0 18px;display:flex;flex-direction:column;gap:18px;}' +
-      '#pf-extras .pf-extras-sec{display:flex;flex-direction:column;gap:8px;}' +
-      '#pf-extras .pf-extras-lbl{font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#8a99a8;}' +
-      '#pf-extras .pf-extras-hint{font-weight:600;letter-spacing:0;text-transform:none;color:#6a90a8;}' +
-      '#pf-extras .pf-extras-add{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}' +
-      '#pf-extras .pf-extras-add .input{flex:1;min-width:160px;}' +
-      '#pf-extras .pf-extras-btn{background:#FFCC00;color:#082335;border:none;border-radius:9px;padding:10px 16px;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;}' +
-      '#pf-extras .pf-extras-btn.alt{background:rgba(43,168,224,.12);color:#cfe0ec;border:1px solid rgba(43,168,224,.3);}' +
-      '#pf-extras .pf-chips{display:flex;flex-wrap:wrap;gap:7px;}' +
-      '#pf-extras .pf-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.28);border-radius:100px;padding:5px 6px 5px 12px;font-size:12px;font-weight:700;color:#e8eef4;}' +
-      '#pf-extras .pf-chip button{background:rgba(255,255,255,.12);border:none;color:#cfe0ec;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:13px;line-height:1;}' +
-      '#pf-extras .pf-loc-status{font-size:12px;color:#8a99a8;font-weight:600;}';
+      '.pf-extras-add{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}' +
+      '.pf-extras-add .input{flex:1;min-width:160px;}' +
+      '.pf-extras-btn{background:#FFCC00;color:#082335;border:none;border-radius:9px;padding:10px 16px;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap;}' +
+      '.pf-chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px;}' +
+      '.pf-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.28);border-radius:100px;padding:5px 6px 5px 12px;font-size:12px;font-weight:700;color:#e8eef4;}' +
+      '.pf-chip button{background:rgba(255,255,255,.12);border:none;color:#cfe0ec;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:13px;line-height:1;}' +
+      '.pf-loc-status{display:block;margin-top:6px;font-size:12px;color:#8a99a8;font-weight:600;}';
     document.head.appendChild(s);
   }
+  // Inject "Activities we offer" + "Google Maps link" as native form fields, placed right
+  // AFTER the Address field (so they sit with venue/neighbourhood + provider type, not at
+  // the bottom of the page). Styled like the rest of the form, not a separate block.
   function injectProviderExtras() {
-    var panel = document.getElementById('panel-profile');
-    if (!panel || document.getElementById('pf-extras')) return;
+    if (document.getElementById('pf-extras-acts')) return;
+    var panel = document.getElementById('panel-profile'); if (!panel) return;
     injectExtrasCss();
-    var saveBtn = panel.querySelector('.btn-pri');
-    var anchor = saveBtn ? (saveBtn.closest('.form-actions') || saveBtn) : null;
     var acts = ((window.FFP_TAX && window.FFP_TAX.activities) || []).map(function (a) { return (a && a.n) ? a.n : a; });
     var dl = acts.map(function (a) { return '<option value="' + escText(a) + '">'; }).join('');
-    var box = document.createElement('div');
-    box.id = 'pf-extras';
-    box.innerHTML =
-      '<div class="pf-extras-sec">' +
-        '<label class="pf-extras-lbl">Activities we offer <span class="pf-extras-hint">— what members can pick when they check in</span></label>' +
-        '<div class="pf-extras-add"><input id="pf-act-input" class="input" list="pf-act-list" placeholder="Type an activity, then Add"><datalist id="pf-act-list">' + dl + '</datalist><button type="button" id="pf-act-add" class="pf-extras-btn">Add</button></div>' +
-        '<div id="pf-act-chips" class="pf-chips"></div>' +
-      '</div>' +
-      '<div class="pf-extras-sec">' +
-        '<label class="pf-extras-lbl">Venue location <span class="pf-extras-hint">— paste your Google Maps link: sets your map pin (on-site check-in verification) + gives members Directions</span></label>' +
-        '<div class="pf-extras-add"><input id="pf-maps-url" class="input" placeholder="Paste your Google Maps link (any format)"><button type="button" id="pf-loc-btn" class="pf-extras-btn">Find pin</button></div>' +
-        '<span id="pf-loc-status" class="pf-loc-status">No location set</span>' +
-      '</div>';
-    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(box, anchor);
-    else panel.appendChild(box);
+
+    var f1 = document.createElement('div'); f1.className = 'field full'; f1.id = 'pf-extras-acts';
+    f1.innerHTML =
+      '<div class="label">Activities we offer <span class="label-hint">— what members pick when they check in here</span></div>' +
+      '<div class="pf-extras-add"><input id="pf-act-input" class="input" list="pf-act-list" placeholder="Type an activity, then Add"><datalist id="pf-act-list">' + dl + '</datalist><button type="button" id="pf-act-add" class="pf-extras-btn">Add</button></div>' +
+      '<div id="pf-act-chips" class="pf-chips"></div>';
+    var f2 = document.createElement('div'); f2.className = 'field full'; f2.id = 'pf-extras-loc';
+    f2.innerHTML =
+      '<div class="label">Google Maps link <span class="label-hint">— sets your check-in pin + gives members Directions</span></div>' +
+      '<div class="pf-extras-add"><input id="pf-maps-url" class="input" placeholder="Paste your Google Maps link (any format)"><button type="button" id="pf-loc-btn" class="pf-extras-btn">Find pin</button></div>' +
+      '<span id="pf-loc-status" class="pf-loc-status">No location set</span>';
+
+    var addr = document.getElementById('pf-address');
+    var addrField = (addr && addr.closest) ? addr.closest('.field') : null;
+    if (addrField && addrField.parentNode) {
+      // insert after Address: f1 (activities) then f2 (maps link)
+      addrField.parentNode.insertBefore(f2, addrField.nextSibling);
+      addrField.parentNode.insertBefore(f1, addrField.nextSibling);
+    } else {
+      var saveBtn = panel.querySelector('.btn-pri');
+      var anchor = saveBtn ? (saveBtn.closest('.form-actions') || saveBtn) : null;
+      if (anchor && anchor.parentNode) { anchor.parentNode.insertBefore(f1, anchor); anchor.parentNode.insertBefore(f2, anchor); }
+      else { panel.appendChild(f1); panel.appendChild(f2); }
+    }
     document.getElementById('pf-act-add').onclick = addAct;
     document.getElementById('pf-act-input').onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); addAct(); } };
     document.getElementById('pf-loc-btn').onclick = resolveMapsLink;
