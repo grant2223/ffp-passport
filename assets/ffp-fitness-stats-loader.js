@@ -1,4 +1,9 @@
-/* FFP Fitness Stats Loader — v15.1
+/* FFP Fitness Stats Loader — v16
+   v16 (2026-06-02): SAVE moved OUT of this lazy loader into the always-loaded CORE FitnessStats
+        (dashboard v229) — records/health/weight/sleep now persist via member_profile_meta_save
+        straight from the core, exactly like activity logs, so it no longer depends on this loader
+        installing in time. This loader's write-wraps now ONLY refresh the local leaderboard +
+        records view (no DB write — no double-save). Reads/leaderboard/activity tabs unchanged.
    v15.1: HARDEN the save fix — the render overrides + write wrappers (wrapWrites) now run
         IMMEDIATELY after the member id is known, BEFORE any network call. Previously they ran
         after `await get_ranking_pool`; if that threw, the outer try/catch swallowed it and
@@ -1223,72 +1228,38 @@
   function wrapWrites() {
     if (wrapped) return;
     wrapped = true;
-
+    // v16: PERSISTENCE moved to the CORE FitnessStats (savePr/clearPr/saveSleepLog →
+    // member_profile_meta_save), so it works exactly like activity logs and never depends on this
+    // lazy loader. Here we ONLY refresh the local leaderboard snapshot + records view after a save.
     var origSavePr = FitnessStats.savePr.bind(FitnessStats);
-    FitnessStats.savePr = async function () {
-      var key = this._editKey;
-      origSavePr();
-      if (!key || !currentUserId) return;
-      var map = PR_MAP[key];
-      if (!map) return;
-      var rec = this.records[key];
-      if (!rec) return;
-      var val = map.cast === 'int' ? Math.round(rec.value) : Number(rec.value);
-      var patch = {}; patch[map.col] = val;
-      try {
-        // v15: write via SECURITY DEFINER RPC — members use a custom JWT, so a direct
-        // profile_meta upsert silently affected 0 rows (records never persisted).
-        var res = await window.supabase.rpc('member_profile_meta_save', {
-          p_me: currentUserId, p_patch: patch, p_pr_date_key: key, p_pr_date_val: rec.date || todayStr()
-        });
-        if (res.error || res.data !== true) console.error('[FFP FS] pr save:', res.error || 'did not persist');
-        for (var i = 0; i < rankingPool.length; i++) {
-          if (rankingPool[i].member_id === currentUserId) { rankingPool[i][map.col] = val; break; }
-        }
-        if (this.tab === 'records') renderRecordsContent();
-      } catch (e) { console.error('[FFP FS] pr save:', e); }
+    FitnessStats.savePr = function () {
+      var key = this._editKey; origSavePr();
+      var map = PR_MAP[key], rec = key && this.records[key];
+      if (map && rec) {
+        var val = map.cast === 'int' ? Math.round(rec.value) : Number(rec.value);
+        for (var i = 0; i < rankingPool.length; i++) { if (rankingPool[i].member_id === currentUserId) { rankingPool[i][map.col] = val; break; } }
+      }
+      if (this.tab === 'records') renderRecordsContent();
     };
-
     var origClearPr = FitnessStats.clearPr.bind(FitnessStats);
-    FitnessStats.clearPr = async function () {
-      var key = this._editKey;
-      origClearPr();
-      if (!key || !currentUserId) return;
-      if (this.records[key] != null) return;
+    FitnessStats.clearPr = function () {
+      var key = this._editKey; origClearPr();
       var map = PR_MAP[key];
-      if (!map) return;
-      var patch = {}; patch[map.col] = null;
-      try {
-        var res = await window.supabase.rpc('member_profile_meta_save', {
-          p_me: currentUserId, p_patch: patch, p_pr_date_key: key, p_pr_date_val: null
-        });
-        if (res.error || res.data !== true) console.error('[FFP FS] pr clear:', res.error || 'did not persist');
-        for (var i = 0; i < rankingPool.length; i++) {
-          if (rankingPool[i].member_id === currentUserId) { rankingPool[i][map.col] = null; break; }
-        }
-        if (this.tab === 'records') renderRecordsContent();
-      } catch (e) { console.error('[FFP FS] pr clear:', e); }
+      if (map && key && this.records[key] == null) {
+        for (var i = 0; i < rankingPool.length; i++) { if (rankingPool[i].member_id === currentUserId) { rankingPool[i][map.col] = null; break; } }
+      }
+      if (this.tab === 'records') renderRecordsContent();
     };
-
     var origSaveSleepLog = FitnessStats.saveSleepLog.bind(FitnessStats);
-    FitnessStats.saveSleepLog = async function () {
+    FitnessStats.saveSleepLog = function () {
       origSaveSleepLog();
-      if (!currentUserId) return;
-      var dbShape = sleepToDb(this.sleepLogs);
       try {
-        var res = await window.supabase.rpc('member_profile_meta_save', {
-          p_me: currentUserId, p_patch: { sleep_logs: dbShape }, p_pr_date_key: null, p_pr_date_val: null
-        });
-        if (res.error || res.data !== true) console.error('[FFP FS] sleep save:', res.error || 'did not persist');
-        // Recompute sleep avg locally on the pool snapshot of self
-        var hrs = [];
+        var dbShape = sleepToDb(this.sleepLogs), hrs = [];
         Object.keys(dbShape).forEach(function (k) { var v = Number(dbShape[k]); if (!isNaN(v)) hrs.push(v); });
-        var avg = hrs.length > 0 ? hrs.reduce(function (a, b) { return a + b; }, 0) / hrs.length : null;
-        for (var i = 0; i < rankingPool.length; i++) {
-          if (rankingPool[i].member_id === currentUserId) { rankingPool[i].sleep_avg_hours = avg; break; }
-        }
-        if (this.tab === 'records') renderRecordsContent();
-      } catch (e) { console.error('[FFP FS] sleep save:', e); }
+        var avg = hrs.length ? hrs.reduce(function (a, b) { return a + b; }, 0) / hrs.length : null;
+        for (var i = 0; i < rankingPool.length; i++) { if (rankingPool[i].member_id === currentUserId) { rankingPool[i].sleep_avg_hours = avg; break; } }
+      } catch (e) {}
+      if (this.tab === 'records') renderRecordsContent();
     };
   }
 
