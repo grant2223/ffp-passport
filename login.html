@@ -1,7 +1,12 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-  FFP PASSPORT — login.html v6
+  FFP PASSPORT — login.html v7
   ───────────────────────────────────────────────────────────────────────
+  v7 changes (2026-06-02): SIGN-IN with an UNREGISTERED email now shows
+  "We couldn’t find an account for that email…" and STAYS on the email step
+  instead of advancing to the code screen. Driven by backend v52's new
+  `exists` flag on /api/auth/reset (code still only sent when the account
+  exists). requestCode() gates flow==='signin' on res.exists===false.
   v6 changes (2026-06-01): Provider self-signup landing. DOMContentLoaded now
   handles ?verified=1&email= (preselect Partner portal, prefill email, show
   "Email confirmed" prompt) and ?verify=expired|error (fresh-code prompt).
@@ -436,6 +441,12 @@ async function requestCode(flow) {
     var res = await FFPApi.requestCode(email, fullName, flow);
     if (res && res.error) {
       showError(errIds[flow], res.error);
+      return;
+    }
+    // Sign-in: if the email isn't registered, say so and DON'T advance to the code screen.
+    if (flow === 'signin' && res && res.exists === false) {
+      showError(errIds.signin, 'We couldn’t find an account for that email. Check the spelling, or create an account first.');
+      if (emailEl) { emailEl.style.borderColor = '#ef4444'; emailEl.focus(); }
       return;
     }
     var sentEl = document.getElementById('sent-email');
