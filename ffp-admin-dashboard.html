@@ -5,7 +5,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FFP Admin Dashboard</title>
-<!-- FFP ADMIN DASHBOARD — v24 (2026-06-03): Analytics gains a Country / City location filter
+<!-- FFP ADMIN DASHBOARD — v26 (2026-06-03): Community Health moved OUT of Analytics into its
+     own sidebar tab + panel (panel-community-health, ffp-admin-health-loader.js v1) with its own
+     Country/City filter — health stats are a different class from member/provider/revenue. Analytics
+     loader → v6 (CH removed, business-only). Lazy cache-bust → v=40.
+     v25 (2026-06-03): Analytics location filter now keyed to the
+     STANDARDIZED DB taxonomy (taxonomy_items via FFP_TAX_READY) — Country derived from the
+     locked taxonomy, re-renders on 'ffp-tax-ready'. Analytics loader → v5, lazy cache-bust → v=39.
+     v24: Analytics gains a Country / City location filter
      (two dropdowns in the panel header that scope the whole panel incl. Community Health).
      Analytics loader → v4, lazy cache-bust → v=38.
      v23 (2026-06-03): UNIFIED AUTH — no more double login. Admin rides the
@@ -1335,7 +1342,10 @@ input, select, textarea { font-family: inherit; }
       <a class="sidebar-link" data-panel="panel-analytics" onclick="App.go('panel-analytics')">
         <span class="material-icons">insights</span>Analytics
       </a>
-      
+      <a class="sidebar-link" data-panel="panel-community-health" onclick="App.go('panel-community-health')">
+        <span class="material-icons">favorite</span>Community Health
+      </a>
+
       <div class="sidebar-section-label">Approvals</div>
       <a class="sidebar-link" data-panel="panel-providers" onclick="App.go('panel-providers')">
         <span class="material-icons">storefront</span>Providers
@@ -2044,39 +2054,6 @@ input, select, textarea { font-family: inherit; }
         </div>
       </div>
       
-      <!-- Community Health -->
-      <div class="section">
-        <div class="section-head">
-          <div class="section-title">Community Health</div>
-          <span class="section-count" id="ch-meta">From member fitness stats</span>
-        </div>
-        <div class="section-body padded">
-          <div class="kpi-grid" id="ch-kpis"></div>
-          <div class="charts-grid" style="margin-top:18px;">
-            <div>
-              <div class="chart-card-title" style="margin-bottom:10px;">Cardio Fitness (VO₂ max)</div>
-              <div class="demo-list" id="ch-fitlevels"></div>
-            </div>
-            <div>
-              <div class="chart-card-title" style="margin-bottom:10px;">Body Composition</div>
-              <div class="demo-list" id="ch-bodyfat"></div>
-            </div>
-          </div>
-          <div class="section" style="margin-top:18px;">
-            <div class="section-head">
-              <div class="section-title" style="font-size:14px;">By Emirate / City</div>
-              <span class="section-count">Averages per location</span>
-            </div>
-            <div class="section-body">
-              <table class="table">
-                <thead><tr><th>Location</th><th>Members</th><th>Body Fat</th><th>VO₂ max</th><th>Resting HR</th><th>Weight</th></tr></thead>
-                <tbody id="ch-city-tbody"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- Top providers -->
       <div class="section">
         <div class="section-head">
@@ -2102,7 +2079,53 @@ input, select, textarea { font-family: inherit; }
         </div>
       </div>
     </section>
-    
+
+    <!-- ========== COMMUNITY HEALTH (separate from business analytics) ========== -->
+    <section class="panel" id="panel-community-health">
+      <div class="panel-head">
+        <h1>Community Health</h1>
+        <div class="panel-head-sub">Aggregated member fitness &amp; health — body composition, cardio fitness and vitals. Separate from platform &amp; revenue stats.</div>
+      </div>
+
+      <!-- Location filter -->
+      <div class="time-filter">
+        <div class="time-filter-row" style="align-items:center;">
+          <span class="time-filter-label">Location</span>
+          <select id="ch-country" onchange="CommunityHealth.setCountry(this.value)"
+            style="background:var(--bg-3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;min-width:160px;"></select>
+          <select id="ch-city" onchange="CommunityHealth.setCity(this.value)"
+            style="background:var(--bg-3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;min-width:160px;"></select>
+        </div>
+        <div class="time-period-summary" id="ch-meta">From member fitness stats</div>
+      </div>
+
+      <div class="kpi-grid" id="ch-kpis"></div>
+
+      <div class="charts-grid" style="margin-top:18px;">
+        <div class="chart-card">
+          <div class="chart-card-head"><div class="chart-card-title">Cardio Fitness (VO₂ max)</div></div>
+          <div class="demo-list" id="ch-fitlevels" style="margin-top:10px;"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-head"><div class="chart-card-title">Body Composition</div></div>
+          <div class="demo-list" id="ch-bodyfat" style="margin-top:10px;"></div>
+        </div>
+      </div>
+
+      <div class="section" style="margin-top:18px;">
+        <div class="section-head">
+          <div class="section-title">By Emirate / City</div>
+          <span class="section-count">Averages per location</span>
+        </div>
+        <div class="section-body">
+          <table class="table">
+            <thead><tr><th>Location</th><th>Members</th><th>Body Fat</th><th>VO₂ max</th><th>Resting HR</th><th>Weight</th></tr></thead>
+            <tbody id="ch-city-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
   </main>
 </div>
 
@@ -2178,6 +2201,7 @@ const App = {
   panelNames: {
     'panel-overview':    'Overview',
     'panel-analytics':   'Analytics',
+    'panel-community-health': 'Community Health',
     'panel-providers':   'Providers',
     'panel-members':     'Members',
     'panel-content':     'Content Moderation',
@@ -2214,6 +2238,7 @@ const App = {
     'panel-challenges':   'ffp-admin-challenges-loader.js',
     'panel-meetups':      'ffp-admin-meetups-loader.js',
     'panel-analytics':    'ffp-admin-analytics-loader.js',
+    'panel-community-health': 'ffp-admin-health-loader.js',
     'panel-taxonomies':   'ffp-admin-taxonomies-loader.js',
     'panel-settings':     'ffp-admin-settings-loader.js'
   },
@@ -2226,10 +2251,13 @@ const App = {
       var sc = document.createElement('script');
       // Cache-bust lazy loaders so a new deploy never serves a stale cached .js.
       // BUMP this with the dashboard build number on every deploy (matches footer build).
-      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=38'; sc.async = false;
+      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=40'; sc.async = false;
       sc.onload = function () {
         if (panelId === 'panel-analytics') {
           setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 80);
+        }
+        if (panelId === 'panel-community-health') {
+          setTimeout(function () { try { window.CommunityHealth && CommunityHealth.render && CommunityHealth.render(); } catch (e) {} }, 80);
         }
       };
       sc.onerror = function () { console.error('[FFP] failed to load ' + src); };
