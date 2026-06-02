@@ -1,4 +1,10 @@
-<!-- FFP MEMBER DASHBOARD — v215 (2026-06-02)
+<!-- FFP MEMBER DASHBOARD — v216 (2026-06-02)
+     v216: Fitness Stats — (a) records/health/weight/sleep SAVE FIX via member_profile_meta_save
+           RPC (loader v15; direct profile_meta writes hit the member auth.uid trap → never saved,
+           which also left BioAge empty). (b) PR-edit + Sleep modals are now FULL-SCREEN on mobile
+           — removed the inline max-width:380px/400px that overrode the shared full-screen rule.
+           Lazy loader ref bumped to ffp-fitness-stats-loader.js?v=15.
+     v215: "Your journey" stats reworked — top row Countries/Cities/Days/Hours, bottom row
      v215: "Your journey" stats reworked — top row Countries/Cities/Days/Hours, bottom row
            Connections/Activities/Meets/Providers. Dropped "Sports" (it was distinct activity
            TYPES — confusing vs Activities=total sessions). "Partners" → "Providers" = unique
@@ -5572,7 +5578,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 
 <!-- v82 — Sleep daily log modal (different from generic PR modal: log per-night hours, system averages) -->
 <div class="detail-backdrop" id="sleep-log-backdrop" onclick="closeSleepLogIfBackdrop(event)">
-  <div class="detail-modal" style="max-width:400px;" role="dialog" aria-modal="true">
+  <div class="detail-modal" role="dialog" aria-modal="true">
     <button class="dm-close" onclick="FitnessStats.closeSleepLog()"><span class="material-icons">close</span></button>
     <div class="activity-add-body">
       <div class="activity-add-head">
@@ -5612,7 +5618,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 
 <!-- v80 — PR edit modal (Bench/Squat/Deadlift in kg, run times in min:sec, etc.) -->
 <div class="detail-backdrop" id="pr-edit-backdrop" onclick="closePrEditIfBackdrop(event)">
-  <div class="detail-modal" style="max-width:380px;" role="dialog" aria-modal="true">
+  <div class="detail-modal" role="dialog" aria-modal="true">
     <button class="dm-close" onclick="FitnessStats.closePrEdit()"><span class="material-icons">close</span></button>
     <div class="activity-add-body">
       <div class="activity-add-head">
@@ -7150,7 +7156,7 @@ function setupPanelNav() {
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
-    'panel-fitness-stats':   'assets/ffp-fitness-stats-loader.js',
+    'panel-fitness-stats':   'assets/ffp-fitness-stats-loader.js?v=15',
     'panel-meet':            'assets/ffp-meet-move-loader.js',
     'panel-events':          'assets/ffp-member-discovery-loader.js',
     'panel-experiences':     'assets/ffp-member-discovery-loader.js',
