@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v212 (2026-06-01)
+<!-- FFP MEMBER DASHBOARD — v213 (2026-06-02)
+     v213: PASSPORT now refreshes on venue check-in — added a document listener for 'ffp-activity-logged'
+           that re-runs loadJourneyLogs(). loadJourneyLogs() is now idempotent (LOGS.length=0 rebuild, no
+           dupes), keeps venue + verified, and no longer drops logs missing a city. Fixes "Scan QR worked
+           but nothing shows on my passport." Also: Log Activity button is now yellow (equal to Scan QR);
+           checkin loader ref now ffp-member-checkin-loader.js?v=3 (active programs at top of check-in).
      v212: Meetup detail — Level/Gender/Capacity now one line (.dm-info-3). "Who's going" is now a CAROUSEL
            (one passport at a time, ‹ › arrows + counter, like the Matches deck) via MeetMove.wgNav().
            Self/host card forced to resolve from MY profile (people[0].id = myId when isHostedByMe) so the
@@ -13269,6 +13274,6 @@ setTimeout(scalePassportCard, 200);
 })();
 </script>
 
-<script src="ffp-member-checkin-loader.js?v=2"></script>
+<script src="ffp-member-checkin-loader.js?v=3"></script>
 </body>
 </html>
