@@ -1,4 +1,7 @@
-<!-- FFP MEMBER DASHBOARD — v221 (2026-06-02)
+<!-- FFP MEMBER DASHBOARD — v222 (2026-06-02)
+     v222: World Map declutter — removed the breadcrumb ("World" row) and the redundant city-count
+           subtitle; the Country + City dropdowns are now the single nav control (Country dropdown
+           always lists all active countries + "All countries" to reset; switching works).
      v221: World Map polish — Country + City dropdown selectors (zoom in) beside tappable pins +
            breadcrumb; tiles desaturated to neutral grey; map heading "World Map"; map box-free +
            full-bleed on mobile; THREE scoped lists below — Top Activities, Top Places (was Venues),
@@ -4340,9 +4343,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
   <div class="jm-section">
     <div class="card-head">
       <div class="card-head-title"><span class="material-icons card-head-icon">public</span><h3>World Map</h3></div>
-      <span class="card-head-sub" id="jm-count">0 places</span>
     </div>
-    <div class="jm-crumb" id="jm-crumb"></div>
     <div class="jm-chips" id="jm-chips"></div>
     <div class="jm-map-wrap"><div id="ffp-jmap"></div></div>
     <div class="jm-legend">
@@ -6760,7 +6761,7 @@ window.JourneyMap = (function () {
       if (countEl) countEl.textContent = cities.length+(cities.length===1?' city':' cities');
       if (bounds.length) fit(bounds, 6); else map.setView([20,10],2);
     }
-    renderCrumb(); renderChips(cities);
+    renderChips(cities);   // breadcrumb removed (v222) — dropdowns are the single nav control
   }
   function renderCrumb(){
     var el=document.getElementById('jm-crumb'); if(!el) return;
