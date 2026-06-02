@@ -1,4 +1,9 @@
-/* FFP Admin Analytics Loader — v5 (2026-06-03)
+/* FFP Admin Analytics Loader — v6 (2026-06-03)
+   v6: Community Health REMOVED from this panel — it's now its own tab (panel-community-health,
+   ffp-admin-health-loader.js) because health/fitness stats are a different class of data from
+   member/provider/revenue/engagement. This loader is business analytics only; its Country/City
+   filter scopes those business stats.
+   --- prior ---
    v5: location filter is now matched to the STANDARDIZED taxonomy. _ensure awaits
    window.FFP_TAX_READY (DB hydration of taxonomy_items → 58 countries / 541 cities) before
    building the city→country map, clears the cache so it keys off the live admin taxonomy
@@ -244,13 +249,11 @@
       this.renderGeoFilters();
       this.updateSummary(); this.renderKPIs(); this._drawCharts();
       this.renderDemographics(); this.renderTopProviders(); this.renderCategories();
-      this.renderCommunityHealth();
     },
     // re-render everything except rebuilding the geo dropdowns (used on geo change)
     _refresh: function () {
       this.updateSummary(); this.renderKPIs(); this._drawCharts();
       this.renderDemographics(); this.renderTopProviders(); this.renderCategories();
-      this.renderCommunityHealth();
     },
 
     // ── Country / City location filter ──
@@ -288,87 +291,8 @@
       this.renderGeoFilters(); this._refresh();
     },
 
-    // ── Community Health (snapshot from profile_meta via RPC, scoped by the city filter) ──
-    _chKey: null, _chData: null,
-    renderCommunityHealth: async function () {
-      var cities = selectedCities();
-      var key = cities ? cities.slice().sort().join('|') : '__all__';
-      if (this._chKey === key && this._chData) { this._renderCH(this._chData); return; }
-      var H;
-      try {
-        var res = await window.supabase.rpc('community_health_stats', cities ? { p_cities: cities } : {});
-        if (res.error) { console.warn('[FFP Analytics] community_health_stats:', res.error.message); return; }
-        H = res.data;
-      } catch (e) { console.warn('[FFP Analytics] community_health_stats', e); return; }
-      if (!H) return;
-      this._chKey = key; this._chData = H;
-      this._renderCH(H);
-    },
-    _renderCH: function (H) {
-      var c = H.community || {};
-
-      // metric tiles (only metrics with at least one reading get a number)
-      function metric(m) { return (m && m.n > 0 && m.avg != null) ? m : null; }
-      var tiles = [
-        { label: 'Avg Body Fat',  m: c.body_fat,   unit: '%',  fmt: function (v) { return v + '<span style="font-size:13px;color:var(--muted);">%</span>'; } },
-        { label: 'Avg VO₂ max',   m: c.vo2,        unit: '',   fmt: function (v) { return String(v); } },
-        { label: 'Avg Resting HR',m: c.resting_hr, unit: 'bpm',fmt: function (v) { return v + '<span style="font-size:13px;color:var(--muted);"> bpm</span>'; } },
-        { label: 'Avg Weight',    m: c.weight,     unit: 'kg', fmt: function (v) { return v + '<span style="font-size:13px;color:var(--muted);"> kg</span>'; } },
-        { label: 'Avg HRV',       m: c.hrv,        unit: 'ms', fmt: function (v) { return v + '<span style="font-size:13px;color:var(--muted);"> ms</span>'; } },
-        { label: 'Avg Visceral',  m: c.visceral,   unit: '',   fmt: function (v) { return String(v); } },
-        { label: 'Avg Waist',     m: c.waist,      unit: 'cm', fmt: function (v) { return v + '<span style="font-size:13px;color:var(--muted);"> cm</span>'; } },
-        { label: 'Avg Bio Age',   m: c.bio_age,    unit: 'yrs',fmt: function (v) { return v + '<span style="font-size:13px;color:var(--muted);"> yrs</span>'; } }
-      ];
-      var kp = document.getElementById('ch-kpis');
-      if (kp) {
-        var live = tiles.filter(function (t) { return metric(t.m); });
-        kp.innerHTML = live.length ? live.map(function (t) {
-          return '<div class="kpi-tile"><div class="kpi-label">' + t.label + '</div>' +
-            '<div class="kpi-value f-tabular">' + t.fmt(t.m.avg) + '</div>' +
-            '<div class="kpi-compare"><span class="kpi-compare-prev">' + t.m.n + ' member' + (t.m.n === 1 ? '' : 's') + ' logged</span></div></div>';
-        }).join('') : '<div class="kpi-tile"><div class="kpi-label">Community Health</div><div class="kpi-value" style="font-size:14px;color:var(--muted);">Builds as members log their stats</div></div>';
-      }
-      var meta = document.getElementById('ch-meta');
-      if (meta) meta.textContent = (c.members || 0) + ' member' + (c.members === 1 ? '' : 's') + ' with fitness stats';
-
-      // distribution bars (reuse demoRows shape: [{label, n}])
-      function bands(elId, fl, defs, color) {
-        var node = document.getElementById(elId); if (!node) return;
-        if (!fl || !fl.n) { node.innerHTML = '<div class="demo-row" style="color:var(--muted);font-size:12px;">Builds as your data grows</div>'; return; }
-        var items = defs.map(function (d) { return { label: d.label, n: fl[d.key] || 0 }; });
-        var total = fl.n || 1;
-        node.innerHTML = items.map(function (it) {
-          var pct = Math.round(it.n / total * 100);
-          return '<div class="demo-row"><div class="demo-row-label">' + esc(it.label) + '</div>' +
-            '<div class="demo-row-bar"><div class="demo-row-bar-fill" style="width:' + pct + '%;background:' + color + ';"></div></div>' +
-            '<div class="demo-row-value">' + it.n + '</div></div>';
-        }).join('');
-      }
-      bands('ch-fitlevels', H.fit_levels, [
-        { key: 'elite', label: 'Elite (50+)' }, { key: 'excellent', label: 'Excellent (43–49)' },
-        { key: 'good', label: 'Good (36–42)' }, { key: 'fair', label: 'Fair (30–35)' },
-        { key: 'low', label: 'Building (<30)' }
-      ], YELLOW);
-      bands('ch-bodyfat', H.body_fat_bands, [
-        { key: 'lean', label: 'Lean (<15%)' }, { key: 'fit', label: 'Fit (15–21%)' },
-        { key: 'average', label: 'Average (22–29%)' }, { key: 'high', label: 'High (30%+)' }
-      ], BLUE);
-
-      // per-city / emirate table
-      var tb = document.getElementById('ch-city-tbody');
-      if (tb) {
-        var rows = (H.by_city || []);
-        function cell(v, n, suffix) { return (n > 0 && v != null) ? (v + (suffix || '')) : '<span class="text-muted">—</span>'; }
-        tb.innerHTML = rows.length ? rows.map(function (r) {
-          return '<tr><td><strong>' + esc(r.city) + '</strong></td>' +
-            '<td class="f-tabular">' + (r.members || 0) + '</td>' +
-            '<td class="f-tabular">' + cell(r.body_fat, r.body_fat_n, '%') + '</td>' +
-            '<td class="f-tabular">' + cell(r.vo2, r.vo2_n, '') + '</td>' +
-            '<td class="f-tabular">' + cell(r.resting_hr, r.resting_hr_n, ' bpm') + '</td>' +
-            '<td class="f-tabular">' + cell(r.weight, r.weight_n, ' kg') + '</td></tr>';
-        }).join('') : '<tr><td colspan="6" class="text-muted" style="text-align:center;padding:20px;">Builds as members log their stats</td></tr>';
-      }
-    },
+    // (Community Health moved to its own panel + ffp-admin-health-loader.js — these are
+    //  business/platform analytics only.)
 
     // dashboard calls Analytics.renderCharts() on panel open -> lazy-load, then render
     renderCharts: function () {
