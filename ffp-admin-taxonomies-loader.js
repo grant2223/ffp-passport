@@ -149,29 +149,38 @@
   }
 
   function wire(host) {
-    host.querySelectorAll('.tx-listbtn').forEach(function (b) {
-      b.onclick = function () { state.current = b.dataset.list; render(); };
-    });
-    var ctrySel = host.querySelector('#tx-country');
-    if (ctrySel) ctrySel.onchange = function () { state.cityCountry = ctrySel.value; render(); };
-    var addBtn = host.querySelector('#tx-add-btn');
-    var addInp = host.querySelector('#tx-new');
-    if (addBtn) addBtn.onclick = function () { addItem(addInp ? addInp.value : ''); };
-    if (addInp) addInp.onkeydown = function (e) { if (e.key === 'Enter') addItem(addInp.value); };
-
-    host.querySelectorAll('.tx-name').forEach(function (inp) {
-      inp.onblur = function () { renameItem(inp.dataset.id, inp.value); };
-      inp.onkeydown = function (e) { if (e.key === 'Enter') inp.blur(); };
-    });
-    host.querySelectorAll('.tx-ic').forEach(function (btn) {
-      var id = btn.closest('tr').dataset.id;
-      btn.onclick = function () {
-        var act = btn.dataset.act;
+    // Event DELEGATION on the container — survives re-renders and avoids any per-button
+    // binding timing issues. One click handler routes every button.
+    host.onclick = function (e) {
+      var t = e.target;
+      if (!t || !t.closest) return;
+      var lb = t.closest('.tx-listbtn');
+      if (lb) { state.current = lb.dataset.list; render(); return; }
+      if (t.closest('#tx-add-btn')) {
+        var inp = host.querySelector('#tx-new');
+        console.log('[Tax] Add clicked. value=', JSON.stringify(inp ? inp.value : null), 'list=', state.current);
+        addItem(inp ? inp.value : '');
+        return;
+      }
+      var ic = t.closest('.tx-ic');
+      if (ic) {
+        var tr = ic.closest('tr'); if (!tr) return;
+        var id = tr.dataset.id, act = ic.dataset.act;
         if (act === 'toggle') toggleItem(id);
         else if (act === 'del') delItem(id);
         else if (act === 'up') moveItem(id, -1);
         else if (act === 'down') moveItem(id, 1);
-      };
+        return;
+      }
+    };
+    var ctrySel = host.querySelector('#tx-country');
+    if (ctrySel) ctrySel.onchange = function () { state.cityCountry = ctrySel.value; render(); };
+    var addInp = host.querySelector('#tx-new');
+    if (addInp) addInp.onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); addItem(addInp.value); } };
+
+    host.querySelectorAll('.tx-name').forEach(function (inp) {
+      inp.onblur = function () { renameItem(inp.dataset.id, inp.value); };
+      inp.onkeydown = function (e) { if (e.key === 'Enter') inp.blur(); };
     });
   }
 
@@ -185,8 +194,10 @@
     var maxSort = rows.reduce(function (m, r) { return Math.max(m, r.sort_order || 0); }, -1);
     var payload = { list_key: state.current, value: val, label: val, sort_order: maxSort + 1, active: true };
     if (isNested()) payload.parent = state.cityCountry;
+    console.log('[Tax] inserting', payload);
     var res = await sb().from('taxonomy_items').insert(payload).select().single();
-    if (res.error) { console.error(res.error); toast(res.error.message || 'Add failed', 'error'); return; }
+    console.log('[Tax] insert result error=', res.error, 'data=', res.data);
+    if (res.error) { console.error('[Tax] add failed:', res.error); toast(res.error.message || 'Add failed', 'error'); return; }
     (state.data[state.current] = state.data[state.current] || []).push(res.data);
     toast('Added "' + val + '"', 'success');
     render();
@@ -253,7 +264,7 @@
     }
     await fetchAll();
     render();
-    console.log('[FFP Admin Taxonomies] loaded v2 ✓');
+    console.log('[FFP Admin Taxonomies] loaded v2.1 ✓ (delegated clicks + add trace)');
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
