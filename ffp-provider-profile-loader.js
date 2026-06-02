@@ -1,4 +1,8 @@
-/* FFP Provider Profile Loader — v6
+/* FFP Provider Profile Loader — v7
+   v7 (2026-06-02): added "Activities we offer" (chips → providers.activities[]) + "Venue
+       location" (current-location capture → providers.latitude/longitude) to the profile,
+       injected into #panel-profile. These feed the member venue check-in (activity list +
+       GPS on-site verification). Also fixed: country was read but missing from the select.
    v6: country + city use the shared FFPLocation cascade (assets/ffp-location-picker.js) —
        no longer wraps pf-city as its own searchable picker; loads/saves provider.country.
    v5: hide native scrollbar on the panel (content still scrolls).
@@ -234,7 +238,7 @@
 
     var provRes = await window.supabase
       .from('providers')
-      .select('id, business_name, letter_mark, category, provider_type, city, area, address, contact_email, contact_phone, website, instagram, about, logo_url, hero_photo_url, status')
+      .select('id, business_name, letter_mark, category, provider_type, country, city, area, address, contact_email, contact_phone, website, instagram, about, logo_url, hero_photo_url, status, activities, latitude, longitude')
       .eq('id', id).single();
     if (provRes.error) throw provRes.error;
 
@@ -261,6 +265,9 @@
       verified:      p.status === 'approved',
       logo_url:      p.logo_url || null,
       hero_url:      p.hero_photo_url || null,
+      activities:    Array.isArray(p.activities) ? p.activities : [],
+      latitude:      (p.latitude  != null) ? Number(p.latitude)  : null,
+      longitude:     (p.longitude != null) ? Number(p.longitude) : null,
       hours:         defaultHoursObj()
     };
     (hoursRes && hoursRes.data ? hoursRes.data : []).forEach(function (h) {
@@ -340,7 +347,10 @@
         website:        website || null,
         about:          about || null,
         logo_url:       logoUrl,
-        hero_photo_url: heroUrl
+        hero_photo_url: heroUrl,
+        activities:     (_provExtras.activities && _provExtras.activities.length) ? _provExtras.activities : null,
+        latitude:       (_provExtras.lat != null) ? _provExtras.lat : null,
+        longitude:      (_provExtras.lng != null) ? _provExtras.lng : null
       }).eq('id', id);
       if (provRes.error) throw provRes.error;
 
@@ -401,6 +411,85 @@
     }
   }
 
+  // ─── Activities offered + venue location (injected into #panel-profile) ───
+  var _provExtras = { activities: [], lat: null, lng: null };
+
+  function injectExtrasCss() {
+    if (document.getElementById('pf-extras-css')) return;
+    var s = document.createElement('style'); s.id = 'pf-extras-css';
+    s.textContent =
+      '#pf-extras{margin:6px 0 18px;display:flex;flex-direction:column;gap:18px;}' +
+      '#pf-extras .pf-extras-sec{display:flex;flex-direction:column;gap:8px;}' +
+      '#pf-extras .pf-extras-lbl{font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#8a99a8;}' +
+      '#pf-extras .pf-extras-hint{font-weight:600;letter-spacing:0;text-transform:none;color:#6a90a8;}' +
+      '#pf-extras .pf-extras-add{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}' +
+      '#pf-extras .pf-extras-add .input{flex:1;min-width:160px;}' +
+      '#pf-extras .pf-extras-btn{background:#FFCC00;color:#082335;border:none;border-radius:9px;padding:10px 16px;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;}' +
+      '#pf-extras .pf-extras-btn.alt{background:rgba(43,168,224,.12);color:#cfe0ec;border:1px solid rgba(43,168,224,.3);}' +
+      '#pf-extras .pf-chips{display:flex;flex-wrap:wrap;gap:7px;}' +
+      '#pf-extras .pf-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.28);border-radius:100px;padding:5px 6px 5px 12px;font-size:12px;font-weight:700;color:#e8eef4;}' +
+      '#pf-extras .pf-chip button{background:rgba(255,255,255,.12);border:none;color:#cfe0ec;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:13px;line-height:1;}' +
+      '#pf-extras .pf-loc-status{font-size:12px;color:#8a99a8;font-weight:600;}';
+    document.head.appendChild(s);
+  }
+  function injectProviderExtras() {
+    var panel = document.getElementById('panel-profile');
+    if (!panel || document.getElementById('pf-extras')) return;
+    injectExtrasCss();
+    var saveBtn = panel.querySelector('.btn-pri');
+    var anchor = saveBtn ? (saveBtn.closest('.form-actions') || saveBtn) : null;
+    var acts = ((window.FFP_TAX && window.FFP_TAX.activities) || []).map(function (a) { return (a && a.n) ? a.n : a; });
+    var dl = acts.map(function (a) { return '<option value="' + escText(a) + '">'; }).join('');
+    var box = document.createElement('div');
+    box.id = 'pf-extras';
+    box.innerHTML =
+      '<div class="pf-extras-sec">' +
+        '<label class="pf-extras-lbl">Activities we offer <span class="pf-extras-hint">— what members can pick when they check in</span></label>' +
+        '<div class="pf-extras-add"><input id="pf-act-input" class="input" list="pf-act-list" placeholder="Type an activity, then Add"><datalist id="pf-act-list">' + dl + '</datalist><button type="button" id="pf-act-add" class="pf-extras-btn">Add</button></div>' +
+        '<div id="pf-act-chips" class="pf-chips"></div>' +
+      '</div>' +
+      '<div class="pf-extras-sec">' +
+        '<label class="pf-extras-lbl">Venue location <span class="pf-extras-hint">— verifies members are on-site at check-in</span></label>' +
+        '<div class="pf-extras-add"><button type="button" id="pf-loc-btn" class="pf-extras-btn alt"><span class="material-icons" style="font-size:16px;vertical-align:middle;">my_location</span> Use current location</button><span id="pf-loc-status" class="pf-loc-status">Not set</span></div>' +
+      '</div>';
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(box, anchor);
+    else panel.appendChild(box);
+    document.getElementById('pf-act-add').onclick = addAct;
+    document.getElementById('pf-act-input').onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); addAct(); } };
+    document.getElementById('pf-loc-btn').onclick = captureLocation;
+    renderActChips();
+  }
+  function addAct() {
+    var inp = document.getElementById('pf-act-input'); if (!inp) return;
+    var v = (inp.value || '').trim(); if (!v) return;
+    if (!_provExtras.activities.some(function (a) { return a.toLowerCase() === v.toLowerCase(); })) _provExtras.activities.push(v);
+    inp.value = ''; renderActChips();
+  }
+  window.__pfRemoveAct = function (v) { _provExtras.activities = _provExtras.activities.filter(function (a) { return a !== v; }); renderActChips(); };
+  function renderActChips() {
+    var c = document.getElementById('pf-act-chips'); if (!c) return;
+    c.innerHTML = _provExtras.activities.length
+      ? _provExtras.activities.map(function (a) { return '<span class="pf-chip">' + escText(a) + '<button type="button" onclick="__pfRemoveAct(&quot;' + escText(a).replace(/"/g, '') + '&quot;)">&times;</button></span>'; }).join('')
+      : '<span class="pf-loc-status">None yet — add the activities members can do here.</span>';
+  }
+  function captureLocation() {
+    var st = document.getElementById('pf-loc-status');
+    if (!navigator.geolocation) { if (st) st.textContent = 'Location not supported on this device'; return; }
+    if (st) st.textContent = 'Getting location…';
+    navigator.geolocation.getCurrentPosition(
+      function (p) { _provExtras.lat = +p.coords.latitude.toFixed(6); _provExtras.lng = +p.coords.longitude.toFixed(6); if (st) st.textContent = '✓ Set (' + _provExtras.lat + ', ' + _provExtras.lng + ')'; },
+      function () { if (st) st.textContent = 'Couldn’t get location — allow it and try at the venue'; },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
+  }
+  function populateProviderExtras(profile) {
+    _provExtras.activities = Array.isArray(profile.activities) ? profile.activities.slice() : [];
+    _provExtras.lat = (profile.latitude != null) ? profile.latitude : null;
+    _provExtras.lng = (profile.longitude != null) ? profile.longitude : null;
+    renderActChips();
+    var st = document.getElementById('pf-loc-status');
+    if (st) st.textContent = (_provExtras.lat != null && _provExtras.lng != null) ? ('✓ Set (' + _provExtras.lat + ', ' + _provExtras.lng + ')') : 'Not set';
+  }
+
   // ─── Init ───
   async function init() {
     var ok = await waitFor(function () {
@@ -417,11 +506,13 @@
 
     // Refine UI as soon as the profile panel exists in the DOM
     refineUI();
+    injectProviderExtras();
 
     try {
       var real = await fetchProfile();
       if (real) {
         Object.assign(providerProfile, real);
+        populateProviderExtras(real);
         // If user is on the profile panel, repaint
         var profilePanel = document.getElementById('panel-profile');
         if (profilePanel && profilePanel.classList.contains('active')) {
