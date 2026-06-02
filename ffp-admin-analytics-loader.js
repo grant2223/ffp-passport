@@ -1,4 +1,10 @@
-/* FFP Admin Analytics Loader — v4 (2026-06-03)
+/* FFP Admin Analytics Loader — v5 (2026-06-03)
+   v5: location filter is now matched to the STANDARDIZED taxonomy. _ensure awaits
+   window.FFP_TAX_READY (DB hydration of taxonomy_items → 58 countries / 541 cities) before
+   building the city→country map, clears the cache so it keys off the live admin taxonomy
+   (not the ffp-taxonomy.js fallback), and re-renders on the 'ffp-tax-ready' event. Country
+   grouping for every city therefore comes straight from the locked taxonomy.
+   --- prior ---
    v4: COUNTRY / CITY location filter. Two dropdowns in the panel header scope the WHOLE
    panel — KPIs, growth, tiers, demographics, categories, engagement, top providers, and
    Community Health. City is the source of truth on each member; Country is derived from the
@@ -138,13 +144,18 @@
   // city not in the taxonomy is bucketed under "Other".
   var GEO = { country: '', city: '' };
   var CITY2COUNTRY = null;
+  // Built from window.FFP_TAX.cities — the STANDARDIZED taxonomy, hydrated from the DB
+  // (taxonomy_items: 58 countries / 541 cities, admin-editable) via FFP_TAX_READY, with the
+  // ffp-taxonomy.js map as fallback only until that resolves. _ensure awaits FFP_TAX_READY
+  // and clears this cache so we always key off the live DB taxonomy, not the fallback.
   function city2country() {
     if (CITY2COUNTRY) return CITY2COUNTRY;
-    CITY2COUNTRY = {};
+    var map = {};
     try {
       var c = (window.FFP_TAX && window.FFP_TAX.cities) || {};
-      Object.keys(c).forEach(function (country) { (c[country] || []).forEach(function (city) { CITY2COUNTRY[city] = country; }); });
+      Object.keys(c).forEach(function (country) { (c[country] || []).forEach(function (city) { map[city] = country; }); });
     } catch (e) {}
+    CITY2COUNTRY = map;
     return CITY2COUNTRY;
   }
   function countryOf(city) { if (!city) return null; return city2country()[city] || 'Other'; }
@@ -220,6 +231,10 @@
       this._loading = true;
       var ok = await waitFor(function () { return window.supabase && typeof Chart !== 'undefined'; }, 20000);
       if (ok) await waitFor(function () { return window.FFP_ADMIN || (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()); }, 20000);
+      // Make sure the STANDARDIZED taxonomy (DB → FFP_TAX.cities) is hydrated before we map
+      // cities → countries, so the location filter keys off the live admin taxonomy, not the
+      // ffp-taxonomy.js fallback. Then clear the cache so it rebuilds from the hydrated lists.
+      if (ok) { try { if (window.FFP_TAX_READY) await window.FFP_TAX_READY; } catch (e) {} CITY2COUNTRY = null; }
       if (ok) { try { await fetchAll(); this._loaded = true; } catch (e) { console.error('[FFP Analytics] load:', e); } }
       this._loading = false;
       return this._loaded;
@@ -506,6 +521,15 @@
     }
   };
 
+
+  // If the DB taxonomy hydrates (or an admin edits it) after the panel is already open,
+  // re-key the city→country map and re-render so the filter stays matched to the taxonomy.
+  try {
+    document.addEventListener('ffp-tax-ready', function () {
+      CITY2COUNTRY = null;
+      if (A._loaded) { A.renderGeoFilters(); A._refresh(); }
+    });
+  } catch (e) {}
 
   window.Analytics = A;
 })();
