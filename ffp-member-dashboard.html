@@ -1,4 +1,10 @@
-<!-- FFP MEMBER DASHBOARD — v214 (2026-06-02)
+<!-- FFP MEMBER DASHBOARD — v215 (2026-06-02)
+     v215: "Your journey" stats reworked — top row Countries/Cities/Days/Hours, bottom row
+           Connections/Activities/Meets/Providers. Dropped "Sports" (it was distinct activity
+           TYPES — confusing vs Activities=total sessions). "Partners" → "Providers" = unique
+           providers visited (distinct provider_id; provider_id now carried on each log). New
+           "Connections" tile = accepted member_connections (all-time, via member_connections_count
+           RPC). All tiles except Connections still respond to the 7d/30d/90d/year/all-time chips.
      v214: check-in sheet decluttered — ffp-member-checkin-loader.js?v=4 (3-across Quest/Event/
            Challenge row, no "just checking in" button, Minutes + Calories side by side).
      v213: PASSPORT now refreshes on venue check-in — added a document listener for 'ffp-activity-logged'
@@ -4230,14 +4236,16 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
   
   <!-- HERO STATS -->
   <div class="hero-stats">
+    <!-- Top row -->
     <div class="hero-stat"><div class="hero-stat-num" id="stat-countries">0</div><div class="hero-stat-lbl">Countries</div></div>
     <div class="hero-stat"><div class="hero-stat-num accent" id="stat-cities">0</div><div class="hero-stat-lbl">Cities</div></div>
-    <div class="hero-stat"><div class="hero-stat-num" id="stat-activities">0</div><div class="hero-stat-lbl">Activities</div></div>
-    <div class="hero-stat"><div class="hero-stat-num" id="stat-sports">0</div><div class="hero-stat-lbl">Sports</div></div>
     <div class="hero-stat"><div class="hero-stat-num" id="stat-days">0</div><div class="hero-stat-lbl">Days</div></div>
     <div class="hero-stat"><div class="hero-stat-num" id="stat-hours">0</div><div class="hero-stat-lbl">Hours</div></div>
+    <!-- Bottom row -->
+    <div class="hero-stat"><div class="hero-stat-num" id="stat-connections">0</div><div class="hero-stat-lbl">Connections</div></div>
+    <div class="hero-stat"><div class="hero-stat-num" id="stat-activities">0</div><div class="hero-stat-lbl">Activities</div></div>
     <div class="hero-stat"><div class="hero-stat-num" id="stat-meets">0</div><div class="hero-stat-lbl">Meets</div></div>
-    <div class="hero-stat"><div class="hero-stat-num" id="stat-partner">0</div><div class="hero-stat-lbl">Partners</div></div>
+    <div class="hero-stat"><div class="hero-stat-num" id="stat-providers">0</div><div class="hero-stat-lbl">Providers</div></div>
   </div>
   
   <!-- TIME CHIPS -->
@@ -5906,6 +5914,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 // ===== DATA =====
 const LOGS = [];
 var MEETS = [];
+var MEMBER_CONN_COUNT = 0;   // accepted connections (Your-journey Connections tile)
 
 const WISHLIST = [];
 
@@ -6619,26 +6628,27 @@ function getMeetsCount() {
   return MEETS.length;
 }
 function renderStats(logs) {
-  const cities = new Set(), countries = new Set(), sports = new Set(), days = new Set();
-  let partner = 0, totalMin = 0;
+  const cities = new Set(), countries = new Set(), days = new Set(), providers = new Set();
+  let totalMin = 0;
   logs.forEach(l => {
     if (l.city) cities.add(l.city);
     if (l.country) countries.add(l.country);
-    if (l.activity) sports.add(l.activity);
     if (l.date) days.add(l.date);
+    if (l.provider_id) providers.add(l.provider_id);   // unique venues visited
     totalMin += (l.duration || 0);
-    if (l.partner) partner++;
   });
   const hours = totalMin / 60;
   const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  // Top row
   setTxt('stat-countries', countries.size);
   setTxt('stat-cities', cities.size);
-  setTxt('stat-activities', logs.length);
-  setTxt('stat-sports', sports.size);
   setTxt('stat-days', days.size);
   setTxt('stat-hours', hours >= 10 ? Math.round(hours) : Math.round(hours * 10) / 10);
+  // Bottom row
+  setTxt('stat-connections', (typeof MEMBER_CONN_COUNT === 'number') ? MEMBER_CONN_COUNT : 0);
+  setTxt('stat-activities', logs.length);            // total logged sessions
   setTxt('stat-meets', getMeetsCount());
-  setTxt('stat-partner', partner);
+  setTxt('stat-providers', providers.size);          // unique providers visited
 
   // v154 — Activity day streak: consecutive days back from today with a logged
   // activity. All-time (uses global LOGS), independent of the time-range filter.
@@ -7073,6 +7083,18 @@ async function loadMeets() {
     if (typeof renderAll === 'function') renderAll();
     console.log('[FFP Meets] loaded ' + MEETS.length + ' attended');
   } catch (e) { console.error('[FFP Meets] load:', e); }
+}
+// Your-journey "Connections" tile — accepted member_connections (all-time), via RPC.
+async function loadConnectionsCount() {
+  var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
+  if (!member || !member.id || !window.supabase) return;
+  try {
+    var res = await window.supabase.rpc('member_connections_count', { p_me: member.id });
+    if (!res.error && typeof res.data === 'number') {
+      MEMBER_CONN_COUNT = res.data;
+      if (typeof renderAll === 'function') renderAll();
+    }
+  } catch (e) { console.error('[FFP Connections] count:', e); }
 }
 async function loadNotifications() {
   var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
@@ -12642,6 +12664,7 @@ async function loadJourneyLogs() {
       var dt = r.logged_at ? new Date(r.logged_at) : new Date();
       LOGS.push({
         activity: r.activity || 'Activity', venue: r.venue || '', city: r.city || '', country: r.country || '',
+        provider_id: r.provider_id || null,
         date: dt.toISOString().substring(0, 10),
         daysAgo: Math.max(0, Math.floor((now - dt.getTime()) / 86400000)),
         duration: r.duration_min || 0, calories: r.calories || 0, notes: r.notes || '',
@@ -12778,6 +12801,7 @@ function init() {
   Earnings.init();
   loadJourneyLogs();
   loadMeets();
+  loadConnectionsCount();
   loadNotifications();
   window.Quests = Quests;
   Quests.init();
