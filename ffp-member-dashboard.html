@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v222 (2026-06-02)
+<!-- FFP MEMBER DASHBOARD — v223 (2026-06-02)
+     v223: (a) Map tiles LIGHTENED (grayscale brightness 1.55) so water + lines read lighter, base #20252b.
+           (b) Provider check-ins with a null country now infer country from city (countryForCity via
+           CITIES_DB) in loadJourneyLogs → e.g. Dubai groups under United Arab Emirates so the City
+           dropdown shows Dubai + Abu Dhabi. (c) Top Activities no longer lists the per-activity cities
+           (.ba-cities removed) — just the activity name + count (declutters as cities grow).
      v222: World Map declutter — removed the breadcrumb ("World" row) and the redundant city-count
            subtitle; the Country + City dropdowns are now the single nav control (Country dropdown
            always lists all active countries + "All countries" to reset; switching works).
@@ -4301,11 +4306,11 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
   
   <!-- ═══ YOUR JOURNEY MAP (Leaflet) — World › Country › City ═══ -->
   <style>
-    #ffp-jmap{height:340px;width:100%;border-radius:12px;overflow:hidden;background:#0a0d11;z-index:1;}
+    #ffp-jmap{height:340px;width:100%;border-radius:12px;overflow:hidden;background:#20252b;z-index:1;}
     .jm-map-wrap{position:relative;}
-    .leaflet-container{background:#0a0d11;font-family:inherit;}
-    /* desaturate CARTO's brownish tiles → clean neutral grey, softer on the eyes */
-    #ffp-jmap .leaflet-tile{filter:grayscale(1) brightness(1.05) contrast(0.92);}
+    .leaflet-container{background:#20252b;font-family:inherit;}
+    /* desaturate CARTO's brownish tiles → neutral grey, and LIGHTEN so water + lines read lighter */
+    #ffp-jmap .leaflet-tile{filter:grayscale(1) brightness(1.55) contrast(0.8);}
     /* Country / City selectors */
     .jm-sel{flex:1;min-width:140px;background:#0f1e2e;border:1px solid var(--border-mid);color:var(--text);border-radius:9px;padding:9px 12px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;}
     .jm-sel:focus{outline:none;border-color:var(--blue);}
@@ -6509,6 +6514,18 @@ const CITY_COORDS = {
 
 const CITIES_DB = window.FFP_TAX.cities;
 
+// Reverse lookup city → country (provider check-ins can have a null country; this fills it in
+// so the map groups e.g. Dubai under United Arab Emirates).
+let _cityCountryMap = null;
+function countryForCity(city) {
+  if (!city) return '';
+  if (!_cityCountryMap) {
+    _cityCountryMap = {};
+    try { Object.keys(CITIES_DB || {}).forEach(cn => (CITIES_DB[cn] || []).forEach(ct => { if (!_cityCountryMap[ct]) _cityCountryMap[ct] = cn; })); } catch (e) {}
+  }
+  return _cityCountryMap[city] || '';
+}
+
 const ACTIVITIES_DB = window.FFP_TAX.activities;
 
 // ===== FILTER STATE =====
@@ -6867,7 +6884,7 @@ function renderActivities(logs) {
     <div class="ba-row">
       <div class="ba-icon"><span class="material-icons" style="font-size:20px;color:var(--blue);">${a.icon}</span></div>
       <div>
-        <div class="ba-name-line"><span class="ba-name">${a.name}</span><span class="ba-cities">${a.cities}</span></div>
+        <div class="ba-name-line"><span class="ba-name">${a.name}</span></div>
         <div class="ba-bar-track"><div class="ba-bar-fill" style="width:${Math.round((a.count/max)*100)}%"></div></div>
       </div>
       <span class="ba-count">${a.count}x</span>
@@ -12854,7 +12871,8 @@ async function loadJourneyLogs() {
     rows.forEach(function (r) {
       var dt = r.logged_at ? new Date(r.logged_at) : new Date();
       LOGS.push({
-        activity: r.activity || 'Activity', venue: r.venue || '', city: r.city || '', country: r.country || '',
+        activity: r.activity || 'Activity', venue: r.venue || '', city: r.city || '',
+        country: r.country || countryForCity(r.city) || '',
         provider_id: r.provider_id || null,
         lat: (r.checkin_lat != null ? Number(r.checkin_lat) : null),
         lng: (r.checkin_lng != null ? Number(r.checkin_lng) : null),
