@@ -1,4 +1,7 @@
-/* FFP Meet & Move Loader — v18
+/* FFP Meet & Move Loader — v19
+   v19 (2026-06-02): meetups now sorted CHRONOLOGICALLY (soonest first) via _ts; each item carries
+       _raw (the full meetup row) so the host Edit form can prefill. (Edit/update + time-fix live in
+       the dashboard.)
    v18 (2026-06-02): carry meetups.maps_url into MeetMove.data so the meetup detail's location is a
        tappable link (opens the picked spot in the member's maps app). Set via the new location picker.
    v17 (2026-06-02): (1) HOST CAN CANCEL — host detail modal's footer button is now "Cancel this
@@ -444,10 +447,12 @@
           isProfessional: !!m.is_professional,
           host_member_id: m.host_member_id, full: m.status === 'full',
           maps_url: m.maps_url || '',
+          _ts: m.meets_at ? (+new Date(m.meets_at)) : 0,   // sort key (soonest first)
+          _raw: m,                                          // raw row, for the host edit form
           about: m.description || 'Member-hosted meetup.', img: meta.img,
           attendees: buildAttendees(m, attMap[m.id] || [], peopleMap)
         };
-      });
+      }).sort(function (a, b) { return a._ts - b._ts; });   // chronological: soonest → latest
       installOverrides();
       wrapWrites();
       var panel = document.getElementById('panel-meet');
