@@ -167,25 +167,14 @@
   // ── public + boot ──
   window.FFPCheckin = { scan: startScan, close: closeSheet, _manual: manual, _save: save, _context: openContext };
 
-  function injectButton() {
-    var panel = document.getElementById('panel-quests');
-    if (!panel || document.getElementById('ci-launch-btn')) return;
-    var btn = document.createElement('button');
-    btn.id = 'ci-launch-btn'; btn.className = 'ci-launch';
-    btn.innerHTML = '<span class="material-icons">qr_code_scanner</span> Check in at a venue';
-    btn.addEventListener('click', startScan);
-    var hero = document.getElementById('quest-hero');
-    if (hero && hero.parentNode) hero.parentNode.insertBefore(btn, hero.nextSibling);
-    else panel.insertBefore(btn, panel.firstChild);
-  }
-
   function boot() {
     injectCss();
-    injectButton();
-    // phone-camera scan of the venue link lands here as ?venue=<id>
+    // NO injected button — the single entry point is the "Scan QR" button on the Passport
+    // panel (onclick="openScanLog()" → FFPCheckin.scan()). A phone-camera scan of the venue
+    // link also lands here as ?venue=<id> and opens the check-in directly.
     var v = parseVenue(window.location.search);
     if (v) { setTimeout(function () { openContext(v); }, 600); }
-    console.log('[FFP Member Check-in v1] Loaded ✓');
+    console.log('[FFP Member Check-in v1] Loaded ✓ (launch: Scan QR button / ?venue link)');
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
