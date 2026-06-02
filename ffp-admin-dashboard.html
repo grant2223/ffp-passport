@@ -5,7 +5,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FFP Admin Dashboard</title>
-<!-- FFP ADMIN DASHBOARD — v21 (2026-05-31): Taxonomies panel now shows REAL counts from
+<!-- FFP ADMIN DASHBOARD — v22 (2026-06-03): Analytics panel gains a Community Health section
+     (community-wide fitness KPIs, VO2 fit-level + body-composition distributions, per-city/emirate
+     averages) sourced from new community_health_stats() RPC. Lazy cache-bust bumped to v=37. -->
+<!-- v21 (2026-05-31): Taxonomies panel now shows REAL counts from
      assets/ffp-taxonomy.js (cities/countries/activities/categories) + categories from
      ffp-constants.js. v20: Settings + provider-categories sourced from ffp-constants.js
      (USD $99 / $250 / 5-10-20%); was demo AED. -->
@@ -2037,6 +2040,39 @@ input, select, textarea { font-family: inherit; }
         </div>
       </div>
       
+      <!-- Community Health -->
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">Community Health</div>
+          <span class="section-count" id="ch-meta">From member fitness stats</span>
+        </div>
+        <div class="section-body padded">
+          <div class="kpi-grid" id="ch-kpis"></div>
+          <div class="charts-grid" style="margin-top:18px;">
+            <div>
+              <div class="chart-card-title" style="margin-bottom:10px;">Cardio Fitness (VO₂ max)</div>
+              <div class="demo-list" id="ch-fitlevels"></div>
+            </div>
+            <div>
+              <div class="chart-card-title" style="margin-bottom:10px;">Body Composition</div>
+              <div class="demo-list" id="ch-bodyfat"></div>
+            </div>
+          </div>
+          <div class="section" style="margin-top:18px;">
+            <div class="section-head">
+              <div class="section-title" style="font-size:14px;">By Emirate / City</div>
+              <span class="section-count">Averages per location</span>
+            </div>
+            <div class="section-body">
+              <table class="table">
+                <thead><tr><th>Location</th><th>Members</th><th>Body Fat</th><th>VO₂ max</th><th>Resting HR</th><th>Weight</th></tr></thead>
+                <tbody id="ch-city-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Top providers -->
       <div class="section">
         <div class="section-head">
@@ -2186,7 +2222,7 @@ const App = {
       var sc = document.createElement('script');
       // Cache-bust lazy loaders so a new deploy never serves a stale cached .js.
       // BUMP this with the dashboard build number on every deploy (matches footer build).
-      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=36'; sc.async = false;
+      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=37'; sc.async = false;
       sc.onload = function () {
         if (panelId === 'panel-analytics') {
           setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 80);
