@@ -1,4 +1,7 @@
-/* FFP Provider Profile Loader — v7
+/* FFP Provider Profile Loader — v8
+   v8 (2026-06-02): "Venue location" is now a Google Maps LINK field — provider pastes their
+       Maps link (any format), "Find pin" calls backend /api/geo/resolve to extract the pin
+       (providers.latitude/longitude) + stores the link (providers.maps_url) for member Directions.
    v7 (2026-06-02): added "Activities we offer" (chips → providers.activities[]) + "Venue
        location" (current-location capture → providers.latitude/longitude) to the profile,
        injected into #panel-profile. These feed the member venue check-in (activity list +
@@ -238,7 +241,7 @@
 
     var provRes = await window.supabase
       .from('providers')
-      .select('id, business_name, letter_mark, category, provider_type, country, city, area, address, contact_email, contact_phone, website, instagram, about, logo_url, hero_photo_url, status, activities, latitude, longitude')
+      .select('id, business_name, letter_mark, category, provider_type, country, city, area, address, contact_email, contact_phone, website, instagram, about, logo_url, hero_photo_url, status, activities, latitude, longitude, maps_url')
       .eq('id', id).single();
     if (provRes.error) throw provRes.error;
 
@@ -268,6 +271,7 @@
       activities:    Array.isArray(p.activities) ? p.activities : [],
       latitude:      (p.latitude  != null) ? Number(p.latitude)  : null,
       longitude:     (p.longitude != null) ? Number(p.longitude) : null,
+      maps_url:      p.maps_url || '',
       hours:         defaultHoursObj()
     };
     (hoursRes && hoursRes.data ? hoursRes.data : []).forEach(function (h) {
@@ -350,7 +354,8 @@
         hero_photo_url: heroUrl,
         activities:     (_provExtras.activities && _provExtras.activities.length) ? _provExtras.activities : null,
         latitude:       (_provExtras.lat != null) ? _provExtras.lat : null,
-        longitude:      (_provExtras.lng != null) ? _provExtras.lng : null
+        longitude:      (_provExtras.lng != null) ? _provExtras.lng : null,
+        maps_url:       _provExtras.mapsUrl || null
       }).eq('id', id);
       if (provRes.error) throw provRes.error;
 
@@ -412,7 +417,8 @@
   }
 
   // ─── Activities offered + venue location (injected into #panel-profile) ───
-  var _provExtras = { activities: [], lat: null, lng: null };
+  var _provExtras = { activities: [], lat: null, lng: null, mapsUrl: '' };
+  var GEO_API = 'https://ffp-passport-backend.vercel.app';
 
   function injectExtrasCss() {
     if (document.getElementById('pf-extras-css')) return;
@@ -449,14 +455,17 @@
         '<div id="pf-act-chips" class="pf-chips"></div>' +
       '</div>' +
       '<div class="pf-extras-sec">' +
-        '<label class="pf-extras-lbl">Venue location <span class="pf-extras-hint">— verifies members are on-site at check-in</span></label>' +
-        '<div class="pf-extras-add"><button type="button" id="pf-loc-btn" class="pf-extras-btn alt"><span class="material-icons" style="font-size:16px;vertical-align:middle;">my_location</span> Use current location</button><span id="pf-loc-status" class="pf-loc-status">Not set</span></div>' +
+        '<label class="pf-extras-lbl">Venue location <span class="pf-extras-hint">— paste your Google Maps link: sets your map pin (on-site check-in verification) + gives members Directions</span></label>' +
+        '<div class="pf-extras-add"><input id="pf-maps-url" class="input" placeholder="Paste your Google Maps link (any format)"><button type="button" id="pf-loc-btn" class="pf-extras-btn">Find pin</button></div>' +
+        '<span id="pf-loc-status" class="pf-loc-status">No location set</span>' +
       '</div>';
     if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(box, anchor);
     else panel.appendChild(box);
     document.getElementById('pf-act-add').onclick = addAct;
     document.getElementById('pf-act-input').onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); addAct(); } };
-    document.getElementById('pf-loc-btn').onclick = captureLocation;
+    document.getElementById('pf-loc-btn').onclick = resolveMapsLink;
+    var mu = document.getElementById('pf-maps-url');
+    if (mu) mu.onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); resolveMapsLink(); } };
     renderActChips();
   }
   function addAct() {
@@ -472,22 +481,31 @@
       ? _provExtras.activities.map(function (a) { return '<span class="pf-chip">' + escText(a) + '<button type="button" onclick="__pfRemoveAct(&quot;' + escText(a).replace(/"/g, '') + '&quot;)">&times;</button></span>'; }).join('')
       : '<span class="pf-loc-status">None yet — add the activities members can do here.</span>';
   }
-  function captureLocation() {
-    var st = document.getElementById('pf-loc-status');
-    if (!navigator.geolocation) { if (st) st.textContent = 'Location not supported on this device'; return; }
-    if (st) st.textContent = 'Getting location…';
-    navigator.geolocation.getCurrentPosition(
-      function (p) { _provExtras.lat = +p.coords.latitude.toFixed(6); _provExtras.lng = +p.coords.longitude.toFixed(6); if (st) st.textContent = '✓ Set (' + _provExtras.lat + ', ' + _provExtras.lng + ')'; },
-      function () { if (st) st.textContent = 'Couldn’t get location — allow it and try at the venue'; },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
+  async function resolveMapsLink() {
+    var inp = document.getElementById('pf-maps-url'), st = document.getElementById('pf-loc-status');
+    var url = inp ? (inp.value || '').trim() : '';
+    if (!url) { if (st) st.textContent = 'Paste your Google Maps link first'; return; }
+    _provExtras.mapsUrl = url;  // stored for member "Directions" even if the pin can't be read
+    if (st) st.textContent = 'Finding your pin…';
+    try {
+      var res = await fetch(GEO_API + '/api/geo/resolve?url=' + encodeURIComponent(url));
+      var j = await res.json();
+      if (!res.ok || j.lat == null) { if (st) st.textContent = (j && j.error) ? j.error : 'Couldn’t read a pin from that link'; return; }
+      _provExtras.lat = j.lat; _provExtras.lng = j.lng;
+      if (st) st.textContent = '✓ Pin set (' + j.lat.toFixed(5) + ', ' + j.lng.toFixed(5) + ') — Save to keep it';
+    } catch (e) { console.error('[Profile] resolve maps link:', e); if (st) st.textContent = 'Couldn’t reach the resolver — try again'; }
   }
   function populateProviderExtras(profile) {
     _provExtras.activities = Array.isArray(profile.activities) ? profile.activities.slice() : [];
     _provExtras.lat = (profile.latitude != null) ? profile.latitude : null;
     _provExtras.lng = (profile.longitude != null) ? profile.longitude : null;
+    _provExtras.mapsUrl = profile.maps_url || '';
     renderActChips();
+    var mu = document.getElementById('pf-maps-url'); if (mu) mu.value = _provExtras.mapsUrl;
     var st = document.getElementById('pf-loc-status');
-    if (st) st.textContent = (_provExtras.lat != null && _provExtras.lng != null) ? ('✓ Set (' + _provExtras.lat + ', ' + _provExtras.lng + ')') : 'Not set';
+    if (st) st.textContent = (_provExtras.lat != null && _provExtras.lng != null)
+      ? ('✓ Pin set (' + _provExtras.lat + ', ' + _provExtras.lng + ')')
+      : (_provExtras.mapsUrl ? 'Link saved — tap “Find pin” to set the pin' : 'No location set');
   }
 
   // ─── Init ───
