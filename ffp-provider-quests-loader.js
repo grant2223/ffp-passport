@@ -1,9 +1,15 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP PROVIDER CHECK-IN CONSOLE LOADER · v3
+   FFP PROVIDER CHECK-IN CONSOLE LOADER · v4
    File path: ffp-provider-quests-loader.js (repo root)
-   On-load log: [FFP Provider Check-ins v3] Loaded ✓
+   On-load log: [FFP Provider Check-ins v4] Loaded ✓
 
-   Injects three cards into #panel-checkins:
+   v4: the three queues now live in their OWN panels (Grant's restructure) —
+       Quest check-ins → #panel-quests (#ffp-q-quests),
+       Challenge results → #panel-challenges (#ffp-q-challenges, above #ch-tabs),
+       Event check-ins → #panel-checkins (#ffp-q-events, above Recent check-ins).
+       One data load (load()), three rendered cards. Was: all three in #panel-checkins.
+
+   Injects (v3 history) three cards:
      • Quest check-ins   — pending members who submitted a quest step → Approve / Decline
                            (provider_quest_approve stamps the step; on completion awards the
                             quest stamp + marks quest_progress completed).
@@ -80,15 +86,17 @@
 
   var qRows = [], qApproved = 0, cRows = [], eRows = [];
 
-  function ensureContainer() {
-    var panel = document.getElementById('panel-checkins');
+  // v4: each queue lives in its OWN panel — Quests → #panel-quests, Challenge results →
+  // #panel-challenges, Event check-ins → #panel-checkins. One data load, three cards.
+  function ensureCard(panelId, elId, beforeSelector) {
+    var panel = document.getElementById(panelId);
     if (!panel) return null;
-    var el = document.getElementById('ffp-q-checkins');
+    var el = document.getElementById(elId);
     if (!el) {
       el = document.createElement('div');
-      el.id = 'ffp-q-checkins';
-      var anchor = panel.querySelector('.checkin-card');
-      if (anchor) panel.insertBefore(el, anchor); else panel.appendChild(el);
+      el.id = elId;
+      var before = beforeSelector ? panel.querySelector(beforeSelector) : null;
+      if (before) panel.insertBefore(el, before); else panel.appendChild(el);
     }
     return el;
   }
@@ -144,28 +152,34 @@
   }
 
   function render() {
-    var el = ensureContainer();
-    if (!el) return;
-
-    var qList = qRows.length
-      ? '<div class="checkin-list">' + qRows.map(questRowHtml).join('') + '</div>'
-      : '<div class="qc-empty">No pending quest check-ins right now.</div>';
-    var qFoot = '<div class="qc-visitors"><span class="ms">flag</span> <b>' +
-      (qApproved >= 100 ? '100+' : qApproved) + '</b> quest check-ins approved at your venue</div>';
-
-    var cList = cRows.length
-      ? '<div class="checkin-list">' + cRows.map(challengeRowHtml).join('') + '</div>'
-      : '<div class="qc-empty">No challenge results waiting.</div>';
-
-    var html =
-      card('Quest check-ins', 'flag', 'Members who submitted a quest step. Approve to stamp it.', qRows.length, qList, qFoot) +
-      card('Challenge results', 'emoji_events', 'Scorecards members submitted. Verify to confirm.', cRows.length, cList, '');
-
-    if (eRows.length) {
-      var eList = '<div class="checkin-list">' + eRows.map(eventRowHtml).join('') + '</div>';
-      html += card('Event check-ins', 'event', 'Members who checked in to your events.', eRows.length, eList, '');
+    // QUESTS → #panel-quests
+    var qEl = ensureCard('panel-quests', 'ffp-q-quests', null);
+    if (qEl) {
+      var qList = qRows.length
+        ? '<div class="checkin-list">' + qRows.map(questRowHtml).join('') + '</div>'
+        : '<div class="qc-empty">No pending quest check-ins right now.</div>';
+      var qFoot = '<div class="qc-visitors"><span class="ms">flag</span> <b>' +
+        (qApproved >= 100 ? '100+' : qApproved) + '</b> quest check-ins approved at your venue</div>';
+      qEl.innerHTML = card('Quest check-ins', 'flag', 'Members who submitted a quest step. Approve to stamp it.', qRows.length, qList, qFoot);
     }
-    el.innerHTML = html;
+
+    // CHALLENGE RESULTS → #panel-challenges (above the listings)
+    var cEl = ensureCard('panel-challenges', 'ffp-q-challenges', '#ch-tabs');
+    if (cEl) {
+      var cList = cRows.length
+        ? '<div class="checkin-list">' + cRows.map(challengeRowHtml).join('') + '</div>'
+        : '<div class="qc-empty">No challenge results waiting to verify.</div>';
+      cEl.innerHTML = card('Challenge results', 'emoji_events', 'Scorecards members submitted. Verify to confirm.', cRows.length, cList, '');
+    }
+
+    // EVENT CHECK-INS → #panel-checkins (attendance, above "Recent check-ins")
+    var eEl = ensureCard('panel-checkins', 'ffp-q-events', '.section-head');
+    if (eEl) {
+      eEl.innerHTML = eRows.length
+        ? card('Event check-ins', 'event', 'Members who checked in to your events.', eRows.length,
+               '<div class="checkin-list">' + eRows.map(eventRowHtml).join('') + '</div>', '')
+        : '';
+    }
   }
 
   // ── data ──
@@ -206,13 +220,14 @@
 
   async function init() {
     var ok = await waitFor(function () {
-      return document.getElementById('panel-checkins') && providerId() && window.supabase;
+      return (document.getElementById('panel-quests') || document.getElementById('panel-challenges') || document.getElementById('panel-checkins'))
+        && providerId() && window.supabase;
     }, 30000);
-    if (!ok) { console.warn('[FFP Provider Check-ins] panel / provider / supabase not ready'); return; }
+    if (!ok) { console.warn('[FFP Provider Check-ins] panels / provider / supabase not ready'); return; }
     injectStyles();
     await load();
     setInterval(load, 20000);   // light poll so new requests appear without a manual refresh
-    console.log('[FFP Provider Check-ins v3] Loaded ✓');
+    console.log('[FFP Provider Check-ins v4] Loaded ✓ (Quests / Challenge results / Event check-ins split into panels)');
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
