@@ -1,4 +1,10 @@
-/* FFP Meet & Move Loader — v16
+/* FFP Meet & Move Loader — v17
+   v17 (2026-06-02): (1) HOST CAN CANCEL — host detail modal's footer button is now "Cancel this
+        meet-up" (red) → MeetMove.cancelMeetup() → cancel_meetup RPC (host-only; sets the meetup +
+        attendee RSVPs to 'cancelled' and inserts a notification for every joined attendee) → reload.
+        (2) Who's-going passports now resolve to FULL data — each fetched attendee/host is
+        registered into window.FFPCard (#62), so cards show photo/sports/passport # not a bare
+        fallback. (Hosting count fix is in the dashboard.)
    v16: Who's going count = people.length (host + accepted attendees) so the host is included.
    v15
    v15 (2026-06-01): join a meetup via join_meetup() RPC (direct meetup_attendees insert failed
@@ -414,7 +420,12 @@
       var peopleMap = {};
       if (attPeopleIds.length) {
         var pRes = await window.supabase.from('members').select('id, full_name, given_names, surname, photo_url, city, country, gender, tier, skills, created_at').in('id', attPeopleIds);
-        (pRes.data || []).forEach(function (mp) { peopleMap[mp.id] = mp; var ps = personShape(mp); if (ps) peopleById[mp.id] = ps; });
+        (pRes.data || []).forEach(function (mp) {
+          peopleMap[mp.id] = mp; var ps = personShape(mp); if (ps) peopleById[mp.id] = ps;
+          // feed the ONE canonical card cache so Who's-going passports resolve to full data
+          // (photo, sports, passport #) instead of a bare fallback. (#62)
+          if (window.FFPCard && window.FFPCard.register) { try { window.FFPCard.register(mp); } catch (e) {} }
+        });
       }
       MeetMove.data = meetups.map(function (m) {
         var host = hostMap[m.host_member_id] || null;
@@ -462,12 +473,37 @@
           }
         } catch (e) {}
         if (m.isHostedByMe) {
+          // host gets a Cancel control (was a disabled "You're hosting this" button)
           var btn = document.querySelector('.dm-footer .btn-primary-yellow');
-          if (btn) { btn.textContent = "You're hosting this"; btn.disabled = true; btn.onclick = function (e) { e.preventDefault(); }; btn.style.opacity = '0.7'; btn.style.cursor = 'default'; }
+          if (btn) {
+            btn.textContent = 'Cancel this meet-up';
+            btn.disabled = false;
+            btn.style.background = '#ef4444'; btn.style.color = '#fff'; btn.style.opacity = '1'; btn.style.cursor = 'pointer';
+            btn.onclick = function (e) { e.preventDefault(); MeetMove.cancelMeetup(m.id); };
+          }
           var note = document.querySelector('.dm-footer-note');
-          if (note) note.textContent = 'Members request to join. Approve them in your hosted list.';
+          if (note) note.textContent = "You're hosting this. Anyone who joined will be notified if you cancel.";
         }
       }, 0);
+    };
+
+    // Host-only: cancel a meet-up → cancel_meetup RPC (notifies joined attendees) → reload.
+    MeetMove.cancelMeetup = async function (id) {
+      if (!currentUserId) return;
+      var m = (this.data || []).find(function (x) { return x.id === id; });
+      var name = m ? m.activity : 'this meet-up';
+      if (!window.confirm('Cancel “' + name + '”?\n\nAnyone who joined will be notified. This can’t be undone.')) return;
+      try {
+        var res = await window.supabase.rpc('cancel_meetup', { p_me: currentUserId, p_meetup: id });
+        if (res.error || !res.data || res.data.ok === false) {
+          if (typeof showToast === 'function') showToast((res.data && res.data.error) || 'Couldn’t cancel — please try again', 'error');
+          return;
+        }
+        var n = res.data.notified || 0;
+        if (typeof showToast === 'function') showToast('Meet-up cancelled' + (n ? ' · ' + n + ' member' + (n === 1 ? '' : 's') + ' notified' : ''), 'success');
+        if (typeof closeDetailModal === 'function') closeDetailModal();
+        if (typeof window.ffpReloadMeetMove === 'function') window.ffpReloadMeetMove();
+      } catch (e) { if (typeof showToast === 'function') showToast('Couldn’t cancel — please try again', 'error'); }
     };
   }
 
