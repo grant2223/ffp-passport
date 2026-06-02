@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v216 (2026-06-02)
+<!-- FFP MEMBER DASHBOARD — v217 (2026-06-02)
+     v217: fitness-stats loader hardened to v15.1 (write-wrappers now install before any network
+           call so saves can't silently no-op) — lazy ref bumped to ?v=16. DB/RPC verified: the
+           anon role can execute member_profile_meta_save and it persists, so saving works once
+           BOTH this dashboard and the v15.1 loader are deployed.
+     v216: Fitness Stats — (a) records/health/weight/sleep SAVE FIX via member_profile_meta_save
      v216: Fitness Stats — (a) records/health/weight/sleep SAVE FIX via member_profile_meta_save
            RPC (loader v15; direct profile_meta writes hit the member auth.uid trap → never saved,
            which also left BioAge empty). (b) PR-edit + Sleep modals are now FULL-SCREEN on mobile
@@ -7156,7 +7161,7 @@ function setupPanelNav() {
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
-    'panel-fitness-stats':   'assets/ffp-fitness-stats-loader.js?v=15',
+    'panel-fitness-stats':   'assets/ffp-fitness-stats-loader.js?v=16',
     'panel-meet':            'assets/ffp-meet-move-loader.js',
     'panel-events':          'assets/ffp-member-discovery-loader.js',
     'panel-experiences':     'assets/ffp-member-discovery-loader.js',
