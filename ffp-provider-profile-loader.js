@@ -1,4 +1,8 @@
-/* FFP Provider Profile Loader — v10
+/* FFP Provider Profile Loader — v11
+   v11 (2026-06-02): TABBED profile (Branding / Business info / Activities). The "Activities we
+       offer" field now injects into the Activities tab (#pf-activities-host); the "Google Maps
+       link" (venue location) stays in Business info, after Address. Falls back to the old
+       after-Address layout if #pf-activities-host isn't present.
    v10 (2026-06-02): SAVE now goes through the provider_save_profile SECURITY DEFINER RPC
        (updates providers incl. activities/latitude/longitude/maps_url + replaces provider_hours
        in one call). Fixes the auth.uid() trap: the old direct providers.update silently wrote 0
@@ -464,17 +468,20 @@
       '<div class="pf-extras-add"><input id="pf-maps-url" class="input" placeholder="Paste your Google Maps link (any format)"><button type="button" id="pf-loc-btn" class="pf-extras-btn">Find pin</button></div>' +
       '<span id="pf-loc-status" class="pf-loc-status">No location set</span>';
 
+    // v11: tabbed profile — Activities (f1) lives in the Activities tab (#pf-activities-host);
+    // the Google Maps link (f2) is venue location, so it sits in Business info after Address.
+    var host = document.getElementById('pf-activities-host');
+    if (host) { host.appendChild(f1); }
     var addr = document.getElementById('pf-address');
     var addrField = (addr && addr.closest) ? addr.closest('.field') : null;
     if (addrField && addrField.parentNode) {
-      // insert after Address: f1 (activities) then f2 (maps link)
       addrField.parentNode.insertBefore(f2, addrField.nextSibling);
-      addrField.parentNode.insertBefore(f1, addrField.nextSibling);
+      if (!host) addrField.parentNode.insertBefore(f1, addrField.nextSibling);   // fallback: old layout
     } else {
       var saveBtn = panel.querySelector('.btn-pri');
       var anchor = saveBtn ? (saveBtn.closest('.form-actions') || saveBtn) : null;
-      if (anchor && anchor.parentNode) { anchor.parentNode.insertBefore(f1, anchor); anchor.parentNode.insertBefore(f2, anchor); }
-      else { panel.appendChild(f1); panel.appendChild(f2); }
+      if (anchor && anchor.parentNode) { if (!host) anchor.parentNode.insertBefore(f1, anchor); anchor.parentNode.insertBefore(f2, anchor); }
+      else { if (!host) panel.appendChild(f1); panel.appendChild(f2); }
     }
     document.getElementById('pf-act-add').onclick = addAct;
     document.getElementById('pf-act-input').onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); addAct(); } };
