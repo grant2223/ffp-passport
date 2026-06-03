@@ -1,4 +1,14 @@
-<!-- FFP MEMBER DASHBOARD — v238 (2026-06-03)
+<!-- FFP MEMBER DASHBOARD — v239 (2026-06-03)
+     v239: (Grant tweaks) PASSPORT FILTER CARDS are now PURE COVER IMAGES — 3-col grid (3 top / 2
+           bottom), no text overlay/scrim/count, no "All passports" card (tap the selected cover again
+           to clear; "Clear all" in the modal footer also resets). Non-selected covers dim when one is
+           chosen (#jm-passports.has-sel). Coloured-label fallback only shows if an image 404s.
+           REVIEW PROMPT MOVED TO NOTIFICATIONS: the passport-panel review card (#review-prompts) is
+           removed; pending reviews now appear in the notifications bell as "How was your session? —
+           <Provider> (<activity>)" items (loadNotifications merges ReviewPrompt.pending(); badge count
+           includes them). Tapping one opens the rating modal, whose header now shows the PROVIDER LOGO
+           + business name + the session/activity they did (member_pending_reviews RPC now returns
+           provider_name + logo_url). ReviewPrompt.load() refreshes the bell instead of rendering a card.
      v238: HOTFIX for v237 — renderPassportPicker()/updateMapFilterUI() (top-level fns) called esc(),
            but esc is NOT global (it's local to several IIFEs); the global escaper is escHtml(). The
            ReferenceError threw on the FIRST line of renderAll() (renderPassportPicker runs first), so
@@ -2940,6 +2950,9 @@ input[type="number"] {
 .rv-stars { display: inline-flex; gap: 2px; }
 .rv-star { font-size: 28px; color: var(--border-mid); cursor: pointer; user-select: none; transition: color .08s; }
 .rv-star.on { color: #FFCC00; }
+.rv-logo { width: 52px; height: 52px; border-radius: 12px; flex: 0 0 auto; overflow: hidden; background: rgba(43,168,224,0.12); display: flex; align-items: center; justify-content: center; color: var(--blue); }
+.rv-logo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rv-logo .material-icons { font-size: 26px; }
 .detail-modal { background: linear-gradient(180deg, #0f1e2e 0%, #081420 100%); border: 1px solid var(--border-mid); border-radius: 18px; max-width: 540px; width: 100%; max-height: calc(100vh - 40px); overflow-y: auto; box-shadow: 0 32px 80px rgba(0,0,0,0.7); position: relative; margin: auto; }
 .detail-modal::-webkit-scrollbar { display: none; }
 .detail-modal { scrollbar-width: none; }
@@ -4251,9 +4264,6 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
        ═══════════════════════════════════════════════════════════════ -->
   <div id="panel-passport" class="panel-view active">
 
-  <!-- PENDING PROVIDER REVIEWS (rate your session ~1h after a venue check-in) -->
-  <div id="review-prompts"></div>
-
   <!-- PASSPORT CARD -->
   <div class="pass-container" id="pass-card-tap" onclick="sharePassportCard()" role="button" tabindex="0" title="Tap to share your passport" style="cursor:pointer;">
     <div class="pass-shell">
@@ -4463,24 +4473,15 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     .jm-active-summary .pill{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.05);border:1px solid var(--border-mid);border-radius:100px;padding:3px 10px;font-weight:700;color:var(--text);}
     .jm-active-summary .pill .material-icons{font-size:14px;}
     /* Passport picker as image cards (inside the filter modal) */
-    #map-filter-backdrop .jm-passports{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:0;}
-    .jm-pcard{position:relative;border-radius:14px;overflow:hidden;cursor:pointer;border:2.5px solid transparent;background:#0f1e2e;aspect-ratio:3/4;display:flex;align-items:flex-end;font-family:inherit;padding:0;text-align:left;transition:border-color .15s, transform .1s;}
+    #map-filter-backdrop .jm-passports{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:0;}
+    .jm-pcard{position:relative;border-radius:12px;overflow:hidden;cursor:pointer;border:2.5px solid transparent;background:#0f1e2e;aspect-ratio:3/4;display:block;font-family:inherit;padding:0;transition:border-color .15s, transform .1s, opacity .15s;}
     .jm-pcard:active{transform:scale(.98);}
-    .jm-pcard .jm-pcard-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
-    .jm-pcard .jm-pcard-fallback{position:absolute;inset:0;background:var(--pc,#2ba8e0);opacity:.85;}
-    .jm-pcard .jm-pcard-scrim{position:absolute;inset:0;background:linear-gradient(to top, rgba(4,12,20,.92) 0%, rgba(4,12,20,.25) 55%, rgba(4,12,20,.05) 100%);}
-    .jm-pcard .jm-pcard-body{position:relative;z-index:1;padding:10px 12px 12px;width:100%;}
-    .jm-pcard .jm-pcard-label{font-size:14px;font-weight:900;color:#fff;letter-spacing:.3px;line-height:1.1;}
-    .jm-pcard .jm-pcard-count{font-size:11px;font-weight:700;color:rgba(255,255,255,.8);margin-top:2px;}
+    .jm-pcard .jm-pcard-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;}
+    /* fallback only appears if the image fails to load (toggled in onerror) */
+    .jm-pcard .jm-pcard-fallback{position:absolute;inset:0;display:none;align-items:center;justify-content:center;text-align:center;padding:8px;background:var(--pc,#2ba8e0);color:#06121d;font-size:13px;font-weight:900;letter-spacing:.3px;}
     .jm-pcard.on{border-color:var(--pc,#FFCC00);}
-    .jm-pcard .jm-pcard-check{position:absolute;top:8px;right:8px;z-index:2;width:24px;height:24px;border-radius:50%;background:var(--pc,#FFCC00);color:#06121d;display:none;align-items:center;justify-content:center;}
-    .jm-pcard .jm-pcard-check .material-icons{font-size:16px;}
-    .jm-pcard.on .jm-pcard-check{display:flex;}
-    .jm-pcard-all{aspect-ratio:auto;grid-column:1/-1;flex-direction:row;align-items:center;gap:10px;padding:13px 15px;border:2.5px solid var(--border-mid);background:rgba(255,255,255,.04);}
-    .jm-pcard-all.on{border-color:#FFCC00;background:rgba(255,204,0,.10);}
-    .jm-pcard-all .material-icons{font-size:22px;color:var(--muted);}
-    .jm-pcard-all .jm-pcard-label{color:var(--text);}
-    .jm-pcard-all .jm-pcard-count{color:var(--muted);margin-top:0;margin-left:auto;}
+    /* dim the non-selected covers once a passport is chosen */
+    #jm-passports.has-sel .jm-pcard:not(.on){opacity:.45;}
     /* Filter modal: Country/City selects stack full-width with labels */
     #map-filter-backdrop .jm-chips{flex-direction:column;align-items:stretch;gap:10px;margin-bottom:0;}
     #map-filter-backdrop .jm-sel{width:100%;flex:none;}
@@ -5931,10 +5932,10 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     <button class="dm-close" onclick="ReviewPrompt.close()"><span class="material-icons">close</span></button>
     <div class="activity-add-body">
       <div class="activity-add-head">
-        <div class="activity-add-icon-lg"><span class="material-icons">reviews</span></div>
+        <div class="rv-logo" id="rv-logo"><span class="material-icons">storefront</span></div>
         <div>
-          <div class="activity-add-name">Rate your session</div>
-          <div class="activity-add-sub" id="rv-venue">—</div>
+          <div class="activity-add-name" id="rv-provider">—</div>
+          <div class="activity-add-sub" id="rv-session">How was your session?</div>
         </div>
       </div>
 
@@ -6958,30 +6959,18 @@ function setPassport(id) {
 function renderPassportPicker() {
   updateMapFilterUI();
   const el = document.getElementById('jm-passports'); if (!el) return;
-  const base = getLocationLogs();
-  const counts = {}; base.forEach(function (l) { var p = passportForLog(l); if (p) counts[p] = (counts[p] || 0) + 1; });
   const cur = state.selectedPassport;
-  // "All passports" — full-width row card
-  let html = '<button type="button" class="jm-pcard jm-pcard-all' + (!cur ? ' on' : '') + '" onclick="setPassport(null)">'
-    + '<span class="material-icons">public</span>'
-    + '<span class="jm-pcard-label">All passports</span>'
-    + '<span class="jm-pcard-count">' + base.length + '</span></button>';
-  // One image card per passport type
-  html += getPassports().map(function (p) {
-    var n = counts[p.id] || 0;
+  // Pure passport-cover images (3 top / 2 bottom). Tap to filter; tap the selected one again to clear.
+  el.innerHTML = getPassports().map(function (p) {
     var img = p.img
-      ? '<img class="jm-pcard-img" src="' + escHtml(p.img) + '" alt="' + escHtml(p.label) + '" loading="lazy" onerror="this.style.display=\'none\'">'
+      ? '<img class="jm-pcard-img" src="' + escHtml(p.img) + '" alt="' + escHtml(p.label) + '" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.querySelector(\'.jm-pcard-fallback\').style.display=\'flex\';">'
       : '';
-    return '<button type="button" class="jm-pcard' + (cur === p.id ? ' on' : '') + '" style="--pc:' + p.color + ';" onclick="setPassport(\'' + p.id + '\')">'
+    return '<button type="button" class="jm-pcard' + (cur === p.id ? ' on' : '') + '" style="--pc:' + p.color + ';" title="' + escHtml(p.label) + '" onclick="setPassport(\'' + p.id + '\')">'
       + img
-      + '<span class="jm-pcard-fallback"></span>'
-      + '<span class="jm-pcard-scrim"></span>'
-      + '<span class="jm-pcard-check"><span class="material-icons">check</span></span>'
-      + '<span class="jm-pcard-body"><span class="jm-pcard-label">' + escHtml(p.label) + '</span>'
-      + '<span class="jm-pcard-count">' + n + ' ' + (n === 1 ? 'activity' : 'activities') + '</span></span>'
+      + '<span class="jm-pcard-fallback">' + escHtml(p.label) + '</span>'
       + '</button>';
   }).join('');
-  el.innerHTML = html;
+  el.classList.toggle('has-sel', !!cur);
 }
 // ===== Map filters modal (Filters button → full-screen sheet) =====
 function openMapFilters() {
@@ -7715,24 +7704,37 @@ async function loadConnectionsCount() {
 async function loadNotifications() {
   var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
   if (!member || !member.id) return;
+  var listEl = document.getElementById('notif-list');
+  var badge = document.getElementById('notif-badge');
+  // Pending provider reviews surface as "How was your session?" notifications (tap \u2192 rating modal).
+  var reviews = (typeof ReviewPrompt !== 'undefined' && ReviewPrompt.pending) ? ReviewPrompt.pending() : [];
+  var reviewHtml = reviews.map(function (r) {
+    return '<div class="notif-item unread" style="cursor:pointer;" onclick="ReviewPrompt.open(\'' + r.id + '\')">' +
+      '<div class="notif-icon"><span class="material-icons" style="font-size:18px;">reviews</span></div>' +
+      '<div><div class="notif-msg">How was your session? \u2014 ' + escNotif(r.provider_name || r.venue || 'your visit') +
+        (r.activity ? ' (' + escNotif(r.activity) + ')' : '') + '</div>' +
+      '<div class="notif-time">Tap to rate \u00b7 ' + notifTime(r.logged_at) + '</div></div></div>';
+  }).join('');
+  var backendHtml = '', unread = 0;
   try {
     var res = await fetch(FFP_API_NOTIF + '/api/notifications/' + member.id);
     var json = await res.json();
     var list = (json && json.notifications) || [];
-    var listEl = document.getElementById('notif-list');
-    if (listEl) {
-      listEl.innerHTML = list.length ? list.map(function (n) {
-        return '<div class="notif-item"><div class="notif-icon"><span class="material-icons" style="font-size:18px;">' + escNotif(n.icon || 'campaign') + '</span></div>' +
-          '<div><div class="notif-msg">' + escNotif(n.title) + (n.body ? ' \u2014 ' + escNotif(n.body) : '') + '</div><div class="notif-time">' + notifTime(n.created_at) + '</div></div></div>';
-      }).join('') : '<div class="empty-state" style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">No notifications yet</div>';
-    }
-    var badge = document.getElementById('notif-badge');
-    if (badge) {
-      var u = (json && json.unread) || 0;
-      if (u > 0) { badge.textContent = u > 9 ? '9+' : String(u); badge.style.display = ''; }
-      else { badge.style.display = 'none'; }
-    }
+    unread = (json && json.unread) || 0;
+    backendHtml = list.map(function (n) {
+      return '<div class="notif-item"><div class="notif-icon"><span class="material-icons" style="font-size:18px;">' + escNotif(n.icon || 'campaign') + '</span></div>' +
+        '<div><div class="notif-msg">' + escNotif(n.title) + (n.body ? ' \u2014 ' + escNotif(n.body) : '') + '</div><div class="notif-time">' + notifTime(n.created_at) + '</div></div></div>';
+    }).join('');
   } catch (e) { console.error('[FFP Notif] load:', e); }
+  if (listEl) {
+    var combined = reviewHtml + backendHtml;
+    listEl.innerHTML = combined || '<div class="empty-state" style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">No notifications yet</div>';
+  }
+  if (badge) {
+    var total = unread + reviews.length;
+    if (total > 0) { badge.textContent = total > 9 ? '9+' : String(total); badge.style.display = ''; }
+    else { badge.style.display = 'none'; }
+  }
 }
 async function markNotifsSeen() {
   var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
@@ -13394,61 +13396,46 @@ var ReviewPrompt = (function () {
   var state = { log: null, stars: { overall: 0, experience: 0, service: 0, facilities: 0 } };
   var PENDING = [];
 
-  function esc(t) {
-    return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
-    });
-  }
-  function dismissedSet() {
-    try { return new Set(JSON.parse(localStorage.getItem('ffp_dismissed_reviews') || '[]')); }
-    catch (e) { return new Set(); }
-  }
-  function dismiss(logId) {
-    var s = dismissedSet(); s.add(logId);
-    try { localStorage.setItem('ffp_dismissed_reviews', JSON.stringify(Array.from(s))); } catch (e) {}
-    render();
-  }
-
   async function load() {
-    var host = document.getElementById('review-prompts');
-    if (!host) return;
     var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
-    if (!member || !member.id || !window.supabase) { host.innerHTML = ''; return; }
+    if (!member || !member.id || !window.supabase) { PENDING = []; return; }
     try {
       var res = await window.supabase.rpc('member_pending_reviews', { p_me: member.id });
       if (res.error) throw res.error;
       PENDING = res.data || [];
-      render();
-    } catch (e) { console.error('[FFP Review] load:', e); }
+    } catch (e) { console.error('[FFP Review] load:', e); PENDING = []; }
+    // pending reviews surface as "How was your session?" NOTIFICATIONS — refresh the bell.
+    if (typeof loadNotifications === 'function') loadNotifications();
   }
 
-  function render() {
-    var host = document.getElementById('review-prompts');
-    if (!host) return;
-    var dis = dismissedSet();
-    var rows = PENDING.filter(function (r) { return !dis.has(r.id); });
-    if (!rows.length) { host.innerHTML = ''; return; }
-    host.innerHTML = rows.map(function (r) {
-      var venue = r.venue || 'your session';
-      return '<div class="review-card">' +
-        '<div class="review-card-icon"><span class="material-icons">reviews</span></div>' +
-        '<div class="review-card-body">' +
-          '<div class="review-card-title">Rate your session at ' + esc(venue) + '</div>' +
-          '<div class="review-card-sub">' + esc(r.activity || 'Activity') + ' · help others by sharing how it went</div>' +
-        '</div>' +
-        '<button class="review-card-cta" onclick="ReviewPrompt.open(\'' + r.id + '\')">Rate now</button>' +
-        '<button class="review-card-x" title="Dismiss" onclick="ReviewPrompt.dismiss(\'' + r.id + '\')">&times;</button>' +
-      '</div>';
-    }).join('');
-  }
+  function pending() { return PENDING.slice(); }
 
   function open(logId) {
     var log = PENDING.filter(function (r) { return r.id === logId; })[0];
     if (!log) return;
     state.log = log;
     state.stars = { overall: 0, experience: 0, service: 0, facilities: 0 };
-    var v = document.getElementById('rv-venue');
-    if (v) v.textContent = log.venue || 'Your session';
+    // Branded header: provider logo + name + the session they did (if logged).
+    var logoEl = document.getElementById('rv-logo');
+    if (logoEl) {
+      if (log.logo_url) {
+        logoEl.innerHTML = '<img src="' + escHtml(log.logo_url) + '" alt="">';
+        var im = logoEl.querySelector('img');
+        if (im) im.onerror = function () { logoEl.innerHTML = '<span class="material-icons">storefront</span>'; };
+      } else {
+        logoEl.innerHTML = '<span class="material-icons">storefront</span>';
+      }
+    }
+    var nameEl = document.getElementById('rv-provider');
+    if (nameEl) nameEl.textContent = log.provider_name || log.venue || 'Your session';
+    var sessEl = document.getElementById('rv-session');
+    if (sessEl) {
+      var bits = [];
+      if (log.activity) bits.push(log.activity);
+      var d = log.logged_at ? new Date(log.logged_at) : null;
+      if (d && !isNaN(d.getTime())) bits.push(d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }));
+      sessEl.textContent = bits.length ? bits.join(' · ') : 'How was your session?';
+    }
     var c = document.getElementById('rv-comment'); if (c) c.value = '';
     var err = document.getElementById('rv-error'); if (err) err.style.display = 'none';
     ['overall', 'experience', 'service', 'facilities'].forEach(function (k) { paint(k); });
@@ -13503,10 +13490,10 @@ var ReviewPrompt = (function () {
       });
       if (res.error) throw res.error;
       if (!res.data) throw new Error('Could not save — this check-in could not be verified.');
-      // success: drop the prompt + close
+      // success: drop the prompt, close, and refresh the notifications bell
       PENDING = PENDING.filter(function (r) { return r.id !== state.log.id; });
       close();
-      render();
+      if (typeof loadNotifications === 'function') loadNotifications();
       if (typeof showToast === 'function') showToast('Thanks for your review!', 'success');
     } catch (e) {
       console.error('[FFP Review] submit:', e);
@@ -13516,7 +13503,7 @@ var ReviewPrompt = (function () {
     }
   }
 
-  return { load: load, open: open, set: set, submit: submit, close: close, dismiss: dismiss };
+  return { load: load, open: open, set: set, submit: submit, close: close, pending: pending };
 })();
 
 function setupLogPickers() {
