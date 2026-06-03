@@ -1,4 +1,9 @@
-/* FFP Taxonomy - v6 (2026-06-03)
+/* FFP Taxonomy - v7 (2026-06-03)
+   v7: ALPHABETICAL at the source. Name lists — activity, nationality, country, city, category,
+       provider_type — now hydrate A–Z (cities A–Z within each country, countries A–Z), so every form
+       on every dashboard inherits alphabetical order from one place. Ordinal lists keep their
+       meaningful sort_order: fitness_level (Not Tried→Professional), age_group, gym_size, gender,
+       experience_type, passport.
    v6: + provider classification lists exposed on FFP_TAX — providerTypes (list_key 'provider_type')
        + gymSizes ('gym_size'), hydrated from the DB like the rest. provider_type is ONE unified
        concept (Gym / Studio / Event Organizer / Sports Club / Team / Adventure Provider / Health Food
@@ -271,9 +276,14 @@
   function apply(rows) {
     var by = {};
     rows.forEach(function (r) { (by[r.list_key] = by[r.list_key] || []).push(r); });
+    // Name lists sort A–Z everywhere; ordinal lists (fitness_level, age_group, gym_size, gender,
+    // experience_type, passport) keep their meaningful sort_order. One source → every form inherits it.
+    var ALPHA = { activity: 1, nationality: 1, country: 1, city: 1, category: 1, provider_type: 1 };
     function vals(k) {
-      return (by[k] || []).sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); })
-        .map(function (r) { return r.label || r.value; });
+      var arr = (by[k] || []).slice();
+      if (ALPHA[k]) arr.sort(function (a, b) { return String(a.label || a.value).localeCompare(String(b.label || b.value)); });
+      else arr.sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
+      return arr.map(function (r) { return r.label || r.value; });
     }
     if (by.activity) {
       var names = vals('activity');
@@ -305,9 +315,11 @@
     if (by.city && by.city.length) {
       // rebuild the country -> [cities] map in place from the country + city lists
       var cityByCountry = {};
-      by.city.slice().sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); })
-        .forEach(function (r) { if (r.parent) (cityByCountry[r.parent] = cityByCountry[r.parent] || []).push(r.label || r.value); });
-      var order = (by.country || []).slice().sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); }).map(function (r) { return r.value; });
+      by.city.slice().forEach(function (r) { if (r.parent) (cityByCountry[r.parent] = cityByCountry[r.parent] || []).push(r.label || r.value); });
+      // cities A–Z within each country
+      Object.keys(cityByCountry).forEach(function (c) { cityByCountry[c].sort(function (a, b) { return String(a).localeCompare(String(b)); }); });
+      // countries A–Z
+      var order = (by.country || []).slice().sort(function (a, b) { return String(a.label || a.value).localeCompare(String(b.label || b.value)); }).map(function (r) { return r.value; });
       Object.keys(T.cities).forEach(function (k) { delete T.cities[k]; });
       order.forEach(function (c) { if (cityByCountry[c]) T.cities[c] = cityByCountry[c]; });
       Object.keys(cityByCountry).forEach(function (c) { if (!T.cities[c]) T.cities[c] = cityByCountry[c]; });
