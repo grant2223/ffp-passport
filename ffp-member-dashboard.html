@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v234 (2026-06-03)
+<!-- FFP MEMBER DASHBOARD — v235 (2026-06-03)
+     v235: Pick A Passport mapping is now TAXONOMY-DRIVEN — passport list + category→passport come
+           from FFP_TAX.passports / FFP_TAX.categoryPassport (admin sets each category's passport in
+           the Taxonomies panel). Colours/icons stay in code (PASSPORT_META); legacy keyword fallback
+           retained. Rebuilds on 'ffp-tax-ready'. Needs ffp-taxonomy.js v5.
      v234: "PICK A PASSPORT" on the World Map — a themed lens. Pills (All · Sports · Fitness ·
            Wellness · Adventure · Health Food) above the map filter the pins + Top Activities/Places
            and recolour pins to the passport's colour. v1 FIXED category→passport mapping (PASSPORTS
@@ -6742,21 +6746,22 @@ const state = {
 };
 
 // ===== PASSPORTS (Pick A Passport — a themed lens over the map) =====
-// v1 FIXED mapping (category → passport). cats include both the DB/provider category names
-// (Fitness, Wellness, Padel…) AND legacy activity-category names so it catches either data shape.
-// Next step: drive this from the Taxonomy so it's admin-editable.
-const PASSPORTS = [
-  { id: 'sports',    label: 'Sports',      icon: 'sports_soccer',    color: '#2ba8e0',
-    cats: ['padel','combat sports','team sports','racquet sports','golf','ball sports','cycling'] },
-  { id: 'fitness',   label: 'Fitness',     icon: 'fitness_center',   color: '#FFCC00',
-    cats: ['fitness','coaching','gym','strength','running & walking','running','crossfit'] },
-  { id: 'wellness',  label: 'Wellness',    icon: 'self_improvement', color: '#22c55e',
-    cats: ['wellness','yoga & pilates','mind-body','recovery','meditation'] },
-  { id: 'adventure', label: 'Adventure',   icon: 'terrain',          color: '#f59e0b',
-    cats: ['adventure','climbing','watersports','snow sports','hiking','outdoor'] },
-  { id: 'food',      label: 'Health Food', icon: 'restaurant',       color: '#ef4444',
-    cats: ['nutrition','retail','health food','cafe'] }
-];
+// DB-DRIVEN: the passport LIST + which category maps to which passport both come from the
+// Taxonomy (FFP_TAX.passports + FFP_TAX.categoryPassport, hydrated from taxonomy_items). Admin
+// controls the mapping in the Taxonomies panel. Only the colour/icon per passport lives here.
+// A legacy keyword fallback catches activity-category names that differ from provider categories.
+const PASSPORT_META = {
+  sports:    { color: '#2ba8e0', icon: 'sports_soccer',    legacy: ['padel','combat sports','team sports','racquet sports','golf','ball sports','cycling'] },
+  fitness:   { color: '#FFCC00', icon: 'fitness_center',   legacy: ['fitness','coaching','gym','strength','running & walking','running','crossfit'] },
+  wellness:  { color: '#22c55e', icon: 'self_improvement', legacy: ['wellness','yoga & pilates','mind-body','recovery','meditation'] },
+  adventure: { color: '#f59e0b', icon: 'terrain',          legacy: ['adventure','climbing','watersports','snow sports','hiking','outdoor'] },
+  food:      { color: '#ef4444', icon: 'restaurant',       legacy: ['nutrition','retail','health food','cafe'] }
+};
+function getPassports() {   // [{id,label,color,icon}] — list from taxonomy, colour/icon from meta
+  var list = (window.FFP_TAX && FFP_TAX.passports && FFP_TAX.passports.length) ? FFP_TAX.passports
+    : [{id:'sports',label:'Sports'},{id:'fitness',label:'Fitness'},{id:'wellness',label:'Wellness'},{id:'adventure',label:'Adventure'},{id:'food',label:'Health Food'}];
+  return list.map(function (p) { var m = PASSPORT_META[p.id] || {}; return { id: p.id, label: p.label, color: m.color || '#2ba8e0', icon: m.icon || 'sports' }; });
+}
 let _actCat = null;
 function catForActivity(name) {                       // activity name → its taxonomy category
   if (!name) return null;
@@ -6765,13 +6770,16 @@ function catForActivity(name) {                       // activity name → its t
 }
 function passportForCat(cat) {
   if (!cat) return null;
-  cat = String(cat).toLowerCase();
-  for (var i = 0; i < PASSPORTS.length; i++) { if (PASSPORTS[i].cats.indexOf(cat) !== -1) return PASSPORTS[i].id; }
+  var map = (window.FFP_TAX && FFP_TAX.categoryPassport) || {};
+  if (map[cat]) return map[cat];                                   // exact match (DB)
+  var lc = String(cat).toLowerCase();
+  for (var k in map) { if (k.toLowerCase() === lc) return map[k]; } // case-insensitive DB match
+  for (var id in PASSPORT_META) { if ((PASSPORT_META[id].legacy || []).indexOf(lc) !== -1) return id; } // legacy fallback
   return null;
 }
 function passportForLog(l) { return passportForCat(l.category || catForActivity(l.activity)); }
-function passportById(id) { for (var i = 0; i < PASSPORTS.length; i++) { if (PASSPORTS[i].id === id) return PASSPORTS[i]; } return null; }
-function passportColor(id) { var p = passportById(id); return p ? p.color : null; }
+function passportById(id) { var ps = getPassports(); for (var i = 0; i < ps.length; i++) { if (ps[i].id === id) return ps[i]; } return null; }
+function passportColor(id) { var p = passportById(id); return p ? p.color : (PASSPORT_META[id] && PASSPORT_META[id].color) || null; }
 
 // ===== HELPERS =====
 // Location/time scope only (no passport) — used to tally per-passport counts for the picker.
@@ -6805,12 +6813,14 @@ function renderPassportPicker() {
   const cur = state.selectedPassport;
   let html = '<button type="button" class="jm-pass' + (!cur ? ' on' : '') + '" style="--pc:#8a99a8;" onclick="setPassport(null)">'
     + '<span class="material-icons">public</span>All <b>' + base.length + '</b></button>';
-  html += PASSPORTS.map(function (p) {
+  html += getPassports().map(function (p) {
     return '<button type="button" class="jm-pass' + (cur === p.id ? ' on' : '') + '" style="--pc:' + p.color + ';" onclick="setPassport(\'' + p.id + '\')">'
       + '<span class="material-icons">' + p.icon + '</span>' + p.label + ' <b>' + (counts[p.id] || 0) + '</b></button>';
   }).join('');
   el.innerHTML = html;
 }
+// When the DB taxonomy hydrates (or admin edits passports), rebuild the picker + map mapping.
+document.addEventListener('ffp-tax-ready', function () { _actCat = null; if (typeof renderAll === 'function' && document.getElementById('jm-passports')) renderAll(); });
 
 function timeAgo(days) {
   if (days === 0) return 'today';
