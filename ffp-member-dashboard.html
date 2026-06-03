@@ -1,4 +1,15 @@
-<!-- FFP MEMBER DASHBOARD — v236 (2026-06-03)
+<!-- FFP MEMBER DASHBOARD — v237 (2026-06-03)
+     v237: WORLD MAP FILTERS REDESIGN. The passport pills + Country/City dropdowns no longer sit above
+           the map. A "Filters" button now sits opposite the "World Map" title → opens a full-bleed
+           modal (#map-filter-backdrop, .detail-backdrop dm-full) containing the Country + City selects
+           (#jm-chips) then the 5 passport-type cards (#jm-passports) below — rendered as IMAGE cards
+           using assets/{sports,fitness,wellness,adventure,health-food}-passport.png (coloured-label
+           fallback via onerror + .jm-pcard-fallback if an image is missing). Above the map a compact
+           summary (#jm-active-summary) shows the current location + passport; the Filters button shows
+           an active-count badge. New: openMapFilters/closeMapFilters/clearMapFilters/updateMapFilterUI;
+           renderPassportPicker rewritten to image cards (still driven by getPassports + per-passport
+           counts; same state.selectedPassport/selectedCountry/selectedCity + renderChips logic). Modal
+           stays open while selecting (re-renders update it in place). NEW IMAGES go in assets/.
      v236: PROVIDER REVIEW PROMPT. ~1h after a venue check-in, an in-app "Rate your session at
            [Venue]" card appears at the top of the Passport panel (#review-prompts), driven by
            the member_pending_reviews RPC. Tapping "Rate now" opens a star modal (Overall +
@@ -4437,18 +4448,80 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     .leaflet-popup-tip{background:#0f1e2e;border:1px solid rgba(43,168,224,.3);}
     .jm-pop-t{font-weight:800;font-size:13px;}
     .jm-pop-s{font-size:11px;color:#9dbdd0;margin-top:2px;}
+    /* Filters button (opposite the World Map title) + active summary */
+    .jm-filter-btn{display:inline-flex;align-items:center;gap:6px;background:rgba(43,168,224,.10);border:1.5px solid var(--border-mid);color:var(--text);border-radius:100px;padding:7px 14px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;transition:all .15s;}
+    .jm-filter-btn:hover{border-color:var(--blue);}
+    .jm-filter-btn .material-icons{font-size:17px;color:var(--blue);}
+    .jm-filter-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--yellow);color:#082335;font-size:11px;font-weight:900;}
+    .jm-active-summary{font-size:12px;color:var(--muted);font-weight:600;margin:0 0 12px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+    .jm-active-summary .pill{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.05);border:1px solid var(--border-mid);border-radius:100px;padding:3px 10px;font-weight:700;color:var(--text);}
+    .jm-active-summary .pill .material-icons{font-size:14px;}
+    /* Passport picker as image cards (inside the filter modal) */
+    #map-filter-backdrop .jm-passports{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:0;}
+    .jm-pcard{position:relative;border-radius:14px;overflow:hidden;cursor:pointer;border:2.5px solid transparent;background:#0f1e2e;aspect-ratio:3/4;display:flex;align-items:flex-end;font-family:inherit;padding:0;text-align:left;transition:border-color .15s, transform .1s;}
+    .jm-pcard:active{transform:scale(.98);}
+    .jm-pcard .jm-pcard-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+    .jm-pcard .jm-pcard-fallback{position:absolute;inset:0;background:var(--pc,#2ba8e0);opacity:.85;}
+    .jm-pcard .jm-pcard-scrim{position:absolute;inset:0;background:linear-gradient(to top, rgba(4,12,20,.92) 0%, rgba(4,12,20,.25) 55%, rgba(4,12,20,.05) 100%);}
+    .jm-pcard .jm-pcard-body{position:relative;z-index:1;padding:10px 12px 12px;width:100%;}
+    .jm-pcard .jm-pcard-label{font-size:14px;font-weight:900;color:#fff;letter-spacing:.3px;line-height:1.1;}
+    .jm-pcard .jm-pcard-count{font-size:11px;font-weight:700;color:rgba(255,255,255,.8);margin-top:2px;}
+    .jm-pcard.on{border-color:var(--pc,#FFCC00);}
+    .jm-pcard .jm-pcard-check{position:absolute;top:8px;right:8px;z-index:2;width:24px;height:24px;border-radius:50%;background:var(--pc,#FFCC00);color:#06121d;display:none;align-items:center;justify-content:center;}
+    .jm-pcard .jm-pcard-check .material-icons{font-size:16px;}
+    .jm-pcard.on .jm-pcard-check{display:flex;}
+    .jm-pcard-all{aspect-ratio:auto;grid-column:1/-1;flex-direction:row;align-items:center;gap:10px;padding:13px 15px;border:2.5px solid var(--border-mid);background:rgba(255,255,255,.04);}
+    .jm-pcard-all.on{border-color:#FFCC00;background:rgba(255,204,0,.10);}
+    .jm-pcard-all .material-icons{font-size:22px;color:var(--muted);}
+    .jm-pcard-all .jm-pcard-label{color:var(--text);}
+    .jm-pcard-all .jm-pcard-count{color:var(--muted);margin-top:0;margin-left:auto;}
+    /* Filter modal: Country/City selects stack full-width with labels */
+    #map-filter-backdrop .jm-chips{flex-direction:column;align-items:stretch;gap:10px;margin-bottom:0;}
+    #map-filter-backdrop .jm-sel{width:100%;flex:none;}
+    .jm-modal-label{font-size:10px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin:0 0 9px;}
+    .jm-modal-sec{margin-bottom:22px;}
   </style>
   <div class="jm-section">
-    <div class="card-head">
+    <div class="card-head" style="padding-left:0;padding-right:0;border-bottom:none;">
       <div class="card-head-title"><span class="material-icons card-head-icon">public</span><h3>World Map</h3></div>
+      <button type="button" class="jm-filter-btn" onclick="openMapFilters()">
+        <span class="material-icons">tune</span> Filters
+        <span class="jm-filter-badge" id="jm-filter-badge" style="display:none;"></span>
+      </button>
     </div>
-    <div class="jm-pass-label">Pick a passport</div>
-    <div class="jm-passports" id="jm-passports"></div>
-    <div class="jm-chips" id="jm-chips"></div>
+    <div class="jm-active-summary" id="jm-active-summary"></div>
     <div class="jm-map-wrap"><div id="ffp-jmap"></div></div>
     <div class="jm-legend">
       <span class="jm-legend-item"><span class="jm-dot venue"></span>Venue you checked into</span>
       <span class="jm-legend-item"><span class="jm-dot city"></span>City you were active in</span>
+    </div>
+  </div>
+
+  <!-- MAP FILTERS — full-screen modal: Country + City, then the 5 passport-type cards -->
+  <div class="detail-backdrop dm-full" id="map-filter-backdrop" onclick="if(event.target.id==='map-filter-backdrop')closeMapFilters()">
+    <div class="detail-modal" role="dialog" aria-modal="true">
+      <button class="dm-close" onclick="closeMapFilters()"><span class="material-icons">close</span></button>
+      <div class="activity-add-body">
+        <div class="activity-add-head">
+          <div class="activity-add-icon-lg"><span class="material-icons">tune</span></div>
+          <div>
+            <div class="activity-add-name">Map filters</div>
+            <div class="activity-add-sub">Scope your map by location and passport</div>
+          </div>
+        </div>
+        <div class="jm-modal-sec">
+          <div class="jm-modal-label">Location</div>
+          <div class="jm-chips" id="jm-chips"></div>
+        </div>
+        <div class="jm-modal-sec" style="margin-bottom:0;">
+          <div class="jm-modal-label">Pick a passport</div>
+          <div class="jm-passports" id="jm-passports"></div>
+        </div>
+      </div>
+      <div class="dm-footer" style="gap:8px;">
+        <button class="btn-secondary" onclick="clearMapFilters()" style="background:transparent;border:1px solid var(--border-mid);color:var(--muted);flex:0 0 auto;padding:11px 14px;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;">Clear all</button>
+        <button class="btn-primary-yellow" onclick="closeMapFilters()" style="flex:1;">Show results</button>
+      </div>
     </div>
   </div>
   
@@ -6821,16 +6894,16 @@ const state = {
 // controls the mapping in the Taxonomies panel. Only the colour/icon per passport lives here.
 // A legacy keyword fallback catches activity-category names that differ from provider categories.
 const PASSPORT_META = {
-  sports:    { color: '#2ba8e0', icon: 'sports_soccer',    legacy: ['padel','combat sports','team sports','racquet sports','golf','ball sports','cycling'] },
-  fitness:   { color: '#FFCC00', icon: 'fitness_center',   legacy: ['fitness','coaching','gym','strength','running & walking','running','crossfit'] },
-  wellness:  { color: '#22c55e', icon: 'self_improvement', legacy: ['wellness','yoga & pilates','mind-body','recovery','meditation'] },
-  adventure: { color: '#f59e0b', icon: 'terrain',          legacy: ['adventure','climbing','watersports','snow sports','hiking','outdoor'] },
-  food:      { color: '#ef4444', icon: 'restaurant',       legacy: ['nutrition','retail','health food','cafe'] }
+  sports:    { color: '#2ba8e0', icon: 'sports_soccer',    img: 'assets/sports-passport.png',     legacy: ['padel','combat sports','team sports','racquet sports','golf','ball sports','cycling'] },
+  fitness:   { color: '#FFCC00', icon: 'fitness_center',   img: 'assets/fitness-passport.png',    legacy: ['fitness','coaching','gym','strength','running & walking','running','crossfit'] },
+  wellness:  { color: '#22c55e', icon: 'self_improvement', img: 'assets/wellness-passport.png',   legacy: ['wellness','yoga & pilates','mind-body','recovery','meditation'] },
+  adventure: { color: '#f59e0b', icon: 'terrain',          img: 'assets/adventure-passport.png',  legacy: ['adventure','climbing','watersports','snow sports','hiking','outdoor'] },
+  food:      { color: '#ef4444', icon: 'restaurant',       img: 'assets/health-food-passport.png', legacy: ['nutrition','retail','health food','cafe'] }
 };
-function getPassports() {   // [{id,label,color,icon}] — list from taxonomy, colour/icon from meta
+function getPassports() {   // [{id,label,color,icon,img}] — list from taxonomy, colour/icon/img from meta
   var list = (window.FFP_TAX && FFP_TAX.passports && FFP_TAX.passports.length) ? FFP_TAX.passports
     : [{id:'sports',label:'Sports'},{id:'fitness',label:'Fitness'},{id:'wellness',label:'Wellness'},{id:'adventure',label:'Adventure'},{id:'food',label:'Health Food'}];
-  return list.map(function (p) { var m = PASSPORT_META[p.id] || {}; return { id: p.id, label: p.label, color: m.color || '#2ba8e0', icon: m.icon || 'sports' }; });
+  return list.map(function (p) { var m = PASSPORT_META[p.id] || {}; return { id: p.id, label: p.label, color: m.color || '#2ba8e0', icon: m.icon || 'sports', img: m.img || null }; });
 }
 let _actCat = null;
 function catForActivity(name) {                       // activity name → its taxonomy category
@@ -6877,17 +6950,69 @@ function setPassport(id) {
   renderAll();
 }
 function renderPassportPicker() {
+  updateMapFilterUI();
   const el = document.getElementById('jm-passports'); if (!el) return;
   const base = getLocationLogs();
   const counts = {}; base.forEach(function (l) { var p = passportForLog(l); if (p) counts[p] = (counts[p] || 0) + 1; });
   const cur = state.selectedPassport;
-  let html = '<button type="button" class="jm-pass' + (!cur ? ' on' : '') + '" style="--pc:#8a99a8;" onclick="setPassport(null)">'
-    + '<span class="material-icons">public</span>All <b>' + base.length + '</b></button>';
+  // "All passports" — full-width row card
+  let html = '<button type="button" class="jm-pcard jm-pcard-all' + (!cur ? ' on' : '') + '" onclick="setPassport(null)">'
+    + '<span class="material-icons">public</span>'
+    + '<span class="jm-pcard-label">All passports</span>'
+    + '<span class="jm-pcard-count">' + base.length + '</span></button>';
+  // One image card per passport type
   html += getPassports().map(function (p) {
-    return '<button type="button" class="jm-pass' + (cur === p.id ? ' on' : '') + '" style="--pc:' + p.color + ';" onclick="setPassport(\'' + p.id + '\')">'
-      + '<span class="material-icons">' + p.icon + '</span>' + p.label + ' <b>' + (counts[p.id] || 0) + '</b></button>';
+    var n = counts[p.id] || 0;
+    var img = p.img
+      ? '<img class="jm-pcard-img" src="' + esc(p.img) + '" alt="' + esc(p.label) + '" loading="lazy" onerror="this.style.display=\'none\'">'
+      : '';
+    return '<button type="button" class="jm-pcard' + (cur === p.id ? ' on' : '') + '" style="--pc:' + p.color + ';" onclick="setPassport(\'' + p.id + '\')">'
+      + img
+      + '<span class="jm-pcard-fallback"></span>'
+      + '<span class="jm-pcard-scrim"></span>'
+      + '<span class="jm-pcard-check"><span class="material-icons">check</span></span>'
+      + '<span class="jm-pcard-body"><span class="jm-pcard-label">' + esc(p.label) + '</span>'
+      + '<span class="jm-pcard-count">' + n + ' ' + (n === 1 ? 'activity' : 'activities') + '</span></span>'
+      + '</button>';
   }).join('');
   el.innerHTML = html;
+}
+// ===== Map filters modal (Filters button → full-screen sheet) =====
+function openMapFilters() {
+  var bd = document.getElementById('map-filter-backdrop');
+  if (bd) bd.classList.add('open');
+}
+function closeMapFilters() {
+  var bd = document.getElementById('map-filter-backdrop');
+  if (bd) bd.classList.remove('open');
+}
+function clearMapFilters() {
+  state.selectedPassport = null;
+  state.selectedCountry = null;
+  state.selectedCity = null;
+  if (typeof renderAll === 'function') renderAll();
+}
+// Filters button badge (count of active filters) + the at-a-glance summary above the map.
+function updateMapFilterUI() {
+  var active = 0;
+  if (state.selectedPassport) active++;
+  if (state.selectedCountry) active++;
+  if (state.selectedCity) active++;
+  var badge = document.getElementById('jm-filter-badge');
+  if (badge) { badge.textContent = active; badge.style.display = active ? 'inline-flex' : 'none'; }
+  var sum = document.getElementById('jm-active-summary');
+  if (sum) {
+    var parts = [];
+    var loc = state.selectedCity || state.selectedCountry || 'Worldwide';
+    parts.push('<span class="pill"><span class="material-icons">place</span>' + esc(loc) + '</span>');
+    if (state.selectedPassport) {
+      var p = passportById(state.selectedPassport);
+      parts.push('<span class="pill" style="color:' + (p ? p.color : 'inherit') + ';"><span class="material-icons">style</span>' + esc(p ? p.label : state.selectedPassport) + '</span>');
+    } else {
+      parts.push('<span class="pill"><span class="material-icons">style</span>All passports</span>');
+    }
+    sum.innerHTML = parts.join('');
+  }
 }
 // When the DB taxonomy hydrates (or admin edits passports), rebuild the picker + map mapping.
 document.addEventListener('ffp-tax-ready', function () { _actCat = null; if (typeof renderAll === 'function' && document.getElementById('jm-passports')) renderAll(); });
