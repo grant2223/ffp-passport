@@ -1,5 +1,13 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP MEMBER CHECK-IN LOADER — v5 (2026-06-03)
+   FFP MEMBER CHECK-IN LOADER — v6 (2026-06-03)
+   v6: SMOOTHER PHONE-QR FLOW. A phone-camera scan lands on the dashboard as ?venue=<id>; if the
+       visitor isn't signed in, the auth gate used to redirect to login and DROP the venue, so
+       they never reached the check-in. Now the dashboard <head> stashes the venue
+       (localStorage 'ffp_pending_venue') BEFORE the auth redirect, and boot() resumes the
+       check-in from the URL param OR the stash once signed in (then clears it). Signed-in scans
+       open immediately as before.
+   --- prior ---
+   v5 (2026-06-03)
    v5: 2-HOUR PER-VENUE COOLDOWN. A member can't repeatedly check in at the SAME
        provider within 2 hours (server-enforced in venue_checkin_activity, which now
        returns {blocked:true, minutes_left, venue, message} instead of inserting).
@@ -419,14 +427,26 @@
     _pickType: pickType, _program: program, _questSubmit: questSubmit, _challengeSubmit: challengeSubmit, _eventCheckin: eventCheckin
   };
 
+  function pendingVenue() { try { return localStorage.getItem('ffp_pending_venue') || ''; } catch (e) { return ''; } }
+  function clearPendingVenue() { try { localStorage.removeItem('ffp_pending_venue'); } catch (e) {} }
+
   function boot() {
     injectCss();
-    // NO injected button — the single entry point is the "Scan QR" button on the Passport
-    // panel (onclick="openScanLog()" → FFPCheckin.scan()). A phone-camera scan of the venue
-    // link also lands here as ?venue=<id> and opens the check-in directly.
-    var v = parseVenue(window.location.search);
-    if (v) { setTimeout(function () { openContext(v); }, 600); }
-    console.log('[FFP Member Check-in v4] Loaded ✓ (launch: Scan QR button / ?venue link)');
+    // Entry points: the "Scan QR" button on the Passport panel (FFPCheckin.scan()), OR a
+    // phone-camera scan of the venue link landing here as ?venue=<id>. For the phone-scan
+    // case the visitor may not be signed in yet — the head-script stashes the venue and the
+    // auth gate sends them to login; once they're back here signed in, we resume the check-in.
+    var v = parseVenue(window.location.search) || pendingVenue();
+    if (v) {
+      if (memberId()) {
+        clearPendingVenue();
+        setTimeout(function () { openContext(v); }, 600);
+      } else {
+        // not signed in yet — keep it stashed; the check-in resumes after they log in
+        try { localStorage.setItem('ffp_pending_venue', v); } catch (e) {}
+      }
+    }
+    console.log('[FFP Member Check-in v6] Loaded ✓ (Scan QR / ?venue link / resume-after-login)');
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
