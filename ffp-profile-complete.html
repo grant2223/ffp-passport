@@ -1,6 +1,11 @@
 <!--
-FFP Profile Complete v30
-Last updated: 2026-06-01
+FFP Profile Complete v31
+Last updated: 2026-06-03
+v31: (1) Gender dropdown now re-fills from the live DB taxonomy (FFP_TAX_READY + 'ffp-tax-ready'),
+     so admin taxonomy edits show up — was a one-shot fill from the static FFP_TAX.genders.
+     (2) Step 2 retitled "Choose Interests" / "Let us know which are your favorite activities."
+     (3) Activity picker list always sorted A→Z by name (filtered or not). (4) Removed the activity
+     icons (many didn't match the activity) — name + category only.
 v30: skill levels = Not Tried / Social / Competitive / Representative / Professional (new descriptions).
 v29: referral capture passes ffp_ref to onboard.
 -->
@@ -402,8 +407,8 @@ button,input,.activity-row,.level-card,.btn-back{touch-action:manipulation;}
   Back
 </button>
 
-<div class="section-label" style="font-size:18px;letter-spacing:.2px;text-transform:none;margin-bottom:8px;">Select a few of your interests</div>
-<div class="sports-helper">Select the activities you are interested in, along with your current skill level.</div>
+<div class="section-label" style="font-size:18px;letter-spacing:.2px;text-transform:none;margin-bottom:8px;">Choose Interests</div>
+<div class="sports-helper">Let us know which are your favorite activities.</div>
 
 <div class="sports-list" id="sports-list"></div>
 
@@ -702,6 +707,8 @@ function renderActivities() {
       return a.n.toLowerCase().includes(currentSearch) || a.c.toLowerCase().includes(currentSearch);
     });
   }
+  // Always alphabetical (A→Z) by activity name — applies to every list, filtered or not.
+  list.sort(function (a, b) { return a.n.localeCompare(b.n); });
 
   var listEl = document.getElementById('activity-list');
   if (list.length === 0) {
@@ -711,11 +718,10 @@ function renderActivities() {
   var taken = {};
   selectedSports.forEach(function (s) { taken[s.name] = true; });
 
+  // Icons removed — many didn't match their activity. Name + category only.
   listEl.innerHTML = list.map(function (a) {
-    var meta = CAT_META[a.c] || { icon: 'sports' };
     var isTaken = taken[a.n];
     return '<button class="activity-row" ' + (isTaken ? 'disabled' : 'onclick="pickActivity(\'' + a.n.replace(/'/g, "\\'") + '\')"') + '>' +
-           '<span class="activity-row-icon"><span class="material-icons-outlined">' + meta.icon + '</span></span>' +
            '<span class="activity-row-info">' +
              '<span class="activity-row-name">' + a.n + (isTaken ? ' · added' : '') + '</span>' +
              '<span class="activity-row-cat">' + a.c + '</span>' +
@@ -1005,7 +1011,22 @@ async function submitProfile() {
 }
 </script>
 <script>
-(function(){var g=document.getElementById('f-gender');if(g&&window.FFP_TAX&&FFP_TAX.genders){FFP_TAX.genders.forEach(function(x){var o=document.createElement('option');o.value=x;o.textContent=x;g.appendChild(o);});}})();
+/* Gender options come from the STANDARDIZED taxonomy. The static FFP_TAX.genders renders
+   first, then we re-fill once the DB taxonomy hydrates (FFP_TAX_READY) and again on the
+   'ffp-tax-ready' event — so admin edits to the gender list show here without a code change. */
+(function(){
+  function fillGenders(){
+    var g=document.getElementById('f-gender'); if(!g) return;
+    var cur=g.value;
+    var list=(window.FFP_TAX&&FFP_TAX.genders&&FFP_TAX.genders.length)?FFP_TAX.genders:['Male','Female','Prefer not to say'];
+    g.innerHTML='<option value="">Select</option>';
+    list.forEach(function(x){var o=document.createElement('option');o.value=x;o.textContent=x;g.appendChild(o);});
+    if(cur) g.value=cur;
+  }
+  fillGenders();
+  if(window.FFP_TAX_READY&&typeof window.FFP_TAX_READY.then==='function'){window.FFP_TAX_READY.then(fillGenders);}
+  document.addEventListener('ffp-tax-ready',fillGenders);
+})();
 </script>
 </body>
 </html>
