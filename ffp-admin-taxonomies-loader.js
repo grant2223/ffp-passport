@@ -1,4 +1,8 @@
-/* FFP Admin Taxonomies Loader — v3 (2026-06-03)
+/* FFP Admin Taxonomies Loader — v4 (2026-06-03)
+   v4: added two lists used by Provider Rankings classification — 'Provider Types' (provider_type:
+       Gym/Studio/Yoga studio/Sports club-team/Adventure service/…) + 'Gym Size Bands' (gym_size).
+       Admin can add/rename/reorder/hide these; the Rankings tab dropdowns + per-row classification
+       selects read them live.
    v3: Provider Categories now have a PASSPORT selector per row (Pick A Passport map lens) —
        assigning it writes the category row's `parent` = passport id; the member map reads
        FFP_TAX.categoryPassport live. Passport options come from list_key='passport'.
@@ -19,7 +23,9 @@
     { key: 'city',            name: 'Cities', nested: true },
     { key: 'nationality',     name: 'Nationalities' },
     { key: 'gender',          name: 'Genders' },
-    { key: 'age_group',       name: 'Age Groups' }
+    { key: 'age_group',       name: 'Age Groups' },
+    { key: 'provider_type',   name: 'Provider Types' },
+    { key: 'gym_size',        name: 'Gym Size Bands' }
   ];
 
   var state = { current: 'activity', cityCountry: 'United Arab Emirates', data: {} };
