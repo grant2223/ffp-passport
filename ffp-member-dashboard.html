@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v247 (2026-06-03)
+<!-- FFP MEMBER DASHBOARD — v248 (2026-06-03)
+     v248: (Grant) USD-ONLY — removed AED entirely from the wallet. Balance is read straight from
+           transactions (USD) and shown via fmtUsd; no aedToUsd/usdToAed/peg in any live money path
+           (helpers left defined but unused). Earnings loader → v16 (?v=16). Backend v63 stores referral
+           rewards in USD. DB wallet values converted AED→USD once. Balance now reads exactly $39.60.
      v247: (Grant) MONEY PRECISION — aedToUsd/usdToAed are now cents-precise (were whole-dollar, so a
            20% × $99 = $19.80 reward × 2 showed as $40 instead of $39.60). All USD displays (hero balance,
            payout available/amount, earnings summary + rows, refer-modal earned) now use fmtUsd → cents
@@ -7779,10 +7783,10 @@ function setupPanelNav() {
   // v156: load a panel's data-loader script the first time that panel is opened.
   // Keeps page load free of panel queries; the default Passport view needs none.
   const _panelLoaderSrc = {
-    'panel-earnings':        'assets/ffp-earnings-loader.js?v=15',
+    'panel-earnings':        'assets/ffp-earnings-loader.js?v=16',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
     'panel-fitness-stats':   'assets/ffp-fitness-stats-loader.js?v=19',
-    'panel-meet':            'assets/ffp-meet-move-loader.js?v=19',
+    'panel-meet':            'assets/ffp-meet-move-loader.js?v=20',
     'panel-events':          'assets/ffp-member-discovery-loader.js',
     'panel-experiences':     'assets/ffp-member-discovery-loader.js',
     'panel-challenges':      'assets/ffp-member-discovery-loader.js'
