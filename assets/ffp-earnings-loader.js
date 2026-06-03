@@ -1,8 +1,14 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP EARNINGS LOADER · CURRENT VERSION: v15
+   FFP EARNINGS LOADER · CURRENT VERSION: v16
    File path: assets/ffp-earnings-loader.js
-   On-load log: [FFP Earnings v15] Loaded from Supabase ✓
+   On-load log: [FFP Earnings v16] Loaded from Supabase ✓
    ═══════════════════════════════════════════════════════════════ */
+
+/* WHAT v16 CHANGES (from v15):
+   - USD-ONLY: removed ALL AED conversion. transactions.amount_aed / payouts.amount_aed are now read
+     as USD directly (legacy column name). Balance = sum of transactions (USD); summary, rows, payout
+     amounts all $ via fmtUsd. Payout writes the USD amount straight to amount_aed (no usdToAed). DB
+     values were converted AED→USD once. No peg, no aedToUsd/usdToAed anywhere in the wallet. */
 
 /* WHAT v15 CHANGES (from v14):
    - Money precision: USD now shows cents via Earnings.fmtUsd (earnings summary Earned/Pending +
@@ -177,7 +183,7 @@
 
       return '<div class="ffp-po-row">' +
         '<div>' +
-          '<div class="ffp-po-amount">AED ' + amt.toLocaleString() + '</div>' +
+          '<div class="ffp-po-amount">$' + amt.toLocaleString() + '</div>' +
           '<div class="ffp-po-method">' + escHtml(p.method || 'bank') + ' transfer</div>' +
           '<div class="ffp-po-dates">' + dates + '</div>' +
           rejectionBlock +
@@ -426,9 +432,9 @@
 
     var summary =
       '<div class="ffp-summary">' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Paid</div><div class="ffp-summary-val green">AED ' + Math.round(totalPaid).toLocaleString() + '</div></div>' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">In progress</div><div class="ffp-summary-val yellow">AED ' + Math.round(totalPending).toLocaleString() + '</div></div>' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Rejected</div><div class="ffp-summary-val red">AED ' + Math.round(totalRejected).toLocaleString() + '</div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Paid</div><div class="ffp-summary-val green">$' + Earnings.fmtUsd(totalPaid) + '</div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">In progress</div><div class="ffp-summary-val yellow">$' + Earnings.fmtUsd(totalPending) + '</div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Rejected</div><div class="ffp-summary-val red">$' + Earnings.fmtUsd(totalRejected) + '</div></div>' +
       '</div>';
 
     var rowsHtml;
@@ -473,7 +479,7 @@
 
         return '<div class="ffp-po-row">' +
           '<div>' +
-            '<div class="ffp-po-amount">AED ' + amt.toLocaleString() + '</div>' +
+            '<div class="ffp-po-amount">$' + amt.toLocaleString() + '</div>' +
             '<div class="ffp-po-method">' + escHtml(p.method || 'bank') + ' transfer</div>' +
             '<div class="ffp-po-dates">' + dates + '</div>' +
             rejectionBlock +
@@ -560,8 +566,8 @@
 
     var summary =
       '<div class="ffp-summary two">' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Earned</div><div class="ffp-summary-val green">$' + Earnings.fmtUsd(Earnings.aedToUsd(totalEarned)) + '</div></div>' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Pending</div><div class="ffp-summary-val yellow">$' + Earnings.fmtUsd(Earnings.aedToUsd(totalPending)) + '</div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Earned</div><div class="ffp-summary-val green">$' + Earnings.fmtUsd(totalEarned) + '</div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Pending</div><div class="ffp-summary-val yellow">$' + Earnings.fmtUsd(totalPending) + '</div></div>' +
       '</div>';
 
     var listHtml;
@@ -572,7 +578,7 @@
       var visible = earningsShowAll ? filtered : filtered.slice(0, DEFAULT_VISIBLE_ROWS);
       var rows = visible.map(function (r) {
         var isIn = r.type === 'in';
-        var amt = Earnings.aedToUsd(Number(r.amount_aed) || 0);   // v13: platform shows USD
+        var amt = Number(r.amount_aed) || 0;   // USD (column name is legacy)
         var icon = isIn ? 'add' : 'remove';
         var sign = isIn ? '+' : '\u2212';
         var statusText = r.status === 'pending' ? 'pending review' : r.status === 'rejected' ? 'rejected' : '';
@@ -779,7 +785,7 @@
       } else {
         var txRows = txRes.data || [];
         allTransactions = txRows;  // v8: keep full list for time filtering
-        Earnings.balance = Earnings.aedToUsd(computeBalance(txRows));   // v14: balance is canonically USD (platform shows USD)
+        Earnings.balance = computeBalance(txRows);   // v16: amounts are stored in USD — no conversion
 
         // For paid payouts, fetch the receipt URL from payouts table
         var paidPayoutIds = txRows
@@ -841,7 +847,7 @@
         });
         Earnings.referralStats = {
           total: total,
-          earned: Earnings.aedToUsd(earned),   // v13: referral "earned" stat shows USD (HTML prefixes $)
+          earned: Math.round(earned * 100) / 100,   // USD
           pending: pending
         };
       }
@@ -1194,10 +1200,10 @@
       if (!details) return;  // validation failed, modal stays open
 
       // Final confirmation — this is real money
-      if (!confirm('Submit payout request for $' + amount.toLocaleString() + ' USD (paid in your local currency) via ' + details.method + '?\n\nAdmin will review and contact you within 3\u20135 business days.')) {
+      if (!confirm('Submit payout request for $' + amount.toLocaleString() + ' USD via ' + details.method + '?\n\nAdmin will review and contact you within 3\u20135 business days.')) {
         return;
       }
-      var amountAed = Earnings.usdToAed(amount);   // store the local-currency amount
+      var amountAed = amount;   // USD — stored directly (column name is legacy; no conversion)
 
       origSubmitPayout();  // closes modal + clears state
       if (!currentUserId) return;
