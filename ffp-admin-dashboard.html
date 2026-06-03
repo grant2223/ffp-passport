@@ -1,11 +1,20 @@
-<!-- FFP Admin Dashboard v37 (2026-06-03): PROVIDER RANKINGS leaderboard — new sidebar tab "Provider Rankings" (panel-rankings, under Providers) listing every provider by avg overall stars + review count + per-category (Experience/Service/Facilities) averages, with Country / City / Category dropdown filters (City cascades by Country) that re-rank client-side. Inline AdminRankings module → provider_rankings() RPC (is_admin-gated). Full detail in the comment below <title> + FFP-MASTER §6v. (This build also carries the June-3 feature set that a second, lower-numbered comment block tracked as v26–v30: Community Health own tab + gender filter, feedback screenshot thumbnails, category→passport selector — all already present; numbering now continues cleanly from the live v36.) v36 (2026-06-01): Members panel — verify badge + Verify/Unverify button (members.verified), and EXCLUDES provider/admin login accounts (a provider's contact person no longer shows as a member). Settings Platform Config now editable + saved to public.platform_config. Cache-bust v=36 on lazy loaders. v35 (2026-06-01): Settings panel CONNECTED — FFP Team from admin_users, Audit Log now DB-backed (public.admin_audit, persists every admin action) via ffp-admin-settings-loader.js. Also: admin Events/Experiences/Challenges loaders now render real data on load (fixes "reverts to old demo version"). v34 (2026-06-01): Taxonomies editor v2 — added Countries, Cities (country→city cascade) + Experience Types; session guard so edits don't fail silently if the admin session expired. v33: Taxonomies panel is now a REAL editor — ffp-admin-taxonomies-loader.js does CRUD on public.taxonomy_items (Activities/Categories/Fitness Levels/Nationalities/Genders/Age Groups): add, rename, reorder, show/hide, delete. assets/ffp-taxonomy.js v4 hydrates FFP_TAX from that table so edits propagate platform-wide (hardcoded fallback if DB unreachable). v32 (2026-06-01): FIX broken icons — added self-contained base `.material-icons` CSS rule (font-family + 'liga') + &display=block on the icon font link, so sidebar/queue icons never fall back to raw ligature text ("storefront", "inbox", etc.) when the external Google CSS is slow/blocked (this was the "design turned shit" issue). v31: provider accounts INSTANT + self-serve — REMOVED Applications panel/loader + reverted the v30 Pending approval tab. v29 (skill levels). v28 USD labels. v27 tier/expiry edit fix. -->
+<!-- FFP Admin Dashboard v38 (2026-06-03): PROVIDER CLASSIFICATION on the Rankings tab — added Provider Type (Gym/Studio/Yoga studio/Sports club-team/Adventure service/…) + Gym Size band (admin-set) filters, plus per-row editable Type & Size dropdowns so admins classify each provider right in the table (admin_set_provider_classification RPC; option lists from taxonomy_items provider_type/gym_size). Rankings table now 11 cols. v37 (2026-06-03): PROVIDER RANKINGS leaderboard — new sidebar tab "Provider Rankings" (panel-rankings, under Providers) listing every provider by avg overall stars + review count + per-category (Experience/Service/Facilities) averages, with Country / City / Category dropdown filters (City cascades by Country) that re-rank client-side. Inline AdminRankings module → provider_rankings() RPC (is_admin-gated). Full detail in the comment below <title> + FFP-MASTER §6v. (This build also carries the June-3 feature set that a second, lower-numbered comment block tracked as v26–v30: Community Health own tab + gender filter, feedback screenshot thumbnails, category→passport selector — all already present; numbering now continues cleanly from the live v36.) v36 (2026-06-01): Members panel — verify badge + Verify/Unverify button (members.verified), and EXCLUDES provider/admin login accounts (a provider's contact person no longer shows as a member). Settings Platform Config now editable + saved to public.platform_config. Cache-bust v=36 on lazy loaders. v35 (2026-06-01): Settings panel CONNECTED — FFP Team from admin_users, Audit Log now DB-backed (public.admin_audit, persists every admin action) via ffp-admin-settings-loader.js. Also: admin Events/Experiences/Challenges loaders now render real data on load (fixes "reverts to old demo version"). v34 (2026-06-01): Taxonomies editor v2 — added Countries, Cities (country→city cascade) + Experience Types; session guard so edits don't fail silently if the admin session expired. v33: Taxonomies panel is now a REAL editor — ffp-admin-taxonomies-loader.js does CRUD on public.taxonomy_items (Activities/Categories/Fitness Levels/Nationalities/Genders/Age Groups): add, rename, reorder, show/hide, delete. assets/ffp-taxonomy.js v4 hydrates FFP_TAX from that table so edits propagate platform-wide (hardcoded fallback if DB unreachable). v32 (2026-06-01): FIX broken icons — added self-contained base `.material-icons` CSS rule (font-family + 'liga') + &display=block on the icon font link, so sidebar/queue icons never fall back to raw ligature text ("storefront", "inbox", etc.) when the external Google CSS is slow/blocked (this was the "design turned shit" issue). v31: provider accounts INSTANT + self-serve — REMOVED Applications panel/loader + reverted the v30 Pending approval tab. v29 (skill levels). v28 USD labels. v27 tier/expiry edit fix. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FFP Admin Dashboard</title>
-<!-- FFP ADMIN DASHBOARD — v37 (2026-06-03): PROVIDER RANKINGS leaderboard. New sidebar tab + panel
+<!-- FFP ADMIN DASHBOARD — v38 (2026-06-03): PROVIDER CLASSIFICATION on the Rankings tab. Added two
+     more filters — Provider Type + Gym Size — and per-row editable Type/Size <select>s so admins classify
+     each provider in place (admin_set_provider_classification RPC, is_admin-gated; sets providers.provider_type
+     + new providers.size_band). Option lists come from taxonomy_items list_key='provider_type' (Gym, Studio,
+     Yoga studio, Pilates studio, CrossFit box, Sports club/team, Adventure service, Wellness centre, Recovery
+     studio, Coaching/PT, Other) + 'gym_size' (Boutique <500 / Mid 500–2,000 / Large 2,000–7,500 / Mega 7,500+ /
+     N/A) — both editable in admin Taxonomies. provider_rankings() now also returns provider_type + size_band.
+     Legacy free-text types (e.g. "Event organizer") still display + are preserved. Table now 11 cols.
+     Taxonomies loader → v4 (adds 'Provider Types' + 'Gym Size Bands' lists); lazy cache-bust → v=45.
+     v37 (2026-06-03): PROVIDER RANKINGS leaderboard. New sidebar tab + panel
      (panel-rankings, under Providers) listing every provider sorted by avg overall stars, with review
      count + per-category (Experience/Service/Facilities) averages. Country / City / Category dropdown
      filters (City cascades by Country) re-rank within the filtered set, client-side. Rendered inline by
@@ -1427,7 +1436,7 @@ input, select, textarea { font-family: inherit; }
       </div>
     </div>
     <div class="sidebar-footer">
-      build v37 &middot; FFP Admin
+      build v38 &middot; FFP Admin
     </div>
   </aside>
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.toggleSidebar()"></div>
@@ -1595,12 +1604,17 @@ input, select, textarea { font-family: inherit; }
             style="background:var(--bg-3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;min-width:150px;"></select>
           <select id="rankings-category" onchange="AdminRankings.setCategory(this.value)"
             style="background:var(--bg-3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;min-width:150px;"></select>
+          <select id="rankings-type" onchange="AdminRankings.setTypeFilter(this.value)"
+            style="background:var(--bg-3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;min-width:150px;"></select>
+          <select id="rankings-size" onchange="AdminRankings.setSizeFilter(this.value)"
+            style="background:var(--bg-3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;min-width:150px;"></select>
         </div>
         <div class="search-meta" id="rankings-meta" style="margin:10px 0;"></div>
+        <p style="font-size:11px;opacity:.6;margin:0 0 10px;">Set each provider's <strong>Type</strong> and <strong>Gym size</strong> with the dropdowns in the table — these feed the filters above. Edit the option lists in Taxonomies (provider_type / gym_size).</p>
         <div class="section-body">
           <table class="table">
             <thead>
-              <tr><th>#</th><th>Provider</th><th>City</th><th>Category</th><th>Overall</th><th>Reviews</th><th>Experience</th><th>Service</th><th>Facilities</th></tr>
+              <tr><th>#</th><th>Provider</th><th>City</th><th>Category</th><th>Type</th><th>Gym size</th><th>Overall</th><th>Reviews</th><th>Experience</th><th>Service</th><th>Facilities</th></tr>
             </thead>
             <tbody id="rankings-tbody"></tbody>
           </table>
@@ -2308,7 +2322,7 @@ const App = {
       var sc = document.createElement('script');
       // Cache-bust lazy loaders so a new deploy never serves a stale cached .js.
       // BUMP this with the dashboard build number on every deploy (matches footer build).
-      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=44'; sc.async = false;
+      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=45'; sc.async = false;
       sc.onload = function () {
         if (panelId === 'panel-analytics') {
           setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 80);
@@ -2354,10 +2368,15 @@ const App = {
 // =====================================================================
 const AdminRankings = {
   _loading: false,
+  _COLS: 11,
   ALL: [],
+  TYPES: [],   // [{value,label}] from taxonomy provider_type
+  SIZES: [],   // [{value,label}] from taxonomy gym_size
   country: 'all',
   city: 'all',
   category: 'all',
+  type: 'all',
+  size: 'all',
   esc(t) {
     return String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   },
@@ -2367,6 +2386,23 @@ const AdminRankings = {
     for (let i = 1; i <= 5; i++) s += '<span class="material-icons" style="font-size:14px;vertical-align:-2px;color:' + (i <= n ? '#FFCC00' : 'var(--border-mid,#33485c)') + ';">star</span>';
     return s;
   },
+  labelFor(list, value) {
+    if (value == null || value === '') return '';
+    const hit = list.find(o => o.value === value);
+    return hit ? hit.label : value; // legacy free-text values display as-is
+  },
+  async loadLists() {
+    if (this.TYPES.length && this.SIZES.length) return;
+    try {
+      const res = await window.supabase.from('taxonomy_items')
+        .select('list_key,value,label,sort_order')
+        .in('list_key', ['provider_type', 'gym_size']).eq('active', true).order('sort_order');
+      if (res.error) throw res.error;
+      const rows = res.data || [];
+      this.TYPES = rows.filter(r => r.list_key === 'provider_type').map(r => ({ value: r.value, label: r.label }));
+      this.SIZES = rows.filter(r => r.list_key === 'gym_size').map(r => ({ value: r.value, label: r.label }));
+    } catch (e) { console.error('[FFP] taxonomy lists:', e); }
+  },
   _opts(sel, values, current, allLabel) {
     if (!sel) return;
     const uniq = Array.from(new Set(values.filter(v => v != null && String(v).trim() !== ''))).sort((a, b) => String(a).localeCompare(String(b)));
@@ -2374,19 +2410,54 @@ const AdminRankings = {
       uniq.map(v => '<option value="' + this.esc(v) + '"' + (v === current ? ' selected' : '') + '>' + this.esc(v) + '</option>').join('');
     if (current !== 'all' && uniq.indexOf(current) < 0) sel.value = 'all';
   },
+  _optsList(sel, list, current, allLabel) {
+    if (!sel) return;
+    sel.innerHTML = '<option value="all">' + allLabel + '</option>' +
+      list.map(o => '<option value="' + this.esc(o.value) + '"' + (o.value === current ? ' selected' : '') + '>' + this.esc(o.label) + '</option>').join('');
+    if (current !== 'all' && !list.some(o => o.value === current)) sel.value = 'all';
+  },
   populateFilters() {
-    const cSel = document.getElementById('rankings-country');
-    const citySel = document.getElementById('rankings-city');
-    const catSel = document.getElementById('rankings-category');
-    this._opts(cSel, this.ALL.map(r => r.country), this.country, 'All countries');
-    // city options cascade by selected country
+    this._opts(document.getElementById('rankings-country'), this.ALL.map(r => r.country), this.country, 'All countries');
     const cityPool = this.ALL.filter(r => this.country === 'all' || r.country === this.country).map(r => r.city);
-    this._opts(citySel, cityPool, this.city, 'All cities');
-    this._opts(catSel, this.ALL.map(r => r.category), this.category, 'All categories');
+    this._opts(document.getElementById('rankings-city'), cityPool, this.city, 'All cities');
+    this._opts(document.getElementById('rankings-category'), this.ALL.map(r => r.category), this.category, 'All categories');
+    this._optsList(document.getElementById('rankings-type'), this.TYPES, this.type, 'All types');
+    this._optsList(document.getElementById('rankings-size'), this.SIZES, this.size, 'All sizes');
   },
   setCountry(v) { this.country = v; this.city = 'all'; this.populateFilters(); this.apply(); },
   setCity(v) { this.city = v; this.apply(); },
   setCategory(v) { this.category = v; this.apply(); },
+  setTypeFilter(v) { this.type = v; this.apply(); },
+  setSizeFilter(v) { this.size = v; this.apply(); },
+  // build a per-row editable <select> (kind = 'type' | 'size')
+  _rowSelect(kind, r) {
+    const list = kind === 'type' ? this.TYPES : this.SIZES;
+    const current = kind === 'type' ? (r.provider_type || '') : (r.size_band || '');
+    const fn = kind === 'type' ? 'setType' : 'setSize';
+    const hasCurrentInList = current === '' || list.some(o => o.value === current);
+    let opts = '<option value=""' + (current === '' ? ' selected' : '') + '>—</option>';
+    if (!hasCurrentInList) opts += '<option value="' + this.esc(current) + '" selected>' + this.esc(current) + ' (legacy)</option>';
+    opts += list.map(o => '<option value="' + this.esc(o.value) + '"' + (o.value === current ? ' selected' : '') + '>' + this.esc(o.label) + '</option>').join('');
+    return '<select onchange="AdminRankings.' + fn + '(\'' + r.provider_id + '\', this.value)" ' +
+      'style="background:var(--bg-3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 7px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;max-width:150px;">' + opts + '</select>';
+  },
+  setType(pid, val) { const r = this.ALL.find(x => x.provider_id === pid); if (!r) return; r.provider_type = val; this._save(r); },
+  setSize(pid, val) { const r = this.ALL.find(x => x.provider_id === pid); if (!r) return; r.size_band = val; this._save(r); },
+  async _save(r) {
+    const meta = document.getElementById('rankings-meta');
+    try {
+      const res = await window.supabase.rpc('admin_set_provider_classification', {
+        p_provider: r.provider_id, p_type: r.provider_type || null, p_size: r.size_band || null
+      });
+      if (res.error) throw res.error;
+      this.populateFilters(); // a new type/size value may now be filterable
+      this.apply();
+      if (meta) { const t = meta.textContent.replace(/ · saved.*$/, ''); meta.textContent = t + ' · saved ✓'; }
+    } catch (e) {
+      console.error('[FFP] classification save:', e);
+      if (meta) meta.textContent = 'Could not save classification (admin only).';
+    }
+  },
   apply() {
     const tbody = document.getElementById('rankings-tbody');
     const meta = document.getElementById('rankings-meta');
@@ -2394,14 +2465,15 @@ const AdminRankings = {
     let rows = this.ALL.filter(r =>
       (this.country === 'all' || r.country === this.country) &&
       (this.city === 'all' || r.city === this.city) &&
-      (this.category === 'all' || r.category === this.category)
+      (this.category === 'all' || r.category === this.category) &&
+      (this.type === 'all' || (r.provider_type || '') === this.type) &&
+      (this.size === 'all' || (r.size_band || '') === this.size)
     );
-    // re-rank within the filtered set (RPC already sorts by avg desc)
     const rated = rows.filter(r => (r.n || 0) > 0);
-    if (meta) meta.textContent = rated.length + ' of ' + rows.length + ' providers have reviews' +
-      ((this.country !== 'all' || this.city !== 'all' || this.category !== 'all') ? ' (filtered)' : '');
+    const filtered = (this.country !== 'all' || this.city !== 'all' || this.category !== 'all' || this.type !== 'all' || this.size !== 'all');
+    if (meta) meta.textContent = rated.length + ' of ' + rows.length + ' providers have reviews' + (filtered ? ' (filtered)' : '');
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="9" style="opacity:.6;padding:14px;">No providers match these filters.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="' + this._COLS + '" style="opacity:.6;padding:14px;">No providers match these filters.</td></tr>';
       return;
     }
     tbody.innerHTML = rows.map((r, i) => {
@@ -2413,6 +2485,8 @@ const AdminRankings = {
         '<td><strong>' + this.esc(r.business_name || 'Provider') + '</strong></td>' +
         '<td>' + this.esc(r.city || '') + '</td>' +
         '<td>' + this.esc(r.category || '') + '</td>' +
+        '<td>' + this._rowSelect('type', r) + '</td>' +
+        '<td>' + this._rowSelect('size', r) + '</td>' +
         '<td style="white-space:nowrap;">' + (n ? this.stars(r.avg_overall) + ' <strong>' + overall + '</strong>' : '<span style="opacity:.5;">no reviews</span>') + '</td>' +
         '<td>' + n + '</td>' +
         '<td>' + cat(r.avg_experience) + '</td>' +
@@ -2426,8 +2500,9 @@ const AdminRankings = {
     if (!tbody) return;
     if (this._loading) return;
     this._loading = true;
-    tbody.innerHTML = '<tr><td colspan="9" style="opacity:.6;padding:14px;">Loading…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="' + this._COLS + '" style="opacity:.6;padding:14px;">Loading…</td></tr>';
     try {
+      await this.loadLists();
       const res = await window.supabase.rpc('provider_rankings');
       if (res.error) throw res.error;
       this.ALL = res.data || [];
@@ -2435,7 +2510,7 @@ const AdminRankings = {
       this.apply();
     } catch (e) {
       console.error('[FFP] rankings:', e);
-      tbody.innerHTML = '<tr><td colspan="9" style="opacity:.6;padding:14px;">Couldn\'t load rankings (admin only).</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="' + this._COLS + '" style="opacity:.6;padding:14px;">Couldn\'t load rankings (admin only).</td></tr>';
     } finally {
       this._loading = false;
     }
