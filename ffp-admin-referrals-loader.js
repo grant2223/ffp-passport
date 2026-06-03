@@ -1,6 +1,7 @@
-/* FFP Admin Referrals Loader — v1 (2026-05-31)
+/* FFP Admin Referrals Loader — v3 (2026-06-03)
    Real referrals + member names (admin RLS) → AdminReferrals.data + render + realtime.
-   Strips inline demo from dashboard. Reward shown USD per decision.
+   v3: reward mapped to USD, cents-precise + 2-dp display ($19.80, not $20). Referrals auto-credit on
+       signup (backend v61); this panel is a record + 'Invalid' clawback (admin_invalidate_referral).
 */
 (function () {
   'use strict';
@@ -15,7 +16,7 @@
       id: row.id,
       referrer: referrer, rInit: (referrer[0]||'?').toUpperCase(), refTier: rr.tier || '',
       referred: referred, bInit: (referred[0]||'?').toUpperCase(),
-      reward: Number(row.reward_aed || 0), status: row.status || 'pending', daysAgo: days(row.created_at)
+      reward: (function(){ var n = Math.round((Number(row.reward_aed || 0) / 3.6725) * 100) / 100; return (Math.round(n*100)%100===0) ? String(Math.round(n)) : n.toFixed(2); })(), status: row.status || 'pending', daysAgo: days(row.created_at)
     };
   }
   async function fetchRows(){
