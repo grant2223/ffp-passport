@@ -1,4 +1,11 @@
-<!-- FFP PROVIDER DASHBOARD — v28 (2026-06-03)
+<!-- FFP PROVIDER DASHBOARD — v29 (2026-06-03)
+     v29: (Taxonomy audit fixes) "Provider type" field (pf-type) now reads the UNIFIED provider_type
+          taxonomy (Gym / Studio / Event Organizer / Sports Club / Team / Adventure Provider / Health
+          Food Cafe / …) via FFP_TAX.providerTypes (re-fills on ffp-tax-ready) — one concept shared with
+          the admin rankings classifier (was a hardcoded "business structure" list conflicting on the
+          same column; business_structure dropped). Experience Type + Experience/Event Level selects now
+          read FFP_TAX.experienceTypes / FFP_TAX.fitnessLevels instead of hardcoded arrays, so admin
+          Taxonomy edits propagate. Needs ffp-taxonomy.js v6.
      v28: PROVIDER RATING block on the Overview ("Your rating") — avg overall + per-category
           (Experience/Service/Facilities) stars + recent member reviews, via RPCs provider_rating()
           + provider_reviews_list(). renderProviderRating() runs inside renderOverview(). Also
@@ -113,7 +120,11 @@
 <script src="ffp-provider-events-loader.js"></script>
 <script src="ffp-provider-experiences-loader.js"></script>
 <script src="ffp-provider-challenges-loader.js"></script>
-<!-- v28 (2026-06-03): PROVIDER RATING block on the Overview ("Your rating") — avg overall + per-
+<!-- v29 (2026-06-03): Taxonomy audit fixes — "Provider type" (pf-type) reads the unified provider_type
+     taxonomy via FFP_TAX.providerTypes (shared with admin rankings; business_structure concept dropped);
+     Experience Type + Experience/Event Level selects read FFP_TAX.experienceTypes / fitnessLevels (no more
+     hardcoded arrays). Needs ffp-taxonomy.js v6.
+     v28 (2026-06-03): PROVIDER RATING block on the Overview ("Your rating") — avg overall + per-
      category (Experience/Service/Facilities) stars + recent member reviews, via RPCs
      provider_rating() + provider_reviews_list(). renderProviderRating() runs inside renderOverview().
      Also: build stamp + version were stale (stamp read v25 while code was v27 + the feedback-widget
@@ -2303,14 +2314,18 @@ a { color: var(--ffp-blue); text-decoration: none; }
             </div>
             <div class="field">
               <div class="label">Provider type</div>
-              <select class="select" id="pf-type">
-                <option value="">Choose type</option>
-                <option>Single location</option>
-                <option>Multi-location chain</option>
-                <option>Mobile / Online</option>
-                <option>Event organizer</option>
-                <option>Coach / Individual</option>
-              </select>
+              <select class="select" id="pf-type"><option value="">Choose…</option></select>
+              <script>(function(){
+                var s=document.getElementById('pf-type'); if(!s) return;
+                function fill(){
+                  var list=(window.FFP_TAX&&FFP_TAX.providerTypes&&FFP_TAX.providerTypes.length)?FFP_TAX.providerTypes:['Gym','Studio','Yoga Studio','Pilates Studio','CrossFit Box','Sports Club / Team','Adventure Provider','Wellness Centre','Recovery Studio','Health Food Cafe','Coaching / PT','Event Organizer','Other'];
+                  var cur=s.value;
+                  s.innerHTML='<option value="">Choose…</option>'+list.map(function(x){return '<option'+(x===cur?' selected':'')+'>'+x+'</option>';}).join('');
+                }
+                fill();
+                if(window.FFP_TAX_READY&&typeof window.FFP_TAX_READY.then==='function'){window.FFP_TAX_READY.then(fill);}
+                document.addEventListener('ffp-tax-ready',fill);
+              })();</script>
             </div>
             <div class="field">
               <div class="label">Country <span class="req">*</span></div>
@@ -3616,7 +3631,7 @@ function openEventModal(id) {
         <div class="field">
           <div class="label">Level</div>
           <select class="select" id="em-intensity">
-            ${['Not Tried','Social','Competitive','Representative','Professional'].map(l => `<option ${e.intensity===l?'selected':''}>${l}</option>`).join('')}
+            ${((window.FFP_TAX&&FFP_TAX.fitnessLevels&&FFP_TAX.fitnessLevels.length?FFP_TAX.fitnessLevels:['Not Tried','Social','Competitive','Representative','Professional'])).map(l => `<option ${e.intensity===l?'selected':''}>${l}</option>`).join('')}
           </select>
         </div>
         <div class="field full">
@@ -3861,13 +3876,13 @@ function openExperienceModal(id) {
         <div class="field">
           <div class="label">Type</div>
           <select class="select" id="xm-type">
-            ${['Fitness','Adventure','Wellness','Retreat','Sports Event','Hybrid'].map(t => `<option ${e.experience_type===t?'selected':''}>${t}</option>`).join('')}
+            ${((window.FFP_TAX&&FFP_TAX.experienceTypes&&FFP_TAX.experienceTypes.length?FFP_TAX.experienceTypes:['Fitness','Adventure','Wellness','Retreat','Sports Event','Hybrid'])).map(t => `<option ${e.experience_type===t?'selected':''}>${t}</option>`).join('')}
           </select>
         </div>
         <div class="field">
           <div class="label">Fitness level required</div>
           <select class="select" id="xm-fitness-level">
-            ${['Not Tried','Social','Competitive','Representative','Professional'].map(l => `<option ${e.fitness_level===l?'selected':''}>${l}</option>`).join('')}
+            ${((window.FFP_TAX&&FFP_TAX.fitnessLevels&&FFP_TAX.fitnessLevels.length?FFP_TAX.fitnessLevels:['Not Tried','Social','Competitive','Representative','Professional'])).map(l => `<option ${e.fitness_level===l?'selected':''}>${l}</option>`).join('')}
           </select>
         </div>
       </div>
@@ -4837,6 +4852,6 @@ document.addEventListener('DOMContentLoaded', () => {
 })();
 </script>
 <script>window.ffpOpenMap=function(id){var el=document.getElementById(id);var v=el?(el.value||'').trim():'';if(v)window.open('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(v),'_blank');};</script>
-<div id="ffp-build-stamp" style="position:fixed;bottom:4px;left:6px;font-size:9px;font-family:monospace;color:rgba(255,255,255,0.28);z-index:99999;pointer-events:none;">FFP build v28 — provider rating</div>
+<div id="ffp-build-stamp" style="position:fixed;bottom:4px;left:6px;font-size:9px;font-family:monospace;color:rgba(255,255,255,0.28);z-index:99999;pointer-events:none;">FFP build v29 — taxonomy fields</div>
 </body>
 </html>
