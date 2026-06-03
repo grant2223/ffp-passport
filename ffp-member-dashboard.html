@@ -1,9 +1,14 @@
-<!-- FFP MEMBER DASHBOARD — v245 (2026-06-03)
-     v245: (Grant) Available Balance hero now converts AED→USD for display (aedToUsd) — referral
-           rewards credited by backend v59 land in transactions as AED; platform shows USD. Balance
-           now reflects earned referrals (e.g. Grant: 2 referrals → $40). FOLLOW-UP: the payout modal
-           (#po-available + submitPayout min/amount) still mixes AED/USD — needs a coordinated currency
-           pass (does the member enter USD? min in USD?), flagged not fixed here.
+<!-- FFP MEMBER DASHBOARD — v247 (2026-06-03)
+     v247: (Grant) MONEY PRECISION — aedToUsd/usdToAed are now cents-precise (were whole-dollar, so a
+           20% × $99 = $19.80 reward × 2 showed as $40 instead of $39.60). All USD displays (hero balance,
+           payout available/amount, earnings summary + rows, refer-modal earned) now use fmtUsd → cents
+           when present ($39.60), whole when round ($250). Earnings loader → v15 (?v=15).
+     v246: (Grant) USD made the single platform currency end-to-end. Earnings.balance is now USD
+           (earnings loader v14 converts the AED transaction sum once); the WHOLE payout flow works in
+           USD (min $250, validation, hero + po-available display), converting USD→AED only when writing
+           amount_aed. Added Earnings.usdToAed(). Referral rewards are credited on ADMIN VERIFY (not at
+           signup) — see backend v60 / admin v39 — so balance reflects them once an admin verifies.
+     v245: (superseded) interim hero AED→USD conversion.
      v244: (Grant) CURRENCY MODEL — platform displays USD; only PAYOUTS show local currency.
            Earnings-log summary + rows + refer-a-friend "earned" now render in USD ($);
            Payouts list/summary stay AED (local). Balance hero already USD. Earnings loader
@@ -7774,7 +7779,7 @@ function setupPanelNav() {
   // v156: load a panel's data-loader script the first time that panel is opened.
   // Keeps page load free of panel queries; the default Passport view needs none.
   const _panelLoaderSrc = {
-    'panel-earnings':        'assets/ffp-earnings-loader.js?v=13',
+    'panel-earnings':        'assets/ffp-earnings-loader.js?v=15',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
     'panel-fitness-stats':   'assets/ffp-fitness-stats-loader.js?v=19',
     'panel-meet':            'assets/ffp-meet-move-loader.js?v=19',
@@ -10938,7 +10943,8 @@ const Earnings = {
   _normalized: false,
   referralUsd(tier) { return (this.REFERRAL_PCT[tier] || 5) / 100 * this.MEMBERSHIP_USD; },
   fmtUsd(v) { return (Math.round(v * 100) % 100 === 0) ? String(Math.round(v)) : Number(v).toFixed(2); },
-  aedToUsd(aed) { return Math.round(aed / this.AED_PER_USD); },
+  aedToUsd(aed) { return Math.round((Number(aed)||0) / this.AED_PER_USD * 100) / 100; },   // v247: cents-precise (was whole-dollar → $40 instead of $39.60)
+  usdToAed(usd) { return Math.round((Number(usd)||0) * this.AED_PER_USD * 100) / 100; },   // convert USD→AED only when writing the stored amount_aed
   isUaeMember() {
     var m = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || {};
     var c = (m.country || '').trim().toLowerCase();
@@ -11015,9 +11021,8 @@ const Earnings = {
     this.tier = this.computedTier();
     const t = this.tiers[this.tier];
 
-    // Hero balance (USD). v245: balance is summed from transactions.amount_aed (AED), so
-    // convert AED→USD for display (platform shows USD; only payouts use local currency).
-    document.getElementById('earn-balance').textContent = this.aedToUsd(this.balance).toLocaleString();
+    // Hero balance (USD). v247: balance is canonically USD; show cents when present (e.g. $39.60).
+    document.getElementById('earn-balance').textContent = this.fmtUsd(this.balance);
     const payoutBtn = document.getElementById('earn-payout-btn');
     const metaEl = document.getElementById('earn-balance-meta');
     const MIN = this.MIN_PAYOUT_USD;
@@ -11187,7 +11192,7 @@ const Earnings = {
     document.getElementById('rm-code').textContent = this.referralCode;
     document.getElementById('rm-link').value = `https://ffppassport.com/join?ref=${this.referralCode}`;
     document.getElementById('rm-total').textContent   = this.referralStats.total;
-    document.getElementById('rm-earned').textContent  = this.referralStats.earned.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    document.getElementById('rm-earned').textContent  = this.fmtUsd(this.referralStats.earned);
     document.getElementById('rm-pending').textContent = this.referralStats.pending;
     document.getElementById('refer-modal-backdrop').classList.add('open');
   },
@@ -11214,7 +11219,7 @@ const Earnings = {
     if (!this.isUaeMember()) { showToast('Payouts are available in the UAE only for now'); return; }
     if (this.balance < this.MIN_PAYOUT_USD) { showToast('Minimum payout is $' + this.MIN_PAYOUT_USD); return; }
     this._payoutAmount = 0;
-    document.getElementById('po-available').textContent = this.balance.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    document.getElementById('po-available').textContent = this.fmtUsd(this.balance);
     document.getElementById('po-amount').textContent = '0';
     document.getElementById('po-amount-input').value = '';
     document.querySelectorAll('.po-quick').forEach(b => b.classList.remove('active'));
@@ -11224,7 +11229,7 @@ const Earnings = {
   setPayoutAmount(amt) {
     if (amt > this.balance) amt = this.balance;
     this._payoutAmount = amt;
-    document.getElementById('po-amount').textContent = amt.toLocaleString();
+    document.getElementById('po-amount').textContent = this.fmtUsd(amt);
     document.getElementById('po-amount-input').value = amt;
     document.querySelectorAll('.po-quick').forEach(b => {
       b.classList.toggle('active', parseInt(b.textContent, 10) === amt);
@@ -11240,7 +11245,7 @@ const Earnings = {
     if (isNaN(n)) { this._payoutAmount = 0; document.getElementById('po-amount').textContent = '0'; return; }
     const amt = Math.min(this.balance, Math.max(0, n));
     this._payoutAmount = amt;
-    document.getElementById('po-amount').textContent = amt.toLocaleString();
+    document.getElementById('po-amount').textContent = this.fmtUsd(amt);
     document.querySelectorAll('.po-quick').forEach(b => b.classList.remove('active'));
   },
   submitPayout() {
