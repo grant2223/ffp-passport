@@ -1,4 +1,10 @@
-/* FFP Taxonomy - v5 (2026-06-03)
+/* FFP Taxonomy - v6 (2026-06-03)
+   v6: + provider classification lists exposed on FFP_TAX — providerTypes (list_key 'provider_type')
+       + gymSizes ('gym_size'), hydrated from the DB like the rest. provider_type is ONE unified
+       concept (Gym / Studio / Event Organizer / Sports Club / Team / Adventure Provider / Health Food
+       Cafe / …) used by BOTH the provider profile field AND the admin rankings classifier — same
+       column, same list, no conflict. (Resolves the audit's provider_type issue per Grant: they're
+       the same thing.)
    v5: + Passports (Pick A Passport map lens). Exposes FFP_TAX.passports (list_key='passport')
        and FFP_TAX.categoryPassport (category value → passport id, from each category row's
        `parent`). Admin assigns a passport per category in the Taxonomies panel; the member
@@ -210,6 +216,10 @@
     'Climbing': 'adventure', 'Nutrition': 'food', 'Retail': 'food'
   };
   T.ageGroups = ['18-24', '25-34', '35-44', '45-54', '55+'];
+  // Provider classification lists (fallbacks; DB taxonomy_items is the source of truth and hydrates these).
+  // provider_type = the single facility/provider kind, used by the provider profile AND admin rankings.
+  T.providerTypes = ['Gym', 'Studio', 'Yoga Studio', 'Pilates Studio', 'CrossFit Box', 'Sports Club / Team', 'Adventure Provider', 'Wellness Centre', 'Recovery Studio', 'Health Food Cafe', 'Coaching / PT', 'Event Organizer', 'Other'];
+  T.gymSizes = ['Boutique (under 500)', 'Mid-size (500–2,000)', 'Large (2,000–7,500)', 'Mega (7,500+)', 'Not applicable'];
   T.phoneCodes = [
     { code: '+971', country: 'United Arab Emirates', flag: '🇦🇪' },{ code: '+93', country: 'Afghanistan', flag: '🇦🇫' },{ code: '+54', country: 'Argentina', flag: '🇦🇷' },{ code: '+61', country: 'Australia', flag: '🇦🇺' },{ code: '+43', country: 'Austria', flag: '🇦🇹' },{ code: '+973', country: 'Bahrain', flag: '🇧🇭' },{ code: '+32', country: 'Belgium', flag: '🇧🇪' },{ code: '+55', country: 'Brazil', flag: '🇧🇷' },{ code: '+359', country: 'Bulgaria', flag: '🇧🇬' },{ code: '+1', country: 'Canada', flag: '🇨🇦' },{ code: '+56', country: 'Chile', flag: '🇨🇱' },{ code: '+86', country: 'China', flag: '🇨🇳' },{ code: '+57', country: 'Colombia', flag: '🇨🇴' },{ code: '+385', country: 'Croatia', flag: '🇭🇷' },{ code: '+420', country: 'Czech Republic', flag: '🇨🇿' },{ code: '+45', country: 'Denmark', flag: '🇩🇰' },{ code: '+20', country: 'Egypt', flag: '🇪🇬' },{ code: '+358', country: 'Finland', flag: '🇫🇮' },{ code: '+33', country: 'France', flag: '🇫🇷' },{ code: '+49', country: 'Germany', flag: '🇩🇪' },{ code: '+30', country: 'Greece', flag: '🇬🇷' },{ code: '+852', country: 'Hong Kong', flag: '🇭🇰' },{ code: '+36', country: 'Hungary', flag: '🇭🇺' },{ code: '+91', country: 'India', flag: '🇮🇳' },{ code: '+62', country: 'Indonesia', flag: '🇮🇩' },{ code: '+98', country: 'Iran', flag: '🇮🇷' },{ code: '+353', country: 'Ireland', flag: '🇮🇪' },{ code: '+972', country: 'Israel', flag: '🇮🇱' },{ code: '+39', country: 'Italy', flag: '🇮🇹' },{ code: '+81', country: 'Japan', flag: '🇯🇵' },{ code: '+962', country: 'Jordan', flag: '🇯🇴' },{ code: '+254', country: 'Kenya', flag: '🇰🇪' },{ code: '+965', country: 'Kuwait', flag: '🇰🇼' },{ code: '+961', country: 'Lebanon', flag: '🇱🇧' },{ code: '+60', country: 'Malaysia', flag: '🇲🇾' },{ code: '+52', country: 'Mexico', flag: '🇲🇽' },{ code: '+212', country: 'Morocco', flag: '🇲🇦' },{ code: '+31', country: 'Netherlands', flag: '🇳🇱' },{ code: '+64', country: 'New Zealand', flag: '🇳🇿' },{ code: '+234', country: 'Nigeria', flag: '🇳🇬' },{ code: '+47', country: 'Norway', flag: '🇳🇴' },{ code: '+968', country: 'Oman', flag: '🇴🇲' },{ code: '+92', country: 'Pakistan', flag: '🇵🇰' },{ code: '+51', country: 'Peru', flag: '🇵🇪' },{ code: '+63', country: 'Philippines', flag: '🇵🇭' },{ code: '+48', country: 'Poland', flag: '🇵🇱' },{ code: '+351', country: 'Portugal', flag: '🇵🇹' },{ code: '+974', country: 'Qatar', flag: '🇶🇦' },{ code: '+40', country: 'Romania', flag: '🇷🇴' },{ code: '+7', country: 'Russia', flag: '🇷🇺' },{ code: '+966', country: 'Saudi Arabia', flag: '🇸🇦' },{ code: '+65', country: 'Singapore', flag: '🇸🇬' },{ code: '+27', country: 'South Africa', flag: '🇿🇦' },{ code: '+82', country: 'South Korea', flag: '🇰🇷' },{ code: '+34', country: 'Spain', flag: '🇪🇸' },{ code: '+94', country: 'Sri Lanka', flag: '🇱🇰' },{ code: '+46', country: 'Sweden', flag: '🇸🇪' },{ code: '+41', country: 'Switzerland', flag: '🇨🇭' },{ code: '+66', country: 'Thailand', flag: '🇹🇭' },{ code: '+90', country: 'Turkey', flag: '🇹🇷' },{ code: '+380', country: 'Ukraine', flag: '🇺🇦' },{ code: '+44', country: 'United Kingdom', flag: '🇬🇧' },{ code: '+1', country: 'United States', flag: '🇺🇸' },{ code: '+84', country: 'Vietnam', flag: '🇻🇳' }
   ];
@@ -278,6 +288,8 @@
       fill(window.FFP_CONST.providerCategories, vals('category'));
     }
     if (by.experience_type) { T.experienceTypes = vals('experience_type'); }
+    if (by.provider_type)   fill(T.providerTypes, vals('provider_type'));
+    if (by.gym_size)        fill(T.gymSizes, vals('gym_size'));
     // Passports + category→passport mapping (Pick A Passport). list = list_key='passport';
     // each category row's `parent` is its passport id.
     if (by.passport && by.passport.length) {
