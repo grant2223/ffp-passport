@@ -1,13 +1,30 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP EARNINGS LOADER · CURRENT VERSION: v12
+   FFP EARNINGS LOADER · CURRENT VERSION: v15
    File path: assets/ffp-earnings-loader.js
-   On-load log: [FFP Earnings v12] Loaded from Supabase ✓
+   On-load log: [FFP Earnings v15] Loaded from Supabase ✓
    ═══════════════════════════════════════════════════════════════ */
 
-/* WHAT v12 CHANGES (from v11):
-   - Payouts summary (Paid / In progress / Rejected) and Earnings-log summary
-     (Earned / Pending) now show the corresponding USD total under each AED figure
-     (≈ $X USD, converted via Earnings.aedToUsd, peg 3.6725). (Grant) */
+/* WHAT v15 CHANGES (from v14):
+   - Money precision: USD now shows cents via Earnings.fmtUsd (earnings summary Earned/Pending +
+     earnings-log rows). Pairs with member-dashboard aedToUsd becoming cents-precise so a $19.80
+     reward reads $19.80 (was rounded). Whole amounts still show without decimals. */
+
+/* WHAT v14 CHANGES (from v13):
+   - USD is now the single balance currency: Earnings.balance = aedToUsd(sum of transactions.amount_aed),
+     so the whole payout flow (min, validation, display) works in USD. Payout WRITES convert USD→AED
+     (Earnings.usdToAed) into amount_aed; payout records still display the local currency (AED).
+   - Payout minimum messaging: "$250" (was "AED 500"); empty-state copy updated to "$250". */
+
+/* WHAT v13 CHANGES (from v12):
+   - CURRENCY MODEL (Grant): the PLATFORM displays in USD; only PAYOUTS show local
+     currency (the currency they're paid in). So:
+       • Earnings-log summary (Earned / Pending) → USD ($)
+       • Earnings-log rows (credits/debits) → USD ($), converted via Earnings.aedToUsd
+       • Refer-a-friend "earned" stat → USD ($)
+       • Available Balance hero → USD (unchanged)
+       • Payouts list + Payouts summary (Paid / In progress / Rejected) → stay AED (local)
+     Stored values remain *_aed; USD is a display conversion (peg 3.6725). A future pass
+     should make payouts use the member's actual local currency, not always AED. */
 
 /* WHAT v11 CHANGES (from v10):
    - Default visible rows in Payouts and Earnings log: 5 → 3.
@@ -119,7 +136,7 @@
       section.innerHTML = titleRow +
         '<div class="ffp-po-list">' +
           '<div class="ffp-po-empty">' +
-            'No payouts yet. When your balance reaches AED 500, request your first one above.' +
+            'No payouts yet. When your balance reaches $250, request your first one above.' +
           '</div>' +
         '</div>';
       return;
@@ -409,9 +426,9 @@
 
     var summary =
       '<div class="ffp-summary">' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Paid</div><div class="ffp-summary-val green">AED ' + Math.round(totalPaid).toLocaleString() + '<span style="display:block;font-size:11px;font-weight:600;opacity:.6;margin-top:3px;">≈ $' + Earnings.aedToUsd(totalPaid).toLocaleString() + ' USD</span></div></div>' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">In progress</div><div class="ffp-summary-val yellow">AED ' + Math.round(totalPending).toLocaleString() + '<span style="display:block;font-size:11px;font-weight:600;opacity:.6;margin-top:3px;">≈ $' + Earnings.aedToUsd(totalPending).toLocaleString() + ' USD</span></div></div>' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Rejected</div><div class="ffp-summary-val red">AED ' + Math.round(totalRejected).toLocaleString() + '<span style="display:block;font-size:11px;font-weight:600;opacity:.6;margin-top:3px;">≈ $' + Earnings.aedToUsd(totalRejected).toLocaleString() + ' USD</span></div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Paid</div><div class="ffp-summary-val green">AED ' + Math.round(totalPaid).toLocaleString() + '</div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">In progress</div><div class="ffp-summary-val yellow">AED ' + Math.round(totalPending).toLocaleString() + '</div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Rejected</div><div class="ffp-summary-val red">AED ' + Math.round(totalRejected).toLocaleString() + '</div></div>' +
       '</div>';
 
     var rowsHtml;
@@ -543,8 +560,8 @@
 
     var summary =
       '<div class="ffp-summary two">' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Earned</div><div class="ffp-summary-val green">AED ' + Math.round(totalEarned).toLocaleString() + '<span style="display:block;font-size:11px;font-weight:600;opacity:.6;margin-top:3px;">≈ $' + Earnings.aedToUsd(totalEarned).toLocaleString() + ' USD</span></div></div>' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Pending</div><div class="ffp-summary-val yellow">AED ' + Math.round(totalPending).toLocaleString() + '<span style="display:block;font-size:11px;font-weight:600;opacity:.6;margin-top:3px;">≈ $' + Earnings.aedToUsd(totalPending).toLocaleString() + ' USD</span></div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Earned</div><div class="ffp-summary-val green">$' + Earnings.fmtUsd(Earnings.aedToUsd(totalEarned)) + '</div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Pending</div><div class="ffp-summary-val yellow">$' + Earnings.fmtUsd(Earnings.aedToUsd(totalPending)) + '</div></div>' +
       '</div>';
 
     var listHtml;
@@ -555,7 +572,7 @@
       var visible = earningsShowAll ? filtered : filtered.slice(0, DEFAULT_VISIBLE_ROWS);
       var rows = visible.map(function (r) {
         var isIn = r.type === 'in';
-        var amt = Math.round(Number(r.amount_aed) || 0);
+        var amt = Earnings.aedToUsd(Number(r.amount_aed) || 0);   // v13: platform shows USD
         var icon = isIn ? 'add' : 'remove';
         var sign = isIn ? '+' : '\u2212';
         var statusText = r.status === 'pending' ? 'pending review' : r.status === 'rejected' ? 'rejected' : '';
@@ -567,7 +584,7 @@
             '<div class="ffp-earn-name">' + escHtml(src) + '</div>' +
             '<div class="ffp-earn-meta">' + escHtml(meta) + '</div>' +
           '</div>' +
-          '<div class="ffp-earn-amt' + (isIn ? '' : ' out') + '">' + sign + amt + '</div>' +
+          '<div class="ffp-earn-amt' + (isIn ? '' : ' out') + '">' + sign + '$' + Earnings.fmtUsd(amt) + '</div>' +
         '</div>';
       }).join('');
       listHtml = '<div class="ffp-po-list">' + rows + '</div>';
@@ -762,7 +779,7 @@
       } else {
         var txRows = txRes.data || [];
         allTransactions = txRows;  // v8: keep full list for time filtering
-        Earnings.balance = computeBalance(txRows);
+        Earnings.balance = Earnings.aedToUsd(computeBalance(txRows));   // v14: balance is canonically USD (platform shows USD)
 
         // For paid payouts, fetch the receipt URL from payouts table
         var paidPayoutIds = txRows
@@ -824,7 +841,7 @@
         });
         Earnings.referralStats = {
           total: total,
-          earned: Math.round(earned),
+          earned: Earnings.aedToUsd(earned),   // v13: referral "earned" stat shows USD (HTML prefixes $)
           pending: pending
         };
       }
@@ -1166,9 +1183,10 @@
     var origSubmitPayout = Earnings.submitPayout.bind(Earnings);
     Earnings.submitPayout = async function () {
       // Capture amount + method BEFORE original runs (original closes modal + clears state)
-      var amount = this._payoutAmount;
+      var amount = this._payoutAmount;   // USD (platform currency)
       // Guard amount before collecting bank details
-      if (amount < 500) { showToast('Minimum payout is AED 500', 'error'); return; }
+      var minUsd = Earnings.MIN_PAYOUT_USD || 250;
+      if (amount < minUsd) { showToast('Minimum payout is $' + minUsd, 'error'); return; }
       if (amount > this.balance) { showToast('Amount exceeds balance', 'error'); return; }
 
       // Collect + validate bank/other details BEFORE the original closes the modal
@@ -1176,9 +1194,10 @@
       if (!details) return;  // validation failed, modal stays open
 
       // Final confirmation — this is real money
-      if (!confirm('Submit payout request for AED ' + amount.toLocaleString() + ' via ' + details.method + '?\n\nAdmin will review and contact you within 3\u20135 business days.')) {
+      if (!confirm('Submit payout request for $' + amount.toLocaleString() + ' USD (paid in your local currency) via ' + details.method + '?\n\nAdmin will review and contact you within 3\u20135 business days.')) {
         return;
       }
+      var amountAed = Earnings.usdToAed(amount);   // store the local-currency amount
 
       origSubmitPayout();  // closes modal + clears state
       if (!currentUserId) return;
@@ -1186,7 +1205,7 @@
         // 1. Insert payout request (now WITH bank_details)
         var payoutRes = await window.supabase.from('payouts').insert({
           member_id: currentUserId,
-          amount_aed: amount,
+          amount_aed: amountAed,
           method: details.method,
           bank_details: details.bank_details,
           status: 'pending',
@@ -1201,7 +1220,7 @@
         var txRes = await window.supabase.from('transactions').insert({
           member_id: currentUserId,
           type: 'out',
-          amount_aed: amount,
+          amount_aed: amountAed,
           source: 'Payout request \u2014 ' + (details.method === 'bank' ? 'bank transfer' : 'other'),
           category: 'payout',
           status: 'pending',
