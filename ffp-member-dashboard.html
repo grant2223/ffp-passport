@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v250 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v251 (2026-06-04)
+     v251: (#32) World Map Filters — Country + City dropdowns now appear on first open. Root cause:
+           JourneyMap.render() built the #jm-chips dropdowns only AFTER `if(!map){init();return;}`, so on
+           the first render (map still initialising) it returned early and the dropdowns never populated.
+           They don't need the map, so they're now built at the TOP of render(); removed the redundant
+           bottom block. City dropdown stays disabled until a Country is picked (by design).
      v250: feedback widget ref → ?v=5 (widget now exposes window.FFPFeedback synchronously + builds
            lazily, so the topbar Feedback button opens reliably — was a silent no-op when the API was
            defined only at the end of build()). Provider dashboard ref also → ?v=5.
@@ -7166,6 +7171,14 @@ window.JourneyMap = (function () {
     else if (bounds.length===1) map.flyTo(bounds[0], Math.min(13,maxZoom+5), { duration:0.6 });
   }
   function render(){
+    // #32 FIX: build the Country/City dropdowns FIRST — they depend only on logged locations, not the
+    // Leaflet map. Previously this ran AFTER `if(!map){init();return;}`, so on first load (map not yet
+    // built) render() returned early and the Country/City filters never appeared.
+    (function(){
+      var navMap0 = {};
+      logsInRange(true).forEach(function(l){ if(!l.city) return; if(!navMap0[l.city]) navMap0[l.city]={city:l.city,country:l.country||'',count:0}; navMap0[l.city].count++; });
+      renderChips(Object.keys(navMap0).map(function(k){return navMap0[k];}));
+    })();
     if (typeof L === 'undefined') return;
     if (!map){ init(); return; }
     if (!layer) layer = L.layerGroup().addTo(map);
@@ -7198,11 +7211,8 @@ window.JourneyMap = (function () {
       if (countEl) countEl.textContent = cities.length+(cities.length===1?' city':' cities');
       if (bounds.length) fit(bounds, 6); else map.setView([20,10],2);
     }
-    // Country/City dropdowns reflect ALL logged locations (time-scoped), NOT the passport lens —
-    // so selecting a passport never makes the dropdowns disappear.
-    var navMap = {};
-    logsInRange(true).forEach(function(l){ if(!l.city) return; if(!navMap[l.city]) navMap[l.city]={city:l.city,country:l.country||'',count:0}; navMap[l.city].count++; });
-    renderChips(Object.keys(navMap).map(function(k){return navMap[k];}));
+    // (Country/City dropdowns are now built at the TOP of render() — see #32 fix — so they appear
+    //  even on the first render when the map is still initialising.)
   }
   function renderCrumb(){
     var el=document.getElementById('jm-crumb'); if(!el) return;
