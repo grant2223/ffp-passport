@@ -1,4 +1,10 @@
-<!-- FFP MEMBER DASHBOARD — v237 (2026-06-03)
+<!-- FFP MEMBER DASHBOARD — v238 (2026-06-03)
+     v238: HOTFIX for v237 — renderPassportPicker()/updateMapFilterUI() (top-level fns) called esc(),
+           but esc is NOT global (it's local to several IIFEs); the global escaper is escHtml(). The
+           ReferenceError threw on the FIRST line of renderAll() (renderPassportPicker runs first), so
+           the ENTIRE passport panel rendered nothing — no card data, stats, activities, places,
+           connections or map. Switched those 4 calls to escHtml(). (Symptom Grant hit: "no data being
+           pulled into the passport panel.")
      v237: WORLD MAP FILTERS REDESIGN. The passport pills + Country/City dropdowns no longer sit above
            the map. A "Filters" button now sits opposite the "World Map" title → opens a full-bleed
            modal (#map-filter-backdrop, .detail-backdrop dm-full) containing the Country + City selects
@@ -6964,14 +6970,14 @@ function renderPassportPicker() {
   html += getPassports().map(function (p) {
     var n = counts[p.id] || 0;
     var img = p.img
-      ? '<img class="jm-pcard-img" src="' + esc(p.img) + '" alt="' + esc(p.label) + '" loading="lazy" onerror="this.style.display=\'none\'">'
+      ? '<img class="jm-pcard-img" src="' + escHtml(p.img) + '" alt="' + escHtml(p.label) + '" loading="lazy" onerror="this.style.display=\'none\'">'
       : '';
     return '<button type="button" class="jm-pcard' + (cur === p.id ? ' on' : '') + '" style="--pc:' + p.color + ';" onclick="setPassport(\'' + p.id + '\')">'
       + img
       + '<span class="jm-pcard-fallback"></span>'
       + '<span class="jm-pcard-scrim"></span>'
       + '<span class="jm-pcard-check"><span class="material-icons">check</span></span>'
-      + '<span class="jm-pcard-body"><span class="jm-pcard-label">' + esc(p.label) + '</span>'
+      + '<span class="jm-pcard-body"><span class="jm-pcard-label">' + escHtml(p.label) + '</span>'
       + '<span class="jm-pcard-count">' + n + ' ' + (n === 1 ? 'activity' : 'activities') + '</span></span>'
       + '</button>';
   }).join('');
@@ -7004,10 +7010,10 @@ function updateMapFilterUI() {
   if (sum) {
     var parts = [];
     var loc = state.selectedCity || state.selectedCountry || 'Worldwide';
-    parts.push('<span class="pill"><span class="material-icons">place</span>' + esc(loc) + '</span>');
+    parts.push('<span class="pill"><span class="material-icons">place</span>' + escHtml(loc) + '</span>');
     if (state.selectedPassport) {
       var p = passportById(state.selectedPassport);
-      parts.push('<span class="pill" style="color:' + (p ? p.color : 'inherit') + ';"><span class="material-icons">style</span>' + esc(p ? p.label : state.selectedPassport) + '</span>');
+      parts.push('<span class="pill" style="color:' + (p ? p.color : 'inherit') + ';"><span class="material-icons">style</span>' + escHtml(p ? p.label : state.selectedPassport) + '</span>');
     } else {
       parts.push('<span class="pill"><span class="material-icons">style</span>All passports</span>');
     }
