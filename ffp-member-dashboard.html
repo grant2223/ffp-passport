@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v251 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v252 (2026-06-04)
+     v252: (#33) Profile → Add skill: the activity picker is now FULL-BLEED. The picker already used the
+           FFP activity taxonomy (ACTIVITIES_DB = FFP_TAX.activities) — the gap was the modal being the
+           compact 460px Picker. Added an opt-in `fullBleed` flag on Picker.open (toggles .picker-modal.
+           full-bleed); addSportFlow's activity + level steps pass it. Other pickers (month/country) stay compact.
+     v251 (2026-06-04)
      v251: (#32) World Map Filters — Country + City dropdowns now appear on first open. Root cause:
            JourneyMap.render() built the #jm-chips dropdowns only AFTER `if(!map){init();return;}`, so on
            the first render (map still initialising) it returned early and the dropdowns never populated.
@@ -945,6 +950,7 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
    scrollbar, and grouped or flat options. Used for: Gender, City, Country,
    Nationality, Country Code, Month, Add Sport. */
 .picker-modal { max-width: 460px; max-height: 80vh; display: flex; flex-direction: column; }
+.picker-modal.full-bleed { max-width: 100%; width: 100%; height: 100vh; max-height: 100vh; border-radius: 0; }   /* #33: full-bleed activity picker */
 .picker-modal .picker-search-wrap { padding: 12px 20px 14px; border-bottom: 1px solid var(--border); position: relative; }
 .picker-modal .picker-search-wrap .material-icons { position: absolute; left: 32px; top: 50%; transform: translateY(-30%); color: var(--muted); font-size: 18px; pointer-events: none; }
 .picker-modal .picker-search-input { width: 100%; padding: 10px 12px 10px 38px; background: rgba(43,168,224,0.08); border: 1px solid var(--border-mid); border-radius: 8px; color: var(--text); font-size: 14px; font-weight: 500; font-family: inherit; outline: none; }
@@ -7951,6 +7957,10 @@ const Picker = {
   current: null,
   open(config) {
     this.current = config;
+    // #33: opt-in full-bleed (used by the Add-Skill activity picker so it matches the platform's
+    // full-screen modal standard); other pickers (month/country/level) stay the compact 460px modal.
+    var _pm = document.querySelector('#picker-modal-overlay .picker-modal');
+    if (_pm) _pm.classList.toggle('full-bleed', !!config.fullBleed);
     document.getElementById('picker-modal-title').textContent = config.title || 'Select';
     document.getElementById('picker-modal-subtitle').textContent = config.subtitle || '';
     const search = document.getElementById('picker-modal-search');
@@ -8698,6 +8708,7 @@ const MemberProfile = {
       searchPlaceholder: 'Search skills...',
       options: grouped,
       grouped: true,
+      fullBleed: true,
       onPick: (sportName) => {
         if (this.data.sports.some(s => s.name.toLowerCase() === sportName.toLowerCase())) {
           alert(`${sportName} is already in your profile.`);
@@ -8709,6 +8720,7 @@ const MemberProfile = {
             subtitle: 'Step 2 of 2 — FFP fitness level',
             searchPlaceholder: 'Search levels...',
             options: FFP_FITNESS_LEVELS,
+            fullBleed: true,
             onPick: (level) => {
               this.data.sports.push({ name: sportName, level });
               this.render();
