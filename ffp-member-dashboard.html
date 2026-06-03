@@ -1,4 +1,12 @@
-<!-- FFP MEMBER DASHBOARD — v235 (2026-06-03)
+<!-- FFP MEMBER DASHBOARD — v236 (2026-06-03)
+     v236: PROVIDER REVIEW PROMPT. ~1h after a venue check-in, an in-app "Rate your session at
+           [Venue]" card appears at the top of the Passport panel (#review-prompts), driven by
+           the member_pending_reviews RPC. Tapping "Rate now" opens a star modal (Overall +
+           Experience + Service + Facilities + comment) on the .detail-backdrop system →
+           submit_provider_review RPC (tied to the real activity_logs check-in; upserts per
+           check-in). Cards can be dismissed (localStorage ffp_dismissed_reviews). ReviewPrompt
+           module; loadPendingReviews() runs from loadJourneyLogs() on sign-in + activity-logged.
+           RPCs already live on Supabase.
      v235: Pick A Passport mapping is now TAXONOMY-DRIVEN — passport list + category→passport come
            from FFP_TAX.passports / FFP_TAX.categoryPassport (admin sets each category's passport in
            the Taxonomies panel). Colours/icons stay in code (PASSPORT_META); legacy keyword fallback
@@ -2898,6 +2906,23 @@ input[type="number"] {
 /* Generic detail modal (shared across Deals/Events/Experiences/Meetups/Members) */
 .detail-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.78); display: none; align-items: flex-start; justify-content: center; z-index: 9000; padding: 20px; overflow-y: auto; }
 .detail-backdrop.open { display: flex; }
+
+/* Provider review prompt card + star modal */
+#review-prompts { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+#review-prompts:empty { display: none; }
+.review-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: linear-gradient(135deg, rgba(255,204,0,0.12), rgba(43,168,224,0.10)); border: 1px solid rgba(255,204,0,0.4); }
+.review-card-icon { width: 38px; height: 38px; border-radius: 10px; background: rgba(255,204,0,0.18); display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.review-card-icon .material-icons { font-size: 22px; color: #FFCC00; }
+.review-card-body { flex: 1; min-width: 0; }
+.review-card-title { font-weight: 700; font-size: 14px; }
+.review-card-sub { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+.review-card-cta { flex: 0 0 auto; background: #FFCC00; color: #081420; border: none; border-radius: 9px; padding: 8px 14px; font-weight: 800; font-size: 13px; cursor: pointer; font-family: inherit; }
+.review-card-x { flex: 0 0 auto; background: transparent; border: none; color: var(--muted); font-size: 22px; line-height: 1; cursor: pointer; padding: 2px 4px; }
+.rv-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px dashed var(--border-mid); }
+.rv-row-lbl { font-size: 14px; font-weight: 600; }
+.rv-stars { display: inline-flex; gap: 2px; }
+.rv-star { font-size: 28px; color: var(--border-mid); cursor: pointer; user-select: none; transition: color .08s; }
+.rv-star.on { color: #FFCC00; }
 .detail-modal { background: linear-gradient(180deg, #0f1e2e 0%, #081420 100%); border: 1px solid var(--border-mid); border-radius: 18px; max-width: 540px; width: 100%; max-height: calc(100vh - 40px); overflow-y: auto; box-shadow: 0 32px 80px rgba(0,0,0,0.7); position: relative; margin: auto; }
 .detail-modal::-webkit-scrollbar { display: none; }
 .detail-modal { scrollbar-width: none; }
@@ -4208,7 +4233,10 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
        PANEL: PASSPORT (active by default)
        ═══════════════════════════════════════════════════════════════ -->
   <div id="panel-passport" class="panel-view active">
-  
+
+  <!-- PENDING PROVIDER REVIEWS (rate your session ~1h after a venue check-in) -->
+  <div id="review-prompts"></div>
+
   <!-- PASSPORT CARD -->
   <div class="pass-container" id="pass-card-tap" onclick="sharePassportCard()" role="button" tabindex="0" title="Tap to share your passport" style="cursor:pointer;">
     <div class="pass-shell">
@@ -5814,6 +5842,48 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     <div class="dm-footer" style="gap:8px;">
       <button class="btn-secondary" id="pe-clear" onclick="FitnessStats.clearPr()" style="background:transparent; border:1px solid var(--border-mid); color:var(--muted); flex:0 0 auto; padding:11px 14px; border-radius:10px; font-weight:700; font-size:12px; cursor:pointer;">Clear</button>
       <button class="btn-primary-yellow" onclick="FitnessStats.savePr()" style="flex:1;">Save record</button>
+    </div>
+  </div>
+</div>
+
+<!-- Provider review modal (rate your session) -->
+<div class="detail-backdrop" id="review-modal-backdrop" onclick="if(event.target.id==='review-modal-backdrop')ReviewPrompt.close()">
+  <div class="detail-modal" role="dialog" aria-modal="true">
+    <button class="dm-close" onclick="ReviewPrompt.close()"><span class="material-icons">close</span></button>
+    <div class="activity-add-body">
+      <div class="activity-add-head">
+        <div class="activity-add-icon-lg"><span class="material-icons">reviews</span></div>
+        <div>
+          <div class="activity-add-name">Rate your session</div>
+          <div class="activity-add-sub" id="rv-venue">—</div>
+        </div>
+      </div>
+
+      <div class="rv-row">
+        <div class="rv-row-lbl">Overall</div>
+        <div class="rv-stars" id="rv-stars-overall" data-key="overall"></div>
+      </div>
+      <div class="rv-row">
+        <div class="rv-row-lbl">Experience</div>
+        <div class="rv-stars" id="rv-stars-experience" data-key="experience"></div>
+      </div>
+      <div class="rv-row">
+        <div class="rv-row-lbl">Service</div>
+        <div class="rv-stars" id="rv-stars-service" data-key="service"></div>
+      </div>
+      <div class="rv-row">
+        <div class="rv-row-lbl">Facilities</div>
+        <div class="rv-stars" id="rv-stars-facilities" data-key="facilities"></div>
+      </div>
+
+      <div class="activity-add-row">
+        <label class="activity-add-label" for="rv-comment">Comment (optional)</label>
+        <textarea id="rv-comment" rows="3" placeholder="Tell others about your session…" style="width:100%; padding:10px 11px; background:rgba(43,168,224,0.06); border:1px solid var(--border-mid); border-radius:8px; color:var(--text); font-size:14px; font-family:inherit; resize:vertical;"></textarea>
+      </div>
+      <div id="rv-error" style="display:none; color:#ff6b6b; font-size:12px; margin-top:4px;"></div>
+    </div>
+    <div class="dm-footer" style="gap:8px;">
+      <button class="btn-primary-yellow" id="rv-submit" onclick="ReviewPrompt.submit()" style="flex:1;">Submit review</button>
     </div>
   </div>
 </div>
@@ -13179,11 +13249,144 @@ async function loadJourneyLogs() {
       });
     });
     if (typeof renderAll === 'function') renderAll();
+    if (typeof ReviewPrompt !== 'undefined') ReviewPrompt.load();
     console.log('[FFP Journey] loaded ' + rows.length + ' saved logs (backend)');
   } catch (e) { console.error('[FFP Journey] load:', e); }
 }
 // Refresh the passport whenever a check-in / activity is logged (venue check-in fires this).
 document.addEventListener('ffp-activity-logged', function () { loadJourneyLogs(); });
+
+// ════════════════════════════════════════════════
+// PROVIDER REVIEW PROMPT (rate your session ~1h after a venue check-in)
+// ════════════════════════════════════════════════
+var ReviewPrompt = (function () {
+  var state = { log: null, stars: { overall: 0, experience: 0, service: 0, facilities: 0 } };
+  var PENDING = [];
+
+  function esc(t) {
+    return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  function dismissedSet() {
+    try { return new Set(JSON.parse(localStorage.getItem('ffp_dismissed_reviews') || '[]')); }
+    catch (e) { return new Set(); }
+  }
+  function dismiss(logId) {
+    var s = dismissedSet(); s.add(logId);
+    try { localStorage.setItem('ffp_dismissed_reviews', JSON.stringify(Array.from(s))); } catch (e) {}
+    render();
+  }
+
+  async function load() {
+    var host = document.getElementById('review-prompts');
+    if (!host) return;
+    var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
+    if (!member || !member.id || !window.supabase) { host.innerHTML = ''; return; }
+    try {
+      var res = await window.supabase.rpc('member_pending_reviews', { p_me: member.id });
+      if (res.error) throw res.error;
+      PENDING = res.data || [];
+      render();
+    } catch (e) { console.error('[FFP Review] load:', e); }
+  }
+
+  function render() {
+    var host = document.getElementById('review-prompts');
+    if (!host) return;
+    var dis = dismissedSet();
+    var rows = PENDING.filter(function (r) { return !dis.has(r.id); });
+    if (!rows.length) { host.innerHTML = ''; return; }
+    host.innerHTML = rows.map(function (r) {
+      var venue = r.venue || 'your session';
+      return '<div class="review-card">' +
+        '<div class="review-card-icon"><span class="material-icons">reviews</span></div>' +
+        '<div class="review-card-body">' +
+          '<div class="review-card-title">Rate your session at ' + esc(venue) + '</div>' +
+          '<div class="review-card-sub">' + esc(r.activity || 'Activity') + ' · help others by sharing how it went</div>' +
+        '</div>' +
+        '<button class="review-card-cta" onclick="ReviewPrompt.open(\'' + r.id + '\')">Rate now</button>' +
+        '<button class="review-card-x" title="Dismiss" onclick="ReviewPrompt.dismiss(\'' + r.id + '\')">&times;</button>' +
+      '</div>';
+    }).join('');
+  }
+
+  function open(logId) {
+    var log = PENDING.filter(function (r) { return r.id === logId; })[0];
+    if (!log) return;
+    state.log = log;
+    state.stars = { overall: 0, experience: 0, service: 0, facilities: 0 };
+    var v = document.getElementById('rv-venue');
+    if (v) v.textContent = log.venue || 'Your session';
+    var c = document.getElementById('rv-comment'); if (c) c.value = '';
+    var err = document.getElementById('rv-error'); if (err) err.style.display = 'none';
+    ['overall', 'experience', 'service', 'facilities'].forEach(function (k) { paint(k); });
+    var bd = document.getElementById('review-modal-backdrop');
+    if (bd) bd.classList.add('open');
+  }
+
+  function paint(key) {
+    var el = document.getElementById('rv-stars-' + key);
+    if (!el) return;
+    var val = state.stars[key] || 0;
+    var s = '';
+    for (var i = 1; i <= 5; i++) {
+      s += '<span class="material-icons rv-star' + (i <= val ? ' on' : '') +
+           '" onclick="ReviewPrompt.set(\'' + key + '\',' + i + ')">star</span>';
+    }
+    el.innerHTML = s;
+  }
+
+  function set(key, val) { state.stars[key] = val; paint(key); }
+
+  function close() {
+    var bd = document.getElementById('review-modal-backdrop');
+    if (bd) bd.classList.remove('open');
+  }
+
+  async function submit() {
+    var err = document.getElementById('rv-error');
+    if (!state.log) return;
+    if (!state.stars.overall) {
+      if (err) { err.textContent = 'Please give an overall rating.'; err.style.display = 'block'; }
+      return;
+    }
+    var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
+    if (!member || !member.id || !window.supabase) {
+      if (err) { err.textContent = 'Please sign in to submit a review.'; err.style.display = 'block'; }
+      return;
+    }
+    var btn = document.getElementById('rv-submit');
+    if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+    try {
+      var comment = (document.getElementById('rv-comment') || {}).value || '';
+      var res = await window.supabase.rpc('submit_provider_review', {
+        p_me: member.id,
+        p_provider: state.log.provider_id,
+        p_log: state.log.id,
+        p_overall: state.stars.overall,
+        p_experience: state.stars.experience || null,
+        p_service: state.stars.service || null,
+        p_facilities: state.stars.facilities || null,
+        p_comment: comment
+      });
+      if (res.error) throw res.error;
+      if (!res.data) throw new Error('Could not save — this check-in could not be verified.');
+      // success: drop the prompt + close
+      PENDING = PENDING.filter(function (r) { return r.id !== state.log.id; });
+      close();
+      render();
+      if (typeof showToast === 'function') showToast('Thanks for your review!', 'success');
+    } catch (e) {
+      console.error('[FFP Review] submit:', e);
+      if (err) { err.textContent = (e && e.message) || 'Something went wrong. Please try again.'; err.style.display = 'block'; }
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Submit review'; }
+    }
+  }
+
+  return { load: load, open: open, set: set, submit: submit, close: close, dismiss: dismiss };
+})();
 
 function setupLogPickers() {
   // Activity picker
