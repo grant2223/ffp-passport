@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v242 (2026-06-03)
+<!-- FFP MEMBER DASHBOARD — v243 (2026-06-03)
+     v243: (Grant bug) Earnings tier-progress was BLANK — loadTierStats() hit the old
+           /api/members/:id/stats endpoint and mapped mismatched keys (referrals/stamps/
+           providers/logs) onto category keys (members_referred/provider_checkins/…), so every
+           count stayed 0. Now calls the member_tier_progress(p_me) RPC, whose returned object
+           keys match the category keys exactly — counts map straight across.
      v242: CALORIE TRACKER food DB is now DB-BACKED + much larger. public.foods table seeded with 237
            grouped foods (14 groups: Protein, Seafood, Dairy & Eggs, Grains & Carbs, Legumes,
            Vegetables, Fruit, Nuts & Seeds, Fats & Oils, Snacks, Drinks, Fast Food, Condiments,
@@ -10942,16 +10947,20 @@ const Earnings = {
     this.loadTierStats();
   },
 
-  // Wire the Ambassador progression to real counts (4 of 7 categories have data).
+  // v243 — Wire tier progression to the member_tier_progress() RPC.
+  // The RPC returns an object whose keys EXACTLY match our category keys
+  // (members_referred, connections_made, meetups_hosted, provider_checkins,
+  //  quests_completed, events_attended, activities_logged, challenges_completed),
+  // so we map straight across. (Old /api/members/:id/stats used mismatched keys
+  // — referrals/stamps/providers/logs — which left every count at 0.)
   async loadTierStats() {
     var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
     if (!member || !member.id) return;
     try {
-      var res = await fetch('https://ffp-passport-backend.vercel.app/api/members/' + member.id + '/stats');
-      var stx = await res.json();
-      if (!stx || !stx.success) return;
-      var map = { referrals: stx.referrals, stamps: stx.quests_completed, providers: stx.providers, logs: stx.activities };
-      this.categories.forEach(function (c) { if (map[c.key] != null) c.current = map[c.key]; });
+      var res = await window.supabase.rpc('member_tier_progress', { p_me: member.id });
+      if (res.error) { console.error('[FFP Tier] rpc:', res.error); return; }
+      var d = res.data || {};
+      this.categories.forEach(function (c) { if (typeof d[c.key] === 'number') c.current = d[c.key]; });
       this.tier = this.computedTier();
       this.render();
     } catch (e) { console.error('[FFP Tier] stats:', e); }
