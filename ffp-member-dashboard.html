@@ -1,4 +1,10 @@
-<!-- FFP MEMBER DASHBOARD — v253 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v254 (2026-06-04)
+     v254: (#33 REDO) The v252 full-bleed didn't render — `.picker-modal.full-bleed` was boxed by the
+           Picker overlay's padding:20px + center. Now matches the platform full-bleed standard exactly
+           (.detail-backdrop.dm-full): the OVERLAY gets `full-bleed` (padding:0; align-items:stretch) and
+           the modal fills (width:100%; min-height:100vh; border-radius:0). Picker.open toggles full-bleed
+           on #picker-modal-overlay; addSportFlow still passes fullBleed:true.
+     v253 (2026-06-04)
      v253: (#34) Challenges filter — "All sports" dropdown replaced with CATEGORIES matching the Events
            filter (Sports/Fitness/Wellness/Adventure/Community). Challenges store a sport (not the Events
            category vocab), so a deterministic challengeCategory(sport) map drives the filter — works with
@@ -955,7 +961,9 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
    scrollbar, and grouped or flat options. Used for: Gender, City, Country,
    Nationality, Country Code, Month, Add Sport. */
 .picker-modal { max-width: 460px; max-height: 80vh; display: flex; flex-direction: column; }
-.picker-modal.full-bleed { max-width: 100%; width: 100%; height: 100vh; max-height: 100vh; border-radius: 0; }   /* #33: full-bleed activity picker */
+/* #33: full-bleed picker — mirrors .detail-backdrop.dm-full (backdrop padding:0 + stretch, modal fills) */
+.modal-overlay.full-bleed { padding: 0; align-items: stretch; }
+.modal-overlay.full-bleed .picker-modal { max-width: 100%; width: 100%; min-height: 100vh; max-height: none; border-radius: 0; }
 .picker-modal .picker-search-wrap { padding: 12px 20px 14px; border-bottom: 1px solid var(--border); position: relative; }
 .picker-modal .picker-search-wrap .material-icons { position: absolute; left: 32px; top: 50%; transform: translateY(-30%); color: var(--muted); font-size: 18px; pointer-events: none; }
 .picker-modal .picker-search-input { width: 100%; padding: 10px 12px 10px 38px; background: rgba(43,168,224,0.08); border: 1px solid var(--border-mid); border-radius: 8px; color: var(--text); font-size: 14px; font-weight: 500; font-family: inherit; outline: none; }
@@ -7961,8 +7969,8 @@ const Picker = {
     this.current = config;
     // #33: opt-in full-bleed (used by the Add-Skill activity picker so it matches the platform's
     // full-screen modal standard); other pickers (month/country/level) stay the compact 460px modal.
-    var _pm = document.querySelector('#picker-modal-overlay .picker-modal');
-    if (_pm) _pm.classList.toggle('full-bleed', !!config.fullBleed);
+    var _ov = document.getElementById('picker-modal-overlay');
+    if (_ov) _ov.classList.toggle('full-bleed', !!config.fullBleed);
     document.getElementById('picker-modal-title').textContent = config.title || 'Select';
     document.getElementById('picker-modal-subtitle').textContent = config.subtitle || '';
     const search = document.getElementById('picker-modal-search');
