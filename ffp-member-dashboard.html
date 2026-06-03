@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v252 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v253 (2026-06-04)
+     v253: (#34) Challenges filter — "All sports" dropdown replaced with CATEGORIES matching the Events
+           filter (Sports/Fitness/Wellness/Adventure/Community). Challenges store a sport (not the Events
+           category vocab), so a deterministic challengeCategory(sport) map drives the filter — works with
+           existing data, no empty results. (Search still matches sport text.)
+     v252 (2026-06-04)
      v252: (#33) Profile → Add skill: the activity picker is now FULL-BLEED. The picker already used the
            FFP activity taxonomy (ACTIVITIES_DB = FFP_TAX.activities) — the gap was the modal being the
            compact 460px Picker. Added an opt-in `fullBleed` flag on Picker.open (toggles .picker-modal.
@@ -4890,15 +4895,12 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
             <option value="member">Member challenges</option>
           </select>
           <select class="ffp-select" id="chal-sport">
-            <option value="all">All sports</option>
-            <option value="Running">Running</option>
-            <option value="Cycling">Cycling</option>
-            <option value="Swimming">Swimming</option>
-            <option value="Yoga">Yoga</option>
-            <option value="Padel">Padel</option>
+            <option value="all">All categories</option>
+            <option value="Sports">Sports</option>
             <option value="Fitness">Fitness</option>
-            <option value="Hiking">Hiking</option>
-            <option value="Multi-sport">Multi-sport</option>
+            <option value="Wellness">Wellness</option>
+            <option value="Adventure">Adventure</option>
+            <option value="Community">Community</option>
           </select>
         </div>
         <button class="filter-modal-done" onclick="ffpToggleFilterModal('chal-filters-modal')">Done</button>
@@ -12806,6 +12808,17 @@ const MeetMove = {
 // Tabs: Active / My Challenges / Past.
 // PRODUCTION: GET /api/challenges, POST /api/challenges/{id}/submissions
 // =====================================================================
+// #34: map a challenge's sport → the Events-style category (Sports/Fitness/Wellness/Adventure/Community)
+// so the Challenges filter can use Categories like the Events filter. Challenges store a sport, not the
+// category vocab; this deterministic mapping keeps the filter working with existing data.
+function challengeCategory(sport) {
+  var s = String(sport || '').toLowerCase();
+  if (/yoga|pilates|wellness|recovery|stretch|mobility|meditat|breath/.test(s)) return 'Wellness';
+  if (/hik|climb|adventure|trail|trek|kayak|surf|paddle|outdoor/.test(s)) return 'Adventure';
+  if (/gym|fitness|strength|hiit|crossfit|weight|conditioning/.test(s)) return 'Fitness';
+  if (/community|social|charity|volunteer/.test(s)) return 'Community';
+  return 'Sports';   // running, cycling, swimming, padel, multi-sport, team sports, etc.
+}
 const Challenges = {
   tab: 'active',
   country: 'all',
@@ -12841,7 +12854,9 @@ const Challenges = {
     if (this.country !== 'all' && this.city === 'all') { var cc2=(window.FFP_TAX&&FFP_TAX.cities[this.country])||[]; if(cc2.length) items = items.filter(c => !c.city || cc2.indexOf(c.city)>=0); }
     if (this.city !== 'all') items = items.filter(c => !c.city || (c.city||'') === this.city);
     if (this.type !== 'all')   items = items.filter(c => c.kind === this.type);
-    if (this.sport !== 'all')  items = items.filter(c => c.sport === this.sport);
+    // #34: filter by CATEGORY (matching the Events filter's Sports/Fitness/Wellness/Adventure/Community),
+    // mapped from each challenge's sport (challenges store a sport, not the Events category vocab).
+    if (this.sport !== 'all')  items = items.filter(c => challengeCategory(c.sport) === this.sport);
     if (this.search) items = items.filter(c =>
       c.title.toLowerCase().includes(this.search) ||
       c.sport.toLowerCase().includes(this.search) ||
