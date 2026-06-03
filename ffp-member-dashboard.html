@@ -1,4 +1,7 @@
-<!-- FFP MEMBER DASHBOARD — v248 (2026-06-03)
+<!-- FFP MEMBER DASHBOARD — v249 (2026-06-04)
+     v249: ships the computeBalance cents fix — earnings loader ref bumped ?v=16 → ?v=17. (The v16
+           that was deployed had the USD switch but NOT the computeBalance cents fix, so $39.60 rendered
+           as $40 via Math.round. v17 fixes it. My miss: I added the fix without a version bump.)
      v248: (Grant) USD-ONLY — removed AED entirely from the wallet. Balance is read straight from
            transactions (USD) and shown via fmtUsd; no aedToUsd/usdToAed/peg in any live money path
            (helpers left defined but unused). Earnings loader → v16 (?v=16). Backend v63 stores referral
@@ -7783,7 +7786,7 @@ function setupPanelNav() {
   // v156: load a panel's data-loader script the first time that panel is opened.
   // Keeps page load free of panel queries; the default Passport view needs none.
   const _panelLoaderSrc = {
-    'panel-earnings':        'assets/ffp-earnings-loader.js?v=16',
+    'panel-earnings':        'assets/ffp-earnings-loader.js?v=17',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
     'panel-fitness-stats':   'assets/ffp-fitness-stats-loader.js?v=19',
     'panel-meet':            'assets/ffp-meet-move-loader.js?v=20',
