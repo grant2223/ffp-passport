@@ -1,11 +1,24 @@
-<!-- FFP Admin Dashboard v36 (2026-06-01): Members panel — verify badge + Verify/Unverify button (members.verified), and EXCLUDES provider/admin login accounts (a provider's contact person no longer shows as a member). Settings Platform Config now editable + saved to public.platform_config. Cache-bust v=36 on lazy loaders. v35 (2026-06-01): Settings panel CONNECTED — FFP Team from admin_users, Audit Log now DB-backed (public.admin_audit, persists every admin action) via ffp-admin-settings-loader.js. Also: admin Events/Experiences/Challenges loaders now render real data on load (fixes "reverts to old demo version"). v34 (2026-06-01): Taxonomies editor v2 — added Countries, Cities (country→city cascade) + Experience Types; session guard so edits don't fail silently if the admin session expired. v33: Taxonomies panel is now a REAL editor — ffp-admin-taxonomies-loader.js does CRUD on public.taxonomy_items (Activities/Categories/Fitness Levels/Nationalities/Genders/Age Groups): add, rename, reorder, show/hide, delete. assets/ffp-taxonomy.js v4 hydrates FFP_TAX from that table so edits propagate platform-wide (hardcoded fallback if DB unreachable). v32 (2026-06-01): FIX broken icons — added self-contained base `.material-icons` CSS rule (font-family + 'liga') + &display=block on the icon font link, so sidebar/queue icons never fall back to raw ligature text ("storefront", "inbox", etc.) when the external Google CSS is slow/blocked (this was the "design turned shit" issue). v31: provider accounts INSTANT + self-serve — REMOVED Applications panel/loader + reverted the v30 Pending approval tab. v29 (skill levels). v28 USD labels. v27 tier/expiry edit fix. -->
+<!-- FFP Admin Dashboard v37 (2026-06-03): PROVIDER RANKINGS leaderboard — new sidebar tab "Provider Rankings" (panel-rankings, under Providers) listing every provider by avg overall stars + review count + per-category (Experience/Service/Facilities) averages, with Country / City / Category dropdown filters (City cascades by Country) that re-rank client-side. Inline AdminRankings module → provider_rankings() RPC (is_admin-gated). Full detail in the comment below <title> + FFP-MASTER §6v. (This build also carries the June-3 feature set that a second, lower-numbered comment block tracked as v26–v30: Community Health own tab + gender filter, feedback screenshot thumbnails, category→passport selector — all already present; numbering now continues cleanly from the live v36.) v36 (2026-06-01): Members panel — verify badge + Verify/Unverify button (members.verified), and EXCLUDES provider/admin login accounts (a provider's contact person no longer shows as a member). Settings Platform Config now editable + saved to public.platform_config. Cache-bust v=36 on lazy loaders. v35 (2026-06-01): Settings panel CONNECTED — FFP Team from admin_users, Audit Log now DB-backed (public.admin_audit, persists every admin action) via ffp-admin-settings-loader.js. Also: admin Events/Experiences/Challenges loaders now render real data on load (fixes "reverts to old demo version"). v34 (2026-06-01): Taxonomies editor v2 — added Countries, Cities (country→city cascade) + Experience Types; session guard so edits don't fail silently if the admin session expired. v33: Taxonomies panel is now a REAL editor — ffp-admin-taxonomies-loader.js does CRUD on public.taxonomy_items (Activities/Categories/Fitness Levels/Nationalities/Genders/Age Groups): add, rename, reorder, show/hide, delete. assets/ffp-taxonomy.js v4 hydrates FFP_TAX from that table so edits propagate platform-wide (hardcoded fallback if DB unreachable). v32 (2026-06-01): FIX broken icons — added self-contained base `.material-icons` CSS rule (font-family + 'liga') + &display=block on the icon font link, so sidebar/queue icons never fall back to raw ligature text ("storefront", "inbox", etc.) when the external Google CSS is slow/blocked (this was the "design turned shit" issue). v31: provider accounts INSTANT + self-serve — REMOVED Applications panel/loader + reverted the v30 Pending approval tab. v29 (skill levels). v28 USD labels. v27 tier/expiry edit fix. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FFP Admin Dashboard</title>
-<!-- FFP ADMIN DASHBOARD — v29 (2026-06-03): Feedback panel shows attached screenshots
+<!-- FFP ADMIN DASHBOARD — v37 (2026-06-03): PROVIDER RANKINGS leaderboard. New sidebar tab + panel
+     (panel-rankings, under Providers) listing every provider sorted by avg overall stars, with review
+     count + per-category (Experience/Service/Facilities) averages. Country / City / Category dropdown
+     filters (City cascades by Country) re-rank within the filtered set, client-side. Rendered inline by
+     the AdminRankings module via provider_rankings() RPC (is_admin-gated; admins use real Supabase Auth
+     so auth.uid()/is_admin() resolve; RPC now also returns p.category). No external loader needed.
+     VERSION NOTE: the live build + footer were at v36 (the June-1 line-1 lineage); a separate June-3
+     comment block had restarted numbering at v26–v30 for the Community Health / feedback-photo /
+     passport-selector work. Numbering is now reconciled — this build = v37 (continues from the live v36),
+     footer bumped to v37 to match. The v26–v30 entries below are kept for that feature history.
+     v30 (2026-06-03): Taxonomies → Provider Categories now have a Passport
+     selector per row (assigns category.parent = passport id) driving the member map's Pick A Passport.
+     Taxonomies loader → v3, cache-bust → v=44.
+     v29 (2026-06-03): Feedback panel shows attached screenshots
      (feedback.photo_url) as a thumbnail → click to zoom. Feedback loader → v2, cache-bust → v=43.
      v28 (2026-06-03): Community Health gender dropdown now reads the
      authoritative DB taxonomy (taxonomy_items list_key=gender) directly — fixes the phantom
@@ -1357,7 +1370,10 @@ input, select, textarea { font-family: inherit; }
       <div class="sidebar-section-label">Approvals</div>
       <a class="sidebar-link" data-panel="panel-providers" onclick="App.go('panel-providers')">
         <span class="material-icons">storefront</span>Providers
-        
+
+      </a>
+      <a class="sidebar-link" data-panel="panel-rankings" onclick="App.go('panel-rankings')">
+        <span class="material-icons">leaderboard</span>Provider Rankings
       </a>
       <a class="sidebar-link" data-panel="panel-content" onclick="App.go('panel-content')">
         <span class="material-icons">rate_review</span>Content
@@ -1411,7 +1427,7 @@ input, select, textarea { font-family: inherit; }
       </div>
     </div>
     <div class="sidebar-footer">
-      build v36 &middot; FFP Admin
+      build v37 &middot; FFP Admin
     </div>
   </aside>
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.toggleSidebar()"></div>
@@ -1561,7 +1577,37 @@ input, select, textarea { font-family: inherit; }
         </div>
       </div>
     </section>
-    
+
+    <!-- ========== PROVIDER RANKINGS ========== -->
+    <section class="panel" id="panel-rankings">
+      <div class="panel-head">
+        <h1>Provider Rankings</h1>
+        <div class="panel-head-actions">
+          <button class="tab-btn" onclick="AdminRankings.render()"><span class="material-icons" style="font-size:16px;vertical-align:-3px;">refresh</span> Refresh</button>
+        </div>
+      </div>
+      <div class="section">
+        <div class="time-filter-row" style="margin-top:0;align-items:center;flex-wrap:wrap;gap:10px;">
+          <span class="time-filter-label">Filter</span>
+          <select id="rankings-country" onchange="AdminRankings.setCountry(this.value)"
+            style="background:var(--bg-3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;min-width:150px;"></select>
+          <select id="rankings-city" onchange="AdminRankings.setCity(this.value)"
+            style="background:var(--bg-3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;min-width:150px;"></select>
+          <select id="rankings-category" onchange="AdminRankings.setCategory(this.value)"
+            style="background:var(--bg-3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;min-width:150px;"></select>
+        </div>
+        <div class="search-meta" id="rankings-meta" style="margin:10px 0;"></div>
+        <div class="section-body">
+          <table class="table">
+            <thead>
+              <tr><th>#</th><th>Provider</th><th>City</th><th>Category</th><th>Overall</th><th>Reviews</th><th>Experience</th><th>Service</th><th>Facilities</th></tr>
+            </thead>
+            <tbody id="rankings-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <!-- ========== MEMBERS ========== -->
     <section class="panel" id="panel-members">
       <div class="panel-head">
@@ -2213,6 +2259,7 @@ const App = {
     'panel-analytics':   'Analytics',
     'panel-community-health': 'Community Health',
     'panel-providers':   'Providers',
+    'panel-rankings':    'Provider Rankings',
     'panel-members':     'Members',
     'panel-content':     'Content Moderation',
     'panel-payouts':     'Payouts',
@@ -2261,7 +2308,7 @@ const App = {
       var sc = document.createElement('script');
       // Cache-bust lazy loaders so a new deploy never serves a stale cached .js.
       // BUMP this with the dashboard build number on every deploy (matches footer build).
-      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=43'; sc.async = false;
+      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=44'; sc.async = false;
       sc.onload = function () {
         if (panelId === 'panel-analytics') {
           setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 80);
@@ -2291,11 +2338,107 @@ const App = {
     if (panelId === 'panel-analytics') {
       setTimeout(() => Analytics.renderCharts(), 50);
     }
+    if (panelId === 'panel-rankings') {
+      setTimeout(() => AdminRankings.render(), 30);
+    }
   },
   
   toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('open');
     document.getElementById('sidebar-backdrop').classList.toggle('show');
+  }
+};
+
+// =====================================================================
+// PROVIDER RANKINGS MODULE (admin leaderboard by avg star rating)
+// =====================================================================
+const AdminRankings = {
+  _loading: false,
+  ALL: [],
+  country: 'all',
+  city: 'all',
+  category: 'all',
+  esc(t) {
+    return String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  },
+  stars(v) {
+    const n = Math.round(Number(v) || 0);
+    let s = '';
+    for (let i = 1; i <= 5; i++) s += '<span class="material-icons" style="font-size:14px;vertical-align:-2px;color:' + (i <= n ? '#FFCC00' : 'var(--border-mid,#33485c)') + ';">star</span>';
+    return s;
+  },
+  _opts(sel, values, current, allLabel) {
+    if (!sel) return;
+    const uniq = Array.from(new Set(values.filter(v => v != null && String(v).trim() !== ''))).sort((a, b) => String(a).localeCompare(String(b)));
+    sel.innerHTML = '<option value="all">' + allLabel + '</option>' +
+      uniq.map(v => '<option value="' + this.esc(v) + '"' + (v === current ? ' selected' : '') + '>' + this.esc(v) + '</option>').join('');
+    if (current !== 'all' && uniq.indexOf(current) < 0) sel.value = 'all';
+  },
+  populateFilters() {
+    const cSel = document.getElementById('rankings-country');
+    const citySel = document.getElementById('rankings-city');
+    const catSel = document.getElementById('rankings-category');
+    this._opts(cSel, this.ALL.map(r => r.country), this.country, 'All countries');
+    // city options cascade by selected country
+    const cityPool = this.ALL.filter(r => this.country === 'all' || r.country === this.country).map(r => r.city);
+    this._opts(citySel, cityPool, this.city, 'All cities');
+    this._opts(catSel, this.ALL.map(r => r.category), this.category, 'All categories');
+  },
+  setCountry(v) { this.country = v; this.city = 'all'; this.populateFilters(); this.apply(); },
+  setCity(v) { this.city = v; this.apply(); },
+  setCategory(v) { this.category = v; this.apply(); },
+  apply() {
+    const tbody = document.getElementById('rankings-tbody');
+    const meta = document.getElementById('rankings-meta');
+    if (!tbody) return;
+    let rows = this.ALL.filter(r =>
+      (this.country === 'all' || r.country === this.country) &&
+      (this.city === 'all' || r.city === this.city) &&
+      (this.category === 'all' || r.category === this.category)
+    );
+    // re-rank within the filtered set (RPC already sorts by avg desc)
+    const rated = rows.filter(r => (r.n || 0) > 0);
+    if (meta) meta.textContent = rated.length + ' of ' + rows.length + ' providers have reviews' +
+      ((this.country !== 'all' || this.city !== 'all' || this.category !== 'all') ? ' (filtered)' : '');
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="9" style="opacity:.6;padding:14px;">No providers match these filters.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map((r, i) => {
+      const n = r.n || 0;
+      const overall = (n && r.avg_overall != null) ? r.avg_overall : '—';
+      const cat = v => (n && v != null) ? v : '—';
+      return '<tr>' +
+        '<td>' + (n ? (i + 1) : '–') + '</td>' +
+        '<td><strong>' + this.esc(r.business_name || 'Provider') + '</strong></td>' +
+        '<td>' + this.esc(r.city || '') + '</td>' +
+        '<td>' + this.esc(r.category || '') + '</td>' +
+        '<td style="white-space:nowrap;">' + (n ? this.stars(r.avg_overall) + ' <strong>' + overall + '</strong>' : '<span style="opacity:.5;">no reviews</span>') + '</td>' +
+        '<td>' + n + '</td>' +
+        '<td>' + cat(r.avg_experience) + '</td>' +
+        '<td>' + cat(r.avg_service) + '</td>' +
+        '<td>' + cat(r.avg_facilities) + '</td>' +
+      '</tr>';
+    }).join('');
+  },
+  async render() {
+    const tbody = document.getElementById('rankings-tbody');
+    if (!tbody) return;
+    if (this._loading) return;
+    this._loading = true;
+    tbody.innerHTML = '<tr><td colspan="9" style="opacity:.6;padding:14px;">Loading…</td></tr>';
+    try {
+      const res = await window.supabase.rpc('provider_rankings');
+      if (res.error) throw res.error;
+      this.ALL = res.data || [];
+      this.populateFilters();
+      this.apply();
+    } catch (e) {
+      console.error('[FFP] rankings:', e);
+      tbody.innerHTML = '<tr><td colspan="9" style="opacity:.6;padding:14px;">Couldn\'t load rankings (admin only).</td></tr>';
+    } finally {
+      this._loading = false;
+    }
   }
 };
 
