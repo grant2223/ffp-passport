@@ -1,9 +1,15 @@
-<!-- FFP MEMBER DASHBOARD — v244 (2026-06-03)
-     v244: (Grant) Earnings panel now shows the USD equivalent under each AED total
-           (Payouts: Paid/In progress/Rejected; Earnings log: Earned/Pending) — earnings
-           loader bumped to v12, lazy ref now ?v=12. NOTE: Available Balance reads 0 until
-           credit transactions exist; referral rewards sit in `referrals` as 'pending' and
-           are not yet mirrored into `transactions` (crediting rule pending Grant's decision).
+<!-- FFP MEMBER DASHBOARD — v245 (2026-06-03)
+     v245: (Grant) Available Balance hero now converts AED→USD for display (aedToUsd) — referral
+           rewards credited by backend v59 land in transactions as AED; platform shows USD. Balance
+           now reflects earned referrals (e.g. Grant: 2 referrals → $40). FOLLOW-UP: the payout modal
+           (#po-available + submitPayout min/amount) still mixes AED/USD — needs a coordinated currency
+           pass (does the member enter USD? min in USD?), flagged not fixed here.
+     v244: (Grant) CURRENCY MODEL — platform displays USD; only PAYOUTS show local currency.
+           Earnings-log summary + rows + refer-a-friend "earned" now render in USD ($);
+           Payouts list/summary stay AED (local). Balance hero already USD. Earnings loader
+           → v13, lazy ref ?v=13. NOTE: Available Balance reads 0 until credit transactions
+           exist; referral rewards sit in `referrals` as 'pending' and are not yet mirrored
+           into `transactions` (crediting rule pending Grant's decision).
      v243: (Grant bug) Earnings tier-progress was BLANK — loadTierStats() hit the old
            /api/members/:id/stats endpoint and mapped mismatched keys (referrals/stamps/
            providers/logs) onto category keys (members_referred/provider_checkins/…), so every
@@ -7768,7 +7774,7 @@ function setupPanelNav() {
   // v156: load a panel's data-loader script the first time that panel is opened.
   // Keeps page load free of panel queries; the default Passport view needs none.
   const _panelLoaderSrc = {
-    'panel-earnings':        'assets/ffp-earnings-loader.js?v=12',
+    'panel-earnings':        'assets/ffp-earnings-loader.js?v=13',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
     'panel-fitness-stats':   'assets/ffp-fitness-stats-loader.js?v=19',
     'panel-meet':            'assets/ffp-meet-move-loader.js?v=19',
@@ -11009,8 +11015,9 @@ const Earnings = {
     this.tier = this.computedTier();
     const t = this.tiers[this.tier];
 
-    // Hero balance (USD)
-    document.getElementById('earn-balance').textContent = this.balance.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    // Hero balance (USD). v245: balance is summed from transactions.amount_aed (AED), so
+    // convert AED→USD for display (platform shows USD; only payouts use local currency).
+    document.getElementById('earn-balance').textContent = this.aedToUsd(this.balance).toLocaleString();
     const payoutBtn = document.getElementById('earn-payout-btn');
     const metaEl = document.getElementById('earn-balance-meta');
     const MIN = this.MIN_PAYOUT_USD;
