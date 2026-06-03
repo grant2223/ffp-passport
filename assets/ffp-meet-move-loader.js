@@ -1,4 +1,7 @@
-/* FFP Meet & Move Loader — v19
+/* FFP Meet & Move Loader — v20
+   v20 (2026-06-03): fires Meet & Move lifecycle emails (non-blocking) — after join_meetup → POST
+       /api/meetups/notify {kind:'confirm'} (confirmation to the joiner); after cancel_meetup → POST
+       {kind:'cancel'} (cancellation to all attendees). Backend v62 sends; reminders via daily cron.
    v19 (2026-06-02): meetups now sorted CHRONOLOGICALLY (soonest first) via _ts; each item carries
        _raw (the full meetup row) so the host Edit form can prefill. (Edit/update + time-fix live in
        the dashboard.)
@@ -498,6 +501,8 @@
           return;
         }
         var n = res.data.notified || 0;
+        // v18: email all attendees that the meet-up was cancelled (non-blocking)
+        try { fetch('https://ffp-passport-backend.vercel.app/api/meetups/notify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'cancel', meetup_id: id }) }); } catch (e) {}
         if (typeof showToast === 'function') showToast('Meet-up cancelled' + (n ? ' · ' + n + ' member' + (n === 1 ? '' : 's') + ' notified' : ''), 'success');
         if (typeof closeDetailModal === 'function') closeDetailModal();
         if (typeof window.ffpReloadMeetMove === 'function') window.ffpReloadMeetMove();
@@ -519,6 +524,10 @@
       try {
         var res = await window.supabase.rpc('join_meetup', { p_me: currentUserId, p_meetup: id });
         if (res.error) console.error('[FFP Meet & Move] join:', res.error.message);
+        else {
+          // v18: fire the confirmation email (non-blocking)
+          try { fetch('https://ffp-passport-backend.vercel.app/api/meetups/notify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'confirm', meetup_id: id, member_id: currentUserId }) }); } catch (e) {}
+        }
       } catch (e) { console.error('[FFP Meet & Move] RSVP insert:', e); }
     };
   }
