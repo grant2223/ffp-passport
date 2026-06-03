@@ -5,7 +5,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FFP Admin Dashboard</title>
-<!-- FFP ADMIN DASHBOARD — v28 (2026-06-03): Community Health gender dropdown now reads the
+<!-- FFP ADMIN DASHBOARD — v29 (2026-06-03): Feedback panel shows attached screenshots
+     (feedback.photo_url) as a thumbnail → click to zoom. Feedback loader → v2, cache-bust → v=43.
+     v28 (2026-06-03): Community Health gender dropdown now reads the
      authoritative DB taxonomy (taxonomy_items list_key=gender) directly — fixes the phantom
      'Non-binary' from the ffp-taxonomy.js static fallback. Health loader → v3, cache-bust → v=42.
      v27 (2026-06-03): Community Health panel gains a GENDER filter
@@ -2259,7 +2261,7 @@ const App = {
       var sc = document.createElement('script');
       // Cache-bust lazy loaders so a new deploy never serves a stale cached .js.
       // BUMP this with the dashboard build number on every deploy (matches footer build).
-      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=42'; sc.async = false;
+      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=43'; sc.async = false;
       sc.onload = function () {
         if (panelId === 'panel-analytics') {
           setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 80);
