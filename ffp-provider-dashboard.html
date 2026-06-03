@@ -1,3 +1,12 @@
+<!-- FFP PROVIDER DASHBOARD — v28 (2026-06-03)
+     v28: PROVIDER RATING block on the Overview ("Your rating") — avg overall + per-category
+          (Experience/Service/Facilities) stars + recent member reviews, via RPCs provider_rating()
+          + provider_reviews_list(). renderProviderRating() runs inside renderOverview(). Also
+          reconciled the on-screen build stamp (was stale at v25 while code was v27 + the
+          feedback-widget ?v=4 ref had been added without a bump). Full per-version history is in the
+          comment block just above the <body> scripts (search "v28 (2026-06-03): PROVIDER RATING").
+     v27: GREEN "Save changes" banner under the topbar on Profile. v26: Profile tab reorder +
+          styled Activities dropdown. v25: portal restructure (profile tabs + check-ins split). -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -104,7 +113,12 @@
 <script src="ffp-provider-events-loader.js"></script>
 <script src="ffp-provider-experiences-loader.js"></script>
 <script src="ffp-provider-challenges-loader.js"></script>
-<!-- v27 (2026-06-02): Big GREEN "Save changes" banner sticks under the topbar (#ffp-save-banner),
+<!-- v28 (2026-06-03): PROVIDER RATING block on the Overview ("Your rating") — avg overall + per-
+     category (Experience/Service/Facilities) stars + recent member reviews, via RPCs
+     provider_rating() + provider_reviews_list(). renderProviderRating() runs inside renderOverview().
+     Also: build stamp + version were stale (stamp read v25 while code was v27 + the feedback-widget
+     ?v=4 ref from the feedback-photo change was added without bumping) — now reconciled to v28.
+     v27 (2026-06-02): Big GREEN "Save changes" banner sticks under the topbar (#ffp-save-banner),
      shown only on Profile when there are unsaved changes — calls saveProfile(); hidden on save /
      when leaving Profile. setSaveBar() toggles it.
      v26 (2026-06-02): Profile tab order is now Business Details · Activities · Branding (default
@@ -526,6 +540,32 @@ a { color: var(--ffp-blue); text-decoration: none; }
 .section-link:hover { color: var(--ffp-yellow); }
 
 .activity-list { display: flex; flex-direction: column; gap: 12px; }
+
+/* Provider rating block */
+.pr-empty { opacity:.7; font-size:14px; padding:6px 0; }
+.pr-stars { display:inline-flex; }
+.pr-star { font-size:18px; color: var(--ffp-border); }
+.pr-star.on { color:#FFCC00; }
+.pr-summary { display:flex; flex-wrap:wrap; gap:24px; align-items:center; }
+.pr-overall { display:flex; align-items:center; gap:12px; }
+.pr-big { font-size:40px; font-weight:800; line-height:1; }
+.pr-count { font-size:12px; opacity:.65; margin-top:2px; }
+.pr-cats { display:flex; flex-direction:column; gap:6px; flex:1; min-width:220px; }
+.pr-cat { display:flex; align-items:center; gap:10px; font-size:13px; }
+.pr-cat span { width:84px; opacity:.75; }
+.pr-cat .pr-star { font-size:15px; }
+.pr-cat b { margin-left:auto; font-weight:700; }
+.pr-reviews { display:flex; flex-direction:column; gap:12px; margin-top:16px; }
+.pr-reviews:empty { margin-top:0; }
+.pr-rev { border-top:1px dashed var(--ffp-border); padding-top:12px; }
+.pr-rev-head { display:flex; align-items:center; gap:10px; }
+.pr-rev-photo { width:34px; height:34px; border-radius:50%; object-fit:cover; }
+.pr-rev-photo-ph { display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,.06); color:var(--ffp-border); }
+.pr-rev-id { line-height:1.2; }
+.pr-rev-name { font-weight:600; font-size:14px; }
+.pr-rev-when { font-size:11px; opacity:.6; }
+.pr-rev-stars { margin-left:auto; }
+.pr-rev-comment { font-size:13px; opacity:.9; margin-top:6px; }
 .act-row {
   display: flex; align-items: center; gap: 12px;
   padding: 11px 0;
@@ -2176,6 +2216,15 @@ a { color: var(--ffp-blue); text-decoration: none; }
             </div>
           </div>
         </div>
+
+        <div class="section-card" style="margin-top:18px;">
+          <div class="section-head">
+            <div class="section-title">Your rating</div>
+            <div class="psub" style="margin:0;">What members say after checking in at your venue</div>
+          </div>
+          <div id="prov-rating-summary" class="pr-summary"></div>
+          <div id="prov-rating-reviews" class="pr-reviews"></div>
+        </div>
       </section>
 
       <!-- ════════ PROFILE ════════ -->
@@ -2893,6 +2942,77 @@ function renderOverview() {
       '</div>' +
     '</div>'
   ).join('') : '<div class="act-row" style="opacity:.7;"><div class="act-body"><div class="act-text">No activity yet</div><div class="act-time">Member RSVPs, applications and check-ins will show here</div></div></div>';
+
+  renderProviderRating();
+}
+
+// ════════════════════════════════════════════════
+// PROVIDER RATING (member reviews of this provider)
+// ════════════════════════════════════════════════
+function prStars(v) {
+  var n = Math.round(Number(v) || 0);
+  var s = '';
+  for (var i = 1; i <= 5; i++) s += '<span class="ms pr-star' + (i <= n ? ' on' : '') + '">star</span>';
+  return '<span class="pr-stars">' + s + '</span>';
+}
+function prEsc(t) {
+  return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+  });
+}
+async function renderProviderRating() {
+  var sumEl = document.getElementById('prov-rating-summary');
+  var listEl = document.getElementById('prov-rating-reviews');
+  if (!sumEl || !listEl) return;
+  var pid = (window.FFP_PROVIDER || {}).id;
+  if (!pid || !window.supabase) {
+    sumEl.innerHTML = '<div class="pr-empty">Sign in to see your member reviews.</div>';
+    listEl.innerHTML = '';
+    return;
+  }
+  try {
+    var r = await window.supabase.rpc('provider_rating', { p_provider: pid });
+    if (r.error) throw r.error;
+    var d = r.data || {};
+    var n = d.n || 0;
+    if (!n) {
+      sumEl.innerHTML = '<div class="pr-empty">No reviews yet. Members are prompted to rate their session about an hour after they check in at your venue.</div>';
+      listEl.innerHTML = '';
+      return;
+    }
+    sumEl.innerHTML =
+      '<div class="pr-overall">' +
+        '<div class="pr-big">' + (d.avg_overall != null ? d.avg_overall : '—') + '</div>' +
+        '<div>' + prStars(d.avg_overall) + '<div class="pr-count">' + n + ' review' + (n === 1 ? '' : 's') + '</div></div>' +
+      '</div>' +
+      '<div class="pr-cats">' +
+        '<div class="pr-cat"><span>Experience</span>' + prStars(d.avg_experience) + '<b>' + (d.avg_experience != null ? d.avg_experience : '—') + '</b></div>' +
+        '<div class="pr-cat"><span>Service</span>' + prStars(d.avg_service) + '<b>' + (d.avg_service != null ? d.avg_service : '—') + '</b></div>' +
+        '<div class="pr-cat"><span>Facilities</span>' + prStars(d.avg_facilities) + '<b>' + (d.avg_facilities != null ? d.avg_facilities : '—') + '</b></div>' +
+      '</div>';
+
+    var lr = await window.supabase.rpc('provider_reviews_list', { p_provider: pid });
+    if (lr.error) throw lr.error;
+    var rows = lr.data || [];
+    listEl.innerHTML = rows.length ? rows.map(function (rv) {
+      var when = '';
+      try { when = new Date(rv.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); } catch (e) {}
+      var photo = rv.member_photo
+        ? '<img class="pr-rev-photo" src="' + prEsc(rv.member_photo) + '" alt="">'
+        : '<div class="pr-rev-photo pr-rev-photo-ph"><span class="ms">person</span></div>';
+      return '<div class="pr-rev">' +
+        '<div class="pr-rev-head">' + photo +
+          '<div class="pr-rev-id"><div class="pr-rev-name">' + prEsc(rv.member_name) + '</div>' +
+          '<div class="pr-rev-when">' + when + '</div></div>' +
+          '<div class="pr-rev-stars">' + prStars(rv.stars_overall) + '</div>' +
+        '</div>' +
+        (rv.comment ? '<div class="pr-rev-comment">' + prEsc(rv.comment) + '</div>' : '') +
+      '</div>';
+    }).join('') : '';
+  } catch (e) {
+    sumEl.innerHTML = '<div class="pr-empty">Couldn\'t load reviews right now.</div>';
+    listEl.innerHTML = '';
+  }
 }
 
 function kpi(label, val, delta, dir, tone) {
@@ -4717,6 +4837,6 @@ document.addEventListener('DOMContentLoaded', () => {
 })();
 </script>
 <script>window.ffpOpenMap=function(id){var el=document.getElementById(id);var v=el?(el.value||'').trim():'';if(v)window.open('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(v),'_blank');};</script>
-<div id="ffp-build-stamp" style="position:fixed;bottom:4px;left:6px;font-size:9px;font-family:monospace;color:rgba(255,255,255,0.28);z-index:99999;pointer-events:none;">FFP build v25 — shared FFPPicker (decoupled)</div>
+<div id="ffp-build-stamp" style="position:fixed;bottom:4px;left:6px;font-size:9px;font-family:monospace;color:rgba(255,255,255,0.28);z-index:99999;pointer-events:none;">FFP build v28 — provider rating</div>
 </body>
 </html>
