@@ -1,4 +1,6 @@
-/* FFP Admin Feedback Loader - v1 (2026-05-31)
+/* FFP Admin Feedback Loader - v2 (2026-06-03)
+   v2: shows the attached screenshot (feedback.photo_url) as a thumbnail in the message cell;
+       click to zoom (full-screen lightbox). Fetch now selects photo_url.
    Wires the admin Feedback panel to public.feedback (admin reads all via is_admin RLS).
    Lazy-loaded on first open of the Feedback panel. Renders newest-first, supports search,
    and lets admin mark items read / resolved. Real-time: new feedback appears instantly and
@@ -76,11 +78,28 @@
           '<td class="text-muted nowrap">' + esc(rel(f.created_at)) + '</td>' +
           '<td><strong>' + name + '</strong> <span style="font-size:10px;font-weight:800;color:' + srcColor + ';">' + src + '</span>' + email + '</td>' +
           '<td>' + esc(CAT[f.category] || f.category || 'Other') + '</td>' +
-          '<td style="max-width:420px;white-space:normal;">' + esc(f.message || '') + '</td>' +
+          '<td style="max-width:420px;white-space:normal;">' + esc(f.message || '') +
+            (f.photo_url ? '<div><img src="' + esc(f.photo_url) + '" alt="attachment" style="margin-top:8px;max-width:160px;max-height:120px;border-radius:8px;border:1px solid var(--border);cursor:zoom-in;" onclick="AdminFeedback.zoom(this)"></div>' : '') +
+          '</td>' +
           '<td>' + self.statusPill(f.status) + '</td>' +
           '<td class="nowrap" style="text-align:right;">' + actions + '</td>' +
           '</tr>';
       }).join('');
+    },
+
+    zoom: function (imgEl) {
+      if (!imgEl || !imgEl.src) return;
+      var ov = document.getElementById('fb-lightbox');
+      if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'fb-lightbox';
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;cursor:zoom-out;';
+        ov.onclick = function () { ov.style.display = 'none'; };
+        ov.innerHTML = '<img id="fb-lightbox-img" style="max-width:95%;max-height:95%;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.6);">';
+        document.body.appendChild(ov);
+      }
+      document.getElementById('fb-lightbox-img').src = imgEl.src;
+      ov.style.display = 'flex';
     },
 
     setStatus: async function (id, status) {
@@ -96,7 +115,7 @@
     refresh: async function () {
       try {
         var res = await window.supabase.from('feedback')
-          .select('id, source, submitter_name, submitter_email, category, message, status, created_at')
+          .select('id, source, submitter_name, submitter_email, category, message, status, created_at, photo_url')
           .order('created_at', { ascending: false });
         if (res.error) { console.error('[FFP Admin Feedback] fetch:', res.error); return; }
         this.data = res.data || [];
