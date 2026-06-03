@@ -5,7 +5,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FFP Admin Dashboard</title>
-<!-- FFP ADMIN DASHBOARD — v40 (2026-06-04): BROADCAST CENTER added — new sidebar item "Broadcast" +
+<!-- FFP ADMIN DASHBOARD — v41 (2026-06-04): Broadcast panel restyled to the admin form STANDARD
+     (.section-head/.section-title + .section-body padded + .field-row/.field/.field-label/.field-input +
+     .btn) — was ad-hoc inline styles with alignment off. Matches the Settings panel now.
+     ---- v40 (2026-06-04): BROADCAST CENTER added — new sidebar item "Broadcast" +
      panel-broadcast (title/message/link/audience) → AdminBroadcast.send() POSTs /api/admin/broadcast
      (backend v65; admin-gated; writes a notifications row with member_id NULL = all members → shows in
      every member's bell). Inline panel (no lazy loader). v1 = all members, in-app; email + audience
@@ -1451,7 +1454,7 @@ input, select, textarea { font-family: inherit; }
       </div>
     </div>
     <div class="sidebar-footer">
-      build v40 &middot; FFP Admin
+      build v41 &middot; FFP Admin
     </div>
   </aside>
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.toggleSidebar()"></div>
@@ -1956,19 +1959,36 @@ input, select, textarea { font-family: inherit; }
         <div class="panel-head-sub">Send an in-app notification to members — it appears in their notification bell. (Audience targeting + email send come next; v1 sends to all members.)</div>
       </div>
       <div class="section">
-        <div class="section-body" style="max-width:640px;">
-          <label style="display:block;font-size:12px;font-weight:700;color:#8196a6;margin:0 0 6px;">Title</label>
-          <input id="bc-title" type="text" maxlength="120" placeholder="e.g. New challenge this week" style="width:100%;padding:11px 13px;border-radius:10px;border:1px solid rgba(43,168,224,.25);background:#0f1e2e;color:#e8eef4;font-family:inherit;font-size:14px;margin-bottom:14px;box-sizing:border-box;">
-          <label style="display:block;font-size:12px;font-weight:700;color:#8196a6;margin:0 0 6px;">Message</label>
-          <textarea id="bc-body" rows="4" maxlength="500" placeholder="What do you want members to know?" style="width:100%;padding:11px 13px;border-radius:10px;border:1px solid rgba(43,168,224,.25);background:#0f1e2e;color:#e8eef4;font-family:inherit;font-size:14px;resize:vertical;margin-bottom:14px;box-sizing:border-box;"></textarea>
-          <label style="display:block;font-size:12px;font-weight:700;color:#8196a6;margin:0 0 6px;">Link (optional)</label>
-          <input id="bc-link" type="text" placeholder="#challenges or https://..." style="width:100%;padding:11px 13px;border-radius:10px;border:1px solid rgba(43,168,224,.25);background:#0f1e2e;color:#e8eef4;font-family:inherit;font-size:14px;margin-bottom:14px;box-sizing:border-box;">
-          <label style="display:block;font-size:12px;font-weight:700;color:#8196a6;margin:0 0 6px;">Audience</label>
-          <select id="bc-audience" style="width:100%;padding:11px 13px;border-radius:10px;border:1px solid rgba(43,168,224,.25);background:#0f1e2e;color:#e8eef4;font-family:inherit;font-size:14px;margin-bottom:18px;box-sizing:border-box;">
-            <option value="all">All members</option>
-          </select>
-          <button class="btn btn-blue" id="bc-send" onclick="AdminBroadcast.send()"><span class="material-icons">send</span>Send broadcast</button>
-          <div id="bc-result" style="margin-top:12px;font-size:13px;"></div>
+        <div class="section-head"><div class="section-title">Compose broadcast</div></div>
+        <div class="section-body padded">
+          <div class="field-row">
+            <div class="field">
+              <label class="field-label">Title</label>
+              <input class="field-input" id="bc-title" type="text" maxlength="120" placeholder="e.g. New challenge this week">
+            </div>
+            <div class="field">
+              <label class="field-label">Audience</label>
+              <select class="field-input" id="bc-audience">
+                <option value="all">All members</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label class="field-label">Message</label>
+              <textarea class="field-input" id="bc-body" rows="4" maxlength="500" placeholder="What do you want members to know?" style="resize:vertical;"></textarea>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label class="field-label">Link (optional)</label>
+              <input class="field-input" id="bc-link" type="text" placeholder="#challenges or https://...">
+            </div>
+          </div>
+          <div class="field-row">
+            <button class="btn btn-blue" id="bc-send" onclick="AdminBroadcast.send()"><span class="material-icons">send</span>Send broadcast</button>
+          </div>
+          <div id="bc-result" style="margin-top:6px;font-size:13px;"></div>
         </div>
       </div>
     </section>
