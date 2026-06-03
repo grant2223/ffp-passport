@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v233 (2026-06-03)
+<!-- FFP MEMBER DASHBOARD — v234 (2026-06-03)
+     v234: "PICK A PASSPORT" on the World Map — a themed lens. Pills (All · Sports · Fitness ·
+           Wellness · Adventure · Health Food) above the map filter the pins + Top Activities/Places
+           and recolour pins to the passport's colour. v1 FIXED category→passport mapping (PASSPORTS
+           const) with per-passport counts; getFilteredLogs/logsInRange now also filter by
+           state.selectedPassport. NEXT: drive the mapping from the Taxonomy (admin-editable).
      v233: SMOOTHER PHONE-QR CHECK-IN. Head-script stashes ?venue=<id> to localStorage BEFORE the
            auth gate redirects to login, so an unauthenticated phone scan resumes the venue
            check-in after sign-in (was: venue lost on redirect → never reached the venue).
@@ -4375,6 +4380,15 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     .jm-crumb .seg{color:var(--blue);cursor:pointer;display:inline-flex;align-items:center;gap:4px;}
     .jm-crumb .seg.cur{color:var(--text);cursor:default;}
     .jm-crumb .sep{color:var(--muted);font-weight:600;}
+    .jm-pass-label{font-size:10px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin:0 0 8px;}
+    .jm-passports{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;}
+    .jm-pass{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.04);border:1.5px solid var(--border-mid);color:var(--text);border-radius:100px;padding:7px 13px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;}
+    .jm-pass:hover{border-color:var(--pc);}
+    .jm-pass .material-icons{font-size:16px;color:var(--pc);}
+    .jm-pass b{font-weight:800;opacity:.6;font-size:11px;}
+    .jm-pass.on{background:var(--pc);border-color:var(--pc);color:#06121d;}
+    .jm-pass.on .material-icons{color:#06121d;}
+    .jm-pass.on b{opacity:.7;}
     .jm-chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px;}
     .jm-chip{background:rgba(43,168,224,.10);border:1px solid var(--border-mid);color:var(--text);border-radius:100px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;}
     .jm-chip:hover{border-color:var(--blue);}
@@ -4396,6 +4410,8 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     <div class="card-head">
       <div class="card-head-title"><span class="material-icons card-head-icon">public</span><h3>World Map</h3></div>
     </div>
+    <div class="jm-pass-label">Pick a passport</div>
+    <div class="jm-passports" id="jm-passports"></div>
     <div class="jm-chips" id="jm-chips"></div>
     <div class="jm-map-wrap"><div id="ffp-jmap"></div></div>
     <div class="jm-legend">
@@ -6716,6 +6732,7 @@ const state = {
   timeRange: 'all',
   selectedCity: null,
   selectedCountry: null,
+  selectedPassport: null,   // 'sports' | 'fitness' | 'wellness' | 'adventure' | 'food' | null (All)
   cityFilter: 'all',
   expandedActivities: false,
   expandedVenues: false,
@@ -6724,8 +6741,41 @@ const state = {
   mapZoom: 1.5
 };
 
+// ===== PASSPORTS (Pick A Passport — a themed lens over the map) =====
+// v1 FIXED mapping (category → passport). cats include both the DB/provider category names
+// (Fitness, Wellness, Padel…) AND legacy activity-category names so it catches either data shape.
+// Next step: drive this from the Taxonomy so it's admin-editable.
+const PASSPORTS = [
+  { id: 'sports',    label: 'Sports',      icon: 'sports_soccer',    color: '#2ba8e0',
+    cats: ['padel','combat sports','team sports','racquet sports','golf','ball sports','cycling'] },
+  { id: 'fitness',   label: 'Fitness',     icon: 'fitness_center',   color: '#FFCC00',
+    cats: ['fitness','coaching','gym','strength','running & walking','running','crossfit'] },
+  { id: 'wellness',  label: 'Wellness',    icon: 'self_improvement', color: '#22c55e',
+    cats: ['wellness','yoga & pilates','mind-body','recovery','meditation'] },
+  { id: 'adventure', label: 'Adventure',   icon: 'terrain',          color: '#f59e0b',
+    cats: ['adventure','climbing','watersports','snow sports','hiking','outdoor'] },
+  { id: 'food',      label: 'Health Food', icon: 'restaurant',       color: '#ef4444',
+    cats: ['nutrition','retail','health food','cafe'] }
+];
+let _actCat = null;
+function catForActivity(name) {                       // activity name → its taxonomy category
+  if (!name) return null;
+  if (!_actCat) { _actCat = {}; try { (window.FFP_TAX && FFP_TAX.activities || []).forEach(function (a) { if (a && a.n) _actCat[String(a.n).toLowerCase()] = a.c || ''; }); } catch (e) {} }
+  return _actCat[String(name).toLowerCase()] || null;
+}
+function passportForCat(cat) {
+  if (!cat) return null;
+  cat = String(cat).toLowerCase();
+  for (var i = 0; i < PASSPORTS.length; i++) { if (PASSPORTS[i].cats.indexOf(cat) !== -1) return PASSPORTS[i].id; }
+  return null;
+}
+function passportForLog(l) { return passportForCat(l.category || catForActivity(l.activity)); }
+function passportById(id) { for (var i = 0; i < PASSPORTS.length; i++) { if (PASSPORTS[i].id === id) return PASSPORTS[i]; } return null; }
+function passportColor(id) { var p = passportById(id); return p ? p.color : null; }
+
 // ===== HELPERS =====
-function getFilteredLogs() {
+// Location/time scope only (no passport) — used to tally per-passport counts for the picker.
+function getLocationLogs() {
   let logs = LOGS;
   if (state.timeRange === '7d') logs = logs.filter(l => l.daysAgo <= 7);
   else if (state.timeRange === '30d') logs = logs.filter(l => l.daysAgo <= 30);
@@ -6737,6 +6787,29 @@ function getFilteredLogs() {
   if (state.selectedCountry) logs = logs.filter(l => l.country === state.selectedCountry);
   if (state.selectedCity) logs = logs.filter(l => l.city === state.selectedCity);
   return logs;
+}
+function getFilteredLogs() {
+  let logs = getLocationLogs();
+  if (state.selectedPassport) logs = logs.filter(l => passportForLog(l) === state.selectedPassport);
+  return logs;
+}
+// Pick A Passport picker — pills above the map; tap to filter the map + lists to that theme.
+function setPassport(id) {
+  state.selectedPassport = (state.selectedPassport === id) ? null : (id || null);
+  renderAll();
+}
+function renderPassportPicker() {
+  const el = document.getElementById('jm-passports'); if (!el) return;
+  const base = getLocationLogs();
+  const counts = {}; base.forEach(function (l) { var p = passportForLog(l); if (p) counts[p] = (counts[p] || 0) + 1; });
+  const cur = state.selectedPassport;
+  let html = '<button type="button" class="jm-pass' + (!cur ? ' on' : '') + '" style="--pc:#8a99a8;" onclick="setPassport(null)">'
+    + '<span class="material-icons">public</span>All <b>' + base.length + '</b></button>';
+  html += PASSPORTS.map(function (p) {
+    return '<button type="button" class="jm-pass' + (cur === p.id ? ' on' : '') + '" style="--pc:' + p.color + ';" onclick="setPassport(\'' + p.id + '\')">'
+      + '<span class="material-icons">' + p.icon + '</span>' + p.label + ' <b>' + (counts[p.id] || 0) + '</b></button>';
+  }).join('');
+  el.innerHTML = html;
 }
 
 function timeAgo(days) {
@@ -6751,6 +6824,7 @@ function timeAgo(days) {
 // ===== RENDER =====
 function renderAll() {
   const logs = getFilteredLogs();
+  renderPassportPicker();
   renderStats(logs);
   renderActivities(logs);
   renderVenues(logs);
@@ -6848,6 +6922,7 @@ window.JourneyMap = (function () {
     else if (r==='30d') logs = logs.filter(function(l){return l.daysAgo<=30;});
     else if (r==='90d') logs = logs.filter(function(l){return l.daysAgo<=90;});
     else if (r==='year'){ var d=Math.floor((new Date()-new Date(new Date().getFullYear(),0,1))/86400000); logs=logs.filter(function(l){return l.daysAgo<=d;}); }
+    if (state.selectedPassport && typeof passportForLog==='function') logs = logs.filter(function(l){ return passportForLog(l)===state.selectedPassport; });
     return logs;
   }
   function dotIcon(color, r){
@@ -6878,6 +6953,7 @@ window.JourneyMap = (function () {
     layer.clearLayers(); map.invalidateSize();
 
     var logs = logsInRange();
+    var pcol = (state.selectedPassport && typeof passportColor==='function') ? passportColor(state.selectedPassport) : null;
     var cityMap = {};
     logs.forEach(function(l){ if(!l.city) return; if(!cityMap[l.city]) cityMap[l.city]={city:l.city,country:l.country||'',count:0}; cityMap[l.city].count++; });
     var cities = Object.keys(cityMap).map(function(k){return cityMap[k];});
@@ -6889,17 +6965,17 @@ window.JourneyMap = (function () {
         if (l.lat!=null && l.lng!=null){ var vk=l.venue||l.provider_id||(l.lat+','+l.lng); if(!venues[vk]) venues[vk]={name:l.venue||'Venue',lat:l.lat,lng:l.lng,count:0}; venues[vk].count++; }
       });
       var vKeys = Object.keys(venues);
-      vKeys.forEach(function(vk){ var v=venues[vk]; L.marker([v.lat,v.lng],{icon:dotIcon('#FFCC00',7)}).addTo(layer).bindPopup('<div class="jm-pop-t">'+esc(v.name)+'</div><div class="jm-pop-s">'+v.count+' check-in'+(v.count===1?'':'s')+'</div>'); bounds.push([v.lat,v.lng]); });
-      if (!vKeys.length){ var cc=coordsForCity(state.selectedCity,state.selectedCountry); if(cc){ L.marker([cc.lat,cc.lng],{icon:dotIcon('#2ba8e0',8)}).addTo(layer).bindPopup('<div class="jm-pop-t">'+esc(state.selectedCity)+'</div><div class="jm-pop-s">Activities logged here</div>'); bounds.push([cc.lat,cc.lng]); } }
+      vKeys.forEach(function(vk){ var v=venues[vk]; L.marker([v.lat,v.lng],{icon:dotIcon(pcol||'#FFCC00',7)}).addTo(layer).bindPopup('<div class="jm-pop-t">'+esc(v.name)+'</div><div class="jm-pop-s">'+v.count+' check-in'+(v.count===1?'':'s')+'</div>'); bounds.push([v.lat,v.lng]); });
+      if (!vKeys.length){ var cc=coordsForCity(state.selectedCity,state.selectedCountry); if(cc){ L.marker([cc.lat,cc.lng],{icon:dotIcon(pcol||'#2ba8e0',8)}).addTo(layer).bindPopup('<div class="jm-pop-t">'+esc(state.selectedCity)+'</div><div class="jm-pop-s">Activities logged here</div>'); bounds.push([cc.lat,cc.lng]); } }
       if (countEl) countEl.textContent = vKeys.length ? (vKeys.length+(vKeys.length===1?' venue':' venues')) : 'City view';
       fit(bounds, 14);
     } else if (state.selectedCountry){
       var inC = cities.filter(function(c){return c.country===state.selectedCountry;});
-      inC.forEach(function(c){ var cc=coordsForCity(c.city,c.country); if(!cc) return; var r=Math.min(13,6+Math.round(Math.sqrt(c.count))); var mk=L.marker([cc.lat,cc.lng],{icon:dotIcon('#2ba8e0',r)}).addTo(layer); mk.bindPopup('<div class="jm-pop-t">'+esc(c.city)+'</div><div class="jm-pop-s">'+c.count+' '+(c.count===1?'activity':'activities')+' · tap to open</div>'); mk.on('click',function(){selectCity(c.city,c.country);}); bounds.push([cc.lat,cc.lng]); });
+      inC.forEach(function(c){ var cc=coordsForCity(c.city,c.country); if(!cc) return; var r=Math.min(13,6+Math.round(Math.sqrt(c.count))); var mk=L.marker([cc.lat,cc.lng],{icon:dotIcon(pcol||'#2ba8e0',r)}).addTo(layer); mk.bindPopup('<div class="jm-pop-t">'+esc(c.city)+'</div><div class="jm-pop-s">'+c.count+' '+(c.count===1?'activity':'activities')+' · tap to open</div>'); mk.on('click',function(){selectCity(c.city,c.country);}); bounds.push([cc.lat,cc.lng]); });
       if (countEl) countEl.textContent = inC.length+(inC.length===1?' city':' cities');
       fit(bounds, 9);
     } else {
-      cities.forEach(function(c){ var cc=coordsForCity(c.city,c.country); if(!cc) return; var r=Math.min(13,6+Math.round(Math.sqrt(c.count))); var mk=L.marker([cc.lat,cc.lng],{icon:dotIcon('#2ba8e0',r)}).addTo(layer); mk.bindPopup('<div class="jm-pop-t">'+esc(c.city)+(c.country?(', '+esc(c.country)):'')+'</div><div class="jm-pop-s">'+c.count+' '+(c.count===1?'activity':'activities')+' · tap to open</div>'); mk.on('click',function(){selectCity(c.city,c.country);}); bounds.push([cc.lat,cc.lng]); });
+      cities.forEach(function(c){ var cc=coordsForCity(c.city,c.country); if(!cc) return; var r=Math.min(13,6+Math.round(Math.sqrt(c.count))); var mk=L.marker([cc.lat,cc.lng],{icon:dotIcon(pcol||'#2ba8e0',r)}).addTo(layer); mk.bindPopup('<div class="jm-pop-t">'+esc(c.city)+(c.country?(', '+esc(c.country)):'')+'</div><div class="jm-pop-s">'+c.count+' '+(c.count===1?'activity':'activities')+' · tap to open</div>'); mk.on('click',function(){selectCity(c.city,c.country);}); bounds.push([cc.lat,cc.lng]); });
       if (countEl) countEl.textContent = cities.length+(cities.length===1?' city':' cities');
       if (bounds.length) fit(bounds, 6); else map.setView([20,10],2);
     }
