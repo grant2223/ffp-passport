@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v243 (2026-06-03)
+<!-- FFP MEMBER DASHBOARD — v244 (2026-06-03)
+     v244: (Grant) Earnings panel now shows the USD equivalent under each AED total
+           (Payouts: Paid/In progress/Rejected; Earnings log: Earned/Pending) — earnings
+           loader bumped to v12, lazy ref now ?v=12. NOTE: Available Balance reads 0 until
+           credit transactions exist; referral rewards sit in `referrals` as 'pending' and
+           are not yet mirrored into `transactions` (crediting rule pending Grant's decision).
      v243: (Grant bug) Earnings tier-progress was BLANK — loadTierStats() hit the old
            /api/members/:id/stats endpoint and mapped mismatched keys (referrals/stamps/
            providers/logs) onto category keys (members_referred/provider_checkins/…), so every
@@ -7763,7 +7768,7 @@ function setupPanelNav() {
   // v156: load a panel's data-loader script the first time that panel is opened.
   // Keeps page load free of panel queries; the default Passport view needs none.
   const _panelLoaderSrc = {
-    'panel-earnings':        'assets/ffp-earnings-loader.js',
+    'panel-earnings':        'assets/ffp-earnings-loader.js?v=12',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
     'panel-fitness-stats':   'assets/ffp-fitness-stats-loader.js?v=19',
     'panel-meet':            'assets/ffp-meet-move-loader.js?v=19',
