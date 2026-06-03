@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v232 (2026-06-03)
+<!-- FFP MEMBER DASHBOARD — v233 (2026-06-03)
+     v233: SMOOTHER PHONE-QR CHECK-IN. Head-script stashes ?venue=<id> to localStorage BEFORE the
+           auth gate redirects to login, so an unauthenticated phone scan resumes the venue
+           check-in after sign-in (was: venue lost on redirect → never reached the venue).
+           Checkin loader → v6 (?v=6).
      v232: 2-HOUR PER-VENUE CHECK-IN COOLDOWN — checkin loader bumped to v5 (?v=5). Server
            (venue_checkin_activity) blocks repeated check-ins at the SAME provider within 2h
            and returns a friendly {blocked,...} message; a different venue is unaffected.
@@ -142,6 +146,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FFP Passport — Member Dashboard</title>
+<script>
+/* QR deep-link capture — MUST run before the auth gate. A phone-camera scan of a venue QR
+   lands here as ?venue=<id>; if the visitor isn't signed in, the auth module redirects to
+   login and the query is lost. Stash the venue now so the check-in resumes after login. */
+(function () { try {
+  var m = (location.search || '').match(/[?&]venue=([0-9a-fA-F-]{36})/);
+  if (m) localStorage.setItem('ffp_pending_venue', m[1]);
+} catch (e) {} })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&family=Special+Elite&display=swap" rel="stylesheet">
@@ -13793,6 +13806,6 @@ window.FFPLocPick = (function(){
   return { open:open, close:close, onSearch:onSearch, pick:pick, use:use };
 })();
 </script>
-<script src="ffp-member-checkin-loader.js?v=5"></script>
+<script src="ffp-member-checkin-loader.js?v=6"></script>
 </body>
 </html>
