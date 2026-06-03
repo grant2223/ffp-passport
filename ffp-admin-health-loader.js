@@ -1,4 +1,13 @@
-/* FFP Admin — Community Health Loader — v1 (2026-06-03)
+/* FFP Admin — Community Health Loader — v3 (2026-06-03)
+   v3: gender dropdown now reads the AUTHORITATIVE DB taxonomy directly (taxonomy_items,
+   list_key='gender' → Male/Female/Prefer not to say) via loadGenders(), instead of the
+   ffp-taxonomy.js static FFP_TAX.genders (which still carried a legacy 'Non-binary' not in the
+   DB, so the dropdown could show it when hydration was slow). Now always the standardized list.
+   v2: + GENDER filter (#ch-gender) alongside Country/City. Passed to
+   community_health_stats(p_cities, p_gender) which filters meta by members.gender. All stats
+   (KPIs, fit-levels, body-comp, by-city) respect it.
+   --- prior ---
+   v1 (2026-06-03)
    Owns the Community Health panel (#panel-community-health), a SEPARATE tab from business
    Analytics. These are health/fitness statistics (body composition, cardio fitness, vitals)
    — nothing to do with member/provider/revenue/engagement counts, so they live on their own.
@@ -44,8 +53,29 @@
   }
   function countryOf(city) { if (!city) return null; return city2country()[city] || 'Other'; }
 
-  var GEO = { country: '', city: '' };
-  var ALL = null;   // unfiltered RPC result — used to build the dropdowns (cities with data)
+  var GEO = { country: '', city: '', gender: '' };
+  var ALL = null;     // unfiltered RPC result — used to build the dropdowns (cities with data)
+  var GENDERS = null; // gender options, read from the STANDARDIZED taxonomy
+
+  // Authoritative gender list: read straight from the DB taxonomy (taxonomy_items, list_key
+  // 'gender') so the dropdown is exactly the standardized, admin-editable list — not the
+  // ffp-taxonomy.js static fallback (which still carries a legacy 'Non-binary' not in the DB).
+  async function loadGenders() {
+    if (GENDERS) return GENDERS;
+    try {
+      var res = await window.supabase.from('taxonomy_items')
+        .select('label, value, sort_order').eq('list_key', 'gender').eq('active', true)
+        .order('sort_order', { ascending: true });
+      if (!res.error && res.data && res.data.length) {
+        GENDERS = res.data.map(function (r) { return r.label || r.value; });
+        return GENDERS;
+      }
+    } catch (e) { console.warn('[FFP Health] gender taxonomy:', e); }
+    // fallbacks: live FFP_TAX, then a DB-matching basic list (no phantom 'Non-binary')
+    var g = (window.FFP_TAX && window.FFP_TAX.genders) || [];
+    GENDERS = g.length ? g.slice() : ['Male', 'Female', 'Prefer not to say'];
+    return GENDERS;
+  }
 
   var H = {
     _busy: false,
@@ -55,16 +85,20 @@
       if (!ok) return;
       try { if (window.FFP_TAX_READY) await window.FFP_TAX_READY; } catch (e) {}
       C2C = null; // rebuild from the live (DB-hydrated) taxonomy
-      if (!ALL) { ALL = await this._fetch(null); }
+      await loadGenders();
+      if (!ALL) { ALL = await this._fetch(null, ''); }   // baseline (all) for the dropdowns
       this.renderFilters();
       var cities = this._selectedCities();
-      var data = cities ? await this._fetch(cities) : ALL;
+      var data = (cities || GEO.gender) ? await this._fetch(cities, GEO.gender) : ALL;
       if (data) this._draw(data);
     },
 
-    _fetch: async function (cities) {
+    _fetch: async function (cities, gender) {
+      var args = {};
+      if (cities) args.p_cities = cities;
+      if (gender) args.p_gender = gender;
       try {
-        var res = await window.supabase.rpc('community_health_stats', cities ? { p_cities: cities } : {});
+        var res = await window.supabase.rpc('community_health_stats', args);
         if (res.error) { console.warn('[FFP Health] community_health_stats:', res.error.message); return null; }
         return res.data;
       } catch (e) { console.warn('[FFP Health] community_health_stats', e); return null; }
@@ -82,6 +116,7 @@
 
     setCountry: function (v) { GEO.country = v || ''; GEO.city = ''; this.render(); },
     setCity: function (v) { GEO.city = v || ''; if (GEO.city) { var co = countryOf(GEO.city); if (co) GEO.country = co; } this.render(); },
+    setGender: function (v) { GEO.gender = v || ''; this.render(); },
 
     renderFilters: function () {
       var cSel = document.getElementById('ch-country'), citySel = document.getElementById('ch-city');
@@ -97,6 +132,14 @@
       citySel.innerHTML = '<option value="">All cities</option>' + cities.map(function (ci) {
         return '<option value="' + esc(ci) + '"' + (ci === GEO.city ? ' selected' : '') + '>' + esc(ci) + '</option>';
       }).join('');
+      // Gender options from the STANDARDIZED DB taxonomy (loaded by loadGenders()).
+      var gSel = document.getElementById('ch-gender');
+      if (gSel) {
+        var genders = GENDERS || ['Male', 'Female', 'Prefer not to say'];
+        gSel.innerHTML = '<option value="">All genders</option>' + genders.map(function (g) {
+          return '<option value="' + esc(g) + '"' + (g === GEO.gender ? ' selected' : '') + '>' + esc(g) + '</option>';
+        }).join('');
+      }
     },
 
     _draw: function (data) {
