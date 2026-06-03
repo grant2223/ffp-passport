@@ -1,8 +1,13 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP EARNINGS LOADER · CURRENT VERSION: v11
+   FFP EARNINGS LOADER · CURRENT VERSION: v12
    File path: assets/ffp-earnings-loader.js
-   On-load log: [FFP Earnings v11] Loaded from Supabase ✓
+   On-load log: [FFP Earnings v12] Loaded from Supabase ✓
    ═══════════════════════════════════════════════════════════════ */
+
+/* WHAT v12 CHANGES (from v11):
+   - Payouts summary (Paid / In progress / Rejected) and Earnings-log summary
+     (Earned / Pending) now show the corresponding USD total under each AED figure
+     (≈ $X USD, converted via Earnings.aedToUsd, peg 3.6725). (Grant) */
 
 /* WHAT v11 CHANGES (from v10):
    - Default visible rows in Payouts and Earnings log: 5 → 3.
@@ -404,9 +409,9 @@
 
     var summary =
       '<div class="ffp-summary">' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Paid</div><div class="ffp-summary-val green">AED ' + Math.round(totalPaid).toLocaleString() + '</div></div>' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">In progress</div><div class="ffp-summary-val yellow">AED ' + Math.round(totalPending).toLocaleString() + '</div></div>' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Rejected</div><div class="ffp-summary-val red">AED ' + Math.round(totalRejected).toLocaleString() + '</div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Paid</div><div class="ffp-summary-val green">AED ' + Math.round(totalPaid).toLocaleString() + '<span style="display:block;font-size:11px;font-weight:600;opacity:.6;margin-top:3px;">≈ $' + Earnings.aedToUsd(totalPaid).toLocaleString() + ' USD</span></div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">In progress</div><div class="ffp-summary-val yellow">AED ' + Math.round(totalPending).toLocaleString() + '<span style="display:block;font-size:11px;font-weight:600;opacity:.6;margin-top:3px;">≈ $' + Earnings.aedToUsd(totalPending).toLocaleString() + ' USD</span></div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Rejected</div><div class="ffp-summary-val red">AED ' + Math.round(totalRejected).toLocaleString() + '<span style="display:block;font-size:11px;font-weight:600;opacity:.6;margin-top:3px;">≈ $' + Earnings.aedToUsd(totalRejected).toLocaleString() + ' USD</span></div></div>' +
       '</div>';
 
     var rowsHtml;
@@ -538,8 +543,8 @@
 
     var summary =
       '<div class="ffp-summary two">' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Earned</div><div class="ffp-summary-val green">AED ' + Math.round(totalEarned).toLocaleString() + '</div></div>' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Pending</div><div class="ffp-summary-val yellow">AED ' + Math.round(totalPending).toLocaleString() + '</div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Earned</div><div class="ffp-summary-val green">AED ' + Math.round(totalEarned).toLocaleString() + '<span style="display:block;font-size:11px;font-weight:600;opacity:.6;margin-top:3px;">≈ $' + Earnings.aedToUsd(totalEarned).toLocaleString() + ' USD</span></div></div>' +
+        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Pending</div><div class="ffp-summary-val yellow">AED ' + Math.round(totalPending).toLocaleString() + '<span style="display:block;font-size:11px;font-weight:600;opacity:.6;margin-top:3px;">≈ $' + Earnings.aedToUsd(totalPending).toLocaleString() + ' USD</span></div></div>' +
       '</div>';
 
     var listHtml;
