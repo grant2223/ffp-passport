@@ -1,4 +1,12 @@
-<!-- FFP MEMBER DASHBOARD — v241 (2026-06-03)
+<!-- FFP MEMBER DASHBOARD — v242 (2026-06-03)
+     v242: CALORIE TRACKER food DB is now DB-BACKED + much larger. public.foods table seeded with 237
+           grouped foods (14 groups: Protein, Seafood, Dairy & Eggs, Grains & Carbs, Legumes,
+           Vegetables, Fruit, Nuts & Seeds, Fats & Oils, Snacks, Drinks, Fast Food, Condiments,
+           Breakfast & Bakery) each with weight/serving + protein/carbs/fat/kcal. FOOD_DB + FOOD_CATS
+           now hydrate IN PLACE from the table on load (hardcoded list kept as fallback); the food
+           picker category chips rebuild from the live groups (_renderFoodCats, called on open + after
+           hydrate). Scales to 500+ by adding rows (admin-editable). NOTE: the alphabetical-at-source
+           taxonomy change is in ffp-taxonomy.js v7 (deploy together).
      v241: (Grant) Removed the Apple Wallet + Google Wallet buttons from the Passport panel (not needed
            with the QR check-in + member sharing flow; addToAppleWallet/addToGoogleWallet now dead code).
            Log Activity DURATION is now a SINGLE native time input (#log-dur, type=time h:min, one tap)
@@ -9078,7 +9086,10 @@ const WorkoutTimer = {
 // 4 meal sections (Breakfast/Lunch/Dinner/Snacks) with running totals.
 // Production: GET /api/foods, GET /api/members/me/nutrition/{date}, etc.
 // =====================================================================
-const FOOD_DB = [
+// FOOD_DB is now DB-backed (public.foods, admin-editable). The list below is the FALLBACK used
+// until hydrateFoods() replaces it in place from the DB on load (so the calorie tracker + food
+// picker stay live-editable from one source). Macros: p/c/f grams, kcal per `serving` `unit`.
+let FOOD_DB = [
   // PROTEIN
   { id:'f1',  name:'Chicken breast (cooked)',   cat:'Protein',  serving:100, unit:'g',  kcal:165, p:31,  c:0,   f:3.6 },
   { id:'f2',  name:'Salmon fillet',              cat:'Protein',  serving:100, unit:'g',  kcal:208, p:20,  c:0,   f:13  },
@@ -9118,7 +9129,30 @@ const FOOD_DB = [
   { id:'f31', name:'Coffee with milk',             cat:'Drinks',   serving:200, unit:'ml', kcal:30,  p:1.7, c:2.5, f:1.5 },
   { id:'f32', name:'Protein shake (water)',        cat:'Drinks',   serving:300, unit:'ml', kcal:120, p:24,  c:3,   f:1.5 }
 ];
-const FOOD_CATS = ['All','Protein','Carbs','Fats','Veg','Fruit','Drinks'];
+let FOOD_CATS = ['All','Protein','Carbs','Fats','Veg','Fruit','Drinks'];
+// Hydrate FOOD_DB + FOOD_CATS from the DB foods table (admin-editable, scales to 500+). Replaces
+// contents IN PLACE so the calorie tracker loader + food picker (which read the globals) get the
+// live list + category chips. Falls back to the hardcoded starter list if the table is unreachable.
+(function hydrateFoods(){
+  try {
+    if (!window.supabase) return;
+    window.supabase.from('foods')
+      .select('id,name,category,serving,unit,kcal,protein_g,carbs_g,fat_g,sort_order')
+      .eq('active', true).order('sort_order')
+      .then(function (res) {
+        if (res.error || !res.data || !res.data.length) return;
+        FOOD_DB.length = 0;
+        var seen = {}, cats = [];
+        res.data.forEach(function (r) {
+          FOOD_DB.push({ id:r.id, name:r.name, cat:r.category, serving:r.serving, unit:r.unit||'g',
+            kcal:r.kcal, p:Number(r.protein_g)||0, c:Number(r.carbs_g)||0, f:Number(r.fat_g)||0 });
+          if (r.category && !seen[r.category]) { seen[r.category] = 1; cats.push(r.category); }
+        });
+        FOOD_CATS.length = 0; FOOD_CATS.push('All'); cats.forEach(function (c) { FOOD_CATS.push(c); });
+        try { if (typeof CalorieTracker !== 'undefined' && CalorieTracker._renderFoodCats) { CalorieTracker._renderFoodCats(); CalorieTracker.renderFoodList && CalorieTracker.renderFoodList(); } } catch (e) {}
+      });
+  } catch (e) {}
+})();
 
 // v79 — Activity category metadata: icon + default kcal/min per category.
 // Used to score activities from ACTIVITIES_DB (101 activities, 16 categories — already defined above).
@@ -9208,18 +9242,8 @@ const CalorieTracker = {
       this._pickerSearch = e.target.value.toLowerCase();
       this.renderFoodList();
     });
-    // Category chips for food picker
-    document.getElementById('fp-cats').innerHTML = FOOD_CATS.map((c,i) =>
-      `<button class="food-picker-cat ${i===0?'active':''}" data-fc="${c}">${c}</button>`
-    ).join('');
-    document.querySelectorAll('.food-picker-cat').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.food-picker-cat').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        this._pickerCat = btn.dataset.fc;
-        this.renderFoodList();
-      });
-    });
+    // Category chips for food picker (rebuilds from the live FOOD_CATS, grouped)
+    this._renderFoodCats();
     // v78 — Meal type chips inside food-add modal
     document.querySelectorAll('#fa-meal-chips .meal-type-chip').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -9704,11 +9728,27 @@ const CalorieTracker = {
   
   // ─────────── FOOD PICKER ───────────
   // v78 — Single "Log food" button → picker → pick → set amount + select meal type → confirm
+  _renderFoodCats() {
+    var host = document.getElementById('fp-cats'); if (!host) return;
+    var self = this;
+    host.innerHTML = FOOD_CATS.map(function (c) {
+      return '<button class="food-picker-cat ' + (c === self._pickerCat ? 'active' : '') + '" data-fc="' + c + '">' + c + '</button>';
+    }).join('');
+    host.querySelectorAll('.food-picker-cat').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        host.querySelectorAll('.food-picker-cat').forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        self._pickerCat = btn.dataset.fc;
+        self.renderFoodList();
+      });
+    });
+  },
+
   openFoodPicker() {
     this._pickerSearch = '';
     this._pickerCat = 'All';
     document.getElementById('fp-search').value = '';
-    document.querySelectorAll('.food-picker-cat').forEach((b,i) => b.classList.toggle('active', i===0));
+    this._renderFoodCats();   // rebuild chips from the live (DB-hydrated) FOOD_CATS
     this.renderFoodList();
     document.getElementById('food-picker-backdrop').classList.add('open');
   },
