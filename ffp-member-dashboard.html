@@ -1,4 +1,7 @@
-<!-- FFP MEMBER DASHBOARD — v249 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v250 (2026-06-04)
+     v250: feedback widget ref → ?v=5 (widget now exposes window.FFPFeedback synchronously + builds
+           lazily, so the topbar Feedback button opens reliably — was a silent no-op when the API was
+           defined only at the end of build()). Provider dashboard ref also → ?v=5.
      v249: ships the computeBalance cents fix — earnings loader ref bumped ?v=16 → ?v=17. (The v16
            that was deployed had the USD switch but NOT the computeBalance cents fix, so $39.60 rendered
            as $40 via Math.round. v17 fixes it. My miss: I added the fix without a version bump.)
@@ -287,7 +290,7 @@
 <script src="assets/ffp-taxonomy.js"></script>
 <script src="assets/ffp-realtime.js"></script>
 <!-- Feedback widget (shared) -> public.feedback -> admin Feedback panel -->
-<script src="assets/ffp-feedback-widget.js?v=4" data-source="member" data-fab="off"></script>
+<script src="assets/ffp-feedback-widget.js?v=5" data-source="member" data-fab="off"></script>
 <!-- v156: member loaders are NO LONGER eager. Each panel's loader script is
      injected on the panel's first open (see ensurePanelLoader in setupPanelNav),
      so a plain load fires zero data queries -> the Passport view is instant and
