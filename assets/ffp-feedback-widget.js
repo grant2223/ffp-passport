@@ -1,1033 +1,276 @@
-<!--
-FFP Profile Complete v32
-Last updated: 2026-06-03
-v32: Sport picker stage retitled "Choose An Activity" / "Let's us know which are your favorite activities."
-v31: (1) Gender dropdown now re-fills from the live DB taxonomy (FFP_TAX_READY + 'ffp-tax-ready'),
-     so admin taxonomy edits show up — was a one-shot fill from the static FFP_TAX.genders.
-     (2) Step 2 retitled "Choose Interests" / "Let us know which are your favorite activities."
-     (3) Activity picker list always sorted A→Z by name (filtered or not). (4) Removed the activity
-     icons (many didn't match the activity) — name + category only.
-v30: skill levels = Not Tried / Social / Competitive / Representative / Professional (new descriptions).
-v29: referral capture passes ffp_ref to onboard.
--->
-
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
-<title>Complete Your Profile — FFP Passport</title>
-<!-- v12: Supabase SDK + ffp-api-integration v8 loaded so we can apply the
-     JWT bridge session after onboard (without this, brand-new signups arrive
-     at the dashboard JWT-less and every loader hits RLS errors). -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="assets/ffp-api-integration.js"></script>
-<script src="assets/ffp-taxonomy.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
-<style>
-*{margin:0;padding:0;box-sizing:border-box;}
-html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420 !important;color:#fff;-webkit-font-smoothing:antialiased;}
-
-/* FFP RULE: no ugly default scrollbars anywhere — content still scrolls */
-*::-webkit-scrollbar{display:none;width:0;height:0;}
-*{-ms-overflow-style:none;scrollbar-width:none;}
-
-.page{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:32px 20px 80px;}
-.wrap{width:100%;max-width:480px;}
-
-.logo{text-align:center;margin-bottom:28px;}
-.logo-brand{font-size:20px;font-weight:900;letter-spacing:3px;}
-.logo-brand span{color:#2ba8e0;}
-.logo-sub{font-size:10px;font-weight:700;color:#6a90a8;letter-spacing:2px;text-transform:uppercase;margin-top:5px;}
-
-.welcome{text-align:center;margin-bottom:22px;}
-.welcome-h{font-size:24px;font-weight:900;margin-bottom:6px;letter-spacing:-.3px;}
-.welcome-sub{font-size:13px;color:#9dbdd0;line-height:1.6;}
-
-.progress{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:28px;font-size:10px;font-weight:800;color:#6a90a8;letter-spacing:1.5px;text-transform:uppercase;}
-.progress-step{display:flex;align-items:center;gap:6px;}
-.progress-dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;background:rgba(43,168,224,.15);border:1.5px solid rgba(43,168,224,.3);color:#6a90a8;}
-.progress-dot.active{background:#2ba8e0;border-color:#2ba8e0;color:#fff;}
-.progress-dot.done{background:#22c55e;border-color:#22c55e;color:#fff;}
-.progress-line{width:24px;height:1.5px;background:rgba(43,168,224,.2);}
-.progress-line.done{background:#22c55e;}
-
-.section-label{font-size:13px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#2ba8e0;margin-bottom:14px;}
-.field-label{font-size:10px;font-weight:800;color:#6a90a8;letter-spacing:1px;text-transform:uppercase;margin-bottom:7px;}
-.field-input,.field-select{width:100%;background:rgba(43,168,224,.06);border:1px solid rgba(43,168,224,.2);border-radius:10px;padding:13px 16px;font-size:15px;font-weight:600;color:#fff;font-family:'Montserrat',sans-serif;outline:none;transition:border-color .15s;height:48px;}
-.field-input:focus,.field-select:focus{border-color:#2ba8e0;}
-.field-input::placeholder{color:#6a90a8;font-weight:500;}
-.field-input[type="date"]{font-family:'Montserrat',sans-serif;color-scheme:dark;}
-.field-input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(60%) sepia(15%) saturate(800%) hue-rotate(170deg);cursor:pointer;}
-.field-select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236a90a8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");background-position:right 14px center;background-repeat:no-repeat;background-size:14px;padding-right:40px;cursor:pointer;}
-.field-select option{background:#0b1c28;color:#fff;}
-.material-icons-outlined{font-family:'Material Icons Outlined' !important;line-height:1;font-weight:normal;font-style:normal;letter-spacing:normal;text-transform:none;white-space:nowrap;direction:ltr;-webkit-font-feature-settings:'liga';-webkit-font-smoothing:antialiased;}
-.activity-row-icon{overflow:hidden;}
-.cat-chip .material-icons-outlined{overflow:hidden;max-width:16px;display:inline-block;}
-.dob-cell{grid-column:1 / -1;}
-.dob-grid .field-select{padding-left:10px;padding-right:26px;background-position:right 8px center;}
-
-.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
-@media(max-width:400px){.field-grid{grid-template-columns:1fr;}}
-
-.btn-primary{display:flex;align-items:center;justify-content:center;width:100%;padding:15px;border-radius:12px;font-size:15px;font-weight:800;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;color:#081420;background:#FFCC00;transition:background .15s;text-align:center;gap:8px;margin-top:8px;}
-.btn-primary:hover{background:#e6b800;}
-.btn-primary:disabled{opacity:.5;cursor:not-allowed;}
-.btn-secondary{display:flex;align-items:center;justify-content:center;width:100%;padding:13px;border-radius:12px;font-size:14px;font-weight:700;border:1.5px solid rgba(43,168,224,.3);cursor:pointer;font-family:'Montserrat',sans-serif;color:#9dbdd0;background:transparent;transition:all .15s;text-align:center;gap:8px;}
-.btn-secondary:hover{border-color:#2ba8e0;color:#fff;}
-.btn-back{display:inline-flex;align-items:center;gap:8px;font-size:15px;font-weight:700;color:#9fb4c4;background:none;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;padding:8px 4px;margin-bottom:16px;min-height:44px;}
-.btn-back svg{width:18px;height:18px;}
-.btn-back:hover{color:#2ba8e0;}
-
-.step{display:none;}
-.step.active{display:block;animation:fadeIn .25s ease;}
-@keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
-
-.sports-helper{font-size:15px;color:#9dbdd0;margin-bottom:18px;line-height:1.6;}
-.sports-list{margin-bottom:14px;}
-.sport-row{display:flex;align-items:center;gap:12px;background:rgba(43,168,224,.08);border:1px solid rgba(43,168,224,.22);border-radius:11px;padding:13px 14px;margin-bottom:8px;}
-.sport-row-icon{width:34px;height:34px;border-radius:9px;background:rgba(43,168,224,.15);display:flex;align-items:center;justify-content:center;color:#2ba8e0;flex-shrink:0;}
-.sport-row-icon .material-icons-outlined{font-size:20px;}
-.sport-row-info{flex:1;min-width:0;}
-.sport-row-name{font-size:14px;font-weight:800;color:#fff;}
-.sport-row-meta{font-size:11px;font-weight:700;color:#2ba8e0;margin-top:2px;letter-spacing:.5px;text-transform:uppercase;}
-.sport-row-edit,.sport-row-remove{background:none;border:none;color:#6a90a8;cursor:pointer;padding:6px;display:flex;align-items:center;border-radius:6px;transition:color .15s;}
-.sport-row-edit:hover{color:#2ba8e0;}
-.sport-row-remove:hover{color:#ef4444;}
-.sports-empty{padding:24px;text-align:center;font-size:12px;color:#6a90a8;border:1px dashed rgba(43,168,224,.22);border-radius:11px;background:rgba(43,168,224,.03);margin-bottom:12px;line-height:1.6;}
-
-/* Picker overlay */
-.picker{display:none;background:#081420;padding:32px 20px 60px;min-height:100vh;}
-.picker.active{display:block;animation:fadeIn .2s ease;}
-.picker-wrap{width:100%;max-width:480px;margin:0 auto;}
-.picker-title{font-size:22px;font-weight:900;margin-bottom:6px;letter-spacing:-.3px;}
-.picker-sub{font-size:15px;color:#9dbdd0;margin-bottom:20px;line-height:1.6;}
-
-/* Search input */
-.picker-search{position:relative;margin-bottom:22px;}
-.picker-search .material-icons-outlined{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#6a90a8;font-size:18px;pointer-events:none;}
-.picker-search input{width:100%;background:rgba(43,168,224,.06);border:1px solid rgba(43,168,224,.2);border-radius:10px;padding:15px 16px 15px 44px;font-size:16px;font-weight:600;color:#fff;font-family:'Montserrat',sans-serif;outline:none;transition:border-color .15s;height:52px;}
-.picker-search input:focus{border-color:#2ba8e0;}
-.picker-search input::placeholder{color:#6a90a8;font-weight:500;}
-
-/* Category chips (horizontally scrollable) */
-.picker-cats{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:6px;margin-bottom:14px;scrollbar-width:none;}
-.picker-cats::-webkit-scrollbar{display:none;}
-.cat-chip{flex-shrink:0;background:rgba(43,168,224,.05);border:1px solid rgba(43,168,224,.18);border-radius:18px;padding:7px 13px;font-size:11px;font-weight:700;color:#9dbdd0;cursor:pointer;transition:all .15s;font-family:'Montserrat',sans-serif;white-space:nowrap;display:flex;align-items:center;gap:5px;}
-.cat-chip:hover{border-color:#2ba8e0;color:#fff;}
-.cat-chip.active{background:#2ba8e0;border-color:#2ba8e0;color:#fff;}
-.cat-chip .material-icons-outlined{font-size:14px;}
-
-/* Activity list */
-.activity-list{display:flex;flex-direction:column;gap:8px;margin-top:6px;margin-bottom:18px;max-height:50vh;overflow-y:auto;padding-right:4px;}
-.activity-row{background:rgba(43,168,224,.05);border:1.5px solid rgba(43,168,224,.18);border-radius:10px;padding:15px 14px;min-height:58px;font-size:16px;font-weight:700;color:#fff;cursor:pointer;transition:all .15s;text-align:left;display:flex;align-items:center;gap:12px;font-family:'Montserrat',sans-serif;}
-.activity-row:hover{border-color:#2ba8e0;background:rgba(43,168,224,.1);}
-.activity-row:disabled{opacity:.35;cursor:not-allowed;}
-.activity-row:disabled:hover{border-color:rgba(43,168,224,.18);background:rgba(43,168,224,.05);}
-.activity-row-icon{width:32px;height:32px;border-radius:7px;background:rgba(43,168,224,.15);display:flex;align-items:center;justify-content:center;color:#2ba8e0;flex-shrink:0;}
-.activity-row-icon .material-icons-outlined{font-size:19px;}
-.activity-row-info{flex:1;min-width:0;}
-.activity-row-name{font-size:16px;font-weight:700;color:#fff;}
-.activity-row-cat{font-size:12px;font-weight:600;color:#6a90a8;margin-top:2px;letter-spacing:.3px;}
-.activity-row-arrow{color:#6a90a8;flex-shrink:0;}
-.activity-row:hover .activity-row-arrow{color:#2ba8e0;}
-.activity-empty{padding:20px;text-align:center;font-size:12px;color:#6a90a8;border:1px dashed rgba(43,168,224,.18);border-radius:10px;}
-
-/* Level cards */
-.level-list{display:flex;flex-direction:column;gap:10px;margin-bottom:18px;}
-.level-card{background:rgba(43,168,224,.05);border:1.5px solid rgba(43,168,224,.18);border-radius:12px;padding:16px;cursor:pointer;transition:all .15s;display:flex;align-items:flex-start;gap:14px;}
-.level-card:hover{border-color:#2ba8e0;background:rgba(43,168,224,.08);}
-.level-card.selected{border-color:#2ba8e0;background:rgba(43,168,224,.12);}
-.level-radio{width:20px;height:20px;border-radius:50%;border:2px solid rgba(43,168,224,.4);flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;transition:all .15s;}
-.level-card.selected .level-radio{border-color:#2ba8e0;background:#2ba8e0;}
-.level-card.selected .level-radio::after{content:"";width:7px;height:7px;border-radius:50%;background:#fff;}
-.level-info{flex:1;}
-.level-name{font-size:16px;font-weight:800;color:#fff;margin-bottom:3px;letter-spacing:.2px;}
-.level-desc{font-size:14px;color:#9dbdd0;line-height:1.5;font-weight:500;}
-
-.error-msg{color:#ef4444;font-size:12px;font-weight:700;margin-top:10px;text-align:center;min-height:18px;}
-.loading-screen{position:fixed;inset:0;background:#081420;display:flex;align-items:center;justify-content:center;z-index:200;}
-.spinner{width:32px;height:32px;border:3px solid rgba(43,168,224,.2);border-top-color:#2ba8e0;border-radius:50%;animation:spin .8s linear infinite;}
-@keyframes spin{to{transform:rotate(360deg);}}
-.hidden{display:none !important;}
-.photo-step-wrap{display:flex;justify-content:center;margin:14px 0 26px;}
-.photo-frame{position:relative;width:188px;aspect-ratio:35/45;border-radius:12px;border:2px dashed rgba(43,168,224,.45);background:rgba(43,168,224,.06);background-size:cover;background-position:center top;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;cursor:pointer;overflow:hidden;padding:0;font-family:'Montserrat',sans-serif;}
-.photo-frame.has-photo{border-style:solid;border-color:#2ba8e0;}
-.photo-frame .pt-cam{color:#2ba8e0;font-size:38px;}
-.photo-frame .photo-frame-hint{font-size:13px;font-weight:700;color:#9dbdd0;}
-.photo-frame.has-photo .pt-cam,.photo-frame.has-photo .photo-frame-hint{display:none;}
-.photo-frame.has-photo::after{content:'edit';font-family:'Material Icons Outlined';position:absolute;right:7px;bottom:7px;width:30px;height:30px;border-radius:50%;background:#081420;color:#fff;font-size:16px;display:flex;align-items:center;justify-content:center;}
-button,input,.activity-row,.level-card,.btn-back{touch-action:manipulation;}
-</style>
-</head>
-<body>
-
-<div class="loading-screen" id="loading-screen">
-  <div class="spinner"></div>
-</div>
-
-<div class="page hidden" id="main-page">
-<div class="wrap">
-
-<!-- v10: visible version marker REMOVED per no-visible-version-markers rule -->
-
-<div class="logo">
-  <div class="logo-brand">FFP <span>PASSPORT</span></div>
-  <div class="logo-sub">Find Fit People</div>
-</div>
-
-<div class="welcome">
-  <div class="welcome-h">The Active Lifestyle Community</div>
-</div>
-
-<div class="progress" id="progress">
-  <div class="progress-step">
-    <div class="progress-dot active" id="dot-1">1</div>
-    <span>Details</span>
-  </div>
-  <div class="progress-line" id="line-1"></div>
-  <div class="progress-step">
-    <div class="progress-dot" id="dot-2">2</div>
-    <span>Sports</span>
-  </div>
-  <div class="progress-line" id="line-2"></div>
-  <div class="progress-step">
-    <div class="progress-dot" id="dot-3">3</div>
-    <span>Photo</span>
-  </div>
-</div>
-
-
-<!-- STEP 1 — PERSONAL -->
-<div class="step active" id="step-1">
-
-<div class="section-label">Personal Details</div>
-
-<!-- v9: Given Names first → Surname second. No placeholders. -->
-<div class="field-grid">
-  <div>
-    <div class="field-label">Given Names</div>
-    <input class="field-input" type="text" id="f-given" autocomplete="given-name">
-  </div>
-  <div>
-    <div class="field-label">Surname</div>
-    <input class="field-input" type="text" id="f-surname" autocomplete="family-name">
-  </div>
-</div>
-
-<!-- v9: DOB now 3 dropdowns (Day / Month / Year). Gender field added. -->
-<div class="field-grid">
-  <div class="dob-cell">
-    <div class="field-label">Date of Birth</div>
-    <div class="dob-grid" style="display:grid;grid-template-columns:1fr 1.4fr 1.2fr;gap:6px;">
-      <select class="field-select" id="f-dob-day">
-        <option value="">Day</option>
-        <option value="01">01</option>
-        <option value="02">02</option>
-        <option value="03">03</option>
-        <option value="04">04</option>
-        <option value="05">05</option>
-        <option value="06">06</option>
-        <option value="07">07</option>
-        <option value="08">08</option>
-        <option value="09">09</option>
-        <option value="10">10</option>
-        <option value="11">11</option>
-        <option value="12">12</option>
-        <option value="13">13</option>
-        <option value="14">14</option>
-        <option value="15">15</option>
-        <option value="16">16</option>
-        <option value="17">17</option>
-        <option value="18">18</option>
-        <option value="19">19</option>
-        <option value="20">20</option>
-        <option value="21">21</option>
-        <option value="22">22</option>
-        <option value="23">23</option>
-        <option value="24">24</option>
-        <option value="25">25</option>
-        <option value="26">26</option>
-        <option value="27">27</option>
-        <option value="28">28</option>
-        <option value="29">29</option>
-        <option value="30">30</option>
-        <option value="31">31</option>
-      </select>
-      <select class="field-select" id="f-dob-month">
-        <option value="">Month</option>
-        <option value="01">January</option>
-        <option value="02">February</option>
-        <option value="03">March</option>
-        <option value="04">April</option>
-        <option value="05">May</option>
-        <option value="06">June</option>
-        <option value="07">July</option>
-        <option value="08">August</option>
-        <option value="09">September</option>
-        <option value="10">October</option>
-        <option value="11">November</option>
-        <option value="12">December</option>
-      </select>
-      <select class="field-select" id="f-dob-year">
-        <option value="">Year</option>
-        <option value="2010">2010</option>
-        <option value="2009">2009</option>
-        <option value="2008">2008</option>
-        <option value="2007">2007</option>
-        <option value="2006">2006</option>
-        <option value="2005">2005</option>
-        <option value="2004">2004</option>
-        <option value="2003">2003</option>
-        <option value="2002">2002</option>
-        <option value="2001">2001</option>
-        <option value="2000">2000</option>
-        <option value="1999">1999</option>
-        <option value="1998">1998</option>
-        <option value="1997">1997</option>
-        <option value="1996">1996</option>
-        <option value="1995">1995</option>
-        <option value="1994">1994</option>
-        <option value="1993">1993</option>
-        <option value="1992">1992</option>
-        <option value="1991">1991</option>
-        <option value="1990">1990</option>
-        <option value="1989">1989</option>
-        <option value="1988">1988</option>
-        <option value="1987">1987</option>
-        <option value="1986">1986</option>
-        <option value="1985">1985</option>
-        <option value="1984">1984</option>
-        <option value="1983">1983</option>
-        <option value="1982">1982</option>
-        <option value="1981">1981</option>
-        <option value="1980">1980</option>
-        <option value="1979">1979</option>
-        <option value="1978">1978</option>
-        <option value="1977">1977</option>
-        <option value="1976">1976</option>
-        <option value="1975">1975</option>
-        <option value="1974">1974</option>
-        <option value="1973">1973</option>
-        <option value="1972">1972</option>
-        <option value="1971">1971</option>
-        <option value="1970">1970</option>
-        <option value="1969">1969</option>
-        <option value="1968">1968</option>
-        <option value="1967">1967</option>
-        <option value="1966">1966</option>
-        <option value="1965">1965</option>
-        <option value="1964">1964</option>
-        <option value="1963">1963</option>
-        <option value="1962">1962</option>
-        <option value="1961">1961</option>
-        <option value="1960">1960</option>
-        <option value="1959">1959</option>
-        <option value="1958">1958</option>
-        <option value="1957">1957</option>
-        <option value="1956">1956</option>
-        <option value="1955">1955</option>
-        <option value="1954">1954</option>
-        <option value="1953">1953</option>
-        <option value="1952">1952</option>
-        <option value="1951">1951</option>
-        <option value="1950">1950</option>
-        <option value="1949">1949</option>
-        <option value="1948">1948</option>
-        <option value="1947">1947</option>
-        <option value="1946">1946</option>
-        <option value="1945">1945</option>
-        <option value="1944">1944</option>
-        <option value="1943">1943</option>
-        <option value="1942">1942</option>
-        <option value="1941">1941</option>
-        <option value="1940">1940</option>
-        <option value="1939">1939</option>
-        <option value="1938">1938</option>
-        <option value="1937">1937</option>
-        <option value="1936">1936</option>
-        <option value="1935">1935</option>
-        <option value="1934">1934</option>
-        <option value="1933">1933</option>
-        <option value="1932">1932</option>
-        <option value="1931">1931</option>
-        <option value="1930">1930</option>
-        <option value="1929">1929</option>
-        <option value="1928">1928</option>
-        <option value="1927">1927</option>
-        <option value="1926">1926</option>
-        <option value="1925">1925</option>
-      </select>
-    </div>
-  </div>
-  <div>
-    <div class="field-label">Gender</div>
-    <select class="field-select" id="f-gender" data-ffp-list="genders">
-      <option value="">Select</option>
-    </select>
-  </div>
-  <div>
-    <div class="field-label">Nationality</div>
-    <select class="field-select" id="f-nationality">
-      <option value="">Select</option>
-    </select>
-  </div>
-</div>
-
-<div class="field-grid">
-  <div>
-    <div class="field-label">Country</div>
-    <select class="field-select" id="f-country">
-      <option value="">Select</option>
-    </select>
-  </div>
-  <div>
-    <div class="field-label">City</div>
-    <select class="field-select" id="f-city">
-      <option value="">Select country first</option>
-    </select>
-  </div>
-</div>
-
-<button class="btn-primary" onclick="goToStep2()">
-  Continue
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
-</button>
-<div class="error-msg" id="step1-err"></div>
-
-</div>
-
-
-<!-- STEP 2 — SPORTS -->
-<div class="step" id="step-2">
-
-<button class="btn-back" onclick="goToStep1()">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
-  Back
-</button>
-
-<div class="section-label" style="font-size:18px;letter-spacing:.2px;text-transform:none;margin-bottom:8px;">Choose Interests</div>
-<div class="sports-helper">Let us know which are your favorite activities.</div>
-
-<div class="sports-list" id="sports-list"></div>
-
-<button class="btn-secondary" onclick="openSportPicker()">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-  <span id="add-btn-label">Add a Sport</span>
-</button>
-
-<button class="btn-primary" onclick="goToStep3()" style="margin-top:24px;">
-  Continue
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
-</button>
-<div class="error-msg" id="step2-err"></div>
-
-</div>
-<!-- STEP 3 — PASSPORT PHOTO -->
-<div class="step" id="step-3">
-<button class="btn-back" onclick="backToStep2()">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
-  Back
-</button>
-<div class="section-label" style="font-size:26px;letter-spacing:.2px;text-transform:none;margin-bottom:10px;">Add your passport photo</div>
-<div class="sports-helper">The last piece of your passport that makes it all official — welcome to the community!</div>
-<div class="photo-step-wrap">
-  <button type="button" class="photo-frame" id="photo-tile" onclick="document.getElementById('photo-input').click()" aria-label="Add your passport photo">
-    <span class="material-icons-outlined pt-cam">photo_camera</span>
-    <span class="photo-frame-hint">Tap to add</span>
-  </button>
-  <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="onPhotoPicked(this)">
-</div>
-<button class="btn-primary" id="submit-btn" onclick="submitProfile()">
-  Complete Profile
-</button>
-<div class="error-msg" id="step3-err"></div>
-</div>
-
-</div>
-</div>
-
-
-<!-- PICKER OVERLAY -->
-<div class="picker" id="picker">
-<div class="picker-wrap">
-
-<button class="btn-back" onclick="pickerBack()">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
-  Back
-</button>
-
-<!-- Stage A: Choose Sport -->
-<div id="picker-stage-sport">
-  <div class="picker-title">Choose An Activity</div>
-  <div class="picker-sub">Let's us know which are your favorite activities.</div>
-
-  <div class="picker-search">
-    <span class="material-icons-outlined">search</span>
-    <input type="text" id="sport-search" placeholder="Search sports, activities or categories" oninput="filterActivities()">
-  </div>
-
-
-  <div class="activity-list" id="activity-list"></div>
-</div>
-
-<!-- Stage B: Pick Level -->
-<div id="picker-stage-level" style="display:none;">
-  <div class="picker-title">Your <span id="picker-sport-name"></span> level</div>
-  <div class="picker-sub">Be honest — this helps us match you with the right people and events.</div>
-  <div class="level-list" id="level-list"></div>
-  <button class="btn-primary" id="confirm-level-btn" onclick="confirmLevel()" disabled>Confirm</button>
-</div>
-
-</div>
-</div>
-
-
-<script>
-console.log('[FFP Profile Complete v12] Loaded — JWT bridge wired for new signups');
-
-// Backend URL — keep in sync with deployed backend
-var BACKEND_URL = 'https://ffp-passport-backend.vercel.app';
-
-// ═══════════════════════════════════════════════════════════════════════
-// FFP ACTIVITIES_DB — 101 activities, 16 categories
-// Source: ffp-member-dashboard-v91.html (canonical source)
-// ═══════════════════════════════════════════════════════════════════════
-var ACTIVITIES_DB = window.FFP_TAX.activities;
-
-var CAT_META = {
-  'Running & walking':   { icon: 'directions_run' },
-  'Cycling':             { icon: 'directions_bike' },
-  'Swimming':            { icon: 'pool' },
-  'Watersports':         { icon: 'surfing' },
-  'Racquet sports':      { icon: 'sports_tennis' },
-  'Team sports':         { icon: 'groups' },
-  'Combat sports':       { icon: 'sports_mma' },
-  'Strength & fitness':  { icon: 'fitness_center' },
-  'Mind-body':           { icon: 'self_improvement' },
-  'Recovery & wellness': { icon: 'spa' },
-  'Outdoor & adventure': { icon: 'hiking' },
-  'Snow sports':         { icon: 'downhill_skiing' },
-  'Golf':                { icon: 'sports_golf' },
-  'Equestrian':          { icon: 'directions_walk' },
-  'Air & extreme':       { icon: 'paragliding' },
-  'Multi-sport':         { icon: 'sports' }
-};
-
-var CATEGORIES = ['All','Running & walking','Cycling','Swimming','Watersports','Racquet sports','Team sports','Combat sports','Strength & fitness','Mind-body','Recovery & wellness','Outdoor & adventure','Snow sports','Golf','Equestrian','Air & extreme','Multi-sport'];
-
-var LEVEL_DESC = {
-  'Not Tried':      'Keen to give it a go — not started yet.',
-  'Social':         'Just for fun and the social side, no pressure.',
-  'Competitive':    'Train and compete — club, league or amateur events.',
-  'Representative': 'Represent a team, region or country.',
-  'Professional':   'Your career — sponsored or earning from this sport.'
-};
-var LEVELS = ((window.FFP_TAX && window.FFP_TAX.fitnessLevels) || ['Not Tried','Social','Competitive','Representative','Professional'])
-  .map(function (n) { return { id: n, desc: LEVEL_DESC[n] || '' }; });
-
-var NATIONALITIES = window.FFP_TAX.nationalities;
-
-var COUNTRIES = window.FFP_TAX.cities;
-
-
-// ─── State ───────────────────────────────────────────────────────────────
-var selectedSports = [];
-var stripeSessionId = null;  // populated from URL on init, used at submit time
-var currentCategory = 'All';
-var currentSearch = '';
-var pickerMode = null;
-var pickerActivity = null;
-var pickerLevel = null;
-var avatarDataUrl = null; // downscaled JPEG data URL for the passport photo
-var pickerArmed = false; // guards against a stray tap auto-selecting on open
-
-
-// ─── Init ────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', initialise);
-
-async function initialise() {
-  // v8: NO lookup on load. We just read the session_id from the URL and
-  // remember it for the submit call. The form renders immediately.
-  var urlParams = new URLSearchParams(window.location.search);
-  stripeSessionId = urlParams.get('session_id');
-
-  if (stripeSessionId) {
-    console.log('[profile-complete v8] Stripe session_id stashed for submit:', stripeSessionId);
-  } else {
-    console.warn('[profile-complete v8] No session_id in URL. Submit will fail until one is present.');
+/* FFP Feedback Widget - v5 (2026-06-04)
+   v5: FIX — widget didn't open from the member topbar button. window.FFPFeedback was only defined at the
+       END of build() (which runs on DOMContentLoaded), so the button's `window.FFPFeedback && .open()`
+       could no-op silently. Now the API is exposed synchronously at load and open() builds the modal
+       lazily (build() is idempotent). Robust regardless of load timing. (Member ref → ?v=5, provider too.)
+   v4 (2026-06-03)
+   v4: "Add photo" — users can attach a screenshot for visual support. Image is compressed
+       client-side (canvas: max 1200px long edge, JPEG q0.7) to a small data URL and stored
+       inline on the feedback row (feedback.photo_url) via submit_feedback's new p_photo_url
+       arg — no storage bucket/RLS needed for this low-volume widget. Thumbnail preview +
+       remove in the modal; admin Feedback panel shows the image (click to zoom).
+   v3: category chips are now TEXT-ONLY (removed Material icon spans) so they render
+       cleanly on both dashboards regardless of which icon font the host loads
+       (provider uses Material Symbols, member uses Material Icons).
+   v2: exposes window.FFPFeedback.open()/close() so a host page can trigger the modal;
+       data-fab="off" suppresses the floating button (used on member/provider topbars).
+   Shared widget included by BOTH the member and provider dashboards. Injects a
+   floating "Feedback" button + modal, and writes a row to public.feedback via the
+   JWT-authenticated window.supabase client. Admin reads these live in the Feedback panel.
+
+   Include (member):   <script src="assets/ffp-feedback-widget.js" data-source="member"></script>
+   Include (provider): <script src="assets/ffp-feedback-widget.js" data-source="provider"></script>
+
+   Identity: members use the custom JWT (members.id via FFPAuth/localStorage); providers
+   use a real Supabase auth session (auth.users.id via supabase.auth.getUser()).
+   member_id must equal auth.uid() for the RLS insert, so we read it per source.
+*/
+(function () {
+  'use strict';
+
+  var SOURCE = 'member';
+  var SHOW_FAB = true;
+  try {
+    var cs = document.currentScript;
+    if (cs && cs.dataset && cs.dataset.source) SOURCE = cs.dataset.source;
+    if (cs && cs.dataset && cs.dataset.fab === 'off') SHOW_FAB = false;
+  } catch (e) {}
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function toast(msg, kind) {
+    if (typeof window.showToast === 'function') { try { window.showToast(msg, kind || 'success'); return; } catch (e) {} }
+    console.log('[FFP Feedback]', msg);
+  }
+  function getMember() {
+    try { if (window.FFPAuth && typeof window.FFPAuth.getMember === 'function') return window.FFPAuth.getMember(); } catch (e) {}
+    try { return JSON.parse(localStorage.getItem('ffp_member') || 'null'); } catch (e) { return null; }
   }
 
-  populateNationalities();
-  populateCountries();
-  /* v18: category chips removed — search only */
-  buildLevelList();
-  renderActivities();
-  renderSportsList();
+  var CATS = [
+    { id: 'bug', label: 'Something broke', icon: 'bug_report' },
+    { id: 'idea', label: 'Idea / request', icon: 'lightbulb' },
+    { id: 'complaint', label: 'Complaint', icon: 'sentiment_dissatisfied' },
+    { id: 'praise', label: 'Praise', icon: 'favorite' },
+    { id: 'other', label: 'Other', icon: 'chat' }
+  ];
+  var picked = 'bug';
+  var photoData = null;   // compressed JPEG data URL of an attached screenshot (optional)
 
-  document.getElementById('loading-screen').classList.add('hidden');
-  document.getElementById('main-page').classList.remove('hidden');
-}
-
-function populateNationalities() {
-  var sel = document.getElementById('f-nationality');
-  NATIONALITIES.slice().sort().forEach(function (n) {
-    var opt = document.createElement('option');
-    opt.value = n; opt.textContent = n;
-    sel.appendChild(opt);
-  });
-}
-
-function populateCountries() {
-  var sel = document.getElementById('f-country');
-  Object.keys(COUNTRIES).forEach(function (c) {
-    var opt = document.createElement('option');
-    opt.value = c; opt.textContent = c;
-    sel.appendChild(opt);
-  });
-  sel.addEventListener('change', onCountryChange);
-}
-
-function onCountryChange() {
-  var country = document.getElementById('f-country').value;
-  var citySel = document.getElementById('f-city');
-  citySel.innerHTML = '<option value="">Select your city</option>';
-  if (!country || !COUNTRIES[country]) {
-    citySel.querySelector('option').textContent = 'Select country first';
-    return;
+  function injectCss() {
+    if (document.getElementById('ffp-fb-css')) return;
+    var st = document.createElement('style');
+    st.id = 'ffp-fb-css';
+    st.textContent = [
+      '.ffp-fb-fab{position:fixed;right:18px;bottom:84px;z-index:9000;display:inline-flex;align-items:center;gap:7px;height:42px;padding:0 16px;border-radius:100px;background:#2ba8e0;color:#fff;font-family:inherit;font-size:13px;font-weight:800;letter-spacing:.3px;border:none;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.4);}',
+      '.ffp-fb-fab:hover{background:#1980AD;}',
+      '.ffp-fb-fab .material-icons,.ffp-fb-fab .ms{font-size:18px;}',
+      '@media(min-width:769px){.ffp-fb-fab{bottom:24px;}}',
+      '.ffp-fb-back{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:9001;display:none;align-items:center;justify-content:center;padding:20px;}',
+      '.ffp-fb-back.open{display:flex;}',
+      '.ffp-fb-modal{width:100%;max-width:440px;background:#0f1e2e;border:1px solid rgba(43,168,224,.22);border-radius:16px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.5);color:#e8eef4;font-family:inherit;}',
+      '.ffp-fb-head{padding:18px 20px;border-bottom:1px solid rgba(43,168,224,.1);display:flex;align-items:center;justify-content:space-between;}',
+      '.ffp-fb-head .t{font-size:16px;font-weight:800;}',
+      '.ffp-fb-x{background:#142a3f;border:none;color:#8a99a8;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px;line-height:1;}',
+      '.ffp-fb-body{padding:18px 20px;}',
+      '.ffp-fb-lbl{font-size:10px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#8a99a8;margin:0 0 8px;}',
+      '.ffp-fb-cats{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:16px;}',
+      '.ffp-fb-cat{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:100px;background:#142a3f;border:1px solid rgba(43,168,224,.22);color:#8a99a8;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;}',
+      '.ffp-fb-cat.on{background:rgba(43,168,224,.16);border-color:#2ba8e0;color:#e8eef4;}',
+      '.ffp-fb-cat .material-icons,.ffp-fb-cat .ms{font-size:15px;}',
+      '.ffp-fb-ta{width:100%;min-height:110px;resize:vertical;background:#081420;border:1px solid rgba(43,168,224,.22);border-radius:10px;padding:12px 14px;color:#e8eef4;font-family:inherit;font-size:14px;font-weight:500;line-height:1.5;}',
+      '.ffp-fb-ta:focus{outline:none;border-color:#2ba8e0;}',
+      '.ffp-fb-foot{padding:14px 20px;border-top:1px solid rgba(43,168,224,.1);display:flex;justify-content:flex-end;gap:10px;}',
+      '.ffp-fb-btn{height:40px;padding:0 18px;border-radius:10px;font-family:inherit;font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;border:none;cursor:pointer;}',
+      '.ffp-fb-btn.ghost{background:transparent;color:#8a99a8;border:1px solid rgba(43,168,224,.22);}',
+      '.ffp-fb-btn.pri{background:#FFCC00;color:#000;}',
+      '.ffp-fb-btn[disabled]{opacity:.5;cursor:not-allowed;}',
+      '.ffp-fb-note{font-size:11px;color:#8a99a8;font-weight:600;margin-top:10px;line-height:1.5;}',
+      '.ffp-fb-photo{margin-top:14px;}',
+      '.ffp-fb-addphoto{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px;border-radius:9px;background:#142a3f;border:1px solid rgba(43,168,224,.22);color:#9dbdd0;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;}',
+      '.ffp-fb-addphoto:hover{border-color:#2ba8e0;color:#e8eef4;}',
+      '.ffp-fb-addphoto .material-icons,.ffp-fb-addphoto .ms{font-size:17px;}',
+      '.ffp-fb-thumb{position:relative;display:inline-block;margin-top:4px;}',
+      '.ffp-fb-thumb img{max-width:120px;max-height:120px;border-radius:9px;border:1px solid rgba(43,168,224,.22);display:block;}',
+      '.ffp-fb-thumb-x{position:absolute;top:-8px;right:-8px;width:24px;height:24px;border-radius:50%;background:#ef4444;color:#fff;border:2px solid #0f1e2e;cursor:pointer;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;}'
+    ].join('');
+    document.head.appendChild(st);
   }
-  COUNTRIES[country].forEach(function (city) {
-    var opt = document.createElement('option');
-    opt.value = city; opt.textContent = city;
-    citySel.appendChild(opt);
-  });
-}
 
-
-// ─── Step navigation ─────────────────────────────────────────────────────
-function goToStep2() {
-  showError('step1-err', '');
-  // v9: read fields in new order; DOB from 3 dropdowns; gender added
-  var g = document.getElementById('f-given').value.trim();
-  var s = document.getElementById('f-surname').value.trim();
-  var dobDay = document.getElementById('f-dob-day').value;
-  var dobMonth = document.getElementById('f-dob-month').value;
-  var dobYear = document.getElementById('f-dob-year').value;
-  var ge = document.getElementById('f-gender').value;
-  var n = document.getElementById('f-nationality').value;
-  var co = document.getElementById('f-country').value;
-  var ci = document.getElementById('f-city').value;
-
-  if (!g) return showError('step1-err', 'Enter your given names');
-  if (!s) return showError('step1-err', 'Enter your surname');
-  if (!dobDay || !dobMonth || !dobYear) return showError('step1-err', 'Select your date of birth');
-  if (!ge) return showError('step1-err', 'Select your gender');
-  if (!n) return showError('step1-err', 'Select your nationality');
-  if (!co) return showError('step1-err', 'Select your country');
-  if (!ci) return showError('step1-err', 'Select your city');
-
-  document.getElementById('step-1').classList.remove('active');
-  document.getElementById('step-2').classList.add('active');
-  document.getElementById('dot-1').classList.remove('active');
-  document.getElementById('dot-1').classList.add('done');
-  document.getElementById('dot-1').innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" width="11" height="11"><polyline points="20 6 9 17 4 12"/></svg>';
-  document.getElementById('line-1').classList.add('done');
-  document.getElementById('dot-2').classList.add('active');
-  window.scrollTo(0, 0);
-}
-
-function goToStep1() {
-  document.getElementById('step-2').classList.remove('active');
-  document.getElementById('step-1').classList.add('active');
-  document.getElementById('dot-1').classList.add('active');
-  document.getElementById('dot-1').classList.remove('done');
-  document.getElementById('dot-1').textContent = '1';
-  document.getElementById('line-1').classList.remove('done');
-  document.getElementById('dot-2').classList.remove('active');
-  window.scrollTo(0, 0);
-}
-function goToStep3() {
-  showError('step2-err', '');
-  if (selectedSports.length === 0) return showError('step2-err', 'Add at least one sport to continue');
-  document.getElementById('step-2').classList.remove('active');
-  document.getElementById('step-3').classList.add('active');
-  document.getElementById('dot-2').classList.remove('active');
-  document.getElementById('dot-2').classList.add('done');
-  document.getElementById('dot-2').innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" width="11" height="11"><polyline points="20 6 9 17 4 12"/></svg>';
-  document.getElementById('line-2').classList.add('done');
-  document.getElementById('dot-3').classList.add('active');
-  window.scrollTo(0, 0);
-}
-function backToStep2() {
-  document.getElementById('step-3').classList.remove('active');
-  document.getElementById('step-2').classList.add('active');
-  document.getElementById('dot-3').classList.remove('active');
-  document.getElementById('line-2').classList.remove('done');
-  document.getElementById('dot-2').classList.remove('done');
-  document.getElementById('dot-2').classList.add('active');
-  document.getElementById('dot-2').textContent = '2';
-  window.scrollTo(0, 0);
-}
-
-
-// ─── Picker: build category chips ────────────────────────────────────────
-function buildCategoryChips() {
-  var chipsEl = document.getElementById('picker-cats');
-  chipsEl.innerHTML = CATEGORIES.map(function (cat) {
-    var icon = '';
-    if (cat !== 'All' && CAT_META[cat]) {
-      icon = '<span class="material-icons-outlined">' + CAT_META[cat].icon + '</span>';
-    }
-    return '<button class="cat-chip' + (cat === 'All' ? ' active' : '') + '" data-cat="' + cat + '" onclick="setCategory(\'' + cat.replace(/'/g, "\\'") + '\')">' + icon + '<span>' + cat + '</span></button>';
-  }).join('');
-}
-
-function setCategory(cat) {
-  currentCategory = cat;
-  document.querySelectorAll('.cat-chip').forEach(function (chip) {
-    if (chip.dataset.cat === cat) chip.classList.add('active');
-    else chip.classList.remove('active');
-  });
-  renderActivities();
-}
-
-function filterActivities() {
-  currentSearch = document.getElementById('sport-search').value.trim().toLowerCase();
-  renderActivities();
-}
-
-function renderActivities() {
-  var list = ACTIVITIES_DB.slice();
-  if (currentCategory !== 'All') {
-    list = list.filter(function (a) { return a.c === currentCategory; });
-  }
-  if (currentSearch) {
-    list = list.filter(function (a) {
-      return a.n.toLowerCase().includes(currentSearch) || a.c.toLowerCase().includes(currentSearch);
-    });
-  }
-  // Always alphabetical (A→Z) by activity name — applies to every list, filtered or not.
-  list.sort(function (a, b) { return a.n.localeCompare(b.n); });
-
-  var listEl = document.getElementById('activity-list');
-  if (list.length === 0) {
-    listEl.innerHTML = '<div class="activity-empty">No activities match. Try a different search.</div>';
-    return;
-  }
-  var taken = {};
-  selectedSports.forEach(function (s) { taken[s.name] = true; });
-
-  // Icons removed — many didn't match their activity. Name + category only.
-  listEl.innerHTML = list.map(function (a) {
-    var isTaken = taken[a.n];
-    return '<button class="activity-row" ' + (isTaken ? 'disabled' : 'onclick="pickActivity(\'' + a.n.replace(/'/g, "\\'") + '\')"') + '>' +
-           '<span class="activity-row-info">' +
-             '<span class="activity-row-name">' + a.n + (isTaken ? ' · added' : '') + '</span>' +
-             '<span class="activity-row-cat">' + a.c + '</span>' +
-           '</span>' +
-           '<span class="activity-row-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><polyline points="9 18 15 12 9 6"/></svg></span>' +
-           '</button>';
-  }).join('');
-}
-
-
-// ─── Picker: open/close & stages ─────────────────────────────────────────
-function buildLevelList() {
-  var list = document.getElementById('level-list');
-  list.innerHTML = LEVELS.map(function (lv) {
-    return '<div class="level-card" data-level="' + lv.id + '" onclick="pickLevel(\'' + lv.id + '\')">' +
-           '<div class="level-radio"></div>' +
-           '<div class="level-info">' +
-             '<div class="level-name">' + lv.id + '</div>' +
-             '<div class="level-desc">' + lv.desc + '</div>' +
-           '</div>' +
-           '</div>';
-  }).join('');
-}
-
-function openSportPicker() {
-  pickerMode = 'add';
-  pickerActivity = null;
-  pickerLevel = null;
-  currentSearch = '';
-  currentCategory = 'All';
-  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-  document.getElementById('sport-search').value = '';
-  renderActivities();
-  showPickerStage('sport');
-  document.getElementById('main-page').classList.add('hidden');
-  document.getElementById('picker').classList.add('active');
-  window.scrollTo(0, 0);
-  pickerArmed = false;
-  setTimeout(function () { pickerArmed = true; }, 350);
-}
-
-function openEditPicker(activityName) {
-  pickerMode = 'edit';
-  var found = ACTIVITIES_DB.find(function (a) { return a.n === activityName; });
-  pickerActivity = found || { n: activityName, c: 'Other' };
-  var existing = selectedSports.find(function (s) { return s.name === activityName; });
-  pickerLevel = existing ? existing.level : null;
-  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-  document.getElementById('picker-sport-name').textContent = activityName;
-  setLevelSelection(pickerLevel);
-  showPickerStage('level');
-  document.getElementById('main-page').classList.add('hidden');
-  document.getElementById('picker').classList.add('active');
-  window.scrollTo(0, 0);
-  pickerArmed = true;
-}
-
-function closeSportPicker() {
-  document.getElementById('picker').classList.remove('active');
-  document.getElementById('main-page').classList.remove('hidden');
-  document.body.style.overflow = '';
-  pickerMode = null;
-  pickerActivity = null;
-  pickerLevel = null;
-  window.scrollTo(0, 0);
-}
-
-// v18: Back is context-aware — on the level step it returns to the sport list,
-// otherwise it closes the picker.
-function pickerBack() {
-  var onLevel = document.getElementById('picker-stage-level').style.display !== 'none';
-  if (onLevel) { showPickerStage('sport'); } else { closeSportPicker(); }
-}
-
-function showPickerStage(stage) {
-  document.getElementById('picker-stage-sport').style.display = (stage === 'sport') ? '' : 'none';
-  document.getElementById('picker-stage-level').style.display = (stage === 'level') ? '' : 'none';
-  window.scrollTo(0, 0);
-}
-
-function pickActivity(activityName) {
-  if (!pickerArmed) return; // ignore the stray tap that can land right after the picker opens
-  var found = ACTIVITIES_DB.find(function (a) { return a.n === activityName; });
-  pickerActivity = found;
-  pickerLevel = null;
-  document.getElementById('picker-sport-name').textContent = activityName;
-  setLevelSelection(null);
-  showPickerStage('level');
-}
-
-function pickLevel(level) {
-  pickerLevel = level;
-  setLevelSelection(level);
-}
-
-function setLevelSelection(level) {
-  document.querySelectorAll('.level-card').forEach(function (c) {
-    if (c.dataset.level === level) c.classList.add('selected');
-    else c.classList.remove('selected');
-  });
-  document.getElementById('confirm-level-btn').disabled = !level;
-}
-
-function confirmLevel() {
-  if (!pickerActivity || !pickerLevel) return;
-  if (pickerMode === 'edit') {
-    selectedSports = selectedSports.map(function (s) {
-      if (s.name === pickerActivity.n) return { name: pickerActivity.n, category: pickerActivity.c, level: pickerLevel };
-      return s;
-    });
-  } else {
-    selectedSports.push({ name: pickerActivity.n, category: pickerActivity.c, level: pickerLevel });
-  }
-  renderSportsList();
-  closeSportPicker();
-}
-
-
-// ─── Sports list (Step 2) ────────────────────────────────────────────────
-function renderSportsList() {
-  var list = document.getElementById('sports-list');
-  if (selectedSports.length === 0) {
-    list.innerHTML = '<div class="sports-empty">No sports added yet. Tap below to add your first one.</div>';
-  } else {
-    list.innerHTML = selectedSports.map(function (s) {
-      var meta = CAT_META[s.category] || { icon: 'sports' };
-      return '<div class="sport-row">' +
-             '<div class="sport-row-icon"><span class="material-icons-outlined">' + meta.icon + '</span></div>' +
-             '<div class="sport-row-info">' +
-               '<div class="sport-row-name">' + s.name + '</div>' +
-               '<div class="sport-row-meta">' + s.level + ' · ' + s.category + '</div>' +
-             '</div>' +
-             '<button class="sport-row-edit" onclick="openEditPicker(\'' + s.name.replace(/'/g, "\\'") + '\')" title="Change level">' +
-               '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>' +
-             '</button>' +
-             '<button class="sport-row-remove" onclick="removeSport(\'' + s.name.replace(/'/g, "\\'") + '\')" title="Remove">' +
-               '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
-             '</button>' +
-             '</div>';
+  function catChips() {
+    return CATS.map(function (c) {
+      return '<button type="button" class="ffp-fb-cat' + (c.id === picked ? ' on' : '') +
+        '" data-cat="' + c.id + '">' + esc(c.label) + '</button>';
     }).join('');
   }
-  document.getElementById('add-btn-label').textContent = selectedSports.length === 0 ? 'Add a Sport' : 'Add Another Sport';
-}
 
-function removeSport(activityName) {
-  selectedSports = selectedSports.filter(function (s) { return s.name !== activityName; });
-  renderSportsList();
-}
+  function build() {
+    if (document.getElementById('ffp-fb-back')) return;   // v5: idempotent — modal already built
+    injectCss();
 
+    if (SHOW_FAB) {
+      var fab = document.createElement('button');
+      fab.className = 'ffp-fb-fab';
+      fab.type = 'button';
+      fab.innerHTML = 'Feedback';
+      fab.onclick = open;
+      document.body.appendChild(fab);
+    }
 
-// ─── Submit ──────────────────────────────────────────────────────────────
-function showError(elId, msg) {
-  var el = document.getElementById(elId);
-  if (el) el.textContent = msg || '';
-}
+    var back = document.createElement('div');
+    back.className = 'ffp-fb-back';
+    back.id = 'ffp-fb-back';
+    back.innerHTML =
+      '<div class="ffp-fb-modal" role="dialog" aria-label="Send feedback">' +
+        '<div class="ffp-fb-head"><div class="t">Send feedback</div>' +
+          '<button class="ffp-fb-x" type="button" aria-label="Close">&times;</button></div>' +
+        '<div class="ffp-fb-body">' +
+          '<div class="ffp-fb-lbl">What is this about?</div>' +
+          '<div class="ffp-fb-cats" id="ffp-fb-cats">' + catChips() + '</div>' +
+          '<div class="ffp-fb-lbl">Your message</div>' +
+          '<textarea class="ffp-fb-ta" id="ffp-fb-msg" placeholder="Tell us what happened, what you would like, or what is working well."></textarea>' +
+          '<div class="ffp-fb-photo">' +
+            '<input type="file" id="ffp-fb-file" accept="image/*" style="display:none">' +
+            '<button type="button" class="ffp-fb-addphoto" id="ffp-fb-addphoto"><span class="material-icons">add_a_photo</span>Add photo</button>' +
+            '<div class="ffp-fb-thumb" id="ffp-fb-thumb" style="display:none"><img id="ffp-fb-thumb-img" alt="attachment preview"><button type="button" class="ffp-fb-thumb-x" id="ffp-fb-thumb-x" aria-label="Remove photo">&times;</button></div>' +
+          '</div>' +
+          '<div class="ffp-fb-note">Goes straight to the FFP team. We read every message. Add a screenshot to show us exactly what you mean.</div>' +
+        '</div>' +
+        '<div class="ffp-fb-foot">' +
+          '<button class="ffp-fb-btn ghost" type="button" id="ffp-fb-cancel">Cancel</button>' +
+          '<button class="ffp-fb-btn pri" type="button" id="ffp-fb-send">Send</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(back);
 
-// Downscale any picked image to a centered 480px square JPEG (~40-90KB) so it
-// stores cleanly on the member row and renders crisply on the passport card.
-function ffpDownscaleImage(file, cb) {
-  try {
+    back.addEventListener('click', function (e) { if (e.target === back) close(); });
+    back.querySelector('.ffp-fb-x').onclick = close;
+    document.getElementById('ffp-fb-cancel').onclick = close;
+    document.getElementById('ffp-fb-send').onclick = submit;
+    document.getElementById('ffp-fb-cats').addEventListener('click', function (e) {
+      var b = e.target.closest('.ffp-fb-cat'); if (!b) return;
+      picked = b.dataset.cat;
+      document.querySelectorAll('#ffp-fb-cats .ffp-fb-cat').forEach(function (x) { x.classList.toggle('on', x.dataset.cat === picked); });
+    });
+    // Photo attachment: pick → compress client-side → preview
+    var fileInput = document.getElementById('ffp-fb-file');
+    document.getElementById('ffp-fb-addphoto').onclick = function () { fileInput.value = ''; fileInput.click(); };
+    fileInput.onchange = function () { var f = fileInput.files && fileInput.files[0]; if (f) compressImage(f, applyPhoto); };
+    document.getElementById('ffp-fb-thumb-x').onclick = clearPhoto;
+
+    // Let host pages trigger the modal from their own UI (e.g. topbar icon)
+    window.FFPFeedback = { open: open, close: close };
+  }
+
+  function open() {
+    // v5: build lazily on first open so the API never depends on DOMContentLoaded having fired.
+    if (!document.getElementById('ffp-fb-back')) { try { build(); } catch (e) { console.error('[FFP Feedback] build-on-open failed:', e); } }
+    var back = document.getElementById('ffp-fb-back');
+    if (!back) return;
+    back.classList.add('open');
+    setTimeout(function () { var t = document.getElementById('ffp-fb-msg'); if (t) t.focus(); }, 50);
+  }
+  function close() { var b = document.getElementById('ffp-fb-back'); if (b) b.classList.remove('open'); }
+  // v5: expose the API SYNCHRONOUSLY at script load (was only set at the end of build(), which runs on
+  // DOMContentLoaded — so the host topbar button could fire before FFPFeedback existed → silent no-op).
+  window.FFPFeedback = { open: open, close: close };
+
+  async function resolveIdentity() {
+    if (SOURCE === 'provider') {
+      var uid = null, email = null;
+      try {
+        var u = await window.supabase.auth.getUser();
+        if (u && u.data && u.data.user) { uid = u.data.user.id; email = u.data.user.email || null; }
+      } catch (e) {}
+      var prov = window.FFP_PROVIDER || {};
+      return { uid: uid, name: prov.business_name || (email ? email.split('@')[0] : 'Provider'), email: email, provider_id: prov.id || null };
+    }
+    var m = getMember() || {};
+    var name = m.full_name || ([m.given_names, m.surname].filter(Boolean).join(' ')) || (m.email ? m.email.split('@')[0] : 'Member');
+    return { uid: m.id || null, name: name, email: m.email || null, provider_id: null };
+  }
+
+  // Resize/compress an image file to a JPEG data URL (keeps payloads small — feedback is low
+  // volume and stored inline, so no storage bucket/RLS needed). Max 1200px long edge, q0.7.
+  function compressImage(file, cb) {
+    if (!file || !/^image\//.test(file.type)) { toast('Please choose an image', 'error'); return; }
     var reader = new FileReader();
-    reader.onload = function (e) {
+    reader.onload = function () {
       var img = new Image();
       img.onload = function () {
+        var max = 1200, w = img.width, h = img.height;
+        if (w > h && w > max) { h = Math.round(h * max / w); w = max; }
+        else if (h >= w && h > max) { w = Math.round(w * max / h); h = max; }
         try {
-          var size = 480, c = document.createElement('canvas');
-          c.width = size; c.height = size;
-          var ctx = c.getContext('2d');
-          var sdim = Math.min(img.width, img.height);
-          var sx = (img.width - sdim) / 2, sy = (img.height - sdim) / 2;
-          ctx.drawImage(img, sx, sy, sdim, sdim, 0, 0, size, size);
-          cb(c.toDataURL('image/jpeg', 0.82));
-        } catch (err) { console.warn('[FFP] downscale failed', err); cb(null); }
+          var c = document.createElement('canvas'); c.width = w; c.height = h;
+          c.getContext('2d').drawImage(img, 0, 0, w, h);
+          cb(c.toDataURL('image/jpeg', 0.7));
+        } catch (e) { console.error('[FFP Feedback] compress', e); toast('Could not read that image', 'error'); }
       };
-      img.onerror = function () { cb(null); };
-      img.src = e.target.result;
+      img.onerror = function () { toast('Could not read that image', 'error'); };
+      img.src = reader.result;
     };
-    reader.onerror = function () { cb(null); };
+    reader.onerror = function () { toast('Could not read that file', 'error'); };
     reader.readAsDataURL(file);
-  } catch (err) { cb(null); }
-}
-function onPhotoPicked(input) {
-  var file = input.files && input.files[0];
-  if (!file) return;
-  ffpDownscaleImage(file, function (durl) {
-    if (!durl) return;
-    avatarDataUrl = durl;
-    var tile = document.getElementById('photo-tile');
-    tile.style.backgroundImage = "url('" + durl + "')";
-    tile.classList.add('has-photo');
-  });
-}
-async function submitProfile() {
-  showError('step3-err', '');
-
-  if (!stripeSessionId) {
-    showError('step3-err', 'No Stripe session in URL. This page must be opened after completing payment.');
-    return;
+  }
+  function applyPhoto(dataUrl) {
+    photoData = dataUrl;
+    var thumb = document.getElementById('ffp-fb-thumb'), imgEl = document.getElementById('ffp-fb-thumb-img');
+    var addBtn = document.getElementById('ffp-fb-addphoto');
+    if (imgEl) imgEl.src = dataUrl;
+    if (thumb) thumb.style.display = 'inline-block';
+    if (addBtn) addBtn.style.display = 'none';
+  }
+  function clearPhoto() {
+    photoData = null;
+    var thumb = document.getElementById('ffp-fb-thumb'), addBtn = document.getElementById('ffp-fb-addphoto');
+    if (thumb) thumb.style.display = 'none';
+    if (addBtn) addBtn.style.display = 'inline-flex';
   }
 
-  if (selectedSports.length === 0) {
-    return showError('step3-err', 'Add at least one sport to continue');
-  }
-  if (!avatarDataUrl) {
-    return showError('step3-err', 'Add your passport photo to continue');
-  }
+  async function submit() {
+    var msg = (document.getElementById('ffp-fb-msg').value || '').trim();
+    if (msg.length < 3) { toast('Add a short message first', 'error'); return; }
+    if (!window.supabase) { toast('Connection not ready - try again', 'error'); return; }
 
-  var btn = document.getElementById('submit-btn');
-  btn.disabled = true;
-  btn.textContent = 'Saving...';
+    var btn = document.getElementById('ffp-fb-send');
+    btn.disabled = true; btn.textContent = 'Sending...';
 
-  try {
-    // v9: build ISO date YYYY-MM-DD from 3 dropdowns; add gender; new field order
-    var dobDay   = document.getElementById('f-dob-day').value;
-    var dobMonth = document.getElementById('f-dob-month').value;
-    var dobYear  = document.getElementById('f-dob-year').value;
-    var dobISO   = (dobYear && dobMonth && dobDay) ? (dobYear + '-' + dobMonth + '-' + dobDay) : '';
-    var referralCode = null;
-    try { referralCode = localStorage.getItem('ffp_ref'); } catch (e) {}
-    var payload = {
-      session_id: stripeSessionId,
-      ref: referralCode || null,
-      given_names: document.getElementById('f-given').value.trim(),
-      surname: document.getElementById('f-surname').value.trim(),
-      date_of_birth: dobISO,
-      gender: document.getElementById('f-gender').value,
-      nationality: document.getElementById('f-nationality').value,
-      country: document.getElementById('f-country').value,
-      city: document.getElementById('f-city').value,
-      photo_url: avatarDataUrl || null,
-      skills: selectedSports.map(function (sp) {
-        return { name: sp.name, category: sp.category, level: sp.level, shared: false };
-      })
-    };
-
-    var resp = await fetch(BACKEND_URL + '/api/onboard/from-stripe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    var data = await resp.json();
-
-    if (!resp.ok || !data.success) {
-      throw new Error((data && data.error) || ('HTTP ' + resp.status));
-    }
-
-    // v12: route the onboard response through FFPApi so member + jwt are
-    // both stored AND the Supabase session is applied before navigation.
-    // The dashboard the user lands on then sees auth.uid() === member.id
-    // and every RLS-protected loader query works on first paint.
     try {
-      if (window.FFPApi && typeof window.FFPApi.applyOnboardResponse === 'function') {
-        await window.FFPApi.applyOnboardResponse(data);
+      var who = await resolveIdentity();
+      if (!who.uid) { toast('Please sign in first', 'error'); return; }
+      // v2: submit via SECURITY DEFINER RPC — members can't satisfy the feedback RLS
+      // (member_id = auth.uid()) because custom-JWT members don't resolve auth.uid().
+      var res = await window.supabase.rpc('submit_feedback', {
+        p_source: SOURCE,
+        p_member_id: who.uid,
+        p_provider_id: who.provider_id,
+        p_name: who.name,
+        p_email: who.email,
+        p_category: picked,
+        p_message: msg,
+        p_photo_url: photoData || null
+      });
+      if (res.error) {
+        console.error('[FFP Feedback]', res.error);
+        toast('Could not send - please try again', 'error');
       } else {
-        // Fallback if ffp-api-integration somehow failed to load: at least
-        // cache the member so the dashboard's inline hydration still works.
-        console.warn('[profile-complete v12] FFPApi not available — falling back to raw localStorage');
-        localStorage.setItem('ffp_member', JSON.stringify(data.member));
-        if (data.jwt) localStorage.setItem('ffp_jwt', data.jwt);
+        document.getElementById('ffp-fb-msg').value = '';
+        picked = 'bug';
+        clearPhoto();
+        close();
+        toast('Thanks - your feedback is in', 'success');
       }
     } catch (e) {
-      console.error('[profile-complete v12] applyOnboardResponse threw:', e);
-      // Still navigate — better to land on dashboard with a broken session
-      // than block the user. The dashboard's autoInit will re-apply the JWT
-      // from localStorage on its own.
+      console.error('[FFP Feedback]', e);
+      toast('Could not send - please try again', 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Send';
     }
+  }
 
-    // Ensure the cached member carries gender, sports and photo so the passport
-    // card is complete on the very first dashboard paint (covers the case where a
-    // not-yet-redeployed onboard endpoint omitted them from its response).
-    try {
-      var cached = JSON.parse(localStorage.getItem('ffp_member') || '{}');
-      if (payload.gender) cached.gender = payload.gender;
-      if (payload.skills && payload.skills.length) cached.skills = payload.skills;
-      if (avatarDataUrl) cached.photo_url = avatarDataUrl;
-      localStorage.setItem('ffp_member', JSON.stringify(cached));
-    } catch (e) {}
-    try { localStorage.removeItem('ffp_ref'); } catch (e) {}   // referral consumed
-    window.location.href = 'ffp-member-dashboard.html';
-  } catch (err) {
-    console.error('[profile-complete v8] submit failed:', err);
-    showError('step3-err', 'Could not save: ' + (err.message || 'unknown error'));
-    btn.disabled = false;
-    btn.textContent = 'Complete Profile';
-  }
-}
-</script>
-<script>
-/* Gender options come from the STANDARDIZED taxonomy. The static FFP_TAX.genders renders
-   first, then we re-fill once the DB taxonomy hydrates (FFP_TAX_READY) and again on the
-   'ffp-tax-ready' event — so admin edits to the gender list show here without a code change. */
-(function(){
-  function fillGenders(){
-    var g=document.getElementById('f-gender'); if(!g) return;
-    var cur=g.value;
-    var list=(window.FFP_TAX&&FFP_TAX.genders&&FFP_TAX.genders.length)?FFP_TAX.genders:['Male','Female','Prefer not to say'];
-    g.innerHTML='<option value="">Select</option>';
-    list.forEach(function(x){var o=document.createElement('option');o.value=x;o.textContent=x;g.appendChild(o);});
-    if(cur) g.value=cur;
-  }
-  fillGenders();
-  if(window.FFP_TAX_READY&&typeof window.FFP_TAX_READY.then==='function'){window.FFP_TAX_READY.then(fillGenders);}
-  document.addEventListener('ffp-tax-ready',fillGenders);
+  function start() { if (document.body) build(); else document.addEventListener('DOMContentLoaded', build); }
+  start();
 })();
-</script>
-</body>
-</html>
