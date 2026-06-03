@@ -1,4 +1,7 @@
-/* FFP Admin Taxonomies Loader — v2 (2026-06-01)
+/* FFP Admin Taxonomies Loader — v3 (2026-06-03)
+   v3: Provider Categories now have a PASSPORT selector per row (Pick A Passport map lens) —
+       assigning it writes the category row's `parent` = passport id; the member map reads
+       FFP_TAX.categoryPassport live. Passport options come from list_key='passport'.
    Real CRUD editor for platform-wide taxonomy lists, backed by public.taxonomy_items.
    v2: added Countries + Cities (cascade: pick a country, edit its cities) + Experience Types.
    Admin (real Supabase Auth, is_admin) reads ALL rows + writes via RLS taxonomy_admin_write.
@@ -67,7 +70,9 @@
       '#tax-editor .tx-ic .material-icons{font-size:16px;}',
       '#tax-editor .tx-pill{font-size:10px;font-weight:800;padding:2px 9px;border-radius:20px;}',
       '#tax-editor .tx-pill.on{background:rgba(34,197,94,.14);color:#22c55e;}',
-      '#tax-editor .tx-pill.off{background:rgba(138,153,168,.14);color:#8a99a8;}'
+      '#tax-editor .tx-pill.off{background:rgba(138,153,168,.14);color:#8a99a8;}',
+      '#tax-editor .tx-pass{background:#081420;border:1px solid rgba(43,168,224,.25);border-radius:8px;color:#e8eef4;padding:6px 8px;font-size:12px;font-family:inherit;font-weight:700;cursor:pointer;width:100%;max-width:150px;}',
+      '#tax-editor .tx-pass:focus{outline:none;border-color:#2ba8e0;}'
     ].join('\n');
     document.head.appendChild(s);
   }
@@ -123,10 +128,24 @@
             '</div>';
     }
 
+    var isCat = state.current === 'category';
+    var passOpts = '';
+    if (isCat) {
+      var plist = (state.data.passport || []).slice().sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
+      passOpts = plist.map(function (p) { return '<option value="' + esc(p.value) + '">' + esc(p.label || p.value) + '</option>'; }).join('');
+    }
     var rowsHtml = rows.length ? rows.map(function (r, i) {
+      var passCell = '';
+      if (isCat) {
+        var sel = '<option value=""' + (!r.parent ? ' selected' : '') + '>— none —</option>' +
+          (state.data.passport || []).slice().sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); })
+            .map(function (p) { return '<option value="' + esc(p.value) + '"' + (r.parent === p.value ? ' selected' : '') + '>' + esc(p.label || p.value) + '</option>'; }).join('');
+        passCell = '<td style="width:160px;"><select class="tx-pass" data-id="' + r.id + '">' + sel + '</select></td>';
+      }
       return '<tr class="' + (r.active ? '' : 'inactive') + '" data-id="' + r.id + '">' +
         '<td style="width:34px;color:#6a90a8;">' + (i + 1) + '</td>' +
         '<td><input class="tx-name" value="' + esc(r.label || r.value) + '" data-id="' + r.id + '"></td>' +
+        passCell +
         '<td style="width:90px;"><span class="tx-pill ' + (r.active ? 'on' : 'off') + '">' + (r.active ? 'Live' : 'Hidden') + '</span></td>' +
         '<td style="width:150px;"><div class="tx-act">' +
           '<button class="tx-ic" data-act="up" title="Move up"><span class="material-icons">arrow_upward</span></button>' +
@@ -140,7 +159,7 @@
       '<div class="tx-wrap">' +
         '<div class="tx-lists">' + listsHtml + '</div>' +
         '<div class="tx-panel">' + bar +
-          '<table><thead><tr><th>#</th><th>Name</th><th>Status</th><th style="text-align:right;">Actions</th></tr></thead>' +
+          '<table><thead><tr><th>#</th><th>Name</th>' + (isCat ? '<th>Passport</th>' : '') + '<th>Status</th><th style="text-align:right;">Actions</th></tr></thead>' +
           '<tbody>' + rowsHtml + '</tbody></table>' +
         '</div>' +
       '</div>';
@@ -182,6 +201,18 @@
       inp.onblur = function () { renameItem(inp.dataset.id, inp.value); };
       inp.onkeydown = function (e) { if (e.key === 'Enter') inp.blur(); };
     });
+    host.querySelectorAll('.tx-pass').forEach(function (sel) {
+      sel.onchange = function () { setCatPassport(sel.dataset.id, sel.value); };
+    });
+  }
+
+  // Assign a provider category to a passport (Pick A Passport map lens) — stored in `parent`.
+  async function setCatPassport(id, passport) {
+    var r = findRow(id); if (!r) return;
+    var res = await sb().from('taxonomy_items').update({ parent: passport || null }).eq('id', id);
+    if (res.error) { toast('Could not set passport', 'error'); return; }
+    r.parent = passport || null;
+    toast('Passport updated', 'success');
   }
 
   async function addItem(val) {
