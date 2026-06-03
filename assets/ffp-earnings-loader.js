@@ -1,8 +1,13 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP EARNINGS LOADER · CURRENT VERSION: v16
+   FFP EARNINGS LOADER · CURRENT VERSION: v17
    File path: assets/ffp-earnings-loader.js
-   On-load log: [FFP Earnings v16] Loaded from Supabase ✓
+   On-load log: [FFP Earnings v17] Loaded from Supabase ✓
    ═══════════════════════════════════════════════════════════════ */
+
+/* WHAT v17 CHANGES (from v16):
+   - computeBalance() now returns cents (Math.round(bal*100)/100). v16 still did Math.round(bal) →
+     whole dollars, so a $39.60 balance rendered as $40. THIS is the fix that must ship (v16 shipped
+     the USD switch but not this). Payout-row + transaction-list amounts also cents now. */
 
 /* WHAT v16 CHANGES (from v15):
    - USD-ONLY: removed ALL AED conversion. transactions.amount_aed / payouts.amount_aed are now read
@@ -149,7 +154,7 @@
     }
 
     var rows = memberPayouts.map(function (p) {
-      var amt = Math.round(Number(p.amount_aed) || 0);
+      var amt = Math.round((Number(p.amount_aed) || 0) * 100) / 100;
       var status = p.status || 'pending';
       var statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
       if (status === 'pending') statusLabel = 'Under review';
@@ -183,7 +188,7 @@
 
       return '<div class="ffp-po-row">' +
         '<div>' +
-          '<div class="ffp-po-amount">$' + amt.toLocaleString() + '</div>' +
+          '<div class="ffp-po-amount">$' + Earnings.fmtUsd(amt) + '</div>' +
           '<div class="ffp-po-method">' + escHtml(p.method || 'bank') + ' transfer</div>' +
           '<div class="ffp-po-dates">' + dates + '</div>' +
           rejectionBlock +
@@ -446,7 +451,7 @@
       var hiddenCount = filtered.length - visible.length;
 
       var rows = visible.map(function (p) {
-        var amt = Math.round(Number(p.amount_aed) || 0);
+        var amt = Math.round((Number(p.amount_aed) || 0) * 100) / 100;
         var status = p.status || 'pending';
         var statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
         if (status === 'pending') statusLabel = 'Under review';
@@ -479,7 +484,7 @@
 
         return '<div class="ffp-po-row">' +
           '<div>' +
-            '<div class="ffp-po-amount">$' + amt.toLocaleString() + '</div>' +
+            '<div class="ffp-po-amount">$' + Earnings.fmtUsd(amt) + '</div>' +
             '<div class="ffp-po-method">' + escHtml(p.method || 'bank') + ' transfer</div>' +
             '<div class="ffp-po-dates">' + dates + '</div>' +
             rejectionBlock +
@@ -710,7 +715,7 @@
       if (r.type === 'in'  && r.status === 'paid') bal += amt;
       else if (r.type === 'out' && (r.status === 'paid' || r.status === 'pending')) bal -= amt;
     });
-    return Math.round(bal);
+    return Math.round(bal * 100) / 100;   // v16: cents-precise (was Math.round → $40 instead of $39.60)
   }
 
   // Count rows helper (head: true → just the count, no data)
@@ -811,7 +816,7 @@
         Earnings.transactions = txRows.map(function (r) {
           return {
             type: r.type,
-            amount: Math.round(Number(r.amount_aed) || 0),
+            amount: Math.round((Number(r.amount_aed) || 0) * 100) / 100,
             source: txSourceFromRow(r),
             category: categoryLabel(r.category),
             daysAgo: daysAgoFromIso(r.created_at),
