@@ -1,7 +1,7 @@
-/* FFP Admin Referrals Loader — v3 (2026-06-03)
+/* FFP Admin Referrals Loader — v4 (2026-06-03)
    Real referrals + member names (admin RLS) → AdminReferrals.data + render + realtime.
-   v3: reward mapped to USD, cents-precise + 2-dp display ($19.80, not $20). Referrals auto-credit on
-       signup (backend v61); this panel is a record + 'Invalid' clawback (admin_invalidate_referral).
+   v4: reward_aed now holds USD (no /3.6725); shown as $ (2-dp). Referrals auto-credit on signup
+       (backend v63); panel is a record + 'Invalid' clawback. Leaderboard via admin_referral_leaderboard.
 */
 (function () {
   'use strict';
@@ -16,7 +16,7 @@
       id: row.id,
       referrer: referrer, rInit: (referrer[0]||'?').toUpperCase(), refTier: rr.tier || '',
       referred: referred, bInit: (referred[0]||'?').toUpperCase(),
-      reward: (function(){ var n = Math.round((Number(row.reward_aed || 0) / 3.6725) * 100) / 100; return (Math.round(n*100)%100===0) ? String(Math.round(n)) : n.toFixed(2); })(), status: row.status || 'pending', daysAgo: days(row.created_at)
+      reward: (function(){ var n = Math.round((Number(row.reward_aed || 0)) * 100) / 100; return (Math.round(n*100)%100===0) ? String(Math.round(n)) : n.toFixed(2); })(), status: row.status || 'pending', daysAgo: days(row.created_at)
     };
   }
   async function fetchRows(){
