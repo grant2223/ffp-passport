@@ -1,4 +1,15 @@
-<!-- FFP MEMBER DASHBOARD — v239 (2026-06-03)
+<!-- FFP MEMBER DASHBOARD — v240 (2026-06-03)
+     v240: (Grant fixes — root cause, not patches) (1) Removed the location/passport "tags" summary
+           line above the map (#jm-active-summary gone; updateMapFilterUI now only drives the Filters
+           badge). (2) Added the FFP cover (assets/ffp-passport-cover.png) as the DEFAULT "All / World"
+           card in the passport picker (tap to clear the lens). (3) FIX country/city dropdowns vanishing
+           when a passport is selected: the passport is a MAP LENS only — logsInRange(ignorePassport)
+           added; renderChips now builds its Country/City options from logsInRange(true) (all logged
+           locations, time-scoped), never the passport-filtered set. (4) FIX headline journey stats
+           going blank when a passport is selected: renderAll now feeds renderStats() with
+           getLocationLogs() (location only), while the map pins + Top Activities/Places keep the
+           passport lens via getFilteredLogs(). Stat tiles reflect your journey and no longer collapse
+           to 0 just because a theme is picked.
      v239: (Grant tweaks) PASSPORT FILTER CARDS are now PURE COVER IMAGES — 3-col grid (3 top / 2
            bottom), no text overlay/scrim/count, no "All passports" card (tap the selected cover again
            to clear; "Clear all" in the modal footer also resets). Non-selected covers dim when one is
@@ -4469,9 +4480,6 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     .jm-filter-btn:hover{border-color:var(--blue);}
     .jm-filter-btn .material-icons{font-size:17px;color:var(--blue);}
     .jm-filter-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--yellow);color:#082335;font-size:11px;font-weight:900;}
-    .jm-active-summary{font-size:12px;color:var(--muted);font-weight:600;margin:0 0 12px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
-    .jm-active-summary .pill{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.05);border:1px solid var(--border-mid);border-radius:100px;padding:3px 10px;font-weight:700;color:var(--text);}
-    .jm-active-summary .pill .material-icons{font-size:14px;}
     /* Passport picker as image cards (inside the filter modal) */
     #map-filter-backdrop .jm-passports{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:0;}
     .jm-pcard{position:relative;border-radius:12px;overflow:hidden;cursor:pointer;border:2.5px solid transparent;background:#0f1e2e;aspect-ratio:3/4;display:block;font-family:inherit;padding:0;transition:border-color .15s, transform .1s, opacity .15s;}
@@ -4496,7 +4504,6 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         <span class="jm-filter-badge" id="jm-filter-badge" style="display:none;"></span>
       </button>
     </div>
-    <div class="jm-active-summary" id="jm-active-summary"></div>
     <div class="jm-map-wrap"><div id="ffp-jmap"></div></div>
     <div class="jm-legend">
       <span class="jm-legend-item"><span class="jm-dot venue"></span>Venue you checked into</span>
@@ -6960,16 +6967,18 @@ function renderPassportPicker() {
   updateMapFilterUI();
   const el = document.getElementById('jm-passports'); if (!el) return;
   const cur = state.selectedPassport;
-  // Pure passport-cover images (3 top / 2 bottom). Tap to filter; tap the selected one again to clear.
-  el.innerHTML = getPassports().map(function (p) {
-    var img = p.img
-      ? '<img class="jm-pcard-img" src="' + escHtml(p.img) + '" alt="' + escHtml(p.label) + '" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.querySelector(\'.jm-pcard-fallback\').style.display=\'flex\';">'
-      : '';
-    return '<button type="button" class="jm-pcard' + (cur === p.id ? ' on' : '') + '" style="--pc:' + p.color + ';" title="' + escHtml(p.label) + '" onclick="setPassport(\'' + p.id + '\')">'
-      + img
-      + '<span class="jm-pcard-fallback">' + escHtml(p.label) + '</span>'
+  // Pure cover images. The FFP cover is the default "All / Worldwide" card; tap it to clear the lens.
+  function card(id, color, label, src, on) {
+    return '<button type="button" class="jm-pcard' + (on ? ' on' : '') + '" style="--pc:' + color + ';" title="' + escHtml(label) + '" onclick="setPassport(' + (id ? '\'' + id + '\'' : 'null') + ')">'
+      + (src ? '<img class="jm-pcard-img" src="' + escHtml(src) + '" alt="' + escHtml(label) + '" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.querySelector(\'.jm-pcard-fallback\').style.display=\'flex\';">' : '')
+      + '<span class="jm-pcard-fallback">' + escHtml(label) + '</span>'
       + '</button>';
+  }
+  var html = card(null, '#2ba8e0', 'All', 'assets/ffp-passport-cover.png', !cur);
+  html += getPassports().map(function (p) {
+    return card(p.id, p.color, p.label, p.img, cur === p.id);
   }).join('');
+  el.innerHTML = html;
   el.classList.toggle('has-sel', !!cur);
 }
 // ===== Map filters modal (Filters button → full-screen sheet) =====
@@ -6987,7 +6996,7 @@ function clearMapFilters() {
   state.selectedCity = null;
   if (typeof renderAll === 'function') renderAll();
 }
-// Filters button badge (count of active filters) + the at-a-glance summary above the map.
+// Filters button badge — count of active filters (passport + country + city).
 function updateMapFilterUI() {
   var active = 0;
   if (state.selectedPassport) active++;
@@ -6995,19 +7004,6 @@ function updateMapFilterUI() {
   if (state.selectedCity) active++;
   var badge = document.getElementById('jm-filter-badge');
   if (badge) { badge.textContent = active; badge.style.display = active ? 'inline-flex' : 'none'; }
-  var sum = document.getElementById('jm-active-summary');
-  if (sum) {
-    var parts = [];
-    var loc = state.selectedCity || state.selectedCountry || 'Worldwide';
-    parts.push('<span class="pill"><span class="material-icons">place</span>' + escHtml(loc) + '</span>');
-    if (state.selectedPassport) {
-      var p = passportById(state.selectedPassport);
-      parts.push('<span class="pill" style="color:' + (p ? p.color : 'inherit') + ';"><span class="material-icons">style</span>' + escHtml(p ? p.label : state.selectedPassport) + '</span>');
-    } else {
-      parts.push('<span class="pill"><span class="material-icons">style</span>All passports</span>');
-    }
-    sum.innerHTML = parts.join('');
-  }
 }
 // When the DB taxonomy hydrates (or admin edits passports), rebuild the picker + map mapping.
 document.addEventListener('ffp-tax-ready', function () { _actCat = null; if (typeof renderAll === 'function' && document.getElementById('jm-passports')) renderAll(); });
@@ -7023,9 +7019,10 @@ function timeAgo(days) {
 
 // ===== RENDER =====
 function renderAll() {
-  const logs = getFilteredLogs();
+  const logs = getFilteredLogs();          // location + passport lens (map + Top Activities/Places)
+  const journeyLogs = getLocationLogs();   // location only — headline journey stats ignore the passport lens
   renderPassportPicker();
-  renderStats(logs);
+  renderStats(journeyLogs);
   renderActivities(logs);
   renderVenues(logs);
   renderConnections();
@@ -7115,14 +7112,15 @@ window.JourneyMap = (function () {
     if ((!c || c.lat==null) && typeof estimateCityCoords === 'function'){ c = estimateCityCoords(name, country); if (c && typeof CITY_COORDS !== 'undefined') CITY_COORDS[name] = c; }
     return (c && c.lat!=null && c.lng!=null) ? c : null;
   }
-  function logsInRange(){
+  function logsInRange(ignorePassport){
     var logs = (typeof LOGS !== 'undefined') ? LOGS.slice() : [];
     var r = state.timeRange;
     if (r==='7d') logs = logs.filter(function(l){return l.daysAgo<=7;});
     else if (r==='30d') logs = logs.filter(function(l){return l.daysAgo<=30;});
     else if (r==='90d') logs = logs.filter(function(l){return l.daysAgo<=90;});
     else if (r==='year'){ var d=Math.floor((new Date()-new Date(new Date().getFullYear(),0,1))/86400000); logs=logs.filter(function(l){return l.daysAgo<=d;}); }
-    if (state.selectedPassport && typeof passportForLog==='function') logs = logs.filter(function(l){ return passportForLog(l)===state.selectedPassport; });
+    // passport is a MAP LENS — skip it for the nav dropdowns (ignorePassport=true) so Country/City never vanish
+    if (!ignorePassport && state.selectedPassport && typeof passportForLog==='function') logs = logs.filter(function(l){ return passportForLog(l)===state.selectedPassport; });
     return logs;
   }
   function dotIcon(color, r){
@@ -7179,7 +7177,11 @@ window.JourneyMap = (function () {
       if (countEl) countEl.textContent = cities.length+(cities.length===1?' city':' cities');
       if (bounds.length) fit(bounds, 6); else map.setView([20,10],2);
     }
-    renderChips(cities);   // breadcrumb removed (v222) — dropdowns are the single nav control
+    // Country/City dropdowns reflect ALL logged locations (time-scoped), NOT the passport lens —
+    // so selecting a passport never makes the dropdowns disappear.
+    var navMap = {};
+    logsInRange(true).forEach(function(l){ if(!l.city) return; if(!navMap[l.city]) navMap[l.city]={city:l.city,country:l.country||'',count:0}; navMap[l.city].count++; });
+    renderChips(Object.keys(navMap).map(function(k){return navMap[k];}));
   }
   function renderCrumb(){
     var el=document.getElementById('jm-crumb'); if(!el) return;
