@@ -1,4 +1,12 @@
-<!-- FFP MEMBER DASHBOARD — v262 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v263 (2026-06-04)
+     v263: FIX passport-holder PHOTO not showing on the matches deck + "who's going" passports. Root cause:
+           FFPPassportCard.frontShell built the photo div as style='...url('...')...' — a SINGLE-quoted style
+           attribute containing a SINGLE-quoted url(), so the quote after url( closed the attribute early and
+           background-image never applied (any photo, data-URL or http). Fixed by double-quoting the style
+           attribute (style="..."). Small avatars were already correct (double-quoted). Verified the rendered
+           attribute now contains the full image URL. NOTE/follow-up: photos are stored as ~140KB base64
+           data: URLs in members.photo_url — get_match_pool ships them inline (will balloon at scale); should
+           move to Supabase Storage + short URLs.
      v262: P2b MEMBER-CREATED QUESTS UI. "Create your own quest" button on the Quests panel → form
            (title/category/optional activity/country+city/target venues) → member_save_quest. Quest
            detail shows a join box for member quests (join count + "Join this quest" → member_quest_join,
@@ -14241,7 +14249,7 @@ setTimeout(scalePassportCard, 200);
             "<div><div class='pass-mini-label'>COUNTRY</div><div class='pass-mini-val'>"+esc(m.country||"—")+"</div></div>"+
           "</div>"+
           "<div class='pass-main' style='grid-template-columns:"+mainCols+";gap:24px;'>"+
-            "<div class='pass-photo-new' style='"+photoStyle+"'>"+(m.photo?"":esc(initials))+"</div>"+
+            "<div class='pass-photo-new' style=\""+photoStyle+"\">"+(m.photo?"":esc(initials))+"</div>"+
             "<div class='pass-fields-new'>"+
               "<div class='pf-field'><div class='pf-lbl'>SURNAME</div><div class='pf-val'>"+esc(surname||"—")+"</div></div>"+
               "<div class='pf-field'><div class='pf-lbl'>GIVEN NAMES</div><div class='pf-val'>"+esc(given||"—")+"</div></div>"+
