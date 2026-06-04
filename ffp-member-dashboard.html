@@ -1,4 +1,10 @@
-<!-- FFP MEMBER DASHBOARD — v270 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v271 (2026-06-04)
+     v271: (a) FIX Meet & Move "no meetups on Discover" (RECURRING — see FFP-ISSUES-LOG.md). The Discover
+           country filter checked m.city against FFP_TAX.cities[country], so it hid EVERY meetup whenever
+           the taxonomy hadn't hydrated or a city wasn't in the list. Now matches on m.country directly
+           (meetups missing a country aren't hidden). (b) FIX passport day-streak: daysAgo is now a CALENDAR
+           day diff (was elapsed-hours → split the same day into two buckets), and the streak no longer
+           resets to 0 when today isn't logged yet (today-grace: starts at today if logged, else yesterday).
      v270: REAL FIX for the passport card showing HUGE on refresh — root cause was prerenderPassportShare()
            (the share-image pre-render) setting the LIVE shell's transform to 'none' for the html2canvas
            capture, flashing the on-screen card to full 540px for 1-3s on every panel-show/load. Now it
@@ -7448,7 +7454,10 @@ function renderStats(logs) {
   // activity. All-time (uses global LOGS), independent of the time-range filter.
   const streakDays = new Set((typeof LOGS !== 'undefined' ? LOGS : []).map(l => l.daysAgo));
   let streakCur = 0;
-  for (let d = 0; d < 365; d++) { if (streakDays.has(d)) streakCur++; else break; }
+  // Count the current run. Today not-yet-logged does NOT break the streak (you still have today to log),
+  // so start at today if logged, else at yesterday (grace), then walk back while days are consecutive.
+  let _sd = streakDays.has(0) ? 0 : (streakDays.has(1) ? 1 : -1);
+  if (_sd >= 0) { while (streakDays.has(_sd)) { streakCur++; _sd++; } }
   setTxt('journey-streak-num', streakCur);
 }
 
@@ -12534,8 +12543,10 @@ const MeetMove = {
       if (this.gender !== 'all') items = items.filter(m => m.gender === this.gender);
       if (this.level !== 'all') items = items.filter(m => m.level === this.level);
       if (this.country !== 'all' && this.city === 'all') {
-        var cc = (window.FFP_TAX && FFP_TAX.cities[this.country]) || [];
-        items = items.filter(m => cc.indexOf(m.city) >= 0);
+        // Match on the meetup's COUNTRY directly. The old check (m.city in FFP_TAX.cities[country])
+        // hid EVERY meetup whenever the taxonomy hadn't hydrated or a city wasn't in the list — the
+        // recurring "no meetups on Discover" bug. Meetups with no country set are not hidden.
+        items = items.filter(m => m.country ? (m.country === this.country) : true);
       }
       if (this.city !== 'all') items = items.filter(m => (m.city || '') === this.city);
       if (this.proOnly) items = items.filter(m => m.isProfessional);
@@ -13837,7 +13848,9 @@ async function loadJourneyLogs() {
         lat: (r.checkin_lat != null ? Number(r.checkin_lat) : null),
         lng: (r.checkin_lng != null ? Number(r.checkin_lng) : null),
         date: dt.toISOString().substring(0, 10),
-        daysAgo: Math.max(0, Math.floor((now - dt.getTime()) / 86400000)),
+        // CALENDAR-day difference (local midnight to midnight), NOT elapsed hours — otherwise two logs
+        // on the SAME day get different daysAgo (e.g. morning vs afternoon), breaking the day streak.
+        daysAgo: (function () { var a = new Date(dt.getTime()); a.setHours(0, 0, 0, 0); var t = new Date(); t.setHours(0, 0, 0, 0); return Math.max(0, Math.round((t - a) / 86400000)); })(),
         duration: r.duration_min || 0, durationSec: r.duration_sec || 0, calories: r.calories || 0, notes: r.notes || '',
         verified: !!r.verified, partner: false
       });
