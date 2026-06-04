@@ -1,4 +1,8 @@
-/* FFP Meet & Move Loader — v20
+/* FFP Meet & Move Loader — v21
+   v21 (2026-06-04): FIX — member-hosted meetups never showed on the Discover tab. The mapped meetup
+       object set `area: m.city` but NOT `city`, while MeetMove.filtered() filters by m.city; with the
+       location filter defaulting to country=UAE, `cc.indexOf(undefined)` excluded EVERY meetup on Discover
+       (you only saw your own via Hosting/Joined). Now also map `city` (+ `country`) so the filter works.
    v20 (2026-06-03): fires Meet & Move lifecycle emails (non-blocking) — after join_meetup → POST
        /api/meetups/notify {kind:'confirm'} (confirmation to the joiner); after cancel_meetup → POST
        {kind:'cancel'} (cancellation to all attendees). Backend v62 sends; reminders via daily cron.
@@ -443,7 +447,7 @@
           id: m.id, activity: m.title || m.sport || 'Meetup', cat: meta.cat, icon: meta.icon,
           host: memberDisplayName(host), hostInitial: memberLetter(host),
           hostTrust: trustMap[m.host_member_id] != null ? trustMap[m.host_member_id] : 9.0,
-          when: fmtWhen(m.meets_at), whenSlot: 'this-week', venue: m.venue || '', area: m.city || '',
+          when: fmtWhen(m.meets_at), whenSlot: 'this-week', venue: m.venue || '', area: m.city || '', city: m.city || '', country: m.country || '',
           capacity: m.max_people || 8, joined: 1 + (countMap[m.id] || 0), level: m.fitness_level || 'All',
           gender: genderMap(m.group_filter), cost: 'Free',
           joinedByMe: joinedSet.has(m.id) || isHostedByMe, isHostedByMe: isHostedByMe,
