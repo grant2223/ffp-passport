@@ -1,4 +1,12 @@
-/* FFP Fitness Stats Loader — v19 (2026-06-05)
+/* FFP Fitness Stats Loader — v20 (2026-06-05)
+   v20: MILESTONES tab redesigned — each metric is now a tappable row → its own detail page with a top
+        strap (now / up-next + bar) and the FULL ladder of badges (earned lit, next flagged, locked shown).
+        92 badges across 12 metrics: Activities Logged→10k, Activity Streak→5yr, Sport Variety, Cities→100,
+        Deadlift/Squat/Bench (×bw), 5K/10K/Half/Marathon (finish→near-WR times), Body Fat→Shredded. The tier
+        LOGIC was unit-tested in isolation before integrating. (overrideMilestonesV20 + window.ffpMilestoneDetail;
+        reuses the dashboard's openDetailModal full-bleed.) NOTE: Sport Variety caps at 50 (the activity
+        taxonomy is dynamic/larger than "80", so no literal "all 80" badge); other Health metrics (VO2/grip/
+        sleep/etc.) still use the old rows — they need age/sex-banded ladders, a clean follow-up.
    v19: Activity-tab STREAK now uses TODAY-GRACE (matches the passport panel) — a live streak no longer
         reads 0 just because today isn't logged yet, then jumps when you log. (Pairs with the DB fix to
         get_ranking_pool: role filter was '= member', which wrongly excluded admins who are real members,
@@ -1152,6 +1160,98 @@
     };
   }
 
+  // ============ MILESTONES v20 — tap a metric → its FULL badge ladder (continuous milestones) ============
+  // Each metric is a tappable row → detail page: top strap (now / up-next + bar) + the full ladder of badges,
+  // earned ones lit, next flagged, locked shown with their target. Logic unit-tested in isolation.
+  function msFmtTime(sec){ sec=Math.round(sec); var h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60; return h>0 ? (h+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')) : (m+':'+String(s).padStart(2,'0')); }
+  var MS_LADDERS = [
+    { group:'Consistency', key:'activitiesLogged', name:'Activities Logged', icon:'flag', dir:'higher', read:function(c){ var v=c.logs.length; return {val:v, disp:v+' logged'}; }, tiers:[{t:10,name:'10 logged'},{t:25,name:'25 logged'},{t:50,name:'50 logged'},{t:100,name:'100 logged'},{t:250,name:'250 logged'},{t:500,name:'500 logged'},{t:1000,name:'1,000 logged'},{t:2500,name:'2,500 logged'},{t:5000,name:'5,000 logged'},{t:10000,name:'10,000 logged'}] },
+    { group:'Consistency', key:'activityStreak', name:'Activity Streak', icon:'local_fire_department', dir:'higher', read:function(c){ var v=c.streak; return {val:v, disp:v+'-day streak'}; }, tiers:[{t:3,name:'3-day'},{t:7,name:'1 week'},{t:14,name:'2 weeks'},{t:30,name:'1 month'},{t:60,name:'2 months'},{t:100,name:'100 days'},{t:180,name:'6 months'},{t:365,name:'1 year'},{t:730,name:'2 years'},{t:1095,name:'3 years'},{t:1825,name:'5 years'}] },
+    { group:'Consistency', key:'sportVariety', name:'Sport Variety', icon:'sports', dir:'higher', read:function(c){ var v=new Set(c.logs.map(function(l){return l.activity;}).filter(Boolean)).size; return {val:v, disp:v+' sports'}; }, tiers:[{t:3,name:'3 sports'},{t:5,name:'5 sports'},{t:10,name:'10 sports'},{t:15,name:'15 sports'},{t:20,name:'20 sports'},{t:30,name:'30 sports'},{t:40,name:'40 sports'},{t:50,name:'50 sports'}] },
+    { group:'Consistency', key:'citiesActive', name:'Cities Active', icon:'public', dir:'higher', read:function(c){ var v=new Set(c.logs.map(function(l){return l.city;}).filter(Boolean)).size; return {val:v, disp:v+' cities'}; }, tiers:[{t:1,name:'1 city'},{t:3,name:'3 cities'},{t:5,name:'5 cities'},{t:10,name:'10 cities'},{t:20,name:'20 cities'},{t:35,name:'35 cities'},{t:50,name:'50 cities'},{t:75,name:'75 cities'},{t:100,name:'100 cities'}] },
+    { group:'Max Lifts', key:'deadlift1RM', name:'Deadlift', icon:'fitness_center', dir:'higher', ratio:true, tiers:[{t:1,name:'1× bodyweight'},{t:1.5,name:'1.5×'},{t:2,name:'2×'},{t:2.5,name:'2.5×'},{t:3,name:'3×'},{t:3.5,name:'3.5× (elite)'}] },
+    { group:'Max Lifts', key:'squat1RM', name:'Squat', icon:'fitness_center', dir:'higher', ratio:true, tiers:[{t:0.75,name:'0.75×'},{t:1,name:'1× bodyweight'},{t:1.5,name:'1.5×'},{t:2,name:'2×'},{t:2.5,name:'2.5×'},{t:3,name:'3× (elite)'}] },
+    { group:'Max Lifts', key:'bench1RM', name:'Bench Press', icon:'fitness_center', dir:'higher', ratio:true, tiers:[{t:0.5,name:'0.5×'},{t:0.75,name:'0.75×'},{t:1,name:'1× bodyweight'},{t:1.25,name:'1.25×'},{t:1.5,name:'1.5×'},{t:2,name:'2× (elite)'}] },
+    { group:'Endurance', key:'run5K', name:'5K', icon:'directions_run', dir:'lower', time:true, tiers:[{finish:true,name:'Finish a 5K'},{t:1800,name:'sub-30:00'},{t:1500,name:'sub-25:00'},{t:1320,name:'sub-22:00'},{t:1200,name:'sub-20:00'},{t:1080,name:'sub-18:00'},{t:960,name:'sub-16:00'},{t:840,name:'sub-14:00'}] },
+    { group:'Endurance', key:'run10K', name:'10K', icon:'directions_run', dir:'lower', time:true, tiers:[{finish:true,name:'Finish a 10K'},{t:3600,name:'sub-60:00'},{t:3000,name:'sub-50:00'},{t:2700,name:'sub-45:00'},{t:2400,name:'sub-40:00'},{t:2100,name:'sub-35:00'},{t:1800,name:'sub-30:00'}] },
+    { group:'Endurance', key:'run21K', name:'Half Marathon', icon:'directions_run', dir:'lower', time:true, tiers:[{finish:true,name:'Finish a half'},{t:9000,name:'sub-2:30'},{t:7200,name:'sub-2:00'},{t:6300,name:'sub-1:45'},{t:5400,name:'sub-1:30'},{t:4800,name:'sub-1:20'},{t:4200,name:'sub-1:10'}] },
+    { group:'Endurance', key:'runMara', name:'Marathon', icon:'emoji_events', dir:'lower', time:true, tiers:[{finish:true,name:'Finish a marathon'},{t:18000,name:'sub-5:00'},{t:14400,name:'sub-4:00'},{t:12600,name:'sub-3:30'},{t:10800,name:'sub-3:00'},{t:9900,name:'sub-2:45'},{t:8400,name:'sub-2:20'},{t:7200,name:'sub-2:00 (WR pace)'}] },
+    { group:'Health', key:'bodyFat', name:'Body Fat', icon:'monitor_weight', dir:'lower', read:function(c){ var rec=c.records.bodyFat; if(!rec) return {val:null,disp:'Not logged'}; return {val:rec.value, disp:rec.value+'%'}; }, tiers:function(c){ var male=(c.profile.gender||'').toLowerCase().charAt(0)!=='f'; return male ? [{t:24,name:'Healthy ≤24%'},{t:18,name:'Fit ≤18%'},{t:14,name:'Lean ≤14%'},{t:10,name:'Athletic ≤10%'},{t:8,name:'Super Lean ≤8%'},{t:6,name:'Shredded ≤6%'}] : [{t:31,name:'Healthy ≤31%'},{t:25,name:'Fit ≤25%'},{t:22,name:'Lean ≤22%'},{t:18,name:'Athletic ≤18%'},{t:14,name:'Super Lean ≤14%'},{t:12,name:'Shredded ≤12%'}]; } }
+  ];
+  function msBuildState(L, ctx){
+    var r;
+    if (L.read) r = L.read(ctx);
+    else if (L.ratio){ var rec=ctx.records[L.key], w=ctx.profile.weight; if(!rec) r={val:null,disp:'Not logged'}; else if(!w) r={val:null,disp:'Add body weight to rank'}; else r={val: rec.value/w, disp: rec.value+'kg · '+(rec.value/w).toFixed(2)+'× bw'}; }
+    else if (L.time){ var rt=ctx.records[L.key]; r = rt ? {val:rt.value, disp:msFmtTime(rt.value)} : {val:null,disp:'Not logged'}; }
+    else r={val:null,disp:'—'};
+    var tiers = (typeof L.tiers==='function') ? L.tiers(ctx) : L.tiers;
+    var earned = tiers.map(function(tr){ if(tr.finish) return r.val != null; if(r.val == null) return false; return L.dir==='higher' ? r.val >= tr.t : r.val <= tr.t; });
+    var earnedCount = earned.filter(Boolean).length; var nextIdx = earned.indexOf(false);
+    return { r:r, tiers:tiers, earned:earned, earnedCount:earnedCount, total:tiers.length, nextIdx:nextIdx };
+  }
+  function msCtx(){ var fs=FitnessStats; return { logs: activityCache||[], streak:(typeof fs.computeStreak==='function')?fs.computeStreak().current:0, records: fs.records||{}, profile: fs.profile||{} }; }
+  function msPctToNext(L, st){ if(st.nextIdx<0) return 100; var tr=st.tiers[st.nextIdx], val=st.r.val; if(tr.finish||val==null) return 0; if(L.dir==='higher') return Math.max(0,Math.min(100,(val/tr.t)*100)); return Math.max(0,Math.min(100,(tr.t/val)*100)); }
+  function msInjectCss(){
+    if(document.getElementById('ffp-ms-v20-css')) return;
+    var s=document.createElement('style'); s.id='ffp-ms-v20-css'; s.textContent=[
+      '.ms-cat{font-size:11px;font-weight:800;letter-spacing:0.7px;text-transform:uppercase;color:var(--muted,#8a99a8);margin:16px 0 8px;}',
+      '.ms-row{display:flex;align-items:center;gap:12px;padding:12px;background:rgba(15,30,46,0.6);border:1px solid var(--border-mid,rgba(43,168,224,0.2));border-radius:12px;margin-bottom:8px;cursor:pointer;transition:border-color .15s;}',
+      '.ms-row:hover{border-color:var(--blue,#2ba8e0);}',
+      '.ms-row-ic{width:40px;height:40px;border-radius:10px;background:rgba(43,168,224,0.1);display:flex;align-items:center;justify-content:center;color:var(--blue,#2ba8e0);flex-shrink:0;}',
+      '.ms-row-body{flex:1;min-width:0;}',
+      '.ms-row-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}',
+      '.ms-row-name{font-size:14px;font-weight:700;color:var(--text,#e8eef4);}',
+      '.ms-row-badges{font-size:12px;font-weight:800;color:var(--yellow,#FFCC00);flex-shrink:0;}',
+      '.ms-row-now{font-size:11px;color:var(--muted,#8a99a8);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
+      '.ms-row-next{color:var(--blue,#2ba8e0);font-weight:600;}',
+      '.ms-row-bar{height:5px;background:rgba(255,255,255,0.07);border-radius:3px;margin-top:7px;overflow:hidden;}',
+      '.ms-row-bar-fill{height:100%;background:var(--yellow,#FFCC00);border-radius:3px;}',
+      '.ms-row-chev{color:var(--muted,#8a99a8);flex-shrink:0;}',
+      '.msd-wrap{padding:4px 2px 20px;}',
+      '.msd-strap{display:flex;gap:14px;align-items:center;padding:16px;background:rgba(43,168,224,0.07);border:1px solid var(--border-mid,rgba(43,168,224,0.25));border-radius:14px;margin-bottom:18px;}',
+      '.msd-strap-ic{width:52px;height:52px;border-radius:13px;background:rgba(43,168,224,0.14);display:flex;align-items:center;justify-content:center;color:var(--blue,#2ba8e0);flex-shrink:0;}',
+      '.msd-strap-ic .material-icons{font-size:28px;}',
+      '.msd-strap-body{flex:1;min-width:0;}',
+      '.msd-strap-name{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted,#8a99a8);}',
+      '.msd-strap-now{font-size:22px;font-weight:900;color:var(--text,#e8eef4);margin:2px 0 6px;}',
+      '.msd-strap-next{font-size:12px;font-weight:700;color:var(--blue,#2ba8e0);}',
+      '.msd-strap-next.done{color:var(--yellow,#FFCC00);}',
+      '.msd-strap-bar{height:6px;background:rgba(255,255,255,0.08);border-radius:3px;margin-top:7px;overflow:hidden;}',
+      '.msd-strap-bar-fill{height:100%;background:var(--blue,#2ba8e0);border-radius:3px;}',
+      '.msd-ladder-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.7px;color:var(--muted,#8a99a8);margin-bottom:10px;}',
+      '.msd-badge{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:11px;margin-bottom:8px;border:1px solid transparent;}',
+      '.msd-badge.earned{background:rgba(255,204,0,0.08);border-color:rgba(255,204,0,0.3);}',
+      '.msd-badge.next{background:rgba(43,168,224,0.08);border-color:rgba(43,168,224,0.4);}',
+      '.msd-badge.locked{background:rgba(255,255,255,0.02);opacity:0.55;}',
+      '.msd-badge-ic{flex-shrink:0;}',
+      '.msd-badge.earned .msd-badge-ic{color:var(--yellow,#FFCC00);}',
+      '.msd-badge.next .msd-badge-ic{color:var(--blue,#2ba8e0);}',
+      '.msd-badge.locked .msd-badge-ic{color:var(--muted,#8a99a8);}',
+      '.msd-badge-name{flex:1;font-size:14px;font-weight:600;color:var(--text,#e8eef4);}',
+      '.msd-badge-tag{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;padding:3px 8px;border-radius:6px;background:rgba(43,168,224,0.15);color:var(--blue,#2ba8e0);}',
+      '.msd-badge-tag.earned{background:rgba(255,204,0,0.15);color:var(--yellow,#FFCC00);}'
+    ].join(''); document.head.appendChild(s);
+  }
+  function overrideMilestonesV20(){
+    FitnessStats.renderMilestones = function(){
+      msInjectCss(); var ctx=msCtx(); var totalEarned=0, totalBadges=0; var groups={}, order=[];
+      MS_LADDERS.forEach(function(L){ var st=msBuildState(L,ctx); totalEarned+=st.earnedCount; totalBadges+=st.total; if(!groups[L.group]){groups[L.group]=[];order.push(L.group);} groups[L.group].push({L:L,st:st}); });
+      var html=order.map(function(g){ var rows=groups[g].map(function(o){ var L=o.L, st=o.st; var pct=Math.round((st.earnedCount/st.total)*100); var nextTxt=st.nextIdx<0?'All badges earned':('Next · '+st.tiers[st.nextIdx].name);
+        return '<div class="ms-row" onclick="ffpMilestoneDetail(\''+L.key+'\')"><div class="ms-row-ic"><span class="material-icons">'+L.icon+'</span></div><div class="ms-row-body"><div class="ms-row-top"><span class="ms-row-name">'+escText(L.name)+'</span><span class="ms-row-badges">'+st.earnedCount+'/'+st.total+'</span></div><div class="ms-row-now">'+escText(st.r.disp)+' · <span class="ms-row-next">'+escText(nextTxt)+'</span></div><div class="ms-row-bar"><div class="ms-row-bar-fill" style="width:'+pct+'%;"></div></div></div><span class="material-icons ms-row-chev">chevron_right</span></div>';
+      }).join(''); return '<div class="ms-cat">'+escText(g)+'</div>'+rows; }).join('');
+      var gridEl=document.getElementById('achievements-grid'); if(gridEl) gridEl.innerHTML=html;
+      var countEl=document.getElementById('ms-unlocked-count'); if(countEl) countEl.textContent=totalEarned+' of '+totalBadges+' badges';
+    };
+  }
+  window.ffpMilestoneDetail = function(key){
+    var L=MS_LADDERS.find(function(x){return x.key===key;}); if(!L) return;
+    var st=msBuildState(L, msCtx()); var pct=msPctToNext(L,st); var nextName=st.nextIdx<0?null:st.tiers[st.nextIdx].name;
+    var strap='<div class="msd-strap"><div class="msd-strap-ic"><span class="material-icons">'+L.icon+'</span></div><div class="msd-strap-body"><div class="msd-strap-name">'+escText(L.name)+'</div><div class="msd-strap-now">'+escText(st.r.disp)+'</div>'+(nextName?'<div class="msd-strap-next">Up next · '+escText(nextName)+'</div><div class="msd-strap-bar"><div class="msd-strap-bar-fill" style="width:'+Math.round(pct)+'%;"></div></div>':'<div class="msd-strap-next done">All '+st.total+' badges earned 🎉</div>')+'</div></div>';
+    var ladder=st.tiers.map(function(tr,i){ var state=st.earned[i]?'earned':(i===st.nextIdx?'next':'locked'); var ic=st.earned[i]?'check_circle':(i===st.nextIdx?'radio_button_unchecked':'lock'); return '<div class="msd-badge '+state+'"><span class="material-icons msd-badge-ic">'+ic+'</span><span class="msd-badge-name">'+escText(tr.name)+'</span>'+(state==='next'?'<span class="msd-badge-tag">Up next</span>':state==='earned'?'<span class="msd-badge-tag earned">Earned</span>':'')+'</div>'; }).join('');
+    var html='<div class="msd-wrap">'+strap+'<div class="msd-ladder-title">Badge ladder · '+st.earnedCount+'/'+st.total+'</div>'+ladder+'</div>';
+    if(typeof openDetailModal==='function') openDetailModal(html, true);
+  };
+
   // Override the dashboard's renderRecords directly — replaces all the old PR card population
   function overrideRenderRecords() {
     FitnessStats.renderRecords = function () {
@@ -1184,6 +1284,7 @@
       overrideComputeStreak();
       overrideRenderActivity();
       overrideRenderMilestones();
+      overrideMilestonesV20();   // v20 — replaces the milestones render with the tap-in BADGE LADDERS (wins, runs last)
       overrideRenderRecords();
       wrapWrites();
 
