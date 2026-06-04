@@ -1,4 +1,9 @@
-/* FFP Member Discovery Loader — v5 (2026-06-01)
+/* FFP Member Discovery Loader — v6 (2026-06-04)
+   v6: Event RSVP now fires the EMAIL TRAIL — after rsvp_event succeeds, POSTs /api/events/notify
+       {kind:'rsvp'} so the member gets a confirmation email and the provider gets an alert email
+       (rsvp_event also drops an in-app notification on the provider's bell). RSVP toast updated to
+       "You're confirmed — check in with your Passport at the venue on the day". Backend v73 + member
+       dashboard v284 (copy fix) go with this.
    v5: Challenge card badge = LAST day of challenge (ends_at), per request (was starts_at).
    v4 (2026-06-01)
    v4: card date badges — Experience = first day of trip (startBadge); Challenge dateBadge is now
@@ -133,7 +138,10 @@
         if (res.error && !/duplicate|unique/i.test(res.error.message || '')) throw res.error;
         this.rsvped.add(id);
         this.render();
-        toast('RSVP sent to ' + e.organizer + ' — see you on ' + e.date);
+        // v4: email the member a confirmation + the provider an alert (non-blocking). rsvp_event also
+        // drops an in-app notification on the provider's bell.
+        try { fetch('https://ffp-passport-backend.vercel.app/api/events/notify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'rsvp', event_id: id, member_id: m }) }); } catch (e) {}
+        toast('You’re confirmed — check in with your Passport at the venue on the day');
       } catch (err) {
         console.error('[FFP Discovery] rsvp:', err);
         toast(/policy|rls|denied/i.test(err.message || '') ? 'Could not RSVP (permission)' : 'Could not send RSVP', 'error');
