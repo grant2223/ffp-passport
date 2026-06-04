@@ -1,4 +1,10 @@
-<!-- FFP MEMBER DASHBOARD — v275 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v276 (2026-06-04)
+     v276: Cache-bust bump (FFP_BUILD 275→276) so the browser re-fetches ffp-meet-move-loader.js fresh.
+           The live loader at ?v=275 was a STALE/broken copy throwing "Unexpected identifier 'the' (line 2)",
+           so it never ran → MeetMove.data stayed empty → Discover showed "No meetups match those filters"
+           even though Dylan's + Phil's open meetups exist in the DB. ⚠️ MUST DEPLOY BOTH: this dashboard
+           (v276) AND assets/ffp-meet-move-loader.js (v23, the corrected clean loader) — deploying only the
+           dashboard would just re-fetch the same broken loader. No member-dashboard logic changed in v276.
      v275: CRITICAL FIX — whole dashboard was DEAD ("not responding"). Console truth:
            "Uncaught SyntaxError: Identifier '_nowTs' has already been declared (line 12577)".
            The v273 Past-tab edit added `const _nowTs` at the top of MeetMove.filtered() while the
@@ -8031,7 +8037,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '275';
+  const FFP_BUILD = '276';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
