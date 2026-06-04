@@ -1,4 +1,14 @@
-/* FFP Admin Payouts Loader v8 (2026-05-29)
+/* FFP Admin Payouts Loader v9 (2026-06-04)
+   v9: PAYOUT QUOTE WORKFLOW (#28 step 3). Pending payouts are now QUOTED
+   (bank rate + fee + local amount -> admin_quote_payout, status 'quoted')
+   instead of approved directly; the member then Accepts/Cancels (step 4).
+   Reject now calls admin_reject_payout RPC (server-side releases the balance
+   hold by deleting the 'out' transaction) — no manual mirror update needed.
+   New 'Quoted' tab. p_admin comes from window.FFP_ADMIN.id (matches the
+   admin auth pattern). Amounts are USD ($) — the '*_aed' columns hold USD;
+   stale "AED" modal labels corrected to "$". Legacy approve/Mark-Paid path
+   kept for any pre-existing 'approved' rows.
+ — v8
    v8: PostgREST embed disambiguation. payouts table now has TWO FKs to
    members (member_id + processed_by) after the FK migration. Changed
    'members(...)' to 'members!member_id(...)' to embed the payee member.
@@ -64,6 +74,17 @@
     if (isNaN(d.getTime())) return '—';
     return d.toLocaleString();
   }
+  // Money helpers — the wallet is USD-only (the *_aed columns HOLD USD, no conversion).
+  function usd(n) {
+    var v = Number(n) || 0;
+    return '$' + v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }
+  function fmtLocal(cur, n) {
+    var v = Number(n) || 0;
+    return (cur ? (cur + ' ') : '') + v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }
+  // Reliable admin id for SECURITY DEFINER admin RPCs (= admin_users.id; set by ffp-admin-auth.js).
+  function adminId() { return (window.FFP_ADMIN || {}).id || null; }
 
   function injectStyles() {
     if (document.getElementById('ffp-admin-payouts-css')) return;
@@ -95,7 +116,7 @@
       member: memberName(m),
       memberEmail: m.email || '',
       initial: letterFor(memberName(m)),
-      amount: Number(row.amount_aed) || 0,
+      amount: Number(row.amount_aed) || 0,   // USD (legacy column name)
       method: row.method || 'bank',
       bankDetails: row.bank_details || '',
       notes: row.notes || '',
@@ -103,6 +124,12 @@
       status: row.status || 'pending',
       requestedAt: row.requested_at || row.created_at || null,
       processedAt: row.processed_at || null,
+      localCurrency: row.local_currency || '',
+      localAmount: row.local_amount != null ? Number(row.local_amount) : null,
+      bankRate: row.bank_rate != null ? Number(row.bank_rate) : null,
+      feeUsd: row.fee_usd != null ? Number(row.fee_usd) : null,
+      netUsd: row.net_usd != null ? Number(row.net_usd) : null,
+      quotedAt: row.quoted_at || null,
       _raw: row
     };
   }
@@ -110,7 +137,7 @@
   async function fetchPayouts() {
     var res = await window.supabase
       .from('payouts')
-      .select('id, member_id, amount_aed, method, status, processed_by, processed_at, bank_details, notes, receipt_url, requested_at, members!member_id(full_name, given_names, email)')
+      .select('id, member_id, amount_aed, method, status, processed_by, processed_at, bank_details, notes, receipt_url, requested_at, local_currency, local_amount, bank_rate, fee_usd, net_usd, quoted_at, members!member_id(full_name, given_names, email)')
       .order('requested_at', { ascending: false });
     if (res.error) {
       console.error('[FFP Admin Payouts] fetch:', res.error);
@@ -128,7 +155,7 @@
   }
 
   function tabCounts(data) {
-    var c = { pending: 0, approved: 0, paid: 0, rejected: 0 };
+    var c = { pending: 0, quoted: 0, approved: 0, paid: 0, rejected: 0, cancelled: 0 };
     data.forEach(function (p) { if (c[p.status] != null) c[p.status]++; });
     return c;
   }
@@ -151,6 +178,7 @@
     if (tabsEl) {
       tabsEl.innerHTML =
         '<button class="tab-btn' + (tab === 'pending' ? ' active' : '') + '" data-tab="pending" onclick="AdminPayouts.setTab(\'pending\')">Pending <span class="count">' + counts.pending + '</span></button>' +
+        '<button class="tab-btn' + (tab === 'quoted' ? ' active' : '') + '" data-tab="quoted" onclick="AdminPayouts.setTab(\'quoted\')">Quoted <span class="count">' + counts.quoted + '</span></button>' +
         '<button class="tab-btn' + (tab === 'approved' ? ' active' : '') + '" data-tab="approved" onclick="AdminPayouts.setTab(\'approved\')">Approved <span class="count">' + counts.approved + '</span></button>' +
         '<button class="tab-btn' + (tab === 'paid' ? ' active' : '') + '" data-tab="paid" onclick="AdminPayouts.setTab(\'paid\')">Paid <span class="count">' + counts.paid + '</span></button>' +
         '<button class="tab-btn' + (tab === 'rejected' ? ' active' : '') + '" data-tab="rejected" onclick="AdminPayouts.setTab(\'rejected\')">Rejected <span class="count">' + counts.rejected + '</span></button>';
@@ -166,16 +194,24 @@
       : rows.map(function (p) {
           var actBtns = '';
           if (p.status === 'pending') {
-            actBtns += '<button class="btn btn-sm btn-blue" onclick="AdminPayouts.approve(\'' + p.id + '\')"><span class="material-icons">check</span>Approve</button>';
+            actBtns += '<button class="btn btn-sm btn-blue" onclick="AdminPayouts.quote(\'' + p.id + '\')"><span class="material-icons">request_quote</span>Quote</button>';
+            actBtns += '<button class="btn btn-sm btn-danger" onclick="AdminPayouts.reject(\'' + p.id + '\')"><span class="material-icons">close</span>Reject</button>';
+          } else if (p.status === 'quoted') {
+            actBtns += '<button class="btn btn-sm btn-ghost" onclick="AdminPayouts.quote(\'' + p.id + '\')" title="Edit quote"><span class="material-icons">edit</span>Re-quote</button>';
             actBtns += '<button class="btn btn-sm btn-danger" onclick="AdminPayouts.reject(\'' + p.id + '\')"><span class="material-icons">close</span>Reject</button>';
           } else if (p.status === 'approved') {
             actBtns += '<button class="btn btn-sm btn-primary" onclick="AdminPayouts.markPaid(\'' + p.id + '\')"><span class="material-icons">done_all</span>Mark Paid</button>';
           }
           actBtns += '<button class="btn btn-sm btn-ghost" onclick="AdminPayouts.view(\'' + p.id + '\')" title="View"><span class="material-icons">visibility</span></button>';
 
+          var amountCell = '<span class="aed">' + p.amount.toLocaleString() + '</span>';
+          if (p.status === 'quoted' && p.localAmount != null) {
+            amountCell += '<div class="text-muted" style="font-size:10px;font-weight:600;margin-top:2px;">' + escHtml(fmtLocal(p.localCurrency, p.localAmount)) + ' · awaiting member</div>';
+          }
+
           return '<tr>' +
             '<td><span class="cell-avatar">' + escHtml(p.initial) + '</span><span class="cell-name">' + escHtml(p.member) + '</span></td>' +
-            '<td class="f-tabular text-yellow" style="font-weight:800;"><span class="aed">' + p.amount.toLocaleString() + '</span></td>' +
+            '<td class="f-tabular text-yellow" style="font-weight:800;">' + amountCell + '</td>' +
             '<td class="text-muted">' + escHtml(p.method) + '</td>' +
             '<td class="text-muted nowrap">' + escHtml(fmtDays(p.requestedAt)) + '</td>' +
             '<td><div class="table-actions">' + actBtns + '</div></td>' +
@@ -389,45 +425,115 @@
   }
 
   // ─── Actions ───
-  function approve(id) {
+  // QUOTE (#28): admin sets bank rate + fee + local amount -> admin_quote_payout
+  // (status 'quoted'); the member then Accepts or Cancels (step 4). The payout
+  // amount is USD; the quote converts it to the member's local currency.
+  var INPUT_CSS = 'width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:9px 10px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;box-sizing:border-box;';
+  var LABEL_CSS = 'color:#8a99a8;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px;';
+
+  function quote(id) {
     var ap = getAP();
     var p = ap.data.find(function (x) { return x.id === id; });
     if (!p) return;
+    var amountUsd = p.amount;
+    var defCur = p.localCurrency || 'AED';
+    var defRate = p.bankRate != null ? p.bankRate : '';
+    var defFee = p.feeUsd != null ? p.feeUsd : 0;
+    var defLocal = p.localAmount != null ? p.localAmount : '';
 
     var bodyHtml =
-      '<div style="margin-bottom:14px;">You\'re approving a payout for <b style="color:#e8eef4;">' + escHtml(p.member) + '</b>.</div>' +
-      '<div style="background:#0a1825;border:1px solid #1a2f44;border-radius:10px;padding:14px;margin-bottom:14px;">' +
-        '<div style="color:#8a99a8;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;">Amount</div>' +
-        '<div style="color:#FFCC00;font-size:24px;font-weight:800;">AED ' + p.amount.toLocaleString() + '</div>' +
+      '<div style="margin-bottom:14px;">Quote the bank transfer for <b style="color:#e8eef4;">' + escHtml(p.member) + '</b>. The member reviews it and Accepts or Cancels — funds stay held until they accept.</div>' +
+      '<div style="background:#0a1825;border:1px solid #1a2f44;border-radius:10px;padding:14px;margin-bottom:16px;">' +
+        '<div style="' + LABEL_CSS + '">Requested payout</div>' +
+        '<div style="color:#FFCC00;font-size:24px;font-weight:800;">' + usd(amountUsd) + '</div>' +
       '</div>' +
-      '<div style="background:rgba(43,168,224,0.08);border:1px solid rgba(43,168,224,0.25);border-radius:10px;padding:14px;margin-bottom:14px;">' +
-        '<div style="color:#7dd3fc;font-size:12px;font-weight:700;margin-bottom:4px;">Expected payout by ' + plus14Days() + '</div>' +
-        '<div style="color:#8a99a8;font-size:11px;line-height:1.5;">Payouts are processed in weekly batches. Approving here marks it as queued for the next batch.</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">' +
+        '<div><div style="' + LABEL_CSS + '">Local currency</div>' +
+          '<input id="ffp-q-cur" type="text" value="' + escHtml(defCur) + '" placeholder="AED" style="' + INPUT_CSS + '"></div>' +
+        '<div><div style="' + LABEL_CSS + '">Bank rate (1 USD =)</div>' +
+          '<input id="ffp-q-rate" type="number" step="0.0001" min="0" value="' + defRate + '" placeholder="3.6725" style="' + INPUT_CSS + '"></div>' +
       '</div>' +
-      '<div style="color:#8a99a8;font-size:11px;font-style:italic;">After approving, do the bank transfer when the batch runs, then come back and click <b>Mark Paid</b> on this row.</div>';
+      '<div style="margin-bottom:10px;"><div style="' + LABEL_CSS + '">Transfer fee (USD)</div>' +
+        '<input id="ffp-q-fee" type="number" step="0.01" min="0" value="' + defFee + '" style="' + INPUT_CSS + '"></div>' +
+      '<div style="margin-bottom:10px;"><div style="' + LABEL_CSS + '">Local amount member receives</div>' +
+        '<input id="ffp-q-local" type="number" step="0.01" min="0" value="' + defLocal + '" placeholder="auto from rate" style="' + INPUT_CSS + '">' +
+        '<div style="font-size:10px;color:#6a90a8;margin-top:4px;">Auto-filled from the rate; override to match the exact bank figure.</div></div>' +
+      '<div id="ffp-q-preview" style="background:rgba(43,168,224,0.08);border:1px solid rgba(43,168,224,0.25);border-radius:8px;padding:10px 12px;color:#7dd3fc;font-size:12px;line-height:1.5;"></div>';
 
     openActionModal({
-      title: 'Approve payout',
+      title: p.status === 'quoted' ? 'Re-quote payout' : 'Quote payout',
       bodyHtml: bodyHtml,
-      primaryLabel: 'Approve',
+      primaryLabel: p.status === 'quoted' ? 'Update quote' : 'Send quote to member',
       primaryClass: 'btn-blue',
+      validate: function () {
+        var cur = ((document.getElementById('ffp-q-cur') || {}).value || '').trim();
+        var rate = parseFloat((document.getElementById('ffp-q-rate') || {}).value);
+        var fee = parseFloat((document.getElementById('ffp-q-fee') || {}).value);
+        var local = parseFloat((document.getElementById('ffp-q-local') || {}).value);
+        if (!cur) return 'Enter the local currency (e.g. AED).';
+        if (!(rate > 0)) return 'Enter a valid bank rate greater than 0.';
+        if (isNaN(fee) || fee < 0) return 'Fee must be 0 or more.';
+        if (fee >= amountUsd) return 'Fee cannot be greater than or equal to the payout amount.';
+        if (!(local > 0)) return 'Enter the local amount the member will receive.';
+        return null;
+      },
       onConfirm: async function () {
-        var uid = await getMyAdminUid();
-        var res = await window.supabase
-          .from('payouts')
-          .update({ status: 'approved', processed_by: uid })
-          .eq('id', id)
-          .eq('status', 'pending')
-          .select('id');
+        var cur = document.getElementById('ffp-q-cur').value.trim();
+        var rate = parseFloat(document.getElementById('ffp-q-rate').value);
+        var fee = parseFloat(document.getElementById('ffp-q-fee').value);
+        var local = parseFloat(document.getElementById('ffp-q-local').value);
+        var net = Math.round((amountUsd - fee) * 100) / 100;
+        var aid = adminId();
+        if (!aid) throw new Error('Admin session not ready — reload and try again.');
+        var res = await window.supabase.rpc('admin_quote_payout', {
+          p_admin: aid, p_payout: id, p_local_currency: cur,
+          p_local_amount: local, p_bank_rate: rate, p_fee_usd: fee, p_net_usd: net
+        });
         if (res.error) throw res.error;
-        if (!res.data || res.data.length === 0) {
-          throw new Error('Could not approve — may have been processed already. Refresh and try again.');
+        var d = res.data || {};
+        if (!d.ok) {
+          throw new Error(
+            d.error === 'not_admin' ? 'You are not authorised to quote payouts.' :
+            d.error === 'bad_status' ? 'This payout can no longer be quoted (already accepted, paid or cancelled). Refresh.' :
+            d.error === 'not_found' ? 'Payout not found. Refresh and try again.' :
+            'Quote failed. Please try again.');
         }
         await refresh();
-        switchTab('approved');
-        bigToast('Approved \u2014 expected payout by ' + plus14Days() + '. Do the bank transfer, then Mark Paid.', 'success');
+        switchTab('quoted');
+        bigToast('Quote sent — ' + p.member + ' will receive ' + fmtLocal(cur, local) + ' (' + usd(net) + ' net). Awaiting their acceptance.', 'success');
       }
     });
+
+    // Live preview + auto local-amount (overlay is in the DOM synchronously).
+    var rateEl = document.getElementById('ffp-q-rate');
+    var feeEl = document.getElementById('ffp-q-fee');
+    var localEl = document.getElementById('ffp-q-local');
+    var curEl = document.getElementById('ffp-q-cur');
+    var prev = document.getElementById('ffp-q-preview');
+    var localTouched = (defLocal !== '');
+    function recalcLocal() {
+      var rate = parseFloat(rateEl && rateEl.value);
+      var fee = parseFloat(feeEl && feeEl.value) || 0;
+      if (rate > 0 && !localTouched && localEl) {
+        localEl.value = Math.round((amountUsd - fee) * rate * 100) / 100;
+      }
+    }
+    function updatePrev() {
+      if (!prev) return;
+      var rate = parseFloat(rateEl && rateEl.value);
+      var fee = parseFloat(feeEl && feeEl.value) || 0;
+      var cur = ((curEl && curEl.value) || '').trim() || 'local';
+      var local = parseFloat(localEl && localEl.value);
+      var net = Math.round((amountUsd - fee) * 100) / 100;
+      prev.innerHTML = (rate > 0)
+        ? 'Member receives <b style="color:#FFCC00;">' + escHtml(cur) + ' ' + (local > 0 ? local.toLocaleString() : '—') + '</b> &middot; net <b>' + usd(net) + '</b> after ' + usd(fee) + ' fee'
+        : 'Enter a bank rate to preview what the member receives.';
+    }
+    if (localEl) localEl.addEventListener('input', function () { localTouched = true; updatePrev(); });
+    if (rateEl) rateEl.addEventListener('input', function () { recalcLocal(); updatePrev(); });
+    if (feeEl) feeEl.addEventListener('input', function () { recalcLocal(); updatePrev(); });
+    if (curEl) curEl.addEventListener('input', updatePrev);
+    updatePrev();
   }
 
   function reject(id) {
@@ -436,8 +542,8 @@
     if (!p) return;
 
     var bodyHtml =
-      '<div style="margin-bottom:14px;">You\'re rejecting a payout for <b style="color:#e8eef4;">' + escHtml(p.member) + '</b> (AED ' + p.amount.toLocaleString() + ').</div>' +
-      '<div style="margin-bottom:14px;color:#8a99a8;font-size:12px;">The AED will be returned to the member\'s balance. Please explain the reason — this is shown to the member.</div>' +
+      '<div style="margin-bottom:14px;">You\'re rejecting a payout for <b style="color:#e8eef4;">' + escHtml(p.member) + '</b> (' + usd(p.amount) + ').</div>' +
+      '<div style="margin-bottom:14px;color:#8a99a8;font-size:12px;">The held balance will be returned to the member. Please explain the reason — this is shown to the member.</div>' +
       '<textarea id="ffp-reject-reason" rows="4" placeholder="e.g. We could not verify the source of these earnings. Please contact us to discuss."' +
       ' style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #2a4055;border-radius:8px;padding:10px 12px;color:#e8eef4;font-size:13px;font-family:Montserrat,sans-serif;outline:none;resize:vertical;"></textarea>' +
       '<div style="font-size:10px;color:#6a90a8;margin-top:6px;">Minimum 10 characters.</div>';
@@ -455,21 +561,27 @@
       },
       onConfirm: async function () {
         var reason = (document.getElementById('ffp-reject-reason').value || '').trim();
-        var uid = await getMyAdminUid();
-        var res = await window.supabase
-          .from('payouts')
-          .update({ status: 'rejected', processed_by: uid, processed_at: new Date().toISOString(), notes: reason })
-          .eq('id', id)
-          .eq('status', 'pending')
-          .select('id');
+        var aid = adminId();
+        if (!aid) throw new Error('Admin session not ready - reload and try again.');
+        // admin_reject_payout sets status='rejected' AND deletes the 'out' hold
+        // transaction server-side, returning the balance to the member.
+        var res = await window.supabase.rpc('admin_reject_payout', { p_admin: aid, p_payout: id });
         if (res.error) throw res.error;
-        if (!res.data || res.data.length === 0) {
-          throw new Error('Could not reject — may have been processed already. Refresh and try again.');
+        var d = res.data || {};
+        if (!d.ok) {
+          throw new Error(
+            d.error === 'not_admin' ? 'You are not authorised to reject payouts.' :
+            d.error === 'not_found' ? 'Payout not found. Refresh and try again.' :
+            'Could not reject. Refresh and try again.');
         }
-        await updateMirrorTransaction(id, 'rejected');
+        // Persist the member-facing reason (best-effort; the hold is already released).
+        try {
+          var nr = await window.supabase.from('payouts').update({ notes: reason }).eq('id', id);
+          if (nr.error) console.warn('[FFP Admin Payouts] reject reason save:', nr.error);
+        } catch (e) { console.warn('[FFP Admin Payouts] reject reason save exception:', e); }
         await refresh();
         switchTab('rejected');
-        bigToast('Rejected \u2014 AED ' + p.amount.toLocaleString() + ' returned to ' + p.member + '\'s balance.', 'success');
+        bigToast('Rejected - ' + usd(p.amount) + ' returned to ' + p.member + '\'s balance.', 'success');
       }
     });
   }
@@ -483,7 +595,7 @@
     var nowTime = new Date().toTimeString().slice(0, 5);
 
     var bodyHtml =
-      '<div style="margin-bottom:14px;">Record the bank transfer receipt for <b style="color:#e8eef4;">' + escHtml(p.member) + '</b> (<span style="color:#FFCC00;font-weight:800;">AED ' + p.amount.toLocaleString() + '</span>).</div>' +
+      '<div style="margin-bottom:14px;">Record the bank transfer receipt for <b style="color:#e8eef4;">' + escHtml(p.member) + '</b> (<span style="color:#FFCC00;font-weight:800;">' + usd(p.amount) + '</span>).</div>' +
       '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:12px;margin-bottom:16px;">' +
         '<div style="color:#fca5a5;font-size:12px;font-weight:700;margin-bottom:4px;">This cannot be undone.</div>' +
         '<div style="color:#8a99a8;font-size:11px;line-height:1.5;">Only mark Paid AFTER the transfer is complete and you have proof. The details below are saved as the member\'s receipt.</div>' +
@@ -576,7 +688,7 @@
         // Structured receipt text — readable for both admin and member
         var receipt =
           'Payment receipt\n' +
-          'Amount: AED ' + p.amount.toLocaleString() + '\n' +
+          'Amount: ' + usd(p.amount) + '\n' +
           'Reference: ' + ref + '\n' +
           'Transferred: ' + date + (time ? ' ' + time : '') + '\n' +
           'Sending bank: ' + sendingBank +
@@ -680,14 +792,33 @@
         '</div>';
     }
 
+    // Quote details (shown once a payout has been quoted / accepted / paid)
+    var quoteBlock = '';
+    if (p.bankRate != null || p.localAmount != null) {
+      function qRow(label, val) {
+        return '<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;font-size:12px;">' +
+          '<span style="color:#8a99a8;">' + label + '</span><span style="color:#e8eef4;font-weight:700;">' + val + '</span></div>';
+      }
+      quoteBlock =
+        '<div style="background:rgba(43,168,224,0.08);border:1px solid rgba(43,168,224,0.25);border-radius:10px;padding:14px;margin:14px 0;">' +
+          '<div style="color:#7dd3fc;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;">Quote</div>' +
+          qRow('Member receives', escHtml(fmtLocal(p.localCurrency, p.localAmount))) +
+          qRow('Bank rate', p.bankRate != null ? ('1 USD = ' + p.bankRate + ' ' + escHtml(p.localCurrency || '')) : '—') +
+          qRow('Transfer fee', usd(p.feeUsd)) +
+          qRow('Net (USD)', usd(p.netUsd)) +
+          (p.quotedAt ? qRow('Quoted', escHtml(fmtDateTime(p.quotedAt))) : '') +
+        '</div>';
+    }
+
     var content =
       '<div style="text-align:center;margin-bottom:18px;">' +
-        '<div style="font-size:32px;font-weight:800;color:#FFCC00;letter-spacing:-1px;">AED ' + p.amount.toLocaleString() + '</div>' +
+        '<div style="font-size:32px;font-weight:800;color:#FFCC00;letter-spacing:-1px;">' + usd(p.amount) + '</div>' +
         '<div style="color:#8a99a8;font-size:12px;margin-top:4px;">Requested by</div>' +
         '<div style="color:#e8eef4;font-size:16px;font-weight:700;margin-top:2px;">' + escHtml(p.member) + '</div>' +
         (p.memberEmail ? '<div style="color:#8a99a8;font-size:11px;">' + escHtml(p.memberEmail) + '</div>' : '') +
       '</div>' +
       bankBlock +
+      quoteBlock +
       receiptBlock +
       '<div style="color:#cfd6dc;font-size:12px;margin-bottom:6px;"><b style="color:#8a99a8;">Requested:</b> ' + escHtml(fmtDateTime(p.requestedAt)) + '</div>' +
       (p.processedAt ? '<div style="color:#cfd6dc;font-size:12px;margin-bottom:6px;"><b style="color:#8a99a8;">' + (p.status === 'paid' ? 'Transferred' : 'Processed') + ':</b> ' + escHtml(fmtDateTime(p.processedAt)) + '</div>' : '') +
@@ -697,7 +828,11 @@
     var foot = '<button class="btn btn-ghost" onclick="closeAdminModal()">Close</button>';
     if (p.status === 'pending') {
       foot = '<button class="btn btn-danger" onclick="closeAdminModal(); AdminPayouts.reject(\'' + p.id + '\')"><span class="material-icons">close</span>Reject</button>' +
-             '<button class="btn btn-blue" onclick="closeAdminModal(); AdminPayouts.approve(\'' + p.id + '\')"><span class="material-icons">check</span>Approve</button>';
+             '<button class="btn btn-blue" onclick="closeAdminModal(); AdminPayouts.quote(\'' + p.id + '\')"><span class="material-icons">request_quote</span>Quote</button>';
+    } else if (p.status === 'quoted') {
+      foot = '<button class="btn btn-ghost" onclick="closeAdminModal()">Close</button>' +
+             '<button class="btn btn-danger" onclick="closeAdminModal(); AdminPayouts.reject(\'' + p.id + '\')"><span class="material-icons">close</span>Reject</button>' +
+             '<button class="btn btn-blue" onclick="closeAdminModal(); AdminPayouts.quote(\'' + p.id + '\')"><span class="material-icons">edit</span>Re-quote</button>';
     } else if (p.status === 'approved') {
       foot = '<button class="btn btn-ghost" onclick="closeAdminModal()">Close</button>' +
              '<button class="btn btn-primary" onclick="closeAdminModal(); AdminPayouts.markPaid(\'' + p.id + '\')"><span class="material-icons">done_all</span>Mark Paid</button>';
@@ -747,7 +882,7 @@
     ap.setTab = function (tab) { ap.tab = tab; realRender(); };
     ap.onSearch = function (q) { ap.search = (q || '').toLowerCase().trim(); realRender(); };
     ap.render = realRender;
-    ap.approve = approve;
+    ap.quote = quote;
     ap.reject = reject;
     ap.markPaid = markPaid;
     ap.view = viewPayout;
@@ -763,7 +898,7 @@
       } else {
         console.warn('[FFP Admin Payouts] FFPRealtime helper not loaded — auto-updates disabled. Add assets/ffp-realtime.js before this script.');
       }
-      console.log('[FFP Admin Payouts v7] Loaded \u2713');
+      console.log('[FFP Admin Payouts v9] Loaded \u2713');
     } catch (e) {
       console.error('[FFP Admin Payouts] initial load:', e);
     }
