@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v283 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v284 (2026-06-04)
+     v284: Event RSVP — fixed the RSVP-confirm copy (was "the organiser manages the guest list", which no
+           longer matches): now "added to the guest list + emailed a confirmation; check in with your FFP
+           Passport on the day". Pairs with discovery-loader v6 (fires the RSVP email trail) + backend v73
+           (/api/events/notify) + rsvp_event RPC now notifies the provider. FFP_BUILD→284.
      v283: Discover "passed meetup lingers" — grace after start cut 3h → 30min, so a meetup leaves Discover
            ~30min after its start time (e.g. an 8:30pm run is gone by 9pm, not 11:30pm). Joined/hosting still
            see it in their own tabs + Past. Loader unchanged (it only computes _ts for sorting; all the
@@ -8124,7 +8128,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '283';
+  const FFP_BUILD = '284';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -12228,7 +12232,7 @@ const Events = {
         title: 'Reserve your spot?',
         event: e.title,
         when: e.date + ' · ' + e.time,
-        note: `<strong>Goes to the organiser.</strong> ${escHtml(e.organizer)} receives your RSVP and manages the guest list. Cancel up to 24 hours before. A reminder lands the day before.`,
+        note: `You'll be added to <strong>${escHtml(e.organizer)}</strong>'s guest list and emailed a confirmation. On the day, <strong>check in with your FFP Passport</strong> at the venue to mark your attendance.`,
         actionLabel: 'Yes, reserve it',
         actionColor: 'blue',
         onConfirm: () => this.confirmRSVP(id)
