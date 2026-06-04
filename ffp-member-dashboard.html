@@ -1,4 +1,18 @@
-<!-- FFP MEMBER DASHBOARD — v276 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v279 (2026-06-04)
+     v279: (a) Attendee can CANCEL their spot/request anytime before start (leave_meetup RPC) → frees a
+           spot; "Cancel my spot"/"Cancel request" button in the meetup detail; dropped the "12 hours"
+           promise text. (b) Host can add their OWN PHOTO to a meetup — photo field in the post/edit form
+           (downscaled data-URL → meetups.cover_url via host_meetup/update_meetup) → shown as the cover on
+           card + detail (loader v24: img = cover_url || category image). FFP_BUILD→279.
+     v278: Meetup REQUEST→HOST-APPROVAL flow (with meet-move loader v24 + backend v72 + DB RPCs). Joining
+           no longer auto-confirms: requester shows "Requested" (amber badge + disabled "Requested ✓ —
+           awaiting host" button); host gets notified/emailed and approves in the detail modal's
+           "Requests to join" section; only then is the member "You're Going" + emailed. FFP_BUILD→278 so
+           the new loader is fetched fresh. See FFP-SCOPE-meetup-approval.md.
+     v277: Keep-members-signed-in work — loads assets/ffp-api-integration.js?v=12 (was un-busted, so
+           returning users would keep the old cached auth script). v12 = single Supabase client (kills the
+           Multiple-GoTrueClient warning) + "Keep me signed in" storage toggle + silent session refresh.
+           No dashboard logic changed here; deploy with backend index.js + login.html. See FFP-SCOPE-keep-signed-in.md.
      v276: Cache-bust bump (FFP_BUILD 275→276) so the browser re-fetches ffp-meet-move-loader.js fresh.
            The live loader at ?v=275 was a STALE/broken copy throwing "Unexpected identifier 'the' (line 2)",
            so it never ran → MeetMove.data stayed empty → Discover showed "No meetups match those filters"
@@ -415,7 +429,7 @@
      Supabase Auth session on DOMContentLoaded, so any loader that runs
      afterwards sees auth.uid() === member.id and RLS works. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="assets/ffp-api-integration.js"></script>
+<script src="assets/ffp-api-integration.js?v=12"></script>
 <!-- v108: Cropper.js for the square-crop step on photo upload. Tiny
      library, MIT licensed, well-supported, touch-friendly on mobile. -->
 <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css" rel="stylesheet">
@@ -5832,6 +5846,19 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         <div class="pm-form-help"><span id="pmf-title-count">0</span>/40 — keep it short and clear</div>
       </div>
       <div class="pm-form-field">
+        <label class="pm-form-label">Photo <span style="color:var(--muted);font-weight:500;">(optional)</span></label>
+        <input type="hidden" id="pmf-cover">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div id="pmf-cover-preview" style="width:64px;height:64px;border-radius:10px;background-color:#0e1f2e;background-size:cover;background-position:center;border:1px solid var(--border-mid);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--muted);"><span class="material-icons">image</span></div>
+          <label class="pm-form-input pm-form-pick" style="cursor:pointer;flex:1;margin:0;display:flex;align-items:center;">
+            <span id="pmf-cover-label">Add a cover photo</span>
+            <input type="file" accept="image/*" style="display:none;" onchange="pmfPickCover(this)">
+          </label>
+          <button type="button" id="pmf-cover-clear" onclick="pmfClearCover()" style="display:none;background:transparent;border:none;color:#ef4444;font-size:13px;cursor:pointer;flex-shrink:0;">Remove</button>
+        </div>
+        <div class="pm-form-help">Shown as the meet-up's cover image.</div>
+      </div>
+      <div class="pm-form-field">
         <label class="pm-form-label">Activity &amp; level</label>
         <button type="button" class="pm-form-input pm-form-pick" onclick="pmfOpenPicker()">
           <span id="pmf-cat-display" class="pmf-pick-ph">Choose activity &amp; level</span>
@@ -5978,6 +6005,31 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
   window.pmfPickLevel=function(level){ var v=document.getElementById('pmf-cat'), l=document.getElementById('pmf-level'), d=document.getElementById('pmf-cat-display'); if(v)v.value=SPORT; if(l)l.value=level; if(d){ d.textContent=SPORT+' · '+level; d.classList.add('set'); } window.pmfClosePicker(); };
   window.pmfUpdateMap=function(){ var v=(document.getElementById('pmf-venue').value||'').trim(); var a=document.getElementById('pmf-maplink'); if(!a)return; if(v){ a.href='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(v); a.style.display='inline-flex'; } else { a.style.display='none'; } };
   window.pmfTitleCount=function(){ var t=document.getElementById('pmf-title'), c=document.getElementById('pmf-title-count'); if(t&&c) c.textContent=(t.value||'').length; };
+  // Host meetup cover photo — downscale to a reasonable size (≤1200px, JPEG) so the stored data-URL stays small.
+  window.pmfPickCover=function(input){
+    var f = input && input.files && input.files[0]; if(!f) return;
+    var img = new Image();
+    img.onload = function(){
+      var max=1200, w=img.width, h=img.height;
+      if (w>max || h>max){ var s=Math.min(max/w, max/h); w=Math.round(w*s); h=Math.round(h*s); }
+      try {
+        var c=document.createElement('canvas'); c.width=w; c.height=h;
+        c.getContext('2d').drawImage(img,0,0,w,h);
+        window.pmfSetCover(c.toDataURL('image/jpeg', 0.82));
+      } catch(e){}
+      try { URL.revokeObjectURL(img.src); } catch(e){}
+    };
+    img.src = URL.createObjectURL(f);
+  };
+  window.pmfSetCover=function(url){
+    var hid=document.getElementById('pmf-cover'); if(hid) hid.value=url||'';
+    var prev=document.getElementById('pmf-cover-preview');
+    var lbl=document.getElementById('pmf-cover-label');
+    var clr=document.getElementById('pmf-cover-clear');
+    if(url){ if(prev){ prev.style.backgroundImage="url('"+url+"')"; prev.innerHTML=''; } if(lbl) lbl.textContent='Change photo'; if(clr) clr.style.display=''; }
+    else   { if(prev){ prev.style.backgroundImage=''; prev.innerHTML='<span class="material-icons">image</span>'; } if(lbl) lbl.textContent='Add a cover photo'; if(clr) clr.style.display='none'; }
+  };
+  window.pmfClearCover=function(){ window.pmfSetCover(''); };
 })();
 </script>
 
@@ -8037,7 +8089,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '276';
+  const FFP_BUILD = '279';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -12670,6 +12722,7 @@ const MeetMove = {
       // Status badge (bottom-left)
       let statusBadge = '';
       if (m.joinedByMe)             statusBadge = '<div class="meetup-status-badge green">You\'re Going</div>';
+      else if (m.pendingByMe)       statusBadge = '<div class="meetup-status-badge" style="background:#b45309;color:#fff;">Requested</div>';
       else if (this.hostingIds.has(m.id)) statusBadge = '<div class="meetup-status-badge blue">Hosting</div>';
       else if (isFull)              statusBadge = '<div class="meetup-status-badge red">Full</div>';
       else if (spotsLeft <= 2)      statusBadge = `<div class="meetup-status-badge">${spotsLeft} Spot${spotsLeft === 1 ? '' : 's'} Left</div>`;
@@ -12729,6 +12782,7 @@ const MeetMove = {
     let btnDisabled = '';
     let btnClass = '';
     if (isJoined)     { btnLabel = "You're going"; btnDisabled = 'disabled'; }
+    else if (m.pendingByMe) { btnLabel = 'Requested ✓ — awaiting host'; btnDisabled = 'disabled'; }
     else if (isFull)  { btnLabel = 'Full'; btnDisabled = 'disabled'; btnClass = 'sold-out'; }
     const body = `
       <div class="dm-cover ${m.cat === 'racquet' ? 'sports' : m.cat === 'mind-body' ? 'wellness' : m.cat === 'fitness' ? 'fitness' : m.cat === 'adventure' ? 'adventure' : 'sports'}">
@@ -12761,7 +12815,8 @@ const MeetMove = {
              <button class="btn-primary-yellow" style="background:#ef4444;color:#fff;box-shadow:0 6px 18px rgba(239,68,68,0.30);" onclick="MeetMove.cancelMeetup('${m.id}')">Cancel this meet-up</button>
              <div class="dm-footer-note">You're hosting this. Anyone who joined will be notified if you change or cancel it.</div>`
           : `<button class="btn-primary-yellow ${btnClass}" ${btnDisabled} onclick="MeetMove.requestJoin('${m.id}')">${btnLabel}</button>
-             <div class="dm-footer-note">Host approves who's in. Cancellation up to 12 hours before.</div>`}
+             ${(m.joinedByMe || m.pendingByMe) ? `<button class="btn-primary-yellow" style="margin-top:8px;background:transparent;color:#ef4444;box-shadow:none;border:1px solid rgba(239,68,68,0.45);" onclick="MeetMove.leaveMeetup('${m.id}')">${m.pendingByMe ? 'Cancel request' : 'Cancel my spot'}</button>` : ''}
+             <div class="dm-footer-note">Host approves who's in. You can cancel anytime before it starts.</div>`}
       </div>
     `;
     openDetailModal(body, true);
@@ -13018,6 +13073,7 @@ const MeetMove = {
     var _proField = g('pmf-pro-field'), _proCb = g('pmf-professional');
     if (_proCb) _proCb.checked = false;
     if (_proField) _proField.style.display = isMemberProfessional() ? '' : 'none';
+    if (window.pmfClearCover) window.pmfClearCover();   // reset cover photo for a fresh post
     this._editId = null;
     var _pt = document.querySelector('#post-meetup-backdrop .dm-title'); if (_pt) _pt.textContent = 'Post a meetup';
     var _pb = document.querySelector('#post-meetup-backdrop .dm-footer .btn-primary-yellow'); if (_pb) _pb.textContent = 'Post Meetup';
@@ -13046,6 +13102,7 @@ const MeetMove = {
     if (g('pmf-gender')) g('pmf-gender').value = r.group_filter === 'women_only' ? 'female' : (r.group_filter === 'men_only' ? 'male' : 'any');
     if (r.age_range && String(r.age_range).indexOf('-') >= 0) { var ar = String(r.age_range).split('-'); if (g('pmf-age-from')) g('pmf-age-from').value = ar[0]; if (g('pmf-age-to')) g('pmf-age-to').value = ar[1]; }
     if (g('pmf-desc')) g('pmf-desc').value = r.description || '';
+    if (window.pmfSetCover) window.pmfSetCover(r.cover_url || '');   // prefill existing cover photo
     if (g('pmf-professional')) g('pmf-professional').checked = !!r.is_professional;
     this._editId = id;
     var pt = document.querySelector('#post-meetup-backdrop .dm-title'); if (pt) pt.textContent = 'Edit meet-up';
@@ -13122,6 +13179,7 @@ const MeetMove = {
       group_filter: groupFilter,
       description: document.getElementById('pmf-desc').value.trim(),
       is_professional: !!(document.getElementById('pmf-professional') && document.getElementById('pmf-professional').checked),
+      cover_url: (document.getElementById('pmf-cover') && document.getElementById('pmf-cover').value) || '',   // host photo (data URL)
       status: 'open'
     };
     var isEdit = !!this._editId;
