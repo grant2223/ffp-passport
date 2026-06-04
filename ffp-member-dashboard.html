@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v260 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v261 (2026-06-04)
+     v261: Quest detail now shows the provider's own prize (prize_text) when present. Pairs with backend
+           v69 (GET /api/quests + /api/quests/:id) which finally feeds the member Quests panel data —
+           including provider venue quests. (No other member change; the Quests module already expects
+           those endpoints.)
      v260: Moved Challenges out of the bottom nav into the avatar/user menu (alongside Profile / Workout
            Timer / Calorie Tracker / Fitness Stats / Earnings). Bottom nav is now Passport / Connections /
            Quests / Events / Experiences. Nav highlight + lazy-load auto-derive from the containers, so no
@@ -11632,6 +11636,7 @@ const Quests = {
             '<span class="material-icons">' + (isPrize ? 'redeem' : 'approval') + '</span>' +
             '<div>' + rewardLine + '</div>' +
           '</div>' +
+          (q.prize_text ? '<div class="q-reward-box prize"><span class="material-icons">redeem</span><div>Prize from the venue: <b>' + escHtml(q.prize_text) + '</b> — provided by them.</div></div>' : '') +
           '<div class="q-progress">' + pc + ' of ' + q.target_count + ' stamped</div>' +
           '<div class="qc-stamps big">' + this.dots(pc, q.target_count) + '</div>' +
           '<div class="q-venues-title">Where to go</div>' + venuesHtml +
