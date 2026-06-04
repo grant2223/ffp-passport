@@ -1,4 +1,13 @@
-<!-- FFP MEMBER DASHBOARD — v269 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v270 (2026-06-04)
+     v270: REAL FIX for the passport card showing HUGE on refresh — root cause was prerenderPassportShare()
+           (the share-image pre-render) setting the LIVE shell's transform to 'none' for the html2canvas
+           capture, flashing the on-screen card to full 540px for 1-3s on every panel-show/load. Now it
+           renders an OFFSCREEN CLONE, so the visible card is never touched. (v269's ResizeObserver re-scale
+           stays as belt-and-braces.) Plus Connections panel polish:
+     v270b: Connections panel polish — My Collection card is now DARK GREEN (was purple); the create-quest
+           + My Collection modals get inner padding (.cv-wrap/.qcreate) so content isn't flush to the
+           full-screen edges; replaced the host-CTA card (flame + explanation) with a single full-width
+           yellow "Post a Meetup" button under the two entry cards.
      v269: (a) FIX passport card showing HUGE on refresh until you tap — scalePassportCard ran on fixed
            timeouts before the responsive layout constrained the container width, so it measured too wide.
            Now a ResizeObserver re-scales the instant the container settles (+ double-rAF; guards 0 width).
@@ -4344,7 +4353,14 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 /* v269: Connections panel entry cards (Matches | My Collection) + collection view */
 .conn-entries{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
 .conn-entry{ position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:6px; text-align:left; background:linear-gradient(135deg,rgba(43,168,224,0.12),rgba(255,204,0,0.06)); border:1px solid rgba(43,168,224,0.30); border-radius:14px; padding:14px; cursor:pointer; font-family:inherit; color:var(--text); }
-.conn-entry:nth-child(2){ background:linear-gradient(135deg,rgba(168,85,247,0.14),rgba(43,168,224,0.05)); border-color:rgba(168,85,247,0.35); }
+.conn-entry-collection{ background:linear-gradient(135deg,rgba(21,128,61,0.20),rgba(16,163,74,0.06)) !important; border-color:rgba(34,197,94,0.40) !important; }
+/* v270: full-width yellow Post a Meetup button (replaced the host-CTA card) */
+.post-meetup-btn{ width:100%; display:flex; align-items:center; justify-content:center; gap:8px; background:var(--yellow,#FFCC00); color:#0a1825; border:none; border-radius:14px; padding:15px; font-size:15px; font-weight:800; cursor:pointer; font-family:inherit; margin-bottom:16px; box-shadow:0 6px 18px rgba(255,204,0,0.22); }
+.post-meetup-btn:hover{ filter:brightness(1.04); }
+.post-meetup-btn .material-icons{ font-size:20px; }
+/* v270: pad the new modals so content isn't flush to the (full-screen) edges */
+.cv-wrap{ padding:18px 18px 24px; }
+.qcreate{ padding:18px 18px 24px; }
 .conn-entry:hover{ filter:brightness(1.06); }
 .conn-entry-ic{ font-size:22px; }
 .conn-entry-lbl{ font-size:13px; font-weight:800; line-height:1.25; }
@@ -4921,24 +4937,14 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         <span class="conn-entry-lbl">People you<br>might click with</span>
         <span id="meet-match-count" class="conn-entry-badge" style="display:none;"></span>
       </button>
-      <button class="conn-entry" onclick="CollectionView.open()">
-        <span class="material-icons conn-entry-ic" style="color:#c084fc;">collections_bookmark</span>
+      <button class="conn-entry conn-entry-collection" onclick="CollectionView.open()">
+        <span class="material-icons conn-entry-ic" style="color:#16a34a;">collections_bookmark</span>
         <span class="conn-entry-lbl">My collection</span>
-        <span id="collection-count" class="conn-entry-badge" style="background:#a855f7;">0</span>
+        <span id="collection-count" class="conn-entry-badge" style="background:#15803d;">0</span>
       </button>
     </div>
-    
-    <!-- Host a Session CTA — yellow -->
-    <div class="host-cta-yellow">
-      <div class="host-cta-yellow-icon"><span class="material-icons">local_fire_department</span></div>
-      <div class="host-cta-yellow-text">
-        <div class="t">Hosting a session? Post it.</div>
-        <div class="s">Up to 8 members can join. You approve who's in.</div>
-      </div>
-      <button class="host-cta-yellow-btn" onclick="MeetMove.openPostForm()">
-        <span class="material-icons">add</span>Post a Meetup
-      </button>
-    </div>
+    <!-- v270: simple full-width Post a Meetup button (replaced the host-CTA card) -->
+    <button class="post-meetup-btn" onclick="MeetMove.openPostForm()"><span class="material-icons">add</span>Post a Meetup</button>
     
     <!-- Tabs — text with underline -->
     <div class="tabs-underline" id="meet-tabs">
@@ -14148,11 +14154,20 @@ async function prerenderPassportShare() {
   var shell = document.querySelector('.pass-shell');
   if (!shell || typeof html2canvas === 'undefined') return;
   _ppRendering = true;
-  var prev = shell.style.transform;
+  var clone = null;
   try {
-    shell.style.transform = 'none';
-    var canvas = await html2canvas(shell, { backgroundColor: null, scale: 2, useCORS: true, logging: false });
-    shell.style.transform = prev;
+    // Render an OFFSCREEN CLONE at full design size so the VISIBLE card is NEVER disturbed.
+    // (Previously this set the live shell's transform to 'none' for the html2canvas capture, which made
+    //  the on-screen passport flash HUGE for the 1-3s the capture took on every panel-show/refresh —
+    //  that was the "card huge on refresh until you tap" bug.)
+    clone = shell.cloneNode(true);
+    clone.style.transform = 'none';
+    clone.style.position = 'fixed';
+    clone.style.left = '-10000px';
+    clone.style.top = '0';
+    clone.style.margin = '0';
+    document.body.appendChild(clone);
+    var canvas = await html2canvas(clone, { backgroundColor: null, scale: 2, useCORS: true, logging: false });
     await new Promise(function (resolve) {
       canvas.toBlob(function (blob) {
         if (blob) {
@@ -14162,8 +14177,11 @@ async function prerenderPassportShare() {
         resolve();
       }, 'image/png');
     });
-  } catch (e) { shell.style.transform = prev; }
-  finally { _ppRendering = false; }
+  } catch (e) { /* non-fatal — share will fall back to text+link */ }
+  finally {
+    if (clone && clone.parentNode) clone.parentNode.removeChild(clone);
+    _ppRendering = false;
+  }
 }
 
 // Tap handler — fires the share SYNCHRONOUSLY (within user activation): no await first.
