@@ -1,4 +1,7 @@
-<!-- FFP MEMBER DASHBOARD — v280 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v281 (2026-06-04)
+     v281: Profile field pickers (Height, Gender, Country, City, Nationality) now open FULL-BLEED
+           (added fullBleed:true to openFieldPicker) — matches the platform full-bleed picker standard;
+           the Height modal was opening as the boxed 460px card. FFP_BUILD→281.
      v280: FIX iOS "whole screen expands/zooms when you tap a field" — inputs were <16px (13px), which
            triggers Safari's focus auto-zoom. Added a mobile media query forcing all inputs/selects/
            textareas to 16px (pinch-zoom still works). Same one-liner should go on login/profile/provider
@@ -8100,7 +8103,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '280';
+  const FFP_BUILD = '281';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -8935,6 +8938,7 @@ const MemberProfile = {
       searchPlaceholder: cfg.searchPlaceholder || 'Search...',
       options: cfg.options,
       grouped: !!cfg.grouped,
+      fullBleed: true,   // full-screen modal (platform standard) — height/gender/country/city/nationality
       current: this.data[field],
       onPick: (val) => {
         // Handle country change: if current city isn't valid for new country, clear it
