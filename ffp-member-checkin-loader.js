@@ -1,5 +1,8 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP MEMBER CHECK-IN LOADER — v6 (2026-06-03)
+   FFP MEMBER CHECK-IN LOADER — v7 (2026-06-04)
+   v7: After a successful venue check-in, calls member_quest_progress_checkin(p_me, p_provider) to
+       auto-advance the member's JOINED exploration quests (rule-based, no provider approval) and
+       surfaces progress / "explorer badge earned" in the success message. Non-fatal if it errors.
    v6: SMOOTHER PHONE-QR FLOW. A phone-camera scan lands on the dashboard as ?venue=<id>; if the
        visitor isn't signed in, the auth gate used to redirect to login and DROP the venue, so
        they never reached the check-in. Now the dashboard <head> stashes the venue
@@ -325,8 +328,19 @@
         return;
       }
       var verified = !!res.data.verified;
+      // Auto-progress the member's JOINED exploration quests (rule-based; no provider approval).
+      var questMsg = '';
+      try {
+        var qp = await sb().rpc('member_quest_progress_checkin', { p_me: mid, p_provider: providerId });
+        var prog = (qp && qp.data && qp.data.progressed) || [];
+        if (prog.length) {
+          var doneQ = prog.filter(function (x) { return x.completed; });
+          if (doneQ.length) questMsg = ' Quest complete: “' + (doneQ[0].title || 'quest') + '” — explorer badge earned!';
+          else questMsg = ' Quest progress: ' + prog[0].count + '/' + prog[0].target + ' on “' + (prog[0].title || 'quest') + '”.';
+        }
+      } catch (e) { /* non-fatal: check-in still succeeded */ }
       resultMsg('ok', verified ? 'Checked in ✓' : 'Logged ✓',
-        activity + ' added to your passport' + (verified ? ' · verified on-site.' : '.'));
+        activity + ' added to your passport' + (verified ? ' · verified on-site.' : '.') + questMsg);
       try { document.dispatchEvent(new CustomEvent('ffp-activity-logged')); } catch (e) {}
     } catch (e) { console.error('[FFP Check-in] save:', e); resultMsg('error', 'Couldn’t check in', 'Please try again.'); }
   }
