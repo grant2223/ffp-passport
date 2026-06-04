@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v288 (2026-06-05)
+<!-- FFP MEMBER DASHBOARD — v289 (2026-06-05)
+     v289: CATEGORY STANDARDISATION (step 2) — Create-a-quest form now FILTERS the Activity dropdown by the
+           selected Category (qcActOptions; a.c = the DB 6-category), and re-filters when category changes.
+           Can no longer pick a mismatched activity. (⚠ supersedes v288 — that build had a mid-edit moment
+           where the activity list referenced a removed var; v289 is the consistent one — redeploy this.)
      v288: CATEGORY STANDARDISATION (step 1) — loads ffp-taxonomy.js?v=8, which now reads each activity's
            category from the DB (taxonomy_items.parent = the 6 standard: fitness/sports/wellness/recovery/
            adventure/food). The 97 activities were categorised in the DB. So FFP_TAX.activities[].c is now
@@ -8143,7 +8147,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '288';
+  const FFP_BUILD = '289';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -11952,16 +11956,21 @@ const Quests = {
     var defCountry = prof.country || 'United Arab Emirates';
     if (countries.indexOf(defCountry) === -1) defCountry = countries[0] || 'United Arab Emirates';
     var defCity = prof.city || '';
-    var acts = ((TAX.activities || []).map(function (a) { return a && (a.n || a); }).filter(Boolean));
-    acts = acts.filter(function (v, i) { return acts.indexOf(v) === i; }).sort();
+    var actObjs = (TAX.activities || []).filter(function (a) { return a && a.n; }).map(function (a) { return { n: a.n, c: (a.c || '') }; });
     var cats = ['fitness', 'sports', 'wellness', 'recovery', 'adventure', 'food'];
+    // v288: the chosen CATEGORY now filters the Activity list (a.c comes from the DB taxonomy = the 6
+    // standard), so you can't pick a mismatched activity. "Any activity" = a city-wide explorer quest.
+    function qcActOptions(cat) {
+      var inCat = actObjs.filter(function (a) { return a.c === cat; }).map(function (a) { return a.n; }).sort();
+      return '<option value="">Any activity</option>' + inCat.map(function (n) { return '<option value="' + escHtml(n) + '">' + escHtml(n) + '</option>'; }).join('');
+    }
     var html =
       '<div class="qcreate">' +
         '<h3 class="q-title">Create your own quest</h3>' +
         '<p class="q-desc">Set a goal — like visiting a few different venues — and others can join you. Finish it to earn an explorer badge.</p>' +
         '<div class="qc-field"><label>Title</label><input id="qc-title" class="ffp-select" placeholder="e.g. Try 5 new gyms in Dubai" maxlength="80"></div>' +
         '<div class="qc-field"><label>Category</label><select id="qc-cat" class="ffp-select">' + cats.map(function (c) { return '<option value="' + c + '">' + c.charAt(0).toUpperCase() + c.slice(1) + '</option>'; }).join('') + '</select></div>' +
-        '<div class="qc-field"><label>Activity — optional, for "try all X"</label><select id="qc-act" class="ffp-select"><option value="">Any activity</option>' + acts.map(function (a) { return '<option value="' + escHtml(a) + '">' + escHtml(a) + '</option>'; }).join('') + '</select></div>' +
+        '<div class="qc-field"><label>Activity — filtered by category</label><select id="qc-act" class="ffp-select">' + qcActOptions(cats[0]) + '</select></div>' +
         '<div class="qc-row">' +
           '<div class="qc-field"><label>Country</label><select id="qc-country" class="ffp-select">' + countries.map(function (c) { return '<option' + (c === defCountry ? ' selected' : '') + '>' + escHtml(c) + '</option>'; }).join('') + '</select></div>' +
           '<div class="qc-field"><label>City</label><select id="qc-city" class="ffp-select"></select></div>' +
@@ -11977,6 +11986,9 @@ const Quests = {
         cty.innerHTML = '<option value="">Select city…</option>' + list.map(function (x) { return '<option' + (x === keep ? ' selected' : '') + '>' + escHtml(x) + '</option>'; }).join('');
       }
       if (cny && cty) { fill(cny.value, defCity); cny.addEventListener('change', function () { fill(cny.value, ''); }); }
+      // v288: category change re-filters the Activity list (so it stays valid for the category).
+      var catSel = document.getElementById('qc-cat'), actSel = document.getElementById('qc-act');
+      if (catSel && actSel) catSel.addEventListener('change', function () { actSel.innerHTML = qcActOptions(catSel.value); });
     }, 30);
   },
 
