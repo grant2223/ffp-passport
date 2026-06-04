@@ -1,4 +1,12 @@
-<!-- FFP MEMBER DASHBOARD — v290 (2026-06-05)
+<!-- FFP MEMBER DASHBOARD — v291 (2026-06-05)
+     v291: QUEST VENUE SELECTION — the create form now shows the matching FFP venues as brand-styled CARDS
+           (letter-mark avatar, name, area) instead of a line of text, with two modes the MEMBER chooses:
+           "Any of them" (open/dynamic — any matching venue counts toward the target number; new FFP partners
+           auto-join) or "Pick specific" (tap cards → only those count, target = number picked). Quest detail
+           renders the same venue cards (fixed set or live pool) via member_quest_venues RPC so joiners know
+           where to go. DB: quests.target_provider_ids uuid[]; member_quest_venue_pool returns cards;
+           member_quest_venues resolver; member_save_quest stores the set; member_quest_progress_checkin only
+           counts selected venues when a set is chosen (dynamic path unchanged).
      v290: MEMBER QUEST CREATE finished — live FFP-VENUE POOL (member_quest_venue_pool RPC): as you pick
            activity/city it shows "N FFP venues count toward this quest" (+ names), caps the target to the
            pool, and BLOCKS creating a dead quest (0 venues = nothing to check in at). Target = you set how
@@ -8152,7 +8160,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '290';
+  const FFP_BUILD = '291';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -11946,14 +11954,93 @@ const Quests = {
             : '') +
           '<div class="q-progress">' + pc + ' of ' + q.target_count + ' stamped</div>' +
           '<div class="qc-stamps big">' + this.dots(pc, q.target_count) + '</div>' +
-          '<div class="q-venues-title">Where to go</div>' + venuesHtml +
+          '<div class="q-venues-title">Where to go</div><div id="q-detail-venues">' + venuesHtml + '</div>' +
         '</div>' +
       '</div>';
     openDetailModal(html);
+    // Member quests: render the live FFP venue cards (the fixed picked set, or the dynamic pool).
+    if (q.owner_type === 'member' && window.supabase) {
+      this.qcInjectCss();
+      window.supabase.rpc('member_quest_venues', { p_quest: q.id }).then(function (res) {
+        var d = (res && res.data) || null;
+        var host = document.getElementById('q-detail-venues'); if (!host || !d) return;
+        if (!d.venues || !d.venues.length) { host.innerHTML = '<div class="q-venue muted">No FFP venues yet — check back soon.</div>'; return; }
+        var lead = d.fixed
+          ? 'The member picked these venues — only these count:'
+          : 'Any of these FFP venues count toward the goal:';
+        host.style.display = 'flex'; host.style.flexDirection = 'column'; host.style.gap = '8px';
+        host.innerHTML = '<div style="font-size:12px;color:#9fb4c4;margin-bottom:2px;">' + lead + '</div>' +
+          d.venues.map(function (v) {
+            var av = escHtml(String(v.letter_mark || (v.name || '?').charAt(0) || '?').toUpperCase());
+            var area = [v.area, v.city].filter(Boolean).join(' · ');
+            return '<div class="qc-venue-card"><div class="qc-venue-av">' + av + '</div>' +
+              '<div class="qc-venue-meta"><div class="qc-venue-nm">' + escHtml(v.name || 'Venue') + '</div>' +
+              (area ? '<div class="qc-venue-area">' + escHtml(area) + '</div>' : '') + '</div></div>';
+          }).join('');
+      }).catch(function () {});
+    }
   },
 
   // ── P2b: member-created exploration quests ──
+  qcInjectCss() {
+    if (document.getElementById('qc-venue-css')) return;
+    var s = document.createElement('style'); s.id = 'qc-venue-css';
+    s.textContent =
+      '.qc-mode-btn{flex:1;padding:9px 8px;border-radius:10px;border:1px solid rgba(43,168,224,0.3);background:rgba(43,168,224,0.06);color:#9fb4c4;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;}' +
+      '.qc-mode-btn.active{background:#2ba8e0;color:#082335;border-color:#2ba8e0;}' +
+      '.qc-venue-card{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);}' +
+      '.qc-venue-card.pickable{cursor:pointer;}' +
+      '.qc-venue-card.picked{background:rgba(43,168,224,0.12);border-color:#2ba8e0;}' +
+      '.qc-venue-av{width:40px;height:40px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;background:#13324a;color:#cfe0ee;}' +
+      '.qc-venue-meta{flex:1;min-width:0;}' +
+      '.qc-venue-nm{font-size:14px;font-weight:600;color:#e8eef4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
+      '.qc-venue-area{font-size:11px;color:#8a99a8;}' +
+      '.qc-venue-check{flex-shrink:0;font-size:22px;color:#2ba8e0;}';
+    document.head.appendChild(s);
+  },
+
+  qcSetMode(m) {
+    var st = window._ffpQc || {}; st.mode = m; window._ffpQc = st;
+    var bo = document.getElementById('qc-mode-open'), bp = document.getElementById('qc-mode-pick');
+    if (bo) bo.classList.toggle('active', m === 'open');
+    if (bp) bp.classList.toggle('active', m === 'pick');
+    this.qcRenderVenues();
+  },
+
+  qcTogglePick(id) {
+    var st = window._ffpQc || {}; if (!st.picked) st.picked = {};
+    st.picked[id] = !st.picked[id]; window._ffpQc = st;
+    this.qcRenderVenues();
+  },
+
+  qcRenderVenues() {
+    var st = window._ffpQc || {}; var box = document.getElementById('qc-venues'); if (!box) return;
+    var vs = st.venues || []; var pick = st.mode === 'pick';
+    box.innerHTML = vs.map(function (v) {
+      var picked = pick && !!(st.picked && st.picked[v.id]);
+      var av = escHtml(String(v.letter_mark || (v.name || '?').charAt(0) || '?').toUpperCase());
+      var area = [v.area, v.city].filter(Boolean).join(' · ');
+      return '<div class="qc-venue-card' + (pick ? ' pickable' : '') + (picked ? ' picked' : '') + '"' +
+          (pick ? (' onclick="Quests.qcTogglePick(\'' + v.id + '\')"') : '') + '>' +
+          '<div class="qc-venue-av">' + av + '</div>' +
+          '<div class="qc-venue-meta"><div class="qc-venue-nm">' + escHtml(v.name || 'Venue') + '</div>' +
+            (area ? '<div class="qc-venue-area">' + escHtml(area) + '</div>' : '') + '</div>' +
+          (pick ? '<span class="material-icons qc-venue-check">' + (picked ? 'check_circle' : 'radio_button_unchecked') + '</span>' : '') +
+        '</div>';
+    }).join('');
+    var note = document.getElementById('qc-pool-note'), tgtWrap = document.getElementById('qc-target-wrap');
+    if (pick) {
+      var np = Object.keys(st.picked || {}).filter(function (k) { return st.picked[k]; }).length;
+      if (note) note.innerHTML = '<strong style="color:#2ba8e0;">Tap the venues</strong> you want — only these will count. Selected: <strong>' + np + '</strong>.';
+      if (tgtWrap) tgtWrap.style.display = 'none';
+    } else {
+      if (note) note.innerHTML = '<strong style="color:#2ba8e0;">' + (st.count || 0) + ' FFP venue' + ((st.count || 0) === 1 ? '' : 's') + '</strong> count toward this quest. Visit any of them — new FFP partners join automatically.';
+      if (tgtWrap) tgtWrap.style.display = '';
+    }
+  },
+
   openCreate() {
+    this.qcInjectCss();
     var prof = {};
     try { prof = (typeof MemberProfile !== 'undefined' && MemberProfile.data) || {}; } catch (e) {}
     var TAX = window.FFP_TAX || {};
@@ -11980,8 +12067,16 @@ const Quests = {
           '<div class="qc-field"><label>Country</label><select id="qc-country" class="ffp-select">' + countries.map(function (c) { return '<option' + (c === defCountry ? ' selected' : '') + '>' + escHtml(c) + '</option>'; }).join('') + '</select></div>' +
           '<div class="qc-field"><label>City</label><select id="qc-city" class="ffp-select"></select></div>' +
         '</div>' +
-        '<div class="qc-field" id="qc-pool-wrap" style="display:none;"><div id="qc-pool" style="font-size:12px;padding:10px 12px;border-radius:10px;background:rgba(43,168,224,0.06);border:1px solid rgba(43,168,224,0.25);color:#9fb4c4;line-height:1.5;"></div></div>' +
-        '<div class="qc-field"><label>How many different venues to visit</label><input id="qc-target" type="number" min="2" max="50" value="5" class="ffp-select"><div style="margin-top:5px;color:#8a99a8;font-size:11px;">You set the goal — e.g. visit 8 of the venues that count.</div></div>' +
+        '<div class="qc-field" id="qc-pool-wrap" style="display:none;">' +
+          '<label>FFP venues for this quest</label>' +
+          '<div id="qc-pool-note" style="font-size:12px;color:#9fb4c4;margin-bottom:9px;line-height:1.5;"></div>' +
+          '<div id="qc-mode" style="display:none;gap:8px;margin-bottom:11px;">' +
+            '<button type="button" id="qc-mode-open" class="qc-mode-btn active" onclick="Quests.qcSetMode(\'open\')">Any of them</button>' +
+            '<button type="button" id="qc-mode-pick" class="qc-mode-btn" onclick="Quests.qcSetMode(\'pick\')">Pick specific</button>' +
+          '</div>' +
+          '<div id="qc-venues" style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow:auto;"></div>' +
+        '</div>' +
+        '<div class="qc-field" id="qc-target-wrap"><label>How many different venues to visit</label><input id="qc-target" type="number" min="2" max="50" value="5" class="ffp-select"><div style="margin-top:5px;color:#8a99a8;font-size:11px;">You set the goal — e.g. visit 8 of the venues that count.</div></div>' +
         '<button class="btn-primary-yellow" onclick="Quests.saveCreate()">Create quest</button>' +
       '</div>';
     openDetailModal(html);
@@ -11999,22 +12094,27 @@ const Quests = {
       async function qcUpdatePool() {
         var gv = function (id) { var e = document.getElementById(id); return e ? e.value : ''; };
         var city = gv('qc-city'), country = gv('qc-country'), act = gv('qc-act');
-        var wrap = document.getElementById('qc-pool-wrap'), box = document.getElementById('qc-pool'), tgt = document.getElementById('qc-target');
-        if (!city) { if (wrap) wrap.style.display = 'none'; window._ffpQcPool = null; return; }
+        var wrap = document.getElementById('qc-pool-wrap'), note = document.getElementById('qc-pool-note');
+        var modeRow = document.getElementById('qc-mode'), box = document.getElementById('qc-venues'), tgtWrap = document.getElementById('qc-target-wrap');
+        if (!city) { if (wrap) wrap.style.display = 'none'; window._ffpQcPool = null; window._ffpQc = null; return; }
         if (wrap) wrap.style.display = '';
-        if (box) box.textContent = 'Checking FFP venues…';
+        if (note) note.textContent = 'Checking FFP venues…';
+        if (box) box.innerHTML = ''; if (modeRow) modeRow.style.display = 'none';
         try {
           var res = await window.supabase.rpc('member_quest_venue_pool', { p_city: city, p_country: country || null, p_activity: act || null });
           var d = (res && res.data) || { count: 0, venues: [] }; var n = d.count || 0; window._ffpQcPool = n;
-          if (!box) return;
+          // keep the chosen mode across re-filters, but the picked set is venue-specific → reset it
+          var prevMode = (window._ffpQc && window._ffpQc.mode) || 'open';
+          window._ffpQc = { venues: d.venues || [], mode: prevMode, picked: {}, count: n };
           if (n === 0) {
-            box.innerHTML = '<strong style="color:#f3b14e;">No FFP venues for ' + escHtml(act || 'this') + ' in ' + escHtml(city) + ' yet.</strong> A quest needs FFP partners to check in at — pick another activity or city, or invite a venue.';
-          } else {
-            var names = (d.venues || []).slice(0, 4).map(escHtml).join(', ');
-            box.innerHTML = '<strong style="color:#2ba8e0;">' + n + ' FFP venue' + (n === 1 ? '' : 's') + '</strong> count toward this quest' + (names ? ' — ' + names + ((d.venues || []).length > 4 ? '…' : '') : '') + '.';
-            if (tgt) { tgt.max = n; if (parseInt(tgt.value, 10) > n) tgt.value = n; }
+            if (note) note.innerHTML = '<strong style="color:#f3b14e;">No FFP venues for ' + escHtml(act || 'this') + ' in ' + escHtml(city) + ' yet.</strong> A quest needs FFP partners to check in at — pick another activity or city, or invite a venue.';
+            if (tgtWrap) tgtWrap.style.display = 'none';
+            return;
           }
-        } catch (e) { if (box) box.textContent = 'Couldn’t check venues — you can still create.'; window._ffpQcPool = null; }
+          if (modeRow) modeRow.style.display = 'flex';
+          var tgt = document.getElementById('qc-target'); if (tgt) { tgt.max = n; if (parseInt(tgt.value, 10) > n) tgt.value = n; }
+          Quests.qcSetMode(prevMode);
+        } catch (e) { if (note) note.textContent = 'Couldn’t check venues — you can still create.'; window._ffpQcPool = null; window._ffpQc = null; }
       }
       if (catSel && actSel) catSel.addEventListener('change', function () { actSel.innerHTML = qcActOptions(catSel.value); qcUpdatePool(); });
       if (actSel) actSel.addEventListener('change', qcUpdatePool);
@@ -12028,10 +12128,23 @@ const Quests = {
     var g = function (id) { var e = document.getElementById(id); return e ? (e.value || '').trim() : ''; };
     var title = g('qc-title'); if (!title) { showToast('Give your quest a title', 'error'); return; }
     var city = g('qc-city'); if (!city) { showToast('Pick a city', 'error'); return; }
-    var target = parseInt(g('qc-target'), 10) || 0; if (target < 2) { showToast('Choose at least 2 venues', 'error'); return; }
     if (window._ffpQcPool === 0) { showToast('No FFP venues for that activity/city yet — adjust before creating', 'error'); return; }
     var mid = this.memberId(); if (!mid || !window.supabase) { showToast('Please sign in again', 'error'); return; }
-    var payload = { title: title, category: g('qc-cat') || 'fitness', rule_activity: g('qc-act') || null, city: city, country: g('qc-country') || null, target_count: String(target) };
+    var st = window._ffpQc || {}; var mode = st.mode || 'open';
+    var payload = { title: title, category: g('qc-cat') || 'fitness', rule_activity: g('qc-act') || null, city: city, country: g('qc-country') || null };
+    if (mode === 'pick') {
+      // member chose specific venues — only these count (locked set); target = how many they picked
+      var pids = Object.keys(st.picked || {}).filter(function (k) { return st.picked[k]; });
+      if (pids.length < 2) { showToast('Tap at least 2 venues — or switch to “Any of them”', 'error'); return; }
+      payload.target_provider_ids = pids;
+    } else {
+      // open / dynamic — any matching venue counts toward the target number
+      var pool = window._ffpQcPool || 0;
+      var target = parseInt(g('qc-target'), 10) || 0;
+      if (target < 2) { showToast('Choose at least 2 venues', 'error'); return; }
+      if (pool && target > pool) target = pool;
+      payload.target_count = String(target);
+    }
     try {
       var res = await window.supabase.rpc('member_save_quest', { p_me: mid, p_id: null, p: payload });
       if (res.error) throw res.error;
