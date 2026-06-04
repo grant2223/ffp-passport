@@ -1,4 +1,8 @@
-<!-- FFP PROVIDER DASHBOARD — v29 (2026-06-03)
+<!-- FFP PROVIDER DASHBOARD — v30 (2026-06-04)
+     v30: #quests P1 — providers can now CREATE facility quests. New ffp-provider-quest-create-loader.js?v=1
+          injects a "Your quests" card (create/edit/pause) at the top of the Quests panel → provider_save_quest
+          RPC (quest goes live on submit, venue-bound, awards a venue stamp). Completion uses the existing
+          check-in → provider_quest_approve flow. (DB layer already applied + verified.)
      v29: (Taxonomy audit fixes) "Provider type" field (pf-type) now reads the UNIFIED provider_type
           taxonomy (Gym / Studio / Event Organizer / Sports Club / Team / Adventure Provider / Health
           Food Cafe / …) via FFP_TAX.providerTypes (re-fills on ffp-tax-ready) — one concept shared with
@@ -160,10 +164,12 @@
 <!-- v12: check-ins loader now loads on first open of the Check-ins panel
      (see ensureProviderLoader in showPanel) — not needed on initial load. -->
 <script src="ffp-provider-quests-loader.js?v=4"></script>
+<!-- Provider quest CREATION (#quests P1): "Your quests" card + create/edit form at the top of the Quests panel -> provider_save_quest RPC. -->
+<script src="ffp-provider-quest-create-loader.js?v=1"></script>
 <script src="ffp-provider-venue-qr-loader.js"></script>
 <script src="ffp-provider-quest-analytics-loader.js"></script>
 <!-- Feedback widget (shared) -> public.feedback -> admin Feedback panel -->
-<script src="assets/ffp-feedback-widget.js?v=4" data-source="provider" data-fab="off"></script>
+<script src="assets/ffp-feedback-widget.js?v=5" data-source="provider" data-fab="off"></script>
 <!-- Removed 2026-05-30: phantom refs to loaders that don't exist (earnings/overview/analytics/team/settings). Overview & Analytics render inline. Normalized quests/venue-qr/quest-analytics refs to plain GitHub filenames. -->
    
 <style>
@@ -4852,6 +4858,6 @@ document.addEventListener('DOMContentLoaded', () => {
 })();
 </script>
 <script>window.ffpOpenMap=function(id){var el=document.getElementById(id);var v=el?(el.value||'').trim():'';if(v)window.open('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(v),'_blank');};</script>
-<div id="ffp-build-stamp" style="position:fixed;bottom:4px;left:6px;font-size:9px;font-family:monospace;color:rgba(255,255,255,0.28);z-index:99999;pointer-events:none;">FFP build v29 — taxonomy fields</div>
+<div id="ffp-build-stamp" style="position:fixed;bottom:4px;left:6px;font-size:9px;font-family:monospace;color:rgba(255,255,255,0.28);z-index:99999;pointer-events:none;">FFP build v30 — provider quests</div>
 </body>
 </html>
