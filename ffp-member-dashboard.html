@@ -1,4 +1,11 @@
-<!-- FFP MEMBER DASHBOARD — v256 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v257 (2026-06-04)
+     v257: (a) LOG ACTIVITY duration — replaced the clock-style time inputs (type=time rendered a
+           time-of-day picker) with real Hours / Minutes / Seconds number inputs; removed the unused
+           time-of-day "Time" field (saveLog never used it). saveLog now stores duration_min (h*60+m)
+           AND duration_sec (0-59) via log_activity(p_duration_sec) — needs DB migration (applied) +
+           backend index.js v68 (returns duration_sec). (b) PROFILE phone country code: picker modal is
+           now full-bleed (fullBleed:true), UAE (+971) pinned first then alphabetical, and the code
+           defaults to UAE so the phone always carries one. (CSS: .dur-grid / .dur-cell added.)
      v256: FIX passport tap-to-share doing nothing on iPhone (Safari). Root cause: navigator.share()
            must run inside the tap's transient user activation, but it was only called AFTER an awaited
            html2canvas + toBlob → iOS rejected it as no-user-gesture, and the error was swallowed by a
@@ -3285,6 +3292,12 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 .pm-form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .pm-form-grid-2 > * { min-width: 0; }
 @media (max-width:560px){ .pm-form-grid-2 { grid-template-columns: 1fr 1fr; gap: 8px; } }
+/* Duration entered as Hours / Minutes / Seconds (a real duration, not a clock time) */
+.dur-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.dur-grid > * { min-width: 0; }
+.dur-cell { position: relative; }
+.dur-cell .pm-form-input { padding-right: 40px; text-align: center; }
+.dur-cell .dur-unit { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 700; color: var(--muted); pointer-events: none; }
 
 /* Provider vs Community challenges */
 .chal-group-head { font-size: 11px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: var(--blue); margin: 16px 0 8px; display: flex; align-items: center; gap: 6px; }
@@ -5535,19 +5548,17 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
           <select id="log-city" class="ffp-select"></select>
         </div>
       </div>
-      <div class="pm-form-grid-2">
-        <div class="pm-form-field">
-          <label class="pm-form-label">Date</label>
-          <input type="date" id="log-date" class="pm-form-input">
-        </div>
-        <div class="pm-form-field">
-          <label class="pm-form-label">Time</label>
-          <input type="time" id="log-time" class="pm-form-input">
-        </div>
+      <div class="pm-form-field">
+        <label class="pm-form-label">Date</label>
+        <input type="date" id="log-date" class="pm-form-input">
       </div>
       <div class="pm-form-field">
-        <label class="pm-form-label">Duration <span style="color:var(--muted);font-weight:600;">(h:min)</span></label>
-        <input type="time" id="log-dur" class="pm-form-input" step="60" value="00:30">
+        <label class="pm-form-label">Duration</label>
+        <div class="dur-grid">
+          <div class="dur-cell"><input type="number" id="log-dur-h" class="pm-form-input" inputmode="numeric" min="0" max="24" value="0"><span class="dur-unit">h</span></div>
+          <div class="dur-cell"><input type="number" id="log-dur-m" class="pm-form-input" inputmode="numeric" min="0" max="59" value="30"><span class="dur-unit">min</span></div>
+          <div class="dur-cell"><input type="number" id="log-dur-s" class="pm-form-input" inputmode="numeric" min="0" max="59" value="0"><span class="dur-unit">sec</span></div>
+        </div>
       </div>
       <div class="pm-form-field">
         <label class="pm-form-label">Calories</label>
@@ -8401,6 +8412,8 @@ const MemberProfile = {
   },
   
   renderPhoneCard() {
+    // Default the country code to UAE (+971) so the phone always carries a code.
+    if (!this.data.phoneCountryCode) this.data.phoneCountryCode = '+971';
     return `
       <div class="field-card full-width field-card-phone">
         <div class="field-card-label-top">Phone</div>
@@ -8551,10 +8564,17 @@ const MemberProfile = {
     return cc;
   },
   pickPhoneCC() {
+    // UAE first (primary market), then the rest alphabetically by country name.
+    var list = (COUNTRY_CODES || []).slice().sort(function (a, b) {
+      if (a.code === '+971') return -1;
+      if (b.code === '+971') return 1;
+      return (a.country || '').localeCompare(b.country || '');
+    });
     openPicker({
       title: 'Country Code',
       searchPlaceholder: 'Search countries or codes...',
-      options: COUNTRY_CODES.map(c => ({ value: c.code, label: (c.flag ? c.flag + ' ' : '') + c.code, sub: c.country })),
+      fullBleed: true,   // full-screen modal (matches the platform full-bleed picker standard)
+      options: list.map(c => ({ value: c.code, label: (c.flag ? c.flag + ' ' : '') + c.code, sub: c.country })),
       current: this.data.phoneCountryCode,
       onPick: (val) => { this.data.phoneCountryCode = val; this.render(); this.autoSave(); }
     });
@@ -13411,13 +13431,13 @@ function openLogModal() {
   fillLogCities();
   var cityS = document.getElementById('log-city');
   if (cityS && prof.city) { for (var i = 0; i < cityS.options.length; i++) { if (cityS.options[i].value === prof.city) { cityS.value = prof.city; break; } } }
-  // Duration — single native time input (h:min), default 30 min
-  var durEl = document.getElementById('log-dur'); if (durEl) durEl.value = '00:30';
-  // Date today, time now
+  // Duration — Hours / Minutes / Seconds inputs (a real duration), default 30 min
+  var dh = document.getElementById('log-dur-h'); if (dh) dh.value = '0';
+  var dm = document.getElementById('log-dur-m'); if (dm) dm.value = '30';
+  var ds = document.getElementById('log-dur-s'); if (ds) ds.value = '0';
+  // Date today
   var now = new Date();
   document.getElementById('log-date').value = now.toISOString().substring(0, 10);
-  var tEl = document.getElementById('log-time');
-  if (tEl) tEl.value = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
 }
 function openScanLog() {
   // Launch the venue check-in scanner (ffp-member-checkin-loader.js). Falls back to the
@@ -13434,12 +13454,17 @@ async function saveLog() {
   const city = document.getElementById('log-city').value;
   if (!country || !city) { alert('Pick a country and city so it lands on your map.'); return; }
   const dateStr = document.getElementById('log-date').value || new Date().toISOString().substring(0, 10);
-  const durParts = String(document.getElementById('log-dur').value || '00:30').split(':');
-  const durationMin = (parseInt(durParts[0], 10) || 0) * 60 + (parseInt(durParts[1], 10) || 0);
+  // Duration as H / M / S → whole minutes (duration_min) + 0-59 second remainder (duration_sec)
+  const durH = parseInt(document.getElementById('log-dur-h').value, 10) || 0;
+  const durM = parseInt(document.getElementById('log-dur-m').value, 10) || 0;
+  const durS = Math.max(0, Math.min(59, parseInt(document.getElementById('log-dur-s').value, 10) || 0));
+  const durationMin = durH * 60 + durM;
+  const durationSec = durS;
+  if (durationMin === 0 && durationSec === 0) { alert('Please enter a duration'); return; }
   const entry = {
     activity: act, venue: '', city: city, country: country,
     date: dateStr, daysAgo: 0,
-    duration: durationMin,
+    duration: durationMin, durationSec: durationSec,
     calories: parseInt(document.getElementById('log-calories').value, 10) || 0,
     notes: document.getElementById('log-notes').value.trim(), partner: false
   };
@@ -13453,7 +13478,7 @@ async function saveLog() {
   try {
     var res = await window.supabase.rpc('log_activity', {
       p_me: member.id, p_activity: act, p_city: city, p_country: country,
-      p_duration_min: entry.duration, p_calories: entry.calories,
+      p_duration_min: entry.duration, p_duration_sec: entry.durationSec, p_calories: entry.calories,
       p_logged_at: new Date(dateStr + 'T12:00:00').toISOString(), p_notes: entry.notes
     });
     if (res.error) throw res.error;
@@ -13493,7 +13518,7 @@ async function loadJourneyLogs() {
         lng: (r.checkin_lng != null ? Number(r.checkin_lng) : null),
         date: dt.toISOString().substring(0, 10),
         daysAgo: Math.max(0, Math.floor((now - dt.getTime()) / 86400000)),
-        duration: r.duration_min || 0, calories: r.calories || 0, notes: r.notes || '',
+        duration: r.duration_min || 0, durationSec: r.duration_sec || 0, calories: r.calories || 0, notes: r.notes || '',
         verified: !!r.verified, partner: false
       });
     });
