@@ -1,4 +1,12 @@
-<!-- FFP MEMBER DASHBOARD — v274 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v275 (2026-06-04)
+     v275: CRITICAL FIX — whole dashboard was DEAD ("not responding"). Console truth:
+           "Uncaught SyntaxError: Identifier '_nowTs' has already been declared (line 12577)".
+           The v273 Past-tab edit added `const _nowTs` at the top of MeetMove.filtered() while the
+           Discover branch lower down already had `var _nowTs = Date.now();` — two declarations of the
+           same name in one function = a PARSE error that kills the ENTIRE inline script, so nothing ran
+           (this is also why v274's html2canvas change appeared to "not work" — the script never executed).
+           Fix: the Discover branch now REUSES the top-level _nowTs (removed the duplicate `var`).
+           LESSON: a single duplicate declaration takes down the whole app; syntax-check after every JS edit.
      v274: FIX passport panel FROZEN / "not responding" on refresh. Root cause: prerenderPassportShare()
            (html2canvas, heavily synchronous) was auto-fired eagerly on load (1.5s) AND on every panel-show
            (450ms) — blocking the main thread for 1-3s right after refresh on the default passport panel.
@@ -8023,7 +8031,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '274';
+  const FFP_BUILD = '275';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -12574,7 +12582,7 @@ const MeetMove = {
     else if (this.tab === 'discover') {
       // Discover shows UPCOMING meetups only — drop ones whose start time has passed (3h grace so an
       // in-progress meetup doesn't vanish the instant it begins). _ts = meets_at epoch ms (0 = no date).
-      var _nowTs = Date.now();
+      // (reuses _nowTs declared at the top of filtered() — do NOT re-declare it here.)
       items = items.filter(m => !m._ts || m._ts >= (_nowTs - 3 * 60 * 60 * 1000));
       // v195: browse filters apply ONLY on Discover — never hide your own Going/Hosting items
       if (this.search) items = items.filter(m =>
