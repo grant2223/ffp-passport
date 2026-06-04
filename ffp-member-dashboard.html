@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v266 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v267 (2026-06-04)
+     v267: bumps the meet-move loader ref to ?v=22 (loader v22 fixes Who's-going host/attendee passports
+           being invisible to NON-ADMIN members — members RLS is self/admin-only, so the direct member
+           fetch returned nothing for other people; now via members_cards() SECURITY DEFINER RPC). Together
+           with v266's FFPCard merge, Who's-going now shows everyone with full details for all users.
      v266: FIX "Who's going" own passport-card showing no details (long-parked §3c). FFPCard.resolve sent
            your own id to fromProfile() (MemberProfile.data) and DISCARDED the real attendee data the
            loader already fetched — so a not-yet-hydrated profile blanked your card. resolve now MERGES:
@@ -7915,7 +7919,7 @@ function setupPanelNav() {
     'panel-earnings':        'assets/ffp-earnings-loader.js?v=18',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
     'panel-fitness-stats':   'assets/ffp-fitness-stats-loader.js?v=19',
-    'panel-meet':            'assets/ffp-meet-move-loader.js?v=21',
+    'panel-meet':            'assets/ffp-meet-move-loader.js?v=22',
     'panel-events':          'assets/ffp-member-discovery-loader.js',
     'panel-experiences':     'assets/ffp-member-discovery-loader.js',
     'panel-challenges':      'assets/ffp-member-discovery-loader.js'
