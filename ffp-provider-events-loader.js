@@ -1,4 +1,9 @@
-/* FFP Provider Events Loader — v7 (2026-06-04)
+/* FFP Provider Events Loader — v8 (2026-06-05)
+   v8: CATEGORY STANDARDISATION — removed the dead 23-granular FFP_CATEGORIES array (unused since v4 swapped
+       the category dropdown for the activity picker). Events now derive their category from the activity
+       picker, which reads activity_types.category — standardised platform-wide to the 6
+       (fitness/sports/wellness/recovery/adventure/food). The granular values are preserved in
+       activity_types.subcategory. No live behaviour change; dead-code + comment cleanup only.
    v7: GUEST LIST inside the event modal — injectEventRoster() calls provider_event_roster(p_me,p_event)
        (owner-gated SECURITY DEFINER RPC) and shows each RSVP'd member (photo + name + city) with a
        "Going" / "Checked in" badge + a "N going · M checked in" header. Lets providers see who's coming
@@ -18,14 +23,8 @@
 (function () {
   'use strict';
 
-  // FFP master taxonomy — 23 categories. Used on EVERY content creation form.
-  var FFP_CATEGORIES = [
-    'Running & walking', 'Athletics & track', 'Cycling', 'Swimming', 'Watersports',
-    'Racquet sports', 'Team sports', 'Combat sports', 'Gymnastics', 'Strength & fitness',
-    'Mind-body & yoga', 'Dance & rhythm', 'Outdoor & adventure', 'Recovery & wellness',
-    'Golf', 'Equestrian', 'Shooting & target sports', 'Cue & precision sports',
-    'Air & extreme', 'Snow sports', 'Motorsports', 'Skateboard & roller', 'Multi-sport & events'
-  ];
+  // Categories are standardised platform-wide to the 6 (fitness/sports/wellness/recovery/adventure/food)
+  // and derived from the activity picker (activity_types.category). No hard-coded category list here.
 
   function toast(msg, kind) {
     if (typeof window.showToast === 'function') {
