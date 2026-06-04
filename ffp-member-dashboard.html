@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v279 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v280 (2026-06-04)
+     v280: FIX iOS "whole screen expands/zooms when you tap a field" — inputs were <16px (13px), which
+           triggers Safari's focus auto-zoom. Added a mobile media query forcing all inputs/selects/
+           textareas to 16px (pinch-zoom still works). Same one-liner should go on login/profile/provider
+           pages too if the zoom is seen there. FFP_BUILD→280.
      v279: (a) Attendee can CANCEL their spot/request anytime before start (leave_meetup RPC) → frees a
            spot; "Cancel my spot"/"Cancel request" button in the meetup detail; dropped the "12 hours"
            promise text. (b) Host can add their OWN PHOTO to a meetup — photo field in the post/edit form
@@ -3361,6 +3365,13 @@ input[type="number"] {
 .pm-form-input:focus,
 .pm-form-textarea:focus { border-color: var(--blue); }
 .pm-form-textarea { min-height: 60px; resize: vertical; }
+/* iOS auto-ZOOMS the whole page when you focus an input whose font-size is < 16px — that's the
+   "screen expands on tap" bug. Force every field to >=16px on phones/tablets so focusing never zooms.
+   (Pinch-zoom stays available, unlike the user-scalable=no hack.) */
+@media (max-width: 768px) {
+  input, textarea, select,
+  .pm-form-input, .pm-form-textarea, .ffp-select { font-size: 16px !important; }
+}
 /* native date/time controls otherwise overflow their grid column on iOS */
 input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-appearance: none; appearance: none; }
 .pm-form-help { font-size: 11px; color: var(--muted); margin-top: 5px; }
@@ -8089,7 +8100,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '279';
+  const FFP_BUILD = '280';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
