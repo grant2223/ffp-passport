@@ -1,4 +1,17 @@
-<!-- FFP MEMBER DASHBOARD — v254 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v256 (2026-06-04)
+     v256: FIX passport tap-to-share doing nothing on iPhone (Safari). Root cause: navigator.share()
+           must run inside the tap's transient user activation, but it was only called AFTER an awaited
+           html2canvas + toBlob → iOS rejected it as no-user-gesture, and the error was swallowed by a
+           silent catch ("Preparing…" then nothing). Fix: PRE-RENDER the card image to a cached File
+           when the passport panel is shown / on load (prerenderPassportShare), so sharePassportCard()
+           calls navigator.share with NO await first. If the image isn't ready, it still shares text+link
+           instantly (opens WhatsApp/Messenger) and renders for next time. Real errors now surface +
+           copy-link fallback (no more silent failure). User-cancel is handled quietly.
+     v255: Passport-card share copy updated (sharePassportCard) — "Hey, I've got my FFP Passport -
+           the active lifestyle community. / Click the link to find out more + sign up with me" + ref link.
+           Link embedded in the caption text for image shares (WhatsApp/Messenger drop the `url` field
+           when a file is attached); text-only fallback keeps text + url.
+     v254 (2026-06-04)
      v254: (#33 REDO) The v252 full-bleed didn't render — `.picker-modal.full-bleed` was boxed by the
            Picker overlay's padding:20px + center. Now matches the platform full-bleed standard exactly
            (.detail-backdrop.dm-full): the OVERLAY gets `full-bleed` (padding:0; align-items:stretch) and
@@ -7864,6 +7877,8 @@ function setupPanelNav() {
     // If switching back to passport, re-scale the card (in case viewport changed)
     if (panelId === 'panel-passport') {
       setTimeout(scalePassportCard, 50);
+      // Pre-render the card image so a tap-to-share fires instantly within user activation (iOS).
+      setTimeout(function () { try { prerenderPassportShare(); } catch (e) {} }, 450);
     }
   }
   
@@ -7891,6 +7906,10 @@ function setupPanelNav() {
   if (initialHash && document.getElementById(initialHash)) {
     showPanel(initialHash);
   }
+
+  // Passport is the default-active panel (showPanel isn't called for it), so pre-render the
+  // shareable card image after the card has had time to populate + scale.
+  setTimeout(function () { try { prerenderPassportShare(); } catch (e) {} }, 1500);
 }
 
 // ===== PROFILE PANEL =====
@@ -13769,53 +13788,81 @@ function init() {
 // v167: tap the passport card to share it. Renders the live card to a PNG and opens the
 // native share sheet with the member\'s referral link so new signups can be credited to
 // them. Falls back to copying the link + saving the image on desktop / unsupported browsers.
-async function sharePassportCard() {
+// PASSPORT CARD SHARE — iOS-safe (v256).
+// navigator.share() must run inside the tap's transient user activation. iOS Safari
+// REJECTS it when it's called only after a long await (html2canvas + toBlob), and the
+// old code swallowed that error → "Preparing…" then nothing. Fix: PRE-RENDER the card
+// image to a cached File (when the passport panel is shown / on load), so the tap can
+// share instantly with no await before navigator.share(). If the image isn't ready yet,
+// we still open the share sheet with the text + link immediately (works on WhatsApp/
+// Messenger), and kick off a render so the next tap includes the card image.
+var _ppShareFile = null, _ppRendering = false;
+
+function _ppRefLink() {
+  var m = {}; try { m = JSON.parse(localStorage.getItem('ffp_member') || '{}'); } catch (e) {}
+  return 'https://ffppassport.com/join?ref=' + encodeURIComponent(m.referral_code || '');
+}
+
+// Render the live passport card to a PNG File and cache it for instant sharing.
+async function prerenderPassportShare() {
+  if (_ppRendering) return;
   var shell = document.querySelector('.pass-shell');
-  if (!shell || typeof html2canvas === 'undefined') {
-    if (typeof showToast === 'function') showToast('Sharing not ready — try again', 'error');
+  if (!shell || typeof html2canvas === 'undefined') return;
+  _ppRendering = true;
+  var prev = shell.style.transform;
+  try {
+    shell.style.transform = 'none';
+    var canvas = await html2canvas(shell, { backgroundColor: null, scale: 2, useCORS: true, logging: false });
+    shell.style.transform = prev;
+    await new Promise(function (resolve) {
+      canvas.toBlob(function (blob) {
+        if (blob) {
+          var nm = ((typeof MemberProfile !== 'undefined' && MemberProfile.getFullName && MemberProfile.getFullName()) || 'member').replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '') || 'member';
+          _ppShareFile = new File([blob], 'passport-' + nm + '.png', { type: 'image/png' });
+        }
+        resolve();
+      }, 'image/png');
+    });
+  } catch (e) { shell.style.transform = prev; }
+  finally { _ppRendering = false; }
+}
+
+// Tap handler — fires the share SYNCHRONOUSLY (within user activation): no await first.
+async function sharePassportCard() {
+  var refLink = _ppRefLink();
+  var shareText = "Hey, I've got my FFP Passport - the active lifestyle community.\n\nClick the link to find out more + sign up with me";
+  // When a file is attached, WhatsApp/Messenger use `text` as the caption and commonly
+  // DROP the separate `url` field — so the link lives in the caption text here.
+  var shareBody = shareText + "\n\n" + refLink;
+
+  function isCancel(e) { return e && (e.name === 'AbortError' || /abort|cancel|dismiss/i.test(e.message || '')); }
+  function copyLink(msg) {
+    try { if (navigator.clipboard) navigator.clipboard.writeText(refLink); } catch (e) {}
+    if (typeof showToast === 'function') showToast(msg || 'Invite link copied — paste it to share', 'success');
+  }
+
+  try {
+    // Best case: the card image is already rendered → share image + caption instantly.
+    if (_ppShareFile && navigator.canShare && navigator.canShare({ files: [_ppShareFile] })) {
+      await navigator.share({ files: [_ppShareFile], title: 'My Passport', text: shareBody });
+      prerenderPassportShare();   // refresh for next time
+      return;
+    }
+    // Image not ready (or files unsupported): still open the share sheet with text + link.
+    if (navigator.share) {
+      await navigator.share({ title: 'My Passport', text: shareText, url: refLink });
+      prerenderPassportShare();   // get the image ready so the next tap includes the card
+      return;
+    }
+  } catch (e) {
+    if (isCancel(e)) return;       // user closed the OS share sheet — nothing to do
+    copyLink("Couldn't open share — link copied instead");
+    prerenderPassportShare();
     return;
   }
-  var m = {};
-  try { m = JSON.parse(localStorage.getItem('ffp_member') || '{}'); } catch (e) {}
-  var code = m.referral_code || '';
-  var refLink = 'https://ffppassport.com/join?ref=' + encodeURIComponent(code);
-  var shareText = "I'm part of the community — come join me.";
-
-  if (typeof showToast === 'function') showToast('Preparing your passport...', 'success');
-  var prevTransform = shell.style.transform;
-  shell.style.transform = 'none';
-  try {
-    var canvas = await html2canvas(shell, { backgroundColor: null, scale: 2, useCORS: true, logging: false });
-    shell.style.transform = prevTransform;
-    canvas.toBlob(async function (blob) {
-      if (!blob) return;
-      var nm = ((typeof MemberProfile !== 'undefined' && MemberProfile.getFullName && MemberProfile.getFullName()) || 'member').replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '') || 'member';
-      var file = new File([blob], 'passport-' + nm + '.png', { type: 'image/png' });
-      var sharedFile = false;
-      try {
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: 'My Passport', text: shareText, url: refLink });
-          sharedFile = true;
-        }
-      } catch (e) { return; } // user cancelled
-      if (!sharedFile) {
-        try {
-          if (navigator.share) { await navigator.share({ title: 'My Passport', text: shareText, url: refLink }); return; }
-        } catch (e) { return; }
-        // final fallback: copy link + download image
-        try { await navigator.clipboard.writeText(refLink); } catch (e) {}
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement('a');
-        a.href = url; a.download = file.name;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-        if (typeof showToast === 'function') showToast('Invite link copied + passport saved', 'success');
-      }
-    }, 'image/png');
-  } catch (err) {
-    shell.style.transform = prevTransform;
-    if (typeof showToast === 'function') showToast('Could not create image — try again', 'error');
-  }
+  // No Web Share API (most desktop browsers): copy the link.
+  copyLink();
+  prerenderPassportShare();
 }
 
 function addToAppleWallet() {
