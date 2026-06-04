@@ -1,4 +1,7 @@
-<!-- FFP MEMBER DASHBOARD — v284 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v285 (2026-06-05)
+     v285: Post-a-meetup modal — cover photo moved to the TOP + CENTRE as a big tappable photo zone
+           (tap → camera/library), with helper "No text allowed — images must be free of any text/writing".
+           Title now sits below the photo. pmfSetCover rebuilt for the new centred preview. FFP_BUILD→285.
      v284: Event RSVP — fixed the RSVP-confirm copy (was "the organiser manages the guest list", which no
            longer matches): now "added to the guest list + emailed a confirmation; check in with your FFP
            Passport on the day". Pairs with discovery-loader v6 (fires the RSVP email trail) + backend v73
@@ -5879,23 +5882,23 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
       <div style="font-size:12px; color:var(--muted); margin-bottom:14px;">Up to 8 members. You'll approve who's in. Be honest about level and intent.</div>
     </div>
     <div class="pm-form">
+      <!-- v285: cover photo at TOP + CENTRE — tap the photo area to add (camera/library). No text in images. -->
+      <div class="pm-form-field" style="text-align:center;">
+        <input type="hidden" id="pmf-cover">
+        <label style="display:block;width:160px;max-width:72%;margin:2px auto 8px;cursor:pointer;">
+          <div id="pmf-cover-preview" style="width:160px;height:160px;max-width:100%;margin:0 auto;border-radius:16px;background-color:#0e1f2e;background-size:cover;background-position:center;border:1.5px dashed var(--border-mid);display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);gap:6px;">
+            <span class="material-icons" style="font-size:34px;">add_a_photo</span>
+            <span id="pmf-cover-label" style="font-size:12px;font-weight:600;">Add a photo</span>
+          </div>
+          <input type="file" accept="image/*" style="display:none;" onchange="pmfPickCover(this)">
+        </label>
+        <button type="button" id="pmf-cover-clear" onclick="pmfClearCover()" style="display:none;background:transparent;border:none;color:#ef4444;font-size:13px;cursor:pointer;margin-bottom:6px;">Remove photo</button>
+        <div class="pm-form-help" style="text-align:center;">Optional cover. <strong style="color:#f3b14e;">No text allowed</strong> — images must be free of any text or writing.</div>
+      </div>
       <div class="pm-form-field">
         <label class="pm-form-label">Title</label>
         <input type="text" class="pm-form-input" id="pmf-title" maxlength="40" placeholder="e.g. Padel doubles — need a 4th" oninput="pmfTitleCount()">
         <div class="pm-form-help"><span id="pmf-title-count">0</span>/40 — keep it short and clear</div>
-      </div>
-      <div class="pm-form-field">
-        <label class="pm-form-label">Photo <span style="color:var(--muted);font-weight:500;">(optional)</span></label>
-        <input type="hidden" id="pmf-cover">
-        <div style="display:flex;align-items:center;gap:12px;">
-          <div id="pmf-cover-preview" style="width:64px;height:64px;border-radius:10px;background-color:#0e1f2e;background-size:cover;background-position:center;border:1px solid var(--border-mid);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--muted);"><span class="material-icons">image</span></div>
-          <label class="pm-form-input pm-form-pick" style="cursor:pointer;flex:1;margin:0;display:flex;align-items:center;">
-            <span id="pmf-cover-label">Add a cover photo</span>
-            <input type="file" accept="image/*" style="display:none;" onchange="pmfPickCover(this)">
-          </label>
-          <button type="button" id="pmf-cover-clear" onclick="pmfClearCover()" style="display:none;background:transparent;border:none;color:#ef4444;font-size:13px;cursor:pointer;flex-shrink:0;">Remove</button>
-        </div>
-        <div class="pm-form-help">Shown as the meet-up's cover image.</div>
       </div>
       <div class="pm-form-field">
         <label class="pm-form-label">Activity &amp; level</label>
@@ -6063,10 +6066,14 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
   window.pmfSetCover=function(url){
     var hid=document.getElementById('pmf-cover'); if(hid) hid.value=url||'';
     var prev=document.getElementById('pmf-cover-preview');
-    var lbl=document.getElementById('pmf-cover-label');
     var clr=document.getElementById('pmf-cover-clear');
-    if(url){ if(prev){ prev.style.backgroundImage="url('"+url+"')"; prev.innerHTML=''; } if(lbl) lbl.textContent='Change photo'; if(clr) clr.style.display=''; }
-    else   { if(prev){ prev.style.backgroundImage=''; prev.innerHTML='<span class="material-icons">image</span>'; } if(lbl) lbl.textContent='Add a cover photo'; if(clr) clr.style.display='none'; }
+    if(url){
+      if(prev){ prev.style.backgroundImage="url('"+url+"')"; prev.style.border='1.5px solid var(--border-mid)'; prev.innerHTML=''; }
+      if(clr) clr.style.display='';
+    } else {
+      if(prev){ prev.style.backgroundImage=''; prev.style.border='1.5px dashed var(--border-mid)'; prev.innerHTML='<span class="material-icons" style="font-size:34px;">add_a_photo</span><span id="pmf-cover-label" style="font-size:12px;font-weight:600;">Add a photo</span>'; }
+      if(clr) clr.style.display='none';
+    }
   };
   window.pmfClearCover=function(){ window.pmfSetCover(''); };
 })();
@@ -8128,7 +8135,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '284';
+  const FFP_BUILD = '285';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
