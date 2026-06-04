@@ -1,4 +1,9 @@
-<!-- FFP PROVIDER DASHBOARD — v31 (2026-06-04)
+<!-- FFP PROVIDER DASHBOARD — v32 (2026-06-05)
+     v32: CATEGORY STANDARDISATION — activity picker now groups by the standardised 6 categories
+          (activity_types.category migrated platform-wide to fitness/sports/wellness/recovery/adventure/food,
+          granular values preserved in activity_types.subcategory). Picker group headers Title-cased for
+          display (storage stays lowercase). Loads ffp-provider-events-loader.js?v=8 (dead 23-category
+          array removed). New events derive the standard category from the picker.
      v31: Event GUEST LIST — loads ffp-provider-events-loader.js?v=7, which shows who RSVP'd to an event
           (passport info: photo + name + city) with "Going" / "Checked in" badges inside the event modal
           (provider_event_roster RPC, owner-gated). Lets providers see who's coming + who showed up.
@@ -94,7 +99,7 @@
       if(!matches.length){ listEl.innerHTML='<div class="ffp-picker-empty">No matches</div>'; return; }
       if(opts.groupBy){
         var groups={},order=[]; matches.forEach(function(it){ var g=it.group||'Other'; if(!groups[g]){groups[g]=[];order.push(g);} groups[g].push(it); });
-        var html=''; order.forEach(function(g){ html+='<div class="ffp-picker-group-hdr">'+esc(g)+'</div>'; groups[g].forEach(function(it){ var sel=(it.name===opts.currentValue)?' selected':''; html+='<div class="ffp-picker-item'+sel+'" data-value="'+esc(it.name)+'" data-group="'+esc(it.group||'')+'">'+esc(it.name)+'</div>'; }); }); listEl.innerHTML=html;
+        var html=''; order.forEach(function(g){ var gLbl=g?(g.charAt(0).toUpperCase()+g.slice(1)):g; html+='<div class="ffp-picker-group-hdr">'+esc(gLbl)+'</div>'; groups[g].forEach(function(it){ var sel=(it.name===opts.currentValue)?' selected':''; html+='<div class="ffp-picker-item'+sel+'" data-value="'+esc(it.name)+'" data-group="'+esc(it.group||'')+'">'+esc(it.name)+'</div>'; }); }); listEl.innerHTML=html;
       } else {
         var h2=''; matches.forEach(function(it){ var sel=(it.name===opts.currentValue)?' selected':''; h2+='<div class="ffp-picker-item'+sel+'" data-value="'+esc(it.name)+'">'+esc(it.name)+'</div>'; }); listEl.innerHTML=h2;
       }
@@ -124,7 +129,7 @@
   console.log('[FFPPicker] ready (dashboard-owned, decoupled) ✓');
 })();
 </script>
-<script src="ffp-provider-events-loader.js?v=7"></script>
+<script src="ffp-provider-events-loader.js?v=8"></script>
 <script src="ffp-provider-experiences-loader.js"></script>
 <script src="ffp-provider-challenges-loader.js"></script>
 <!-- v29 (2026-06-03): Taxonomy audit fixes — "Provider type" (pf-type) reads the unified provider_type
