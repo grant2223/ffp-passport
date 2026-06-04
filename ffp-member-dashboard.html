@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v287 (2026-06-05)
+<!-- FFP MEMBER DASHBOARD — v288 (2026-06-05)
+     v288: CATEGORY STANDARDISATION (step 1) — loads ffp-taxonomy.js?v=8, which now reads each activity's
+           category from the DB (taxonomy_items.parent = the 6 standard: fitness/sports/wellness/recovery/
+           adventure/food). The 97 activities were categorised in the DB. So FFP_TAX.activities[].c is now
+           the 6. (Next: quest-create form filters activities by category; events category list → the 6.)
      v287: FFP_BUILD→287 to re-fetch fitness-stats loader v20 (Milestones tab → tap-in badge ladders,
            92 badges across 12 metrics; uses the dashboard's openDetailModal full-bleed).
      v286: FFP_BUILD→286 to re-fetch fitness-stats loader v19 (activity-streak today-grace fix). Also paired
@@ -471,7 +475,7 @@
      postgres_changes subscriptions via FFPRealtime.subscribe so panels
      auto-refresh when underlying DB rows change. -->
 <script src="assets/ffp-constants.js"></script>
-<script src="assets/ffp-taxonomy.js"></script>
+<script src="assets/ffp-taxonomy.js?v=8"></script>
 <script src="assets/ffp-realtime.js"></script>
 <!-- Feedback widget (shared) -> public.feedback -> admin Feedback panel -->
 <script src="assets/ffp-feedback-widget.js?v=5" data-source="member" data-fab="off"></script>
@@ -8139,7 +8143,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '287';
+  const FFP_BUILD = '288';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
