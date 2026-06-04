@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v264 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v265 (2026-06-04)
+     v265: Meet & Move Discover now hides PAST meetups (start time elapsed, with a 3h grace for in-progress).
+           The Discover filter had no date check, so open meetups lingered forever after their date. Filters
+           on m._ts (meets_at epoch). Joined/Hosting tabs unchanged (host can still see/cancel their own).
+           Follow-up idea: a daily cron to mark past 'open' meetups 'ended' + a populated Past tab.
      v264: FIX member-hosted meetups not showing on the Meet & Move "Discover" tab. Bumps the meet-move
            loader ref to ?v=21 (assets/ffp-meet-move-loader.js v21: the mapped meetup carried `area` but
            not `city`, and the Discover filter (default country=UAE) filters by m.city → undefined excluded
@@ -12431,6 +12435,10 @@ const MeetMove = {
     else if (this.tab === 'hosting') items = items.filter(m => this.hostingIds.has(m.id) || m.isHostedByMe);
     else if (this.tab === 'past')    items = [];
     else if (this.tab === 'discover') {
+      // Discover shows UPCOMING meetups only — drop ones whose start time has passed (3h grace so an
+      // in-progress meetup doesn't vanish the instant it begins). _ts = meets_at epoch ms (0 = no date).
+      var _nowTs = Date.now();
+      items = items.filter(m => !m._ts || m._ts >= (_nowTs - 3 * 60 * 60 * 1000));
       // v195: browse filters apply ONLY on Discover — never hide your own Going/Hosting items
       if (this.search) items = items.filter(m =>
         m.activity.toLowerCase().includes(this.search) || m.host.toLowerCase().includes(this.search) || m.venue.toLowerCase().includes(this.search));
