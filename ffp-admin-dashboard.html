@@ -5,7 +5,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FFP Admin Dashboard</title>
-<!-- FFP ADMIN DASHBOARD — v41 (2026-06-04): Broadcast panel restyled to the admin form STANDARD
+<!-- FFP ADMIN DASHBOARD — v42 (2026-06-04): PAYOUT QUOTE WORKFLOW (#28 step 3). Payouts panel
+     gains a "Quoted" tab; pending payouts are now Quoted (bank rate/fee/local amount) instead of
+     approved, via ffp-admin-payouts-loader.js v9. Lazy cache-bust bumped v=46 → v=47 so the new
+     loader is fetched. (Footer build stamp + this comment moved in lockstep.)
+     ---- v41 (2026-06-04): Broadcast panel restyled to the admin form STANDARD
      (.section-head/.section-title + .section-body padded + .field-row/.field/.field-label/.field-input +
      .btn) — was ad-hoc inline styles with alignment off. Matches the Settings panel now.
      ---- v40 (2026-06-04): BROADCAST CENTER added — new sidebar item "Broadcast" +
@@ -1454,7 +1458,7 @@ input, select, textarea { font-family: inherit; }
       </div>
     </div>
     <div class="sidebar-footer">
-      build v41 &middot; FFP Admin
+      build v42 &middot; FFP Admin
     </div>
   </aside>
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.toggleSidebar()"></div>
@@ -1726,6 +1730,7 @@ input, select, textarea { font-family: inherit; }
         </div>
         <div class="tabs">
           <button class="tab-btn active" data-tab="pending" onclick="AdminPayouts.setTab('pending')">Pending <span class="count">0</span></button>
+          <button class="tab-btn" data-tab="quoted" onclick="AdminPayouts.setTab('quoted')">Quoted <span class="count">0</span></button>
           <button class="tab-btn" data-tab="approved" onclick="AdminPayouts.setTab('approved')">Approved <span class="count">0</span></button>
           <button class="tab-btn" data-tab="paid" onclick="AdminPayouts.setTab('paid')">Paid <span class="count">0</span></button>
           <button class="tab-btn" data-tab="rejected" onclick="AdminPayouts.setTab('rejected')">Rejected <span class="count">0</span></button>
@@ -2382,7 +2387,7 @@ const App = {
       var sc = document.createElement('script');
       // Cache-bust lazy loaders so a new deploy never serves a stale cached .js.
       // BUMP this with the dashboard build number on every deploy (matches footer build).
-      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=46'; sc.async = false;
+      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=47'; sc.async = false;
       sc.onload = function () {
         if (panelId === 'panel-analytics') {
           setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 80);
