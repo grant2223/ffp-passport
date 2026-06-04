@@ -1,4 +1,9 @@
-/* FFP Provider Events Loader — v6 (rebuilt form: Country/City taxonomy cascade required, Area+Venue optional,
+/* FFP Provider Events Loader — v7 (2026-06-04)
+   v7: GUEST LIST inside the event modal — injectEventRoster() calls provider_event_roster(p_me,p_event)
+       (owner-gated SECURITY DEFINER RPC) and shows each RSVP'd member (photo + name + city) with a
+       "Going" / "Checked in" badge + a "N going · M checked in" header. Lets providers see who's coming
+       and who actually showed up (via venue-QR check-in). node-checked.
+   v6 (rebuilt form: Country/City taxonomy cascade required, Area+Venue optional,
    Location pin, End date/time, numeric Price (AED); flow Basics→When→Where→Pricing→Good-to-know; save via provider_save_listing RPC)
     — v3 close edit modal after delete; v4
    v4 changes (Grant's feedback):
@@ -412,6 +417,45 @@
       console.error('[FFP Provider Events] initial load:', e);
     }
 
+    // v2: GUEST LIST — show who RSVP'd (passport info) + who's checked in, inside the event modal.
+    async function injectEventRoster(editingId) {
+      if (!editingId) return;   // only for existing events
+      var modalBody = document.querySelector('.modal .modal-body, .modal-body');
+      if (!modalBody || document.getElementById('ffp-ev-roster')) return;
+      var me = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
+      var meId = me && me.id; if (!meId) return;
+      function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+      var sec = document.createElement('div');
+      sec.id = 'ffp-ev-roster'; sec.className = 'field';
+      sec.innerHTML = '<div class="label">Guest list</div><div id="ffp-ev-roster-body" style="font-size:13px;color:#9fb4c4;padding:4px 0;">Loading…</div>';
+      modalBody.appendChild(sec);
+      try {
+        var res = await window.supabase.rpc('provider_event_roster', { p_me: meId, p_event: editingId });
+        var rows = (res && res.data) || [];
+        var body = document.getElementById('ffp-ev-roster-body'); if (!body) return;
+        if (!rows.length) {
+          body.innerHTML = 'No RSVPs yet. When members RSVP, their FFP Passport appears here — they check in with it at the venue on the day.';
+          return;
+        }
+        var inCount = rows.filter(function (r) { return r.checked_in; }).length;
+        body.innerHTML = '<div style="margin-bottom:8px;font-weight:700;color:#cfe0ee;">' + rows.length + ' going · ' + inCount + ' checked in</div>' + rows.map(function (p) {
+          var nm = p.full_name || ((p.given_names || '') + ' ' + (p.surname || '')).trim() || 'Member';
+          var av = p.photo_url
+            ? '<span style="width:36px;height:36px;border-radius:50%;flex-shrink:0;background:#0a1825 url(\'' + p.photo_url + '\') center/cover;"></span>'
+            : '<span style="width:36px;height:36px;border-radius:50%;flex-shrink:0;background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;">' + esc(nm.charAt(0).toUpperCase()) + '</span>';
+          var badge = p.checked_in
+            ? '<span style="background:#16a34a;color:#fff;font-size:11px;font-weight:700;border-radius:6px;padding:3px 9px;flex-shrink:0;">Checked in</span>'
+            : '<span style="background:rgba(43,168,224,0.12);color:#2ba8e0;font-size:11px;font-weight:700;border-radius:6px;padding:3px 9px;flex-shrink:0;">Going</span>';
+          var loc = [p.city, p.country].filter(Boolean).join(', ');
+          return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.07);">' + av +
+            '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:600;color:#e8eef4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(nm) + '</div>' +
+            (loc ? '<div style="font-size:11px;color:#8a99a8;">' + esc(loc) + '</div>' : '') + '</div>' + badge + '</div>';
+        }).join('');
+      } catch (e) {
+        var b = document.getElementById('ffp-ev-roster-body'); if (b) b.innerHTML = 'Could not load the guest list.';
+      }
+    }
+
     // Wrap openEventModal to swap category → activity picker + remove who_for + show re-approval note
     var origOpenEventModal = window.openEventModal;
     window.openEventModal = function (id) {
@@ -419,6 +463,7 @@
       setTimeout(function () {
         patchModalAfterOpen(id);
         showReapprovalNoteIfNeeded(id);
+        try { injectEventRoster(id); } catch (e) { console.error('[FFP Provider Events] roster:', e); }
       }, 50);
     };
 
