@@ -1,4 +1,10 @@
-<!-- FFP MEMBER DASHBOARD — v271 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v272 (2026-06-04)
+     v272: PERMANENT FIX for lazy loaders (fitness stats / meetups etc.) DISAPPEARING after deploys.
+           (1) ONE cache-bust for ALL loaders via FFP_BUILD (= this build number; bump together) — replaces
+           the per-loader ?v=N that drifted + the loaders that had NO cache-bust at all, so a deploy can
+           never serve a stale loader. (2) ensurePanelLoader now RETRIES on load failure (up to 3x, backoff)
+           and only marks a loader done on SUCCESS — a transient/stale fetch self-heals instead of leaving
+           the panel empty until a manual refresh. ⚠️ ON DEPLOY: bump FFP_BUILD (top of setupPanelNav).
      v271: (a) FIX Meet & Move "no meetups on Discover" (RECURRING — see FFP-ISSUES-LOG.md). The Discover
            country filter checked m.city against FFP_TAX.cities[country], so it hid EVERY meetup whenever
            the taxonomy hadn't hydrated or a city wasn't in the list. Now matches on m.country directly
@@ -8002,24 +8008,43 @@ function setupPanelNav() {
   
   // v156: load a panel's data-loader script the first time that panel is opened.
   // Keeps page load free of panel queries; the default Passport view needs none.
+  // ⬇⬇ SINGLE CACHE-BUST FOR ALL LAZY LOADERS. Bump FFP_BUILD on EVERY deploy (keep it = the dashboard
+  // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
+  // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
+  // per-loader ?v=N to keep in sync. ⬆⬆
+  const FFP_BUILD = '272';
   const _panelLoaderSrc = {
-    'panel-earnings':        'assets/ffp-earnings-loader.js?v=18',
+    'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
-    'panel-fitness-stats':   'assets/ffp-fitness-stats-loader.js?v=19',
-    'panel-meet':            'assets/ffp-meet-move-loader.js?v=22',
+    'panel-fitness-stats':   'assets/ffp-fitness-stats-loader.js',
+    'panel-meet':            'assets/ffp-meet-move-loader.js',
     'panel-events':          'assets/ffp-member-discovery-loader.js',
     'panel-experiences':     'assets/ffp-member-discovery-loader.js',
     'panel-challenges':      'assets/ffp-member-discovery-loader.js'
   };
   const _loadedLoaderSrc = {};
   function ensurePanelLoader(panelId) {
-    const src = _panelLoaderSrc[panelId];
-    if (!src || _loadedLoaderSrc[src]) return;
-    _loadedLoaderSrc[src] = true;
-    const sc = document.createElement('script');
-    sc.src = src; sc.async = false;
-    sc.onerror = function () { console.error('[FFP] failed to load ' + src); };
-    document.body.appendChild(sc);
+    const base = _panelLoaderSrc[panelId];
+    if (!base) return;
+    const src = base + (base.indexOf('?') < 0 ? '?' : '&') + 'v=' + FFP_BUILD;
+    if (_loadedLoaderSrc[src]) return;   // 'loading' or true — already in flight / done
+    _loadedLoaderSrc[src] = 'loading';
+    let attempt = 0;
+    (function inject() {
+      attempt++;
+      const sc = document.createElement('script');
+      // RETRY-ON-FAILURE: a transient/stale fetch no longer leaves the panel permanently empty.
+      sc.src = src + (attempt > 1 ? '&r=' + Date.now() : '');
+      sc.async = false;
+      sc.onload = function () { _loadedLoaderSrc[src] = true; };
+      sc.onerror = function () {
+        console.error('[FFP] loader failed: ' + src + ' (attempt ' + attempt + ')');
+        if (sc.parentNode) sc.parentNode.removeChild(sc);
+        if (attempt < 3) { setTimeout(inject, 400 * attempt); }
+        else { _loadedLoaderSrc[src] = false; }   // give up for now, but allow re-open to try again
+      };
+      document.body.appendChild(sc);
+    })();
   }
 
   function showPanel(panelId) {
