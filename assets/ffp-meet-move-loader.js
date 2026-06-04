@@ -1,8 +1,13 @@
-/* FFP Meet & Move Loader — v23
-   v23 (2026-06-04): No code change to logic — republished to overwrite a STALE/broken deployed copy
-       of this loader (the live file was throwing "Unexpected identifier 'the' at line 2", which made
-       MeetMove.data never populate → Discover showed "No meetups match those filters"). Deploy this file
-       together with the dashboard FFP_BUILD bump so the browser fetches the corrected loader, not the cache.
+/* FFP Meet & Move Loader — v24
+   v24 (2026-06-04): REQUEST → HOST APPROVAL flow. Joining a meet-up no longer auto-confirms. requestJoin
+       now sets the member PENDING (join_meetup returns 'pending') + emails the HOST ({kind:'request'}) —
+       NOT the old auto-confirm email. New MeetMove.approveRequest(host_approve_attendee RPC) confirms a
+       pending member + emails THEM ({kind:'confirm'}). Loader now also fetches the member's pending rows
+       (pendingByMe) and each host meetup's pending queue (pendingRequests); host detail modal shows a
+       "Requests to join (N)" section with Approve buttons. Pending never counts toward 'who's going'.
+   v23 (2026-06-04): republished to overwrite a STALE/broken deployed copy (was throwing "Unexpected
+       identifier 'the' at line 2" → MeetMove.data never populated → Discover empty). Deploy with the
+       dashboard FFP_BUILD bump so the browser fetches the corrected loader, not the cache.
    v22 (2026-06-04): FIX — Who's-going host/attendee passports were invisible to non-admin members.
        The host + attendee profile fetches used a direct from('members').select, but members RLS is
        self/admin-only — so a regular member couldn't read others' rows (host saw no attendees; you only
@@ -423,20 +428,31 @@
         var tRes = await window.supabase.from('profile_meta').select('member_id, reliability_score').in('member_id', hostIds);
         if (!tRes.error) (tRes.data || []).forEach(function (p) { if (p.reliability_score != null) trustMap[p.member_id] = Number(p.reliability_score); });
       }
-      var myAttRes = await window.supabase.from('meetup_attendees').select('meetup_id, status').eq('member_id', currentUserId).in('status', ['joined', 'attended']);
-      var joinedSet = new Set((myAttRes.data || []).map(function (r) { return r.meetup_id; }));
+      // v23: also pull this member's PENDING requests (awaiting host approval), not just joined/attended.
+      var myAttRes = await window.supabase.from('meetup_attendees').select('meetup_id, status').eq('member_id', currentUserId).in('status', ['joined', 'attended', 'pending']);
+      var joinedSet = new Set(), pendingSet = new Set();
+      (myAttRes.data || []).forEach(function (r) {
+        if (r.status === 'pending') pendingSet.add(r.meetup_id); else joinedSet.add(r.meetup_id);
+      });
       var meetupIds = meetups.map(function (m) { return m.id; });
-      var countMap = {}, attMap = {};
+      var countMap = {}, attMap = {}, pendingAttMap = {};
       if (meetupIds.length) {
         var aRes = await window.supabase.from('meetup_attendees').select('meetup_id, member_id').in('meetup_id', meetupIds).in('status', ['joined', 'attended']);
         (aRes.data || []).forEach(function (r) {
           countMap[r.meetup_id] = (countMap[r.meetup_id] || 0) + 1;
           (attMap[r.meetup_id] = attMap[r.meetup_id] || []).push(r.member_id);
         });
+        // v23: pending requests — RLS returns these only for the requester (self) or the meetup's host,
+        // so a host sees everyone awaiting approval on THEIR meetups; others just see their own.
+        var pendRes = await window.supabase.from('meetup_attendees').select('meetup_id, member_id').in('meetup_id', meetupIds).eq('status', 'pending');
+        (pendRes.data || []).forEach(function (r) {
+          (pendingAttMap[r.meetup_id] = pendingAttMap[r.meetup_id] || []).push(r.member_id);
+        });
       }
       // fetch member info for attendees + hosts (powers "Who's going")
       var attIdSet = {};
       Object.keys(attMap).forEach(function (k) { attMap[k].forEach(function (idv) { if (idv) attIdSet[idv] = 1; }); });
+      Object.keys(pendingAttMap).forEach(function (k) { pendingAttMap[k].forEach(function (idv) { if (idv) attIdSet[idv] = 1; }); });  // v23: load pending requesters' cards too
       meetups.forEach(function (mm) { if (mm.host_member_id) attIdSet[mm.host_member_id] = 1; });
       var attPeopleIds = Object.keys(attIdSet);
       var peopleMap = {};
@@ -463,12 +479,16 @@
           capacity: m.max_people || 8, joined: 1 + (countMap[m.id] || 0), level: m.fitness_level || 'All',
           gender: genderMap(m.group_filter), cost: 'Free',
           joinedByMe: joinedSet.has(m.id) || isHostedByMe, isHostedByMe: isHostedByMe,
+          pendingByMe: pendingSet.has(m.id) && !isHostedByMe && !joinedSet.has(m.id),   // v23: requested, awaiting host
+          pendingRequests: isHostedByMe ? (pendingAttMap[m.id] || []).map(function (pid) {
+            var p = peopleMap[pid]; return { id: pid, name: (p && (p.full_name || p.given_names)) || 'Member', photo: (p && p.photo_url) || '' };
+          }) : [],                                                                       // v23: host-only approval queue
           isProfessional: !!m.is_professional,
           host_member_id: m.host_member_id, full: m.status === 'full',
           maps_url: m.maps_url || '',
           _ts: m.meets_at ? (+new Date(m.meets_at)) : 0,   // sort key (soonest first)
           _raw: m,                                          // raw row, for the host edit form
-          about: m.description || 'Member-hosted meetup.', img: meta.img,
+          about: m.description || 'Member-hosted meetup.', img: m.cover_url || meta.img,   // v24: host's own photo if set
           attendees: buildAttendees(m, attMap[m.id] || [], peopleMap)
         };
       }).sort(function (a, b) { return a._ts - b._ts; });   // chronological: soonest → latest
@@ -497,6 +517,21 @@
             sec.innerHTML = whosGoingHtml(m);
             footer.parentNode.insertBefore(sec, footer);
             if (window.ffpScaleCards) { setTimeout(function () { try { window.ffpScaleCards(sec); } catch (e) {} }, 0); }
+          }
+          // v23: HOST-only "Requests to join" — pending members the host can Approve.
+          if (m.isHostedByMe && m.pendingRequests && m.pendingRequests.length && !document.getElementById('ffp-requests')) {
+            var rq = document.createElement('div');
+            rq.id = 'ffp-requests'; rq.className = 'dm-section';
+            var rows = m.pendingRequests.map(function (p) {
+              var av = p.photo
+                ? '<span style="width:34px;height:34px;border-radius:50%;flex-shrink:0;background:#0a1825 url(\'' + p.photo + '\') center/cover;"></span>'
+                : '<span style="width:34px;height:34px;border-radius:50%;flex-shrink:0;background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;">' + esc((p.name || 'M').charAt(0).toUpperCase()) + '</span>';
+              return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.06);">' + av +
+                '<div style="flex:1;min-width:0;font-size:14px;font-weight:600;color:#e8eef4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(p.name) + '</div>' +
+                '<button onclick="MeetMove.approveRequest(\'' + m.id + '\',\'' + p.id + '\',this)" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:8px 15px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;">Approve</button></div>';
+            }).join('');
+            rq.innerHTML = '<div class="dm-section-label">Requests to join (' + m.pendingRequests.length + ')</div>' + rows;
+            footer.parentNode.insertBefore(rq, footer);
           }
         } catch (e) {}
         // (Host "Cancel this meet-up" footer is now built canonically in the dashboard's
@@ -529,22 +564,71 @@
   function wrapWrites() {
     if (wrapped) return;
     wrapped = true;
-    var origRequestJoin = MeetMove.requestJoin.bind(MeetMove);
+    // v23: REQUEST-TO-JOIN (host must approve). No more auto-confirm. Member goes PENDING; the host is
+    // emailed/notified to approve; only on approval is the member confirmed + emailed.
     MeetMove.requestJoin = async function (id) {
       var m = this.data.find(function (x) { return x.id === id; });
       if (!m) return;
       if (m.isHostedByMe) { if (typeof showToast === 'function') showToast("You're hosting this meetup"); return; }
-      if (m.joinedByMe) return origRequestJoin(id);
-      origRequestJoin(id);
+      if (m.joinedByMe)  { if (typeof showToast === 'function') showToast("You're already going"); return; }
+      if (m.pendingByMe) { if (typeof showToast === 'function') showToast('Request already sent — the host will confirm you'); return; }
       if (!currentUserId) return;
+      m.pendingByMe = true;                                   // optimistic: request sent
+      if (typeof this.render === 'function') this.render();
+      if (typeof closeDetailModal === 'function') closeDetailModal();
       try {
         var res = await window.supabase.rpc('join_meetup', { p_me: currentUserId, p_meetup: id });
-        if (res.error) console.error('[FFP Meet & Move] join:', res.error.message);
-        else {
-          // v18: fire the confirmation email (non-blocking)
-          try { fetch('https://ffp-passport-backend.vercel.app/api/meetups/notify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'confirm', meetup_id: id, member_id: currentUserId }) }); } catch (e) {}
+        var st = res && res.data;
+        if (res.error || (st !== 'pending' && st !== 'joined')) {
+          m.pendingByMe = false; if (typeof this.render === 'function') this.render();
+          if (typeof showToast === 'function') showToast("Couldn't send your request — please try again", 'error');
+          return;
         }
-      } catch (e) { console.error('[FFP Meet & Move] RSVP insert:', e); }
+        if (st === 'joined') { m.pendingByMe = false; m.joinedByMe = true; if (typeof this.render === 'function') this.render(); }
+        // email the HOST that someone wants to join (they approve in-app). NOT a confirmation to the member.
+        try { fetch('https://ffp-passport-backend.vercel.app/api/meetups/notify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'request', meetup_id: id, member_id: currentUserId }) }); } catch (e) {}
+        if (typeof showToast === 'function') showToast(st === 'joined' ? "You're going!" : 'Request sent — the host will confirm you', 'success');
+      } catch (e) {
+        m.pendingByMe = false; if (typeof this.render === 'function') this.render();
+        if (typeof showToast === 'function') showToast("Couldn't send your request — please try again", 'error');
+      }
+    };
+
+    // v23: HOST approves a pending request → member becomes 'joined', gets a notification + the confirm email.
+    MeetMove.approveRequest = async function (meetupId, memberId, btn) {
+      if (!currentUserId || !meetupId || !memberId) return;
+      if (btn) { try { btn.disabled = true; btn.textContent = 'Approving…'; } catch (e) {} }
+      try {
+        var res = await window.supabase.rpc('host_approve_attendee', { p_host: currentUserId, p_meetup: meetupId, p_member: memberId });
+        var st = res && res.data;
+        if (res.error || st === 'forbidden' || st === 'invalid' || st === 'not_found' || st === 'not_pending') {
+          if (btn) { btn.disabled = false; btn.textContent = 'Approve'; }
+          if (typeof showToast === 'function') showToast("Couldn't approve — please try again", 'error'); return;
+        }
+        if (st === 'full') { if (btn) { btn.disabled = false; btn.textContent = 'Approve'; } if (typeof showToast === 'function') showToast('This meet-up is full', 'error'); return; }
+        // email the member that they're confirmed (non-blocking)
+        try { fetch('https://ffp-passport-backend.vercel.app/api/meetups/notify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'confirm', meetup_id: meetupId, member_id: memberId }) }); } catch (e) {}
+        if (typeof showToast === 'function') showToast(st === 'already' ? 'Already approved' : 'Approved — they’re confirmed', 'success');
+        if (typeof window.ffpReloadMeetMove === 'function') window.ffpReloadMeetMove();
+      } catch (e) { if (btn) { btn.disabled = false; btn.textContent = 'Approve'; } if (typeof showToast === 'function') showToast("Couldn't approve — please try again", 'error'); }
+    };
+
+    // v24: attendee cancels their spot/request (anytime before start) → frees a spot for someone else.
+    MeetMove.leaveMeetup = async function (id) {
+      var m = this.data.find(function (x) { return x.id === id; });
+      if (!m || !currentUserId) return;
+      var wasPending = m.pendingByMe;
+      if (!window.confirm((wasPending ? 'Cancel your request to join "' : 'Cancel your spot for "') + (m.activity || 'this meet-up') + '"?')) return;
+      try {
+        var res = await window.supabase.rpc('leave_meetup', { p_me: currentUserId, p_meetup: id });
+        var st = res && res.data;
+        if (res.error || st === 'invalid' || st === 'not_in') { if (typeof showToast === 'function') showToast("Couldn't cancel — please try again", 'error'); return; }
+        if (st === 'started') { if (typeof showToast === 'function') showToast('This meet-up has already started', 'error'); return; }
+        m.joinedByMe = false; m.pendingByMe = false;
+        if (typeof closeDetailModal === 'function') closeDetailModal();
+        if (typeof showToast === 'function') showToast(wasPending ? 'Request cancelled' : 'Your spot was cancelled', 'success');
+        if (typeof window.ffpReloadMeetMove === 'function') window.ffpReloadMeetMove();
+      } catch (e) { if (typeof showToast === 'function') showToast("Couldn't cancel — please try again", 'error'); }
     };
   }
 
