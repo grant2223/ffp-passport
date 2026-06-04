@@ -1,4 +1,8 @@
-/* FFP Fitness Stats Loader — v18
+/* FFP Fitness Stats Loader — v19 (2026-06-05)
+   v19: Activity-tab STREAK now uses TODAY-GRACE (matches the passport panel) — a live streak no longer
+        reads 0 just because today isn't logged yet, then jumps when you log. (Pairs with the DB fix to
+        get_ranking_pool: role filter was '= member', which wrongly excluded admins who are real members,
+        so an admin's logged PRs never appeared on the leaderboard — now excludes only providers.)
    v18 (2026-06-02): READ-BACK FIX — records were SAVING fine (confirmed in DB) but the Records tab
        read them from a backend /profile-meta endpoint that DOESN'T EXIST (404) → FitnessStats.records
        stayed empty → "No record yet". Now reads via the member_profile_meta_get SECURITY DEFINER RPC
@@ -916,11 +920,12 @@
   function overrideComputeStreak() {
     FitnessStats.computeStreak = function () {
       var daysWithActivity = new Set(activityCache.map(function (l) { return l.daysAgo; }));
+      // Today-grace (matches the passport-panel streak): a streak shouldn't read 0 just because TODAY isn't
+      // logged YET — you still have all of today to log. Start at today if logged, else yesterday, then walk
+      // back while consecutive. Fixes the jarring "0, then jumps to 3 the moment you log today".
       var current = 0;
-      for (var d = 0; d < 365; d++) {
-        if (daysWithActivity.has(d)) current++;
-        else break;
-      }
+      var _sd = daysWithActivity.has(0) ? 0 : (daysWithActivity.has(1) ? 1 : -1);
+      if (_sd >= 0) { while (daysWithActivity.has(_sd)) { current++; _sd++; } }
       var sorted = Array.from(daysWithActivity).sort(function (a, b) { return a - b; });
       var best = 0, run = 0;
       for (var i = 0; i < sorted.length; i++) {
