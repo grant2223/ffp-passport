@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v261 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v262 (2026-06-04)
+     v262: P2b MEMBER-CREATED QUESTS UI. "Create your own quest" button on the Quests panel → form
+           (title/category/optional activity/country+city/target venues) → member_save_quest. Quest
+           detail shows a join box for member quests (join count + "Join this quest" → member_quest_join,
+           or "You're on this quest"). Check-in loader bumped ?v=7 (auto-progresses joined quests after a
+           verified check-in). Needs backend v70 (joined_count in /api/quests).
      v261: Quest detail now shows the provider's own prize (prize_text) when present. Pairs with backend
            v69 (GET /api/quests + /api/quests/:id) which finally feeds the member Quests panel data —
            including provider venue quests. (No other member change; the Quests module already expects
@@ -4288,6 +4293,20 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 #panel-quests .scope-btn{ flex:1; display:flex; align-items:center; justify-content:center; gap:6px; font-size:12px; font-weight:700; color:var(--q-muted); background:transparent; border:none; border-radius:8px; padding:9px 6px; cursor:pointer; }
 #panel-quests .scope-btn .material-icons{ font-size:16px; }
 #panel-quests .scope-btn.active{ background:var(--q-blue); color:#fff; }
+/* P2b: member create-quest + join */
+.quest-create-btn{ width:100%; display:flex; align-items:center; justify-content:center; gap:8px; background:linear-gradient(135deg,rgba(168,85,247,0.18),rgba(43,168,224,0.10)); border:1px solid rgba(168,85,247,0.45); color:#e8eef4; font-weight:800; font-size:13px; padding:13px; border-radius:14px; margin:14px 0 4px; cursor:pointer; font-family:inherit; }
+.quest-create-btn:hover{ filter:brightness(1.08); }
+.quest-create-btn .material-icons{ font-size:19px; color:#c084fc; }
+.qcreate .qc-field{ margin-bottom:12px; }
+.qcreate .qc-field label{ display:block; font-size:11px; font-weight:700; letter-spacing:0.4px; text-transform:uppercase; color:var(--q-muted,#8a99a8); margin-bottom:6px; }
+.qcreate .qc-row{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.qcreate input.ffp-select, .qcreate select.ffp-select{ width:100%; box-sizing:border-box; }
+.qcreate .btn-primary-yellow{ width:100%; margin-top:6px; }
+.q-join-box{ background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.30); border-radius:12px; padding:14px; margin:14px 0; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.q-join-box .q-join-count{ display:flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:#e8eef4; }
+.q-join-box .q-join-count .material-icons{ font-size:18px; color:#c084fc; }
+.q-join-box .q-join-state{ font-size:12px; font-weight:700; color:#4ade80; }
+.q-join-box .btn-primary-blue{ margin:0; }
 #panel-quests .quest-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
 #panel-quests .quest-card{ background:var(--q-card); border:1px solid var(--q-border); border-radius:14px; overflow:hidden; cursor:pointer; display:flex; flex-direction:column; transition:border-color .15s,transform .15s; }
 #panel-quests .quest-card:hover{ border-color:var(--q-border-mid); transform:translateY(-2px); }
@@ -4699,6 +4718,9 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 
     <!-- HERO + TIER -->
     <div class="quest-hero" id="quest-hero"></div>
+
+    <!-- CREATE YOUR OWN QUEST -->
+    <button class="quest-create-btn" onclick="Quests.openCreate()"><span class="material-icons">add_circle</span> Create your own quest</button>
 
     <!-- CATEGORY NAV -->
     <div class="cat-row" id="quest-cat-row">
@@ -11637,12 +11659,84 @@ const Quests = {
             '<div>' + rewardLine + '</div>' +
           '</div>' +
           (q.prize_text ? '<div class="q-reward-box prize"><span class="material-icons">redeem</span><div>Prize from the venue: <b>' + escHtml(q.prize_text) + '</b> — provided by them.</div></div>' : '') +
+          (q.owner_type === 'member'
+            ? '<div class="q-join-box"><div class="q-join-count"><span class="material-icons">group</span>' + (((detail && detail.joined_count) || 1)) + ' on this quest</div>' +
+                ((detail && detail.progress) ? '<div class="q-join-state">You’re on this quest ✓</div>' : '<button class="btn-primary-blue" onclick="Quests.join(\'' + q.id + '\')">Join this quest</button>') +
+              '</div>'
+            : '') +
           '<div class="q-progress">' + pc + ' of ' + q.target_count + ' stamped</div>' +
           '<div class="qc-stamps big">' + this.dots(pc, q.target_count) + '</div>' +
           '<div class="q-venues-title">Where to go</div>' + venuesHtml +
         '</div>' +
       '</div>';
     openDetailModal(html);
+  },
+
+  // ── P2b: member-created exploration quests ──
+  openCreate() {
+    var prof = {};
+    try { prof = (typeof MemberProfile !== 'undefined' && MemberProfile.data) || {}; } catch (e) {}
+    var TAX = window.FFP_TAX || {};
+    var countries = (TAX.cities ? Object.keys(TAX.cities).sort() : ['United Arab Emirates']);
+    var defCountry = prof.country || 'United Arab Emirates';
+    if (countries.indexOf(defCountry) === -1) defCountry = countries[0] || 'United Arab Emirates';
+    var defCity = prof.city || '';
+    var acts = ((TAX.activities || []).map(function (a) { return a && (a.n || a); }).filter(Boolean));
+    acts = acts.filter(function (v, i) { return acts.indexOf(v) === i; }).sort();
+    var cats = ['fitness', 'sports', 'wellness', 'recovery', 'adventure', 'food'];
+    var html =
+      '<div class="qcreate">' +
+        '<h3 class="q-title">Create your own quest</h3>' +
+        '<p class="q-desc">Set a goal — like visiting a few different venues — and others can join you. Finish it to earn an explorer badge.</p>' +
+        '<div class="qc-field"><label>Title</label><input id="qc-title" class="ffp-select" placeholder="e.g. Try 5 new gyms in Dubai" maxlength="80"></div>' +
+        '<div class="qc-field"><label>Category</label><select id="qc-cat" class="ffp-select">' + cats.map(function (c) { return '<option value="' + c + '">' + c.charAt(0).toUpperCase() + c.slice(1) + '</option>'; }).join('') + '</select></div>' +
+        '<div class="qc-field"><label>Activity — optional, for "try all X"</label><select id="qc-act" class="ffp-select"><option value="">Any activity</option>' + acts.map(function (a) { return '<option value="' + escHtml(a) + '">' + escHtml(a) + '</option>'; }).join('') + '</select></div>' +
+        '<div class="qc-row">' +
+          '<div class="qc-field"><label>Country</label><select id="qc-country" class="ffp-select">' + countries.map(function (c) { return '<option' + (c === defCountry ? ' selected' : '') + '>' + escHtml(c) + '</option>'; }).join('') + '</select></div>' +
+          '<div class="qc-field"><label>City</label><select id="qc-city" class="ffp-select"></select></div>' +
+        '</div>' +
+        '<div class="qc-field"><label>Different venues to visit</label><input id="qc-target" type="number" min="2" max="50" value="5" class="ffp-select"></div>' +
+        '<button class="btn-primary-yellow" onclick="Quests.saveCreate()">Create quest</button>' +
+      '</div>';
+    openDetailModal(html);
+    setTimeout(function () {
+      var cny = document.getElementById('qc-country'), cty = document.getElementById('qc-city');
+      function fill(country, keep) {
+        var list = (TAX.cities && TAX.cities[country]) || [];
+        cty.innerHTML = '<option value="">Select city…</option>' + list.map(function (x) { return '<option' + (x === keep ? ' selected' : '') + '>' + escHtml(x) + '</option>'; }).join('');
+      }
+      if (cny && cty) { fill(cny.value, defCity); cny.addEventListener('change', function () { fill(cny.value, ''); }); }
+    }, 30);
+  },
+
+  async saveCreate() {
+    var g = function (id) { var e = document.getElementById(id); return e ? (e.value || '').trim() : ''; };
+    var title = g('qc-title'); if (!title) { showToast('Give your quest a title', 'error'); return; }
+    var city = g('qc-city'); if (!city) { showToast('Pick a city', 'error'); return; }
+    var target = parseInt(g('qc-target'), 10) || 0; if (target < 2) { showToast('Choose at least 2 venues', 'error'); return; }
+    var mid = this.memberId(); if (!mid || !window.supabase) { showToast('Please sign in again', 'error'); return; }
+    var payload = { title: title, category: g('qc-cat') || 'fitness', rule_activity: g('qc-act') || null, city: city, country: g('qc-country') || null, target_count: String(target) };
+    try {
+      var res = await window.supabase.rpc('member_save_quest', { p_me: mid, p_id: null, p: payload });
+      if (res.error) throw res.error;
+      if (!res.data) throw new Error('Could not create quest');
+      if (typeof closeDetailModal === 'function') closeDetailModal();
+      showToast('Quest created — you’re on it!', 'success');
+      await this.load();
+    } catch (e) { console.error('[Quests] create:', e); showToast(e.message || 'Could not create quest', 'error'); }
+  },
+
+  async join(id) {
+    var mid = this.memberId(); if (!mid || !window.supabase) { showToast('Please sign in again', 'error'); return; }
+    try {
+      var res = await window.supabase.rpc('member_quest_join', { p_me: mid, p_quest: id });
+      if (res.error) throw res.error;
+      var d = res.data || {};
+      if (!d.ok) { showToast('Couldn’t join — try again', 'error'); return; }
+      showToast('You’re on this quest! ' + (d.joined || 1) + ' explorers in.', 'success');
+      await this.load();
+      this.openDetail(id);
+    } catch (e) { console.error('[Quests] join:', e); showToast(e.message || 'Could not join', 'error'); }
   }
 };
 
@@ -14501,6 +14595,6 @@ window.FFPLocPick = (function(){
   return { open:open, close:close, onSearch:onSearch, pick:pick, use:use };
 })();
 </script>
-<script src="ffp-member-checkin-loader.js?v=6"></script>
+<script src="ffp-member-checkin-loader.js?v=7"></script>
 </body>
 </html>
