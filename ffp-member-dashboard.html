@@ -1,4 +1,13 @@
-<!-- FFP MEMBER DASHBOARD — v257 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v259 (2026-06-04)
+     v259: LOG ACTIVITY duration is now a SINGLE-TAP H/M/S WHEEL (replaces the 3 number boxes from
+           v257). Tapping the Duration field opens window.FFPDurationPicker — an iOS-style 3-wheel
+           sheet (Hours / Minutes / Seconds) built on the platform modal styling; Done returns total
+           seconds. saveLog stores duration_min + duration_sec from it. The picker is a reusable global
+           so other duration fields across the platform can adopt the same single-tap standard.
+     v258: #28 step 4 — member Accept/Cancel for QUOTED payouts. Bumps the earnings-loader lazy
+           ref to ?v=18 (assets/ffp-earnings-loader.js v18: 'quoted' payout row shows the admin's
+           quote + Accept (member_accept_payout) / Cancel (member_cancel_payout)). No other dashboard
+           change — the UI lives in the loader.
      v257: (a) LOG ACTIVITY duration — replaced the clock-style time inputs (type=time rendered a
            time-of-day picker) with real Hours / Minutes / Seconds number inputs; removed the unused
            time-of-day "Time" field (saveLog never used it). saveLog now stores duration_min (h*60+m)
@@ -3292,12 +3301,29 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 .pm-form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .pm-form-grid-2 > * { min-width: 0; }
 @media (max-width:560px){ .pm-form-grid-2 { grid-template-columns: 1fr 1fr; gap: 8px; } }
-/* Duration entered as Hours / Minutes / Seconds (a real duration, not a clock time) */
-.dur-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-.dur-grid > * { min-width: 0; }
-.dur-cell { position: relative; }
-.dur-cell .pm-form-input { padding-right: 40px; text-align: center; }
-.dur-cell .dur-unit { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 700; color: var(--muted); pointer-events: none; }
+/* Duration = single-tap field → H/M/S wheel picker (platform-standard single tap). */
+.ffp-dur-trigger { text-align: left; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+.ffp-dur-trigger::after { content: ''; width: 8px; height: 8px; border-right: 2px solid var(--blue); border-bottom: 2px solid var(--blue); transform: rotate(45deg); margin-left: 8px; flex: 0 0 auto; }
+/* Reusable duration wheel picker (window.FFPDurationPicker) */
+.ffp-dur-overlay { position: fixed; inset: 0; background: rgba(0,8,20,0.62); z-index: 100050; display: none; align-items: flex-end; justify-content: center; }
+.ffp-dur-overlay.show { display: flex; }
+@media (min-width: 560px){ .ffp-dur-overlay.show { align-items: center; } }
+.ffp-dur-sheet { background: #0f1e2e; width: 100%; max-width: 460px; border: 1px solid #1a2f44; border-radius: 18px 18px 0 0; padding-bottom: calc(env(safe-area-inset-bottom) + 8px); box-shadow: 0 -10px 40px rgba(0,0,0,0.45); }
+@media (min-width: 560px){ .ffp-dur-sheet { border-radius: 16px; } }
+.ffp-dur-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #1a2f44; }
+.ffp-dur-title { font-weight: 800; color: #e8eef4; font-size: 15px; }
+.ffp-dur-cancel, .ffp-dur-done { background: none; border: none; font-size: 14px; cursor: pointer; font-family: inherit; padding: 4px 2px; }
+.ffp-dur-cancel { color: #8a99a8; font-weight: 600; }
+.ffp-dur-done { color: #FFCC00; font-weight: 800; }
+.ffp-dur-colhead { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 10px 16px 0; }
+.ffp-dur-colhead span { text-align: center; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted, #8a99a8); }
+.ffp-dur-wheels { position: relative; display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 4px 16px 18px; }
+.ffp-dur-col { height: 200px; overflow-y: scroll; scroll-snap-type: y mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; text-align: center; position: relative; z-index: 2; }
+.ffp-dur-col::-webkit-scrollbar { display: none; }
+.ffp-dur-spacer { height: 80px; }
+.ffp-dur-item { height: 40px; line-height: 40px; scroll-snap-align: center; font-size: 22px; font-weight: 700; color: #5b7186; font-variant-numeric: tabular-nums; cursor: pointer; }
+.ffp-dur-item.sel { color: #e8eef4; }
+.ffp-dur-center { position: absolute; left: 16px; right: 16px; top: 84px; height: 40px; border-top: 1px solid rgba(43,168,224,0.45); border-bottom: 1px solid rgba(43,168,224,0.45); background: rgba(43,168,224,0.05); pointer-events: none; z-index: 1; border-radius: 6px; }
 
 /* Provider vs Community challenges */
 .chal-group-head { font-size: 11px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: var(--blue); margin: 16px 0 8px; display: flex; align-items: center; gap: 6px; }
@@ -5554,11 +5580,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
       </div>
       <div class="pm-form-field">
         <label class="pm-form-label">Duration</label>
-        <div class="dur-grid">
-          <div class="dur-cell"><input type="number" id="log-dur-h" class="pm-form-input" inputmode="numeric" min="0" max="24" value="0"><span class="dur-unit">h</span></div>
-          <div class="dur-cell"><input type="number" id="log-dur-m" class="pm-form-input" inputmode="numeric" min="0" max="59" value="30"><span class="dur-unit">min</span></div>
-          <div class="dur-cell"><input type="number" id="log-dur-s" class="pm-form-input" inputmode="numeric" min="0" max="59" value="0"><span class="dur-unit">sec</span></div>
-        </div>
+        <button type="button" id="log-dur-field" class="pm-form-input ffp-dur-trigger" onclick="openLogDurationPicker()">30 min</button>
       </div>
       <div class="pm-form-field">
         <label class="pm-form-label">Calories</label>
@@ -7839,7 +7861,7 @@ function setupPanelNav() {
   // v156: load a panel's data-loader script the first time that panel is opened.
   // Keeps page load free of panel queries; the default Passport view needs none.
   const _panelLoaderSrc = {
-    'panel-earnings':        'assets/ffp-earnings-loader.js?v=17',
+    'panel-earnings':        'assets/ffp-earnings-loader.js?v=18',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
     'panel-fitness-stats':   'assets/ffp-fitness-stats-loader.js?v=19',
     'panel-meet':            'assets/ffp-meet-move-loader.js?v=20',
@@ -13431,10 +13453,8 @@ function openLogModal() {
   fillLogCities();
   var cityS = document.getElementById('log-city');
   if (cityS && prof.city) { for (var i = 0; i < cityS.options.length; i++) { if (cityS.options[i].value === prof.city) { cityS.value = prof.city; break; } } }
-  // Duration — Hours / Minutes / Seconds inputs (a real duration), default 30 min
-  var dh = document.getElementById('log-dur-h'); if (dh) dh.value = '0';
-  var dm = document.getElementById('log-dur-m'); if (dm) dm.value = '30';
-  var ds = document.getElementById('log-dur-s'); if (ds) ds.value = '0';
+  // Duration — single-tap H/M/S wheel picker, default 30 min
+  setLogDuration(30 * 60);
   // Date today
   var now = new Date();
   document.getElementById('log-date').value = now.toISOString().substring(0, 10);
@@ -13447,6 +13467,98 @@ function openScanLog() {
 }
 function closeLogModal() { document.getElementById('log-modal-backdrop').classList.remove('open'); }
 function closeLogIfBackdrop(e) { if (e.target.id === 'log-modal-backdrop') closeLogModal(); }
+// ── Reusable single-tap DURATION wheel picker (Hours / Minutes / Seconds) ──
+// One tap on a field opens an iOS-style 3-wheel sheet; Done returns total seconds.
+// Exposed as window.FFPDurationPicker so any duration field on the platform can reuse it.
+window.FFPDurationPicker = (function () {
+  var ITEM = 40, overlay = null, cols = {}, sel = { h: 0, m: 0, s: 0 }, cb = null, raf = {};
+  function build() {
+    if (overlay) return;
+    overlay = document.createElement('div');
+    overlay.className = 'ffp-dur-overlay';
+    overlay.innerHTML =
+      '<div class="ffp-dur-sheet">' +
+        '<div class="ffp-dur-head">' +
+          '<button type="button" class="ffp-dur-cancel">Cancel</button>' +
+          '<div class="ffp-dur-title">Duration</div>' +
+          '<button type="button" class="ffp-dur-done">Done</button>' +
+        '</div>' +
+        '<div class="ffp-dur-colhead"><span>Hours</span><span>Minutes</span><span>Seconds</span></div>' +
+        '<div class="ffp-dur-wheels">' +
+          '<div class="ffp-dur-center"></div>' +
+          '<div class="ffp-dur-col" data-unit="h"></div>' +
+          '<div class="ffp-dur-col" data-unit="m"></div>' +
+          '<div class="ffp-dur-col" data-unit="s"></div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+    overlay.querySelector('.ffp-dur-cancel').addEventListener('click', close);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+    overlay.querySelector('.ffp-dur-done').addEventListener('click', function () {
+      var fn = cb, r = { h: sel.h, m: sel.m, s: sel.s, total: sel.h * 3600 + sel.m * 60 + sel.s };
+      close(); if (fn) fn(r);
+    });
+    ['h', 'm', 's'].forEach(function (u) {
+      var col = overlay.querySelector('.ffp-dur-col[data-unit="' + u + '"]');
+      cols[u] = col;
+      var max = (u === 'h') ? 23 : 59;
+      var html = '<div class="ffp-dur-spacer"></div>';
+      for (var i = 0; i <= max; i++) html += '<div class="ffp-dur-item" data-v="' + i + '">' + (u === 'h' ? i : (i < 10 ? '0' + i : i)) + '</div>';
+      html += '<div class="ffp-dur-spacer"></div>';
+      col.innerHTML = html;
+      col.addEventListener('scroll', function () {
+        if (raf[u]) cancelAnimationFrame(raf[u]);
+        raf[u] = requestAnimationFrame(function () {
+          var idx = Math.max(0, Math.min(max, Math.round(col.scrollTop / ITEM)));
+          sel[u] = idx; highlight(u, idx);
+        });
+      });
+      col.querySelectorAll('.ffp-dur-item').forEach(function (it) {
+        it.addEventListener('click', function () {
+          var v = parseInt(it.getAttribute('data-v'), 10) || 0;
+          col.scrollTo({ top: v * ITEM, behavior: 'smooth' });
+          sel[u] = v; highlight(u, v);
+        });
+      });
+    });
+  }
+  function highlight(u, idx) {
+    var items = cols[u].querySelectorAll('.ffp-dur-item');
+    for (var i = 0; i < items.length; i++) items[i].classList.toggle('sel', i === idx);
+  }
+  function setNow(u, v) { cols[u].scrollTop = v * ITEM; sel[u] = v; highlight(u, v); }
+  function open(totalSec, onDone) {
+    build(); cb = onDone || null;
+    totalSec = Math.max(0, parseInt(totalSec, 10) || 0);
+    var h = Math.floor(totalSec / 3600), m = Math.floor((totalSec % 3600) / 60), s = totalSec % 60;
+    overlay.classList.add('show');
+    requestAnimationFrame(function () { setNow('h', h); setNow('m', m); setNow('s', s); });
+  }
+  function close() { if (overlay) overlay.classList.remove('show'); cb = null; }
+  return { open: open, close: close };
+})();
+
+// Log Activity duration state + field (uses the shared picker above)
+var logDurationSec = 30 * 60;
+function fmtDuration(total) {
+  total = Math.max(0, parseInt(total, 10) || 0);
+  var h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), s = total % 60;
+  if (h === 0 && s === 0) return m + ' min';
+  var parts = [];
+  if (h) parts.push(h + 'h');
+  if (m || h) parts.push(m + 'm');
+  if (s) parts.push(s + 's');
+  return parts.join(' ') || '0 min';
+}
+function setLogDuration(total) {
+  logDurationSec = Math.max(0, parseInt(total, 10) || 0);
+  var f = document.getElementById('log-dur-field');
+  if (f) f.textContent = fmtDuration(logDurationSec);
+}
+function openLogDurationPicker() {
+  window.FFPDurationPicker.open(logDurationSec, function (r) { setLogDuration(r.total); });
+}
+
 async function saveLog() {
   const act = document.getElementById('log-activity').value.trim();
   if (!act) { alert('Please pick an activity'); return; }
@@ -13454,12 +13566,10 @@ async function saveLog() {
   const city = document.getElementById('log-city').value;
   if (!country || !city) { alert('Pick a country and city so it lands on your map.'); return; }
   const dateStr = document.getElementById('log-date').value || new Date().toISOString().substring(0, 10);
-  // Duration as H / M / S → whole minutes (duration_min) + 0-59 second remainder (duration_sec)
-  const durH = parseInt(document.getElementById('log-dur-h').value, 10) || 0;
-  const durM = parseInt(document.getElementById('log-dur-m').value, 10) || 0;
-  const durS = Math.max(0, Math.min(59, parseInt(document.getElementById('log-dur-s').value, 10) || 0));
-  const durationMin = durH * 60 + durM;
-  const durationSec = durS;
+  // Duration from the single-tap H/M/S wheel → whole minutes (duration_min) + 0-59 sec remainder
+  var totalDurSec = Math.max(0, parseInt(logDurationSec, 10) || 0);
+  const durationMin = Math.floor(totalDurSec / 60);
+  const durationSec = totalDurSec % 60;
   if (durationMin === 0 && durationSec === 0) { alert('Please enter a duration'); return; }
   const entry = {
     activity: act, venue: '', city: city, country: country,
