@@ -1,4 +1,7 @@
-<!-- FFP PROVIDER DASHBOARD — v33 (2026-06-05)
+<!-- FFP PROVIDER DASHBOARD — v34 (2026-06-05)
+     v34: Logo/hero RE-UPLOAD fix — uploads go to a stable path (upsert), so the URL was identical on the
+          2nd change and the browser showed the cached old image. The shared uploader now appends a ?v=
+          cache-buster so each upload returns a fresh URL (loads assets/ffp-image-upload.js?v=2).
      v33: IMAGE STORAGE — provider Logo + Hero now upload to Supabase Storage (provider-logos /
           provider-heroes buckets) via the shared assets/ffp-image-upload.js and store the public URL,
           instead of base64-in-DB. handleUpload('logo'|'hero') resizes + uploads + sets providerProfile
@@ -48,7 +51,7 @@
 <script src="assets/ffp-taxonomy.js?v=8"></script>
 <script src="assets/ffp-location-picker.js"></script>
 <script src="ffp-provider-auth.js"></script>
-<script src="assets/ffp-image-upload.js?v=1"></script>
+<script src="assets/ffp-image-upload.js?v=2"></script>
 <script src="ffp-provider-profile-loader.js?v=12"></script>
 <!-- Shared provider picker (FFPPicker) defined HERE in the dashboard so Events/Challenges/Experiences
      activity + country/city pickers never depend on a separately-uploaded loader being present. -->
