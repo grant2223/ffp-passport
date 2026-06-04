@@ -1,4 +1,11 @@
-<!-- FFP MEMBER DASHBOARD — v273 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v274 (2026-06-04)
+     v274: FIX passport panel FROZEN / "not responding" on refresh. Root cause: prerenderPassportShare()
+           (html2canvas, heavily synchronous) was auto-fired eagerly on load (1.5s) AND on every panel-show
+           (450ms) — blocking the main thread for 1-3s right after refresh on the default passport panel.
+           Now scheduled via requestIdleCallback (schedulePassportPrerender) so it only runs when the thread
+           is free, never blocking first paint / interaction; multiple requests coalesce to one; re-arms
+           after each share. Also lowered html2canvas scale 2 -> 1.5 (still crisp, ~half the work).
+           (FFP_BUILD -> 274.)
      v273: Meet & Move tabs cleaned up. PAST tab was hard-coded empty — now shows your meetups (joined or
            hosted) that have happened. Going/Hosting are now UPCOMING-only (a meet that's passed moves to
            Past, no overlap). (FFP_BUILD bumped → 273.) NOTE: Discover correctly shows only upcoming meetups;
@@ -8016,7 +8023,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '273';
+  const FFP_BUILD = '274';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -8082,7 +8089,8 @@ function setupPanelNav() {
     if (panelId === 'panel-passport') {
       setTimeout(scalePassportCard, 50);
       // Pre-render the card image so a tap-to-share fires instantly within user activation (iOS).
-      setTimeout(function () { try { prerenderPassportShare(); } catch (e) {} }, 450);
+      // IDLE-scheduled so html2canvas never blocks the panel (was freezing it on show/refresh).
+      schedulePassportPrerender();
     }
   }
   
@@ -8112,8 +8120,9 @@ function setupPanelNav() {
   }
 
   // Passport is the default-active panel (showPanel isn't called for it), so pre-render the
-  // shareable card image after the card has had time to populate + scale.
-  setTimeout(function () { try { prerenderPassportShare(); } catch (e) {} }, 1500);
+  // shareable card image during idle time, after the card has populated + scaled. IDLE-scheduled
+  // so html2canvas never blocks first paint / interaction (the "passport frozen on refresh" bug).
+  schedulePassportPrerender();
 }
 
 // ===== PROFILE PANEL =====
@@ -14194,6 +14203,19 @@ function _ppRefLink() {
 }
 
 // Render the live passport card to a PNG File and cache it for instant sharing.
+// Schedule the (expensive, synchronous) html2canvas pre-render for IDLE time only, so it can NEVER
+// block first paint or user interaction. Running it eagerly on load/panel-show was freezing the whole
+// passport panel for 1-3s right after a refresh ("passport not responding"). requestIdleCallback waits
+// until the main thread is free; coalesces multiple requests into one; re-arms after each share.
+var _ppScheduled = false;
+function schedulePassportPrerender() {
+  if (_ppScheduled || _ppRendering) return;
+  _ppScheduled = true;
+  var run = function () { _ppScheduled = false; try { prerenderPassportShare(); } catch (e) {} };
+  if (window.requestIdleCallback) requestIdleCallback(run, { timeout: 5000 });
+  else setTimeout(run, 1500);
+}
+
 async function prerenderPassportShare() {
   if (_ppRendering) return;
   var shell = document.querySelector('.pass-shell');
@@ -14212,7 +14234,7 @@ async function prerenderPassportShare() {
     clone.style.top = '0';
     clone.style.margin = '0';
     document.body.appendChild(clone);
-    var canvas = await html2canvas(clone, { backgroundColor: null, scale: 2, useCORS: true, logging: false });
+    var canvas = await html2canvas(clone, { backgroundColor: null, scale: 1.5, useCORS: true, logging: false });
     await new Promise(function (resolve) {
       canvas.toBlob(function (blob) {
         if (blob) {
@@ -14247,24 +14269,24 @@ async function sharePassportCard() {
     // Best case: the card image is already rendered → share image + caption instantly.
     if (_ppShareFile && navigator.canShare && navigator.canShare({ files: [_ppShareFile] })) {
       await navigator.share({ files: [_ppShareFile], title: 'My Passport', text: shareBody });
-      prerenderPassportShare();   // refresh for next time
+      schedulePassportPrerender();   // refresh for next time (idle, non-blocking)
       return;
     }
     // Image not ready (or files unsupported): still open the share sheet with text + link.
     if (navigator.share) {
       await navigator.share({ title: 'My Passport', text: shareText, url: refLink });
-      prerenderPassportShare();   // get the image ready so the next tap includes the card
+      schedulePassportPrerender();   // get the image ready for the next tap (idle, non-blocking)
       return;
     }
   } catch (e) {
     if (isCancel(e)) return;       // user closed the OS share sheet — nothing to do
     copyLink("Couldn't open share — link copied instead");
-    prerenderPassportShare();
+    schedulePassportPrerender();
     return;
   }
   // No Web Share API (most desktop browsers): copy the link.
   copyLink();
-  prerenderPassportShare();
+  schedulePassportPrerender();
 }
 
 function addToAppleWallet() {
