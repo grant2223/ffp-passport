@@ -1,4 +1,8 @@
-<!-- FFP PROVIDER DASHBOARD — v34 (2026-06-05)
+<!-- FFP PROVIDER DASHBOARD — v35 (2026-06-05)
+     v35: CROP/POSITION step for Logo + Hero — added Cropper.js; logo crops square, hero crops to a 16:10
+          banner so providers frame the image how they want. Click + drag-drop both open the crop modal
+          (pickProviderImage / dropProviderImage → FFPUpload.pick / .cropFile). Loads ffp-image-upload.js?v=3
+          (adds cropFile()). Native file inputs removed from the uploaders (crop modal supplies its own).
      v34: Logo/hero RE-UPLOAD fix — uploads go to a stable path (upsert), so the URL was identical on the
           2nd change and the browser showed the cached old image. The shared uploader now appends a ?v=
           cache-buster so each upload returns a fresh URL (loads assets/ffp-image-upload.js?v=2).
@@ -51,7 +55,9 @@
 <script src="assets/ffp-taxonomy.js?v=8"></script>
 <script src="assets/ffp-location-picker.js"></script>
 <script src="ffp-provider-auth.js"></script>
-<script src="assets/ffp-image-upload.js?v=2"></script>
+<link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>
+<script src="assets/ffp-image-upload.js?v=3"></script>
 <script src="ffp-provider-profile-loader.js?v=12"></script>
 <!-- Shared provider picker (FFPPicker) defined HERE in the dashboard so Events/Challenges/Experiences
      activity + country/city pickers never depend on a separately-uploaded loader being present. -->
@@ -2305,20 +2311,18 @@ a { color: var(--ffp-blue); text-decoration: none; }
             </div>
             <div class="field">
               <div class="label">Logo</div>
-              <div class="uploader logo-uploader" id="up-logo" onclick="document.getElementById('up-logo-input').click()">
-                <input type="file" id="up-logo-input" accept="image/*" onchange="handleUpload('logo', this.files[0])">
+              <div class="uploader logo-uploader" id="up-logo" onclick="pickProviderImage('logo')">
                 <div class="uploader-icon"><span class="ms">image</span></div>
                 <div class="uploader-title">Upload logo</div>
-                <div class="uploader-hint">PNG · square</div>
+                <div class="uploader-hint">PNG · square · crop to fit</div>
               </div>
             </div>
             <div class="field">
               <div class="label">Hero photo <span class="label-hint">— shown on listings + profile</span></div>
-              <div class="uploader" id="up-hero" onclick="document.getElementById('up-hero-input').click()">
-                <input type="file" id="up-hero-input" accept="image/*" onchange="handleUpload('hero', this.files[0])">
+              <div class="uploader" id="up-hero" onclick="pickProviderImage('hero')">
                 <div class="uploader-icon"><span class="ms">image</span></div>
                 <div class="uploader-title">Click or drag to upload</div>
-                <div class="uploader-hint">JPG or PNG · 16:10 · up to 5 MB</div>
+                <div class="uploader-hint">JPG or PNG · 16:10 · position &amp; crop to fit the banner</div>
               </div>
             </div>
           </div>
@@ -3276,21 +3280,46 @@ function renderUploader(targetId, dataUrl, kind) {
     el.innerHTML =
       '<div class="uploader-preview" style="background-image: url(\'' + dataUrl + '\')">' +
         '<div class="uploader-preview-actions">' +
-          '<button class="uploader-preview-btn" onclick="event.stopPropagation(); document.getElementById(\'' + targetId + '-input\').click()" title="Replace"><span class="ms">refresh</span></button>' +
+          '<button class="uploader-preview-btn" onclick="event.stopPropagation(); pickProviderImage(\'' + kind + '\')" title="Replace"><span class="ms">refresh</span></button>' +
           '<button class="uploader-preview-btn del" onclick="event.stopPropagation(); removeUpload(\'' + kind + '\')" title="Remove"><span class="ms">delete</span></button>' +
         '</div>' +
-        '<input type="file" id="' + targetId + '-input" accept="image/*" onchange="handleUpload(\'' + kind + '\', this.files[0])">' +
       '</div>';
   } else {
     el.classList.remove('has-image');
     const isLogo = kind === 'logo';
     el.innerHTML =
-      '<input type="file" id="' + targetId + '-input" accept="image/*" onchange="handleUpload(\'' + kind + '\', this.files[0])">' +
       '<div class="uploader-icon"><span class="ms">image</span></div>' +
       '<div class="uploader-title">' + (isLogo ? 'Upload logo' : 'Click or drag to upload') + '</div>' +
-      '<div class="uploader-hint">' + (isLogo ? 'PNG · square' : 'JPG or PNG · 16:10 · up to 5 MB') + '</div>';
+      '<div class="uploader-hint">' + (isLogo ? 'PNG · square · crop to fit' : 'JPG or PNG · 16:10 · position & crop') + '</div>';
   }
 }
+
+// Logo + hero now upload to Supabase Storage WITH a crop/position step (Cropper.js via the shared
+// uploader). Square crop for the logo, 16:10 banner crop for the hero. Returns a public URL which we
+// store on providerProfile and commit via provider_save_profile on Save.
+function ffpImgOpts(kind) {
+  var pid = (window.FFP_PROVIDER && window.FFP_PROVIDER.id) || (typeof providerProfile !== 'undefined' && providerProfile.id);
+  if (!pid) { showToast('Provider not loaded', 'error'); return null; }
+  if (!window.FFPUpload) { showToast('Uploader not ready — refresh and retry', 'error'); return null; }
+  var isLogo = kind === 'logo';
+  return {
+    bucket: isLogo ? 'provider-logos' : 'provider-heroes',
+    key: kind + '-' + pid,
+    aspect: isLogo ? 1 : (16 / 10),
+    outW: isLogo ? 512 : 1600,
+    outH: isLogo ? 512 : 1000,
+    title: isLogo ? 'Crop your logo' : 'Position your banner',
+    onDone: function (url) {
+      if (isLogo) { providerProfile.logo_url = url; renderUploader('up-logo', url, 'logo'); }
+      else { providerProfile.hero_url = url; renderUploader('up-hero', url, 'hero'); }
+      setSaveBar(true);
+      showToast('Photo uploaded — Save to commit', 'success');
+    },
+    onError: function (err) { console.error('[provider upload]', err); showToast('Upload failed: ' + (err.message || 'try again'), 'error'); }
+  };
+}
+function pickProviderImage(kind) { var o = ffpImgOpts(kind); if (o) window.FFPUpload.pick(o); }
+function dropProviderImage(kind, file) { var o = ffpImgOpts(kind); if (o) window.FFPUpload.cropFile(file, o); }
 
 function handleUpload(kind, file) {
   if (!file) return;
@@ -3376,8 +3405,8 @@ document.addEventListener('drop', e => {
   const f = e.dataTransfer.files[0];
   if (!f) return;
   // Determine kind by uploader id
-  if (up.id === 'up-logo') handleUpload('logo', f);
-  else if (up.id === 'up-hero') handleUpload('hero', f);
+  if (up.id === 'up-logo') dropProviderImage('logo', f);
+  else if (up.id === 'up-hero') dropProviderImage('hero', f);
   else if (up.id === 'up-listing') handleUpload('listing:listing', f);
 });
 
