@@ -52,7 +52,7 @@
 <title>FFP Passport</title>
 <!-- v2: Supabase SDK loaded FIRST so window.supabase exists when ffp-api-integration.js runs -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="assets/ffp-api-integration.js"></script>
+<script src="assets/ffp-api-integration.js?v=12"></script>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -179,6 +179,10 @@ Back
 <input class="code-digit" type="text" inputmode="numeric" maxlength="1" oninput="moveNext(this,5,'signin')" onkeydown="movePrev(event,this,'signin')">
 <input class="code-digit" type="text" inputmode="numeric" maxlength="1" oninput="moveNext(this,6,'signin')" onkeydown="movePrev(event,this,'signin')">
 </div>
+<label id="keep-signed-in-row" style="display:flex;align-items:center;gap:9px;margin:4px 2px 14px;font-size:13px;color:#cdd7e0;cursor:pointer;user-select:none;">
+  <input type="checkbox" id="keep-signed-in" checked style="width:17px;height:17px;accent-color:#2ba8e0;cursor:pointer;flex-shrink:0;">
+  <span>Keep me signed in on this device</span>
+</label>
 <button class="btn-primary" id="signin-code-btn" onclick="verifyCode('signin')">Sign In</button>
 <div class="error-msg" id="signin-code-err"></div>
 <div class="resend-row">Lost or forgot your code? <a onclick="goTo('screen-reset')">Get new code</a></div>
@@ -486,6 +490,13 @@ async function verifyCode(flow) {
   var btnId = flow === 'signup' ? 'signup-code-btn' : 'signin-code-btn';
   showError(errId, '');
   setBusy(btnId, true);
+  // v12: record the "Keep me signed in" choice BEFORE storing tokens, so they land in the right store
+  // (localStorage = persist across browser close; sessionStorage = cleared on close, for shared devices).
+  // Default ON; signup has no checkbox so it stays persistent.
+  try {
+    var keepEl = document.getElementById('keep-signed-in');
+    if (window.FFPAuth && FFPAuth.setPersist) FFPAuth.setPersist(keepEl ? !!keepEl.checked : true);
+  } catch (e) {}
   try {
     var res = await FFPApi.verifyCode(email, code, flow);
     if (res && res.error) {
