@@ -1,4 +1,8 @@
-/* FFP Taxonomy - v7 (2026-06-03)
+/* FFP Taxonomy - v8 (2026-06-05)
+   v8: CATEGORY STANDARDISATION — each activity's category ('c') now comes from the DB
+       (taxonomy_items.parent), which was set to the 6 platform standard categories:
+       fitness · sports · wellness · recovery · adventure · food. Was reading a stale static 16-group map;
+       the DB is now the single source of truth (Admin Taxonomy controls it). Static `c` is fallback only.
    v7: ALPHABETICAL at the source. Name lists — activity, nationality, country, city, category,
        provider_type — now hydrate A–Z (cities A–Z within each country, countries A–Z), so every form
        on every dashboard inherits alphabetical order from one place. Ordinal lists keep their
@@ -286,9 +290,14 @@
       return arr.map(function (r) { return r.label || r.value; });
     }
     if (by.activity) {
+      // v8: activity category 'c' now comes from the DB (taxonomy_items.parent = the 6 platform categories:
+      // fitness/sports/wellness/recovery/adventure/food), falling back to the legacy static map, then ''.
+      // The DB is the single source of truth — Admin Taxonomy sets each activity's category.
+      var actParent = {};
+      by.activity.forEach(function (r) { var nm = r.label || r.value; if (r.parent) actParent[nm] = r.parent; });
       var names = vals('activity');
       T.activities.length = 0;
-      names.forEach(function (n) { T.activities.push({ n: n, c: (actCat[n] || '') }); });
+      names.forEach(function (n) { T.activities.push({ n: n, c: (actParent[n] || actCat[n] || '') }); });
     }
     if (by.fitness_level) fill(T.fitnessLevels, vals('fitness_level'));
     if (by.nationality)   fill(T.nationalities, vals('nationality'));
