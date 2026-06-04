@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v272 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v273 (2026-06-04)
+     v273: Meet & Move tabs cleaned up. PAST tab was hard-coded empty — now shows your meetups (joined or
+           hosted) that have happened. Going/Hosting are now UPCOMING-only (a meet that's passed moves to
+           Past, no overlap). (FFP_BUILD bumped → 273.) NOTE: Discover correctly shows only upcoming meetups;
+           if it's empty for you, deploy v271 (country-filter fix) + v272 (loader cache-bust) first.
      v272: PERMANENT FIX for lazy loaders (fitness stats / meetups etc.) DISAPPEARING after deploys.
            (1) ONE cache-bust for ALL loaders via FFP_BUILD (= this build number; bump together) — replaces
            the per-loader ?v=N that drifted + the loaders that had NO cache-bust at all, so a deploy can
@@ -8012,7 +8016,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '272';
+  const FFP_BUILD = '273';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -12552,9 +12556,12 @@ const MeetMove = {
   
   filtered() {
     let items = this.data.slice();
-    if (this.tab === 'joined')       items = items.filter(m => m.joinedByMe && !m.isHostedByMe);
-    else if (this.tab === 'hosting') items = items.filter(m => this.hostingIds.has(m.id) || m.isHostedByMe);
-    else if (this.tab === 'past')    items = [];
+    // Clean split: Going/Hosting = UPCOMING; Past = your meetups (joined or hosted) that have happened.
+    const _nowTs = Date.now();
+    const _isPast = m => !!(m._ts && m._ts < _nowTs);
+    if (this.tab === 'joined')       items = items.filter(m => m.joinedByMe && !m.isHostedByMe && !_isPast(m));
+    else if (this.tab === 'hosting') items = items.filter(m => (this.hostingIds.has(m.id) || m.isHostedByMe) && !_isPast(m));
+    else if (this.tab === 'past')    items = items.filter(m => (m.joinedByMe || m.isHostedByMe) && _isPast(m));
     else if (this.tab === 'discover') {
       // Discover shows UPCOMING meetups only — drop ones whose start time has passed (3h grace so an
       // in-progress meetup doesn't vanish the instant it begins). _ts = meets_at epoch ms (0 = no date).
