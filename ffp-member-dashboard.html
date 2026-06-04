@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v289 (2026-06-05)
+<!-- FFP MEMBER DASHBOARD — v290 (2026-06-05)
+     v290: MEMBER QUEST CREATE finished — live FFP-VENUE POOL (member_quest_venue_pool RPC): as you pick
+           activity/city it shows "N FFP venues count toward this quest" (+ names), caps the target to the
+           pool, and BLOCKS creating a dead quest (0 venues = nothing to check in at). Target = you set how
+           many of the N to visit. Social nudge on success ("invite friends to join you"). Pool logic
+           unit-tested. (Completes FFP-SCOPE-member-quest-create.md.)
      v289: CATEGORY STANDARDISATION (step 2) — Create-a-quest form now FILTERS the Activity dropdown by the
            selected Category (qcActOptions; a.c = the DB 6-category), and re-filters when category changes.
            Can no longer pick a mismatched activity. (⚠ supersedes v288 — that build had a mid-edit moment
@@ -8147,7 +8152,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '289';
+  const FFP_BUILD = '290';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -11975,7 +11980,8 @@ const Quests = {
           '<div class="qc-field"><label>Country</label><select id="qc-country" class="ffp-select">' + countries.map(function (c) { return '<option' + (c === defCountry ? ' selected' : '') + '>' + escHtml(c) + '</option>'; }).join('') + '</select></div>' +
           '<div class="qc-field"><label>City</label><select id="qc-city" class="ffp-select"></select></div>' +
         '</div>' +
-        '<div class="qc-field"><label>Different venues to visit</label><input id="qc-target" type="number" min="2" max="50" value="5" class="ffp-select"></div>' +
+        '<div class="qc-field" id="qc-pool-wrap" style="display:none;"><div id="qc-pool" style="font-size:12px;padding:10px 12px;border-radius:10px;background:rgba(43,168,224,0.06);border:1px solid rgba(43,168,224,0.25);color:#9fb4c4;line-height:1.5;"></div></div>' +
+        '<div class="qc-field"><label>How many different venues to visit</label><input id="qc-target" type="number" min="2" max="50" value="5" class="ffp-select"><div style="margin-top:5px;color:#8a99a8;font-size:11px;">You set the goal — e.g. visit 8 of the venues that count.</div></div>' +
         '<button class="btn-primary-yellow" onclick="Quests.saveCreate()">Create quest</button>' +
       '</div>';
     openDetailModal(html);
@@ -11988,7 +11994,33 @@ const Quests = {
       if (cny && cty) { fill(cny.value, defCity); cny.addEventListener('change', function () { fill(cny.value, ''); }); }
       // v288: category change re-filters the Activity list (so it stays valid for the category).
       var catSel = document.getElementById('qc-cat'), actSel = document.getElementById('qc-act');
-      if (catSel && actSel) catSel.addEventListener('change', function () { actSel.innerHTML = qcActOptions(catSel.value); });
+      // v289: live FFP-VENUE POOL — show how many partner venues count toward this quest, cap the target,
+      // and stop dead quests (no FFP venue = nothing to check in at). Uses member_quest_venue_pool.
+      async function qcUpdatePool() {
+        var gv = function (id) { var e = document.getElementById(id); return e ? e.value : ''; };
+        var city = gv('qc-city'), country = gv('qc-country'), act = gv('qc-act');
+        var wrap = document.getElementById('qc-pool-wrap'), box = document.getElementById('qc-pool'), tgt = document.getElementById('qc-target');
+        if (!city) { if (wrap) wrap.style.display = 'none'; window._ffpQcPool = null; return; }
+        if (wrap) wrap.style.display = '';
+        if (box) box.textContent = 'Checking FFP venues…';
+        try {
+          var res = await window.supabase.rpc('member_quest_venue_pool', { p_city: city, p_country: country || null, p_activity: act || null });
+          var d = (res && res.data) || { count: 0, venues: [] }; var n = d.count || 0; window._ffpQcPool = n;
+          if (!box) return;
+          if (n === 0) {
+            box.innerHTML = '<strong style="color:#f3b14e;">No FFP venues for ' + escHtml(act || 'this') + ' in ' + escHtml(city) + ' yet.</strong> A quest needs FFP partners to check in at — pick another activity or city, or invite a venue.';
+          } else {
+            var names = (d.venues || []).slice(0, 4).map(escHtml).join(', ');
+            box.innerHTML = '<strong style="color:#2ba8e0;">' + n + ' FFP venue' + (n === 1 ? '' : 's') + '</strong> count toward this quest' + (names ? ' — ' + names + ((d.venues || []).length > 4 ? '…' : '') : '') + '.';
+            if (tgt) { tgt.max = n; if (parseInt(tgt.value, 10) > n) tgt.value = n; }
+          }
+        } catch (e) { if (box) box.textContent = 'Couldn’t check venues — you can still create.'; window._ffpQcPool = null; }
+      }
+      if (catSel && actSel) catSel.addEventListener('change', function () { actSel.innerHTML = qcActOptions(catSel.value); qcUpdatePool(); });
+      if (actSel) actSel.addEventListener('change', qcUpdatePool);
+      if (cty) cty.addEventListener('change', qcUpdatePool);
+      if (cny) cny.addEventListener('change', function () { setTimeout(qcUpdatePool, 0); });
+      qcUpdatePool();
     }, 30);
   },
 
@@ -11997,6 +12029,7 @@ const Quests = {
     var title = g('qc-title'); if (!title) { showToast('Give your quest a title', 'error'); return; }
     var city = g('qc-city'); if (!city) { showToast('Pick a city', 'error'); return; }
     var target = parseInt(g('qc-target'), 10) || 0; if (target < 2) { showToast('Choose at least 2 venues', 'error'); return; }
+    if (window._ffpQcPool === 0) { showToast('No FFP venues for that activity/city yet — adjust before creating', 'error'); return; }
     var mid = this.memberId(); if (!mid || !window.supabase) { showToast('Please sign in again', 'error'); return; }
     var payload = { title: title, category: g('qc-cat') || 'fitness', rule_activity: g('qc-act') || null, city: city, country: g('qc-country') || null, target_count: String(target) };
     try {
@@ -12004,7 +12037,7 @@ const Quests = {
       if (res.error) throw res.error;
       if (!res.data) throw new Error('Could not create quest');
       if (typeof closeDetailModal === 'function') closeDetailModal();
-      showToast('Quest created — you’re on it!', 'success');
+      showToast('Quest created — invite friends to join you!', 'success');
       await this.load();
     } catch (e) { console.error('[Quests] create:', e); showToast(e.message || 'Could not create quest', 'error'); }
   },
