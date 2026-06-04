@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v259 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v260 (2026-06-04)
+     v260: Moved Challenges out of the bottom nav into the avatar/user menu (alongside Profile / Workout
+           Timer / Calorie Tracker / Fitness Stats / Earnings). Bottom nav is now Passport / Connections /
+           Quests / Events / Experiences. Nav highlight + lazy-load auto-derive from the containers, so no
+           JS change was needed. (panel-challenges loader + the panel itself unchanged.)
      v259: LOG ACTIVITY duration is now a SINGLE-TAP H/M/S WHEEL (replaces the 3 number boxes from
            v257). Tapping the Duration field opens window.FFPDurationPicker — an iOS-style 3-wheel
            sheet (Hours / Minutes / Seconds) built on the platform modal styling; Done returns total
@@ -4379,6 +4383,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         <button class="menu-item" data-panel="panel-workout-timer"><span class="material-icons">schedule</span><span>Workout Timer</span></button>
         <button class="menu-item" data-panel="panel-calorie-tracker"><span class="material-icons">local_fire_department</span><span>Calorie Tracker</span></button>
         <button class="menu-item" data-panel="panel-fitness-stats"><span class="material-icons">show_chart</span><span>Fitness Stats</span></button>
+        <button class="menu-item" data-panel="panel-challenges"><span class="material-icons">whatshot</span><span>Challenges</span></button>
         <button class="menu-item" data-panel="panel-earnings"><span class="material-icons">account_balance_wallet</span><span>Earnings</span></button>
         <div class="menu-divider"></div>
         <button class="menu-item menu-item-danger" id="user-menu-logout"><span class="material-icons">logout</span><span>Logout</span></button>
@@ -5527,7 +5532,6 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
   <button class="nav-item" data-panel="panel-quests"><span class="material-icons">flag</span><span>Quests</span></button>
   <button class="nav-item" data-panel="panel-events"><span class="material-icons">event</span><span>Events</span></button>
   <button class="nav-item" data-panel="panel-experiences"><span class="material-icons">flight</span><span>Experiences</span></button>
-  <button class="nav-item" data-panel="panel-challenges"><span class="material-icons">whatshot</span><span>Challenges</span></button>
 </div>
 
 <!-- ADD CITY MODAL -->
