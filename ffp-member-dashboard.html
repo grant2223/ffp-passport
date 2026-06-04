@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v265 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v266 (2026-06-04)
+     v266: FIX "Who's going" own passport-card showing no details (long-parked §3c). FFPCard.resolve sent
+           your own id to fromProfile() (MemberProfile.data) and DISCARDED the real attendee data the
+           loader already fetched — so a not-yet-hydrated profile blanked your card. resolve now MERGES:
+           prefers profile/cache fields but falls back to the passed row, so a card never renders blank
+           when data exists. This also reconciles the who's-going count (your card now shows → 2/8 not 1/8).
      v265: Meet & Move Discover now hides PAST meetups (start time elapsed, with a 3h grace for in-progress).
            The Discover filter had no date check, so open meetups lingered forever after their date. Filters
            on m._ts (meets_at epoch). Joined/Hosting tabs unchanged (host can still see/cancel their own).
@@ -14376,7 +14381,25 @@ setTimeout(scalePassportCard, 200);
       return c;
     },
     get: function(id){ if(!id) return null; if(id===this._myId()) return this.fromProfile(); return this._cache[id]||null; },
-    resolve: function(p){ if(!p) return null; if(typeof p==="string") return this.get(p); return this.get(p.id)||this.mapRow(p); }
+    _merge: function(base, over){
+      // overlay `over`'s non-empty fields onto `base` (so a thin profile/cache never blanks real data)
+      var out=Object.assign({}, base||{});
+      if(over) Object.keys(over).forEach(function(k){
+        var v=over[k];
+        var empty=(v==null || v==="" || (Array.isArray(v) && v.length===0));
+        if(!empty) out[k]=v;
+      });
+      return out;
+    },
+    resolve: function(p){
+      if(!p) return null;
+      if(typeof p==="string"){ var r=this.get(p); return r||{ id:p }; }
+      var fromRow=this.mapRow(p);              // the data passed in (e.g. loader-fetched attendee)
+      var byId=p.id?this.get(p.id):null;       // self → MemberProfile; others → cache
+      // Prefer byId's real fields, but FALL BACK to the passed row so self/others never render blank
+      // when the profile/cache hasn't hydrated. (Fixes Who's-going own-card showing no details.)
+      return this._merge(fromRow, byId);
+    }
   };
 
   if(typeof MeetMove==="undefined") return;
