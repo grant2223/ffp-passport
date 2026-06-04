@@ -1,4 +1,8 @@
-<!-- FFP PROVIDER DASHBOARD — v32 (2026-06-05)
+<!-- FFP PROVIDER DASHBOARD — v33 (2026-06-05)
+     v33: IMAGE STORAGE — provider Logo + Hero now upload to Supabase Storage (provider-logos /
+          provider-heroes buckets) via the shared assets/ffp-image-upload.js and store the public URL,
+          instead of base64-in-DB. handleUpload('logo'|'hero') resizes + uploads + sets providerProfile
+          url; saved via provider_save_profile on Save. (Event/listing photos still to migrate.)
      v32: CATEGORY STANDARDISATION — activity picker now groups by the standardised 6 categories
           (activity_types.category migrated platform-wide to fitness/sports/wellness/recovery/adventure/food,
           granular values preserved in activity_types.subcategory). Picker group headers Title-cased for
@@ -44,6 +48,7 @@
 <script src="assets/ffp-taxonomy.js?v=8"></script>
 <script src="assets/ffp-location-picker.js"></script>
 <script src="ffp-provider-auth.js"></script>
+<script src="assets/ffp-image-upload.js?v=1"></script>
 <script src="ffp-provider-profile-loader.js?v=12"></script>
 <!-- Shared provider picker (FFPPicker) defined HERE in the dashboard so Events/Challenges/Experiences
      activity + country/city pickers never depend on a separately-uploaded loader being present. -->
@@ -3294,16 +3299,30 @@ function handleUpload(kind, file) {
     showToast('Please upload an image', 'error');
     return;
   }
+  // Logo + hero → Supabase Storage (NOT base64-in-DB). Uses the shared uploader; stores the
+  // returned public URL on providerProfile, saved via provider_save_profile on "Save".
+  if (kind === 'logo' || kind === 'hero') {
+    var pid = (window.FFP_PROVIDER && window.FFP_PROVIDER.id) || (typeof providerProfile !== 'undefined' && providerProfile.id);
+    if (!pid) { showToast('Provider not loaded', 'error'); return; }
+    if (!window.FFPUpload) { showToast('Uploader not ready — refresh and retry', 'error'); return; }
+    var bucket = kind === 'logo' ? 'provider-logos' : 'provider-heroes';
+    var dims = kind === 'logo' ? { maxW: 512, maxH: 512 } : { maxW: 1280, maxH: 800 };
+    showToast('Uploading photo…', 'info');
+    window.FFPUpload.uploadFile(bucket, kind + '-' + pid, file, dims).then(function (url) {
+      if (kind === 'logo') { providerProfile.logo_url = url; renderUploader('up-logo', url, 'logo'); }
+      else { providerProfile.hero_url = url; renderUploader('up-hero', url, 'hero'); }
+      setSaveBar(true);
+      showToast('Photo uploaded — Save to commit', 'success');
+    }).catch(function (err) {
+      console.error('[provider upload]', err);
+      showToast('Upload failed: ' + (err.message || 'try again'), 'error');
+    });
+    return;
+  }
   const reader = new FileReader();
   reader.onload = e => {
     const dataUrl = e.target.result;
-    if (kind === 'logo') {
-      providerProfile.logo_url = dataUrl;
-      renderUploader('up-logo', dataUrl, 'logo');
-    } else if (kind === 'hero') {
-      providerProfile.hero_url = dataUrl;
-      renderUploader('up-hero', dataUrl, 'hero');
-    } else if (kind && kind.startsWith('listing:')) {
+    if (kind && kind.startsWith('listing:')) {
       const slot = kind.split(':')[1];
       const slotEl = document.getElementById('listing-photo-slot');
       if (slotEl) {
