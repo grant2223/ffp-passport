@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v267 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v268 (2026-06-04)
+     v268: passport "Meets" stat — loadMeets() now calls the member_meets() RPC (a Meet = a COMPLETED,
+           non-cancelled meet & move with >=2 people that you hosted or joined). The old endpoint it fetched
+           (/api/members/:id/meetups-attended) never existed → stat was permanently 0. Also (DB-only, no
+           code change): member_connections_count/list now use COLLECTION semantics (people you added +
+           mutual) so the Connections stat grows when you add someone, instead of counting accepted-only.
      v267: bumps the meet-move loader ref to ?v=22 (loader v22 fixes Who's-going host/attendee passports
            being invisible to NON-ADMIN members — members RLS is self/admin-only, so the direct member
            fetch returned nothing for other people; now via members_cards() SECURITY DEFINER RPC). Together
@@ -7824,17 +7829,20 @@ function escNotif(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(
 function notifTime(iso){ if(!iso) return ''; var d=Date.now()-new Date(iso).getTime(); var m=Math.floor(d/60000); if(m<1)return 'just now'; if(m<60)return m+'m ago'; var h=Math.floor(m/60); if(h<24)return h+'h ago'; return Math.floor(h/24)+'d ago'; }
 async function loadMeets() {
   var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
-  if (!member || !member.id) return;
+  if (!member || !member.id || !window.supabase) return;
   try {
-    var res = await fetch('https://ffp-passport-backend.vercel.app/api/members/' + member.id + '/meetups-attended');
-    var json = await res.json();
+    // A "Meet" = a COMPLETED meet & move (happened, not cancelled) with >=2 people that you hosted or
+    // joined. member_meets() RPC enforces that. (The old /meetups-attended endpoint never existed → stat
+    // was stuck at 0.)
+    var res = await window.supabase.rpc('member_meets', { p_me: member.id });
+    if (res.error) { console.error('[FFP Meets] load:', res.error); return; }
     var now = Date.now();
-    MEETS = ((json && json.meetups) || []).map(function (m) {
+    MEETS = (Array.isArray(res.data) ? res.data : []).map(function (m) {
       var dt = m.meets_at ? new Date(m.meets_at) : new Date();
       return { daysAgo: Math.max(0, Math.floor((now - dt.getTime()) / 86400000)), year: dt.getFullYear() };
     });
     if (typeof renderAll === 'function') renderAll();
-    console.log('[FFP Meets] loaded ' + MEETS.length + ' attended');
+    console.log('[FFP Meets] loaded ' + MEETS.length + ' completed meets');
   } catch (e) { console.error('[FFP Meets] load:', e); }
 }
 // Your-journey connections — accepted member_connections WITH the people (name/photo/city),
