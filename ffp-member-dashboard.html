@@ -1,4 +1,13 @@
-<!-- FFP MEMBER DASHBOARD — v281 (2026-06-04)
+<!-- FFP MEMBER DASHBOARD — v283 (2026-06-04)
+     v283: Discover "passed meetup lingers" — grace after start cut 3h → 30min, so a meetup leaves Discover
+           ~30min after its start time (e.g. an 8:30pm run is gone by 9pm, not 11:30pm). Joined/hosting still
+           see it in their own tabs + Past. Loader unchanged (it only computes _ts for sorting; all the
+           Discover time-filtering is here in MeetMove.filtered). FFP_BUILD→283.
+     v282: Meet & Move — (a) FIX Hosting tab empty while the pill said "2": the count counted all hosted
+           but the list excluded past, so past-hosted vanished. Hosting now shows ALL you host (incl. past),
+           matching the pill (past also still shows in Past tab). (b) Card layout → horizontal ROWS
+           (photo LEFT, details RIGHT) scoped to #meet-grid so host portrait photos crop to a left thumbnail
+           instead of a tall banner; Events/Experiences boxes untouched. FFP_BUILD→282.
      v281: Profile field pickers (Height, Gender, Country, City, Nationality) now open FULL-BLEED
            (added fullBleed:true to openFieldPicker) — matches the platform full-bleed picker standard;
            the Height modal was opening as the boxed 460px card. FFP_BUILD→281.
@@ -3691,6 +3700,18 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
    as v60 but tuned smaller to fit two side-by-side. */
 .meetup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 @media (max-width: 380px) { .meetup-grid { grid-template-columns: 1fr; } }
+/* v282: MEET & MOVE list = horizontal ROWS (photo LEFT, details RIGHT). Scoped to #meet-grid so Events /
+   Experiences keep their boxed cards. Host portrait photos now crop to a left thumbnail, not a tall banner. */
+#meet-grid { display: flex; flex-direction: column; gap: 10px; }
+#meet-grid .meetup-card { flex-direction: row; align-items: stretch; min-height: 112px; }
+#meet-grid .meetup-cover-v2,
+#meet-grid .meetup-cover-v2.tall,
+#meet-grid .meetup-cover-v2.taller { width: 118px; min-width: 118px; height: auto; flex-shrink: 0; padding: 8px; }
+#meet-grid .meetup-date-badge { top: 8px; left: 8px; }
+#meet-grid .meetup-status-badge { bottom: 8px; left: 8px; }
+#meet-grid .meetup-body { padding: 11px 13px; min-width: 0; justify-content: center; }
+#meet-grid .meetup-meta-row { flex-wrap: wrap; }
+#meet-grid .meetup-view-btn { display: none; }   /* whole row is tappable — no big button needed */
 .meetup-card {
   background: rgba(15,30,46,0.6);
   border: 1px solid var(--border-mid);
@@ -8103,7 +8124,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '281';
+  const FFP_BUILD = '283';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -12650,13 +12671,16 @@ const MeetMove = {
     const _nowTs = Date.now();
     const _isPast = m => !!(m._ts && m._ts < _nowTs);
     if (this.tab === 'joined')       items = items.filter(m => m.joinedByMe && !m.isHostedByMe && !_isPast(m));
-    else if (this.tab === 'hosting') items = items.filter(m => (this.hostingIds.has(m.id) || m.isHostedByMe) && !_isPast(m));
+    else if (this.tab === 'hosting') items = items.filter(m => (this.hostingIds.has(m.id) || m.isHostedByMe));   // ALL you host (incl. past) — matches the count pill; past also appears in Past tab
     else if (this.tab === 'past')    items = items.filter(m => (m.joinedByMe || m.isHostedByMe) && _isPast(m));
     else if (this.tab === 'discover') {
       // Discover shows UPCOMING meetups only — drop ones whose start time has passed (3h grace so an
       // in-progress meetup doesn't vanish the instant it begins). _ts = meets_at epoch ms (0 = no date).
       // (reuses _nowTs declared at the top of filtered() — do NOT re-declare it here.)
-      items = items.filter(m => !m._ts || m._ts >= (_nowTs - 3 * 60 * 60 * 1000));
+      // v283: grace cut 3h → 30min, so a meetup drops off Discover ~30min after it starts (you can't
+      // realistically join one that began hours ago). People who joined/host still see it in their own
+      // tabs and in Past.
+      items = items.filter(m => !m._ts || m._ts >= (_nowTs - 30 * 60 * 1000));
       // v195: browse filters apply ONLY on Discover — never hide your own Going/Hosting items
       if (this.search) items = items.filter(m =>
         m.activity.toLowerCase().includes(this.search) || m.host.toLowerCase().includes(this.search) || m.venue.toLowerCase().includes(this.search));
