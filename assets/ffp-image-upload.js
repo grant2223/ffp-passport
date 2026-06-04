@@ -48,7 +48,11 @@
     });
     if (up.error) throw up.error;
     var pub = window.supabase.storage.from(bucket).getPublicUrl(path);
-    return (pub && pub.data && pub.data.publicUrl) || null;
+    var url = (pub && pub.data && pub.data.publicUrl) || null;
+    // Files upsert to a STABLE path (one per entity), so the URL string is unchanged across re-uploads.
+    // Append a version param so the new image actually shows (and the saved URL differs) — busts browser/CDN
+    // cache. Supabase serves the object regardless of the extra query param.
+    return url ? (url + '?v=' + Date.now()) : null;
   }
 
   // ── Resize an image source (data URL) to fit within maxW×maxH, return a JPEG blob ──
@@ -216,8 +220,23 @@
     input.click();
   }
 
+  // ── Crop a file the caller already has (e.g. from drag-drop) — opens the crop modal ──
+  function cropFile(file, opts) {
+    opts = opts || {};
+    if (!opts.bucket || !opts.key) { (opts.onError || function () {})(new Error('bucket and key required')); return; }
+    if (!ownerId()) { (opts.onError || function (e) { alert(e.message); })(new Error('Please sign in again')); return; }
+    if (!file || !/^image\//.test(file.type || '')) { (opts.onError || function () {})(new Error('Please pick an image')); return; }
+    pending = {
+      bucket: opts.bucket, key: String(opts.key), aspect: opts.aspect || NaN,
+      outW: opts.outW || 800, outH: opts.outH || 800, title: opts.title || 'Crop image',
+      onDone: opts.onDone, onError: opts.onError
+    };
+    handleFile(file);
+  }
+
   window.FFPUpload = {
     pick: pick,
+    cropFile: cropFile,
     uploadFile: uploadFile,
     uploadBlob: uploadBlob,
     _close: closeModal,
