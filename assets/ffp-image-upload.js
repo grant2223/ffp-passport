@@ -147,6 +147,10 @@
     var img = document.getElementById('ffp-imgup-img');
     var titleEl = document.getElementById('ffp-imgup-title');
     if (titleEl && pending && pending.title) titleEl.textContent = pending.title;
+    // The modal is built once and reused. A successful upload closes it WITHOUT resetting the Save
+    // button, so reset it every open — otherwise the 2nd+ crop is stuck on "Uploading…" / disabled.
+    var saveBtn = document.getElementById('ffp-imgup-save');
+    if (saveBtn) { saveBtn.textContent = 'Save'; saveBtn.disabled = false; }
     if (window.Cropper) {
       img.onload = function () {
         if (cropper) { cropper.destroy(); cropper = null; }
