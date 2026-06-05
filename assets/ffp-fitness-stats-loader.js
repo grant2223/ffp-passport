@@ -1,4 +1,7 @@
-/* FFP Fitness Stats Loader — v20 (2026-06-05)
+/* FFP Fitness Stats Loader — v21 (2026-06-05)
+   v21: Milestone detail BADGE LADDER restyled — was wide horizontal rows (too much vertical gap, didn't read
+        as badges). Now a compact GRID of circular badge/stamp emblems: gold filled = earned, dashed blue =
+        next, grey = locked. (Cache-busted by the member dashboard FFP_BUILD.)
    v20: MILESTONES tab redesigned — each metric is now a tappable row → its own detail page with a top
         strap (now / up-next + bar) and the FULL ladder of badges (earned lit, next flagged, locked shown).
         92 badges across 12 metrics: Activities Logged→10k, Activity Streak→5yr, Sport Variety, Cities→100,
@@ -1219,17 +1222,17 @@
       '.msd-strap-bar{height:6px;background:rgba(255,255,255,0.08);border-radius:3px;margin-top:7px;overflow:hidden;}',
       '.msd-strap-bar-fill{height:100%;background:var(--blue,#2ba8e0);border-radius:3px;}',
       '.msd-ladder-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.7px;color:var(--muted,#8a99a8);margin-bottom:10px;}',
-      '.msd-badge{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:11px;margin-bottom:8px;border:1px solid transparent;}',
-      '.msd-badge.earned{background:rgba(255,204,0,0.08);border-color:rgba(255,204,0,0.3);}',
-      '.msd-badge.next{background:rgba(43,168,224,0.08);border-color:rgba(43,168,224,0.4);}',
-      '.msd-badge.locked{background:rgba(255,255,255,0.02);opacity:0.55;}',
-      '.msd-badge-ic{flex-shrink:0;}',
-      '.msd-badge.earned .msd-badge-ic{color:var(--yellow,#FFCC00);}',
-      '.msd-badge.next .msd-badge-ic{color:var(--blue,#2ba8e0);}',
-      '.msd-badge.locked .msd-badge-ic{color:var(--muted,#8a99a8);}',
-      '.msd-badge-name{flex:1;font-size:14px;font-weight:600;color:var(--text,#e8eef4);}',
-      '.msd-badge-tag{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;padding:3px 8px;border-radius:6px;background:rgba(43,168,224,0.15);color:var(--blue,#2ba8e0);}',
-      '.msd-badge-tag.earned{background:rgba(255,204,0,0.15);color:var(--yellow,#FFCC00);}'
+      '.msd-ladder{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:16px 10px;margin-top:6px;}',
+      '.msd-badge{display:flex;flex-direction:column;align-items:center;text-align:center;gap:7px;}',
+      '.msd-badge-emblem{width:62px;height:62px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid;box-sizing:border-box;}',
+      '.msd-badge-emblem .material-icons{font-size:30px;}',
+      '.msd-badge.earned .msd-badge-emblem{background:radial-gradient(circle at 50% 32%,#ffe7a0,#FFCC00 72%);border-color:#ffdb57;color:#5a4500;box-shadow:0 2px 11px rgba(255,204,0,0.28);}',
+      '.msd-badge.next .msd-badge-emblem{background:rgba(43,168,224,0.1);border-color:var(--blue,#2ba8e0);border-style:dashed;color:var(--blue,#2ba8e0);}',
+      '.msd-badge.locked .msd-badge-emblem{background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.12);color:#5a6b7a;}',
+      '.msd-badge.locked{opacity:0.6;}',
+      '.msd-badge-name{font-size:10px;font-weight:700;line-height:1.25;color:var(--text,#e8eef4);}',
+      '.msd-badge.next .msd-badge-name{color:var(--blue,#2ba8e0);}',
+      '.msd-badge.locked .msd-badge-name{color:var(--muted,#8a99a8);}'
     ].join(''); document.head.appendChild(s);
   }
   function overrideMilestonesV20(){
@@ -1247,8 +1250,8 @@
     var L=MS_LADDERS.find(function(x){return x.key===key;}); if(!L) return;
     var st=msBuildState(L, msCtx()); var pct=msPctToNext(L,st); var nextName=st.nextIdx<0?null:st.tiers[st.nextIdx].name;
     var strap='<div class="msd-strap"><div class="msd-strap-ic"><span class="material-icons">'+L.icon+'</span></div><div class="msd-strap-body"><div class="msd-strap-name">'+escText(L.name)+'</div><div class="msd-strap-now">'+escText(st.r.disp)+'</div>'+(nextName?'<div class="msd-strap-next">Up next · '+escText(nextName)+'</div><div class="msd-strap-bar"><div class="msd-strap-bar-fill" style="width:'+Math.round(pct)+'%;"></div></div>':'<div class="msd-strap-next done">All '+st.total+' badges earned 🎉</div>')+'</div></div>';
-    var ladder=st.tiers.map(function(tr,i){ var state=st.earned[i]?'earned':(i===st.nextIdx?'next':'locked'); var ic=st.earned[i]?'check_circle':(i===st.nextIdx?'radio_button_unchecked':'lock'); return '<div class="msd-badge '+state+'"><span class="material-icons msd-badge-ic">'+ic+'</span><span class="msd-badge-name">'+escText(tr.name)+'</span>'+(state==='next'?'<span class="msd-badge-tag">Up next</span>':state==='earned'?'<span class="msd-badge-tag earned">Earned</span>':'')+'</div>'; }).join('');
-    var html='<div class="msd-wrap">'+strap+'<div class="msd-ladder-title">Badge ladder · '+st.earnedCount+'/'+st.total+'</div>'+ladder+'</div>';
+    var ladder=st.tiers.map(function(tr,i){ var state=st.earned[i]?'earned':(i===st.nextIdx?'next':'locked'); var ic=st.earned[i]?L.icon:(i===st.nextIdx?L.icon:'lock'); return '<div class="msd-badge '+state+'"><div class="msd-badge-emblem"><span class="material-icons">'+ic+'</span></div><div class="msd-badge-name">'+escText(tr.name)+'</div></div>'; }).join('');
+    var html='<div class="msd-wrap">'+strap+'<div class="msd-ladder-title">Badge ladder · '+st.earnedCount+'/'+st.total+'</div><div class="msd-ladder">'+ladder+'</div></div>';
     if(typeof openDetailModal==='function') openDetailModal(html, true);
   };
 
