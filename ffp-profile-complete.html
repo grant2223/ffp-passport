@@ -1,6 +1,10 @@
 <!--
-FFP Profile Complete v33
-Last updated: 2026-06-04
+FFP Profile Complete v34
+Last updated: 2026-06-05
+v34: Passport photo → Supabase Storage (avatars bucket) instead of base64-in-DB. The photo is picked before
+     the member exists, so the onboard payload now sends photo_url:null and the avatar is uploaded AFTER
+     onboard (member.id + JWT live → auth.uid passes the avatars RLS), reusing ffp-photo-upload.js's exact
+     path, then PUT to /api/members/:id. NON-BLOCKING — a photo error never blocks signup.
 v33: `.field-input,.field-select` font-size 15→16px so iOS Safari no longer auto-zooms the page on field focus.
 v32: Sport picker stage retitled "Choose An Activity" / "Let's us know which are your favorite activities."
 v31: (1) Gender dropdown now re-fills from the live DB taxonomy (FFP_TAX_READY + 'ffp-tax-ready'),
@@ -953,7 +957,7 @@ async function submitProfile() {
       nationality: document.getElementById('f-nationality').value,
       country: document.getElementById('f-country').value,
       city: document.getElementById('f-city').value,
-      photo_url: avatarDataUrl || null,
+      photo_url: null,   // avatar is uploaded to Supabase Storage AFTER onboard (needs member.id + JWT) — see below
       skills: selectedSports.map(function (sp) {
         return { name: sp.name, category: sp.category, level: sp.level, shared: false };
       })
@@ -992,6 +996,34 @@ async function submitProfile() {
       // from localStorage on its own.
     }
 
+    // Upload the passport photo to Supabase Storage NOW that the member + JWT exist
+    // (auth.uid() === member.id, so the avatars-bucket RLS passes). Reuses the SAME
+    // avatars path as ffp-photo-upload.js — no base64 in the DB. NON-BLOCKING: a photo
+    // hiccup must never block a completed signup (member can re-set it on the dashboard).
+    var photoUrl = null;
+    try {
+      var newMemberId = data && data.member && data.member.id;
+      if (avatarDataUrl && newMemberId && window.supabase && window.supabase.storage) {
+        var avBlob = await (await fetch(avatarDataUrl)).blob();
+        var avPath = newMemberId + '.jpg';
+        var avUp = await window.supabase.storage.from('avatars').upload(avPath, avBlob, { contentType: 'image/jpeg', upsert: true, cacheControl: '3600' });
+        if (!avUp.error) {
+          photoUrl = window.supabase.storage.from('avatars').getPublicUrl(avPath).data.publicUrl + '?v=' + Date.now();
+          var tok = (window.FFPAuth && window.FFPAuth.getToken && window.FFPAuth.getToken()) || data.jwt || null;
+          try { if (!tok) tok = localStorage.getItem('ffp_jwt'); } catch (e2) {}
+          await fetch(BACKEND_URL + '/api/members/' + newMemberId, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': tok ? ('Bearer ' + tok) : '' },
+            body: JSON.stringify({ photo_url: photoUrl })
+          });
+        } else {
+          console.warn('[profile-complete] avatar storage upload error (non-blocking):', avUp.error);
+        }
+      }
+    } catch (e) {
+      console.warn('[profile-complete] avatar upload failed (non-blocking):', e);
+    }
+
     // Ensure the cached member carries gender, sports and photo so the passport
     // card is complete on the very first dashboard paint (covers the case where a
     // not-yet-redeployed onboard endpoint omitted them from its response).
@@ -999,7 +1031,7 @@ async function submitProfile() {
       var cached = JSON.parse(localStorage.getItem('ffp_member') || '{}');
       if (payload.gender) cached.gender = payload.gender;
       if (payload.skills && payload.skills.length) cached.skills = payload.skills;
-      if (avatarDataUrl) cached.photo_url = avatarDataUrl;
+      cached.photo_url = photoUrl || avatarDataUrl || cached.photo_url;   // prefer the Storage URL
       localStorage.setItem('ffp_member', JSON.stringify(cached));
     } catch (e) {}
     try { localStorage.removeItem('ffp_ref'); } catch (e) {}   // referral consumed
