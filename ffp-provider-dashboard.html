@@ -1,4 +1,11 @@
-<!-- FFP PROVIDER DASHBOARD — v40 (2026-06-05)
+<!-- FFP PROVIDER DASHBOARD — v42 (2026-06-05)
+     v42: Passport-member DISCOUNT field — providers set their own % off Find Fit People bookings for paid
+          Passport members (Business Details tab; blank = platform default 10%). Saved to
+          providers.passport_discount_pct via provider_save_profile; the booking site reads it at checkout.
+          Loads ffp-provider-profile-loader.js?v=13.
+     v41: Listing covers → Storage. handleUpload('listing:…') (shared by events/experiences/challenges/
+          deals/quests via #listing-photo-slot) now uploads to the listing-covers bucket via FFPUpload and
+          stores the public URL in hero_image_url, instead of base64-in-DB. Depends on ffp-image-upload.js.
      v40: Removed dead <script> ref to ffp-provider-quest-analytics-loader.js (file doesn't exist in repo →
           404 → "Unexpected token '<'" console error). NOTE: the live upload/venue-QR errors are DEPLOY gaps,
           not code — assets/ffp-image-upload.js (new file) must be committed+pushed to the repo (server
@@ -80,7 +87,7 @@
 <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>
 <script src="assets/ffp-image-upload.js?v=6"></script>
-<script src="ffp-provider-profile-loader.js?v=12"></script>
+<script src="ffp-provider-profile-loader.js?v=13"></script>
 <!-- Shared provider picker (FFPPicker) defined HERE in the dashboard so Events/Challenges/Experiences
      activity + country/city pickers never depend on a separately-uploaded loader being present. -->
 <script>
@@ -2407,6 +2414,10 @@ a { color: var(--ffp-blue); text-decoration: none; }
               <div class="label">About <span class="label-hint">— shown on your provider profile</span></div>
               <textarea class="textarea" id="pf-about" rows="4" placeholder="A short paragraph about your business, what you offer, and what makes you different."></textarea>
             </div>
+            <div class="field full">
+              <div class="label">Passport member discount <span class="label-hint">— % off your Find Fit People bookings for paid Passport members</span></div>
+              <input class="input" id="pf-passport-discount" type="number" min="0" max="100" step="0.5" placeholder="Leave blank for the platform default (10%)">
+            </div>
           </div>
           <div class="form-section" style="margin-top:18px;">
             <div class="form-section-title">Hours of operation</div>
@@ -3102,6 +3113,7 @@ function loadProfile() {
   setPhoneValue(providerProfile.phone || '');
   document.getElementById('pf-website').value = providerProfile.website || '';
   document.getElementById('pf-about').value = providerProfile.about || '';
+  var _pdEl = document.getElementById('pf-passport-discount'); if (_pdEl) _pdEl.value = (providerProfile.passport_discount_pct != null ? providerProfile.passport_discount_pct : '');
   renderHours();
   renderUploader('up-logo', providerProfile.logo_url, 'logo');
   renderUploader('up-hero', providerProfile.hero_url, 'hero');
@@ -3374,21 +3386,24 @@ function handleUpload(kind, file) {
     });
     return;
   }
-  const reader = new FileReader();
-  reader.onload = e => {
-    const dataUrl = e.target.result;
-    if (kind && kind.startsWith('listing:')) {
-      const slot = kind.split(':')[1];
-      const slotEl = document.getElementById('listing-photo-slot');
-      if (slotEl) {
-        slotEl.dataset.url = dataUrl;
-        renderListingUploader(dataUrl);
-      }
-    }
-    setSaveBar(true);
-    showToast('Photo ready — save to commit', 'success');
-  };
-  reader.readAsDataURL(file);
+  // Listing covers (events / experiences / challenges / deals / quests all share #listing-photo-slot)
+  // → Supabase Storage (listing-covers bucket), NOT base64-in-DB. The returned URL is stored on the
+  // slot's dataset.url and saved into hero_image_url when the listing is committed.
+  if (kind && kind.startsWith('listing:')) {
+    var pid = (window.FFP_PROVIDER && window.FFP_PROVIDER.id) || (typeof providerProfile !== 'undefined' && providerProfile.id) || 'provider';
+    if (!window.FFPUpload) { showToast('Uploader not ready — refresh and retry', 'error'); return; }
+    showToast('Uploading photo…', 'info');
+    window.FFPUpload.uploadFile('listing-covers', 'listing-' + pid + '-' + Date.now(), file, { maxW: 1600, maxH: 1000 }).then(function (url) {
+      var slotEl = document.getElementById('listing-photo-slot');
+      if (slotEl) { slotEl.dataset.url = url; renderListingUploader(url); }
+      setSaveBar(true);
+      showToast('Photo uploaded — save to commit', 'success');
+    }).catch(function (err) {
+      console.error('[listing upload]', err);
+      showToast('Upload failed: ' + (err.message || 'try again'), 'error');
+    });
+    return;
+  }
 }
 
 function removeUpload(kind) {
