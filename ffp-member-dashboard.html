@@ -1,4 +1,11 @@
-<!-- FFP MEMBER DASHBOARD — v297 (2026-06-05)
+<!-- FFP MEMBER DASHBOARD — v298 (2026-06-05)
+     v298: CREATE QUEST redesign — venue selection reworked. "Any of them" no longer dumps venue cards inline
+           (it just shows a count summary; the full searchable venue list now lives on the quest detail).
+           "Pick specific" → a "Choose venues" button opens a full-screen SEARCHABLE picker overlay (z-index
+           100001, stacks over the create form) where each venue shows its name + area and you tap to select.
+           Quest DETAIL venue list ("Where to go") gained a search box (shown when >6 venues) so joiners can
+           find a place. New Quests methods: qcOpenVenuePicker/qcvpListHtml/qcvpFilter/qcvpToggle/qcvpDone +
+           qdvCardsHtml/qdvFilter; qcRenderVenues rewritten lean. (FFP_BUILD '298' cache-busts the dashboard.)
      v297: Log Activity — added a TIME-of-day field (defaults to now) → logged_at now uses date+time instead
            of a hardcoded noon. (Also cache-busts assets/ffp-fitness-stats-loader.js v21 = milestone badge
            ladder restyled to a compact grid of circular badge/stamp emblems.)
@@ -8269,7 +8276,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '297';
+  const FFP_BUILD = '298';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -12078,15 +12085,11 @@ const Quests = {
         var lead = d.fixed
           ? 'The member picked these venues — only these count:'
           : 'Any of these FFP venues count toward the goal:';
-        host.style.display = 'flex'; host.style.flexDirection = 'column'; host.style.gap = '8px';
-        host.innerHTML = '<div style="font-size:12px;color:#9fb4c4;margin-bottom:2px;">' + lead + '</div>' +
-          d.venues.map(function (v) {
-            var av = escHtml(String(v.letter_mark || (v.name || '?').charAt(0) || '?').toUpperCase());
-            var area = [v.area, v.city].filter(Boolean).join(' · ');
-            return '<div class="qc-venue-card"><div class="qc-venue-av">' + av + '</div>' +
-              '<div class="qc-venue-meta"><div class="qc-venue-nm">' + escHtml(v.name || 'Venue') + '</div>' +
-              (area ? '<div class="qc-venue-area">' + escHtml(area) + '</div>' : '') + '</div></div>';
-          }).join('');
+        window._ffpQdv = d.venues;
+        host.style.display = 'block';
+        host.innerHTML = '<div style="font-size:12px;color:#9fb4c4;margin-bottom:8px;">' + lead + '</div>' +
+          (d.venues.length > 6 ? '<input id="q-detail-venue-search" placeholder="Search places…" oninput="Quests.qdvFilter(this.value)" style="width:100%;box-sizing:border-box;padding:10px 13px;border-radius:10px;border:1px solid rgba(43,168,224,0.25);background:rgba(43,168,224,0.05);color:#e8eef4;font-size:13px;font-family:inherit;margin-bottom:10px;">' : '') +
+          '<div id="q-detail-venue-list" style="display:flex;flex-direction:column;gap:8px;">' + Quests.qdvCardsHtml(d.venues) + '</div>';
       }).catch(function () {});
     }
   },
@@ -12105,7 +12108,10 @@ const Quests = {
       '.qc-venue-meta{flex:1;min-width:0;}' +
       '.qc-venue-nm{font-size:14px;font-weight:600;color:#e8eef4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
       '.qc-venue-area{font-size:11px;color:#8a99a8;}' +
-      '.qc-venue-check{flex-shrink:0;font-size:22px;color:#2ba8e0;}';
+      '.qc-venue-check{flex-shrink:0;font-size:22px;color:#2ba8e0;}' +
+      '.qc-choose-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:11px;border:1px dashed rgba(43,168,224,0.5);background:rgba(43,168,224,0.06);color:#2ba8e0;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;}' +
+      '.qc-choose-btn .material-icons{font-size:19px;}' +
+      '.qc-pick-summary{font-size:12px;color:#cfe0ee;margin-top:9px;line-height:1.5;}';
     document.head.appendChild(s);
   },
 
@@ -12125,28 +12131,83 @@ const Quests = {
 
   qcRenderVenues() {
     var st = window._ffpQc || {}; var box = document.getElementById('qc-venues'); if (!box) return;
-    var vs = st.venues || []; var pick = st.mode === 'pick';
-    box.innerHTML = vs.map(function (v) {
-      var picked = pick && !!(st.picked && st.picked[v.id]);
-      var av = escHtml(String(v.letter_mark || (v.name || '?').charAt(0) || '?').toUpperCase());
-      var area = [v.area, v.city].filter(Boolean).join(' · ');
-      return '<div class="qc-venue-card' + (pick ? ' pickable' : '') + (picked ? ' picked' : '') + '"' +
-          (pick ? (' onclick="Quests.qcTogglePick(\'' + v.id + '\')"') : '') + '>' +
-          '<div class="qc-venue-av">' + av + '</div>' +
-          '<div class="qc-venue-meta"><div class="qc-venue-nm">' + escHtml(v.name || 'Venue') + '</div>' +
-            (area ? '<div class="qc-venue-area">' + escHtml(area) + '</div>' : '') + '</div>' +
-          (pick ? '<span class="material-icons qc-venue-check">' + (picked ? 'check_circle' : 'radio_button_unchecked') + '</span>' : '') +
-        '</div>';
-    }).join('');
+    var pick = st.mode === 'pick';
     var note = document.getElementById('qc-pool-note'), tgtWrap = document.getElementById('qc-target-wrap');
     if (pick) {
-      var np = Object.keys(st.picked || {}).filter(function (k) { return st.picked[k]; }).length;
-      if (note) note.innerHTML = '<strong style="color:#2ba8e0;">Tap the venues</strong> you want — only these will count. Selected: <strong>' + np + '</strong>.';
+      var picked = (st.venues || []).filter(function (v) { return st.picked && st.picked[v.id]; });
+      var names = picked.map(function (v) { return v.name; });
+      box.innerHTML =
+        '<button type="button" class="qc-choose-btn" onclick="Quests.qcOpenVenuePicker()"><span class="material-icons">storefront</span> Choose venues</button>' +
+        (picked.length
+          ? '<div class="qc-pick-summary"><strong style="color:#2ba8e0;">' + picked.length + ' selected:</strong> ' + escHtml(names.slice(0, 5).join(', ')) + (names.length > 5 ? ' +' + (names.length - 5) + ' more' : '') + '</div>'
+          : '<div class="qc-pick-summary" style="color:#8a99a8;">None picked yet — tap “Choose venues” to select the places this quest counts.</div>');
+      if (note) note.innerHTML = 'Pick the specific places this quest counts — <strong>' + (st.count || 0) + '</strong> available in this area.';
       if (tgtWrap) tgtWrap.style.display = 'none';
     } else {
-      if (note) note.innerHTML = '<strong style="color:#2ba8e0;">' + (st.count || 0) + ' FFP venue' + ((st.count || 0) === 1 ? '' : 's') + '</strong> count toward this quest. Visit any of them — new FFP partners join automatically.';
+      box.innerHTML = '';
+      if (note) note.innerHTML = '<strong style="color:#2ba8e0;">' + (st.count || 0) + ' FFP venue' + ((st.count || 0) === 1 ? '' : 's') + '</strong> count toward this quest — visit any of them, and new FFP partners join automatically. Anyone who joins can browse + search the full list on the quest.';
       if (tgtWrap) tgtWrap.style.display = '';
     }
+  },
+
+  // Pick-specific: a full-screen searchable venue MENU (info per venue) that stacks over the create form.
+  qcOpenVenuePicker() {
+    if (document.getElementById('qcvp-overlay')) return;
+    var ov = document.createElement('div');
+    ov.id = 'qcvp-overlay';
+    ov.setAttribute('style', 'position:fixed;inset:0;z-index:100001;background:#0b1c28;display:flex;flex-direction:column;font-family:inherit;');
+    ov.innerHTML =
+      '<div style="padding:16px 18px;border-bottom:1px solid rgba(43,168,224,0.2);display:flex;align-items:center;gap:10px;flex-shrink:0;">' +
+        '<button onclick="Quests.qcvpDone()" style="background:none;border:none;color:#cfe0ee;cursor:pointer;display:flex;padding:0;"><span class="material-icons">arrow_back</span></button>' +
+        '<div style="font-size:16px;font-weight:800;color:#e8eef4;">Choose venues</div>' +
+      '</div>' +
+      '<div style="padding:14px 18px 0;flex-shrink:0;"><input id="qcvp-search" placeholder="Search venues…" oninput="Quests.qcvpFilter(this.value)" style="width:100%;box-sizing:border-box;padding:11px 14px;border-radius:10px;border:1px solid rgba(43,168,224,0.25);background:rgba(43,168,224,0.05);color:#e8eef4;font-size:14px;font-family:inherit;"></div>' +
+      '<div id="qcvp-list" style="flex:1;overflow:auto;padding:12px 18px;display:flex;flex-direction:column;gap:8px;">' + this.qcvpListHtml('') + '</div>' +
+      '<div style="padding:14px 18px;border-top:1px solid rgba(43,168,224,0.2);flex-shrink:0;"><button class="btn-primary-blue" style="width:100%;" onclick="Quests.qcvpDone()">Done</button></div>';
+    document.body.appendChild(ov);
+  },
+  qcvpListHtml(q) {
+    var st = window._ffpQc || {}; var venues = st.venues || [];
+    q = (q || '').trim().toLowerCase();
+    if (q) venues = venues.filter(function (v) { return ((v.name || '') + ' ' + (v.area || '') + ' ' + (v.city || '')).toLowerCase().indexOf(q) !== -1; });
+    if (!venues.length) return '<div class="cv-empty">No venues match.</div>';
+    return venues.map(function (v) {
+      var picked = !!(st.picked && st.picked[v.id]);
+      var av = escHtml(String(v.letter_mark || (v.name || '?').charAt(0) || '?').toUpperCase());
+      var area = [v.area, v.city].filter(Boolean).join(' · ');
+      return '<div class="qc-venue-card pickable' + (picked ? ' picked' : '') + '" onclick="Quests.qcvpToggle(\'' + v.id + '\')">' +
+        '<div class="qc-venue-av">' + av + '</div>' +
+        '<div class="qc-venue-meta"><div class="qc-venue-nm">' + escHtml(v.name || 'Venue') + '</div>' +
+          (area ? '<div class="qc-venue-area">' + escHtml(area) + '</div>' : '') + '</div>' +
+        '<span class="material-icons qc-venue-check">' + (picked ? 'check_circle' : 'radio_button_unchecked') + '</span></div>';
+    }).join('');
+  },
+  qcvpFilter(q) { var h = document.getElementById('qcvp-list'); if (h) h.innerHTML = this.qcvpListHtml(q || ''); },
+  qcvpToggle(id) {
+    var st = window._ffpQc || {}; if (!st.picked) st.picked = {};
+    st.picked[id] = !st.picked[id]; window._ffpQc = st;
+    var s = document.getElementById('qcvp-search'); this.qcvpFilter(s ? s.value : '');
+  },
+  qcvpDone() {
+    var ov = document.getElementById('qcvp-overlay'); if (ov) ov.remove();
+    this.qcRenderVenues();
+  },
+
+  // Quest-detail venue list (read-only) — searchable so joiners can find a place.
+  qdvCardsHtml(venues) {
+    var html = (venues || []).map(function (v) {
+      var av = escHtml(String(v.letter_mark || (v.name || '?').charAt(0) || '?').toUpperCase());
+      var area = [v.area, v.city].filter(Boolean).join(' · ');
+      return '<div class="qc-venue-card"><div class="qc-venue-av">' + av + '</div>' +
+        '<div class="qc-venue-meta"><div class="qc-venue-nm">' + escHtml(v.name || 'Venue') + '</div>' +
+        (area ? '<div class="qc-venue-area">' + escHtml(area) + '</div>' : '') + '</div></div>';
+    }).join('');
+    return html || '<div class="cv-empty">No places match.</div>';
+  },
+  qdvFilter(q) {
+    var venues = window._ffpQdv || []; q = (q || '').trim().toLowerCase();
+    if (q) venues = venues.filter(function (v) { return ((v.name || '') + ' ' + (v.area || '') + ' ' + (v.city || '')).toLowerCase().indexOf(q) !== -1; });
+    var list = document.getElementById('q-detail-venue-list'); if (list) list.innerHTML = this.qdvCardsHtml(venues);
   },
 
   openCreate() {
