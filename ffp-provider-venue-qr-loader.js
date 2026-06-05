@@ -120,8 +120,10 @@
     var pid = providerId();
     if (!pid) return;
     try {
-      var res = await window.supabase.from('providers').select('passport_no, business_name').eq('id', pid).maybeSingle();
-      if (res.data) { info.passport_no = res.data.passport_no || ''; info.business_name = res.data.business_name || ''; }
+      // providers has no passport_no column (that's a members field) — selecting it 400'd the query
+      // and left the QR card blank. Select only business_name.
+      var res = await window.supabase.from('providers').select('business_name').eq('id', pid).maybeSingle();
+      if (res.data) { info.business_name = res.data.business_name || ''; }
     } catch (e) {}
   }
 
