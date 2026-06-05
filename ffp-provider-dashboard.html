@@ -1,4 +1,11 @@
-<!-- FFP PROVIDER DASHBOARD — v37 (2026-06-05)
+<!-- FFP PROVIDER DASHBOARD — v38 (2026-06-05)
+     v38: STUCK "Uploading…" FIX — the crop modal is reused; a successful upload closed it without resetting
+          the Save button, so the 2nd+ crop was stuck disabled (which also meant the hero never saved →
+          no Replace/Remove buttons). Save button now resets every time the crop modal opens
+          (ffp-image-upload.js?v=6). Logo + hero share the identical Replace/Remove buttons via renderUploader.
+          Also cache-busts ffp-provider-venue-qr-loader.js?v=2 — the deployed copy was stale and still
+          selected providers.passport_no (no such column → the 400 in the console); the fixed file selects
+          only business_name. (That 400 was the venue-QR card, NOT the image upload.)
      v37: UPLOAD 400 FIX — storage RLS requires the file folder to equal auth.uid() (the login JWT `sub`).
           The uploader was using the record id (provider id ≠ the owner's auth id), so writes were rejected
           with a 400. The shared uploader now reads the id from the login token, so the folder always
@@ -64,7 +71,7 @@
 <script src="ffp-provider-auth.js"></script>
 <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>
-<script src="assets/ffp-image-upload.js?v=5"></script>
+<script src="assets/ffp-image-upload.js?v=6"></script>
 <script src="ffp-provider-profile-loader.js?v=12"></script>
 <!-- Shared provider picker (FFPPicker) defined HERE in the dashboard so Events/Challenges/Experiences
      activity + country/city pickers never depend on a separately-uploaded loader being present. -->
@@ -195,7 +202,7 @@
 <script src="ffp-provider-quests-loader.js?v=4"></script>
 <!-- Provider quest CREATION (#quests P1): "Your quests" card + create/edit form at the top of the Quests panel -> provider_save_quest RPC. -->
 <script src="ffp-provider-quest-create-loader.js?v=1"></script>
-<script src="ffp-provider-venue-qr-loader.js"></script>
+<script src="ffp-provider-venue-qr-loader.js?v=2"></script>
 <script src="ffp-provider-quest-analytics-loader.js"></script>
 <!-- Feedback widget (shared) -> public.feedback -> admin Feedback panel -->
 <script src="assets/ffp-feedback-widget.js?v=5" data-source="provider" data-fab="off"></script>
