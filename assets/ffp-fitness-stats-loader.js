@@ -1,4 +1,16 @@
-/* FFP Fitness Stats Loader — v21 (2026-06-05)
+/* FFP Fitness Stats Loader — v23 (2026-06-05)
+   v23: Milestones reworked to RECURRING CYCLES for cumulative metrics (Grant's model). A milestone is not a
+        finish line — it REPEATS every N and accumulates a count (×N), forever. Each metric runs a few cycles
+        (a short frequent one = the constant reminder, plus bigger ones), each ticking at its own fixed pace:
+          • Activities Logged — every 10 / 25 / 50 / 100 / 250 / 500 / 1,000
+          • Activity Streak  — Daily / Weekly / Monthly / Quarterly / Half-Year / Yearly
+          • Sport Variety    — new / every 5 / every 10
+          • Cities Active    — new / every 5 / 10 / 25
+        Detail view = a card per cycle: an emblem with ×count, a progress RING to the next, and "X to next".
+        Tab shows total badges earned (×). Engine: msBuildState gets an L.cycles branch (count=floor(val/n),
+        prog, toNext, totalEarned). Performance metrics (lifts / runs / body-fat) stay one-time bests — you
+        don't "repeat" a 2× deadlift. (Replaces the finite badge-ladder model for the cumulative metrics.)
+        Cache-busted by the member dashboard FFP_BUILD.
    v21: Milestone detail BADGE LADDER restyled — was wide horizontal rows (too much vertical gap, didn't read
         as badges). Now a compact GRID of circular badge/stamp emblems: gold filled = earned, dashed blue =
         next, grey = locked. (Cache-busted by the member dashboard FFP_BUILD.)
@@ -1167,11 +1179,13 @@
   // Each metric is a tappable row → detail page: top strap (now / up-next + bar) + the full ladder of badges,
   // earned ones lit, next flagged, locked shown with their target. Logic unit-tested in isolation.
   function msFmtTime(sec){ sec=Math.round(sec); var h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60; return h>0 ? (h+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')) : (m+':'+String(s).padStart(2,'0')); }
+  // Milestones for cumulative metrics are RECURRING cycles — each fires every N and accumulates a count (×N),
+  // forever (no finish line). Performance metrics (lifts / runs / body-fat) stay one-time bests below.
   var MS_LADDERS = [
-    { group:'Consistency', key:'activitiesLogged', name:'Activities Logged', icon:'flag', dir:'higher', read:function(c){ var v=c.logs.length; return {val:v, disp:v+' logged'}; }, tiers:[{t:10,name:'10 logged'},{t:25,name:'25 logged'},{t:50,name:'50 logged'},{t:100,name:'100 logged'},{t:250,name:'250 logged'},{t:500,name:'500 logged'},{t:1000,name:'1,000 logged'},{t:2500,name:'2,500 logged'},{t:5000,name:'5,000 logged'},{t:10000,name:'10,000 logged'}] },
-    { group:'Consistency', key:'activityStreak', name:'Activity Streak', icon:'local_fire_department', dir:'higher', read:function(c){ var v=c.streak; return {val:v, disp:v+'-day streak'}; }, tiers:[{t:3,name:'3-day'},{t:7,name:'1 week'},{t:14,name:'2 weeks'},{t:30,name:'1 month'},{t:60,name:'2 months'},{t:100,name:'100 days'},{t:180,name:'6 months'},{t:365,name:'1 year'},{t:730,name:'2 years'},{t:1095,name:'3 years'},{t:1825,name:'5 years'}] },
-    { group:'Consistency', key:'sportVariety', name:'Sport Variety', icon:'sports', dir:'higher', read:function(c){ var v=new Set(c.logs.map(function(l){return l.activity;}).filter(Boolean)).size; return {val:v, disp:v+' sports'}; }, tiers:[{t:3,name:'3 sports'},{t:5,name:'5 sports'},{t:10,name:'10 sports'},{t:15,name:'15 sports'},{t:20,name:'20 sports'},{t:30,name:'30 sports'},{t:40,name:'40 sports'},{t:50,name:'50 sports'}] },
-    { group:'Consistency', key:'citiesActive', name:'Cities Active', icon:'public', dir:'higher', read:function(c){ var v=new Set(c.logs.map(function(l){return l.city;}).filter(Boolean)).size; return {val:v, disp:v+' cities'}; }, tiers:[{t:1,name:'1 city'},{t:3,name:'3 cities'},{t:5,name:'5 cities'},{t:10,name:'10 cities'},{t:20,name:'20 cities'},{t:35,name:'35 cities'},{t:50,name:'50 cities'},{t:75,name:'75 cities'},{t:100,name:'100 cities'}] },
+    { group:'Consistency', key:'activitiesLogged', name:'Activities Logged', icon:'flag', read:function(c){ var v=c.logs.length; return {val:v, disp:v+' logged'}; }, cycles:[{n:10,name:'Every 10',icon:'flag'},{n:25,name:'Every 25',icon:'flag'},{n:50,name:'Every 50',icon:'military_tech'},{n:100,name:'Century',icon:'military_tech'},{n:250,name:'Every 250',icon:'military_tech'},{n:500,name:'Every 500',icon:'workspace_premium'},{n:1000,name:'Every 1,000',icon:'workspace_premium'}] },
+    { group:'Consistency', key:'activityStreak', name:'Activity Streak', icon:'local_fire_department', read:function(c){ var v=c.streak; return {val:v, disp:v+'-day streak'}; }, cycles:[{n:1,name:'Daily',icon:'wb_sunny'},{n:7,name:'Weekly',icon:'date_range'},{n:30,name:'Monthly',icon:'calendar_month'},{n:90,name:'Quarterly',icon:'event'},{n:182,name:'Half-Year',icon:'event_available'},{n:365,name:'Yearly',icon:'emoji_events'}] },
+    { group:'Consistency', key:'sportVariety', name:'Sport Variety', icon:'sports', read:function(c){ var v=new Set(c.logs.map(function(l){return l.activity;}).filter(Boolean)).size; return {val:v, disp:v+' sports'}; }, cycles:[{n:1,name:'New Sport',icon:'add'},{n:5,name:'Every 5',icon:'sports'},{n:10,name:'Every 10',icon:'sports'}] },
+    { group:'Consistency', key:'citiesActive', name:'Cities Active', icon:'public', read:function(c){ var v=new Set(c.logs.map(function(l){return l.city;}).filter(Boolean)).size; return {val:v, disp:v+' cities'}; }, cycles:[{n:1,name:'New City',icon:'add_location'},{n:5,name:'Every 5',icon:'public'},{n:10,name:'Every 10',icon:'public'},{n:25,name:'Every 25',icon:'travel_explore'}] },
     { group:'Max Lifts', key:'deadlift1RM', name:'Deadlift', icon:'fitness_center', dir:'higher', ratio:true, tiers:[{t:1,name:'1× bodyweight'},{t:1.5,name:'1.5×'},{t:2,name:'2×'},{t:2.5,name:'2.5×'},{t:3,name:'3×'},{t:3.5,name:'3.5× (elite)'}] },
     { group:'Max Lifts', key:'squat1RM', name:'Squat', icon:'fitness_center', dir:'higher', ratio:true, tiers:[{t:0.75,name:'0.75×'},{t:1,name:'1× bodyweight'},{t:1.5,name:'1.5×'},{t:2,name:'2×'},{t:2.5,name:'2.5×'},{t:3,name:'3× (elite)'}] },
     { group:'Max Lifts', key:'bench1RM', name:'Bench Press', icon:'fitness_center', dir:'higher', ratio:true, tiers:[{t:0.5,name:'0.5×'},{t:0.75,name:'0.75×'},{t:1,name:'1× bodyweight'},{t:1.25,name:'1.25×'},{t:1.5,name:'1.5×'},{t:2,name:'2× (elite)'}] },
@@ -1187,6 +1201,12 @@
     else if (L.ratio){ var rec=ctx.records[L.key], w=ctx.profile.weight; if(!rec) r={val:null,disp:'Not logged'}; else if(!w) r={val:null,disp:'Add body weight to rank'}; else r={val: rec.value/w, disp: rec.value+'kg · '+(rec.value/w).toFixed(2)+'× bw'}; }
     else if (L.time){ var rt=ctx.records[L.key]; r = rt ? {val:rt.value, disp:msFmtTime(rt.value)} : {val:null,disp:'Not logged'}; }
     else r={val:null,disp:'—'};
+    if (L.cycles){
+      var cv=(r.val==null?0:r.val);
+      var cyc=L.cycles.map(function(c){ var count=Math.floor(cv/c.n); var into=cv-count*c.n; return { n:c.n, name:c.name, icon:c.icon, count:count, into:into, toNext:c.n-into, prog:Math.round((into/c.n)*100) }; });
+      var tot=cyc.reduce(function(a,c){return a+c.count;},0);
+      return { r:r, recurring:true, cycles:cyc, totalEarned:tot };
+    }
     var tiers = (typeof L.tiers==='function') ? L.tiers(ctx) : L.tiers;
     var earned = tiers.map(function(tr){ if(tr.finish) return r.val != null; if(r.val == null) return false; return L.dir==='higher' ? r.val >= tr.t : r.val <= tr.t; });
     var earnedCount = earned.filter(Boolean).length; var nextIdx = earned.indexOf(false);
@@ -1222,14 +1242,33 @@
       '.msd-strap-bar{height:6px;background:rgba(255,255,255,0.08);border-radius:3px;margin-top:7px;overflow:hidden;}',
       '.msd-strap-bar-fill{height:100%;background:var(--blue,#2ba8e0);border-radius:3px;}',
       '.msd-ladder-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.7px;color:var(--muted,#8a99a8);margin-bottom:10px;}',
-      '.msd-ladder{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:16px 10px;margin-top:6px;}',
-      '.msd-badge{display:flex;flex-direction:column;align-items:center;text-align:center;gap:7px;}',
-      '.msd-badge-emblem{width:62px;height:62px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid;box-sizing:border-box;}',
-      '.msd-badge-emblem .material-icons{font-size:30px;}',
-      '.msd-badge.earned .msd-badge-emblem{background:radial-gradient(circle at 50% 32%,#ffe7a0,#FFCC00 72%);border-color:#ffdb57;color:#5a4500;box-shadow:0 2px 11px rgba(255,204,0,0.28);}',
-      '.msd-badge.next .msd-badge-emblem{background:rgba(43,168,224,0.1);border-color:var(--blue,#2ba8e0);border-style:dashed;color:var(--blue,#2ba8e0);}',
-      '.msd-badge.locked .msd-badge-emblem{background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.12);color:#5a6b7a;}',
-      '.msd-badge.locked{opacity:0.6;}',
+      '.msc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(98px,1fr));gap:18px 10px;margin-top:6px;}',
+      '.msc{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;}',
+      '.msc-ring{width:74px;height:74px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:conic-gradient(var(--blue,#2ba8e0) var(--p,0%), rgba(255,255,255,0.09) 0);}',
+      '.msc-emblem{width:60px;height:60px;border-radius:50%;background:#0b1f2e;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;}',
+      '.msc-emblem .material-icons{font-size:17px;color:var(--blue,#2ba8e0);line-height:1;}',
+      '.msc-x{font-size:18px;font-weight:900;color:var(--text,#e8eef4);line-height:1;}',
+      '.msc-x.zero{color:#5a6b7a;}',
+      '.msc-name{font-size:12px;font-weight:800;color:var(--text,#e8eef4);}',
+      '.msc-next{font-size:10.5px;color:var(--muted,#8a99a8);line-height:1.3;}',
+      '.msd-ladder{display:flex;flex-wrap:wrap;gap:14px 9px;align-items:flex-start;margin-top:6px;}',
+      '.msd-badge{display:flex;flex-direction:column;align-items:center;text-align:center;gap:7px;width:60px;}',
+      '.msd-badge.minor{width:34px;}',
+      '.msd-badge.minor .msd-badge-emblem{width:32px;height:32px;border-width:2px;font-size:14px;}',
+      '.msd-badge.minor.earned .msd-badge-emblem{background:rgba(43,168,224,0.16);border-color:var(--blue,#2ba8e0);color:var(--blue,#2ba8e0);box-shadow:none;}',
+      '.msd-badge.minor.earned .msd-badge-emblem::after{display:none;}',
+      '.msd-badge.minor.next .msd-badge-emblem{background:rgba(43,168,224,0.08);border:2px dashed var(--blue,#2ba8e0);}',
+      '.msd-badge.minor.locked .msd-badge-emblem{background:rgba(255,255,255,0.04);border:2px solid rgba(255,255,255,0.10);}',
+      '.msd-badge-emblem{position:relative;width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;border:3px solid;box-sizing:border-box;}',
+      '.msd-badge-emblem::after{content:"";position:absolute;top:7px;left:12px;width:20px;height:10px;border-radius:50%;background:rgba(255,255,255,0.5);filter:blur(1px);pointer-events:none;}',
+      '.msd-badge-star{font-size:26px!important;line-height:1;}',
+      '.msd-badge.earned.bronze .msd-badge-emblem{background:radial-gradient(circle at 50% 32%,#ffd9a8,#cd7f32 62%,#8f5018 100%);border-color:#ffcf9c;color:#5a2f0c;box-shadow:0 3px 11px rgba(205,127,50,0.30),inset 0 -3px 6px rgba(120,70,20,0.45),inset 0 2px 4px rgba(255,235,200,0.6);}',
+      '.msd-badge.earned.silver .msd-badge-emblem{background:radial-gradient(circle at 50% 32%,#ffffff,#cdd6e0 62%,#8d99a8 100%);border-color:#eef3f8;color:#36424f;box-shadow:0 3px 11px rgba(180,200,220,0.28),inset 0 -3px 6px rgba(110,130,150,0.45),inset 0 2px 4px rgba(255,255,255,0.85);}',
+      '.msd-badge.earned.gold .msd-badge-emblem{background:radial-gradient(circle at 50% 32%,#fff3c0,#FFCC00 60%,#d49a00 100%);border-color:#fff0b0;color:#6b4e00;box-shadow:0 3px 13px rgba(255,204,0,0.38),inset 0 -3px 6px rgba(170,120,0,0.45),inset 0 2px 4px rgba(255,255,255,0.75);}',
+      '.msd-badge.next .msd-badge-emblem{background:rgba(43,168,224,0.10);border:2px dashed var(--blue,#2ba8e0);color:var(--blue,#2ba8e0);}',
+      '.msd-badge.next .msd-badge-emblem::after,.msd-badge.locked .msd-badge-emblem::after{display:none;}',
+      '.msd-badge.locked .msd-badge-emblem{background:rgba(255,255,255,0.03);border:2px solid rgba(255,255,255,0.10);color:#56697a;}',
+      '.msd-badge.locked{opacity:0.65;}',
       '.msd-badge-name{font-size:10px;font-weight:700;line-height:1.25;color:var(--text,#e8eef4);}',
       '.msd-badge.next .msd-badge-name{color:var(--blue,#2ba8e0);}',
       '.msd-badge.locked .msd-badge-name{color:var(--muted,#8a99a8);}'
@@ -1237,20 +1276,33 @@
   }
   function overrideMilestonesV20(){
     FitnessStats.renderMilestones = function(){
-      msInjectCss(); var ctx=msCtx(); var totalEarned=0, totalBadges=0; var groups={}, order=[];
-      MS_LADDERS.forEach(function(L){ var st=msBuildState(L,ctx); totalEarned+=st.earnedCount; totalBadges+=st.total; if(!groups[L.group]){groups[L.group]=[];order.push(L.group);} groups[L.group].push({L:L,st:st}); });
-      var html=order.map(function(g){ var rows=groups[g].map(function(o){ var L=o.L, st=o.st; var pct=Math.round((st.earnedCount/st.total)*100); var nextTxt=st.nextIdx<0?'All badges earned':('Next · '+st.tiers[st.nextIdx].name);
-        return '<div class="ms-row" onclick="ffpMilestoneDetail(\''+L.key+'\')"><div class="ms-row-ic"><span class="material-icons">'+L.icon+'</span></div><div class="ms-row-body"><div class="ms-row-top"><span class="ms-row-name">'+escText(L.name)+'</span><span class="ms-row-badges">'+st.earnedCount+'/'+st.total+'</span></div><div class="ms-row-now">'+escText(st.r.disp)+' · <span class="ms-row-next">'+escText(nextTxt)+'</span></div><div class="ms-row-bar"><div class="ms-row-bar-fill" style="width:'+pct+'%;"></div></div></div><span class="material-icons ms-row-chev">chevron_right</span></div>';
+      msInjectCss(); var ctx=msCtx(); var totalEarned=0; var groups={}, order=[];
+      MS_LADDERS.forEach(function(L){ var st=msBuildState(L,ctx); totalEarned += st.recurring ? st.totalEarned : st.earnedCount; if(!groups[L.group]){groups[L.group]=[];order.push(L.group);} groups[L.group].push({L:L,st:st}); });
+      var html=order.map(function(g){ var rows=groups[g].map(function(o){ var L=o.L, st=o.st; var badges=st.recurring?(st.totalEarned+'×'):(st.earnedCount+'/'+st.total);
+        return '<div class="ms-row" onclick="ffpMilestoneDetail(\''+L.key+'\')"><div class="ms-row-ic"><span class="material-icons">'+L.icon+'</span></div><div class="ms-row-body"><span class="ms-row-name">'+escText(L.name)+'</span></div><span class="ms-row-badges">'+badges+'</span><span class="material-icons ms-row-chev">chevron_right</span></div>';
       }).join(''); return '<div class="ms-cat">'+escText(g)+'</div>'+rows; }).join('');
       var gridEl=document.getElementById('achievements-grid'); if(gridEl) gridEl.innerHTML=html;
-      var countEl=document.getElementById('ms-unlocked-count'); if(countEl) countEl.textContent=totalEarned+' of '+totalBadges+' badges';
+      var countEl=document.getElementById('ms-unlocked-count'); if(countEl) countEl.textContent=totalEarned+' badges earned';
     };
   }
   window.ffpMilestoneDetail = function(key){
     var L=MS_LADDERS.find(function(x){return x.key===key;}); if(!L) return;
-    var st=msBuildState(L, msCtx()); var pct=msPctToNext(L,st); var nextName=st.nextIdx<0?null:st.tiers[st.nextIdx].name;
+    var st=msBuildState(L, msCtx());
+    if(st.recurring){
+      var strapR='<div class="msd-strap"><div class="msd-strap-ic"><span class="material-icons">'+L.icon+'</span></div><div class="msd-strap-body"><div class="msd-strap-name">'+escText(L.name)+'</div><div class="msd-strap-now">'+escText(st.r.disp)+'</div><div class="msd-strap-next">'+st.totalEarned+' milestone'+(st.totalEarned===1?'':'s')+' earned · they keep coming</div></div></div>';
+      var cardsR=st.cycles.map(function(c){ var zero=c.count===0; return '<div class="msc"><div class="msc-ring" style="--p:'+c.prog+'%"><div class="msc-emblem"><span class="material-icons">'+c.icon+'</span><span class="msc-x'+(zero?' zero':'')+'">×'+c.count+'</span></div></div><div class="msc-name">'+escText(c.name)+'</div><div class="msc-next">'+c.toNext+' to next</div></div>'; }).join('');
+      if(typeof openDetailModal==='function') openDetailModal('<div class="msd-wrap">'+strapR+'<div class="msd-ladder-title">Recurring milestones — each repeats forever</div><div class="msc-grid">'+cardsR+'</div></div>', true);
+      return;
+    }
+    var pct=msPctToNext(L,st); var nextName=st.nextIdx<0?null:st.tiers[st.nextIdx].name;
     var strap='<div class="msd-strap"><div class="msd-strap-ic"><span class="material-icons">'+L.icon+'</span></div><div class="msd-strap-body"><div class="msd-strap-name">'+escText(L.name)+'</div><div class="msd-strap-now">'+escText(st.r.disp)+'</div>'+(nextName?'<div class="msd-strap-next">Up next · '+escText(nextName)+'</div><div class="msd-strap-bar"><div class="msd-strap-bar-fill" style="width:'+Math.round(pct)+'%;"></div></div>':'<div class="msd-strap-next done">All '+st.total+' badges earned 🎉</div>')+'</div></div>';
-    var ladder=st.tiers.map(function(tr,i){ var state=st.earned[i]?'earned':(i===st.nextIdx?'next':'locked'); var ic=st.earned[i]?L.icon:(i===st.nextIdx?L.icon:'lock'); return '<div class="msd-badge '+state+'"><div class="msd-badge-emblem"><span class="material-icons">'+ic+'</span></div><div class="msd-badge-name">'+escText(tr.name)+'</div></div>'; }).join('');
+    var ladder=st.tiers.map(function(tr,i){
+      var state=st.earned[i]?'earned':(i===st.nextIdx?'next':'locked');
+      if(!tr.major){ var tick=st.earned[i]?'✓':''; return '<div class="msd-badge minor '+state+'" title="'+escText(String(tr.t))+'"><div class="msd-badge-emblem">'+tick+'</div></div>'; }
+      var metal=i<st.total/3?'bronze':(i<st.total*2/3?'silver':'gold');
+      var inner=(i===st.total-1)?'<span class="material-icons msd-badge-star">star</span>':(tr.t>=1000?(tr.t/1000)+'K':String(tr.t));
+      return '<div class="msd-badge major '+state+' '+metal+'"><div class="msd-badge-emblem">'+inner+'</div><div class="msd-badge-name">'+escText(tr.name)+'</div></div>';
+    }).join('');
     var html='<div class="msd-wrap">'+strap+'<div class="msd-ladder-title">Badge ladder · '+st.earnedCount+'/'+st.total+'</div><div class="msd-ladder">'+ladder+'</div></div>';
     if(typeof openDetailModal==='function') openDetailModal(html, true);
   };
