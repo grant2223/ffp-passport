@@ -30,10 +30,25 @@
   var pending = null; // { bucket, key, outW, outH, aspect, onDone, onError }
 
   function ownerId() {
+    // The storage RLS requires the file's folder to equal auth.uid() — which is the `sub` claim of the
+    // login JWT. Read it straight from the token so the folder ALWAYS matches the policy (members and
+    // providers can have a record id that differs from their auth id, which caused a 400 on upload).
+    try {
+      var tok = window.FFPAuth && window.FFPAuth.getToken && window.FFPAuth.getToken();
+      if (tok) {
+        var parts = tok.split('.');
+        if (parts.length === 3) {
+          var b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+          while (b64.length % 4) b64 += '=';
+          var payload = JSON.parse(atob(b64));
+          if (payload && payload.sub) return String(payload.sub);
+        }
+      }
+    } catch (e) { /* fall through to member id */ }
     try {
       var m = window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember();
       return (m && m.id) || null;
-    } catch (e) { return null; }
+    } catch (e2) { return null; }
   }
 
   // ── Low-level: upload a Blob to {ownerId}/{key}.jpg and return the public URL ──
