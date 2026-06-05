@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v300 (2026-06-05)
+<!-- FFP MEMBER DASHBOARD — v301 (2026-06-05)
+     v301: FIX — Passport field triggers rendered BLANK (invisible) because .ffp-trigger had no box styling and the
+           wrap could collapse to 0 width; pages that style fields by element selector (input/select{}) gave the
+           <button> trigger nothing. Now .ffp-trigger is a fully self-styled Passport field (width/padding/bg/border/
+           font, independent of page CSS) and .ffp-dd fills its container (width:100%;min-width:0). Also removed the
+           material-icons dependency: caret ▾, calendar ‹ ›, selected ✓ are plain glyphs that render on every page.
      v300: PASSPORT-DESIGNED FORM CONTROLS — INLINED at the bottom of this file (no external loader), replacing the
            native Apple/Android dropdown wheel + date/time pickers with custom on-brand Passport controls (styled trigger
            + dark branded panel: searchable dropdown list, calendar, hour/minute time picker). Progressive
@@ -8285,7 +8290,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '300';
+  const FFP_BUILD = '301';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -15351,11 +15356,12 @@ window.FFPLocPick = (function(){
   var CSS = [
     ':root{--ffp-blue:#2ba8e0;--ffp-yellow:#FFCC00;}',
     '.ffp-native-hidden{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important;}',
-    '.ffp-dd{position:relative;}',
-    '.ffp-trigger{display:flex!important;align-items:center;justify-content:space-between;gap:8px;text-align:left;cursor:pointer;font-family:inherit;-webkit-appearance:none;appearance:none;background-image:none!important;}',
+    '.ffp-dd{position:relative;width:100%;min-width:0;}',
+    '.ffp-trigger{display:flex!important;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;width:100%;padding:11px 14px;text-align:left;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;line-height:1.3;color:#e8eef4;background:rgba(43,168,224,0.06);border:1px solid rgba(43,168,224,0.30);border-radius:10px;-webkit-appearance:none;appearance:none;background-image:none!important;}',
     '.ffp-trigger .ffp-tg-val{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
     '.ffp-trigger .ffp-tg-val.ph{color:#8a99a8;font-weight:600;}',
-    '.ffp-trigger .ffp-tg-caret{flex-shrink:0;font-size:20px;color:var(--ffp-blue,#2ba8e0);transition:transform .18s;}',
+    '.ffp-trigger .ffp-tg-caret{flex-shrink:0;font-size:0;color:var(--ffp-blue,#2ba8e0);transition:transform .18s;display:inline-flex;align-items:center;}',
+    '.ffp-trigger .ffp-tg-caret::after{content:"▾";font-size:14px;line-height:1;}',
     '.ffp-trigger.open .ffp-tg-caret{transform:rotate(180deg);}',
     '.ffp-trigger:focus-visible{outline:2px solid var(--ffp-blue,#2ba8e0);outline-offset:1px;}',
     '.ffp-pop{position:absolute;z-index:100050;min-width:200px;background:#0e2738;border:1px solid rgba(43,168,224,0.32);border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,0.55);overflow:hidden;font-family:inherit;animation:ffpPop .13s ease;}',
@@ -15367,12 +15373,16 @@ window.FFPLocPick = (function(){
     '.ffp-opt{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:9px;color:#dce7f0;font-size:14px;font-weight:600;cursor:pointer;line-height:1.25;}',
     '.ffp-opt:hover{background:rgba(43,168,224,0.12);}',
     '.ffp-opt.sel{background:rgba(43,168,224,0.18);color:#fff;}',
-    '.ffp-opt.sel::after{content:"check";font-family:"Material Icons";margin-left:auto;font-size:18px;color:var(--ffp-blue,#2ba8e0);}',
+    '.ffp-opt.sel::after{content:"✓";margin-left:auto;font-size:15px;font-weight:800;color:var(--ffp-blue,#2ba8e0);}',
     '.ffp-opt.dis{opacity:.4;cursor:not-allowed;}',
     '.ffp-opt-empty{padding:16px 12px;color:#8a99a8;font-size:13px;text-align:center;}',
     '.ffp-cal{padding:12px;width:300px;max-width:88vw;box-sizing:border-box;}',
     '.ffp-cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}',
-    '.ffp-cal-nav{width:34px;height:34px;border-radius:9px;border:none;background:rgba(43,168,224,0.10);color:var(--ffp-blue,#2ba8e0);cursor:pointer;display:flex;align-items:center;justify-content:center;}',
+    '.ffp-cal-nav{width:34px;height:34px;border-radius:9px;border:none;background:rgba(43,168,224,0.10);color:var(--ffp-blue,#2ba8e0);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0;}',
+    '.ffp-cal-nav .material-icons{display:none;}',
+    '.ffp-cal-nav::after{font-size:22px;font-weight:800;line-height:1;color:var(--ffp-blue,#2ba8e0);}',
+    '.ffp-cal-nav[data-mv="-1"]::after{content:"‹";}',
+    '.ffp-cal-nav[data-mv="1"]::after{content:"›";}',
     '.ffp-cal-nav:hover{background:rgba(43,168,224,0.20);}',
     '.ffp-cal-title{font-size:14px;font-weight:800;color:#e8eef4;}',
     '.ffp-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}',
