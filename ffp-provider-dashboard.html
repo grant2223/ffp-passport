@@ -1,4 +1,7 @@
-<!-- FFP PROVIDER DASHBOARD — v35 (2026-06-05)
+<!-- FFP PROVIDER DASHBOARD — v36 (2026-06-05)
+     v36: CROP SAVE FIX + header ratio — the crop "Save" pulled the image through a dataURL re-decode that
+          could hang (looked like "crop won't save"); now reads the JPEG straight off the cropped canvas
+          (ffp-image-upload.js?v=4). Header crop set to 16:9 (was 16:10) per the real banner shape.
      v35: CROP/POSITION step for Logo + Hero — added Cropper.js; logo crops square, hero crops to a 16:10
           banner so providers frame the image how they want. Click + drag-drop both open the crop modal
           (pickProviderImage / dropProviderImage → FFPUpload.pick / .cropFile). Loads ffp-image-upload.js?v=3
@@ -57,7 +60,7 @@
 <script src="ffp-provider-auth.js"></script>
 <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>
-<script src="assets/ffp-image-upload.js?v=3"></script>
+<script src="assets/ffp-image-upload.js?v=4"></script>
 <script src="ffp-provider-profile-loader.js?v=12"></script>
 <!-- Shared provider picker (FFPPicker) defined HERE in the dashboard so Events/Challenges/Experiences
      activity + country/city pickers never depend on a separately-uploaded loader being present. -->
@@ -2322,7 +2325,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
               <div class="uploader" id="up-hero" onclick="pickProviderImage('hero')">
                 <div class="uploader-icon"><span class="ms">image</span></div>
                 <div class="uploader-title">Click or drag to upload</div>
-                <div class="uploader-hint">JPG or PNG · 16:10 · position &amp; crop to fit the banner</div>
+                <div class="uploader-hint">JPG or PNG · 16:9 · position &amp; crop to fit the banner</div>
               </div>
             </div>
           </div>
@@ -3290,7 +3293,7 @@ function renderUploader(targetId, dataUrl, kind) {
     el.innerHTML =
       '<div class="uploader-icon"><span class="ms">image</span></div>' +
       '<div class="uploader-title">' + (isLogo ? 'Upload logo' : 'Click or drag to upload') + '</div>' +
-      '<div class="uploader-hint">' + (isLogo ? 'PNG · square · crop to fit' : 'JPG or PNG · 16:10 · position & crop') + '</div>';
+      '<div class="uploader-hint">' + (isLogo ? 'PNG · square · crop to fit' : 'JPG or PNG · 16:9 · position & crop') + '</div>';
   }
 }
 
@@ -3305,10 +3308,10 @@ function ffpImgOpts(kind) {
   return {
     bucket: isLogo ? 'provider-logos' : 'provider-heroes',
     key: kind + '-' + pid,
-    aspect: isLogo ? 1 : (16 / 10),
+    aspect: isLogo ? 1 : (16 / 9),
     outW: isLogo ? 512 : 1600,
-    outH: isLogo ? 512 : 1000,
-    title: isLogo ? 'Crop your logo' : 'Position your banner',
+    outH: isLogo ? 512 : 900,
+    title: isLogo ? 'Crop your logo' : 'Position your banner (16:9)',
     onDone: function (url) {
       if (isLogo) { providerProfile.logo_url = url; renderUploader('up-logo', url, 'logo'); }
       else { providerProfile.hero_url = url; renderUploader('up-hero', url, 'hero'); }
