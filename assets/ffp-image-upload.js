@@ -163,15 +163,18 @@
     var orig = btn ? btn.textContent : '';
     if (btn) { btn.textContent = 'Uploading…'; btn.disabled = true; }
     try {
-      var dataUrl;
-      if (cropper) {
-        var canvas = cropper.getCroppedCanvas({
-          width: pending.outW, height: pending.outH,
-          imageSmoothingEnabled: true, imageSmoothingQuality: 'high', fillColor: '#0f1e2e'
-        });
-        dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-      }
-      await finish(dataUrl);
+      if (!cropper) throw new Error('Crop not ready — close and try again');
+      var canvas = cropper.getCroppedCanvas({
+        width: pending.outW, height: pending.outH,
+        imageSmoothingEnabled: true, imageSmoothingQuality: 'high', fillColor: '#0f1e2e'
+      });
+      if (!canvas) throw new Error('Could not read the crop area');
+      // Get the JPEG blob DIRECTLY off the cropped canvas — no dataURL round-trip (that re-decode
+      // could stall and leave the upload hanging, which looked like "crop won't save").
+      var blob = await new Promise(function (resolve, reject) {
+        canvas.toBlob(function (b) { b ? resolve(b) : reject(new Error('Could not create the image')); }, 'image/jpeg', 0.85);
+      });
+      await uploadAndDone(blob);
       closeModal();
     } catch (e) {
       if (btn) { btn.textContent = orig; btn.disabled = false; }
@@ -180,12 +183,17 @@
     }
   }
 
-  // Resize (if needed) + upload + hand back the URL
-  async function finish(dataUrl) {
-    var blob = await resizeToBlob(dataUrl, pending.outW, pending.outH);
+  async function uploadAndDone(blob) {
+    if (!blob) throw new Error('Could not create the image');
     if (blob.size > 3 * 1024 * 1024) throw new Error('Image too large after compression — try a smaller one.');
     var url = await uploadBlob(pending.bucket, pending.key, blob);
     if (pending.onDone) pending.onDone(url);
+  }
+
+  // No-crop fallback (only used when Cropper.js isn't on the page): resize the raw image, then upload.
+  async function finish(dataUrl) {
+    var blob = await resizeToBlob(dataUrl, pending.outW, pending.outH);
+    await uploadAndDone(blob);
   }
 
   function handleFile(file) {
