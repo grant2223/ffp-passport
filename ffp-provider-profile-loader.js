@@ -1,4 +1,7 @@
-/* FFP Provider Profile Loader — v12
+/* FFP Provider Profile Loader — v13
+   v13 (2026-06-05): Passport-member discount field — load/map/save providers.passport_discount_pct
+       (the % off this provider's Find Fit People bookings for paid Passport members; '' = platform
+       default). Read by the booking site at checkout. Save via provider_save_profile RPC.
    v12 (2026-06-02): Activities input now uses OUR styled dropdown under the field (filtered list
        of the activity taxonomy + an "Add ‘x’" custom option), replacing the ugly native
        <datalist> that rendered a full-height list on the right of the screen. Click to add a chip;
@@ -258,7 +261,7 @@
 
     var provRes = await window.supabase
       .from('providers')
-      .select('id, business_name, letter_mark, category, provider_type, country, city, area, address, contact_email, contact_phone, website, instagram, about, logo_url, hero_photo_url, status, activities, latitude, longitude, maps_url')
+      .select('id, business_name, letter_mark, category, provider_type, country, city, area, address, contact_email, contact_phone, website, instagram, about, logo_url, hero_photo_url, status, activities, latitude, longitude, maps_url, passport_discount_pct')
       .eq('id', id).single();
     if (provRes.error) throw provRes.error;
 
@@ -289,6 +292,7 @@
       latitude:      (p.latitude  != null) ? Number(p.latitude)  : null,
       longitude:     (p.longitude != null) ? Number(p.longitude) : null,
       maps_url:      p.maps_url || '',
+      passport_discount_pct: (p.passport_discount_pct != null) ? Number(p.passport_discount_pct) : null,
       hours:         defaultHoursObj()
     };
     (hoursRes && hoursRes.data ? hoursRes.data : []).forEach(function (h) {
@@ -378,7 +382,9 @@
           activities:     _provExtras.activities || [],
           latitude:       (_provExtras.lat != null) ? _provExtras.lat : null,
           longitude:      (_provExtras.lng != null) ? _provExtras.lng : null,
-          maps_url:       _provExtras.mapsUrl || null
+          maps_url:       _provExtras.mapsUrl || null,
+          // Passport-member discount % this provider offers on Find Fit People bookings ('' = platform default).
+          passport_discount_pct: (function () { var e = document.getElementById('pf-passport-discount'); return e ? e.value.trim() : ''; })()
         },
         p_hours: hoursRows
       });
