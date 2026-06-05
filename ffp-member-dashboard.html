@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v293 (2026-06-05)
+<!-- FFP MEMBER DASHBOARD — v294 (2026-06-05)
+     v294: MEMBERSHIP GATE — free/lapsed members get a "Join Passport — $99/yr" screen instead of the member
+           app, via the canonical member_passport_active RPC (shared with Find Fit People). Self-contained,
+           fail-open (providers/admins/errors/not-signed-in → no gate; never locks out a payer). JOIN_URL is a
+           placeholder constant near </body> — point it at the live $99 checkout (Stripe Payment Link).
      v293: PRODUCT BOUNDARY cleanup (step 1) — bottom nav refocused to Passport's real jobs:
            Passport · Connections · Check In · Quests · Challenges. Removed the Events + Experiences nav
            tabs (those are Find Fit People's marketplace; members book there + check in with their Passport).
@@ -8166,7 +8170,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '293';
+  const FFP_BUILD = '294';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -15108,5 +15112,60 @@ window.FFPLocPick = (function(){
 })();
 </script>
 <script src="ffp-member-checkin-loader.js?v=7"></script>
+<!-- v294: PASSPORT MEMBERSHIP GATE — free/lapsed members get a Join/Renew screen instead of the member app.
+     Self-contained + FAIL-OPEN: providers/admins, not-signed-in, or any error → NO gate (never lock out a
+     payer). Uses the canonical member_passport_active RPC (shared with Find Fit People). -->
+<script>
+(function () {
+  'use strict';
+  // TODO(Grant): point JOIN_URL at the live $99/yr Passport checkout (Stripe Payment Link / subscription page).
+  var JOIN_URL = 'https://findfitpeople.com/passport';   // placeholder — set to the real $99 checkout
+  var BOOK_URL = 'https://findfitpeople.com';
+
+  function member() { try { return (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null; } catch (e) { return null; } }
+  window.__ffpGateSignOut = function () {
+    try { if (window.ffpLogout) return window.ffpLogout(); } catch (e) {}
+    try { localStorage.removeItem('ffp_member'); localStorage.removeItem('ffp_jwt'); } catch (e) {}
+    location.href = 'login.html';
+  };
+
+  function showGate() {
+    if (document.getElementById('ffp-pass-gate')) return;
+    var d = document.createElement('div');
+    d.id = 'ffp-pass-gate';
+    d.setAttribute('style', 'position:fixed;inset:0;z-index:100000;background:#081420;color:#e8eef4;display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto;font-family:inherit;');
+    d.innerHTML =
+      '<div style="max-width:420px;width:100%;text-align:center;">' +
+        '<div style="font-weight:900;letter-spacing:1px;font-size:14px;color:#2ba8e0;margin-bottom:18px;">FFP PASSPORT</div>' +
+        '<div style="font-size:24px;font-weight:800;line-height:1.25;margin-bottom:10px;">Your Passport unlocks the app</div>' +
+        '<div style="font-size:14px;color:#9fb4c4;line-height:1.6;margin-bottom:20px;">Membership gets you your passport &amp; stamps, member connections &amp; meet-ups, quests &amp; challenges, and member savings on Find Fit People bookings.</div>' +
+        '<div style="background:rgba(43,168,224,0.08);border:1px solid rgba(43,168,224,0.25);border-radius:14px;padding:16px;margin-bottom:18px;">' +
+          '<div style="font-size:30px;font-weight:900;">$99<span style="font-size:15px;font-weight:700;color:#9fb4c4;"> / year</span></div>' +
+        '</div>' +
+        '<a href="' + JOIN_URL + '" style="display:block;background:#FFCC00;color:#081420;font-weight:800;text-decoration:none;padding:14px;border-radius:12px;font-size:15px;margin-bottom:10px;">Join Passport</a>' +
+        '<a href="' + BOOK_URL + '" style="display:block;color:#cfe0ee;text-decoration:none;font-size:13px;padding:10px;">Just browsing? Book on Find Fit People →</a>' +
+        '<button onclick="window.__ffpGateSignOut()" style="background:none;border:none;color:#7b8b9c;font-size:12px;margin-top:4px;cursor:pointer;font-family:inherit;">Sign out</button>' +
+      '</div>';
+    document.body.appendChild(d);
+    try { document.body.style.overflow = 'hidden'; } catch (e) {}
+  }
+
+  async function run() {
+    var tries = 0;
+    while (!member() && tries < 60) { await new Promise(function (r) { setTimeout(r, 150); }); tries++; }
+    var m = member();
+    if (!m || !m.id) return;                       // not signed in → login.html handles it
+    if ((m.role || 'member') !== 'member') return; // providers/admins never gated
+    if (!window.supabase) return;                  // no client → fail-open
+    try {
+      var res = await window.supabase.rpc('member_passport_active', { p_id: m.id });
+      if (res.error) return;                        // error → fail-open (never lock out a payer)
+      if (res.data === true) return;                // active member → full app
+      showGate();                                   // free / lapsed → gate
+    } catch (e) { /* fail-open */ }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
+})();
+</script>
 </body>
 </html>
