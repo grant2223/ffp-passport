@@ -1,4 +1,9 @@
-<!-- FFP PROVIDER DASHBOARD — v39 (2026-06-05)
+<!-- FFP PROVIDER DASHBOARD — v40 (2026-06-05)
+     v40: Removed dead <script> ref to ffp-provider-quest-analytics-loader.js (file doesn't exist in repo →
+          404 → "Unexpected token '<'" console error). NOTE: the live upload/venue-QR errors are DEPLOY gaps,
+          not code — assets/ffp-image-upload.js (new file) must be committed+pushed to the repo (server
+          returns HTML for it = not deployed → FFPUpload never loads → uploads fail), and the fixed
+          ffp-provider-venue-qr-loader.js must be pushed (server still runs the old passport_no query).
      v39: SAVE BAR OVERLAP FIX — the sticky save bar (.save-bar, z-index 5) sat on top of the hero image's
           bottom-right Replace/Remove buttons on the short Branding tab (panes had no bottom padding to clear
           it). Added padding-bottom:104px to .pf-pane so content always clears the save bar.
@@ -206,7 +211,8 @@
 <!-- Provider quest CREATION (#quests P1): "Your quests" card + create/edit form at the top of the Quests panel -> provider_save_quest RPC. -->
 <script src="ffp-provider-quest-create-loader.js?v=1"></script>
 <script src="ffp-provider-venue-qr-loader.js?v=2"></script>
-<script src="ffp-provider-quest-analytics-loader.js"></script>
+<!-- ffp-provider-quest-analytics-loader.js reference removed (v40): that file does not exist in the repo,
+     so it 404'd → returned the HTML fallback → "Unexpected token '<'" console error on every load. -->
 <!-- Feedback widget (shared) -> public.feedback -> admin Feedback panel -->
 <script src="assets/ffp-feedback-widget.js?v=5" data-source="provider" data-fab="off"></script>
 <!-- Removed 2026-05-30: phantom refs to loaders that don't exist (earnings/overview/analytics/team/settings). Overview & Analytics render inline. Normalized quests/venue-qr/quest-analytics refs to plain GitHub filenames. -->
