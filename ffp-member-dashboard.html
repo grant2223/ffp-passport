@@ -1,4 +1,10 @@
-<!-- FFP MEMBER DASHBOARD — v292 (2026-06-05)
+<!-- FFP MEMBER DASHBOARD — v293 (2026-06-05)
+     v293: PRODUCT BOUNDARY cleanup (step 1) — bottom nav refocused to Passport's real jobs:
+           Passport · Connections · Check In · Quests · Challenges. Removed the Events + Experiences nav
+           tabs (those are Find Fit People's marketplace; members book there + check in with their Passport).
+           Check In = action button → openScanLog() (QR scanner), not a panel. Challenges promoted from the
+           avatar menu to the nav (removed its menu entry). panel-events/panel-experiences still exist but
+           are now off-nav (step 2: convert to Find Fit People link-outs + read-only "booked/attended").
      v292: Meetup cover → Storage. pmfPickCover now uploads to the meetup-covers bucket via FFPUpload and
            stores the public URL in meetups.cover_url, instead of a base64 data-URL. Loads
            assets/ffp-image-upload.js?v=6.
@@ -4600,7 +4606,6 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         <button class="menu-item" data-panel="panel-workout-timer"><span class="material-icons">schedule</span><span>Workout Timer</span></button>
         <button class="menu-item" data-panel="panel-calorie-tracker"><span class="material-icons">local_fire_department</span><span>Calorie Tracker</span></button>
         <button class="menu-item" data-panel="panel-fitness-stats"><span class="material-icons">show_chart</span><span>Fitness Stats</span></button>
-        <button class="menu-item" data-panel="panel-challenges"><span class="material-icons">whatshot</span><span>Challenges</span></button>
         <button class="menu-item" data-panel="panel-earnings"><span class="material-icons">account_balance_wallet</span><span>Earnings</span></button>
         <div class="menu-divider"></div>
         <button class="menu-item menu-item-danger" id="user-menu-logout"><span class="material-icons">logout</span><span>Logout</span></button>
@@ -5745,9 +5750,9 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 <div class="bottom-nav">
   <button class="nav-item active" data-panel="panel-passport"><span class="material-icons">card_membership</span><span>Passport</span></button>
   <button class="nav-item" data-panel="panel-meet"><span class="material-icons">group</span><span>Connections</span></button>
+  <button class="nav-item" onclick="openScanLog()"><span class="material-icons">qr_code_scanner</span><span>Check In</span></button>
   <button class="nav-item" data-panel="panel-quests"><span class="material-icons">flag</span><span>Quests</span></button>
-  <button class="nav-item" data-panel="panel-events"><span class="material-icons">event</span><span>Events</span></button>
-  <button class="nav-item" data-panel="panel-experiences"><span class="material-icons">flight</span><span>Experiences</span></button>
+  <button class="nav-item" data-panel="panel-challenges"><span class="material-icons">emoji_events</span><span>Challenges</span></button>
 </div>
 
 <!-- ADD CITY MODAL -->
@@ -8161,7 +8166,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '292';
+  const FFP_BUILD = '293';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
