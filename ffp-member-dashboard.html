@@ -1,4 +1,7 @@
-<!-- FFP MEMBER DASHBOARD — v295 (2026-06-05)
+<!-- FFP MEMBER DASHBOARD — v296 (2026-06-05)
+     v296: MY COLLECTION rebuilt — search bar; tap a person → their flippable passport card (members_cards →
+           FFPCard → FFPPassportCard.render flippable); Recommend (pick a connection → member_recommend_passport
+           drops a notification in their bell) + Remove (member_connection_remove). RPCs live + granted.
      v295: NAV refocus — Passport · Connections · Meetups · Quests · Challenges. Split Meetups (Meet & Move)
            out of the Connections panel into its own #panel-meetups (Connections now = Matches + Collection
            only). Removed the Check In nav tab (scanning from the nav opened the camera abruptly) — Check-in
@@ -8090,30 +8093,104 @@ async function loadConnectionsCount() {
 // v269: "My Collection" — the passports you've collected (member_connections_list, collection semantics).
 // Reuses the already-loaded CONNECTIONS global; tap a person to open their passport detail.
 const CollectionView = {
-  open() {
-    var people = (typeof CONNECTIONS !== 'undefined' && Array.isArray(CONNECTIONS)) ? CONNECTIONS : [];
+  _people: function () { return (typeof CONNECTIONS !== 'undefined' && Array.isArray(CONNECTIONS)) ? CONNECTIONS : []; },
+  _myId: function () { try { return (window.FFPAuth && FFPAuth.getMember && (FFPAuth.getMember() || {}).id) || null; } catch (e) { return null; } },
+  open: function () {
     var body = '<div class="cv-wrap"><h3 class="q-title">My collection</h3>' +
-      '<p class="q-desc">Passports you’ve collected. Tap one to view their passport.</p>';
+      '<p class="q-desc">Passports you’ve collected. Search, tap to view the card, recommend, or remove.</p>' +
+      '<input id="cv-search" placeholder="Search your collection…" oninput="CollectionView._filter(this.value)" style="width:100%;box-sizing:border-box;padding:11px 14px;border-radius:10px;border:1px solid rgba(43,168,224,0.25);background:rgba(43,168,224,0.05);color:#e8eef4;font-size:14px;font-family:inherit;margin-bottom:12px;">' +
+      '<div id="cv-list-host">' + this._listHtml('') + '</div></div>';
+    if (typeof openDetailModal === 'function') openDetailModal(body);
+  },
+  _filter: function (q) { var h = document.getElementById('cv-list-host'); if (h) h.innerHTML = this._listHtml(q || ''); },
+  _listHtml: function (q) {
+    var people = this._people();
+    q = (q || '').trim().toLowerCase();
+    if (q) people = people.filter(function (p) { return ((p.name || '') + ' ' + (p.city || '')).toLowerCase().indexOf(q) !== -1; });
     if (!people.length) {
-      body += '<div class="cv-empty">No passports yet — add people from <b>People you might click with</b> above, or from a meet-up’s Who’s going. Everyone you collect shows up here.</div>';
+      return '<div class="cv-empty">' + (q ? 'No matches in your collection.' : 'No passports yet — add people from <b>People you might click with</b>, or from a meet-up’s Who’s going.') + '</div>';
+    }
+    return '<div class="cv-list">' + people.map(function (p) {
+      var tag = p.mutual ? '<span class="cv-tag connected">Connected</span>' : '<span class="cv-tag added">Added</span>';
+      var av = p.photo
+        ? '<span class="cv-av" style="background:#0a1825 url(\'' + p.photo + '\') center/cover;"></span>'
+        : '<span class="cv-av">' + escHtml((p.name || 'M').charAt(0).toUpperCase()) + '</span>';
+      return '<div class="cv-row" onclick="CollectionView.openPerson(\'' + p.id + '\')">' + av +
+        '<div class="cv-info"><div class="cv-name">' + escHtml(p.name || 'Member') + '</div>' +
+        (p.city ? '<div class="cv-city">' + escHtml(p.city) + '</div>' : '') + '</div>' +
+        tag + '<span class="material-icons cv-chev">chevron_right</span></div>';
+    }).join('') + '</div>';
+  },
+  openPerson: async function (id) {
+    var person = this._people().find(function (x) { return x.id === id; }) || {};
+    var card = null;
+    try {
+      if (window.supabase) {
+        var res = await window.supabase.rpc('members_cards', { p_ids: [id] });
+        var row = (res && res.data && res.data[0]) || null;
+        if (row && window.FFPCard && FFPCard.register) FFPCard.register(row);
+        card = (window.FFPCard && FFPCard.resolve) ? FFPCard.resolve(id) : ((row && window.FFPCard && FFPCard.mapRow) ? FFPCard.mapRow(row) : null);
+      }
+    } catch (e) {}
+    var cardHtml = (card && window.FFPPassportCard && FFPPassportCard.render)
+      ? '<div style="display:flex;justify-content:center;padding:6px 0 2px;">' + FFPPassportCard.render(card, { flippable: true }) + '</div>' +
+        '<div style="text-align:center;font-size:11px;color:var(--muted,#8a99a8);margin:6px 0 14px;">Tap the card to flip</div>'
+      : '<div class="cv-empty">Couldn’t load this passport right now.</div>';
+    var body = '<div class="cv-wrap"><h3 class="q-title">' + escHtml(person.name || (card && card.name) || 'Passport') + '</h3>' +
+      cardHtml +
+      '<div style="display:flex;gap:10px;">' +
+        '<button class="btn-primary-blue" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;" onclick="CollectionView.openShare(\'' + id + '\')"><span class="material-icons" style="font-size:18px;">share</span> Recommend</button>' +
+        '<button style="flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;background:rgba(214,90,90,0.12);color:#d65a5a;border:1px solid rgba(214,90,90,0.4);border-radius:10px;padding:12px 16px;font-weight:700;cursor:pointer;font-family:inherit;" onclick="CollectionView.remove(\'' + id + '\')"><span class="material-icons" style="font-size:18px;">delete</span></button>' +
+      '</div></div>';
+    if (typeof openDetailModal === 'function') openDetailModal(body);
+    setTimeout(function () { try { window.ffpScaleCards && window.ffpScaleCards(); } catch (e) {} }, 30);
+  },
+  openShare: function (subjectId) {
+    var recips = this._people().filter(function (p) { return p.id !== subjectId; });
+    var body = '<div class="cv-wrap"><h3 class="q-title">Recommend this connection</h3>' +
+      '<p class="q-desc">Send this passport to someone in your collection — it lands in their bell as a suggestion to connect.</p>';
+    if (!recips.length) {
+      body += '<div class="cv-empty">You need at least one other connection to recommend to.</div>';
     } else {
-      body += '<div class="cv-list">' + people.map(function (p) {
-        var tag = p.mutual ? '<span class="cv-tag connected">Connected</span>' : '<span class="cv-tag added">Added</span>';
+      body += '<div class="cv-list">' + recips.map(function (p) {
         var av = p.photo
           ? '<span class="cv-av" style="background:#0a1825 url(\'' + p.photo + '\') center/cover;"></span>'
           : '<span class="cv-av">' + escHtml((p.name || 'M').charAt(0).toUpperCase()) + '</span>';
-        return '<div class="cv-row" onclick="CollectionView.openPerson(\'' + p.id + '\')">' + av +
+        return '<div class="cv-row" onclick="CollectionView.doRecommend(\'' + subjectId + '\',\'' + p.id + '\')">' + av +
           '<div class="cv-info"><div class="cv-name">' + escHtml(p.name || 'Member') + '</div>' +
           (p.city ? '<div class="cv-city">' + escHtml(p.city) + '</div>' : '') + '</div>' +
-          tag + '<span class="material-icons cv-chev">chevron_right</span></div>';
+          '<span class="material-icons cv-chev">send</span></div>';
       }).join('') + '</div>';
     }
     body += '</div>';
     if (typeof openDetailModal === 'function') openDetailModal(body);
   },
-  openPerson(id) {
-    if (typeof closeDetailModal === 'function') closeDetailModal();
-    setTimeout(function () { try { if (window.MeetMove && MeetMove.openMemberDetail) MeetMove.openMemberDetail(id); } catch (e) {} }, 90);
+  doRecommend: async function (subjectId, toId) {
+    var me = this._myId();
+    if (!me || !window.supabase) { if (window.showToast) showToast('Please sign in again', 'error'); return; }
+    try {
+      var res = await window.supabase.rpc('member_recommend_passport', { p_me: me, p_to: toId, p_subject: subjectId });
+      if (res.error) throw res.error;
+      if (res.data && res.data.ok === false) throw new Error('invalid');
+      if (window.showToast) showToast('Recommendation sent ✓', 'success');
+      if (typeof closeDetailModal === 'function') closeDetailModal();
+    } catch (e) { if (window.showToast) showToast('Couldn’t send — try again', 'error'); }
+  },
+  remove: async function (id) {
+    var me = this._myId();
+    if (!me || !window.supabase) { if (window.showToast) showToast('Please sign in again', 'error'); return; }
+    var person = this._people().find(function (x) { return x.id === id; }) || {};
+    if (!window.confirm('Remove ' + (person.name || 'this passport') + ' from your collection?')) return;
+    try {
+      var res = await window.supabase.rpc('member_connection_remove', { p_me: me, p_other: id });
+      if (res.error) throw res.error;
+      if (typeof CONNECTIONS !== 'undefined' && Array.isArray(CONNECTIONS)) {
+        var i = CONNECTIONS.findIndex(function (x) { return x.id === id; });
+        if (i >= 0) CONNECTIONS.splice(i, 1);
+      }
+      if (window.showToast) showToast('Removed from collection', 'success');
+      this.open();
+    } catch (e) { if (window.showToast) showToast('Couldn’t remove — try again', 'error'); }
   }
 };
 window.CollectionView = CollectionView;
@@ -8185,7 +8262,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '295';
+  const FFP_BUILD = '296';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
