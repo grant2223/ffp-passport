@@ -1,4 +1,7 @@
-<!-- FFP MEMBER DASHBOARD — v291 (2026-06-05)
+<!-- FFP MEMBER DASHBOARD — v292 (2026-06-05)
+     v292: Meetup cover → Storage. pmfPickCover now uploads to the meetup-covers bucket via FFPUpload and
+           stores the public URL in meetups.cover_url, instead of a base64 data-URL. Loads
+           assets/ffp-image-upload.js?v=6.
      v291: QUEST VENUE SELECTION — the create form now shows the matching FFP venues as brand-styled CARDS
            (letter-mark avatar, name, area) instead of a line of text, with two modes the MEMBER chooses:
            "Any of them" (open/dynamic — any matching venue counts toward the target number; new FFP partners
@@ -483,6 +486,8 @@
 <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>
 <script src="assets/ffp-photo-upload.js"></script>
+<!-- Shared image uploader (Storage, not base64) — used by the meetup cover photo. -->
+<script src="assets/ffp-image-upload.js?v=6"></script>
 <!-- v110: qrcode.js for real scannable Identity QR (verify URL). -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <!-- v167: html2canvas to render the passport card to a shareable image (tap-to-share) -->
@@ -6075,18 +6080,14 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
   // Host meetup cover photo — downscale to a reasonable size (≤1200px, JPEG) so the stored data-URL stays small.
   window.pmfPickCover=function(input){
     var f = input && input.files && input.files[0]; if(!f) return;
-    var img = new Image();
-    img.onload = function(){
-      var max=1200, w=img.width, h=img.height;
-      if (w>max || h>max){ var s=Math.min(max/w, max/h); w=Math.round(w*s); h=Math.round(h*s); }
-      try {
-        var c=document.createElement('canvas'); c.width=w; c.height=h;
-        c.getContext('2d').drawImage(img,0,0,w,h);
-        window.pmfSetCover(c.toDataURL('image/jpeg', 0.82));
-      } catch(e){}
-      try { URL.revokeObjectURL(img.src); } catch(e){}
-    };
-    img.src = URL.createObjectURL(f);
+    // Meetup cover → Supabase Storage (meetup-covers bucket), NOT a base64 data-URL in cover_url.
+    if(!window.FFPUpload){ if(window.showToast) showToast('Uploader not ready — refresh','error'); return; }
+    var mid = (window.FFPAuth && FFPAuth.getMember && (FFPAuth.getMember()||{}).id) || 'member';
+    if(window.showToast) showToast('Uploading photo…','info');
+    window.FFPUpload.uploadFile('meetup-covers','meetup-'+mid+'-'+Date.now(), f, {maxW:1200,maxH:1200}).then(function(url){
+      window.pmfSetCover(url);
+      if(window.showToast) showToast('Photo uploaded','success');
+    }).catch(function(e){ console.error('[meetup cover]',e); if(window.showToast) showToast('Upload failed: '+(e.message||'try again'),'error'); });
   };
   window.pmfSetCover=function(url){
     var hid=document.getElementById('pmf-cover'); if(hid) hid.value=url||'';
@@ -8160,7 +8161,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '291';
+  const FFP_BUILD = '292';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
