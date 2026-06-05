@@ -1,7 +1,16 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-  FFP PASSPORT — login.html v7
+  FFP PASSPORT — login.html v9
   ───────────────────────────────────────────────────────────────────────
+  v9 changes (2026-06-05): EMAIL now lowercased before sending (requestCode +
+  verifyCode → .trim().toLowerCase()). The v7 `exists` gate combined with the
+  backend's case-SENSITIVE email match meant a capitalized email (autocapitalized
+  first letter on mobile) hit "We couldn’t find an account…" even for real
+  accounts. Stored emails are all lowercase, so normalizing client-side fixes it;
+  pairs with backend v75 which also matches case-insensitively as the durable fix.
+  v8 changes (2026-06-04): `.field-input` font-size 15→16px so iOS Safari no
+  longer auto-zooms the page when you focus the email/name field. The OTP
+  `.code-digit` boxes stay 24px (intentionally large — not shrunk).
   v7 changes (2026-06-02): SIGN-IN with an UNREGISTERED email now shows
   "We couldn’t find an account for that email…" and STAYS on the email step
   instead of advancing to the code screen. Driven by backend v52's new
@@ -426,7 +435,7 @@ function setBusy(btnId, busy, normalLabel) {
 }
 async function requestCode(flow) {
   var emailEl = document.getElementById(flow + '-email') || document.getElementById('signin-email');
-  var email = emailEl ? emailEl.value.trim() : '';
+  var email = emailEl ? emailEl.value.trim().toLowerCase() : ''; // v9: normalize case — backend match is case-insensitive; prevents "account does not exist" on capitalized email
   if (!email || !email.includes('@')) {
     if (emailEl) { emailEl.style.borderColor = '#ef4444'; emailEl.focus(); }
     return;
@@ -485,7 +494,7 @@ async function verifyCode(flow) {
     return;
   }
   var emailEl = document.getElementById(flow === 'signup' ? 'signup-email' : 'signin-email');
-  var email = emailEl ? emailEl.value.trim() : '';
+  var email = emailEl ? emailEl.value.trim().toLowerCase() : ''; // v9: normalize case — backend match is case-insensitive; prevents "account does not exist" on capitalized email
   var errId = flow === 'signup' ? 'signup-code-err' : 'signin-code-err';
   var btnId = flow === 'signup' ? 'signup-code-btn' : 'signin-code-btn';
   showError(errId, '');
