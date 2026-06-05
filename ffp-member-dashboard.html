@@ -1,4 +1,13 @@
-<!-- FFP MEMBER DASHBOARD — v298 (2026-06-05)
+<!-- FFP MEMBER DASHBOARD — v300 (2026-06-05)
+     v300: PASSPORT-DESIGNED FORM CONTROLS — loads new shared assets/ffp-fields.js?v=1, which replaces the native
+           Apple/Android dropdown wheel + date/time pickers with custom on-brand Passport controls (styled trigger
+           + dark branded panel: searchable dropdown list, calendar, hour/minute time picker). Progressive
+           enhancement — the native <select>/<input> stays in the DOM holding the value and fires input+change, so
+           saveLog/saveCreate/the country→city cascade are untouched. Auto-upgrades dynamically-injected modals
+           (Log Activity, Create Quest) via a MutationObserver. Standard across the whole platform (also wired into
+           provider, admin, profile-complete, provider-signup). Opt a control out with data-ffp-skip.
+     v299: Log Activity time field label "Time" → "Time Of Day" (clarifies it's the time the activity happened,
+           not its duration).
      v298: CREATE QUEST redesign — venue selection reworked. "Any of them" no longer dumps venue cards inline
            (it just shows a count summary; the full searchable venue list now lives on the quest detail).
            "Pick specific" → a "Choose venues" button opens a full-screen SEARCHABLE picker overlay (z-index
@@ -5836,7 +5845,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         <input type="date" id="log-date" class="pm-form-input">
       </div>
       <div class="pm-form-field">
-        <label class="pm-form-label">Time</label>
+        <label class="pm-form-label">Time Of Day</label>
         <input type="time" id="log-time" class="pm-form-input">
       </div>
       <div class="pm-form-field">
@@ -8276,7 +8285,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '298';
+  const FFP_BUILD = '300';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -15332,5 +15341,7 @@ window.FFPLocPick = (function(){
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
 })();
 </script>
+<!-- Passport-designed form controls (custom dropdowns / date / time), standard across the platform -->
+<script src="assets/ffp-fields.js?v=1"></script>
 </body>
 </html>
