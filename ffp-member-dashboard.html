@@ -1,4 +1,7 @@
-<!-- FFP MEMBER DASHBOARD — v296 (2026-06-05)
+<!-- FFP MEMBER DASHBOARD — v297 (2026-06-05)
+     v297: Log Activity — added a TIME-of-day field (defaults to now) → logged_at now uses date+time instead
+           of a hardcoded noon. (Also cache-busts assets/ffp-fitness-stats-loader.js v21 = milestone badge
+           ladder restyled to a compact grid of circular badge/stamp emblems.)
      v296: MY COLLECTION rebuilt — search bar; tap a person → their flippable passport card (members_cards →
            FFPCard → FFPPassportCard.render flippable); Recommend (pick a connection → member_recommend_passport
            drops a notification in their bell) + Remove (member_connection_remove). RPCs live + granted.
@@ -5826,6 +5829,10 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         <input type="date" id="log-date" class="pm-form-input">
       </div>
       <div class="pm-form-field">
+        <label class="pm-form-label">Time</label>
+        <input type="time" id="log-time" class="pm-form-input">
+      </div>
+      <div class="pm-form-field">
         <label class="pm-form-label">Duration</label>
         <button type="button" id="log-dur-field" class="pm-form-input ffp-dur-trigger" onclick="openLogDurationPicker()">30 min</button>
       </div>
@@ -8262,7 +8269,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '296';
+  const FFP_BUILD = '297';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -14111,6 +14118,8 @@ function openLogModal() {
   // Date today
   var now = new Date();
   document.getElementById('log-date').value = now.toISOString().substring(0, 10);
+  var _lt = document.getElementById('log-time');
+  if (_lt) _lt.value = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
 }
 function openScanLog() {
   // Launch the venue check-in scanner (ffp-member-checkin-loader.js). Falls back to the
@@ -14219,6 +14228,8 @@ async function saveLog() {
   const city = document.getElementById('log-city').value;
   if (!country || !city) { alert('Pick a country and city so it lands on your map.'); return; }
   const dateStr = document.getElementById('log-date').value || new Date().toISOString().substring(0, 10);
+  var _timeEl = document.getElementById('log-time');
+  var timeStr = (_timeEl && /^\d{2}:\d{2}$/.test(_timeEl.value)) ? _timeEl.value : '12:00';
   // Duration from the single-tap H/M/S wheel → whole minutes (duration_min) + 0-59 sec remainder
   var totalDurSec = Math.max(0, parseInt(logDurationSec, 10) || 0);
   const durationMin = Math.floor(totalDurSec / 60);
@@ -14242,7 +14253,7 @@ async function saveLog() {
     var res = await window.supabase.rpc('log_activity', {
       p_me: member.id, p_activity: act, p_city: city, p_country: country,
       p_duration_min: entry.duration, p_duration_sec: entry.durationSec, p_calories: entry.calories,
-      p_logged_at: new Date(dateStr + 'T12:00:00').toISOString(), p_notes: entry.notes
+      p_logged_at: new Date(dateStr + 'T' + timeStr + ':00').toISOString(), p_notes: entry.notes
     });
     if (res.error) throw res.error;
   } catch (e) {
