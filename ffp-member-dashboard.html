@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v294 (2026-06-05)
+<!-- FFP MEMBER DASHBOARD — v295 (2026-06-05)
+     v295: NAV refocus — Passport · Connections · Meetups · Quests · Challenges. Split Meetups (Meet & Move)
+           out of the Connections panel into its own #panel-meetups (Connections now = Matches + Collection
+           only). Removed the Check In nav tab (scanning from the nav opened the camera abruptly) — Check-in
+           stays as the prominent Scan QR button on the Passport home. panel-meetups mapped to the meet-move
+           loader; element IDs unchanged so the loader is untouched.
      v294: MEMBERSHIP GATE — free/lapsed members get a "Join Passport — $99/yr" screen instead of the member
            app, via the canonical member_passport_active RPC (shared with Find Fit People). Self-contained,
            fail-open (providers/admins/errors/not-signed-in → no gate; never locks out a payer). JOIN_URL is a
@@ -5075,6 +5080,16 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         <span id="collection-count" class="conn-entry-badge" style="background:#15803d;">0</span>
       </button>
     </div>
+  </div><!-- /panel-meet (Connections: Matches + Collection only) -->
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       PANEL: MEETUPS — split out of Connections (member-to-member meets)
+       ═══════════════════════════════════════════════════════════════ -->
+  <div id="panel-meetups" class="panel-view">
+    <div class="user-panel-head">
+      <h2>Meetups</h2>
+      <div class="user-panel-sub">Member-hosted meets — find one to join, or post your own.</div>
+    </div>
     <!-- v270: simple full-width Post a Meetup button (replaced the host-CTA card) -->
     <button class="post-meetup-btn" onclick="MeetMove.openPostForm()"><span class="material-icons">add</span>Post a Meetup</button>
     
@@ -5754,7 +5769,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 <div class="bottom-nav">
   <button class="nav-item active" data-panel="panel-passport"><span class="material-icons">card_membership</span><span>Passport</span></button>
   <button class="nav-item" data-panel="panel-meet"><span class="material-icons">group</span><span>Connections</span></button>
-  <button class="nav-item" onclick="openScanLog()"><span class="material-icons">qr_code_scanner</span><span>Check In</span></button>
+  <button class="nav-item" data-panel="panel-meetups"><span class="material-icons">groups</span><span>Meetups</span></button>
   <button class="nav-item" data-panel="panel-quests"><span class="material-icons">flag</span><span>Quests</span></button>
   <button class="nav-item" data-panel="panel-challenges"><span class="material-icons">emoji_events</span><span>Challenges</span></button>
 </div>
@@ -8170,12 +8185,13 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '294';
+  const FFP_BUILD = '295';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
     'panel-fitness-stats':   'assets/ffp-fitness-stats-loader.js',
     'panel-meet':            'assets/ffp-meet-move-loader.js',
+    'panel-meetups':         'assets/ffp-meet-move-loader.js',
     'panel-events':          'assets/ffp-member-discovery-loader.js',
     'panel-experiences':     'assets/ffp-member-discovery-loader.js',
     'panel-challenges':      'assets/ffp-member-discovery-loader.js'
