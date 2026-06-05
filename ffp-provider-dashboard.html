@@ -1,4 +1,8 @@
-<!-- FFP PROVIDER DASHBOARD — v36 (2026-06-05)
+<!-- FFP PROVIDER DASHBOARD — v37 (2026-06-05)
+     v37: UPLOAD 400 FIX — storage RLS requires the file folder to equal auth.uid() (the login JWT `sub`).
+          The uploader was using the record id (provider id ≠ the owner's auth id), so writes were rejected
+          with a 400. The shared uploader now reads the id from the login token, so the folder always
+          matches the policy. Loads ffp-image-upload.js?v=5. (Verified: provider 2fc1da8a → owner 9783f7d0.)
      v36: CROP SAVE FIX + header ratio — the crop "Save" pulled the image through a dataURL re-decode that
           could hang (looked like "crop won't save"); now reads the JPEG straight off the cropped canvas
           (ffp-image-upload.js?v=4). Header crop set to 16:9 (was 16:10) per the real banner shape.
@@ -60,7 +64,7 @@
 <script src="ffp-provider-auth.js"></script>
 <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>
-<script src="assets/ffp-image-upload.js?v=4"></script>
+<script src="assets/ffp-image-upload.js?v=5"></script>
 <script src="ffp-provider-profile-loader.js?v=12"></script>
 <!-- Shared provider picker (FFPPicker) defined HERE in the dashboard so Events/Challenges/Experiences
      activity + country/city pickers never depend on a separately-uploaded loader being present. -->
