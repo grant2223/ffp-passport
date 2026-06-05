@@ -1,4 +1,7 @@
-<!-- FFP PROVIDER DASHBOARD — v38 (2026-06-05)
+<!-- FFP PROVIDER DASHBOARD — v39 (2026-06-05)
+     v39: SAVE BAR OVERLAP FIX — the sticky save bar (.save-bar, z-index 5) sat on top of the hero image's
+          bottom-right Replace/Remove buttons on the short Branding tab (panes had no bottom padding to clear
+          it). Added padding-bottom:104px to .pf-pane so content always clears the save bar.
      v38: STUCK "Uploading…" FIX — the crop modal is reused; a successful upload closed it without resetting
           the Save button, so the 2nd+ crop was stuck disabled (which also meant the hero never saved →
           no Replace/Remove buttons). Save button now resets every time the crop modal opens
@@ -2306,7 +2309,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
           #panel-profile .pf-tab{appearance:none;background:none;border:none;border-bottom:2px solid transparent;color:var(--ffp-text-muted,#8a99a8);font-size:13px;font-weight:800;padding:10px 6px;margin-bottom:-1px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;}
           #panel-profile .pf-tab .ms{font-size:18px;}
           #panel-profile .pf-tab.active{color:var(--ffp-text,#e8eef4);border-bottom-color:var(--ffp-yellow,#FFCC00);}
-          #panel-profile .pf-pane{display:none;padding-top:16px;}
+          #panel-profile .pf-pane{display:none;padding-top:16px;padding-bottom:104px;}
           #panel-profile .pf-pane.active{display:block;}
         </style>
 
