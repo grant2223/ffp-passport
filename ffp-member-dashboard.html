@@ -1,4 +1,11 @@
-<!-- FFP MEMBER DASHBOARD — v312 (2026-06-06)
+<!-- FFP MEMBER DASHBOARD — v313 (2026-06-06)
+     v313: FITNESS STATS (Bio) LOAD SPEED FIX. The Fitness Stats CORE + milestone-badge scripts were SYNCHRONOUS
+           <script src> tags sitting ~10,500 lines into this ~14,000-line page, so they blocked the HTML parser
+           mid-document — the nav/boot code below them couldn't even parse until both files downloaded, which
+           delayed the whole app (and the Bio panel) becoming interactive. Added `defer` to both: parsing no
+           longer stops, they still execute before DOMContentLoaded (so window.FitnessStats exists before the
+           boot init() call which is DOMContentLoaded-gated). No JS logic change; loadFromSupabase already
+           parallel-loads + defers the ranking pool. Badge module unchanged (v5).
      v312: MILESTONES PERF — badge module → v5 (ref ?v=5). The laurel wreath is now drawn once per colour and
            reused via <use> instead of ~28 leaf paths per badge, fixing the slow Milestones render (Fitness
            Stats felt slow when viewing Milestones, esp. big ladders like Activities). No loader/FFP_BUILD change.
@@ -10554,10 +10561,13 @@ function fmtPrDate(iso) {
 // journal. Sample data — production wires to /api/members/me/fitness.
 // =====================================================================
 </script>
-<!-- Fitness Stats CORE — extracted to assets/ffp-fitness-stats-core.js (synchronous; defines window.FitnessStats before init() runs at boot). v304. -->
-<script src="assets/ffp-fitness-stats-core.js?v=304"></script>
-<!-- Milestone badge library — assets/ffp-milestone-badges.js (window.FFPMSBadges: 8 object badges + ladders + wall renderer for the Milestones tab). Bump ?v on change. -->
-<script src="assets/ffp-milestone-badges.js?v=5"></script>
+<!-- Fitness Stats CORE — assets/ffp-fitness-stats-core.js. DEFER (v313): non-blocking, but still runs before
+     DOMContentLoaded, and the boot init() is registered on DOMContentLoaded (line ~14049) so window.FitnessStats
+     is guaranteed defined before FitnessStats.init() is called. Was synchronous = it blocked the parser mid-page. -->
+<script defer src="assets/ffp-fitness-stats-core.js?v=304"></script>
+<!-- Milestone badge library — assets/ffp-milestone-badges.js (window.FFPMSBadges). DEFER: only used by the lazy
+     Milestones render long after load, so it must never block boot. Bump ?v on change. -->
+<script defer src="assets/ffp-milestone-badges.js?v=5"></script>
 <script>
 
 function closePrEditIfBackdrop(e) { if (e.target.id === 'pr-edit-backdrop') FitnessStats.closePrEdit(); }
