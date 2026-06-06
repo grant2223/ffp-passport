@@ -1,4 +1,7 @@
-<!-- FFP MEMBER DASHBOARD — v304 (2026-06-05)
+<!-- FFP MEMBER DASHBOARD — v305 (2026-06-05)
+     v305: FFP_BUILD 304→305 — cache-bust so the updated fitness-stats loader (v25, with BOTH perf speed-ups)
+           is actually re-fetched by returning browsers. (The deferred-pool speed-up was added to the loader
+           without a version bump, so a previously-uploaded "v24" may have lacked it — this guarantees it loads.)
      v304: FITNESS STATS CORE EXTRACTED out of this file into assets/ffp-fitness-stats-core.js (~830 lines), loaded
            synchronously via <script src> where the object used to sit (so window.FitnessStats exists before
            FitnessStats.init() at boot). The lazy assets/ffp-fitness-stats-loader.js still overrides its methods by
@@ -8291,7 +8294,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '304';
+  const FFP_BUILD = '305';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
