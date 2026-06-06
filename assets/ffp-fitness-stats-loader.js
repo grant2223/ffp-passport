@@ -1,4 +1,8 @@
-/* FFP Fitness Stats Loader — v28 (2026-06-06)
+/* FFP Fitness Stats Loader — v29 (2026-06-06)
+   v29: GRANULAR milestone values. Now passes a number per JOURNEY to FFPMSBadges (v4): deadlift/squat/bench
+        ×bodyweight, sports variety (unique activities), 5K/10K/Half/Marathon PR seconds (no PR → 1e9 so the
+        journey shows but stays locked), VO₂ max, cities, body-fat %. (Single 'strength'/'endurance' values
+        removed — split into their own journeys.) Meetups/Connections still via the RPCs.
    v28: ENDURANCE value is now a DROPPING-TIME / distance tier (NOT total minutes): computed from the run
         PRs — Finish 5K/10K/Half/Marathon, then Marathon time bands sub-5:00 … sub-2:50 (ultra tiers wait
         on ultra-distance tracking). Handed to FFPMSBadges like the other numbers. (Ladders themselves and
@@ -1409,21 +1413,18 @@
       if (!gridEl) return;
       if (!window.FFPMSBadges) { gridEl.innerHTML = '<div style="color:var(--muted,#8a99a8);padding:24px;text-align:center;">Loading badges…</div>'; return; }
       var logs = activityCache || [], r = this.records || {}, p = this.profile || {};
-      var cities = new Set(logs.map(function (l) { return l.city; }).filter(Boolean)).size;
-      // Endurance = DROPPING-TIME / distance journey (NOT hours): tier from the run PRs.
-      var mara = (r.runMara && r.runMara.value) ? r.runMara.value : null;
-      var endurance = 0;
-      if (r.run5K && r.run5K.value) endurance = 1;
-      if (r.run10K && r.run10K.value) endurance = Math.max(endurance, 2);
-      if (r.run21K && r.run21K.value) endurance = Math.max(endurance, 3);
-      if (mara) {
-        endurance = Math.max(endurance, 4);
-        var _et = [18000, 17100, 16200, 15300, 14400, 13500, 12600, 11700, 10800, 10200]; // sub 5:00 … 2:50
-        for (var _i = 0; _i < _et.length; _i++) { if (mara <= _et[_i]) endurance = 5 + _i; }
-      }
-      var strength = (r.deadlift1RM && p.weight) ? (r.deadlift1RM.value / p.weight) : 0;
-      var values = { activities: logs.length, strength: strength, cities: cities, endurance: endurance };
-      if (r.bodyFat && r.bodyFat.value != null) values.bodyfat = r.bodyFat.value;
+      var w = p.weight || 0;
+      function rat(k) { return (r[k] && r[k].value && w) ? (r[k].value / w) : 0; }      // lift ×bodyweight
+      function tm(k) { return (r[k] && r[k].value) ? r[k].value : 1e9; }                 // run PR seconds; no PR → huge so all locked
+      var values = {
+        activities: logs.length,
+        deadlift: rat('deadlift1RM'), squat: rat('squat1RM'), bench: rat('bench1RM'),
+        variety: new Set(logs.map(function (l) { return l.activity; }).filter(Boolean)).size,
+        run5k: tm('run5K'), run10k: tm('run10K'), run21k: tm('run21K'), marathon: tm('runMara'),
+        vo2: (r.vo2max && r.vo2max.value) ? r.vo2max.value : 0,
+        cities: new Set(logs.map(function (l) { return l.city; }).filter(Boolean)).size,
+        bodyfat: (r.bodyFat && r.bodyFat.value != null) ? r.bodyFat.value : 999
+      };
       if (_msSocial) { values.meets = _msSocial.meets; values.connections = _msSocial.connections; }
       window.FFPMSBadges.render(values, gridEl);
       var countEl = document.getElementById('ms-unlocked-count'); if (countEl) countEl.textContent = '';
