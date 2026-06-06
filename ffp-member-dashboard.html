@@ -1,4 +1,25 @@
-<!-- FFP MEMBER DASHBOARD — v305 (2026-06-05)
+<!-- FFP MEMBER DASHBOARD — v309 (2026-06-06)
+     v309: MILESTONES — FREQUENT-WINS ladders (FFP-MASTER law: gaps never balloon; tops via more stages, not
+           bigger jumps) + 5-year-plan tops. Endurance is now dropping-TIME/distance (Finish 5K/10K/Half/
+           Marathon → Marathon sub-5:00…sub-2:50 → ultras), Cities to ~200, Strength to 4×bw, Body Fat to 8%.
+           Badge module → v3 (ref assets/ffp-milestone-badges.js?v=3); loader → v28 (endurance tier from run
+           PRs). FFP_BUILD 307→308 cache-busts the v28 loader.
+     v308: MILESTONES tab → OVERVIEW then DETAIL (was one long stacked sheet of every metric's full ladder).
+           The tab now shows ONE badge per journey (8 tiles, each at the member's current level colour +
+           earned/total); tapping a tile opens that journey's full ladder with a Back button. Badge module
+           bumped to v2 — ref updated to assets/ffp-milestone-badges.js?v=2. (No loader/FFP_BUILD change:
+           same v27 loader still just gathers the numbers.)
+     v307: MILESTONES tab → MULTI-METRIC BADGE WALLS. Added <script src="assets/ffp-milestone-badges.js?v=1"> — a new
+           module (window.FFPMSBadges) holding the 8 object badges (plate, skyline, stopwatch, scales, map,
+           wreath+people, laurel medallion), each metric's level/stage ladder, and the wall renderer. Loader bumped
+           to v27: it now just gathers the member's numbers and delegates rendering to the module. FFP_BUILD 306→307
+           cache-busts the v27 loader. Live walls: Activities, Strength (deadlift ×bw), Cities, Endurance (active
+           minutes), Body Fat (%), Meetups (member_meets), Connections (member_connections_count). Quests wall is
+           built but waits on a completed-quests count RPC. NOTE: when a badge design changes, bump the
+           ffp-milestone-badges.js ?v here too (its own version lineage).
+     v306: MILESTONES Activities wall — loader v26: single-metric laurel-medallion wall (8 levels × 10 stages,
+           ladder 1→730, max gap 20). FFP_BUILD 305→306 cache-busts the v26 loader. (Superseded by v307's
+           multi-metric walls, which moved the rendering into the ffp-milestone-badges.js module.)
      v305: FFP_BUILD 304→305 — cache-bust so the updated fitness-stats loader (v25, with BOTH perf speed-ups)
            is actually re-fetched by returning browsers. (The deferred-pool speed-up was added to the loader
            without a version bump, so a previously-uploaded "v24" may have lacked it — this guarantees it loads.)
@@ -8294,7 +8315,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '307';
+  const FFP_BUILD = '308';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -10526,7 +10547,7 @@ function fmtPrDate(iso) {
 <!-- Fitness Stats CORE — extracted to assets/ffp-fitness-stats-core.js (synchronous; defines window.FitnessStats before init() runs at boot). v304. -->
 <script src="assets/ffp-fitness-stats-core.js?v=304"></script>
 <!-- Milestone badge library — assets/ffp-milestone-badges.js (window.FFPMSBadges: 8 object badges + ladders + wall renderer for the Milestones tab). Bump ?v on change. -->
-<script src="assets/ffp-milestone-badges.js?v=1"></script>
+<script src="assets/ffp-milestone-badges.js?v=3"></script>
 <script>
 
 function closePrEditIfBackdrop(e) { if (e.target.id === 'pr-edit-backdrop') FitnessStats.closePrEdit(); }
