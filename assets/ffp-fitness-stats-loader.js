@@ -1,4 +1,19 @@
-/* FFP Fitness Stats Loader — v25 (2026-06-05)
+/* FFP Fitness Stats Loader — v27 (2026-06-06)
+   v27: MILESTONES now MULTI-METRIC. renderMilestones delegates to window.FFPMSBadges
+        (assets/ffp-milestone-badges.js) — 8 object-badge designs (plate, skyline, stopwatch,
+        scales, map, wreath+people, laurel medallion), each its own ladder, recolouring across the
+        8 levels. Loader gathers the numbers (activities, deadlift x bodyweight, cities, total
+        active minutes, body-fat %, + Meetups/Connections via member_meets / member_connections_count
+        RPCs) and hands them to the module. Quests wall is ready in the module but waits on a
+        completed-count RPC (passed once available). The old single-metric wall helpers (msWall*,
+        msMedallion, FFP_MS_LEVELS) are now dead and can be removed in a later cleanup.
+   v26: MILESTONES redesigned to the ACTIVITIES MEDALLION WALL (Grant's minted laurel-wreath badge).
+        The tab is now a full-page wall of 80 medallions for Activities Logged: 8 colour LEVELS
+        (Bronze, Silver, Gold, Emerald, Sapphire, Amethyst, Ruby, Legend) x 10 STAGES each, on a
+        front-loaded ladder (frequent early wins, max gap 20, tops out at 730 ~ 5+ years). Earned
+        medallions mint into the full wreath badge; the immediate target shows NEXT (+ how many to go);
+        the rest are ghost slots showing the goal number. Replaces the v20 rows + v23 recurring-cycle
+        ring cards (both removed from the tab; MS_LADDERS/ffpMilestoneDetail left dormant for now).
    v25: Version bump only — re-stamps the v24 perf work (parallel reads + deferred ranking pool) as ONE clear
         version, because the deferred-pool speed-up was added under v24 without a bump. v25 = "has both
         speed-ups", unambiguous. Loaded at ?v=FFP_BUILD (now 305).
@@ -1281,15 +1296,124 @@
       '.msd-badge.locked .msd-badge-name{color:var(--muted,#8a99a8);}'
     ].join(''); document.head.appendChild(s);
   }
+  // ============ MILESTONES v26 — ACTIVITIES MEDALLION WALL (Grant's minted-wreath design) ============
+  // The Milestones tab is now a full-page WALL of medallions for Activities Logged:
+  // 8 colour levels x 10 stages = 80 milestones. Ladder is front-loaded (frequent early wins,
+  // max gap 20, tops out at 730 ~ 5+ years of activity). Earned milestones mint into the full
+  // wreath medallion; the immediate target shows as NEXT; the rest are ghost slots showing the goal.
+  var FFP_MS_LEVELS = [
+    { name:'BRONZE',   lite:'#f0c191', mid:'#bd7b34', dark:'#5f3413', leafL:'#e2a564', leafD:'#7a481c', vals:[1,2,3,4,5,6,7,8,9,10] },
+    { name:'SILVER',   lite:'#f3f7fb', mid:'#9aa7b6', dark:'#4d5866', leafL:'#cfd8e2', leafD:'#5d6775', vals:[12,14,16,18,20,22,24,26,28,30] },
+    { name:'GOLD',     lite:'#ffe9a3', mid:'#e0a400', dark:'#7c5800', leafL:'#ffd451', leafD:'#9a6e00', vals:[34,38,42,46,50,54,58,62,66,70] },
+    { name:'EMERALD',  lite:'#bdf5d2', mid:'#1fae6b', dark:'#0a5e38', leafL:'#62d59a', leafD:'#11774a', vals:[77,84,91,98,105,112,119,126,133,140] },
+    { name:'SAPPHIRE', lite:'#cbeeff', mid:'#2ba8e0', dark:'#0c5070', leafL:'#67c8f0', leafD:'#13658c', vals:[150,160,170,180,190,200,210,220,230,240] },
+    { name:'AMETHYST', lite:'#e6cdff', mid:'#9a52e0', dark:'#532b80', leafL:'#bd8cf0', leafD:'#6a3a9a', vals:[253,266,279,292,305,318,331,344,357,370] },
+    { name:'RUBY',     lite:'#ffccd4', mid:'#e0354f', dark:'#7c1424', leafL:'#f06c80', leafD:'#9a1e30', vals:[386,402,418,434,450,466,482,498,514,530] },
+    { name:'LEGEND',   lite:'#dfe7f2', mid:'#7f8da6', dark:'#2b3550', leafL:'#aab6cf', leafD:'#3d4a6a', vals:[550,570,590,610,630,650,670,690,710,730] }
+  ];
+  function msWallDefs(){
+    if (document.getElementById('ffp-ms-wall-defs')) return;
+    var grads='';
+    FFP_MS_LEVELS.forEach(function(t,i){
+      grads += '<linearGradient id="fmsr'+i+'" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="'+t.lite+'"/><stop offset=".45" stop-color="'+t.mid+'"/><stop offset="1" stop-color="'+t.dark+'"/></linearGradient>';
+      grads += '<linearGradient id="fmsl'+i+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+t.leafL+'"/><stop offset="1" stop-color="'+t.leafD+'"/></linearGradient>';
+    });
+    grads += '<radialGradient id="fmsdisc" cx=".5" cy=".4" r=".7"><stop offset="0" stop-color="#11283a"/><stop offset="1" stop-color="#05101a"/></radialGradient>';
+    grads += '<filter id="fmsglow"><feGaussianBlur stdDeviation="2.2"/></filter>';
+    var svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.setAttribute('id','ffp-ms-wall-defs'); svg.setAttribute('width','0'); svg.setAttribute('height','0');
+    svg.style.position='absolute'; svg.innerHTML='<defs>'+grads+'</defs>';
+    document.body.appendChild(svg);
+  }
+  function msWreath(i){
+    var t=FFP_MS_LEVELS[i], out='', N=28, R=108, cx=120, cy=120;
+    for (var k=0;k<N;k++){
+      var a=(k/N)*Math.PI*2-Math.PI/2, lx=cx+R*Math.cos(a), ly=cy+R*Math.sin(a), rot=(a*180/Math.PI)+90+32;
+      out+='<g transform="translate('+lx.toFixed(1)+','+ly.toFixed(1)+') rotate('+rot.toFixed(1)+')"><path d="M0,-9 C5,-4 5,4 0,9 C-5,4 -5,-4 0,-9 Z" fill="url(#fmsl'+i+')" stroke="'+t.dark+'" stroke-width=".6"/></g>';
+    }
+    return out;
+  }
+  function msMedallion(value, lvl, state){
+    var t=FFP_MS_LEVELS[lvl], num=String(value);
+    var fs = num.length>=3?44:50;
+    var inner='';
+    if (state==='earned'){
+      inner = msWreath(lvl)
+        + '<circle cx="120" cy="120" r="96" fill="none" stroke="url(#fmsr'+lvl+')" stroke-width="17"/>'
+        + '<circle cx="120" cy="120" r="104.5" fill="none" stroke="'+t.dark+'" stroke-width="1.5" opacity=".7"/>'
+        + '<circle cx="120" cy="120" r="87" fill="none" stroke="'+t.dark+'" stroke-width="1.5" opacity=".7"/>'
+        + '<path d="M52,86 A96,96 0 0 1 150,42" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity=".5" filter="url(#fmsglow)"/>'
+        + '<circle cx="120" cy="120" r="79" fill="url(#fmsdisc)"/>'
+        + '<circle cx="120" cy="120" r="79" fill="none" stroke="'+t.mid+'" stroke-width="1" opacity=".4"/>'
+        + '<text x="120" y="98" font-size="20" font-weight="800" letter-spacing="2" fill="'+t.lite+'" text-anchor="middle" font-family="Montserrat,sans-serif">FFP</text>'
+        + '<text x="120" y="140" font-size="'+fs+'" font-weight="900" fill="#ffffff" text-anchor="middle" font-family="Montserrat,sans-serif">'+num+'</text>';
+    } else {
+      var nextS = (state==='next');
+      var ringCol = nextS ? t.mid : 'rgba(255,255,255,0.12)';
+      var rw = nextS ? 6 : 4;
+      var numCol = nextS ? t.lite : '#43596b';
+      var ffpCol = nextS ? t.mid : '#364a5a';
+      var dash = nextS ? '' : ' stroke-dasharray="3 5"';
+      inner = '<circle cx="120" cy="120" r="92" fill="none" stroke="'+ringCol+'" stroke-width="'+rw+'"'+dash+'/>'
+        + '<circle cx="120" cy="120" r="79" fill="url(#fmsdisc)" opacity="'+(nextS?'1':'0.5')+'"/>'
+        + '<text x="120" y="98" font-size="20" font-weight="800" letter-spacing="2" fill="'+ffpCol+'" text-anchor="middle" font-family="Montserrat,sans-serif">FFP</text>'
+        + '<text x="120" y="140" font-size="'+fs+'" font-weight="900" fill="'+numCol+'" text-anchor="middle" font-family="Montserrat,sans-serif">'+num+'</text>';
+    }
+    return '<svg viewBox="0 0 240 240" class="fms-svg" xmlns="http://www.w3.org/2000/svg">'+inner+'</svg>';
+  }
+  function msWallCss(){
+    if (document.getElementById('ffp-ms-wall-css')) return;
+    var s=document.createElement('style'); s.id='ffp-ms-wall-css'; s.textContent=[
+      '.fms-sub{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:2px 2px 6px;}',
+      '.fms-sub-title{font-size:14px;font-weight:900;color:var(--text,#e8eef4);}',
+      '.fms-sub-count{font-size:12px;font-weight:800;color:var(--yellow,#FFCC00);}',
+      '.fms-level{margin:20px 2px 8px;display:flex;align-items:center;gap:8px;}',
+      '.fms-level-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}',
+      '.fms-level-name{font-size:11px;font-weight:800;letter-spacing:1px;}',
+      '.fms-level-meta{font-size:10.5px;font-weight:700;color:var(--muted,#8a99a8);margin-left:auto;}',
+      '.fms-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(82px,1fr));gap:14px 8px;}',
+      '.fms-cell{display:flex;flex-direction:column;align-items:center;gap:5px;}',
+      '.fms-svg{width:100%;max-width:104px;height:auto;display:block;}',
+      '.fms-tag{font-size:9px;font-weight:800;letter-spacing:.4px;color:var(--blue,#2ba8e0);text-transform:uppercase;text-align:center;line-height:1.2;}',
+      '.fms-tag.earned{color:var(--muted,#8a99a8);}',
+      '.fms-tag.hidden{visibility:hidden;}'
+    ].join(''); document.head.appendChild(s);
+  }
+  // v27 — MULTI-METRIC MEDALLION WALLS. renderMilestones now delegates to window.FFPMSBadges
+  // (assets/ffp-milestone-badges.js) which owns the 8 object-badge designs + per-metric ladders.
+  // The loader's job here is just to gather the member's NUMBERS and hand them over. Social counts
+  // (Meetups, Connections) come from RPCs, fetched once and cached, then a re-render fills them in.
+  var _msSocial = null, _msSocialLoading = false;
+  function fetchMsSocial(){
+    if (_msSocial || _msSocialLoading || !window.supabase) return;
+    var ffpM = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null;
+    if (!ffpM || !ffpM.id) return;
+    _msSocialLoading = true; var mid = ffpM.id;
+    function num(r){ var d = r && r.data; if (d == null) return 0; if (typeof d === 'number') return d; if (Array.isArray(d)) return d.length; if (d.count != null) return d.count; return 0; }
+    Promise.all([
+      window.supabase.rpc('member_meets', { p_me: mid }).then(num).catch(function(){ return 0; }),
+      window.supabase.rpc('member_connections_count', { p_me: mid }).then(num).catch(function(){ return 0; })
+    ]).then(function (res) {
+      _msSocial = { meets: res[0], connections: res[1] };
+      _msSocialLoading = false;
+      if (FitnessStats.tab === 'milestones' && typeof FitnessStats.renderMilestones === 'function') FitnessStats.renderMilestones();
+    });
+  }
   function overrideMilestonesV20(){
     FitnessStats.renderMilestones = function(){
-      msInjectCss(); var ctx=msCtx(); var totalEarned=0; var groups={}, order=[];
-      MS_LADDERS.forEach(function(L){ var st=msBuildState(L,ctx); totalEarned += st.recurring ? st.totalEarned : st.earnedCount; if(!groups[L.group]){groups[L.group]=[];order.push(L.group);} groups[L.group].push({L:L,st:st}); });
-      var html=order.map(function(g){ var rows=groups[g].map(function(o){ var L=o.L, st=o.st; var badges=st.recurring?(st.totalEarned+'×'):(st.earnedCount+'/'+st.total);
-        return '<div class="ms-row" onclick="ffpMilestoneDetail(\''+L.key+'\')"><div class="ms-row-ic"><span class="material-icons">'+L.icon+'</span></div><div class="ms-row-body"><span class="ms-row-name">'+escText(L.name)+'</span></div><span class="ms-row-badges">'+badges+'</span><span class="material-icons ms-row-chev">chevron_right</span></div>';
-      }).join(''); return '<div class="ms-cat">'+escText(g)+'</div>'+rows; }).join('');
-      var gridEl=document.getElementById('achievements-grid'); if(gridEl) gridEl.innerHTML=html;
-      var countEl=document.getElementById('ms-unlocked-count'); if(countEl) countEl.textContent=totalEarned+' badges earned';
+      var gridEl = document.getElementById('achievements-grid');
+      if (!gridEl) return;
+      if (!window.FFPMSBadges) { gridEl.innerHTML = '<div style="color:var(--muted,#8a99a8);padding:24px;text-align:center;">Loading badges…</div>'; return; }
+      var logs = activityCache || [], r = this.records || {}, p = this.profile || {};
+      var cities = new Set(logs.map(function (l) { return l.city; }).filter(Boolean)).size;
+      var endurance = logs.reduce(function (a, l) { return a + (parseFloat(l.duration_min) || 0); }, 0);
+      var strength = (r.deadlift1RM && p.weight) ? (r.deadlift1RM.value / p.weight) : 0;
+      var values = { activities: logs.length, strength: strength, cities: cities, endurance: endurance };
+      if (r.bodyFat && r.bodyFat.value != null) values.bodyfat = r.bodyFat.value;
+      if (_msSocial) { values.meets = _msSocial.meets; values.connections = _msSocial.connections; }
+      window.FFPMSBadges.render(values, gridEl);
+      var countEl = document.getElementById('ms-unlocked-count'); if (countEl) countEl.textContent = '';
+      fetchMsSocial();
     };
   }
   window.ffpMilestoneDetail = function(key){
