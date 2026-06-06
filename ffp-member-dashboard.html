@@ -1,4 +1,7 @@
-<!-- FFP MEMBER DASHBOARD — v314 (2026-06-06)
+<!-- FFP MEMBER DASHBOARD — v315 (2026-06-06)
+     v315: MY MEALS catalog-build — calorie loader v5 adds a "Save as meal" button on each logged meal-section
+           that bundles its items (catalog + free-form) into a saved meal (reuses the modal, prefilled). Both
+           creation paths now done: manual entry + build-from-catalog. FFP_BUILD 311→312 cache-busts loader v5.
      v314: MY MEALS (calorie tracker). New #ct-mymeals strip on the Today tab — saved meals for one-tap
            re-logging into a selected bucket (defaults to time-of-day), "New" custom-meal modal, card ×
            delete. Backed by member_meals + 4 RPCs (member_meals_list/save/delete/log). Also made FREE-FORM
@@ -8341,7 +8344,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '311';
+  const FFP_BUILD = '312';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
