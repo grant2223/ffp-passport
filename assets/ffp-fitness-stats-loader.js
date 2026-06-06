@@ -1,4 +1,8 @@
-/* FFP Fitness Stats Loader — v27 (2026-06-06)
+/* FFP Fitness Stats Loader — v28 (2026-06-06)
+   v28: ENDURANCE value is now a DROPPING-TIME / distance tier (NOT total minutes): computed from the run
+        PRs — Finish 5K/10K/Half/Marathon, then Marathon time bands sub-5:00 … sub-2:50 (ultra tiers wait
+        on ultra-distance tracking). Handed to FFPMSBadges like the other numbers. (Ladders themselves and
+        the FREQUENT-WINS generator live in assets/ffp-milestone-badges.js v3.)
    v27: MILESTONES now MULTI-METRIC. renderMilestones delegates to window.FFPMSBadges
         (assets/ffp-milestone-badges.js) — 8 object-badge designs (plate, skyline, stopwatch,
         scales, map, wreath+people, laurel medallion), each its own ladder, recolouring across the
@@ -1406,7 +1410,17 @@
       if (!window.FFPMSBadges) { gridEl.innerHTML = '<div style="color:var(--muted,#8a99a8);padding:24px;text-align:center;">Loading badges…</div>'; return; }
       var logs = activityCache || [], r = this.records || {}, p = this.profile || {};
       var cities = new Set(logs.map(function (l) { return l.city; }).filter(Boolean)).size;
-      var endurance = logs.reduce(function (a, l) { return a + (parseFloat(l.duration_min) || 0); }, 0);
+      // Endurance = DROPPING-TIME / distance journey (NOT hours): tier from the run PRs.
+      var mara = (r.runMara && r.runMara.value) ? r.runMara.value : null;
+      var endurance = 0;
+      if (r.run5K && r.run5K.value) endurance = 1;
+      if (r.run10K && r.run10K.value) endurance = Math.max(endurance, 2);
+      if (r.run21K && r.run21K.value) endurance = Math.max(endurance, 3);
+      if (mara) {
+        endurance = Math.max(endurance, 4);
+        var _et = [18000, 17100, 16200, 15300, 14400, 13500, 12600, 11700, 10800, 10200]; // sub 5:00 … 2:50
+        for (var _i = 0; _i < _et.length; _i++) { if (mara <= _et[_i]) endurance = 5 + _i; }
+      }
       var strength = (r.deadlift1RM && p.weight) ? (r.deadlift1RM.value / p.weight) : 0;
       var values = { activities: logs.length, strength: strength, cities: cities, endurance: endurance };
       if (r.bodyFat && r.bodyFat.value != null) values.bodyfat = r.bodyFat.value;
