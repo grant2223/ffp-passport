@@ -1,4 +1,7 @@
-/* FFP Fitness Stats Loader — v23 (2026-06-05)
+/* FFP Fitness Stats Loader — v24 (2026-06-05)
+   v24: PERF — the three panel-open reads (profile meta, activity logs, ranking pool) now run in PARALLEL
+        (Promise.all) instead of one-after-another. Same data, same per-call error handling, same render —
+        purely a faster panel open, no member-facing change. Cache-busted by the member dashboard FFP_BUILD.
    v23: Milestones reworked to RECURRING CYCLES for cumulative metrics (Grant's model). A milestone is not a
         finish line — it REPEATS every N and accumulates a count (×N), forever. Each metric runs a few cycles
         (a short frequent one = the constant reminder, plus bigger ones), each ticking at its own fixed pace:
@@ -1357,42 +1360,50 @@
       // profile_meta READ via SECURITY DEFINER RPC (the backend had NO /profile-meta endpoint →
       // the old fetch 404'd, so saved records never loaded back into the Records tab). Same proven
       // RPC path as the SAVE, no backend dependency.
-      try {
-        var pmRes = await window.supabase.rpc('member_profile_meta_get', { p_me: currentUserId });
-        var p = pmRes && pmRes.data;
-        if (p) {
-          if (ageFromDob == null && p.chrono_age != null) FitnessStats.profile.chronAge = Number(p.chrono_age); // v21: DOB wins; chrono_age fallback only
-          if (p.current_weight_kg != null) FitnessStats.profile.weight = Number(p.current_weight_kg);
-          if (p.height_cm != null) FitnessStats.profile.height = Number(p.height_cm);
-          var prDates = (p.pr_dates && typeof p.pr_dates === 'object') ? p.pr_dates : {};
-          var rec = {};
-          Object.keys(PR_MAP).forEach(function (key) {
-            var col = PR_MAP[key].col;
-            if (p[col] == null) { rec[key] = null; return; }
-            rec[key] = { value: Number(p[col]), date: prDates[key] || null };
+      // PARALLEL reads (v24) — profile, activity logs and ranking pool now fire CONCURRENTLY instead of
+      // one-after-another. Each keeps its own try/catch (a failure in one can't abort the others) and writes
+      // the same state as before — identical data + behaviour, just a faster panel open.
+      var _poolP = (async function () {
+        try {
+          var poolRes = await window.supabase.rpc('get_ranking_pool');
+          if (poolRes.error) { console.error('[FFP Fitness Stats] ranking_pool RPC:', poolRes.error); rankingPool = []; }
+          else rankingPool = poolRes.data || [];
+        } catch (e) { console.error('[FFP Fitness Stats] ranking_pool threw:', e); rankingPool = []; }
+      })();
+      var _profP = (async function () {
+        try {
+          var pmRes = await window.supabase.rpc('member_profile_meta_get', { p_me: currentUserId });
+          var p = pmRes && pmRes.data;
+          if (p) {
+            if (ageFromDob == null && p.chrono_age != null) FitnessStats.profile.chronAge = Number(p.chrono_age);
+            if (p.current_weight_kg != null) FitnessStats.profile.weight = Number(p.current_weight_kg);
+            if (p.height_cm != null) FitnessStats.profile.height = Number(p.height_cm);
+            var prDates = (p.pr_dates && typeof p.pr_dates === 'object') ? p.pr_dates : {};
+            var rec = {};
+            Object.keys(PR_MAP).forEach(function (key) {
+              var col = PR_MAP[key].col;
+              if (p[col] == null) { rec[key] = null; return; }
+              rec[key] = { value: Number(p[col]), date: prDates[key] || null };
+            });
+            FitnessStats.records = rec;
+            FitnessStats.sleepLogs = sleepFromDb(p.sleep_logs);
+          }
+        } catch (e) { console.error('[FFP Fitness Stats] profile_meta read:', e); }
+      })();
+      var _logsP = (async function () {
+        try {
+          var alRes = await fetch(API + '/api/members/' + currentUserId + '/activity-logs');
+          var alJson = await alRes.json();
+          var rows = (alJson && alJson.logs) || [];
+          activityCache = rows.map(function (r) {
+            return { activity: r.activity || '', duration_min: r.duration_min || 0, calories: r.calories || 0, city: r.city || '', country: r.country || '', daysAgo: daysAgoFromIso(r.logged_at) };
           });
-          FitnessStats.records = rec;
-          FitnessStats.sleepLogs = sleepFromDb(p.sleep_logs);
-        }
-      } catch (e) { console.error('[FFP Fitness Stats] profile_meta read:', e); }
-
-      // activity_logs via backend (service-role)
-      try {
-        var alRes = await fetch(API + '/api/members/' + currentUserId + '/activity-logs');
-        var alJson = await alRes.json();
-        var rows = (alJson && alJson.logs) || [];
-        activityCache = rows.map(function (r) {
-          return { activity: r.activity || '', duration_min: r.duration_min || 0, calories: r.calories || 0, city: r.city || '', country: r.country || '', daysAgo: daysAgoFromIso(r.logged_at) };
-        });
-      } catch (e) { console.error('[FFP Fitness Stats] activity_logs read:', e); activityCache = []; }
+        } catch (e) { console.error('[FFP Fitness Stats] activity_logs read:', e); activityCache = []; }
+      })();
 
       // ranking pool \u2014 isolated so a failure here can NEVER abort the loader (the write
       // wrappers are already installed above).
-      try {
-        var poolRes = await window.supabase.rpc('get_ranking_pool');
-        if (poolRes.error) { console.error('[FFP Fitness Stats] ranking_pool RPC:', poolRes.error); rankingPool = []; }
-        else rankingPool = poolRes.data || [];
-      } catch (e) { console.error('[FFP Fitness Stats] ranking_pool threw:', e); rankingPool = []; }
+      await Promise.all([_profP, _logsP, _poolP]);
 
       // Old percentile pills no longer used (leaderboard replaces them)
       FitnessStats.ranks = {};
