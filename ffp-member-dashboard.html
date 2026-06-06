@@ -1,4 +1,7 @@
-<!-- FFP MEMBER DASHBOARD — v310 (2026-06-06)
+<!-- FFP MEMBER DASHBOARD — v311 (2026-06-06)
+     v311: QUESTS milestone journey now LIVE — loader v30 fetches member_quests_completed (new DB RPC) and
+           passes the count, so all social/quest journeys (Meetups, Connections, Quests) fill from real data.
+           FFP_BUILD 309→310 cache-busts the v30 loader. (Badge module unchanged at v4.)
      v310: MILESTONES — GRANULAR JOURNEYS. Split into 15 journeys, each its own tile/ladder: Activities,
            Deadlift, Back Squat, Bench Press, Sports Variety, 5K/10K/Half/Marathon (dropping time), VO₂ Max,
            Cities, Body Fat, Quests, Meetups, Connections. Badge module → v4 (ref ?v=4; new heart + ball
@@ -8319,7 +8322,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '309';
+  const FFP_BUILD = '310';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
