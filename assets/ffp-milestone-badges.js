@@ -1,4 +1,10 @@
-/* FFP Milestone Badges — v3 (2026-06-06)
+/* FFP Milestone Badges — v4 (2026-06-06)
+   v4: GRANULAR JOURNEYS — each metric is its own journey/tile. Split Strength → Deadlift, Back Squat,
+       Bench Press (each ×bw, 0.1 steps, plate badge). Split Endurance → 5K, 10K, Half, Marathon (each a
+       DROPPING-TIME ladder, many sub-time tiers, stopwatch badge). Added VO₂ Max (heart badge, 30→62) and
+       Sports Variety (ball badge, count). 15 journeys total. Two new badges: heart, ball. Frequent-wins
+       law still enforced by the capped-gap generators.
+   v3 (2026-06-06)
    v3: FREQUENT-WINS ladders (FFP-MASTER law — the gap NEVER balloons). Ladders are now built by the
        capped-gap generator lad([[gap,count]…]) so a near-term next badge always exists; big tops come
        from MORE stages, never wider jumps. 5-year-plan tops: Activities→1,360 (gap≤25), Cities→~198
@@ -207,6 +213,23 @@
       + ffp(90, 56, 10, p.lite));
   }
 
+  function heart(k, p) {
+    return S('<ellipse cx="90" cy="152" rx="44" ry="6" fill="#000" opacity=".3"/>'
+      + '<path d="M90,150 C36,112 40,58 70,52 C84,49 90,60 90,70 C90,60 96,49 110,52 C140,58 144,112 90,150 Z" fill="url(#msb-mtl' + k + ')" stroke="' + p.dark + '" stroke-width="1.5"/>'
+      + '<path d="M90,138 C46,106 50,64 72,60 C83,58 90,67 90,75 C90,67 97,58 108,60 C130,64 134,106 90,138 Z" fill="url(#msb-face)" stroke="' + p.mid + '" stroke-width="1"/>'
+      + '<path d="M50,96 L70,96 L78,80 L90,118 L100,92 L108,96 L130,96" fill="none" stroke="' + p.lite + '" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>'
+      + '<path d="M66,70 C62,63 72,59 78,66" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".4"/>'
+      + ffp(90, 132, 9, p.lite));
+  }
+  function ball(k, p) {
+    return S('<ellipse cx="90" cy="150" rx="50" ry="6" fill="#000" opacity=".3"/>'
+      + '<circle cx="90" cy="84" r="62" fill="url(#msb-mtl' + k + ')" stroke="' + p.dark + '" stroke-width="1.5"/>'
+      + '<circle cx="90" cy="84" r="54" fill="url(#msb-face)" stroke="' + p.mid + '" stroke-width="1"/>'
+      + '<polygon points="90,64 105,75 99,93 81,93 75,75" fill="' + p.dark + '"/>'
+      + '<g stroke="' + p.mid + '" stroke-width="2" opacity=".7"><line x1="90" y1="64" x2="90" y2="32"/><line x1="105" y1="75" x2="134" y2="64"/><line x1="99" y1="93" x2="116" y2="124"/><line x1="81" y1="93" x2="64" y2="124"/><line x1="75" y1="75" x2="46" y2="64"/></g>'
+      + '<path d="M52,58 A62,62 0 0 1 120,44" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" opacity=".3"/>'
+      + ffp(90, 150, 9, p.lite));
+  }
   function drawBadge(badge, k, p, o) {
     switch (badge) {
       case 'medallion': return medallion(k, p, o);
@@ -217,6 +240,8 @@
       case 'map': return map(k, p);
       case 'people4': return wreathPeople(k, p, 4);
       case 'people2': return wreathPeople(k, p, 2);
+      case 'heart': return heart(k, p);
+      case 'ball': return ball(k, p);
       default: return medallion(k, p, o);
     }
   }
@@ -229,6 +254,14 @@
   var ACT = lad([[1,10],[2,10],[5,16],[10,20],[15,20],[25,30]]);                 // 1 … 1360, gap capped at 25
   var STR = (function () { var a = []; for (var s = 5; s <= 40; s++) a.push(s / 10); return a; })(); // 0.5 → 4.0× bw, step 0.1
   var BF  = (function () { var a = []; for (var b = 34; b >= 8; b--) a.push(b); return a; })();        // 34% → 8%, step 1
+  function ratLad(min10, max10) { var a = []; for (var s = min10; s <= max10; s++) a.push(s / 10); return a; } // ×bodyweight, 0.1 steps
+  function fmtT(sec) { var m = Math.floor(sec / 60), s = sec % 60; return 'sub ' + m + ':' + (s < 10 ? '0' : '') + s; }
+  // run PR ladders (seconds, dropping TIME — many tiers = frequent wins). Index 0 = easiest "finish".
+  var R5  = [2700,2400,2160,1980,1800,1680,1560,1440,1380,1320,1260,1200,1140,1080,1020,960];           // 5K  45:00 → 16:00
+  var R10 = [5400,4800,4500,4200,3900,3600,3300,3120,3000,2880,2760,2640,2520,2400,2280,2160,2040,1920]; // 10K 90:00 → 32:00
+  var R21 = [12600,11700,10800,9900,9000,8400,7800,7200,6900,6600,6300,6000,5700,5400,5100,4800];         // Half 3:30 → 1:20
+  var RMA = [25200,23400,21600,19800,18000,16200,15300,14400,13500,12600,11700,10800,10200,9600,9000];    // Marathon 7:00 → 2:30
+  var VO2 = (function () { var a = []; for (var v = 30; v <= 62; v += 2) a.push(v); return a; })();        // VO2 30 → 62
 
   // Endurance is a DROPPING-TIME / distance journey (not hours): finish the distances, then chase faster
   // marathon times, then rack up ultras. (Ultra tiers light up once ultra distance is tracked.)
@@ -237,15 +270,25 @@
     'Marathon sub-3:45', 'Marathon sub-3:30', 'Marathon sub-3:15', 'Marathon sub-3:00', 'Marathon sub-2:50',
     'First Ultra', '3 Ultras', '5 Ultras', '10 Ultras', '25 Ultras'];
 
+  // Each is its OWN journey, pulled from Records / activity data. Frequent wins throughout (capped gaps).
   var METRICS = [
     { key: 'activities', label: 'Activities Logged', badge: 'medallion', val: 'activities',
       vals: ACT, fmt: function (v) { return v.toLocaleString(); }, showNum: true },
-    { key: 'strength', label: 'Strength', badge: 'plate', val: 'strength',
+    { key: 'deadlift', label: 'Deadlift', badge: 'plate', val: 'deadlift',
       vals: STR, fmt: function (v) { return v + '× bw'; } },
+    { key: 'squat', label: 'Back Squat', badge: 'plate', val: 'squat',
+      vals: ratLad(5, 35), fmt: function (v) { return v + '× bw'; } },
+    { key: 'bench', label: 'Bench Press', badge: 'plate', val: 'bench',
+      vals: ratLad(3, 25), fmt: function (v) { return v + '× bw'; } },
+    { key: 'variety', label: 'Sports Variety', badge: 'ball', val: 'variety',
+      vals: lad([[1,6],[2,7],[3,9]]), fmt: function (v) { return v + (v === 1 ? ' sport' : ' sports'); } },
+    { key: 'run5k', label: '5K Run', badge: 'stopwatch', val: 'run5k', dir: 'lo', vals: R5, fmt: fmtT },
+    { key: 'run10k', label: '10K Run', badge: 'stopwatch', val: 'run10k', dir: 'lo', vals: R10, fmt: fmtT },
+    { key: 'run21k', label: 'Half Marathon', badge: 'stopwatch', val: 'run21k', dir: 'lo', vals: R21, fmt: fmtT },
+    { key: 'marathon', label: 'Marathon', badge: 'stopwatch', val: 'marathon', dir: 'lo', vals: RMA, fmt: fmtT },
+    { key: 'vo2', label: 'VO₂ Max', badge: 'heart', val: 'vo2', vals: VO2, fmt: function (v) { return String(v); } },
     { key: 'cities', label: 'Cities', badge: 'skyline', val: 'cities',
       vals: lad([[1,10],[2,10],[3,16],[5,24]]), fmt: function (v) { return v + (v === 1 ? ' city' : ' cities'); } },
-    { key: 'endurance', label: 'Endurance', badge: 'stopwatch', val: 'endurance',
-      vals: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19], fmt: function (v) { return END_LABELS[v - 1] || ''; } },
     { key: 'bodyfat', label: 'Body Fat', badge: 'scales', val: 'bodyfat', dir: 'lo',
       vals: BF, fmt: function (v) { return '≤' + v + '%'; } },
     { key: 'quests', label: 'Quests', badge: 'map', val: 'quests',
