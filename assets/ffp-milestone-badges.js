@@ -1,4 +1,16 @@
-/* FFP Milestone Badges — v1 (2026-06-06)
+/* FFP Milestone Badges — v3 (2026-06-06)
+   v3: FREQUENT-WINS ladders (FFP-MASTER law — the gap NEVER balloons). Ladders are now built by the
+       capped-gap generator lad([[gap,count]…]) so a near-term next badge always exists; big tops come
+       from MORE stages, never wider jumps. 5-year-plan tops: Activities→1,360 (gap≤25), Cities→~198
+       (gap≤5), Meetups→~608 (gap≤15), Connections→~828 (gap≤20), Quests→~170 (gap≤5), Strength 0.5→4.0×
+       bw (0.1 steps), Body Fat 34%→8% (1% steps). ENDURANCE = DROPPING-TIME / distance (NOT hours):
+       Finish 5K/10K/Half/Marathon → Marathon sub-5:00 … sub-2:50 → ultra counts (loader passes a tier
+       from the run PRs; ultra tiers wait on ultra-distance tracking).
+   v2: Milestones tab is now OVERVIEW -> DETAIL. render() draws ONE badge tile per journey (8 tiles,
+       each at the member's current level colour + earned/total); tapping a tile (open(key)) shows that
+       journey's FULL ladder of badges, with a Back button (home()). Was a single endless stacked sheet.
+   v1: Initial badge library + ladders + wall renderer.
+
    The badge ART LIBRARY + LADDERS + WALL RENDERER for the Milestones tab.
    Each metric is its own OBJECT badge (Grant's approved set), recolouring across 8 LEVELS
    (Bronze, Silver, Gold, Emerald, Sapphire, Amethyst, Ruby, Legend). Earned badges render in
@@ -54,7 +66,17 @@
       '.msb-cell svg{width:100%;max-width:96px;height:auto;display:block;}',
       '.msb-cap{font-size:10px;font-weight:800;text-align:center;line-height:1.25;}',
       '.msb-cap.next{color:var(--blue,#2ba8e0);}',
-      '.msb-cap.locked{color:#5a6b7a;}'
+      '.msb-cap.locked{color:#5a6b7a;}',
+      '.msb-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:14px 10px;margin-top:10px;}',
+      '.msb-tile{display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;padding:12px 6px;border-radius:14px;border:1px solid rgba(255,255,255,0.06);transition:background .15s,border-color .15s;}',
+      '.msb-tile:hover{background:rgba(255,255,255,0.05);border-color:rgba(43,168,224,0.4);}',
+      '.msb-tile svg{width:100%;max-width:104px;height:auto;display:block;}',
+      '.msb-tile-name{font-size:12px;font-weight:800;color:var(--text,#e8eef4);}',
+      '.msb-tile-prog{font-size:11px;font-weight:700;color:var(--muted,#8a99a8);}',
+      '.msb-detail-head{display:flex;align-items:center;gap:10px;margin:4px 2px 10px;}',
+      '.msb-back{background:rgba(43,168,224,0.14);border:1px solid var(--blue,#2ba8e0);color:var(--blue,#2ba8e0);border-radius:9px;padding:6px 13px;font-size:12px;font-weight:800;cursor:pointer;}',
+      '.msb-detail-title{font-size:15px;font-weight:900;color:var(--text,#e8eef4);}',
+      '.msb-detail-count{font-size:11px;font-weight:800;color:var(--yellow,#FFCC00);margin-left:auto;}'
     ].join(''); document.head.appendChild(s);
   }
 
@@ -200,60 +222,93 @@
   }
 
   // ---- ladders ----
-  var ACT = [1,2,3,4,5,6,7,8,9,10, 12,14,16,18,20,22,24,26,28,30, 34,38,42,46,50,54,58,62,66,70,
-             77,84,91,98,105,112,119,126,133,140, 150,160,170,180,190,200,210,220,230,240,
-             253,266,279,292,305,318,331,344,357,370, 386,402,418,434,450,466,482,498,514,530,
-             550,570,590,610,630,650,670,690,710,730];
+  // FREQUENT WINS, ALWAYS (FFP-MASTER law): the gap NEVER balloons. lad() builds a ladder from
+  // capped-gap segments [gap, count], so a near-term next badge always exists — bigger tops come
+  // from MORE stages, never a wider jump. 5-year-plan tops; push to greatness.
+  function lad(segs) { var a = [], v = 0; for (var s = 0; s < segs.length; s++) { for (var i = 0; i < segs[s][1]; i++) { v += segs[s][0]; a.push(v); } } return a; }
+  var ACT = lad([[1,10],[2,10],[5,16],[10,20],[15,20],[25,30]]);                 // 1 … 1360, gap capped at 25
+  var STR = (function () { var a = []; for (var s = 5; s <= 40; s++) a.push(s / 10); return a; })(); // 0.5 → 4.0× bw, step 0.1
+  var BF  = (function () { var a = []; for (var b = 34; b >= 8; b--) a.push(b); return a; })();        // 34% → 8%, step 1
+
+  // Endurance is a DROPPING-TIME / distance journey (not hours): finish the distances, then chase faster
+  // marathon times, then rack up ultras. (Ultra tiers light up once ultra distance is tracked.)
+  var END_LABELS = ['Finish 5K', 'Finish 10K', 'Finish Half', 'Finish Marathon',
+    'Marathon sub-5:00', 'Marathon sub-4:45', 'Marathon sub-4:30', 'Marathon sub-4:15', 'Marathon sub-4:00',
+    'Marathon sub-3:45', 'Marathon sub-3:30', 'Marathon sub-3:15', 'Marathon sub-3:00', 'Marathon sub-2:50',
+    'First Ultra', '3 Ultras', '5 Ultras', '10 Ultras', '25 Ultras'];
 
   var METRICS = [
     { key: 'activities', label: 'Activities Logged', badge: 'medallion', val: 'activities',
       vals: ACT, fmt: function (v) { return v.toLocaleString(); }, showNum: true },
     { key: 'strength', label: 'Strength', badge: 'plate', val: 'strength',
-      vals: [0.5,0.6,0.75,0.9,1.0,1.15,1.3,1.5,1.7,1.9,2.1,2.3,2.5,2.75,3.0,3.5], fmt: function (v) { return v + '× bw'; } },
+      vals: STR, fmt: function (v) { return v + '× bw'; } },
     { key: 'cities', label: 'Cities', badge: 'skyline', val: 'cities',
-      vals: [1,2,3,4,5,6,8,10,12,15,18,22,26,30,35,40], fmt: function (v) { return v + (v === 1 ? ' city' : ' cities'); } },
+      vals: lad([[1,10],[2,10],[3,16],[5,24]]), fmt: function (v) { return v + (v === 1 ? ' city' : ' cities'); } },
     { key: 'endurance', label: 'Endurance', badge: 'stopwatch', val: 'endurance',
-      vals: [60,120,240,420,600,900,1200,1800,2400,3000,4200,6000,9000,12000,18000,24000], fmt: function (v) { return Math.round(v / 60) + ' hrs'; } },
+      vals: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19], fmt: function (v) { return END_LABELS[v - 1] || ''; } },
     { key: 'bodyfat', label: 'Body Fat', badge: 'scales', val: 'bodyfat', dir: 'lo',
-      vals: [32,30,28,26,24,22,20,18,16,14,12,10], fmt: function (v) { return '≤' + v + '%'; } },
+      vals: BF, fmt: function (v) { return '≤' + v + '%'; } },
     { key: 'quests', label: 'Quests', badge: 'map', val: 'quests',
-      vals: [1,2,3,4,6,8,10,13,16,20,25,30,40,50], fmt: function (v) { return v + (v === 1 ? ' quest' : ' quests'); } },
+      vals: lad([[1,8],[2,10],[3,14],[5,20]]), fmt: function (v) { return v + (v === 1 ? ' quest' : ' quests'); } },
     { key: 'meets', label: 'Meetups', badge: 'people4', val: 'meets',
-      vals: [1,2,3,4,5,7,9,12,15,20,25,30,40,50], fmt: function (v) { return v + (v === 1 ? ' meet' : ' meets'); } },
+      vals: lad([[1,8],[2,10],[5,16],[10,20],[15,20]]), fmt: function (v) { return v + (v === 1 ? ' meet' : ' meets'); } },
     { key: 'connections', label: 'Connections', badge: 'people2', val: 'connections',
-      vals: [1,2,3,5,8,12,16,20,30,40,55,75,100,150], fmt: function (v) { return v + (v === 1 ? ' link' : ' links'); } }
+      vals: lad([[1,8],[2,10],[5,16],[10,24],[20,24]]), fmt: function (v) { return v + (v === 1 ? ' link' : ' links'); } }
   ];
 
+  var _vals = null, _grid = null;
+
+  function metricStat(m) {
+    var mv = _vals ? _vals[m.val] : null;
+    if (mv == null) return null;
+    var total = m.vals.length, per = Math.ceil(total / 8), earned = 0;
+    m.vals.forEach(function (t) { if ((m.dir === 'lo') ? (mv <= t) : (mv >= t)) earned++; });
+    var lastIdx = earned > 0 ? earned - 1 : 0;
+    return { mv: mv, total: total, per: per, earned: earned, lastIdx: lastIdx, lvl: Math.min(7, Math.floor(lastIdx / per)) };
+  }
+
+  // TAB = one badge per journey. Tap → that journey's full ladder.
   function render(values, gridEl) {
     if (!gridEl) return;
     injectCss(); injectDefs();
-    values = values || {};
-    var html = '';
-    METRICS.forEach(function (m) {
-      var mv = values[m.val];
-      if (mv == null) return; // metric not wired yet — skip its wall
-      var total = m.vals.length, per = Math.ceil(total / 8), earned = 0, nextFound = false;
-      var cells = '';
-      m.vals.forEach(function (t, i) {
-        var lvl = Math.min(7, Math.floor(i / per));
-        var isEarned = (m.dir === 'lo') ? (mv <= t) : (mv >= t), state;
-        if (isEarned) { state = 'earned'; earned++; }
-        else if (!nextFound) { state = 'next'; nextFound = true; }
-        else state = 'locked';
-        var k = isEarned ? String(lvl) : 'g', p = isEarned ? LEVELS[lvl] : GREY;
-        var svg = drawBadge(m.badge, k, p, { num: m.showNum ? t : null });
-        var cap = state === 'earned'
-          ? '<div class="msb-cap" style="color:' + LEVELS[lvl].lite + '">' + m.fmt(t) + '</div>'
-          : (state === 'next'
-            ? '<div class="msb-cap next">' + m.fmt(t) + '</div>'
-            : '<div class="msb-cap locked">' + m.fmt(t) + '</div>');
-        cells += '<div class="msb-cell">' + svg + cap + '</div>';
-      });
-      html += '<div class="msb-sec"><span class="msb-sec-name">' + m.label + '</span><span class="msb-sec-count">' + earned + ' of ' + total + '</span></div>'
-        + '<div class="msb-grid">' + cells + '</div>';
-    });
-    gridEl.innerHTML = html;
+    _vals = values || {}; _grid = gridEl;
+    home();
   }
 
-  window.FFPMSBadges = { render: render, LEVELS: LEVELS, METRICS: METRICS };
+  function home() {
+    if (!_grid) return;
+    var tiles = '';
+    METRICS.forEach(function (m) {
+      var s = metricStat(m); if (!s) return;
+      var on = s.earned > 0, k = on ? String(s.lvl) : 'g', p = on ? LEVELS[s.lvl] : GREY;
+      var num = m.showNum ? m.vals[s.lastIdx] : null;
+      tiles += '<div class="msb-tile" onclick="window.FFPMSBadges.open(\'' + m.key + '\')">'
+        + drawBadge(m.badge, k, p, { num: num })
+        + '<div class="msb-tile-name">' + m.label + '</div>'
+        + '<div class="msb-tile-prog">' + s.earned + ' / ' + s.total + '</div></div>';
+    });
+    _grid.innerHTML = '<div class="msb-tiles">' + tiles + '</div>';
+  }
+
+  function open(key) {
+    if (!_grid) return;
+    var m = null; for (var i = 0; i < METRICS.length; i++) { if (METRICS[i].key === key) { m = METRICS[i]; break; } }
+    if (!m) { home(); return; }
+    var s = metricStat(m); if (!s) { home(); return; }
+    var cells = '';
+    m.vals.forEach(function (t, i) {
+      var lvl = Math.min(7, Math.floor(i / s.per));
+      var isEarned = (m.dir === 'lo') ? (s.mv <= t) : (s.mv >= t);
+      var k = isEarned ? String(lvl) : 'g', p = isEarned ? LEVELS[lvl] : GREY;
+      var cap = isEarned
+        ? '<div class="msb-cap" style="color:' + LEVELS[lvl].lite + '">' + m.fmt(t) + '</div>'
+        : '<div class="msb-cap locked">' + m.fmt(t) + '</div>';
+      cells += '<div class="msb-cell">' + drawBadge(m.badge, k, p, { num: m.showNum ? t : null }) + cap + '</div>';
+    });
+    _grid.innerHTML = '<div class="msb-detail-head"><button class="msb-back" onclick="window.FFPMSBadges.home()">&#8249; Back</button>'
+      + '<span class="msb-detail-title">' + m.label + '</span><span class="msb-detail-count">' + s.earned + ' of ' + s.total + ' earned</span></div>'
+      + '<div class="msb-grid">' + cells + '</div>';
+  }
+
+  window.FFPMSBadges = { render: render, home: home, open: open, LEVELS: LEVELS, METRICS: METRICS };
 })();
