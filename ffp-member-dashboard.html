@@ -1,4 +1,7 @@
-<!-- FFP MEMBER DASHBOARD — v311 (2026-06-06)
+<!-- FFP MEMBER DASHBOARD — v312 (2026-06-06)
+     v312: MILESTONES PERF — badge module → v5 (ref ?v=5). The laurel wreath is now drawn once per colour and
+           reused via <use> instead of ~28 leaf paths per badge, fixing the slow Milestones render (Fitness
+           Stats felt slow when viewing Milestones, esp. big ladders like Activities). No loader/FFP_BUILD change.
      v311: QUESTS milestone journey now LIVE — loader v30 fetches member_quests_completed (new DB RPC) and
            passes the count, so all social/quest journeys (Meetups, Connections, Quests) fill from real data.
            FFP_BUILD 309→310 cache-busts the v30 loader. (Badge module unchanged at v4.)
@@ -10554,7 +10557,7 @@ function fmtPrDate(iso) {
 <!-- Fitness Stats CORE — extracted to assets/ffp-fitness-stats-core.js (synchronous; defines window.FitnessStats before init() runs at boot). v304. -->
 <script src="assets/ffp-fitness-stats-core.js?v=304"></script>
 <!-- Milestone badge library — assets/ffp-milestone-badges.js (window.FFPMSBadges: 8 object badges + ladders + wall renderer for the Milestones tab). Bump ?v on change. -->
-<script src="assets/ffp-milestone-badges.js?v=4"></script>
+<script src="assets/ffp-milestone-badges.js?v=5"></script>
 <script>
 
 function closePrEditIfBackdrop(e) { if (e.target.id === 'pr-edit-backdrop') FitnessStats.closePrEdit(); }
