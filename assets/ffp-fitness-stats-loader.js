@@ -1,4 +1,7 @@
-/* FFP Fitness Stats Loader — v29 (2026-06-06)
+/* FFP Fitness Stats Loader — v30 (2026-06-06)
+   v30: QUESTS wall now live — fetchMsSocial also calls member_quests_completed (new SECURITY DEFINER RPC:
+        count of quest_progress rows with status='completed') and passes values.quests, so the Quests journey
+        fills from real data alongside Meetups + Connections.
    v29: GRANULAR milestone values. Now passes a number per JOURNEY to FFPMSBadges (v4): deadlift/squat/bench
         ×bodyweight, sports variety (unique activities), 5K/10K/Half/Marathon PR seconds (no PR → 1e9 so the
         journey shows but stays locked), VO₂ max, cities, body-fat %. (Single 'strength'/'endurance' values
@@ -1400,9 +1403,10 @@
     function num(r){ var d = r && r.data; if (d == null) return 0; if (typeof d === 'number') return d; if (Array.isArray(d)) return d.length; if (d.count != null) return d.count; return 0; }
     Promise.all([
       window.supabase.rpc('member_meets', { p_me: mid }).then(num).catch(function(){ return 0; }),
-      window.supabase.rpc('member_connections_count', { p_me: mid }).then(num).catch(function(){ return 0; })
+      window.supabase.rpc('member_connections_count', { p_me: mid }).then(num).catch(function(){ return 0; }),
+      window.supabase.rpc('member_quests_completed', { p_me: mid }).then(num).catch(function(){ return 0; })
     ]).then(function (res) {
-      _msSocial = { meets: res[0], connections: res[1] };
+      _msSocial = { meets: res[0], connections: res[1], quests: res[2] };
       _msSocialLoading = false;
       if (FitnessStats.tab === 'milestones' && typeof FitnessStats.renderMilestones === 'function') FitnessStats.renderMilestones();
     });
@@ -1425,7 +1429,7 @@
         cities: new Set(logs.map(function (l) { return l.city; }).filter(Boolean)).size,
         bodyfat: (r.bodyFat && r.bodyFat.value != null) ? r.bodyFat.value : 999
       };
-      if (_msSocial) { values.meets = _msSocial.meets; values.connections = _msSocial.connections; }
+      if (_msSocial) { values.meets = _msSocial.meets; values.connections = _msSocial.connections; values.quests = _msSocial.quests; }
       window.FFPMSBadges.render(values, gridEl);
       var countEl = document.getElementById('ms-unlocked-count'); if (countEl) countEl.textContent = '';
       fetchMsSocial();
