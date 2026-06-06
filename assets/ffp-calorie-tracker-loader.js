@@ -1,4 +1,7 @@
-/* FFP Calorie Tracker Loader — v4
+/* FFP Calorie Tracker Loader — v5
+   v5: MY MEALS catalog-build — a "Save as meal" button on each logged meal-section bundles its items
+       (catalog foods + free-form) into a saved meal via member_meal_save (with an items composition),
+       reusing the custom modal prefilled. Completes the "manual + catalog" creation paths.
    v4: MY MEALS — saved meals for one-tap re-logging (member_meals + RPCs). Adds a "My Meals" strip on the
        Today tab (#ct-mymeals): bucket selector (defaults to time-of-day), cards tap → member_meal_log into
        the selected bucket → instantly shown + counted, "New" → custom-meal modal (member_meal_save), card ×
@@ -364,7 +367,7 @@
 
     // ─── My Meals strip rides along with every tracker render ───
     var origRenderMM = CalorieTracker.render.bind(CalorieTracker);
-    CalorieTracker.render = function () { origRenderMM(); renderMyMeals(); };
+    CalorieTracker.render = function () { origRenderMM(); renderMyMeals(); mmDecorateSections(); };
   }
 
   // ============ MY MEALS — saved meals, one-tap re-log (member_meals + RPCs) ============
@@ -401,7 +404,8 @@
       '.mm-macros{display:flex;gap:8px;}.mm-macros .mm-field{flex:1;}' +
       '.mm-actions{display:flex;gap:8px;margin-top:14px;}' +
       '.mm-actions button{flex:1;padding:11px;border-radius:10px;font-size:13px;font-weight:800;cursor:pointer;border:none;}' +
-      '.mm-cancel{background:rgba(255,255,255,0.08);color:var(--text);}.mm-save{background:var(--blue);color:#fff;}';
+      '.mm-cancel{background:rgba(255,255,255,0.08);color:var(--text);}.mm-save{background:var(--blue);color:#fff;}' +
+      '.mm-savebtn{font-size:10px;font-weight:800;color:var(--blue);background:rgba(43,168,224,0.10);border:1px solid var(--border-mid);border-radius:7px;padding:3px 8px;cursor:pointer;margin-left:8px;}';
     document.head.appendChild(s);
   }
 
@@ -456,12 +460,14 @@
     }).catch(function (e) { console.error('[FFP CT] meal delete:', e); });
   }
 
-  function mmOpenCustom() {
+  function mmOpenCustom(prefill) {
     mmInjectStyles();
+    prefill = prefill || {};
+    var pendingItems = prefill.items || null;
     var bg = document.createElement('div'); bg.className = 'mm-modal-bg';
     bg.onclick = function (e) { if (e.target === bg) document.body.removeChild(bg); };
     bg.innerHTML =
-      '<div class="mm-modal"><h3>New meal</h3>' +
+      '<div class="mm-modal"><h3>' + (prefill.name ? 'Save meal' : 'New meal') + '</h3>' +
       '<div class="mm-field"><label>Name</label><input id="mm-i-name" type="text" placeholder="e.g. Chicken wrap"></div>' +
       '<div class="mm-field"><label>Calories</label><input id="mm-i-kcal" type="number" inputmode="numeric" placeholder="kcal"></div>' +
       '<div class="mm-macros"><div class="mm-field"><label>Protein (g)</label><input id="mm-i-p" type="number" inputmode="numeric"></div>' +
@@ -469,6 +475,11 @@
       '<div class="mm-field"><label>Fat (g)</label><input id="mm-i-f" type="number" inputmode="numeric"></div></div>' +
       '<div class="mm-actions"><button class="mm-cancel">Cancel</button><button class="mm-save">Save meal</button></div></div>';
     document.body.appendChild(bg);
+    if (prefill.name != null) document.getElementById('mm-i-name').value = prefill.name;
+    if (prefill.calories != null) document.getElementById('mm-i-kcal').value = prefill.calories;
+    if (prefill.protein_g != null) document.getElementById('mm-i-p').value = prefill.protein_g;
+    if (prefill.carbs_g != null) document.getElementById('mm-i-c').value = prefill.carbs_g;
+    if (prefill.fat_g != null) document.getElementById('mm-i-f').value = prefill.fat_g;
     bg.querySelector('.mm-cancel').onclick = function () { document.body.removeChild(bg); };
     bg.querySelector('.mm-save').onclick = function () {
       var name = (document.getElementById('mm-i-name').value || '').trim();
@@ -479,6 +490,7 @@
         carbs_g: parseFloat(document.getElementById('mm-i-c').value) || 0,
         fat_g: parseFloat(document.getElementById('mm-i-f').value) || 0
       };
+      if (pendingItems) payload.items = pendingItems;
       window.supabase.rpc('member_meal_save', { p_me: currentUserId, p: payload }).then(function () {
         if (document.body.contains(bg)) document.body.removeChild(bg);
         if (window.showToast) showToast('Saved ' + name);
@@ -487,7 +499,37 @@
     };
   }
 
-  window.FFPMyMeals = { setBucket: function (k) { _mmBucket = k; renderMyMeals(); }, log: mmLog, del: mmDel, openCustom: mmOpenCustom, reload: loadMyMeals };
+  // Catalog-build: bundle a logged meal-section (catalog foods + free items) into a saved meal.
+  function mmItemMacros(item) {
+    if (item && item.free) return { kcal: item.kcal || 0, p: +(item.p || 0), c: +(item.c || 0), f: +(item.f || 0), name: item.name || 'Item' };
+    var food = (typeof FOOD_DB !== 'undefined') ? FOOD_DB.filter(function (x) { return x.id === item.foodId; })[0] : null;
+    if (!food) return { kcal: 0, p: 0, c: 0, f: 0, name: 'Item' };
+    var r = food.serving > 0 ? item.amount / food.serving : 1;
+    return { kcal: food.kcal * r, p: food.p * r, c: food.c * r, f: food.f * r, name: food.name };
+  }
+  function mmSaveSection(bucketKey) {
+    var items = (CalorieTracker.meals && CalorieTracker.meals[bucketKey]) || [];
+    var label = (MM_BUCKETS.filter(function (b) { return b[0] === bucketKey; })[0] || ['', 'Meal'])[1];
+    if (!items.length) { if (window.showToast) showToast('Nothing in ' + label + ' to save'); return; }
+    var sumK = 0, sumP = 0, sumC = 0, sumF = 0, comp = [];
+    items.forEach(function (it) { var m = mmItemMacros(it); sumK += m.kcal; sumP += m.p; sumC += m.c; sumF += m.f; comp.push({ name: m.name, kcal: Math.round(m.kcal), p: Math.round(m.p), c: Math.round(m.c), f: Math.round(m.f) }); });
+    var suggested = items.length === 1 ? comp[0].name : (label + ' (' + items.length + ' items)');
+    mmOpenCustom({ name: suggested, calories: Math.round(sumK), protein_g: Math.round(sumP), carbs_g: Math.round(sumC), fat_g: Math.round(sumF), items: comp });
+  }
+  function mmDecorateSections() {
+    ['breakfast', 'lunch', 'dinner', 'snacks'].forEach(function (k) {
+      var head = document.querySelector('.meal-section[data-meal="' + k + '"] .meal-section-head'); if (!head) return;
+      var has = ((CalorieTracker.meals && CalorieTracker.meals[k]) || []).length > 0;
+      var btn = head.querySelector('.mm-savebtn');
+      if (has && !btn) {
+        btn = document.createElement('button'); btn.className = 'mm-savebtn'; btn.type = 'button'; btn.textContent = 'Save as meal';
+        btn.onclick = function () { FFPMyMeals.saveSection(k); };
+        head.appendChild(btn);
+      } else if (!has && btn) { btn.parentNode.removeChild(btn); }
+    });
+  }
+
+  window.FFPMyMeals = { setBucket: function (k) { _mmBucket = k; renderMyMeals(); }, log: mmLog, del: mmDel, openCustom: mmOpenCustom, saveSection: mmSaveSection, reload: loadMyMeals };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () { setTimeout(loadFromSupabase, 400); });
