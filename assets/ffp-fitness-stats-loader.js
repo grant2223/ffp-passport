@@ -1,7 +1,11 @@
-/* FFP Fitness Stats Loader — v24 (2026-06-05)
-   v24: PERF — the three panel-open reads (profile meta, activity logs, ranking pool) now run in PARALLEL
-        (Promise.all) instead of one-after-another. Same data, same per-call error handling, same render —
-        purely a faster panel open, no member-facing change. Cache-busted by the member dashboard FFP_BUILD.
+/* FFP Fitness Stats Loader — v25 (2026-06-05)
+   v25: Version bump only — re-stamps the v24 perf work (parallel reads + deferred ranking pool) as ONE clear
+        version, because the deferred-pool speed-up was added under v24 without a bump. v25 = "has both
+        speed-ups", unambiguous. Loaded at ?v=FFP_BUILD (now 305).
+   v24: PERF — faster Fitness Stats panel open, no member-facing change to data or actions. (a) The three reads
+        (profile meta, activity logs, ranking pool) now fire in PARALLEL (Promise.all) instead of one-after-another.
+        (b) The panel paints as soon as profile+logs are in; the heavier all-members ranking pool loads in the
+        background and the Records leaderboard fills the instant it lands. Cache-busted by the dashboard FFP_BUILD.
    v23: Milestones reworked to RECURRING CYCLES for cumulative metrics (Grant's model). A milestone is not a
         finish line — it REPEATS every N and accumulates a count (×N), forever. Each metric runs a few cycles
         (a short frequent one = the constant reminder, plus bigger ones), each ticking at its own fixed pace:
@@ -1403,15 +1407,18 @@
 
       // ranking pool \u2014 isolated so a failure here can NEVER abort the loader (the write
       // wrappers are already installed above).
-      await Promise.all([_profP, _logsP, _poolP]);
+      // PERF (v24): paint the panel as soon as profile + logs are in — don't block on the heavier, all-members
+      // ranking pool. The Records leaderboard fills the moment the pool lands (a second render). The default Bio
+      // tab doesn't use the pool, so the common case shows no difference — just a faster open.
+      await Promise.all([_profP, _logsP]);
 
       // Old percentile pills no longer used (leaderboard replaces them)
       FitnessStats.ranks = {};
 
       var panel = document.getElementById('panel-fitness-stats');
-      if (panel && panel.classList.contains('active') && typeof FitnessStats.render === 'function') {
-        FitnessStats.render();
-      }
+      function _fsRender() { if (panel && panel.classList.contains('active') && typeof FitnessStats.render === 'function') FitnessStats.render(); }
+      _fsRender();
+      _poolP.then(_fsRender);   // ranking pool arrived → refresh so the Records leaderboard populates
 
       console.log('[FFP Fitness Stats v15.1] Loaded \u2713 (writes wrapped: ' + wrapped + ', ' + activityCache.length + ' activities, ' + rankingPool.length + ' members in pool)');
     } catch (err) {
