@@ -1,4 +1,10 @@
-/* FFP Calorie Tracker Loader — v3
+/* FFP Calorie Tracker Loader — v4
+   v4: MY MEALS — saved meals for one-tap re-logging (member_meals + RPCs). Adds a "My Meals" strip on the
+       Today tab (#ct-mymeals): bucket selector (defaults to time-of-day), cards tap → member_meal_log into
+       the selected bucket → instantly shown + counted, "New" → custom-meal modal (member_meal_save), card ×
+       → member_meal_delete. Also makes FREE-FORM food_logs first-class via mapFoodRow (carry own macros) —
+       fixes non-catalog logs being silently dropped. (Earlier header below.)
+   --- FFP Calorie Tracker Loader — v3
    v3 (2026-05-29) clean-build refactor: uses FFPAuth.getMember()
    instead of window.supabase.auth.getUser(). FFP custom-auth
    members have no auth.users row — getUser would fail. JWT still
@@ -75,20 +81,18 @@
 
   // Supabase food_logs row → dashboard meal item { foodId, amount, _supabaseId }
   function mapFoodRow(row) {
-    if (typeof FOOD_DB === 'undefined') return null;
-    var food = null;
-    for (var i = 0; i < FOOD_DB.length; i++) {
-      if (FOOD_DB[i].name === row.food_name) { food = FOOD_DB[i]; break; }
+    if (typeof FOOD_DB !== 'undefined') {
+      for (var i = 0; i < FOOD_DB.length; i++) {
+        if (FOOD_DB[i].name === row.food_name) {
+          var food = FOOD_DB[i];
+          var amount = food.kcal > 0 ? Math.round((row.calories / food.kcal) * food.serving) : food.serving;
+          return { foodId: food.id, amount: amount, _supabaseId: row.id };
+        }
+      }
     }
-    if (!food) return null;
-    var amount = food.kcal > 0
-      ? Math.round((row.calories / food.kcal) * food.serving)
-      : food.serving;
-    return {
-      foodId: food.id,
-      amount: amount,
-      _supabaseId: row.id
-    };
+    // free-form row (My Meals / any custom log not in the catalog): carry its own macros so it shows + counts
+    return { free: true, name: row.food_name || 'Meal', kcal: row.calories || 0,
+             p: +(row.protein_g || 0), c: +(row.carbs_g || 0), f: +(row.fat_g || 0), _supabaseId: row.id };
   }
 
   function dbMealToKey(m) { return m === 'snack'  ? 'snacks' : m; }
@@ -248,6 +252,7 @@
       if (panel && panel.classList.contains('active') && typeof CalorieTracker.render === 'function') {
         CalorieTracker.render();
       }
+      loadMyMeals();  // My Meals strip (saved meals)
 
       console.log('[FFP Calorie Tracker] Loaded from Supabase ✓');
     } catch (err) {
@@ -356,7 +361,133 @@
         if (res.error) console.error('[FFP CT] goal save:', res.error);
       } catch (e) { console.error('[FFP CT] goal save:', e); }
     };
+
+    // ─── My Meals strip rides along with every tracker render ───
+    var origRenderMM = CalorieTracker.render.bind(CalorieTracker);
+    CalorieTracker.render = function () { origRenderMM(); renderMyMeals(); };
   }
+
+  // ============ MY MEALS — saved meals, one-tap re-log (member_meals + RPCs) ============
+  var _myMeals = [];
+  function mmDefaultBucket() { var h = new Date().getHours(); if (h >= 5 && h < 11) return 'breakfast'; if (h >= 11 && h < 16) return 'lunch'; if (h >= 16 && h < 22) return 'dinner'; return 'snacks'; }
+  var _mmBucket = mmDefaultBucket();
+  var MM_BUCKETS = [['breakfast', 'Breakfast'], ['lunch', 'Lunch'], ['dinner', 'Dinner'], ['snacks', 'Snacks']];
+  function mmEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (ch) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]; }); }
+
+  function mmInjectStyles() {
+    if (document.getElementById('ffp-mymeals-styles')) return;
+    var s = document.createElement('style'); s.id = 'ffp-mymeals-styles'; s.textContent =
+      '.mm-wrap{margin:0 0 12px;}' +
+      '.mm-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}' +
+      '.mm-title{font-size:13px;font-weight:800;color:var(--text);}' +
+      '.mm-bkt{display:flex;gap:4px;}' +
+      '.mm-bkt button{font-size:10px;font-weight:800;padding:4px 8px;border-radius:7px;border:1px solid var(--border-mid);background:transparent;color:var(--muted);cursor:pointer;}' +
+      '.mm-bkt button.on{background:var(--blue);border-color:var(--blue);color:#fff;}' +
+      '.mm-strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;}' +
+      '.mm-strip::-webkit-scrollbar{display:none;}' +
+      '.mm-card{flex:0 0 auto;min-width:96px;max-width:150px;background:rgba(43,168,224,0.06);border:1px solid var(--border-mid);border-radius:12px;padding:10px;cursor:pointer;position:relative;transition:border-color .15s;}' +
+      '.mm-card:hover{border-color:var(--blue);}' +
+      '.mm-card-name{font-size:12px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+      '.mm-card-kcal{font-size:11px;font-weight:700;color:var(--blue);margin-top:3px;}' +
+      '.mm-card-x{position:absolute;top:4px;right:4px;width:18px;height:18px;border:none;background:rgba(0,0,0,.3);color:#fff;border-radius:50%;font-size:12px;line-height:16px;cursor:pointer;padding:0;}' +
+      '.mm-new{flex:0 0 auto;min-width:92px;border:1px dashed var(--blue);border-radius:12px;background:transparent;color:var(--blue);font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:2px;}' +
+      '.mm-empty{font-size:11.5px;color:var(--muted);padding:6px 2px 8px;}' +
+      '.mm-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;z-index:100040;}' +
+      '.mm-modal{background:var(--card,#0e1b2a);border:1px solid var(--border-mid);border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:18px 16px 24px;}' +
+      '.mm-modal h3{font-size:15px;font-weight:800;color:var(--text);margin:0 0 12px;}' +
+      '.mm-field{margin-bottom:10px;}' +
+      '.mm-field label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;}' +
+      '.mm-field input{width:100%;padding:9px 11px;background:rgba(43,168,224,0.06);border:1px solid var(--border-mid);border-radius:9px;color:var(--text);font-size:14px;font-weight:600;font-family:inherit;box-sizing:border-box;}' +
+      '.mm-macros{display:flex;gap:8px;}.mm-macros .mm-field{flex:1;}' +
+      '.mm-actions{display:flex;gap:8px;margin-top:14px;}' +
+      '.mm-actions button{flex:1;padding:11px;border-radius:10px;font-size:13px;font-weight:800;cursor:pointer;border:none;}' +
+      '.mm-cancel{background:rgba(255,255,255,0.08);color:var(--text);}.mm-save{background:var(--blue);color:#fff;}';
+    document.head.appendChild(s);
+  }
+
+  function loadMyMeals() {
+    if (!window.supabase || !currentUserId) return;
+    window.supabase.rpc('member_meals_list', { p_me: currentUserId }).then(function (res) {
+      _myMeals = (res && res.data) || [];
+      renderMyMeals();
+    }).catch(function (e) { console.error('[FFP CT] my_meals list:', e); });
+  }
+
+  function renderMyMeals() {
+    var host = document.getElementById('ct-mymeals'); if (!host) return;
+    mmInjectStyles();
+    var bkt = MM_BUCKETS.map(function (b) { return '<button class="' + (b[0] === _mmBucket ? 'on' : '') + '" onclick="FFPMyMeals.setBucket(\'' + b[0] + '\')">' + b[1] + '</button>'; }).join('');
+    var newBtn = '<button class="mm-new" onclick="FFPMyMeals.openCustom()"><span class="material-icons" style="font-size:16px;">add</span>New</button>';
+    var cards = _myMeals.map(function (m) {
+      return '<div class="mm-card" onclick="FFPMyMeals.log(\'' + m.id + '\')">' +
+        '<button class="mm-card-x" onclick="event.stopPropagation();FFPMyMeals.del(\'' + m.id + '\')">&times;</button>' +
+        '<div class="mm-card-name">' + mmEsc(m.name) + '</div>' +
+        '<div class="mm-card-kcal">' + (m.calories || 0) + ' kcal</div></div>';
+    }).join('');
+    var body = _myMeals.length
+      ? '<div class="mm-strip">' + cards + newBtn + '</div>'
+      : '<div class="mm-empty">Save meals you eat often for one-tap logging.</div><div class="mm-strip">' + newBtn + '</div>';
+    host.innerHTML = '<div class="mm-wrap"><div class="mm-head"><span class="mm-title">My Meals</span><span class="mm-bkt">' + bkt + '</span></div>' + body + '</div>';
+  }
+
+  function mmLog(id) {
+    var m = null; for (var i = 0; i < _myMeals.length; i++) { if (_myMeals[i].id === id) { m = _myMeals[i]; break; } }
+    if (!m || !currentUserId) return;
+    var bucketKey = _mmBucket;
+    window.supabase.rpc('member_meal_log', { p_me: currentUserId, p_id: id, p_bucket: keyToDbMeal(bucketKey) }).then(function (res) {
+      var r = res && res.data;
+      if (!r || r.ok === false) { if (window.showToast) showToast('Could not log meal', 'error'); return; }
+      if (!CalorieTracker.meals[bucketKey]) CalorieTracker.meals[bucketKey] = [];
+      CalorieTracker.meals[bucketKey].push({ free: true, name: m.name, kcal: m.calories || 0, p: +(m.protein_g || 0), c: +(m.carbs_g || 0), f: +(m.fat_g || 0), _supabaseId: r.food_log_id });
+      if (typeof CalorieTracker.render === 'function') CalorieTracker.render();
+      m.use_count = (m.use_count || 0) + 1;
+      _myMeals = [m].concat(_myMeals.filter(function (x) { return x.id !== id; }));
+      renderMyMeals();
+      var label = (MM_BUCKETS.filter(function (b) { return b[0] === bucketKey; })[0] || ['', 'Snacks'])[1];
+      if (window.showToast) showToast('Added ' + m.name + ' to ' + label);
+    }).catch(function (e) { console.error('[FFP CT] meal log:', e); });
+  }
+
+  function mmDel(id) {
+    if (!currentUserId) return;
+    window.supabase.rpc('member_meal_delete', { p_me: currentUserId, p_id: id }).then(function () {
+      _myMeals = _myMeals.filter(function (x) { return x.id !== id; });
+      renderMyMeals();
+    }).catch(function (e) { console.error('[FFP CT] meal delete:', e); });
+  }
+
+  function mmOpenCustom() {
+    mmInjectStyles();
+    var bg = document.createElement('div'); bg.className = 'mm-modal-bg';
+    bg.onclick = function (e) { if (e.target === bg) document.body.removeChild(bg); };
+    bg.innerHTML =
+      '<div class="mm-modal"><h3>New meal</h3>' +
+      '<div class="mm-field"><label>Name</label><input id="mm-i-name" type="text" placeholder="e.g. Chicken wrap"></div>' +
+      '<div class="mm-field"><label>Calories</label><input id="mm-i-kcal" type="number" inputmode="numeric" placeholder="kcal"></div>' +
+      '<div class="mm-macros"><div class="mm-field"><label>Protein (g)</label><input id="mm-i-p" type="number" inputmode="numeric"></div>' +
+      '<div class="mm-field"><label>Carbs (g)</label><input id="mm-i-c" type="number" inputmode="numeric"></div>' +
+      '<div class="mm-field"><label>Fat (g)</label><input id="mm-i-f" type="number" inputmode="numeric"></div></div>' +
+      '<div class="mm-actions"><button class="mm-cancel">Cancel</button><button class="mm-save">Save meal</button></div></div>';
+    document.body.appendChild(bg);
+    bg.querySelector('.mm-cancel').onclick = function () { document.body.removeChild(bg); };
+    bg.querySelector('.mm-save').onclick = function () {
+      var name = (document.getElementById('mm-i-name').value || '').trim();
+      if (!name) { if (window.showToast) showToast('Name your meal', 'error'); return; }
+      var payload = {
+        name: name, calories: parseInt(document.getElementById('mm-i-kcal').value, 10) || 0,
+        protein_g: parseFloat(document.getElementById('mm-i-p').value) || 0,
+        carbs_g: parseFloat(document.getElementById('mm-i-c').value) || 0,
+        fat_g: parseFloat(document.getElementById('mm-i-f').value) || 0
+      };
+      window.supabase.rpc('member_meal_save', { p_me: currentUserId, p: payload }).then(function () {
+        if (document.body.contains(bg)) document.body.removeChild(bg);
+        if (window.showToast) showToast('Saved ' + name);
+        loadMyMeals();
+      }).catch(function (e) { console.error('[FFP CT] meal save:', e); });
+    };
+  }
+
+  window.FFPMyMeals = { setBucket: function (k) { _mmBucket = k; renderMyMeals(); }, log: mmLog, del: mmDel, openCustom: mmOpenCustom, reload: loadMyMeals };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () { setTimeout(loadFromSupabase, 400); });
