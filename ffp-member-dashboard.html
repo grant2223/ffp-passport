@@ -1,4 +1,11 @@
-<!-- FFP MEMBER DASHBOARD — v313 (2026-06-06)
+<!-- FFP MEMBER DASHBOARD — v314 (2026-06-06)
+     v314: MY MEALS (calorie tracker). New #ct-mymeals strip on the Today tab — saved meals for one-tap
+           re-logging into a selected bucket (defaults to time-of-day), "New" custom-meal modal, card ×
+           delete. Backed by member_meals + 4 RPCs (member_meals_list/save/delete/log). Also made FREE-FORM
+           food items first-class in CalorieTracker (totals/mealTotal/render) so saved meals display + count
+           — which also FIXES a latent bug where any non-catalog food_log was silently dropped from the view.
+           Calorie tracker loader → v4; FFP_BUILD 310→311 cache-busts it. (Calorie-tracker extraction into its
+           own module is still queued as a separate verified refactor.)
      v313: FITNESS STATS (Bio) LOAD SPEED FIX. The Fitness Stats CORE + milestone-badge scripts were SYNCHRONOUS
            <script src> tags sitting ~10,500 lines into this ~14,000-line page, so they blocked the HTML parser
            mid-document — the nav/boot code below them couldn't even parse until both files downloaded, which
@@ -5515,6 +5522,8 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
           <div class="ct-section-title">Food today</div>
           <div class="ct-section-total" id="ct-food-total">0 kcal eaten</div>
         </div>
+        <!-- My Meals strip — populated by ffp-calorie-tracker-loader.js (window.FFPMyMeals) -->
+        <div id="ct-mymeals"></div>
         <button class="ct-log-btn" onclick="CalorieTracker.openFoodPicker()">
           <span class="material-icons">add</span>Log food
         </button>
@@ -8332,7 +8341,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '310';
+  const FFP_BUILD = '311';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -9922,6 +9931,7 @@ const CalorieTracker = {
   totals() {
     let kcal=0, p=0, c=0, f=0;
     Object.values(this.meals).forEach(arr => arr.forEach(item => {
+      if (item && item.free) { kcal += item.kcal||0; p += item.p||0; c += item.c||0; f += item.f||0; return; } // free-form (My Meals / custom)
       const food = FOOD_DB.find(x => x.id === item.foodId);
       if (!food) return;
       const ratio = item.amount / food.serving;
@@ -9936,6 +9946,7 @@ const CalorieTracker = {
   mealTotal(mealKey) {
     let k = 0;
     (this.meals[mealKey] || []).forEach(item => {
+      if (item && item.free) { k += item.kcal||0; return; } // free-form (My Meals / custom)
       const food = FOOD_DB.find(x => x.id === item.foodId);
       if (food) k += food.kcal * (item.amount / food.serving);
     });
@@ -10028,6 +10039,17 @@ const CalorieTracker = {
       mountEl.innerHTML = (this.meals[mk] || []).length === 0
         ? '<div class="cal-meal-empty">No items</div>'
         : (this.meals[mk] || []).map((item, idx) => {
+            if (item && item.free) {
+              return `
+              <div class="meal-item">
+                <div class="meal-item-left">
+                  <div class="meal-item-name">${escHtml(item.name || 'Meal')}</div>
+                  <div class="meal-item-info">${Math.round(item.p||0)}p / ${Math.round(item.c||0)}c / ${Math.round(item.f||0)}f</div>
+                </div>
+                <div class="meal-item-kcal">${Math.round(item.kcal||0)}</div>
+                <button class="meal-item-x" onclick="event.stopPropagation(); CalorieTracker.removeItem('${mk}', ${idx})"><span class="material-icons">close</span></button>
+              </div>`;
+            }
             const food = FOOD_DB.find(x => x.id === item.foodId);
             if (!food) return '';
             const ratio = item.amount / food.serving;
