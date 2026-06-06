@@ -1,4 +1,9 @@
-/* FFP Milestone Badges — v4 (2026-06-06)
+/* FFP Milestone Badges — v5 (2026-06-06)
+   v5: PERF FIX (slow Milestones render). The laurel wreath was the heaviest geometry — ~28 gradient leaf
+       paths drawn on EVERY medallion/people badge (a big ladder like Activities ×106 = ~3,000 leaf shapes).
+       Now the wreath is defined ONCE per colour in <defs> as <g id="msb-wr{k}"> and drawn with a single
+       <use> per badge, so the browser paints it once and reuses it. Removes thousands of nodes; leaf count
+       28/30 → 20. No visual change.
    v4: GRANULAR JOURNEYS — each metric is its own journey/tile. Split Strength → Deadlift, Back Squat,
        Bench Press (each ×bw, 0.1 steps, plate badge). Split Endurance → 5K, 10K, Half, Marathon (each a
        DROPPING-TIME ladder, many sub-time tiers, stopwatch badge). Added VO₂ Max (heart badge, 30→62) and
@@ -42,6 +47,16 @@
   ];
   var GREY = { name: 'LOCKED', lite: '#48586a', mid: '#33414f', dark: '#1f2a34', leafL: '#3c4a58', leafD: '#26323c' };
 
+  // PERF: the wreath is the heaviest geometry — build it ONCE per palette (into <defs>) and <use> it per badge.
+  function wreathLeaves(k, dark) {
+    var out = '', N = 20, R = 76, cx = 90, cy = 88;
+    for (var i = 0; i < N; i++) {
+      var a = (i / N) * Math.PI * 2 - Math.PI / 2, lx = cx + R * Math.cos(a), ly = cy + R * Math.sin(a), rot = (a * 180 / Math.PI) + 90 + 32;
+      out += '<g transform="translate(' + lx.toFixed(1) + ',' + ly.toFixed(1) + ') rotate(' + rot.toFixed(1) + ')"><path d="M0,-7 C4,-3 4,3 0,7 C-4,3 -4,-3 0,-7 Z" fill="url(#msb-lf' + k + ')" stroke="' + dark + '" stroke-width=".5"/></g>';
+    }
+    return out;
+  }
+
   function injectDefs() {
     if (document.getElementById('ffp-msb-defs')) return;
     var sets = LEVELS.map(function (p, i) { return { k: String(i), p: p }; });
@@ -52,6 +67,7 @@
       g += '<linearGradient id="msb-mtl' + k + '" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + p.lite + '"/><stop offset=".3" stop-color="' + p.mid + '"/><stop offset=".8" stop-color="' + p.dark + '"/><stop offset="1" stop-color="' + p.dark + '"/></linearGradient>';
       g += '<radialGradient id="msb-shn' + k + '" cx=".36" cy=".3" r=".75"><stop offset="0" stop-color="' + p.lite + '"/><stop offset=".55" stop-color="' + p.mid + '"/><stop offset="1" stop-color="' + p.dark + '"/></radialGradient>';
       g += '<linearGradient id="msb-lf' + k + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + p.leafL + '"/><stop offset="1" stop-color="' + p.leafD + '"/></linearGradient>';
+      g += '<g id="msb-wr' + k + '">' + wreathLeaves(k, p.dark) + '</g>';
     });
     g += '<radialGradient id="msb-face" cx=".5" cy=".38" r=".75"><stop offset="0" stop-color="#163045"/><stop offset=".7" stop-color="#081420"/><stop offset="1" stop-color="#040d15"/></radialGradient>';
     g += '<radialGradient id="msb-sphere" cx=".36" cy=".3" r=".85"><stop offset="0" stop-color="#8fdcff"/><stop offset=".4" stop-color="#2ba8e0"/><stop offset=".8" stop-color="#0c3a52"/><stop offset="1" stop-color="#06212e"/></radialGradient>';
@@ -94,12 +110,7 @@
   function medallion(k, p, o) {
     var num = o.num != null ? String(o.num) : '';
     var fs = num.length >= 3 ? 40 : 48;
-    var leaves = '', N = 28, R = 76, cx = 90, cy = 88;
-    for (var i = 0; i < N; i++) {
-      var a = (i / N) * Math.PI * 2 - Math.PI / 2, lx = cx + R * Math.cos(a), ly = cy + R * Math.sin(a), rot = (a * 180 / Math.PI) + 90 + 32;
-      leaves += '<g transform="translate(' + lx.toFixed(1) + ',' + ly.toFixed(1) + ') rotate(' + rot.toFixed(1) + ')"><path d="M0,-7 C4,-3 4,3 0,7 C-4,3 -4,-3 0,-7 Z" fill="url(#msb-lf' + k + ')" stroke="' + p.dark + '" stroke-width=".5"/></g>';
-    }
-    return S(leaves
+    return S('<use href="#msb-wr' + k + '"/>'
       + '<circle cx="90" cy="88" r="62" fill="none" stroke="url(#msb-mtl' + k + ')" stroke-width="13"/>'
       + '<circle cx="90" cy="88" r="68.5" fill="none" stroke="' + p.dark + '" stroke-width="1" opacity=".6"/>'
       + '<circle cx="90" cy="88" r="55.5" fill="none" stroke="' + p.dark + '" stroke-width="1" opacity=".6"/>'
@@ -194,15 +205,10 @@
     return '<path d="' + b + '" fill="url(#msb-shn' + k + ')" stroke="' + p.dark + '" stroke-width="1.1"/>' + head;
   }
   function wreathPeople(k, p, n) {
-    var leaves = '', N = 30, R = 76, cx = 90, cy = 88;
-    for (var i = 0; i < N; i++) {
-      var a = (i / N) * Math.PI * 2 - Math.PI / 2, lx = cx + R * Math.cos(a), ly = cy + R * Math.sin(a), rot = (a * 180 / Math.PI) + 90 + 32;
-      leaves += '<g transform="translate(' + lx.toFixed(1) + ',' + ly.toFixed(1) + ') rotate(' + rot.toFixed(1) + ')"><path d="M0,-7 C4,-3 4,3 0,7 C-4,3 -4,-3 0,-7 Z" fill="url(#msb-lf' + k + ')" stroke="' + p.dark + '" stroke-width=".5"/></g>';
-    }
     var ppl = n >= 4
       ? person(74, 78, 0.66, 112, k, p) + person(106, 78, 0.66, 112, k, p) + person(64, 88, 0.78, 118, k, p) + person(116, 88, 0.78, 118, k, p)
       : person(75, 82, 0.94, 118, k, p) + person(105, 82, 0.94, 118, k, p);
-    return S(leaves
+    return S('<use href="#msb-wr' + k + '"/>'
       + '<circle cx="90" cy="88" r="62" fill="none" stroke="url(#msb-mtl' + k + ')" stroke-width="13"/>'
       + '<circle cx="90" cy="88" r="68.5" fill="none" stroke="' + p.dark + '" stroke-width="1" opacity=".6"/>'
       + '<circle cx="90" cy="88" r="55.5" fill="none" stroke="' + p.dark + '" stroke-width="1" opacity=".6"/>'
