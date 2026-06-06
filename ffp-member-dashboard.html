@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v309 (2026-06-06)
+<!-- FFP MEMBER DASHBOARD — v310 (2026-06-06)
+     v310: MILESTONES — GRANULAR JOURNEYS. Split into 15 journeys, each its own tile/ladder: Activities,
+           Deadlift, Back Squat, Bench Press, Sports Variety, 5K/10K/Half/Marathon (dropping time), VO₂ Max,
+           Cities, Body Fat, Quests, Meetups, Connections. Badge module → v4 (ref ?v=4; new heart + ball
+           badges); loader → v29 (passes a number per journey from Records/activity data). FFP_BUILD 308→309.
      v309: MILESTONES — FREQUENT-WINS ladders (FFP-MASTER law: gaps never balloon; tops via more stages, not
            bigger jumps) + 5-year-plan tops. Endurance is now dropping-TIME/distance (Finish 5K/10K/Half/
            Marathon → Marathon sub-5:00…sub-2:50 → ultras), Cities to ~200, Strength to 4×bw, Body Fat to 8%.
@@ -8315,7 +8319,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '308';
+  const FFP_BUILD = '309';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -10547,7 +10551,7 @@ function fmtPrDate(iso) {
 <!-- Fitness Stats CORE — extracted to assets/ffp-fitness-stats-core.js (synchronous; defines window.FitnessStats before init() runs at boot). v304. -->
 <script src="assets/ffp-fitness-stats-core.js?v=304"></script>
 <!-- Milestone badge library — assets/ffp-milestone-badges.js (window.FFPMSBadges: 8 object badges + ladders + wall renderer for the Milestones tab). Bump ?v on change. -->
-<script src="assets/ffp-milestone-badges.js?v=3"></script>
+<script src="assets/ffp-milestone-badges.js?v=4"></script>
 <script>
 
 function closePrEditIfBackdrop(e) { if (e.target.id === 'pr-edit-backdrop') FitnessStats.closePrEdit(); }
