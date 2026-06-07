@@ -1,4 +1,8 @@
-/* FFP Fitness Stats Loader — v31 (2026-06-06)
+/* FFP Fitness Stats Loader — v32 (2026-06-07)
+   v32: MILESTONES — feeds the 2 new event-resume journeys. fetchMsSocial now also calls
+        member_event_results and caches comps + runRaces; renderMilestones passes values.comps /
+        values.runRaces to FFPMSBadges v6 (Competitions + Running Races journeys).
+   v31 (2026-06-06)
    v31: RECORDS — added two standard field/conditioning tests: BRONCO (1.2km shuttle, time mm:ss, lower better,
         col pr_bronco_sec) and BEEP TEST (multi-stage fitness / bleep test level, higher better, col
         beep_test_level). Both added to METRICS + PR_MAP (Cardio group); profile_meta columns added via MCP.
@@ -1412,9 +1416,10 @@
     Promise.all([
       window.supabase.rpc('member_meets', { p_me: mid }).then(num).catch(function(){ return 0; }),
       window.supabase.rpc('member_connections_count', { p_me: mid }).then(num).catch(function(){ return 0; }),
-      window.supabase.rpc('member_quests_completed', { p_me: mid }).then(num).catch(function(){ return 0; })
+      window.supabase.rpc('member_quests_completed', { p_me: mid }).then(num).catch(function(){ return 0; }),
+      window.supabase.rpc('member_event_results', { p_me: mid }).then(function(r){ var ms=(r&&r.data&&r.data.milestones)||{}; return { comps: ms.competitions||0, runRaces: ms.running_races||0 }; }).catch(function(){ return { comps:0, runRaces:0 }; })
     ]).then(function (res) {
-      _msSocial = { meets: res[0], connections: res[1], quests: res[2] };
+      _msSocial = { meets: res[0], connections: res[1], quests: res[2], comps: res[3].comps, runRaces: res[3].runRaces };
       _msSocialLoading = false;
       if (FitnessStats.tab === 'milestones' && typeof FitnessStats.renderMilestones === 'function') FitnessStats.renderMilestones();
     });
@@ -1437,7 +1442,7 @@
         cities: new Set(logs.map(function (l) { return l.city; }).filter(Boolean)).size,
         bodyfat: (r.bodyFat && r.bodyFat.value != null) ? r.bodyFat.value : 999
       };
-      if (_msSocial) { values.meets = _msSocial.meets; values.connections = _msSocial.connections; values.quests = _msSocial.quests; }
+      if (_msSocial) { values.meets = _msSocial.meets; values.connections = _msSocial.connections; values.quests = _msSocial.quests; values.comps = _msSocial.comps; values.runRaces = _msSocial.runRaces; }
       window.FFPMSBadges.render(values, gridEl);
       var countEl = document.getElementById('ms-unlocked-count'); if (countEl) countEl.textContent = '';
       fetchMsSocial();
