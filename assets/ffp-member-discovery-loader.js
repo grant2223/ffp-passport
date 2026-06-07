@@ -1,4 +1,9 @@
-/* FFP Member Discovery Loader — v8 (2026-06-07)
+/* FFP Member Discovery Loader — v9 (2026-06-07)
+   v9: Challenge create fixes per Grant — (1) end date & time now uses a custom FFP WHEEL picker
+       (window.FFPDateTimePicker: Date/Hour/Min wheels, max 30 days) — NO native datetime-local.
+       (2) Members can EDIT their own challenge: detail shows "Edit challenge" (host only) → openEdit
+       prefills the create form → member_challenge_create with p_id (RPC already supports edit).
+       (3) Photo upload errors now surface the real message (toast) instead of a silent "Upload failed".
    v8: Create-challenge form REBUILD per Grant — FFP-standard controls only (NO native/apple <select>
        dropdowns anywhere). Fields now: square tap-to-add PHOTO at top (no label) · Challenge name ·
        "Scored by" SEGMENTED toggle (Max Reps / For Time — replaces the removed "What's measured" + the
@@ -252,6 +257,7 @@
       metric: r.metric || '',
       prize: r.prize_description || '',
       rules: r.rules || '',
+      endsAt: r.ends_at || '',
       endDate: fmtDay(r.ends_at),
       dateBadge: fmtDayBadge(r.ends_at),
       img: r.hero_image_url || '',
@@ -297,6 +303,112 @@
       '<div class="lb-right"><div class="lb-score">' + esc(e.score_text || String(e.score)) + '</div>' + verHtml + proof + hostBtn + '</div>' +
     '</div>';
   }
+
+  var DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function fmtEndLabel(iso) {
+    if (!iso) return '';
+    var d = new Date(iso); if (isNaN(d)) return '';
+    var p = function (n) { return (n < 10 ? '0' : '') + n; };
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var dd = new Date(d); dd.setHours(0, 0, 0, 0);
+    var diff = Math.round((dd - today) / 86400000);
+    var day = diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : (DOW[d.getDay()] + ' ' + d.getDate() + ' ' + MON[d.getMonth()]);
+    return day + ', ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+
+  // FFP date+time wheel picker (NO native datetime input). Reuses the .ffp-dur-* wheel styling.
+  // open(startIso, maxDays, onDone) -> onDone({ iso, label }). Date column = today .. today+maxDays.
+  var FFPDateTimePicker = (function () {
+    var ITEM = 40, overlay = null, cols = {}, sel = { d: 7, h: 18, m: 0 }, cb = null, raf = {}, dates = [], built = false;
+    function colItems(u, max, dyn) {
+      var html = '<div class="ffp-dur-spacer"></div>';
+      if (u === 'd') {
+        for (var i = 0; i < dates.length; i++) {
+          var dt = dates[i];
+          var lbl = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : (DOW[dt.getDay()] + ' ' + dt.getDate() + ' ' + MON[dt.getMonth()]);
+          html += '<div class="ffp-dur-item" data-v="' + i + '">' + lbl + '</div>';
+        }
+      } else {
+        for (var j = 0; j <= max; j++) html += '<div class="ffp-dur-item" data-v="' + j + '">' + (j < 10 ? '0' + j : j) + '</div>';
+      }
+      html += '<div class="ffp-dur-spacer"></div>';
+      return html;
+    }
+    function bindCol(u, max) {
+      var col = cols[u];
+      col.addEventListener('scroll', function () {
+        if (raf[u]) cancelAnimationFrame(raf[u]);
+        raf[u] = requestAnimationFrame(function () {
+          var idx = Math.max(0, Math.min(max, Math.round(col.scrollTop / ITEM)));
+          sel[u] = idx; highlight(u, idx);
+        });
+      });
+    }
+    function build() {
+      if (built) return;
+      built = true;
+      overlay = document.createElement('div');
+      overlay.className = 'ffp-dur-overlay'; overlay.id = 'ffp-dtp-overlay';
+      overlay.innerHTML =
+        '<div class="ffp-dur-sheet">' +
+          '<div class="ffp-dur-head">' +
+            '<button type="button" class="ffp-dur-cancel">Cancel</button>' +
+            '<div class="ffp-dur-title">End date &amp; time</div>' +
+            '<button type="button" class="ffp-dur-done">Done</button>' +
+          '</div>' +
+          '<div class="ffp-dur-colhead"><span>Date</span><span>Hour</span><span>Min</span></div>' +
+          '<div class="ffp-dur-wheels">' +
+            '<div class="ffp-dur-center"></div>' +
+            '<div class="ffp-dur-col" data-unit="d"></div>' +
+            '<div class="ffp-dur-col" data-unit="h"></div>' +
+            '<div class="ffp-dur-col" data-unit="m"></div>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(overlay);
+      cols.d = overlay.querySelector('.ffp-dur-col[data-unit="d"]');
+      cols.h = overlay.querySelector('.ffp-dur-col[data-unit="h"]');
+      cols.m = overlay.querySelector('.ffp-dur-col[data-unit="m"]');
+      overlay.querySelector('.ffp-dur-cancel').addEventListener('click', close);
+      overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+      overlay.querySelector('.ffp-dur-done').addEventListener('click', function () {
+        var base = dates[sel.d] ? new Date(dates[sel.d]) : new Date();
+        base.setHours(sel.h, sel.m, 0, 0);
+        var fn = cb, iso = base.toISOString();
+        close(); if (fn) fn({ iso: iso, label: fmtEndLabel(iso) });
+      });
+      bindCol('h', 23); bindCol('m', 59);
+    }
+    function highlight(u, idx) {
+      var items = cols[u].querySelectorAll('.ffp-dur-item');
+      for (var i = 0; i < items.length; i++) items[i].classList.toggle('sel', i === idx);
+    }
+    function setNow(u, v, max) { v = Math.max(0, Math.min(max, v)); cols[u].scrollTop = v * ITEM; sel[u] = v; highlight(u, v); }
+    function open(startIso, maxDays, onDone) {
+      build(); cb = onDone || null;
+      dates = [];
+      var base = new Date(); base.setHours(0, 0, 0, 0);
+      for (var i = 0; i <= (maxDays || 30); i++) { var dd = new Date(base); dd.setDate(base.getDate() + i); dates.push(dd); }
+      cols.d.innerHTML = colItems('d');
+      bindColOnce('d');
+      cols.h.innerHTML = colItems('h', 23);
+      cols.m.innerHTML = colItems('m', 59);
+      // default = +7 days, 18:00 — or derive from startIso
+      var di = 7, hh = 18, mm = 0;
+      if (startIso) {
+        var s = new Date(startIso);
+        if (!isNaN(s)) { var sd = new Date(s); sd.setHours(0, 0, 0, 0); di = Math.max(0, Math.min(dates.length - 1, Math.round((sd - base) / 86400000))); hh = s.getHours(); mm = s.getMinutes(); }
+      }
+      di = Math.min(di, dates.length - 1);
+      overlay.classList.add('show');
+      requestAnimationFrame(function () { setNow('d', di, dates.length - 1); setNow('h', hh, 23); setNow('m', mm, 59); });
+    }
+    var dBound = false;
+    function bindColOnce(u) { if (u === 'd' && dBound) return; if (u === 'd') dBound = true; bindCol(u, (u === 'd') ? (dates.length - 1) : 0); }
+    function close() { if (overlay) overlay.classList.remove('show'); cb = null; }
+    return { open: open, close: close };
+  })();
+  window.FFPDateTimePicker = FFPDateTimePicker;
 
   function wireMemberChallenges() {
     if (typeof Challenges === 'undefined') return;
@@ -376,7 +488,9 @@
           '<div class="prize-block"><div class="prize-block-icon"><span class="material-icons">card_giftcard</span></div><div class="prize-block-text"><div class="prize-block-label">Prize</div><div class="prize-block-desc">' + esc(c.prize || 'See listing') + '</div></div></div>') +
         '<div class="lb-section"><div class="lb-header"><div class="lb-header-title"><span class="material-icons">leaderboard</span>Leaderboard</div>' +
           '<div class="lb-header-count">' + count + ' ' + (count === 1 ? 'entry' : 'entries') + '</div></div>' + lbHtml + '</div>' +
-        '<div class="dm-footer">' + ctaButton + '</div>';
+        '<div class="dm-footer">' + ctaButton +
+          ((isMember && c.isHost && !isPast) ? '<button class="btn-primary-yellow" style="margin-top:8px;background:transparent;border:1px solid #2a3f57;color:#9fb2c6;box-shadow:none;" onclick="Challenges.openEdit(\'' + c.id + '\')">Edit challenge</button>' : '') +
+        '</div>';
       openDetailModal(body);
     };
 
@@ -415,7 +529,7 @@
         bucket: 'quest-images', key: 'challenge-proof/' + self._submittingId + '/' + memberId() + '-' + Date.now() + '.jpg',
         aspect: 4 / 3, outW: 1000, outH: 750, title: 'Add proof photo',
         onDone: function (url) { self._proofUrl = url || ''; var el = document.getElementById('ss-proofbtn'); if (el) el.textContent = url ? 'Photo added ✓ (tap to change)' : 'Add a photo'; },
-        onError: function (e) { toast('Upload failed'); console.warn(e); }
+        onError: function (e) { toast('Photo upload failed: ' + ((e && e.message) || 'unknown')); console.warn('[FFP proof]', e); }
       });
     };
     Challenges.confirmSubmitScore = async function () {
@@ -457,9 +571,9 @@
 
     // ---- CREATE a challenge (FFP standard controls — no native dropdowns) ----
     Challenges.openCreate = function () {
-      this._createHero = ''; this._scoredBy = 'high';
+      this._createHero = ''; this._scoredBy = 'high'; this._editId = null; this._endIso = '';
       var body =
-        '<div class="dm-body"><div class="dm-title">Create a challenge</div>' +
+        '<div class="dm-body"><div class="dm-title" id="cc-modal-title">Create a challenge</div>' +
           '<p style="font-size:13px;color:var(--muted);">Goes live straight away · max 30 days · leaderboard only.</p></div>' +
         '<div class="submit-score-form">' +
           // Photo — square, top, tap to add, no label
@@ -470,12 +584,35 @@
               '<button type="button" class="chal-seg-btn active" data-v="high" onclick="Challenges.setScored(\'high\')">Max Reps</button>' +
               '<button type="button" class="chal-seg-btn" data-v="low" onclick="Challenges.setScored(\'low\')">For Time</button>' +
             '</div></div>' +
-          '<div class="submit-score-row"><label class="submit-score-label">Challenge end date &amp; time</label><input type="datetime-local" id="cc-ends" class="submit-score-input" max="' + maxEndLocal() + '"></div>' +
+          '<div class="submit-score-row"><label class="submit-score-label">Challenge end date &amp; time</label><button type="button" class="submit-score-input" id="cc-ends-btn" onclick="Challenges.pickEnd()" style="text-align:left;cursor:pointer;">Tap to set end date &amp; time</button></div>' +
           '<div class="submit-score-row"><label class="submit-score-label">Challenge description</label><textarea id="cc-desc" class="submit-score-input" rows="3" placeholder="What the challenge is about."></textarea></div>' +
           '<div class="submit-score-row"><label class="submit-score-label">Challenge rules</label><textarea id="cc-rules" class="submit-score-input" rows="3" placeholder="How people log a fair result."></textarea></div>' +
         '</div>' +
-        '<div class="dm-footer"><button class="btn-primary-yellow" onclick="Challenges.saveCreate()">Publish challenge</button></div>';
+        '<div class="dm-footer"><button class="btn-primary-yellow" id="cc-publish-btn" onclick="Challenges.saveCreate()">Publish challenge</button></div>';
       openDetailModal(body);
+    };
+    Challenges.pickEnd = function () {
+      var self = this;
+      window.FFPDateTimePicker.open(self._endIso || null, 30, function (r) {
+        self._endIso = r.iso;
+        var el = document.getElementById('cc-ends-btn'); if (el) el.textContent = r.label;
+      });
+    };
+    // EDIT an existing member challenge (host only) — reuses the create form, prefilled.
+    Challenges.openEdit = function (id) {
+      var c = (this.data || []).find(function (x) { return x.id === id; });
+      if (!c) return;
+      this.openCreate();
+      this._editId = id;
+      this._createHero = c.img || '';
+      this._endIso = c.endsAt || '';
+      var setv = function (elid, v) { var e = document.getElementById(elid); if (e) e.value = v || ''; };
+      setv('cc-title', c.title); setv('cc-desc', c.desc); setv('cc-rules', c.rules);
+      this.setScored(c.direction === 'low' ? 'low' : 'high');
+      var endBtn = document.getElementById('cc-ends-btn'); if (endBtn && c.endsAt) endBtn.textContent = fmtEndLabel(c.endsAt);
+      if (c.img) { var ph = document.getElementById('cc-photo'); if (ph) { ph.classList.add('set'); ph.style.backgroundImage = "url('" + c.img + "')"; } }
+      var t = document.getElementById('cc-modal-title'); if (t) t.textContent = 'Edit challenge';
+      var pb = document.getElementById('cc-publish-btn'); if (pb) pb.textContent = 'Save changes';
     };
     Challenges.setScored = function (v) {
       this._scoredBy = (v === 'low') ? 'low' : 'high';
@@ -491,14 +628,13 @@
         bucket: 'quest-images', key: 'challenge-hero/' + memberId() + '-' + Date.now() + '.jpg',
         aspect: 1, outW: 900, outH: 900, title: 'Photo',
         onDone: function (url) { self._createHero = url || ''; var el = document.getElementById('cc-photo'); if (el && url) { el.classList.add('set'); el.style.backgroundImage = "url('" + url + "')"; } },
-        onError: function (e) { toast('Upload failed'); console.warn(e); }
+        onError: function (e) { toast('Photo upload failed: ' + ((e && e.message) || 'unknown')); console.warn('[FFP hero]', e); }
       });
     };
     Challenges.saveCreate = async function () {
       var val = function (id) { var e = document.getElementById(id); return e ? e.value.trim() : ''; };
       var title = val('cc-title'); if (!title) { toast('Give your challenge a name'); return; }
-      var ends = val('cc-ends'); if (!ends) { toast('Set the end date & time'); return; }
-      var endsIso; try { endsIso = new Date(ends).toISOString(); } catch (e) { toast('Invalid end date'); return; }
+      var endsIso = this._endIso; if (!endsIso) { toast('Set the end date & time'); return; }
       var me = memberId(); if (!me) { toast('Please sign in again'); return; }
       var scored = (this._scoredBy === 'low') ? 'low' : 'high';
       var payload = {
@@ -507,11 +643,13 @@
         score_direction: scored, ends_at: endsIso, hero_image_url: this._createHero || ''
       };
       try {
-        var r = await chRpc('member_challenge_create', { p_me: me, p_id: null, p: payload });
+        var wasEdit = !!this._editId;
+        var r = await chRpc('member_challenge_create', { p_me: me, p_id: this._editId || null, p: payload });
         if (r.error) throw r.error;
-        if (!r.data) { toast('Could not create challenge'); return; }
+        if (!r.data) { toast(wasEdit ? 'Could not save changes' : 'Could not create challenge'); return; }
+        this._editId = null;
         if (typeof closeDetailModal === 'function') closeDetailModal();
-        toast('Challenge published — it\'s live!');
+        toast(wasEdit ? 'Challenge updated' : 'Challenge published — it\'s live!');
         await loadChallenges();
         Challenges.tab = 'active'; Challenges.render();
         this.openDetail(r.data);
