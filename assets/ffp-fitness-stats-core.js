@@ -114,6 +114,8 @@ var FitnessStats = {
     run21K:      { name: 'Half Marathon', icon: 'directions_run', type: 'time',  unit: 'h:mm:ss', group: 'cardio' },
     runMara:     { name: 'Marathon',    icon: 'directions_run', type: 'time',    unit: 'h:mm:ss', group: 'cardio' },
     swim1K:      { name: 'Swim 1km',    icon: 'pool',           type: 'time',    unit: 'mm:ss',  group: 'cardio' },
+    bronco:      { name: 'Bronco',      icon: 'directions_run', type: 'time',    unit: 'mm:ss',  group: 'cardio' },
+    beepTest:    { name: 'Beep Test',   icon: 'graphic_eq',     type: 'decimal', unit: 'level',  step: 0.5, max: 23, group: 'cardio' },
     vo2max:      { name: 'VO₂ Max',     icon: 'favorite',      type: 'decimal', unit: 'ml/kg/min', step: 0.5, max: 90,  group: 'health' },
     bodyFat:     { name: 'Body Fat',    icon: 'monitor_weight', type: 'decimal', unit: '%',      step: 0.5, max: 60,  group: 'health' },
     visceralFat: { name: 'Visceral Fat',icon: 'medical_information', type: 'kg', unit: 'rating', step: 1,   max: 30,  group: 'health' },
