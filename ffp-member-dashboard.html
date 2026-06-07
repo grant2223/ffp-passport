@@ -1,4 +1,7 @@
-<!-- FFP MEMBER DASHBOARD — v327 (2026-06-07)
+<!-- FFP MEMBER DASHBOARD — v328 (2026-06-07)
+     v328: FFP_BUILD 327→328 to force a fresh fetch of the lazy loaders — Challenges panel reported not
+           loading; the discovery loader (v9.1, republished) is verified intact, so this rules out a
+           stale/cached copy. Re-deploy ffp-member-discovery-loader.js + confirm ffp-connections-core.js is up.
      v327: RACE RESUME — new "Results" tab in Fitness Stats (assets/ffp-event-results-loader.js): log
            external event results (marathons/HYROX/Spartan/CrossFit…) with overall + age-group placings,
            Individual/Team, FFP past-date wheel; brag strip Events/Podiums/Top10; resume list (edit/delete).
@@ -8284,7 +8287,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '327';
+  const FFP_BUILD = '328';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
