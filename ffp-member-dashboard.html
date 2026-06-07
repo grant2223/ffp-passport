@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v320 (2026-06-06)
+<!-- FFP MEMBER DASHBOARD — v321 (2026-06-07)
+     v321: MEMBER-CREATED CHALLENGES go live. Members can post a challenge to the community + a REAL
+           leaderboard (podium top-3 + top-10), self-submit scores, host-verify badge, photo proof.
+           All wiring lives in assets/ffp-member-discovery-loader.js v7 (overrides the inline Challenges
+           demo). FFP_BUILD 315→321 busts the lazy loader cache. No inline dashboard logic changed.
      v320: GATE "Join Passport" button now points at the LIVE $99 Stripe Payment Link
            (https://buy.stripe.com/00w5kCgHcejw9c003F3Nm0s — the same checkout used at signup in login.html,
            that paying members already go through). Was a placeholder URL. One-line JOIN_URL change.
@@ -8366,7 +8370,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '315';
+  const FFP_BUILD = '321';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
