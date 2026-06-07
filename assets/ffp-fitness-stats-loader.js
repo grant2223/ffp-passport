@@ -1,4 +1,8 @@
-/* FFP Fitness Stats Loader — v30 (2026-06-06)
+/* FFP Fitness Stats Loader — v31 (2026-06-06)
+   v31: RECORDS — added two standard field/conditioning tests: BRONCO (1.2km shuttle, time mm:ss, lower better,
+        col pr_bronco_sec) and BEEP TEST (multi-stage fitness / bleep test level, higher better, col
+        beep_test_level). Both added to METRICS + PR_MAP (Cardio group); profile_meta columns added via MCP.
+        Records UI + save/load pick them up automatically (time editor for Bronco, number for Beep Test).
    v30: QUESTS wall now live — fetchMsSocial also calls member_quests_completed (new SECURITY DEFINER RPC:
         count of quest_progress rows with status='completed') and passes values.quests, so the Quests journey
         fills from real data alongside Meetups + Connections.
@@ -278,6 +282,8 @@
     { key: 'run21K',      label: 'Half',      icon: 'directions_run',     col: 'pr_21k_seconds',  unit: 'time',      dir: 'lower',  kind: 'time', group: 'Cardio' },
     { key: 'runMara',     label: 'Marathon',  icon: 'emoji_events',       col: 'pr_marathon_sec', unit: 'time',      dir: 'lower',  kind: 'time', group: 'Cardio' },
     { key: 'swim1K',      label: 'Swim 1km',  icon: 'pool',               col: 'pr_swim1k_sec',   unit: 'time',      dir: 'lower',  kind: 'time', group: 'Cardio' },
+    { key: 'bronco',      label: 'Bronco',    icon: 'directions_run',     col: 'pr_bronco_sec',   unit: 'time',      dir: 'lower',  kind: 'time', group: 'Cardio' },
+    { key: 'beepTest',    label: 'Beep Test', icon: 'graphic_eq',         col: 'beep_test_level', unit: 'lvl',       dir: 'higher', kind: 'num',  group: 'Cardio' },
     { key: 'vo2max',      label: 'VO\u2082',  icon: 'favorite',           col: 'vo2_max',         unit: 'ml/kg/min', dir: 'higher', kind: 'num',  group: 'Health' },
     { key: 'bodyFat',     label: 'Body Fat',  icon: 'monitor_weight',     col: 'body_fat_pct',    unit: '%',         dir: 'lower',  kind: 'num',  group: 'Health' },
     { key: 'visceralFat', label: 'Visceral',  icon: 'medical_information',col: 'visceral_fat',    unit: 'rating',    dir: 'lower',  kind: 'num',  group: 'Health' },
@@ -341,6 +347,8 @@
     run21K:      { col: 'pr_21k_seconds',  cast: 'int',   dir: 'lower'  },
     runMara:     { col: 'pr_marathon_sec', cast: 'int',   dir: 'lower'  },
     swim1K:      { col: 'pr_swim1k_sec',   cast: 'int',   dir: 'lower'  },
+    bronco:      { col: 'pr_bronco_sec',   cast: 'int',   dir: 'lower'  },
+    beepTest:    { col: 'beep_test_level', cast: 'float', dir: 'higher' },
     vo2max:      { col: 'vo2_max',         cast: 'float', dir: 'higher' },
     bodyFat:     { col: 'body_fat_pct',    cast: 'float', dir: 'lower'  },
     visceralFat: { col: 'visceral_fat',    cast: 'float', dir: 'lower'  },
