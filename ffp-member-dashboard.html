@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v318 (2026-06-06)
+<!-- FFP MEMBER DASHBOARD — v319 (2026-06-06)
+     v319: (a) BRONCO/BEEP TEST really fixed — the core's _prCol/_prInt SAVE map was missing both keys, so Save
+           silently wrote nothing even after prDefs+RPC were added; added them. (b) TIME ENTRY is now a single-tap
+           H/M/S SCROLL WHEEL (shared window.FFPDurationPicker) for ALL Records time fields (Bronco/5K/10K/Half/
+           Marathon/Swim) — replaces the +/- box grid. Core ref ?v=305→306. (Login single-box + admin@ passport
+           handled separately: login.html v10; admin@ membership set to passport in DB.)
      v318: (a) BRONCO/BEEP TEST FIX — they showed but wouldn't accept a result: the Records EDITOR uses the
            CORE's prDefs (not the loader's METRICS), so added bronco+beepTest to ffp-fitness-stats-core.js
            prDefs, AND added pr_bronco_sec + beep_test_level to the member_profile_meta_save RPC whitelist
@@ -9881,7 +9886,7 @@ function fmtPrDate(iso) {
 <!-- Fitness Stats CORE — assets/ffp-fitness-stats-core.js. DEFER (v313): non-blocking, but still runs before
      DOMContentLoaded, and the boot init() is registered on DOMContentLoaded (line ~14049) so window.FitnessStats
      is guaranteed defined before FitnessStats.init() is called. Was synchronous = it blocked the parser mid-page. -->
-<script defer src="assets/ffp-fitness-stats-core.js?v=305"></script>
+<script defer src="assets/ffp-fitness-stats-core.js?v=306"></script>
 <!-- Milestone badge library — assets/ffp-milestone-badges.js (window.FFPMSBadges). DEFER: only used by the lazy
      Milestones render long after load, so it must never block boot. Bump ?v on change. -->
 <script defer src="assets/ffp-milestone-badges.js?v=5"></script>
