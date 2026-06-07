@@ -1,4 +1,8 @@
-/* FFP Admin Taxonomies Loader — v4 (2026-06-03)
+/* FFP Admin Taxonomies Loader — v5 (2026-06-07)
+   v5: added 'Events' list (list_key='event') — the race-resume event catalog members pick from when
+       logging an event result (Fitness Stats → Results). Full add/rename/reorder/hide/delete via the
+       existing CRUD. The member results loader reads taxonomy_items where list_key='event' & active.
+   v4 (2026-06-03)
    v4: added two lists used by Provider Rankings classification — 'Provider Types' (provider_type:
        Gym/Studio/Yoga studio/Sports club-team/Adventure service/…) + 'Gym Size Bands' (gym_size).
        Admin can add/rename/reorder/hide these; the Rankings tab dropdowns + per-row classification
@@ -16,6 +20,7 @@
 
   var LISTS = [
     { key: 'activity',        name: 'Activities' },
+    { key: 'event',           name: 'Events' },
     { key: 'category',        name: 'Provider Categories' },
     { key: 'experience_type', name: 'Experience Types' },
     { key: 'fitness_level',   name: 'Fitness Levels' },
