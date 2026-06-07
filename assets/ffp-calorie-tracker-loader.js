@@ -1,4 +1,8 @@
-/* FFP Calorie Tracker Loader — v5
+/* FFP Calorie Tracker Loader — v6
+   v6: MY MEALS — "New meal" is now a BUILD-FROM-CATALOG flow (name it, then add foods from the list → macros
+       auto-sum; edit amounts; remove), since most people don't know raw macros. Manual totals kept as a
+       secondary toggle. New-meal + Save buttons are standard YELLOW; modal is solid + larger. mmOpenBuilder
+       replaces mmOpenCustom; "Save as meal" on a section opens the builder prefilled with its items.
    v5: MY MEALS catalog-build — a "Save as meal" button on each logged meal-section bundles its items
        (catalog foods + free-form) into a saved meal via member_meal_save (with an items composition),
        reusing the custom modal prefilled. Completes the "manual + catalog" creation paths.
@@ -393,10 +397,10 @@
       '.mm-card-name{font-size:12px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
       '.mm-card-kcal{font-size:11px;font-weight:700;color:var(--blue);margin-top:3px;}' +
       '.mm-card-x{position:absolute;top:4px;right:4px;width:18px;height:18px;border:none;background:rgba(0,0,0,.3);color:#fff;border-radius:50%;font-size:12px;line-height:16px;cursor:pointer;padding:0;}' +
-      '.mm-new{flex:0 0 auto;min-width:92px;border:1px dashed var(--blue);border-radius:12px;background:transparent;color:var(--blue);font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:2px;}' +
+      '.mm-new{flex:0 0 auto;min-width:108px;border:none;border-radius:12px;background:var(--yellow,#FFCC00);color:#0a1722;font-size:12.5px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:3px;}' +
       '.mm-empty{font-size:11.5px;color:var(--muted);padding:6px 2px 8px;}' +
       '.mm-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;z-index:100040;}' +
-      '.mm-modal{background:var(--card,#0e1b2a);border:1px solid var(--border-mid);border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:18px 16px 24px;}' +
+      '.mm-modal{background:#0e1b2a;border:1px solid var(--border-mid);border-radius:18px 18px 0 0;width:100%;max-width:520px;max-height:88vh;overflow-y:auto;padding:22px 18px 26px;box-shadow:0 -8px 30px rgba(0,0,0,.5);}' +
       '.mm-modal h3{font-size:15px;font-weight:800;color:var(--text);margin:0 0 12px;}' +
       '.mm-field{margin-bottom:10px;}' +
       '.mm-field label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;}' +
@@ -404,8 +408,26 @@
       '.mm-macros{display:flex;gap:8px;}.mm-macros .mm-field{flex:1;}' +
       '.mm-actions{display:flex;gap:8px;margin-top:14px;}' +
       '.mm-actions button{flex:1;padding:11px;border-radius:10px;font-size:13px;font-weight:800;cursor:pointer;border:none;}' +
-      '.mm-cancel{background:rgba(255,255,255,0.08);color:var(--text);}.mm-save{background:var(--blue);color:#fff;}' +
-      '.mm-savebtn{font-size:10px;font-weight:800;color:var(--blue);background:rgba(43,168,224,0.10);border:1px solid var(--border-mid);border-radius:7px;padding:3px 8px;cursor:pointer;margin-left:8px;}';
+      '.mm-cancel{background:rgba(255,255,255,0.08);color:var(--text);}.mm-save{background:var(--yellow,#FFCC00);color:#0a1722;}' +
+      '.mm-savebtn{font-size:10px;font-weight:800;color:var(--yellow,#FFCC00);background:rgba(255,204,0,0.12);border:1px solid var(--border-mid);border-radius:7px;padding:3px 8px;cursor:pointer;margin-left:8px;}' +
+      '.mmb-name{width:100%;padding:11px 12px;background:rgba(43,168,224,0.06);border:1px solid var(--border-mid);border-radius:10px;color:var(--text);font-size:15px;font-weight:700;font-family:inherit;box-sizing:border-box;margin-bottom:10px;}' +
+      '.mmb-totalbar{font-size:13px;font-weight:800;color:var(--yellow,#FFCC00);margin-bottom:8px;}' +
+      '.mmb-items{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}' +
+      '.mmb-item{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.04);border-radius:9px;padding:7px 10px;}' +
+      '.mmb-item-name{flex:1;font-size:13px;font-weight:700;color:var(--text);}' +
+      '.mmb-amt{width:54px;padding:5px 6px;background:rgba(43,168,224,0.06);border:1px solid var(--border-mid);border-radius:7px;color:var(--text);font-size:12px;font-weight:700;text-align:center;font-family:inherit;}' +
+      '.mmb-unit{font-size:11px;color:var(--muted);}' +
+      '.mmb-item-kcal{font-size:12px;font-weight:800;color:var(--blue);min-width:44px;text-align:right;}' +
+      '.mmb-rm{border:none;background:rgba(0,0,0,.3);color:#fff;border-radius:50%;width:20px;height:20px;font-size:13px;line-height:18px;cursor:pointer;padding:0;}' +
+      '.mmb-addhead{font-size:12px;font-weight:800;color:var(--muted);margin:6px 0;}' +
+      '.mmb-q{width:100%;padding:10px 12px;background:rgba(43,168,224,0.06);border:1px solid var(--border-mid);border-radius:10px;color:var(--text);font-size:14px;font-family:inherit;box-sizing:border-box;margin-bottom:8px;}' +
+      '.mmb-results{display:flex;flex-direction:column;gap:5px;max-height:210px;overflow-y:auto;}' +
+      '.mmb-result{display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;background:rgba(43,168,224,0.06);border:1px solid var(--border-mid);border-radius:9px;padding:9px 11px;color:var(--text);font-size:13px;font-weight:700;cursor:pointer;}' +
+      '.mmb-result span{font-size:11px;color:var(--muted);font-weight:600;}' +
+      '.mmb-result:hover{border-color:var(--blue);}' +
+      '.mmb-hint{font-size:11.5px;color:var(--muted);padding:4px 2px;}' +
+      '.mmb-manuallink{display:block;width:100%;text-align:center;background:none;border:none;color:var(--blue);font-size:12px;font-weight:700;cursor:pointer;margin:12px 0 4px;}' +
+      '.mmb-manualbox{margin-top:6px;}';
     document.head.appendChild(s);
   }
 
@@ -421,7 +443,7 @@
     var host = document.getElementById('ct-mymeals'); if (!host) return;
     mmInjectStyles();
     var bkt = MM_BUCKETS.map(function (b) { return '<button class="' + (b[0] === _mmBucket ? 'on' : '') + '" onclick="FFPMyMeals.setBucket(\'' + b[0] + '\')">' + b[1] + '</button>'; }).join('');
-    var newBtn = '<button class="mm-new" onclick="FFPMyMeals.openCustom()"><span class="material-icons" style="font-size:16px;">add</span>New</button>';
+    var newBtn = '<button class="mm-new" onclick="FFPMyMeals.openBuilder()"><span class="material-icons" style="font-size:16px;">add</span>New meal</button>';
     var cards = _myMeals.map(function (m) {
       return '<div class="mm-card" onclick="FFPMyMeals.log(\'' + m.id + '\')">' +
         '<button class="mm-card-x" onclick="event.stopPropagation();FFPMyMeals.del(\'' + m.id + '\')">&times;</button>' +
@@ -460,37 +482,75 @@
     }).catch(function (e) { console.error('[FFP CT] meal delete:', e); });
   }
 
-  function mmOpenCustom(prefill) {
+  // ── My Meals BUILDER: build a meal from the food catalog (primary), or enter totals manually (toggle) ──
+  var mmB = null;
+  function mmFoodById(id) { if (typeof FOOD_DB === 'undefined') return null; for (var i = 0; i < FOOD_DB.length; i++) { if (FOOD_DB[i].id === id) return FOOD_DB[i]; } return null; }
+  function mmBTotals() { var k = 0, p = 0, c = 0, f = 0; (mmB.items || []).forEach(function (it) { var m = mmItemMacros(it); k += m.kcal; p += m.p; c += m.c; f += m.f; }); return { k: Math.round(k), p: Math.round(p), c: Math.round(c), f: Math.round(f) }; }
+  function mmBRenderTotal() { var t = mmBTotals(); var el = document.getElementById('mmb-total'); if (el) el.textContent = t.k + ' kcal · ' + t.p + 'p ' + t.c + 'c ' + t.f + 'f'; }
+  function mmBRenderItems() {
+    var host = document.getElementById('mmb-items'); if (!host) return;
+    if (!mmB.items.length) { host.innerHTML = '<div class="mmb-hint">No foods yet — search below and tap to add.</div>'; mmBRenderTotal(); return; }
+    host.innerHTML = mmB.items.map(function (it, i) {
+      var m = mmItemMacros(it), unit = it.free ? '' : ((mmFoodById(it.foodId) || {}).unit || '');
+      var amt = it.free ? '' : '<input class="mmb-amt" type="number" inputmode="numeric" value="' + it.amount + '" data-i="' + i + '"><span class="mmb-unit">' + mmEsc(unit) + '</span>';
+      return '<div class="mmb-item"><div class="mmb-item-name">' + mmEsc(m.name) + '</div>' + amt + '<span class="mmb-item-kcal">' + Math.round(m.kcal) + '</span><button class="mmb-rm" type="button" data-i="' + i + '">&times;</button></div>';
+    }).join('');
+    host.querySelectorAll('.mmb-amt').forEach(function (inp) { inp.addEventListener('input', function () { mmB.items[+inp.dataset.i].amount = parseFloat(inp.value) || 0; mmBRenderTotal(); }); });
+    host.querySelectorAll('.mmb-rm').forEach(function (b) { b.addEventListener('click', function () { mmB.items.splice(+b.dataset.i, 1); mmBRenderItems(); }); });
+    mmBRenderTotal();
+  }
+  function mmBSearch(q) {
+    var host = document.getElementById('mmb-results'); if (!host) return;
+    q = (q || '').trim().toLowerCase();
+    if (typeof FOOD_DB === 'undefined') { host.innerHTML = '<div class="mmb-hint">Food list unavailable.</div>'; return; }
+    var list = q ? FOOD_DB.filter(function (f) { return (f.name || '').toLowerCase().indexOf(q) > -1; }).slice(0, 14) : FOOD_DB.slice(0, 8);
+    host.innerHTML = list.length ? list.map(function (f) { return '<button class="mmb-result" type="button" data-id="' + f.id + '">' + mmEsc(f.name) + '<span>' + f.kcal + ' kcal / ' + f.serving + mmEsc(f.unit || '') + '</span></button>'; }).join('') : '<div class="mmb-hint">No matches.</div>';
+    host.querySelectorAll('.mmb-result').forEach(function (b) { b.addEventListener('click', function () { var f = mmFoodById(b.dataset.id); if (!f) return; mmB.items.push({ foodId: f.id, amount: f.serving }); mmBRenderItems(); }); });
+  }
+  function mmOpenBuilder(prefill) {
     mmInjectStyles();
     prefill = prefill || {};
-    var pendingItems = prefill.items || null;
+    mmB = { name: prefill.name || '', items: (prefill.items ? prefill.items.slice() : []), manual: false };
     var bg = document.createElement('div'); bg.className = 'mm-modal-bg';
     bg.onclick = function (e) { if (e.target === bg) document.body.removeChild(bg); };
-    bg.innerHTML =
-      '<div class="mm-modal"><h3>' + (prefill.name ? 'Save meal' : 'New meal') + '</h3>' +
-      '<div class="mm-field"><label>Name</label><input id="mm-i-name" type="text" placeholder="e.g. Chicken wrap"></div>' +
-      '<div class="mm-field"><label>Calories</label><input id="mm-i-kcal" type="number" inputmode="numeric" placeholder="kcal"></div>' +
-      '<div class="mm-macros"><div class="mm-field"><label>Protein (g)</label><input id="mm-i-p" type="number" inputmode="numeric"></div>' +
-      '<div class="mm-field"><label>Carbs (g)</label><input id="mm-i-c" type="number" inputmode="numeric"></div>' +
-      '<div class="mm-field"><label>Fat (g)</label><input id="mm-i-f" type="number" inputmode="numeric"></div></div>' +
-      '<div class="mm-actions"><button class="mm-cancel">Cancel</button><button class="mm-save">Save meal</button></div></div>';
+    bg.innerHTML = '<div class="mm-modal mm-builder">' +
+      '<h3>Build a meal</h3>' +
+      '<input id="mmb-name" class="mmb-name" type="text" placeholder="Meal name — e.g. Chicken wrap">' +
+      '<div class="mmb-totalbar">Total: <span id="mmb-total">0 kcal</span></div>' +
+      '<div id="mmb-items" class="mmb-items"></div>' +
+      '<div class="mmb-addhead">Add foods</div>' +
+      '<input id="mmb-q" class="mmb-q" type="text" placeholder="Search foods…">' +
+      '<div id="mmb-results" class="mmb-results"></div>' +
+      '<button id="mmb-manual" class="mmb-manuallink" type="button">Know your macros? Enter totals manually</button>' +
+      '<div id="mmb-manualbox" class="mmb-manualbox" style="display:none;"><div class="mm-macros">' +
+        '<div class="mm-field"><label>Calories</label><input id="mm-i-kcal" type="number" inputmode="numeric"></div>' +
+        '<div class="mm-field"><label>Protein</label><input id="mm-i-p" type="number" inputmode="numeric"></div>' +
+        '<div class="mm-field"><label>Carbs</label><input id="mm-i-c" type="number" inputmode="numeric"></div>' +
+        '<div class="mm-field"><label>Fat</label><input id="mm-i-f" type="number" inputmode="numeric"></div></div></div>' +
+      '<div class="mm-actions"><button class="mm-cancel" type="button">Cancel</button><button class="mm-save" type="button">Save meal</button></div>' +
+      '</div>';
     document.body.appendChild(bg);
-    if (prefill.name != null) document.getElementById('mm-i-name').value = prefill.name;
-    if (prefill.calories != null) document.getElementById('mm-i-kcal').value = prefill.calories;
-    if (prefill.protein_g != null) document.getElementById('mm-i-p').value = prefill.protein_g;
-    if (prefill.carbs_g != null) document.getElementById('mm-i-c').value = prefill.carbs_g;
-    if (prefill.fat_g != null) document.getElementById('mm-i-f').value = prefill.fat_g;
+    document.getElementById('mmb-name').value = mmB.name;
+    mmBRenderItems(); mmBSearch('');
+    document.getElementById('mmb-q').addEventListener('input', function () { mmBSearch(this.value); });
+    document.getElementById('mmb-name').addEventListener('input', function () { mmB.name = this.value; });
+    var mbtn = document.getElementById('mmb-manual'), mbox = document.getElementById('mmb-manualbox');
+    mbtn.addEventListener('click', function () { mmB.manual = !mmB.manual; mbox.style.display = mmB.manual ? 'block' : 'none'; mbtn.textContent = mmB.manual ? 'Hide manual entry' : 'Know your macros? Enter totals manually'; });
     bg.querySelector('.mm-cancel').onclick = function () { document.body.removeChild(bg); };
     bg.querySelector('.mm-save').onclick = function () {
-      var name = (document.getElementById('mm-i-name').value || '').trim();
+      var name = (document.getElementById('mmb-name').value || '').trim();
       if (!name) { if (window.showToast) showToast('Name your meal', 'error'); return; }
-      var payload = {
-        name: name, calories: parseInt(document.getElementById('mm-i-kcal').value, 10) || 0,
-        protein_g: parseFloat(document.getElementById('mm-i-p').value) || 0,
-        carbs_g: parseFloat(document.getElementById('mm-i-c').value) || 0,
-        fat_g: parseFloat(document.getElementById('mm-i-f').value) || 0
-      };
-      if (pendingItems) payload.items = pendingItems;
+      var payload = { name: name };
+      if (mmB.manual) {
+        payload.calories = parseInt(document.getElementById('mm-i-kcal').value, 10) || 0;
+        payload.protein_g = parseFloat(document.getElementById('mm-i-p').value) || 0;
+        payload.carbs_g = parseFloat(document.getElementById('mm-i-c').value) || 0;
+        payload.fat_g = parseFloat(document.getElementById('mm-i-f').value) || 0;
+      } else {
+        if (!mmB.items.length) { if (window.showToast) showToast('Add foods, or use manual entry', 'error'); return; }
+        var t = mmBTotals(); payload.calories = t.k; payload.protein_g = t.p; payload.carbs_g = t.c; payload.fat_g = t.f;
+        payload.items = mmB.items.map(function (it) { var m = mmItemMacros(it); return { name: m.name, kcal: Math.round(m.kcal), p: Math.round(m.p), c: Math.round(m.c), f: Math.round(m.f) }; });
+      }
       window.supabase.rpc('member_meal_save', { p_me: currentUserId, p: payload }).then(function () {
         if (document.body.contains(bg)) document.body.removeChild(bg);
         if (window.showToast) showToast('Saved ' + name);
@@ -511,10 +571,8 @@
     var items = (CalorieTracker.meals && CalorieTracker.meals[bucketKey]) || [];
     var label = (MM_BUCKETS.filter(function (b) { return b[0] === bucketKey; })[0] || ['', 'Meal'])[1];
     if (!items.length) { if (window.showToast) showToast('Nothing in ' + label + ' to save'); return; }
-    var sumK = 0, sumP = 0, sumC = 0, sumF = 0, comp = [];
-    items.forEach(function (it) { var m = mmItemMacros(it); sumK += m.kcal; sumP += m.p; sumC += m.c; sumF += m.f; comp.push({ name: m.name, kcal: Math.round(m.kcal), p: Math.round(m.p), c: Math.round(m.c), f: Math.round(m.f) }); });
-    var suggested = items.length === 1 ? comp[0].name : (label + ' (' + items.length + ' items)');
-    mmOpenCustom({ name: suggested, calories: Math.round(sumK), protein_g: Math.round(sumP), carbs_g: Math.round(sumC), fat_g: Math.round(sumF), items: comp });
+    var suggested = items.length === 1 ? mmItemMacros(items[0]).name : (label + ' (' + items.length + ' items)');
+    mmOpenBuilder({ name: suggested, items: items.slice() });
   }
   function mmDecorateSections() {
     ['breakfast', 'lunch', 'dinner', 'snacks'].forEach(function (k) {
@@ -529,7 +587,7 @@
     });
   }
 
-  window.FFPMyMeals = { setBucket: function (k) { _mmBucket = k; renderMyMeals(); }, log: mmLog, del: mmDel, openCustom: mmOpenCustom, saveSection: mmSaveSection, reload: loadMyMeals };
+  window.FFPMyMeals = { setBucket: function (k) { _mmBucket = k; renderMyMeals(); }, log: mmLog, del: mmDel, openBuilder: mmOpenBuilder, saveSection: mmSaveSection, reload: loadMyMeals };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () { setTimeout(loadFromSupabase, 400); });
