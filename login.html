@@ -1,6 +1,8 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-  FFP PASSPORT — login.html v9
+  FFP PASSPORT — login.html v10
+  v10 (2026-06-06): sign-in / sign-up CODE entry is now a SINGLE box (was 6 segmented boxes) — paste-friendly,
+  supports OS one-time-code autofill, no per-digit focus bugs. verifyCode still reads the one .code-digit (logic unchanged).
   ───────────────────────────────────────────────────────────────────────
   v9 changes (2026-06-05): EMAIL now lowercased before sending (requestCode +
   verifyCode → .trim().toLowerCase()). The v7 `exists` gate combined with the
@@ -90,8 +92,9 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 .field-input{width:100%;background:rgba(43,168,224,.06);border:1px solid rgba(43,168,224,.2);border-radius:10px;padding:13px 16px;font-size:16px;font-weight:600;color:#fff;font-family:'Montserrat',sans-serif;outline:none;transition:border-color .15s;}/* 16px (was 15) so iOS doesn't zoom-on-focus; code-digit stays 24px */
 .field-input:focus{border-color:#2ba8e0;}
 .field-input::placeholder{color:#6a90a8;font-weight:600;}
-.code-wrap{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:0 auto 8px;max-width:320px;width:100%;}
-.code-digit{width:100%;height:56px;min-width:0;padding:0;background:rgba(43,168,224,.06);border:1.5px solid rgba(43,168,224,.2);border-radius:10px;font-size:24px;font-weight:900;color:#fff;text-align:center;font-family:'Montserrat',sans-serif;outline:none;transition:border-color .15s;}
+.code-wrap{display:block;margin:0 auto 8px;max-width:320px;width:100%;}
+.code-digit{width:100%;height:60px;min-width:0;padding:0 0 0 14px;background:rgba(43,168,224,.06);border:1.5px solid rgba(43,168,224,.2);border-radius:10px;font-size:30px;font-weight:900;letter-spacing:14px;color:#fff;text-align:center;font-family:'Montserrat',sans-serif;outline:none;transition:border-color .15s;}
+.code-digit::placeholder{color:#3f6076;letter-spacing:14px;}
 .code-digit:focus{border-color:#2ba8e0;}
 .btn-primary{display:block;width:100%;padding:15px;border-radius:12px;font-size:15px;font-weight:800;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;color:#fff;background:#2ba8e0;transition:background .15s;text-align:center;}
 .btn-primary:hover{background:#1980AD;}
@@ -181,12 +184,7 @@ Back
 <div class="screen-title">Enter Your Code</div>
 <div class="screen-sub" id="signin-code-sub">Enter the 6-digit code for <strong id="signin-code-email"></strong>. This is the code you received when you signed up.</div>
 <div class="code-wrap" id="signin-code-wrap">
-<input class="code-digit" type="text" inputmode="numeric" maxlength="1" oninput="moveNext(this,1,'signin')" onkeydown="movePrev(event,this,'signin')">
-<input class="code-digit" type="text" inputmode="numeric" maxlength="1" oninput="moveNext(this,2,'signin')" onkeydown="movePrev(event,this,'signin')">
-<input class="code-digit" type="text" inputmode="numeric" maxlength="1" oninput="moveNext(this,3,'signin')" onkeydown="movePrev(event,this,'signin')">
-<input class="code-digit" type="text" inputmode="numeric" maxlength="1" oninput="moveNext(this,4,'signin')" onkeydown="movePrev(event,this,'signin')">
-<input class="code-digit" type="text" inputmode="numeric" maxlength="1" oninput="moveNext(this,5,'signin')" onkeydown="movePrev(event,this,'signin')">
-<input class="code-digit" type="text" inputmode="numeric" maxlength="1" oninput="moveNext(this,6,'signin')" onkeydown="movePrev(event,this,'signin')">
+<input class="code-digit" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" aria-label="6-digit code" placeholder="••••••">
 </div>
 <label id="keep-signed-in-row" style="display:flex;align-items:center;gap:9px;margin:4px 2px 14px;font-size:13px;color:#cdd7e0;cursor:pointer;user-select:none;">
   <input type="checkbox" id="keep-signed-in" checked style="width:17px;height:17px;accent-color:#2ba8e0;cursor:pointer;flex-shrink:0;">
@@ -322,12 +320,7 @@ Back
 <div class="screen-title">Check Your Email</div>
 <div class="screen-sub">We sent a 6-digit code to <strong id="signup-code-email"></strong>. This is your permanent access code &mdash; save it somewhere safe.</div>
 <div class="code-wrap">
-<input class="code-digit" type="text" inputmode="numeric" maxlength="1" oninput="moveNext(this,1,'signup')" onkeydown="movePrev(event,this,'signup')">
-<input class="code-digit" type="text" inputmode="numeric" maxlength="1" oninput="moveNext(this,2,'signup')" onkeydown="movePrev(event,this,'signup')">
-<input class="code-digit" type="text" inputmode="numeric" maxlength="1" oninput="moveNext(this,3,'signup')" onkeydown="movePrev(event,this,'signup')">
-<input class="code-digit" type="text" inputmode="numeric" maxlength="1" oninput="moveNext(this,4,'signup')" onkeydown="movePrev(event,this,'signup')">
-<input class="code-digit" type="text" inputmode="numeric" maxlength="1" oninput="moveNext(this,5,'signup')" onkeydown="movePrev(event,this,'signup')">
-<input class="code-digit" type="text" inputmode="numeric" maxlength="1" oninput="moveNext(this,6,'signup')" onkeydown="movePrev(event,this,'signup')">
+<input class="code-digit" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" aria-label="6-digit code" placeholder="••••••">
 </div>
 <button class="btn-primary green" id="signup-code-btn" onclick="verifyCode('signup')">Confirm &amp; Enter</button>
 <div class="error-msg" id="signup-code-err"></div>
