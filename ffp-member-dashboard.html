@@ -1,4 +1,13 @@
-<!-- FFP MEMBER DASHBOARD — v325 (2026-06-07)
+<!-- FFP MEMBER DASHBOARD — v327 (2026-06-07)
+     v327: RACE RESUME — new "Results" tab in Fitness Stats (assets/ffp-event-results-loader.js): log
+           external event results (marathons/HYROX/Spartan/CrossFit…) with overall + age-group placings,
+           Individual/Team, FFP past-date wheel; brag strip Events/Podiums/Top10; resume list (edit/delete).
+           Event list = admin-managed taxonomy (event_catalog). Results post to the Connections feed →
+           congratulate. DB: event_results + event_catalog + RPCs. FFP_BUILD 326→327.
+     v326: PR HISTORY → CONGRATULATE in the Connections feed. New pr_history table + trigger on profile_meta
+           logs each performance-PR improvement (going forward); member_connections_panel surfaces
+           connections' recent PRs; feed loader v3 renders "X set a new <metric> PR" → tap to congratulate
+           (member_congratulate → bell notification). FFP_BUILD 325→326.
      v325: (a) Connections feed loader v2 — renders EAGERLY so the panel never sticks on "Loading…".
            (b) Challenge create: native datetime-local REPLACED with FFP wheel picker (FFPDateTimePicker);
            members can now EDIT their own challenge; photo-upload errors surfaced. (discovery loader v9)
@@ -8275,7 +8284,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '325';
+  const FFP_BUILD = '327';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -12581,7 +12590,8 @@ else init();
 .ffp-deck-flash.show{ opacity:1; }
 </style>
 <script src="assets/ffp-connections-core.js?v=323"></script>
-<script defer src="assets/ffp-connections-feed-loader.js?v=325"></script>
+<script defer src="assets/ffp-connections-feed-loader.js?v=326"></script>
+<script defer src="assets/ffp-event-results-loader.js?v=327"></script>
 <script>
 (function(){
   "use strict";
