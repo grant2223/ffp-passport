@@ -1,4 +1,7 @@
-<!-- FFP MEMBER DASHBOARD — v319 (2026-06-06)
+<!-- FFP MEMBER DASHBOARD — v320 (2026-06-06)
+     v320: GATE "Join Passport" button now points at the LIVE $99 Stripe Payment Link
+           (https://buy.stripe.com/00w5kCgHcejw9c003F3Nm0s — the same checkout used at signup in login.html,
+           that paying members already go through). Was a placeholder URL. One-line JOIN_URL change.
      v319: (a) BRONCO/BEEP TEST really fixed — the core's _prCol/_prInt SAVE map was missing both keys, so Save
            silently wrote nothing even after prDefs+RPC were added; added them. (b) TIME ENTRY is now a single-tap
            H/M/S SCROLL WHEEL (shared window.FFPDurationPicker) for ALL Records time fields (Bronco/5K/10K/Half/
@@ -13838,8 +13841,10 @@ window.FFPLocPick = (function(){
 <script>
 (function () {
   'use strict';
-  // TODO(Grant): point JOIN_URL at the live $99/yr Passport checkout (Stripe Payment Link / subscription page).
-  var JOIN_URL = 'https://findfitpeople.com/passport';   // placeholder — set to the real $99 checkout
+  // v320: JOIN_URL = the LIVE $99 Passport Stripe Payment Link (same one used at signup in login.html — the
+  // link your paying members went through). Stripe collects the email at checkout → /api/onboard/from-stripe
+  // webhook upgrades that member to membership='passport'.
+  var JOIN_URL = 'https://buy.stripe.com/00w5kCgHcejw9c003F3Nm0s';
   var BOOK_URL = 'https://findfitpeople.com';
 
   function member() { try { return (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null; } catch (e) { return null; } }
