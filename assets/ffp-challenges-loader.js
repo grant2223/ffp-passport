@@ -1,351 +1,283 @@
-/* FFP Challenges Loader — v3
-   v3 adds: confirmSubmitScore wired → INSERT challenge_entries.
-   Score parsing: if metric is time-based, try to parse "mm:ss" or "h:mm:ss" to numeric seconds.
-   Otherwise extract first number from the score input. Raw text always saved to score_text.
-   All submissions start verified=false. Peer verification is a future UI.
-
-   Prerequisites:
-     ALTER TABLE challenges ADD COLUMN host_member_id uuid REFERENCES auth.users(id);
+/* FFP Admin Challenges Loader — v4 — TAKE DOWN control for live (member) challenges
+   v4: "Take down" button on LIVE rows → status='archived' (removes from members instantly). For
+       offensive / inappropriate member-created challenges. Reuses Archived tab + realtime refresh.
+   v3 — sidebar pending badge + realtime
+   Wires admin Challenges panel to real Supabase data.
+   Tabs: Pending / Live / Past / Archived (replaces ffp/provider/member kind filter)
+   Default tab = 'pending'.
+   Both provider AND member-hosted challenges show in same queue with a Kind column.
 */
 (function () {
   'use strict';
-  var retries = 0;
-  var MAX_RETRIES = 30;
-  var currentUserId = null;
-  var currentMember = null;
-  var loadedChallenges = [];
-  var wrapped = false;
 
-  function injectStyles() {
-    if (document.getElementById('ffp-challenges-loader-styles')) return;
-    var s = document.createElement('style');
-    s.id = 'ffp-challenges-loader-styles';
-    s.textContent =
-      '*::-webkit-scrollbar{display:none !important;width:0 !important;height:0 !important;}' +
-      '*{-ms-overflow-style:none !important;scrollbar-width:none !important;}';
-    document.head.appendChild(s);
+  function getAC() { return (typeof AdminChallenges !== 'undefined') ? AdminChallenges : null; }
+  function toast(msg, kind) {
+    if (typeof window.showToast === 'function') { try { window.showToast(msg, kind || 'info'); return; } catch (e) {} }
+    console.log('[FFP Admin Challenges]', msg);
   }
-
-  var CAT_META = {
-    running:    { sport: 'Running',   icon: 'directions_run' },
-    fitness:    { sport: 'Fitness',   icon: 'fitness_center' },
-    racquet:    { sport: 'Padel',     icon: 'sports_tennis' },
-    'mind-body':{ sport: 'Yoga',      icon: 'self_improvement' },
-    cycling:    { sport: 'Cycling',   icon: 'directions_bike' },
-    swimming:   { sport: 'Swimming',  icon: 'pool' },
-    combat:     { sport: 'Combat',    icon: 'sports_mma' },
-    team:       { sport: 'Team',      icon: 'groups' },
-    wellness:   { sport: 'Wellness',  icon: 'spa' },
-    outdoor:    { sport: 'Outdoor',   icon: 'hiking' }
-  };
-  function metaForCat(cat) { return CAT_META[cat] || { sport: cat || 'Sport', icon: 'sports' }; }
-
-  var MONTHS_UPPER = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-  var MONTHS_TITLE = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-  function buildDateBadge(iso) {
-    if (!iso) return null;
-    var d = new Date(iso);
-    return { top: MONTHS_UPPER[d.getMonth()], mid: String(d.getDate()), bot: String(d.getFullYear()) };
+  async function waitFor(check, ms) {
+    var tries = 0; var limit = Math.ceil((ms || 15000) / 100);
+    while (!check() && tries < limit) {
+      await new Promise(function (r) { setTimeout(r, 100); });
+      tries++;
+    }
+    return check();
   }
+  function escHtml(s) {
+    if (typeof window.escHtml === 'function') return window.escHtml(s);
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function letterFor(name) { return (name && name.length) ? name[0].toUpperCase() : '?'; }
+
   function fmtDate(iso) {
-    if (!iso) return '';
+    if (!iso) return '—';
     var d = new Date(iso);
-    return d.getDate() + ' ' + MONTHS_TITLE[d.getMonth()] + ' ' + d.getFullYear();
-  }
-  function fmtDateShort(iso) {
-    if (!iso) return '';
-    var d = new Date(iso);
-    return d.getDate() + ' ' + MONTHS_TITLE[d.getMonth()];
-  }
-  function computeDaysLeft(iso) {
-    if (!iso) return 0;
-    var end = new Date(iso); end.setHours(0, 0, 0, 0);
-    var today = new Date(); today.setHours(0, 0, 0, 0);
-    return Math.max(0, Math.round((end - today) / 86400000));
-  }
-  function mapStatus(s) {
-    if (s === 'live') return 'active';
-    if (s === 'closed' || s === 'past') return 'past';
-    return s || 'active';
-  }
-  function sortDirForMetric(metric) {
-    if (!metric) return 'desc';
-    var m = metric.toLowerCase();
-    if (m.indexOf('time') !== -1 || m.indexOf('fastest') !== -1 || m.indexOf('quickest') !== -1) return 'asc';
-    return 'desc';
-  }
-  function formatScore(num, metric) {
-    if (num == null) return '';
-    if (sortDirForMetric(metric) === 'asc') {
-      var sec = Math.round(num);
-      var h = Math.floor(sec / 3600);
-      var m = Math.floor((sec % 3600) / 60);
-      var s = sec % 60;
-      if (h > 0) return h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
-      return m + ':' + String(s).padStart(2, '0');
-    }
-    return String(num);
-  }
-  // Parse score input to numeric — handles "mm:ss", "h:mm:ss", "24 crossings", "18:42"
-  function parseScoreToNumber(raw, metric) {
-    if (!raw) return null;
-    var s = String(raw).trim();
-    if (sortDirForMetric(metric) === 'asc') {
-      var parts = s.split(':');
-      if (parts.length === 2) {
-        var mm = parseInt(parts[0], 10), ss = parseInt(parts[1], 10);
-        if (!isNaN(mm) && !isNaN(ss)) return mm * 60 + ss;
-      }
-      if (parts.length === 3) {
-        var hh = parseInt(parts[0], 10), mmm = parseInt(parts[1], 10), sss = parseInt(parts[2], 10);
-        if (!isNaN(hh) && !isNaN(mmm) && !isNaN(sss)) return hh * 3600 + mmm * 60 + sss;
-      }
-    }
-    // Fallback: first number found in the string
-    var match = s.match(/-?\d+(\.\d+)?/);
-    if (match) return parseFloat(match[0]);
-    return null;
+    if (isNaN(d.getTime())) return '—';
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return d.getDate() + ' ' + months[d.getMonth()];
   }
 
-  function memberDisplayName(m) {
-    if (!m) return 'Member';
-    if (m.given_names) {
-      var initial = m.surname ? ' ' + m.surname.charAt(0).toUpperCase() + '.' : '';
-      return m.given_names + initial;
-    }
-    if (m.full_name) return m.full_name;
-    return 'Member';
-  }
-  function memberLetter(m) {
-    if (!m) return 'M';
-    var src = m.given_names || m.full_name || 'M';
-    return src.charAt(0).toUpperCase();
-  }
-
-  async function loadFromSupabase() {
-    if (!window.supabase || typeof Challenges === 'undefined') {
-      if (retries < MAX_RETRIES) { retries++; setTimeout(loadFromSupabase, 200); }
-      return;
-    }
-    injectStyles();
-
-    try {
-      var userRes = await window.supabase.auth.getUser();
-      if (userRes.error || !userRes.data || !userRes.data.user) {
-        console.log('[FFP Challenges] No user — keeping sample');
-        return;
-      }
-      currentUserId = userRes.data.user.id;
-
-      // Cache current member for display on new submissions
-      var meRes = await window.supabase
-        .from('members')
-        .select('id, full_name, given_names, surname')
-        .eq('id', currentUserId)
-        .maybeSingle();
-      if (!meRes.error && meRes.data) currentMember = meRes.data;
-
-      // 1. Load all challenges
-      var chRes = await window.supabase
-        .from('challenges')
-        .select('*')
-        .in('status', ['live', 'closed', 'past']);
-
-      if (chRes.error) { console.error('[FFP Challenges] challenges read:', chRes.error); return; }
-      var challenges = chRes.data || [];
-      if (challenges.length === 0) { console.log('[FFP Challenges] No challenges — keeping sample'); return; }
-
-      // 2. Provider lookup
-      var providerIds = Array.from(new Set(
-        challenges.filter(function (c) { return c.challenge_type === 'provider' && c.provider_id; })
-                  .map(function (c) { return c.provider_id; })
-      ));
-      var providerMap = {};
-      if (providerIds.length > 0) {
-        var provRes = await window.supabase
-          .from('providers').select('id, business_name, letter_mark, logo_url, status')
-          .in('id', providerIds);
-        if (provRes.error) console.error('[FFP Challenges] providers read:', provRes.error);
-        (provRes.data || []).forEach(function (p) { providerMap[p.id] = p; });
-      }
-
-      // 3. Host member lookup
-      var hostIds = Array.from(new Set(
-        challenges.filter(function (c) { return c.challenge_type === 'member' && c.host_member_id; })
-                  .map(function (c) { return c.host_member_id; })
-      ));
-      var hostMap = {};
-      if (hostIds.length > 0) {
-        var hostRes = await window.supabase
-          .from('members').select('id, full_name, given_names, surname')
-          .in('id', hostIds);
-        if (hostRes.error) console.error('[FFP Challenges] hosts read:', hostRes.error);
-        (hostRes.data || []).forEach(function (m) { hostMap[m.id] = m; });
-      }
-
-      // 4. Load entries
-      var challengeIds = challenges.map(function (c) { return c.id; });
-      var entRes = await window.supabase
-        .from('challenge_entries')
-        .select('id, challenge_id, member_id, score, score_text, verified, submitted_at')
-        .in('challenge_id', challengeIds);
-      if (entRes.error) console.error('[FFP Challenges] entries read:', entRes.error);
-      var allEntries = entRes.data || [];
-
-      // 5. Entry member lookup
-      var entryMemberIds = Array.from(new Set(allEntries.map(function (e) { return e.member_id; })));
-      var entryMemberMap = {};
-      if (entryMemberIds.length > 0) {
-        var memRes = await window.supabase
-          .from('members').select('id, full_name, given_names, surname')
-          .in('id', entryMemberIds);
-        if (memRes.error) console.error('[FFP Challenges] entry members read:', memRes.error);
-        (memRes.data || []).forEach(function (m) { entryMemberMap[m.id] = m; });
-      }
-
-      // 6. Bucket entries by challenge
-      var entriesByChallenge = {};
-      challengeIds.forEach(function (id) { entriesByChallenge[id] = []; });
-      allEntries.forEach(function (e) {
-        if (!entriesByChallenge[e.challenge_id]) entriesByChallenge[e.challenge_id] = [];
-        entriesByChallenge[e.challenge_id].push(e);
-      });
-
-      // 7. Build dashboard data
-      var joined = new Set();
-      var data = challenges.map(function (c) {
-        var isProvider = c.challenge_type === 'provider';
-        var meta = metaForCat(c.category);
-        var organizer, organizerLetter, organizerVerified, organizerType;
-        if (isProvider) {
-          var p = providerMap[c.provider_id] || {};
-          organizer = p.business_name || 'Provider';
-          organizerLetter = (p.letter_mark || (p.business_name ? p.business_name.charAt(0) : 'P')).toUpperCase();
-          organizerVerified = p.status === 'approved';
-          organizerType = 'provider';
-        } else {
-          var h = hostMap[c.host_member_id] || null;
-          organizer = memberDisplayName(h);
-          organizerLetter = memberLetter(h);
-          organizerVerified = false;
-          organizerType = 'member';
-        }
-        var entries = (entriesByChallenge[c.id] || []).slice();
-        var dir = sortDirForMetric(c.metric);
-        entries.sort(function (a, b) {
-          var av = Number(a.score) || 0;
-          var bv = Number(b.score) || 0;
-          return dir === 'asc' ? av - bv : bv - av;
-        });
-        var leaderboard = entries.map(function (e, i) {
-          var m = entryMemberMap[e.member_id];
-          if (e.member_id === currentUserId) joined.add(c.id);
-          return {
-            rank: i + 1,
-            name: memberDisplayName(m),
-            letter: memberLetter(m),
-            score: e.score_text || formatScore(e.score, c.metric),
-            verified: !!e.verified,
-            submitted: fmtDateShort(e.submitted_at),
-            isMe: e.member_id === currentUserId
-          };
-        });
-
-        return {
-          id: c.id,
-          kind: isProvider ? 'provider' : 'member',
-          img: c.hero_image_url || '',
-          title: c.title || '',
-          desc: c.description || '',
-          rules: c.description || '',
-          organizer: organizer,
-          organizerLetter: organizerLetter,
-          organizerVerified: organizerVerified,
-          organizerType: organizerType,
-          cat: c.category || '',
-          sport: meta.sport,
-          icon: meta.icon,
-          metric: c.metric || '',
-          venue: c.venue || '',
-          city: c.city || '',
-          startDate: fmtDate(c.starts_at),
-          endDate: fmtDate(c.ends_at),
-          dateBadge: buildDateBadge(c.ends_at) || { top: '', mid: '', bot: '' },
-          daysLeft: computeDaysLeft(c.ends_at),
-          status: mapStatus(c.status),
-          prize: c.prize_description || '',
-          participants: leaderboard.length,
-          leaderboard: leaderboard
-        };
-      });
-
-      Challenges.data = data;
-      Challenges.joined = joined;
-      loadedChallenges = data;
-
-      wrapWrites();
-
-      var panel = document.getElementById('panel-challenges');
-      if (panel && panel.classList.contains('active') && typeof Challenges.render === 'function') {
-        Challenges.render();
-      }
-
-      var provCount = data.filter(function (c) { return c.kind === 'provider'; }).length;
-      var memCount  = data.filter(function (c) { return c.kind === 'member'; }).length;
-      console.log('[FFP Challenges] Loaded ' + data.length + ' challenges (' + provCount + ' provider, ' + memCount + ' member) ✓');
-    } catch (err) {
-      console.error('[FFP Challenges] Unexpected error:', err);
-    }
-  }
-
-  function wrapWrites() {
-    if (wrapped) return;
-    wrapped = true;
-
-    var origConfirm = Challenges.confirmSubmitScore.bind(Challenges);
-    Challenges.confirmSubmitScore = async function () {
-      var challengeId = this._submittingId;
-      var scoreInput = document.getElementById('ss-score');
-      var rawScore = scoreInput ? scoreInput.value.trim() : '';
-      var c = this.data.find(function (x) { return x.id === challengeId; });
-
-      origConfirm();  // runs validation + local push + closes modal
-
-      if (!c || !rawScore || !currentUserId) return;
-
-      var numericScore = parseScoreToNumber(rawScore, c.metric);
-      try {
-        var insertRes = await window.supabase.from('challenge_entries').insert({
-          challenge_id: challengeId,
-          member_id: currentUserId,
-          score: numericScore,
-          score_text: rawScore,
-          verified: false,
-          submitted_at: new Date().toISOString()
-        }).select('id').single();
-        if (insertRes.error) {
-          console.error('[FFP Challenges] submission insert:', insertRes.error);
-          return;
-        }
-        // Patch the just-pushed local leaderboard entry with the real name + uuid
-        if (currentMember && c.leaderboard.length > 0) {
-          var last = c.leaderboard[c.leaderboard.length - 1];
-          last.name = memberDisplayName(currentMember);
-          last.letter = memberLetter(currentMember);
-          last._supabaseId = insertRes.data.id;
-        }
-        if (typeof Challenges.render === 'function') Challenges.render();
-      } catch (e) {
-        console.error('[FFP Challenges] submission insert:', e);
-      }
+  function mapForUi(row) {
+    var p = row.providers || {};
+    return {
+      id: row.id,
+      title: row.title || '',
+      kind: row.challenge_type || 'provider',
+      organizer: p.business_name || (row.challenge_type === 'member' ? 'Member' : 'Unknown'),
+      activity: row.activity || '',
+      category: row.category || '',
+      metric: row.metric || '',
+      venue: row.venue || '',
+      ends: fmtDate(row.ends_at),
+      starts_at: row.starts_at || '',
+      ends_at: row.ends_at || '',
+      prize: row.prize_description || '',
+      participants: 0,
+      status: row.status || 'pending',
+      featured: !!row.featured,
+      hero_url: row.hero_image_url || null,
+      description: row.description || '',
+      _raw: row
     };
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () { setTimeout(loadFromSupabase, 400); });
-  } else {
-    setTimeout(loadFromSupabase, 400);
+  async function fetchChallenges() {
+    var res = await window.supabase
+      .from('challenges')
+      .select('id, title, description, activity, category, challenge_type, hero_image_url, metric, venue, city, starts_at, ends_at, prize_description, verification, status, featured, created_at, providers(business_name, letter_mark)')
+      .order('created_at', { ascending: false });
+    if (res.error) {
+      console.error('[FFP Admin Challenges] fetch:', res.error);
+      toast('Could not load challenges', 'error');
+      return [];
+    }
+    return (res.data || []).map(mapForUi);
   }
-  window.ffpReloadChallenges = loadFromSupabase;
+
+  async function refresh() {
+    var ac = getAC();
+    if (!ac) return;
+    ac.data = await fetchChallenges();
+    realRender();
+  }
+
+  function tabCounts(data) {
+    var c = { pending: 0, live: 0, past: 0, archived: 0 };
+    data.forEach(function (d) { if (c[d.status] != null) c[d.status]++; });
+    return c;
+  }
+
+  // v2: push the pending count to the sidebar link badge — same pattern as
+  // the applications loader (#badge-applications). Updates live on every render
+  // (load + tab change + after approve/reject), so admin is notified of pending items.
+  function setNavBadge(panel, n) {
+    var link = document.querySelector('.sidebar-link[data-panel="' + panel + '"]');
+    if (!link) return;
+    var b = link.querySelector('.ffp-pending-badge');
+    if (n > 0) {
+      if (!b) { b = document.createElement('span'); b.className = 'sidebar-link-badge ffp-pending-badge'; link.appendChild(b); }
+      b.textContent = n > 99 ? '99+' : String(n);
+      b.style.display = '';
+    } else if (b) { b.style.display = 'none'; }
+  }
+
+  function realRender() {
+    var ac = getAC();
+    if (!ac) return;
+    var tab = ac.tab || 'pending';
+    var rows = (ac.data || []).filter(function (d) { return d.status === tab; });
+    if (ac.search) {
+      rows = rows.filter(function (d) {
+        return d.title.toLowerCase().indexOf(ac.search) >= 0 ||
+               d.organizer.toLowerCase().indexOf(ac.search) >= 0 ||
+               (d.activity || '').toLowerCase().indexOf(ac.search) >= 0;
+      });
+    }
+
+    var counts = tabCounts(ac.data || []);
+    setNavBadge('panel-challenges', counts.pending);
+    var tabsHTML =
+      '<button class="tab-btn' + (tab === 'pending' ? ' active' : '') + '" data-tab="pending" onclick="AdminChallenges.setTab(\'pending\')">Pending <span class="count">' + counts.pending + '</span></button>' +
+      '<button class="tab-btn' + (tab === 'live' ? ' active' : '') + '" data-tab="live" onclick="AdminChallenges.setTab(\'live\')">Live <span class="count">' + counts.live + '</span></button>' +
+      '<button class="tab-btn' + (tab === 'past' ? ' active' : '') + '" data-tab="past" onclick="AdminChallenges.setTab(\'past\')">Past <span class="count">' + counts.past + '</span></button>' +
+      '<button class="tab-btn' + (tab === 'archived' ? ' active' : '') + '" data-tab="archived" onclick="AdminChallenges.setTab(\'archived\')">Archived <span class="count">' + counts.archived + '</span></button>';
+
+    var tabsEl = document.querySelector('#panel-challenges .tabs');
+    if (tabsEl) tabsEl.innerHTML = tabsHTML;
+
+    var metaEl = document.getElementById('AdminChallenges-meta');
+    if (metaEl) metaEl.textContent = rows.length + ' item' + (rows.length === 1 ? '' : 's');
+
+    var body = document.getElementById('challenges-tbody');
+    if (!body) return;
+    body.innerHTML = rows.length === 0
+      ? '<tr><td colspan="6" class="text-muted" style="text-align:center; padding:30px;">No challenges in this tab</td></tr>'
+      : rows.map(function (d) {
+          var actBtns = '';
+          if (d.status === 'pending') {
+            actBtns += '<button class="btn btn-sm btn-blue" onclick="AdminChallenges.approve(\'' + d.id + '\')"><span class="material-icons">check</span>Approve</button>';
+            actBtns += '<button class="btn btn-sm btn-danger" onclick="AdminChallenges.reject(\'' + d.id + '\')"><span class="material-icons">close</span>Reject</button>';
+          } else if (d.status === 'live') {
+            actBtns += '<button class="btn btn-sm btn-ghost" onclick="AdminChallenges.feature(\'' + d.id + '\')" title="' + (d.featured ? 'Unfeature' : 'Feature') + '"><span class="material-icons">' + (d.featured ? 'star' : 'star_border') + '</span></button>';
+            actBtns += '<button class="btn btn-sm btn-danger" onclick="AdminChallenges.takedown(\'' + d.id + '\')" title="Take down (offensive)"><span class="material-icons">block</span>Take down</button>';
+          }
+          actBtns += '<button class="btn btn-sm btn-ghost" onclick="AdminChallenges.view(\'' + d.id + '\')" title="View"><span class="material-icons">visibility</span></button>';
+
+          var kindPill = d.kind === 'member'
+            ? '<span class="pill pill-supporter">Member</span>'
+            : '<span class="pill pill-verified">Provider</span>';
+
+          return '<tr>' +
+            '<td><strong>' + escHtml(d.title) + '</strong>' + (d.featured ? ' <span class="pill pill-featured">Featured</span>' : '') + '</td>' +
+            '<td>' + kindPill + '</td>' +
+            '<td class="text-muted">' + escHtml(d.activity || d.category) + '</td>' +
+            '<td class="text-muted">' + escHtml(d.organizer) + '</td>' +
+            '<td class="text-muted nowrap">' + escHtml(d.ends) + '</td>' +
+            '<td><div class="table-actions">' + actBtns + '</div></td>' +
+          '</tr>';
+        }).join('');
+  }
+
+  async function approve(id) {
+    try {
+      var res = await window.supabase.from('challenges').update({ status: 'live' }).eq('id', id);
+      if (res.error) throw res.error;
+      toast('Challenge approved — now live', 'success');
+      await refresh();
+    } catch (e) { console.error(e); toast(e.message || 'Approve failed', 'error'); }
+  }
+  async function reject(id) {
+    if (!confirm('Reject this challenge? It will be archived.')) return;
+    try {
+      var res = await window.supabase.from('challenges').update({ status: 'archived' }).eq('id', id);
+      if (res.error) throw res.error;
+      toast('Challenge rejected', 'success');
+      await refresh();
+    } catch (e) { console.error(e); toast(e.message || 'Reject failed', 'error'); }
+  }
+  async function takedown(id) {
+    if (!confirm('Take this challenge down? It is removed from members immediately (moved to Archived). Use for offensive or inappropriate content.')) return;
+    try {
+      var res = await window.supabase.from('challenges').update({ status: 'archived' }).eq('id', id);
+      if (res.error) throw res.error;
+      toast('Challenge taken down', 'success');
+      await refresh();
+    } catch (e) { console.error(e); toast(e.message || 'Take-down failed', 'error'); }
+  }
+  async function feature(id) {
+    var ac = getAC();
+    var d = ac.data.find(function (x) { return x.id === id; });
+    if (!d) return;
+    var newVal = !d.featured;
+    try {
+      var res = await window.supabase.from('challenges').update({ featured: newVal }).eq('id', id);
+      if (res.error) throw res.error;
+      toast(newVal ? 'Featured' : 'Unfeatured', 'success');
+      await refresh();
+    } catch (e) { console.error(e); toast(e.message || 'Feature toggle failed', 'error'); }
+  }
+
+  function viewChallenge(id) {
+    var ac = getAC();
+    var d = ac.data.find(function (x) { return x.id === id; });
+    if (!d) return;
+    var heroHtml = d.hero_url
+      ? '<div style="height:160px;background:#0a1825 url(' + escHtml(d.hero_url) + ') center/cover;border-radius:12px;margin-bottom:16px;"></div>'
+      : '<div style="height:90px;background:#0a1825;border-radius:12px;margin-bottom:16px;display:flex;align-items:center;justify-content:center;color:#6c7a8b;">No photo</div>';
+
+    var content =
+      heroHtml +
+      '<h2 style="margin:0 0 4px;color:#e8eef4;font-size:18px;">' + escHtml(d.title) + '</h2>' +
+      '<div style="color:#8a99a8;font-size:13px;margin-bottom:14px;">' + escHtml(d.organizer) + ' · ' + escHtml(d.kind === 'member' ? 'Member-hosted' : 'Provider') + ' · ' + escHtml(d.activity || d.category) + '</div>' +
+      (d.metric ? '<div style="color:#cfd6dc;font-size:13px;margin-bottom:8px;"><b style="color:#8a99a8;">Metric:</b> ' + escHtml(d.metric) + '</div>' : '') +
+      (d.venue ? '<div style="color:#cfd6dc;font-size:13px;margin-bottom:8px;"><b style="color:#8a99a8;">Venue:</b> ' + escHtml(d.venue) + '</div>' : '') +
+      (d.prize ? '<div style="color:#cfd6dc;font-size:13px;margin-bottom:14px;"><b style="color:#8a99a8;">Prize:</b> ' + escHtml(d.prize) + '</div>' : '') +
+      (d.description ? '<div style="color:#cfd6dc;font-size:14px;line-height:1.5;margin-bottom:14px;white-space:pre-wrap;">' + escHtml(d.description) + '</div>' : '') +
+      '<div style="color:#cfd6dc;font-size:13px;margin-bottom:8px;"><b style="color:#8a99a8;">Ends:</b> ' + escHtml(d.ends) + '</div>' +
+      '<div style="color:#6c7a8b;font-size:12px;">Status: <span class="pill pill-' + d.status + '">' + d.status + '</span></div>';
+
+    var foot = '<button class="btn btn-ghost" onclick="closeAdminModal()">Close</button>';
+    if (d.status === 'pending') {
+      foot = '<button class="btn btn-danger" onclick="closeAdminModal(); AdminChallenges.reject(\'' + d.id + '\')"><span class="material-icons">close</span>Reject</button>' +
+             '<button class="btn btn-blue" onclick="closeAdminModal(); AdminChallenges.approve(\'' + d.id + '\')"><span class="material-icons">check</span>Approve</button>';
+    }
+    if (typeof window.openAdminModal === 'function') {
+      window.openAdminModal('Challenge preview', content, foot);
+    } else { _openAdminModal('Challenge preview', content, foot); }
+  }
+
+  function _openAdminModal(title, content, footer) {
+    if (typeof window.closeAdminModal === 'function') window.closeAdminModal();
+    var overlay = document.createElement('div');
+    overlay.id = 'ffp-admin-modal-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,8,20,0.75);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML =
+      '<div style="background:#0f1e2e;border:1px solid #1a2f44;border-radius:16px;width:100%;max-width:540px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.5);overflow:hidden;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid #1a2f44;">' +
+          '<div style="color:#e8eef4;font-size:16px;font-weight:600;">' + escHtml(title) + '</div>' +
+          '<button onclick="closeAdminModal()" style="background:transparent;border:none;color:#8a99a8;cursor:pointer;font-size:24px;line-height:1;padding:0 4px;">&times;</button>' +
+        '</div>' +
+        '<div style="padding:20px;overflow-y:auto;flex:1;">' + content + '</div>' +
+        '<div style="display:flex;gap:10px;justify-content:flex-end;padding:14px 20px;border-top:1px solid #1a2f44;">' + footer + '</div>' +
+      '</div>';
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) window.closeAdminModal(); });
+    document.body.appendChild(overlay);
+    window.closeAdminModal = function () {
+      var ov = document.getElementById('ffp-admin-modal-overlay');
+      if (ov) ov.remove();
+    };
+  }
+
+  async function init() {
+    var ok = await waitFor(function () {
+      return window.supabase && typeof AdminChallenges !== 'undefined';
+    }, 15000);
+    if (!ok) { console.error('[FFP Admin Challenges] deps never loaded'); return; }
+    var authed = await waitFor(function () { return !!(window.FFP_ADMIN); }, 30000);
+    if (!authed) { console.warn('[FFP Admin Challenges] FFP_ADMIN not set'); return; }
+
+    var ac = getAC();
+    ac.tab = 'pending';
+    ac.init = function () { refresh(); };
+    ac.setTab = function (tab) { ac.tab = tab; realRender(); };
+    ac.onSearch = function (q) { ac.search = (q || '').toLowerCase().trim(); realRender(); };
+    ac.render = realRender;
+    ac.approve = approve;
+    ac.reject = reject;
+    ac.feature = feature;
+    ac.takedown = takedown;
+    ac.view = viewChallenge;
+    ac.refresh = refresh;
+    refresh(); // render real data now (replaces inline demo — fixes "reverts to old version")
+    if (window.FFPRealtime) window.FFPRealtime.subscribe('admin-challenges', 'challenges', null, function () { refresh(); });
+
+    try {
+      console.log('[FFP Admin Challenges v1] Loaded \u2713');
+    } catch (e) { console.error('[FFP Admin Challenges] init load:', e); }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else { init(); }
 })();
