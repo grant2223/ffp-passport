@@ -1,4 +1,9 @@
-/* FFP Member Discovery Loader — v7 (2026-06-07)
+/* FFP Member Discovery Loader — v8 (2026-06-07)
+   v8: Create-challenge form REBUILD per Grant — FFP-standard controls only (NO native/apple <select>
+       dropdowns anywhere). Fields now: square tap-to-add PHOTO at top (no label) · Challenge name ·
+       "Scored by" SEGMENTED toggle (Max Reps / For Time — replaces the removed "What's measured" + the
+       old dropdown) · Challenge end date & TIME (datetime-local, max 30d) · Challenge description ·
+       Challenge rules (new `challenges.rules` column). Detail shows Description + Rules + Scoring.
    v7: MEMBER-CREATED CHALLENGES. Members can now POST a challenge to the community (not just join).
        - "Create a challenge" button (yellow) in the Challenges panel header → openCreate form
          (title/category/activity/metric/direction/end-date[max 30d]/desc/optional cover) → member_challenge_create.
@@ -246,7 +251,7 @@
       city: r.city || '',
       metric: r.metric || '',
       prize: r.prize_description || '',
-      rules: r.description || '',
+      rules: r.rules || '',
       endDate: fmtDay(r.ends_at),
       dateBadge: fmtDayBadge(r.ends_at),
       img: r.hero_image_url || '',
@@ -262,7 +267,7 @@
     if (typeof Challenges === 'undefined') return;
     // Only LIVE challenges are visible to members (excludes pending / archived / taken-down).
     var rows = await safeSelect('challenges',
-      'id,provider_id,host_member_id,challenge_type,title,description,category,activity,hero_image_url,metric,score_direction,venue,city,starts_at,ends_at,prize_description,status,providers(business_name,letter_mark)',
+      'id,provider_id,host_member_id,challenge_type,title,description,rules,category,activity,hero_image_url,metric,score_direction,venue,city,starts_at,ends_at,prize_description,status,providers(business_name,letter_mark)',
       function (q) { return q.eq('status', 'live').order('ends_at', { ascending: true }); });
     Challenges.data = rows.map(mapChallenge);
     // own hosted challenges show under "My Challenges"
@@ -274,7 +279,7 @@
   var CH_CATS = ['Sports', 'Fitness', 'Wellness', 'Adventure', 'Community'];
   function chRpc(name, args) { return window.supabase.rpc(name, args); }
   function fmtSecs(s) { s = Math.max(0, Math.round(+s || 0)); var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60; var pad = function (n) { return (n < 10 ? '0' : '') + n; }; return h > 0 ? (h + ':' + pad(m) + ':' + pad(ss)) : (m + ':' + pad(ss)); }
-  function maxEndDate() { var d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10); }
+  function maxEndLocal() { var d = new Date(); d.setDate(d.getDate() + 30); var p = function (n) { return (n < 10 ? '0' : '') + n; }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes()); }
   async function chLeaderboard(cid) {
     try { var r = await chRpc('member_challenge_leaderboard', { p_challenge: cid, p_me: memberId() }); if (r.error) { console.warn('[FFP Challenges] lb:', r.error.message); return null; } return r.data || null; }
     catch (e) { console.warn('[FFP Challenges] lb threw:', e); return null; }
@@ -305,7 +310,13 @@
         '.lb-vbtn{margin-left:8px;background:transparent;border:1px solid #2a3f57;color:#9fb2c6;border-radius:8px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer;}' +
         '.lb-vbtn.on{background:#123a25;border-color:#1f6b3f;color:#5fd08a;}' +
         '.lb-proof{margin-left:8px;font-size:11px;color:#7fb4ff;text-decoration:underline;}' +
-        '.ch-dir-help{font-size:12px;color:var(--muted);margin-top:4px;}';
+        '.cc-photo{width:148px;height:148px;margin:2px auto 18px;border-radius:16px;border:2px dashed #2a3f57;background:#0e1c2c center/cover no-repeat;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#7c93ab;}' +
+        '.cc-photo.set{border-style:solid;border-color:#1a2f44;}' +
+        '.cc-photo .material-icons{font-size:34px;}' +
+        '.cc-photo.set .material-icons{display:none;}' +
+        '.chal-seg{display:flex;gap:8px;}' +
+        '.chal-seg-btn{flex:1;padding:12px;border-radius:12px;border:1px solid #2a3f57;background:transparent;color:#9fb2c6;font-weight:800;font-size:14px;cursor:pointer;}' +
+        '.chal-seg-btn.active{background:#FFCC00;color:#081420;border-color:#FFCC00;}';
       document.head.appendChild(st);
     }
     // Inject "Create a challenge" button into the panel header
@@ -359,7 +370,8 @@
           '<span class="item"><span class="material-icons">speed</span>' + esc(c.metric || 'Your score') + '</span>' +
           (c.city ? '<span class="sep">&middot;</span><span class="item"><span class="material-icons">location_on</span>' + esc(c.city) + '</span>' : '') +
         '</div>' +
-        '<div class="dm-section"><div class="dm-section-label">How it works</div><p>' + esc(c.rules || ('Post your result for "' + (c.metric || 'this challenge') + '". ' + dirText + '. The host can mark entries verified.')) + '</p></div>' +
+        (c.rules ? '<div class="dm-section"><div class="dm-section-label">Rules</div><p>' + esc(c.rules) + '</p></div>' : '') +
+        '<div class="dm-section"><div class="dm-section-label">Scoring</div><p>' + dirText + '. The host can mark entries verified.</p></div>' +
         (isMember ? '' :
           '<div class="prize-block"><div class="prize-block-icon"><span class="material-icons">card_giftcard</span></div><div class="prize-block-text"><div class="prize-block-label">Prize</div><div class="prize-block-desc">' + esc(c.prize || 'See listing') + '</div></div></div>') +
         '<div class="lb-section"><div class="lb-header"><div class="lb-header-title"><span class="material-icons">leaderboard</span>Leaderboard</div>' +
@@ -443,47 +455,56 @@
       } catch (e) { console.error(e); toast(e.message || 'Verify failed'); }
     };
 
-    // ---- CREATE a challenge ----
+    // ---- CREATE a challenge (FFP standard controls — no native dropdowns) ----
     Challenges.openCreate = function () {
-      this._createHero = '';
-      var cats = CH_CATS.map(function (x) { return '<option value="' + x + '">' + x + '</option>'; }).join('');
+      this._createHero = ''; this._scoredBy = 'high';
       var body =
         '<div class="dm-body"><div class="dm-title">Create a challenge</div>' +
-          '<p style="font-size:13px;color:var(--muted);">Set a challenge for the community. Goes live straight away · max 30 days · leaderboard only.</p></div>' +
+          '<p style="font-size:13px;color:var(--muted);">Goes live straight away · max 30 days · leaderboard only.</p></div>' +
         '<div class="submit-score-form">' +
-          '<div class="submit-score-row"><label class="submit-score-label">Title</label><input type="text" id="cc-title" class="submit-score-input" placeholder="e.g. June Push-up Challenge"></div>' +
-          '<div class="submit-score-row"><label class="submit-score-label">Category</label><select id="cc-cat" class="ffp-select">' + cats + '</select></div>' +
-          '<div class="submit-score-row"><label class="submit-score-label">Sport / activity</label><input type="text" id="cc-activity" class="submit-score-input" placeholder="e.g. Running, Push-ups, Padel"></div>' +
-          '<div class="submit-score-row"><label class="submit-score-label">What\'s measured</label><input type="text" id="cc-metric" class="submit-score-input" placeholder="e.g. reps, km, fastest 5K"></div>' +
-          '<div class="submit-score-row"><label class="submit-score-label">Winner is…</label><select id="cc-dir" class="ffp-select"><option value="high">Most wins (reps, distance, count)</option><option value="low">Fastest wins (a time)</option></select><div class="ch-dir-help">How the leaderboard ranks entries.</div></div>' +
-          '<div class="submit-score-row"><label class="submit-score-label">Ends on (max 30 days)</label><input type="date" id="cc-ends" class="submit-score-input" max="' + maxEndDate() + '"></div>' +
-          '<div class="submit-score-row"><label class="submit-score-label">Description</label><textarea id="cc-desc" class="submit-score-input" rows="3" placeholder="The rules — how people log a fair result."></textarea></div>' +
-          '<div class="submit-score-row"><label class="submit-score-label">Cover photo (optional)</label><button type="button" class="submit-score-input" id="cc-herobtn" onclick="Challenges.pickHero()" style="text-align:left;cursor:pointer;">Add a photo</button></div>' +
+          // Photo — square, top, tap to add, no label
+          '<div class="cc-photo" id="cc-photo" onclick="Challenges.pickHero()"><span class="material-icons">add_a_photo</span></div>' +
+          '<div class="submit-score-row"><label class="submit-score-label">Challenge name</label><input type="text" id="cc-title" class="submit-score-input" placeholder="e.g. June Push-up Challenge"></div>' +
+          '<div class="submit-score-row"><label class="submit-score-label">Scored by</label>' +
+            '<div class="chal-seg" id="cc-scored">' +
+              '<button type="button" class="chal-seg-btn active" data-v="high" onclick="Challenges.setScored(\'high\')">Max Reps</button>' +
+              '<button type="button" class="chal-seg-btn" data-v="low" onclick="Challenges.setScored(\'low\')">For Time</button>' +
+            '</div></div>' +
+          '<div class="submit-score-row"><label class="submit-score-label">Challenge end date &amp; time</label><input type="datetime-local" id="cc-ends" class="submit-score-input" max="' + maxEndLocal() + '"></div>' +
+          '<div class="submit-score-row"><label class="submit-score-label">Challenge description</label><textarea id="cc-desc" class="submit-score-input" rows="3" placeholder="What the challenge is about."></textarea></div>' +
+          '<div class="submit-score-row"><label class="submit-score-label">Challenge rules</label><textarea id="cc-rules" class="submit-score-input" rows="3" placeholder="How people log a fair result."></textarea></div>' +
         '</div>' +
         '<div class="dm-footer"><button class="btn-primary-yellow" onclick="Challenges.saveCreate()">Publish challenge</button></div>';
       openDetailModal(body);
+    };
+    Challenges.setScored = function (v) {
+      this._scoredBy = (v === 'low') ? 'low' : 'high';
+      try {
+        var btns = document.querySelectorAll('#cc-scored .chal-seg-btn');
+        for (var i = 0; i < btns.length; i++) { btns[i].classList.toggle('active', btns[i].getAttribute('data-v') === this._scoredBy); }
+      } catch (e) {}
     };
     Challenges.pickHero = function () {
       var self = this;
       if (!window.FFPUpload || !window.FFPUpload.pick) { toast('Photo upload unavailable'); return; }
       window.FFPUpload.pick({
         bucket: 'quest-images', key: 'challenge-hero/' + memberId() + '-' + Date.now() + '.jpg',
-        aspect: 16 / 9, outW: 1280, outH: 720, title: 'Cover photo',
-        onDone: function (url) { self._createHero = url || ''; var el = document.getElementById('cc-herobtn'); if (el) el.textContent = url ? 'Photo added ✓ (tap to change)' : 'Add a photo'; },
+        aspect: 1, outW: 900, outH: 900, title: 'Photo',
+        onDone: function (url) { self._createHero = url || ''; var el = document.getElementById('cc-photo'); if (el && url) { el.classList.add('set'); el.style.backgroundImage = "url('" + url + "')"; } },
         onError: function (e) { toast('Upload failed'); console.warn(e); }
       });
     };
     Challenges.saveCreate = async function () {
       var val = function (id) { var e = document.getElementById(id); return e ? e.value.trim() : ''; };
-      var title = val('cc-title'); if (!title) { toast('Give your challenge a title'); return; }
-      var metric = val('cc-metric'); if (!metric) { toast('Say what\'s measured (e.g. reps)'); return; }
-      var ends = val('cc-ends'); if (!ends) { toast('Pick an end date'); return; }
-      var endsIso = new Date(ends + 'T23:59:59').toISOString();
+      var title = val('cc-title'); if (!title) { toast('Give your challenge a name'); return; }
+      var ends = val('cc-ends'); if (!ends) { toast('Set the end date & time'); return; }
+      var endsIso; try { endsIso = new Date(ends).toISOString(); } catch (e) { toast('Invalid end date'); return; }
       var me = memberId(); if (!me) { toast('Please sign in again'); return; }
+      var scored = (this._scoredBy === 'low') ? 'low' : 'high';
       var payload = {
-        title: title, description: val('cc-desc'), activity: val('cc-activity'),
-        category: (val('cc-cat') || 'Fitness').toLowerCase(), metric: metric,
-        score_direction: val('cc-dir') || 'high', ends_at: endsIso, hero_image_url: this._createHero || ''
+        title: title, description: val('cc-desc'), rules: val('cc-rules'),
+        metric: (scored === 'low' ? 'For Time' : 'Max Reps'),
+        score_direction: scored, ends_at: endsIso, hero_image_url: this._createHero || ''
       };
       try {
         var r = await chRpc('member_challenge_create', { p_me: me, p_id: null, p: payload });
