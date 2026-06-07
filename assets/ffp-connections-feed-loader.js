@@ -1,4 +1,6 @@
-/* FFP Connections Feed Loader — v2 (2026-06-07)
+/* FFP Connections Feed Loader — v3 (2026-06-07)
+   v3: PR feed items — "X set a new <metric> PR — <value>" rows (type 'pr') tap to CONGRATULATE
+       (member_congratulate RPC → notification on their bell). Powered by the pr_history table + trigger.
    v2: renders EAGERLY on load (was only on first tab-open) with a retry cap, so the panel can never be
        stuck on the "Loading your people…" skeleton. Falls back to an empty state if deps never arrive.
    v1 (2026-06-07):
@@ -128,7 +130,7 @@
         } else {
           av = '<div class="cf-iconc"><span class="material-icons">' + esc(iconFor(it)) + '</span></div>';
         }
-        return '<div class="cf-row" onclick="FFPConnFeed.tap(\'' + attr(it.type) + '\',\'' + attr(it.link) + '\')">' +
+        return '<div class="cf-row" onclick="FFPConnFeed.tap(\'' + attr(it.type) + '\',\'' + attr(it.link) + '\', this)">' +
           av +
           '<div class="cf-rtxt"><div class="cf-rt">' + esc(it.title) + '</div>' +
           (it.sub ? '<div class="cf-rs">' + esc(it.sub) + '</div>' : '') + '</div>' +
@@ -165,9 +167,19 @@
     discover: function () { try { if (window.MeetMove && MeetMove.openMatchesGrid) MeetMove.openMatchesGrid(); } catch (e) {} },
     seeAll: function () { try { if (window.CollectionView && CollectionView.open) CollectionView.open(); } catch (e) {} },
     openCard: function (id) { try { if (window.CollectionView && CollectionView.openPerson) CollectionView.openPerson(id); } catch (e) {} },
-    tap: function (type, link) {
+    congratulate: async function (toId, metric, rowEl) {
+      var me = memberId(); if (!me || !window.supabase || !toId) return;
+      try {
+        var r = await window.supabase.rpc('member_congratulate', { p_me: me, p_to: toId, p_metric: metric || '' });
+        if (r.error) throw r.error;
+        if (rowEl) rowEl.style.opacity = '0.55';
+        if (window.showToast) showToast('Congratulations sent', 'success');
+      } catch (e) { console.warn('[FFP ConnFeed] congrats', e); if (window.showToast) showToast('Could not send — try again', 'error'); }
+    },
+    tap: function (type, link, rowEl) {
       try {
         var id = (link && link.indexOf(':') >= 0) ? link.split(':')[1] : '';
+        if (type === 'pr') { var parts = (link || '').split(':'); this.congratulate(parts[1], parts.slice(2).join(':'), rowEl); return; }
         if (type === 'meetup') { goPanel('panel-meetups'); setTimeout(function () { try { if (window.MeetMove && MeetMove.openMeetupDetail) MeetMove.openMeetupDetail(id); } catch (e) {} }, 250); return; }
         if (type === 'challenge') { goPanel('panel-challenges'); setTimeout(function () { try { if (window.Challenges && Challenges.openDetail) Challenges.openDetail(id); } catch (e) {} }, 250); return; }
         if (type === 'activity' || type === 'birthday') { this.openCard(id); return; }
