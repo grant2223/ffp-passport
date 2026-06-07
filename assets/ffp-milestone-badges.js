@@ -1,4 +1,8 @@
-/* FFP Milestone Badges — v5 (2026-06-06)
+/* FFP Milestone Badges — v6 (2026-06-07)
+   v6: +2 event-resume journeys — Competitions (medallion, count) + Running Races (stopwatch, count),
+       frequent-wins ladders. Fed by values.comps / values.runRaces (fitness-stats loader pulls the
+       counts from member_event_results). Reuses approved badge art — no new geometry.
+   v5 (2026-06-06)
    v5: PERF FIX (slow Milestones render). The laurel wreath was the heaviest geometry — ~28 gradient leaf
        paths drawn on EVERY medallion/people badge (a big ladder like Activities ×106 = ~3,000 leaf shapes).
        Now the wreath is defined ONCE per colour in <defs> as <g id="msb-wr{k}"> and drawn with a single
@@ -302,7 +306,12 @@
     { key: 'meets', label: 'Meetups', badge: 'people4', val: 'meets',
       vals: lad([[1,8],[2,10],[5,16],[10,20],[15,20]]), fmt: function (v) { return v + (v === 1 ? ' meet' : ' meets'); } },
     { key: 'connections', label: 'Connections', badge: 'people2', val: 'connections',
-      vals: lad([[1,8],[2,10],[5,16],[10,24],[20,24]]), fmt: function (v) { return v + (v === 1 ? ' link' : ' links'); } }
+      vals: lad([[1,8],[2,10],[5,16],[10,24],[20,24]]), fmt: function (v) { return v + (v === 1 ? ' link' : ' links'); } },
+    // Event-resume journeys (fed by event_results via the fitness-stats loader). Frequent wins, 5-yr tops.
+    { key: 'comps', label: 'Competitions', badge: 'medallion', val: 'comps', showNum: true,
+      vals: lad([[1,8],[2,8],[3,10],[5,16]]), fmt: function (v) { return v + (v === 1 ? ' comp' : ' comps'); } },
+    { key: 'runRaces', label: 'Running Races', badge: 'stopwatch', val: 'runRaces',
+      vals: lad([[1,10],[2,10],[3,12],[5,18]]), fmt: function (v) { return v + (v === 1 ? ' race' : ' races'); } }
   ];
 
   var _vals = null, _grid = null;
