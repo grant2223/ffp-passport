@@ -1,4 +1,10 @@
-<!-- FFP MEMBER DASHBOARD — v317 (2026-06-06)
+<!-- FFP MEMBER DASHBOARD — v318 (2026-06-06)
+     v318: (a) BRONCO/BEEP TEST FIX — they showed but wouldn't accept a result: the Records EDITOR uses the
+           CORE's prDefs (not the loader's METRICS), so added bronco+beepTest to ffp-fitness-stats-core.js
+           prDefs, AND added pr_bronco_sec + beep_test_level to the member_profile_meta_save RPC whitelist
+           (both were missing → couldn't open/persist). Core ref ?v=304→305.  (b) MY MEALS "New meal" is now a
+           BUILD-FROM-CATALOG flow (add foods → auto macros; manual toggle kept); New/Save buttons yellow; modal
+           solid + larger. Calorie loader v5→v6. FFP_BUILD 314→315 busts both lazy loaders.
      v317: RECORDS — added BRONCO (1.2km shuttle, time, lower better) + BEEP TEST (multi-stage level, higher
            better) to Fitness Stats Records. Lives in the fitness-stats loader (METRICS + PR_MAP, Cardio group)
            → loader v31; profile_meta gained pr_bronco_sec + beep_test_level via MCP. FFP_BUILD 313→314 busts
@@ -8352,7 +8358,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '314';
+  const FFP_BUILD = '315';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -9875,7 +9881,7 @@ function fmtPrDate(iso) {
 <!-- Fitness Stats CORE — assets/ffp-fitness-stats-core.js. DEFER (v313): non-blocking, but still runs before
      DOMContentLoaded, and the boot init() is registered on DOMContentLoaded (line ~14049) so window.FitnessStats
      is guaranteed defined before FitnessStats.init() is called. Was synchronous = it blocked the parser mid-page. -->
-<script defer src="assets/ffp-fitness-stats-core.js?v=304"></script>
+<script defer src="assets/ffp-fitness-stats-core.js?v=305"></script>
 <!-- Milestone badge library — assets/ffp-milestone-badges.js (window.FFPMSBadges). DEFER: only used by the lazy
      Milestones render long after load, so it must never block boot. Bump ?v on change. -->
 <script defer src="assets/ffp-milestone-badges.js?v=5"></script>
