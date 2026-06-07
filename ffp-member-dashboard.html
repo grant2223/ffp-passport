@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v316 (2026-06-06)
+<!-- FFP MEMBER DASHBOARD — v317 (2026-06-06)
+     v317: RECORDS — added BRONCO (1.2km shuttle, time, lower better) + BEEP TEST (multi-stage level, higher
+           better) to Fitness Stats Records. Lives in the fitness-stats loader (METRICS + PR_MAP, Cardio group)
+           → loader v31; profile_meta gained pr_bronco_sec + beep_test_level via MCP. FFP_BUILD 313→314 busts
+           the v31 loader. No dashboard logic change (records UI auto-renders from METRICS).
      v316: CALORIE TRACKER EXTRACTED out of this file into assets/ffp-calorie-tracker-core.js (~723-line
            CalorieTracker object), loaded DEFERRED. Boot init now guarded (if window.CalorieTracker). De-fragile
            step (dashboard ~723 lines smaller). Helper globals stay inline. FFP_BUILD 312->313. Also stripped
@@ -8348,7 +8352,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '313';
+  const FFP_BUILD = '314';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
