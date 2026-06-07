@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v323 (2026-06-07)
+<!-- FFP MEMBER DASHBOARD — v324 (2026-06-07)
+     v324: CONNECTIONS FEED. #panel-meet now renders (via assets/ffp-connections-feed-loader.js →
+           #conn-panel-root) a discovery strap (→ matches deck), "My connections" most-active circles
+           (→ passport card / See all), and a "From your people" feed (notifications + connections'
+           meetup/challenge/activity/birthday) from the member_connections_panel(p_me) RPC. Old two
+           entry buttons replaced. FFP_BUILD 322→324. PRs in feed deferred until record-history (#85).
      v323: STABILIZATION — extracted the Connections panel out of this file into
            assets/ffp-connections-core.js (window.MeetMove + window.CollectionView, ~852 lines removed).
            Loaded as a CLASSIC (non-defer) <script> right before the Matches-deck IIFE (which extends
@@ -5179,20 +5184,12 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
       <div class="user-panel-sub">Connect with other people who enjoy the same activities you do.</div>
     </div>
     
-    <!-- v269: two entry points — Matches (who you could collect) + My Collection (who you have) -->
-    <div class="conn-entries">
-      <button class="conn-entry" onclick="MeetMove.openMatchesGrid()">
-        <span class="material-icons conn-entry-ic" style="color:var(--blue);">auto_awesome</span>
-        <span class="conn-entry-lbl">People you<br>might click with</span>
-        <span id="meet-match-count" class="conn-entry-badge" style="display:none;"></span>
-      </button>
-      <button class="conn-entry conn-entry-collection" onclick="CollectionView.open()">
-        <span class="material-icons conn-entry-ic" style="color:#16a34a;">collections_bookmark</span>
-        <span class="conn-entry-lbl">My collection</span>
-        <span id="collection-count" class="conn-entry-badge" style="background:#15803d;">0</span>
-      </button>
-    </div>
-  </div><!-- /panel-meet (Connections: Matches + Collection only) -->
+    <!-- v324: Connections feed — discovery strap + most-active connections + updates.
+         Rendered by assets/ffp-connections-feed-loader.js (window.FFPConnFeed) into #conn-panel-root.
+         The old two entry buttons (MeetMove.openMatchesGrid / CollectionView.open) are now reached
+         from the discovery strap + "See all". -->
+    <div id="conn-panel-root"><div class="cf-skeleton">Loading your people…</div></div>
+  </div><!-- /panel-meet (Connections: discovery + connections + feed) -->
 
   <!-- ═══════════════════════════════════════════════════════════════
        PANEL: MEETUPS — split out of Connections (member-to-member meets)
@@ -8273,7 +8270,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '322';
+  const FFP_BUILD = '324';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -12579,6 +12576,7 @@ else init();
 .ffp-deck-flash.show{ opacity:1; }
 </style>
 <script src="assets/ffp-connections-core.js?v=323"></script>
+<script defer src="assets/ffp-connections-feed-loader.js?v=324"></script>
 <script>
 (function(){
   "use strict";
