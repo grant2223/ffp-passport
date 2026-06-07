@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v324 (2026-06-07)
+<!-- FFP MEMBER DASHBOARD — v325 (2026-06-07)
+     v325: (a) Connections feed loader v2 — renders EAGERLY so the panel never sticks on "Loading…".
+           (b) Challenge create: native datetime-local REPLACED with FFP wheel picker (FFPDateTimePicker);
+           members can now EDIT their own challenge; photo-upload errors surfaced. (discovery loader v9)
+           FFP_BUILD 324→325. NOTE: ffp-connections-core.js + ffp-connections-feed-loader.js are NEW files —
+           both must be uploaded or the Connections panel stays blank.
      v324: CONNECTIONS FEED. #panel-meet now renders (via assets/ffp-connections-feed-loader.js →
            #conn-panel-root) a discovery strap (→ matches deck), "My connections" most-active circles
            (→ passport card / See all), and a "From your people" feed (notifications + connections'
@@ -8270,7 +8275,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '324';
+  const FFP_BUILD = '325';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -12576,7 +12581,7 @@ else init();
 .ffp-deck-flash.show{ opacity:1; }
 </style>
 <script src="assets/ffp-connections-core.js?v=323"></script>
-<script defer src="assets/ffp-connections-feed-loader.js?v=324"></script>
+<script defer src="assets/ffp-connections-feed-loader.js?v=325"></script>
 <script>
 (function(){
   "use strict";
