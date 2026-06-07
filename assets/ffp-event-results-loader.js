@@ -1,4 +1,7 @@
-/* FFP Event Results Loader — v1 (2026-06-07)
+/* FFP Event Results Loader — v2 (2026-06-07)
+   v2: event catalog now reads the admin taxonomy (taxonomy_items list_key='event'); Results tab inserts
+       BEFORE Milestones (tab order: Activity · Bio Age · Records · Results · Milestones).
+   v1 (2026-06-07)
    Adds a "Results" tab to Fitness Stats (#panel-fitness-stats) — a member's external-event RACE RESUME.
    Self-contained (injects the tab + #fs-results-view + its own tab handler) so it doesn't touch the
    fragile fitness-stats core. Data via member_event_results / _save / _delete RPCs.
@@ -20,9 +23,10 @@
   var FALLBACK = ['HYROX', 'Spartan Race', 'London Marathon', 'Parkrun', 'Ironman 70.3', 'CrossFit Open'];
   var catalog = null, catType = {};
   async function loadCatalog() {
+    // Event list is an admin taxonomy (taxonomy_items, list_key='event'), managed in admin → Taxonomies → Events.
     try {
-      var r = await window.supabase.from('event_catalog').select('name,event_type').eq('active', true).order('sort_order', { ascending: true });
-      if (!r.error && r.data && r.data.length) { catalog = r.data.map(function (x) { return x.name; }); r.data.forEach(function (x) { catType[x.name] = x.event_type; }); }
+      var r = await window.supabase.from('taxonomy_items').select('value,label,sort_order').eq('list_key', 'event').eq('active', true).order('sort_order', { ascending: true });
+      if (!r.error && r.data && r.data.length) { catalog = r.data.map(function (x) { return x.label || x.value; }); }
     } catch (e) {}
   }
   var TYPES = [['running', 'Run'], ['obstacle', 'Obstacle'], ['strength', 'Strength'], ['other', 'Other']];
@@ -164,7 +168,8 @@
     if (!tabs || !panel) return false;
     if (!document.querySelector('#fs-tabs [data-fs-tab="results"]')) {
       var b = document.createElement('button'); b.className = 'tabs-underline-btn'; b.setAttribute('data-fs-tab', 'results'); b.textContent = 'Results';
-      tabs.appendChild(b);
+      var ms = tabs.querySelector('[data-fs-tab="milestones"]');   // Results sits BEFORE Milestones
+      if (ms) tabs.insertBefore(b, ms); else tabs.appendChild(b);
     }
     if (!document.getElementById('fs-results-view')) {
       var v = document.createElement('div'); v.id = 'fs-results-view'; v.style.display = 'none'; panel.appendChild(v);
