@@ -642,7 +642,22 @@ var FitnessStats = {
     document.getElementById('pe-sub').textContent  = rec ? `Current: ${this.formatRecValue(key)} · PR set ${fmtPrDate(rec.date)}` : 'No record logged yet';
 
     if (def.type === 'time') {
-      // Show time grid, hide number row
+      // v319: single-tap H/M/S SCROLL WHEEL (platform-standard, shared FFPDurationPicker) — no box grid.
+      var curT = rec ? rec.value : (key === 'runMara' ? 14400 : key === 'run21K' ? 7200 : key === 'bronco' ? 300 : 1800);
+      var selfPE = this;
+      if (window.FFPDurationPicker && typeof window.FFPDurationPicker.open === 'function') {
+        window.FFPDurationPicker.open(curT, function (r) {
+          var total = (r && r.total) || 0;
+          if (total <= 0) return;
+          selfPE._editKey = key;
+          selfPE._editH = Math.floor(total / 3600);
+          selfPE._editM = Math.floor((total % 3600) / 60);
+          selfPE._editS = total % 60;
+          selfPE.savePr();
+        });
+        return; // wheel handles input + save; the box-grid modal never opens
+      }
+      // fallback (picker not loaded): legacy box grid
       document.getElementById('pe-time-row').style.display = '';
       document.getElementById('pe-number-row').style.display = 'none';
       const total = rec ? rec.value : (key === 'run21K' || key === 'runMara' ? 3600 : 1800);
@@ -713,10 +728,11 @@ var FitnessStats = {
   _prCol: {
     bench1RM:'pr_bench_kg', squat1RM:'pr_squat_kg', deadlift1RM:'pr_deadlift_kg',
     run5K:'pr_5k_seconds', run10K:'pr_10k_seconds', run21K:'pr_21k_seconds', runMara:'pr_marathon_sec', swim1K:'pr_swim1k_sec',
+    bronco:'pr_bronco_sec', beepTest:'beep_test_level',
     vo2max:'vo2_max', bodyFat:'body_fat_pct', visceralFat:'visceral_fat', restingHR:'resting_hr', hrv:'hrv_ms',
     grip:'grip_strength_kg', muscleMass:'muscle_mass_kg', waist:'waist_cm', weight:'current_weight_kg'
   },
-  _prInt: { run5K:1, run10K:1, run21K:1, runMara:1, swim1K:1, restingHR:1, hrv:1, visceralFat:1 },
+  _prInt: { run5K:1, run10K:1, run21K:1, runMara:1, swim1K:1, bronco:1, restingHR:1, hrv:1, visceralFat:1 },
   _saveMeta(patch, prKey, prDate) {
     try {
       var m = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null;
