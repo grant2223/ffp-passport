@@ -1,4 +1,8 @@
-/* FFP Image Upload — shared uploader (v1, 2026-06-05)
+/* FFP Image Upload — shared uploader (v2, 2026-06-07)
+   v2: PROPER member uploads. Direct Supabase upload still used for providers/admins (real auth session);
+       MEMBERS (anon role) fall back to POST /api/storage/upload, which verifies their FFP refresh token
+       and uploads with the service key. Lets us keep Storage write policies LOCKED (no anon/public write).
+   (v1, 2026-06-05)
    ONE reusable image pipeline for every upload surface: pick → (optional crop) → resize → JPEG →
    Supabase Storage → return the public URL. Replaces the base64-in-DB pattern everywhere.
 
@@ -51,23 +55,49 @@
     } catch (e2) { return null; }
   }
 
-  // ── Low-level: upload a Blob to {ownerId}/{key}.jpg and return the public URL ──
+  // ── Low-level: upload a Blob and return the public URL ──
+  // Providers/admins have a real Supabase session → direct owner-scoped upload works. MEMBERS are the
+  // `anon` role (custom FFP JWT), so a direct upload is RLS-blocked → fall back to the server endpoint,
+  // which verifies the member's token and uploads with the SERVICE key. Storage stays locked (no anon/public
+  // write). The ?v= cache-bust makes a re-uploaded (stable-path) image actually refresh.
+  function withV(url) { return url ? (url + '?v=' + Date.now()) : null; }
   async function uploadBlob(bucket, key, blob) {
-    if (!window.supabase) throw new Error('Storage client not ready');
-    var oid = ownerId();
-    if (!oid) throw new Error('Please sign in again');
     if (!bucket || !key) throw new Error('bucket and key are required');
-    var path = oid + '/' + String(key).replace(/[^a-zA-Z0-9._-]/g, '_') + '.jpg';
-    var up = await window.supabase.storage.from(bucket).upload(path, blob, {
-      contentType: 'image/jpeg', upsert: true, cacheControl: '3600'
+    var safeKey = String(key).replace(/[^a-zA-Z0-9._-]/g, '_');
+    var oid = (typeof ownerId === 'function') ? ownerId() : null;
+    if (window.supabase && oid) {
+      try {
+        var path = oid + '/' + safeKey + '.jpg';
+        var up = await window.supabase.storage.from(bucket).upload(path, blob, { contentType: 'image/jpeg', upsert: true, cacheControl: '3600' });
+        if (!up.error) {
+          var pub = window.supabase.storage.from(bucket).getPublicUrl(path);
+          return withV((pub && pub.data && pub.data.publicUrl) || null);
+        }
+      } catch (e) { /* fall through to the server endpoint */ }
+    }
+    return await serverUpload(bucket, safeKey, blob);
+  }
+  function blobToB64(blob) {
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onload = function () { resolve(String(r.result || '')); };
+      r.onerror = function () { reject(new Error('Could not read image')); };
+      r.readAsDataURL(blob);
     });
-    if (up.error) throw up.error;
-    var pub = window.supabase.storage.from(bucket).getPublicUrl(path);
-    var url = (pub && pub.data && pub.data.publicUrl) || null;
-    // Files upsert to a STABLE path (one per entity), so the URL string is unchanged across re-uploads.
-    // Append a version param so the new image actually shows (and the saved URL differs) — busts browser/CDN
-    // cache. Supabase serves the object regardless of the extra query param.
-    return url ? (url + '?v=' + Date.now()) : null;
+  }
+  // Server-validated upload (members): the backend verifies the FFP refresh token + uploads with the service key.
+  async function serverUpload(bucket, key, blob) {
+    var refresh = null; try { refresh = localStorage.getItem('ffp_refresh'); } catch (e) {}
+    if (!refresh) throw new Error('Please sign in again');
+    var data = await blobToB64(blob);
+    var API = window.FFP_API_BASE || 'https://ffp-passport-backend.vercel.app';
+    var res = await fetch(API + '/api/storage/upload', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh: refresh, bucket: bucket, key: key, data: data })
+    });
+    var j = null; try { j = await res.json(); } catch (e) {}
+    if (!res.ok || !j || !j.url) throw new Error((j && j.error) || 'Upload failed');
+    return j.url;
   }
 
   // ── Resize an image source (data URL) to fit within maxW×maxH, return a JPEG blob ──
