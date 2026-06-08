@@ -1,6 +1,9 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-  FFP PASSPORT — login.html v11
+  FFP PASSPORT — login.html v12
+  v12 (2026-06-08): ADMIN REDIRECT FIX. admin@findfitpeople.com is role 'super_admin', but the destinations
+  map only had member/provider/admin → super_admin fell through to the MEMBER dashboard. Added super_admin +
+  super → ffp-admin-dashboard.html. (Admins now land on the admin dashboard, not the member app.)
   v11 (2026-06-08): profile-complete redirect now carries the member's stripe_session_id (was ?id=, which
   the page can't use → paid members finishing onboarding LATER dead-ended on "No Stripe session in URL").
   Falls back to ?id= only when there's no session. Fixes paid-but-incomplete members (e.g. John Haraki) being stuck.
@@ -369,9 +372,11 @@ var portalColors = {
   admin:    { btn:'#facc15;color:#081420', badge:'color:#facc15;', label:'Admin Sign In' }
 };
 var destinations = {
-  member:   'ffp-member-dashboard.html',
-  provider: 'ffp-provider-dashboard.html',
-  admin:    'ffp-admin-dashboard.html'
+  member:      'ffp-member-dashboard.html',
+  provider:    'ffp-provider-dashboard.html',
+  admin:       'ffp-admin-dashboard.html',
+  super_admin: 'ffp-admin-dashboard.html',   // admin@findfitpeople.com is role 'super_admin' — was falling through to the member dashboard
+  super:       'ffp-admin-dashboard.html'
 };
 function handleAuthRedirect(response) {
   if (!response.member) return;
