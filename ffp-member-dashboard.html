@@ -1,10 +1,12 @@
-<!-- FFP MEMBER DASHBOARD — v337 (2026-06-08)  [changelog trimmed to latest 3 updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v338 (2026-06-08)  [changelog trimmed to latest 3 updates; older history in git]
+     v338: QUESTS — tabs Discover(1st)/My Quests/Completed; member Create Quest gets a photo (FFPUpload→
+           quest-images, hero_image_url) + Edit your quest (member_save_quest p_id); join count + Join button
+           on Discover cards + "Who's joined" avatars on detail (member_quest_participants RPC). Stamp dots now
+           use the transparent FFP emblem from Supabase storage (not the repo png). Sample seed quests removed (DB).
      v337: Removed the on-screen build stamp (must NOT be client-facing — version stays in this source comment).
            Log Activity → Activity search dropdown text 13px → 16px (legibility + stops iOS zoom-on-focus).
      v336: ANALYTICS — Google Analytics 4 (assets/ffp-analytics.js) + per-panel page_view via
            window.ffpTrackView in showPanel (SPA panel switches now show in GA4 Pages report).
-     v335: ACTIVITY browse-by-month TOTALS strip (count · total time · km · kcal) above the month list.
-           FFP_BUILD 335 (cache-busts fitness-stats loader v35).
      v333: LOG ACTIVITY upgrade — Date|Time, Duration|Distance(km), Calories|Avg HR(bpm) paired rows;
            Country/City default to the member; saveLog sends p_distance_km + p_avg_hr. DB cols + backend v77.
      v332: Removed dormant Events panel (Events now on findfitpeople.com); boot Events.init() guarded;
@@ -4088,7 +4090,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 .qc-dot.done .material-icons{ font-size:12px; }
 .qc-stamps.big .qc-dot.done .material-icons{ font-size:15px; }
 .qc-dot.todo{ border:1.5px dashed rgba(138,153,168,0.4); }
-.qc-dot.emblem{ background:url('assets/ffp-emblem.png') center/cover no-repeat; border:none; filter:grayscale(1) brightness(1.15) opacity(0.45); transition:filter .35s ease; }
+.qc-dot.emblem{ background:url('https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/quest-images/brand/ffp-emblem-stamp.png') center/contain no-repeat; border:none; filter:grayscale(1) brightness(1.15) opacity(0.45); transition:filter .35s ease; }
 .qc-dot.emblem.lit{ filter:none; box-shadow:0 0 0 1px rgba(244,215,122,0.55), 0 2px 8px rgba(244,215,122,0.35); }
 #panel-quests .qc-foot{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:auto; padding-top:10px; border-top:1px solid var(--q-border); min-height:35px; }
 #panel-quests .qc-reward{ display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; color:var(--q-gold); }
@@ -4500,8 +4502,8 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 
     <!-- TABS -->
     <div class="tabs-underline" id="quest-tabs">
-      <button class="tabs-underline-btn active" data-quest-tab="active">In progress <span class="count-pill" id="q-active-count">0</span></button>
-      <button class="tabs-underline-btn" data-quest-tab="browse">Browse <span class="count-pill" id="q-browse-count">0</span></button>
+      <button class="tabs-underline-btn active" data-quest-tab="browse">Discover <span class="count-pill" id="q-browse-count">0</span></button>
+      <button class="tabs-underline-btn" data-quest-tab="active">My Quests <span class="count-pill" id="q-active-count">0</span></button>
       <button class="tabs-underline-btn" data-quest-tab="completed">Completed <span class="count-pill" id="q-done-count">0</span></button>
     </div>
 
@@ -9735,7 +9737,7 @@ const Quests = {
   base: 'https://ffp-passport-backend.vercel.app',
   cat: 'all',
   scope: 'all',
-  tab: 'active',
+  tab: 'browse',
   data: [],
 
   memberId() {
@@ -9881,12 +9883,22 @@ const Quests = {
       const footVal = (q.reward_type === 'prize' && q.prize_total != null)
         ? '<span class="qc-foot-val">' + q.prize_remaining + ' of ' + q.prize_total + ' left</span>'
         : '';
+      const _isMine = q.owner_type === 'member';
+      const _joinedN = (q.joined_count != null ? q.joined_count : (q.progress ? 1 : 0));
+      const _iJoined = !!q.progress;
+      const joinRow = _isMine
+        ? '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:9px;">' +
+            '<span style="font-size:12px;color:#9fb4c4;font-weight:700;display:inline-flex;align-items:center;gap:4px;"><span class="material-icons" style="font-size:15px;">group</span>' + _joinedN + ' joined</span>' +
+            (_iJoined ? '<span style="font-size:12px;color:#4ade80;font-weight:800;">Joined ✓</span>'
+                      : '<button onclick="event.stopPropagation();Quests.join(\'' + q.id + '\')" style="font-size:12px;font-weight:800;color:#082335;background:#2ba8e0;border:none;border-radius:8px;padding:6px 13px;cursor:pointer;font-family:inherit;">Join</button>') +
+          '</div>'
+        : '';
       return '<div class="quest-card" onclick="Quests.openDetail(\'' + q.id + '\')">' +
           cover + '<span class="qc-scope-pill">' + scopeCap + '</span>' + spon + '</div>' +
           '<div class="qc-pad">' +
             '<div class="qc-title">' + escHtml(q.title) + '</div>' +
             '<div class="qc-stamps">' + this.dots(this._pc(q), q.target_count) + '</div>' +
-            '<div class="qc-foot">' + rewardPill + footVal + '</div>' +
+            '<div class="qc-foot">' + rewardPill + footVal + '</div>' + joinRow +
           '</div>' +
         '</div>';
     }).join('');
@@ -9935,12 +9947,31 @@ const Quests = {
                 ((detail && detail.progress) ? '<div class="q-join-state">You’re on this quest ✓</div>' : '<button class="btn-primary-blue" onclick="Quests.join(\'' + q.id + '\')">Join this quest</button>') +
               '</div>'
             : '') +
+          (q.owner_type === 'member' && q.created_by && q.created_by === mid
+            ? '<button style="width:100%;margin:0 0 14px;padding:11px;border-radius:11px;border:1px solid rgba(43,168,224,0.35);background:rgba(43,168,224,0.06);color:#2ba8e0;font-weight:700;cursor:pointer;font-family:inherit;" onclick="Quests.openEdit(\'' + q.id + '\')"><span class="material-icons" style="font-size:16px;vertical-align:middle;">edit</span> Edit quest</button>'
+            : '') +
+          '<div class="q-joiners" id="q-detail-joiners"></div>' +
           '<div class="q-progress">' + pc + ' of ' + q.target_count + ' stamped</div>' +
           '<div class="qc-stamps big">' + this.dots(pc, q.target_count) + '</div>' +
           '<div class="q-venues-title">Where to go</div><div id="q-detail-venues">' + venuesHtml + '</div>' +
         '</div>' +
       '</div>';
     openDetailModal(html);
+    // Who's joined — avatar thumbs (member-created quests)
+    if (q.owner_type === 'member' && window.supabase) {
+      window.supabase.rpc('member_quest_participants', { p_quest: q.id }).then(function (res) {
+        var arr = (res && res.data) || []; var host = document.getElementById('q-detail-joiners'); if (!host) return;
+        if (!arr.length) { host.innerHTML = ''; return; }
+        var av = arr.map(function (p) {
+          var img = p.photo_url
+            ? '<img src="' + p.photo_url + '" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid #0f1e2e;">'
+            : '<div style="width:34px;height:34px;border-radius:50%;background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;border:2px solid #0f1e2e;">' + escHtml((p.name || 'M').charAt(0).toUpperCase()) + '</div>';
+          return '<div title="' + escHtml(p.name || '') + '" style="margin-left:-8px;">' + img + '</div>';
+        }).join('');
+        host.innerHTML = '<div style="font-size:12px;color:#9fb4c4;margin:2px 0 8px;font-weight:700;">Who’s joined (' + arr.length + ')</div>' +
+          '<div style="display:flex;align-items:center;padding-left:8px;flex-wrap:wrap;">' + av + '</div>';
+      }).catch(function () {});
+    }
     // Member quests: render the live FFP venue cards (the fixed picked set, or the dynamic pool).
     if (q.owner_type === 'member' && window.supabase) {
       this.qcInjectCss();
@@ -10078,6 +10109,7 @@ const Quests = {
 
   openCreate() {
     this.qcInjectCss();
+    this._createHero = ''; this._editId = null;
     var prof = {};
     try { prof = (typeof MemberProfile !== 'undefined' && MemberProfile.data) || {}; } catch (e) {}
     var TAX = window.FFP_TAX || {};
@@ -10095,8 +10127,9 @@ const Quests = {
     }
     var html =
       '<div class="qcreate">' +
-        '<h3 class="q-title">Create your own quest</h3>' +
+        '<h3 class="q-title" id="qc-modal-title">Create your own quest</h3>' +
         '<p class="q-desc">Set a goal — like visiting a few different venues — and others can join you. Finish it to earn an explorer badge.</p>' +
+        '<div id="qc-photo" onclick="Quests.pickHero()" style="width:100%;max-width:220px;aspect-ratio:1/1;margin:0 auto 16px;border-radius:16px;border:2px dashed rgba(43,168,224,0.35);background:rgba(8,20,32,0.4) center/cover no-repeat;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#8a99a8;"><span class="material-icons" style="font-size:34px;">add_a_photo</span></div>' +
         '<div class="qc-field"><label>Title</label><input id="qc-title" class="ffp-select" placeholder="e.g. Try 5 new gyms in Dubai" maxlength="80"></div>' +
         '<div class="qc-field"><label>Category</label><select id="qc-cat" class="ffp-select">' + cats.map(function (c) { return '<option value="' + c + '">' + c.charAt(0).toUpperCase() + c.slice(1) + '</option>'; }).join('') + '</select></div>' +
         '<div class="qc-field"><label>Activity — filtered by category</label><select id="qc-act" class="ffp-select">' + qcActOptions(cats[0]) + '</select></div>' +
@@ -10114,7 +10147,7 @@ const Quests = {
           '<div id="qc-venues" style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow:auto;"></div>' +
         '</div>' +
         '<div class="qc-field" id="qc-target-wrap"><label>How many different venues to visit</label><input id="qc-target" type="number" min="2" max="50" value="5" class="ffp-select"><div style="margin-top:5px;color:#8a99a8;font-size:11px;">You set the goal — e.g. visit 8 of the venues that count.</div></div>' +
-        '<button class="btn-primary-yellow" onclick="Quests.saveCreate()">Create quest</button>' +
+        '<button class="btn-primary-yellow" id="qc-save-btn" onclick="Quests.saveCreate()">Create quest</button>' +
       '</div>';
     openDetailModal(html);
     setTimeout(function () {
@@ -10161,14 +10194,56 @@ const Quests = {
     }, 30);
   },
 
+  pickHero() {
+    var self = this;
+    if (!window.FFPUpload || !window.FFPUpload.pick) { showToast('Photo upload unavailable', 'error'); return; }
+    window.FFPUpload.pick({
+      bucket: 'quest-images', key: 'quest-hero/' + (this.memberId() || 'm') + '-' + Date.now() + '.jpg',
+      aspect: 1, outW: 900, outH: 900, title: 'Quest photo',
+      onDone: function (url) { self._createHero = url || ''; var el = document.getElementById('qc-photo'); if (el && url) { el.style.backgroundImage = "url('" + url + "')"; el.innerHTML = ''; } },
+      onError: function (e) { showToast('Photo upload failed', 'error'); console.warn('[quest hero]', e); }
+    });
+  },
+
+  // Edit your own quest — reuses the create form, prefilled. Updates title, photo & goal count
+  // (the venue set stays as created — recreate for a different venue config).
+  openEdit(id) {
+    var q = (this.data || []).find(function (x) { return x.id === id; });
+    if (!q) { showToast('Quest not found', 'error'); return; }
+    this.openCreate();
+    this._editId = id;
+    this._createHero = q.hero_image_url || '';
+    setTimeout(function () {
+      var t = document.getElementById('qc-title'); if (t) t.value = q.title || '';
+      var tg = document.getElementById('qc-target'); if (tg && q.target_count) tg.value = q.target_count;
+      var ph = document.getElementById('qc-photo'); if (ph && q.hero_image_url) { ph.style.backgroundImage = "url('" + q.hero_image_url + "')"; ph.innerHTML = ''; }
+      var h = document.getElementById('qc-modal-title'); if (h) h.textContent = 'Edit your quest';
+      var b = document.getElementById('qc-save-btn'); if (b) b.textContent = 'Save changes';
+    }, 80);
+  },
+
   async saveCreate() {
     var g = function (id) { var e = document.getElementById(id); return e ? (e.value || '').trim() : ''; };
     var title = g('qc-title'); if (!title) { showToast('Give your quest a title', 'error'); return; }
+    // EDIT MODE — update title, photo & goal count only; the venue setup stays as created.
+    if (this._editId) {
+      var meE = this.memberId(); if (!meE || !window.supabase) { showToast('Please sign in again', 'error'); return; }
+      var pe = { title: title, hero_image_url: this._createHero || '' };
+      var teE = parseInt(g('qc-target'), 10); if (teE >= 2) pe.target_count = String(teE);
+      try {
+        var reE = await window.supabase.rpc('member_save_quest', { p_me: meE, p_id: this._editId, p: pe });
+        if (reE.error) throw reE.error;
+        if (typeof closeDetailModal === 'function') closeDetailModal();
+        showToast('Quest updated', 'success');
+        await this.load();
+      } catch (e) { console.error('[Quests] edit:', e); showToast(e.message || 'Could not update quest', 'error'); }
+      return;
+    }
     var city = g('qc-city'); if (!city) { showToast('Pick a city', 'error'); return; }
     if (window._ffpQcPool === 0) { showToast('No FFP venues for that activity/city yet — adjust before creating', 'error'); return; }
     var mid = this.memberId(); if (!mid || !window.supabase) { showToast('Please sign in again', 'error'); return; }
     var st = window._ffpQc || {}; var mode = st.mode || 'open';
-    var payload = { title: title, category: g('qc-cat') || 'fitness', rule_activity: g('qc-act') || null, city: city, country: g('qc-country') || null };
+    var payload = { title: title, category: g('qc-cat') || 'fitness', rule_activity: g('qc-act') || null, city: city, country: g('qc-country') || null, hero_image_url: this._createHero || '' };
     if (mode === 'pick') {
       // member chose specific venues — only these count (locked set); target = how many they picked
       var pids = Object.keys(st.picked || {}).filter(function (k) { return st.picked[k]; });
