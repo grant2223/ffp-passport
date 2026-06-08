@@ -1,6 +1,9 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-  FFP PASSPORT — login.html v10
+  FFP PASSPORT — login.html v11
+  v11 (2026-06-08): profile-complete redirect now carries the member's stripe_session_id (was ?id=, which
+  the page can't use → paid members finishing onboarding LATER dead-ended on "No Stripe session in URL").
+  Falls back to ?id= only when there's no session. Fixes paid-but-incomplete members (e.g. John Haraki) being stuck.
   v10 (2026-06-06): sign-in / sign-up CODE entry is now a SINGLE box (was 6 segmented boxes) — paste-friendly,
   supports OS one-time-code autofill, no per-digit focus bugs. verifyCode still reads the one .code-digit (logic unchanged).
   ───────────────────────────────────────────────────────────────────────
@@ -377,7 +380,14 @@ function handleAuthRedirect(response) {
   // Admins/providers go straight to their dashboard.
   if (role === 'member' && !response.member.profile_complete) {
     sessionStorage.setItem('member_id', response.member.id);
-    window.location.href = 'ffp-profile-complete.html?id=' + response.member.id;
+    // profile-complete finalises onboarding via the Stripe session. A paid member finishing LATER
+    // (not straight after checkout) has no session_id in the URL → it dead-ends on "No Stripe session
+    // in URL". Paid members carry a stored stripe_session_id, so pass that and the page works. Fall back
+    // to ?id= only when there's genuinely no session (rare).
+    var sid = response.member.stripe_session_id;
+    window.location.href = sid
+      ? ('ffp-profile-complete.html?session_id=' + encodeURIComponent(sid))
+      : ('ffp-profile-complete.html?id=' + response.member.id);
     return;
   }
   window.location.href = destinations[role] || destinations.member;
