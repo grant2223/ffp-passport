@@ -1,6 +1,9 @@
 <!--
-FFP Profile Complete v34
-Last updated: 2026-06-05
+FFP Profile Complete v35
+Last updated: 2026-06-08
+v35: ACCOUNT EMAIL field — editable, prefilled from the Stripe/payment email via GET /api/onboard/session-email.
+     Fixes wallet (Apple/Google Pay) emails overriding what the member wants. Sent as account_email; backend
+     (index.js v79) matches the paid row by stripe_session_id and saves this as the sign-in email.
 v34: Passport photo → Supabase Storage (avatars bucket) instead of base64-in-DB. The photo is picked before
      the member exists, so the onboard payload now sends photo_url:null and the avatar is uploaded AFTER
      onboard (member.id + JWT live → auth.uid passes the avatars RLS), reusing ffp-photo-upload.js's exact
@@ -222,6 +225,13 @@ button,input,.activity-row,.level-card,.btn-back{touch-action:manipulation;}
     <div class="field-label">Surname</div>
     <input class="field-input" type="text" id="f-surname" autocomplete="family-name">
   </div>
+</div>
+
+<!-- v35: Account email — prefilled from the payment email, but editable so a wallet (Apple/Google Pay)
+     email never overrides what the member wants. This is the email used to sign in + receive login codes. -->
+<div style="margin-bottom:16px;">
+  <div class="field-label">Email <span style="color:#8aa7bd;font-weight:600;text-transform:none;letter-spacing:0;">— used to sign in &amp; get your login code</span></div>
+  <input class="field-input" type="email" id="f-email" autocomplete="email" inputmode="email" placeholder="you@email.com">
 </div>
 
 <!-- v9: DOB now 3 dropdowns (Day / Month / Year). Gender field added. -->
@@ -563,6 +573,15 @@ async function initialise() {
 
   if (stripeSessionId) {
     console.log('[profile-complete v8] Stripe session_id stashed for submit:', stripeSessionId);
+    // v35: prefill the editable Account Email with the payment email (best-effort, non-blocking).
+    // The member can correct it before finishing (e.g. an Apple/Google Pay wallet email).
+    fetch(BACKEND_URL + '/api/onboard/session-email?session_id=' + encodeURIComponent(stripeSessionId))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var el = document.getElementById('f-email');
+        if (el && !el.value && d && d.email) el.value = d.email;
+      })
+      .catch(function () {});
   } else {
     console.warn('[profile-complete v8] No session_id in URL. Submit will fail until one is present.');
   }
@@ -619,6 +638,7 @@ function goToStep2() {
   // v9: read fields in new order; DOB from 3 dropdowns; gender added
   var g = document.getElementById('f-given').value.trim();
   var s = document.getElementById('f-surname').value.trim();
+  var em = document.getElementById('f-email').value.trim();
   var dobDay = document.getElementById('f-dob-day').value;
   var dobMonth = document.getElementById('f-dob-month').value;
   var dobYear = document.getElementById('f-dob-year').value;
@@ -629,6 +649,7 @@ function goToStep2() {
 
   if (!g) return showError('step1-err', 'Enter your given names');
   if (!s) return showError('step1-err', 'Enter your surname');
+  if (!em || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) return showError('step1-err', 'Enter a valid email — this is how you sign in');
   if (!dobDay || !dobMonth || !dobYear) return showError('step1-err', 'Select your date of birth');
   if (!ge) return showError('step1-err', 'Select your gender');
   if (!n) return showError('step1-err', 'Select your nationality');
@@ -952,6 +973,7 @@ async function submitProfile() {
     var payload = {
       session_id: stripeSessionId,
       ref: referralCode || null,
+      account_email: document.getElementById('f-email').value.trim().toLowerCase(),  // v35: the email they sign in with (prefilled from payment email, editable)
       given_names: document.getElementById('f-given').value.trim(),
       surname: document.getElementById('f-surname').value.trim(),
       date_of_birth: dobISO,
