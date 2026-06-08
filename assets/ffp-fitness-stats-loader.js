@@ -1,7 +1,11 @@
-/* FFP Fitness Stats Loader — v33 (2026-06-08)
-   v33: ACTIVITY — activityCache now carries distance_km + avg_heart_rate (from /activity-logs); the
-        "Recent activity" list shows distance · kcal · bpm chips per entry (only metrics that were
-        logged). Pairs with Log Activity modal's new Distance + Avg HR fields.
+/* FFP Fitness Stats Loader — v34 (2026-06-08)
+   v34: ACTIVITY list redesign — each entry is now a 2-line block (name + date, then a wrapping chip row:
+        duration / km / kcal / bpm / city) so logged metrics are legible, not crammed. Recent list capped
+        at 10. New calendar icon (in the dashboard header) toggles a browse-by-month view with ◀/▶ month
+        nav (renderRecentList + window.ffpActivityToggleCal / ffpActivityMonthStep). activityCache carries
+        logged_at for month filtering.
+   v33 (2026-06-08): ACTIVITY — activityCache carries distance_km + avg_heart_rate; recent list shows
+        distance · kcal · bpm. Pairs with Log Activity modal's new Distance + Avg HR fields.
    v32 (2026-06-07): MILESTONES — feeds the 2 new event-resume journeys. fetchMsSocial now also calls
         member_event_results and caches comps + runRaces; renderMilestones passes values.comps /
         values.runRaces to FFPMSBadges v6 (Competitions + Running Races journeys).
@@ -1078,29 +1082,79 @@
         bdEl.innerHTML = chips + listHtml;
       }
 
-      // Recent activity (moved from Passport)
-      var recent = activityCache.slice().sort(function (a, b) { return a.daysAgo - b.daysAgo; }).slice(0, 12);
-      var rcEl = document.getElementById('fs-recent');
-      if (rcEl) {
-        rcEl.innerHTML = recent.length ? recent.map(function (l) {
-          var when = l.daysAgo === 0 ? 'today' : (l.daysAgo === 1 ? 'yesterday' : l.daysAgo + 'd ago');
-          // Stat chips: distance, calories, avg HR \u2014 only those that were logged.
-          var stats = [];
-          if (l.distance_km != null && !isNaN(l.distance_km) && l.distance_km > 0) stats.push((Math.round(l.distance_km * 100) / 100) + ' km');
-          if (l.calories) stats.push(l.calories + ' kcal');
-          if (l.avg_heart_rate != null && !isNaN(l.avg_heart_rate) && l.avg_heart_rate > 0) stats.push(l.avg_heart_rate + ' bpm');
-          var parts = [];
-          if (l.city) parts.push(escText(l.city));
-          parts.push(fmtDur(l.duration_min || 0));
-          if (stats.length) parts.push(stats.join(' \u00b7 '));
-          parts.push(when);
-          var sub = parts.join(' \u00b7 ');
-          return '<div style="' + rowCss + '"><div style="' + nameCss + '">' + escText(l.activity || 'Activity') + '</div>' +
-            '<div style="' + metaCss + '">' + sub + '</div></div>';
-        }).join('') : '<div style="' + emptyCss + '">No recent activity.</div>';
-      }
+      // Recent activity \u2014 last 10, with a calendar control to browse older months. Rich chip-row layout
+      // + browse-by-month logic live in renderRecentList (module scope) so the calendar button + month
+      // nav can re-render the list on their own without re-running the whole Activity tab.
+      renderRecentList();
     };
   }
+
+  // \u2500\u2500 Recent activity list: last 10 + browse-by-month (calendar icon) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  // Each entry is a 2-line block: name + date on top, a wrapping chip row (duration / km / kcal / bpm /
+  // city) below \u2014 so every metric the member logged is legible instead of crammed onto one line.
+  var _actViewMode = 'recent';   // 'recent' | 'browse'
+  var _actBrowseMonth = null;    // Date = 1st of the month being browsed
+  function _fmtDurMin(min) { min = Math.max(0, Math.round(min || 0)); var h = Math.floor(min / 60), m = min % 60; return (h ? h + 'h ' : '') + m + 'm'; }
+  function _monthLabel(d) { return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }); }
+  function _dayLabel(d, daysAgo) {
+    if (daysAgo === 0) return 'Today';
+    if (daysAgo === 1) return 'Yesterday';
+    return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  }
+  function _activityRow(l) {
+    var d = l.logged_at ? new Date(l.logged_at) : null;
+    var dateLbl = d ? _dayLabel(d, l.daysAgo) : (l.daysAgo + 'd ago');
+    var chipCss = 'font-size:11px;font-weight:700;color:var(--muted,#8a99a8);background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:999px;padding:3px 9px;white-space:nowrap;';
+    var chips = ['<span style="' + chipCss + '">' + _fmtDurMin(l.duration_min || 0) + '</span>'];
+    if (l.distance_km != null && !isNaN(l.distance_km) && l.distance_km > 0) chips.push('<span style="' + chipCss + '">' + (Math.round(l.distance_km * 100) / 100) + ' km</span>');
+    if (l.calories) chips.push('<span style="' + chipCss + '">' + l.calories + ' kcal</span>');
+    if (l.avg_heart_rate != null && !isNaN(l.avg_heart_rate) && l.avg_heart_rate > 0) chips.push('<span style="' + chipCss + '">' + l.avg_heart_rate + ' bpm</span>');
+    if (l.city) chips.push('<span style="' + chipCss + '">' + escText(l.city) + '</span>');
+    return '<div style="padding:11px 0;border-top:1px solid rgba(255,255,255,0.06);">' +
+        '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;">' +
+          '<div style="font-size:13px;font-weight:800;color:var(--text,#e8eef4);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escText(l.activity || 'Activity') + '</div>' +
+          '<div style="font-size:11px;font-weight:700;color:var(--muted,#8a99a8);white-space:nowrap;flex:0 0 auto;">' + dateLbl + '</div>' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;">' + chips.join('') + '</div>' +
+      '</div>';
+  }
+  function renderRecentList() {
+    var rcEl = document.getElementById('fs-recent');
+    if (!rcEl) return;
+    var emptyCss = 'font-size:12px;color:var(--muted,#8a99a8);padding:12px 0;';
+    if (_actViewMode === 'browse') {
+      if (!_actBrowseMonth) { var n0 = new Date(); _actBrowseMonth = new Date(n0.getFullYear(), n0.getMonth(), 1); }
+      var mStart = _actBrowseMonth, mEnd = new Date(mStart.getFullYear(), mStart.getMonth() + 1, 1);
+      var list = activityCache.filter(function (l) {
+        if (!l.logged_at) return false; var t = new Date(l.logged_at); return t >= mStart && t < mEnd;
+      }).sort(function (a, b) { return new Date(b.logged_at) - new Date(a.logged_at); });
+      var now = new Date(), atCurrent = (mStart.getFullYear() === now.getFullYear() && mStart.getMonth() === now.getMonth());
+      var navBtn = 'border:1px solid var(--border-mid,rgba(43,168,224,0.2));background:transparent;color:var(--text,#e8eef4);width:30px;height:30px;border-radius:8px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;';
+      var nav = '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:2px 0 8px;">' +
+          '<button type="button" onclick="window.ffpActivityMonthStep&&window.ffpActivityMonthStep(-1)" style="' + navBtn + '"><span class="material-icons" style="font-size:18px;">chevron_left</span></button>' +
+          '<div style="font-size:13px;font-weight:800;color:var(--text,#e8eef4);">' + _monthLabel(mStart) + '</div>' +
+          '<button type="button" ' + (atCurrent ? 'disabled' : '') + ' onclick="window.ffpActivityMonthStep&&window.ffpActivityMonthStep(1)" style="' + navBtn + (atCurrent ? 'opacity:0.35;cursor:default;' : '') + '"><span class="material-icons" style="font-size:18px;">chevron_right</span></button>' +
+        '</div>';
+      rcEl.innerHTML = nav + (list.length ? list.map(_activityRow).join('') : '<div style="' + emptyCss + '">No activities in ' + _monthLabel(mStart) + '.</div>');
+    } else {
+      var recent = activityCache.slice().sort(function (a, b) { return a.daysAgo - b.daysAgo; }).slice(0, 10);
+      rcEl.innerHTML = recent.length ? recent.map(_activityRow).join('') : '<div style="' + emptyCss + '">No recent activity.</div>';
+    }
+    var calBtn = document.getElementById('fs-recent-cal');
+    if (calBtn) calBtn.style.color = (_actViewMode === 'browse') ? 'var(--blue,#2ba8e0)' : 'var(--muted,#8a99a8)';
+  }
+  window.ffpActivityToggleCal = function () {
+    _actViewMode = (_actViewMode === 'browse') ? 'recent' : 'browse';
+    if (_actViewMode === 'browse' && !_actBrowseMonth) { var n = new Date(); _actBrowseMonth = new Date(n.getFullYear(), n.getMonth(), 1); }
+    renderRecentList();
+  };
+  window.ffpActivityMonthStep = function (dir) {
+    if (!_actBrowseMonth) { var n = new Date(); _actBrowseMonth = new Date(n.getFullYear(), n.getMonth(), 1); }
+    var nx = new Date(_actBrowseMonth.getFullYear(), _actBrowseMonth.getMonth() + dir, 1);
+    var now = new Date(), cur = new Date(now.getFullYear(), now.getMonth(), 1);
+    if (nx > cur) return;   // never page into the future
+    _actBrowseMonth = nx; renderRecentList();
+  };
 
   function overrideRenderMilestones() {
     FitnessStats.renderMilestones = function () {
@@ -1572,7 +1626,7 @@
             return { activity: r.activity || '', duration_min: r.duration_min || 0, calories: r.calories || 0,
               distance_km: (r.distance_km != null ? Number(r.distance_km) : null),
               avg_heart_rate: (r.avg_heart_rate != null ? Number(r.avg_heart_rate) : null),
-              city: r.city || '', country: r.country || '', daysAgo: daysAgoFromIso(r.logged_at) };
+              city: r.city || '', country: r.country || '', logged_at: r.logged_at || null, daysAgo: daysAgoFromIso(r.logged_at) };
           });
         } catch (e) { console.error('[FFP Fitness Stats] activity_logs read:', e); activityCache = []; }
       })();
