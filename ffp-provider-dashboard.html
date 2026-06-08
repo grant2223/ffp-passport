@@ -1,4 +1,5 @@
-<!-- FFP PROVIDER DASHBOARD — v44 (2026-06-08)
+<!-- FFP PROVIDER DASHBOARD — v45 (2026-06-08)
+     v45: Removed the on-screen build stamp (must NOT be partner/client-facing — version stays in this comment).
      v44: ANALYTICS — GA4 (assets/ffp-analytics.js) + per-panel page_view via window.ffpTrackView in
           showPanel (SPA panel switches now show in GA4 Pages report).
      v43: Pre-login "Apply to join" (opened the dead stub form) → "Create a partner account" linking to the
@@ -4964,6 +4965,5 @@ document.addEventListener('DOMContentLoaded', () => {
 })();
 </script>
 <script>window.ffpOpenMap=function(id){var el=document.getElementById(id);var v=el?(el.value||'').trim():'';if(v)window.open('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(v),'_blank');};</script>
-<div id="ffp-build-stamp" style="position:fixed;bottom:4px;left:6px;font-size:9px;font-family:monospace;color:rgba(255,255,255,0.28);z-index:99999;pointer-events:none;">FFP build v44 — analytics + panel tracking</div>
 </body>
 </html>
