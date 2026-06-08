@@ -1370,6 +1370,8 @@ input, select, textarea { font-family: inherit; }
 .tier-expiry{margin-top:5px;display:block;background:#0f2236;color:#9dbdd0;border:1px solid rgba(43,168,224,.25);border-radius:7px;padding:3px 6px;font-family:inherit;font-size:11px;cursor:pointer;color-scheme:dark;}
 .tier-expiry:focus{outline:none;border-color:#2ba8e0;}
 </style>
+<!-- Google Analytics 4 (platform-wide) -->
+<script src="assets/ffp-analytics.js"></script>
 </head>
 <body>
 
@@ -2408,6 +2410,8 @@ const App = {
     document.getElementById(panelId).classList.add('active');
     document.querySelector(`.sidebar-link[data-panel="${panelId}"]`)?.classList.add('active');
     document.getElementById('topbar-panel-name').textContent = this.panelNames[panelId] || '';
+    // GA4 per-panel page_view (SPA — no real page reload on panel switch)
+    try { if (window.ffpTrackView) window.ffpTrackView('admin/' + String(panelId).replace(/^panel-/, ''), 'Admin · ' + (this.panelNames[panelId] || panelId)); } catch (e) {}
     this._lazyInit(panelId);
     document.getElementById('sidebar').classList.remove('open');
     document.getElementById('sidebar-backdrop').classList.remove('show');
