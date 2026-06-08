@@ -1,11 +1,10 @@
-<!-- FFP MEMBER DASHBOARD — v336 (2026-06-08)  [changelog trimmed to latest 3 updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v337 (2026-06-08)  [changelog trimmed to latest 3 updates; older history in git]
+     v337: Removed the on-screen build stamp (must NOT be client-facing — version stays in this source comment).
+           Log Activity → Activity search dropdown text 13px → 16px (legibility + stops iOS zoom-on-focus).
      v336: ANALYTICS — Google Analytics 4 (assets/ffp-analytics.js) + per-panel page_view via
            window.ffpTrackView in showPanel (SPA panel switches now show in GA4 Pages report).
      v335: ACTIVITY browse-by-month TOTALS strip (count · total time · km · kcal) above the month list.
            FFP_BUILD 335 (cache-busts fitness-stats loader v35).
-     v334: ACTIVITY history — Recent activity capped at 10, redesigned to a 2-line chip-row block per entry
-           (legible metrics, not crammed); calendar icon opposite the title browses older months (◀/▶ nav).
-           Visible build stamp added (bottom-left).
      v333: LOG ACTIVITY upgrade — Date|Time, Duration|Distance(km), Calories|Avg HR(bpm) paired rows;
            Country/City default to the member; saveLog sends p_distance_km + p_avg_hr. DB cols + backend v77.
      v332: Removed dormant Events panel (Events now on findfitpeople.com); boot Events.init() guarded;
@@ -3973,7 +3972,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 .picker-dropdown::-webkit-scrollbar { display: none; }
 .picker-dropdown { -ms-overflow-style: none; scrollbar-width: none; }
 .picker-group-label { padding: 6px 12px; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: var(--blue); text-transform: uppercase; background: rgba(43,168,224,0.04); }
-.picker-item { padding: 8px 12px; cursor: pointer; font-size: 13px; color: var(--text); display: flex; align-items: center; gap: 6px; }
+.picker-item { padding: 11px 12px; cursor: pointer; font-size: 16px; color: var(--text); display: flex; align-items: center; gap: 6px; }
 .picker-item:hover { background: rgba(43,168,224,0.1); }
 .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
 
@@ -12473,7 +12472,4 @@ window.FFPLocPick = (function(){
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
 })();
 </script>
-<!-- Visible build stamp (mirror of the provider dashboard) — confirms which version is LIVE after a deploy.
-     Bump this text whenever the top-of-file version + FFP_BUILD are bumped. -->
-<div id="ffp-build-stamp" style="position:fixed;bottom:4px;left:6px;font-size:9px;font-family:monospace;color:rgba(255,255,255,0.28);z-index:99999;pointer-events:none;">FFP build v336 — analytics + panel tracking</div>
 </body></html>
