@@ -1,6 +1,10 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-  FFP PASSPORT — login.html v12
+  FFP PASSPORT — login.html v13
+  v13 (2026-06-08): BECOME A MEMBER → subscriptions. Retired the one-time $99 Stripe link; the signup screen
+  now has an Annual $149/yr ⇄ Monthly $20/mo toggle that starts a Stripe subscription Checkout via
+  /api/billing/checkout (no account needed — the member is created on payment, then profile-complete). Passport
+  is paid-only; free booking accounts live on findfitpeople.com. Consistent with the in-app upgrade gate.
   v12 (2026-06-08): ADMIN REDIRECT FIX. admin@findfitpeople.com is role 'super_admin', but the destinations
   map only had member/provider/admin → super_admin fell through to the MEMBER dashboard. Added super_admin +
   super → ffp-admin-dashboard.html. (Admins now land on the admin dashboard, not the member app.)
@@ -218,14 +222,21 @@ Back
     <div style="font-size:12px;color:#cfe4ee;margin-top:6px;font-weight:500;">Meet people. Move together.</div>
   </div>
 </div>
-<!-- CTA -->
-<a href="https://buy.stripe.com/00w5kCgHcejw9c003F3Nm0s" class="btn-primary" style="display:flex;align-items:center;justify-content:center;text-decoration:none;gap:8px;">
+<!-- CTA: plan toggle (Annual / Monthly) → Stripe subscription checkout -->
+<div style="display:flex;gap:6px;background:rgba(43,168,224,0.08);border:1px solid rgba(43,168,224,0.22);border-radius:12px;padding:5px;margin-bottom:14px;">
+  <button type="button" id="plan-annual-btn" onclick="ffpSetPlan('annual')" style="flex:1;border:none;cursor:pointer;font-family:inherit;font-weight:800;font-size:13px;padding:11px;border-radius:9px;background:#2ba8e0;color:#081420;">Annual</button>
+  <button type="button" id="plan-monthly-btn" onclick="ffpSetPlan('monthly')" style="flex:1;border:none;cursor:pointer;font-family:inherit;font-weight:800;font-size:13px;padding:11px;border-radius:9px;background:transparent;color:#9fb4c4;">Monthly</button>
+</div>
+<div style="text-align:center;margin-bottom:14px;">
+  <div id="plan-price" style="font-size:32px;font-weight:900;color:#fff;line-height:1;">$149<span style="font-size:15px;font-weight:700;color:#9fb4c4;"> / year</span></div>
+  <div id="plan-note" style="font-size:11px;color:#2ba8e0;font-weight:700;margin-top:6px;">Best value &mdash; 2 months free vs monthly</div>
+</div>
+<button type="button" class="btn-primary" id="signup-pay-btn" onclick="ffpStartSignupCheckout()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-Become A Member &mdash; $99
-</a>
+Become A Member
+</button>
 <div style="font-size:11px;color:#6a90a8;text-align:center;margin-top:10px;line-height:1.6;">
-Secure payment via Stripe. Access code emailed after checkout.<br>
-One year full access.
+Secure subscription via Stripe &middot; cancel anytime.
 </div>
 <!-- BULLET LIST -->
 <div style="margin-bottom:22px;margin-top:24px;">
@@ -427,6 +438,37 @@ function goToSignIn() {
 function goToSignUp() {
   currentFlow = 'signup';
   goTo('screen-signup');
+}
+
+// v11: Become A Member = paid Passport (no free tier). Toggle the plan, then start a Stripe subscription
+// Checkout. New members have no account yet, so the backend creates a signup session (success → profile-complete).
+var ffpSelectedPlan = 'annual';
+function ffpSetPlan(p) {
+  ffpSelectedPlan = (p === 'monthly') ? 'monthly' : 'annual';
+  var annual = ffpSelectedPlan === 'annual';
+  var a = document.getElementById('plan-annual-btn'), m = document.getElementById('plan-monthly-btn');
+  var price = document.getElementById('plan-price'), note = document.getElementById('plan-note');
+  if (a) { a.style.background = annual ? '#2ba8e0' : 'transparent'; a.style.color = annual ? '#081420' : '#9fb4c4'; }
+  if (m) { m.style.background = annual ? 'transparent' : '#2ba8e0'; m.style.color = annual ? '#9fb4c4' : '#081420'; }
+  if (price) price.innerHTML = annual
+    ? '$149<span style="font-size:15px;font-weight:700;color:#9fb4c4;"> / year</span>'
+    : '$20<span style="font-size:15px;font-weight:700;color:#9fb4c4;"> / month</span>';
+  if (note) note.textContent = annual ? 'Best value — 2 months free vs monthly' : 'Billed monthly · cancel anytime';
+}
+async function ffpStartSignupCheckout() {
+  var btn = document.getElementById('signup-pay-btn');
+  var ref = ''; try { ref = localStorage.getItem('ffp_ref') || ''; } catch (e) {}
+  try {
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; btn.textContent = 'Taking you to checkout…'; }
+    var res = await fetch('https://ffp-passport-backend.vercel.app/api/billing/checkout', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan: ffpSelectedPlan, ref: ref })
+    });
+    var data = await res.json();
+    if (data && data.url) { location.href = data.url; return; }
+    alert((data && data.error) || 'Could not start checkout. Please try again.');
+  } catch (e) { alert('Could not start checkout. Please try again.'); }
+  if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Become A Member'; }
 }
 function showError(elId, msg) {
   var el = document.getElementById(elId);
