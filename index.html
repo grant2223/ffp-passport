@@ -2,8 +2,17 @@
 <!--
   ============================================================
   FFP PASSPORT HOMEPAGE — index.html
-  Version: v9
-  Date: 2026-06-01
+  Version: v11
+  Date: 2026-06-08
+  Changes from v10:
+    - Removed the "Apply for multi-day Experiences and overseas travel" benefit
+      from the pricing list (Experiences + overseas travel now live on
+      findfitpeople.com, not Passport).
+  Changes from v9:
+    - Brand Kit 2026 palette: added --primary Deep Blue #1980AD (the kit's
+      lead colour). Primary filled CTAs (nav-cta, hero-cta, price-cta) now use
+      deep blue with a darker hover; electric blue #2ba8e0 retained as the
+      accent for eyebrows, category chips, links, borders and highlights.
   Changes from v8:
     - Partner section button now links to /partner (the partner page) instead
       of /apply, label "Become A Partner"; copy updated to the free self-signup
@@ -77,7 +86,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>FFP Passport &mdash; UAE Active Lifestyle Passport 2026</title>
-<meta name="description" content="Find your people. Move together. Match with active members, host meet-ups, join events, take on challenges, and unlock partner venues across the UAE.">
+<meta name="description" content="Find your people. Move together. Match with highly active members near you, host meet-ups, and take on quests & challenges. The UAE's active lifestyle passport — built around connection.">
 <link rel="icon" type="image/png" href="assets/ffp-emblem.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -88,6 +97,8 @@
   --bg: #081420;
   --bg-elev: #0f1e2e;
   --bg-deep: #050d16;
+  --primary: #1980AD;
+  --primary-hover: #156a8f;
   --accent: #2ba8e0;
   --accent-soft: rgba(43,168,224,.08);
   --accent-line: rgba(43,168,224,.22);
@@ -126,7 +137,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(8,20,32,.97)
 .nav-right{display:flex;align-items:center;gap:6px;flex-shrink:0;}
 .nav-link{font-size:11px;font-weight:700;color:rgba(255,255,255,.78);padding:7px 12px;border:1px solid var(--accent-line);border-radius:8px;letter-spacing:.2px;transition:all .15s;white-space:nowrap;}
 .nav-link:hover{color:#fff;border-color:rgba(43,168,224,.6);}
-.nav-cta{background:var(--accent);color:#fff;font-size:11px;font-weight:800;padding:8px 14px;border-radius:8px;letter-spacing:.2px;transition:transform .15s;white-space:nowrap;}
+.nav-cta{background:var(--primary);color:#fff;font-size:11px;font-weight:800;padding:8px 14px;border-radius:8px;letter-spacing:.2px;transition:transform .15s,background .15s;white-space:nowrap;}
+.nav-cta:hover{background:var(--primary-hover);}
 .nav-cta:hover{transform:translateY(-1px);}
 @media (min-width:600px){
   nav{padding:14px 24px;gap:12px;}
@@ -167,7 +179,8 @@ section{padding:56px 0;}
 .hero-price{font-size:42px;font-weight:900;color:var(--yellow);line-height:1;}
 .hero-price-unit{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);}
 .hero-price-sub{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin:0 0 22px;}
-.hero-cta{display:block;background:var(--accent);color:#fff;text-align:center;padding:16px;border-radius:12px;font-size:15px;font-weight:800;transition:transform .15s;}
+.hero-cta{display:block;background:var(--primary);color:#fff;text-align:center;padding:16px;border-radius:12px;font-size:15px;font-weight:800;transition:transform .15s,background .15s;}
+.hero-cta:hover{background:var(--primary-hover);}
 .hero-cta:hover{transform:translateY(-1px);}
 .hero-fine{font-size:11px;color:var(--text-dim);text-align:center;margin-top:12px;font-weight:600;letter-spacing:.3px;}
 
@@ -194,7 +207,7 @@ section{padding:56px 0;}
 .banner-title{font-size:30px;font-weight:900;line-height:1.0;letter-spacing:-.5px;}
 @media (min-width:900px){.banner{height:380px;} .banner-text{padding:0 44px 44px;} .banner-title{font-size:46px;}}
 
-/* FIVE WAYS IN */
+/* FIVE REASONS TO JOIN (connection-focused) */
 .ways-grid{display:grid;gap:18px;grid-template-columns:1fr;}
 @media (min-width:700px){.ways-grid{grid-template-columns:repeat(2,1fr);}}
 @media (min-width:1000px){.ways-grid{grid-template-columns:repeat(5,1fr);gap:14px;}}
@@ -300,7 +313,8 @@ section{padding:56px 0;}
 .benefits li:last-child{border:none;}
 .benefits li .material-icons{flex-shrink:0;color:var(--accent);font-size:16px !important;margin-top:2px;}
 .benefits b{color:#fff;font-weight:800;}
-.price-cta{display:block;background:var(--accent);color:#fff;text-align:center;padding:17px;border-radius:12px;font-size:16px;font-weight:800;transition:transform .15s;}
+.price-cta{display:block;background:var(--primary);color:#fff;text-align:center;padding:17px;border-radius:12px;font-size:16px;font-weight:800;transition:transform .15s,background .15s;}
+.price-cta:hover{background:var(--primary-hover);}
 .price-cta:hover{transform:translateY(-1px);}
 .price-fine{font-size:11px;color:var(--text-dim);text-align:center;margin-top:14px;line-height:1.6;}
 @media (min-width:900px){.price-card{padding:48px 44px;} .price-amount{font-size:88px;}}
@@ -411,61 +425,61 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
   </div>
 </div>
 
-<!-- FIVE WAYS IN -->
+<!-- FIVE REASONS TO JOIN — all about connection with highly active people -->
 <section id="ways">
   <div class="col">
-    <span class="eyebrow">What the passport opens</span>
-    <h2 class="sec-heading">Five ways in.</h2>
-    <p class="sec-sub">Match with people. Host or join meet-ups. Take on quests to explore. Get into provider events. Travel together for full experiences. Each one a different door to people, places and possibilities.</p>
+    <span class="eyebrow">What the Passport opens</span>
+    <h2 class="sec-heading">Five reasons to join.</h2>
+    <p class="sec-sub">It all comes back to one thing: connecting with highly active people who move like you. Find your people, meet up and move together, take on quests and challenges side by side, and track your progress as you go.</p>
     <div class="ways-grid">
 
       <div class="way-card">
-        <div class="way-img"><img src="assets/group-of-5.jpg" alt="Matched"></div>
+        <div class="way-img"><img src="assets/group-of-5.jpg" alt="Connections"></div>
         <div class="way-body">
-          <div class="way-step">01 &mdash; Foundation</div>
+          <div class="way-step">01 &mdash; Find your people</div>
           <div class="way-title">Connections</div>
-          <div class="way-desc">We identify members near you with similar sports, similar level and similar interests. You decide who to connect with &mdash; always your call.</div>
+          <div class="way-desc">We match you with highly active members near you &mdash; by sport, level and interests. You decide who to connect with, always your call.</div>
           <div class="way-eg">A 4am running partner in JLT. A weekend padel duo at your level. A yoga buddy in your neighbourhood.</div>
         </div>
       </div>
 
       <div class="way-card">
-        <div class="way-img"><img src="assets/padel-high-five.jpg" alt="Meet and Move"></div>
+        <div class="way-img"><img src="assets/padel-high-five.jpg" alt="Meet-ups"></div>
         <div class="way-body">
-          <div class="way-step">02 &mdash; Member-hosted</div>
+          <div class="way-step">02 &mdash; Move together</div>
           <div class="way-title">Meet-ups</div>
-          <div class="way-desc">Create or join a small-group meet-up, up to 8 people. The simplest way to get a session on the calendar with people in your community.</div>
-          <div class="way-eg">A 4th for padel. A kayak crew. A morning run. A kite-surf session. A beach volleyball game.</div>
+          <div class="way-desc">Create or join a small-group meet-up, up to 8 people &mdash; the simplest way to get a real session on the calendar with people in your community.</div>
+          <div class="way-eg">A 4th for padel. A kayak crew. A morning run. A beach volleyball game.</div>
         </div>
       </div>
 
       <div class="way-card">
         <div class="way-img"><img src="assets/ladies-lifting.jpg" alt="Quests"></div>
         <div class="way-body">
-          <div class="way-step">03 &mdash; Gamified</div>
+          <div class="way-step">03 &mdash; Explore together</div>
           <div class="way-title">Quests</div>
-          <div class="way-desc">Take on City, Country and Global quests &mdash; solo or with a friend. Visit new venues, collect official passport stamps, and climb the tiers.</div>
-          <div class="way-eg">A city sport-sampler. A partner quest with a friend. A sponsored quest with a real prize to win.</div>
+          <div class="way-desc">Take on City, Country and Global quests &mdash; solo or with your people. Visit new venues, collect official passport stamps, and climb the tiers.</div>
+          <div class="way-eg">A city sport-sampler. A partner quest with a friend. A sponsored quest with a real prize.</div>
         </div>
       </div>
 
       <div class="way-card">
-        <div class="way-img"><img src="assets/pickel-ball.jpg" alt="Events"></div>
+        <div class="way-img"><img src="assets/pickel-ball.jpg" alt="Challenges"></div>
         <div class="way-body">
-          <div class="way-step">04 &mdash; Provider-led</div>
-          <div class="way-title">Events</div>
-          <div class="way-desc">Providers opening their doors to people who love the lifestyle. Try their services, meet their team, find your next studio, club or coach.</div>
-          <div class="way-eg">A taster class at a new studio. A community race weekend. A coaching clinic with a touring pro.</div>
+          <div class="way-step">04 &mdash; Compete together</div>
+          <div class="way-title">Challenges</div>
+          <div class="way-desc">Set or join member challenges &mdash; a leaderboard among your people. Log your scores, climb the rankings, and push each other to go further.</div>
+          <div class="way-eg">A June push-up challenge. A 5k time trial. A max-reps showdown with the crew.</div>
         </div>
       </div>
 
       <div class="way-card">
-        <div class="way-img"><img src="assets/experiences.jpg" alt="Experiences"></div>
+        <div class="way-img"><img src="assets/ocr-racer.jpg" alt="Fitness Stats"></div>
         <div class="way-body">
-          <div class="way-step">05 &mdash; Multi-day &amp; travel</div>
-          <div class="way-title">Experiences</div>
-          <div class="way-desc">Retreats, training camps, and curated travel to major sporting events worldwide &mdash; F1, golf majors, marathons, padel tournaments, Rugby Sevens.</div>
-          <div class="way-eg">Outbound trips with your crew. Inbound itineraries for visitors coming to UAE events.</div>
+          <div class="way-step">05 &mdash; Track together</div>
+          <div class="way-title">Fitness Stats</div>
+          <div class="way-desc">Track your activity, personal records and biological age &mdash; then see how you stack up against the community. Your progress, shared with people who get it.</div>
+          <div class="way-eg">Personal records and PRs. Activity streaks. Age-group and city rankings.</div>
         </div>
       </div>
 
@@ -761,7 +775,6 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
         <li><span class="material-icons">check_circle</span><span><b>Unlimited Meet-ups</b> &mdash; host or join, up to 8 people</span></li>
         <li><span class="material-icons">check_circle</span><span><b>Quests</b> &mdash; explore venues, collect passport stamps, win partner prizes</span></li>
         <li><span class="material-icons">check_circle</span><span><b>All FFP events</b> across the UAE</span></li>
-        <li><span class="material-icons">check_circle</span><span><b>Apply for multi-day Experiences</b> and overseas travel</span></li>
         <li><span class="material-icons">check_circle</span><span><b>Member Perks</b> at FFP partner venues</span></li>
         <li><span class="material-icons">check_circle</span><span><b>Challenges, leaderboards</b> and city rankings</span></li>
         <li><span class="material-icons">check_circle</span><span><b>Pro Network</b> for coaches, athletes and entrepreneurs</span></li>
