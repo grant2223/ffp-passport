@@ -1,11 +1,11 @@
-<!-- FFP PROVIDER SELF-SIGNUP — v2 (2026-06-01): trimmed to the essentials per Grant —
-     Business name, Contact First/Last name, Contact email, Contact phone, Country, City.
-     Removed Category, Main activity, About (set later in dashboard/profile).
+<!-- FFP PARTNER SIGNUP — latest 3:
+     v3 (2026-06-08): INSTANT SIGN-IN per Grant. Copy → "Create Your Partner Account" + welcome lead;
+       Email/Phone hints reworded (sign-in email / public facility phone); button "Create Account".
+       Backend /api/provider/signup (index.js v76) now returns a full session (token+jwt+refresh+member)
+       + a WELCOME email (not a verify link) — this page persists the session via FFPAuth and redirects
+       straight to /ffp-provider-dashboard.html. Added Supabase SDK + ffp-api-integration.js for that.
+     v2 (2026-06-01): trimmed to essentials — Business name, Contact first/last, email, phone, Country, City.
      v1: "Try for free" Phase-1 self-signup.
-     Creates a provider account via backend /api/provider/signup (member role=provider +
-     providers row status 'pending'), then emails a verification link. After confirming,
-     the provider logs in (email -> 6-digit code) and lands in the provider dashboard.
-     Listings stay pending until an admin approves them — free during preview.
      Shares apply.html styling + FFP_TAX taxonomy + FFPLocation country/city cascade. -->
 <!DOCTYPE html>
 <html lang="en">
@@ -22,6 +22,10 @@
 <script src="assets/ffp-constants.js"></script>
 <script src="assets/ffp-taxonomy.js?v=8"></script>
 <script src="assets/ffp-location-picker.js"></script>
+<!-- v3: auth module so we can persist the session the signup returns and drop the partner straight into the dashboard.
+     Supabase SDK must load BEFORE ffp-api-integration.js (it builds the client). -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/ffp-api-integration.js?v=12"></script>
 <style>
 :root{
   --blue:#2ba8e0; --blue-dk:#1980AD; --bg:#081420; --bg-2:#0f1e2e; --bg-3:#142a3f;
@@ -93,8 +97,8 @@ select option{background:var(--bg-2);color:var(--text)}
 <section class="hero">
   <div class="wrap">
     <span class="eyebrow">Free While We're In Preview</span>
-    <h1>Try FFP Passport <em>free</em>.</h1>
-    <p>Create your provider account in under a minute. Build your events, experiences and challenges straight away — we review them before they go live, and there's nothing to pay during our preview.</p>
+    <h1>Create Your <em>Partner</em> Account</h1>
+    <p>Welcome to Find Fit People. Fill in the form below to help us set up your account — once it's done you'll go straight to your FFP Partner dashboard and can start uploading your services.</p>
     <div class="benefits">
       <div class="benefit"><span class="ms">check_circle</span> No card required</div>
       <div class="benefit"><span class="ms">check_circle</span> Instant dashboard</div>
@@ -105,8 +109,8 @@ select option{background:var(--bg-2);color:var(--text)}
 
 <div class="wrap">
   <div class="card" id="form-card">
-    <h2>Create your provider account</h2>
-    <div class="lead">Tell us the basics. You'll confirm your email, then sign in to your dashboard.</div>
+    <h2>Your details</h2>
+    <div class="lead">Just the basics to get you set up. You can add your logo, photos and listings once you're in.</div>
     <form id="signup-form" novalidate>
       <div class="hp"><label>Do not fill<input type="text" id="company_url_hp" tabindex="-1" autocomplete="off"></label></div>
       <div class="grid">
@@ -125,11 +129,11 @@ select option{background:var(--bg-2);color:var(--text)}
         </div>
 
         <div class="field">
-          <label>Contact email <span class="req">*</span> <span class="hint">— we'll send a confirmation link here</span></label>
+          <label>Email <span class="req">*</span> <span class="hint">— the email you'll use to sign in to your partner dashboard</span></label>
           <input type="email" id="email" placeholder="you@yourbusiness.com" maxlength="120" autocomplete="email" required>
         </div>
         <div class="field">
-          <label>Contact phone <span class="hint">— country code + number</span></label>
+          <label>Phone <span class="hint">— your facility's public phone number</span></label>
           <div style="display:flex;gap:8px;">
             <select id="phone-cc" style="flex:0 0 150px;"></select>
             <input type="tel" id="phone-num" placeholder="56 261 7359" maxlength="30" style="flex:1;">
@@ -145,22 +149,17 @@ select option{background:var(--bg-2);color:var(--text)}
           <select id="city" data-ffp-loc="city" data-ffp-group="psignup" required></select>
         </div>
       </div>
-      <button type="submit" class="btn" id="submit-btn">Create my free account</button>
+      <button type="submit" class="btn" id="submit-btn">Create Account</button>
       <div class="err" id="err"></div>
       <div class="signin-row">Already have an account? <a href="/login">Log in</a></div>
     </form>
   </div>
 
   <div class="card success" id="success-card">
-    <div class="success-icon"><span class="ms">mark_email_read</span></div>
-    <h2>Check your email</h2>
-    <p>We've sent a confirmation link to <strong id="success-email"></strong>.</p>
-    <ol class="steps">
-      <li><strong>1.</strong> Open the email and tap <strong>Confirm email &amp; log in</strong>.</li>
-      <li><strong>2.</strong> You'll land on the login page — enter your email.</li>
-      <li><strong>3.</strong> We'll email you a 6-digit code; enter it and you're in.</li>
-    </ol>
-    <p style="margin-top:16px;">Didn't get it? Check spam, or <a href="/login">go to login</a> and request a code.</p>
+    <div class="success-icon"><span class="ms">check_circle</span></div>
+    <h2>Account created</h2>
+    <p>Your partner account is live and you're signed in. Taking you to your dashboard now&hellip;</p>
+    <p style="margin-top:16px;">Not redirected? <a href="/ffp-provider-dashboard.html">Open your dashboard</a>. We've also emailed <strong id="success-email"></strong> a quick guide to uploading your services.</p>
   </div>
 
   <div class="foot">FFP Passport · Questions? <a href="mailto:providers@findfitpeople.com">providers@findfitpeople.com</a></div>
@@ -212,14 +211,28 @@ select option{background:var(--bg-2);color:var(--text)}
       try { data = await res.json(); } catch (_) {}
       if (!res.ok) { throw new Error(data.error || 'Something went wrong. Please try again.'); }
 
+      // v3: instant sign-in — persist the session the backend just issued (same keys the dashboard reads),
+      // then go straight to the partner dashboard. No email-verify click, no 6-digit code step.
+      try {
+        if (window.FFPAuth) {
+          FFPAuth.setPersist(true);                       // keep them signed in
+          if (data.token)   FFPAuth.setToken(data.token);
+          if (data.jwt)     FFPAuth.setJwt(data.jwt);
+          if (data.refresh) FFPAuth.setRefresh(data.refresh);
+          if (data.member)  FFPAuth.setMember(data.member);
+        }
+      } catch (_) {}
+
       document.getElementById('success-email').textContent = email;
       document.getElementById('form-card').style.display = 'none';
       document.getElementById('success-card').classList.add('show');
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      var dest = data.redirect || '/ffp-provider-dashboard.html';
+      setTimeout(function () { window.location.href = dest; }, 1200);
     } catch (err) {
       console.error('[FFP Provider Signup] failed:', err);
       showErr(err.message || 'Something went wrong. Please try again, or email providers@findfitpeople.com.');
-      btn.disabled = false; btn.textContent = 'Create my free account';
+      btn.disabled = false; btn.textContent = 'Create Account';
     }
   });
 })();
