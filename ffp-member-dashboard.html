@@ -1,4 +1,6 @@
-<!-- FFP MEMBER DASHBOARD — v335 (2026-06-08)  [changelog trimmed to latest 3 updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v336 (2026-06-08)  [changelog trimmed to latest 3 updates; older history in git]
+     v336: ANALYTICS — Google Analytics 4 (assets/ffp-analytics.js) + per-panel page_view via
+           window.ffpTrackView in showPanel (SPA panel switches now show in GA4 Pages report).
      v335: ACTIVITY browse-by-month TOTALS strip (count · total time · km · kcal) above the month list.
            FFP_BUILD 335 (cache-busts fitness-stats loader v35).
      v334: ACTIVITY history — Recent activity capped at 10, redesigned to a 2-line chip-row block per entry
@@ -4125,6 +4127,8 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 .q-venue.muted{ color:var(--q-muted); border-bottom:none; }
 .q-qr-btn{ width:100%; margin-top:18px; display:flex; align-items:center; justify-content:center; gap:8px; }
 </style>
+<!-- Google Analytics 4 (platform-wide) -->
+<script src="assets/ffp-analytics.js"></script>
 </head>
 <body>
 
@@ -7714,6 +7718,9 @@ function setupPanelNav() {
     // Swap panel visibility
     document.querySelectorAll('.panel-view').forEach(p => p.classList.remove('active'));
     target.classList.add('active');
+
+    // GA4 per-panel page_view (SPA — no real page reload on panel switch)
+    try { if (window.ffpTrackView) window.ffpTrackView('member/' + panelId, 'Member · ' + panelId); } catch (e) {}
     
     // Update bottom nav active state
     navItems.forEach(n => n.classList.remove('active'));
@@ -12468,5 +12475,5 @@ window.FFPLocPick = (function(){
 </script>
 <!-- Visible build stamp (mirror of the provider dashboard) — confirms which version is LIVE after a deploy.
      Bump this text whenever the top-of-file version + FFP_BUILD are bumped. -->
-<div id="ffp-build-stamp" style="position:fixed;bottom:4px;left:6px;font-size:9px;font-family:monospace;color:rgba(255,255,255,0.28);z-index:99999;pointer-events:none;">FFP build v335 — activity month totals</div>
+<div id="ffp-build-stamp" style="position:fixed;bottom:4px;left:6px;font-size:9px;font-family:monospace;color:rgba(255,255,255,0.28);z-index:99999;pointer-events:none;">FFP build v336 — analytics + panel tracking</div>
 </body></html>
