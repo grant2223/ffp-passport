@@ -1,6 +1,14 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-  FFP PASSPORT — login.html v13
+  FFP PASSPORT — login.html v15
+  v15 (2026-06-08): SIGNUP COPY. Removed the "Experiences & Adventures — group experiences and overseas trips"
+  benefit (Experiences + overseas travel now live on findfitpeople.com, not Passport). Annual savings note
+  corrected from "2 months free" to "4.5 months free vs monthly" (static + the ffpSetPlan JS) — $149/yr vs
+  $20×12=$240 saves $91 ≈ 4.5 months.
+  v14 (2026-06-08): BRAND KIT 2026 palette. Primary buttons now lead with Deep Blue #1980AD (was electric
+  #2ba8e0): .btn-primary base + the member-portal CTA. Electric blue #2ba8e0 retained as the accent for the
+  logo mark, focus rings, links, checkmarks, eyebrows and the plan toggle highlight. Admin (amber) and
+  provider (green) role colours unchanged.
   v13 (2026-06-08): BECOME A MEMBER → subscriptions. Retired the one-time $99 Stripe link; the signup screen
   now has an Annual $149/yr ⇄ Monthly $20/mo toggle that starts a Stripe subscription Checkout via
   /api/billing/checkout (no account needed — the member is created on payment, then profile-complete). Passport
@@ -106,8 +114,8 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 .code-digit{width:100%;height:60px;min-width:0;padding:0 0 0 14px;background:rgba(43,168,224,.06);border:1.5px solid rgba(43,168,224,.2);border-radius:10px;font-size:30px;font-weight:900;letter-spacing:14px;color:#fff;text-align:center;font-family:'Montserrat',sans-serif;outline:none;transition:border-color .15s;}
 .code-digit::placeholder{color:#3f6076;letter-spacing:14px;}
 .code-digit:focus{border-color:#2ba8e0;}
-.btn-primary{display:block;width:100%;padding:15px;border-radius:12px;font-size:15px;font-weight:800;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;color:#fff;background:#2ba8e0;transition:background .15s;text-align:center;}
-.btn-primary:hover{background:#1980AD;}
+.btn-primary{display:block;width:100%;padding:15px;border-radius:12px;font-size:15px;font-weight:800;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;color:#fff;background:#1980AD;transition:background .15s;text-align:center;}
+.btn-primary:hover{background:#156a8f;}
 .btn-primary:disabled{opacity:.6;cursor:not-allowed;}
 .btn-primary.green{background:#22c55e;}
 .btn-primary.amber{background:#facc15;color:#081420;}
@@ -229,7 +237,7 @@ Back
 </div>
 <div style="text-align:center;margin-bottom:14px;">
   <div id="plan-price" style="font-size:32px;font-weight:900;color:#fff;line-height:1;">$149<span style="font-size:15px;font-weight:700;color:#9fb4c4;"> / year</span></div>
-  <div id="plan-note" style="font-size:11px;color:#2ba8e0;font-weight:700;margin-top:6px;">Best value &mdash; 2 months free vs monthly</div>
+  <div id="plan-note" style="font-size:11px;color:#2ba8e0;font-weight:700;margin-top:6px;">Best value &mdash; 4.5 months free vs monthly</div>
 </div>
 <button type="button" class="btn-primary" id="signup-pay-btn" onclick="ffpStartSignupCheckout()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
@@ -274,15 +282,6 @@ Secure subscription via Stripe &middot; cancel anytime.
     <div style="flex:1;">
       <div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;letter-spacing:.1px;">Events &amp; Community Days</div>
       <div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Regular FFP events and gatherings across the UAE</div>
-    </div>
-  </div>
-  <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
-    <div style="width:22px;height:22px;border-radius:50%;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-    </div>
-    <div style="flex:1;">
-      <div style="font-size:14px;font-weight:700;color:#fff;line-height:1.3;letter-spacing:.1px;">Experiences &amp; Adventures</div>
-      <div style="font-size:12px;color:#9dbdd0;line-height:1.5;margin-top:3px;">Group experiences and overseas trips</div>
     </div>
   </div>
   <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 0;">
@@ -378,7 +377,7 @@ Back
 var selectedPortal = 'member';
 var currentFlow = 'signin';
 var portalColors = {
-  member:   { btn:'#2ba8e0', badge:'color:#2ba8e0;', label:'Member Sign In' },
+  member:   { btn:'#1980AD', badge:'color:#2ba8e0;', label:'Member Sign In' },
   provider: { btn:'#22c55e', badge:'color:#22c55e;', label:'Partner Sign In' },
   admin:    { btn:'#facc15;color:#081420', badge:'color:#facc15;', label:'Admin Sign In' }
 };
@@ -431,7 +430,7 @@ function goToSignIn() {
   setBadge('signin-badge', selectedPortal);
   setBadge('signin-code-badge', selectedPortal);
   var btn = document.getElementById('signin-email-btn');
-  if (btn) btn.style.background = (selectedPortal === 'admin' ? '#facc15' : selectedPortal === 'provider' ? '#22c55e' : '#2ba8e0');
+  if (btn) btn.style.background = (selectedPortal === 'admin' ? '#facc15' : selectedPortal === 'provider' ? '#22c55e' : '#1980AD');
   currentFlow = 'signin';
   goTo('screen-signin-email');
 }
@@ -453,7 +452,7 @@ function ffpSetPlan(p) {
   if (price) price.innerHTML = annual
     ? '$149<span style="font-size:15px;font-weight:700;color:#9fb4c4;"> / year</span>'
     : '$20<span style="font-size:15px;font-weight:700;color:#9fb4c4;"> / month</span>';
-  if (note) note.textContent = annual ? 'Best value — 2 months free vs monthly' : 'Billed monthly · cancel anytime';
+  if (note) note.textContent = annual ? 'Best value — 4.5 months free vs monthly' : 'Billed monthly · cancel anytime';
 }
 async function ffpStartSignupCheckout() {
   var btn = document.getElementById('signup-pay-btn');
