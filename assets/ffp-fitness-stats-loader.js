@@ -1,5 +1,8 @@
-/* FFP Fitness Stats Loader — v32 (2026-06-07)
-   v32: MILESTONES — feeds the 2 new event-resume journeys. fetchMsSocial now also calls
+/* FFP Fitness Stats Loader — v33 (2026-06-08)
+   v33: ACTIVITY — activityCache now carries distance_km + avg_heart_rate (from /activity-logs); the
+        "Recent activity" list shows distance · kcal · bpm chips per entry (only metrics that were
+        logged). Pairs with Log Activity modal's new Distance + Avg HR fields.
+   v32 (2026-06-07): MILESTONES — feeds the 2 new event-resume journeys. fetchMsSocial now also calls
         member_event_results and caches comps + runRaces; renderMilestones passes values.comps /
         values.runRaces to FFPMSBadges v6 (Competitions + Running Races journeys).
    v31 (2026-06-06)
@@ -1081,7 +1084,17 @@
       if (rcEl) {
         rcEl.innerHTML = recent.length ? recent.map(function (l) {
           var when = l.daysAgo === 0 ? 'today' : (l.daysAgo === 1 ? 'yesterday' : l.daysAgo + 'd ago');
-          var sub = (l.city ? escText(l.city) + ' \u00b7 ' : '') + fmtDur(l.duration_min || 0) + ' \u00b7 ' + when;
+          // Stat chips: distance, calories, avg HR \u2014 only those that were logged.
+          var stats = [];
+          if (l.distance_km != null && !isNaN(l.distance_km) && l.distance_km > 0) stats.push((Math.round(l.distance_km * 100) / 100) + ' km');
+          if (l.calories) stats.push(l.calories + ' kcal');
+          if (l.avg_heart_rate != null && !isNaN(l.avg_heart_rate) && l.avg_heart_rate > 0) stats.push(l.avg_heart_rate + ' bpm');
+          var parts = [];
+          if (l.city) parts.push(escText(l.city));
+          parts.push(fmtDur(l.duration_min || 0));
+          if (stats.length) parts.push(stats.join(' \u00b7 '));
+          parts.push(when);
+          var sub = parts.join(' \u00b7 ');
           return '<div style="' + rowCss + '"><div style="' + nameCss + '">' + escText(l.activity || 'Activity') + '</div>' +
             '<div style="' + metaCss + '">' + sub + '</div></div>';
         }).join('') : '<div style="' + emptyCss + '">No recent activity.</div>';
@@ -1556,7 +1569,10 @@
           var alJson = await alRes.json();
           var rows = (alJson && alJson.logs) || [];
           activityCache = rows.map(function (r) {
-            return { activity: r.activity || '', duration_min: r.duration_min || 0, calories: r.calories || 0, city: r.city || '', country: r.country || '', daysAgo: daysAgoFromIso(r.logged_at) };
+            return { activity: r.activity || '', duration_min: r.duration_min || 0, calories: r.calories || 0,
+              distance_km: (r.distance_km != null ? Number(r.distance_km) : null),
+              avg_heart_rate: (r.avg_heart_rate != null ? Number(r.avg_heart_rate) : null),
+              city: r.city || '', country: r.country || '', daysAgo: daysAgoFromIso(r.logged_at) };
           });
         } catch (e) { console.error('[FFP Fitness Stats] activity_logs read:', e); activityCache = []; }
       })();
