@@ -1,11 +1,12 @@
-<!-- FFP MEMBER DASHBOARD — v333 (2026-06-08)  [changelog trimmed to latest 3 updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v334 (2026-06-08)  [changelog trimmed to latest 3 updates; older history in git]
+     v334: ACTIVITY history — Recent activity capped at 10, redesigned to a 2-line chip-row block per entry
+           (legible metrics, not crammed); new calendar icon opposite the title browses older months
+           (◀/▶ nav). FFP_BUILD 334 (cache-busts fitness-stats loader v34). Visible build stamp added (bottom-left).
      v333: LOG ACTIVITY upgrade — Date|Time, Duration|Distance(km), Calories|Avg HR(bpm) paired rows;
            Country/City default to the member (FFPAuth fallback); saveLog sends p_distance_km + p_avg_hr.
-           View past activities in Fitness Stats → Activity → Recent activity (now shows km·kcal·bpm).
-           FFP_BUILD 333 (cache-busts fitness-stats loader v33). DB: activity_logs +distance_km +avg_heart_rate.
+           DB: activity_logs +distance_km +avg_heart_rate; backend v77 returns them.
      v332: Removed dormant Events panel (Events now on findfitpeople.com); boot Events.init() guarded;
-           lazy 'panel-events' loader entry dropped. (+ account-role fixes & Sunday Summary cron — DB/backend.)
-     v331: PROPER member image uploads — uploader v7 (?v=7) falls back to token-verified /api/storage/upload. -->
+           lazy 'panel-events' loader entry dropped. (+ account-role fixes & Sunday Summary cron — DB/backend.) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5131,10 +5132,11 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         </div>
         <div id="fs-breakdown"></div>
       </div>
-      <!-- Recent activity (moved from Passport) -->
+      <!-- Recent activity (moved from Passport) — last 10; calendar icon browses older months -->
       <div class="ct-section">
-        <div class="ct-section-head">
+        <div class="ct-section-head" style="display:flex;align-items:center;justify-content:space-between;">
           <div class="ct-section-title">Recent activity</div>
+          <button id="fs-recent-cal" type="button" title="Browse by month" aria-label="Browse activity by month" onclick="window.ffpActivityToggleCal&&window.ffpActivityToggleCal()" style="background:none;border:none;color:var(--muted,#8a99a8);cursor:pointer;padding:4px;display:inline-flex;align-items:center;line-height:1;"><span class="material-icons" style="font-size:20px;">calendar_month</span></button>
         </div>
         <div id="fs-recent"></div>
       </div>
@@ -7666,7 +7668,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '333';
+  const FFP_BUILD = '334';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -12463,4 +12465,7 @@ window.FFPLocPick = (function(){
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
 })();
 </script>
+<!-- Visible build stamp (mirror of the provider dashboard) — confirms which version is LIVE after a deploy.
+     Bump this text whenever the top-of-file version + FFP_BUILD are bumped. -->
+<div id="ffp-build-stamp" style="position:fixed;bottom:4px;left:6px;font-size:9px;font-family:monospace;color:rgba(255,255,255,0.28);z-index:99999;pointer-events:none;">FFP build v334 — activity history + calendar</div>
 </body></html>
