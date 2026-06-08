@@ -1,5 +1,7 @@
-/* FFP Fitness Stats Loader — v34 (2026-06-08)
-   v34: ACTIVITY list redesign — each entry is now a 2-line block (name + date, then a wrapping chip row:
+/* FFP Fitness Stats Loader — v35 (2026-06-08)
+   v35: ACTIVITY browse-by-month now shows a TOTALS strip above the list — count, total time, total
+        distance, total calories (metrics with data only). Pairs with member dashboard FFP_BUILD 335.
+   v34 (2026-06-08): ACTIVITY list redesign — each entry is now a 2-line block (name + date, then a wrapping chip row:
         duration / km / kcal / bpm / city) so logged metrics are legible, not crammed. Recent list capped
         at 10. New calendar icon (in the dashboard header) toggles a browse-by-month view with ◀/▶ month
         nav (renderRecentList + window.ffpActivityToggleCal / ffpActivityMonthStep). activityCache carries
@@ -1135,7 +1137,19 @@
           '<div style="font-size:13px;font-weight:800;color:var(--text,#e8eef4);">' + _monthLabel(mStart) + '</div>' +
           '<button type="button" ' + (atCurrent ? 'disabled' : '') + ' onclick="window.ffpActivityMonthStep&&window.ffpActivityMonthStep(1)" style="' + navBtn + (atCurrent ? 'opacity:0.35;cursor:default;' : '') + '"><span class="material-icons" style="font-size:18px;">chevron_right</span></button>' +
         '</div>';
-      rcEl.innerHTML = nav + (list.length ? list.map(_activityRow).join('') : '<div style="' + emptyCss + '">No activities in ' + _monthLabel(mStart) + '.</div>');
+      // Month totals strip — count, total time, total distance, total calories (metrics with data only)
+      var tMin = 0, tKm = 0, tKcal = 0;
+      list.forEach(function (l) {
+        tMin += (l.duration_min || 0);
+        if (l.distance_km != null && !isNaN(l.distance_km) && l.distance_km > 0) tKm += l.distance_km;
+        tKcal += (l.calories || 0);
+      });
+      var sumParts = [list.length + (list.length === 1 ? ' activity' : ' activities'), _fmtDurMin(tMin)];
+      if (tKm > 0) sumParts.push((Math.round(tKm * 10) / 10) + ' km');
+      if (tKcal > 0) sumParts.push(tKcal + ' kcal');
+      var totalsStrip = list.length ? ('<div style="display:flex;flex-wrap:wrap;gap:6px 14px;padding:10px 12px;margin-bottom:6px;background:rgba(43,168,224,0.07);border:1px solid rgba(43,168,224,0.18);border-radius:10px;font-size:12px;font-weight:800;color:var(--text,#e8eef4);">' +
+          sumParts.map(function (p) { return '<span>' + p + '</span>'; }).join('') + '</div>') : '';
+      rcEl.innerHTML = nav + totalsStrip + (list.length ? list.map(_activityRow).join('') : '<div style="' + emptyCss + '">No activities in ' + _monthLabel(mStart) + '.</div>');
     } else {
       var recent = activityCache.slice().sort(function (a, b) { return a.daysAgo - b.daysAgo; }).slice(0, 10);
       rcEl.innerHTML = recent.length ? recent.map(_activityRow).join('') : '<div style="' + emptyCss + '">No recent activity.</div>';
