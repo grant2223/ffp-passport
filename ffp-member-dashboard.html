@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v354 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v355 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+     v355: REAL-TIME EXPANDED — live subscriptions (FFPRealtime) now cover the NOTIFICATIONS bell
+           (own + broadcasts), MEET-UPS + who's-going, and CHALLENGES + leaderboard, on top of connections.
+           Debounced reloaders coalesce bursts. All five tables already had REPLICA IDENTITY FULL +
+           member-readable RLS, so no DB change. The whole app updates itself now — no manual refresh.
      v354: TRUE REAL-TIME CONNECTIONS — subscribes to member_connections changes (FFPRealtime → Supabase
            postgres_changes, rows where I'm requester or addressee). Connections now auto-update the instant
            anything changes (you add someone, someone adds you, a request is accepted) — no refresh, no
@@ -7765,18 +7769,37 @@ async function loadConnectionsCount() {
 // Subscribes (via FFPRealtime → Supabase postgres_changes) to member_connections rows where I'm the
 // requester OR the addressee. Fires when: I add someone, someone adds me, or a request is accepted.
 (function () {
-  function wireConnRealtime() {
+  function _deb(fn, ms) { var t; return function () { clearTimeout(t); t = setTimeout(fn, ms); }; }
+  function wireLiveUpdates() {
     var m = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null;
-    if (!m || !m.id || !window.FFPRealtime || typeof FFPRealtime.subscribe !== 'function') { setTimeout(wireConnRealtime, 600); return; }
-    var onChange = function () {
+    if (!m || !m.id || !window.FFPRealtime || typeof FFPRealtime.subscribe !== 'function') { setTimeout(wireLiveUpdates, 600); return; }
+    // Debounced reloaders (coalesce bursts so a flurry of changes = one refresh).
+    var refConn = _deb(function () {
       try { if (typeof loadConnectionsCount === 'function') loadConnectionsCount(); } catch (e) {}
-      try { if (window.MeetMove && typeof MeetMove.loadMatches === 'function') MeetMove.loadMatches(); } catch (e) {}
-    };
-    FFPRealtime.subscribe('mc-as-requester', 'member_connections', 'requester_id=eq.' + m.id, onChange);
-    FFPRealtime.subscribe('mc-as-addressee', 'member_connections', 'addressee_id=eq.' + m.id, onChange);
+      try { if (window.MeetMove && MeetMove.loadMatches) MeetMove.loadMatches(); } catch (e) {}
+      try { if (window.FFPCircle && FFPCircle.reload) FFPCircle.reload(); } catch (e) {}
+    }, 400);
+    var refNotif = _deb(function () { try { if (typeof loadNotifications === 'function') loadNotifications(); } catch (e) {} }, 350);
+    var refMeets = _deb(function () {
+      try { if (typeof loadMeets === 'function') loadMeets(); } catch (e) {}
+      try { if (window.FFPCircle && FFPCircle.reload) FFPCircle.reload(); } catch (e) {}
+    }, 600);
+    var refChal = _deb(function () { try { if (window.Challenges && Challenges.init) Challenges.init(); } catch (e) {} }, 800);
+
+    // CONNECTIONS — rows where I'm the requester or the addressee.
+    FFPRealtime.subscribe('mc-as-requester', 'member_connections', 'requester_id=eq.' + m.id, refConn);
+    FFPRealtime.subscribe('mc-as-addressee', 'member_connections', 'addressee_id=eq.' + m.id, refConn);
+    // NOTIFICATIONS bell — my own + broadcasts (RLS limits delivery: member_id=me OR null).
+    FFPRealtime.subscribe('rt-notifications', 'notifications', null, refNotif);
+    // MEET-UPS + who's-going (RLS limits to readable/mine).
+    FFPRealtime.subscribe('rt-meetups', 'meetups', null, refMeets);
+    FFPRealtime.subscribe('rt-meetup-attendees', 'meetup_attendees', null, refMeets);
+    // CHALLENGES + leaderboard entries.
+    FFPRealtime.subscribe('rt-challenges', 'challenges', null, refChal);
+    FFPRealtime.subscribe('rt-challenge-entries', 'challenge_entries', null, refChal);
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(wireConnRealtime, 1200); });
-  else setTimeout(wireConnRealtime, 1200);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(wireLiveUpdates, 1200); });
+  else setTimeout(wireLiveUpdates, 1200);
 })();
 
 async function loadNotifications() {
