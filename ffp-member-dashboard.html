@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v351 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v352 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+     v352: LOG ACTIVITY PIN — "Pin the spot" location picker added to Log Activity (reuses FFPLocPick map +
+           "use my location"). City stays the rollup (Dubai); the pin marks where in the city. Saved via the
+           extended log_activity/update_activity RPCs (venue + checkin_lat/lng). Activity rows now show the
+           venue as a tap-to-map chip (also surfaces venue check-in locations). FFP_BUILD 342→352
+           (fitness-stats-loader changed). The map picker title is now generic ("Pin the location").
      v351: MEET-UP LOCATION — added a one-tap "Use my current location" GPS button to the map picker
            (FFPLocPick.locate): centres the map + pin on the host's GPS position, reverse-geocodes the spot,
            confirm with "Use this location". Precise pin (lat/lng/maps_url) + city rollup already in place.
@@ -5426,6 +5431,15 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
           <select id="log-city" class="ffp-select"></select>
         </div>
       </div>
+      <div class="pm-form-field">
+        <label class="pm-form-label">Pin the spot (optional)</label>
+        <button type="button" class="pm-form-input pm-form-pick" id="log-loc-btn" onclick="FFPLocPick.open(logSetLocation)">
+          <span id="log-loc-display" class="pmf-pick-ph">Drop a pin — where in the city?</span>
+          <span class="material-icons" style="color:var(--muted);">place</span>
+        </button>
+        <a id="log-maplink" href="#" target="_blank" rel="noopener" style="display:none;font-size:12px;color:var(--blue);margin-top:6px;align-items:center;gap:4px;"><span class="material-icons" style="font-size:14px;vertical-align:-3px;">place</span> View on map</a>
+        <input type="hidden" id="log-venue"><input type="hidden" id="log-lat"><input type="hidden" id="log-lng"><input type="hidden" id="log-maps">
+      </div>
       <div class="pm-form-grid-2">
         <div class="pm-form-field">
           <label class="pm-form-label">Date</label>
@@ -5675,8 +5689,8 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
   <div class="detail-modal" role="dialog" aria-modal="true" style="display:flex;flex-direction:column;max-height:100vh;">
     <button class="dm-close" onclick="FFPLocPick.close()"><span class="material-icons">close</span></button>
     <div class="dm-body" style="padding-bottom:10px;flex:0 0 auto;">
-      <div class="dm-title">Set the meet-up spot</div>
-      <div style="font-size:12px;color:var(--muted);margin:4px 0 12px;">Search a place, or drag the map so the pin sits exactly where you'll meet.</div>
+      <div class="dm-title">Pin the location</div>
+      <div style="font-size:12px;color:var(--muted);margin:4px 0 12px;">Search a place, use your location, or drag the map so the pin sits exactly where you mean.</div>
       <input type="text" id="lp-search" class="pm-form-input" placeholder="Search a place — e.g. Kite Beach, Dubai" autocomplete="off" oninput="FFPLocPick.onSearch(this.value)">
       <button type="button" id="lp-locate-btn" onclick="FFPLocPick.locate()" style="margin-top:8px;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(43,168,224,0.1);color:var(--blue,#2ba8e0);border:1px solid rgba(43,168,224,0.35);border-radius:10px;padding:10px;font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;"><span class="material-icons" style="font-size:18px;">my_location</span>Use my current location</button>
       <div id="lp-results"></div>
@@ -7807,7 +7821,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '342';
+  const FFP_BUILD = '352';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -11079,6 +11093,21 @@ function openLogModal() {
   // Fresh form: clear the optional metric fields each open
   var _ld = document.getElementById('log-distance'); if (_ld) _ld.value = '';
   var _lh = document.getElementById('log-hr'); if (_lh) _lh.value = '';
+  // Clear the optional location pin each fresh open
+  ['log-venue', 'log-lat', 'log-lng', 'log-maps'].forEach(function (id) { var e = document.getElementById(id); if (e) e.value = ''; });
+  var _lld = document.getElementById('log-loc-display'); if (_lld) { _lld.textContent = 'Drop a pin — where in the city?'; _lld.classList.add('pmf-pick-ph'); _lld.classList.remove('set'); }
+  var _llm = document.getElementById('log-maplink'); if (_llm) _llm.style.display = 'none';
+}
+// Fill the Log Activity pin fields from the FFPLocPick result. City stays the rollup ("Dubai"); this marks
+// WHERE in the city. Stored into activity_logs.venue + checkin_lat/lng (same columns venue check-ins use).
+function logSetLocation(loc) {
+  if (!loc) return;
+  var v = document.getElementById('log-venue'); if (v) v.value = loc.name || '';
+  var la = document.getElementById('log-lat'); if (la) la.value = (loc.lat != null ? loc.lat : '');
+  var lo = document.getElementById('log-lng'); if (lo) lo.value = (loc.lng != null ? loc.lng : '');
+  var mp = document.getElementById('log-maps'); if (mp) mp.value = loc.maps_url || '';
+  var d = document.getElementById('log-loc-display'); if (d) { d.textContent = loc.name || 'Pin set'; d.classList.remove('pmf-pick-ph'); d.classList.add('set'); }
+  var ml = document.getElementById('log-maplink'); if (ml && loc.maps_url) { ml.href = loc.maps_url; ml.style.display = 'inline-flex'; }
 }
 // EDIT an existing activity. Opens the same modal but prefilled from the row + in update mode. saveLog()
 // branches to the update_activity RPC when window._ffpEditLogId is set. Called by the Activity list (loader).
@@ -11103,6 +11132,11 @@ window.openLogModalForEdit = function (row) {
   var cal = document.getElementById('log-calories'); if (cal) cal.value = (row.calories ? row.calories : '');
   var hr = document.getElementById('log-hr'); if (hr) hr.value = (row.avg_heart_rate != null ? row.avg_heart_rate : '');
   var notes = document.getElementById('log-notes'); if (notes) notes.value = row.notes || '';
+  // Prefill the pin (so editing a venue check-in or pinned log doesn't wipe its location on save).
+  if (row.venue || row.checkin_lat != null) {
+    logSetLocation({ name: row.venue || '', lat: (row.checkin_lat != null ? row.checkin_lat : null), lng: (row.checkin_lng != null ? row.checkin_lng : null),
+      maps_url: (row.checkin_lat != null && row.checkin_lng != null) ? ('https://www.google.com/maps?q=' + row.checkin_lat + ',' + row.checkin_lng) : '' });
+  }
   var t = document.querySelector('#log-modal-backdrop .dm-title'); if (t) t.textContent = 'Edit activity';
   var btn = document.querySelector('#log-modal-backdrop .dm-footer .btn-primary-yellow'); if (btn) btn.textContent = 'Update activity';
 };
@@ -11227,8 +11261,12 @@ async function saveLog() {
   var _hrEl = document.getElementById('log-hr');
   var _hrVal = _hrEl && _hrEl.value.trim() !== '' ? Math.max(0, Math.min(300, parseInt(_hrEl.value, 10))) : null;
   if (_hrVal != null && isNaN(_hrVal)) _hrVal = null;
+  // Optional precise pin (venue + coords). City stays the rollup; this marks WHERE in the city.
+  var _venVal = ((document.getElementById('log-venue') || {}).value || '').trim();
+  var _latEl = document.getElementById('log-lat'); var _latVal = (_latEl && _latEl.value.trim() !== '') ? parseFloat(_latEl.value) : null; if (_latVal != null && isNaN(_latVal)) _latVal = null;
+  var _lngEl = document.getElementById('log-lng'); var _lngVal = (_lngEl && _lngEl.value.trim() !== '') ? parseFloat(_lngEl.value) : null; if (_lngVal != null && isNaN(_lngVal)) _lngVal = null;
   const entry = {
-    activity: act, venue: '', city: city, country: country,
+    activity: act, venue: _venVal, city: city, country: country,
     date: dateStr, daysAgo: 0,
     duration: durationMin, durationSec: durationSec,
     calories: parseInt(document.getElementById('log-calories').value, 10) || 0,
@@ -11252,14 +11290,16 @@ async function saveLog() {
         p_me: member.id, p_log_id: _editId, p_activity: act, p_city: city, p_country: country,
         p_duration_min: entry.duration, p_duration_sec: entry.durationSec, p_calories: entry.calories,
         p_logged_at: _loggedAtIso, p_notes: entry.notes,
-        p_distance_km: entry.distance_km, p_avg_hr: entry.avg_heart_rate
+        p_distance_km: entry.distance_km, p_avg_hr: entry.avg_heart_rate,
+        p_venue: _venVal || null, p_lat: _latVal, p_lng: _lngVal
       });
     } else {
       res = await window.supabase.rpc('log_activity', {
         p_me: member.id, p_activity: act, p_city: city, p_country: country,
         p_duration_min: entry.duration, p_duration_sec: entry.durationSec, p_calories: entry.calories,
         p_logged_at: _loggedAtIso, p_notes: entry.notes,
-        p_distance_km: entry.distance_km, p_avg_hr: entry.avg_heart_rate
+        p_distance_km: entry.distance_km, p_avg_hr: entry.avg_heart_rate,
+        p_venue: _venVal || null, p_lat: _latVal, p_lng: _lngVal
       });
     }
     if (res.error) throw res.error;
