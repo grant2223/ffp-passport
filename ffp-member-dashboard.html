@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v345 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v346 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+     v346: BOOT RESILIENCE — the notification bell + profile menu went dead whenever a pre-topbar render call
+           (syncToPassport / applyPassportData / renderQR / refreshMemberFromServer) threw, because the flat
+           boot sequence halted before setupTopbar() ran. Each boot call is now wrapped in try/catch so the
+           topbar + panel nav ALWAYS wire up. (Plus _headers now serves manifest.webmanifest as
+           application/manifest+json — was octet-stream.)
      v345: PWA — FFP Passport is now installable to the home screen. Added manifest link, theme-color,
            apple-touch-icon + iOS web-app meta, and assets/ffp-pwa.js (registers /sw.js + shows the install
            banner: Android native prompt / iOS Add-to-Home-Screen hint). Icons: emblem on white in
@@ -11399,12 +11404,15 @@ function init() {
     console.warn('[FFP] init: could not hydrate MemberProfile from localStorage:', e);
   }
 
-  MemberProfile.syncToPassport();  // profile is source of truth — sync before card render
-  applyPassportData();
-  renderQR();
-  refreshMemberFromServer();        // v168: reconcile tier/balance/photo from server
-  setupTopbar();
-  setupPanelNav();
+  // v346: FAULT-ISOLATE the pre-topbar render calls. These touch live profile data, so a single bad value
+  // could throw and (because the boot is a flat sequence) kill everything after it — including setupTopbar(),
+  // leaving the notification bell + profile menu dead. Guard each so the topbar + nav ALWAYS wire up.
+  try { MemberProfile.syncToPassport(); } catch (e) { console.warn('[FFP boot] syncToPassport', e); }
+  try { applyPassportData(); } catch (e) { console.warn('[FFP boot] applyPassportData', e); }
+  try { renderQR(); } catch (e) { console.warn('[FFP boot] renderQR', e); }
+  try { refreshMemberFromServer(); } catch (e) { console.warn('[FFP boot] refreshMemberFromServer', e); }
+  try { setupTopbar(); } catch (e) { console.warn('[FFP boot] setupTopbar', e); }   // notifications + profile menu
+  try { setupPanelNav(); } catch (e) { console.warn('[FFP boot] setupPanelNav', e); }
   MemberProfile.render();
   WorkoutTimer.init();
   if (window.CalorieTracker) CalorieTracker.init();  // v316: guarded — core is an external deferred file
