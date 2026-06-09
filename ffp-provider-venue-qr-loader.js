@@ -1,21 +1,22 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP PROVIDER VENUE QR LOADER · v1
+   FFP PROVIDER VENUE QR LOADER · v2
    File path: ffp-provider-venue-qr-loader.js (repo root)
-   On-load log: [FFP Venue QR v1] Loaded ✓
-
+   On-load log: [FFP Venue QR v2] Loaded ✓
    Shows the venue's check-in QR + FFP Passport number in the Check-ins panel,
    with a Download (PNG) button so the provider can print it and display it at
    the counter. The QR encodes the member check-in link
    (ffp-member-dashboard.html?venue=<provider_id>) — the same venue id the
-   member scan flow reads. Reads providers.passport_no + business_name (RLS lets
-   a provider read their own row). QR rendered client-side via qrcodejs (CDN).
+   member scan flow reads. Reads providers.business_name (RLS lets a provider
+   read their own row). QR rendered client-side via qrcodejs (CDN).
+
+   v2 — Download now exports a PADDED, white, ROUNDED-CORNER PNG rendered at 4×
+   for crisp printing (was a bare 200×200 canvas that cut off right at the
+   square edge with no quiet-zone margin).
    ═══════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
-
   var MEMBER_APP = 'https://ffppassport.com/ffp-member-dashboard.html';
   var QR_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
-
   function esc(s) {
     if (typeof window.escHtml === 'function') return window.escHtml(s);
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -27,9 +28,7 @@
     });
   }
   function providerId() { return window.FFP_PROVIDER && window.FFP_PROVIDER.id; }
-
   var info = { passport_no: '', business_name: '' };
-
   function injectStyles() {
     if (document.getElementById('ffp-venue-qr-css')) return;
     var s = document.createElement('style');
@@ -40,7 +39,7 @@
       '#ffp-venue-qr .vq-head{display:flex;align-items:center;justify-content:center;gap:8px;font-size:15px;font-weight:800;color:var(--ffp-text,#e8eef4);margin-bottom:4px;}',
       '#ffp-venue-qr .vq-head .ms{color:var(--ffp-yellow,#FFCC00);}',
       '#ffp-venue-qr .vq-sub{font-size:12px;color:var(--ffp-text-muted,#8a99a8);margin-bottom:16px;line-height:1.5;}',
-      '#ffp-venue-qr .vq-qrwrap{display:inline-block;background:#fff;padding:14px;border-radius:14px;}',
+      '#ffp-venue-qr .vq-qrwrap{display:inline-block;background:#fff;padding:20px;border-radius:18px;}',
       '#ffp-venue-qr #venue-qr-box img,#ffp-venue-qr #venue-qr-box canvas{display:block;}',
       '#ffp-venue-qr .vq-name{font-size:15px;font-weight:800;color:var(--ffp-text,#e8eef4);margin-top:14px;}',
       '#ffp-venue-qr .vq-pp{font-size:12px;font-weight:700;letter-spacing:1px;color:var(--ffp-yellow,#FFCC00);margin-top:3px;}',
@@ -48,9 +47,7 @@
     ].join('');
     document.head.appendChild(s);
   }
-
   function venueUrl() { return MEMBER_APP + '?venue=' + encodeURIComponent(providerId()); }
-
   function loadQrLib(cb) {
     if (window.QRCode) return cb();
     var s = document.createElement('script');
@@ -59,7 +56,6 @@
     s.onerror = function () { cb(new Error('qr lib failed')); };
     document.head.appendChild(s);
   }
-
   function ensureContainer() {
     var panel = document.getElementById('panel-checkins');
     if (!panel) return null;
@@ -74,7 +70,6 @@
     }
     return el;
   }
-
   function render() {
     var el = ensureContainer();
     if (!el) return;
@@ -102,20 +97,78 @@
     });
   }
 
-  function download() {
-    var box = document.getElementById('venue-qr-box');
-    if (!box) return;
-    var canvas = box.querySelector('canvas');
-    var img = box.querySelector('img');
-    var dataUrl = canvas ? canvas.toDataURL('image/png') : (img ? img.src : null);
+  // Draw a rounded-rectangle path.
+  function roundRectPath(ctx, x, y, w, h, r) {
+    if (r > w / 2) r = w / 2;
+    if (r > h / 2) r = h / 2;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  // Build a print-ready PNG: white rounded card + generous quiet-zone padding
+  // around the QR, rendered at 4× so it stays crisp when printed large.
+  function buildPaddedPng(src) {
+    var SCALE = 4;     // supersample for crisp print
+    var QR = 200;      // logical QR size (matches render width/height)
+    var PAD = 56;      // white quiet-zone padding around the QR (logical px)
+    var RADIUS = 48;   // rounded corner radius (logical px)
+    var sizeLogical = QR + PAD * 2;
+    var size = sizeLogical * SCALE;
+    var out = document.createElement('canvas');
+    out.width = size;
+    out.height = size;
+    var ctx = out.getContext('2d');
+    // White rounded background (gives both the padding AND the rounded corners)
+    ctx.fillStyle = '#ffffff';
+    roundRectPath(ctx, 0, 0, size, size, RADIUS * SCALE);
+    ctx.fill();
+    // Draw the QR centered, keeping crisp module edges (no smoothing)
+    ctx.imageSmoothingEnabled = false;
+    var dx = PAD * SCALE, dy = PAD * SCALE, dSize = QR * SCALE;
+    ctx.drawImage(src, dx, dy, dSize, dSize);
+    return out.toDataURL('image/png');
+  }
+
+  function triggerSave(dataUrl) {
     if (!dataUrl) { if (typeof window.showToast === 'function') window.showToast('QR not ready yet', 'error'); return; }
+    var safe = String(info.passport_no || info.business_name || 'venue').replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '') || 'venue';
     var a = document.createElement('a');
     a.href = dataUrl;
-    a.download = 'FFP-Venue-QR-' + (info.passport_no || 'venue') + '.png';
+    a.download = 'FFP-Venue-QR-' + safe + '.png';
     document.body.appendChild(a); a.click(); a.remove();
   }
-  window.FFPVenueQR = { download: download };
 
+  function download() {
+    var box = document.getElementById('venue-qr-box');
+    if (!box) { triggerSave(null); return; }
+    var canvas = box.querySelector('canvas');
+    var img = box.querySelector('img');
+    if (canvas) {
+      try { triggerSave(buildPaddedPng(canvas)); }
+      catch (e) { triggerSave(canvas.toDataURL('image/png')); }
+      return;
+    }
+    if (img) {
+      // qrcodejs may render an <img> on some browsers; load it fresh so it's
+      // fully decoded before we draw it onto the padded canvas.
+      var im = new Image();
+      im.onload = function () {
+        try { triggerSave(buildPaddedPng(im)); }
+        catch (e) { triggerSave(img.src); }
+      };
+      im.onerror = function () { triggerSave(img.src); };
+      im.src = img.src;
+      return;
+    }
+    triggerSave(null);
+  }
+
+  window.FFPVenueQR = { download: download };
   async function fetchInfo() {
     var pid = providerId();
     if (!pid) return;
@@ -126,7 +179,6 @@
       if (res.data) { info.business_name = res.data.business_name || ''; }
     } catch (e) {}
   }
-
   async function init() {
     var ok = await waitFor(function () {
       return window.supabase && document.getElementById('panel-checkins') && providerId();
@@ -135,9 +187,8 @@
     injectStyles();
     await fetchInfo();
     render();
-    console.log('[FFP Venue QR v1] Loaded ✓');
+    console.log('[FFP Venue QR v2] Loaded ✓');
   }
-
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 })();
