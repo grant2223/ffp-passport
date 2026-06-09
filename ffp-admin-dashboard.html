@@ -137,6 +137,9 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
+/* Hide scrollbars everywhere (content still scrolls) — page, panels, drawer, tables. */
+* { scrollbar-width: none; -ms-overflow-style: none; }
+*::-webkit-scrollbar { width: 0 !important; height: 0 !important; display: none !important; }
 html { background: var(--bg); }
 html, body { background: var(--bg); color: var(--text); font-family: 'Montserrat', sans-serif; font-weight: 500; -webkit-font-smoothing: antialiased; min-height: 100vh; }
 body { background: var(--bg); }
@@ -1461,7 +1464,7 @@ input, select, textarea { font-family: inherit; }
       </div>
     </div>
     <div class="sidebar-footer">
-      build v42 &middot; FFP Admin
+      build v43 &middot; FFP Admin
     </div>
   </aside>
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.toggleSidebar()"></div>
@@ -3404,12 +3407,7 @@ const Drawer = {
     if (!m) return;
     this.current = { kind: 'member', data: m };
     this.currentTab = 'profile';
-    
-    // Sample related data — in production these come from Supabase joins
-    const sampleClaims = m.tier === 'ambassador' ? 12 : m.tier === 'supporter' ? 6 : 2;
-    const sampleRSVPs = m.tier === 'ambassador' ? 8 : m.tier === 'supporter' ? 4 : 1;
-    const sampleReferrals = m.tier === 'ambassador' ? 4 : m.tier === 'supporter' ? 2 : 0;
-    
+
     document.getElementById('drawer-avatar').textContent = m.initial;
     document.getElementById('drawer-avatar').className = 'drawer-head-avatar';
     document.getElementById('drawer-title').textContent = m.full_name;
@@ -3422,9 +3420,9 @@ const Drawer = {
     document.getElementById('drawer-tabs').innerHTML = `
       <button class="drawer-tab active" data-dtab="profile" onclick="Drawer.setTab('profile')">Profile</button>
       <button class="drawer-tab" data-dtab="activity" onclick="Drawer.setTab('activity')">Activity</button>
-      <button class="drawer-tab" data-dtab="claims" onclick="Drawer.setTab('claims')">Claims <span class="count">${sampleClaims}</span></button>
+      <button class="drawer-tab" data-dtab="claims" onclick="Drawer.setTab('claims')">Claims <span class="count" id="dm-tab-claims">·</span></button>
       <button class="drawer-tab" data-dtab="earnings" onclick="Drawer.setTab('earnings')">Earnings</button>
-      <button class="drawer-tab" data-dtab="referrals" onclick="Drawer.setTab('referrals')">Referrals <span class="count">${sampleReferrals}</span></button>
+      <button class="drawer-tab" data-dtab="referrals" onclick="Drawer.setTab('referrals')">Referrals <span class="count" id="dm-tab-referrals">·</span></button>
     `;
     
     document.getElementById('drawer-body').innerHTML = `
@@ -3435,16 +3433,17 @@ const Drawer = {
         <div class="info-row"><div class="info-row-label">Tier</div><div class="info-row-value editable" onclick="Drawer.editField('tier')"><span class="pill pill-${m.tier}">${m.tier}</span></div></div>
         <div class="info-row"><div class="info-row-label">Balance</div><div class="info-row-value editable" onclick="Drawer.editField('balance')" style="color:var(--yellow); font-weight:800;"><span class="aed">${m.balance.toLocaleString()}</span></div></div>
         <div class="info-row"><div class="info-row-label">Joined</div><div class="info-row-value">${fmtDays(m.daysAgo)}</div></div>
+        <div class="info-row"><div class="info-row-label">Signed up via</div><div class="info-row-value" id="dm-signup">…</div></div>
         <div class="info-row"><div class="info-row-label">Status</div><div class="info-row-value">${m.status === 'suspended' ? '<span class="pill pill-suspended">suspended</span>' : '<span class="pill pill-live">active</span>'}</div></div>
       </div>
-      
+
       <div class="drawer-pane" data-dtab="activity">
         <div style="margin-bottom:16px;">
-          <div style="font-size:11px; color:var(--muted); font-weight:700; margin-bottom:6px; text-transform:uppercase;">Last 30 days</div>
+          <div style="font-size:11px; color:var(--muted); font-weight:700; margin-bottom:6px; text-transform:uppercase;">All time</div>
           <div style="display:flex; gap:14px;">
-            <div><div style="font-size:20px; font-weight:900;">${sampleClaims}</div><div style="font-size:10px; color:var(--muted);">Deals claimed</div></div>
-            <div><div style="font-size:20px; font-weight:900;">${sampleRSVPs}</div><div style="font-size:10px; color:var(--muted);">Events</div></div>
-            <div><div style="font-size:20px; font-weight:900;">${m.tier === 'ambassador' ? 18 : m.tier === 'supporter' ? 9 : 3}</div><div style="font-size:10px; color:var(--muted);">Workouts</div></div>
+            <div><div style="font-size:20px; font-weight:900;" id="dm-act-claims">·</div><div style="font-size:10px; color:var(--muted);">Deals claimed</div></div>
+            <div><div style="font-size:20px; font-weight:900;" id="dm-act-events">·</div><div style="font-size:10px; color:var(--muted);">Events</div></div>
+            <div><div style="font-size:20px; font-weight:900;" id="dm-act-workouts">·</div><div style="font-size:10px; color:var(--muted);">Workouts</div></div>
           </div>
         </div>
         <div class="drawer-link-card" onclick="Drawer.close(); App.go('panel-meetups');">
@@ -3458,23 +3457,21 @@ const Drawer = {
       </div>
       
       <div class="drawer-pane" data-dtab="claims">
-        <div class="drawer-empty"><span class="material-icons">local_offer</span>Claims history wires to Supabase claims table</div>
+        <div id="dm-claims-pane"><div class="drawer-empty"><span class="material-icons">hourglass_empty</span>Loading claims…</div></div>
       </div>
-      
+
       <div class="drawer-pane" data-dtab="earnings">
-        <div class="info-row"><div class="info-row-label">Current balance</div><div class="info-row-value" style="color:var(--yellow); font-weight:800;"><span class="aed">${m.balance.toLocaleString()}</span></div></div>
-        <div class="info-row"><div class="info-row-label">Total earned</div><div class="info-row-value"><span class="aed">${(m.balance + (m.tier === 'ambassador' ? 500 : m.tier === 'supporter' ? 200 : 0)).toLocaleString()}</span></div></div>
-        <div class="info-row"><div class="info-row-label">Total paid out</div><div class="info-row-value"><span class="aed">${m.tier === 'ambassador' ? 500 : m.tier === 'supporter' ? 200 : 0}</span></div></div>
+        <div class="info-row"><div class="info-row-label">Current balance</div><div class="info-row-value" style="color:var(--yellow); font-weight:800;" id="dm-earn-balance"><span class="aed">${m.balance.toLocaleString()}</span></div></div>
+        <div class="info-row"><div class="info-row-label">Total earned (credits in)</div><div class="info-row-value" id="dm-earn-in">…</div></div>
+        <div class="info-row"><div class="info-row-label">Total paid out</div><div class="info-row-value" id="dm-earn-paid">…</div></div>
+        <div class="info-row"><div class="info-row-label">Pending payouts</div><div class="info-row-value" id="dm-earn-pending">…</div></div>
         <div style="margin-top:14px;">
           <button class="btn btn-outline btn-sm" onclick="showToast('Manual balance adjustment modal — coming')"><span class="material-icons">edit</span>Adjust balance</button>
         </div>
       </div>
-      
+
       <div class="drawer-pane" data-dtab="referrals">
-        <div style="font-size:13px; margin-bottom:14px;">
-          <strong>${sampleReferrals}</strong> successful referrals · Earned <strong class="text-yellow aed">${sampleReferrals * (m.tier === 'ambassador' ? 100 : m.tier === 'supporter' ? 50 : 25)}</strong>
-        </div>
-        ${sampleReferrals === 0 ? `<div class="drawer-empty"><span class="material-icons">group_add</span>No referrals yet</div>` : `<div class="drawer-empty"><span class="material-icons">group_add</span>Referral list wires to Supabase</div>`}
+        <div id="dm-ref-pane"><div class="drawer-empty"><span class="material-icons">hourglass_empty</span>Loading referrals…</div></div>
       </div>
     `;
     
@@ -3484,10 +3481,86 @@ const Drawer = {
         ? `<button class="btn btn-danger" onclick="Drawer.suspendMember('${m.id}')">Suspend</button>`
         : `<button class="btn btn-primary" onclick="Drawer.unsuspendMember('${m.id}')">Reactivate</button>`}
     `;
-    
+
     this.open();
+    this.loadMemberDetail(m.id);
   },
-  
+
+  // Pulls REAL per-member data (claims, referrals, earnings, activity, signup method) from
+  // admin_member_detail() and fills the drawer tabs. Replaces the old tier-derived fake numbers.
+  async loadMemberDetail(id) {
+    const setText = (elId, val) => { const e = document.getElementById(elId); if (e) e.textContent = val; };
+    const setHtml = (elId, val) => { const e = document.getElementById(elId); if (e) e.innerHTML = val; };
+    const aed = n => '<span class="aed">' + Number(n || 0).toLocaleString() + '</span>';
+    const fmtDate = s => { try { return new Date(s).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); } catch (e) { return ''; } };
+    if (!window.supabase) return;
+    let d = null;
+    try {
+      const res = await window.supabase.rpc('admin_member_detail', { p_member: id });
+      if (res.error) throw res.error;
+      d = res.data;
+    } catch (e) { console.error('[Drawer] member detail:', e); }
+    // guard: drawer may have been closed / switched to another member while loading
+    if (!this.current || this.current.kind !== 'member' || this.current.data.id !== id) return;
+    if (!d || d.error) {
+      setText('dm-signup', 'Unknown');
+      setHtml('dm-claims-pane', '<div class="drawer-empty"><span class="material-icons">error_outline</span>Couldn\'t load claims</div>');
+      setHtml('dm-ref-pane', '<div class="drawer-empty"><span class="material-icons">error_outline</span>Couldn\'t load referrals</div>');
+      return;
+    }
+
+    // ── Signup method ──
+    const su = d.signup || {};
+    let signupLabel;
+    if (su.method === 'referral') signupLabel = 'Referral' + (su.referred_by_name ? ' — invited by ' + escHtml(su.referred_by_name) : '');
+    else if (su.method === 'paid') signupLabel = 'Paid signup (Stripe)' + (su.plan ? ' · ' + escHtml(su.plan) : '');
+    else if (su.method === 'access_code') signupLabel = 'Access code';
+    else signupLabel = 'Direct signup (email)';
+    if (su.paid && su.method !== 'paid') signupLabel += ' · paid';
+    setHtml('dm-signup', signupLabel);
+
+    // ── Tab counts ──
+    const cl = d.claims || {}, rf = d.referrals || {}, ea = d.earnings || {}, ac = d.activity || {};
+    setText('dm-tab-claims', cl.count || 0);
+    setText('dm-tab-referrals', rf.count || 0);
+
+    // ── Activity ──
+    setText('dm-act-claims', cl.count || 0);
+    setText('dm-act-events', ac.events || 0);
+    setText('dm-act-workouts', ac.workouts || 0);
+
+    // ── Earnings ──
+    setHtml('dm-earn-balance', aed(ea.balance_aed));
+    setHtml('dm-earn-in', aed(ea.total_in));
+    setHtml('dm-earn-paid', aed(ea.total_paid_out));
+    setText('dm-earn-pending', (ea.payouts_pending || 0) + (ea.payouts_pending === 1 ? ' request' : ' requests'));
+
+    // ── Claims list ──
+    const claims = cl.recent || [];
+    setHtml('dm-claims-pane', claims.length
+      ? claims.map(c => `
+          <div class="info-row">
+            <div class="info-row-label">${escHtml(c.deal_title || 'Deal')}${c.provider ? ' · ' + escHtml(c.provider) : ''}</div>
+            <div class="info-row-value"><span class="pill pill-${c.status === 'verified' ? 'live' : 'member'}">${escHtml(c.status || 'claimed')}</span> <span style="color:var(--muted); font-size:11px;">${fmtDate(c.created_at)}</span></div>
+          </div>`).join('')
+      : '<div class="drawer-empty"><span class="material-icons">local_offer</span>No deals claimed yet</div>');
+
+    // ── Referrals list ──
+    const refs = rf.recent || [];
+    setHtml('dm-ref-pane', `
+      <div style="font-size:13px; margin-bottom:14px;">
+        <strong>${rf.count || 0}</strong> referral${(rf.count === 1 ? '' : 's')} · <strong>${rf.paid || 0}</strong> paid · Earned <strong class="text-yellow">${aed(rf.earned_aed)}</strong>
+      </div>
+      ${refs.length
+        ? refs.map(r => `
+            <div class="info-row">
+              <div class="info-row-label">${escHtml(r.who || 'Invited friend')}</div>
+              <div class="info-row-value"><span class="pill pill-${r.status === 'paid' ? 'live' : 'member'}">${escHtml(r.status || 'pending')}</span> ${r.reward_aed ? aed(r.reward_aed) : ''}</div>
+            </div>`).join('')
+        : '<div class="drawer-empty"><span class="material-icons">group_add</span>No referrals yet</div>'}
+    `);
+  },
+
   editField(fieldName) {
     showToast(`Inline edit for "${fieldName}" — opens edit form`);
     // PRODUCTION: open inline editor or modal; on save, update Supabase row + audit log
