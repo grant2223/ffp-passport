@@ -4,6 +4,8 @@
 # During active development we want every push to land on every device
 # the next time the user opens the page.
 
+/manifest.webmanifest
+  Content-Type: application/manifest+json
 /*
   Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0
   Pragma: no-cache
