@@ -1,6 +1,13 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-  FFP PASSPORT — login.html v16
+  FFP PASSPORT — login.html v17
+  v17 (2026-06-09): LOGIN UX — (1) STAY SIGNED IN: an already-signed-in member hitting /login is now sent
+  straight to their dashboard (handleAuthRedirect off the stored member); they no longer see a login page and
+  assume they're logged out. Escape hatches: ?switch=1 / #switch and the provider ?verified/?verify flows.
+  (Session itself was already durable: 365-day refresh token in localStorage, rotated on every boot.)
+  (2) WRONG CODE: verifyCode now shows "That code didn't work. Check it and try again — or request a new code
+  below." (+ clears the field), instead of a raw backend error. (3) ENTER KEY: pressing Enter/Go on the email
+  fields submits requestCode, and on the code fields submits verifyCode (signin + signup), with enterkeyhint=go.
   v16 (2026-06-08): 7-DAY FREE TRIAL. Signup screen now leads with a "7 days free · then $X" badge; the CTA
   reads "Start My 7-Day Free Trial" and the Stripe subtext is "Free for 7 days, then billed via Stripe ·
   cancel anytime." (Checkout creates the subscription with trial_period_days:7; card captured upfront,
@@ -191,7 +198,7 @@ Back
 <div class="screen-sub">Enter your email address to receive your 6-digit code.</div>
 <div class="field">
 <div class="field-label">Email Address</div>
-<input class="field-input" type="email" id="signin-email" placeholder="you@email.com" autocomplete="email">
+<input class="field-input" type="email" id="signin-email" placeholder="you@email.com" autocomplete="email" enterkeyhint="go" onkeydown="if(event.key==='Enter'){event.preventDefault();requestCode('signin');}">
 </div>
 <button class="btn-primary" id="signin-email-btn" onclick="requestCode('signin')">Get My Code</button>
 <div class="error-msg" id="signin-email-err"></div>
@@ -208,7 +215,7 @@ Back
 <div class="screen-title">Enter Your Code</div>
 <div class="screen-sub" id="signin-code-sub">Enter the 6-digit code for <strong id="signin-code-email"></strong>. This is the code you received when you signed up.</div>
 <div class="code-wrap" id="signin-code-wrap">
-<input class="code-digit" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" aria-label="6-digit code" placeholder="••••••">
+<input class="code-digit" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" aria-label="6-digit code" placeholder="••••••" enterkeyhint="go" onkeydown="if(event.key==='Enter'){event.preventDefault();verifyCode('signin');}">
 </div>
 <label id="keep-signed-in-row" style="display:flex;align-items:center;gap:9px;margin:4px 2px 14px;font-size:13px;color:#cdd7e0;cursor:pointer;user-select:none;">
   <input type="checkbox" id="keep-signed-in" checked style="width:17px;height:17px;accent-color:#2ba8e0;cursor:pointer;flex-shrink:0;">
@@ -343,7 +350,7 @@ Back
 <div class="screen-title">Check Your Email</div>
 <div class="screen-sub">We sent a 6-digit code to <strong id="signup-code-email"></strong>. This is your permanent access code &mdash; save it somewhere safe.</div>
 <div class="code-wrap">
-<input class="code-digit" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" aria-label="6-digit code" placeholder="••••••">
+<input class="code-digit" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" aria-label="6-digit code" placeholder="••••••" enterkeyhint="go" onkeydown="if(event.key==='Enter'){event.preventDefault();verifyCode('signup');}">
 </div>
 <button class="btn-primary green" id="signup-code-btn" onclick="verifyCode('signup')">Confirm &amp; Enter</button>
 <div class="error-msg" id="signup-code-err"></div>
@@ -359,7 +366,7 @@ Back
 <div class="screen-sub">Enter your email and we&rsquo;ll send you a new 6-digit code. Your old code will stop working immediately.</div>
 <div class="field">
 <div class="field-label">Email Address</div>
-<input class="field-input" type="email" id="reset-email" placeholder="you@email.com">
+<input class="field-input" type="email" id="reset-email" placeholder="you@email.com" enterkeyhint="go" onkeydown="if(event.key==='Enter'){event.preventDefault();requestCode('reset');}">
 </div>
 <button class="btn-primary" onclick="requestCode('reset')">Send New Code</button>
 <div class="error-msg" id="reset-err"></div>
@@ -565,9 +572,12 @@ async function verifyCode(flow) {
   try {
     var res = await FFPApi.verifyCode(email, code, flow);
     if (res && res.error) {
-      showError(errId, res.error);
+      // Friendly, action-oriented message — the typical cause is a wrong/expired code. Point them to retry
+      // or to the "get a new code" link already shown below, rather than surfacing a raw backend error.
+      showError(errId, 'That code didn’t work. Check it and try again — or request a new code below.');
       digits.forEach(function (d) { d.style.borderColor = '#ef4444'; });
       setTimeout(function () { digits.forEach(function (d) { d.style.borderColor = ''; }); }, 800);
+      var _ci = digits[0]; if (_ci) { _ci.value = ''; _ci.focus(); }   // clear so they can retype cleanly
       return;
     }
     handleAuthRedirect(res);
@@ -596,6 +606,19 @@ function movePrev(e, el, flow) {
 // NEW IN THIS VERSION: route to signup screen if URL has #signup hash
 // (so the landing page Become A Member CTA lands directly on the signup view)
 document.addEventListener('DOMContentLoaded', function () {
+  // ALREADY SIGNED IN → skip the login screen and go straight to the app. The session (member + 365-day
+  // refresh token) persists in localStorage, so a returning member shouldn't be shown a login page and
+  // assume they've been logged out. Escape hatches: ?switch=1 / #switch (switch accounts) and the provider
+  // ?verified / ?verify flows (sign in fresh). Signing out from the app clears FFPAuth, so this won't fire.
+  try {
+    var _qs = new URLSearchParams(window.location.search);
+    var _skip = _qs.get('switch') === '1' || _qs.get('verified') || _qs.get('verify') || window.location.hash === '#switch';
+    var _existing = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null;
+    if (_existing && _existing.id && !_skip && typeof handleAuthRedirect === 'function') {
+      handleAuthRedirect({ member: _existing });
+      return;
+    }
+  } catch (e) {}
   if (window.location.hash === '#signup') {
     goToSignUp();
   }
