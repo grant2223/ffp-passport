@@ -522,7 +522,12 @@ var FitnessStats = {
       { icon: 'calendar_today', value: activeDays,   label: 'Active days' },
       { icon: 'sports',         value: sportsCount,  label: 'Sports' }
     ];
-    document.getElementById('stats-tiles').innerHTML = tiles.map(t => `
+    // v307 (fix): the Activity tab no longer has a #stats-tiles element (it uses streak-card +
+    // fs-breakdown + fs-recent, rendered by the loader). This base fallback now runs at boot because
+    // Activity is the default tab, so guard the missing node — an unguarded null.innerHTML here threw
+    // and blanked the whole Fitness Stats panel. The loader's renderActivity override is the real one.
+    var _stTiles = document.getElementById('stats-tiles');
+    if (_stTiles) _stTiles.innerHTML = tiles.map(t => `
       <div class="stats-tile">
         <div class="stats-tile-icon"><span class="material-icons">${t.icon}</span></div>
         <div class="stats-tile-value">${t.value}</div>
