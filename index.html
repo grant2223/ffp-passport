@@ -2,8 +2,13 @@
 <!--
   ============================================================
   FFP PASSPORT HOMEPAGE — index.html
-  Version: v12
-  Date: 2026-06-08
+  Version: v13
+  Date: 2026-06-09
+  Changes from v12:
+    - Fitness Stats card image now points at the Supabase site-images bucket
+      (site-images/fitness-stats-preview.jpg) instead of assets/ocr-racer.jpg —
+      shows the actual app screens. Upload the file to that bucket/name to light
+      it up. New public bucket "site-images" for homepage/marketing art.
   Changes from v11:
     - 7-DAY FREE TRIAL messaging. Nav CTA → "Start Free Trial"; hero CTA →
       "Start Your 7-Day Free Trial" with sub "7 days free · then $20/mo or
@@ -480,7 +485,7 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
       </div>
 
       <div class="way-card">
-        <div class="way-img"><img src="assets/ocr-racer.jpg" alt="Fitness Stats"></div>
+        <div class="way-img"><img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/fitness-stats-preview.jpg" alt="FFP Passport Fitness Stats screens" loading="lazy"></div>
         <div class="way-body">
           <div class="way-step">05 &mdash; Track together</div>
           <div class="way-title">Fitness Stats</div>
