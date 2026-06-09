@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v347 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v348 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+     v348: PUSH NOTIFICATIONS — "Phone notifications" card in Profile. Opt-in via window.FFPPush
+           (ffp-pwa.js?v=3): requests permission, subscribes, POSTs to backend /api/push/subscribe. States:
+           Turn on / Turn off / Blocked / (iOS) add-to-home-screen-first. Backend v83 sends pushes (welcome
+           on subscribe, admin broadcast, /api/push/test); sw.js v2 shows them + handles taps. Needs VAPID
+           env vars in Vercel.
      v347: PROFILE — "Add FFP Passport to your home screen" card at the top of Profile. Delegates to the PWA
            helper (ffp-pwa.js?v=2 now exposes window.FFPInstall): Android fires the native install prompt,
            iOS shows the Share→Add-to-Home-Screen hint, desktop shows a "open on your phone" note; the card
@@ -63,7 +68,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="FFP Passport">
-<script defer src="assets/ffp-pwa.js?v=2"></script>
+<script defer src="assets/ffp-pwa.js?v=3"></script>
 <script>
 /* QR deep-link capture — MUST run before the auth gate. A phone-camera scan of a venue QR
    lands here as ?venue=<id>; if the visitor isn't signed in, the auth module redirects to
@@ -4779,6 +4784,16 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         <div id="profile-install-sub" style="font-size:11px;color:var(--muted,#9fb4c4);margin-top:2px;line-height:1.4;">Opens full-screen &middot; stay signed in</div>
       </div>
       <button id="profile-install-btn" onclick="ffpProfileInstall()" style="flex:0 0 auto;background:#1980AD;color:#fff;border:none;border-radius:9px;padding:9px 15px;font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;">Add</button>
+    </div>
+    <!-- Phone notifications (Web Push). Visible where supported; behaviour via window.FFPPush (ffp-pwa.js);
+         ffpRefreshNotifyRow() sets visibility + label. iOS requires the installed PWA first. -->
+    <div id="profile-notify-card" style="display:none;align-items:center;gap:12px;background:var(--bg-2,#0f1e2e);border:1px solid rgba(43,168,224,0.25);border-radius:14px;padding:13px 14px;margin-bottom:18px;">
+      <div style="width:44px;height:44px;border-radius:11px;flex:0 0 auto;background:rgba(43,168,224,0.15);display:flex;align-items:center;justify-content:center;color:var(--blue,#2ba8e0);"><span class="material-icons">notifications_active</span></div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:800;color:var(--text,#e8eef4);">Phone notifications</div>
+        <div id="profile-notify-sub" style="font-size:11px;color:var(--muted,#9fb4c4);margin-top:2px;line-height:1.4;">Get alerts for meet-ups, quests, challenges and more</div>
+      </div>
+      <button id="profile-notify-btn" onclick="ffpToggleNotifications()" style="flex:0 0 auto;background:#1980AD;color:#fff;border:none;border-radius:9px;padding:9px 15px;font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;">Turn on</button>
     </div>
     <div id="profile-body"><!-- rendered by renderProfile() --></div>
   </div>
@@ -10930,6 +10945,53 @@ window.ffpRefreshInstallRow = function () {
   else if (st === 'ios')     { if (sub) sub.textContent = 'Tap for how — Share → Add to Home Screen'; if (btn) btn.textContent = 'How'; }
   else                       { if (sub) sub.textContent = 'Open ffppassport.com on your phone to add it'; if (btn) btn.textContent = 'How'; }
 };
+// Profile "Phone notifications" toggle — delegates to window.FFPPush (ffp-pwa.js).
+window.ffpRefreshNotifyRow = function () {
+  var card = document.getElementById('profile-notify-card');
+  if (!card || !window.FFPPush) return;
+  window.FFPPush.status().then(function (st) {
+    var sub = document.getElementById('profile-notify-sub');
+    var btn = document.getElementById('profile-notify-btn');
+    if (st === 'unsupported') { card.style.display = 'none'; return; }
+    card.style.display = 'flex';
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+    if (st === 'subscribed') {
+      if (sub) sub.textContent = 'On — you will get alerts on this device';
+      if (btn) { btn.textContent = 'Turn off'; btn.style.background = 'transparent'; btn.style.border = '1px solid rgba(43,168,224,0.4)'; btn.style.color = '#9fb4c4'; }
+    } else if (st === 'denied') {
+      if (sub) sub.textContent = 'Blocked — turn notifications on for this site in your phone settings';
+      if (btn) { btn.textContent = 'Blocked'; btn.disabled = true; btn.style.opacity = '0.6'; }
+    } else if (st === 'ios-needs-install') {
+      if (sub) sub.textContent = 'Add FFP Passport to your home screen first, then turn this on';
+      if (btn) { btn.textContent = 'How'; btn.style.background = '#1980AD'; btn.style.border = 'none'; btn.style.color = '#fff'; }
+    } else {
+      if (sub) sub.textContent = 'Get alerts for meet-ups, quests, challenges and more';
+      if (btn) { btn.textContent = 'Turn on'; btn.style.background = '#1980AD'; btn.style.border = 'none'; btn.style.color = '#fff'; }
+    }
+  });
+};
+function ffpToggleNotifications() {
+  if (!window.FFPPush) return;
+  window.FFPPush.status().then(function (st) {
+    if (st === 'ios-needs-install') { if (window.FFPInstall) window.FFPInstall.prompt(); return; }
+    if (st === 'subscribed') {
+      window.FFPPush.disable().then(function () {
+        if (typeof showToast === 'function') showToast('Notifications turned off', 'success');
+        window.ffpRefreshNotifyRow();
+      });
+      return;
+    }
+    var m = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null;
+    if (!m || !m.id) { if (typeof showToast === 'function') showToast('Please sign in again', 'error'); return; }
+    var btn = document.getElementById('profile-notify-btn'); if (btn) { btn.disabled = true; btn.textContent = '…'; }
+    window.FFPPush.enable(m.id).then(function (res) {
+      if (res && res.ok) { if (typeof showToast === 'function') showToast('Notifications on — check your phone', 'success'); }
+      else if (res && res.error === 'denied') { if (typeof showToast === 'function') showToast('You blocked notifications — enable them in phone settings', 'error'); }
+      else { if (typeof showToast === 'function') showToast('Could not enable notifications, please try again', 'error'); }
+      window.ffpRefreshNotifyRow();
+    });
+  });
+}
 function openLogModal() {
   document.getElementById('log-modal-backdrop').classList.add('open');
   // Reset to INSERT mode (clears any prior edit state + restores title/button). openLogModalForEdit re-applies
@@ -11444,6 +11506,7 @@ function init() {
   try { setupTopbar(); } catch (e) { console.warn('[FFP boot] setupTopbar', e); }   // notifications + profile menu
   try { setupPanelNav(); } catch (e) { console.warn('[FFP boot] setupPanelNav', e); }
   try { if (window.ffpRefreshInstallRow) window.ffpRefreshInstallRow(); } catch (e) {}   // Profile "Add to home screen" row
+  try { if (window.ffpRefreshNotifyRow) window.ffpRefreshNotifyRow(); } catch (e) {}    // Profile "Phone notifications" row
   MemberProfile.render();
   WorkoutTimer.init();
   if (window.CalorieTracker) CalorieTracker.init();  // v316: guarded — core is an external deferred file
