@@ -1,4 +1,4 @@
-/* FFP Passport — PWA install helper
+/* FFP Passport - PWA install helper
    (1) Registers the service worker. (2) Auto-shows a tasteful "Install the app" banner on mobile (Android =
    native beforeinstallprompt; iOS Safari = Share -> Add to Home Screen hint), hidden once installed or for
    14 days after dismissal. (3) Exposes window.FFPInstall so an explicit button (e.g. in Profile) can trigger
@@ -67,7 +67,7 @@
 
   function androidBannerHTML() {
     return '<div style="font-size:14px;font-weight:800;letter-spacing:-.1px;">Install FFP Passport</div>' +
-      '<div style="font-size:12px;color:#9fb4c4;margin-top:2px;line-height:1.4;">Add it to your home screen — opens full-screen and keeps you signed in.</div>' +
+      '<div style="font-size:12px;color:#9fb4c4;margin-top:2px;line-height:1.4;">Add it to your home screen - opens full-screen and keeps you signed in.</div>' +
       '<button id="ffp-pwa-install" style="margin-top:10px;background:#1980AD;color:#fff;border:none;border-radius:9px;padding:9px 16px;font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;">Install</button>';
   }
   function iosHelp() {
@@ -118,6 +118,72 @@
       if (deferredPrompt) { doInstall(); return 'android'; }
       if (isIOS) { iosHelp(); return 'ios'; }
       genericHelp(); return 'unavailable';
+    }
+  };
+
+  // ── WEB PUSH ──────────────────────────────────────────────────────────────────────────────
+  // Opt-in phone notifications. The Profile toggle calls window.FFPPush. The VAPID public key is public by
+  // design; the matching private key lives only in the backend (Vercel env).
+  var VAPID_PUBLIC = 'BPx1WNwnR2fXuLgS6LFvUSRsT7Xhm-PkSyhROdfkzCOQImwKXiLk0R15Q8WWANEyeiGGQL2gy87QTzm2EU4bgE4';
+  var PUSH_API = 'https://ffp-passport-backend.vercel.app';
+  function urlB64ToUint8(b64) {
+    var pad = '='.repeat((4 - (b64.length % 4)) % 4);
+    var base64 = (b64 + pad).replace(/-/g, '+').replace(/_/g, '/');
+    var raw = atob(base64), out = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+    return out;
+  }
+  function pushSupported() { return ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window); }
+  function swReady() { return ('serviceWorker' in navigator) ? navigator.serviceWorker.ready : Promise.resolve(null); }
+
+  window.FFPPush = {
+    supported: pushSupported,
+    // 'subscribed' | 'default' (can turn on) | 'denied' | 'ios-needs-install' | 'unsupported'
+    status: function () {
+      if (isIOS && !isStandalone() && !pushSupported()) return Promise.resolve('ios-needs-install');
+      if (!pushSupported()) return Promise.resolve('unsupported');
+      if (Notification.permission === 'denied') return Promise.resolve('denied');
+      return swReady().then(function (reg) {
+        if (!reg) return 'default';
+        return reg.pushManager.getSubscription().then(function (sub) {
+          return (sub && Notification.permission === 'granted') ? 'subscribed' : 'default';
+        });
+      }).catch(function () { return 'default'; });
+    },
+    enable: function (memberId) {
+      if (!memberId) return Promise.resolve({ ok: false, error: 'not signed in' });
+      if (isIOS && !isStandalone()) return Promise.resolve({ ok: false, error: 'ios-needs-install' });
+      if (!pushSupported()) return Promise.resolve({ ok: false, error: 'unsupported' });
+      return Notification.requestPermission().then(function (perm) {
+        if (perm !== 'granted') return { ok: false, error: perm };
+        return swReady().then(function (reg) {
+          return reg.pushManager.getSubscription().then(function (sub) {
+            return sub || reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8(VAPID_PUBLIC) });
+          });
+        }).then(function (sub) {
+          return fetch(PUSH_API + '/api/push/subscribe', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ member_id: memberId, subscription: sub.toJSON(), user_agent: navigator.userAgent })
+          }).then(function (r) { return r.json(); }).then(function (j) { return { ok: !!(j && j.success), data: j }; });
+        });
+      }).catch(function (e) { return { ok: false, error: e.message }; });
+    },
+    disable: function () {
+      return swReady().then(function (reg) {
+        if (!reg) return { ok: true };
+        return reg.pushManager.getSubscription().then(function (sub) {
+          if (!sub) return { ok: true };
+          var ep = sub.endpoint;
+          return sub.unsubscribe().then(function () {
+            return fetch(PUSH_API + '/api/push/unsubscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: ep }) });
+          }).then(function () { return { ok: true }; });
+        });
+      }).catch(function (e) { return { ok: false, error: e.message }; });
+    },
+    test: function (memberId) {
+      if (!memberId) return Promise.resolve({ ok: false });
+      return fetch(PUSH_API + '/api/push/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ member_id: memberId }) })
+        .then(function (r) { return r.json(); }).catch(function (e) { return { ok: false, error: e.message }; });
     }
   };
 })();
