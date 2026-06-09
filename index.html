@@ -2,8 +2,14 @@
 <!--
   ============================================================
   FFP PASSPORT HOMEPAGE — index.html
-  Version: v11
+  Version: v12
   Date: 2026-06-08
+  Changes from v11:
+    - 7-DAY FREE TRIAL messaging. Nav CTA → "Start Free Trial"; hero CTA →
+      "Start Your 7-Day Free Trial" with sub "7 days free · then $20/mo or
+      $149/yr"; pricing card + final banner CTAs → "Start My/Your 7-Day Free
+      Trial"; fine print now leads with "Free for 7 days, then billed · cancel
+      anytime". (Backend v82 starts every subscription with trial_period_days:7.)
   Changes from v10:
     - Removed the "Apply for multi-day Experiences and overseas travel" benefit
       from the pricing list (Experiences + overseas travel now live on
@@ -387,7 +393,7 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
   </a>
   <div class="nav-right">
     <a href="/login" class="nav-link">Log In</a>
-    <a href="/login#signup" class="nav-cta">Become A Member</a>
+    <a href="/login#signup" class="nav-cta">Start Free Trial</a>
   </div>
 </nav>
 
@@ -405,9 +411,9 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
         <div class="hero-price-row">
           <div class="hero-price">$20<span style="font-size:0.4em;font-weight:700;color:#9dbdd0;letter-spacing:0;"> / month</span></div>
         </div>
-        <div class="hero-price-sub">Cancel anytime &middot; or $149 / year</div>
-        <a href="/login#signup" class="hero-cta">Secure Your 2026 Passport</a>
-        <div class="hero-fine">Secure checkout via Stripe &middot; Access code emailed instantly</div>
+        <div class="hero-price-sub">7 days free &middot; then $20/mo or $149/yr</div>
+        <a href="/login#signup" class="hero-cta">Start Your 7-Day Free Trial</a>
+        <div class="hero-fine">Free for 7 days, then billed &middot; cancel anytime &middot; secure checkout via Stripe</div>
       </div>
     </div>
   </div>
@@ -768,7 +774,7 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
       <div class="price-card-head">
         <div class="price-card-eyebrow">2026 FFP Passport</div>
         <div class="price-amount">$20<span style="font-size:0.45em;font-weight:700;color:#9dbdd0;"> / month</span></div>
-        <div class="price-sub">or $149 / year &middot; cancel anytime</div>
+        <div class="price-sub">Start with 7 days free &middot; or $149 / year</div>
       </div>
       <ul class="benefits">
         <li><span class="material-icons">check_circle</span><span>Matching with verified members in your city &mdash; <b>by sport, level, age and area</b></span></li>
@@ -782,8 +788,8 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
         <li><span class="material-icons">check_circle</span><span><b>Ambassador programme</b> &mdash; earn up to 20% per referral</span></li>
         <li><span class="material-icons">check_circle</span><span><b>Invitations</b> to product launches and brand events</span></li>
       </ul>
-      <a href="/login#signup" class="price-cta">Become A Member</a>
-      <div class="price-fine">Secure checkout via Stripe &middot; Access code emailed instantly &middot; 2027 renewal at then-current rate</div>
+      <a href="/login#signup" class="price-cta">Start My 7-Day Free Trial</a>
+      <div class="price-fine">Free for 7 days, then billed &middot; cancel anytime &middot; access code emailed instantly &middot; renews at then-current rate</div>
     </div>
   </div>
 </section>
@@ -807,7 +813,7 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
     <div class="final-banner-content">
       <h2>Active life is<br>better together.</h2>
       <p>Join the community. Move more.</p>
-      <a href="/login#signup" class="price-cta">Become A Member</a>
+      <a href="/login#signup" class="price-cta">Start Your 7-Day Free Trial</a>
     </div>
   </div>
 </div>
@@ -825,7 +831,7 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
       <div class="footer-col">
         <h4>Platform</h4>
         <ul>
-          <li><a href="/login#signup">Become A Member</a></li>
+          <li><a href="/login#signup">Start Free Trial</a></li>
           <li><a href="/login">Log In</a></li>
           <li><a href="/partner">Become A Partner</a></li>
           <li><a href="#how">How It Works</a></li>
