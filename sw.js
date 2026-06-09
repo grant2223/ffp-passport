@@ -42,3 +42,35 @@ self.addEventListener('fetch', function (event) {
     );
   }
 });
+
+/* ── WEB PUSH (v2) ─────────────────────────────────────────────────────────────────────────────
+   Show a notification when the backend sends a push, and focus/open the app when it's tapped. The
+   payload is JSON: { title, body, url, icon }. Works even when the app is fully closed. */
+self.addEventListener('push', function (event) {
+  var data = {};
+  try { data = event.data ? event.data.json() : {}; }
+  catch (e) { try { data = { body: event.data && event.data.text() }; } catch (e2) {} }
+  var title = data.title || 'FFP Passport';
+  var options = {
+    body: data.body || '',
+    icon: data.icon || '/assets/icons/ffp-icon-192.png',
+    badge: '/assets/icons/ffp-favicon-32.png',
+    data: { url: data.url || '/ffp-member-dashboard.html' }
+  };
+  if (data.tag) { options.tag = data.tag; options.renotify = true; }
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', function (event) {
+  event.notification.close();
+  var url = (event.notification.data && event.notification.data.url) || '/ffp-member-dashboard.html';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (list) {
+      for (var i = 0; i < list.length; i++) {
+        var c = list[i];
+        if ('focus' in c) { try { c.navigate(url); } catch (e) {} return c.focus(); }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
+    })
+  );
+});
