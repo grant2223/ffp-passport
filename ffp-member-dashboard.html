@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v346 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v347 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+     v347: PROFILE — "Add FFP Passport to your home screen" card at the top of Profile. Delegates to the PWA
+           helper (ffp-pwa.js?v=2 now exposes window.FFPInstall): Android fires the native install prompt,
+           iOS shows the Share→Add-to-Home-Screen hint, desktop shows a "open on your phone" note; the card
+           hides entirely once installed (standalone). ffpRefreshInstallRow() sets visibility/label at boot
+           and when beforeinstallprompt/appinstalled fire.
      v346: BOOT RESILIENCE — the notification bell + profile menu went dead whenever a pre-topbar render call
            (syncToPassport / applyPassportData / renderQR / refreshMemberFromServer) threw, because the flat
            boot sequence halted before setupTopbar() ran. Each boot call is now wrapped in try/catch so the
@@ -58,7 +63,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="FFP Passport">
-<script defer src="assets/ffp-pwa.js?v=1"></script>
+<script defer src="assets/ffp-pwa.js?v=2"></script>
 <script>
 /* QR deep-link capture — MUST run before the auth gate. A phone-camera scan of a venue QR
    lands here as ?venue=<id>; if the visitor isn't signed in, the auth module redirects to
@@ -4764,6 +4769,17 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
   <div id="panel-profile" class="panel-view">
     <h2 style="margin-bottom: 4px;">Profile</h2>
     <div style="font-size: 13px; color: var(--muted); margin-bottom: 20px;">Your member info, sports and preferences.</div>
+    <!-- Add-to-home-screen (PWA). Shown only where installable; hidden once installed (standalone) or on
+         desktop. State + behaviour handled by window.FFPInstall (assets/ffp-pwa.js); ffpRefreshInstallRow()
+         sets visibility + label. -->
+    <div id="profile-install-card" style="display:none;align-items:center;gap:12px;background:var(--bg-2,#0f1e2e);border:1px solid rgba(43,168,224,0.25);border-radius:14px;padding:13px 14px;margin-bottom:18px;">
+      <img src="/assets/icons/ffp-icon-192.png" alt="" width="44" height="44" style="border-radius:11px;flex:0 0 auto;background:#fff;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:800;color:var(--text,#e8eef4);">Add FFP Passport to your home screen</div>
+        <div id="profile-install-sub" style="font-size:11px;color:var(--muted,#9fb4c4);margin-top:2px;line-height:1.4;">Opens full-screen &middot; stay signed in</div>
+      </div>
+      <button id="profile-install-btn" onclick="ffpProfileInstall()" style="flex:0 0 auto;background:#1980AD;color:#fff;border:none;border-radius:9px;padding:9px 15px;font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;">Add</button>
+    </div>
     <div id="profile-body"><!-- rendered by renderProfile() --></div>
   </div>
 
@@ -10900,6 +10916,20 @@ async function ffpLogUseGPS() {
     if (typeof showToast === 'function') showToast('Location access off — pick it manually', 'error');
   }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
 }
+// Profile "Add to home screen" — delegates to the PWA helper (window.FFPInstall in ffp-pwa.js).
+function ffpProfileInstall() { if (window.FFPInstall && window.FFPInstall.prompt) window.FFPInstall.prompt(); }
+window.ffpRefreshInstallRow = function () {
+  var card = document.getElementById('profile-install-card');
+  if (!card) return;
+  var st = (window.FFPInstall && window.FFPInstall.status) ? window.FFPInstall.status() : 'unavailable';
+  if (st === 'installed') { card.style.display = 'none'; return; }   // already on the home screen → no nag
+  card.style.display = 'flex';
+  var sub = document.getElementById('profile-install-sub');
+  var btn = document.getElementById('profile-install-btn');
+  if (st === 'android')      { if (sub) sub.textContent = 'Opens full-screen · stay signed in'; if (btn) btn.textContent = 'Add'; }
+  else if (st === 'ios')     { if (sub) sub.textContent = 'Tap for how — Share → Add to Home Screen'; if (btn) btn.textContent = 'How'; }
+  else                       { if (sub) sub.textContent = 'Open ffppassport.com on your phone to add it'; if (btn) btn.textContent = 'How'; }
+};
 function openLogModal() {
   document.getElementById('log-modal-backdrop').classList.add('open');
   // Reset to INSERT mode (clears any prior edit state + restores title/button). openLogModalForEdit re-applies
@@ -11413,6 +11443,7 @@ function init() {
   try { refreshMemberFromServer(); } catch (e) { console.warn('[FFP boot] refreshMemberFromServer', e); }
   try { setupTopbar(); } catch (e) { console.warn('[FFP boot] setupTopbar', e); }   // notifications + profile menu
   try { setupPanelNav(); } catch (e) { console.warn('[FFP boot] setupPanelNav', e); }
+  try { if (window.ffpRefreshInstallRow) window.ffpRefreshInstallRow(); } catch (e) {}   // Profile "Add to home screen" row
   MemberProfile.render();
   WorkoutTimer.init();
   if (window.CalorieTracker) CalorieTracker.init();  // v316: guarded — core is an external deferred file
