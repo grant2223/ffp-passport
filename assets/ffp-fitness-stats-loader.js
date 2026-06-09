@@ -1112,10 +1112,13 @@
     if (l.calories) chips.push('<span style="' + chipCss + '">' + l.calories + ' kcal</span>');
     if (l.avg_heart_rate != null && !isNaN(l.avg_heart_rate) && l.avg_heart_rate > 0) chips.push('<span style="' + chipCss + '">' + l.avg_heart_rate + ' bpm</span>');
     if (l.city) chips.push('<span style="' + chipCss + '">' + escText(l.city) + '</span>');
+    var editBtn = l.id ? ('<button type="button" onclick="window.ffpEditActivity&&window.ffpEditActivity(\'' + l.id + '\')" title="Edit activity" aria-label="Edit activity" style="background:none;border:none;color:var(--muted,#8a99a8);cursor:pointer;padding:2px;display:inline-flex;align-items:center;line-height:1;"><span class="material-icons" style="font-size:17px;">edit</span></button>') : '';
     return '<div style="padding:11px 0;border-top:1px solid rgba(255,255,255,0.06);">' +
-        '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">' +
           '<div style="font-size:13px;font-weight:800;color:var(--text,#e8eef4);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escText(l.activity || 'Activity') + '</div>' +
-          '<div style="font-size:11px;font-weight:700;color:var(--muted,#8a99a8);white-space:nowrap;flex:0 0 auto;">' + dateLbl + '</div>' +
+          '<div style="display:flex;align-items:center;gap:6px;flex:0 0 auto;">' +
+            '<span style="font-size:11px;font-weight:700;color:var(--muted,#8a99a8);white-space:nowrap;">' + dateLbl + '</span>' + editBtn +
+          '</div>' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;">' + chips.join('') + '</div>' +
       '</div>';
@@ -1168,6 +1171,32 @@
     var now = new Date(), cur = new Date(now.getFullYear(), now.getMonth(), 1);
     if (nx > cur) return;   // never page into the future
     _actBrowseMonth = nx; renderRecentList();
+  };
+  // Edit a logged activity — find the cached row by id and hand it to the dashboard's edit-mode modal.
+  window.ffpEditActivity = function (id) {
+    var row = null;
+    for (var i = 0; i < activityCache.length; i++) { if (String(activityCache[i].id) === String(id)) { row = activityCache[i]; break; } }
+    if (!row) return;
+    if (typeof window.openLogModalForEdit === 'function') window.openLogModalForEdit(row);
+  };
+  // Re-pull activity_logs into the cache and re-render the Activity tab (streak + breakdown + recent).
+  // Called by the modal after a successful edit so the change shows immediately.
+  window.ffpActivityReload = async function () {
+    if (!currentUserId) return;
+    try {
+      var alRes = await fetch('https://ffp-passport-backend.vercel.app/api/members/' + currentUserId + '/activity-logs');
+      var alJson = await alRes.json();
+      var rows = (alJson && alJson.logs) || [];
+      activityCache = rows.map(function (r) {
+        return { id: r.id, activity: r.activity || '', duration_min: r.duration_min || 0, duration_sec: r.duration_sec || 0, calories: r.calories || 0,
+          distance_km: (r.distance_km != null ? Number(r.distance_km) : null),
+          avg_heart_rate: (r.avg_heart_rate != null ? Number(r.avg_heart_rate) : null),
+          notes: r.notes || '',
+          city: r.city || '', country: r.country || '', logged_at: r.logged_at || null, daysAgo: daysAgoFromIso(r.logged_at) };
+      });
+      if (window.FitnessStats && typeof FitnessStats.renderActivity === 'function') FitnessStats.renderActivity();
+      else renderRecentList();
+    } catch (e) { console.error('[FFP Fitness Stats] reload:', e); }
   };
 
   function overrideRenderMilestones() {
@@ -1637,9 +1666,10 @@
           var alJson = await alRes.json();
           var rows = (alJson && alJson.logs) || [];
           activityCache = rows.map(function (r) {
-            return { activity: r.activity || '', duration_min: r.duration_min || 0, calories: r.calories || 0,
+            return { id: r.id, activity: r.activity || '', duration_min: r.duration_min || 0, duration_sec: r.duration_sec || 0, calories: r.calories || 0,
               distance_km: (r.distance_km != null ? Number(r.distance_km) : null),
               avg_heart_rate: (r.avg_heart_rate != null ? Number(r.avg_heart_rate) : null),
+              notes: r.notes || '',
               city: r.city || '', country: r.country || '', logged_at: r.logged_at || null, daysAgo: daysAgoFromIso(r.logged_at) };
           });
         } catch (e) { console.error('[FFP Fitness Stats] activity_logs read:', e); activityCache = []; }
