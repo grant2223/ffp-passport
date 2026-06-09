@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v344 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v345 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+     v345: PWA — FFP Passport is now installable to the home screen. Added manifest link, theme-color,
+           apple-touch-icon + iOS web-app meta, and assets/ffp-pwa.js (registers /sw.js + shows the install
+           banner: Android native prompt / iOS Add-to-Home-Screen hint). Icons: emblem on white in
+           assets/icons/. The service worker is conservative (caches only icons, never HTML/JS → no stale
+           deploys). Installed app keeps members signed in past iOS's 7-day storage eviction.
      v344: HOTFIX — Fitness Stats panel blank after defaulting to the Activity tab (v342). Boot calls the
            core's BASE renderActivity (before the loader override loads); it wrote to a long-removed
            #stats-tiles node with no guard → null.innerHTML threw → panel blanked. Guarded the node in the
@@ -38,6 +43,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FFP Passport — Member Dashboard</title>
+<!-- PWA: installable app (manifest + home-screen icons + iOS meta). assets/ffp-pwa.js registers the
+     service worker and shows the install banner (Android prompt / iOS Add-to-Home-Screen hint). -->
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#081420">
+<link rel="icon" href="/assets/icons/ffp-favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/assets/icons/ffp-apple-touch-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="FFP Passport">
+<script defer src="assets/ffp-pwa.js?v=1"></script>
 <script>
 /* QR deep-link capture — MUST run before the auth gate. A phone-camera scan of a venue QR
    lands here as ?venue=<id>; if the visitor isn't signed in, the auth module redirects to
