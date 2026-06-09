@@ -1,4 +1,10 @@
-<!-- FFP MEMBER DASHBOARD — v341 (2026-06-08)  [changelog trimmed to latest 3 updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v342 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+     v342: FITNESS STATS — moved into the bottom nav ("Stats", far right of Challenges; removed from the
+           overflow menu). Activity is now the default tab on open (was Bio Age; HTML active + view swap +
+           core tab:'activity'). NEW: edit a logged activity — each Recent-activity row has a pencil that
+           reopens the Log Activity modal prefilled in "Edit/Update" mode; saveLog branches to the new
+           member-scoped update_activity RPC, then refreshes the Activity list + map. FFP_BUILD 335→342,
+           fitness-stats-core ?v=306→307.
      v341: 7-DAY FREE TRIAL on the upgrade gate. Added a yellow "Start with 7 days free" badge; both plan
            buttons now carry an "After your 7-day free trial" subline (annual also corrected to "4.5 months
            free vs monthly"); footer note reads "7 days free, then billed · cancel anytime." (Backend v82
@@ -4175,7 +4181,6 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         <button class="menu-item" data-panel="panel-profile"><span class="material-icons">person</span><span>Profile</span></button>
         <button class="menu-item" data-panel="panel-workout-timer"><span class="material-icons">schedule</span><span>Workout Timer</span></button>
         <button class="menu-item" data-panel="panel-calorie-tracker"><span class="material-icons">local_fire_department</span><span>Calorie Tracker</span></button>
-        <button class="menu-item" data-panel="panel-fitness-stats"><span class="material-icons">show_chart</span><span>Fitness Stats</span></button>
         <button class="menu-item" data-panel="panel-earnings"><span class="material-icons">account_balance_wallet</span><span>Earnings</span></button>
         <div class="menu-divider"></div>
         <button class="menu-item menu-item-danger" id="user-menu-logout"><span class="material-icons">logout</span><span>Logout</span></button>
@@ -5067,14 +5072,14 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     
     <!-- Tabs: Bio Age / Activity / Records / Milestones -->
     <div class="tabs-underline fs-tabs" id="fs-tabs">
-      <button class="tabs-underline-btn" data-fs-tab="activity">Activity</button>
-      <button class="tabs-underline-btn active" data-fs-tab="bio">Bio Age</button>
+      <button class="tabs-underline-btn active" data-fs-tab="activity">Activity</button>
+      <button class="tabs-underline-btn" data-fs-tab="bio">Bio Age</button>
       <button class="tabs-underline-btn" data-fs-tab="records">Records</button>
       <button class="tabs-underline-btn" data-fs-tab="milestones">Milestones</button>
     </div>
     
     <!-- ============ BIO AGE TAB ============ -->
-    <div id="fs-bio-view">
+    <div id="fs-bio-view" style="display:none;">
       <!-- 1. Hero: biological age -->
       <div class="bio-hero">
         <div class="bio-hero-eyebrow">Your Biological Age</div>
@@ -5122,7 +5127,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     </div>
     
     <!-- ============ ACTIVITY TAB (NEW) ============ -->
-    <div id="fs-activity-view" style="display:none;">
+    <div id="fs-activity-view">
       <!-- Activity Streak featured card -->
       <div class="streak-card">
         <div class="streak-card-top">
@@ -5283,6 +5288,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
   <button class="nav-item" data-panel="panel-meetups"><span class="material-icons">groups</span><span>Meetups</span></button>
   <button class="nav-item" data-panel="panel-quests"><span class="material-icons">flag</span><span>Quests</span></button>
   <button class="nav-item" data-panel="panel-challenges"><span class="material-icons">emoji_events</span><span>Challenges</span></button>
+  <button class="nav-item" data-panel="panel-fitness-stats"><span class="material-icons">show_chart</span><span>Stats</span></button>
 </div>
 
 <!-- ADD CITY MODAL -->
@@ -7684,7 +7690,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '335';
+  const FFP_BUILD = '342';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -9209,7 +9215,7 @@ function fmtPrDate(iso) {
 <!-- Fitness Stats CORE — assets/ffp-fitness-stats-core.js. DEFER (v313): non-blocking, but still runs before
      DOMContentLoaded, and the boot init() is registered on DOMContentLoaded (line ~14049) so window.FitnessStats
      is guaranteed defined before FitnessStats.init() is called. Was synchronous = it blocked the parser mid-page. -->
-<script defer src="assets/ffp-fitness-stats-core.js?v=306"></script>
+<script defer src="assets/ffp-fitness-stats-core.js?v=307"></script>
 <!-- Milestone badge library — assets/ffp-milestone-badges.js (window.FFPMSBadges). DEFER: only used by the lazy
      Milestones render long after load, so it must never block boot. Bump ?v on change. -->
 <script defer src="assets/ffp-milestone-badges.js?v=6"></script>
@@ -10820,6 +10826,11 @@ function fillLogCities() {
 }
 function openLogModal() {
   document.getElementById('log-modal-backdrop').classList.add('open');
+  // Reset to INSERT mode (clears any prior edit state + restores title/button). openLogModalForEdit re-applies
+  // edit mode AFTER calling this.
+  window._ffpEditLogId = null;
+  var _rt = document.querySelector('#log-modal-backdrop .dm-title'); if (_rt) _rt.textContent = 'Log activity';
+  var _rb = document.querySelector('#log-modal-backdrop .dm-footer .btn-primary-yellow'); if (_rb) _rb.textContent = 'Save activity';
   // Default Country + City to the member's own. Prefer the live profile; fall back to the
   // signed-in member row (FFPAuth) so it still pre-fills even before MemberProfile has loaded.
   var prof = (window.MemberProfile && MemberProfile.data) || {};
@@ -10848,6 +10859,32 @@ function openLogModal() {
   var _ld = document.getElementById('log-distance'); if (_ld) _ld.value = '';
   var _lh = document.getElementById('log-hr'); if (_lh) _lh.value = '';
 }
+// EDIT an existing activity. Opens the same modal but prefilled from the row + in update mode. saveLog()
+// branches to the update_activity RPC when window._ffpEditLogId is set. Called by the Activity list (loader).
+window.openLogModalForEdit = function (row) {
+  if (!row) return;
+  openLogModal();                       // base init (defaults + populates the country/city selects)
+  window._ffpEditLogId = row.id || null;
+  var a = document.getElementById('log-activity'); if (a) a.value = row.activity || '';
+  var cny = document.getElementById('log-country');
+  if (cny && row.country) { cny.value = row.country; fillLogCities(); }
+  var city = document.getElementById('log-city');
+  if (city && row.city) { for (var i = 0; i < city.options.length; i++) { if (city.options[i].value === row.city) { city.value = row.city; break; } } }
+  if (row.logged_at) {
+    var dt = new Date(row.logged_at);
+    var dEl = document.getElementById('log-date');
+    if (dEl) dEl.value = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+    var tEl = document.getElementById('log-time');
+    if (tEl) tEl.value = String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0');
+  }
+  setLogDuration(((row.duration_min || 0) * 60) + (row.duration_sec || 0));
+  var dist = document.getElementById('log-distance'); if (dist) dist.value = (row.distance_km != null ? row.distance_km : '');
+  var cal = document.getElementById('log-calories'); if (cal) cal.value = (row.calories ? row.calories : '');
+  var hr = document.getElementById('log-hr'); if (hr) hr.value = (row.avg_heart_rate != null ? row.avg_heart_rate : '');
+  var notes = document.getElementById('log-notes'); if (notes) notes.value = row.notes || '';
+  var t = document.querySelector('#log-modal-backdrop .dm-title'); if (t) t.textContent = 'Edit activity';
+  var btn = document.querySelector('#log-modal-backdrop .dm-footer .btn-primary-yellow'); if (btn) btn.textContent = 'Update activity';
+};
 function openScanLog() {
   // Launch the venue check-in scanner (ffp-member-checkin-loader.js). Falls back to the
   // manual Log Activity modal if the loader hasn't initialised.
@@ -10984,18 +11021,40 @@ async function saveLog() {
   var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
   if (!member || !member.id) { if (typeof showToast === 'function') showToast('Couldn’t save — please sign in again', 'error'); return; }
   if (!window.supabase) { if (typeof showToast === 'function') showToast('Still connecting — try again in a moment', 'error'); return; }
+  var _editId = window._ffpEditLogId || null;
+  var _loggedAtIso = new Date(dateStr + 'T' + timeStr + ':00').toISOString();
   try {
-    var res = await window.supabase.rpc('log_activity', {
-      p_me: member.id, p_activity: act, p_city: city, p_country: country,
-      p_duration_min: entry.duration, p_duration_sec: entry.durationSec, p_calories: entry.calories,
-      p_logged_at: new Date(dateStr + 'T' + timeStr + ':00').toISOString(), p_notes: entry.notes,
-      p_distance_km: entry.distance_km, p_avg_hr: entry.avg_heart_rate
-    });
+    var res;
+    if (_editId) {
+      // EDIT — update the existing row (member-scoped update_activity RPC).
+      res = await window.supabase.rpc('update_activity', {
+        p_me: member.id, p_log_id: _editId, p_activity: act, p_city: city, p_country: country,
+        p_duration_min: entry.duration, p_duration_sec: entry.durationSec, p_calories: entry.calories,
+        p_logged_at: _loggedAtIso, p_notes: entry.notes,
+        p_distance_km: entry.distance_km, p_avg_hr: entry.avg_heart_rate
+      });
+    } else {
+      res = await window.supabase.rpc('log_activity', {
+        p_me: member.id, p_activity: act, p_city: city, p_country: country,
+        p_duration_min: entry.duration, p_duration_sec: entry.durationSec, p_calories: entry.calories,
+        p_logged_at: _loggedAtIso, p_notes: entry.notes,
+        p_distance_km: entry.distance_km, p_avg_hr: entry.avg_heart_rate
+      });
+    }
     if (res.error) throw res.error;
   } catch (e) {
     console.error('[FFP Journey] save failed:', e);
     if (typeof showToast === 'function') showToast('Couldn’t save your activity — please try again', 'error');
     return; // do NOT add to the map or claim success
+  }
+  if (_editId) {
+    // EDIT path — refresh the stats Activity list + the map (city/country may have changed). No LOGS.push.
+    window._ffpEditLogId = null;
+    if (typeof window.ffpActivityReload === 'function') window.ffpActivityReload();
+    if (typeof loadJourneyLogs === 'function') loadJourneyLogs();
+    if (typeof showToast === 'function') showToast('Activity updated', 'success');
+    closeLogModal();
+    return;
   }
   // Saved to the DB ✓ — now reflect it on the map this session
   if (typeof LOGS !== 'undefined') LOGS.push(entry);
