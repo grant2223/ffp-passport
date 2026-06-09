@@ -1,0 +1,21 @@
+{
+  "id": "/ffp-member-dashboard.html",
+  "name": "FFP Passport",
+  "short_name": "FFP Passport",
+  "description": "Find your people. Move together. Your FFP Passport — connections, meet-ups, quests, challenges and fitness stats.",
+  "start_url": "/ffp-member-dashboard.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#081420",
+  "theme_color": "#081420",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["health", "fitness", "lifestyle", "social"],
+  "icons": [
+    { "src": "/assets/icons/ffp-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icons/ffp-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icons/ffp-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/assets/icons/ffp-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
