@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v349 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v351 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+     v351: MEET-UP LOCATION — added a one-tap "Use my current location" GPS button to the map picker
+           (FFPLocPick.locate): centres the map + pin on the host's GPS position, reverse-geocodes the spot,
+           confirm with "Use this location". Precise pin (lat/lng/maps_url) + city rollup already in place.
+     v350: LIVE REFRESH — connections/meets/journey/notifications re-pull on app focus + visibility (and a
+           60s bell heartbeat), so panels stay current without a manual reload. window.ffpRefreshLive().
      v349: LAUNCH SPLASH — branded navy loading screen (emblem + spinner) painted instantly at <body> top, so
            opening the app no longer flashes a white/empty screen. Faded out by ffpHideSplash() once boot
            renders the shell (150ms after panel setup), with a 7s safety timeout so it can never stick.
@@ -5673,6 +5678,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
       <div class="dm-title">Set the meet-up spot</div>
       <div style="font-size:12px;color:var(--muted);margin:4px 0 12px;">Search a place, or drag the map so the pin sits exactly where you'll meet.</div>
       <input type="text" id="lp-search" class="pm-form-input" placeholder="Search a place — e.g. Kite Beach, Dubai" autocomplete="off" oninput="FFPLocPick.onSearch(this.value)">
+      <button type="button" id="lp-locate-btn" onclick="FFPLocPick.locate()" style="margin-top:8px;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(43,168,224,0.1);color:var(--blue,#2ba8e0);border:1px solid rgba(43,168,224,0.35);border-radius:10px;padding:10px;font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;"><span class="material-icons" style="font-size:18px;">my_location</span>Use my current location</button>
       <div id="lp-results"></div>
     </div>
     <div style="position:relative;flex:1 1 auto;min-height:280px;">
@@ -7707,6 +7713,31 @@ async function loadConnectionsCount() {
     }
   } catch (e) { console.error('[FFP Connections] list:', e); }
 }
+
+// ── LIVE REFRESH ──────────────────────────────────────────────────────────────────────────────
+// Keeps the dashboard feeling real-time without a manual reload: re-pull the core data (connections,
+// meets, journey, notifications) whenever the app regains FOCUS or becomes VISIBLE (e.g. switching back to
+// it), plus a light bell heartbeat every 60s. Each loader guards on sign-in and re-renders via renderAll,
+// so the Connections panel and stats update on their own. (Instant websocket updates via FFPRealtime can be
+// layered on later for specific tables; this focus/visibility refresh covers every panel safely.)
+(function () {
+  var _lastLive = 0;
+  function ffpRefreshLive(force) {
+    var now = Date.now();
+    if (!force && now - _lastLive < 4000) return;   // throttle bursts (e.g. focus+visibility firing together)
+    _lastLive = now;
+    try { if (typeof loadConnectionsCount === 'function') loadConnectionsCount(); } catch (e) {}
+    try { if (typeof loadMeets === 'function') loadMeets(); } catch (e) {}
+    try { if (typeof loadJourneyLogs === 'function') loadJourneyLogs(); } catch (e) {}
+    try { if (typeof loadNotifications === 'function') loadNotifications(); } catch (e) {}
+    try { if (window.MeetMove && typeof MeetMove.refresh === 'function') MeetMove.refresh(); } catch (e) {}
+  }
+  window.ffpRefreshLive = ffpRefreshLive;
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') ffpRefreshLive(); });
+  window.addEventListener('focus', function () { ffpRefreshLive(); });
+  // Light heartbeat: keep the notifications bell current while the app is open, without disrupting scrolling.
+  setInterval(function () { if (document.visibilityState === 'visible') { try { if (typeof loadNotifications === 'function') loadNotifications(); } catch (e) {} } }, 60000);
+})();
 
 async function loadNotifications() {
   var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
@@ -12205,7 +12236,24 @@ window.FFPLocPick = (function(){
     if(typeof cb==='function') cb({ name:name, lat:lat, lng:lng, maps_url:'https://www.google.com/maps?q='+lat+','+lng });
     close();
   }
-  return { open:open, close:close, onSearch:onSearch, pick:pick, use:use };
+  // One-tap GPS: centre the map (+ pin) on the member's current location, then the moveend reverse-geocode
+  // names the spot. They confirm with "Use this location".
+  function locate(){
+    var ch=document.getElementById('lp-chosen');
+    var btn=document.getElementById('lp-locate-btn');
+    if(!navigator.geolocation){ if(ch) ch.textContent='Location isn’t available on this device — search or drag the map'; return; }
+    if(ch) ch.textContent='Finding your location…';
+    if(btn){ btn.disabled=true; btn.style.opacity='0.6'; }
+    navigator.geolocation.getCurrentPosition(function(pos){
+      if(!map) init();
+      if(map){ map.setView([pos.coords.latitude, pos.coords.longitude], 16); schedReverse(); }
+      if(btn){ btn.disabled=false; btn.style.opacity='1'; }
+    }, function(){
+      if(ch) ch.textContent='Couldn’t get your location — search or drag the map instead';
+      if(btn){ btn.disabled=false; btn.style.opacity='1'; }
+    }, { enableHighAccuracy:true, timeout:10000, maximumAge:60000 });
+  }
+  return { open:open, close:close, onSearch:onSearch, pick:pick, use:use, locate:locate };
 })();
 </script>
 <script src="ffp-member-checkin-loader.js?v=7"></script>
