@@ -1,4 +1,7 @@
-<!-- FFP MEMBER DASHBOARD — v342 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v343 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+     v343: LOG ACTIVITY — "Use my current location" GPS button. Browser geolocation + a free keyless
+           reverse-geocode (BigDataCloud) auto-fill Country + City (adds the option if it's not in the
+           curated list); manual selection stays as the fallback if GPS is denied/unavailable.
      v342: FITNESS STATS — moved into the bottom nav ("Stats", far right of Challenges; removed from the
            overflow menu). Activity is now the default tab on open (was Bio Age; HTML active + view swap +
            core tab:'activity'). NEW: edit a logged activity — each Recent-activity row has a pencil that
@@ -5324,6 +5327,11 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
           <input type="text" id="log-activity" class="pm-form-input" placeholder="Search activities..." autocomplete="off">
           <div class="picker-dropdown" id="activity-picker"></div>
         </div>
+      </div>
+      <div class="pm-form-field">
+        <button type="button" id="log-gps-btn" onclick="ffpLogUseGPS()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(43,168,224,0.1);color:var(--blue,#2ba8e0);border:1px solid rgba(43,168,224,0.35);border-radius:10px;padding:11px;font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;">
+          <span class="material-icons" style="font-size:18px;">my_location</span><span id="log-gps-label">Use my current location</span>
+        </button>
       </div>
       <div class="pm-form-grid-2">
         <div class="pm-form-field">
@@ -10823,6 +10831,49 @@ function fillLogCities() {
   cityS.innerHTML = '';
   cityS.add(new Option(country ? 'Select city…' : 'Pick a country first', ''));
   list.forEach(function (c) { cityS.add(new Option(c, c)); });
+}
+// Ensure a <select> has an option with this value (add if missing), then select it.
+function _ensureSelectOption(sel, val) {
+  if (!sel || !val) return;
+  for (var i = 0; i < sel.options.length; i++) { if (sel.options[i].value === val) { sel.value = val; return; } }
+  sel.add(new Option(val, val)); sel.value = val;
+}
+// GPS → auto-fill Country + City. Browser geolocation gives coordinates; a free keyless reverse-geocode
+// (BigDataCloud) turns them into a country + city, which we drop into the existing selects (adding the
+// option if it isn't in the curated list). Manual selection stays as the fallback if GPS is denied/unavailable.
+async function ffpLogUseGPS() {
+  var btn = document.getElementById('log-gps-btn');
+  var lbl = document.getElementById('log-gps-label');
+  if (!navigator.geolocation) { if (typeof showToast === 'function') showToast('Location isn’t available here — pick it manually', 'error'); return; }
+  if (lbl) lbl.textContent = 'Locating…';
+  if (btn) btn.disabled = true;
+  function _done() { if (lbl) lbl.textContent = 'Use my current location'; if (btn) btn.disabled = false; }
+  navigator.geolocation.getCurrentPosition(async function (pos) {
+    try {
+      var lat = pos.coords.latitude, lon = pos.coords.longitude;
+      var r = await fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' + lat + '&longitude=' + lon + '&localityLanguage=en');
+      var d = await r.json();
+      var country = d.countryName || '';
+      var cityName = d.city || d.locality || d.principalSubdivision || '';
+      var cnyS = document.getElementById('log-country');
+      if (cnyS && country) {
+        var matched = '';
+        for (var i = 0; i < cnyS.options.length; i++) { if (cnyS.options[i].value && cnyS.options[i].value.toLowerCase() === country.toLowerCase()) { matched = cnyS.options[i].value; break; } }
+        if (!matched) { cnyS.add(new Option(country, country)); matched = country; }
+        cnyS.value = matched;
+      }
+      fillLogCities();
+      var cityS = document.getElementById('log-city');
+      if (cityS && cityName) _ensureSelectOption(cityS, cityName);
+      if (typeof showToast === 'function') showToast(cityName ? ('Location set — ' + cityName) : 'Location set', 'success');
+    } catch (e) {
+      if (typeof showToast === 'function') showToast('Couldn’t look up your location — pick it manually', 'error');
+    }
+    _done();
+  }, function () {
+    _done();
+    if (typeof showToast === 'function') showToast('Location access off — pick it manually', 'error');
+  }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
 }
 function openLogModal() {
   document.getElementById('log-modal-backdrop').classList.add('open');
