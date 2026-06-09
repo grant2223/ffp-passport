@@ -319,6 +319,10 @@
       if (typeof loadConnections === 'function') { try { loadConnections(); } catch (e) {} }
     }
   };
+  // Reload the open-meet-ups Discover list on demand (re-pull open/full meet-ups + re-render). Wired to
+  // real-time (meetups / meetup_attendees changes) and called after hosting/cancelling, so the joinable list
+  // updates live — critical for members urgently looking for someone to meet right now.
+  window.ffpReloadMeetMove = function () { try { loadFromSupabase(); } catch (e) {} };
 
   // Compact bar shown on the main page in place of the 5 tall cards:
   // overlapping avatars + count, taps through to the modal.
