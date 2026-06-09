@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v343 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v344 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+     v344: HOTFIX — Fitness Stats panel blank after defaulting to the Activity tab (v342). Boot calls the
+           core's BASE renderActivity (before the loader override loads); it wrote to a long-removed
+           #stats-tiles node with no guard → null.innerHTML threw → panel blanked. Guarded the node in the
+           core (fitness-stats-core ?v=307→308). Activity tab now renders on open as intended.
      v343: LOG ACTIVITY — "Use my current location" GPS button. Browser geolocation + a free keyless
            reverse-geocode (BigDataCloud) auto-fill Country + City (adds the option if it's not in the
            curated list); manual selection stays as the fallback if GPS is denied/unavailable.
@@ -9223,7 +9227,7 @@ function fmtPrDate(iso) {
 <!-- Fitness Stats CORE — assets/ffp-fitness-stats-core.js. DEFER (v313): non-blocking, but still runs before
      DOMContentLoaded, and the boot init() is registered on DOMContentLoaded (line ~14049) so window.FitnessStats
      is guaranteed defined before FitnessStats.init() is called. Was synchronous = it blocked the parser mid-page. -->
-<script defer src="assets/ffp-fitness-stats-core.js?v=307"></script>
+<script defer src="assets/ffp-fitness-stats-core.js?v=308"></script>
 <!-- Milestone badge library — assets/ffp-milestone-badges.js (window.FFPMSBadges). DEFER: only used by the lazy
      Milestones render long after load, so it must never block boot. Bump ?v on change. -->
 <script defer src="assets/ffp-milestone-badges.js?v=6"></script>
