@@ -1,6 +1,9 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-  FFP PASSPORT — login.html v17
+  FFP PASSPORT — login.html v18
+  v18 (2026-06-09): PWA — installable to the home screen. Added manifest link, theme-color, apple-touch-icon
+  + iOS web-app meta, and assets/ffp-pwa.js (SW register + install banner). Installing keeps members signed
+  in past iOS's 7-day localStorage eviction.
   v17 (2026-06-09): LOGIN UX — (1) STAY SIGNED IN: an already-signed-in member hitting /login is now sent
   straight to their dashboard (handleAuthRedirect off the stored member); they no longer see a login page and
   assume they're logged out. Escape hatches: ?switch=1 / #switch and the provider ?verified/?verify flows.
@@ -90,6 +93,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
 <title>FFP Passport</title>
+<!-- PWA: installable app (manifest + home-screen icons + iOS meta). assets/ffp-pwa.js registers the
+     service worker and shows the install banner (Android prompt / iOS Add-to-Home-Screen hint). -->
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#081420">
+<link rel="icon" href="/assets/icons/ffp-favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/assets/icons/ffp-apple-touch-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="FFP Passport">
+<script defer src="assets/ffp-pwa.js?v=1"></script>
 <!-- v2: Supabase SDK loaded FIRST so window.supabase exists when ffp-api-integration.js runs -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/ffp-api-integration.js?v=12"></script>
