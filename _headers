@@ -1,11 +1,14 @@
+# PWA manifest — force the correct MIME type. Netlify was serving .webmanifest as
+# application/octet-stream, which some browsers refuse to parse as an installable manifest.
+/manifest.webmanifest
+  Content-Type: application/manifest+json
+
 # HTML files: NEVER cache anywhere. Force fresh fetch every visit.
 # Three directives (no-store + no-cache + Pragma + Expires) to handle
 # legacy browsers + iOS Safari's aggressive cache + intermediate CDNs.
 # During active development we want every push to land on every device
 # the next time the user opens the page.
 
-/manifest.webmanifest
-  Content-Type: application/manifest+json
 /*
   Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0
   Pragma: no-cache
