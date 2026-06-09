@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v355 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v356 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+     v356: MEET-UP DISCOVER LIVE — meet-move loader now exposes window.ffpReloadMeetMove (re-pulls open/full
+           meet-ups + re-renders); the real-time meetups/meetup_attendees subscription calls it, so the
+           "find one to join" Discover list updates the instant a meet-up is posted, fills, or cancels — no
+           refresh. FFP_BUILD 352→356 (meet-move loader changed).
      v355: REAL-TIME EXPANDED — live subscriptions (FFPRealtime) now cover the NOTIFICATIONS bell
            (own + broadcasts), MEET-UPS + who's-going, and CHALLENGES + leaderboard, on top of connections.
            Debounced reloaders coalesce bursts. All five tables already had REPLICA IDENTITY FULL +
@@ -7781,6 +7785,7 @@ async function loadConnectionsCount() {
     }, 400);
     var refNotif = _deb(function () { try { if (typeof loadNotifications === 'function') loadNotifications(); } catch (e) {} }, 350);
     var refMeets = _deb(function () {
+      try { if (window.ffpReloadMeetMove) window.ffpReloadMeetMove(); } catch (e) {}   // open-meet-ups Discover list (live)
       try { if (typeof loadMeets === 'function') loadMeets(); } catch (e) {}
       try { if (window.FFPCircle && FFPCircle.reload) FFPCircle.reload(); } catch (e) {}
     }, 600);
@@ -7870,7 +7875,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '352';
+  const FFP_BUILD = '356';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
