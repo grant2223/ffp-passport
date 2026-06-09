@@ -1111,6 +1111,13 @@
     if (l.distance_km != null && !isNaN(l.distance_km) && l.distance_km > 0) chips.push('<span style="' + chipCss + '">' + (Math.round(l.distance_km * 100) / 100) + ' km</span>');
     if (l.calories) chips.push('<span style="' + chipCss + '">' + l.calories + ' kcal</span>');
     if (l.avg_heart_rate != null && !isNaN(l.avg_heart_rate) && l.avg_heart_rate > 0) chips.push('<span style="' + chipCss + '">' + l.avg_heart_rate + ' bpm</span>');
+    // Location: the specific pin (venue) shows as a tappable map chip when we have coordinates — this is
+    // "where in the city". The city chip (e.g. Dubai) stays as the rollup. Covers venue check-ins too.
+    var _hasPin = (l.checkin_lat != null && l.checkin_lng != null && !isNaN(l.checkin_lat) && !isNaN(l.checkin_lng));
+    if (l.venue) {
+      if (_hasPin) chips.push('<a href="https://www.google.com/maps?q=' + l.checkin_lat + ',' + l.checkin_lng + '" target="_blank" rel="noopener" style="' + chipCss + 'text-decoration:none;display:inline-flex;align-items:center;gap:3px;"><span class="material-icons" style="font-size:13px;">place</span>' + escText(l.venue) + '</a>');
+      else chips.push('<span style="' + chipCss + '">' + escText(l.venue) + '</span>');
+    }
     if (l.city) chips.push('<span style="' + chipCss + '">' + escText(l.city) + '</span>');
     var editBtn = l.id ? ('<button type="button" onclick="window.ffpEditActivity&&window.ffpEditActivity(\'' + l.id + '\')" title="Edit activity" aria-label="Edit activity" style="background:none;border:none;color:var(--muted,#8a99a8);cursor:pointer;padding:2px;display:inline-flex;align-items:center;line-height:1;"><span class="material-icons" style="font-size:17px;">edit</span></button>') : '';
     return '<div style="padding:11px 0;border-top:1px solid rgba(255,255,255,0.06);">' +
@@ -1192,7 +1199,7 @@
           distance_km: (r.distance_km != null ? Number(r.distance_km) : null),
           avg_heart_rate: (r.avg_heart_rate != null ? Number(r.avg_heart_rate) : null),
           notes: r.notes || '',
-          city: r.city || '', country: r.country || '', logged_at: r.logged_at || null, daysAgo: daysAgoFromIso(r.logged_at) };
+          city: r.city || '', country: r.country || '', venue: r.venue || '', checkin_lat: (r.checkin_lat != null ? Number(r.checkin_lat) : null), checkin_lng: (r.checkin_lng != null ? Number(r.checkin_lng) : null), logged_at: r.logged_at || null, daysAgo: daysAgoFromIso(r.logged_at) };
       });
       if (window.FitnessStats && typeof FitnessStats.renderActivity === 'function') FitnessStats.renderActivity();
       else renderRecentList();
@@ -1670,7 +1677,7 @@
               distance_km: (r.distance_km != null ? Number(r.distance_km) : null),
               avg_heart_rate: (r.avg_heart_rate != null ? Number(r.avg_heart_rate) : null),
               notes: r.notes || '',
-              city: r.city || '', country: r.country || '', logged_at: r.logged_at || null, daysAgo: daysAgoFromIso(r.logged_at) };
+              city: r.city || '', country: r.country || '', venue: r.venue || '', checkin_lat: (r.checkin_lat != null ? Number(r.checkin_lat) : null), checkin_lng: (r.checkin_lng != null ? Number(r.checkin_lng) : null), logged_at: r.logged_at || null, daysAgo: daysAgoFromIso(r.logged_at) };
           });
         } catch (e) { console.error('[FFP Fitness Stats] activity_logs read:', e); activityCache = []; }
       })();
