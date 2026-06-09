@@ -1,4 +1,11 @@
-<!-- FFP MEMBER DASHBOARD — v352 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v354 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+     v354: TRUE REAL-TIME CONNECTIONS — subscribes to member_connections changes (FFPRealtime → Supabase
+           postgres_changes, rows where I'm requester or addressee). Connections now auto-update the instant
+           anything changes (you add someone, someone adds you, a request is accepted) — no refresh, no
+           leave/return. DB: member_connections added to the realtime publication + REPLICA IDENTITY FULL.
+     v353: LIVE REFRESH on actions + panel switch. Adding a connection now re-pulls immediately
+           (requestConnect → ffpRefreshLive(true)), so the new name shows without leaving/returning. showPanel
+           also re-pulls on every panel switch (throttled). ffp-connections-core ?v=323→353.
      v352: LOG ACTIVITY PIN — "Pin the spot" location picker added to Log Activity (reuses FFPLocPick map +
            "use my location"). City stays the rollup (Dubai); the pin marks where in the city. Saved via the
            extended log_activity/update_activity RPCs (venue + checkin_lat/lng). Activity rows now show the
@@ -7753,6 +7760,25 @@ async function loadConnectionsCount() {
   setInterval(function () { if (document.visibilityState === 'visible') { try { if (typeof loadNotifications === 'function') loadNotifications(); } catch (e) {} } }, 60000);
 })();
 
+// ── REAL-TIME CONNECTIONS ──────────────────────────────────────────────────────────────────────
+// Auto-update the moment a connection involving me changes — no manual refresh, no leave-and-return.
+// Subscribes (via FFPRealtime → Supabase postgres_changes) to member_connections rows where I'm the
+// requester OR the addressee. Fires when: I add someone, someone adds me, or a request is accepted.
+(function () {
+  function wireConnRealtime() {
+    var m = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null;
+    if (!m || !m.id || !window.FFPRealtime || typeof FFPRealtime.subscribe !== 'function') { setTimeout(wireConnRealtime, 600); return; }
+    var onChange = function () {
+      try { if (typeof loadConnectionsCount === 'function') loadConnectionsCount(); } catch (e) {}
+      try { if (window.MeetMove && typeof MeetMove.loadMatches === 'function') MeetMove.loadMatches(); } catch (e) {}
+    };
+    FFPRealtime.subscribe('mc-as-requester', 'member_connections', 'requester_id=eq.' + m.id, onChange);
+    FFPRealtime.subscribe('mc-as-addressee', 'member_connections', 'addressee_id=eq.' + m.id, onChange);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(wireConnRealtime, 1200); });
+  else setTimeout(wireConnRealtime, 1200);
+})();
+
 async function loadNotifications() {
   var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
   if (!member || !member.id) return;
@@ -7893,6 +7919,8 @@ function setupPanelNav() {
       // IDLE-scheduled so html2canvas never blocks the panel (was freezing it on show/refresh).
       schedulePassportPrerender();
     }
+    // Re-pull live data whenever a panel is opened, so it's fresh on switch (throttled, guarded).
+    try { if (window.ffpRefreshLive) window.ffpRefreshLive(); } catch (e) {}
   }
   
   // Bottom nav clicks
@@ -11861,7 +11889,7 @@ else init();
 .ffp-deck-flash{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(8,20,32,0.66); opacity:0; transition:opacity .2s; z-index:30; }
 .ffp-deck-flash.show{ opacity:1; }
 </style>
-<script src="assets/ffp-connections-core.js?v=323"></script>
+<script src="assets/ffp-connections-core.js?v=353"></script>
 <script defer src="assets/ffp-connections-feed-loader.js?v=326"></script>
 <script defer src="assets/ffp-event-results-loader.js?v=329"></script>
 <script>
