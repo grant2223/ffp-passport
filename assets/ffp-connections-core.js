@@ -543,6 +543,9 @@ const MeetMove = {
         showToast(`Request sent to ` + u.name.split(' ')[0]);
       }
       this.renderMatchStrip();
+      // Re-pull the dashboard connections immediately so the new connection's name shows without
+      // leaving/returning to the app. (force=true bypasses the live-refresh throttle.)
+      try { if (window.ffpRefreshLive) window.ffpRefreshLive(true); } catch (e) {}
     } catch (e) { showToast('Could not send request — try again'); }
     closeDetailModal();
   },
