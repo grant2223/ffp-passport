@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v340 (2026-06-08)  [changelog trimmed to latest 3 updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v341 (2026-06-08)  [changelog trimmed to latest 3 updates; older history in git]
+     v341: 7-DAY FREE TRIAL on the upgrade gate. Added a yellow "Start with 7 days free" badge; both plan
+           buttons now carry an "After your 7-day free trial" subline (annual also corrected to "4.5 months
+           free vs monthly"); footer note reads "7 days free, then billed · cancel anytime." (Backend v82
+           sets trial_period_days:7 — no client logic change; the ?upgraded=1 poll still flips the row.)
      v340: PASSPORT SUBSCRIPTIONS — the gate now offers Annual $149/yr + Monthly $20/mo buttons that call
            /api/billing/checkout (backend v80) → Stripe subscription Checkout. After return (?upgraded=1) the
            gate polls member_passport_active for a few seconds so the webhook has time to flip the row.
@@ -11998,12 +12002,13 @@ window.FFPLocPick = (function(){
       '<div style="max-width:420px;width:100%;text-align:center;">' +
         '<div style="font-weight:900;letter-spacing:1px;font-size:14px;color:#2ba8e0;margin-bottom:18px;">FFP PASSPORT</div>' +
         '<div style="font-size:24px;font-weight:800;line-height:1.25;margin-bottom:10px;">Your Passport unlocks the app</div>' +
+        '<div style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:#FFCC00;text-transform:uppercase;margin-bottom:12px;">Start with 7 days free</div>' +
         '<div style="font-size:14px;color:#9fb4c4;line-height:1.6;margin-bottom:20px;">Membership gets you your passport &amp; stamps, member connections &amp; meet-ups, quests &amp; challenges, and member savings on Find Fit People bookings.</div>' +
         '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">' +
-          '<button onclick="window.__ffpGateCheckout(\'annual\', this)" style="width:100%;background:#FFCC00;color:#081420;font-weight:800;border:none;cursor:pointer;padding:15px;border-radius:12px;font-size:15px;font-family:inherit;line-height:1.3;">Annual — $149 <span style="font-weight:700;color:#5c4a00;">/ year</span><div style="font-size:11px;font-weight:700;color:#5c4a00;margin-top:3px;">Best value · 2 months free vs monthly</div></button>' +
-          '<button onclick="window.__ffpGateCheckout(\'monthly\', this)" style="width:100%;background:rgba(43,168,224,0.12);color:#e8eef4;font-weight:800;border:1px solid rgba(43,168,224,0.4);cursor:pointer;padding:15px;border-radius:12px;font-size:15px;font-family:inherit;line-height:1.3;">Monthly — $20 <span style="font-weight:700;color:#9fb4c4;">/ month</span></button>' +
+          '<button onclick="window.__ffpGateCheckout(\'annual\', this)" style="width:100%;background:#FFCC00;color:#081420;font-weight:800;border:none;cursor:pointer;padding:15px;border-radius:12px;font-size:15px;font-family:inherit;line-height:1.3;">Annual — $149 <span style="font-weight:700;color:#5c4a00;">/ year</span><div style="font-size:11px;font-weight:700;color:#5c4a00;margin-top:3px;">After your 7-day free trial · 4.5 months free vs monthly</div></button>' +
+          '<button onclick="window.__ffpGateCheckout(\'monthly\', this)" style="width:100%;background:rgba(43,168,224,0.12);color:#e8eef4;font-weight:800;border:1px solid rgba(43,168,224,0.4);cursor:pointer;padding:15px;border-radius:12px;font-size:15px;font-family:inherit;line-height:1.3;">Monthly — $20 <span style="font-weight:700;color:#9fb4c4;">/ month</span><div style="font-size:11px;font-weight:700;color:#9fb4c4;margin-top:3px;">After your 7-day free trial</div></button>' +
         '</div>' +
-        '<div style="font-size:11px;color:#7b8b9c;margin-bottom:14px;">Cancel anytime · secure checkout by Stripe</div>' +
+        '<div style="font-size:11px;color:#7b8b9c;margin-bottom:14px;">7 days free, then billed · cancel anytime · secure checkout by Stripe</div>' +
         '<a href="' + BOOK_URL + '" style="display:block;color:#cfe0ee;text-decoration:none;font-size:13px;padding:10px;">Just browsing? Book on Find Fit People →</a>' +
         '<button onclick="window.__ffpGateSignOut()" style="background:none;border:none;color:#7b8b9c;font-size:12px;margin-top:4px;cursor:pointer;font-family:inherit;">Sign out</button>' +
       '</div>';
