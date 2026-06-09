@@ -11,7 +11,7 @@
    LOGS, escHtml, fmtTime, fmtPrDate, showToast, FFPAuth, supabase.
    ============================================================================ */
 var FitnessStats = {
-  tab: 'bio',  // 'bio' | 'records' | 'milestones'
+  tab: 'activity',  // 'activity' | 'bio' | 'records' | 'milestones' — Activity opens first
   compareGroup: 'age_gender',  // 'all' | 'age' | 'age_gender' | 'age_gender_city'
 
   // Member fitness profile — chronAge/gender/city would flow from passport in production
