@@ -1,4 +1,7 @@
-<!-- FFP MEMBER DASHBOARD — v348 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v349 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+     v349: LAUNCH SPLASH — branded navy loading screen (emblem + spinner) painted instantly at <body> top, so
+           opening the app no longer flashes a white/empty screen. Faded out by ffpHideSplash() once boot
+           renders the shell (150ms after panel setup), with a 7s safety timeout so it can never stick.
      v348: PUSH NOTIFICATIONS — "Phone notifications" card in Profile. Opt-in via window.FFPPush
            (ffp-pwa.js?v=3): requests permission, subscribes, POSTs to backend /api/push/subscribe. States:
            Turn on / Turn off / Blocked / (iOS) add-to-home-screen-first. Backend v83 sends pushes (welcome
@@ -4186,6 +4189,25 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 <script src="assets/ffp-quests-core.js?v=1"></script>
 </head>
 <body>
+
+<!-- LAUNCH SPLASH — branded loading screen so the app never shows a white/empty flash on open. Painted
+     immediately (inline styles), faded out by ffpHideSplash() once boot finishes (or a 7s safety timeout). -->
+<div id="ffp-splash" style="position:fixed;inset:0;z-index:2147483600;background:#081420;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;transition:opacity .35s ease;">
+  <img src="assets/ffp-emblem.png" alt="FFP Passport" width="96" height="96" style="display:block;" onerror="this.style.display='none'">
+  <div style="width:30px;height:30px;border:3px solid rgba(43,168,224,0.22);border-top-color:#2ba8e0;border-radius:50%;animation:ffpsplinspin .8s linear infinite;"></div>
+  <div style="font-size:11px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#3f6076;">Loading</div>
+</div>
+<style>@keyframes ffpsplinspin{to{transform:rotate(360deg)}}</style>
+<script>
+  window.ffpHideSplash = function () {
+    var s = document.getElementById('ffp-splash');
+    if (!s) return;
+    s.style.opacity = '0';
+    setTimeout(function () { if (s && s.parentNode) s.parentNode.removeChild(s); }, 400);
+  };
+  // Safety net: never let the splash get stuck even if boot errors.
+  setTimeout(function () { if (window.ffpHideSplash) window.ffpHideSplash(); }, 7000);
+</script>
 
 <!-- TOPBAR -->
 <div class="topbar">
@@ -11507,6 +11529,7 @@ function init() {
   try { setupPanelNav(); } catch (e) { console.warn('[FFP boot] setupPanelNav', e); }
   try { if (window.ffpRefreshInstallRow) window.ffpRefreshInstallRow(); } catch (e) {}   // Profile "Add to home screen" row
   try { if (window.ffpRefreshNotifyRow) window.ffpRefreshNotifyRow(); } catch (e) {}    // Profile "Phone notifications" row
+  setTimeout(function () { if (window.ffpHideSplash) window.ffpHideSplash(); }, 150);   // reveal the rendered shell (hide launch splash)
   MemberProfile.render();
   WorkoutTimer.init();
   if (window.CalorieTracker) CalorieTracker.init();  // v316: guarded — core is an external deferred file
