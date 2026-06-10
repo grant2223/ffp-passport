@@ -1464,7 +1464,7 @@ input, select, textarea { font-family: inherit; }
       </div>
     </div>
     <div class="sidebar-footer">
-      build v43 &middot; FFP Admin
+      build v44 &middot; FFP Admin
     </div>
   </aside>
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.toggleSidebar()"></div>
@@ -2192,6 +2192,34 @@ input, select, textarea { font-family: inherit; }
         </div>
       </div>
       
+      <!-- How members are signing up -->
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">How Members Are Signing Up</div>
+          <span class="section-count" id="signup-meta">Method · Membership · Where</span>
+        </div>
+        <div class="section-body padded">
+          <div class="charts-grid">
+            <div>
+              <div class="chart-card-title" style="margin-bottom:10px;">Signup method</div>
+              <div class="demo-list" id="signup-method"></div>
+            </div>
+            <div>
+              <div class="chart-card-title" style="margin-bottom:10px;">Membership plan</div>
+              <div class="demo-list" id="signup-plan"></div>
+            </div>
+            <div>
+              <div class="chart-card-title" style="margin-bottom:10px;">Top countries</div>
+              <div class="demo-list" id="signup-countries"></div>
+            </div>
+            <div>
+              <div class="chart-card-title" style="margin-bottom:10px;">Top cities</div>
+              <div class="demo-list" id="signup-cities"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Top providers -->
       <div class="section">
         <div class="section-head">
@@ -2393,7 +2421,7 @@ const App = {
       var sc = document.createElement('script');
       // Cache-bust lazy loaders so a new deploy never serves a stale cached .js.
       // BUMP this with the dashboard build number on every deploy (matches footer build).
-      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=49'; sc.async = false;
+      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=50'; sc.async = false;
       sc.onload = function () {
         if (panelId === 'panel-analytics') {
           setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 80);
