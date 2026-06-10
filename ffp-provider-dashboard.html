@@ -2492,7 +2492,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
         <div class="psub">Everyone who trains with you — your member &amp; client base.</div>
         <div class="biz-tabs">
           <button class="biz-tab active" onclick="bizTab(this,'mem-directory')">Directory</button>
-          <button class="biz-tab" onclick="bizTab(this,'mem-plans')">Memberships &amp; Packages</button>
+          <button class="biz-tab" onclick="bizTab(this,'mem-plans'); if(typeof renderPlans==='function')renderPlans();">Memberships &amp; Packages</button>
           <button class="biz-tab" onclick="bizTab(this,'mem-teams'); if(typeof renderTeams==='function')renderTeams();">Teams &amp; Rosters</button>
           <button class="biz-tab" onclick="bizTab(this,'mem-comms')">Communications</button>
         </div>
@@ -2507,14 +2507,14 @@ a { color: var(--ffp-blue); text-decoration: none; }
           <div id="mem-list" style="margin-top:10px;"></div>
         </div>
         <div class="biz-pane" id="mem-plans">
-          <div class="panel-placeholder" style="margin-top:26px;">
-            <span class="ms" style="font-size:44px;color:var(--ffp-yellow,#FFCC00);">card_membership</span>
-            <h3 style="margin:14px 0 6px;">Memberships &amp; packages — coming soon</h3>
-            <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
-              Define your own plans — monthly unlimited, 10-class packs, term memberships — and assign them to
-              members. Tracks remaining credits, renewal dates and expiries, and flags who's due to renew.
-            </p>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:16px;padding:9px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:#FFCC00;font-size:12px;font-weight:700;">
+            <span class="ms" style="font-size:16px;">construction</span> Coming soon — preview for partner testing
           </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
+            <div class="psub" style="margin:0;">Memberships and class-packs. Assign them to members from the Directory.</div>
+            <button class="btn btn-pri" onclick="openPlanModal()"><span class="ms">add</span> New plan</button>
+          </div>
+          <div id="plans-list" style="margin-top:8px;"></div>
         </div>
         <div class="biz-pane" id="mem-teams">
           <div style="display:flex;align-items:center;gap:8px;margin-top:16px;padding:9px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:#FFCC00;font-size:12px;font-weight:700;">
