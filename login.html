@@ -1,6 +1,10 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-  FFP PASSPORT — login.html v18
+  FFP PASSPORT — login.html v19
+  v19 (2026-06-10): LAUNCH SPLASH — a branded "Loading" screen (emblem + spinner, navy) shows immediately
+  on launch so a returning member no longer sees the login form flash before the auto-redirect into the
+  dashboard. It stays up through the redirect (the dashboard shows the same splash → seamless), and is
+  hidden by ffpHideSplash() only when we're NOT redirecting (no session, or a switch/verify flow).
   v18 (2026-06-09): PWA — installable to the home screen. Added manifest link, theme-color, apple-touch-icon
   + iOS web-app meta, and assets/ffp-pwa.js (SW register + install banner). Installing keeps members signed
   in past iOS's 7-day localStorage eviction.
@@ -166,6 +170,25 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 <script src="assets/ffp-analytics.js"></script>
 </head>
 <body>
+<!-- Launch splash — a branded loading screen shown immediately (inline, paints on first render) so a
+     returning member sees a loading animation, NOT the login form flashing, while we decide whether to
+     auto-redirect them into the dashboard. The dashboard shows the same splash, so loading is seamless
+     from launch → app. ffpHideSplash() reveals the login UI when we're NOT redirecting. -->
+<div id="ffp-splash" style="position:fixed;inset:0;z-index:2147483600;background:#081420;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;transition:opacity .35s ease;">
+  <img src="assets/ffp-emblem.png" alt="FFP Passport" width="96" height="96" style="display:block;" onerror="this.style.display='none'">
+  <div style="width:30px;height:30px;border:3px solid rgba(43,168,224,0.22);border-top-color:#2ba8e0;border-radius:50%;animation:ffpsplinspin .8s linear infinite;"></div>
+  <div style="font-size:11px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#3f6076;">Loading</div>
+</div>
+<style>@keyframes ffpsplinspin{to{transform:rotate(360deg)}}</style>
+<script>
+  window.ffpHideSplash = function () {
+    var s = document.getElementById('ffp-splash'); if (!s) return;
+    s.style.opacity = '0';
+    setTimeout(function () { if (s && s.parentNode) s.parentNode.removeChild(s); }, 400);
+  };
+  // Safety net: never let the splash stick (e.g. if boot JS errors before it decides).
+  setTimeout(function () { if (window.ffpHideSplash) window.ffpHideSplash(); }, 6000);
+</script>
 <div class="page">
 <div class="logo">
 <div class="logo-brand">FFP <span>PASSPORT</span><span class="logo-year">2026</span></div>
@@ -658,6 +681,10 @@ document.addEventListener('DOMContentLoaded', function () {
       if (sub2) sub2.innerHTML = 'That confirmation link has expired. Enter your email and we&rsquo;ll send you a fresh 6-digit code.';
     }
   } catch (e) {}
+  // We reach here only when NOT auto-redirecting (no signed-in session, or a switch/verify flow),
+  // so reveal the login UI. The signed-in branch above returns early, leaving the splash up through
+  // the redirect into the dashboard.
+  if (window.ffpHideSplash) window.ffpHideSplash();
 });
 </script>
 <!-- v5: Referral pass-through. (a) Capture ?ref=CODE if buyer landed
