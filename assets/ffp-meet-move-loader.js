@@ -500,9 +500,38 @@
       wrapWrites();
       var panel = document.getElementById('panel-meet');
       if (panel && panel.classList.contains('active') && typeof MeetMove.render === 'function') MeetMove.render();
+      try { renderHostRequests(); } catch (e) {}   // top-of-panel host approval queue
       console.log('[FFP Meet & Move] Loaded ' + MeetMove.data.length + ' meetups ✓ (v15 — join via RPC; scaled passport-card attendees)');
     } catch (err) { console.error('[FFP Meet & Move] Unexpected error:', err); }
   }
+
+  // Host join-requests banner at the TOP of the Meetups panel — so pending requests are immediately
+  // visible (no need to dig into a meet-up). Each row names the meet-up + has Approve / Ignore.
+  function renderHostRequests() {
+    var hostEl = document.getElementById('ffp-host-requests');
+    if (!hostEl) return;
+    var data = (MeetMove && MeetMove.data) || [];
+    var rows = [];
+    data.forEach(function (m) {
+      if (!(m.isHostedByMe && m.pendingRequests && m.pendingRequests.length)) return;
+      m.pendingRequests.forEach(function (p) {
+        var av = p.photo
+          ? '<span style="width:38px;height:38px;border-radius:50%;flex-shrink:0;background:#0a1825 url(\'' + p.photo + '\') center/cover;"></span>'
+          : '<span style="width:38px;height:38px;border-radius:50%;flex-shrink:0;background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;">' + esc((p.name || 'M').charAt(0).toUpperCase()) + '</span>';
+        rows.push('<div style="display:flex;align-items:center;gap:9px;padding:11px 0;border-top:1px solid rgba(255,255,255,0.07);">' + av +
+          '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:800;color:#e8eef4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(p.name) + '</div>' +
+          '<div style="font-size:11.5px;color:#9fb4c4;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">wants to join · ' + esc(m.activity || 'your meet-up') + '</div></div>' +
+          '<button onclick="MeetMove.ignoreRequest(\'' + m.id + '\',\'' + p.id + '\',this)" style="background:rgba(255,255,255,0.08);color:#cfe0ee;border:none;border-radius:9px;padding:8px 13px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;">Ignore</button>' +
+          '<button onclick="MeetMove.approveRequest(\'' + m.id + '\',\'' + p.id + '\',this)" style="background:#16a34a;color:#fff;border:none;border-radius:9px;padding:8px 15px;font-size:13px;font-weight:800;cursor:pointer;flex-shrink:0;">Approve</button></div>');
+      });
+    });
+    if (!rows.length) { hostEl.innerHTML = ''; return; }
+    hostEl.innerHTML = '<div style="background:rgba(43,168,224,0.07);border:1px solid rgba(43,168,224,0.28);border-radius:14px;padding:13px 15px;margin-bottom:16px;">' +
+      '<div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:900;color:#e8eef4;">' +
+      '<span class="material-icons" style="font-size:18px;color:#2ba8e0;">group_add</span>Requests to join your meet-ups (' + rows.length + ')</div>' +
+      rows.join('') + '</div>';
+  }
+  window.ffpRenderHostRequests = renderHostRequests;
 
   function installOverrides() {
     var orig = MeetMove.openMeetupDetail.bind(MeetMove);
@@ -530,8 +559,9 @@
               var av = p.photo
                 ? '<span style="width:34px;height:34px;border-radius:50%;flex-shrink:0;background:#0a1825 url(\'' + p.photo + '\') center/cover;"></span>'
                 : '<span style="width:34px;height:34px;border-radius:50%;flex-shrink:0;background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;">' + esc((p.name || 'M').charAt(0).toUpperCase()) + '</span>';
-              return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.06);">' + av +
+              return '<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.06);">' + av +
                 '<div style="flex:1;min-width:0;font-size:14px;font-weight:600;color:#e8eef4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(p.name) + '</div>' +
+                '<button onclick="MeetMove.ignoreRequest(\'' + m.id + '\',\'' + p.id + '\',this)" style="background:rgba(255,255,255,0.08);color:#cfe0ee;border:none;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;">Ignore</button>' +
                 '<button onclick="MeetMove.approveRequest(\'' + m.id + '\',\'' + p.id + '\',this)" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:8px 15px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;">Approve</button></div>';
             }).join('');
             rq.innerHTML = '<div class="dm-section-label">Requests to join (' + m.pendingRequests.length + ')</div>' + rows;
@@ -599,6 +629,21 @@
     };
 
     // v23: HOST approves a pending request → member becomes 'joined', gets a notification + the confirm email.
+    // v25: host IGNORES a request (host_reject_attendee → status 'rejected'; frees the slot tracking).
+    MeetMove.ignoreRequest = async function (meetupId, memberId, btn) {
+      if (!currentUserId || !meetupId || !memberId) return;
+      if (btn) { try { btn.disabled = true; btn.textContent = 'Ignoring…'; } catch (e) {} }
+      try {
+        var res = await window.supabase.rpc('host_reject_attendee', { p_host: currentUserId, p_meetup: meetupId, p_member: memberId });
+        var st = res && res.data;
+        if (res.error || (st !== 'rejected' && st !== 'not_pending')) {
+          if (btn) { btn.disabled = false; btn.textContent = 'Ignore'; }
+          if (typeof showToast === 'function') showToast("Couldn't update — please try again", 'error'); return;
+        }
+        if (typeof showToast === 'function') showToast('Request ignored', 'success');
+        if (typeof window.ffpReloadMeetMove === 'function') window.ffpReloadMeetMove();
+      } catch (e) { if (btn) { btn.disabled = false; btn.textContent = 'Ignore'; } if (typeof showToast === 'function') showToast("Couldn't update — please try again", 'error'); }
+    };
     MeetMove.approveRequest = async function (meetupId, memberId, btn) {
       if (!currentUserId || !meetupId || !memberId) return;
       if (btn) { try { btn.disabled = true; btn.textContent = 'Approving…'; } catch (e) {} }
