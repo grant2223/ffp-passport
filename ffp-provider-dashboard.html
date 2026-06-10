@@ -2493,7 +2493,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
         <div class="biz-tabs">
           <button class="biz-tab active" onclick="bizTab(this,'mem-directory')">Directory</button>
           <button class="biz-tab" onclick="bizTab(this,'mem-plans')">Memberships &amp; Packages</button>
-          <button class="biz-tab" onclick="bizTab(this,'mem-teams')">Teams &amp; Rosters</button>
+          <button class="biz-tab" onclick="bizTab(this,'mem-teams'); if(typeof renderTeams==='function')renderTeams();">Teams &amp; Rosters</button>
           <button class="biz-tab" onclick="bizTab(this,'mem-comms')">Communications</button>
         </div>
         <div class="biz-pane active" id="mem-directory">
@@ -2517,14 +2517,14 @@ a { color: var(--ffp-blue); text-decoration: none; }
           </div>
         </div>
         <div class="biz-pane" id="mem-teams">
-          <div class="panel-placeholder" style="margin-top:26px;">
-            <span class="ms" style="font-size:44px;color:var(--ffp-yellow,#FFCC00);">groups</span>
-            <h3 style="margin:14px 0 6px;">Teams &amp; rosters — coming soon</h3>
-            <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
-              For clubs and squads: create teams, add players to a roster, record positions and age groups,
-              and manage who's in each squad. Links to Attendance and Scheduling for training and fixtures.
-            </p>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:16px;padding:9px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:#FFCC00;font-size:12px;font-weight:700;">
+            <span class="ms" style="font-size:16px;">construction</span> Coming soon — preview for partner testing
           </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
+            <div class="psub" style="margin:0;">Squads and training groups — build a roster from your members.</div>
+            <button class="btn btn-pri" onclick="openTeamModal()"><span class="ms">group_add</span> New team</button>
+          </div>
+          <div id="teams-list" style="margin-top:8px;"></div>
         </div>
         <div class="biz-pane" id="mem-comms">
           <div class="panel-placeholder" style="margin-top:26px;">
