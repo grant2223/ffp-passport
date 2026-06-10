@@ -7883,6 +7883,23 @@ async function loadConnectionsCount() {
   else setTimeout(wireLiveUpdates, 1200);
 })();
 
+// Tapping a notification routes to the right place in-app, using its stored link:
+//   ?activity=<id>  → opens the activity card        #panel-xxx → switches to that panel
+//   any other page  → navigates there
+function ffpHandleNotifClick(link) {
+  try { var m = document.getElementById('notif-menu'); if (m) m.classList.remove('show'); } catch (e) {}
+  if (!link) return;
+  link = String(link).replace(/%27/g, "'");
+  try {
+    var am = link.match(/[?&]activity=([^&#]+)/);
+    if (am && window.ffpViewSharedActivity) { window.ffpViewSharedActivity(decodeURIComponent(am[1])); return; }
+    var mm = link.match(/[?&]meetup=([^&#]+)/);
+    if (mm && typeof showPanel === 'function') { showPanel('panel-meetups'); var mid = decodeURIComponent(mm[1]); setTimeout(function () { try { if (window.MeetMove && MeetMove.openMeetupDetail) MeetMove.openMeetupDetail(mid); } catch (e) {} }, 300); return; }
+    var hm = link.match(/#(panel-[a-zA-Z-]+)/);
+    if (hm && typeof showPanel === 'function' && document.getElementById(hm[1])) { showPanel(hm[1]); window.scrollTo(0, 0); return; }
+    if (/^https?:\/\//.test(link) || link.indexOf('.html') !== -1) { window.location.href = link; }
+  } catch (e) {}
+}
 async function loadNotifications() {
   var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
   if (!member || !member.id) return;
@@ -7904,8 +7921,11 @@ async function loadNotifications() {
     var list = (json && json.notifications) || [];
     unread = (json && json.unread) || 0;
     backendHtml = list.map(function (n) {
-      return '<div class="notif-item"><div class="notif-icon"><span class="material-icons" style="font-size:18px;">' + escNotif(n.icon || 'campaign') + '</span></div>' +
-        '<div><div class="notif-msg">' + escNotif(n.title) + (n.body ? ' \u2014 ' + escNotif(n.body) : '') + '</div><div class="notif-time">' + notifTime(n.created_at) + '</div></div></div>';
+      var link = n.link || '';
+      var tap = link ? (' style="cursor:pointer;" onclick="ffpHandleNotifClick(\'' + String(link).replace(/'/g, '%27') + '\')"') : '';
+      var arrow = link ? '<span class="material-icons" style="font-size:18px;color:var(--muted);flex:0 0 auto;align-self:center;">chevron_right</span>' : '';
+      return '<div class="notif-item"' + tap + '><div class="notif-icon"><span class="material-icons" style="font-size:18px;">' + escNotif(n.icon || 'campaign') + '</span></div>' +
+        '<div style="flex:1;min-width:0;"><div class="notif-msg">' + escNotif(n.title) + (n.body ? ' \u2014 ' + escNotif(n.body) : '') + '</div><div class="notif-time">' + notifTime(n.created_at) + (link ? ' \u00b7 Tap to open' : '') + '</div></div>' + arrow + '</div>';
     }).join('');
   } catch (e) { console.error('[FFP Notif] load:', e); }
   if (listEl) {
@@ -7951,7 +7971,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '358';
+  const FFP_BUILD = '359';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -11197,7 +11217,7 @@ function ffpLogPickPhoto() {
   var mid = ((window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || {}).id || 'm';
   window.FFPUpload.pick({
     bucket: 'activity-photos', key: 'activity/' + mid + '-' + Date.now() + '.jpg',
-    aspect: 1, outW: 1000, outH: 1000, title: 'Activity photo',
+    aspect: 16 / 9, outW: 1280, outH: 720, title: 'Activity photo',
     onDone: function (url) { ffpLogSetPhoto(url); },
     onError: function (e) { if (window.showToast) showToast('Photo upload failed', 'error'); console.warn('[log photo]', e); }
   });
@@ -11616,7 +11636,7 @@ window.ffpRenderActivityCard = function (a, isOwn) {
   var titleBlock = '<div style="font-size:27px;font-weight:900;color:#fff;line-height:1.12;">' + esc(a.activity || 'Activity') + '</div>' +
     (when ? '<div style="font-size:12.5px;color:#cfe0ee;font-weight:700;margin-top:7px;">' + esc(when) + '</div>' : '');
   var hero = a.photo_url
-    ? '<div style="position:relative;width:100%;height:46vh;min-height:240px;background:#13324a center/cover no-repeat;background-image:linear-gradient(180deg,rgba(8,20,32,0.05),rgba(8,20,32,0.88)),url(\'' + a.photo_url + '\');"><div style="position:absolute;left:0;right:0;bottom:0;padding:22px 20px;">' + titleBlock + '</div></div>'
+    ? '<div style="position:relative;width:100%;aspect-ratio:16/9;max-height:38vh;background:#13324a center/cover no-repeat;background-image:linear-gradient(180deg,rgba(8,20,32,0.05),rgba(8,20,32,0.85)),url(\'' + a.photo_url + '\');"><div style="position:absolute;left:0;right:0;bottom:0;padding:18px 20px;">' + titleBlock + '</div></div>'
     : '<div style="width:100%;padding:64px 20px 30px;background:linear-gradient(135deg,rgba(43,168,224,0.22),rgba(255,204,0,0.07));text-align:center;"><div style="width:86px;height:86px;border-radius:24px;margin:0 auto 16px;background:rgba(43,168,224,0.16);display:flex;align-items:center;justify-content:center;color:#2ba8e0;"><span class="material-icons" style="font-size:46px;">' + icon + '</span></div>' + titleBlock + '</div>';
   // 2×2 grid of icon stat tiles (milestone style): Time · Distance · Burn · Heart. Missing → "—".
   function tile(ic, color, val, label) {
@@ -11646,8 +11666,9 @@ window.ffpRenderActivityCard = function (a, isOwn) {
     locBlock = '<div style="margin-top:22px;"><div style="' + lblCss + '">Location</div><div style="font-size:14px;color:#e8eef4;display:flex;align-items:center;gap:8px;"><span class="material-icons" style="font-size:19px;color:#2ba8e0;">place</span>' + esc(loc) + '</div></div>';
   }
   var notesBlock = a.notes ? ('<div style="margin-top:22px;"><div style="' + lblCss + '">How it felt</div><div style="font-size:14px;color:#cfe0ee;line-height:1.65;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:14px 16px;">' + esc(a.notes) + '</div></div>') : '';
-  var editBtn = (isOwn && a.id) ? '<button onclick="ffpCloseActivityCard();window.ffpEditActivity&&window.ffpEditActivity(\'' + a.id + '\')" style="width:100%;margin-top:24px;padding:14px;border-radius:12px;border:1px solid rgba(43,168,224,0.35);background:rgba(43,168,224,0.07);color:#2ba8e0;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:middle;">edit</span> Edit activity</button>' : '';
-  var body = '<div style="padding:22px 20px 40px;max-width:640px;margin:0 auto;width:100%;box-sizing:border-box;">' + owner + statGrid + locBlock + notesBlock + editBtn + '</div>';
+  var shareBtn = (isOwn && a.id) ? '<button onclick="window.ffpShareActivity&&window.ffpShareActivity(\'' + a.id + '\')" style="width:100%;margin-top:24px;padding:14px;border-radius:12px;border:none;background:#2ba8e0;color:#082335;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:middle;">' + (a.shared ? 'group' : 'share') + '</span> ' + (a.shared ? 'Share again with connections' : 'Share with my connections') + '</button>' : '';
+  var editBtn = (isOwn && a.id) ? '<button onclick="ffpCloseActivityCard();window.ffpEditActivity&&window.ffpEditActivity(\'' + a.id + '\')" style="width:100%;margin-top:10px;padding:13px;border-radius:12px;border:1px solid rgba(43,168,224,0.35);background:rgba(43,168,224,0.07);color:#2ba8e0;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:middle;">edit</span> Edit activity</button>' : '';
+  var body = '<div style="padding:22px 20px 40px;max-width:640px;margin:0 auto;width:100%;box-sizing:border-box;">' + owner + statGrid + locBlock + notesBlock + shareBtn + editBtn + '</div>';
 
   ffpCloseActivityCard();
   var ov = document.createElement('div'); ov.id = 'ffp-act-card-ov';
@@ -11671,6 +11692,23 @@ window.ffpRenderActivityCard = function (a, isOwn) {
     }, 90);
   }
 };
+// Share an already-logged activity with your connections (from the activity card). Marks it shared,
+// then notifies your collection (bell + push). Lets you share a private log after the fact.
+window.ffpShareActivity = async function (id) {
+  var me = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || {};
+  if (!id || !me.id || !window.supabase) return;
+  try {
+    var r = await window.supabase.rpc('member_activity_set_shared', { p_me: me.id, p_id: id, p_shared: true });
+    if (r.error) throw r.error;
+    fetch('https://ffp-passport-backend.vercel.app/api/activity/notify', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ member_id: me.id, activity_id: id })
+    }).catch(function () {});
+    if (typeof showToast === 'function') showToast('Shared with your connections 🎉', 'success');
+    if (typeof window.ffpActivityReload === 'function') window.ffpActivityReload();
+    ffpCloseActivityCard();
+  } catch (e) { if (typeof showToast === 'function') showToast('Could not share — try again', 'error'); }
+};
 // Deep-linked shared activity (notification tap → ?activity=<id>) → fetch via RPC, then render the card.
 window.ffpViewSharedActivity = async function (id) {
   if (!id || !window.supabase) return;
@@ -11685,13 +11723,22 @@ window.ffpViewSharedActivity = async function (id) {
 // On boot, open the shared activity card if the URL carries ?activity=<id> (from a share notification).
 (function () {
   try {
-    var qa = new URLSearchParams(window.location.search).get('activity');
-    if (!qa) return;
-    var t = 0, iv = setInterval(function () {
-      t++;
-      if (window.supabase && window.ffpViewSharedActivity) { clearInterval(iv); window.ffpViewSharedActivity(qa); }
-      else if (t > 80) clearInterval(iv);
-    }, 250);
+    var qs = new URLSearchParams(window.location.search);
+    var qa = qs.get('activity'), qm = qs.get('meetup');
+    if (qa) {
+      var t = 0, iv = setInterval(function () {
+        t++;
+        if (window.supabase && window.ffpViewSharedActivity) { clearInterval(iv); window.ffpViewSharedActivity(qa); }
+        else if (t > 80) clearInterval(iv);
+      }, 250);
+    }
+    if (qm) {
+      var t2 = 0, iv2 = setInterval(function () {
+        t2++;
+        if (window.MeetMove && MeetMove.openMeetupDetail) { clearInterval(iv2); try { if (typeof showPanel === 'function') showPanel('panel-meetups'); } catch (e) {} setTimeout(function () { try { MeetMove.openMeetupDetail(qm); } catch (e) {} }, 350); }
+        else if (t2 > 120) clearInterval(iv2);
+      }, 250);
+    }
   } catch (e) {}
 })();
 
