@@ -15,7 +15,8 @@
   --ffp-border:#1d3346; --ffp-border-mid:#24435c; --ffp-text:#eaf2f8; --ffp-text-muted:#8a99a8;
   --ffp-text-dim:#6c7f90; --ffp-blue:#2ba8e0; --ffp-yellow:#FFCC00; --ffp-purple:#8b5cf6; --r-md:9px;
 }
-*{box-sizing:border-box;}
+*{box-sizing:border-box;scrollbar-width:none;-ms-overflow-style:none;}
+::-webkit-scrollbar{width:0 !important;height:0 !important;display:none !important;}
 html,body{margin:0;height:100%;}
 body{background:var(--ffp-bg);color:var(--ffp-text);font-family:Montserrat,-apple-system,system-ui,sans-serif;font-size:14px;}
 .ms{font-family:'Material Icons';font-weight:normal;font-style:normal;font-size:18px;line-height:1;vertical-align:middle;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;}
@@ -129,7 +130,10 @@ a{color:var(--ffp-blue);}
       <h2>Set up your professional profile</h2>
       <p>We've pulled what we can from your Passport — confirm the details and you're in.</p>
       <div class="field" style="margin-bottom:12px;"><div class="label">Display name <span class="req">*</span></div><input class="input" id="ob-name"></div>
-      <div class="field" style="margin-bottom:12px;"><div class="label">Main profession <span class="req">*</span></div><select class="select" id="ob-profession"></select></div>
+      <div class="field" style="margin-bottom:12px;"><div class="label">Profession <span class="req">*</span></div>
+        <select class="select" id="ob-category" onchange="obCategoryChange()" style="margin-bottom:8px;"></select>
+        <select class="select" id="ob-profession"></select>
+      </div>
       <div class="form-grid" style="margin-bottom:14px;">
         <div class="field"><div class="label">Country</div><select class="select" id="ob-country" onchange="obCountryChange()"></select></div>
         <div class="field"><div class="label">City</div><select class="select" id="ob-city"></select></div>
@@ -308,13 +312,14 @@ function showPanel(id){
 
 // ─── Profile / storefront editor ───
 function pfCountryChange(){ document.getElementById('pf-city').innerHTML=cityOptionsHtml(document.getElementById('pf-country').value,''); }
+function pfCategoryChange(){ document.getElementById('pf-profession').innerHTML=roleOptionsHtml(document.getElementById('pf-category').value,''); }
 function renderProfileForm(){
   var host=document.getElementById('profile-form'); if(!host||!_pro)return;
   var mainProf=(_pro.professional_types&&_pro.professional_types[0])||'';
   host.innerHTML =
     '<div class="form-section"><div class="form-section-title">Public profile</div><div class="form-grid">'+
       '<div class="field full"><div class="label">Display name <span class="req">*</span></div><input class="input" id="pf-display_name" value="'+escHtml(_pro.display_name||'')+'"></div>'+
-      '<div class="field full"><div class="label">Main profession</div><select class="select" id="pf-profession">'+professionOptionsHtml(mainProf)+'</select></div>'+
+      '<div class="field full"><div class="label">Profession</div><select class="select" id="pf-category" onchange="pfCategoryChange()" style="margin-bottom:8px;">'+categoryOptionsHtml(_catOfRole(mainProf))+'</select><select class="select" id="pf-profession">'+roleOptionsHtml(_catOfRole(mainProf), mainProf)+'</select></div>'+
       '<div class="field full"><div class="label">Headline</div><input class="input" id="pf-headline" value="'+escHtml(_pro.headline||'')+'" placeholder="e.g. Strength &amp; performance coaching"></div>'+
       '<div class="field full"><div class="label">Bio</div><textarea class="textarea" id="pf-bio" rows="4" placeholder="Tell members about you, your style and who you help.">'+escHtml(_pro.bio||'')+'</textarea></div>'+
       '<div class="field"><div class="label">Country</div><select class="select" id="pf-country" onchange="pfCountryChange()">'+countryOptionsHtml(_pro.country||'')+'</select></div>'+
@@ -344,19 +349,23 @@ async function saveProfile(){
 
 // ─── Onboarding ───
 function _proRoles(){ return (window.FFP_TAX&&FFP_TAX.professionalRoles)||{}; }
-function professionOptionsHtml(sel){
-  var roles=_proRoles(); var h='<option value="">Select your main profession…</option>';
-  Object.keys(roles).forEach(function(cat){ h+='<optgroup label="'+escHtml(cat)+'">'; (roles[cat]||[]).forEach(function(r){ h+='<option'+(sel===r?' selected':'')+'>'+escHtml(r)+'</option>'; }); h+='</optgroup>'; });
-  return h;
-}
+// Only service professionals — we don't list business owners, athletes, creators or generic roles.
+var EXCLUDED_PRO_CATS={'Industry & Business':1,'Athletes & Creators':1,'Other':1};
+function _proCats(){ var roles=_proRoles(); return Object.keys(roles).filter(function(c){ return !EXCLUDED_PRO_CATS[c]; }); }
+function _catOfRole(role){ var roles=_proRoles(); var cats=Object.keys(roles); for(var i=0;i<cats.length;i++){ if((roles[cats[i]]||[]).indexOf(role)!==-1) return cats[i]; } return ''; }
+function categoryOptionsHtml(sel){ return '<option value="">Select a category…</option>'+_proCats().map(function(c){ return '<option'+(sel===c?' selected':'')+'>'+escHtml(c)+'</option>'; }).join(''); }
+function roleOptionsHtml(cat,sel){ var roles=(_proRoles()[cat]||[]); return '<option value="">Select your profession…</option>'+roles.map(function(r){ return '<option'+(sel===r?' selected':'')+'>'+escHtml(r)+'</option>'; }).join(''); }
+function obCategoryChange(){ document.getElementById('ob-profession').innerHTML=roleOptionsHtml(document.getElementById('ob-category').value,''); }
+function _passportName(m){ var n=((m.given_names||'')+' '+(m.surname||'')).replace(/\s+/g,' ').trim(); return n||m.full_name||''; }
 function _countryList(){ var c=(window.FFP_TAX&&FFP_TAX.cities)||{}; return Object.keys(c).sort(); }
 function countryOptionsHtml(sel){ var list=_countryList().slice(); if(sel&&list.indexOf(sel)===-1)list.unshift(sel); return '<option value="">Country</option>'+list.map(function(c){return '<option'+(c===sel?' selected':'')+'>'+escHtml(c)+'</option>';}).join(''); }
 function cityOptionsHtml(country,sel){ var c=(window.FFP_TAX&&FFP_TAX.cities)||{}; var list=(c[country]||[]).slice(); if(sel&&list.indexOf(sel)===-1)list.unshift(sel); return '<option value="">City</option>'+list.map(function(x){return '<option'+(x===sel?' selected':'')+'>'+escHtml(x)+'</option>';}).join(''); }
 function obCountryChange(){ document.getElementById('ob-city').innerHTML=cityOptionsHtml(document.getElementById('ob-country').value,''); }
 function paintOnboard(){
   var m=_member()||{};
-  document.getElementById('ob-name').value=m.full_name||'';
-  document.getElementById('ob-profession').innerHTML=professionOptionsHtml('');
+  document.getElementById('ob-name').value=_passportName(m);
+  document.getElementById('ob-category').innerHTML=categoryOptionsHtml('');
+  document.getElementById('ob-profession').innerHTML=roleOptionsHtml('','');
   document.getElementById('ob-country').innerHTML=countryOptionsHtml(m.country||'');
   document.getElementById('ob-city').innerHTML=cityOptionsHtml(m.country||'', m.city||'');
 }
