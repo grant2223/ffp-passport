@@ -295,12 +295,14 @@
   async function init() {
     if (!sb()) { setTimeout(init, 150); return; }
     injectCss();
-    // Edits require a live admin Supabase session (RLS). If it's missing/expired the
-    // lists still READ (public), but Add/rename/delete would silently fail — so say so.
+    // Edits require an applied admin JWT (RLS). FFP does NOT use Supabase Auth sessions —
+    // the JWT is injected per-request by ffp-api-integration.js and is_admin() enforces access
+    // server-side. So check for a stored JWT / admin identity, NOT supabase.auth.getSession()
+    // (which is always null in this model and used to wrongly block every edit).
     var hasSession = true;
     try {
-      var sres = await sb().auth.getSession();
-      hasSession = !!(sres && sres.data && sres.data.session);
+      hasSession = !!(window.FFPAuth && FFPAuth.getJwt && FFPAuth.getJwt())
+                || !!(window.FFP_ADMIN && window.FFP_ADMIN.id);
     } catch (e) { hasSession = false; }
     if (!hasSession) {
       var h0 = document.getElementById('tax-editor');
