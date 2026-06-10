@@ -1108,9 +1108,10 @@
     var d = l.logged_at ? new Date(l.logged_at) : null;
     var dateLbl = d ? _dayLabel(d, l.daysAgo) : (l.daysAgo + 'd ago');
     var loc = [l.venue, l.city].filter(Boolean).join(' · ') || 'No location set';
+    var _icon = (window.ffpActivityIcon ? window.ffpActivityIcon(l.activity) : 'fitness_center');
     var photo = l.photo_url
       ? '<div style="width:46px;height:46px;border-radius:10px;flex:0 0 auto;background:#13324a center/cover no-repeat;background-image:url(\'' + l.photo_url + '\');"></div>'
-      : '<div style="width:46px;height:46px;border-radius:10px;flex:0 0 auto;background:rgba(43,168,224,0.12);display:flex;align-items:center;justify-content:center;color:#2ba8e0;"><span class="material-icons" style="font-size:22px;">fitness_center</span></div>';
+      : '<div style="width:46px;height:46px;border-radius:10px;flex:0 0 auto;background:rgba(43,168,224,0.12);display:flex;align-items:center;justify-content:center;color:#2ba8e0;"><span class="material-icons" style="font-size:22px;">' + _icon + '</span></div>';
     var shareIcon = l.shared ? '<span class="material-icons" title="Shared with your connections" style="font-size:13px;color:#2ba8e0;vertical-align:-2px;">group</span> ' : '';
     var editBtn = l.id ? ('<button type="button" onclick="event.stopPropagation();window.ffpEditActivity&&window.ffpEditActivity(\'' + l.id + '\')" title="Edit activity" aria-label="Edit activity" style="background:none;border:none;color:var(--muted,#8a99a8);cursor:pointer;padding:2px;display:inline-flex;align-items:center;line-height:1;"><span class="material-icons" style="font-size:17px;">edit</span></button>') : '';
     return '<div onclick="window.ffpOpenActivityCard&&window.ffpOpenActivityCard(\'' + (l.id || '') + '\')" style="display:flex;align-items:center;gap:11px;padding:11px 0;border-top:1px solid rgba(255,255,255,0.06);cursor:pointer;">' +
