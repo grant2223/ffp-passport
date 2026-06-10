@@ -88,15 +88,35 @@ async function renderBillReports() {
   var pid = _billProvId();
   if (!pid) { host.innerHTML = '<div class="empty-sub" style="text-align:left;">Sign in to view reports.</div>'; return; }
   host.innerHTML = '<div class="psub" style="margin:10px 0;">Loading…</div>';
-  var sum = {};
-  try { var rs = await window.supabase.rpc('provider_payment_summary', { p_provider: pid }); sum = (rs && rs.data) ? rs.data : {}; } catch (e) {}
-  host.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">' +
-      _metric('Collected (all time)', _money(sum.collected_total)) +
-      _metric('Collected this month', _money(sum.collected_month)) +
-      _metric('Outstanding', _money(sum.outstanding_total)) +
-      _metric('Payments recorded', String(sum.paid_count || 0)) +
-    '</div>' +
-    '<div class="psub" style="margin:14px 2px 0;">Fuller reports (attendance, memberships, retention) arrive with the Reports module.</div>';
+  var d = {};
+  try { var rs = await window.supabase.rpc('provider_business_report', { p_provider: pid }); d = (rs && rs.data) ? rs.data : {}; } catch (e) {}
+  function sec(t) { return '<div class="psub" style="margin:18px 2px 8px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;font-size:11px;">' + t + '</div>'; }
+  function grid(cards) { return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;">' + cards.join('') + '</div>'; }
+  function num(v) { return String(v || 0); }
+  host.innerHTML =
+    sec('Revenue') + grid([
+      _metric('Collected (all time)', _money(d.collected_total)),
+      _metric('This month', _money(d.collected_month)),
+      _metric('Outstanding', _money(d.outstanding_total))
+    ]) +
+    sec('Members') + grid([
+      _metric('Total', num(d.members_total)),
+      _metric('Active', num(d.members_active)),
+      _metric('Trial', num(d.members_trial)),
+      _metric('Lapsed', num(d.members_lapsed)),
+      _metric('New this month', num(d.members_new_month))
+    ]) +
+    sec('Memberships') + grid([
+      _metric('Active plans', num(d.memberships_active)),
+      _metric('Expiring (30 days)', num(d.memberships_expiring_30d))
+    ]) +
+    sec('Attendance & activity') + grid([
+      _metric('Check-ins (all time)', num(d.attendance_total)),
+      _metric('Check-ins this month', num(d.attendance_month)),
+      _metric('Upcoming sessions', num(d.sessions_upcoming)),
+      _metric('Teams', num(d.teams_count)),
+      _metric('Staff', num(d.staff_active))
+    ]);
 }
 
 function payRow(p, mode) {
