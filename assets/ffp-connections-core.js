@@ -243,8 +243,10 @@ const MeetMove = {
   render() {
     var _chipRow = document.getElementById('meet-pro-chip-row');
     if (_chipRow) _chipRow.style.display = isMemberProfessional() ? '' : 'none';
-    // Tab counts
-    const joinedCount = this.data.filter(m => m.joinedByMe && !m.isHostedByMe).length;
+    // Tab counts — "Going" counts only UPCOMING (matches the Going list, which excludes past). Otherwise
+    // a past join showed "2" with an empty list. Past joins live under the Past tab.
+    const _nowC = Date.now();
+    const joinedCount = this.data.filter(m => m.joinedByMe && !m.isHostedByMe && !(m._ts && m._ts < _nowC)).length;
     const hostingCount = this.data.filter(m => m.isHostedByMe || this.hostingIds.has(m.id)).length;
     document.getElementById('cnt-meet-joined').textContent = joinedCount;
     document.getElementById('cnt-meet-hosting').textContent = hostingCount;
