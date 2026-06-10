@@ -2568,28 +2568,30 @@ a { color: var(--ffp-blue); text-decoration: none; }
         <div class="ph">Staff</div>
         <div class="psub">Coaches and staff — accounts, access and schedules.</div>
         <div class="biz-tabs">
-          <button class="biz-tab active" onclick="bizTab(this,'stf-list')">Staff</button>
+          <button class="biz-tab active" onclick="bizTab(this,'stf-list'); if(typeof renderStaff==='function')renderStaff();">Staff</button>
           <button class="biz-tab" onclick="bizTab(this,'stf-roles')">Roles &amp; Access</button>
           <button class="biz-tab" onclick="bizTab(this,'stf-sched')">Schedules</button>
         </div>
         <div class="biz-pane active" id="stf-list">
-          <div class="panel-placeholder" style="margin-top:26px;">
-            <span class="ms" style="font-size:44px;color:var(--ffp-yellow,#FFCC00);">badge</span>
-            <h3 style="margin:14px 0 6px;">Staff list — coming soon</h3>
-            <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
-              Add coaches and team members, each with their own sign-in. Keep their contact details, role and
-              the classes or teams they run in one place.
-            </p>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:16px;padding:9px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:#FFCC00;font-size:12px;font-weight:700;">
+            <span class="ms" style="font-size:16px;">construction</span> Coming soon — preview for partner testing
           </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
+            <div class="psub" style="margin:0;">Your coaches and team members, each with a role and access level.</div>
+            <button class="btn btn-pri" onclick="openStaffModal()"><span class="ms">person_add</span> Add staff</button>
+          </div>
+          <div id="staff-list" style="margin-top:8px;"></div>
         </div>
         <div class="biz-pane" id="stf-roles">
-          <div class="panel-placeholder" style="margin-top:26px;">
-            <span class="ms" style="font-size:44px;color:var(--ffp-yellow,#FFCC00);">admin_panel_settings</span>
-            <h3 style="margin:14px 0 6px;">Roles &amp; access — coming soon</h3>
-            <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
-              Decide who can do what — manage bookings, see payments, or just run their own classes — with
-              role-based permissions so staff only see what they need.
-            </p>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:16px;padding:9px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:#FFCC00;font-size:12px;font-weight:700;">
+            <span class="ms" style="font-size:16px;">construction</span> Coming soon — preview for partner testing
+          </div>
+          <div class="psub" style="margin:14px 0 10px;">Access levels you can assign to each staff member. Separate staff logins that enforce these arrive in a later update — for now this sets each person's intended access.</div>
+          <div style="display:flex;flex-direction:column;gap:9px;">
+            <div style="background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-radius:12px;padding:11px 13px;"><div style="font-weight:800;color:var(--ffp-text,#eaf2f8);">Full access</div><div class="psub" style="margin:2px 0 0;">Everything — members, scheduling, attendance, payments and settings.</div></div>
+            <div style="background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-radius:12px;padding:11px 13px;"><div style="font-weight:800;color:var(--ffp-text,#eaf2f8);">Manager</div><div class="psub" style="margin:2px 0 0;">Members, bookings, attendance and payments — but not account settings.</div></div>
+            <div style="background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-radius:12px;padding:11px 13px;"><div style="font-weight:800;color:var(--ffp-text,#eaf2f8);">Classes only</div><div class="psub" style="margin:2px 0 0;">Run their own sessions and take attendance. No payments or settings.</div></div>
+            <div style="background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-radius:12px;padding:11px 13px;"><div style="font-weight:800;color:var(--ffp-text,#eaf2f8);">View only</div><div class="psub" style="margin:2px 0 0;">Read-only — can see schedules and members but change nothing.</div></div>
           </div>
         </div>
         <div class="biz-pane" id="stf-sched">
@@ -2608,40 +2610,36 @@ a { color: var(--ffp-blue); text-decoration: none; }
         <div class="ph">Payments &amp; Invoices</div>
         <div class="psub">Charge your members and send invoices — paid into your own account.</div>
         <div class="biz-tabs">
-          <button class="biz-tab active" onclick="bizTab(this,'bil-pay')">Payments</button>
-          <button class="biz-tab" onclick="bizTab(this,'bil-inv')">Invoices</button>
-          <button class="biz-tab" onclick="bizTab(this,'bil-reports')">Reports</button>
+          <button class="biz-tab active" onclick="bizTab(this,'bil-pay'); if(typeof renderPayments==='function')renderPayments();">Payments</button>
+          <button class="biz-tab" onclick="bizTab(this,'bil-inv'); if(typeof renderInvoices==='function')renderInvoices();">Invoices</button>
+          <button class="biz-tab" onclick="bizTab(this,'bil-reports'); if(typeof renderBillReports==='function')renderBillReports();">Reports</button>
         </div>
         <div class="biz-pane active" id="bil-pay">
-          <div class="panel-placeholder" style="margin-top:26px;">
-            <span class="ms" style="font-size:44px;color:var(--ffp-yellow,#FFCC00);">payments</span>
-            <h3 style="margin:14px 0 6px;">Payments — coming soon</h3>
-            <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
-              Take payments for memberships, packs and sessions — money goes to your own connected Stripe
-              account. This is the biggest piece (a one-time Stripe connection per business), so it comes
-              after the essentials are in.
-            </p>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:16px;padding:9px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:#FFCC00;font-size:12px;font-weight:700;">
+            <span class="ms" style="font-size:16px;">construction</span> Coming soon — preview for partner testing
           </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
+            <div class="psub" style="margin:0;">Record money you've collected — cash, card or transfer. No card processing yet.</div>
+            <button class="btn btn-pri" onclick="openPaymentModal('','payment')"><span class="ms">add</span> Record payment</button>
+          </div>
+          <div id="pay-list" style="margin-top:8px;"></div>
         </div>
         <div class="biz-pane" id="bil-inv">
-          <div class="panel-placeholder" style="margin-top:26px;">
-            <span class="ms" style="font-size:44px;color:var(--ffp-yellow,#FFCC00);">receipt_long</span>
-            <h3 style="margin:14px 0 6px;">Invoices — coming soon</h3>
-            <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
-              Issue and send invoices, track what's paid and what's outstanding, and keep a full history per
-              member.
-            </p>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:16px;padding:9px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:#FFCC00;font-size:12px;font-weight:700;">
+            <span class="ms" style="font-size:16px;">construction</span> Coming soon — preview for partner testing
           </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
+            <div class="psub" style="margin:0;">Money owed. Issue an invoice, then mark it paid when it comes in.</div>
+            <button class="btn btn-pri" onclick="openPaymentModal('','invoice')"><span class="ms">add</span> New invoice</button>
+          </div>
+          <div id="inv-list" style="margin-top:8px;"></div>
         </div>
         <div class="biz-pane" id="bil-reports">
-          <div class="panel-placeholder" style="margin-top:26px;">
-            <span class="ms" style="font-size:44px;color:var(--ffp-yellow,#FFCC00);">insights</span>
-            <h3 style="margin:14px 0 6px;">Reports — coming soon</h3>
-            <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
-              The numbers that run the business: revenue and outstanding invoices, attendance and no-shows,
-              membership growth and churn, and your busiest classes.
-            </p>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:16px;padding:9px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:#FFCC00;font-size:12px;font-weight:700;">
+            <span class="ms" style="font-size:16px;">construction</span> Coming soon — preview for partner testing
           </div>
+          <div class="psub" style="margin:14px 0 4px;">Your money at a glance.</div>
+          <div id="bill-reports" style="margin-top:8px;"></div>
         </div>
       </section>
 
@@ -3115,7 +3113,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js', 'scheduling': 'ffp-provider-scheduling-loader.js', 'members': 'ffp-provider-members-loader.js' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js', 'scheduling': 'ffp-provider-scheduling-loader.js', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
@@ -3162,6 +3160,8 @@ function showPanel(id) {
   if (id === 'analytics') renderAnalytics();
   if (id === 'scheduling' && typeof renderScheduling === 'function') renderScheduling();
   if (id === 'members' && typeof renderMembers === 'function') renderMembers();
+  if (id === 'billing' && typeof renderPayments === 'function') renderPayments();
+  if (id === 'staff' && typeof renderStaff === 'function') renderStaff();
   window.scrollTo({ top: 0, behavior: 'smooth' });
   // Close mobile sidebar after navigation
   if (window.innerWidth <= 768) closeSidebar();
