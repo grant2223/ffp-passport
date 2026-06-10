@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FFP Professional</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/ffp-api-integration.js?v=12"></script>
+<style>
+:root{
+  --ffp-bg:#081420; --ffp-bg-2:#0f1f2c; --ffp-bg-3:#16273a; --ffp-bg-card:#0c1d2b;
+  --ffp-border:#1d3346; --ffp-border-mid:#24435c; --ffp-text:#eaf2f8; --ffp-text-muted:#8a99a8;
+  --ffp-text-dim:#6c7f90; --ffp-blue:#2ba8e0; --ffp-yellow:#FFCC00; --ffp-purple:#8b5cf6; --r-md:9px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;height:100%;}
+body{background:var(--ffp-bg);color:var(--ffp-text);font-family:Montserrat,-apple-system,system-ui,sans-serif;font-size:14px;}
+.ms{font-family:'Material Icons';font-weight:normal;font-style:normal;font-size:18px;line-height:1;vertical-align:middle;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;}
+a{color:var(--ffp-blue);}
+.hidden{display:none !important;}
+
+/* Gate / onboarding / lock */
+.gate{position:fixed;inset:0;background:var(--ffp-bg);display:flex;align-items:center;justify-content:center;padding:22px;z-index:200;}
+.gate-card{width:100%;max-width:440px;background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:16px;padding:26px 22px;}
+.gate-brand{font-size:15px;font-weight:900;letter-spacing:2px;margin-bottom:4px;}
+.gate-brand b{color:var(--ffp-purple);font-weight:900;}
+.gate-sub{font-size:11px;font-weight:800;letter-spacing:1.6px;color:var(--ffp-text-dim);text-transform:uppercase;margin-bottom:18px;}
+.gate h2{font-size:18px;margin:0 0 6px;}
+.gate p{color:var(--ffp-text-muted);line-height:1.6;margin:0 0 16px;}
+.spin{width:30px;height:30px;border:3px solid var(--ffp-border);border-top-color:var(--ffp-purple);border-radius:50%;animation:sp 1s linear infinite;margin:8px auto;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 4px;}
+.chip{border:1px solid var(--ffp-border-mid);border-radius:20px;padding:7px 13px;font-size:12px;font-weight:700;color:var(--ffp-text-muted);cursor:pointer;user-select:none;}
+.chip.on{background:rgba(139,92,246,.16);border-color:var(--ffp-purple);color:#c4b5fd;}
+
+/* App layout */
+.app{display:flex;height:100vh;overflow:hidden;}
+.sidebar{width:236px;flex-shrink:0;background:var(--ffp-bg-2);border-right:1px solid var(--ffp-border);display:flex;flex-direction:column;}
+.sb-logo{padding:18px 20px 14px;border-bottom:1px solid var(--ffp-border);}
+.sb-brand{font-size:14px;font-weight:900;letter-spacing:2px;}
+.sb-brand b{color:var(--ffp-purple);}
+.sb-tag{font-size:9px;font-weight:800;letter-spacing:1.4px;color:var(--ffp-purple);text-transform:uppercase;margin-top:3px;}
+.sb-nav{flex:1;padding:12px 10px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;}
+.ni{display:flex;align-items:center;gap:11px;padding:10px 13px;border-radius:9px;font-size:13px;font-weight:700;color:var(--ffp-text-muted);cursor:pointer;border:1px solid transparent;width:100%;text-align:left;background:none;font-family:inherit;}
+.ni:hover{background:rgba(139,92,246,.06);color:var(--ffp-text);}
+.ni.active{background:rgba(139,92,246,.14);color:#fff;border-color:var(--ffp-border-mid);}
+.ni .ms{font-size:18px;}
+.sb-foot{padding:12px 14px;border-top:1px solid var(--ffp-border);display:flex;align-items:center;gap:10px;}
+.sb-foot-mark{width:34px;height:34px;border-radius:9px;background:var(--ffp-purple);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;flex-shrink:0;}
+.sb-foot-name{font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sb-foot-out{font-size:10px;color:var(--ffp-text-dim);cursor:pointer;}
+.main{flex:1;overflow-y:auto;padding:22px 26px 60px;}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.tb-title{font-size:18px;font-weight:800;}
+.preview-pill{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:var(--ffp-yellow);font-size:12px;font-weight:700;margin-bottom:14px;}
+
+.panel{display:none;}
+.panel.active{display:block;}
+.ph{font-size:18px;font-weight:800;}
+.psub{font-size:12px;color:var(--ffp-text-muted);margin:3px 0 0;line-height:1.5;}
+.empty-sub{color:var(--ffp-text-muted);}
+.panel-placeholder{text-align:center;padding:18px;display:flex;flex-direction:column;align-items:center;}
+
+/* Forms */
+.form-section{margin-top:16px;}
+.form-section-title{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--ffp-text-dim);margin-bottom:8px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.field{display:flex;flex-direction:column;}
+.field.full{grid-column:1 / -1;}
+.label{font-size:12px;font-weight:700;color:var(--ffp-text-muted);margin-bottom:5px;}
+.req{color:var(--ffp-purple);}
+.input,.select,.textarea{width:100%;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:var(--r-md);padding:11px 13px;font-size:13px;font-weight:600;color:var(--ffp-text);font-family:inherit;color-scheme:dark;}
+.input:focus,.select:focus,.textarea:focus{outline:none;border-color:var(--ffp-purple);}
+.input::placeholder,.textarea::placeholder{color:var(--ffp-text-dim);font-weight:500;}
+.input[type="date"]::-webkit-calendar-picker-indicator,.input[type="time"]::-webkit-calendar-picker-indicator{filter:invert(.85);cursor:pointer;opacity:.8;}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:var(--r-md);font-size:13px;font-weight:800;padding:10px 15px;cursor:pointer;border:1px solid transparent;font-family:inherit;}
+.btn .ms{font-size:17px;}
+.btn-pri{background:var(--ffp-purple);color:#fff;}
+.btn-pri:hover{filter:brightness(1.07);}
+.btn-sec{background:rgba(139,92,246,.12);color:#c4b5fd;border-color:var(--ffp-border-mid);}
+.btn-ghost{background:transparent;color:var(--ffp-text-muted);border-color:var(--ffp-border-mid);}
+.btn-ghost.left{margin-right:auto;}
+.btn-sm{padding:7px 11px;font-size:11px;}
+.btn-block{width:100%;}
+.ni-lock-pill{font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;background:var(--ffp-bg-3);color:var(--ffp-text-dim);border-radius:100px;padding:2px 8px;}
+
+/* Business tabs */
+.biz-tabs{display:flex;gap:4px;flex-wrap:wrap;margin:18px 0 0;border-bottom:1px solid var(--ffp-border);}
+.biz-tab{background:none;border:none;border-bottom:2px solid transparent;color:var(--ffp-text-muted);font-weight:700;font-size:13px;padding:10px 14px;cursor:pointer;font-family:inherit;}
+.biz-tab:hover{color:var(--ffp-text);}
+.biz-tab.active{color:var(--ffp-text);border-bottom-color:var(--ffp-purple);}
+.biz-pane{display:none;}
+.biz-pane.active{display:block;}
+
+/* Modal */
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:18px;z-index:300;}
+.modal-ov.show{display:flex;}
+.modal-card{width:100%;max-width:440px;background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:14px;max-height:90vh;display:flex;flex-direction:column;}
+.mc-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--ffp-border);}
+.mc-title{font-size:15px;font-weight:800;}
+.mc-x{background:none;border:none;color:var(--ffp-text-muted);cursor:pointer;}
+.mc-body{padding:6px 18px 14px;overflow-y:auto;}
+.mc-foot{padding:14px 18px;border-top:1px solid var(--ffp-border);display:flex;gap:10px;justify-content:flex-end;align-items:center;}
+
+/* Toast */
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ffp-bg-3);border:1px solid var(--ffp-border-mid);color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:700;opacity:0;pointer-events:none;transition:all .2s;z-index:400;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.success{border-color:#1d9e75;}
+.toast.error{border-color:#a32d2d;}
+</style>
+</head>
+<body>
+
+<!-- GATE (auth / onboarding / lock) -->
+<div class="gate" id="gate">
+  <div class="gate-card" id="gate-card">
+    <div class="gate-brand">FFP <b>Professional</b></div>
+    <div class="gate-sub">Find Fit People</div>
+    <div id="gate-loading">
+      <div class="spin"></div>
+      <p style="text-align:center;">Checking your account…</p>
+    </div>
+    <div id="gate-onboard" class="hidden">
+      <h2>Set up your professional profile</h2>
+      <p>You're a Passport member — just a couple of details and you're in.</p>
+      <div class="field" style="margin-bottom:12px;"><div class="label">Display name <span class="req">*</span></div><input class="input" id="ob-name" placeholder="e.g. Sam Okafor"></div>
+      <div class="field" style="margin-bottom:6px;"><div class="label">What do you do? <span class="req">*</span></div></div>
+      <div class="chips" id="ob-types"></div>
+      <div class="field" style="margin:12px 0;"><div class="label">City</div><input class="input" id="ob-city" placeholder="City"></div>
+      <button class="btn btn-pri btn-block" onclick="submitOnboard()">Create my professional profile</button>
+      <div style="text-align:center;margin-top:12px;"><a style="font-size:12px;color:var(--ffp-text-dim);cursor:pointer;" onclick="signOut()">Sign out</a></div>
+    </div>
+    <div id="gate-locked" class="hidden">
+      <h2>Renew your Passport to reactivate</h2>
+      <p>Your professional portal is powered by your FFP Passport. It looks like your Passport isn't active right now — renew it and your portal comes straight back, with your data intact.</p>
+      <a class="btn btn-pri btn-block" href="/ffp-member-dashboard.html">Go to my Passport</a>
+      <div style="text-align:center;margin-top:12px;"><a style="font-size:12px;color:var(--ffp-text-dim);cursor:pointer;" onclick="signOut()">Sign out</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app hidden" id="app">
+  <aside class="sidebar">
+    <div class="sb-logo"><div class="sb-brand">FFP <b>PRO</b></div><div class="sb-tag" id="sb-types">Professional</div></div>
+    <nav class="sb-nav" id="sb-nav"></nav>
+    <div class="sb-foot">
+      <div class="sb-foot-mark" id="sb-initials">P</div>
+      <div style="flex:1;min-width:0;"><div class="sb-foot-name" id="sb-name">Professional</div><div class="sb-foot-out" onclick="signOut()">Sign out</div></div>
+    </div>
+  </aside>
+  <main class="main">
+    <div class="topbar"><div class="tb-title" id="tb-title">Profile</div></div>
+    <div class="preview-pill"><span class="ms" style="font-size:15px;">construction</span> Preview — professional portal in testing</div>
+
+    <!-- PROFILE / STOREFRONT -->
+    <section class="panel active" id="panel-profile">
+      <div class="ph">Your profile</div>
+      <div class="psub">This is your public storefront on Find Fit People. Publish it when you're ready to be discovered.</div>
+      <div id="profile-form"></div>
+    </section>
+
+    <!-- CLIENTS (members loader -> #mem-list) -->
+    <section class="panel" id="panel-clients">
+      <div class="ph">Clients</div>
+      <div class="psub">The people you train — contacts, status, tags. Memberships and bookings link back here.</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
+        <input class="input" id="mem-search" placeholder="Search name, email, phone or tag…" style="max-width:300px;" oninput="if(typeof renderMembersList==='function')renderMembersList()">
+        <button class="btn btn-pri" onclick="openMemberModal()"><span class="ms">person_add</span> Add client</button>
+      </div>
+      <div id="mem-list" style="margin-top:10px;"></div>
+    </section>
+
+    <!-- SCHEDULING (scheduling loader -> #sched-list / #att-list) -->
+    <section class="panel" id="panel-scheduling">
+      <div class="ph">Scheduling</div>
+      <div class="psub">Your sessions — 1-to-1s, group classes, recurring. Take a register against your clients.</div>
+      <div class="biz-tabs">
+        <button class="biz-tab active" onclick="bizTab(this,'sched-cal'); if(typeof renderScheduling==='function')renderScheduling();">Calendar</button>
+        <button class="biz-tab" onclick="bizTab(this,'sched-att'); if(typeof renderAttendance==='function')renderAttendance();">Attendance</button>
+      </div>
+      <div class="biz-pane active" id="sched-cal">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
+          <div class="psub" style="margin:0;">Sessions you run — clients book these (soon) and you take attendance.</div>
+          <button class="btn btn-pri" onclick="openSessionModal()"><span class="ms">add</span> New session</button>
+        </div>
+        <div id="sched-list" style="margin-top:10px;"></div>
+      </div>
+      <div class="biz-pane" id="sched-att">
+        <div class="psub" style="margin:14px 0 4px;">Pick a session and tick who attended.</div>
+        <div id="att-list" style="margin-top:8px;"></div>
+      </div>
+    </section>
+
+    <!-- PACKAGES (members loader -> #plans-list) -->
+    <section class="panel" id="panel-packages">
+      <div class="ph">Packages</div>
+      <div class="psub">Memberships and class-packs. Assign them to clients from the Clients tab.</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
+        <div class="psub" style="margin:0;">Recurring plans and credit packs.</div>
+        <button class="btn btn-pri" onclick="openPlanModal()"><span class="ms">add</span> New package</button>
+      </div>
+      <div id="plans-list" style="margin-top:8px;"></div>
+    </section>
+
+    <!-- PAYMENTS (billing loader -> #pay-list / #inv-list / #bill-reports) -->
+    <section class="panel" id="panel-payments">
+      <div class="ph">Payments &amp; Reports</div>
+      <div class="psub">Record what you collect, issue invoices, and see your numbers. No card processing yet.</div>
+      <div class="biz-tabs">
+        <button class="biz-tab active" onclick="bizTab(this,'bil-pay'); if(typeof renderPayments==='function')renderPayments();">Payments</button>
+        <button class="biz-tab" onclick="bizTab(this,'bil-inv'); if(typeof renderInvoices==='function')renderInvoices();">Invoices</button>
+        <button class="biz-tab" onclick="bizTab(this,'bil-reports'); if(typeof renderBillReports==='function')renderBillReports();">Reports</button>
+      </div>
+      <div class="biz-pane active" id="bil-pay">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
+          <div class="psub" style="margin:0;">Money you've collected — cash, card or transfer.</div>
+          <button class="btn btn-pri" onclick="openPaymentModal('','payment')"><span class="ms">add</span> Record payment</button>
+        </div>
+        <div id="pay-list" style="margin-top:8px;"></div>
+      </div>
+      <div class="biz-pane" id="bil-inv">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
+          <div class="psub" style="margin:0;">Money owed. Mark paid when it comes in.</div>
+          <button class="btn btn-pri" onclick="openPaymentModal('','invoice')"><span class="ms">add</span> New invoice</button>
+        </div>
+        <div id="inv-list" style="margin-top:8px;"></div>
+      </div>
+      <div class="biz-pane" id="bil-reports">
+        <div class="psub" style="margin:14px 0 4px;">Your business at a glance.</div>
+        <div id="bill-reports" style="margin-top:8px;"></div>
+      </div>
+    </section>
+
+    <!-- MESSAGES (members loader -> #comms-list) -->
+    <section class="panel" id="panel-comms">
+      <div class="ph">Messages</div>
+      <div class="psub">Announcements and reminders to your clients. Compose now; delivery switches on when channels connect.</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
+        <div class="psub" style="margin:0;">Message everyone or a chosen group.</div>
+        <button class="btn btn-pri" onclick="openComposeModal()"><span class="ms">campaign</span> Compose</button>
+      </div>
+      <div id="comms-list" style="margin-top:8px;"></div>
+    </section>
+  </main>
+</div>
+
+<!-- Modal + toast -->
+<div id="ffp-modal" class="modal-ov"><div class="modal-card"><div class="mc-head"><div class="mc-title"></div><button class="mc-x" onclick="closeModal()"><span class="ms">close</span></button></div><div class="mc-body"></div><div class="mc-foot"></div></div></div>
+<div id="ffp-toast" class="toast"></div>
+
+<script>
+// ─── Shared shell helpers (match the Business loaders' expectations) ───
+var providerProfile = {};                 // loaders read providerProfile.city defensively
+var PRO_TYPE_OPTIONS = ['Soccer coach','Fitness trainer','Personal trainer','Nutritionist','Physiotherapist','Chiropractor','Yoga teacher','Pilates teacher','Wellness coach','Specialist'];
+var _pro = null;                           // the professional record (with can_access etc.)
+
+function escHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function showToast(msg,type){ var t=document.getElementById('ffp-toast'); t.textContent=msg; t.className='toast show '+(type||''); clearTimeout(window._toastT); window._toastT=setTimeout(function(){t.className='toast';},2600); }
+function openModalShell(size,title,body,foot){ var ov=document.getElementById('ffp-modal'); ov.querySelector('.mc-title').textContent=title||''; ov.querySelector('.mc-body').innerHTML=body||''; ov.querySelector('.mc-foot').innerHTML=foot||''; ov.querySelector('.modal-card').style.maxWidth=(size==='lg')?'560px':'440px'; ov.classList.add('show'); }
+function closeModal(){ document.getElementById('ffp-modal').classList.remove('show'); }
+function emptyState(title,sub,ctaLabel,ctaFn){
+  return '<div class="panel-placeholder" style="margin-top:24px;">'+
+    '<span class="ms" style="font-size:42px;color:var(--ffp-purple);">inbox</span>'+
+    '<h3 style="margin:12px 0 6px;">'+escHtml(title)+'</h3>'+
+    '<p style="max-width:430px;color:var(--ffp-text-muted);line-height:1.6;">'+escHtml(sub)+'</p>'+
+    (ctaLabel?'<button class="btn btn-pri" style="margin-top:12px;" onclick="'+ctaFn+'">'+escHtml(ctaLabel)+'</button>':'')+
+  '</div>';
+}
+function bizTab(btn,paneId){ var panel=btn.closest('.panel'); if(!panel)return; panel.querySelectorAll('.biz-tab').forEach(function(t){t.classList.remove('active');}); btn.classList.add('active'); panel.querySelectorAll('.biz-pane').forEach(function(p){p.classList.remove('active');}); var pane=panel.querySelector('#'+paneId); if(pane)pane.classList.add('active'); }
+
+// ─── Deferred Business module loaders (reused, scoped to FFP_PROVIDER.id = professional id) ───
+var _provLoaderSrc = { clients:'ffp-provider-members-loader.js', packages:'ffp-provider-members-loader.js', comms:'ffp-provider-members-loader.js', scheduling:'ffp-provider-scheduling-loader.js', payments:'ffp-provider-billing-loader.js' };
+var _provLoaded = {};
+function ensureProviderLoader(id){ var src=_provLoaderSrc[id]; if(!src||_provLoaded[src])return; _provLoaded[src]=true; var sc=document.createElement('script'); sc.src=src; sc.async=false; sc.onload=function(){ renderPanel(id); }; sc.onerror=function(){ console.error('[FFP Pro] failed to load '+src); }; document.body.appendChild(sc); }
+function renderPanel(id){
+  if(id==='clients'    && typeof renderMembers==='function')     renderMembers();
+  if(id==='scheduling' && typeof renderScheduling==='function')  renderScheduling();
+  if(id==='packages'   && typeof renderPlans==='function')       renderPlans();
+  if(id==='payments'   && typeof renderPayments==='function')    renderPayments();
+  if(id==='comms'      && typeof renderComms==='function')       renderComms();
+}
+
+var PRO_NAV=[
+  {id:'profile',icon:'badge',label:'Profile'},
+  {id:'clients',icon:'groups',label:'Clients'},
+  {id:'scheduling',icon:'calendar_month',label:'Scheduling'},
+  {id:'packages',icon:'card_membership',label:'Packages'},
+  {id:'payments',icon:'receipt_long',label:'Payments'},
+  {id:'comms',icon:'campaign',label:'Messages'}
+];
+function renderNav(){
+  document.getElementById('sb-nav').innerHTML = PRO_NAV.map(function(n){
+    return '<button class="ni'+(n.id==='profile'?' active':'')+'" data-nav="'+n.id+'" onclick="showPanel(\''+n.id+'\')"><span class="ms">'+n.icon+'</span><span>'+n.label+'</span></button>';
+  }).join('');
+}
+function showPanel(id){
+  ensureProviderLoader(id);
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
+  var el=document.getElementById('panel-'+id); if(el)el.classList.add('active');
+  document.querySelectorAll('.ni').forEach(function(n){n.classList.remove('active');});
+  var nb=document.querySelector('.ni[data-nav="'+id+'"]'); if(nb)nb.classList.add('active');
+  var item=PRO_NAV.find(function(x){return x.id===id;});
+  document.getElementById('tb-title').textContent=item?item.label:'';
+  if(id==='profile') renderProfileForm(); else renderPanel(id);
+}
+
+// ─── Profile / storefront editor ───
+function renderProfileForm(){
+  var host=document.getElementById('profile-form'); if(!host||!_pro)return;
+  var types=_pro.professional_types||[];
+  var chips=PRO_TYPE_OPTIONS.map(function(t){ var on=types.indexOf(t)!==-1; return '<div class="chip'+(on?' on':'')+'" data-t="'+escHtml(t)+'" onclick="this.classList.toggle(\'on\')">'+escHtml(t)+'</div>'; }).join('');
+  host.innerHTML =
+    '<div class="form-section"><div class="form-section-title">Public profile</div><div class="form-grid">'+
+      '<div class="field full"><div class="label">Display name <span class="req">*</span></div><input class="input" id="pf-display_name" value="'+escHtml(_pro.display_name||'')+'"></div>'+
+      '<div class="field full"><div class="label">What you do</div><div class="chips" id="pf-types">'+chips+'</div></div>'+
+      '<div class="field full"><div class="label">Headline</div><input class="input" id="pf-headline" value="'+escHtml(_pro.headline||'')+'" placeholder="e.g. Strength &amp; performance coaching"></div>'+
+      '<div class="field full"><div class="label">Bio</div><textarea class="textarea" id="pf-bio" rows="4" placeholder="Tell members about you, your style and who you help.">'+escHtml(_pro.bio||'')+'</textarea></div>'+
+      '<div class="field"><div class="label">City</div><input class="input" id="pf-city" value="'+escHtml(_pro.city||'')+'"></div>'+
+      '<div class="field"><div class="label">Public contact email <span style="color:var(--ffp-text-dim);">(optional)</span></div><input class="input" id="pf-work_email" value="'+escHtml(_pro.work_email||'')+'" placeholder="shown on your storefront"></div>'+
+    '</div></div>'+
+    '<div class="form-section"><div class="form-section-title">Visibility</div>'+
+      '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;"><input type="checkbox" id="pf-published" '+(_pro.is_published?'checked':'')+' style="width:18px;height:18px;accent-color:var(--ffp-purple);"> <span style="font-size:13px;font-weight:700;">Publish my profile (discoverable on Find Fit People)</span></label>'+
+    '</div>'+
+    '<div style="margin-top:18px;"><button class="btn btn-pri" onclick="saveProfile()"><span class="ms">save</span> Save profile</button></div>';
+}
+async function saveProfile(){
+  if(!_pro)return;
+  var g=function(i){var el=document.getElementById('pf-'+i);return el?el.value.trim():'';};
+  var name=g('display_name'); if(!name){ showToast('Display name is required','error'); return; }
+  var types=[]; document.querySelectorAll('#pf-types .chip.on').forEach(function(c){types.push(c.getAttribute('data-t'));});
+  var payload={ display_name:name, headline:g('headline'), bio:g('bio'), city:g('city'), work_email:g('work_email'), professional_types:types, is_published:document.getElementById('pf-published').checked };
+  try{
+    var r=await window.supabase.rpc('professional_save_profile',{p_professional:_pro.id,p:payload});
+    if(r&&r.error)throw r.error;
+    Object.assign(_pro,payload);
+    providerProfile.city=payload.city;
+    showToast('Profile saved','success');
+  }catch(e){ showToast('Could not save profile','error'); }
+}
+
+// ─── Onboarding ───
+function paintOnboardTypes(){
+  document.getElementById('ob-types').innerHTML = PRO_TYPE_OPTIONS.map(function(t){ return '<div class="chip" data-t="'+escHtml(t)+'" onclick="this.classList.toggle(\'on\')">'+escHtml(t)+'</div>'; }).join('');
+}
+async function submitOnboard(){
+  var member=_member(); if(!member)return;
+  var name=document.getElementById('ob-name').value.trim();
+  if(!name){ showToast('Add your display name','error'); return; }
+  var types=[]; document.querySelectorAll('#ob-types .chip.on').forEach(function(c){types.push(c.getAttribute('data-t'));});
+  if(!types.length){ showToast('Pick at least one','error'); return; }
+  var city=document.getElementById('ob-city').value.trim();
+  try{
+    var r=await window.supabase.rpc('professional_link',{p_member:member.id,p:{display_name:name,professional_types:types,city:city}});
+    if(r&&r.error)throw r.error;
+    if(r.data&&r.data.error){ showToast(r.data.error==='passport_inactive'?'An active Passport is required':'Could not create profile','error'); return; }
+    boot(); // re-run the gate -> enters dashboard
+  }catch(e){ showToast('Could not create profile','error'); }
+}
+
+// ─── Auth gate ───
+function _member(){ try{ var raw=localStorage.getItem('ffp_member'); return raw?JSON.parse(raw):null; }catch(e){ return null; } }
+function signOut(){ try{ localStorage.removeItem('ffp_member'); }catch(e){} location.href='/login'; }
+function showGateState(which){
+  document.getElementById('gate-loading').classList.toggle('hidden',which!=='loading');
+  document.getElementById('gate-onboard').classList.toggle('hidden',which!=='onboard');
+  document.getElementById('gate-locked').classList.toggle('hidden',which!=='locked');
+}
+function enterDashboard(){
+  document.getElementById('gate').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  var m=_member();
+  var nm=_pro.display_name||(m&&m.full_name)||'Professional';
+  document.getElementById('sb-name').textContent=nm;
+  document.getElementById('sb-initials').textContent=(nm.split(/\s+/).map(function(w){return w[0]||'';}).join('').slice(0,2)||'P').toUpperCase();
+  document.getElementById('sb-types').textContent=(_pro.professional_types&&_pro.professional_types.length)?_pro.professional_types.slice(0,2).join(' · '):'Professional';
+  providerProfile.city=_pro.city||'';
+  window.FFP_PROVIDER={ id:_pro.id, member_id:m&&m.id, email:m&&m.email, role:'professional', display_name:_pro.display_name };
+  renderNav();
+  showPanel('profile');
+}
+async function boot(){
+  var member=_member();
+  if(!member||!member.id){ location.href='/login'; return; }
+  if(!window.supabase||!window.supabase.rpc){ setTimeout(boot,200); return; }
+  showGateState('loading');
+  try{
+    var r=await window.supabase.rpc('professional_for_member',{p_member:member.id});
+    var rec=r&&r.data?r.data:null;
+    if(!rec){ document.getElementById('ob-name').value=member.full_name||''; paintOnboardTypes(); showGateState('onboard'); return; }
+    _pro=rec;
+    if(!rec.can_access){ showGateState('locked'); return; }
+    enterDashboard();
+  }catch(e){ console.error('[FFP Pro] gate error',e); showGateState('onboard'); document.getElementById('ob-name').value=member.full_name||''; paintOnboardTypes(); }
+}
+if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',boot); } else { boot(); }
+</script>
+</body>
+</html>
