@@ -12,8 +12,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Try FFP Passport Free — Provider Signup</title>
-<meta name="description" content="Create your FFP Passport provider account free. Build your events, experiences and challenges, and reach the UAE's most active community. No payment while we're in preview.">
+<title>Try FFP Passport Free — Partner Signup</title>
+<meta name="description" content="Create your FFP Passport partner account free. Build your events, experiences and challenges, and reach the UAE's most active community. No payment while we're in preview.">
 <link rel="icon" type="image/png" href="assets/ffp-emblem.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -91,7 +91,7 @@ select option{background:var(--bg-2);color:var(--text)}
 <body>
 <header class="topbar">
   <div class="wrap">
-    <div class="brand">FFP <span>PASSPORT</span><span class="sub">Provider Partnerships</span></div>
+    <div class="brand">FFP <span>PASSPORT</span><span class="sub">Partnerships</span></div>
     <a href="/login" class="login">Already a partner? Log in</a>
   </div>
 </header>
@@ -137,7 +137,7 @@ select option{background:var(--bg-2);color:var(--text)}
         <div class="field">
           <label>Phone <span class="hint">— your facility's public phone number</span></label>
           <div style="display:flex;gap:8px;">
-            <select id="phone-cc" style="flex:0 0 150px;"></select>
+            <select id="phone-cc" style="flex:0 0 118px;"></select>
             <input type="tel" id="phone-num" placeholder="56 261 7359" maxlength="30" style="flex:1;">
           </div>
         </div>
@@ -248,7 +248,10 @@ select option{background:var(--bg-2);color:var(--text)}
     TAX.phoneCodes.forEach(function (p) {
       var o = document.createElement('option');
       o.value = p.code;
-      o.textContent = (p.flag ? p.flag + ' ' : '') + p.code + ' · ' + p.country;
+      // Platform standard: collapsed field shows flag + dial code only (e.g. "🇦🇪 +971"),
+      // not the full country name. Country kept as a hover title for disambiguation.
+      o.textContent = (p.flag ? p.flag + ' ' : '') + p.code;
+      o.title = p.country || '';
       if (p.code === '+971' && p.country === 'United Arab Emirates') o.selected = true;
       cc.appendChild(o);
     });
