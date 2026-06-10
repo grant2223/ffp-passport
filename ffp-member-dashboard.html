@@ -4494,8 +4494,8 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     </div>
     <div class="jm-map-wrap"><div id="ffp-jmap"></div></div>
     <div class="jm-legend">
-      <span class="jm-legend-item"><span class="jm-dot venue"></span>Venue you checked into</span>
-      <span class="jm-legend-item"><span class="jm-dot city"></span>City you were active in</span>
+      <span class="jm-legend-item"><span class="jm-dot city"></span>Your activities</span>
+      <span class="jm-legend-item"><span class="jm-dot venue"></span>FFP partners</span>
     </div>
   </div>
 
@@ -7128,8 +7128,47 @@ function ffpVectorBasemap(map){
 
 // ===== JOURNEY MAP (Leaflet) — World › Country › City drill-down =====
 window.JourneyMap = (function () {
-  var map = null, layer = null;
+  var map = null, layer = null, pinLayer = null, PARTNERS = null;
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+  // ── Pin overlay: Blue = your geo-tagged activities, Yellow = FFP partners ──
+  // A persistent layer ON TOP of the existing city/region drill-down, so individual pins show around
+  // each location (the map otherwise aggregates by city). Activities come from the member's logs;
+  // partners from approved providers with coordinates.
+  function loadPartners(cb){
+    if (PARTNERS){ if (cb) cb(); return; }
+    if (!window.supabase){ PARTNERS = []; if (cb) cb(); return; }
+    try {
+      window.supabase.from('providers')
+        .select('id, business_name, category, city, latitude, longitude, maps_url')
+        .eq('status','approved')
+        .not('latitude','is',null).not('longitude','is',null)
+        .then(function(res){ PARTNERS = (res && res.data) ? res.data : []; if (cb) cb(); },
+              function(){ PARTNERS = []; if (cb) cb(); });
+    } catch(e){ PARTNERS = []; if (cb) cb(); }
+  }
+  function renderPins(){
+    if (!map || !pinLayer) return;
+    pinLayer.clearLayers();
+    // Blue — the member's geo-tagged activities (respect the active time range, like the rest of the map)
+    var logs = (typeof logsInRange==='function') ? logsInRange() : ((typeof LOGS!=='undefined')?LOGS:[]);
+    logs.forEach(function(l){
+      if (l.lat==null || l.lng==null) return;
+      var ttl = esc(l.venue || l.activity || 'Activity');
+      var when = (l.daysAgo!=null) ? (l.daysAgo===0?'today':(l.daysAgo===1?'1 day ago':(l.daysAgo+' days ago'))) : '';
+      var sub = [l.city, when].filter(Boolean).join(' · ');
+      L.marker([l.lat,l.lng],{icon:dotIcon('#2ba8e0',7)}).addTo(pinLayer)
+        .bindPopup('<div class="jm-pop-t">'+ttl+'</div>'+(sub?'<div class="jm-pop-s">'+esc(sub)+'</div>':''));
+    });
+    // Yellow — FFP partners
+    (PARTNERS||[]).forEach(function(p){
+      var la=p.latitude, ln=p.longitude; if (la==null||ln==null) return;
+      var sub = [p.category, p.city].filter(Boolean).join(' · ');
+      var link = p.maps_url ? '<div class="jm-pop-s"><a href="'+esc(p.maps_url)+'" target="_blank" rel="noopener" style="color:#2ba8e0;font-weight:700;">Open in Maps</a></div>' : '';
+      L.marker([la,ln],{icon:dotIcon('#FFCC00',7)}).addTo(pinLayer)
+        .bindPopup('<div class="jm-pop-t">'+esc(p.business_name||'FFP Partner')+'</div>'+(sub?'<div class="jm-pop-s">'+esc(sub)+'</div>':'')+link);
+    });
+  }
   function jsStr(s){ return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
 
   function coordsForCity(name, country){
@@ -7164,6 +7203,8 @@ window.JourneyMap = (function () {
     map = L.map(el, { zoomControl:true, attributionControl:false, worldCopyJump:true }).setView([20,10], 2);
     ffpVectorBasemap(map);
     layer = L.layerGroup().addTo(map);
+    pinLayer = L.layerGroup().addTo(map);
+    loadPartners(function(){ try { renderPins(); } catch(e){} });
     setTimeout(function(){ if (map){ map.invalidateSize(); render(); } }, 250);
   }
   function fit(bounds, maxZoom){
@@ -7197,7 +7238,7 @@ window.JourneyMap = (function () {
         if (l.lat!=null && l.lng!=null){ var vk=l.venue||l.provider_id||(l.lat+','+l.lng); if(!venues[vk]) venues[vk]={name:l.venue||'Venue',lat:l.lat,lng:l.lng,count:0}; venues[vk].count++; }
       });
       var vKeys = Object.keys(venues);
-      vKeys.forEach(function(vk){ var v=venues[vk]; L.marker([v.lat,v.lng],{icon:dotIcon(pcol||'#FFCC00',7)}).addTo(layer).bindPopup('<div class="jm-pop-t">'+esc(v.name)+'</div><div class="jm-pop-s">'+v.count+' check-in'+(v.count===1?'':'s')+'</div>'); bounds.push([v.lat,v.lng]); });
+      vKeys.forEach(function(vk){ var v=venues[vk]; L.marker([v.lat,v.lng],{icon:dotIcon(pcol||'#2ba8e0',7)}).addTo(layer).bindPopup('<div class="jm-pop-t">'+esc(v.name)+'</div><div class="jm-pop-s">'+v.count+' check-in'+(v.count===1?'':'s')+'</div>'); bounds.push([v.lat,v.lng]); });
       if (!vKeys.length){ var cc=coordsForCity(state.selectedCity,state.selectedCountry); if(cc){ L.marker([cc.lat,cc.lng],{icon:dotIcon(pcol||'#2ba8e0',8)}).addTo(layer).bindPopup('<div class="jm-pop-t">'+esc(state.selectedCity)+'</div><div class="jm-pop-s">Activities logged here</div>'); bounds.push([cc.lat,cc.lng]); } }
       if (countEl) countEl.textContent = vKeys.length ? (vKeys.length+(vKeys.length===1?' venue':' venues')) : 'City view';
       fit(bounds, 14);
@@ -7213,6 +7254,8 @@ window.JourneyMap = (function () {
     }
     // (Country/City dropdowns are now built at the TOP of render() — see #32 fix — so they appear
     //  even on the first render when the map is still initialising.)
+    // Persistent pin overlay (Blue = your activities, Yellow = FFP partners) sits on top of the clusters.
+    try { renderPins(); } catch(e){}
   }
   function renderCrumb(){
     var el=document.getElementById('jm-crumb'); if(!el) return;
