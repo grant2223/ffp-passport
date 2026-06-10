@@ -81,6 +81,7 @@ function memberRow(m) {
       '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex-shrink:0;">' +
         '<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;' + stStyle + '">' + (MEMBER_STATUS[st] || 'Active') + '</span>' +
         '<div style="display:flex;gap:6px;">' +
+          '<button class="btn btn-sec btn-sm" onclick="openMembership(\'' + m.id + '\')" title="Membership"><span class="ms">card_membership</span></button>' +
           '<button class="btn btn-sec btn-sm" onclick="openMemberModal(\'' + m.id + '\')"><span class="ms">edit</span></button>' +
           '<button class="btn btn-ghost btn-sm" onclick="confirmDeleteMember(\'' + m.id + '\')"><span class="ms">delete</span></button>' +
         '</div>' +
@@ -326,6 +327,185 @@ async function saveRoster() {
     closeModal();
     renderTeams();
   } catch (e) { showToast('Could not save roster', 'error'); }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// MEMBERSHIPS & PACKAGES  (Members → Memberships & Packages tab)
+// Plans catalog: provider_save_plan / provider_list_plans / provider_delete_plan.
+// Assignments:   provider_assign_plan / provider_member_plans / provider_cancel_member_plan.
+// ════════════════════════════════════════════════════════════════════════
+var _plans = [];
+var PLAN_TYPES = { recurring: 'Recurring membership', pack: 'Class pack', term: 'Term membership' };
+var _curMembershipMember = null;
+
+async function renderPlans() {
+  var host = document.getElementById('plans-list');
+  if (!host) return;
+  var pid = _memProvId();
+  if (!pid) { host.innerHTML = '<div class="empty-sub" style="text-align:left;">Sign in to manage plans.</div>'; return; }
+  host.innerHTML = '<div class="psub" style="margin:10px 0;">Loading…</div>';
+  try {
+    var r = await window.supabase.rpc('provider_list_plans', { p_provider: pid });
+    _plans = (r && r.data) ? r.data : [];
+  } catch (e) { _plans = []; }
+  if (!_plans.length) {
+    host.innerHTML = emptyState('No plans yet', 'Create a membership or class-pack, then assign it to members from the Directory.', 'New plan', 'openPlanModal()');
+    return;
+  }
+  host.innerHTML = _plans.map(planRow).join('');
+}
+
+function planRow(p) {
+  var meta = [PLAN_TYPES[p.plan_type] || 'Plan'];
+  if (p.price_aed != null && p.price_aed !== '') meta.push('AED ' + p.price_aed);
+  if (p.plan_type === 'pack' && p.credits) meta.push(p.credits + ' credits');
+  if (p.period_days) meta.push(p.period_days + ' days');
+  var n = p.member_count || 0;
+  return '<div style="background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-radius:12px;padding:11px 13px;margin-bottom:9px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">' +
+      '<div style="min-width:0;">' +
+        '<div style="font-weight:800;color:var(--ffp-text,#eaf2f8);">' + escHtml(p.name) + '</div>' +
+        '<div class="psub" style="margin:2px 0 0;">' + meta.join(' · ') + '</div>' +
+        '<div class="psub" style="margin:2px 0 0;">' + n + ' on this plan</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px;flex-shrink:0;">' +
+        '<button class="btn btn-sec btn-sm" onclick="openPlanModal(\'' + p.id + '\')"><span class="ms">edit</span></button>' +
+        '<button class="btn btn-ghost btn-sm" onclick="confirmDeletePlan(\'' + p.id + '\')"><span class="ms">delete</span></button>' +
+      '</div>' +
+  '</div>';
+}
+
+function openPlanModal(id) {
+  var editing = id ? _plans.find(function (x) { return x.id === id; }) : null;
+  var p = editing || { name: '', plan_type: 'recurring', price_aed: '', credits: '', period_days: '', notes: '' };
+  openModalShell('lg', (editing ? 'Edit plan' : 'New plan'), `
+    <div class="form-section">
+      <div class="form-section-title">Plan</div>
+      <div class="form-grid">
+        <div class="field full"><div class="label">Plan name <span class="req">*</span></div><input class="input" id="pl-name" value="${escHtml(p.name)}" placeholder="e.g. Monthly Unlimited"></div>
+        <div class="field">
+          <div class="label">Type</div>
+          <select class="select" id="pl-plan_type">
+            <option value="recurring"${p.plan_type === 'recurring' ? ' selected' : ''}>Recurring membership</option>
+            <option value="pack"${p.plan_type === 'pack' ? ' selected' : ''}>Class pack</option>
+            <option value="term"${p.plan_type === 'term' ? ' selected' : ''}>Term membership</option>
+          </select>
+        </div>
+        <div class="field"><div class="label">Price (AED)</div><input class="input" type="number" id="pl-price_aed" value="${escHtml(String(p.price_aed || ''))}" placeholder="e.g. 300"></div>
+        <div class="field"><div class="label">Credits <span style="color:var(--ffp-text-dim,#6c7f90);">(class packs)</span></div><input class="input" type="number" id="pl-credits" value="${escHtml(String(p.credits || ''))}" placeholder="e.g. 10"></div>
+        <div class="field"><div class="label">Length in days <span style="color:var(--ffp-text-dim,#6c7f90);">(membership/term)</span></div><input class="input" type="number" id="pl-period_days" value="${escHtml(String(p.period_days || ''))}" placeholder="e.g. 30"></div>
+        <div class="field full"><div class="label">Notes</div><textarea class="textarea" id="pl-notes" rows="2" placeholder="Optional">${escHtml(p.notes || '')}</textarea></div>
+      </div>
+    </div>
+  `, `
+    ${editing ? '<button class="btn btn-ghost left" onclick="confirmDeletePlan(\'' + editing.id + '\')"><span class="ms">delete</span> Delete</button>' : ''}
+    <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-pri" onclick="savePlan('${editing ? editing.id : ''}')">${editing ? 'Save changes' : 'Create plan'}</button>
+  `);
+}
+
+async function savePlan(id) {
+  var g = function (i) { var el = document.getElementById('pl-' + i); return el ? el.value.trim() : ''; };
+  var name = g('name');
+  if (!name) { showToast('Plan name is required', 'error'); return; }
+  var pid = _memProvId();
+  if (!pid) { showToast('Not signed in', 'error'); return; }
+  var payload = { name: name, plan_type: g('plan_type') || 'recurring', price_aed: g('price_aed'), credits: g('credits'), period_days: g('period_days'), notes: g('notes') };
+  try {
+    var r = await window.supabase.rpc('provider_save_plan', { p_provider: pid, p_id: id || null, p: payload });
+    if (r && r.error) throw r.error;
+    showToast(id ? 'Plan updated' : 'Plan created', 'success');
+    closeModal();
+    renderPlans();
+  } catch (e) { showToast('Could not save plan', 'error'); }
+}
+
+function confirmDeletePlan(id) {
+  openModalShell('', 'Delete plan?', '<div class="psub" style="margin:6px 0;">This removes the plan. Members already assigned keep their membership record.</div>', '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="doDeletePlan(\'' + id + '\')">Delete</button>');
+}
+
+async function doDeletePlan(id) {
+  var pid = _memProvId();
+  try {
+    var r = await window.supabase.rpc('provider_delete_plan', { p_provider: pid, p_id: id });
+    if (r && r.error) throw r.error;
+    showToast('Plan deleted', 'success');
+  } catch (e) { showToast('Could not delete plan', 'error'); }
+  closeModal();
+  renderPlans();
+}
+
+// Manage one member's memberships (assign / view / cancel)
+async function openMembership(memberId) {
+  var pid = _memProvId();
+  if (!pid) return;
+  _curMembershipMember = memberId;
+  var m = (_members || []).find(function (x) { return x.id === memberId; }) || {};
+  if (!_plans.length) {
+    try { var rp = await window.supabase.rpc('provider_list_plans', { p_provider: pid }); _plans = (rp && rp.data) ? rp.data : []; } catch (e) {}
+  }
+  var assigns = [];
+  try { var r = await window.supabase.rpc('provider_member_plans', { p_provider: pid, p_member: memberId }); assigns = (r && r.data) ? r.data : []; } catch (e) {}
+  var current = assigns.length ? assigns.map(membershipRow).join('') : '<div class="psub" style="margin:6px 0;">No memberships yet.</div>';
+  var today = new Date();
+  var todayStr = today.getFullYear() + '-' + ('0' + (today.getMonth() + 1)).slice(-2) + '-' + ('0' + today.getDate()).slice(-2);
+  var assignForm;
+  if (_plans.length) {
+    var opts = _plans.map(function (p) { return '<option value="' + p.id + '">' + escHtml(p.name) + '</option>'; }).join('');
+    assignForm = '<div class="form-section"><div class="form-section-title">Assign a plan</div><div class="form-grid">' +
+      '<div class="field"><div class="label">Plan</div><select class="select" id="asg-plan">' + opts + '</select></div>' +
+      '<div class="field"><div class="label">Start</div><input class="input" type="date" id="asg-start" value="' + todayStr + '"></div>' +
+      '<div class="field full"><button class="btn btn-pri" onclick="assignPlan(\'' + memberId + '\')"><span class="ms">add</span> Assign plan</button></div>' +
+      '</div></div>';
+  } else {
+    assignForm = '<div class="psub" style="margin:8px 0;">Create a plan first in the Memberships &amp; Packages tab, then assign it here.</div>';
+  }
+  openModalShell('lg', 'Membership · ' + escHtml(m.full_name || 'Member'),
+    '<div class="form-section"><div class="form-section-title">Current</div>' + current + '</div>' + assignForm,
+    '<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
+}
+
+function membershipRow(a) {
+  var active = a.status === 'active';
+  var stColor = active ? 'rgba(43,168,224,.16);color:#6fc6ef' : 'rgba(255,255,255,.08);color:#9fb0bf';
+  var bits = [];
+  if (a.expiry_date) bits.push('expires ' + a.expiry_date);
+  if (a.credits_remaining != null) bits.push(a.credits_remaining + ' credits');
+  if (a.start_date) bits.push('from ' + a.start_date);
+  return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--ffp-border,#1d3346);">' +
+      '<div style="min-width:0;">' +
+        '<div style="font-weight:700;color:var(--ffp-text,#eaf2f8);">' + escHtml(a.plan_name || 'Plan') + '</div>' +
+        (bits.length ? '<div class="psub" style="margin:2px 0 0;">' + bits.join(' · ') + '</div>' : '') +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">' +
+        '<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;background:' + stColor + '">' + (a.status || 'active') + '</span>' +
+        (active ? '<button class="btn btn-ghost btn-sm" onclick="cancelMemberPlan(\'' + a.id + '\')">Cancel</button>' : '') +
+      '</div>' +
+  '</div>';
+}
+
+async function assignPlan(memberId) {
+  var pid = _memProvId();
+  if (!pid) return;
+  var sel = document.getElementById('asg-plan');
+  var start = document.getElementById('asg-start');
+  if (!sel || !sel.value) { showToast('Pick a plan', 'error'); return; }
+  try {
+    var r = await window.supabase.rpc('provider_assign_plan', { p_provider: pid, p_member: memberId, p_plan: sel.value, p_start: (start && start.value) ? start.value : null });
+    if (r && r.error) throw r.error;
+    showToast('Plan assigned', 'success');
+    openMembership(memberId);
+  } catch (e) { showToast('Could not assign plan', 'error'); }
+}
+
+async function cancelMemberPlan(assignId) {
+  var pid = _memProvId();
+  if (!pid) return;
+  try {
+    var r = await window.supabase.rpc('provider_cancel_member_plan', { p_provider: pid, p_id: assignId });
+    if (r && r.error) throw r.error;
+    showToast('Membership cancelled', 'success');
+  } catch (e) { showToast('Could not cancel', 'error'); }
+  if (_curMembershipMember) openMembership(_curMembershipMember);
 }
 
 // First open: loaded by showPanel AFTER its synchronous render hook ran, so
