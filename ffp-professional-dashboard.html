@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>FFP Professional</title>
+<link rel="manifest" href="/ffp-pro.webmanifest">
+<meta name="theme-color" content="#7c3aed">
+<link rel="icon" href="/assets/icons/ffp-pro-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/assets/icons/ffp-pro-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="FFP Pro">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/ffp-api-integration.js?v=12"></script>
@@ -129,7 +137,10 @@ a{color:var(--ffp-blue);}
     <div id="gate-onboard" class="hidden">
       <h2>Set up your professional profile</h2>
       <p>We've pulled what we can from your Passport — confirm the details and you're in.</p>
-      <div class="field" style="margin-bottom:12px;"><div class="label">Display name <span class="req">*</span></div><input class="input" id="ob-name"></div>
+      <div class="form-grid" style="margin-bottom:12px;">
+        <div class="field"><div class="label">Given names <span class="req">*</span></div><input class="input" id="ob-given"></div>
+        <div class="field"><div class="label">Surname <span class="req">*</span></div><input class="input" id="ob-surname"></div>
+      </div>
       <div class="field" style="margin-bottom:12px;"><div class="label">Profession <span class="req">*</span></div>
         <select class="select" id="ob-category" onchange="obCategoryChange()" style="margin-bottom:8px;"></select>
         <select class="select" id="ob-profession"></select>
@@ -250,6 +261,13 @@ a{color:var(--ffp-blue);}
   </main>
 </div>
 
+<!-- Add-to-home-screen nudge (iOS Safari only) -->
+<div id="a2hs" style="display:none;position:fixed;left:12px;right:12px;bottom:14px;z-index:350;background:var(--ffp-bg-3);border:1px solid var(--ffp-purple);border-radius:12px;padding:11px 14px;align-items:center;gap:10px;">
+  <span class="ms" style="color:var(--ffp-purple);font-size:20px;">ios_share</span>
+  <div style="flex:1;font-size:12px;font-weight:600;line-height:1.5;">Add <b>FFP Pro</b> to your home screen — tap <b>Share</b>, then <b>Add to Home Screen</b>.</div>
+  <button class="mc-x" onclick="document.getElementById('a2hs').style.display='none';try{localStorage.setItem('ffp_pro_a2hs','1');}catch(e){}"><span class="ms">close</span></button>
+</div>
+
 <!-- Modal + toast -->
 <div id="ffp-modal" class="modal-ov"><div class="modal-card"><div class="mc-head"><div class="mc-title"></div><button class="mc-x" onclick="closeModal()"><span class="ms">close</span></button></div><div class="mc-body"></div><div class="mc-foot"></div></div></div>
 <div id="ffp-toast" class="toast"></div>
@@ -318,7 +336,8 @@ function renderProfileForm(){
   var mainProf=(_pro.professional_types&&_pro.professional_types[0])||'';
   host.innerHTML =
     '<div class="form-section"><div class="form-section-title">Public profile</div><div class="form-grid">'+
-      '<div class="field full"><div class="label">Display name <span class="req">*</span></div><input class="input" id="pf-display_name" value="'+escHtml(_pro.display_name||'')+'"></div>'+
+      '<div class="field"><div class="label">Given names <span class="req">*</span></div><input class="input" id="pf-given_names" value="'+escHtml(_pro.given_names||'')+'"></div>'+
+      '<div class="field"><div class="label">Surname <span class="req">*</span></div><input class="input" id="pf-surname" value="'+escHtml(_pro.surname||'')+'"></div>'+
       '<div class="field full"><div class="label">Profession</div><select class="select" id="pf-category" onchange="pfCategoryChange()" style="margin-bottom:8px;">'+categoryOptionsHtml(_catOfRole(mainProf))+'</select><select class="select" id="pf-profession">'+roleOptionsHtml(_catOfRole(mainProf), mainProf)+'</select></div>'+
       '<div class="field full"><div class="label">Headline</div><input class="input" id="pf-headline" value="'+escHtml(_pro.headline||'')+'" placeholder="e.g. Strength &amp; performance coaching"></div>'+
       '<div class="field full"><div class="label">Bio</div><textarea class="textarea" id="pf-bio" rows="4" placeholder="Tell members about you, your style and who you help.">'+escHtml(_pro.bio||'')+'</textarea></div>'+
@@ -334,9 +353,11 @@ function renderProfileForm(){
 async function saveProfile(){
   if(!_pro)return;
   var g=function(i){var el=document.getElementById('pf-'+i);return el?el.value.trim():'';};
-  var name=g('display_name'); if(!name){ showToast('Display name is required','error'); return; }
+  var given=g('given_names'); var surname=g('surname');
+  var name=(given+' '+surname).replace(/\s+/g,' ').trim();
+  if(!name){ showToast('Name is required','error'); return; }
   var prof=g('profession');
-  var payload={ display_name:name, headline:g('headline'), bio:g('bio'), country:g('country'), city:g('city'), work_email:g('work_email'), professional_types:(prof?[prof]:[]), is_published:document.getElementById('pf-published').checked };
+  var payload={ given_names:given, surname:surname, display_name:name, headline:g('headline'), bio:g('bio'), country:g('country'), city:g('city'), work_email:g('work_email'), professional_types:(prof?[prof]:[]), is_published:document.getElementById('pf-published').checked };
   try{
     var r=await window.supabase.rpc('professional_save_profile',{p_professional:_pro.id,p:payload});
     if(r&&r.error)throw r.error;
@@ -363,7 +384,8 @@ function cityOptionsHtml(country,sel){ var c=(window.FFP_TAX&&FFP_TAX.cities)||{
 function obCountryChange(){ document.getElementById('ob-city').innerHTML=cityOptionsHtml(document.getElementById('ob-country').value,''); }
 function paintOnboard(){
   var m=_member()||{};
-  document.getElementById('ob-name').value=_passportName(m);
+  document.getElementById('ob-given').value=m.given_names||'';
+  document.getElementById('ob-surname').value=m.surname||'';
   document.getElementById('ob-category').innerHTML=categoryOptionsHtml('');
   document.getElementById('ob-profession').innerHTML=roleOptionsHtml('','');
   document.getElementById('ob-country').innerHTML=countryOptionsHtml(m.country||'');
@@ -371,14 +393,16 @@ function paintOnboard(){
 }
 async function submitOnboard(){
   var member=_member(); if(!member)return;
-  var name=document.getElementById('ob-name').value.trim();
+  var given=document.getElementById('ob-given').value.trim();
+  var surname=document.getElementById('ob-surname').value.trim();
   var prof=document.getElementById('ob-profession').value;
   var country=document.getElementById('ob-country').value;
   var city=document.getElementById('ob-city').value;
-  if(!name){ showToast('Add your display name','error'); return; }
-  if(!prof){ showToast('Pick your main profession','error'); return; }
+  if(!given&&!surname){ showToast('Add your name','error'); return; }
+  if(!prof){ showToast('Pick your profession','error'); return; }
+  var displayName=(given+' '+surname).replace(/\s+/g,' ').trim();
   try{
-    var r=await window.supabase.rpc('professional_link',{p_member:member.id,p:{display_name:name,professional_types:[prof],country:country,city:city}});
+    var r=await window.supabase.rpc('professional_link',{p_member:member.id,p:{given_names:given,surname:surname,display_name:displayName,professional_types:[prof],country:country,city:city}});
     if(r&&r.error)throw r.error;
     if(r.data&&r.data.error){ showToast(r.data.error==='passport_inactive'?'An active Passport is required':'Could not create profile','error'); return; }
     boot(); // re-run the gate -> enters dashboard
@@ -421,6 +445,12 @@ async function boot(){
   }catch(e){ console.error('[FFP Pro] gate error',e); showGateState('onboard'); paintOnboard(); }
 }
 if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',boot); } else { boot(); }
+// iOS Safari home-screen nudge (once)
+(function(){ try{
+  var ua=navigator.userAgent||''; var iOS=/iPhone|iPad|iPod/.test(ua);
+  var standalone=('standalone' in navigator)&&navigator.standalone;
+  if(iOS && !standalone && !localStorage.getItem('ffp_pro_a2hs')){ var b=document.getElementById('a2hs'); if(b) b.style.display='flex'; }
+}catch(e){} })();
 </script>
 </body>
 </html>
