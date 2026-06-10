@@ -268,7 +268,7 @@ function emptyState(title,sub,ctaLabel,ctaFn){
 function bizTab(btn,paneId){ var panel=btn.closest('.panel'); if(!panel)return; panel.querySelectorAll('.biz-tab').forEach(function(t){t.classList.remove('active');}); btn.classList.add('active'); panel.querySelectorAll('.biz-pane').forEach(function(p){p.classList.remove('active');}); var pane=panel.querySelector('#'+paneId); if(pane)pane.classList.add('active'); }
 
 // ─── Deferred Business module loaders (reused, scoped to FFP_PROVIDER.id = professional id) ───
-var _provLoaderSrc = { clients:'ffp-provider-members-loader.js', packages:'ffp-provider-members-loader.js', comms:'ffp-provider-members-loader.js', scheduling:'ffp-professional-scheduling-loader.js', payments:'ffp-provider-billing-loader.js' };
+var _provLoaderSrc = { clients:'ffp-professional-client-loader.js', packages:'ffp-professional-client-loader.js', comms:'ffp-professional-client-loader.js', scheduling:'ffp-professional-scheduling-loader.js', payments:'ffp-professional-billing-loader.js' };
 var _provLoaded = {};
 function ensureProviderLoader(id){ var src=_provLoaderSrc[id]; if(!src||_provLoaded[src])return; _provLoaded[src]=true; var sc=document.createElement('script'); sc.src=src; sc.async=false; sc.onload=function(){ renderPanel(id); }; sc.onerror=function(){ console.error('[FFP Pro] failed to load '+src); }; document.body.appendChild(sc); }
 function renderPanel(id){
