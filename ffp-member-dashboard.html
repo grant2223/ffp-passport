@@ -7951,7 +7951,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '357';
+  const FFP_BUILD = '358';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -11568,41 +11568,108 @@ function ffpToggleBreakdown() {
 }
 
 // ── Activity detail card (tap a recent-activity row, or open a shared one from a notification) ──
-window.ffpCloseActivityCard = function () { var o = document.getElementById('ffp-act-card-ov'); if (o && o.parentNode) o.parentNode.removeChild(o); };
+window.ffpCloseActivityCard = function () { var o = document.getElementById('ffp-act-card-ov'); if (o && o.parentNode) o.parentNode.removeChild(o); document.body.style.overflow = ''; };
+// Map an activity name → a Material Symbols icon that matches what it is (used on rows + the card).
+window.ffpActivityIcon = function (name) {
+  var s = String(name || '').toLowerCase();
+  var map = [
+    [/run|jog|sprint|5k|10k|marathon|hiit|circuit|bootcamp|cardio/, 'directions_run'],
+    [/walk|steps|stroll/, 'directions_walk'],
+    [/hike|hiking|trek|trail/, 'hiking'],
+    [/cycl|bike|biking|spin|peloton/, 'directions_bike'],
+    [/swim|pool|aqua/, 'pool'],
+    [/yoga|stretch|mobility|pilates|meditat|breath/, 'self_improvement'],
+    [/row/, 'rowing'],
+    [/box|kickbox|muay|mma|martial|karate|judo|jiu|wrestl/, 'sports_mma'],
+    [/football|soccer|futsal/, 'sports_soccer'],
+    [/rugby/, 'sports_rugby'],
+    [/basketball|hoops/, 'sports_basketball'],
+    [/tennis|padel|squash|pickle|badminton/, 'sports_tennis'],
+    [/cricket/, 'sports_cricket'],
+    [/volley/, 'sports_volleyball'],
+    [/golf/, 'sports_golf'],
+    [/ski/, 'downhill_skiing'],
+    [/snowboard/, 'snowboarding'],
+    [/skate/, 'skateboarding'],
+    [/surf/, 'surfing'],
+    [/climb|boulder/, 'terrain'],
+    [/dance|zumba/, 'music_note'],
+    [/kayak|canoe|paddle|\bsup\b/, 'kayaking'],
+    [/sail/, 'sailing'],
+    [/handball/, 'sports_handball'],
+    [/baseball|softball/, 'sports_baseball'],
+    [/hockey/, 'sports_hockey'],
+    [/crossfit|wod|strength|weight|lift|gym|resistance|powerlift|hyrox/, 'fitness_center']
+  ];
+  for (var i = 0; i < map.length; i++) { if (map[i][0].test(s)) return map[i][1]; }
+  return 'fitness_center';
+};
+// FULL-SCREEN activity view — hero (photo or category-tinted icon), big title, a clean stat grid,
+// location and notes. Used for your own rows and (deep-linked) a connection's shared activity.
 window.ffpRenderActivityCard = function (a, isOwn) {
   if (!a) return;
   var esc = (window.escHtml ? window.escHtml : function (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); });
   function dur(min, sec) { min = Math.max(0, Math.round(min || 0)); var h = Math.floor(min / 60), m = min % 60; return (h ? h + 'h ' : '') + m + 'm' + (sec ? (' ' + sec + 's') : ''); }
   var lat = (a.lat != null ? a.lat : a.checkin_lat), lng = (a.lng != null ? a.lng : a.checkin_lng);
   var when = a.logged_at ? new Date(a.logged_at).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '';
-  function chip(t) { return '<span style="font-size:12px;font-weight:700;color:#cfe0ee;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:999px;padding:5px 11px;">' + t + '</span>'; }
-  var chips = [];
-  if (a.duration_min || a.duration_sec) chips.push(chip(dur(a.duration_min, a.duration_sec)));
-  if (a.distance_km != null && a.distance_km > 0) chips.push(chip((Math.round(a.distance_km * 100) / 100) + ' km'));
-  if (a.calories) chips.push(chip(a.calories + ' kcal'));
-  if (a.avg_heart_rate) chips.push(chip(a.avg_heart_rate + ' bpm'));
+  var icon = (window.ffpActivityIcon ? window.ffpActivityIcon(a.activity) : 'fitness_center');
+  var titleBlock = '<div style="font-size:27px;font-weight:900;color:#fff;line-height:1.12;">' + esc(a.activity || 'Activity') + '</div>' +
+    (when ? '<div style="font-size:12.5px;color:#cfe0ee;font-weight:700;margin-top:7px;">' + esc(when) + '</div>' : '');
+  var hero = a.photo_url
+    ? '<div style="position:relative;width:100%;height:46vh;min-height:240px;background:#13324a center/cover no-repeat;background-image:linear-gradient(180deg,rgba(8,20,32,0.05),rgba(8,20,32,0.88)),url(\'' + a.photo_url + '\');"><div style="position:absolute;left:0;right:0;bottom:0;padding:22px 20px;">' + titleBlock + '</div></div>'
+    : '<div style="width:100%;padding:64px 20px 30px;background:linear-gradient(135deg,rgba(43,168,224,0.22),rgba(255,204,0,0.07));text-align:center;"><div style="width:86px;height:86px;border-radius:24px;margin:0 auto 16px;background:rgba(43,168,224,0.16);display:flex;align-items:center;justify-content:center;color:#2ba8e0;"><span class="material-icons" style="font-size:46px;">' + icon + '</span></div>' + titleBlock + '</div>';
+  // 2×2 grid of icon stat tiles (milestone style): Time · Distance · Burn · Heart. Missing → "—".
+  function tile(ic, color, val, label) {
+    return '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px 12px;text-align:center;">' +
+      '<span class="material-icons" style="font-size:25px;color:' + color + ';">' + ic + '</span>' +
+      '<div style="font-size:19px;font-weight:900;color:#e8eef4;margin-top:7px;">' + val + '</div>' +
+      '<div style="font-size:10px;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;color:#8a99a8;margin-top:3px;">' + label + '</div></div>';
+  }
+  var num = '<span style="font-size:12px;font-weight:700;">';
+  var statGrid = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+    tile('schedule', '#2ba8e0', (a.duration_min || a.duration_sec) ? dur(a.duration_min, a.duration_sec) : '—', 'Time') +
+    tile('route', '#2ba8e0', (a.distance_km != null && a.distance_km > 0) ? ((Math.round(a.distance_km * 100) / 100) + num + ' km</span>') : '—', 'Distance') +
+    tile('local_fire_department', '#f3914e', a.calories ? (a.calories + num + ' kcal</span>') : '—', 'Burn') +
+    tile('favorite', '#ef6a6a', a.avg_heart_rate ? (a.avg_heart_rate + num + ' bpm</span>') : '—', 'Heart') +
+    '</div>';
+  var lblCss = 'font-size:10px;font-weight:800;letter-spacing:0.6px;text-transform:uppercase;color:#8a99a8;margin-bottom:7px;';
+  var owner = (!isOwn && a.owner_name) ? ('<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">' +
+      (a.owner_photo ? '<img src="' + esc(a.owner_photo) + '" style="width:42px;height:42px;border-radius:50%;object-fit:cover;">' : '<div style="width:42px;height:42px;border-radius:50%;background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;">' + esc((a.owner_name || 'M').charAt(0).toUpperCase()) + '</div>') +
+      '<div><div style="font-size:14px;font-weight:800;color:#e8eef4;">' + esc(a.owner_name) + '</div><div style="font-size:11px;color:#8a99a8;">shared this activity with you</div></div></div>') : '';
   var loc = [a.venue, a.city, a.country].filter(Boolean).join(', ');
-  var photo = a.photo_url ? '<div style="width:100%;aspect-ratio:1/1;max-height:330px;background:#13324a center/cover no-repeat;background-image:url(\'' + a.photo_url + '\');border-radius:14px;"></div>' : '';
-  var owner = (!isOwn && a.owner_name) ? ('<div style="display:flex;align-items:center;gap:9px;margin-bottom:13px;">' +
-      (a.owner_photo ? '<img src="' + esc(a.owner_photo) + '" style="width:38px;height:38px;border-radius:50%;object-fit:cover;">' : '<div style="width:38px;height:38px;border-radius:50%;background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;">' + esc((a.owner_name || 'M').charAt(0).toUpperCase()) + '</div>') +
-      '<div><div style="font-size:13px;font-weight:800;color:#e8eef4;">' + esc(a.owner_name) + '</div><div style="font-size:11px;color:#8a99a8;">shared an activity</div></div></div>') : '';
-  var mapLink = (lat != null && lng != null) ? ' <a href="https://www.google.com/maps?q=' + lat + ',' + lng + '" target="_blank" rel="noopener" style="color:#2ba8e0;font-weight:700;">· Map</a>' : '';
-  var editBtn = (isOwn && a.id) ? '<button onclick="ffpCloseActivityCard();window.ffpEditActivity&&window.ffpEditActivity(\'' + a.id + '\')" style="width:100%;margin-top:16px;padding:12px;border-radius:11px;border:1px solid rgba(43,168,224,0.35);background:rgba(43,168,224,0.06);color:#2ba8e0;font-weight:800;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:16px;vertical-align:middle;">edit</span> Edit activity</button>' : '';
-  var inner = owner + photo +
-    '<h3 style="font-size:20px;font-weight:900;color:#e8eef4;margin:' + (photo ? '14px' : '0') + ' 0 4px;">' + esc(a.activity || 'Activity') + '</h3>' +
-    (when ? '<div style="font-size:12px;color:#8a99a8;font-weight:700;">' + esc(when) + '</div>' : '') +
-    (chips.length ? '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:13px;">' + chips.join('') + '</div>' : '') +
-    (loc ? '<div style="font-size:13px;color:#cfe0ee;margin-top:13px;display:flex;align-items:flex-start;gap:6px;"><span class="material-icons" style="font-size:16px;color:#8a99a8;">place</span><span>' + esc(loc) + mapLink + '</span></div>' : '') +
-    (a.notes ? '<div style="font-size:13px;color:#cfe0ee;margin-top:13px;line-height:1.55;background:rgba(255,255,255,0.04);border-radius:10px;padding:12px 14px;">' + esc(a.notes) + '</div>' : '') +
-    editBtn;
+  var locBlock = '';
+  if (lat != null && lng != null) {
+    locBlock = '<div style="margin-top:22px;"><div style="' + lblCss + '">Location</div>' +
+      '<div id="ffp-act-map" style="width:100%;height:190px;border-radius:14px;overflow:hidden;background:#13324a;"></div>' +
+      '<div style="font-size:13px;color:#cfe0ee;margin-top:9px;display:flex;align-items:center;gap:7px;"><span class="material-icons" style="font-size:17px;color:#2ba8e0;">place</span><span>' + (loc ? esc(loc) + ' · ' : '') + '<a href="https://www.google.com/maps?q=' + lat + ',' + lng + '" target="_blank" rel="noopener" style="color:#2ba8e0;font-weight:700;">Open in Maps</a></span></div></div>';
+  } else if (loc) {
+    locBlock = '<div style="margin-top:22px;"><div style="' + lblCss + '">Location</div><div style="font-size:14px;color:#e8eef4;display:flex;align-items:center;gap:8px;"><span class="material-icons" style="font-size:19px;color:#2ba8e0;">place</span>' + esc(loc) + '</div></div>';
+  }
+  var notesBlock = a.notes ? ('<div style="margin-top:22px;"><div style="' + lblCss + '">How it felt</div><div style="font-size:14px;color:#cfe0ee;line-height:1.65;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:14px 16px;">' + esc(a.notes) + '</div></div>') : '';
+  var editBtn = (isOwn && a.id) ? '<button onclick="ffpCloseActivityCard();window.ffpEditActivity&&window.ffpEditActivity(\'' + a.id + '\')" style="width:100%;margin-top:24px;padding:14px;border-radius:12px;border:1px solid rgba(43,168,224,0.35);background:rgba(43,168,224,0.07);color:#2ba8e0;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:middle;">edit</span> Edit activity</button>' : '';
+  var body = '<div style="padding:22px 20px 40px;max-width:640px;margin:0 auto;width:100%;box-sizing:border-box;">' + owner + statGrid + locBlock + notesBlock + editBtn + '</div>';
+
   ffpCloseActivityCard();
   var ov = document.createElement('div'); ov.id = 'ffp-act-card-ov';
-  ov.setAttribute('style', 'position:fixed;inset:0;z-index:100050;background:rgba(0,8,20,0.82);display:flex;align-items:flex-end;justify-content:center;');
-  ov.onclick = function (e) { if (e.target === ov) ffpCloseActivityCard(); };
-  ov.innerHTML = '<div style="background:#0f1e2e;border-top:1px solid rgba(43,168,224,0.25);border-radius:18px 18px 0 0;width:100%;max-width:520px;max-height:90vh;overflow:auto;padding:20px 18px 26px;font-family:inherit;position:relative;">' +
-    '<button onclick="ffpCloseActivityCard()" style="position:absolute;top:13px;right:13px;background:rgba(255,255,255,0.08);border:none;color:#cfe0ee;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;"><span class="material-icons" style="font-size:20px;">close</span></button>' +
-    inner + '</div>';
+  ov.setAttribute('style', 'position:fixed;inset:0;z-index:100050;background:#081420;display:flex;flex-direction:column;font-family:inherit;');
+  ov.innerHTML =
+    '<button onclick="ffpCloseActivityCard()" aria-label="Close" style="position:absolute;top:14px;left:14px;z-index:5;background:rgba(8,20,32,0.55);border:none;color:#fff;width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;"><span class="material-icons">arrow_back</span></button>' +
+    '<div style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;">' + hero + body + '</div>';
   document.body.appendChild(ov);
+  document.body.style.overflow = 'hidden';
+  // Render the location mini-map (Leaflet, same basemap as the journey map) if we have coordinates.
+  if (lat != null && lng != null) {
+    setTimeout(function () {
+      try {
+        var el = document.getElementById('ffp-act-map');
+        if (!el || typeof L === 'undefined') return;
+        var m = L.map(el, { zoomControl: false, attributionControl: false, scrollWheelZoom: false }).setView([lat, lng], 15);
+        (window.ffpVectorBasemap ? window.ffpVectorBasemap : function (mp) { L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19 }).addTo(mp); })(m);
+        L.circleMarker([lat, lng], { radius: 8, color: '#fff', weight: 2, fillColor: '#2ba8e0', fillOpacity: 1 }).addTo(m);
+        setTimeout(function () { try { m.invalidateSize(); } catch (e) {} }, 130);
+      } catch (e) {}
+    }, 90);
+  }
 };
 // Deep-linked shared activity (notification tap → ?activity=<id>) → fetch via RPC, then render the card.
 window.ffpViewSharedActivity = async function (id) {
