@@ -748,6 +748,16 @@ const MeetMove = {
       } else {
         var res = await window.supabase.rpc('host_meetup', { p_me: member.id, p: payload });
         if (res.error) { alert('Could not post: ' + res.error.message); return; }
+        // Notify members who match THIS meet-up's criteria (city · gender · age range). Fire-and-forget.
+        var _newMeetupId = res && res.data;
+        if (_newMeetupId) {
+          try {
+            fetch('https://ffp-passport-backend.vercel.app/api/meetups/notify', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ kind: 'new', meetup_id: _newMeetupId })
+            }).catch(function () {});
+          } catch (e) {}
+        }
       }
     } catch (e) { alert('Could not save the meetup. Please try again.'); return; }
     this._editId = null;
