@@ -1,3 +1,13 @@
+<!-- FFP PROFESSIONAL DASHBOARD — v3 (2026-06-10): MAIN PROFESSION is now ONE searchable picker
+     (tap to open, search at top — the FFP standard), replacing the made-up category→profession
+     cascade. Professions + their category come from the DB taxonomy (Admin → Taxonomies → Professions,
+     list_key='professional_role'); the 6 STANDARD categories (Sports/Fitness/Wellness/Recovery/
+     Adventure/Health food) group them and the chosen profession auto-derives its category (stored on
+     professionals.category). Needs ffp-taxonomy.js v9. Home-screen icon = real FFP emblem + "Professional"
+     (ffp-pro-* PNGs regenerated; the purple FFP/PRO mark is gone) and the sidebar brand now shows the
+     emblem + "Professional".
+     ---- v2: name = separate Given names + Surname; second home-screen bookmark (manifest + apple meta).
+     ---- v1: initial Professionals Portal (gate/onboarding/profile + clients/scheduling/packages/billing). -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -16,7 +26,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/ffp-api-integration.js?v=12"></script>
 <script src="assets/ffp-constants.js"></script>
-<script src="assets/ffp-taxonomy.js?v=8"></script>
+<script src="assets/ffp-taxonomy.js?v=9"></script>
 <style>
 :root{
   --ffp-bg:#081420; --ffp-bg-2:#0f1f2c; --ffp-bg-3:#16273a; --ffp-bg-card:#0c1d2b;
@@ -84,6 +94,18 @@ a{color:var(--ffp-blue);}
 .input,.select,.textarea{width:100%;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:var(--r-md);padding:11px 13px;font-size:13px;font-weight:600;color:var(--ffp-text);font-family:inherit;color-scheme:dark;}
 .input:focus,.select:focus,.textarea:focus{outline:none;border-color:var(--ffp-purple);}
 .input::placeholder,.textarea::placeholder{color:var(--ffp-text-dim);font-weight:500;}
+/* Single searchable picker (FFP standard: tap to open, search at top) */
+.picker-btn{width:100%;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:var(--r-md);padding:11px 13px;font-size:13px;font-weight:600;color:var(--ffp-text);font-family:inherit;cursor:pointer;}
+.picker-btn:hover{border-color:var(--ffp-purple);}
+.picker-btn.placeholder{color:var(--ffp-text-dim);font-weight:500;}
+.picker-btn .ms{font-size:18px;color:var(--ffp-text-dim);}
+.pick-list{display:flex;flex-direction:column;gap:4px;max-height:46vh;overflow-y:auto;margin-top:8px;}
+.pick-row{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;background:transparent;border:1px solid transparent;border-radius:10px;padding:10px 12px;cursor:pointer;color:var(--ffp-text);font-family:inherit;}
+.pick-row:hover{background:var(--ffp-bg-card);border-color:var(--ffp-border-mid);}
+.pick-row.sel{border-color:var(--ffp-purple);background:var(--ffp-bg-card);}
+.pick-row .pr-name{font-size:13px;font-weight:700;}
+.pick-row .pr-cat{font-size:11px;font-weight:700;color:var(--ffp-text-dim);white-space:nowrap;}
+.pick-empty{padding:22px;text-align:center;color:var(--ffp-text-dim);font-size:13px;}
 .input[type="date"]::-webkit-calendar-picker-indicator,.input[type="time"]::-webkit-calendar-picker-indicator{filter:invert(.85);cursor:pointer;opacity:.8;}
 
 /* Buttons */
@@ -141,9 +163,9 @@ a{color:var(--ffp-blue);}
         <div class="field"><div class="label">Given names <span class="req">*</span></div><input class="input" id="ob-given"></div>
         <div class="field"><div class="label">Surname <span class="req">*</span></div><input class="input" id="ob-surname"></div>
       </div>
-      <div class="field" style="margin-bottom:12px;"><div class="label">Profession <span class="req">*</span></div>
-        <select class="select" id="ob-category" onchange="obCategoryChange()" style="margin-bottom:8px;"></select>
-        <select class="select" id="ob-profession"></select>
+      <div class="field" style="margin-bottom:12px;"><div class="label">Main profession <span class="req">*</span></div>
+        <input type="hidden" id="ob-profession">
+        <button type="button" class="picker-btn placeholder" id="ob-profession-btn" onclick="openProfPicker('ob')"><span id="ob-profession-lbl">Select your profession</span><span class="ms">expand_more</span></button>
       </div>
       <div class="form-grid" style="margin-bottom:14px;">
         <div class="field"><div class="label">Country</div><select class="select" id="ob-country" onchange="obCountryChange()"></select></div>
@@ -163,7 +185,7 @@ a{color:var(--ffp-blue);}
 <!-- APP -->
 <div class="app hidden" id="app">
   <aside class="sidebar">
-    <div class="sb-logo"><div class="sb-brand">FFP <b>PRO</b></div><div class="sb-tag" id="sb-types">Professional</div></div>
+    <div class="sb-logo"><div class="sb-brand" style="display:flex;align-items:center;gap:8px;"><img src="/assets/ffp-emblem.png" alt="FFP" style="height:24px;width:24px;border-radius:6px;flex:0 0 auto;">FFP <b>Professional</b></div><div class="sb-tag" id="sb-types">Professional</div></div>
     <nav class="sb-nav" id="sb-nav"></nav>
     <div class="sb-foot">
       <div class="sb-foot-mark" id="sb-initials">P</div>
@@ -330,7 +352,6 @@ function showPanel(id){
 
 // ─── Profile / storefront editor ───
 function pfCountryChange(){ document.getElementById('pf-city').innerHTML=cityOptionsHtml(document.getElementById('pf-country').value,''); }
-function pfCategoryChange(){ document.getElementById('pf-profession').innerHTML=roleOptionsHtml(document.getElementById('pf-category').value,''); }
 function renderProfileForm(){
   var host=document.getElementById('profile-form'); if(!host||!_pro)return;
   var mainProf=(_pro.professional_types&&_pro.professional_types[0])||'';
@@ -338,7 +359,7 @@ function renderProfileForm(){
     '<div class="form-section"><div class="form-section-title">Public profile</div><div class="form-grid">'+
       '<div class="field"><div class="label">Given names <span class="req">*</span></div><input class="input" id="pf-given_names" value="'+escHtml(_pro.given_names||'')+'"></div>'+
       '<div class="field"><div class="label">Surname <span class="req">*</span></div><input class="input" id="pf-surname" value="'+escHtml(_pro.surname||'')+'"></div>'+
-      '<div class="field full"><div class="label">Profession</div><select class="select" id="pf-category" onchange="pfCategoryChange()" style="margin-bottom:8px;">'+categoryOptionsHtml(_catOfRole(mainProf))+'</select><select class="select" id="pf-profession">'+roleOptionsHtml(_catOfRole(mainProf), mainProf)+'</select></div>'+
+      '<div class="field full"><div class="label">Main profession</div><input type="hidden" id="pf-profession"><button type="button" class="picker-btn'+(mainProf?'':' placeholder')+'" id="pf-profession-btn" onclick="openProfPicker(\'pf\')"><span id="pf-profession-lbl">'+(mainProf?escHtml(mainProf):'Select your profession')+'</span><span class="ms">expand_more</span></button></div>'+
       '<div class="field full"><div class="label">Headline</div><input class="input" id="pf-headline" value="'+escHtml(_pro.headline||'')+'" placeholder="e.g. Strength &amp; performance coaching"></div>'+
       '<div class="field full"><div class="label">Bio</div><textarea class="textarea" id="pf-bio" rows="4" placeholder="Tell members about you, your style and who you help.">'+escHtml(_pro.bio||'')+'</textarea></div>'+
       '<div class="field"><div class="label">Country</div><select class="select" id="pf-country" onchange="pfCountryChange()">'+countryOptionsHtml(_pro.country||'')+'</select></div>'+
@@ -349,6 +370,8 @@ function renderProfileForm(){
       '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;"><input type="checkbox" id="pf-published" '+(_pro.is_published?'checked':'')+' style="width:18px;height:18px;accent-color:var(--ffp-purple);"> <span style="font-size:13px;font-weight:700;">Publish my profile (discoverable on Find Fit People)</span></label>'+
     '</div>'+
     '<div style="margin-top:18px;"><button class="btn btn-pri" onclick="saveProfile()"><span class="ms">save</span> Save profile</button></div>';
+  var hp=document.getElementById('pf-profession');
+  if(hp){ hp.value=mainProf||''; hp.dataset.category=_pro.category||(window.FFP_TAX&&FFP_TAX.categoryOfRole?FFP_TAX.categoryOfRole(mainProf):'')||''; }
 }
 async function saveProfile(){
   if(!_pro)return;
@@ -357,7 +380,8 @@ async function saveProfile(){
   var name=(given+' '+surname).replace(/\s+/g,' ').trim();
   if(!name){ showToast('Name is required','error'); return; }
   var prof=g('profession');
-  var payload={ given_names:given, surname:surname, display_name:name, headline:g('headline'), bio:g('bio'), country:g('country'), city:g('city'), work_email:g('work_email'), professional_types:(prof?[prof]:[]), is_published:document.getElementById('pf-published').checked };
+  var category=(document.getElementById('pf-profession').dataset.category)||(window.FFP_TAX&&FFP_TAX.categoryOfRole?FFP_TAX.categoryOfRole(prof):'');
+  var payload={ given_names:given, surname:surname, display_name:name, headline:g('headline'), bio:g('bio'), country:g('country'), city:g('city'), work_email:g('work_email'), professional_types:(prof?[prof]:[]), category:category, is_published:document.getElementById('pf-published').checked };
   try{
     var r=await window.supabase.rpc('professional_save_profile',{p_professional:_pro.id,p:payload});
     if(r&&r.error)throw r.error;
@@ -368,15 +392,40 @@ async function saveProfile(){
   }catch(e){ showToast('Could not save profile','error'); }
 }
 
-// ─── Onboarding ───
-function _proRoles(){ return (window.FFP_TAX&&FFP_TAX.professionalRoles)||{}; }
-// Only service professionals — we don't list business owners, athletes, creators or generic roles.
-var EXCLUDED_PRO_CATS={'Industry & Business':1,'Athletes & Creators':1,'Other':1};
-function _proCats(){ var roles=_proRoles(); return Object.keys(roles).filter(function(c){ return !EXCLUDED_PRO_CATS[c]; }); }
-function _catOfRole(role){ var roles=_proRoles(); var cats=Object.keys(roles); for(var i=0;i<cats.length;i++){ if((roles[cats[i]]||[]).indexOf(role)!==-1) return cats[i]; } return ''; }
-function categoryOptionsHtml(sel){ return '<option value="">Select a category…</option>'+_proCats().map(function(c){ return '<option'+(sel===c?' selected':'')+'>'+escHtml(c)+'</option>'; }).join(''); }
-function roleOptionsHtml(cat,sel){ var roles=(_proRoles()[cat]||[]); return '<option value="">Select your profession…</option>'+roles.map(function(r){ return '<option'+(sel===r?' selected':'')+'>'+escHtml(r)+'</option>'; }).join(''); }
-function obCategoryChange(){ document.getElementById('ob-profession').innerHTML=roleOptionsHtml(document.getElementById('ob-category').value,''); }
+// ─── Profession picker (single searchable list — FFP standard: tap to open, search at top) ───
+// The list of professions + their category come from the DB taxonomy (Admin → Taxonomies →
+// Professions; list_key='professional_role'). Service professionals only. Category is auto-derived
+// from the chosen profession (no separate category step).
+var _profPickTarget=null;
+function _profRolesFlat(){ return (window.FFP_TAX&&FFP_TAX.professionalRolesFlat&&FFP_TAX.professionalRolesFlat())||[]; }
+function openProfPicker(prefix){
+  _profPickTarget=prefix;
+  openModalShell('lg','Choose your main profession',
+    '<div class="field" style="margin-bottom:0;"><input class="input" id="prof-pick-search" placeholder="Search profession or category…" autocomplete="off"></div>'+
+    '<div class="pick-list" id="prof-pick-list"></div>', '');
+  var s=document.getElementById('prof-pick-search'); if(s) s.oninput=renderProfPickList;
+  renderProfPickList();
+  setTimeout(function(){ try{ if(s)s.focus(); }catch(e){} },60);
+}
+function renderProfPickList(){
+  var host=document.getElementById('prof-pick-list'); if(!host)return;
+  var q=((document.getElementById('prof-pick-search')||{}).value||'').trim().toLowerCase();
+  var cur=(document.getElementById((_profPickTarget||'')+'-profession')||{}).value||'';
+  var list=_profRolesFlat();
+  if(q) list=list.filter(function(r){ return r.name.toLowerCase().indexOf(q)!==-1 || r.category.toLowerCase().indexOf(q)!==-1; });
+  if(!list.length){ host.innerHTML='<div class="pick-empty">No professions match. Try a different search.</div>'; return; }
+  host.innerHTML=list.map(function(r){
+    return '<button type="button" class="pick-row'+(r.name===cur?' sel':'')+'" onclick="pickProfession(\''+r.name.replace(/\\/g,"\\\\").replace(/'/g,"\\'")+'\',\''+r.category.replace(/'/g,"\\'")+'\')">'+
+      '<span class="pr-name">'+escHtml(r.name)+'</span><span class="pr-cat">'+escHtml(r.category)+'</span></button>';
+  }).join('');
+}
+function pickProfession(name,category){
+  var t=_profPickTarget; if(!t)return;
+  var hid=document.getElementById(t+'-profession'); if(hid){ hid.value=name; hid.dataset.category=category||''; }
+  var lbl=document.getElementById(t+'-profession-lbl'); if(lbl)lbl.textContent=name;
+  var btn=document.getElementById(t+'-profession-btn'); if(btn)btn.classList.remove('placeholder');
+  closeModal();
+}
 function _passportName(m){ var n=((m.given_names||'')+' '+(m.surname||'')).replace(/\s+/g,' ').trim(); return n||m.full_name||''; }
 function _countryList(){ var c=(window.FFP_TAX&&FFP_TAX.cities)||{}; return Object.keys(c).sort(); }
 function countryOptionsHtml(sel){ var list=_countryList().slice(); if(sel&&list.indexOf(sel)===-1)list.unshift(sel); return '<option value="">Country</option>'+list.map(function(c){return '<option'+(c===sel?' selected':'')+'>'+escHtml(c)+'</option>';}).join(''); }
@@ -386,8 +435,9 @@ function paintOnboard(){
   var m=_member()||{};
   document.getElementById('ob-given').value=m.given_names||'';
   document.getElementById('ob-surname').value=m.surname||'';
-  document.getElementById('ob-category').innerHTML=categoryOptionsHtml('');
-  document.getElementById('ob-profession').innerHTML=roleOptionsHtml('','');
+  var hp=document.getElementById('ob-profession'); if(hp){ hp.value=''; hp.dataset.category=''; }
+  var lp=document.getElementById('ob-profession-lbl'); if(lp)lp.textContent='Select your profession';
+  var bp=document.getElementById('ob-profession-btn'); if(bp)bp.classList.add('placeholder');
   document.getElementById('ob-country').innerHTML=countryOptionsHtml(m.country||'');
   document.getElementById('ob-city').innerHTML=cityOptionsHtml(m.country||'', m.city||'');
 }
@@ -395,14 +445,16 @@ async function submitOnboard(){
   var member=_member(); if(!member)return;
   var given=document.getElementById('ob-given').value.trim();
   var surname=document.getElementById('ob-surname').value.trim();
-  var prof=document.getElementById('ob-profession').value;
+  var profEl=document.getElementById('ob-profession');
+  var prof=profEl.value;
+  var category=(profEl.dataset.category)||(window.FFP_TAX&&FFP_TAX.categoryOfRole?FFP_TAX.categoryOfRole(prof):'');
   var country=document.getElementById('ob-country').value;
   var city=document.getElementById('ob-city').value;
   if(!given&&!surname){ showToast('Add your name','error'); return; }
   if(!prof){ showToast('Pick your profession','error'); return; }
   var displayName=(given+' '+surname).replace(/\s+/g,' ').trim();
   try{
-    var r=await window.supabase.rpc('professional_link',{p_member:member.id,p:{given_names:given,surname:surname,display_name:displayName,professional_types:[prof],country:country,city:city}});
+    var r=await window.supabase.rpc('professional_link',{p_member:member.id,p:{given_names:given,surname:surname,display_name:displayName,professional_types:[prof],category:category,country:country,city:city}});
     if(r&&r.error)throw r.error;
     if(r.data&&r.data.error){ showToast(r.data.error==='passport_inactive'?'An active Passport is required':'Could not create profile','error'); return; }
     boot(); // re-run the gate -> enters dashboard
