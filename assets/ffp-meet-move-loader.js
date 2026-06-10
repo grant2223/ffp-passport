@@ -407,7 +407,8 @@
       currentUserId = member.id;
       // v12: matches are handled by the inline dashboard (get_match_pool RPC + "Matches" modal).
       // Do NOT install the old grid/strip overrides or fetch the old REST matches here.
-      await loadConnections();
+      // PERF: run connections in PARALLEL (it self-renders the match strip) instead of blocking meet-ups.
+      loadConnections().catch(function () {});
 
       var mRes = await window.supabase.from('meetups').select('*').in('status', ['open', 'full']);
       if (mRes.error) { console.error('[FFP Meet & Move] meetups read:', mRes.error); return; }
@@ -421,55 +422,44 @@
       }
 
       var hostIds = Array.from(new Set(meetups.map(function (m) { return m.host_member_id; }).filter(Boolean)));
-      var hostMap = {};
-      if (hostIds.length) {
-        // members RLS is self/admin-only — fetch host cards via the SECURITY DEFINER RPC so non-admins see them.
-        var hRes = await window.supabase.rpc('members_cards', { p_ids: hostIds });
-        (hRes.data || []).forEach(function (m) { hostMap[m.id] = m; });
-      }
-      var trustMap = {};
-      if (hostIds.length) {
-        var tRes = await window.supabase.from('profile_meta').select('member_id, reliability_score').in('member_id', hostIds);
-        if (!tRes.error) (tRes.data || []).forEach(function (p) { if (p.reliability_score != null) trustMap[p.member_id] = Number(p.reliability_score); });
-      }
-      // v23: also pull this member's PENDING requests (awaiting host approval), not just joined/attended.
-      var myAttRes = await window.supabase.from('meetup_attendees').select('meetup_id, status').eq('member_id', currentUserId).in('status', ['joined', 'attended', 'pending']);
-      var joinedSet = new Set(), pendingSet = new Set();
-      (myAttRes.data || []).forEach(function (r) {
-        if (r.status === 'pending') pendingSet.add(r.meetup_id); else joinedSet.add(r.meetup_id);
-      });
       var meetupIds = meetups.map(function (m) { return m.id; });
+      // PERF: the 4 independent reads (host trust · my attendance · attendees · pending) ran one after
+      // another (≈7 round-trips total → ~8s). Run them in PARALLEL, then do ONE members_cards call for
+      // hosts + attendees + pending (was two separate RPCs).
+      var _empty = { data: [] };
+      var _batch = await Promise.all([
+        hostIds.length ? window.supabase.from('profile_meta').select('member_id, reliability_score').in('member_id', hostIds) : Promise.resolve(_empty),
+        window.supabase.from('meetup_attendees').select('meetup_id, status').eq('member_id', currentUserId).in('status', ['joined', 'attended', 'pending']),
+        meetupIds.length ? window.supabase.from('meetup_attendees').select('meetup_id, member_id').in('meetup_id', meetupIds).in('status', ['joined', 'attended']) : Promise.resolve(_empty),
+        meetupIds.length ? window.supabase.from('meetup_attendees').select('meetup_id, member_id').in('meetup_id', meetupIds).eq('status', 'pending') : Promise.resolve(_empty)
+      ]);
+      var tRes = _batch[0], myAttRes = _batch[1], aRes = _batch[2], pendRes = _batch[3];
+      var trustMap = {};
+      if (!tRes.error) (tRes.data || []).forEach(function (p) { if (p.reliability_score != null) trustMap[p.member_id] = Number(p.reliability_score); });
+      var joinedSet = new Set(), pendingSet = new Set();
+      (myAttRes.data || []).forEach(function (r) { if (r.status === 'pending') pendingSet.add(r.meetup_id); else joinedSet.add(r.meetup_id); });
       var countMap = {}, attMap = {}, pendingAttMap = {};
-      if (meetupIds.length) {
-        var aRes = await window.supabase.from('meetup_attendees').select('meetup_id, member_id').in('meetup_id', meetupIds).in('status', ['joined', 'attended']);
-        (aRes.data || []).forEach(function (r) {
-          countMap[r.meetup_id] = (countMap[r.meetup_id] || 0) + 1;
-          (attMap[r.meetup_id] = attMap[r.meetup_id] || []).push(r.member_id);
-        });
-        // v23: pending requests — RLS returns these only for the requester (self) or the meetup's host,
-        // so a host sees everyone awaiting approval on THEIR meetups; others just see their own.
-        var pendRes = await window.supabase.from('meetup_attendees').select('meetup_id, member_id').in('meetup_id', meetupIds).eq('status', 'pending');
-        (pendRes.data || []).forEach(function (r) {
-          (pendingAttMap[r.meetup_id] = pendingAttMap[r.meetup_id] || []).push(r.member_id);
-        });
-      }
-      // fetch member info for attendees + hosts (powers "Who's going")
-      var attIdSet = {};
-      Object.keys(attMap).forEach(function (k) { attMap[k].forEach(function (idv) { if (idv) attIdSet[idv] = 1; }); });
-      Object.keys(pendingAttMap).forEach(function (k) { pendingAttMap[k].forEach(function (idv) { if (idv) attIdSet[idv] = 1; }); });  // v23: load pending requesters' cards too
-      meetups.forEach(function (mm) { if (mm.host_member_id) attIdSet[mm.host_member_id] = 1; });
-      var attPeopleIds = Object.keys(attIdSet);
-      var peopleMap = {};
-      if (attPeopleIds.length) {
-        // members RLS is self/admin-only — fetch attendee/host cards via the SECURITY DEFINER RPC
-        // so any member (not just admins) can see Who's-going passports.
-        var pRes = await window.supabase.rpc('members_cards', { p_ids: attPeopleIds });
+      (aRes.data || []).forEach(function (r) {
+        countMap[r.meetup_id] = (countMap[r.meetup_id] || 0) + 1;
+        (attMap[r.meetup_id] = attMap[r.meetup_id] || []).push(r.member_id);
+      });
+      (pendRes.data || []).forEach(function (r) {
+        (pendingAttMap[r.meetup_id] = pendingAttMap[r.meetup_id] || []).push(r.member_id);
+      });
+      // ONE members_cards call for hosts + attendees + pending requesters (powers Who's-going + host map).
+      var idSet = {};
+      hostIds.forEach(function (id) { idSet[id] = 1; });
+      Object.keys(attMap).forEach(function (k) { attMap[k].forEach(function (idv) { if (idv) idSet[idv] = 1; }); });
+      Object.keys(pendingAttMap).forEach(function (k) { pendingAttMap[k].forEach(function (idv) { if (idv) idSet[idv] = 1; }); });
+      var allIds = Object.keys(idSet);
+      var peopleMap = {}, hostMap = {};
+      if (allIds.length) {
+        var pRes = await window.supabase.rpc('members_cards', { p_ids: allIds });
         (pRes.data || []).forEach(function (mp) {
           peopleMap[mp.id] = mp; var ps = personShape(mp); if (ps) peopleById[mp.id] = ps;
-          // feed the ONE canonical card cache so Who's-going passports resolve to full data
-          // (photo, sports, passport #) instead of a bare fallback. (#62)
           if (window.FFPCard && window.FFPCard.register) { try { window.FFPCard.register(mp); } catch (e) {} }
         });
+        hostIds.forEach(function (id) { if (peopleMap[id]) hostMap[id] = peopleMap[id]; });
       }
       MeetMove.data = meetups.map(function (m) {
         var host = hostMap[m.host_member_id] || null;
@@ -633,6 +623,20 @@
     };
 
     // v23: HOST approves a pending request → member becomes 'joined', gets a notification + the confirm email.
+    // Share a meet-up — native share sheet (link deep-links to the meet-up), clipboard fallback.
+    MeetMove.shareMeetup = async function (id) {
+      var m = (this.data || []).find(function (x) { return x.id === id; }) || {};
+      var url = 'https://ffppassport.com/ffp-member-dashboard.html?meetup=' + id + '#panel-meetups';
+      var title = (m.activity || 'Meet-up') + (m.when ? ' · ' + m.when : '');
+      var text = 'Join me at ' + (m.activity || 'this meet-up') + (m.area ? ' in ' + m.area : '') + ' on FFP Passport';
+      try {
+        if (navigator.share) { await navigator.share({ title: title, text: text, url: url }); return; }
+      } catch (e) { if (e && e.name === 'AbortError') return; }
+      try {
+        await navigator.clipboard.writeText(url);
+        if (typeof showToast === 'function') showToast('Link copied — paste it to share', 'success');
+      } catch (e) { if (typeof showToast === 'function') showToast('Share link: ' + url, 'info'); }
+    };
     // View a member's passport card (so a host can vet a requester before approving). Works for any id.
     MeetMove.viewMemberCard = async function (id) {
       if (!id || !window.supabase) return;
@@ -704,9 +708,9 @@
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () { setTimeout(loadFromSupabase, 400); });
+    document.addEventListener('DOMContentLoaded', function () { setTimeout(loadFromSupabase, 120); });
   } else {
-    setTimeout(loadFromSupabase, 400);
+    setTimeout(loadFromSupabase, 120);
   }
   window.ffpReloadMeetMove = loadFromSupabase;
 })();
