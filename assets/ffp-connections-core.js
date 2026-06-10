@@ -364,6 +364,7 @@ const MeetMove = {
       </div>
       <div class="dm-section" id="ffp-whos-going">${this.whosGoingInline(m)}</div>
       <div class="dm-footer">
+        <button class="btn-primary-yellow" style="margin-bottom:8px;background:transparent;color:#2ba8e0;box-shadow:none;border:1px solid rgba(43,168,224,0.45);" onclick="MeetMove.shareMeetup('${m.id}')"><span class="material-icons" style="font-size:16px;vertical-align:-3px;">share</span> Share this meet-up</button>
         ${m.isHostedByMe
           ? `<button class="btn-primary-yellow" style="margin-bottom:8px;" onclick="MeetMove.editMeetup('${m.id}')"><span class="material-icons" style="font-size:16px;vertical-align:-3px;">edit</span> Edit meet-up</button>
              <button class="btn-primary-yellow" style="background:#ef4444;color:#fff;box-shadow:0 6px 18px rgba(239,68,68,0.30);" onclick="MeetMove.cancelMeetup('${m.id}')">Cancel this meet-up</button>
