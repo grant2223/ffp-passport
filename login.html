@@ -227,6 +227,13 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 <div class="pc-text"><div class="pc-title">Partner</div><div class="pc-sub">Manage your venue, deals and challenges</div></div>
 <div class="pc-radio"></div>
 </div>
+<div class="portal-card" onclick="selectPortal(this,'professional')">
+<div class="pc-icon" style="background:rgba(139,92,246,.1);">
+<svg viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" width="22" height="22"><path d="M20 7h-3V5.5A2.5 2.5 0 0 0 14.5 3h-5A2.5 2.5 0 0 0 7 5.5V7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM9 5.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 .5.5V7H9z"/></svg>
+</div>
+<div class="pc-text"><div class="pc-title">Professional</div><div class="pc-sub">Run your coaching or wellness business</div></div>
+<div class="pc-radio"></div>
+</div>
 <div class="portal-card" onclick="selectPortal(this,'admin')">
 <div class="pc-icon" style="background:rgba(250,204,21,.08);">
 <svg viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2" width="22" height="22"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -441,9 +448,10 @@ Back
 var selectedPortal = 'member';
 var currentFlow = 'signin';
 var portalColors = {
-  member:   { btn:'#1980AD', badge:'color:#2ba8e0;', label:'Member Sign In' },
-  provider: { btn:'#22c55e', badge:'color:#22c55e;', label:'Partner Sign In' },
-  admin:    { btn:'#facc15;color:#081420', badge:'color:#facc15;', label:'Admin Sign In' }
+  member:       { btn:'#1980AD', badge:'color:#2ba8e0;', label:'Member Sign In' },
+  provider:     { btn:'#22c55e', badge:'color:#22c55e;', label:'Partner Sign In' },
+  professional: { btn:'#8b5cf6', badge:'color:#8b5cf6;', label:'Professional Sign In' },
+  admin:        { btn:'#facc15;color:#081420', badge:'color:#facc15;', label:'Admin Sign In' }
 };
 var destinations = {
   member:      'ffp-member-dashboard.html',
@@ -454,6 +462,13 @@ var destinations = {
 };
 function handleAuthRedirect(response) {
   if (!response.member) return;
+  // Professional portal: a pro is ALSO a member (role stays 'member'), so route by
+  // the portal they picked. The professional dashboard's gate handles onboarding /
+  // lapsed-Passport states.
+  if (selectedPortal === 'professional') {
+    window.location.href = 'ffp-professional-dashboard.html';
+    return;
+  }
   var role = response.member.role;
   // v4: only members need profile_complete=true before dashboard.
   // Admins/providers go straight to their dashboard.
@@ -486,7 +501,7 @@ function setBadge(elId, portal) {
   if (!el) return;
   var p = portalColors[portal] || portalColors.member;
   el.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="' +
-    (portal === 'admin' ? '#facc15' : portal === 'provider' ? '#22c55e' : '#2ba8e0') +
+    (portal === 'admin' ? '#facc15' : portal === 'provider' ? '#22c55e' : portal === 'professional' ? '#8b5cf6' : '#2ba8e0') +
     '" stroke-width="2" width="18" height="18"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>' +
     '<span class="screen-badge-label" style="' + p.badge + '">' + p.label + '</span>';
 }
@@ -494,7 +509,7 @@ function goToSignIn() {
   setBadge('signin-badge', selectedPortal);
   setBadge('signin-code-badge', selectedPortal);
   var btn = document.getElementById('signin-email-btn');
-  if (btn) btn.style.background = (selectedPortal === 'admin' ? '#facc15' : selectedPortal === 'provider' ? '#22c55e' : '#1980AD');
+  if (btn) btn.style.background = (selectedPortal === 'admin' ? '#facc15' : selectedPortal === 'provider' ? '#22c55e' : selectedPortal === 'professional' ? '#8b5cf6' : '#1980AD');
   currentFlow = 'signin';
   goTo('screen-signin-email');
 }
