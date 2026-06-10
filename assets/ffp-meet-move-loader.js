@@ -623,19 +623,71 @@
     };
 
     // v23: HOST approves a pending request → member becomes 'joined', gets a notification + the confirm email.
-    // Share a meet-up — native share sheet (link deep-links to the meet-up), clipboard fallback.
-    MeetMove.shareMeetup = async function (id) {
+    // Share a meet-up = invite your FFP connections (same model as quest/challenge invites). Opens a
+    // searchable picker of your accepted connections → POST /api/meetups/:id/invite (bell + push).
+    MeetMove.shareMeetup = function (id) {
+      if (document.getElementById('minv-overlay')) return;
+      if (!currentUserId || !window.supabase) { if (typeof showToast === 'function') showToast('Please sign in again', 'error'); return; }
       var m = (this.data || []).find(function (x) { return x.id === id; }) || {};
-      var url = 'https://ffppassport.com/ffp-member-dashboard.html?meetup=' + id + '#panel-meetups';
-      var title = (m.activity || 'Meet-up') + (m.when ? ' · ' + m.when : '');
-      var text = 'Join me at ' + (m.activity || 'this meet-up') + (m.area ? ' in ' + m.area : '') + ' on FFP Passport';
+      window._ffpMinv = { meetup: id, picked: {}, people: [], title: (m.activity || 'meet-up') };
+      var ov = document.createElement('div'); ov.id = 'minv-overlay';
+      ov.setAttribute('style', 'position:fixed;inset:0;z-index:100002;background:#0b1c28;display:flex;flex-direction:column;font-family:inherit;');
+      ov.innerHTML =
+        '<div style="padding:16px 18px;border-bottom:1px solid rgba(43,168,224,0.2);display:flex;align-items:center;gap:10px;flex-shrink:0;">' +
+          '<button onclick="MeetMove.closeMeetInvite()" style="background:none;border:none;color:#cfe0ee;cursor:pointer;display:flex;padding:0;"><span class="material-icons">arrow_back</span></button>' +
+          '<div style="font-size:16px;font-weight:800;color:#e8eef4;">Invite to ' + esc(m.activity || 'meet-up') + '</div>' +
+        '</div>' +
+        '<div style="padding:14px 18px 0;flex-shrink:0;"><input id="minv-search" placeholder="Search your connections…" oninput="MeetMove.filterMeetInvite(this.value)" style="width:100%;box-sizing:border-box;padding:11px 14px;border-radius:10px;border:1px solid rgba(43,168,224,0.25);background:rgba(43,168,224,0.05);color:#e8eef4;font-size:14px;font-family:inherit;"></div>' +
+        '<div id="minv-list" style="flex:1;overflow:auto;padding:12px 18px;display:flex;flex-direction:column;gap:8px;"><div style="text-align:center;color:#8a99a8;padding:30px;">Loading connections…</div></div>' +
+        '<div style="padding:14px 18px;border-top:1px solid rgba(43,168,224,0.2);flex-shrink:0;"><button class="btn-primary-blue" style="width:100%;" id="minv-send" onclick="MeetMove.sendMeetInvites()">Send invites</button></div>';
+      document.body.appendChild(ov);
+      window.supabase.rpc('member_connections_list', { p_me: currentUserId }).then(function (res) {
+        var arr = ((res && res.data) || []).filter(function (p) { return p && p.mutual; });   // accepted connections
+        window._ffpMinv.people = arr; MeetMove.renderMeetInvite('');
+      }, function () { var h = document.getElementById('minv-list'); if (h) h.innerHTML = '<div style="text-align:center;color:#8a99a8;padding:30px;">Couldn’t load your connections.</div>'; });
+    };
+    MeetMove.renderMeetInvite = function (q) {
+      var st = window._ffpMinv || {}; var people = st.people || [];
+      q = (q || '').trim().toLowerCase();
+      if (q) people = people.filter(function (p) { return ((p.name || '') + ' ' + (p.city || '') + ' ' + (p.country || '')).toLowerCase().indexOf(q) !== -1; });
+      var host = document.getElementById('minv-list'); if (!host) return;
+      if (!people.length) { host.innerHTML = '<div style="text-align:center;color:#8a99a8;padding:30px;line-height:1.6;">' + ((st.people && st.people.length) ? 'No connections match.' : 'No connections yet — connect with people first, then invite them here.') + '</div>'; return; }
+      host.innerHTML = people.map(function (p) {
+        var picked = !!(st.picked && st.picked[p.id]);
+        var av = p.photo
+          ? '<img src="' + p.photo + '" alt="" style="width:42px;height:42px;border-radius:50%;object-fit:cover;flex-shrink:0;">'
+          : '<div style="width:42px;height:42px;border-radius:50%;flex-shrink:0;background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;">' + esc((p.name || 'M').charAt(0).toUpperCase()) + '</div>';
+        var area = [p.city, p.country].filter(Boolean).join(' · ');
+        return '<div onclick="MeetMove.toggleMeetInvite(\'' + p.id + '\')" style="display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:12px;cursor:pointer;background:' + (picked ? 'rgba(43,168,224,0.12)' : 'rgba(255,255,255,0.03)') + ';border:1px solid ' + (picked ? '#2ba8e0' : 'rgba(255,255,255,0.08)') + ';">' + av +
+          '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:700;color:#e8eef4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(p.name || 'Member') + '</div>' + (area ? '<div style="font-size:11px;color:#8a99a8;">' + esc(area) + '</div>' : '') + '</div>' +
+          '<span class="material-icons" style="flex-shrink:0;font-size:22px;color:#2ba8e0;">' + (picked ? 'check_circle' : 'radio_button_unchecked') + '</span></div>';
+      }).join('');
+      var btn = document.getElementById('minv-send');
+      var n = Object.keys(st.picked || {}).filter(function (k) { return st.picked[k]; }).length;
+      if (btn) btn.textContent = n ? ('Send ' + n + ' invite' + (n === 1 ? '' : 's')) : 'Send invites';
+    };
+    MeetMove.filterMeetInvite = function (q) { this.renderMeetInvite(q || ''); };
+    MeetMove.toggleMeetInvite = function (pid) {
+      var st = window._ffpMinv || {}; if (!st.picked) st.picked = {};
+      st.picked[pid] = !st.picked[pid]; window._ffpMinv = st;
+      var s = document.getElementById('minv-search'); this.renderMeetInvite(s ? s.value : '');
+    };
+    MeetMove.closeMeetInvite = function () { var o = document.getElementById('minv-overlay'); if (o) o.remove(); };
+    MeetMove.sendMeetInvites = async function () {
+      var st = window._ffpMinv || {}; var ids = Object.keys(st.picked || {}).filter(function (k) { return st.picked[k]; });
+      if (!ids.length) { if (typeof showToast === 'function') showToast('Pick at least one connection', 'error'); return; }
+      var btn = document.getElementById('minv-send'); if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
       try {
-        if (navigator.share) { await navigator.share({ title: title, text: text, url: url }); return; }
-      } catch (e) { if (e && e.name === 'AbortError') return; }
-      try {
-        await navigator.clipboard.writeText(url);
-        if (typeof showToast === 'function') showToast('Link copied — paste it to share', 'success');
-      } catch (e) { if (typeof showToast === 'function') showToast('Share link: ' + url, 'info'); }
+        var res = await fetch('https://ffp-passport-backend.vercel.app/api/meetups/' + st.meetup + '/invite', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from_member_id: currentUserId, to_member_ids: ids })
+        });
+        var json = await res.json();
+        if (!res.ok || !json.success) throw new Error(json.error || 'Invite failed');
+        var nn = (json.sent != null ? json.sent : ids.length);
+        this.closeMeetInvite();
+        if (typeof showToast === 'function') showToast(nn + ' invite' + (nn === 1 ? '' : 's') + ' sent 🎉', 'success');
+      } catch (e) { if (typeof showToast === 'function') showToast(e.message || 'Could not send invites', 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Send invites'; } }
     };
     // View a member's passport card (so a host can vet a requester before approving). Works for any id.
     MeetMove.viewMemberCard = async function (id) {
