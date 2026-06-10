@@ -1,0 +1,15 @@
+{
+  "name": "FFP Professional",
+  "short_name": "FFP Pro",
+  "description": "Run your coaching, training or wellness business on Find Fit People.",
+  "start_url": "/ffp-professional-dashboard.html",
+  "scope": "/ffp-professional-dashboard.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#081420",
+  "theme_color": "#7c3aed",
+  "icons": [
+    { "src": "/assets/icons/ffp-pro-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icons/ffp-pro-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
