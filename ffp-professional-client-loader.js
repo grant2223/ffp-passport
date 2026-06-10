@@ -1,0 +1,204 @@
+// ════════════════════════════════════════════════════════════════════════
+// FFP Professional Portal — CLIENT module (dedicated; on pro_* tables)
+// Clients (pro_clients) + Packages (pro_packages / pro_client_packages) +
+// Messages (pro_broadcasts). Shares the pro client roster with Scheduling.
+// Uses the same panel ids + function names as the dashboard expects, so it
+// drops in where the shared members loader used to sit. Professional id =
+// window.FFP_PROVIDER.id. Helpers (escHtml/showToast/openModalShell/…) come
+// from the dashboard shell.
+// ════════════════════════════════════════════════════════════════════════
+var _members = [];
+var _plans = [];
+var _broadcasts = [];
+var _curMembershipMember = null;
+var CLIENT_STATUS = { active: 'Active', paused: 'Paused', archived: 'Archived' };
+var PKG_TYPES = { sessions: 'Session pack', recurring: 'Recurring', term: 'Term' };
+var COMMS_CHANNELS = { email: 'Email', push: 'Push', sms: 'SMS' };
+var _cstStyle = { active:'background:rgba(43,168,224,.16);color:#6fc6ef', paused:'background:rgba(255,204,0,.16);color:#FFCC00', archived:'background:rgba(255,255,255,.08);color:#9fb0bf' };
+
+function _memProvId(){ return (window.FFP_PROVIDER&&window.FFP_PROVIDER.id)||(typeof providerProfile!=='undefined'&&providerProfile.id)||null; }
+function _money2(v){ var n=Number(v||0); return 'AED '+(isNaN(n)?0:n).toLocaleString(); }
+
+// ── CLIENTS ──
+async function renderMembers(){
+  var host=document.getElementById('mem-list'); if(!host) return;
+  var pid=_memProvId(); if(!pid){ host.innerHTML='<div class="empty-sub" style="text-align:left;">Sign in to manage clients.</div>'; return; }
+  host.innerHTML='<div class="psub" style="margin:10px 0;">Loading…</div>';
+  try{ var r=await window.supabase.rpc('pro_list_clients',{p_pro:pid}); _members=(r&&r.data)?r.data:[]; }catch(e){ _members=[]; }
+  renderMembersList();
+}
+function renderMembersList(){
+  var host=document.getElementById('mem-list'); if(!host) return;
+  var box=document.getElementById('mem-search'); var q=(box?box.value:'').trim().toLowerCase();
+  var items=_members;
+  if(q) items=_members.filter(function(m){ return ((m.full_name||'')+' '+(m.email||'')+' '+(m.phone||'')+' '+(m.tags||'')).toLowerCase().indexOf(q)!==-1; });
+  if(!items.length){ host.innerHTML=_members.length?'<div class="psub" style="margin:10px 2px;">No matches.</div>':emptyState('No clients yet','Add your first client. Scheduling, packages and payments all link back here.','Add client','openMemberModal()'); return; }
+  host.innerHTML='<div class="psub" style="margin:0 2px 8px;">'+_members.length+' client'+(_members.length===1?'':'s')+'</div>'+items.map(memberRow).join('');
+}
+function memberRow(m){
+  var initials=(m.full_name||'?').split(/\s+/).map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
+  var st=m.status||'active'; var stStyle=_cstStyle[st]||_cstStyle.active;
+  var contact=[]; if(m.email)contact.push(escHtml(m.email)); if(m.phone)contact.push(escHtml(m.phone));
+  var tags=(m.tags||'').split(',').map(function(t){return t.trim();}).filter(Boolean);
+  var tagHtml=tags.length?'<div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:5px;">'+tags.map(function(t){return '<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(255,255,255,.06);color:#9fb0bf;">'+escHtml(t)+'</span>';}).join('')+'</div>':'';
+  return '<div style="background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:12px;padding:11px 13px;margin-bottom:9px;display:flex;align-items:flex-start;gap:11px;">'+
+    '<div style="width:38px;height:38px;border-radius:10px;background:rgba(139,92,246,.16);color:#c4b5fd;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;">'+escHtml(initials)+'</div>'+
+    '<div style="min-width:0;flex:1;"><div style="font-weight:800;color:var(--ffp-text);">'+escHtml(m.full_name||'—')+'</div>'+(contact.length?'<div class="psub" style="margin:2px 0 0;">'+contact.join(' · ')+'</div>':'')+tagHtml+'</div>'+
+    '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex-shrink:0;">'+
+      '<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;'+stStyle+'">'+(CLIENT_STATUS[st]||'Active')+'</span>'+
+      '<div style="display:flex;gap:6px;">'+
+        '<button class="btn btn-sec btn-sm" onclick="openMembership(\''+m.id+'\')" title="Packages"><span class="ms">card_membership</span></button>'+
+        '<button class="btn btn-sec btn-sm" onclick="openMemberModal(\''+m.id+'\')"><span class="ms">edit</span></button>'+
+        '<button class="btn btn-ghost btn-sm" onclick="confirmDeleteMember(\''+m.id+'\')"><span class="ms">delete</span></button>'+
+      '</div></div></div>';
+}
+function openMemberModal(id){
+  var editing=id?_members.find(function(x){return x.id===id;}):null;
+  var today=new Date(); var todayStr=today.getFullYear()+'-'+('0'+(today.getMonth()+1)).slice(-2)+'-'+('0'+today.getDate()).slice(-2);
+  var m=editing||{full_name:'',email:'',phone:'',status:'active',tags:'',join_date:todayStr,notes:''};
+  var jd=m.join_date?String(m.join_date).slice(0,10):'';
+  openModalShell('lg',(editing?'Edit client':'Add client'),
+    '<div class="form-section"><div class="form-section-title">Client</div><div class="form-grid">'+
+      '<div class="field full"><div class="label">Full name <span class="req">*</span></div><input class="input" id="mm-full_name" value="'+escHtml(m.full_name)+'"></div>'+
+      '<div class="field"><div class="label">Email</div><input class="input" id="mm-email" value="'+escHtml(m.email||'')+'"></div>'+
+      '<div class="field"><div class="label">Phone</div><input class="input" id="mm-phone" value="'+escHtml(m.phone||'')+'"></div>'+
+      '<div class="field"><div class="label">Status</div><select class="select" id="mm-status"><option value="active"'+(m.status==='active'?' selected':'')+'>Active</option><option value="paused"'+(m.status==='paused'?' selected':'')+'>Paused</option><option value="archived"'+(m.status==='archived'?' selected':'')+'>Archived</option></select></div>'+
+      '<div class="field"><div class="label">Since</div><input class="input" type="date" id="mm-join_date" value="'+jd+'"></div>'+
+      '<div class="field full"><div class="label">Tags</div><input class="input" id="mm-tags" value="'+escHtml(m.tags||'')+'" placeholder="comma,separated"></div>'+
+      '<div class="field full"><div class="label">Notes</div><textarea class="textarea" id="mm-notes" rows="2">'+escHtml(m.notes||'')+'</textarea></div>'+
+    '</div></div>',
+    (editing?'<button class="btn btn-ghost left" onclick="confirmDeleteMember(\''+editing.id+'\')"><span class="ms">delete</span> Delete</button>':'')+
+    '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>'+
+    '<button class="btn btn-pri" onclick="saveMember(\''+(editing?editing.id:'')+'\')">'+(editing?'Save':'Add client')+'</button>');
+}
+async function saveMember(id){
+  var g=function(i){var el=document.getElementById('mm-'+i);return el?el.value.trim():'';};
+  var name=g('full_name'); if(!name){ showToast('Name is required','error'); return; }
+  var pid=_memProvId(); if(!pid) return;
+  var payload={full_name:name,email:g('email'),phone:g('phone'),status:g('status')||'active',tags:g('tags'),join_date:g('join_date'),notes:g('notes')};
+  try{ var r=await window.supabase.rpc('pro_save_client',{p_pro:pid,p_id:id||null,p:payload}); if(r&&r.error)throw r.error; showToast(id?'Client updated':'Client added','success'); closeModal(); renderMembers(); }catch(e){ showToast('Could not save client','error'); }
+}
+function confirmDeleteMember(id){ openModalShell('','Remove client?','<div class="psub" style="margin:6px 0;">This removes them from your client list.</div>','<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="doDeleteMember(\''+id+'\')">Remove</button>'); }
+async function doDeleteMember(id){ var pid=_memProvId(); try{ var r=await window.supabase.rpc('pro_delete_client',{p_pro:pid,p_id:id}); if(r&&r.error)throw r.error; showToast('Client removed','success'); }catch(e){ showToast('Could not remove','error'); } closeModal(); renderMembers(); }
+
+// ── PACKAGES ──
+async function renderPlans(){
+  var host=document.getElementById('plans-list'); if(!host) return;
+  var pid=_memProvId(); if(!pid){ host.innerHTML='<div class="empty-sub" style="text-align:left;">Sign in to manage packages.</div>'; return; }
+  host.innerHTML='<div class="psub" style="margin:10px 0;">Loading…</div>';
+  try{ var r=await window.supabase.rpc('pro_list_packages',{p_pro:pid}); _plans=(r&&r.data)?r.data:[]; }catch(e){ _plans=[]; }
+  if(!_plans.length){ host.innerHTML=emptyState('No packages yet','Create a session pack or recurring package, then assign it to a client from the Clients tab.','New package','openPlanModal()'); return; }
+  host.innerHTML=_plans.map(planRow).join('');
+}
+function planRow(p){
+  var meta=[PKG_TYPES[p.pkg_type]||'Package']; if(p.price_aed!=null&&p.price_aed!=='')meta.push(_money2(p.price_aed)); if(p.credits)meta.push(p.credits+' sessions'); if(p.period_days)meta.push(p.period_days+' days');
+  var n=p.client_count||0;
+  return '<div style="background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:12px;padding:11px 13px;margin-bottom:9px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">'+
+    '<div style="min-width:0;"><div style="font-weight:800;color:var(--ffp-text);">'+escHtml(p.name)+'</div><div class="psub" style="margin:2px 0 0;">'+meta.join(' · ')+'</div><div class="psub" style="margin:2px 0 0;">'+n+' on this package</div></div>'+
+    '<div style="display:flex;gap:6px;flex-shrink:0;"><button class="btn btn-sec btn-sm" onclick="openPlanModal(\''+p.id+'\')"><span class="ms">edit</span></button><button class="btn btn-ghost btn-sm" onclick="confirmDeletePlan(\''+p.id+'\')"><span class="ms">delete</span></button></div></div>';
+}
+function openPlanModal(id){
+  var editing=id?_plans.find(function(x){return x.id===id;}):null;
+  var p=editing||{name:'',pkg_type:'sessions',credits:'',price_aed:'',period_days:'',notes:''};
+  openModalShell('lg',(editing?'Edit package':'New package'),
+    '<div class="form-section"><div class="form-section-title">Package</div><div class="form-grid">'+
+      '<div class="field full"><div class="label">Name <span class="req">*</span></div><input class="input" id="pl-name" value="'+escHtml(p.name)+'" placeholder="e.g. 10 PT Sessions"></div>'+
+      '<div class="field"><div class="label">Type</div><select class="select" id="pl-pkg_type"><option value="sessions"'+(p.pkg_type==='sessions'?' selected':'')+'>Session pack</option><option value="recurring"'+(p.pkg_type==='recurring'?' selected':'')+'>Recurring</option><option value="term"'+(p.pkg_type==='term'?' selected':'')+'>Term</option></select></div>'+
+      '<div class="field"><div class="label">Price (AED)</div><input class="input" type="number" id="pl-price_aed" value="'+escHtml(String(p.price_aed||''))+'"></div>'+
+      '<div class="field"><div class="label">Sessions / credits</div><input class="input" type="number" id="pl-credits" value="'+escHtml(String(p.credits||''))+'" placeholder="e.g. 10"></div>'+
+      '<div class="field"><div class="label">Valid days</div><input class="input" type="number" id="pl-period_days" value="'+escHtml(String(p.period_days||''))+'" placeholder="e.g. 60"></div>'+
+      '<div class="field full"><div class="label">Notes</div><textarea class="textarea" id="pl-notes" rows="2">'+escHtml(p.notes||'')+'</textarea></div>'+
+    '</div></div>',
+    (editing?'<button class="btn btn-ghost left" onclick="confirmDeletePlan(\''+editing.id+'\')"><span class="ms">delete</span> Delete</button>':'')+
+    '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="savePlan(\''+(editing?editing.id:'')+'\')">'+(editing?'Save':'Create')+'</button>');
+}
+async function savePlan(id){
+  var g=function(i){var el=document.getElementById('pl-'+i);return el?el.value.trim():'';};
+  var name=g('name'); if(!name){ showToast('Name is required','error'); return; }
+  var pid=_memProvId();
+  var payload={name:name,pkg_type:g('pkg_type')||'sessions',price_aed:g('price_aed'),credits:g('credits'),period_days:g('period_days'),notes:g('notes')};
+  try{ var r=await window.supabase.rpc('pro_save_package',{p_pro:pid,p_id:id||null,p:payload}); if(r&&r.error)throw r.error; showToast(id?'Package updated':'Package created','success'); closeModal(); renderPlans(); }catch(e){ showToast('Could not save package','error'); }
+}
+function confirmDeletePlan(id){ openModalShell('','Delete package?','<div class="psub" style="margin:6px 0;">Clients already assigned keep their record.</div>','<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="doDeletePlan(\''+id+'\')">Delete</button>'); }
+async function doDeletePlan(id){ var pid=_memProvId(); try{ var r=await window.supabase.rpc('pro_delete_package',{p_pro:pid,p_id:id}); if(r&&r.error)throw r.error; showToast('Package deleted','success'); }catch(e){ showToast('Could not delete','error'); } closeModal(); renderPlans(); }
+
+// ── Client packages (Membership button) ──
+async function openMembership(clientId){
+  var pid=_memProvId(); if(!pid) return; _curMembershipMember=clientId;
+  var m=(_members||[]).find(function(x){return x.id===clientId;})||{};
+  if(!_plans.length){ try{ var rp=await window.supabase.rpc('pro_list_packages',{p_pro:pid}); _plans=(rp&&rp.data)?rp.data:[]; }catch(e){} }
+  var assigns=[]; try{ var r=await window.supabase.rpc('pro_client_packages_list',{p_pro:pid,p_client:clientId}); assigns=(r&&r.data)?r.data:[]; }catch(e){}
+  var current=assigns.length?assigns.map(membershipRow).join(''):'<div class="psub" style="margin:6px 0;">No packages yet.</div>';
+  var today=new Date(); var todayStr=today.getFullYear()+'-'+('0'+(today.getMonth()+1)).slice(-2)+'-'+('0'+today.getDate()).slice(-2);
+  var form;
+  if(_plans.length){
+    var opts=_plans.map(function(p){return '<option value="'+p.id+'">'+escHtml(p.name)+'</option>';}).join('');
+    form='<div class="form-section"><div class="form-section-title">Assign a package</div><div class="form-grid">'+
+      '<div class="field"><div class="label">Package</div><select class="select" id="asg-plan">'+opts+'</select></div>'+
+      '<div class="field"><div class="label">Start</div><input class="input" type="date" id="asg-start" value="'+todayStr+'"></div>'+
+      '<div class="field full"><button class="btn btn-pri" onclick="assignPlan(\''+clientId+'\')"><span class="ms">add</span> Assign</button></div></div></div>';
+  } else { form='<div class="psub" style="margin:8px 0;">Create a package in the Packages tab first.</div>'; }
+  openModalShell('lg','Packages · '+escHtml(m.full_name||'Client'),'<div class="form-section"><div class="form-section-title">Current</div>'+current+'</div>'+form,'<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
+}
+function membershipRow(a){
+  var active=a.status==='active'; var stColor=active?'rgba(43,168,224,.16);color:#6fc6ef':'rgba(255,255,255,.08);color:#9fb0bf';
+  var bits=[]; if(a.credits_remaining!=null)bits.push(a.credits_remaining+' left'); if(a.expiry_date)bits.push('expires '+a.expiry_date);
+  return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--ffp-border);">'+
+    '<div style="min-width:0;"><div style="font-weight:700;color:var(--ffp-text);">'+escHtml(a.package_name||'Package')+'</div>'+(bits.length?'<div class="psub" style="margin:2px 0 0;">'+bits.join(' · ')+'</div>':'')+'</div>'+
+    '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;"><span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;background:'+stColor+'">'+(a.status||'active')+'</span>'+(active?'<button class="btn btn-ghost btn-sm" onclick="cancelMemberPlan(\''+a.id+'\')">Cancel</button>':'')+'</div></div>';
+}
+async function assignPlan(clientId){
+  var pid=_memProvId(); var sel=document.getElementById('asg-plan'); var start=document.getElementById('asg-start');
+  if(!sel||!sel.value){ showToast('Pick a package','error'); return; }
+  try{ var r=await window.supabase.rpc('pro_assign_package',{p_pro:pid,p_client:clientId,p_package:sel.value,p_start:(start&&start.value)?start.value:null}); if(r&&r.error)throw r.error; showToast('Package assigned','success'); openMembership(clientId); }catch(e){ showToast('Could not assign','error'); }
+}
+async function cancelMemberPlan(id){
+  var pid=_memProvId(); try{ var r=await window.supabase.rpc('pro_cancel_client_package',{p_pro:pid,p_id:id}); if(r&&r.error)throw r.error; showToast('Cancelled','success'); }catch(e){ showToast('Could not cancel','error'); }
+  if(_curMembershipMember) openMembership(_curMembershipMember);
+}
+
+// ── MESSAGES ──
+function _cmVal(i){ var el=document.getElementById('cm-'+i); return el?el.value:''; }
+async function renderComms(){
+  var host=document.getElementById('comms-list'); if(!host) return;
+  var pid=_memProvId(); if(!pid){ host.innerHTML='<div class="empty-sub" style="text-align:left;">Sign in to message clients.</div>'; return; }
+  host.innerHTML='<div class="psub" style="margin:10px 0;">Loading…</div>';
+  try{ var r=await window.supabase.rpc('pro_list_broadcasts',{p_pro:pid}); _broadcasts=(r&&r.data)?r.data:[]; }catch(e){ _broadcasts=[]; }
+  if(!_broadcasts.length){ host.innerHTML=emptyState('No messages yet','Compose an announcement or reminder and pick who it goes to. Delivery switches on when channels connect.','Compose','openComposeModal()'); return; }
+  host.innerHTML=_broadcasts.map(broadcastRow).join('');
+}
+function broadcastRow(b){
+  var when=b.created_at?String(b.created_at).slice(0,10):''; var sub=[b.audience_label||'Everyone',(b.recipient_count||0)+' recipients',COMMS_CHANNELS[b.channel]||'Email']; if(when)sub.push(when);
+  return '<div style="background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:12px;padding:11px 13px;margin-bottom:9px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">'+
+    '<div style="min-width:0;"><div style="font-weight:800;color:var(--ffp-text);">'+escHtml(b.subject||'(no subject)')+'</div><div class="psub" style="margin:2px 0 0;">'+sub.map(escHtml).join(' · ')+'</div></div>'+
+    '<div style="display:flex;align-items:center;gap:7px;flex-shrink:0;"><span class="ni-lock-pill">Logged</span><button class="btn btn-ghost btn-sm" onclick="confirmDeleteBroadcast(\''+b.id+'\')"><span class="ms">delete</span></button></div></div>';
+}
+function openComposeModal(){
+  var statusOpts=Object.keys(CLIENT_STATUS).map(function(k){return '<option value="'+k+'">'+CLIENT_STATUS[k]+'</option>';}).join('');
+  openModalShell('lg','Compose message',
+    '<div class="form-section"><div class="form-section-title">Channel</div><div class="form-grid"><div class="field full"><select class="select" id="cm-channel"><option value="email">Email</option><option value="push">Push</option><option value="sms">SMS</option></select><div class="psub" style="margin:6px 2px 0;">Composes &amp; logs who it would reach. Delivery switches on when channels connect.</div></div></div></div>'+
+    '<div class="form-section"><div class="form-section-title">Audience</div><div class="form-grid">'+
+      '<div class="field"><div class="label">Send to</div><select class="select" id="cm-aud-type" onchange="commsAudienceChange()"><option value="all">Everyone</option><option value="status">By status</option></select></div>'+
+      '<div class="field" id="cm-aud-status-wrap" style="display:none;"><div class="label">Status</div><select class="select" id="cm-aud-status" onchange="_updateAudienceCount()">'+statusOpts+'</select></div>'+
+      '<div class="field full"><div class="psub" id="cm-count" style="margin:0;">Recipients: …</div></div></div></div>'+
+    '<div class="form-section"><div class="form-section-title">Message</div><div class="form-grid"><div class="field full"><div class="label">Subject</div><input class="input" id="cm-subject"></div><div class="field full"><div class="label">Message</div><textarea class="textarea" id="cm-body" rows="5"></textarea></div></div></div>',
+    '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="sendBroadcast()">Save message</button>');
+  _updateAudienceCount();
+}
+function commsAudienceChange(){ var t=_cmVal('aud-type'); var sw=document.getElementById('cm-aud-status-wrap'); if(sw)sw.style.display=(t==='status')?'':'none'; _updateAudienceCount(); }
+async function _updateAudienceCount(){
+  var pid=_memProvId(); if(!pid) return; var t=_cmVal('aud-type'); var ref=t==='status'?_cmVal('aud-status'):''; var lbl=document.getElementById('cm-count'); if(lbl)lbl.textContent='Recipients: …';
+  try{ var r=await window.supabase.rpc('pro_audience_count',{p_pro:pid,p_type:t,p_ref:ref}); var n=(r&&r.data!=null)?r.data:0; if(lbl)lbl.textContent='Recipients: '+n; }catch(e){ if(lbl)lbl.textContent='Recipients: —'; }
+}
+async function sendBroadcast(){
+  var pid=_memProvId(); if(!pid) return; var t=_cmVal('aud-type'); var ref='',label='Everyone';
+  if(t==='status'){ ref=_cmVal('aud-status'); label='Status: '+(CLIENT_STATUS[ref]||ref); }
+  var subject=_cmVal('subject').trim(); var body=_cmVal('body').trim(); if(!body){ showToast('Write a message first','error'); return; }
+  var payload={channel:_cmVal('channel')||'email',audience_type:t,audience_ref:ref,audience_label:label,subject:subject,body:body};
+  try{ var r=await window.supabase.rpc('pro_save_broadcast',{p_pro:pid,p:payload}); if(r&&r.error)throw r.error; showToast('Message saved','success'); closeModal(); renderComms(); }catch(e){ showToast('Could not save','error'); }
+}
+function confirmDeleteBroadcast(id){ openModalShell('','Delete message?','<div class="psub" style="margin:6px 0;">This removes it from your history.</div>','<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="doDeleteBroadcast(\''+id+'\')">Delete</button>'); }
+async function doDeleteBroadcast(id){ var pid=_memProvId(); try{ var r=await window.supabase.rpc('pro_delete_broadcast',{p_pro:pid,p_id:id}); if(r&&r.error)throw r.error; showToast('Deleted','success'); }catch(e){ showToast('Could not delete','error'); } closeModal(); renderComms(); }
+
+// First open
+try{ if(document.getElementById('mem-list')) renderMembers(); }catch(e){}
