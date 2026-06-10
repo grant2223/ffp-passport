@@ -175,6 +175,113 @@ async function doDeleteSession(id) {
   renderScheduling();
 }
 
+// ════════════════════════════════════════════════════════════════════════
+// ATTENDANCE (manual register) — Scheduling → Attendance tab.
+// provider_session_attendance / provider_save_attendance / provider_attendance_counts.
+// ════════════════════════════════════════════════════════════════════════
+var _attCounts = {};
+var _register = {};     // member_id -> 'present' | 'absent'  (current open register)
+var _regSession = null;
+
+async function renderAttendance() {
+  var host = document.getElementById('att-list');
+  if (!host) return;
+  var pid = _schedProvId();
+  if (!pid) { host.innerHTML = '<div class="empty-sub" style="text-align:left;">Sign in to take attendance.</div>'; return; }
+  host.innerHTML = '<div class="psub" style="margin:10px 0;">Loading…</div>';
+  try {
+    var rs = await window.supabase.rpc('provider_list_sessions', { p_provider: pid });
+    _schedSessions = (rs && rs.data) ? rs.data : [];
+    var rc = await window.supabase.rpc('provider_attendance_counts', { p_provider: pid });
+    _attCounts = (rc && rc.data) ? rc.data : {};
+  } catch (e) { _schedSessions = _schedSessions || []; _attCounts = {}; }
+  if (!_schedSessions.length) {
+    host.innerHTML = emptyState('No sessions yet', 'Create sessions in the Calendar tab first, then take attendance here.', '', '');
+    return;
+  }
+  host.innerHTML = _schedSessions.map(attRow).join('');
+}
+
+function attRow(s) {
+  var d = new Date(s.start_at);
+  var when = d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' +
+             d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  var present = _attCounts[s.id] || 0;
+  var taken = present > 0;
+  return '<div style="background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-radius:12px;padding:11px 13px;margin-bottom:9px;display:flex;justify-content:space-between;align-items:center;gap:10px;">' +
+      '<div style="min-width:0;">' +
+        '<div style="font-weight:800;color:var(--ffp-text,#eaf2f8);">' + escHtml(s.title) + '</div>' +
+        '<div class="psub" style="margin:2px 0 0;">' + when + (taken ? ' · ' + present + ' present' : '') + '</div>' +
+      '</div>' +
+      '<button class="btn ' + (taken ? 'btn-sec' : 'btn-pri') + ' btn-sm" onclick="openRegister(\'' + s.id + '\')"><span class="ms">how_to_reg</span> ' + (taken ? 'Edit' : 'Register') + '</button>' +
+  '</div>';
+}
+
+async function openRegister(sessionId) {
+  var pid = _schedProvId();
+  if (!pid) return;
+  var s = (_schedSessions || []).find(function (x) { return x.id === sessionId; }) || {};
+  _regSession = sessionId; _register = {};
+  var members = [];
+  try {
+    var r = await window.supabase.rpc('provider_session_attendance', { p_provider: pid, p_session: sessionId });
+    members = (r && r.data) ? r.data : [];
+  } catch (e) { members = []; }
+  members.forEach(function (m) { _register[m.member_id] = m.status; });
+  var body, foot;
+  if (!members.length) {
+    body = '<div class="psub" style="margin:8px 0;">No members yet. Add members in the Members panel first, then come back to take attendance.</div>';
+    foot = '<button class="btn btn-ghost" onclick="closeModal()">Close</button>';
+  } else {
+    body = '<input class="input" id="reg-search" placeholder="Search members…" style="margin-bottom:10px;" oninput="filterRegister()">' +
+           '<div id="reg-rows">' + members.map(attMemberRow).join('') + '</div>';
+    foot = '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="saveRegister()">Save register</button>';
+  }
+  openModalShell('lg', 'Register · ' + escHtml(s.title || 'Session'), body, foot);
+}
+
+function attMemberRow(m) {
+  var present = _register[m.member_id] === 'present';
+  var initials = (m.full_name || '?').split(/\s+/).map(function (w) { return w[0] || ''; }).join('').slice(0, 2).toUpperCase();
+  return '<div class="reg-row" data-name="' + escHtml((m.full_name || '').toLowerCase()) + '" style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--ffp-border,#1d3346);">' +
+      '<div style="width:32px;height:32px;border-radius:8px;background:rgba(43,168,224,.16);color:#6fc6ef;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0;">' + escHtml(initials) + '</div>' +
+      '<div style="flex:1;min-width:0;font-weight:700;color:var(--ffp-text,#eaf2f8);">' + escHtml(m.full_name || '—') + '</div>' +
+      '<button id="reg-btn-' + m.member_id + '" class="btn btn-sm ' + (present ? 'btn-pri' : 'btn-ghost') + '" onclick="toggleAtt(\'' + m.member_id + '\')">' +
+        '<span class="ms">' + (present ? 'check_circle' : 'radio_button_unchecked') + '</span> ' + (present ? 'Present' : 'Absent') +
+      '</button>' +
+  '</div>';
+}
+
+function toggleAtt(memberId) {
+  _register[memberId] = (_register[memberId] === 'present') ? 'absent' : 'present';
+  var btn = document.getElementById('reg-btn-' + memberId);
+  if (!btn) return;
+  var present = _register[memberId] === 'present';
+  btn.className = 'btn btn-sm ' + (present ? 'btn-pri' : 'btn-ghost');
+  btn.innerHTML = '<span class="ms">' + (present ? 'check_circle' : 'radio_button_unchecked') + '</span> ' + (present ? 'Present' : 'Absent');
+}
+
+function filterRegister() {
+  var box = document.getElementById('reg-search');
+  var q = (box ? box.value : '').trim().toLowerCase();
+  Array.prototype.forEach.call(document.querySelectorAll('#reg-rows .reg-row'), function (row) {
+    row.style.display = (!q || row.getAttribute('data-name').indexOf(q) !== -1) ? '' : 'none';
+  });
+}
+
+async function saveRegister() {
+  var pid = _schedProvId();
+  if (!pid || !_regSession) { closeModal(); return; }
+  var marks = Object.keys(_register).map(function (mid) { return { member_id: mid, status: _register[mid] }; });
+  try {
+    var r = await window.supabase.rpc('provider_save_attendance', { p_provider: pid, p_session: _regSession, p_marks: marks });
+    if (r && r.error) throw r.error;
+    showToast('Register saved', 'success');
+    closeModal();
+    renderAttendance();
+  } catch (e) { showToast('Could not save register', 'error'); }
+}
+
 // First open: this script is loaded by showPanel AFTER its synchronous render
 // hook has already run, so render now if the Scheduling panel is on screen.
 try { if (document.getElementById('sched-list')) renderScheduling(); } catch (e) {}
