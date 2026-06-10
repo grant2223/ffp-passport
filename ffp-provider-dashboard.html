@@ -764,7 +764,12 @@ a { color: var(--ffp-blue); text-decoration: none; }
   font-size: 13px; font-weight: 600;
   color: var(--ffp-text);
   transition: border-color .15s;
+  color-scheme: dark;
 }
+/* Native date/time controls render in dark theme (visible icon + dark picker) */
+.input[type="date"], .input[type="time"], .input[type="datetime-local"] { color-scheme: dark; }
+.input[type="date"]::-webkit-calendar-picker-indicator,
+.input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(0.85); cursor: pointer; opacity: .8; }
 .input:focus, .select:focus, .textarea:focus { border-color: var(--ffp-blue); }
 .input::placeholder, .textarea::placeholder { color: var(--ffp-text-muted); font-weight: 500; }
 .textarea { resize: vertical; min-height: 80px; line-height: 1.55; font-weight: 500; }
@@ -2492,14 +2497,14 @@ a { color: var(--ffp-blue); text-decoration: none; }
           <button class="biz-tab" onclick="bizTab(this,'mem-comms')">Communications</button>
         </div>
         <div class="biz-pane active" id="mem-directory">
-          <div class="panel-placeholder" style="margin-top:26px;">
-            <span class="ms" style="font-size:44px;color:var(--ffp-yellow,#FFCC00);">contacts</span>
-            <h3 style="margin:14px 0 6px;">Member directory — coming soon</h3>
-            <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
-              Your full member list: contact details, join date, activity history, notes and tags so you can
-              group and filter (trial, monthly, lapsed). The backbone everything else links back to.
-            </p>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:16px;padding:9px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:#FFCC00;font-size:12px;font-weight:700;">
+            <span class="ms" style="font-size:16px;">construction</span> Coming soon — preview for partner testing
           </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
+            <input class="input" id="mem-search" placeholder="Search name, email, phone or tag…" style="max-width:300px;" oninput="if(typeof renderMembersList==='function')renderMembersList()">
+            <button class="btn btn-pri" onclick="openMemberModal()"><span class="ms">person_add</span> Add member</button>
+          </div>
+          <div id="mem-list" style="margin-top:10px;"></div>
         </div>
         <div class="biz-pane" id="mem-plans">
           <div class="panel-placeholder" style="margin-top:26px;">
@@ -2541,7 +2546,10 @@ a { color: var(--ffp-blue); text-decoration: none; }
           <button class="biz-tab" onclick="bizTab(this,'sch-attendance')">Attendance</button>
         </div>
         <div class="biz-pane active" id="sch-calendar">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:18px 0 4px;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:8px;margin-top:16px;padding:9px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:#FFCC00;font-size:12px;font-weight:700;">
+            <span class="ms" style="font-size:16px;">construction</span> Coming soon — preview for partner testing
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
             <div class="psub" style="margin:0;">Classes, personal training and team sessions you run — members will book these.</div>
             <button class="btn btn-pri" onclick="openSessionModal()"><span class="ms">add</span> New session</button>
           </div>
@@ -3110,7 +3118,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js', 'scheduling': 'ffp-provider-scheduling-loader.js' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js', 'scheduling': 'ffp-provider-scheduling-loader.js', 'members': 'ffp-provider-members-loader.js' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
@@ -3156,6 +3164,7 @@ function showPanel(id) {
   if (id === 'checkins') { renderCheckIns(); if (window.FFPQuestCheckins) FFPQuestCheckins.reload(); }
   if (id === 'analytics') renderAnalytics();
   if (id === 'scheduling' && typeof renderScheduling === 'function') renderScheduling();
+  if (id === 'members' && typeof renderMembers === 'function') renderMembers();
   window.scrollTo({ top: 0, behavior: 'smooth' });
   // Close mobile sidebar after navigation
   if (window.innerWidth <= 768) closeSidebar();
