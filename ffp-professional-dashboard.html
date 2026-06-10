@@ -177,22 +177,17 @@ a{color:var(--ffp-blue);}
     <!-- SCHEDULING (scheduling loader -> #sched-list / #att-list) -->
     <section class="panel" id="panel-scheduling">
       <div class="ph">Scheduling</div>
-      <div class="psub">Your sessions — 1-to-1s, group classes, recurring. Take a register against your clients.</div>
-      <div class="biz-tabs">
-        <button class="biz-tab active" onclick="bizTab(this,'sched-cal'); if(typeof renderScheduling==='function')renderScheduling();">Calendar</button>
-        <button class="biz-tab" onclick="bizTab(this,'sched-att'); if(typeof renderAttendance==='function')renderAttendance();">Attendance</button>
-      </div>
-      <div class="biz-pane active" id="sched-cal">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
-          <div class="psub" style="margin:0;">Sessions you run — clients book these (soon) and you take attendance.</div>
-          <button class="btn btn-pri" onclick="openSessionModal()"><span class="ms">add</span> New session</button>
+      <div class="psub">Your week, built from each client's standing slot. Reschedule a single week, or shift a slot for good.</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 6px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="btn btn-sec btn-sm" onclick="proWeekShift(-1)" aria-label="Previous week"><span class="ms">chevron_left</span></button>
+          <div id="pro-week-label" style="font-weight:800;min-width:150px;text-align:center;">This week</div>
+          <button class="btn btn-sec btn-sm" onclick="proWeekShift(1)" aria-label="Next week"><span class="ms">chevron_right</span></button>
+          <button class="btn btn-ghost btn-sm" onclick="proWeekToday()">Today</button>
         </div>
-        <div id="sched-list" style="margin-top:10px;"></div>
+        <button class="btn btn-pri" onclick="openSlotModal()"><span class="ms">add</span> New standing slot</button>
       </div>
-      <div class="biz-pane" id="sched-att">
-        <div class="psub" style="margin:14px 0 4px;">Pick a session and tick who attended.</div>
-        <div id="att-list" style="margin-top:8px;"></div>
-      </div>
+      <div id="pro-week" style="margin-top:8px;"></div>
     </section>
 
     <!-- PACKAGES (members loader -> #plans-list) -->
@@ -273,7 +268,7 @@ function emptyState(title,sub,ctaLabel,ctaFn){
 function bizTab(btn,paneId){ var panel=btn.closest('.panel'); if(!panel)return; panel.querySelectorAll('.biz-tab').forEach(function(t){t.classList.remove('active');}); btn.classList.add('active'); panel.querySelectorAll('.biz-pane').forEach(function(p){p.classList.remove('active');}); var pane=panel.querySelector('#'+paneId); if(pane)pane.classList.add('active'); }
 
 // ─── Deferred Business module loaders (reused, scoped to FFP_PROVIDER.id = professional id) ───
-var _provLoaderSrc = { clients:'ffp-provider-members-loader.js', packages:'ffp-provider-members-loader.js', comms:'ffp-provider-members-loader.js', scheduling:'ffp-provider-scheduling-loader.js', payments:'ffp-provider-billing-loader.js' };
+var _provLoaderSrc = { clients:'ffp-provider-members-loader.js', packages:'ffp-provider-members-loader.js', comms:'ffp-provider-members-loader.js', scheduling:'ffp-professional-scheduling-loader.js', payments:'ffp-provider-billing-loader.js' };
 var _provLoaded = {};
 function ensureProviderLoader(id){ var src=_provLoaderSrc[id]; if(!src||_provLoaded[src])return; _provLoaded[src]=true; var sc=document.createElement('script'); sc.src=src; sc.async=false; sc.onload=function(){ renderPanel(id); }; sc.onerror=function(){ console.error('[FFP Pro] failed to load '+src); }; document.body.appendChild(sc); }
 function renderPanel(id){
