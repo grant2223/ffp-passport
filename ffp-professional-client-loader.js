@@ -47,6 +47,7 @@ function memberRow(m){
     '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex-shrink:0;">'+
       '<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;'+stStyle+'">'+(CLIENT_STATUS[st]||'Active')+'</span>'+
       '<div style="display:flex;gap:6px;">'+
+        '<button class="btn btn-sec btn-sm" onclick="openClientHealth(\''+m.id+'\')" title="Health data"><span class="ms">monitor_heart</span></button>'+
         '<button class="btn btn-sec btn-sm" onclick="openMembership(\''+m.id+'\')" title="Packages"><span class="ms">card_membership</span></button>'+
         '<button class="btn btn-sec btn-sm" onclick="openMemberModal(\''+m.id+'\')"><span class="ms">edit</span></button>'+
         '<button class="btn btn-ghost btn-sm" onclick="confirmDeleteMember(\''+m.id+'\')"><span class="ms">delete</span></button>'+
@@ -80,6 +81,69 @@ async function saveMember(id){
 }
 function confirmDeleteMember(id){ openModalShell('','Remove client?','<div class="psub" style="margin:6px 0;">This removes them from your client list.</div>','<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="doDeleteMember(\''+id+'\')">Remove</button>'); }
 async function doDeleteMember(id){ var pid=_memProvId(); try{ var r=await window.supabase.rpc('pro_delete_client',{p_pro:pid,p_id:id}); if(r&&r.error)throw r.error; showToast('Client removed','success'); }catch(e){ showToast('Could not remove','error'); } closeModal(); renderMembers(); }
+
+// ─── Client health data (read-only, member-permissioned) ───
+function _healthTile(v,l){ return '<div style="background:var(--ffp-bg-card);border:1px solid var(--ffp-border);border-radius:10px;padding:10px;text-align:center;"><div style="font-size:18px;font-weight:900;">'+v+'</div><div class="psub" style="margin:2px 0 0;font-size:10px;text-transform:uppercase;">'+escHtml(l)+'</div></div>'; }
+function _healthDate(ts){ if(!ts)return ''; try{ return new Date(ts).toLocaleDateString(undefined,{month:'short',day:'numeric'}); }catch(e){ return ''; } }
+function _healthTime(s){ if(!s)return '—'; s=+s; var m=Math.floor(s/60),ss=s%60; return m+':'+('0'+ss).slice(-2); }
+async function openClientHealth(clientId){
+  var pid=_memProvId(); if(!pid)return;
+  var cl=(_members||[]).find(function(x){return x.id===clientId;})||{};
+  openModalShell('lg','Health data · '+escHtml(cl.full_name||'Client'),'<div class="psub" style="padding:14px 0;">Checking access…</div>','<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
+  var st={};
+  try{ var r=await window.supabase.rpc('pro_client_access_status',{p_pro:pid,p_client:clientId}); st=(r&&r.data)||{}; }catch(e){}
+  var body=document.querySelector('#ffp-modal .mc-body'); if(!body)return;
+  if(!st.has_member){
+    body.innerHTML='<div class="psub" style="padding:8px 0;line-height:1.6;">No FFP Passport found for this client’s email. Read-only health data is only available for clients who hold an active FFP Passport — add their Passport email to their client record, then request access.</div>';
+    return;
+  }
+  if(st.status==='approved'){ _renderClientData(clientId, cl); return; }
+  if(!st.passport_active){
+    body.innerHTML='<div class="psub" style="padding:8px 0;line-height:1.6;">This client has an FFP account but their Passport isn’t active right now — they’ll need an active Passport to share their data.</div>';
+    return;
+  }
+  if(st.status==='pending'){
+    body.innerHTML='<div style="text-align:center;padding:18px 6px;"><span class="ms" style="font-size:30px;color:var(--ffp-purple);">hourglass_top</span><div style="font-weight:800;margin-top:8px;">Request sent</div><div class="psub" style="margin-top:4px;">Waiting for '+escHtml(cl.full_name||'your client')+' to approve in their Passport. You’ll get a notification when they do.</div></div>';
+    return;
+  }
+  var note=st.status==='declined'?'Your last request was declined.':(st.status==='revoked'?'Access was turned off by the client.':'');
+  body.innerHTML='<div style="text-align:center;padding:14px 6px;"><span class="ms" style="font-size:30px;color:var(--ffp-purple);">health_and_safety</span>'+
+    '<div style="font-weight:800;margin-top:8px;">View their Calorie Tracker &amp; Fitness Stats</div>'+
+    '<div class="psub" style="margin:4px auto 14px;max-width:340px;">With permission, you can see '+escHtml(cl.full_name||'your client')+'’s nutrition and training stats — read-only. '+escHtml(note)+'</div>'+
+    '<button class="btn btn-pri" onclick="requestClientAccess(\''+clientId+'\')"><span class="ms">lock_open</span> Request access</button></div>';
+}
+async function requestClientAccess(clientId){
+  var pid=_memProvId(); if(!pid)return;
+  try{
+    var r=await window.supabase.rpc('pro_request_data_access',{p_pro:pid,p_client:clientId});
+    var d=(r&&r.data)||{};
+    if(d.error){ var msg=d.error==='no_member'?'No FFP account found for this client’s email':(d.error==='passport_inactive'?'Their Passport isn’t active right now':(d.error==='no_email'?'Add an email to this client first':'Could not send request')); showToast(msg,'error'); return; }
+    showToast('Request sent','success'); openClientHealth(clientId);
+  }catch(e){ showToast('Could not send request','error'); }
+}
+async function _renderClientData(clientId, cl){
+  var pid=_memProvId();
+  var memberId=null;
+  try{ var s=await window.supabase.rpc('pro_client_access_status',{p_pro:pid,p_client:clientId}); memberId=(s&&s.data&&s.data.member_id)||null; }catch(e){}
+  var body=document.querySelector('#ffp-modal .mc-body'); if(body)body.innerHTML='<div class="psub" style="padding:14px 0;">Loading…</div>';
+  var d={};
+  try{ var r=await window.supabase.rpc('pro_client_data',{p_pro:pid,p_member:memberId}); d=(r&&r.data)||{}; }catch(e){ d={error:'load'}; }
+  body=document.querySelector('#ffp-modal .mc-body'); if(!body)return;
+  if(d.error){ body.innerHTML='<div class="psub" style="padding:10px 0;">Couldn’t load — access may have changed.</div>'; return; }
+  var c=d.calorie_today||{}; var f=d.fitness||{};
+  var num=function(v,suf){ return (v===null||v===undefined||v==='')?'—':(v+(suf||'')); };
+  var calHtml='<div class="form-section"><div class="form-section-title">Today’s nutrition</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">'+
+    _healthTile(Math.round(c.calories||0),'kcal')+_healthTile(Math.round(c.protein_g||0)+'g','Protein')+_healthTile(Math.round(c.carbs_g||0)+'g','Carbs')+_healthTile(Math.round(c.fat_g||0)+'g','Fat')+'</div></div>';
+  var prRows=[['Bench',num(f.pr_bench_kg,' kg')],['Squat',num(f.pr_squat_kg,' kg')],['Deadlift',num(f.pr_deadlift_kg,' kg')],
+    ['5K',f.pr_5k_seconds?_healthTime(f.pr_5k_seconds):'—'],['10K',f.pr_10k_seconds?_healthTime(f.pr_10k_seconds):'—'],['Half',f.pr_21k_seconds?_healthTime(f.pr_21k_seconds):'—'],
+    ['VO₂ max',num(f.vo2_max)],['Body fat',num(f.body_fat_pct,'%')],['Resting HR',num(f.resting_hr,' bpm')],['Weight',num(f.current_weight_kg,' kg')]];
+  var fitHtml='<div class="form-section"><div class="form-section-title">Fitness stats</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:0 18px;">'+
+    prRows.map(function(r){ return '<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--ffp-border);padding:7px 0;"><span class="psub" style="margin:0;">'+r[0]+'</span><span style="font-weight:800;font-size:13px;">'+r[1]+'</span></div>'; }).join('')+'</div></div>';
+  var acts=d.activities||[];
+  var actHtml='<div class="form-section"><div class="form-section-title">Recent activity ('+(d.activity_count_30d||0)+' in 30 days)</div>'+
+    (acts.length?acts.map(function(a){ return '<div style="display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--ffp-border);padding:8px 0;"><div style="min-width:0;"><div style="font-weight:700;font-size:13px;">'+escHtml(a.activity||'Activity')+'</div><div class="psub" style="margin:1px 0 0;">'+_healthDate(a.logged_at)+'</div></div><div class="psub" style="margin:0;text-align:right;white-space:nowrap;">'+[(a.duration_min?a.duration_min+' min':''),(a.distance_km?a.distance_km+' km':''),(a.calories?a.calories+' kcal':'')].filter(Boolean).join(' · ')+'</div></div>'; }).join(''):'<div class="psub" style="padding:6px 0;">No recent activity.</div>')+'</div>';
+  body.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="ms" style="color:#22c55e;">verified</span><span class="psub" style="margin:0;">Shared with permission · read-only</span></div>'+calHtml+fitHtml+actHtml;
+}
 
 // ── PACKAGES ──
 async function renderPlans(){
