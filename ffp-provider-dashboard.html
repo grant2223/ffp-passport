@@ -77,7 +77,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FFP Passport — Provider Portal</title>
+<title>FFP Passport — Partners Portal</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2040,14 +2040,14 @@ a { color: var(--ffp-blue); text-decoration: none; }
 <div class="auth-screen" id="auth-screen">
   <div class="auth-card">
     <div class="auth-logo">FFP <span>PASSPORT</span></div>
-    <div class="auth-tag">Provider Portal</div>
+    <div class="auth-tag">Partners Portal</div>
 
     <!-- Landing -->
     <div class="auth-section active" id="auth-landing">
       <div class="demo-banner">
         <b>Demo mode</b> — sign in with any email + any 6-digit code, or try the apply flow.
       </div>
-      <div class="auth-title">Sign in to your provider account</div>
+      <div class="auth-title">Sign in to your partner account</div>
       <div class="auth-sub">No password needed. Enter your email and we'll send a 6-digit code.</div>
       <button class="btn btn-pri auth-cta" onclick="setAuthState('signin_email')">
         <span class="ms">login</span> Sign in
@@ -2064,7 +2064,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
         <span class="ms">arrow_back</span> Back
       </button>
       <div class="auth-title">Sign in</div>
-      <div class="auth-sub">Enter the email tied to your provider account. We'll send a 6-digit code that's valid for 10 minutes.</div>
+      <div class="auth-sub">Enter the email tied to your partner account. We'll send a 6-digit code that's valid for 10 minutes.</div>
       <div class="field">
         <div class="label">Email <span class="req">*</span></div>
         <input class="input" type="email" id="auth-email-input" placeholder="bookings@yourbusiness.ae" value="bookings@forgefitness.ae" autocomplete="email">
@@ -2200,7 +2200,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
   <aside class="sidebar">
     <div class="sb-logo">
       <div class="sb-brand">FFP <span>PASSPORT</span></div>
-      <div class="sb-sub">Provider Portal</div>
+      <div class="sb-sub">Partners Portal</div>
     </div>
     <nav class="sb-nav" id="sb-nav"></nav>
     <button class="sb-foot" id="sb-foot" onclick="showPanel('profile')">
@@ -2377,7 +2377,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
               <script>(function(){var s=document.getElementById('pf-category');if(!s)return;var c=(window.FFP_CONST&&window.FFP_CONST.providerCategories)||['Fitness','Wellness','Padel','Yoga & Pilates','Climbing','Combat sports','Recovery','Adventure','Nutrition','Coaching','Retail','Other'];c.forEach(function(x){var o=document.createElement('option');o.textContent=x;s.appendChild(o);});})();</script>
             </div>
             <div class="field">
-              <div class="label">Provider type</div>
+              <div class="label">Partner type</div>
               <select class="select" id="pf-type"><option value="">Choose…</option></select>
               <script>(function(){
                 var s=document.getElementById('pf-type'); if(!s) return;
@@ -2419,7 +2419,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
               <input class="input" id="pf-website" placeholder="https://yourbusiness.com">
             </div>
             <div class="field full">
-              <div class="label">About <span class="label-hint">— shown on your provider profile</span></div>
+              <div class="label">About <span class="label-hint">— shown on your partner profile</span></div>
               <textarea class="textarea" id="pf-about" rows="4" placeholder="A short paragraph about your business, what you offer, and what makes you different."></textarea>
             </div>
             <div class="field full">
@@ -2519,7 +2519,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
         <div class="ph-row">
           <div>
             <div class="ph">Challenges</div>
-            <div class="psub">Provider-type challenges you organize at your venue. Upload results after the event.</div>
+            <div class="psub">Partner challenges you organize at your venue. Upload results after the event.</div>
           </div>
           <button class="btn btn-pri" onclick="openChallengeModal()">
             <span class="ms">add</span> New challenge
@@ -2727,7 +2727,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
             <div class="field full">
               <div class="label">Danger zone</div>
               <button class="btn btn-ghost" style="color: var(--ffp-red); border-color: rgba(239,68,68,.3);" onclick="showToast('Contact admin to close your account', 'info')">
-                <span class="ms">delete</span> Close my provider account
+                <span class="ms">delete</span> Close my partner account
               </button>
             </div>
           </div>
@@ -4228,7 +4228,7 @@ function challengeCard(c) {
   return '<div class="listing-card">' +
     '<div class="lc-hero" ' + heroStyle(c.hero_url) + '>' +
       '<div class="lc-status-pill ' + c.status + '">' + c.status + '</div>' +
-      '<div class="lc-cat-pill">Provider</div>' +
+      '<div class="lc-cat-pill">Partner</div>' +
     '</div>' +
     '<div class="lc-body">' +
       '<div class="lc-title">' + escHtml(c.title) + '</div>' +
@@ -4263,7 +4263,7 @@ function openChallengeModal(id) {
   openModalShell('lg', (editing ? 'Edit challenge' : 'New challenge'), `
     <div class="help-strip">
       <span class="ms">info</span>
-      <div><b>Provider challenge:</b> you set the rules and upload results at the end. Members see a leaderboard with your results. No FFP coins — prizes are physical only.</div>
+      <div><b>Partner challenge:</b> you set the rules and upload results at the end. Members see a leaderboard with your results. No FFP coins — prizes are physical only.</div>
     </div>
     <div class="form-section">
       <div class="form-section-title">Photo</div>
