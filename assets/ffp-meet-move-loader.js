@@ -498,7 +498,9 @@
       }).sort(function (a, b) { return a._ts - b._ts; });   // chronological: soonest → latest
       installOverrides();
       wrapWrites();
-      var panel = document.getElementById('panel-meet');
+      // Re-render once data arrives if the Meetups panel is open (was checking 'panel-meet' = the
+      // Connections panel, so the list stayed empty until a tab was tapped).
+      var panel = document.getElementById('panel-meetups');
       if (panel && panel.classList.contains('active') && typeof MeetMove.render === 'function') MeetMove.render();
       try { renderHostRequests(); } catch (e) {}   // top-of-panel host approval queue
       console.log('[FFP Meet & Move] Loaded ' + MeetMove.data.length + ' meetups ✓ (v15 — join via RPC; scaled passport-card attendees)');
@@ -518,9 +520,10 @@
         var av = p.photo
           ? '<span style="width:38px;height:38px;border-radius:50%;flex-shrink:0;background:#0a1825 url(\'' + p.photo + '\') center/cover;"></span>'
           : '<span style="width:38px;height:38px;border-radius:50%;flex-shrink:0;background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;">' + esc((p.name || 'M').charAt(0).toUpperCase()) + '</span>';
-        rows.push('<div style="display:flex;align-items:center;gap:9px;padding:11px 0;border-top:1px solid rgba(255,255,255,0.07);">' + av +
-          '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:800;color:#e8eef4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(p.name) + '</div>' +
-          '<div style="font-size:11.5px;color:#9fb4c4;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">wants to join · ' + esc(m.activity || 'your meet-up') + '</div></div>' +
+        rows.push('<div style="display:flex;align-items:center;gap:9px;padding:11px 0;border-top:1px solid rgba(255,255,255,0.07);">' +
+          '<div onclick="MeetMove.viewMemberCard(\'' + p.id + '\')" style="display:flex;align-items:center;gap:9px;flex:1;min-width:0;cursor:pointer;">' + av +
+          '<div style="min-width:0;"><div style="font-size:14px;font-weight:800;color:#e8eef4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(p.name) + ' <span class="material-icons" style="font-size:13px;color:#2ba8e0;vertical-align:-2px;">badge</span></div>' +
+          '<div style="font-size:11.5px;color:#9fb4c4;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">wants to join · ' + esc(m.activity || 'your meet-up') + ' · tap to view passport</div></div></div>' +
           '<button onclick="MeetMove.ignoreRequest(\'' + m.id + '\',\'' + p.id + '\',this)" style="background:rgba(255,255,255,0.08);color:#cfe0ee;border:none;border-radius:9px;padding:8px 13px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;">Ignore</button>' +
           '<button onclick="MeetMove.approveRequest(\'' + m.id + '\',\'' + p.id + '\',this)" style="background:#16a34a;color:#fff;border:none;border-radius:9px;padding:8px 15px;font-size:13px;font-weight:800;cursor:pointer;flex-shrink:0;">Approve</button></div>');
       });
@@ -559,8 +562,9 @@
               var av = p.photo
                 ? '<span style="width:34px;height:34px;border-radius:50%;flex-shrink:0;background:#0a1825 url(\'' + p.photo + '\') center/cover;"></span>'
                 : '<span style="width:34px;height:34px;border-radius:50%;flex-shrink:0;background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;">' + esc((p.name || 'M').charAt(0).toUpperCase()) + '</span>';
-              return '<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.06);">' + av +
-                '<div style="flex:1;min-width:0;font-size:14px;font-weight:600;color:#e8eef4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(p.name) + '</div>' +
+              return '<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.06);">' +
+                '<div onclick="MeetMove.viewMemberCard(\'' + p.id + '\')" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;cursor:pointer;">' + av +
+                '<div style="min-width:0;font-size:14px;font-weight:600;color:#e8eef4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(p.name) + ' <span class="material-icons" style="font-size:13px;color:#2ba8e0;vertical-align:-2px;">badge</span></div></div>' +
                 '<button onclick="MeetMove.ignoreRequest(\'' + m.id + '\',\'' + p.id + '\',this)" style="background:rgba(255,255,255,0.08);color:#cfe0ee;border:none;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;">Ignore</button>' +
                 '<button onclick="MeetMove.approveRequest(\'' + m.id + '\',\'' + p.id + '\',this)" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:8px 15px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;">Approve</button></div>';
             }).join('');
@@ -629,6 +633,24 @@
     };
 
     // v23: HOST approves a pending request → member becomes 'joined', gets a notification + the confirm email.
+    // View a member's passport card (so a host can vet a requester before approving). Works for any id.
+    MeetMove.viewMemberCard = async function (id) {
+      if (!id || !window.supabase) return;
+      var card = null;
+      try {
+        var res = await window.supabase.rpc('members_cards', { p_ids: [id] });
+        var row = (res && res.data && res.data[0]) || null;
+        if (row && window.FFPCard && FFPCard.register) FFPCard.register(row);
+        card = (window.FFPCard && FFPCard.resolve) ? FFPCard.resolve(id) : ((row && window.FFPCard && FFPCard.mapRow) ? FFPCard.mapRow(row) : null);
+      } catch (e) {}
+      var inner = (card && window.FFPPassportCard && FFPPassportCard.render)
+        ? '<div style="display:flex;justify-content:center;padding:8px 0 4px;">' + FFPPassportCard.render(card, { flippable: true }) + '</div><div style="text-align:center;font-size:11px;color:#8a99a8;margin:8px 0 2px;">Tap the card to flip</div>'
+        : '<div style="padding:26px;text-align:center;color:#8a99a8;">Couldn’t load this passport right now.</div>';
+      if (typeof openDetailModal === 'function') {
+        openDetailModal('<div style="padding:2px;"><h3 class="q-title" style="text-align:center;margin-bottom:6px;">' + esc((card && card.name) || 'Passport') + '</h3>' + inner + '</div>');
+        setTimeout(function () { try { if (window.ffpScaleCards) window.ffpScaleCards(document.querySelector('.detail-modal')); } catch (e) {} }, 60);
+      }
+    };
     // v25: host IGNORES a request (host_reject_attendee → status 'rejected'; frees the slot tracking).
     MeetMove.ignoreRequest = async function (meetupId, memberId, btn) {
       if (!currentUserId || !meetupId || !memberId) return;
