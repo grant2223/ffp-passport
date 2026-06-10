@@ -1,4 +1,11 @@
-/* FFP Admin Analytics Loader — v6 (2026-06-03)
+/* FFP Admin Analytics Loader — v7 (2026-06-10)
+   v7: NEW "How Members Are Signing Up" section — breakdown by signup METHOD (referral / paid-Stripe /
+       access code / direct), MEMBERSHIP plan (annual / monthly / free), and WHERE (top countries +
+       cities). Period- and geo-scoped like the rest of the panel; falls back to all-time when the
+       selected period has no signups. Members fetch now also pulls referred_by/plan/access_code/
+       stripe ids/country. Renders into #signup-method/#signup-plan/#signup-countries/#signup-cities.
+   --- prior ---
+   v6 (2026-06-03)
    v6: Community Health REMOVED from this panel — it's now its own tab (panel-community-health,
    ffp-admin-health-loader.js) because health/fitness stats are a different class of data from
    member/provider/revenue/engagement. This loader is business analytics only; its Country/City
@@ -123,7 +130,7 @@
   async function fetchAll() {
     var since = new Date(2024, 0, 1).toISOString();
     var res = await Promise.all([
-      sel('members', 'id, tier, paid, city, nationality, date_of_birth, gender, created_at, role', function (q) { return q.eq('role', 'member'); }), // exclude provider/admin accounts
+      sel('members', 'id, tier, paid, city, country, nationality, date_of_birth, gender, created_at, role, referred_by, plan, access_code, stripe_subscription_id, stripe_session_id', function (q) { return q.eq('role', 'member'); }), // exclude provider/admin accounts
       sel('transactions', 'amount_aed, type, status, created_at', function (q) { return q.gte('created_at', since); }),
       sel('activity_logs', 'member_id, category, logged_at', function (q) { return q.gte('logged_at', since); }),
       sel('claims', 'member_id, deal_id, created_at'),
@@ -248,12 +255,12 @@
     renderAll: function () {
       this.renderGeoFilters();
       this.updateSummary(); this.renderKPIs(); this._drawCharts();
-      this.renderDemographics(); this.renderTopProviders(); this.renderCategories();
+      this.renderDemographics(); this.renderTopProviders(); this.renderCategories(); this.renderSignups();
     },
     // re-render everything except rebuilding the geo dropdowns (used on geo change)
     _refresh: function () {
       this.updateSummary(); this.renderKPIs(); this._drawCharts();
-      this.renderDemographics(); this.renderTopProviders(); this.renderCategories();
+      this.renderDemographics(); this.renderTopProviders(); this.renderCategories(); this.renderSignups();
     },
 
     // ── Country / City location filter ──
@@ -305,7 +312,7 @@
       this.period = period;
       document.querySelectorAll('.time-chip').forEach(function (c) { c.classList.remove('active'); });
       if (btn) btn.classList.add('active');
-      this.updateSummary(); this.renderKPIs(); this.renderCharts(); this.renderCategories();
+      this.updateSummary(); this.renderKPIs(); this.renderCharts(); this.renderCategories(); this.renderSignups();
     },
     toggleCompare: function () {
       this.compare = !this.compare;
@@ -423,6 +430,33 @@
       var set = geoIdSet();
       var inP = RAW.acts.filter(function (a) { return (!set || set[a.member_id]) && inRange(a.logged_at, r.start, r.end); });
       demoRows('demo-categories', tally(inP, function (x) { return x.category; }).slice(0, 6), null, true);
+    },
+    // ── How members are signing up: method (how) · plan (membership) · country/city (where) ──
+    // Scoped by the current period + geo filter, like the rest of the panel. Falls back to
+    // all-time if the selected period has no signups, so the section is never blank.
+    renderSignups: function () {
+      if (!this._loaded) return;
+      var r = periodRange(this.period);
+      var inP = geoMembers().filter(function (m) { return inRange(m.created_at, r.start, r.end); });
+      var usingAll = !inP.length;
+      var scoped = usingAll ? geoMembers() : inP;
+      var meta = document.getElementById('signup-meta');
+      if (meta) meta.textContent = scoped.length + ' member' + (scoped.length === 1 ? '' : 's') + ' · ' + (usingAll ? 'all time' : r.label);
+
+      function method(m) {
+        if (m.referred_by) return 'Referral';
+        if (m.stripe_subscription_id || m.stripe_session_id) return 'Paid (Stripe)';
+        if (m.access_code) return 'Access code';
+        return 'Direct (email)';
+      }
+      function planLabel(m) {
+        if (!m.plan) return 'Free / none';
+        return String(m.plan).charAt(0).toUpperCase() + String(m.plan).slice(1);
+      }
+      demoRows('signup-method', tally(scoped, method), BLUE, false);
+      demoRows('signup-plan', tally(scoped, planLabel), YELLOW, false);
+      demoRows('signup-countries', tally(scoped, function (m) { return m.country || countryOf(m.city); }).slice(0, 6), BLUE, false);
+      demoRows('signup-cities', tally(scoped, function (m) { return m.city; }).slice(0, 6), YELLOW, false);
     },
     renderTopProviders: function () {
       if (!this._loaded) return;
