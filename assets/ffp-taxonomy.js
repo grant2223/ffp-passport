@@ -1,4 +1,10 @@
-/* FFP Taxonomy - v8 (2026-06-05)
+/* FFP Taxonomy - v9 (2026-06-10)
+   v9: PROFESSIONS taxonomy — professionalRoles is now (a) regrouped under the 6 STANDARD FFP
+       categories (Sports/Fitness/Wellness/Recovery/Adventure/Health food) instead of made-up headings,
+       and (b) DB-hydrated from list_key='professional_role' (each row's `parent` = its category), so
+       Admin → Taxonomies → Professions controls it platform-wide. The hardcoded object is fallback only.
+       Added T.professionalCategories, T.professionalRolesFlat() and T.categoryOfRole() helpers for the
+       single searchable Profession picker. Service professionals only (no business/athlete/creator roles).
    v8: CATEGORY STANDARDISATION — each activity's category ('c') now comes from the DB
        (taxonomy_items.parent), which was set to the 6 platform standard categories:
        fitness · sports · wellness · recovery · adventure · food. Was reading a stale static 16-group map;
@@ -232,23 +238,33 @@
   T.phoneCodes = [
     { code: '+971', country: 'United Arab Emirates', flag: '🇦🇪' },{ code: '+93', country: 'Afghanistan', flag: '🇦🇫' },{ code: '+54', country: 'Argentina', flag: '🇦🇷' },{ code: '+61', country: 'Australia', flag: '🇦🇺' },{ code: '+43', country: 'Austria', flag: '🇦🇹' },{ code: '+973', country: 'Bahrain', flag: '🇧🇭' },{ code: '+32', country: 'Belgium', flag: '🇧🇪' },{ code: '+55', country: 'Brazil', flag: '🇧🇷' },{ code: '+359', country: 'Bulgaria', flag: '🇧🇬' },{ code: '+1', country: 'Canada', flag: '🇨🇦' },{ code: '+56', country: 'Chile', flag: '🇨🇱' },{ code: '+86', country: 'China', flag: '🇨🇳' },{ code: '+57', country: 'Colombia', flag: '🇨🇴' },{ code: '+385', country: 'Croatia', flag: '🇭🇷' },{ code: '+420', country: 'Czech Republic', flag: '🇨🇿' },{ code: '+45', country: 'Denmark', flag: '🇩🇰' },{ code: '+20', country: 'Egypt', flag: '🇪🇬' },{ code: '+358', country: 'Finland', flag: '🇫🇮' },{ code: '+33', country: 'France', flag: '🇫🇷' },{ code: '+49', country: 'Germany', flag: '🇩🇪' },{ code: '+30', country: 'Greece', flag: '🇬🇷' },{ code: '+852', country: 'Hong Kong', flag: '🇭🇰' },{ code: '+36', country: 'Hungary', flag: '🇭🇺' },{ code: '+91', country: 'India', flag: '🇮🇳' },{ code: '+62', country: 'Indonesia', flag: '🇮🇩' },{ code: '+98', country: 'Iran', flag: '🇮🇷' },{ code: '+353', country: 'Ireland', flag: '🇮🇪' },{ code: '+972', country: 'Israel', flag: '🇮🇱' },{ code: '+39', country: 'Italy', flag: '🇮🇹' },{ code: '+81', country: 'Japan', flag: '🇯🇵' },{ code: '+962', country: 'Jordan', flag: '🇯🇴' },{ code: '+254', country: 'Kenya', flag: '🇰🇪' },{ code: '+965', country: 'Kuwait', flag: '🇰🇼' },{ code: '+961', country: 'Lebanon', flag: '🇱🇧' },{ code: '+60', country: 'Malaysia', flag: '🇲🇾' },{ code: '+52', country: 'Mexico', flag: '🇲🇽' },{ code: '+212', country: 'Morocco', flag: '🇲🇦' },{ code: '+31', country: 'Netherlands', flag: '🇳🇱' },{ code: '+64', country: 'New Zealand', flag: '🇳🇿' },{ code: '+234', country: 'Nigeria', flag: '🇳🇬' },{ code: '+47', country: 'Norway', flag: '🇳🇴' },{ code: '+968', country: 'Oman', flag: '🇴🇲' },{ code: '+92', country: 'Pakistan', flag: '🇵🇰' },{ code: '+51', country: 'Peru', flag: '🇵🇪' },{ code: '+63', country: 'Philippines', flag: '🇵🇭' },{ code: '+48', country: 'Poland', flag: '🇵🇱' },{ code: '+351', country: 'Portugal', flag: '🇵🇹' },{ code: '+974', country: 'Qatar', flag: '🇶🇦' },{ code: '+40', country: 'Romania', flag: '🇷🇴' },{ code: '+7', country: 'Russia', flag: '🇷🇺' },{ code: '+966', country: 'Saudi Arabia', flag: '🇸🇦' },{ code: '+65', country: 'Singapore', flag: '🇸🇬' },{ code: '+27', country: 'South Africa', flag: '🇿🇦' },{ code: '+82', country: 'South Korea', flag: '🇰🇷' },{ code: '+34', country: 'Spain', flag: '🇪🇸' },{ code: '+94', country: 'Sri Lanka', flag: '🇱🇰' },{ code: '+46', country: 'Sweden', flag: '🇸🇪' },{ code: '+41', country: 'Switzerland', flag: '🇨🇭' },{ code: '+66', country: 'Thailand', flag: '🇹🇭' },{ code: '+90', country: 'Turkey', flag: '🇹🇷' },{ code: '+380', country: 'Ukraine', flag: '🇺🇦' },{ code: '+44', country: 'United Kingdom', flag: '🇬🇧' },{ code: '+1', country: 'United States', flag: '🇺🇸' },{ code: '+84', country: 'Vietnam', flag: '🇻🇳' }
   ];
+  // Service-professional roles for the Professionals Portal — the main profession a Professional picks
+  // when they join. Grouped under the 6 STANDARD FFP categories (Sports / Fitness / Wellness / Recovery /
+  // Adventure / Health food). DB-managed in Admin → Taxonomies → Professions (list_key='professional_role';
+  // each row's `parent` = its category). This hardcoded copy is a FALLBACK ONLY — it is overwritten IN
+  // PLACE on load by the DB hydration below (apply() handles list_key='professional_role'). Service pros
+  // only — business owners / athletes / creators are intentionally NOT included.
   T.professionalRoles = {
-    'Strength & Body Composition': ['Powerlifting Coach','Weightlifting Coach (Olympic)','Bodybuilding Coach','Strongman Coach','Calisthenics Coach','Kettlebell Coach','Gymnastic Strength Coach','Animal Flow Coach','Weight Loss Coach','Fat Loss Coach','Body Recomposition Coach','Lean Bulk Coach','Contest Prep Coach','Pre/Postnatal Strength Coach','Youth Strength Coach','Senior Strength Coach'],
-    'Functional & Conditioning': ['CrossFit Coach','HIIT Coach','Plyometric Coach','Mobility Coach','Functional Training Coach','Bootcamp Coach','F45 Coach','Hyrox Coach','TRX / Suspension Coach','Sandbag Training Coach','Battle Rope Coach','Stability & Balance Coach'],
-    'Endurance & Running': ['Running Coach','Trail Running Coach','Marathon Coach','Ultra Endurance Coach','Triathlon Coach','Cycling Coach','Mountain Bike Coach','Indoor Cycling / Spin Instructor','Speed & Agility Coach','Sprinting Coach','Track & Field Coach','Walking / Hiking Coach'],
-    'Sport-Specific Coaching': ['Tennis Coach','Padel Coach','Pickleball Coach','Squash Coach','Badminton Coach','Table Tennis Coach','Football (Soccer) Coach','Futsal Coach','American Football Coach','Basketball Coach','Cricket Coach','Rugby Coach','Volleyball Coach','Beach Volleyball Coach','Baseball Coach','Field Hockey Coach','Ice Hockey Coach','Lacrosse Coach','Ultimate Frisbee Coach','Handball Coach','Golf Coach','Skateboarding Coach','BMX Coach','Equestrian Coach','Archery Coach','Shooting Coach'],
-    'Combat Sports & Martial Arts': ['Boxing Coach','Muay Thai Coach','Kickboxing Coach','Brazilian Jiu-Jitsu Instructor','MMA Coach','Karate Sensei','Taekwondo Instructor','Judo Coach','Wrestling Coach','Krav Maga Instructor','Self-Defense Instructor','Fencing Coach','Capoeira Instructor','Aikido Instructor'],
-    'Yoga, Pilates & Movement': ['Yoga Instructor (Hatha)','Yoga Instructor (Vinyasa)','Yoga Instructor (Ashtanga)','Hot Yoga Instructor','Yin Yoga Instructor','Aerial Yoga Instructor','Pilates Instructor (Mat)','Reformer Pilates Instructor','Barre Instructor','Pole Fitness Instructor','Movement Specialist','Posture Coach','Stretching Coach'],
-    'Dance & Rhythm': ['Contemporary Dance Instructor','Choreographer','Ballet Teacher','Latin Dance Instructor','Hip Hop Dance Instructor','Ballroom Dance Instructor','Zumba Instructor'],
-    'Mind & Mental Performance': ['Meditation Teacher','Mindfulness Coach','Breathwork Coach','Mental Performance Coach','Sports Psychologist','Mental Health Coach','Therapist / Counsellor','Hypnotherapist','Stress Management Coach','Life Coach'],
-    'Sports Therapy & Bodywork': ['Physiotherapist','Sports Physiotherapist','Osteopath','Chiropractor','Sports Therapist','Biomechanics Specialist','Rehabilitation Coach','Injury Prevention Coach','Sports Doctor','Sports Scientist','Massage Therapist','Sports Massage Therapist','Deep Tissue Therapist','Stretching Therapist','Reflexologist'],
-    'Recovery & Wellness Practices': ['Cryotherapy Specialist','Sauna / Heat Therapy Practitioner','Cold Exposure Practitioner','IV Therapy Specialist','Float Tank Therapist','Acupuncturist','Aromatherapist','Reiki Practitioner','Sound Healer','Energy Healer'],
-    'Nutrition & Health': ['Nutritionist','Sports Nutritionist','Performance Nutritionist','Registered Dietitian','Holistic Nutrition Coach','Plant-Based Nutrition Coach','Health Coach','Wellness Coach','Holistic Health Practitioner','Naturopath','Sleep Coach','Hormone Coach','Gut Health Coach','Functional Medicine Practitioner'],
-    'Adventure & Outdoor': ['Adventure Guide','Mountain Guide','Trekking Guide','Hiking Guide','Climbing Instructor','Bouldering Coach','Ski Instructor','Snowboard Instructor','Wilderness Instructor','Survival Instructor','Bike Tour Guide','Bushcraft Instructor','Canyoning Guide'],
-    'Watersports': ['Swim Coach','Open Water Swim Coach','Surfing Instructor','Kitesurfing Instructor','Windsurfing Instructor','SUP (Paddleboard) Instructor','Sailing Instructor','Scuba Diving Instructor','Freediving Instructor','Spearfishing Guide','Wakeboard Coach','Watersports Guide','Lifeguard / Aquatic Safety','Underwater Photographer','Kayaking Instructor'],
-    'Industry & Business': ['Studio Owner','Gym Owner','Brand Owner','Sports Apparel Brand','Supplement Brand','Equipment Brand','Event Organizer','Race Director','Tournament Organizer','Sports Photographer','Action Videographer','Sports Journalist','Sports Commentator','Sports Agent','Athlete Manager','Sports Marketing Specialist','Sponsorship Specialist','Sports PR'],
-    'Athletes & Creators': ['Professional Athlete','Sponsored Athlete','National Team Athlete','Olympic / Paralympic Athlete','Adventure Athlete','Content Creator','Fitness Influencer','Wellness Influencer','Adventure Influencer','Author / Educator','Podcast Host','Public Speaker'],
-    'Other': ['Entrepreneur','Investor','Consultant','Sports Tech Founder','Wellness Tech Founder','Researcher','Educator','Other']
+    'Sports': ['Aikido Instructor','American Football Coach','Archery Coach','Badminton Coach','Baseball Coach','Basketball Coach','Beach Volleyball Coach','BMX Coach','Boxing Coach','Brazilian Jiu-Jitsu Instructor','Capoeira Instructor','Cricket Coach','Cycling Coach','Equestrian Coach','Fencing Coach','Field Hockey Coach','Football (Soccer) Coach','Futsal Coach','Golf Coach','Handball Coach','Ice Hockey Coach','Judo Coach','Karate Sensei','Kickboxing Coach','Krav Maga Instructor','Lacrosse Coach','Marathon Coach','MMA Coach','Mountain Bike Coach','Muay Thai Coach','Open Water Swim Coach','Padel Coach','Pickleball Coach','Rugby Coach','Running Coach','Self-Defense Instructor','Shooting Coach','Skateboarding Coach','Speed & Agility Coach','Sprinting Coach','Squash Coach','Swim Coach','Table Tennis Coach','Taekwondo Instructor','Tennis Coach','Track & Field Coach','Trail Running Coach','Triathlon Coach','Ultimate Frisbee Coach','Ultra Endurance Coach','Volleyball Coach','Wrestling Coach'],
+    'Fitness': ['Animal Flow Coach','Battle Rope Coach','Body Recomposition Coach','Bodybuilding Coach','Bootcamp Coach','Calisthenics Coach','Contest Prep Coach','CrossFit Coach','F45 Coach','Fat Loss Coach','Functional Training Coach','Group Fitness Instructor','Gymnastic Strength Coach','HIIT Coach','Hyrox Coach','Indoor Cycling / Spin Instructor','Kettlebell Coach','Lean Bulk Coach','Mobility Coach','Personal Trainer','Plyometric Coach','Powerlifting Coach','Pre/Postnatal Fitness Coach','Sandbag Training Coach','Senior Fitness Coach','Stability & Balance Coach','Strongman Coach','TRX / Suspension Coach','Walking / Hiking Coach','Weight Loss Coach','Weightlifting Coach (Olympic)','Youth Fitness Coach'],
+    'Wellness': ['Aerial Yoga Instructor','Ballet Teacher','Ballroom Dance Instructor','Barre Instructor','Breathwork Coach','Choreographer','Contemporary Dance Instructor','Hip Hop Dance Instructor','Hot Yoga Instructor','Hypnotherapist','Latin Dance Instructor','Life Coach','Meditation Teacher','Mental Health Coach','Mental Performance Coach','Mindfulness Coach','Movement Specialist','Pilates Instructor (Mat)','Pole Fitness Instructor','Posture Coach','Reformer Pilates Instructor','Sports Psychologist','Stress Management Coach','Stretching Coach','Therapist / Counsellor','Yin Yoga Instructor','Yoga Instructor (Ashtanga)','Yoga Instructor (Hatha)','Yoga Instructor (Vinyasa)','Zumba Instructor'],
+    'Recovery': ['Acupuncturist','Aromatherapist','Biomechanics Specialist','Chiropractor','Cold Exposure Practitioner','Cryotherapy Specialist','Deep Tissue Therapist','Energy Healer','Float Tank Therapist','Injury Prevention Coach','IV Therapy Specialist','Massage Therapist','Osteopath','Physiotherapist','Reflexologist','Rehabilitation Coach','Reiki Practitioner','Sauna / Heat Therapy Practitioner','Sound Healer','Sports Doctor','Sports Massage Therapist','Sports Physiotherapist','Sports Scientist','Sports Therapist','Stretching Therapist'],
+    'Adventure': ['Adventure Guide','Bike Tour Guide','Bouldering Coach','Bushcraft Instructor','Canyoning Guide','Climbing Instructor','Freediving Instructor','Hiking Guide','Kayaking Instructor','Kitesurfing Instructor','Lifeguard / Aquatic Safety','Mountain Guide','Sailing Instructor','Scuba Diving Instructor','Ski Instructor','Snowboard Instructor','Spearfishing Guide','SUP (Paddleboard) Instructor','Surfing Instructor','Survival Instructor','Trekking Guide','Wakeboard Coach','Watersports Guide','Wilderness Instructor','Windsurfing Instructor'],
+    'Health food': ['Functional Medicine Practitioner','Gut Health Coach','Health Coach','Holistic Health Practitioner','Holistic Nutrition Coach','Hormone Coach','Naturopath','Nutritionist','Performance Nutritionist','Plant-Based Nutrition Coach','Registered Dietitian','Sleep Coach','Sports Nutritionist','Wellness Coach']
+  };
+  // The 6 standard categories, in display order (the keys of professionalRoles, canonical order).
+  T.professionalCategories = ['Sports', 'Fitness', 'Wellness', 'Recovery', 'Adventure', 'Health food'];
+  // Flat [{name, category}] list across all categories (A–Z by name) — for the single searchable picker.
+  T.professionalRolesFlat = function () {
+    var out = [], roles = T.professionalRoles || {};
+    Object.keys(roles).forEach(function (cat) { (roles[cat] || []).forEach(function (n) { out.push({ name: n, category: cat }); }); });
+    return out.sort(function (a, b) { return a.name.localeCompare(b.name); });
+  };
+  // Which of the 6 categories a profession belongs to ('' if unknown).
+  T.categoryOfRole = function (role) {
+    var roles = T.professionalRoles || {}, cats = Object.keys(roles);
+    for (var i = 0; i < cats.length; i++) { if ((roles[cats[i]] || []).indexOf(role) !== -1) return cats[i]; }
+    return '';
   };
 })();
 
@@ -309,6 +325,18 @@
     if (by.experience_type) { T.experienceTypes = vals('experience_type'); }
     if (by.provider_type)   fill(T.providerTypes, vals('provider_type'));
     if (by.gym_size)        fill(T.gymSizes, vals('gym_size'));
+    // Professions (Professionals Portal) — grouped by `parent` = one of the 6 standard categories.
+    // Admin → Taxonomies → Professions is the source of truth; overwrite T.professionalRoles in place.
+    if (by.professional_role && by.professional_role.length) {
+      var grp = {};
+      by.professional_role.forEach(function (r) { var cat = r.parent || 'Other'; (grp[cat] = grp[cat] || []).push(r.label || r.value); });
+      Object.keys(grp).forEach(function (c) { grp[c].sort(function (a, b) { return String(a).localeCompare(String(b)); }); });
+      var ordered = {};
+      (T.professionalCategories || []).forEach(function (c) { if (grp[c]) ordered[c] = grp[c]; });
+      Object.keys(grp).forEach(function (c) { if (!ordered[c]) ordered[c] = grp[c]; });
+      Object.keys(T.professionalRoles).forEach(function (k) { delete T.professionalRoles[k]; });
+      Object.keys(ordered).forEach(function (k) { T.professionalRoles[k] = ordered[k]; });
+    }
     // Passports + category→passport mapping (Pick A Passport). list = list_key='passport';
     // each category row's `parent` is its passport id.
     if (by.passport && by.passport.length) {
