@@ -2543,7 +2543,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
         <div class="psub">Your class &amp; session calendar — bookings, capacity and attendance.</div>
         <div class="biz-tabs">
           <button class="biz-tab active" onclick="bizTab(this,'sch-calendar')">Calendar &amp; Bookings</button>
-          <button class="biz-tab" onclick="bizTab(this,'sch-attendance')">Attendance</button>
+          <button class="biz-tab" onclick="bizTab(this,'sch-attendance'); if(typeof renderAttendance==='function')renderAttendance();">Attendance</button>
         </div>
         <div class="biz-pane active" id="sch-calendar">
           <div style="display:flex;align-items:center;gap:8px;margin-top:16px;padding:9px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:#FFCC00;font-size:12px;font-weight:700;">
@@ -2556,14 +2556,11 @@ a { color: var(--ffp-blue); text-decoration: none; }
           <div id="sched-list" style="margin-top:10px;"></div>
         </div>
         <div class="biz-pane" id="sch-attendance">
-          <div class="panel-placeholder" style="margin-top:26px;">
-            <span class="ms" style="font-size:44px;color:var(--ffp-yellow,#FFCC00);">how_to_reg</span>
-            <h3 style="margin:14px 0 6px;">Attendance — coming soon</h3>
-            <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
-              A register for every session — mark who showed by tap or QR check-in. See no-shows, streaks and
-              attendance rates per member and per team, feeding straight into Reports.
-            </p>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:16px;padding:9px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:#FFCC00;font-size:12px;font-weight:700;">
+            <span class="ms" style="font-size:16px;">construction</span> Coming soon — preview for partner testing
           </div>
+          <div class="psub" style="margin:14px 0 4px;">Pick a session and tick who attended.</div>
+          <div id="att-list" style="margin-top:8px;"></div>
         </div>
       </section>
 
