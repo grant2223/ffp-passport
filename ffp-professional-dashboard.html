@@ -1,4 +1,14 @@
-<!-- FFP PROFESSIONAL DASHBOARD — v3 (2026-06-10): MAIN PROFESSION is now ONE searchable picker
+<!-- FFP PROFESSIONAL DASHBOARD — v4 (2026-06-10): MOBILE-FIRST + OVERVIEW + STOREFRONT MEDIA + VERIFICATION.
+     Chrome rebuilt Passport-style: bottom tab nav on phones (sidebar collapses), topbar AVATAR menu with
+     My profile + Sign out, responsive single-column. New OVERVIEW panel is the default landing (greeting +
+     month earnings / active clients / outstanding / standing slots from pro_business_report + yesterday/
+     today/tomorrow sessions from pro_week_schedule). The PWA opens straight to an INLINE professional
+     sign-in (email→6-digit code via FFPApi, purple) — no portal picker; boot() shows it instead of
+     redirecting to /login. PROFILE storefront gains: profile PHOTO upload (FFPUpload → quest-images),
+     up to 4 PROFESSIONS (multi-select picker, first=primary→category), and VIDEO links (YouTube/Vimeo/IG
+     via pro_videos RPCs). VERIFICATION: ticking "List me" sets verification_status='pending'
+     (professional_save_profile) and shows a review banner; admin approves in Admin → Professionals.
+     Needs ffp-image-upload.js + cropperjs. ---- v3: ONE searchable profession picker
      (tap to open, search at top — the FFP standard), replacing the made-up category→profession
      cascade. Professions + their category come from the DB taxonomy (Admin → Taxonomies → Professions,
      list_key='professional_role'); the 6 STANDARD categories (Sports/Fitness/Wellness/Recovery/
@@ -27,6 +37,9 @@
 <script src="assets/ffp-api-integration.js?v=12"></script>
 <script src="assets/ffp-constants.js"></script>
 <script src="assets/ffp-taxonomy.js?v=9"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+<script src="assets/ffp-image-upload.js?v=6"></script>
 <style>
 :root{
   --ffp-bg:#081420; --ffp-bg-2:#0f1f2c; --ffp-bg-3:#16273a; --ffp-bg-card:#0c1d2b;
@@ -120,6 +133,68 @@ a{color:var(--ffp-blue);}
 .btn-block{width:100%;}
 .ni-lock-pill{font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;background:var(--ffp-bg-3);color:var(--ffp-text-dim);border-radius:100px;padding:2px 8px;}
 
+/* Topbar avatar + menu (Profile + Sign out under the avatar — like the Passport) */
+.tb-right{display:flex;align-items:center;gap:10px;}
+.av-wrap{position:relative;}
+.av-btn{width:38px;height:38px;border-radius:50%;background:var(--ffp-purple);color:#fff;font-weight:900;font-size:14px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.av-btn img{width:100%;height:100%;object-fit:cover;}
+.av-menu{position:absolute;right:0;top:46px;width:210px;background:var(--ffp-bg-2);border:1px solid var(--ffp-border-mid);border-radius:12px;padding:6px;box-shadow:0 12px 30px rgba(0,0,0,.4);display:none;z-index:300;}
+.av-menu.show{display:block;}
+.av-head{padding:9px 11px 7px;}
+.av-head .nm{font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.av-head .st{font-size:11px;color:var(--ffp-purple);font-weight:700;margin-top:1px;}
+.av-div{height:1px;background:var(--ffp-border);margin:5px 4px;}
+.av-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:none;color:var(--ffp-text-muted);font-family:inherit;font-size:13px;font-weight:700;padding:10px 11px;border-radius:8px;cursor:pointer;}
+.av-item:hover{background:rgba(139,92,246,.08);color:var(--ffp-text);}
+.av-item.danger{color:#f07171;}
+.av-item .ms{font-size:18px;}
+
+/* Bottom tab nav (mobile, Passport-style) */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--ffp-bg-2);border-top:1px solid var(--ffp-border);display:none;z-index:120;padding:6px 4px;padding-bottom:calc(6px + env(safe-area-inset-bottom));}
+.bn-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;color:var(--ffp-text-dim);font-family:inherit;font-size:10px;font-weight:700;cursor:pointer;padding:4px 2px;}
+.bn-item .ms{font-size:22px;}
+.bn-item.active{color:var(--ffp-purple);}
+
+/* Overview landing panel */
+.ov-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px;}
+.ov-stat{background:var(--ffp-bg-card);border:1px solid var(--ffp-border);border-radius:var(--r-md);padding:13px 14px;}
+.ov-stat .v{font-size:21px;font-weight:900;letter-spacing:-.5px;}
+.ov-stat .l{font-size:11px;font-weight:700;color:var(--ffp-text-dim);text-transform:uppercase;letter-spacing:.5px;margin-top:2px;}
+.ov-sec{margin-top:22px;}
+.ov-sec-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.ov-sec-h .t{font-size:13px;font-weight:800;}
+.ov-sec-h .a{font-size:12px;font-weight:700;color:var(--ffp-purple);cursor:pointer;}
+.ov-day{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--ffp-text-dim);margin:12px 0 6px;}
+.ov-sess{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--ffp-border);}
+.ov-sess .tm{font-size:13px;font-weight:800;min-width:62px;}
+.ov-sess .info{flex:1;min-width:0;}
+.ov-sess .nm{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ov-sess .sub{font-size:11px;color:var(--ffp-text-dim);margin-top:1px;}
+.ov-empty{color:var(--ffp-text-dim);font-size:13px;padding:8px 0;}
+
+/* Inline professional sign-in (PWA opens straight here) */
+.code-row{display:flex;gap:8px;justify-content:space-between;margin:6px 0 4px;}
+.code-box{width:100%;aspect-ratio:1;text-align:center;font-size:20px;font-weight:800;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:10px;color:var(--ffp-text);font-family:inherit;}
+.code-box:focus{outline:none;border-color:var(--ffp-purple);}
+.gate-err{color:#f07171;font-size:12px;font-weight:700;margin:6px 0 0;min-height:16px;}
+.gate-link{font-size:12px;color:var(--ffp-text-dim);cursor:pointer;text-align:center;margin-top:12px;}
+
+/* Mobile-first: phone gets the bottom tab bar; sidebar collapses away (like the Passport) */
+@media (max-width:859px){
+  .sidebar{display:none;}
+  .bottom-nav{display:flex;}
+  .main{padding:14px 14px 88px;}
+  .topbar{position:sticky;top:0;background:var(--ffp-bg);z-index:50;padding:6px 0 4px;}
+  .preview-pill{width:100%;justify-content:center;}
+}
+@media (min-width:860px){
+  .bottom-nav{display:none !important;}
+}
+/* iOS auto-zooms inputs under 16px on focus — keep form fields at 16px on phones */
+@media (max-width:768px){
+  .input,.select,.textarea,.code-box{font-size:16px;}
+}
+
 /* Business tabs */
 .biz-tabs{display:flex;gap:4px;flex-wrap:wrap;margin:18px 0 0;border-bottom:1px solid var(--ffp-border);}
 .biz-tab{background:none;border:none;border-bottom:2px solid transparent;color:var(--ffp-text-muted);font-weight:700;font-size:13px;padding:10px 14px;cursor:pointer;font-family:inherit;}
@@ -155,6 +230,26 @@ a{color:var(--ffp-blue);}
     <div id="gate-loading">
       <div class="spin"></div>
       <p style="text-align:center;">Checking your account…</p>
+    </div>
+    <!-- Inline professional sign-in — the only thing the FFP Professional app icon opens to -->
+    <div id="gate-signin" class="hidden">
+      <div id="signin-step-email">
+        <h2>Sign in to your portal</h2>
+        <p>Use the email on your FFP Passport. We'll send you a 6-digit code.</p>
+        <div class="field" style="margin-bottom:12px;"><div class="label">Email</div><input class="input" id="si-email" type="email" autocomplete="email" inputmode="email" placeholder="you@email.com"></div>
+        <div class="gate-err" id="si-err"></div>
+        <button class="btn btn-pri btn-block" id="si-email-btn" onclick="proRequestCode()">Send my code</button>
+      </div>
+      <div id="signin-step-code" class="hidden">
+        <h2>Enter your code</h2>
+        <p>We sent a 6-digit code to <b id="si-sent-to"></b>.</p>
+        <div class="code-row">
+          <input class="code-box" maxlength="1" inputmode="numeric" oninput="siCodeMove(this,0)"><input class="code-box" maxlength="1" inputmode="numeric" oninput="siCodeMove(this,1)"><input class="code-box" maxlength="1" inputmode="numeric" oninput="siCodeMove(this,2)"><input class="code-box" maxlength="1" inputmode="numeric" oninput="siCodeMove(this,3)"><input class="code-box" maxlength="1" inputmode="numeric" oninput="siCodeMove(this,4)"><input class="code-box" maxlength="1" inputmode="numeric" oninput="siCodeMove(this,5)">
+        </div>
+        <div class="gate-err" id="si-code-err"></div>
+        <button class="btn btn-pri btn-block" id="si-code-btn" onclick="proVerifyCode()">Sign in</button>
+        <div class="gate-link" onclick="proSigninBack()">Use a different email</div>
+      </div>
     </div>
     <div id="gate-onboard" class="hidden">
       <h2>Set up your professional profile</h2>
@@ -193,11 +288,36 @@ a{color:var(--ffp-blue);}
     </div>
   </aside>
   <main class="main">
-    <div class="topbar"><div class="tb-title" id="tb-title">Profile</div></div>
+    <div class="topbar">
+      <div class="tb-title" id="tb-title">Overview</div>
+      <div class="tb-right">
+        <div class="av-wrap">
+          <button class="av-btn" id="av-btn" onclick="toggleAvMenu(event)"><span id="av-initials">P</span></button>
+          <div class="av-menu" id="av-menu">
+            <div class="av-head"><div class="nm" id="av-name">Professional</div><div class="st" id="av-status">Professional</div></div>
+            <button class="av-item" onclick="closeAvMenu();showPanel('profile')"><span class="ms">badge</span>My profile</button>
+            <div class="av-div"></div>
+            <button class="av-item danger" onclick="signOut()"><span class="ms">logout</span>Sign out</button>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="preview-pill"><span class="ms" style="font-size:15px;">construction</span> Preview — professional portal in testing</div>
 
+    <!-- OVERVIEW (default landing) -->
+    <section class="panel active" id="panel-overview">
+      <div class="ph" id="ov-hello">Your day</div>
+      <div class="psub">Today at a glance — sessions, earnings and who's coming up.</div>
+      <div id="ov-verif"></div>
+      <div class="ov-grid" id="ov-stats"></div>
+      <div class="ov-sec">
+        <div class="ov-sec-h"><div class="t">Sessions</div><div class="a" onclick="showPanel('scheduling')">Open schedule</div></div>
+        <div id="ov-sessions"><div class="ov-empty">Loading…</div></div>
+      </div>
+    </section>
+
     <!-- PROFILE / STOREFRONT -->
-    <section class="panel active" id="panel-profile">
+    <section class="panel" id="panel-profile">
       <div class="ph">Your profile</div>
       <div class="psub">This is your public storefront on Find Fit People. Publish it when you're ready to be discovered.</div>
       <div id="profile-form"></div>
@@ -281,6 +401,8 @@ a{color:var(--ffp-blue);}
       <div id="comms-list" style="margin-top:8px;"></div>
     </section>
   </main>
+  <!-- Bottom tab nav (mobile, Passport-style) -->
+  <nav class="bottom-nav" id="bottom-nav"></nav>
 </div>
 
 <!-- Add-to-home-screen nudge (iOS Safari only) -->
@@ -327,51 +449,72 @@ function renderPanel(id){
 }
 
 var PRO_NAV=[
-  {id:'profile',icon:'badge',label:'Profile'},
+  {id:'overview',icon:'dashboard',label:'Overview'},
   {id:'clients',icon:'groups',label:'Clients'},
   {id:'scheduling',icon:'calendar_month',label:'Scheduling'},
   {id:'packages',icon:'card_membership',label:'Packages'},
   {id:'payments',icon:'receipt_long',label:'Payments'},
-  {id:'comms',icon:'campaign',label:'Messages'}
+  {id:'comms',icon:'campaign',label:'Messages'},
+  {id:'profile',icon:'badge',label:'Profile'}
 ];
+var PRO_BOTTOM=['overview','clients','scheduling','packages','payments']; // mobile tab bar (5)
 function renderNav(){
   document.getElementById('sb-nav').innerHTML = PRO_NAV.map(function(n){
-    return '<button class="ni'+(n.id==='profile'?' active':'')+'" data-nav="'+n.id+'" onclick="showPanel(\''+n.id+'\')"><span class="ms">'+n.icon+'</span><span>'+n.label+'</span></button>';
+    return '<button class="ni'+(n.id==='overview'?' active':'')+'" data-nav="'+n.id+'" onclick="showPanel(\''+n.id+'\')"><span class="ms">'+n.icon+'</span><span>'+n.label+'</span></button>';
+  }).join('');
+  document.getElementById('bottom-nav').innerHTML = PRO_BOTTOM.map(function(id){
+    var n=PRO_NAV.find(function(x){return x.id===id;}); if(!n)return '';
+    return '<button class="bn-item'+(id==='overview'?' active':'')+'" data-bn="'+id+'" onclick="showPanel(\''+id+'\')"><span class="ms">'+n.icon+'</span><span>'+n.label+'</span></button>';
   }).join('');
 }
 function showPanel(id){
   ensureProviderLoader(id);
+  closeAvMenu();
   document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
   var el=document.getElementById('panel-'+id); if(el)el.classList.add('active');
   document.querySelectorAll('.ni').forEach(function(n){n.classList.remove('active');});
   var nb=document.querySelector('.ni[data-nav="'+id+'"]'); if(nb)nb.classList.add('active');
+  document.querySelectorAll('.bn-item').forEach(function(n){n.classList.remove('active');});
+  var bb=document.querySelector('.bn-item[data-bn="'+id+'"]'); if(bb)bb.classList.add('active');
   var item=PRO_NAV.find(function(x){return x.id===id;});
   document.getElementById('tb-title').textContent=item?item.label:'';
-  if(id==='profile') renderProfileForm(); else renderPanel(id);
+  try{ var mn=document.querySelector('.main'); if(mn)mn.scrollTop=0; }catch(e){}
+  if(id==='overview') renderOverview();
+  else if(id==='profile') renderProfileForm();
+  else renderPanel(id);
 }
 
 // ─── Profile / storefront editor ───
 function pfCountryChange(){ document.getElementById('pf-city').innerHTML=cityOptionsHtml(document.getElementById('pf-country').value,''); }
 function renderProfileForm(){
   var host=document.getElementById('profile-form'); if(!host||!_pro)return;
-  var mainProf=(_pro.professional_types&&_pro.professional_types[0])||'';
+  _pfProfs=(_pro.professional_types||[]).slice(0,4).map(function(n){ return {name:n,category:(_pro.category||(window.FFP_TAX&&FFP_TAX.categoryOfRole?FFP_TAX.categoryOfRole(n):''))||''}; });
+  var photo=_pro.profile_photo_url||'';
   host.innerHTML =
+    '<div id="pf-verif"></div>'+
+    '<div class="form-section"><div class="form-section-title">Photo</div>'+
+      '<div style="display:flex;align-items:center;gap:14px;">'+
+        '<div id="pf-photo" onclick="pickProPhoto()" style="width:84px;height:84px;border-radius:50%;flex:0 0 auto;cursor:pointer;background:'+(photo?("url('"+escHtml(photo)+"') center/cover no-repeat"):'var(--ffp-bg-card)')+';border:1px solid var(--ffp-border-mid);display:flex;align-items:center;justify-content:center;color:var(--ffp-text-dim);overflow:hidden;">'+(photo?'':'<span class="ms" style="font-size:26px;">add_a_photo</span>')+'</div>'+
+        '<div><button class="btn btn-sec btn-sm" type="button" onclick="pickProPhoto()"><span class="ms">photo_camera</span> '+(photo?'Change photo':'Add photo')+'</button><div style="font-size:11px;color:var(--ffp-text-dim);margin-top:6px;">Square works best — shown on your storefront.</div></div>'+
+      '</div></div>'+
     '<div class="form-section"><div class="form-section-title">Public profile</div><div class="form-grid">'+
       '<div class="field"><div class="label">Given names <span class="req">*</span></div><input class="input" id="pf-given_names" value="'+escHtml(_pro.given_names||'')+'"></div>'+
       '<div class="field"><div class="label">Surname <span class="req">*</span></div><input class="input" id="pf-surname" value="'+escHtml(_pro.surname||'')+'"></div>'+
-      '<div class="field full"><div class="label">Main profession</div><input type="hidden" id="pf-profession"><button type="button" class="picker-btn'+(mainProf?'':' placeholder')+'" id="pf-profession-btn" onclick="openProfPicker(\'pf\')"><span id="pf-profession-lbl">'+(mainProf?escHtml(mainProf):'Select your profession')+'</span><span class="ms">expand_more</span></button></div>'+
+      '<div class="field full"><div class="label">Professions <span style="color:var(--ffp-text-dim);font-weight:600;">— up to 4, first is your main</span></div><div id="pf-profs" class="chips" style="margin-bottom:0;"></div></div>'+
       '<div class="field full"><div class="label">Headline</div><input class="input" id="pf-headline" value="'+escHtml(_pro.headline||'')+'" placeholder="e.g. Strength &amp; performance coaching"></div>'+
       '<div class="field full"><div class="label">Bio</div><textarea class="textarea" id="pf-bio" rows="4" placeholder="Tell members about you, your style and who you help.">'+escHtml(_pro.bio||'')+'</textarea></div>'+
       '<div class="field"><div class="label">Country</div><select class="select" id="pf-country" onchange="pfCountryChange()">'+countryOptionsHtml(_pro.country||'')+'</select></div>'+
       '<div class="field"><div class="label">City</div><select class="select" id="pf-city">'+cityOptionsHtml(_pro.country||'', _pro.city||'')+'</select></div>'+
       '<div class="field full"><div class="label">Public contact email <span style="color:var(--ffp-text-dim);">(optional)</span></div><input class="input" id="pf-work_email" value="'+escHtml(_pro.work_email||'')+'" placeholder="shown on your storefront — defaults to nothing public"></div>'+
     '</div></div>'+
+    '<div class="form-section"><div class="form-section-title">Videos</div><div class="psub" style="margin:-2px 0 8px;">Add YouTube, Vimeo or Instagram links — they appear on your public profile.</div><div id="pf-videos"><div class="ov-empty" style="padding:4px 0;">Loading…</div></div><button class="btn btn-sec btn-sm" type="button" style="margin-top:8px;" onclick="openVideoModal()"><span class="ms">add</span> Add video</button></div>'+
     '<div class="form-section"><div class="form-section-title">Visibility</div>'+
-      '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;"><input type="checkbox" id="pf-published" '+(_pro.is_published?'checked':'')+' style="width:18px;height:18px;accent-color:var(--ffp-purple);"> <span style="font-size:13px;font-weight:700;">Publish my profile (discoverable on Find Fit People)</span></label>'+
+      '<label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;"><input type="checkbox" id="pf-published" '+(_pro.is_published?'checked':'')+' style="width:18px;height:18px;accent-color:var(--ffp-purple);margin-top:1px;flex:0 0 auto;"> <span style="font-size:13px;font-weight:700;line-height:1.5;">List me on Find Fit People<br><span style="font-weight:500;color:var(--ffp-text-muted);">Your listing is reviewed by our team before it goes public.</span></span></label>'+
     '</div>'+
     '<div style="margin-top:18px;"><button class="btn btn-pri" onclick="saveProfile()"><span class="ms">save</span> Save profile</button></div>';
-  var hp=document.getElementById('pf-profession');
-  if(hp){ hp.value=mainProf||''; hp.dataset.category=_pro.category||(window.FFP_TAX&&FFP_TAX.categoryOfRole?FFP_TAX.categoryOfRole(mainProf):'')||''; }
+  renderProfProfs();
+  renderVerifBanner('pf-verif');
+  renderProVideos();
 }
 async function saveProfile(){
   if(!_pro)return;
@@ -379,16 +522,22 @@ async function saveProfile(){
   var given=g('given_names'); var surname=g('surname');
   var name=(given+' '+surname).replace(/\s+/g,' ').trim();
   if(!name){ showToast('Name is required','error'); return; }
-  var prof=g('profession');
-  var category=(document.getElementById('pf-profession').dataset.category)||(window.FFP_TAX&&FFP_TAX.categoryOfRole?FFP_TAX.categoryOfRole(prof):'');
-  var payload={ given_names:given, surname:surname, display_name:name, headline:g('headline'), bio:g('bio'), country:g('country'), city:g('city'), work_email:g('work_email'), professional_types:(prof?[prof]:[]), category:category, is_published:document.getElementById('pf-published').checked };
+  if(!_pfProfs.length){ showToast('Add at least one profession','error'); return; }
+  var types=_pfProfs.map(function(p){return p.name;});
+  var category=(_pfProfs[0]&&_pfProfs[0].category)||(window.FFP_TAX&&FFP_TAX.categoryOfRole?FFP_TAX.categoryOfRole(types[0]):'');
+  var payload={ given_names:given, surname:surname, display_name:name, headline:g('headline'), bio:g('bio'), country:g('country'), city:g('city'), work_email:g('work_email'), professional_types:types, category:category, is_published:document.getElementById('pf-published').checked };
   try{
     var r=await window.supabase.rpc('professional_save_profile',{p_professional:_pro.id,p:payload});
     if(r&&r.error)throw r.error;
     Object.assign(_pro,payload);
+    // publishing may have moved the listing into review — refresh the status
+    try{ var fr=await window.supabase.rpc('professional_for_member',{p_member:(_member()||{}).id}); if(fr&&fr.data){ _pro.verification_status=fr.data.verification_status; _pro.verification_note=fr.data.verification_note; } }catch(e){}
     providerProfile.city=payload.city;
-    document.getElementById('sb-types').textContent=prof||'Professional';
-    showToast('Profile saved','success');
+    var lbl=types.slice(0,2).join(' · ')||'Professional';
+    document.getElementById('sb-types').textContent=lbl;
+    var avs=document.getElementById('av-status'); if(avs)avs.textContent=lbl;
+    renderVerifBanner('pf-verif');
+    showToast(payload.is_published&&(_pro.verification_status==='pending')?'Saved — listing sent for review':'Profile saved','success');
   }catch(e){ showToast('Could not save profile','error'); }
 }
 
@@ -397,10 +546,11 @@ async function saveProfile(){
 // Professions; list_key='professional_role'). Service professionals only. Category is auto-derived
 // from the chosen profession (no separate category step).
 var _profPickTarget=null;
+var _pfProfs=[]; // profile: selected professions [{name,category}] (max 4, first = primary)
 function _profRolesFlat(){ return (window.FFP_TAX&&FFP_TAX.professionalRolesFlat&&FFP_TAX.professionalRolesFlat())||[]; }
 function openProfPicker(prefix){
   _profPickTarget=prefix;
-  openModalShell('lg','Choose your main profession',
+  openModalShell('lg', prefix==='pfmulti'?'Add a profession':'Choose your main profession',
     '<div class="field" style="margin-bottom:0;"><input class="input" id="prof-pick-search" placeholder="Search profession or category…" autocomplete="off"></div>'+
     '<div class="pick-list" id="prof-pick-list"></div>', '');
   var s=document.getElementById('prof-pick-search'); if(s) s.oninput=renderProfPickList;
@@ -410,21 +560,82 @@ function openProfPicker(prefix){
 function renderProfPickList(){
   var host=document.getElementById('prof-pick-list'); if(!host)return;
   var q=((document.getElementById('prof-pick-search')||{}).value||'').trim().toLowerCase();
-  var cur=(document.getElementById((_profPickTarget||'')+'-profession')||{}).value||'';
+  var chosen = _profPickTarget==='pfmulti' ? _pfProfs.map(function(p){return p.name;}) : [(document.getElementById((_profPickTarget||'')+'-profession')||{}).value||''];
   var list=_profRolesFlat();
   if(q) list=list.filter(function(r){ return r.name.toLowerCase().indexOf(q)!==-1 || r.category.toLowerCase().indexOf(q)!==-1; });
   if(!list.length){ host.innerHTML='<div class="pick-empty">No professions match. Try a different search.</div>'; return; }
   host.innerHTML=list.map(function(r){
-    return '<button type="button" class="pick-row'+(r.name===cur?' sel':'')+'" onclick="pickProfession(\''+r.name.replace(/\\/g,"\\\\").replace(/'/g,"\\'")+'\',\''+r.category.replace(/'/g,"\\'")+'\')">'+
-      '<span class="pr-name">'+escHtml(r.name)+'</span><span class="pr-cat">'+escHtml(r.category)+'</span></button>';
+    var on=chosen.indexOf(r.name)!==-1;
+    return '<button type="button" class="pick-row'+(on?' sel':'')+'" onclick="pickProfession(\''+r.name.replace(/\\/g,"\\\\").replace(/'/g,"\\'")+'\',\''+r.category.replace(/'/g,"\\'")+'\')">'+
+      '<span class="pr-name">'+escHtml(r.name)+(on?' ✓':'')+'</span><span class="pr-cat">'+escHtml(r.category)+'</span></button>';
   }).join('');
 }
 function pickProfession(name,category){
   var t=_profPickTarget; if(!t)return;
+  if(t==='pfmulti'){
+    if(_pfProfs.some(function(p){return p.name===name;})){ closeModal(); return; }
+    if(_pfProfs.length>=4){ showToast('Up to 4 professions','error'); closeModal(); return; }
+    _pfProfs.push({name:name,category:category||''}); renderProfProfs(); closeModal(); return;
+  }
   var hid=document.getElementById(t+'-profession'); if(hid){ hid.value=name; hid.dataset.category=category||''; }
   var lbl=document.getElementById(t+'-profession-lbl'); if(lbl)lbl.textContent=name;
   var btn=document.getElementById(t+'-profession-btn'); if(btn)btn.classList.remove('placeholder');
   closeModal();
+}
+// Selected-professions chips (profile)
+function renderProfProfs(){
+  var el=document.getElementById('pf-profs'); if(!el)return;
+  var chips=_pfProfs.map(function(p,i){
+    return '<span class="chip on" style="display:inline-flex;align-items:center;gap:6px;">'+(i===0?'<span style="color:#fff;">★</span> ':'')+escHtml(p.name)+'<span class="ms" style="font-size:15px;cursor:pointer;" onclick="pfRemoveProf('+i+')">close</span></span>';
+  });
+  if(_pfProfs.length<4) chips.push('<span class="chip" onclick="openProfPicker(\'pfmulti\')"><span class="ms" style="font-size:15px;vertical-align:-3px;">add</span> Add profession</span>');
+  el.innerHTML=chips.join('');
+}
+function pfRemoveProf(i){ _pfProfs.splice(i,1); renderProfProfs(); }
+// Profile photo (quest-images bucket; members upload via FFPUpload server fallback)
+function pickProPhoto(){
+  if(!window.FFPUpload||!FFPUpload.pick){ showToast('Uploader still loading — try again','error'); return; }
+  FFPUpload.pick({ bucket:'quest-images', key:'pro-profile-'+(_pro.id||'x'), aspect:1, outW:512, outH:512, title:'Profile photo',
+    onDone:function(url){
+      _pro.profile_photo_url=url;
+      window.supabase.rpc('professional_save_profile',{p_professional:_pro.id,p:{profile_photo_url:url}});
+      var box=document.getElementById('pf-photo'); if(box){ box.style.background="url('"+url+"') center/cover no-repeat"; box.innerHTML=''; }
+      var avb=document.getElementById('av-btn'); if(avb){ avb.innerHTML='<img src="'+escHtml(url)+'" alt="">'; }
+      showToast('Photo updated','success');
+    },
+    onError:function(){ showToast('Upload failed — please try again','error'); }
+  });
+}
+// Profile videos (embedded links)
+function _videoKind(u){ u=String(u||'').toLowerCase(); if(u.indexOf('youtu')>=0)return 'youtube'; if(u.indexOf('vimeo')>=0)return 'vimeo'; if(u.indexOf('instagram')>=0)return 'instagram'; return 'video'; }
+async function renderProVideos(){
+  var el=document.getElementById('pf-videos'); if(!el||!_pro)return;
+  try{
+    var r=await window.supabase.rpc('pro_videos_list',{p_pro:_pro.id}); var vids=(r&&r.data)||[];
+    if(!vids.length){ el.innerHTML='<div class="ov-empty" style="padding:4px 0;">No videos yet.</div>'; return; }
+    el.innerHTML=vids.map(function(v){
+      return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--ffp-border);"><span class="ms" style="color:var(--ffp-purple);">smart_display</span><div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(v.title||v.url)+'</div><div style="font-size:11px;color:var(--ffp-text-dim);text-transform:capitalize;">'+escHtml(v.kind||'video')+'</div></div><span class="ms" style="cursor:pointer;color:var(--ffp-text-dim);" onclick="deleteVideo(\''+v.id+'\')">delete</span></div>';
+    }).join('');
+  }catch(e){ el.innerHTML='<div class="ov-empty">Couldn’t load videos.</div>'; }
+}
+function openVideoModal(){
+  openModalShell('sm','Add a video',
+    '<div class="field" style="margin-bottom:10px;"><div class="label">Video link</div><input class="input" id="vid-url" placeholder="youtube.com · vimeo.com · instagram.com"></div>'+
+    '<div class="field"><div class="label">Title <span style="color:var(--ffp-text-dim);">(optional)</span></div><input class="input" id="vid-title" placeholder="e.g. Session highlights"></div>',
+    '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="saveVideo()">Add</button>');
+}
+async function saveVideo(){
+  var url=(document.getElementById('vid-url').value||'').trim();
+  if(!/^https?:\/\//i.test(url)){ showToast('Paste a valid link','error'); return; }
+  var title=(document.getElementById('vid-title').value||'').trim();
+  try{
+    var r=await window.supabase.rpc('pro_video_save',{p_pro:_pro.id,p:{url:url,title:title,kind:_videoKind(url)}});
+    if(r&&r.error)throw r.error;
+    closeModal(); renderProVideos(); showToast('Video added','success');
+  }catch(e){ showToast('Could not add video','error'); }
+}
+async function deleteVideo(id){
+  try{ await window.supabase.rpc('pro_video_delete',{p_pro:_pro.id,p_id:id}); renderProVideos(); }catch(e){ showToast('Could not remove','error'); }
 }
 function _passportName(m){ var n=((m.given_names||'')+' '+(m.surname||'')).replace(/\s+/g,' ').trim(); return n||m.full_name||''; }
 function _countryList(){ var c=(window.FFP_TAX&&FFP_TAX.cities)||{}; return Object.keys(c).sort(); }
@@ -465,26 +676,128 @@ async function submitOnboard(){
 function _member(){ try{ var raw=localStorage.getItem('ffp_member'); return raw?JSON.parse(raw):null; }catch(e){ return null; } }
 function signOut(){ try{ localStorage.removeItem('ffp_member'); }catch(e){} location.href='/login'; }
 function showGateState(which){
+  document.getElementById('gate').classList.remove('hidden');
   document.getElementById('gate-loading').classList.toggle('hidden',which!=='loading');
+  document.getElementById('gate-signin').classList.toggle('hidden',which!=='signin');
   document.getElementById('gate-onboard').classList.toggle('hidden',which!=='onboard');
   document.getElementById('gate-locked').classList.toggle('hidden',which!=='locked');
 }
+function _initials(nm){ return (String(nm||'').split(/\s+/).map(function(w){return w[0]||'';}).join('').slice(0,2)||'P').toUpperCase(); }
 function enterDashboard(){
   document.getElementById('gate').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   var m=_member();
   var nm=_pro.display_name||(m&&m.full_name)||'Professional';
+  var types=(_pro.professional_types&&_pro.professional_types.length)?_pro.professional_types.slice(0,2).join(' · '):'Professional';
   document.getElementById('sb-name').textContent=nm;
-  document.getElementById('sb-initials').textContent=(nm.split(/\s+/).map(function(w){return w[0]||'';}).join('').slice(0,2)||'P').toUpperCase();
-  document.getElementById('sb-types').textContent=(_pro.professional_types&&_pro.professional_types.length)?_pro.professional_types.slice(0,2).join(' · '):'Professional';
+  document.getElementById('sb-initials').textContent=_initials(nm);
+  document.getElementById('sb-types').textContent=types;
+  // topbar avatar menu (Profile + Sign out under the avatar)
+  document.getElementById('av-name').textContent=nm;
+  document.getElementById('av-status').textContent=types;
+  if(_pro.profile_photo_url){ document.getElementById('av-btn').innerHTML='<img src="'+escHtml(_pro.profile_photo_url)+'" alt="">'; }
+  else { document.getElementById('av-initials').textContent=_initials(nm); }
   providerProfile.city=_pro.city||'';
   window.FFP_PROVIDER={ id:_pro.id, member_id:m&&m.id, email:m&&m.email, role:'professional', display_name:_pro.display_name };
   renderNav();
-  showPanel('profile');
+  showPanel('overview');
+}
+// ─── Topbar avatar menu ───
+function toggleAvMenu(e){ if(e)e.stopPropagation(); document.getElementById('av-menu').classList.toggle('show'); }
+function closeAvMenu(){ var m=document.getElementById('av-menu'); if(m)m.classList.remove('show'); }
+document.addEventListener('click',function(e){ var m=document.getElementById('av-menu'); if(m&&m.classList.contains('show')&&!(e.target.closest&&e.target.closest('.av-wrap'))) closeAvMenu(); });
+
+// ─── Inline professional sign-in (PWA opens straight here; no portal picker) ───
+var _siEmail='';
+function proRequestCode(){
+  var el=document.getElementById('si-email'); var email=(el.value||'').trim().toLowerCase();
+  var err=document.getElementById('si-err');
+  if(!email||email.indexOf('@')<0){ el.style.borderColor='#ef4444'; err.textContent='Enter a valid email.'; el.focus(); return; }
+  el.style.borderColor=''; err.textContent='';
+  var btn=document.getElementById('si-email-btn'); var lbl=btn.textContent; btn.disabled=true; btn.textContent='Sending…';
+  FFPApi.requestCode(email,null,'signin').then(function(res){
+    btn.disabled=false; btn.textContent=lbl;
+    if(res&&res.error){ err.textContent=res.error; return; }
+    if(res&&res.exists===false){ err.textContent='No account for that email — get your FFP Passport first.'; el.style.borderColor='#ef4444'; return; }
+    _siEmail=email; document.getElementById('si-sent-to').textContent=email;
+    document.getElementById('signin-step-email').classList.add('hidden');
+    document.getElementById('signin-step-code').classList.remove('hidden');
+    var f=document.querySelector('#signin-step-code .code-box'); if(f)f.focus();
+  }).catch(function(){ btn.disabled=false; btn.textContent=lbl; err.textContent='Network error. Please try again.'; });
+}
+function siCodeMove(el,i){
+  el.value=el.value.replace(/[^0-9]/g,'');
+  var boxes=document.querySelectorAll('#signin-step-code .code-box');
+  if(el.value&&i<5){ boxes[i+1].focus(); }
+  if(i===5&&el.value){ proVerifyCode(); }
+}
+function proVerifyCode(){
+  var boxes=document.querySelectorAll('#signin-step-code .code-box'); var code=''; boxes.forEach(function(b){ code+=b.value; });
+  var err=document.getElementById('si-code-err');
+  if(code.length<6){ err.textContent='Enter all 6 digits.'; return; }
+  err.textContent='';
+  var btn=document.getElementById('si-code-btn'); var lbl=btn.textContent; btn.disabled=true; btn.textContent='Signing in…';
+  FFPApi.verifyCode(_siEmail,code,'signin').then(function(res){
+    if(res&&res.error){ btn.disabled=false; btn.textContent=lbl; err.textContent='That code didn’t work — try again or request a new one.'; boxes.forEach(function(b){b.value='';}); boxes[0].focus(); return; }
+    boot(); // member now stored by FFPApi → re-run the gate
+  }).catch(function(){ btn.disabled=false; btn.textContent=lbl; err.textContent='Sign-in failed. Please try again.'; });
+}
+function proSigninBack(){
+  document.getElementById('signin-step-code').classList.add('hidden');
+  document.getElementById('signin-step-email').classList.remove('hidden');
+  document.getElementById('si-code-err').textContent='';
+  document.querySelectorAll('#signin-step-code .code-box').forEach(function(b){b.value='';});
+}
+
+// ─── Overview (default landing) ───
+function _ovTile(v,l){ return '<div class="ov-stat"><div class="v">'+v+'</div><div class="l">'+escHtml(l)+'</div></div>'; }
+function _wkStart(d){ var x=new Date(d); x.setDate(x.getDate()-x.getDay()); x.setHours(0,0,0,0); return x; } // Sunday start — matches pro_week_schedule (dow 0=Sun)
+function _addDays(d,n){ var x=new Date(d); x.setDate(x.getDate()+n); return x; }
+function _iso(d){ var x=new Date(d); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'); }
+function _fmtTime(t){ if(!t)return ''; var p=String(t).split(':'); var h=+p[0],m=p[1]||'00'; var ap=h<12?'AM':'PM'; var hh=h%12; if(hh===0)hh=12; return hh+':'+m+' '+ap; }
+function _daySessions(label,dateIso,all){
+  var rows=all.filter(function(o){ return o.date===dateIso; }).sort(function(a,b){ return String(a.start_time).localeCompare(String(b.start_time)); });
+  var inner=rows.length?rows.map(function(o){
+    var clients=(o.clients&&o.clients.length)?o.clients.join(', '):(o.title||'Session');
+    var sub=[(o.slot_type?String(o.slot_type).replace(/_/g,' '):''),(o.location||'')].filter(Boolean).join(' · ');
+    return '<div class="ov-sess"><div class="tm">'+escHtml(_fmtTime(o.start_time))+'</div><div class="info"><div class="nm">'+escHtml(clients)+'</div>'+(sub?'<div class="sub">'+escHtml(sub)+'</div>':'')+'</div></div>';
+  }).join(''):'<div class="ov-empty">No sessions.</div>';
+  return '<div class="ov-day">'+escHtml(label)+'</div>'+inner;
+}
+function _ovBanner(icon,title,sub){ return '<div style="display:flex;gap:10px;align-items:flex-start;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:12px;padding:12px 14px;margin-top:14px;"><span class="ms" style="color:var(--ffp-purple);">'+icon+'</span><div><div style="font-size:13px;font-weight:800;">'+escHtml(title)+'</div><div style="font-size:12px;color:var(--ffp-text-muted);margin-top:2px;line-height:1.5;">'+escHtml(sub)+'</div></div></div>'; }
+function renderVerifBanner(host){
+  var el=document.getElementById(host||'ov-verif'); if(!el)return; if(!_pro){ el.innerHTML=''; return; }
+  var s=_pro.verification_status||'unlisted', h='';
+  if(s==='pending') h=_ovBanner('hourglass_top','Your public listing is in review','We\'ll let you know once it\'s approved. Your portal works as normal in the meantime.');
+  else if(s==='rejected') h=_ovBanner('error_outline','Listing needs changes',_pro.verification_note||'Please update your profile and re-submit for review.');
+  else if(s==='approved'&&_pro.is_published) h=_ovBanner('verified','Your profile is live','Members can discover you on Find Fit People.');
+  el.innerHTML=h;
+}
+async function renderOverview(){
+  renderVerifBanner('ov-verif');
+  var nm=(_pro&&(_pro.given_names||_pro.display_name))||'there';
+  var hour=new Date().getHours(); var greet=hour<12?'Good morning':(hour<18?'Good afternoon':'Good evening');
+  var hello=document.getElementById('ov-hello'); if(hello)hello.textContent=greet+', '+String(nm).split(' ')[0];
+  var statsEl=document.getElementById('ov-stats'); var sessEl=document.getElementById('ov-sessions');
+  var pid=window.FFP_PROVIDER&&FFP_PROVIDER.id; if(!pid)return;
+  try{
+    var rep=await window.supabase.rpc('pro_business_report',{p_pro:pid}); var d=(rep&&rep.data)||{};
+    var aed=function(n){ return 'AED '+Number(n||0).toLocaleString(); };
+    statsEl.innerHTML=_ovTile(aed(d.collected_month),'Earned this month')+_ovTile(d.clients_active||0,'Active clients')+_ovTile(aed(d.outstanding_total),'Outstanding')+_ovTile(d.standing_slots||0,'Standing slots');
+  }catch(e){ statsEl.innerHTML=''; }
+  try{
+    var today=new Date(); var ws=_wkStart(today);
+    var r=await window.supabase.rpc('pro_week_schedule',{p_pro:pid,p_week_start:_iso(ws)});
+    var all=((r&&r.data)||[]).slice();
+    var y=_iso(_addDays(today,-1)), t=_iso(today), tm=_iso(_addDays(today,1));
+    if(new Date(y)<ws){ var rp=await window.supabase.rpc('pro_week_schedule',{p_pro:pid,p_week_start:_iso(_addDays(ws,-7))}); all=all.concat((rp&&rp.data)||[]); }
+    if(new Date(tm)>_addDays(ws,6)){ var rn=await window.supabase.rpc('pro_week_schedule',{p_pro:pid,p_week_start:_iso(_addDays(ws,7))}); all=all.concat((rn&&rn.data)||[]); }
+    sessEl.innerHTML=_daySessions('Yesterday',y,all)+_daySessions('Today',t,all)+_daySessions('Tomorrow',tm,all);
+  }catch(e){ sessEl.innerHTML='<div class="ov-empty">Couldn’t load sessions.</div>'; }
 }
 async function boot(){
   var member=_member();
-  if(!member||!member.id){ location.href='/login'; return; }
+  if(!member||!member.id){ showGateState('signin'); return; }   // PWA opens straight to pro sign-in (no portal picker)
   if(!window.supabase||!window.supabase.rpc){ setTimeout(boot,200); return; }
   showGateState('loading');
   try{
