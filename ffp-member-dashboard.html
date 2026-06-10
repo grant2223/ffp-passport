@@ -4704,7 +4704,10 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     </div>
     <!-- v270: simple full-width Post a Meetup button (replaced the host-CTA card) -->
     <button class="post-meetup-btn" onclick="MeetMove.openPostForm()"><span class="material-icons">add</span>Post a Meetup</button>
-    
+
+    <!-- Host join-requests banner — populated by ffp-meet-move-loader.js (renderHostRequests). -->
+    <div id="ffp-host-requests"></div>
+
     <!-- Tabs — text with underline -->
     <div class="tabs-underline" id="meet-tabs">
       <button class="tabs-underline-btn active" data-meet-tab="discover">Discover</button>
@@ -7971,7 +7974,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '359';
+  const FFP_BUILD = '360';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
