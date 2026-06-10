@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v356 (2026-06-09)  [changelog trimmed to latest 3 updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v357 (2026-06-11)  [changelog trimmed to latest 3 updates; older history in git]
+     v357: DATA SHARING (member consent) — user menu gains "Data sharing" → window.FFPProAccess.open()
+           (assets/ffp-pro-access-loader.js, deferred ?v=1; auto-opens on ?proaccess=1 from the notification).
+           Member approves/declines/revokes professional access to their Calorie Tracker + Fitness Stats
+           (read-only for the pro). DB: pro_client_access + member_pro_access_list / member_respond_pro_access.
      v356: MEET-UP DISCOVER LIVE — meet-move loader now exposes window.ffpReloadMeetMove (re-pulls open/full
            meet-ups + re-renders); the real-time meetups/meetup_attendees subscription calls it, so the
            "find one to join" Discover list updates the instant a meet-up is posted, fills, or cancels — no
@@ -159,6 +163,8 @@
 <script src="assets/ffp-realtime.js"></script>
 <!-- Feedback widget (shared) -> public.feedback -> admin Feedback panel -->
 <script src="assets/ffp-feedback-widget.js?v=5" data-source="member" data-fab="off"></script>
+<!-- Pro data-sharing (member consent surface for professional access to Calorie + Fitness Stats) -->
+<script defer src="assets/ffp-pro-access-loader.js?v=1"></script>
 <!-- v156: member loaders are NO LONGER eager. Each panel's loader script is
      injected on the panel's first open (see ensurePanelLoader in setupPanelNav),
      so a plain load fires zero data queries -> the Passport view is instant and
@@ -4281,6 +4287,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         <button class="menu-item" data-panel="panel-workout-timer"><span class="material-icons">schedule</span><span>Workout Timer</span></button>
         <button class="menu-item" data-panel="panel-calorie-tracker"><span class="material-icons">local_fire_department</span><span>Calorie Tracker</span></button>
         <button class="menu-item" data-panel="panel-earnings"><span class="material-icons">account_balance_wallet</span><span>Earnings</span></button>
+        <button class="menu-item" onclick="window.FFPProAccess&&FFPProAccess.open()"><span class="material-icons">health_and_safety</span><span>Data sharing</span></button>
         <div class="menu-divider"></div>
         <button class="menu-item menu-item-danger" id="user-menu-logout"><span class="material-icons">logout</span><span>Logout</span></button>
       </div>
