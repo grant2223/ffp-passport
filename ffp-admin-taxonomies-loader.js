@@ -1,4 +1,10 @@
-/* FFP Admin Taxonomies Loader — v5 (2026-06-07)
+/* FFP Admin Taxonomies Loader — v6 (2026-06-10)
+   v6: added 'Professions' list (list_key='professional_role') — the service-professional roles a
+       Professional picks as their main profession when joining the Professionals Portal. Each row
+       carries a CATEGORY (one of the 6 standard FFP categories: Sports/Fitness/Wellness/Recovery/
+       Adventure/Health food), stored in `parent` and editable via a per-row Category selector
+       (mirrors the Provider Categories → Passport cell). The professional dashboard reads
+       taxonomy_items where list_key='professional_role' & active, grouped by parent.
    v5: added 'Events' list (list_key='event') — the race-resume event catalog members pick from when
        logging an event result (Fitness Stats → Results). Full add/rename/reorder/hide/delete via the
        existing CRUD. The member results loader reads taxonomy_items where list_key='event' & active.
@@ -21,6 +27,7 @@
   var LISTS = [
     { key: 'activity',        name: 'Activities' },
     { key: 'event',           name: 'Events' },
+    { key: 'professional_role', name: 'Professions' },
     { key: 'category',        name: 'Provider Categories' },
     { key: 'experience_type', name: 'Experience Types' },
     { key: 'fitness_level',   name: 'Fitness Levels' },
@@ -32,6 +39,9 @@
     { key: 'provider_type',   name: 'Provider Types' },
     { key: 'gym_size',        name: 'Gym Size Bands' }
   ];
+
+  // The 6 standard FFP categories a Profession belongs to (stored in the row's `parent`).
+  var PRO_CATEGORIES = ['Sports', 'Fitness', 'Wellness', 'Recovery', 'Adventure', 'Health food'];
 
   var state = { current: 'activity', cityCountry: 'United Arab Emirates', data: {} };
 
@@ -140,11 +150,7 @@
     }
 
     var isCat = state.current === 'category';
-    var passOpts = '';
-    if (isCat) {
-      var plist = (state.data.passport || []).slice().sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
-      passOpts = plist.map(function (p) { return '<option value="' + esc(p.value) + '">' + esc(p.label || p.value) + '</option>'; }).join('');
-    }
+    var isProf = state.current === 'professional_role';
     var rowsHtml = rows.length ? rows.map(function (r, i) {
       var passCell = '';
       if (isCat) {
@@ -152,6 +158,10 @@
           (state.data.passport || []).slice().sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); })
             .map(function (p) { return '<option value="' + esc(p.value) + '"' + (r.parent === p.value ? ' selected' : '') + '>' + esc(p.label || p.value) + '</option>'; }).join('');
         passCell = '<td style="width:160px;"><select class="tx-pass" data-id="' + r.id + '">' + sel + '</select></td>';
+      } else if (isProf) {
+        var csel = '<option value=""' + (!r.parent ? ' selected' : '') + '>— none —</option>' +
+          PRO_CATEGORIES.map(function (c) { return '<option value="' + esc(c) + '"' + (r.parent === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('');
+        passCell = '<td style="width:160px;"><select class="tx-pass" data-id="' + r.id + '">' + csel + '</select></td>';
       }
       return '<tr class="' + (r.active ? '' : 'inactive') + '" data-id="' + r.id + '">' +
         '<td style="width:34px;color:#6a90a8;">' + (i + 1) + '</td>' +
@@ -164,13 +174,13 @@
           '<button class="tx-ic" data-act="toggle" title="' + (r.active ? 'Hide' : 'Show') + '"><span class="material-icons">' + (r.active ? 'visibility_off' : 'visibility') + '</span></button>' +
           '<button class="tx-ic danger" data-act="del" title="Delete"><span class="material-icons">delete</span></button>' +
         '</div></td></tr>';
-    }).join('') : '<tr><td colspan="4" class="text-muted" style="text-align:center;padding:26px;">No items yet — add one above.</td></tr>';
+    }).join('') : '<tr><td colspan="' + (isCat || isProf ? 5 : 4) + '" class="text-muted" style="text-align:center;padding:26px;">No items yet — add one above.</td></tr>';
 
     host.innerHTML =
       '<div class="tx-wrap">' +
         '<div class="tx-lists">' + listsHtml + '</div>' +
         '<div class="tx-panel">' + bar +
-          '<table><thead><tr><th>#</th><th>Name</th>' + (isCat ? '<th>Passport</th>' : '') + '<th>Status</th><th style="text-align:right;">Actions</th></tr></thead>' +
+          '<table><thead><tr><th>#</th><th>Name</th>' + (isCat ? '<th>Passport</th>' : '') + (isProf ? '<th>Category</th>' : '') + '<th>Status</th><th style="text-align:right;">Actions</th></tr></thead>' +
           '<tbody>' + rowsHtml + '</tbody></table>' +
         '</div>' +
       '</div>';
