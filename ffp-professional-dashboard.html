@@ -7,6 +7,8 @@
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/ffp-api-integration.js?v=12"></script>
+<script src="assets/ffp-constants.js"></script>
+<script src="assets/ffp-taxonomy.js?v=8"></script>
 <style>
 :root{
   --ffp-bg:#081420; --ffp-bg-2:#0f1f2c; --ffp-bg-3:#16273a; --ffp-bg-card:#0c1d2b;
@@ -125,13 +127,14 @@ a{color:var(--ffp-blue);}
     </div>
     <div id="gate-onboard" class="hidden">
       <h2>Set up your professional profile</h2>
-      <p>You're a Passport member — just a couple of details and you're in.</p>
-      <div class="field" style="margin-bottom:12px;"><div class="label">Display name <span class="req">*</span></div><input class="input" id="ob-name" placeholder="e.g. Sam Okafor"></div>
-      <div class="field" style="margin-bottom:6px;"><div class="label">What do you do? <span class="req">*</span></div></div>
-      <div class="chips" id="ob-types"></div>
-      <div class="field" style="margin:12px 0;"><div class="label">City</div><input class="input" id="ob-city" placeholder="City"></div>
+      <p>We've pulled what we can from your Passport — confirm the details and you're in.</p>
+      <div class="field" style="margin-bottom:12px;"><div class="label">Display name <span class="req">*</span></div><input class="input" id="ob-name"></div>
+      <div class="field" style="margin-bottom:12px;"><div class="label">Main profession <span class="req">*</span></div><select class="select" id="ob-profession"></select></div>
+      <div class="form-grid" style="margin-bottom:14px;">
+        <div class="field"><div class="label">Country</div><select class="select" id="ob-country" onchange="obCountryChange()"></select></div>
+        <div class="field"><div class="label">City</div><select class="select" id="ob-city"></select></div>
+      </div>
       <button class="btn btn-pri btn-block" onclick="submitOnboard()">Create my professional profile</button>
-      <div style="text-align:center;margin-top:12px;"><a style="font-size:12px;color:var(--ffp-text-dim);cursor:pointer;" onclick="signOut()">Sign out</a></div>
     </div>
     <div id="gate-locked" class="hidden">
       <h2>Renew your Passport to reactivate</h2>
@@ -304,18 +307,19 @@ function showPanel(id){
 }
 
 // ─── Profile / storefront editor ───
+function pfCountryChange(){ document.getElementById('pf-city').innerHTML=cityOptionsHtml(document.getElementById('pf-country').value,''); }
 function renderProfileForm(){
   var host=document.getElementById('profile-form'); if(!host||!_pro)return;
-  var types=_pro.professional_types||[];
-  var chips=PRO_TYPE_OPTIONS.map(function(t){ var on=types.indexOf(t)!==-1; return '<div class="chip'+(on?' on':'')+'" data-t="'+escHtml(t)+'" onclick="this.classList.toggle(\'on\')">'+escHtml(t)+'</div>'; }).join('');
+  var mainProf=(_pro.professional_types&&_pro.professional_types[0])||'';
   host.innerHTML =
     '<div class="form-section"><div class="form-section-title">Public profile</div><div class="form-grid">'+
       '<div class="field full"><div class="label">Display name <span class="req">*</span></div><input class="input" id="pf-display_name" value="'+escHtml(_pro.display_name||'')+'"></div>'+
-      '<div class="field full"><div class="label">What you do</div><div class="chips" id="pf-types">'+chips+'</div></div>'+
+      '<div class="field full"><div class="label">Main profession</div><select class="select" id="pf-profession">'+professionOptionsHtml(mainProf)+'</select></div>'+
       '<div class="field full"><div class="label">Headline</div><input class="input" id="pf-headline" value="'+escHtml(_pro.headline||'')+'" placeholder="e.g. Strength &amp; performance coaching"></div>'+
       '<div class="field full"><div class="label">Bio</div><textarea class="textarea" id="pf-bio" rows="4" placeholder="Tell members about you, your style and who you help.">'+escHtml(_pro.bio||'')+'</textarea></div>'+
-      '<div class="field"><div class="label">City</div><input class="input" id="pf-city" value="'+escHtml(_pro.city||'')+'"></div>'+
-      '<div class="field"><div class="label">Public contact email <span style="color:var(--ffp-text-dim);">(optional)</span></div><input class="input" id="pf-work_email" value="'+escHtml(_pro.work_email||'')+'" placeholder="shown on your storefront"></div>'+
+      '<div class="field"><div class="label">Country</div><select class="select" id="pf-country" onchange="pfCountryChange()">'+countryOptionsHtml(_pro.country||'')+'</select></div>'+
+      '<div class="field"><div class="label">City</div><select class="select" id="pf-city">'+cityOptionsHtml(_pro.country||'', _pro.city||'')+'</select></div>'+
+      '<div class="field full"><div class="label">Public contact email <span style="color:var(--ffp-text-dim);">(optional)</span></div><input class="input" id="pf-work_email" value="'+escHtml(_pro.work_email||'')+'" placeholder="shown on your storefront — defaults to nothing public"></div>'+
     '</div></div>'+
     '<div class="form-section"><div class="form-section-title">Visibility</div>'+
       '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;"><input type="checkbox" id="pf-published" '+(_pro.is_published?'checked':'')+' style="width:18px;height:18px;accent-color:var(--ffp-purple);"> <span style="font-size:13px;font-weight:700;">Publish my profile (discoverable on Find Fit People)</span></label>'+
@@ -326,30 +330,46 @@ async function saveProfile(){
   if(!_pro)return;
   var g=function(i){var el=document.getElementById('pf-'+i);return el?el.value.trim():'';};
   var name=g('display_name'); if(!name){ showToast('Display name is required','error'); return; }
-  var types=[]; document.querySelectorAll('#pf-types .chip.on').forEach(function(c){types.push(c.getAttribute('data-t'));});
-  var payload={ display_name:name, headline:g('headline'), bio:g('bio'), city:g('city'), work_email:g('work_email'), professional_types:types, is_published:document.getElementById('pf-published').checked };
+  var prof=g('profession');
+  var payload={ display_name:name, headline:g('headline'), bio:g('bio'), country:g('country'), city:g('city'), work_email:g('work_email'), professional_types:(prof?[prof]:[]), is_published:document.getElementById('pf-published').checked };
   try{
     var r=await window.supabase.rpc('professional_save_profile',{p_professional:_pro.id,p:payload});
     if(r&&r.error)throw r.error;
     Object.assign(_pro,payload);
     providerProfile.city=payload.city;
+    document.getElementById('sb-types').textContent=prof||'Professional';
     showToast('Profile saved','success');
   }catch(e){ showToast('Could not save profile','error'); }
 }
 
 // ─── Onboarding ───
-function paintOnboardTypes(){
-  document.getElementById('ob-types').innerHTML = PRO_TYPE_OPTIONS.map(function(t){ return '<div class="chip" data-t="'+escHtml(t)+'" onclick="this.classList.toggle(\'on\')">'+escHtml(t)+'</div>'; }).join('');
+function _proRoles(){ return (window.FFP_TAX&&FFP_TAX.professionalRoles)||{}; }
+function professionOptionsHtml(sel){
+  var roles=_proRoles(); var h='<option value="">Select your main profession…</option>';
+  Object.keys(roles).forEach(function(cat){ h+='<optgroup label="'+escHtml(cat)+'">'; (roles[cat]||[]).forEach(function(r){ h+='<option'+(sel===r?' selected':'')+'>'+escHtml(r)+'</option>'; }); h+='</optgroup>'; });
+  return h;
+}
+function _countryList(){ var c=(window.FFP_TAX&&FFP_TAX.cities)||{}; return Object.keys(c).sort(); }
+function countryOptionsHtml(sel){ var list=_countryList().slice(); if(sel&&list.indexOf(sel)===-1)list.unshift(sel); return '<option value="">Country</option>'+list.map(function(c){return '<option'+(c===sel?' selected':'')+'>'+escHtml(c)+'</option>';}).join(''); }
+function cityOptionsHtml(country,sel){ var c=(window.FFP_TAX&&FFP_TAX.cities)||{}; var list=(c[country]||[]).slice(); if(sel&&list.indexOf(sel)===-1)list.unshift(sel); return '<option value="">City</option>'+list.map(function(x){return '<option'+(x===sel?' selected':'')+'>'+escHtml(x)+'</option>';}).join(''); }
+function obCountryChange(){ document.getElementById('ob-city').innerHTML=cityOptionsHtml(document.getElementById('ob-country').value,''); }
+function paintOnboard(){
+  var m=_member()||{};
+  document.getElementById('ob-name').value=m.full_name||'';
+  document.getElementById('ob-profession').innerHTML=professionOptionsHtml('');
+  document.getElementById('ob-country').innerHTML=countryOptionsHtml(m.country||'');
+  document.getElementById('ob-city').innerHTML=cityOptionsHtml(m.country||'', m.city||'');
 }
 async function submitOnboard(){
   var member=_member(); if(!member)return;
   var name=document.getElementById('ob-name').value.trim();
+  var prof=document.getElementById('ob-profession').value;
+  var country=document.getElementById('ob-country').value;
+  var city=document.getElementById('ob-city').value;
   if(!name){ showToast('Add your display name','error'); return; }
-  var types=[]; document.querySelectorAll('#ob-types .chip.on').forEach(function(c){types.push(c.getAttribute('data-t'));});
-  if(!types.length){ showToast('Pick at least one','error'); return; }
-  var city=document.getElementById('ob-city').value.trim();
+  if(!prof){ showToast('Pick your main profession','error'); return; }
   try{
-    var r=await window.supabase.rpc('professional_link',{p_member:member.id,p:{display_name:name,professional_types:types,city:city}});
+    var r=await window.supabase.rpc('professional_link',{p_member:member.id,p:{display_name:name,professional_types:[prof],country:country,city:city}});
     if(r&&r.error)throw r.error;
     if(r.data&&r.data.error){ showToast(r.data.error==='passport_inactive'?'An active Passport is required':'Could not create profile','error'); return; }
     boot(); // re-run the gate -> enters dashboard
@@ -385,11 +405,11 @@ async function boot(){
   try{
     var r=await window.supabase.rpc('professional_for_member',{p_member:member.id});
     var rec=r&&r.data?r.data:null;
-    if(!rec){ document.getElementById('ob-name').value=member.full_name||''; paintOnboardTypes(); showGateState('onboard'); return; }
+    if(!rec){ paintOnboard(); showGateState('onboard'); return; }
     _pro=rec;
     if(!rec.can_access){ showGateState('locked'); return; }
     enterDashboard();
-  }catch(e){ console.error('[FFP Pro] gate error',e); showGateState('onboard'); document.getElementById('ob-name').value=member.full_name||''; paintOnboardTypes(); }
+  }catch(e){ console.error('[FFP Pro] gate error',e); showGateState('onboard'); paintOnboard(); }
 }
 if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',boot); } else { boot(); }
 </script>
