@@ -1,4 +1,8 @@
-<!-- FFP PROFESSIONAL DASHBOARD — v4 (2026-06-10): MOBILE-FIRST + OVERVIEW + STOREFRONT MEDIA + VERIFICATION.
+<!-- FFP PROFESSIONAL DASHBOARD — v5 (2026-06-10): Topbar now has a FROZEN (sticky) header with a
+     NOTIFICATIONS bell (reuses the member /api/notifications endpoint — a pro is a member; approve/reject
+     posts to this bell) + FEEDBACK widget (ffp-feedback-widget.js, data-source=professional). Primary nav
+     trimmed to Overview/Clients/Scheduling/Payments; PROFILE + PACKAGES + MESSAGES moved into the avatar
+     menu. Added a PHONE field to the profile (professionals.phone). ---- v4 (2026-06-10): MOBILE-FIRST + OVERVIEW + STOREFRONT MEDIA + VERIFICATION.
      Chrome rebuilt Passport-style: bottom tab nav on phones (sidebar collapses), topbar AVATAR menu with
      My profile + Sign out, responsive single-column. New OVERVIEW panel is the default landing (greeting +
      month earnings / active clients / outstanding / standing slots from pro_business_report + yesterday/
@@ -40,6 +44,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 <script src="assets/ffp-image-upload.js?v=6"></script>
+<script src="assets/ffp-feedback-widget.js?v=5" data-source="professional" data-fab="off"></script>
 <style>
 :root{
   --ffp-bg:#081420; --ffp-bg-2:#0f1f2c; --ffp-bg-3:#16273a; --ffp-bg-card:#0c1d2b;
@@ -85,7 +90,7 @@ a{color:var(--ffp-blue);}
 .sb-foot-name{font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .sb-foot-out{font-size:10px;color:var(--ffp-text-dim);cursor:pointer;}
 .main{flex:1;overflow-y:auto;padding:22px 26px 60px;}
-.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;z-index:60;background:var(--ffp-bg);padding:10px 0;margin:0 0 6px;}
 .tb-title{font-size:18px;font-weight:800;}
 .preview-pill{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:var(--ffp-yellow);font-size:12px;font-weight:700;margin-bottom:14px;}
 
@@ -148,6 +153,18 @@ a{color:var(--ffp-blue);}
 .av-item:hover{background:rgba(139,92,246,.08);color:var(--ffp-text);}
 .av-item.danger{color:#f07171;}
 .av-item .ms{font-size:18px;}
+/* Topbar icon buttons + notifications */
+.tb-icon{position:relative;width:38px;height:38px;border-radius:50%;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);color:var(--ffp-text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.tb-icon:hover{color:var(--ffp-text);border-color:var(--ffp-purple);}
+.tb-icon .ms{font-size:19px;}
+.nt-wrap{position:relative;}
+.nt-badge{position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;border-radius:8px;background:var(--ffp-purple);color:#fff;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px;}
+.nt-menu{position:absolute;right:0;top:46px;width:300px;max-width:84vw;background:var(--ffp-bg-2);border:1px solid var(--ffp-border-mid);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.4);display:none;z-index:300;overflow:hidden;}
+.nt-menu.show{display:block;}
+.nt-head{font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-text-dim);padding:12px 14px 8px;}
+.nt-list{max-height:60vh;overflow-y:auto;}
+.nt-item{display:flex;gap:10px;align-items:flex-start;padding:11px 14px;border-top:1px solid var(--ffp-border);}
+.nt-item:hover{background:rgba(139,92,246,.06);}
 
 /* Bottom tab nav (mobile, Passport-style) */
 .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--ffp-bg-2);border-top:1px solid var(--ffp-border);display:none;z-index:120;padding:6px 4px;padding-bottom:calc(6px + env(safe-area-inset-bottom));}
@@ -291,11 +308,18 @@ a{color:var(--ffp-blue);}
     <div class="topbar">
       <div class="tb-title" id="tb-title">Overview</div>
       <div class="tb-right">
+        <button class="tb-icon" id="fb-btn" title="Send feedback" aria-label="Send feedback" onclick="window.FFPFeedback&&FFPFeedback.open&&FFPFeedback.open()"><span class="ms">feedback</span></button>
+        <div class="nt-wrap">
+          <button class="tb-icon" id="nt-btn" title="Notifications" aria-label="Notifications" onclick="toggleNotif(event)"><span class="ms">notifications</span><span class="nt-badge" id="nt-badge" style="display:none;">0</span></button>
+          <div class="nt-menu" id="nt-menu"><div class="nt-head">Notifications</div><div class="nt-list" id="nt-list"><div class="ov-empty" style="padding:16px;">Loading…</div></div></div>
+        </div>
         <div class="av-wrap">
           <button class="av-btn" id="av-btn" onclick="toggleAvMenu(event)"><span id="av-initials">P</span></button>
           <div class="av-menu" id="av-menu">
             <div class="av-head"><div class="nm" id="av-name">Professional</div><div class="st" id="av-status">Professional</div></div>
             <button class="av-item" onclick="closeAvMenu();showPanel('profile')"><span class="ms">badge</span>My profile</button>
+            <button class="av-item" onclick="closeAvMenu();showPanel('packages')"><span class="ms">card_membership</span>Packages</button>
+            <button class="av-item" onclick="closeAvMenu();showPanel('comms')"><span class="ms">campaign</span>Messages</button>
             <div class="av-div"></div>
             <button class="av-item danger" onclick="signOut()"><span class="ms">logout</span>Sign out</button>
           </div>
@@ -448,16 +472,20 @@ function renderPanel(id){
   if(id==='comms'      && typeof renderComms==='function')       renderComms();
 }
 
+// Primary nav = the day-to-day business flow. Profile / Packages / Messages live in the avatar menu.
 var PRO_NAV=[
   {id:'overview',icon:'dashboard',label:'Overview'},
   {id:'clients',icon:'groups',label:'Clients'},
   {id:'scheduling',icon:'calendar_month',label:'Scheduling'},
-  {id:'packages',icon:'card_membership',label:'Packages'},
-  {id:'payments',icon:'receipt_long',label:'Payments'},
-  {id:'comms',icon:'campaign',label:'Messages'},
-  {id:'profile',icon:'badge',label:'Profile'}
+  {id:'payments',icon:'receipt_long',label:'Payments'}
 ];
-var PRO_BOTTOM=['overview','clients','scheduling','packages','payments']; // mobile tab bar (5)
+// Panels reachable but not in the primary nav (so showPanel title/labels still resolve)
+var PRO_NAV_EXTRA=[
+  {id:'profile',icon:'badge',label:'Profile'},
+  {id:'packages',icon:'card_membership',label:'Packages'},
+  {id:'comms',icon:'campaign',label:'Messages'}
+];
+var PRO_BOTTOM=['overview','clients','scheduling','payments']; // mobile tab bar (4)
 function renderNav(){
   document.getElementById('sb-nav').innerHTML = PRO_NAV.map(function(n){
     return '<button class="ni'+(n.id==='overview'?' active':'')+'" data-nav="'+n.id+'" onclick="showPanel(\''+n.id+'\')"><span class="ms">'+n.icon+'</span><span>'+n.label+'</span></button>';
@@ -476,7 +504,7 @@ function showPanel(id){
   var nb=document.querySelector('.ni[data-nav="'+id+'"]'); if(nb)nb.classList.add('active');
   document.querySelectorAll('.bn-item').forEach(function(n){n.classList.remove('active');});
   var bb=document.querySelector('.bn-item[data-bn="'+id+'"]'); if(bb)bb.classList.add('active');
-  var item=PRO_NAV.find(function(x){return x.id===id;});
+  var item=PRO_NAV.concat(PRO_NAV_EXTRA).find(function(x){return x.id===id;});
   document.getElementById('tb-title').textContent=item?item.label:'';
   try{ var mn=document.querySelector('.main'); if(mn)mn.scrollTop=0; }catch(e){}
   if(id==='overview') renderOverview();
@@ -505,7 +533,8 @@ function renderProfileForm(){
       '<div class="field full"><div class="label">Bio</div><textarea class="textarea" id="pf-bio" rows="4" placeholder="Tell members about you, your style and who you help.">'+escHtml(_pro.bio||'')+'</textarea></div>'+
       '<div class="field"><div class="label">Country</div><select class="select" id="pf-country" onchange="pfCountryChange()">'+countryOptionsHtml(_pro.country||'')+'</select></div>'+
       '<div class="field"><div class="label">City</div><select class="select" id="pf-city">'+cityOptionsHtml(_pro.country||'', _pro.city||'')+'</select></div>'+
-      '<div class="field full"><div class="label">Public contact email <span style="color:var(--ffp-text-dim);">(optional)</span></div><input class="input" id="pf-work_email" value="'+escHtml(_pro.work_email||'')+'" placeholder="shown on your storefront — defaults to nothing public"></div>'+
+      '<div class="field"><div class="label">Public contact email <span style="color:var(--ffp-text-dim);">(optional)</span></div><input class="input" id="pf-work_email" value="'+escHtml(_pro.work_email||'')+'" placeholder="shown on your storefront"></div>'+
+      '<div class="field"><div class="label">Phone <span style="color:var(--ffp-text-dim);">(optional)</span></div><input class="input" id="pf-phone" type="tel" value="'+escHtml(_pro.phone||'')+'" placeholder="+971 50 123 4567"></div>'+
     '</div></div>'+
     '<div class="form-section"><div class="form-section-title">Videos</div><div class="psub" style="margin:-2px 0 8px;">Add YouTube, Vimeo or Instagram links — they appear on your public profile.</div><div id="pf-videos"><div class="ov-empty" style="padding:4px 0;">Loading…</div></div><button class="btn btn-sec btn-sm" type="button" style="margin-top:8px;" onclick="openVideoModal()"><span class="ms">add</span> Add video</button></div>'+
     '<div class="form-section"><div class="form-section-title">Visibility</div>'+
@@ -525,7 +554,7 @@ async function saveProfile(){
   if(!_pfProfs.length){ showToast('Add at least one profession','error'); return; }
   var types=_pfProfs.map(function(p){return p.name;});
   var category=(_pfProfs[0]&&_pfProfs[0].category)||(window.FFP_TAX&&FFP_TAX.categoryOfRole?FFP_TAX.categoryOfRole(types[0]):'');
-  var payload={ given_names:given, surname:surname, display_name:name, headline:g('headline'), bio:g('bio'), country:g('country'), city:g('city'), work_email:g('work_email'), professional_types:types, category:category, is_published:document.getElementById('pf-published').checked };
+  var payload={ given_names:given, surname:surname, display_name:name, headline:g('headline'), bio:g('bio'), country:g('country'), city:g('city'), work_email:g('work_email'), phone:g('phone'), professional_types:types, category:category, is_published:document.getElementById('pf-published').checked };
   try{
     var r=await window.supabase.rpc('professional_save_profile',{p_professional:_pro.id,p:payload});
     if(r&&r.error)throw r.error;
@@ -701,11 +730,39 @@ function enterDashboard(){
   window.FFP_PROVIDER={ id:_pro.id, member_id:m&&m.id, email:m&&m.email, role:'professional', display_name:_pro.display_name };
   renderNav();
   showPanel('overview');
+  proNotifBadge();
 }
 // ─── Topbar avatar menu ───
-function toggleAvMenu(e){ if(e)e.stopPropagation(); document.getElementById('av-menu').classList.toggle('show'); }
+function toggleAvMenu(e){ if(e)e.stopPropagation(); closeNotif(); document.getElementById('av-menu').classList.toggle('show'); }
 function closeAvMenu(){ var m=document.getElementById('av-menu'); if(m)m.classList.remove('show'); }
 document.addEventListener('click',function(e){ var m=document.getElementById('av-menu'); if(m&&m.classList.contains('show')&&!(e.target.closest&&e.target.closest('.av-wrap'))) closeAvMenu(); });
+
+// ─── Notifications (a professional is a member → reuse the member notifications endpoint) ───
+var PRO_API='https://ffp-passport-backend.vercel.app';
+function toggleNotif(e){ if(e)e.stopPropagation(); closeAvMenu(); var m=document.getElementById('nt-menu'); var show=!m.classList.contains('show'); m.classList.toggle('show',show); if(show){ loadProNotifs(); markProNotifsSeen(); } }
+function closeNotif(){ var m=document.getElementById('nt-menu'); if(m)m.classList.remove('show'); }
+document.addEventListener('click',function(e){ var m=document.getElementById('nt-menu'); if(m&&m.classList.contains('show')&&!(e.target.closest&&e.target.closest('.nt-wrap'))) closeNotif(); });
+function _notifAgo(ts){ if(!ts)return ''; var s=Math.floor((Date.now()-new Date(ts).getTime())/1000); if(s<60)return 'just now'; if(s<3600)return Math.floor(s/60)+'m ago'; if(s<86400)return Math.floor(s/3600)+'h ago'; return Math.floor(s/86400)+'d ago'; }
+function proNotifClick(link){ try{ link=decodeURIComponent(link); }catch(e){} if(link) location.href=link; }
+async function loadProNotifs(){
+  var m=_member(); if(!m||!m.id)return; var listEl=document.getElementById('nt-list'); if(!listEl)return;
+  try{
+    var res=await fetch(PRO_API+'/api/notifications/'+m.id); var json=await res.json(); var list=(json&&json.notifications)||[];
+    if(!list.length){ listEl.innerHTML='<div class="ov-empty" style="padding:16px;">No notifications yet.</div>'; return; }
+    listEl.innerHTML=list.map(function(n){
+      var link=n.link||''; var tap=link?(' style="cursor:pointer;" onclick="proNotifClick(\''+String(link).replace(/'/g,'%27')+'\')"'):'';
+      return '<div class="nt-item"'+tap+'><span class="ms" style="color:var(--ffp-purple);">'+escHtml(n.icon||'campaign')+'</span><div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;line-height:1.4;">'+escHtml(n.title||'')+(n.body?' — '+escHtml(n.body):'')+'</div><div style="font-size:11px;color:var(--ffp-text-dim);margin-top:2px;">'+_notifAgo(n.created_at)+'</div></div></div>';
+    }).join('');
+  }catch(e){ listEl.innerHTML='<div class="ov-empty" style="padding:16px;">Couldn’t load notifications.</div>'; }
+}
+async function markProNotifsSeen(){
+  var m=_member(); if(!m||!m.id)return; var b=document.getElementById('nt-badge'); if(b)b.style.display='none';
+  try{ await fetch(PRO_API+'/api/notifications/seen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({member_id:m.id})}); }catch(e){}
+}
+async function proNotifBadge(){
+  var m=_member(); if(!m||!m.id)return;
+  try{ var res=await fetch(PRO_API+'/api/notifications/'+m.id); var j=await res.json(); var u=(j&&j.unread)||0; var b=document.getElementById('nt-badge'); if(b){ if(u>0){ b.textContent=u>9?'9+':String(u); b.style.display=''; } else b.style.display='none'; } }catch(e){}
+}
 
 // ─── Inline professional sign-in (PWA opens straight here; no portal picker) ───
 var _siEmail='';
