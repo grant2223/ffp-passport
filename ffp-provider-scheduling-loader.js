@@ -47,6 +47,7 @@ function schedRow(s) {
   if (s.capacity) meta.push(s.capacity + ' spots');
   if (s.duration_min) meta.push(s.duration_min + ' min');
   if (s.price_aed != null && Number(s.price_aed) > 0) meta.push('AED ' + s.price_aed);
+  if (s.recurrence === 'weekly') meta.push('Weekly');
   return '<div style="background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">' +
       '<div style="min-width:0;">' +
         '<div style="font-weight:800;color:var(--ffp-text,#eaf2f8);">' + escHtml(s.title) + '</div>' +
@@ -69,6 +70,15 @@ function openSessionModal(id) {
   var dt = s.start_at ? new Date(s.start_at) : null;
   var dval = dt ? (dt.getFullYear() + '-' + ('0' + (dt.getMonth() + 1)).slice(-2) + '-' + ('0' + dt.getDate()).slice(-2)) : '';
   var tval = dt ? (('0' + dt.getHours()).slice(-2) + ':' + ('0' + dt.getMinutes()).slice(-2)) : '';
+  var repeatBlock = editing ? '' : `
+    <div class="form-section">
+      <div class="form-section-title">Repeats</div>
+      <div class="form-grid">
+        <div class="field"><div class="label">Repeat</div><select class="select" id="sm-recurrence"><option value="none">Does not repeat</option><option value="weekly">Weekly</option></select></div>
+        <div class="field"><div class="label">Repeat until</div><input class="input" type="date" id="sm-repeat-until" value=""></div>
+      </div>
+      <div class="psub" style="margin:6px 2px 0;">Weekly creates one session each week up to this date (defaults to 12 weeks).</div>
+    </div>`;
   openModalShell('lg', (editing ? 'Edit session' : 'New session'), `
     <div class="form-section">
       <div class="form-section-title">Type</div>
@@ -99,6 +109,7 @@ function openSessionModal(id) {
         <div class="field"><div class="label">Duration (min)</div><input class="input" type="number" id="sm-duration" value="${escHtml(String(s.duration_min || ''))}" placeholder="60"></div>
       </div>
     </div>
+    ${repeatBlock}
     <div class="form-section">
       <div class="form-section-title">Capacity &amp; price</div>
       <div class="form-grid">
@@ -136,12 +147,14 @@ async function saveSession(id) {
     session_type: g('type') || 'class', title: title, activity: g('activity'), coach: g('coach'),
     start_at: startIso, duration_min: g('duration'), capacity: g('capacity'),
     price_aed: g('price'), location: g('location'), city: g('city'),
-    team_name: g('team'), notes: g('notes')
+    team_name: g('team'), notes: g('notes'),
+    recurrence: g('recurrence') || 'none', repeat_until: g('repeat-until')
   };
+  var weekly = (!id && g('recurrence') === 'weekly');
   try {
     var r = await window.supabase.rpc('provider_save_session', { p_provider: pid, p_id: id || null, p: payload });
     if (r && r.error) throw r.error;
-    showToast(id ? 'Session updated' : 'Session created', 'success');
+    showToast(id ? 'Session updated' : (weekly ? 'Weekly sessions created' : 'Session created'), 'success');
     closeModal();
     renderScheduling();
   } catch (e) { showToast('Could not save session', 'error'); }
