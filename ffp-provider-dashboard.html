@@ -322,11 +322,25 @@ a { color: var(--ffp-blue); text-decoration: none; }
 .sb-nav::-webkit-scrollbar { width: 4px; }
 .sb-nav::-webkit-scrollbar-thumb { background: rgba(43, 168, 224, .15); border-radius: 2px; }
 .sb-section {
-  font-size: 9px; font-weight: 800; letter-spacing: 1.6px;
-  color: var(--ffp-text-dim);
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11px; font-weight: 900; letter-spacing: 1.5px;
+  color: var(--ffp-text-muted);
   text-transform: uppercase;
-  padding: 14px 14px 6px;
+  padding: 14px 12px 8px;
+  background: none; border: none; width: 100%; cursor: pointer; text-align: left;
 }
+.sb-section:hover { color: var(--ffp-text); }
+.sb-section .sb-chev { font-size: 18px; color: var(--ffp-text-dim); transition: transform .18s; }
+.sb-section.collapsed .sb-chev { transform: rotate(-90deg); }
+.sb-sec-items { display: flex; flex-direction: column; gap: 2px; }
+.sb-sec-items.collapsed { display: none; }
+/* Business module tabs */
+.biz-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin: 18px 0 0; border-bottom: 1px solid var(--ffp-border); }
+.biz-tab { background: none; border: none; border-bottom: 2px solid transparent; color: var(--ffp-text-muted); font-weight: 700; font-size: 13px; padding: 10px 14px; cursor: pointer; transition: all .15s; }
+.biz-tab:hover { color: var(--ffp-text); }
+.biz-tab.active { color: var(--ffp-text); border-bottom-color: var(--ffp-yellow, #FFCC00); }
+.biz-pane { display: none; }
+.biz-pane.active { display: block; }
 .ni {
   display: flex; align-items: center; gap: 11px;
   padding: 10px 14px; border-radius: 9px;
@@ -2465,129 +2479,167 @@ a { color: var(--ffp-blue); text-decoration: none; }
       </section>
 
       <!-- ════════════════════════════════════════════════════════════════
-           BUSINESS MANAGEMENT — outline (placeholder panels). Each becomes a
-           real module: DB tables + UI + (some) backend. Built one at a time.
+           BUSINESS MANAGEMENT — outline. Four panels, each with tabs that
+           become real tools (DB + UI + some backend). Built one at a time.
            ════════════════════════════════════════════════════════════════ -->
-      <section class="panel" id="panel-clients">
-        <div class="ph">Clients</div>
-        <div class="psub">Your own client book — the people who train with you (separate from FFP members).</div>
-        <div class="panel-placeholder" style="margin-top:18px;">
-          <span class="ms" style="font-size:46px;color:var(--ffp-yellow,#FFCC00);">contacts</span>
-          <h3 style="margin:14px 0 6px;">Clients — coming soon</h3>
-          <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
-            A full client database: contact details, join date, activity history, notes, and tags so you can
-            group and filter (e.g. "trial", "monthly", "lapsed"). This is the backbone the other Business
-            tools build on — bookings, memberships and invoices all link back to a client here.
-          </p>
+      <section class="panel" id="panel-members">
+        <div class="ph">Members</div>
+        <div class="psub">Everyone who trains with you — your member &amp; client base.</div>
+        <div class="biz-tabs">
+          <button class="biz-tab active" onclick="bizTab(this,'mem-directory')">Directory</button>
+          <button class="biz-tab" onclick="bizTab(this,'mem-plans')">Memberships &amp; Packages</button>
+          <button class="biz-tab" onclick="bizTab(this,'mem-teams')">Teams &amp; Rosters</button>
+          <button class="biz-tab" onclick="bizTab(this,'mem-comms')">Communications</button>
+        </div>
+        <div class="biz-pane active" id="mem-directory">
+          <div class="panel-placeholder" style="margin-top:26px;">
+            <span class="ms" style="font-size:44px;color:var(--ffp-yellow,#FFCC00);">contacts</span>
+            <h3 style="margin:14px 0 6px;">Member directory — coming soon</h3>
+            <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
+              Your full member list: contact details, join date, activity history, notes and tags so you can
+              group and filter (trial, monthly, lapsed). The backbone everything else links back to.
+            </p>
+          </div>
+        </div>
+        <div class="biz-pane" id="mem-plans">
+          <div class="panel-placeholder" style="margin-top:26px;">
+            <span class="ms" style="font-size:44px;color:var(--ffp-yellow,#FFCC00);">card_membership</span>
+            <h3 style="margin:14px 0 6px;">Memberships &amp; packages — coming soon</h3>
+            <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
+              Define your own plans — monthly unlimited, 10-class packs, term memberships — and assign them to
+              members. Tracks remaining credits, renewal dates and expiries, and flags who's due to renew.
+            </p>
+          </div>
+        </div>
+        <div class="biz-pane" id="mem-teams">
+          <div class="panel-placeholder" style="margin-top:26px;">
+            <span class="ms" style="font-size:44px;color:var(--ffp-yellow,#FFCC00);">groups</span>
+            <h3 style="margin:14px 0 6px;">Teams &amp; rosters — coming soon</h3>
+            <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
+              For clubs and squads: create teams, add players to a roster, record positions and age groups,
+              and manage who's in each squad. Links to Attendance and Scheduling for training and fixtures.
+            </p>
+          </div>
+        </div>
+        <div class="biz-pane" id="mem-comms">
+          <div class="panel-placeholder" style="margin-top:26px;">
+            <span class="ms" style="font-size:44px;color:var(--ffp-yellow,#FFCC00);">campaign</span>
+            <h3 style="margin:14px 0 6px;">Communications — coming soon</h3>
+            <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
+              Message your members directly: session reminders, schedule changes, and announcements to
+              everyone or a chosen group (a team, or lapsed members) by push, email or SMS.
+            </p>
+          </div>
         </div>
       </section>
 
       <section class="panel" id="panel-scheduling">
         <div class="ph">Scheduling</div>
-        <div class="psub">Your class &amp; session calendar — capacity, bookings and waitlists in one place.</div>
-        <div class="panel-placeholder" style="margin-top:18px;">
-          <span class="ms" style="font-size:46px;color:var(--ffp-yellow,#FFCC00);">calendar_month</span>
-          <h3 style="margin:14px 0 6px;">Scheduling &amp; bookings — coming soon</h3>
-          <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
-            A real calendar of classes, sessions and 1-to-1 appointments with set capacity. Clients book a
-            spot, you see who's coming, and a waitlist fills cancellations automatically. Supports one-off
-            and recurring sessions.
-          </p>
+        <div class="psub">Your class &amp; session calendar — bookings, capacity and attendance.</div>
+        <div class="biz-tabs">
+          <button class="biz-tab active" onclick="bizTab(this,'sch-calendar')">Calendar &amp; Bookings</button>
+          <button class="biz-tab" onclick="bizTab(this,'sch-attendance')">Attendance</button>
         </div>
-      </section>
-
-      <section class="panel" id="panel-memberships">
-        <div class="ph">Memberships</div>
-        <div class="psub">Recurring plans and class packs — track credits, renewals and expiry per client.</div>
-        <div class="panel-placeholder" style="margin-top:18px;">
-          <span class="ms" style="font-size:46px;color:var(--ffp-yellow,#FFCC00);">card_membership</span>
-          <h3 style="margin:14px 0 6px;">Memberships &amp; packages — coming soon</h3>
-          <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
-            Define your own plans — monthly unlimited, 10-class packs, term memberships — and assign them to
-            clients. The system tracks remaining credits, renewal dates and expiries, and flags who's due to
-            renew. Pairs with Payments for auto-billing.
-          </p>
+        <div class="biz-pane active" id="sch-calendar">
+          <div class="panel-placeholder" style="margin-top:26px;">
+            <span class="ms" style="font-size:44px;color:var(--ffp-yellow,#FFCC00);">calendar_month</span>
+            <h3 style="margin:14px 0 6px;">Calendar &amp; bookings — coming soon</h3>
+            <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
+              A real calendar of classes, sessions and 1-to-1 appointments with set capacity. Members book a
+              spot, you see who's coming, and a waitlist fills cancellations. Supports recurring sessions.
+            </p>
+          </div>
         </div>
-      </section>
-
-      <section class="panel" id="panel-teams">
-        <div class="ph">Teams &amp; Rosters</div>
-        <div class="psub">For clubs &amp; squads — teams, players, positions and age groups.</div>
-        <div class="panel-placeholder" style="margin-top:18px;">
-          <span class="ms" style="font-size:46px;color:var(--ffp-yellow,#FFCC00);">groups</span>
-          <h3 style="margin:14px 0 6px;">Teams &amp; rosters — coming soon</h3>
-          <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
-            Built for sports clubs and squads: create teams, add players to a roster, record positions and
-            age groups, and manage who's in each squad. Links to Attendance and Scheduling so you can run
-            training and fixtures.
-          </p>
-        </div>
-      </section>
-
-      <section class="panel" id="panel-attendance">
-        <div class="ph">Attendance</div>
-        <div class="psub">A register for every session — who showed, who didn't.</div>
-        <div class="panel-placeholder" style="margin-top:18px;">
-          <span class="ms" style="font-size:46px;color:var(--ffp-yellow,#FFCC00);">how_to_reg</span>
-          <h3 style="margin:14px 0 6px;">Attendance — coming soon</h3>
-          <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
-            Mark off who attended each class, session or training — by tap or QR check-in. See no-shows,
-            streaks and attendance rates per client and per team, which feeds straight into Reports.
-          </p>
-        </div>
-      </section>
-
-      <section class="panel" id="panel-billing">
-        <div class="ph">Payments &amp; Invoices</div>
-        <div class="psub">Charge your clients and send invoices — paid into your own account.</div>
-        <div class="panel-placeholder" style="margin-top:18px;">
-          <span class="ms" style="font-size:46px;color:var(--ffp-yellow,#FFCC00);">receipt_long</span>
-          <h3 style="margin:14px 0 6px;">Payments &amp; invoicing — coming soon</h3>
-          <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
-            Take payments and issue invoices for memberships, packs and sessions — money goes to your own
-            connected Stripe account, with a full payment history. This is the biggest piece (it needs a
-            one-time Stripe connection per business), so it comes after the essentials are in.
-          </p>
+        <div class="biz-pane" id="sch-attendance">
+          <div class="panel-placeholder" style="margin-top:26px;">
+            <span class="ms" style="font-size:44px;color:var(--ffp-yellow,#FFCC00);">how_to_reg</span>
+            <h3 style="margin:14px 0 6px;">Attendance — coming soon</h3>
+            <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
+              A register for every session — mark who showed by tap or QR check-in. See no-shows, streaks and
+              attendance rates per member and per team, feeding straight into Reports.
+            </p>
+          </div>
         </div>
       </section>
 
       <section class="panel" id="panel-staff">
         <div class="ph">Staff</div>
-        <div class="psub">Coaches and staff accounts, roles and who can do what.</div>
-        <div class="panel-placeholder" style="margin-top:18px;">
-          <span class="ms" style="font-size:46px;color:var(--ffp-yellow,#FFCC00);">badge</span>
-          <h3 style="margin:14px 0 6px;">Staff — coming soon</h3>
-          <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
-            Add coaches and team members with their own sign-in and role-based access — who can manage
-            bookings, see payments, or just run their own classes. Assign staff to sessions and teams.
-          </p>
+        <div class="psub">Coaches and staff — accounts, access and schedules.</div>
+        <div class="biz-tabs">
+          <button class="biz-tab active" onclick="bizTab(this,'stf-list')">Staff</button>
+          <button class="biz-tab" onclick="bizTab(this,'stf-roles')">Roles &amp; Access</button>
+          <button class="biz-tab" onclick="bizTab(this,'stf-sched')">Schedules</button>
+        </div>
+        <div class="biz-pane active" id="stf-list">
+          <div class="panel-placeholder" style="margin-top:26px;">
+            <span class="ms" style="font-size:44px;color:var(--ffp-yellow,#FFCC00);">badge</span>
+            <h3 style="margin:14px 0 6px;">Staff list — coming soon</h3>
+            <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
+              Add coaches and team members, each with their own sign-in. Keep their contact details, role and
+              the classes or teams they run in one place.
+            </p>
+          </div>
+        </div>
+        <div class="biz-pane" id="stf-roles">
+          <div class="panel-placeholder" style="margin-top:26px;">
+            <span class="ms" style="font-size:44px;color:var(--ffp-yellow,#FFCC00);">admin_panel_settings</span>
+            <h3 style="margin:14px 0 6px;">Roles &amp; access — coming soon</h3>
+            <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
+              Decide who can do what — manage bookings, see payments, or just run their own classes — with
+              role-based permissions so staff only see what they need.
+            </p>
+          </div>
+        </div>
+        <div class="biz-pane" id="stf-sched">
+          <div class="panel-placeholder" style="margin-top:26px;">
+            <span class="ms" style="font-size:44px;color:var(--ffp-yellow,#FFCC00);">event_available</span>
+            <h3 style="margin:14px 0 6px;">Staff schedules — coming soon</h3>
+            <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
+              Assign staff to sessions and teams and see each person's roster at a glance — who's coaching
+              what, and when.
+            </p>
+          </div>
         </div>
       </section>
 
-      <section class="panel" id="panel-comms">
-        <div class="ph">Communications</div>
-        <div class="psub">Reach your clients — announcements, reminders, email &amp; SMS.</div>
-        <div class="panel-placeholder" style="margin-top:18px;">
-          <span class="ms" style="font-size:46px;color:var(--ffp-yellow,#FFCC00);">campaign</span>
-          <h3 style="margin:14px 0 6px;">Communications — coming soon</h3>
-          <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
-            Message your clients directly: session reminders, schedule changes, and announcements to
-            everyone or a chosen group (e.g. a team, or lapsed members) by push, email or SMS.
-          </p>
+      <section class="panel" id="panel-billing">
+        <div class="ph">Payments &amp; Invoices</div>
+        <div class="psub">Charge your members and send invoices — paid into your own account.</div>
+        <div class="biz-tabs">
+          <button class="biz-tab active" onclick="bizTab(this,'bil-pay')">Payments</button>
+          <button class="biz-tab" onclick="bizTab(this,'bil-inv')">Invoices</button>
+          <button class="biz-tab" onclick="bizTab(this,'bil-reports')">Reports</button>
         </div>
-      </section>
-
-      <section class="panel" id="panel-reports">
-        <div class="ph">Reports</div>
-        <div class="psub">The numbers that run the business — revenue, attendance, retention.</div>
-        <div class="panel-placeholder" style="margin-top:18px;">
-          <span class="ms" style="font-size:46px;color:var(--ffp-yellow,#FFCC00);">insights</span>
-          <h3 style="margin:14px 0 6px;">Business reports — coming soon</h3>
-          <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
-            Clear reports across everything above: revenue and outstanding invoices, attendance and
-            no-shows, membership growth and churn, and your busiest classes — so you can see how the
-            business is really doing.
-          </p>
+        <div class="biz-pane active" id="bil-pay">
+          <div class="panel-placeholder" style="margin-top:26px;">
+            <span class="ms" style="font-size:44px;color:var(--ffp-yellow,#FFCC00);">payments</span>
+            <h3 style="margin:14px 0 6px;">Payments — coming soon</h3>
+            <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
+              Take payments for memberships, packs and sessions — money goes to your own connected Stripe
+              account. This is the biggest piece (a one-time Stripe connection per business), so it comes
+              after the essentials are in.
+            </p>
+          </div>
+        </div>
+        <div class="biz-pane" id="bil-inv">
+          <div class="panel-placeholder" style="margin-top:26px;">
+            <span class="ms" style="font-size:44px;color:var(--ffp-yellow,#FFCC00);">receipt_long</span>
+            <h3 style="margin:14px 0 6px;">Invoices — coming soon</h3>
+            <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
+              Issue and send invoices, track what's paid and what's outstanding, and keep a full history per
+              member.
+            </p>
+          </div>
+        </div>
+        <div class="biz-pane" id="bil-reports">
+          <div class="panel-placeholder" style="margin-top:26px;">
+            <span class="ms" style="font-size:44px;color:var(--ffp-yellow,#FFCC00);">insights</span>
+            <h3 style="margin:14px 0 6px;">Reports — coming soon</h3>
+            <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
+              The numbers that run the business: revenue and outstanding invoices, attendance and no-shows,
+              membership growth and churn, and your busiest classes.
+            </p>
+          </div>
         </div>
       </section>
 
@@ -2781,28 +2833,6 @@ a { color: var(--ffp-blue); text-decoration: none; }
       </section>
 
 
-      <!-- ════════ EARNINGS (LOCKED) ════════ -->
-      <section class="panel" id="panel-earnings">
-        <div class="ph">Earnings</div>
-        <div class="psub">Track your revenue share and payouts.</div>
-        <div class="locked-panel">
-          <div class="empty-icon"><span class="ms">payments</span></div>
-          <div class="empty-title">Coming soon</div>
-          <div class="empty-sub">Earnings tracking goes live once your first paid bookings start flowing through the platform. You'll see revenue, payouts, and your share here.</div>
-        </div>
-      </section>
-
-      <!-- ════════ TEAM (LOCKED) ════════ -->
-      <section class="panel" id="panel-team">
-        <div class="ph">Team</div>
-        <div class="psub">Add staff accounts with limited permissions to manage your listings and check in members.</div>
-        <div class="locked-panel">
-          <div class="empty-icon"><span class="ms">group</span></div>
-          <div class="empty-title">Coming soon</div>
-          <div class="empty-sub">Multi-seat accounts arrive in the next update. For now, share one login with your team.</div>
-        </div>
-      </section>
-
       <!-- ════════ SETTINGS ════════ -->
       <section class="panel" id="panel-settings">
         <div class="ph">Settings</div>
@@ -2994,58 +3024,86 @@ const sampleRsvps = [];
 const NAV = [
   { id: 'overview',    icon: 'dashboard',       label: 'Overview',    section: 'manage' },
   { id: 'analytics',   icon: 'analytics',       label: 'Analytics',   section: 'manage' },
-  // ── Small-business management system (outline; built module-by-module) ──
-  { id: 'clients',     icon: 'contacts',        label: 'Clients',             section: 'business', soon: true },
+  // ── Business management system (Check-ins on top; modules built one-by-one) ──
+  { id: 'checkins',    icon: 'qr_code_scanner', label: 'Check-ins',           section: 'business' },
+  { id: 'members',     icon: 'groups',          label: 'Members',             section: 'business', soon: true },
   { id: 'scheduling',  icon: 'calendar_month',  label: 'Scheduling',          section: 'business', soon: true },
-  { id: 'memberships', icon: 'card_membership', label: 'Memberships',         section: 'business', soon: true },
-  { id: 'teams',       icon: 'groups',          label: 'Teams & Rosters',     section: 'business', soon: true },
-  { id: 'attendance',  icon: 'how_to_reg',      label: 'Attendance',          section: 'business', soon: true },
-  { id: 'billing',     icon: 'receipt_long',    label: 'Payments & Invoices', section: 'business', soon: true },
   { id: 'staff',       icon: 'badge',           label: 'Staff',               section: 'business', soon: true },
-  { id: 'comms',       icon: 'campaign',        label: 'Communications',      section: 'business', soon: true },
-  { id: 'reports',     icon: 'insights',        label: 'Reports',             section: 'business', soon: true },
-  { id: 'events',      icon: 'event',           label: 'Events',      section: 'listings' },
-  { id: 'experiences', icon: 'flight',          label: 'Experiences', section: 'listings' },
-  { id: 'challenges',  icon: 'emoji_events',    label: 'Challenges',  section: 'listings' },
-  { id: 'deals',       icon: 'local_offer',     label: 'Deals',       section: 'listings' },
-  { id: 'quests',      icon: 'flag',            label: 'Quests',      section: 'operations' },
-  { id: 'checkins',    icon: 'qr_code_scanner', label: 'Check-ins',   section: 'operations' },
-  { id: 'earnings',    icon: 'payments',        label: 'Earnings',    section: 'operations', locked: true },
+  { id: 'billing',     icon: 'receipt_long',    label: 'Payments & Invoices', section: 'business', soon: true },
+  // ── Engagement (member-facing listings) ──
+  { id: 'events',      icon: 'event',           label: 'Events',      section: 'engagement' },
+  { id: 'experiences', icon: 'flight',          label: 'Experiences', section: 'engagement' },
+  { id: 'challenges',  icon: 'emoji_events',    label: 'Challenges',  section: 'engagement' },
+  { id: 'quests',      icon: 'flag',            label: 'Quests',      section: 'engagement' },
+  { id: 'deals',       icon: 'local_offer',     label: 'Deals',       section: 'engagement' },
+  // ── Account ──
   { id: 'profile',     icon: 'storefront',      label: 'Profile',     section: 'account' },
-  { id: 'settings',    icon: 'settings',        label: 'Settings',    section: 'account' },
-  { id: 'team',        icon: 'group',           label: 'Team',        section: 'account', locked: true }
+  { id: 'settings',    icon: 'settings',        label: 'Settings',    section: 'account' }
 ];
+
+var _navCollapsed = {};   // section id -> true when collapsed
+const sectionLabels = { manage: 'Manage', business: 'Business', engagement: 'Engagement', account: 'Account' };
 
 function renderNav() {
   const nav = document.getElementById('sb-nav');
-  let html = '';
-  let lastSection = null;
-  const sectionLabels = { manage: 'Manage', business: 'Business', listings: 'Listings', operations: 'Operations', account: 'Account' };
+  // group items by section, preserving NAV order
+  const order = [];
+  const groups = {};
   NAV.forEach(item => {
-    if (item.section !== lastSection) {
-      html += '<div class="sb-section">' + sectionLabels[item.section] + '</div>';
-      lastSection = item.section;
-    }
-    const lockedClass = item.locked ? ' locked' : '';
-    const onclick = item.locked ? '' : ' onclick="showPanel(\'' + item.id + '\')"';
-    let badge = '';
-    if (item.id === 'deals') {
-      badge = '<span class="ni-lock-pill">Soon</span>';   // dormant — coming soon
-    } else if (item.id === 'events') {
-      badge = '<span class="ni-badge dim">' + events.length + '</span>';
-    } else if (item.id === 'experiences') {
-      badge = '<span class="ni-badge dim">' + experiences.length + '</span>';
-    } else if (item.id === 'challenges') {
-      badge = '<span class="ni-badge dim">' + challenges.length + '</span>';
-    } else if (item.soon || item.locked) {
-      badge = '<span class="ni-lock-pill">Soon</span>';
-    }
-    html += '<button class="ni' + lockedClass + '" data-nav="' + item.id + '"' + onclick + '>' +
-            '<span class="ms">' + item.icon + '</span>' +
-            '<span>' + item.label + '</span>' + badge +
-            '</button>';
+    if (!groups[item.section]) { groups[item.section] = []; order.push(item.section); }
+    groups[item.section].push(item);
+  });
+  let html = '';
+  order.forEach(sec => {
+    const isCol = !!_navCollapsed[sec];
+    html += '<button class="sb-section' + (isCol ? ' collapsed' : '') + '" data-sec-head="' + sec + '" ' +
+            'onclick="toggleNavSection(\'' + sec + '\')">' +
+            '<span>' + (sectionLabels[sec] || sec) + '</span>' +
+            '<span class="ms sb-chev">expand_more</span></button>';
+    html += '<div class="sb-sec-items' + (isCol ? ' collapsed' : '') + '" data-sec="' + sec + '">';
+    groups[sec].forEach(item => {
+      const lockedClass = item.locked ? ' locked' : '';
+      const onclick = item.locked ? '' : ' onclick="showPanel(\'' + item.id + '\')"';
+      let badge = '';
+      if (item.id === 'deals') {
+        badge = '<span class="ni-lock-pill">Soon</span>';
+      } else if (item.id === 'events') {
+        badge = '<span class="ni-badge dim">' + events.length + '</span>';
+      } else if (item.id === 'experiences') {
+        badge = '<span class="ni-badge dim">' + experiences.length + '</span>';
+      } else if (item.id === 'challenges') {
+        badge = '<span class="ni-badge dim">' + challenges.length + '</span>';
+      } else if (item.soon || item.locked) {
+        badge = '<span class="ni-lock-pill">Soon</span>';
+      }
+      html += '<button class="ni' + lockedClass + '" data-nav="' + item.id + '"' + onclick + '>' +
+              '<span class="ms">' + item.icon + '</span>' +
+              '<span>' + item.label + '</span>' + badge +
+              '</button>';
+    });
+    html += '</div>';
   });
   nav.innerHTML = html;
+}
+
+// Switch tabs inside a Business module panel.
+function bizTab(btn, paneId) {
+  const panel = btn.closest('.panel');
+  if (!panel) return;
+  panel.querySelectorAll('.biz-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  panel.querySelectorAll('.biz-pane').forEach(p => p.classList.remove('active'));
+  const pane = panel.querySelector('#' + paneId);
+  if (pane) pane.classList.add('active');
+}
+
+// Collapse/expand a sidebar section without re-rendering the whole nav.
+function toggleNavSection(sec) {
+  _navCollapsed[sec] = !_navCollapsed[sec];
+  const head = document.querySelector('.sb-section[data-sec-head="' + sec + '"]');
+  const items = document.querySelector('.sb-sec-items[data-sec="' + sec + '"]');
+  if (head)  head.classList.toggle('collapsed', !!_navCollapsed[sec]);
+  if (items) items.classList.toggle('collapsed', !!_navCollapsed[sec]);
 }
 
 // v12: load a panel's data loader the first time that panel is opened.
@@ -3071,6 +3129,8 @@ function showPanel(id) {
   const navBtn = document.querySelector('.ni[data-nav="' + id + '"]');
   if (navBtn) navBtn.classList.add('active');
   const item = NAV.find(x => x.id === id);
+  // If the active panel lives in a collapsed section, open that section.
+  if (item && _navCollapsed[item.section]) toggleNavSection(item.section);
   document.getElementById('tb-title').textContent = item ? item.label : '';
   // GA4 per-panel page_view (SPA — no real page reload on panel switch)
   try { if (window.ffpTrackView) window.ffpTrackView('partner/' + id, 'Partner · ' + (item ? item.label : id)); } catch (e) {}
