@@ -5266,12 +5266,15 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         <div class="streak-card-meta" id="streak-meta">Log an activity today to start a streak</div>
       </div>
       
-      <!-- Per-activity breakdown -->
+      <!-- Per-activity breakdown — collapsible, hidden by default -->
       <div class="ct-section">
-        <div class="ct-section-head">
+        <div class="ct-section-head" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="ffpToggleBreakdown()">
           <div class="ct-section-title">Activity breakdown</div>
+          <span class="material-icons" id="fs-breakdown-caret" style="color:var(--muted,#8a99a8);transition:transform .2s;">expand_more</span>
         </div>
-        <div id="fs-breakdown"></div>
+        <div id="fs-breakdown-wrap" style="display:none;">
+          <div id="fs-breakdown"></div>
+        </div>
       </div>
       <!-- Recent activity (moved from Passport) — last 10; calendar icon browses older months -->
       <div class="ct-section">
@@ -5439,16 +5442,19 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     </div>
     <div class="pm-form">
       <div class="pm-form-field">
+        <label class="pm-form-label">Photo (optional)</label>
+        <div id="log-photo" onclick="ffpLogPickPhoto()" style="width:100%;aspect-ratio:16/10;max-height:200px;border-radius:12px;border:1.5px dashed rgba(43,168,224,0.4);background:rgba(8,20,32,0.5) center/cover no-repeat;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;color:#8a99a8;overflow:hidden;">
+          <span class="material-icons" id="log-photo-icon" style="font-size:30px;">add_a_photo</span>
+          <span id="log-photo-hint" style="font-size:12px;font-weight:700;">Add a photo</span>
+        </div>
+        <input type="hidden" id="log-photo-url">
+      </div>
+      <div class="pm-form-field">
         <label class="pm-form-label">Activity</label>
         <div class="input-wrap">
           <input type="text" id="log-activity" class="pm-form-input" placeholder="Search activities..." autocomplete="off">
           <div class="picker-dropdown" id="activity-picker"></div>
         </div>
-      </div>
-      <div class="pm-form-field">
-        <button type="button" id="log-gps-btn" onclick="ffpLogUseGPS()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(43,168,224,0.1);color:var(--blue,#2ba8e0);border:1px solid rgba(43,168,224,0.35);border-radius:10px;padding:11px;font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;">
-          <span class="material-icons" style="font-size:18px;">my_location</span><span id="log-gps-label">Use my current location</span>
-        </button>
       </div>
       <div class="pm-form-grid-2">
         <div class="pm-form-field">
@@ -5461,11 +5467,12 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         </div>
       </div>
       <div class="pm-form-field">
-        <label class="pm-form-label">Pin the spot (optional)</label>
+        <label class="pm-form-label">Location</label>
         <button type="button" class="pm-form-input pm-form-pick" id="log-loc-btn" onclick="FFPLocPick.open(logSetLocation)">
-          <span id="log-loc-display" class="pmf-pick-ph">Drop a pin — where in the city?</span>
+          <span id="log-loc-display" class="pmf-pick-ph">Drop a pin or use my location</span>
           <span class="material-icons" style="color:var(--muted);">place</span>
         </button>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;">Sets the exact spot and fills your city + country automatically.</div>
         <a id="log-maplink" href="#" target="_blank" rel="noopener" style="display:none;font-size:12px;color:var(--blue);margin-top:6px;align-items:center;gap:4px;"><span class="material-icons" style="font-size:14px;vertical-align:-3px;">place</span> View on map</a>
         <input type="hidden" id="log-venue"><input type="hidden" id="log-lat"><input type="hidden" id="log-lng"><input type="hidden" id="log-maps">
       </div>
@@ -5502,6 +5509,18 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
       <div class="pm-form-field">
         <label class="pm-form-label">Notes (optional)</label>
         <textarea id="log-notes" class="pm-form-textarea" rows="2" placeholder="How did it feel?"></textarea>
+      </div>
+      <div class="pm-form-field">
+        <label class="ffp-log-share" style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;background:rgba(43,168,224,0.06);border:1px solid rgba(43,168,224,0.25);border-radius:12px;padding:13px 14px;">
+          <span style="display:flex;align-items:center;gap:10px;">
+            <span class="material-icons" style="color:var(--blue,#2ba8e0);font-size:20px;">group</span>
+            <span style="display:flex;flex-direction:column;gap:2px;">
+              <span style="font-size:13px;font-weight:800;color:var(--text,#e8eef4);">Share with my connections</span>
+              <span style="font-size:11px;color:var(--muted,#8a99a8);font-weight:600;">They get a notification to see how you did</span>
+            </span>
+          </span>
+          <input type="checkbox" id="log-share" checked style="width:20px;height:20px;accent-color:#2ba8e0;flex:0 0 auto;cursor:pointer;">
+        </label>
       </div>
     </div>
     <div class="dm-footer">
@@ -7932,7 +7951,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '356';
+  const FFP_BUILD = '357';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -11172,6 +11191,35 @@ function ffpToggleNotifications() {
     });
   });
 }
+// Photo for Log Activity — uploads to the public activity-photos bucket via FFPUpload; square crop.
+function ffpLogPickPhoto() {
+  if (!window.FFPUpload || !window.FFPUpload.pick) { if (window.showToast) showToast('Photo upload unavailable', 'error'); return; }
+  var mid = ((window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || {}).id || 'm';
+  window.FFPUpload.pick({
+    bucket: 'activity-photos', key: 'activity/' + mid + '-' + Date.now() + '.jpg',
+    aspect: 1, outW: 1000, outH: 1000, title: 'Activity photo',
+    onDone: function (url) { ffpLogSetPhoto(url); },
+    onError: function (e) { if (window.showToast) showToast('Photo upload failed', 'error'); console.warn('[log photo]', e); }
+  });
+}
+function ffpLogSetPhoto(url) {
+  var h = document.getElementById('log-photo-url'); if (h) h.value = url || '';
+  var box = document.getElementById('log-photo');
+  var icon = document.getElementById('log-photo-icon');
+  var hint = document.getElementById('log-photo-hint');
+  if (!box) return;
+  if (url) {
+    box.style.backgroundImage = "url('" + url + "')";
+    box.style.border = '1px solid rgba(43,168,224,0.3)';
+    if (icon) icon.style.display = 'none';
+    if (hint) { hint.textContent = 'Tap to change'; hint.style.background = 'rgba(8,20,32,0.6)'; hint.style.padding = '3px 9px'; hint.style.borderRadius = '6px'; }
+  } else {
+    box.style.backgroundImage = 'none';
+    box.style.border = '1.5px dashed rgba(43,168,224,0.4)';
+    if (icon) icon.style.display = '';
+    if (hint) { hint.textContent = 'Add a photo'; hint.style.background = 'none'; hint.style.padding = '0'; }
+  }
+}
 function openLogModal() {
   document.getElementById('log-modal-backdrop').classList.add('open');
   // Reset to INSERT mode (clears any prior edit state + restores title/button). openLogModalForEdit re-applies
@@ -11179,6 +11227,8 @@ function openLogModal() {
   window._ffpEditLogId = null;
   var _rt = document.querySelector('#log-modal-backdrop .dm-title'); if (_rt) _rt.textContent = 'Log activity';
   var _rb = document.querySelector('#log-modal-backdrop .dm-footer .btn-primary-yellow'); if (_rb) _rb.textContent = 'Save activity';
+  if (typeof ffpLogSetPhoto === 'function') ffpLogSetPhoto('');     // clear photo
+  var _sh = document.getElementById('log-share'); if (_sh) _sh.checked = true;   // default Share ON
   // Default Country + City to the member's own. Prefer the live profile; fall back to the
   // signed-in member row (FFPAuth) so it still pre-fills even before MemberProfile has loaded.
   var prof = (window.MemberProfile && MemberProfile.data) || {};
@@ -11221,6 +11271,21 @@ function logSetLocation(loc) {
   var mp = document.getElementById('log-maps'); if (mp) mp.value = loc.maps_url || '';
   var d = document.getElementById('log-loc-display'); if (d) { d.textContent = loc.name || 'Pin set'; d.classList.remove('pmf-pick-ph'); d.classList.add('set'); }
   var ml = document.getElementById('log-maplink'); if (ml && loc.maps_url) { ml.href = loc.maps_url; ml.style.display = 'inline-flex'; }
+  // Merged location: the pin's reverse-geocode also fills Country + City automatically (so there is
+  // no separate "use my current location" step — dropping a pin tells us the city + country too).
+  try {
+    if (loc.country) {
+      var cny = document.getElementById('log-country');
+      if (cny) {
+        var matched = '';
+        for (var i = 0; i < cny.options.length; i++) { if (cny.options[i].value && cny.options[i].value.toLowerCase() === String(loc.country).toLowerCase()) { matched = cny.options[i].value; break; } }
+        if (!matched) { cny.add(new Option(loc.country, loc.country)); matched = loc.country; }
+        cny.value = matched;
+        if (typeof fillLogCities === 'function') fillLogCities();
+      }
+    }
+    if (loc.city) { var cityS = document.getElementById('log-city'); if (cityS && typeof _ensureSelectOption === 'function') _ensureSelectOption(cityS, loc.city); }
+  } catch (e) {}
 }
 // EDIT an existing activity. Opens the same modal but prefilled from the row + in update mode. saveLog()
 // branches to the update_activity RPC when window._ffpEditLogId is set. Called by the Activity list (loader).
@@ -11245,6 +11310,8 @@ window.openLogModalForEdit = function (row) {
   var cal = document.getElementById('log-calories'); if (cal) cal.value = (row.calories ? row.calories : '');
   var hr = document.getElementById('log-hr'); if (hr) hr.value = (row.avg_heart_rate != null ? row.avg_heart_rate : '');
   var notes = document.getElementById('log-notes'); if (notes) notes.value = row.notes || '';
+  if (typeof ffpLogSetPhoto === 'function') ffpLogSetPhoto(row.photo_url || '');
+  var _she = document.getElementById('log-share'); if (_she) _she.checked = !!row.shared;
   // Prefill the pin (so editing a venue check-in or pinned log doesn't wipe its location on save).
   if (row.venue || row.checkin_lat != null) {
     logSetLocation({ name: row.venue || '', lat: (row.checkin_lat != null ? row.checkin_lat : null), lng: (row.checkin_lng != null ? row.checkin_lng : null),
@@ -11395,6 +11462,9 @@ async function saveLog() {
   if (!window.supabase) { if (typeof showToast === 'function') showToast('Still connecting — try again in a moment', 'error'); return; }
   var _editId = window._ffpEditLogId || null;
   var _loggedAtIso = new Date(dateStr + 'T' + timeStr + ':00').toISOString();
+  var _photoVal = ((document.getElementById('log-photo-url') || {}).value || '').trim();
+  var _shareVal = !!((document.getElementById('log-share') || {}).checked);
+  var _newId = null;
   try {
     var res;
     if (_editId) {
@@ -11404,7 +11474,8 @@ async function saveLog() {
         p_duration_min: entry.duration, p_duration_sec: entry.durationSec, p_calories: entry.calories,
         p_logged_at: _loggedAtIso, p_notes: entry.notes,
         p_distance_km: entry.distance_km, p_avg_hr: entry.avg_heart_rate,
-        p_venue: _venVal || null, p_lat: _latVal, p_lng: _lngVal
+        p_venue: _venVal || null, p_lat: _latVal, p_lng: _lngVal,
+        p_photo_url: _photoVal, p_shared: _shareVal
       });
     } else {
       res = await window.supabase.rpc('log_activity', {
@@ -11412,8 +11483,10 @@ async function saveLog() {
         p_duration_min: entry.duration, p_duration_sec: entry.durationSec, p_calories: entry.calories,
         p_logged_at: _loggedAtIso, p_notes: entry.notes,
         p_distance_km: entry.distance_km, p_avg_hr: entry.avg_heart_rate,
-        p_venue: _venVal || null, p_lat: _latVal, p_lng: _lngVal
+        p_venue: _venVal || null, p_lat: _latVal, p_lng: _lngVal,
+        p_photo_url: _photoVal || null, p_shared: _shareVal
       });
+      _newId = res && res.data ? res.data : null;
     }
     if (res.error) throw res.error;
   } catch (e) {
@@ -11433,7 +11506,17 @@ async function saveLog() {
   // Saved to the DB ✓ — now reflect it on the map this session
   if (typeof LOGS !== 'undefined') LOGS.push(entry);
   if (typeof renderAll === 'function') renderAll();
-  if (typeof showToast === 'function') showToast('Logged ' + act + (city ? ' in ' + city : ''), 'success');
+  // Shared → notify my connections / collectors (bell + push) via the backend. Fire-and-forget.
+  if (_shareVal && _newId) {
+    try {
+      fetch('https://ffp-passport-backend.vercel.app/api/activity/notify', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ member_id: member.id, activity_id: _newId })
+      }).catch(function () {});
+    } catch (e) {}
+  }
+  if (typeof window.ffpActivityReload === 'function') window.ffpActivityReload();   // refresh the Stats activity list (photo row)
+  if (typeof showToast === 'function') showToast('Logged ' + act + (city ? ' in ' + city : '') + (_shareVal ? ' · shared with connections' : ''), 'success');
   closeLogModal();
 }
 
@@ -11474,6 +11557,76 @@ async function loadJourneyLogs() {
 }
 // Refresh the passport whenever a check-in / activity is logged (venue check-in fires this).
 document.addEventListener('ffp-activity-logged', function () { loadJourneyLogs(); });
+
+// Activity breakdown is collapsed by default — this expands/collapses it (Fitness Stats › Activity).
+function ffpToggleBreakdown() {
+  var w = document.getElementById('fs-breakdown-wrap'); var c = document.getElementById('fs-breakdown-caret');
+  if (!w) return;
+  var open = w.style.display !== 'none';
+  w.style.display = open ? 'none' : 'block';
+  if (c) c.style.transform = open ? '' : 'rotate(180deg)';
+}
+
+// ── Activity detail card (tap a recent-activity row, or open a shared one from a notification) ──
+window.ffpCloseActivityCard = function () { var o = document.getElementById('ffp-act-card-ov'); if (o && o.parentNode) o.parentNode.removeChild(o); };
+window.ffpRenderActivityCard = function (a, isOwn) {
+  if (!a) return;
+  var esc = (window.escHtml ? window.escHtml : function (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); });
+  function dur(min, sec) { min = Math.max(0, Math.round(min || 0)); var h = Math.floor(min / 60), m = min % 60; return (h ? h + 'h ' : '') + m + 'm' + (sec ? (' ' + sec + 's') : ''); }
+  var lat = (a.lat != null ? a.lat : a.checkin_lat), lng = (a.lng != null ? a.lng : a.checkin_lng);
+  var when = a.logged_at ? new Date(a.logged_at).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  function chip(t) { return '<span style="font-size:12px;font-weight:700;color:#cfe0ee;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:999px;padding:5px 11px;">' + t + '</span>'; }
+  var chips = [];
+  if (a.duration_min || a.duration_sec) chips.push(chip(dur(a.duration_min, a.duration_sec)));
+  if (a.distance_km != null && a.distance_km > 0) chips.push(chip((Math.round(a.distance_km * 100) / 100) + ' km'));
+  if (a.calories) chips.push(chip(a.calories + ' kcal'));
+  if (a.avg_heart_rate) chips.push(chip(a.avg_heart_rate + ' bpm'));
+  var loc = [a.venue, a.city, a.country].filter(Boolean).join(', ');
+  var photo = a.photo_url ? '<div style="width:100%;aspect-ratio:1/1;max-height:330px;background:#13324a center/cover no-repeat;background-image:url(\'' + a.photo_url + '\');border-radius:14px;"></div>' : '';
+  var owner = (!isOwn && a.owner_name) ? ('<div style="display:flex;align-items:center;gap:9px;margin-bottom:13px;">' +
+      (a.owner_photo ? '<img src="' + esc(a.owner_photo) + '" style="width:38px;height:38px;border-radius:50%;object-fit:cover;">' : '<div style="width:38px;height:38px;border-radius:50%;background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;">' + esc((a.owner_name || 'M').charAt(0).toUpperCase()) + '</div>') +
+      '<div><div style="font-size:13px;font-weight:800;color:#e8eef4;">' + esc(a.owner_name) + '</div><div style="font-size:11px;color:#8a99a8;">shared an activity</div></div></div>') : '';
+  var mapLink = (lat != null && lng != null) ? ' <a href="https://www.google.com/maps?q=' + lat + ',' + lng + '" target="_blank" rel="noopener" style="color:#2ba8e0;font-weight:700;">· Map</a>' : '';
+  var editBtn = (isOwn && a.id) ? '<button onclick="ffpCloseActivityCard();window.ffpEditActivity&&window.ffpEditActivity(\'' + a.id + '\')" style="width:100%;margin-top:16px;padding:12px;border-radius:11px;border:1px solid rgba(43,168,224,0.35);background:rgba(43,168,224,0.06);color:#2ba8e0;font-weight:800;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:16px;vertical-align:middle;">edit</span> Edit activity</button>' : '';
+  var inner = owner + photo +
+    '<h3 style="font-size:20px;font-weight:900;color:#e8eef4;margin:' + (photo ? '14px' : '0') + ' 0 4px;">' + esc(a.activity || 'Activity') + '</h3>' +
+    (when ? '<div style="font-size:12px;color:#8a99a8;font-weight:700;">' + esc(when) + '</div>' : '') +
+    (chips.length ? '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:13px;">' + chips.join('') + '</div>' : '') +
+    (loc ? '<div style="font-size:13px;color:#cfe0ee;margin-top:13px;display:flex;align-items:flex-start;gap:6px;"><span class="material-icons" style="font-size:16px;color:#8a99a8;">place</span><span>' + esc(loc) + mapLink + '</span></div>' : '') +
+    (a.notes ? '<div style="font-size:13px;color:#cfe0ee;margin-top:13px;line-height:1.55;background:rgba(255,255,255,0.04);border-radius:10px;padding:12px 14px;">' + esc(a.notes) + '</div>' : '') +
+    editBtn;
+  ffpCloseActivityCard();
+  var ov = document.createElement('div'); ov.id = 'ffp-act-card-ov';
+  ov.setAttribute('style', 'position:fixed;inset:0;z-index:100050;background:rgba(0,8,20,0.82);display:flex;align-items:flex-end;justify-content:center;');
+  ov.onclick = function (e) { if (e.target === ov) ffpCloseActivityCard(); };
+  ov.innerHTML = '<div style="background:#0f1e2e;border-top:1px solid rgba(43,168,224,0.25);border-radius:18px 18px 0 0;width:100%;max-width:520px;max-height:90vh;overflow:auto;padding:20px 18px 26px;font-family:inherit;position:relative;">' +
+    '<button onclick="ffpCloseActivityCard()" style="position:absolute;top:13px;right:13px;background:rgba(255,255,255,0.08);border:none;color:#cfe0ee;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;"><span class="material-icons" style="font-size:20px;">close</span></button>' +
+    inner + '</div>';
+  document.body.appendChild(ov);
+};
+// Deep-linked shared activity (notification tap → ?activity=<id>) → fetch via RPC, then render the card.
+window.ffpViewSharedActivity = async function (id) {
+  if (!id || !window.supabase) return;
+  var me = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || {};
+  try {
+    var res = await window.supabase.rpc('member_activity_view', { p_viewer: me.id || null, p_id: id });
+    var d = res && res.data;
+    if (!d || d.error) { if (typeof showToast === 'function') showToast('That activity isn’t available', 'error'); return; }
+    window.ffpRenderActivityCard(d, String(d.owner_id) === String(me.id));
+  } catch (e) { console.warn('[activity view]', e); }
+};
+// On boot, open the shared activity card if the URL carries ?activity=<id> (from a share notification).
+(function () {
+  try {
+    var qa = new URLSearchParams(window.location.search).get('activity');
+    if (!qa) return;
+    var t = 0, iv = setInterval(function () {
+      t++;
+      if (window.supabase && window.ffpViewSharedActivity) { clearInterval(iv); window.ffpViewSharedActivity(qa); }
+      else if (t > 80) clearInterval(iv);
+    }, 250);
+  } catch (e) {}
+})();
 
 // ════════════════════════════════════════════════
 // PROVIDER REVIEW PROMPT (rate your session ~1h after a venue check-in)
@@ -12345,6 +12498,8 @@ window.FFPLocPick = (function(){
     fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=16&addressdetails=1&lat='+c.lat+'&lon='+c.lng)
       .then(function(r){return r.json();}).then(function(j){
         var nm=shortName(j); if(cur) cur.name=nm;
+        // also capture the city + country so the caller can auto-fill them (merged location control)
+        if(cur){ var a=j.address||{}; cur.city=a.city||a.town||a.village||a.suburb||a.county||''; cur.country=a.country||''; }
         if(ch) ch.textContent = nm || ('Pin: '+c.lat.toFixed(4)+', '+c.lng.toFixed(4));
       }).catch(function(){ if(ch) ch.textContent='Pin: '+c.lat.toFixed(4)+', '+c.lng.toFixed(4); });
   }
@@ -12386,7 +12541,7 @@ window.FFPLocPick = (function(){
     var c=map.getCenter();
     var lat=cur?cur.lat:c.lat, lng=cur?cur.lng:c.lng;
     var name=(cur&&cur.name)?cur.name:('Pin '+lat.toFixed(4)+', '+lng.toFixed(4));
-    if(typeof cb==='function') cb({ name:name, lat:lat, lng:lng, maps_url:'https://www.google.com/maps?q='+lat+','+lng });
+    if(typeof cb==='function') cb({ name:name, lat:lat, lng:lng, maps_url:'https://www.google.com/maps?q='+lat+','+lng, city:(cur&&cur.city)||'', country:(cur&&cur.country)||'' });
     close();
   }
   // One-tap GPS: centre the map (+ pin) on the member's current location, then the moveend reverse-geocode
