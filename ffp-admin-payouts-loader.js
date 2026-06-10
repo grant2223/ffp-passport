@@ -325,10 +325,13 @@
   }
 
   async function getMyAdminUid() {
+    // FFP uses a custom per-request JWT, not Supabase Auth — supabase.auth.getUser() is always null
+    // here. The admin's id is their member id (== admin_users.id), exposed as window.FFP_ADMIN.id.
     try {
-      var sess = await window.supabase.auth.getUser();
-      return sess && sess.data && sess.data.user ? sess.data.user.id : null;
-    } catch (e) { return null; }
+      if (window.FFP_ADMIN && window.FFP_ADMIN.id) return window.FFP_ADMIN.id;
+      if (window.FFPAuth && FFPAuth.getMember) { var m = FFPAuth.getMember(); return m && m.id ? m.id : null; }
+    } catch (e) {}
+    return null;
   }
 
   // ─── Custom action modal (replaces native confirm/prompt) ───
