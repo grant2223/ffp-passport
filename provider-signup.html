@@ -84,6 +84,21 @@ select option{background:var(--bg-2);color:var(--text)}
 .success .steps li{font-size:13px;color:var(--text);margin:0 0 9px 0;padding-left:4px}
 .success .steps li:last-child{margin-bottom:0}
 @media (max-width:640px){.grid{grid-template-columns:1fr}.hero h1{font-size:27px}.card{padding:24px 18px}}
+/* Phone country-code picker (platform standard: flag+code button, searchable list with country names) */
+.ccpick{flex:0 0 122px;position:relative}
+.cc-btn{display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;font-weight:600;padding:12px 12px;cursor:pointer;outline:none}
+.cc-btn:focus,.cc-btn.open{border-color:var(--blue)}
+.cc-caret{color:var(--muted);font-size:11px}
+.cc-pop{position:absolute;z-index:30;top:calc(100% + 6px);left:0;width:300px;max-width:80vw;background:var(--bg-2);border:1px solid var(--border-str);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.5);padding:10px;display:flex;flex-direction:column;gap:8px}
+.cc-pop[hidden]{display:none}
+.cc-search{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;font-weight:600;padding:9px 11px;outline:none}
+.cc-search:focus{border-color:var(--blue)}
+.cc-list{max-height:240px;overflow:auto;display:flex;flex-direction:column}
+.cc-opt{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text)}
+.cc-opt:hover{background:var(--bg-3)}
+.cc-opt .cc-code{color:var(--blue);font-weight:800;white-space:nowrap}
+.cc-opt .cc-country{color:var(--muted);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cc-empty{padding:14px;color:var(--muted);font-size:12px;text-align:center}
 </style>
 <!-- Google Analytics 4 (platform-wide) -->
 <script src="assets/ffp-analytics.js"></script>
@@ -137,7 +152,17 @@ select option{background:var(--bg-2);color:var(--text)}
         <div class="field">
           <label>Phone <span class="hint">— your facility's public phone number</span></label>
           <div style="display:flex;gap:8px;">
-            <select id="phone-cc" style="flex:0 0 118px;"></select>
+            <div class="ccpick" id="ccpick">
+              <button type="button" class="cc-btn" id="cc-btn" aria-haspopup="listbox" aria-expanded="false" onclick="ccToggle(event)">
+                <span id="cc-btn-label">+971</span>
+                <span class="cc-caret">▾</span>
+              </button>
+              <input type="hidden" id="phone-cc" value="+971">
+              <div class="cc-pop" id="cc-pop" role="listbox" hidden>
+                <input type="text" id="cc-search" class="cc-search" placeholder="Search country or code" oninput="ccFilter(this.value)" autocomplete="off">
+                <div class="cc-list" id="cc-list"></div>
+              </div>
+            </div>
             <input type="tel" id="phone-num" placeholder="56 261 7359" maxlength="30" style="flex:1;">
           </div>
         </div>
@@ -242,20 +267,64 @@ select option{background:var(--bg-2);color:var(--text)}
 <script>
 (function () {
   var TAX = window.FFP_TAX || {};
-  // Phone country code — shared taxonomy phoneCodes (default UAE)
-  var cc = document.getElementById('phone-cc');
-  if (cc && TAX.phoneCodes && TAX.phoneCodes.length) {
-    TAX.phoneCodes.forEach(function (p) {
-      var o = document.createElement('option');
-      o.value = p.code;
-      // Platform standard: collapsed field shows flag + dial code only (e.g. "🇦🇪 +971"),
-      // not the full country name. Country kept as a hover title for disambiguation.
-      o.textContent = (p.flag ? p.flag + ' ' : '') + p.code;
-      o.title = p.country || '';
-      if (p.code === '+971' && p.country === 'United Arab Emirates') o.selected = true;
-      cc.appendChild(o);
-    });
+  // Phone country code — shared taxonomy phoneCodes, rendered as the platform-standard searchable
+  // picker (flag + code in the button; flag + code + COUNTRY NAME, searchable, in the list). A native
+  // <select> showed bare "AE +971" rows on Windows (flag emoji doesn't render there) with no country
+  // name — which read as ugly. The hidden #phone-cc input keeps the submit value (val('phone-cc')).
+  var CODES = (TAX.phoneCodes && TAX.phoneCodes.length)
+    ? TAX.phoneCodes.slice()
+    : [{ code: '+971', country: 'United Arab Emirates', flag: '🇦🇪' }];
+  // UAE first (primary market), then alphabetical by country name.
+  CODES.sort(function (a, b) {
+    if (a.code === '+971' && a.country === 'United Arab Emirates') return -1;
+    if (b.code === '+971' && b.country === 'United Arab Emirates') return 1;
+    return (a.country || '').localeCompare(b.country || '');
+  });
+  var hidden = document.getElementById('phone-cc');
+  var btn = document.getElementById('cc-btn');
+  var btnLbl = document.getElementById('cc-btn-label');
+  var pop = document.getElementById('cc-pop');
+  var listEl = document.getElementById('cc-list');
+  if (!hidden || !listEl) return;
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function labelFor(p) { return (p.flag ? p.flag + ' ' : '') + p.code; }
+  function setVal(p) { hidden.value = p.code; if (btnLbl) btnLbl.textContent = labelFor(p); }
+  function rowHtml(p) {
+    return '<div class="cc-opt" data-code="' + esc(p.code) + '" onclick="ccPick(this)">' +
+      '<span class="cc-code">' + (p.flag ? esc(p.flag) + ' ' : '') + esc(p.code) + '</span>' +
+      '<span class="cc-country">' + esc(p.country || '') + '</span></div>';
   }
+  window.ccRender = function (filter) {
+    var q = (filter || '').trim().toLowerCase();
+    var rows = CODES.filter(function (p) { return !q || ((p.country || '') + ' ' + (p.code || '')).toLowerCase().indexOf(q) !== -1; });
+    listEl.innerHTML = rows.length ? rows.map(rowHtml).join('') : '<div class="cc-empty">No matches</div>';
+  };
+  window.ccFilter = function (v) { window.ccRender(v); };
+  window.ccPick = function (el) {
+    var code = el.getAttribute('data-code');
+    var p = CODES.filter(function (x) { return x.code === code; })[0];
+    if (p) setVal(p);
+    window.ccClose();
+  };
+  window.ccOpen = function () {
+    pop.removeAttribute('hidden'); btn.classList.add('open'); btn.setAttribute('aria-expanded', 'true');
+    window.ccRender('');
+    var s = document.getElementById('cc-search'); if (s) { s.value = ''; setTimeout(function () { s.focus(); }, 10); }
+  };
+  window.ccClose = function () {
+    pop.setAttribute('hidden', ''); btn.classList.remove('open'); btn.setAttribute('aria-expanded', 'false');
+  };
+  window.ccToggle = function (ev) {
+    if (ev) ev.stopPropagation();
+    if (pop.hasAttribute('hidden')) window.ccOpen(); else window.ccClose();
+  };
+  document.addEventListener('click', function (e) {
+    var pick = document.getElementById('ccpick');
+    if (pick && !pick.contains(e.target)) window.ccClose();
+  });
+  // default UAE (or first available)
+  var def = CODES.filter(function (p) { return p.code === '+971' && p.country === 'United Arab Emirates'; })[0] || CODES[0];
+  if (def) setVal(def);
 })();
 </script>
 </body>
