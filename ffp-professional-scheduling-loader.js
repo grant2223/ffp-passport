@@ -10,7 +10,8 @@
 // ════════════════════════════════════════════════════════════════════════
 var _proWeekStart = null;
 var _proClients = [];
-var SLOT_TYPES = { one_to_one: '1-to-1', small_group: 'Small group', large_group: 'Large group' };
+var SLOT_TYPES = { one_to_one: '1-to-1', assessment: 'Initial / assessment', small_group: 'Small group', large_group: 'Large group' };
+var SLOT_SINGLE = { one_to_one: 1, assessment: 1 }; // single-person slot types (capacity = 1, no group count)
 var WEEKDAYS = [['Mon',1],['Tue',2],['Wed',3],['Thu',4],['Fri',5],['Sat',6],['Sun',0]];
 var _MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 var _DAY = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -62,7 +63,7 @@ function occCard(o){
   var sub=[]; var nClients=(o.clients&&o.clients.length)||0;
   if(nClients) sub.push(o.clients.join(', '));
   sub.push(typeLbl);
-  if(o.slot_type!=='one_to_one'&&o.capacity) sub.push(nClients+'/'+o.capacity);
+  if(!SLOT_SINGLE[o.slot_type]&&o.capacity) sub.push(nClients+'/'+o.capacity);
   if(o.location) sub.push(o.location);
   return '<div onclick="openOccActions(\''+o.slot_id+'\',\''+o.date+'\')" style="background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:10px;padding:9px 12px;margin-bottom:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;">'+
     '<div style="min-width:0;"><div style="font-weight:800;color:var(--ffp-text);">'+_fmtTime(o.start_time)+' · '+escHtml(o.title||'Session')+(o.moved?' <span class="ni-lock-pill" style="background:rgba(255,204,0,.14);color:#FFCC00;">moved</span>':'')+'</div>'+
