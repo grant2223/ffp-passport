@@ -1,4 +1,10 @@
-<!-- FFP PROFESSIONAL DASHBOARD — v6 (2026-06-11): CLIENT HEALTH DATA (read-only, member-permissioned).
+<!-- FFP PROFESSIONAL DASHBOARD — v7 (2026-06-11): Modals are now FULL-BLEED / full-screen (platform
+     standard) — openModalShell no longer caps width. OVERVIEW shows TODAY's sessions only; yesterday/
+     tomorrow/week live in Scheduling. PROFILE-PHOTO SAVE FIX: the save RPC is now awaited (supabase-js v2
+     builders are lazy — the un-awaited call never fired, so profile_photo_url stayed null). Added
+     LANGUAGES spoken (professionals.languages text[], toggle chips) to the profile. Scheduling gains an
+     'Initial / assessment' slot type (frontend; slot_type is free-text). Pro loaders bust at PRO_BUILD='7'.
+     ---- v6 (2026-06-11): CLIENT HEALTH DATA (read-only, member-permissioned).
      Each client gets a Health-data action → request access (pro_request_data_access) → once the member
      approves in their Passport, the pro sees their Calorie Tracker + Fitness Stats read-only
      (pro_client_data, gated by an approved pro_client_access grant). Lazy pro loaders now cache-busted
@@ -225,14 +231,16 @@ a{color:var(--ffp-blue);}
 .biz-pane.active{display:block;}
 
 /* Modal */
-.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:18px;z-index:300;}
+/* Full-screen / full-bleed modals — platform standard (fills the viewport, no floating card) */
+.modal-ov{position:fixed;inset:0;background:var(--ffp-bg);display:none;flex-direction:column;z-index:300;}
 .modal-ov.show{display:flex;}
-.modal-card{width:100%;max-width:440px;background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:14px;max-height:90vh;display:flex;flex-direction:column;}
-.mc-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--ffp-border);}
-.mc-title{font-size:15px;font-weight:800;}
-.mc-x{background:none;border:none;color:var(--ffp-text-muted);cursor:pointer;}
-.mc-body{padding:6px 18px 14px;overflow-y:auto;}
-.mc-foot{padding:14px 18px;border-top:1px solid var(--ffp-border);display:flex;gap:10px;justify-content:flex-end;align-items:center;}
+.modal-card{width:100%;max-width:100%;height:100vh;height:100dvh;background:var(--ffp-bg);border:none;border-radius:0;display:flex;flex-direction:column;}
+.mc-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 18px;padding-top:calc(16px + env(safe-area-inset-top));border-bottom:1px solid var(--ffp-border);flex:0 0 auto;}
+.mc-title{font-size:16px;font-weight:800;flex:1;min-width:0;}
+.mc-x{background:none;border:none;color:var(--ffp-text-muted);cursor:pointer;flex:0 0 auto;}
+.mc-body{flex:1 1 auto;overflow-y:auto;padding:16px 18px;width:100%;max-width:640px;margin:0 auto;}
+.mc-foot{padding:14px 18px;padding-bottom:calc(14px + env(safe-area-inset-bottom));border-top:1px solid var(--ffp-border);display:flex;gap:10px;justify-content:flex-end;align-items:center;width:100%;max-width:640px;margin:0 auto;}
+.mc-foot:empty{display:none;}
 
 /* Toast */
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ffp-bg-3);border:1px solid var(--ffp-border-mid);color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:700;opacity:0;pointer-events:none;transition:all .2s;z-index:400;}
@@ -339,7 +347,7 @@ a{color:var(--ffp-blue);}
       <div id="ov-verif"></div>
       <div class="ov-grid" id="ov-stats"></div>
       <div class="ov-sec">
-        <div class="ov-sec-h"><div class="t">Sessions</div><div class="a" onclick="showPanel('scheduling')">Open schedule</div></div>
+        <div class="ov-sec-h"><div class="t">Today’s sessions</div><div class="a" onclick="showPanel('scheduling')">This week →</div></div>
         <div id="ov-sessions"><div class="ov-empty">Loading…</div></div>
       </div>
     </section>
@@ -452,7 +460,7 @@ var _pro = null;                           // the professional record (with can_
 
 function escHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function showToast(msg,type){ var t=document.getElementById('ffp-toast'); t.textContent=msg; t.className='toast show '+(type||''); clearTimeout(window._toastT); window._toastT=setTimeout(function(){t.className='toast';},2600); }
-function openModalShell(size,title,body,foot){ var ov=document.getElementById('ffp-modal'); ov.querySelector('.mc-title').textContent=title||''; ov.querySelector('.mc-body').innerHTML=body||''; ov.querySelector('.mc-foot').innerHTML=foot||''; ov.querySelector('.modal-card').style.maxWidth=(size==='lg')?'560px':'440px'; ov.classList.add('show'); }
+function openModalShell(size,title,body,foot){ var ov=document.getElementById('ffp-modal'); ov.querySelector('.mc-title').textContent=title||''; ov.querySelector('.mc-body').innerHTML=body||''; ov.querySelector('.mc-foot').innerHTML=foot||''; ov.classList.add('show'); } /* modals are full-bleed (CSS); size param kept for call-site compat */
 function closeModal(){ document.getElementById('ffp-modal').classList.remove('show'); }
 function emptyState(title,sub,ctaLabel,ctaFn){
   return '<div class="panel-placeholder" style="margin-top:24px;">'+
@@ -467,7 +475,7 @@ function bizTab(btn,paneId){ var panel=btn.closest('.panel'); if(!panel)return; 
 // ─── Deferred Business module loaders (reused, scoped to FFP_PROVIDER.id = professional id) ───
 var _provLoaderSrc = { clients:'ffp-professional-client-loader.js', packages:'ffp-professional-client-loader.js', comms:'ffp-professional-client-loader.js', scheduling:'ffp-professional-scheduling-loader.js', payments:'ffp-professional-billing-loader.js' };
 var _provLoaded = {};
-var PRO_BUILD='6'; // bump on any pro loader change so the lazy loaders re-fetch (no stale cache)
+var PRO_BUILD='7'; // bump on any pro loader change so the lazy loaders re-fetch (no stale cache)
 function ensureProviderLoader(id){ var src=_provLoaderSrc[id]; if(!src||_provLoaded[src])return; _provLoaded[src]=true; var sc=document.createElement('script'); sc.src=src+'?v='+PRO_BUILD; sc.async=false; sc.onload=function(){ renderPanel(id); }; sc.onerror=function(){ console.error('[FFP Pro] failed to load '+src); }; document.body.appendChild(sc); }
 function renderPanel(id){
   if(id==='clients'    && typeof renderMembers==='function')     renderMembers();
@@ -522,6 +530,7 @@ function pfCountryChange(){ document.getElementById('pf-city').innerHTML=cityOpt
 function renderProfileForm(){
   var host=document.getElementById('profile-form'); if(!host||!_pro)return;
   _pfProfs=(_pro.professional_types||[]).slice(0,4).map(function(n){ return {name:n,category:(_pro.category||(window.FFP_TAX&&FFP_TAX.categoryOfRole?FFP_TAX.categoryOfRole(n):''))||''}; });
+  _pfLangs=(_pro.languages||[]).slice();
   var photo=_pro.profile_photo_url||'';
   host.innerHTML =
     '<div id="pf-verif"></div>'+
@@ -540,6 +549,7 @@ function renderProfileForm(){
       '<div class="field"><div class="label">City</div><select class="select" id="pf-city">'+cityOptionsHtml(_pro.country||'', _pro.city||'')+'</select></div>'+
       '<div class="field"><div class="label">Public contact email <span style="color:var(--ffp-text-dim);">(optional)</span></div><input class="input" id="pf-work_email" value="'+escHtml(_pro.work_email||'')+'" placeholder="shown on your storefront"></div>'+
       '<div class="field"><div class="label">Phone <span style="color:var(--ffp-text-dim);">(optional)</span></div><input class="input" id="pf-phone" type="tel" value="'+escHtml(_pro.phone||'')+'" placeholder="+971 50 123 4567"></div>'+
+      '<div class="field full"><div class="label">Languages spoken</div><div id="pf-langs" class="chips" style="margin-bottom:0;"></div></div>'+
     '</div></div>'+
     '<div class="form-section"><div class="form-section-title">Videos</div><div class="psub" style="margin:-2px 0 8px;">Add YouTube, Vimeo or Instagram links — they appear on your public profile.</div><div id="pf-videos"><div class="ov-empty" style="padding:4px 0;">Loading…</div></div><button class="btn btn-sec btn-sm" type="button" style="margin-top:8px;" onclick="openVideoModal()"><span class="ms">add</span> Add video</button></div>'+
     '<div class="form-section"><div class="form-section-title">Visibility</div>'+
@@ -547,6 +557,7 @@ function renderProfileForm(){
     '</div>'+
     '<div style="margin-top:18px;"><button class="btn btn-pri" onclick="saveProfile()"><span class="ms">save</span> Save profile</button></div>';
   renderProfProfs();
+  renderProfLangs();
   renderVerifBanner('pf-verif');
   renderProVideos();
 }
@@ -559,7 +570,7 @@ async function saveProfile(){
   if(!_pfProfs.length){ showToast('Add at least one profession','error'); return; }
   var types=_pfProfs.map(function(p){return p.name;});
   var category=(_pfProfs[0]&&_pfProfs[0].category)||(window.FFP_TAX&&FFP_TAX.categoryOfRole?FFP_TAX.categoryOfRole(types[0]):'');
-  var payload={ given_names:given, surname:surname, display_name:name, headline:g('headline'), bio:g('bio'), country:g('country'), city:g('city'), work_email:g('work_email'), phone:g('phone'), professional_types:types, category:category, is_published:document.getElementById('pf-published').checked };
+  var payload={ given_names:given, surname:surname, display_name:name, headline:g('headline'), bio:g('bio'), country:g('country'), city:g('city'), work_email:g('work_email'), phone:g('phone'), languages:_pfLangs, professional_types:types, category:category, is_published:document.getElementById('pf-published').checked };
   try{
     var r=await window.supabase.rpc('professional_save_profile',{p_professional:_pro.id,p:payload});
     if(r&&r.error)throw r.error;
@@ -626,16 +637,33 @@ function renderProfProfs(){
   el.innerHTML=chips.join('');
 }
 function pfRemoveProf(i){ _pfProfs.splice(i,1); renderProfProfs(); }
+// Languages spoken (toggle chips + Other)
+var _pfLangs=[];
+var COMMON_LANGS=['English','Arabic','French','Spanish','German','Italian','Portuguese','Russian','Hindi','Urdu','Tagalog','Mandarin','Turkish','Farsi'];
+function renderProfLangs(){
+  var el=document.getElementById('pf-langs'); if(!el)return;
+  var extras=_pfLangs.filter(function(l){ return COMMON_LANGS.indexOf(l)===-1; });
+  el.innerHTML=COMMON_LANGS.concat(extras).map(function(l){
+    var on=_pfLangs.indexOf(l)!==-1;
+    return '<span class="chip'+(on?' on':'')+'" onclick="toggleLang(\''+l.replace(/'/g,"\\'")+'\')">'+escHtml(l)+'</span>';
+  }).join('')+'<span class="chip" onclick="addOtherLang()"><span class="ms" style="font-size:15px;vertical-align:-3px;">add</span> Other</span>';
+}
+function toggleLang(l){ var i=_pfLangs.indexOf(l); if(i===-1)_pfLangs.push(l); else _pfLangs.splice(i,1); renderProfLangs(); }
+function addOtherLang(){ var v=prompt('Add a language'); if(v){ v=v.trim(); if(v&&_pfLangs.indexOf(v)===-1){ _pfLangs.push(v); renderProfLangs(); } } }
 // Profile photo (quest-images bucket; members upload via FFPUpload server fallback)
 function pickProPhoto(){
   if(!window.FFPUpload||!FFPUpload.pick){ showToast('Uploader still loading — try again','error'); return; }
   FFPUpload.pick({ bucket:'quest-images', key:'pro-profile-'+(_pro.id||'x'), aspect:1, outW:512, outH:512, title:'Profile photo',
-    onDone:function(url){
-      _pro.profile_photo_url=url;
-      window.supabase.rpc('professional_save_profile',{p_professional:_pro.id,p:{profile_photo_url:url}});
-      var box=document.getElementById('pf-photo'); if(box){ box.style.background="url('"+url+"') center/cover no-repeat"; box.innerHTML=''; }
-      var avb=document.getElementById('av-btn'); if(avb){ avb.innerHTML='<img src="'+escHtml(url)+'" alt="">'; }
-      showToast('Photo updated','success');
+    onDone:async function(url){
+      try{
+        // MUST await — supabase-js v2 query builders are lazy and only fire when awaited/then'd.
+        var r=await window.supabase.rpc('professional_save_profile',{p_professional:_pro.id,p:{profile_photo_url:url}});
+        if(r&&r.error)throw r.error;
+        _pro.profile_photo_url=url;
+        var box=document.getElementById('pf-photo'); if(box){ box.style.background="url('"+url+"') center/cover no-repeat"; box.innerHTML=''; }
+        var avb=document.getElementById('av-btn'); if(avb){ avb.innerHTML='<img src="'+escHtml(url)+'" alt="">'; }
+        showToast('Photo updated','success');
+      }catch(e){ showToast('Photo uploaded but didn’t save — please try again','error'); }
     },
     onError:function(){ showToast('Upload failed — please try again','error'); }
   });
@@ -826,6 +854,15 @@ function _daySessions(label,dateIso,all){
   }).join(''):'<div class="ov-empty">No sessions.</div>';
   return '<div class="ov-day">'+escHtml(label)+'</div>'+inner;
 }
+function _todaySessions(dateIso,all){
+  var rows=all.filter(function(o){ return o.date===dateIso; }).sort(function(a,b){ return String(a.start_time).localeCompare(String(b.start_time)); });
+  if(!rows.length) return '<div class="ov-empty">No sessions today.</div>';
+  return rows.map(function(o){
+    var clients=(o.clients&&o.clients.length)?o.clients.join(', '):(o.title||'Session');
+    var sub=[(o.slot_type?String(o.slot_type).replace(/_/g,' '):''),(o.location||'')].filter(Boolean).join(' · ');
+    return '<div class="ov-sess"><div class="tm">'+escHtml(_fmtTime(o.start_time))+'</div><div class="info"><div class="nm">'+escHtml(clients)+'</div>'+(sub?'<div class="sub">'+escHtml(sub)+'</div>':'')+'</div></div>';
+  }).join('');
+}
 function _ovBanner(icon,title,sub){ return '<div style="display:flex;gap:10px;align-items:flex-start;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:12px;padding:12px 14px;margin-top:14px;"><span class="ms" style="color:var(--ffp-purple);">'+icon+'</span><div><div style="font-size:13px;font-weight:800;">'+escHtml(title)+'</div><div style="font-size:12px;color:var(--ffp-text-muted);margin-top:2px;line-height:1.5;">'+escHtml(sub)+'</div></div></div>'; }
 function renderVerifBanner(host){
   var el=document.getElementById(host||'ov-verif'); if(!el)return; if(!_pro){ el.innerHTML=''; return; }
@@ -850,11 +887,8 @@ async function renderOverview(){
   try{
     var today=new Date(); var ws=_wkStart(today);
     var r=await window.supabase.rpc('pro_week_schedule',{p_pro:pid,p_week_start:_iso(ws)});
-    var all=((r&&r.data)||[]).slice();
-    var y=_iso(_addDays(today,-1)), t=_iso(today), tm=_iso(_addDays(today,1));
-    if(new Date(y)<ws){ var rp=await window.supabase.rpc('pro_week_schedule',{p_pro:pid,p_week_start:_iso(_addDays(ws,-7))}); all=all.concat((rp&&rp.data)||[]); }
-    if(new Date(tm)>_addDays(ws,6)){ var rn=await window.supabase.rpc('pro_week_schedule',{p_pro:pid,p_week_start:_iso(_addDays(ws,7))}); all=all.concat((rn&&rn.data)||[]); }
-    sessEl.innerHTML=_daySessions('Yesterday',y,all)+_daySessions('Today',t,all)+_daySessions('Tomorrow',tm,all);
+    var all=((r&&r.data)||[]);
+    sessEl.innerHTML=_todaySessions(_iso(today),all);   // Overview = TODAY only; yesterday/tomorrow/week live in Scheduling
   }catch(e){ sessEl.innerHTML='<div class="ov-empty">Couldn’t load sessions.</div>'; }
 }
 async function boot(){
