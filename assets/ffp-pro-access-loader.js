@@ -1,4 +1,5 @@
-/* FFP Pro Data-Sharing (member side) — v1 (2026-06-11)
+/* FFP Pro Data-Sharing (member side) — v2 (2026-06-11)
+   v2: modal is now FULL-BLEED / full-screen (platform standard) instead of a bottom-sheet card.
    The member's control surface for professional access to their Calorie Tracker + Fitness Stats.
    A professional requests access (pro dashboard) → the member gets a notification + sees it here →
    Approve / Decline, and can Revoke an approved pro at any time. READ-ONLY for the pro; the member
@@ -17,11 +18,10 @@
     if (document.getElementById('ffp-pacc-css')) return;
     var s = document.createElement('style'); s.id = 'ffp-pacc-css';
     s.textContent = [
-      '.pacc-ov{position:fixed;inset:0;background:rgba(4,12,20,.72);display:none;align-items:flex-end;justify-content:center;z-index:4000;}',
+      '.pacc-ov{position:fixed;inset:0;background:#081420;display:none;flex-direction:column;z-index:4000;}',
       '.pacc-ov.show{display:flex;}',
-      '@media(min-width:560px){.pacc-ov{align-items:center;}}',
-      '.pacc-card{width:100%;max-width:460px;max-height:88vh;overflow-y:auto;background:#0b1c28;border:1px solid rgba(43,168,224,.22);border-radius:18px 18px 0 0;padding:20px;}',
-      '@media(min-width:560px){.pacc-card{border-radius:18px;}}',
+      '.pacc-card{width:100%;max-width:100%;height:100vh;height:100dvh;overflow-y:auto;background:#081420;border:none;border-radius:0;padding:20px;padding-top:calc(20px + env(safe-area-inset-top));}',
+      '.pacc-card>*{max-width:560px;margin-left:auto;margin-right:auto;}',
       '.pacc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:4px;}',
       '.pacc-title{font-size:17px;font-weight:800;color:#fff;}',
       '.pacc-sub{font-size:12px;color:#8a99a8;line-height:1.5;margin:2px 0 16px;}',
