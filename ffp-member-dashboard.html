@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v357 (2026-06-11)  [changelog trimmed to latest 3 updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v358 (2026-06-11)  [changelog trimmed to latest 3 updates; older history in git]
+     v358: REFERRAL = RECURRING. Pricing is a subscription ($20/mo · $149/yr · 7-day trial), not a one-time $99.
+           Backend already credits the referrer their tier% of EVERY paid invoice (recurring, v64/v46). Frontend
+           was still showing a one-time "% of $99" dollar — fixed: Earn % display (earn-refer-rate, rm-rate now
+           show the tier %), copy reframed to "% of every payment · recurring", unit 'recurring'. Removed the dead
+           JOIN_URL ($99 one-time Stripe link). FFP_CONST membershipUsd 99→149 (v2 constants).
      v357: DATA SHARING (member consent) — user menu gains "Data sharing" → window.FFPProAccess.open()
            (assets/ffp-pro-access-loader.js, deferred ?v=1; auto-opens on ?proaccess=1 from the notification).
            Member approves/declines/revokes professional access to their Calorie Tracker + Fitness Stats
@@ -5354,7 +5359,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
       <span class="material-icons">group_add</span>
       <div class="earn-refer-text">
         <div class="earn-refer-main">Refer a friend</div>
-        <div class="earn-refer-sub">Get <span id="earn-refer-rate">$4.95</span> when they join</div>
+        <div class="earn-refer-sub">Earn <span id="earn-refer-rate">20%</span> of every payment · recurring</div>
       </div>
       <span class="material-icons earn-refer-arrow">chevron_right</span>
     </button>
@@ -6068,7 +6073,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     <button class="dm-close" onclick="Earnings.closeReferModal()"><span class="material-icons">close</span></button>
     <div class="dm-body">
       <div class="dm-title">Refer a friend</div>
-      <div style="font-size:12px; color:var(--muted);">Share your code. When they sign up, you earn <span id="rm-rate" style="color:var(--yellow); font-weight:800;">$4.95</span>.</div>
+      <div style="font-size:12px; color:var(--muted);">Share your code. You earn <span id="rm-rate" style="color:var(--yellow); font-weight:800;">20%</span> of every payment they make — recurring, for as long as they stay a member.</div>
     </div>
     <div style="padding: 0 16px 16px;">
       <div class="refer-code-block">
@@ -9602,9 +9607,9 @@ const Earnings = {
     {
       key: 'refer', name: 'Refer a friend', icon: 'group_add',
       status: 'active',
-      how: 'Share your code or link. When they sign up and pay $99, you earn the reward.',
+      how: 'Share your code or link. You earn your tier’s % of every payment your referrals make — recurring, for as long as they stay a member.',
       rates: { member: '5%', supporter: '10%', ambassador: '20%' },
-      unit: 'per referral',
+      unit: 'recurring',
       actionLabel: 'Refer now', action: 'openReferModal'
     },
     {
@@ -9767,8 +9772,8 @@ const Earnings = {
     document.getElementById('tier-rate').textContent = referRate;
     document.getElementById('tier-icon-mount').innerHTML = `<span class="material-icons">${t.icon}</span>`;
     
-    // Refer CTA — show the dollar amount earned per referral (pct × $99)
-    document.getElementById('earn-refer-rate').textContent = '$' + this.fmtUsd(this.referralUsd(this.tier));
+    // Refer CTA — recurring tier % (reward = tier% of EVERY payment, credited per Stripe invoice, recurring)
+    document.getElementById('earn-refer-rate').textContent = referRate;
     
     // HOW TIERS WORK
     document.getElementById('tier-cards').innerHTML = ['member','supporter','ambassador'].map(k => {
@@ -9907,7 +9912,7 @@ const Earnings = {
   
   // ─────────── REFER MODAL ───────────
   openReferModal() {
-    document.getElementById('rm-rate').textContent = '$' + this.fmtUsd(this.referralUsd(this.tier));
+    document.getElementById('rm-rate').textContent = (this.REFERRAL_PCT[this.tier] || 5) + '%';
     document.getElementById('rm-code').textContent = this.referralCode;
     document.getElementById('rm-link').value = `https://ffppassport.com/join?ref=${this.referralCode}`;
     document.getElementById('rm-total').textContent   = this.referralStats.total;
@@ -12703,10 +12708,8 @@ window.FFPLocPick = (function(){
 <script>
 (function () {
   'use strict';
-  // v320: JOIN_URL = the LIVE $99 Passport Stripe Payment Link (same one used at signup in login.html — the
-  // link your paying members went through). Stripe collects the email at checkout → /api/onboard/from-stripe
-  // webhook upgrades that member to membership='passport'.
-  var JOIN_URL = 'https://buy.stripe.com/00w5kCgHcejw9c003F3Nm0s';
+  // (Removed the dead JOIN_URL — the old one-time $99 Stripe Payment Link. Upgrades now go through the
+  // subscription gate (__ffpGateCheckout → /api/billing/checkout, Annual $149/yr · Monthly $20/mo · 7-day trial).)
   var BOOK_URL = 'https://findfitpeople.com';
 
   function member() { try { return (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null; } catch (e) { return null; } }
