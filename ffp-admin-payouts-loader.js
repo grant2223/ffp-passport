@@ -683,8 +683,9 @@
           if (upRes.error) {
             throw new Error('Receipt upload failed: ' + upRes.error.message);
           }
-          var urlRes = window.supabase.storage.from('payout-receipts').getPublicUrl(path);
-          receiptUrl = urlRes && urlRes.data ? urlRes.data.publicUrl : null;
+          // payout-receipts is a PRIVATE bucket (financial docs) — use a long-lived signed URL, not getPublicUrl.
+          var urlRes = await window.supabase.storage.from('payout-receipts').createSignedUrl(path, 31536000);
+          receiptUrl = urlRes && urlRes.data ? urlRes.data.signedUrl : null;
           if (statusEl) { statusEl.textContent = 'Uploaded \u2713'; statusEl.style.color = '#4ade80'; }
         }
 
