@@ -1,5 +1,11 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP MEMBER CHECK-IN LOADER — v7 (2026-06-04)
+   FFP MEMBER CHECK-IN LOADER — v8 (2026-06-11)
+   v8: BOOKING CHECK-IN + shared modes. After scanning a venue, the member's bookings there (happening around
+       now) appear as "Your booking(s) here" → tap → booking_checkin RPC (geo-verified, stamps via activity log).
+       Uses member_bookings_at_venue + booking_checkin (shared with the FFP Booking platform). NEW MODE flag:
+       'passport' (default — full: bookings + quests/events/challenges + visit-logging) vs 'booking'
+       (FFP Booking platform — bookings + events ONLY; no quests/challenges/meetups, no visit-logging). Set via
+       window.FFP_CHECKIN_MODE or data-mode="booking" on the <script> tag. Same file, two surfaces, one contract.
    v7: After a successful venue check-in, calls member_quest_progress_checkin(p_me, p_provider) to
        auto-advance the member's JOINED exploration quests (rule-based, no provider approval) and
        surfaces progress / "explorer badge earned" in the success message. Non-fatal if it errors.
@@ -61,6 +67,20 @@
   var _programs = null;   // { quests:[], challenges:[], events:[] } for the current venue
   var _provId = null;
   var _prov = null;
+  var _bookings = [];     // the member's bookings at this venue happening around now (shared contract)
+  // MODE: 'passport' (default — full check-in: bookings + quests/events/challenges + visit-logging/stamps) OR
+  // 'booking' (FFP Booking platform — bookings + events ONLY; no quests/challenges/meetups, no visit-logging).
+  // Set via window.FFP_CHECKIN_MODE, or data-mode="booking" on the <script> tag that includes this file.
+  var MODE = (function () {
+    try {
+      if (window.FFP_CHECKIN_MODE) return String(window.FFP_CHECKIN_MODE);
+      var s = document.currentScript; if (s && s.getAttribute('data-mode')) return s.getAttribute('data-mode');
+      var all = document.querySelectorAll('script[src*="ffp-member-checkin-loader"]');
+      for (var i = 0; i < all.length; i++) { var m = all[i].getAttribute('data-mode'); if (m) return m; }
+    } catch (e) {}
+    return 'passport';
+  })();
+  var BOOKING_MODE = (MODE === 'booking');
 
   function sb() { return window.supabase; }
   function memberId() { try { var m = JSON.parse(localStorage.getItem('ffp_member') || '{}'); return m && m.id; } catch (e) { return null; } }
@@ -190,13 +210,24 @@
     _pickedAct = ''; _provId = providerId; _prov = prov;
     var name = esc(prov.business_name || 'this venue');
     var logo = logoHtml(prov);
+    // The member's bookings at this venue happening around now (member_bookings_at_venue — shared with FFP Booking).
+    _bookings = [];
+    try { var br = await sb().rpc('member_bookings_at_venue', { p_member: memberId(), p_provider: providerId }); if (br && br.data) _bookings = br.data; } catch (e) {}
+    var bookHtml = bookingsHtml();
     var progHtml = programsHtml();
-
-    // CHECK-IN shows ONLY this provider's own activities (no full-taxonomy fallback) —
-    // logging an arbitrary activity anywhere is the separate "Log Activity" flow. A member
-    // can ALWAYS just check in (general visit), with or without listed activities.
-    var acts = (prov.activities && prov.activities.length) ? prov.activities.slice() : [];
     var head = logo + '<div class="ci-title">You’re at ' + name + '</div>';
+
+    // FFP BOOKING-platform mode: bookings + events ONLY — no quests/challenges, no visit-logging/stamps.
+    if (BOOKING_MODE) {
+      var bbody = bookHtml + progHtml;
+      if (!bbody) bbody = '<div class="ci-sub">No bookings or events to check into here right now.</div>';
+      openSheet(head + bbody + '<div class="ci-foot"><button class="ci-btn ghost" onclick="FFPCheckin.close()">Close</button></div>', true);
+      return;
+    }
+
+    // PASSPORT mode — full flow. CHECK-IN shows ONLY this provider's own activities (no full-taxonomy fallback);
+    // logging an arbitrary activity anywhere is the separate "Log Activity" flow. A member can ALWAYS just check in.
+    var acts = (prov.activities && prov.activities.length) ? prov.activities.slice() : [];
 
     var durFields =
       '<div class="ci-dur2">' +
@@ -205,7 +236,7 @@
       '</div>';
     if (!acts.length) {
       openSheet(
-        head + progHtml +
+        head + bookHtml + progHtml +
         '<div class="ci-sub">Check in to log your visit to this venue.</div>' +
         '<div class="ci-foot">' +
           durFields +
@@ -222,7 +253,7 @@
     }).join('');
     var actLabel = progHtml ? '<div class="ci-divlbl">Or log your visit</div>' : '<div class="ci-sub">What did you do here? Tap an activity — it saves to your passport.</div>';
     openSheet(
-      head + progHtml + actLabel +
+      head + bookHtml + progHtml + actLabel +
       '<div class="ci-acts">' + items + '</div>' +
       '<div class="ci-foot">' +
         durFields +
@@ -236,9 +267,27 @@
   // Active programs as a clean 3-across row: Quest / Event / Challenge.
   // A type is tappable only if it has live items; tapping opens that type's list
   // (or goes straight in when there's only one). Hidden entirely if nothing's live.
+  // The member's bookings at this venue (shown in BOTH passport + booking modes — it's why they scanned).
+  function bookingsHtml() {
+    var bs = _bookings || [];
+    if (!bs.length) return '';
+    var rows = bs.map(function (b, i) {
+      var done = !!b.checked_in_today;
+      var when = b.scheduled_at ? eventWhen(b.scheduled_at) : '';
+      return '<button type="button" class="ci-act' + (done ? ' off' : '') + '" ' + (done ? 'disabled' : 'onclick="FFPCheckin._bookingCheckin(' + i + ')"') + '>' +
+             '<span>' + esc(b.title || 'Booking') + (when ? ('<br><span style="font-size:11.5px;color:#9dbdd0;font-weight:600;">' + esc(when) + '</span>') : '') + '</span>' +
+             '<span class="tick" style="opacity:1;">' + (done ? '✓' : '›') + '</span></button>';
+    }).join('');
+    return '<div class="ci-seclbl">Your booking' + (bs.length > 1 ? 's' : '') + ' here</div><div class="ci-acts">' + rows + '</div>';
+  }
   function programsHtml() {
     var p = _programs || {};
     var nq = (p.quests || []).length, ne = (p.events || []).length, nc = (p.challenges || []).length;
+    if (BOOKING_MODE) {
+      // FFP Booking platform: EVENTS only (events are handled in booking); never quests/challenges/meetups.
+      if (!ne) return '';
+      return '<div class="ci-seclbl">Events here now</div><div class="ci-progrow">' + progBtn('event', 'event', 'Event', ne) + '</div>';
+    }
     if (!nq && !ne && !nc) return '';
     return '<div class="ci-seclbl">Available here now</div>' +
       '<div class="ci-progrow">' +
@@ -435,10 +484,35 @@
     });
   }
 
+  // Marketplace booking check-in (Passport scan + FFP Booking platform) → shared booking_checkin RPC.
+  function bookingCheckin(idx) {
+    var mid = memberId(); if (!mid) { resultMsg('error', 'Not signed in', 'Sign in on this phone, then try again.'); return; }
+    var b = (_bookings || [])[idx]; if (!b) { toast('That booking is no longer available', 'error'); return; }
+    openSheet('<div class="ci-title">Checking you in…</div><div class="ci-sub">Confirming you’re at the venue.</div><div class="ci-spin"></div>');
+    getPosition(function (coords) {
+      sb().rpc('booking_checkin', { p_member: mid, p_booking: b.booking_id, p_lat: coords ? coords.lat : null, p_lng: coords ? coords.lng : null })
+        .then(function (res) {
+          var d = res && res.data;
+          if (res.error || !d || d.ok === false) {
+            var msg = (d && d.error === 'not_your_booking') ? 'That booking isn’t on your account.'
+                    : (d && /^booking_/.test(d.error || '')) ? 'That booking was cancelled.'
+                    : 'Please try again.';
+            resultMsg('error', 'Couldn’t check in', msg); return;
+          }
+          var v = !!d.verified;
+          resultMsg('ok', v ? 'Checked in ✓' : 'Checked in',
+            esc(d.title || b.title || 'Your booking') + (v ? ' · verified on-site.' : '.') + (BOOKING_MODE ? '' : ' Added to your passport.'));
+          try { document.dispatchEvent(new CustomEvent('ffp-activity-logged')); } catch (e) {}
+        })
+        .catch(function (e) { console.error('[FFP Check-in] booking:', e); resultMsg('error', 'Couldn’t check in', 'Please try again.'); });
+    });
+  }
+
   // ── public + boot ──
   window.FFPCheckin = {
     scan: startScan, close: closeSheet, _manual: manual, _save: save, _context: openContext, _pick: pickAct,
-    _pickType: pickType, _program: program, _questSubmit: questSubmit, _challengeSubmit: challengeSubmit, _eventCheckin: eventCheckin
+    _pickType: pickType, _program: program, _questSubmit: questSubmit, _challengeSubmit: challengeSubmit,
+    _eventCheckin: eventCheckin, _bookingCheckin: bookingCheckin
   };
 
   function pendingVenue() { try { return localStorage.getItem('ffp_pending_venue') || ''; } catch (e) { return ''; } }
