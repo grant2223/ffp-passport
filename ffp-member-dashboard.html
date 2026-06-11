@@ -1,4 +1,6 @@
-<!-- FFP MEMBER DASHBOARD — v358 (2026-06-11)  [changelog trimmed to latest 3 updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v359 (2026-06-11)  [changelog trimmed to latest 3 updates; older history in git]
+     v359: BOOKING CHECK-IN on the Passport — venue scan now also surfaces the member's bookings there
+           ("Your booking(s) here" → tap → booking_checkin → stamp). ffp-member-checkin-loader.js v8 (?v=8).
      v358: REFERRAL = RECURRING. Pricing is a subscription ($20/mo · $149/yr · 7-day trial), not a one-time $99.
            Backend already credits the referrer their tier% of EVERY paid invoice (recurring, v64/v46). Frontend
            was still showing a one-time "% of $99" dollar — fixed: Earn % display (earn-refer-rate, rm-rate now
@@ -12701,7 +12703,7 @@ window.FFPLocPick = (function(){
   return { open:open, close:close, onSearch:onSearch, pick:pick, use:use, locate:locate };
 })();
 </script>
-<script src="ffp-member-checkin-loader.js?v=7"></script>
+<script src="ffp-member-checkin-loader.js?v=8"></script>
 <!-- v294: PASSPORT MEMBERSHIP GATE — free/lapsed members get a Join/Renew screen instead of the member app.
      Self-contained + FAIL-OPEN: providers/admins, not-signed-in, or any error → NO gate (never lock out a
      payer). Uses the canonical member_passport_active RPC (shared with Find Fit People). -->
