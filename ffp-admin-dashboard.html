@@ -1,4 +1,4 @@
-<!-- ADMIN DASHBOARD — ⚠️ CURRENT VERSION IS v46 (the canonical header is the "FFP ADMIN DASHBOARD — v46" block after <title>, below). Everything in THIS block is OLDER, SUPERSEDED history kept for reference — the single version lineage continues from the v42 block. ----
+<!-- ADMIN DASHBOARD — ⚠️ CURRENT VERSION IS v47 (the canonical header is the "FFP ADMIN DASHBOARD — v47" block after <title>, below). Everything in THIS block is OLDER, SUPERSEDED history kept for reference — the single version lineage continues from the v42 block. ----
      v38 (2026-06-03): PROVIDER CLASSIFICATION on the Rankings tab — added Provider Type (Gym/Studio/Yoga studio/Sports club-team/Adventure service/…) + Gym Size band (admin-set) filters, plus per-row editable Type & Size dropdowns so admins classify each provider right in the table (admin_set_provider_classification RPC; option lists from taxonomy_items provider_type/gym_size). Rankings table now 11 cols. v37 (2026-06-03): PROVIDER RANKINGS leaderboard — new sidebar tab "Provider Rankings" (panel-rankings, under Providers) listing every provider by avg overall stars + review count + per-category (Experience/Service/Facilities) averages, with Country / City / Category dropdown filters (City cascades by Country) that re-rank client-side. Inline AdminRankings module → provider_rankings() RPC (is_admin-gated). Full detail in the comment below <title> + FFP-MASTER §6v. (This build also carries the June-3 feature set that a second, lower-numbered comment block tracked as v26–v30: Community Health own tab + gender filter, feedback screenshot thumbnails, category→passport selector — all already present; numbering now continues cleanly from the live v36.) v36 (2026-06-01): Members panel — verify badge + Verify/Unverify button (members.verified), and EXCLUDES provider/admin login accounts (a provider's contact person no longer shows as a member). Settings Platform Config now editable + saved to public.platform_config. Cache-bust v=36 on lazy loaders. v35 (2026-06-01): Settings panel CONNECTED — FFP Team from admin_users, Audit Log now DB-backed (public.admin_audit, persists every admin action) via ffp-admin-settings-loader.js. Also: admin Events/Experiences/Challenges loaders now render real data on load (fixes "reverts to old demo version"). v34 (2026-06-01): Taxonomies editor v2 — added Countries, Cities (country→city cascade) + Experience Types; session guard so edits don't fail silently if the admin session expired. v33: Taxonomies panel is now a REAL editor — ffp-admin-taxonomies-loader.js does CRUD on public.taxonomy_items (Activities/Categories/Fitness Levels/Nationalities/Genders/Age Groups): add, rename, reorder, show/hide, delete. assets/ffp-taxonomy.js v4 hydrates FFP_TAX from that table so edits propagate platform-wide (hardcoded fallback if DB unreachable). v32 (2026-06-01): FIX broken icons — added self-contained base `.material-icons` CSS rule (font-family + 'liga') + &display=block on the icon font link, so sidebar/queue icons never fall back to raw ligature text ("storefront", "inbox", etc.) when the external Google CSS is slow/blocked (this was the "design turned shit" issue). v31: provider accounts INSTANT + self-serve — REMOVED Applications panel/loader + reverted the v30 Pending approval tab. v29 (skill levels). v28 USD labels. v27 tier/expiry edit fix. -->
 <!DOCTYPE html>
 <html lang="en">
@@ -6,7 +6,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FFP Admin Dashboard</title>
-<!-- FFP ADMIN DASHBOARD — v46 (2026-06-10): PROFESSIONALS verification queue — new Platform nav item
+<!-- FFP ADMIN DASHBOARD — v47 (2026-06-11): SECURITY — payout-receipts bucket is now PRIVATE; payouts loader
+     uses createSignedUrl (1yr) not getPublicUrl. Lazy cache-bust v=51→52.
+     ---- v46 (2026-06-10): PROFESSIONALS verification queue — new Platform nav item
      + #panel-professionals fed by ffp-admin-professionals-loader.js (?v=51): lists professionals whose
      public listing is verification_status='pending' (they ticked "List me on Find Fit People"), with
      Approve & publish / Reject (note) via professional_set_verification. Approving makes their storefront
@@ -1475,7 +1477,7 @@ input, select, textarea { font-family: inherit; }
       </div>
     </div>
     <div class="sidebar-footer">
-      build v46 &middot; FFP Admin
+      build v47 &middot; FFP Admin
     </div>
   </aside>
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.toggleSidebar()"></div>
@@ -2440,7 +2442,7 @@ const App = {
       var sc = document.createElement('script');
       // Cache-bust lazy loaders so a new deploy never serves a stale cached .js.
       // BUMP this with the dashboard build number on every deploy (matches footer build).
-      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=51'; sc.async = false;
+      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=52'; sc.async = false;
       sc.onload = function () {
         if (panelId === 'panel-analytics') {
           setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 80);
