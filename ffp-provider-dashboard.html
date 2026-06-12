@@ -1,4 +1,6 @@
-<!-- FFP PROVIDER DASHBOARD — v63 (2026-06-12)
+<!-- FFP PROVIDER DASHBOARD — v64 (2026-06-12)
+     v64: Class FEATURE re-pointed to the class template (session_templates.featured); Feature button on the class
+          card. Cache-bust scheduling?v=9.
      v63: SESSIONS REBUILD UI — "New class" opens the class-template form (class details + DESCRIPTION + photo +
           weekly schedule rows: day/time/coach). List = one card per class. Timetable slot → manage one occurrence
           (substitute coach / change capacity / cancel that date). openCreateSession → openTemplateModal.
@@ -3178,7 +3180,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js', 'scheduling': 'ffp-provider-scheduling-loader.js?v=8', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=8' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js', 'scheduling': 'ffp-provider-scheduling-loader.js?v=9', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=8' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
