@@ -227,7 +227,8 @@
       var sessWrap = document.getElementById('cm-sessions');
       var addSessBtn = document.getElementById('cm-add-session');
       _cmSessOrig = [];
-      var fmtLocal = function (ts) { if (!ts) return ''; var d = new Date(ts); if (isNaN(d.getTime())) return ''; return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
+      // Prefill datetime-local in the FACILITY timezone (shared FFPTime), not the browser's.
+      var fmtLocal = function (ts) { if (!ts) return ''; if (window.FFPTime) return window.FFPTime.toInput(ts); var d = new Date(ts); if (isNaN(d.getTime())) return ''; return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
       var bindSessDel = function () { sessWrap.querySelectorAll('.cm-sess-del').forEach(function (b) { b.onclick = function () { var r = b.closest('.cm-sess-row'); if (r) r.remove(); }; }); };
       var addSessRow = function (val, sid) {
         sessWrap.insertAdjacentHTML('beforeend',
@@ -293,11 +294,13 @@
       for (var _i = 0; _i < _rows.length; _i++) {
         var _dt = _rows[_i].querySelector('.cm-sess-dt'); var _val = _dt ? (_dt.value || '').trim() : '';
         if (!_val) continue;
-        var _d = new Date(_val); if (isNaN(_d.getTime())) continue;
-        var _endIso = _dur ? new Date(_d.getTime() + _dur * 60000).toISOString() : null;
+        // Interpret the entered wall-clock time in the FACILITY timezone (shared FFPTime), then store UTC.
+        var _startIso = window.FFPTime ? window.FFPTime.toUTC(_val) : (function () { var d = new Date(_val); return isNaN(d.getTime()) ? null : d.toISOString(); })();
+        if (!_startIso) continue;
+        var _endIso = _dur ? (window.FFPTime ? window.FFPTime.addMinutes(_startIso, _dur) : new Date(new Date(_startIso).getTime() + _dur * 60000).toISOString()) : null;
         var _existing = _rows[_i].getAttribute('data-id') || null;
         try {
-          var _sr = await sb().rpc('provider_save_class_session', { p_provider: provId(), p_class: _cid, p_id: _existing, p_starts: _d.toISOString(), p_ends: _endIso, p_capacity: _cap });
+          var _sr = await sb().rpc('provider_save_class_session', { p_provider: provId(), p_class: _cid, p_id: _existing, p_starts: _startIso, p_ends: _endIso, p_capacity: _cap });
           if (_sr && _sr.data) _kept.push(_sr.data);
         } catch (e3) { console.warn('[FFP Tours] session save', e3); }
       }
