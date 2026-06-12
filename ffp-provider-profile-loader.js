@@ -1,4 +1,7 @@
-/* FFP Provider Profile Loader — v13
+/* FFP Provider Profile Loader — v14
+   v14 (2026-06-12): COMPLETION SYNC — providerProfile.activities is now kept live as chips are added/removed
+       (activity is a profile-completion essential) and the completion % + "listings hidden until profile
+       complete" banner re-render immediately; also refreshes that banner once the profile data loads.
    v13 (2026-06-05): Passport-member discount field — load/map/save providers.passport_discount_pct
        (the % off this provider's Find Fit People bookings for paid Passport members; '' = platform
        default). Read by the booking site at checkout. Save via provider_save_profile RPC.
@@ -562,6 +565,10 @@
     c.innerHTML = _provExtras.activities.length
       ? _provExtras.activities.map(function (a) { return '<span class="pf-chip">' + escText(a) + '<button type="button" onclick="__pfRemoveAct(&quot;' + escText(a).replace(/"/g, '') + '&quot;)">&times;</button></span>'; }).join('')
       : '<span class="pf-loc-status">None yet — add the activities members can do here.</span>';
+    // Keep providerProfile.activities live so the profile-completion % + the "listings hidden" banner
+    // update the moment a partner adds/removes an activity (activity is a completion essential).
+    if (typeof providerProfile !== 'undefined') providerProfile.activities = _provExtras.activities.slice();
+    if (typeof window.renderProfileCompletion === 'function') { try { window.renderProfileCompletion(); } catch (e) {} }
   }
   async function resolveMapsLink() {
     var inp = document.getElementById('pf-maps-url'), st = document.getElementById('pf-loc-status');
@@ -613,6 +620,9 @@
       if (real) {
         Object.assign(providerProfile, real);
         populateProviderExtras(real);
+        // Profile data is now loaded — refresh the "listings hidden until profile complete" banner
+        // in case the partner is already sitting on a listing panel (Events/Experiences/etc.).
+        if (typeof window.refreshListingGate === 'function') { try { window.refreshListingGate(); } catch (e) {} }
         // If user is on the profile panel, repaint
         var profilePanel = document.getElementById('panel-profile');
         if (profilePanel && profilePanel.classList.contains('active')) {
