@@ -1,4 +1,7 @@
-<!-- FFP PROVIDER DASHBOARD — v55 (2026-06-12)
+<!-- FFP PROVIDER DASHBOARD — v56 (2026-06-12)
+     v56: SESSIONS form rebuilt to standard — Activity + City use the shared searchable picker, Coach is a dropdown
+          of the provider's own staff, Location is a Maps URL, Price labelled per-person/per-session, Capacity min=1.
+          Cache-bust ffp-provider-scheduling-loader.js?v=2.
      v55: TOURS NEED APPROVAL — Tours panel shows "reviewed by admin within 24 hours" help-strip; new tours submit
           as 'pending' (no partner self-publish). Sessions tab stays on the left menu (un-retired, label "Sessions").
           Admin approves tours in the NEW admin Tours screen (ffp-admin-classes-loader.js). Needs classes-loader?v=7.
@@ -3149,7 +3152,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js', 'scheduling': 'ffp-provider-scheduling-loader.js', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js', 'classes': 'ffp-provider-classes-loader.js?v=7' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js', 'scheduling': 'ffp-provider-scheduling-loader.js?v=2', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js', 'classes': 'ffp-provider-classes-loader.js?v=7' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
