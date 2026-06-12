@@ -101,7 +101,8 @@
 
   function mapForUi(row) {
     var pad = function (n) { return String(n).padStart(2, '0'); };
-    var fmt = function (v) { if (!v) return ['', '']; var x = new Date(v); if (isNaN(x.getTime())) return ['', '']; return [x.getFullYear() + '-' + pad(x.getMonth() + 1) + '-' + pad(x.getDate()), pad(x.getHours()) + ':' + pad(x.getMinutes())]; };
+    // Split stored UTC into [date, time] in the FACILITY timezone (shared FFPTime), not the browser's.
+    var fmt = function (v) { if (!v) return ['', '']; if (window.FFPTime) { var di = window.FFPTime.toDateInput(v), ti = window.FFPTime.toTimeInput(v); if (di) return [di, ti]; } var x = new Date(v); if (isNaN(x.getTime())) return ['', '']; return [x.getFullYear() + '-' + pad(x.getMonth() + 1) + '-' + pad(x.getDate()), pad(x.getHours()) + ':' + pad(x.getMinutes())]; };
     var sd = fmt(row.starts_at), ed = fmt(row.ends_at);
     var d = sd[0], t = sd[1];
     return {
@@ -181,6 +182,8 @@
   function buildStartsAt(dateStr, timeStr) {
     if (!dateStr) return null;
     var t = (timeStr && timeStr.length >= 4) ? timeStr : '00:00';
+    // Interpret the entered date+time in the FACILITY timezone (shared FFPTime), then store UTC.
+    if (window.FFPTime) return window.FFPTime.toUTC(dateStr + 'T' + t);
     var d = new Date(dateStr + 'T' + t + ':00');
     return isNaN(d.getTime()) ? null : d.toISOString();
   }
