@@ -98,7 +98,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/ffp-api-integration.js?v=12"></script>
 <script src="assets/ffp-constants.js"></script>
-<script src="assets/ffp-taxonomy.js?v=8"></script>
+<script src="assets/ffp-taxonomy.js?v=10"></script>
 <script src="assets/ffp-location-picker.js"></script>
 <script src="ffp-provider-auth.js"></script>
 <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css" rel="stylesheet">
@@ -3154,7 +3154,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js', 'scheduling': 'ffp-provider-scheduling-loader.js', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js', 'classes': 'ffp-provider-classes-loader.js' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js', 'scheduling': 'ffp-provider-scheduling-loader.js', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js', 'classes': 'ffp-provider-classes-loader.js?v=2' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
@@ -4088,7 +4088,7 @@ function openEventModal(id) {
         <div class="field">
           <div class="label">Level</div>
           <select class="select" id="em-intensity">
-            ${((window.FFP_TAX&&FFP_TAX.fitnessLevels&&FFP_TAX.fitnessLevels.length?FFP_TAX.fitnessLevels:['Not Tried','Social','Competitive','Representative','Professional'])).map(l => `<option ${e.intensity===l?'selected':''}>${l}</option>`).join('')}
+            ${((window.FFP_TAX&&FFP_TAX.attendeeLevels&&FFP_TAX.attendeeLevels.length?FFP_TAX.attendeeLevels:['All Levels','Not Tried','Social','Competitive','Representative','Professional'])).map(l => `<option ${e.intensity===l?'selected':''}>${l}</option>`).join('')}
           </select>
         </div>
         <div class="field full">
@@ -4123,11 +4123,11 @@ function openEventModal(id) {
       <div class="form-grid">
         <div class="field">
           <div class="label">Country <span class="req">*</span></div>
-          <select class="select" id="em-country"></select>
+          <button type="button" class="ffp-picker-btn placeholder" id="em-country-btn" data-value=""><span>Choose country…</span><span class="ms caret">expand_more</span></button>
         </div>
         <div class="field">
           <div class="label">City <span class="req">*</span></div>
-          <select class="select" id="em-city"></select>
+          <button type="button" class="ffp-picker-btn placeholder" id="em-city-btn" data-value="" data-country=""><span>Choose city…</span><span class="ms caret">expand_more</span></button>
         </div>
         <div class="field">
           <div class="label">Area</div>
@@ -4340,7 +4340,7 @@ function openExperienceModal(id) {
         <div class="field">
           <div class="label">Fitness level required</div>
           <select class="select" id="xm-fitness-level">
-            ${((window.FFP_TAX&&FFP_TAX.fitnessLevels&&FFP_TAX.fitnessLevels.length?FFP_TAX.fitnessLevels:['Not Tried','Social','Competitive','Representative','Professional'])).map(l => `<option ${e.fitness_level===l?'selected':''}>${l}</option>`).join('')}
+            ${((window.FFP_TAX&&FFP_TAX.attendeeLevels&&FFP_TAX.attendeeLevels.length?FFP_TAX.attendeeLevels:['All Levels','Not Tried','Social','Competitive','Representative','Professional'])).map(l => `<option ${e.fitness_level===l?'selected':''}>${l}</option>`).join('')}
           </select>
         </div>
       </div>
