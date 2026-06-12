@@ -1,4 +1,9 @@
-<!-- FFP PROVIDER DASHBOARD — v45 (2026-06-08)
+<!-- FFP PROVIDER DASHBOARD — v46 (2026-06-12)
+     v46: NEW "Experiences" module (classes & tours = `classes` table) — nav item, #panel-classes, lazy loader
+          ffp-provider-classes-loader.js (full GYG-parity create/edit form, self-publish draft→live). Renamed the
+          existing listings nav/panel "Experiences"→"Trips" (= experiences table: retreats/camps/sport-event trips).
+          DUPLICATE button on every listing card (Trips/Events/Experiences) → duplicateListing() →
+          provider_duplicate_listing → reloads + opens the "(Copy)" draft for editing. Create-listing chooser updated.
      v45: Removed the on-screen build stamp (must NOT be partner/client-facing — version stays in this comment).
      v44: ANALYTICS — GA4 (assets/ffp-analytics.js) + per-panel page_view via window.ffpTrackView in
           showPanel (SPA panel switches now show in GA4 Pages report).
@@ -2672,11 +2677,11 @@ a { color: var(--ffp-blue); text-decoration: none; }
       <section class="panel" id="panel-experiences">
         <div class="ph-row">
           <div>
-            <div class="ph">Experiences</div>
-            <div class="psub">Multi-day trips and sport events. Members apply, you review and approve, then send deposit details.</div>
+            <div class="ph">Trips</div>
+            <div class="psub">Multi-day trips and sport events — retreats, training camps, marathon/Hyrox trips. Members apply, you review and approve, then send deposit details.</div>
           </div>
           <button class="btn btn-pri" onclick="openExperienceModal()">
-            <span class="ms">add</span> New experience
+            <span class="ms">add</span> New trip
           </button>
         </div>
         <div class="tabs" id="exp-tabs"></div>
@@ -2691,6 +2696,30 @@ a { color: var(--ffp-blue); text-decoration: none; }
           </div>
         </div>
         <div class="listing-grid" id="exp-grid"></div>
+      </section>
+
+      <!-- ════════ EXPERIENCES (classes & tours) ════════ -->
+      <section class="panel" id="panel-classes">
+        <div class="ph-row">
+          <div>
+            <div class="ph">Experiences</div>
+            <div class="psub">Single-session classes &amp; tours members can book — like a class, guided tour, or cruise. Saved as a draft so you can perfect it, then tap “Go live”.</div>
+          </div>
+          <button class="btn btn-pri" onclick="openClassModal()">
+            <span class="ms">add</span> New experience
+          </button>
+        </div>
+        <div class="help-strip" style="margin-bottom: 18px;">
+          <span class="ms">bolt</span>
+          <div>Experiences <b>self-publish</b> — no admin review. Create a draft, fill in the details, then “Go live” when you're ready. Members book and check in via the venue QR.</div>
+        </div>
+        <div class="list-toolbar">
+          <div class="search-box">
+            <span class="ms">search</span>
+            <input id="cls-search" placeholder="Search your experiences" oninput="renderClasses()">
+          </div>
+        </div>
+        <div class="listing-grid" id="cls-grid"></div>
       </section>
 
       <!-- ════════ CHALLENGES ════════ -->
@@ -3011,6 +3040,8 @@ let events = [];
 
 let experiences = [];
 
+let classesList = [];   // customer-facing "Experiences" = classes/tours (filled by ffp-provider-classes-loader.js)
+
 let challenges = [];
 
 let checkIns = [];
@@ -3032,7 +3063,8 @@ const NAV = [
   { id: 'billing',     icon: 'receipt_long',    label: 'Payments & Invoices', section: 'business', soon: true },
   // ── Engagement (member-facing listings) ──
   { id: 'events',      icon: 'event',           label: 'Events',      section: 'engagement' },
-  { id: 'experiences', icon: 'flight',          label: 'Experiences', section: 'engagement' },
+  { id: 'experiences', icon: 'flight',          label: 'Trips',       section: 'engagement' },
+  { id: 'classes',     icon: 'directions_run',  label: 'Experiences', section: 'engagement' },
   { id: 'challenges',  icon: 'emoji_events',    label: 'Challenges',  section: 'engagement' },
   { id: 'quests',      icon: 'flag',            label: 'Quests',      section: 'engagement' },
   { id: 'deals',       icon: 'local_offer',     label: 'Deals',       section: 'engagement' },
@@ -3071,6 +3103,8 @@ function renderNav() {
         badge = '<span class="ni-badge dim">' + events.length + '</span>';
       } else if (item.id === 'experiences') {
         badge = '<span class="ni-badge dim">' + experiences.length + '</span>';
+      } else if (item.id === 'classes') {
+        badge = '<span class="ni-badge dim">' + (Array.isArray(window.classesList) ? window.classesList.length : 0) + '</span>';
       } else if (item.id === 'challenges') {
         badge = '<span class="ni-badge dim">' + challenges.length + '</span>';
       } else if (item.soon || item.locked) {
@@ -3113,7 +3147,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js', 'scheduling': 'ffp-provider-scheduling-loader.js', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js', 'scheduling': 'ffp-provider-scheduling-loader.js', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js', 'classes': 'ffp-provider-classes-loader.js' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
@@ -3123,6 +3157,27 @@ function ensureProviderLoader(id) {
   sc.src = src; sc.async = false;
   sc.onerror = function () { console.error('[FFP] failed to load ' + src); };
   document.body.appendChild(sc);
+}
+
+// Duplicate any listing → fresh draft "(Copy)" (+ cloned photos) via provider_duplicate_listing,
+// then reload that listing type and open the copy in the edit modal so the partner can tweak before going live.
+window.FFPReload = window.FFPReload || {};
+async function duplicateListing(kind, id) {
+  try {
+    const res = await window.supabase.rpc('provider_duplicate_listing', { p_kind: kind, p_provider: (window.FFP_PROVIDER || {}).id, p_id: id });
+    if (res.error) throw res.error;
+    if (!res.data) throw new Error('not permitted');
+    const newId = res.data;
+    showToast('Duplicated as a draft — edit and publish when ready', 'success');
+    const reload = window.FFPReload[kind];
+    if (reload) { try { await reload(); } catch (e) {} }
+    const openers = { class: 'openClassModal', experience: 'openExperienceModal', event: 'openEventModal' };
+    const opener = openers[kind];
+    if (opener && typeof window[opener] === 'function') { setTimeout(function () { try { window[opener](newId); } catch (e) {} }, 200); }
+  } catch (e) {
+    console.error('[FFP] duplicate', e);
+    showToast('Could not duplicate this listing', 'error');
+  }
 }
 
 function showPanel(id) {
@@ -3154,6 +3209,7 @@ function showPanel(id) {
   if (id === 'profile') loadProfile();
   if (id === 'events') renderEvents();
   if (id === 'experiences') renderExperiences();
+  if (id === 'classes' && typeof renderClasses === 'function') renderClasses();
   if (id === 'challenges') { renderChallenges(); if (window.FFPQuestCheckins) FFPQuestCheckins.reload(); }
   if (id === 'quests' && window.FFPQuestCheckins) FFPQuestCheckins.reload();
   if (id === 'checkins') { renderCheckIns(); if (window.FFPQuestCheckins) FFPQuestCheckins.reload(); }
@@ -3916,7 +3972,8 @@ function eventCard(e) {
     '<div class="lc-actions">' +
       '<button class="btn btn-sec btn-sm" onclick="openEventModal(\'' + e.id + '\')"><span class="ms">edit</span> Edit</button>' +
       '<button class="btn btn-blue btn-sm" onclick="viewRsvps(\'' + e.id + '\')"><span class="ms">group</span> RSVPs</button>' +
-      '<button class="btn btn-ghost btn-sm" onclick="confirmDeleteEvent(\'' + e.id + '\')"><span class="ms">delete</span></button>' +
+      '<button class="btn btn-ghost btn-sm" title="Duplicate" onclick="duplicateListing(\'event\',\'' + e.id + '\')"><span class="ms">content_copy</span></button>' +
+      '<button class="btn btn-ghost btn-sm" title="Delete" onclick="confirmDeleteEvent(\'' + e.id + '\')"><span class="ms">delete</span></button>' +
     '</div>' +
   '</div>';
 }
@@ -4142,7 +4199,8 @@ function experienceCard(e) {
     '<div class="lc-actions">' +
       '<button class="btn btn-sec btn-sm" onclick="openExperienceModal(\'' + e.id + '\')"><span class="ms">edit</span> Edit</button>' +
       '<button class="btn btn-blue btn-sm" onclick="viewApplications(\'' + e.id + '\')"><span class="ms">mark_email_read</span> Applications</button>' +
-      '<button class="btn btn-ghost btn-sm" onclick="confirmDeleteExperience(\'' + e.id + '\')"><span class="ms">delete</span></button>' +
+      '<button class="btn btn-ghost btn-sm" title="Duplicate" onclick="duplicateListing(\'experience\',\'' + e.id + '\')"><span class="ms">content_copy</span></button>' +
+      '<button class="btn btn-ghost btn-sm" title="Delete" onclick="confirmDeleteExperience(\'' + e.id + '\')"><span class="ms">delete</span></button>' +
     '</div>' +
   '</div>';
 }
@@ -4966,8 +5024,15 @@ function openCreatePicker() {
       <button class="qa" onclick="closeModal(); openExperienceModal()">
         <div class="qa-icon"><span class="ms">flight</span></div>
         <div class="qa-body">
+          <div class="qa-title">Trip</div>
+          <div class="qa-sub">A multi-day trip, retreat, camp or sport-event trip</div>
+        </div>
+      </button>
+      <button class="qa" onclick="closeModal(); showPanel('classes'); openClassModal()">
+        <div class="qa-icon"><span class="ms">directions_run</span></div>
+        <div class="qa-body">
           <div class="qa-title">Experience</div>
-          <div class="qa-sub">A multi-day trip or sport event</div>
+          <div class="qa-sub">A single-session class or tour members book</div>
         </div>
       </button>
       <button class="qa" onclick="closeModal(); openChallengeModal()">
