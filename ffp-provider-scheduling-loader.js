@@ -1,117 +1,109 @@
 // ════════════════════════════════════════════════════════════════════════
-// FFP Partner Portal — SESSIONS module (was "Scheduling") — v6 (2026-06-12)
-// v6: FEATURE button on each session strap (window.featureBtn → applyFeature; $99/mo apply → admin approve).
-// v5: ONE STRAP PER SESSION + TIMETABLE. The list now shows ONE card per session (weekly recurrences grouped by
-//     series_id via _dedupeSessions — not one row per week). New "Timetable" tab (renderTimetable) = a Mon–Sun
-//     weekly grid placing each session in its day/time slot (tap a slot to edit).
-// v4: COACH PHOTO — the coach's photo (provider_staff.photo_url) shows as a small avatar next to the coach on each
-//     session and large in the bio popup. People book for the coach. Photo + bio fetched via provider_list_staff.
-// v3: COACH BIO POPUP — the coach name on each session is tappable → popup with that coach's short bio (from the
-//     staff record, provider_staff.bio). People book for the coach. Coach bios fetched via provider_list_staff.
-// v2: WORLD-CLASS FIELDS — the "New session" form was raw free-text; rebuilt to standard: Activity + City now use
-//     the shared searchable taxonomy picker (window.FFPPicker, same as the listing forms — no free text), Coach is
-//     a dropdown of the provider's own staff (provider_list_staff), Location is a Google Maps URL, Price labelled
-//     "per person · per session", Capacity has min=1 (can't go negative). Required: Title, Activity, Date, Capacity≥1.
-// FFP Partner Portal — SCHEDULING module  (Business → Scheduling)
-// Deferred loader: registered in _provLoaderSrc and lazy-loaded by
-// ensureProviderLoader() the first time the Scheduling panel is opened.
-//
-// Real DB module — provider_sessions table via SECURITY DEFINER RPCs
-// (p_provider scoped):  provider_save_session / provider_list_sessions /
-// provider_delete_session.  Provider id comes from window.FFP_PROVIDER.id.
-//
-// Functions are declared at top level so the panel's inline onclick handlers
-// (openSessionModal / saveSession / confirmDeleteSession / doDeleteSession)
-// resolve against global scope, exactly as the other portal panels do.
+// FFP Partner Portal — SESSIONS module (was "Scheduling") — v8 (2026-06-12)
+// v8: REBUILD to match how facilities work. A facility defines a CLASS (template) once, lays out its WEEKLY
+//     SCHEDULE (day + time + coach per slot), which generates the recurring session occurrences. Each occurrence
+//     can be managed individually: substitute the coach, change capacity, or cancel that single date.
+//     Class form has: title, activity (taxonomy picker), DESCRIPTION, capacity, price/session, duration, photo,
+//     level + the weekly schedule rows (coach per slot, from the provider's staff). DB engine:
+//     provider_save_session_template / provider_list_session_templates / provider_delete_session_template /
+//     provider_cancel_session (+ provider_save_session for per-occurrence coach/capacity). Timetable shows the
+//     weekly pattern (dedup by slot); tapping a slot manages that occurrence. Attendance + coach-bio unchanged.
 // ════════════════════════════════════════════════════════════════════════
-var _schedSessions = [];
-var _coachBios = {};   // coach full_name -> { bio, role } (from provider_list_staff) for the bio popup
-var SESSION_TYPES = { class: 'Group class', pt: 'Personal training', team: 'Team training' };
+var _schedTemplates = [];   // class templates (the list)
+var _schedSessions = [];    // generated occurrences (for timetable + attendance)
+var _coachBios = {};        // coach full_name -> { bio, role, photo }
+var _schedStaff = [];       // provider's staff (for coach dropdowns)
 
 function _schedProvId() {
   return (window.FFP_PROVIDER && window.FFP_PROVIDER.id) ||
          (typeof providerProfile !== 'undefined' && providerProfile.id) || null;
 }
+var DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+async function _loadSchedStaff() {
+  var pid = _schedProvId(); if (!pid) return;
+  try {
+    var sr = await window.supabase.rpc('provider_list_staff', { p_provider: pid });
+    _schedStaff = (sr && sr.data) ? sr.data : [];
+    _coachBios = {};
+    _schedStaff.forEach(function (c) { var nm = c.full_name || ''; if (nm) _coachBios[nm] = { bio: c.bio || '', role: c.role || '', photo: c.photo_url || '' }; });
+  } catch (e) {}
+}
+function _coachOpts(selected) {
+  return '<option value="">' + (_schedStaff.length ? 'Coach…' : 'No staff yet') + '</option>' +
+    _schedStaff.map(function (c) { var nm = c.full_name || ''; return '<option value="' + escHtml(nm) + '"' + (selected === nm ? ' selected' : '') + '>' + escHtml(nm) + (c.role ? ' · ' + escHtml(c.role) : '') + '</option>'; }).join('');
+}
+
+// ── LIST: one card per class (template) ──
 async function renderScheduling() {
   var host = document.getElementById('sched-list');
   if (!host) return;
   var pid = _schedProvId();
-  if (!pid) { host.innerHTML = '<div class="empty-sub" style="text-align:left;">Sign in to manage sessions.</div>'; return; }
+  if (!pid) { host.innerHTML = '<div class="empty-sub" style="text-align:left;">Sign in to manage classes.</div>'; return; }
   host.innerHTML = '<div class="psub" style="margin:10px 0;">Loading…</div>';
+  await _loadSchedStaff();
   try {
-    var r = await window.supabase.rpc('provider_list_sessions', { p_provider: pid });
-    _schedSessions = (r && r.data) ? r.data : [];
+    var r = await window.supabase.rpc('provider_list_session_templates', { p_provider: pid });
+    _schedTemplates = (r && r.data) ? r.data : [];
+  } catch (e) { _schedTemplates = []; }
+  try {
+    var ro = await window.supabase.rpc('provider_list_sessions', { p_provider: pid });
+    _schedSessions = (ro && ro.data) ? ro.data : [];
   } catch (e) { _schedSessions = []; }
-  // Coach bios (for the tappable coach popup) — from the provider's own staff.
-  try {
-    var sr = await window.supabase.rpc('provider_list_staff', { p_provider: pid });
-    _coachBios = {};
-    (sr && sr.data ? sr.data : []).forEach(function (c) { var nm = c.full_name || ''; if (nm) _coachBios[nm] = { bio: c.bio || '', role: c.role || '', photo: c.photo_url || '' }; });
-  } catch (e) {}
-  if (!_schedSessions.length) {
-    host.innerHTML = emptyState('No sessions yet', 'Add your first class, PT slot or team session. Members will be able to book it.', 'New session', 'openSessionModal()');
+  if (!_schedTemplates.length) {
+    host.innerHTML = emptyState('No classes yet', 'Create a class, set its weekly times, and assign a coach. Members will be able to book it.', 'New class', 'openTemplateModal()');
     return;
   }
-  host.innerHTML = _dedupeSessions(_schedSessions).map(schedRow).join('');
+  host.innerHTML = _schedTemplates.map(templateCard).join('');
 }
 
-// A weekly recurring session = many provider_sessions rows sharing series_id. Show ONE strap per session
-// (the earliest occurrence represents the series); one-offs (no series_id) show individually.
-function _dedupeSessions(list) {
-  var bySeries = {}, singles = [];
-  (list || []).forEach(function (s) {
-    if (s.series_id) { if (!bySeries[s.series_id] || new Date(s.start_at) < new Date(bySeries[s.series_id].start_at)) bySeries[s.series_id] = s; }
-    else singles.push(s);
+function templateCard(t) {
+  var slots = (t.slots || []).map(function (sl) {
+    var tm = (sl.slot_time || '').slice(0, 5);
+    return DOW_SHORT[sl.day_of_week] + ' ' + tm + (sl.coach ? ' · ' + escHtml(sl.coach) : '');
   });
-  var out = singles.concat(Object.keys(bySeries).map(function (k) { return bySeries[k]; }));
-  out.sort(function (a, b) { return new Date(a.start_at) - new Date(b.start_at); });
-  return out;
-}
-
-function schedRow(s) {
-  var d = new Date(s.start_at);
-  var weekly = (s.recurrence === 'weekly') || !!s.series_id;
-  var when = weekly
-    ? d.toLocaleDateString([], { weekday: 'long' }) + 's · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    : d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  var typeLbl = SESSION_TYPES[s.session_type] || 'Session';
   var meta = [];
-  if (s.coach) {
-    var _cb = _coachBios[s.coach] || {};
-    var _av = _cb.photo ? '<img src="' + escHtml(_cb.photo) + '" style="width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:-4px;margin-right:4px;">' : '';
-    meta.push('<span style="color:#6fc6ef;cursor:pointer;text-decoration:underline;" onclick="showCoachBio(\'' + encodeURIComponent(s.coach) + '\')">' + _av + 'Coach ' + escHtml(s.coach) + '</span>');
-  }
-  if (s.session_type === 'team' && s.team_name) meta.push(escHtml(s.team_name));
-  if (s.capacity) meta.push(s.capacity + ' spots');
-  if (s.duration_min) meta.push(s.duration_min + ' min');
-  if (s.price_aed != null && Number(s.price_aed) > 0) meta.push('AED ' + s.price_aed);
-  if (s.recurrence === 'weekly') meta.push('Weekly');
+  if (t.capacity) meta.push(t.capacity + ' spots');
+  if (t.duration_min) meta.push(t.duration_min + ' min');
+  if (t.price_aed != null && Number(t.price_aed) > 0) meta.push('AED ' + t.price_aed);
+  if (t.fitness_level) meta.push(escHtml(t.fitness_level));
   return '<div style="background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">' +
-      '<div style="min-width:0;">' +
-        '<div style="font-weight:800;color:var(--ffp-text,#eaf2f8);">' + escHtml(s.title) + '</div>' +
-        '<div class="psub" style="margin:3px 0 0;">' + when + (s.location ? ' · ' + escHtml(s.location) : '') + '</div>' +
-        (meta.length ? '<div class="psub" style="margin:3px 0 0;">' + meta.join(' · ') + '</div>' : '') +
-      '</div>' +
-      '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex-shrink:0;">' +
-        '<span class="ni-lock-pill" style="background:rgba(43,168,224,.14);color:#6fc6ef;">' + typeLbl + '</span>' +
-        (typeof window.featureBtn === 'function' ? window.featureBtn('session', s.id, s.featured) : '') +
-        '<div style="display:flex;gap:6px;">' +
-          '<button class="btn btn-sec btn-sm" onclick="openSessionModal(\'' + s.id + '\')"><span class="ms">edit</span></button>' +
-          '<button class="btn btn-ghost btn-sm" onclick="confirmDeleteSession(\'' + s.id + '\')"><span class="ms">delete</span></button>' +
+      '<div style="display:flex;gap:11px;min-width:0;align-items:flex-start;">' +
+        (t.hero_image_url ? '<div style="width:46px;height:46px;border-radius:8px;flex:0 0 auto;background:#0a1825 url(\'' + escHtml(t.hero_image_url) + '\') center/cover no-repeat;"></div>' : '') +
+        '<div style="min-width:0;">' +
+          '<div style="font-weight:800;color:var(--ffp-text,#eaf2f8);">' + escHtml(t.title || 'Untitled class') + (t.activity ? ' <span class="psub" style="font-weight:600;">· ' + escHtml(t.activity) + '</span>' : '') + '</div>' +
+          '<div class="psub" style="margin:3px 0 0;">' + (slots.length ? slots.join('  ·  ') : '<span style="color:#FFCC00;">No weekly times yet — edit to add</span>') + '</div>' +
+          (meta.length ? '<div class="psub" style="margin:3px 0 0;">' + meta.join(' · ') + '</div>' : '') +
         '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px;flex-shrink:0;">' +
+        '<button class="btn btn-sec btn-sm" onclick="openTemplateModal(\'' + t.id + '\')"><span class="ms">edit</span></button>' +
+        '<button class="btn btn-ghost btn-sm" onclick="confirmDeleteTemplate(\'' + t.id + '\')"><span class="ms">delete</span></button>' +
       '</div>' +
   '</div>';
 }
 
-// Weekly TIMETABLE — each session placed in its day & time slot (one card per session, tap to edit).
+// ── TIMETABLE: weekly pattern (one card per slot), tap to manage that occurrence ──
+function _weeklyPattern(list) {
+  // Dedup occurrences to one per recurring slot (slot_id) — else legacy series_id — else the row itself.
+  var seen = {}, out = [];
+  (list || []).forEach(function (s) {
+    if (s.status === 'cancelled') return;
+    var key = s.slot_id || s.series_id || s.id;
+    if (seen[key]) { if (new Date(s.start_at) < new Date(seen[key].start_at)) seen[key] = s; return; }
+    seen[key] = s;
+  });
+  Object.keys(seen).forEach(function (k) { out.push(seen[k]); });
+  return out;
+}
+
 function renderTimetable() {
   var host = document.getElementById('timetable-host');
   if (!host) return;
   var pid = _schedProvId();
   var go = function () {
-    var sessions = _dedupeSessions(_schedSessions);
-    if (!sessions.length) { host.innerHTML = '<div class="psub" style="margin:10px 0;">No sessions yet — add one in the Sessions tab.</div>'; return; }
+    var sessions = _weeklyPattern(_schedSessions);
+    if (!sessions.length) { host.innerHTML = '<div class="psub" style="margin:10px 0;">No classes scheduled yet — add one in the Sessions tab.</div>'; return; }
     var days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     var byDay = [[], [], [], [], [], [], []];
     sessions.forEach(function (s) { var d = new Date(s.start_at); var dow = (d.getDay() + 6) % 7; byDay[dow].push(s); });
@@ -123,7 +115,7 @@ function renderTimetable() {
       if (!byDay[i].length) html += '<div class="psub" style="text-align:center;font-size:11px;opacity:.45;margin-top:4px;">—</div>';
       byDay[i].forEach(function (s) {
         var d = new Date(s.start_at); var t = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        html += '<div onclick="openSessionModal(\'' + s.id + '\')" style="cursor:pointer;background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-left:3px solid #2ba8e0;border-radius:8px;padding:7px 8px;margin-bottom:6px;">' +
+        html += '<div onclick="openOccurrence(\'' + s.id + '\')" style="cursor:pointer;background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-left:3px solid #2ba8e0;border-radius:8px;padding:7px 8px;margin-bottom:6px;">' +
           '<div style="font-weight:700;font-size:12px;color:var(--ffp-text,#eaf2f8);">' + escHtml(t) + '</div>' +
           '<div style="font-size:12px;color:#cfd6dc;line-height:1.25;">' + escHtml(s.title) + '</div>' +
           (s.coach ? '<div class="psub" style="margin:2px 0 0;font-size:11px;">' + escHtml(s.coach) + '</div>' : '') +
@@ -134,7 +126,6 @@ function renderTimetable() {
     html += '</div>';
     host.innerHTML = html;
   };
-  // If sessions haven't loaded yet (e.g. Timetable opened first), fetch then render.
   if (_schedSessions.length || !pid) { go(); return; }
   host.innerHTML = '<div class="psub" style="margin:10px 0;">Loading…</div>';
   window.supabase.rpc('provider_list_sessions', { p_provider: pid }).then(function (r) { _schedSessions = (r && r.data) ? r.data : []; go(); }).catch(function () { go(); });
@@ -157,158 +148,174 @@ function showCoachBio(enc) {
   openModalShell('', name || 'Coach', body, '<button class="btn btn-pri" onclick="closeModal()">Close</button>');
 }
 
-async function openSessionModal(id) {
-  var editing = id ? _schedSessions.find(function (x) { return x.id === id; }) : null;
-  var s = editing || { session_type: 'class', title: '', activity: '', coach: '', start_at: '', duration_min: 60, capacity: '', price_aed: '', location: '', city: (typeof providerProfile !== 'undefined' ? (providerProfile.city || '') : ''), team_name: '', notes: '' };
-  var pid = _schedProvId();
-  var provCountry = (typeof providerProfile !== 'undefined' ? (providerProfile.country || 'United Arab Emirates') : 'United Arab Emirates');
+// ── CREATE / EDIT a class (template) + its weekly schedule ──
+function openTemplateModal(id) {
+  var t = (id && _schedTemplates.length) ? _schedTemplates.find(function (x) { return x.id === id; }) : null;
+  var e = t || { title: '', activity: '', description: '', capacity: '', price_aed: '', duration_min: 60, hero_image_url: '', fitness_level: '', slots: [] };
+  var levels = (window.FFP_TAX && window.FFP_TAX.attendeeLevels && window.FFP_TAX.attendeeLevels.length) ? window.FFP_TAX.attendeeLevels : ['All Levels', 'Not Tried', 'Social', 'Competitive', 'Representative', 'Professional'];
+  var levelOpts = levels.map(function (l) { return '<option' + ((e.fitness_level || 'All Levels') === l ? ' selected' : '') + '>' + escHtml(l) + '</option>'; }).join('');
 
-  // COACH = chosen from the provider's own staff (not free text).
-  var coaches = [];
-  try { var cr = await window.supabase.rpc('provider_list_staff', { p_provider: pid }); coaches = (cr && cr.data) ? cr.data : []; } catch (e) {}
-  var coachOpts = '<option value="">' + (coaches.length ? 'Select coach…' : 'No staff added yet — add them in the Staff tab') + '</option>' +
-    coaches.map(function (c) { var nm = c.full_name || c.name || ''; return '<option value="' + escHtml(nm) + '"' + (s.coach === nm ? ' selected' : '') + '>' + escHtml(nm) + (c.role ? ' · ' + escHtml(c.role) : '') + '</option>'; }).join('');
-
-  var dt = s.start_at ? new Date(s.start_at) : null;
-  var dval = dt ? (dt.getFullYear() + '-' + ('0' + (dt.getMonth() + 1)).slice(-2) + '-' + ('0' + dt.getDate()).slice(-2)) : '';
-  var tval = dt ? (('0' + dt.getHours()).slice(-2) + ':' + ('0' + dt.getMinutes()).slice(-2)) : '';
-  var repeatBlock = editing ? '' : `
+  openModalShell('lg', (t ? 'Edit class' : 'New class'), `
     <div class="form-section">
-      <div class="form-section-title">Repeats</div>
-      <div class="form-grid">
-        <div class="field"><div class="label">Repeat</div><select class="select" id="sm-recurrence"><option value="none">Does not repeat</option><option value="weekly">Weekly</option></select></div>
-        <div class="field"><div class="label">Repeat until</div><input class="input" type="date" id="sm-repeat-until" value=""></div>
-      </div>
-      <div class="psub" style="margin:6px 2px 0;">Weekly creates one session each week up to this date (defaults to 12 weeks).</div>
-    </div>`;
-  openModalShell('lg', (editing ? 'Edit session' : 'New session'), `
-    <div class="form-section">
-      <div class="form-section-title">Type</div>
-      <div class="form-grid">
-        <div class="field full">
-          <div class="label">Session type <span class="req">*</span></div>
-          <select class="select" id="sm-type">
-            <option value="class"${s.session_type === 'class' ? ' selected' : ''}>Group class — open booking</option>
-            <option value="pt"${s.session_type === 'pt' ? ' selected' : ''}>Personal training — 1-to-1</option>
-            <option value="team"${s.session_type === 'team' ? ' selected' : ''}>Team training — squad</option>
-          </select>
-        </div>
-      </div>
+      <div class="form-section-title">Photo</div>
+      <div id="listing-photo-slot" data-url="${escHtml(e.hero_image_url || '')}"></div>
     </div>
     <div class="form-section">
-      <div class="form-section-title">Basics</div>
+      <div class="form-section-title">The class</div>
       <div class="form-grid">
-        <div class="field full"><div class="label">Title <span class="req">*</span></div><input class="input" id="sm-title" value="${escHtml(s.title)}" placeholder="e.g. Sunset HIIT"></div>
+        <div class="field full"><div class="label">Class name <span class="req">*</span></div><input class="input" id="tpl-title" value="${escHtml(e.title || '')}" placeholder="e.g. Sunrise Yoga"></div>
         <div class="field"><div class="label">Activity <span class="req">*</span></div>
-          <button type="button" class="ffp-picker-btn placeholder" id="sm-activity-btn" data-value=""><span>Choose activity…</span><span class="ms caret">expand_more</span></button></div>
-        <div class="field"><div class="label">Coach</div><select class="select" id="sm-coach">${coachOpts}</select></div>
+          <button type="button" class="ffp-picker-btn placeholder" id="tpl-activity-btn" data-value=""><span>Choose activity…</span><span class="ms caret">expand_more</span></button></div>
+        <div class="field"><div class="label">Fitness level</div><select class="select" id="tpl-level">${levelOpts}</select></div>
+        <div class="field full"><div class="label">Session description <span class="label-hint">— what the session includes, so members know what to expect</span></div><textarea class="textarea" id="tpl-description" rows="3" placeholder="e.g. A 60-min vinyasa flow for all levels — mats provided, bring water. Suitable for beginners.">${escHtml(e.description || '')}</textarea></div>
+        <div class="field"><div class="label">Capacity <span class="req">*</span></div><input class="input" type="number" min="1" step="1" id="tpl-capacity" value="${escHtml(String(e.capacity || ''))}" placeholder="e.g. 12"></div>
+        <div class="field"><div class="label">Duration (min)</div><input class="input" type="number" min="1" id="tpl-duration" value="${escHtml(String(e.duration_min || ''))}" placeholder="60"></div>
+        <div class="field"><div class="label">Price per person <span class="label-hint">— per session (AED, 0 = free)</span></div><input class="input" type="number" min="0" id="tpl-price" value="${escHtml(String(e.price_aed || ''))}" placeholder="0 = Free"></div>
       </div>
     </div>
     <div class="form-section">
-      <div class="form-section-title">When</div>
-      <div class="form-grid">
-        <div class="field"><div class="label">Date <span class="req">*</span></div><input class="input" type="date" id="sm-date" value="${dval}"></div>
-        <div class="field"><div class="label">Time</div><input class="input" type="time" id="sm-time" value="${tval}"></div>
-        <div class="field"><div class="label">Duration (min)</div><input class="input" type="number" min="1" id="sm-duration" value="${escHtml(String(s.duration_min || ''))}" placeholder="60"></div>
-      </div>
-    </div>
-    ${repeatBlock}
-    <div class="form-section">
-      <div class="form-section-title">Capacity &amp; price</div>
-      <div class="form-grid">
-        <div class="field"><div class="label">Capacity <span class="req">*</span></div><input class="input" type="number" min="1" step="1" id="sm-capacity" value="${escHtml(String(s.capacity || ''))}" placeholder="e.g. 12 — use 1 for PT"></div>
-        <div class="field"><div class="label">Price per person <span class="label-hint">— for this session (AED, 0 = free)</span></div><input class="input" type="number" min="0" id="sm-price" value="${escHtml(String(s.price_aed || ''))}" placeholder="0 = Free"></div>
-      </div>
-    </div>
-    <div class="form-section">
-      <div class="form-section-title">Where</div>
-      <div class="form-grid">
-        <div class="field"><div class="label">City</div>
-          <button type="button" class="ffp-picker-btn placeholder" id="sm-city-btn" data-value="" data-country="${escHtml(provCountry)}"><span>Choose city…</span><span class="ms caret">expand_more</span></button></div>
-        <div class="field"><div class="label">Location map link <span class="label-hint">— Google Maps URL</span></div><input class="input" type="url" id="sm-location" value="${escHtml(s.location || '')}" placeholder="https://maps.google.com/…"></div>
-        <div class="field full"><div class="label">Team <span style="color:var(--ffp-text-dim,#6c7f90);">(team sessions only)</span></div><input class="input" id="sm-team" value="${escHtml(s.team_name || '')}" placeholder="e.g. U16 squad (optional)"></div>
-        <div class="field full"><div class="label">Notes</div><textarea class="textarea" id="sm-notes" rows="2" placeholder="Anything members should know (optional)">${escHtml(s.notes || '')}</textarea></div>
-      </div>
+      <div class="form-section-title">Weekly schedule</div>
+      <div class="psub" style="margin:-4px 0 10px;">Set the day, time and coach for each time this class runs in the week. (Members book a specific date; you can swap the coach or cancel a single date afterwards.)</div>
+      <div id="tpl-slots"></div>
+      <button type="button" class="btn btn-ghost btn-sm" id="tpl-add-slot" style="margin-top:4px;"><span class="ms">add</span> Add a time</button>
     </div>
   `, `
-    ${editing ? '<button class="btn btn-ghost left" onclick="confirmDeleteSession(\'' + editing.id + '\')"><span class="ms">delete</span> Delete</button>' : ''}
+    ${t ? '<button class="btn btn-ghost left" onclick="confirmDeleteTemplate(\'' + t.id + '\')"><span class="ms">delete</span> Delete</button>' : ''}
     <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-    <button class="btn btn-pri" onclick="saveSession('${editing ? editing.id : ''}')">${editing ? 'Save changes' : 'Create session'}</button>
+    <button class="btn btn-pri" onclick="saveTemplate('${t ? t.id : ''}')">${t ? 'Save changes' : 'Create class'}</button>
   `);
 
-  // Wire the shared searchable pickers (same component as the listing forms) — no free-text taxonomy fields.
   setTimeout(function () {
-    var aBtn = document.getElementById('sm-activity-btn');
+    if (typeof window.renderListingUploader === 'function') { try { window.renderListingUploader(e.hero_image_url || ''); } catch (er) {} }
+    // Activity picker
+    var aBtn = document.getElementById('tpl-activity-btn');
     var setA = function (name) {
       if (!aBtn) return; aBtn.dataset.value = name || '';
       if (name) { aBtn.classList.remove('placeholder'); aBtn.innerHTML = '<span>' + escHtml(name) + '</span><span class="ms caret">expand_more</span>'; }
       else { aBtn.classList.add('placeholder'); aBtn.innerHTML = '<span>Choose activity…</span><span class="ms caret">expand_more</span>'; }
     };
-    if (s.activity) setA(s.activity);
+    if (e.activity) setA(e.activity);
     if (aBtn) aBtn.addEventListener('click', function () {
       if (window.FFPPicker && window.FFPPicker.openActivity) { window.FFPPicker.openActivity(aBtn.dataset.value, function (name) { setA(name); }); }
       else { showToast('Activity picker not ready', 'error'); }
     });
-    var cBtn = document.getElementById('sm-city-btn');
-    var setC = function (name) {
-      if (!cBtn) return; cBtn.dataset.value = name || '';
-      if (name) { cBtn.classList.remove('placeholder'); cBtn.innerHTML = '<span>' + escHtml(name) + '</span><span class="ms caret">expand_more</span>'; }
-      else { cBtn.classList.add('placeholder'); cBtn.innerHTML = '<span>Choose city…</span><span class="ms caret">expand_more</span>'; }
-    };
-    if (s.city) setC(s.city);
-    if (cBtn) cBtn.addEventListener('click', function () {
-      if (window.FFPPicker && window.FFPPicker.openCity) { window.FFPPicker.openCity(cBtn.dataset.country || provCountry, cBtn.dataset.value, function (name) { setC(name); }); }
-      else { showToast('City picker not ready', 'error'); }
-    });
+    // Weekly slot rows
+    var addBtn = document.getElementById('tpl-add-slot');
+    if (addBtn) addBtn.onclick = function () { _tplAddSlotRow('', '', ''); };
+    var existing = (e.slots || []);
+    if (existing.length) existing.forEach(function (sl) { _tplAddSlotRow(sl.day_of_week, (sl.slot_time || '').slice(0, 5), sl.coach || ''); });
+    else _tplAddSlotRow('', '', '');
   }, 50);
 }
 
-async function saveSession(id) {
-  var g = function (i) { var el = document.getElementById('sm-' + i); return el ? (el.value || '').trim() : ''; };
-  var title = g('title'); var date = g('date'); var time = g('time') || '00:00';
-  var aBtn = document.getElementById('sm-activity-btn'); var activity = aBtn ? (aBtn.dataset.value || '') : '';
-  var cBtn = document.getElementById('sm-city-btn'); var city = cBtn ? (cBtn.dataset.value || '') : '';
-  if (!title) { showToast('Title is required', 'error'); return; }
+// Add one weekly-schedule row (Day + Time + Coach).
+function _tplAddSlotRow(dow, time, coach) {
+  var wrap = document.getElementById('tpl-slots'); if (!wrap) return;
+  var dayOpts = [['1', 'Monday'], ['2', 'Tuesday'], ['3', 'Wednesday'], ['4', 'Thursday'], ['5', 'Friday'], ['6', 'Saturday'], ['0', 'Sunday']]
+    .map(function (d) { return '<option value="' + d[0] + '"' + (String(dow) === d[0] ? ' selected' : '') + '>' + d[1] + '</option>'; }).join('');
+  var row = document.createElement('div');
+  row.className = 'tpl-slot-row';
+  row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;';
+  row.innerHTML =
+    '<select class="select tpl-slot-day" style="flex:1.1;"><option value="">Day…</option>' + dayOpts + '</select>' +
+    '<input class="input tpl-slot-time" type="time" value="' + escHtml(time || '') + '" style="flex:1;color-scheme:dark;">' +
+    '<select class="select tpl-slot-coach" style="flex:1.3;">' + _coachOpts(coach) + '</select>' +
+    '<button type="button" class="btn btn-ghost btn-sm" title="Remove" onclick="this.closest(\'.tpl-slot-row\').remove()"><span class="ms">close</span></button>';
+  wrap.appendChild(row);
+  if (coach) { var cs = row.querySelector('.tpl-slot-coach'); if (cs) cs.value = coach; }
+}
+
+async function saveTemplate(id) {
+  var g = function (i) { var el = document.getElementById('tpl-' + i); return el ? (el.value || '').trim() : ''; };
+  var title = g('title');
+  var aBtn = document.getElementById('tpl-activity-btn'); var activity = aBtn ? (aBtn.dataset.value || '') : '';
+  if (!title) { showToast('Class name is required', 'error'); return; }
   if (!activity) { showToast('Activity is required', 'error'); return; }
-  if (!date) { showToast('Date is required', 'error'); return; }
-  var capRaw = g('capacity');
-  var capacity = capRaw ? parseInt(capRaw, 10) : null;
+  var capRaw = g('capacity'); var capacity = capRaw ? parseInt(capRaw, 10) : null;
   if (capacity != null && (isNaN(capacity) || capacity < 1)) { showToast('Capacity must be at least 1', 'error'); return; }
-  var pid = _schedProvId();
-  if (!pid) { showToast('Not signed in', 'error'); return; }
-  var startIso;
-  try { startIso = new Date(date + 'T' + time).toISOString(); }
-  catch (e) { showToast('Check the date and time', 'error'); return; }
+  var slots = [];
+  Array.prototype.forEach.call(document.querySelectorAll('#tpl-slots .tpl-slot-row'), function (row) {
+    var dow = row.querySelector('.tpl-slot-day').value;
+    var tm = row.querySelector('.tpl-slot-time').value;
+    var co = row.querySelector('.tpl-slot-coach').value;
+    if (dow !== '' && tm) slots.push({ day_of_week: parseInt(dow, 10), slot_time: tm, coach: co || null });
+  });
+  if (!slots.length) { showToast('Add at least one weekly time', 'error'); return; }
+  var pid = _schedProvId(); if (!pid) { showToast('Not signed in', 'error'); return; }
+  var photoSlot = document.getElementById('listing-photo-slot');
+  var heroUrl = (photoSlot && photoSlot.dataset.url) ? photoSlot.dataset.url : null; if (heroUrl === '') heroUrl = null;
   var payload = {
-    session_type: g('type') || 'class', title: title, activity: activity, coach: g('coach'),
-    start_at: startIso, duration_min: g('duration'), capacity: (capacity != null ? String(capacity) : ''),
-    price_aed: g('price'), location: g('location'), city: city,
-    team_name: g('team'), notes: g('notes'),
-    recurrence: g('recurrence') || 'none', repeat_until: g('repeat-until')
+    title: title, activity: activity, description: g('description') || null,
+    capacity: (capacity != null ? String(capacity) : ''), price_aed: g('price'), duration_min: g('duration'),
+    hero_image_url: heroUrl, fitness_level: g('level') || null, slots: slots
   };
-  var weekly = (!id && g('recurrence') === 'weekly');
   try {
-    var r = await window.supabase.rpc('provider_save_session', { p_provider: pid, p_id: id || null, p: payload });
+    var r = await window.supabase.rpc('provider_save_session_template', { p_provider: pid, p_id: id || null, p: payload });
     if (r && r.error) throw r.error;
-    showToast(id ? 'Session updated' : (weekly ? 'Weekly sessions created' : 'Session created'), 'success');
+    showToast(id ? 'Class updated — weekly schedule regenerated' : 'Class created — weekly sessions added', 'success');
     closeModal();
     renderScheduling();
-  } catch (e) { showToast('Could not save session', 'error'); }
+  } catch (e) { console.error('[FFP Sessions] saveTemplate', e); showToast('Could not save class', 'error'); }
 }
 
-function confirmDeleteSession(id) {
-  openModalShell('', 'Delete session?', '<div class="psub" style="margin:6px 0;">This removes the session from your schedule.</div>', '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="doDeleteSession(\'' + id + '\')">Delete</button>');
+function confirmDeleteTemplate(id) {
+  openModalShell('', 'Delete this class?', '<div class="psub" style="margin:6px 0;">This removes the class and its upcoming sessions from your schedule.</div>', '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="doDeleteTemplate(\'' + id + '\')">Delete</button>');
 }
-
-async function doDeleteSession(id) {
+async function doDeleteTemplate(id) {
   var pid = _schedProvId();
   try {
-    var r = await window.supabase.rpc('provider_delete_session', { p_provider: pid, p_id: id });
+    var r = await window.supabase.rpc('provider_delete_session_template', { p_provider: pid, p_id: id });
     if (r && r.error) throw r.error;
-    showToast('Session deleted', 'success');
+    showToast('Class deleted', 'success');
   } catch (e) { showToast('Could not delete', 'error'); }
   closeModal();
   renderScheduling();
+}
+
+// ── Manage a SINGLE occurrence (one date): substitute coach, change capacity, or cancel ──
+async function openOccurrence(id) {
+  var pid = _schedProvId();
+  if (!_schedStaff.length) await _loadSchedStaff();
+  var s = (_schedSessions || []).find(function (x) { return x.id === id; }) || {};
+  var d = new Date(s.start_at);
+  var when = d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  var body =
+    '<div class="psub" style="margin:0 0 12px;"><b style="color:var(--ffp-text,#eaf2f8);">' + escHtml(s.title || 'Session') + '</b> — ' + when + '. Changes here apply to <b>this date only</b>.</div>' +
+    '<div class="form-grid">' +
+      '<div class="field"><div class="label">Coach <span class="label-hint">— substitute / cover</span></div><select class="select" id="occ-coach">' + _coachOpts(s.coach || '') + '</select></div>' +
+      '<div class="field"><div class="label">Capacity</div><input class="input" type="number" min="1" id="occ-capacity" value="' + escHtml(String(s.capacity || '')) + '"></div>' +
+    '</div>';
+  var foot =
+    '<button class="btn btn-ghost left" style="color:#ff6b6b;" onclick="cancelOccurrence(\'' + id + '\')"><span class="ms">event_busy</span> Cancel this session</button>' +
+    '<button class="btn btn-ghost" onclick="closeModal()">Close</button>' +
+    '<button class="btn btn-pri" onclick="saveOccurrence(\'' + id + '\')">Save changes</button>';
+  openModalShell('', 'Manage session', body, foot);
+}
+async function saveOccurrence(id) {
+  var pid = _schedProvId();
+  var coach = (document.getElementById('occ-coach') || {}).value || '';
+  var capRaw = (document.getElementById('occ-capacity') || {}).value || '';
+  var capacity = capRaw ? parseInt(capRaw, 10) : null;
+  if (capacity != null && (isNaN(capacity) || capacity < 1)) { showToast('Capacity must be at least 1', 'error'); return; }
+  try {
+    var r = await window.supabase.rpc('provider_save_session', { p_provider: pid, p_id: id, p: { coach: coach, capacity: (capacity != null ? String(capacity) : '') } });
+    if (r && r.error) throw r.error;
+    showToast('Session updated (this date)', 'success');
+    closeModal();
+    var ro = await window.supabase.rpc('provider_list_sessions', { p_provider: pid }); _schedSessions = (ro && ro.data) ? ro.data : [];
+    renderTimetable();
+  } catch (e) { showToast('Could not update', 'error'); }
+}
+async function cancelOccurrence(id) {
+  var pid = _schedProvId();
+  try {
+    var r = await window.supabase.rpc('provider_cancel_session', { p_provider: pid, p_id: id });
+    if (r && r.error) throw r.error;
+    showToast('Session cancelled (this date)', 'success');
+    closeModal();
+    var ro = await window.supabase.rpc('provider_list_sessions', { p_provider: pid }); _schedSessions = (ro && ro.data) ? ro.data : [];
+    renderTimetable();
+  } catch (e) { showToast('Could not cancel', 'error'); }
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -316,7 +323,7 @@ async function doDeleteSession(id) {
 // provider_session_attendance / provider_save_attendance / provider_attendance_counts.
 // ════════════════════════════════════════════════════════════════════════
 var _attCounts = {};
-var _register = {};     // member_id -> 'present' | 'absent'  (current open register)
+var _register = {};
 var _regSession = null;
 
 async function renderAttendance() {
@@ -332,10 +339,10 @@ async function renderAttendance() {
     _attCounts = (rc && rc.data) ? rc.data : {};
   } catch (e) { _schedSessions = _schedSessions || []; _attCounts = {}; }
   if (!_schedSessions.length) {
-    host.innerHTML = emptyState('No sessions yet', 'Create sessions in the Calendar tab first, then take attendance here.', '', '');
+    host.innerHTML = emptyState('No sessions yet', 'Create classes in the Sessions tab first, then take attendance here.', '', '');
     return;
   }
-  host.innerHTML = _schedSessions.map(attRow).join('');
+  host.innerHTML = _schedSessions.filter(function (s) { return s.status !== 'cancelled'; }).map(attRow).join('');
 }
 
 function attRow(s) {
@@ -418,6 +425,5 @@ async function saveRegister() {
   } catch (e) { showToast('Could not save register', 'error'); }
 }
 
-// First open: this script is loaded by showPanel AFTER its synchronous render
-// hook has already run, so render now if the Scheduling panel is on screen.
+// First open: this script is loaded by showPanel AFTER its synchronous render hook has run.
 try { if (document.getElementById('sched-list')) renderScheduling(); } catch (e) {}
