@@ -1,4 +1,12 @@
-<!-- FFP PROVIDER DASHBOARD — v48 (2026-06-12)
+<!-- FFP PROVIDER DASHBOARD — v49 (2026-06-12)
+     v49: UNIFIED FIELDS + PROFILE GATE. (a) Level fields read the shared FFP_TAX.attendeeLevels (Events #em-intensity
+          + the base experiences modal); Events Country/City are now the shared searchable picker buttons
+          (#em-country-btn/#em-city-btn) wired by the events loader — no native dropdowns. (b) Cache-busts:
+          ffp-taxonomy.js?v=10, ffp-provider-experiences-loader.js?v=7, ffp-provider-events-loader.js?v=10,
+          ffp-provider-classes-loader.js?v=2, ffp-provider-profile-loader.js?v=14. (c) PROFILE COMPLETION reworked to
+          the real storefront ESSENTIALS (business name, category, city, about, logo, hero, ≥1 activity — 100% now
+          reachable; website/hours are non-blocking extras) + a "your listings won't show on Find Fit People until
+          your profile is complete" warning banner on every listing panel (renderListingGate in showPanel).
      v48: FACILITY PAYMENTS — Connect via Stripe-hosted Account Links (no client_id/redirect URI). renderPaymentsCard()
           now also shows an "onboarding / Finish setup" state; ?stripe=incomplete handled. Card → connectStripe() →
           POST /api/facility/connect/start → Stripe-hosted onboarding → /return updates payments_status.
@@ -104,7 +112,7 @@
 <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>
 <script src="assets/ffp-image-upload.js?v=7"></script>
-<script src="ffp-provider-profile-loader.js?v=13"></script>
+<script src="ffp-provider-profile-loader.js?v=14"></script>
 <!-- Shared provider picker (FFPPicker) defined HERE in the dashboard so Events/Challenges/Experiences
      activity + country/city pickers never depend on a separately-uploaded loader being present. -->
 <script>
@@ -3299,6 +3307,7 @@ function showPanel(id) {
   if (id === 'members' && typeof renderMembers === 'function') renderMembers();
   if (id === 'billing') { if (typeof renderPayments === 'function') renderPayments(); renderPaymentsCard(); }
   if (id === 'staff' && typeof renderStaff === 'function') renderStaff();
+  renderListingGate(id);   // show/hide the "listings hidden until profile complete" banner
   window.scrollTo({ top: 0, behavior: 'smooth' });
   // Close mobile sidebar after navigation
   if (window.innerWidth <= 768) closeSidebar();
@@ -3575,24 +3584,30 @@ function getPhoneValue() {
 // ════════════════════════════════════════════════
 // PROFILE COMPLETION
 // ════════════════════════════════════════════════
-function computeProfileCompletion() {
+// The STOREFRONT ESSENTIALS — the fields that make a listing display properly on Find Fit People.
+// A listing won't show publicly until ALL of these are filled. (Website, hours, address etc. are
+// recommended extras that boost ranking but don't block — they're not gating fields.)
+function profileEssentials() {
   const p = providerProfile;
-  const filledHours = Object.values(p.hours).filter(h => h.closed || (h.open && h.close)).length;
-  const checks = [
-    !!p.business_name,
-    !!p.category,
-    !!p.city,
-    !!p.provider_type,
-    !!p.area,
-    !!p.address,
-    !!p.phone,
-    !!p.website,
-    !!(p.about && p.about.length >= 40),
-    !!p.logo_url,
-    !!p.hero_url,
-    filledHours >= 7
+  const acts = Array.isArray(p.activities) ? p.activities : [];
+  return [
+    { ok: !!p.business_name,                          label: 'Business name' },
+    { ok: !!p.category,                               label: 'Category' },
+    { ok: !!p.city,                                   label: 'City' },
+    { ok: !!(p.about && p.about.trim().length >= 40), label: 'About (a sentence or two)' },
+    { ok: !!p.logo_url,                               label: 'Logo' },
+    { ok: !!p.hero_url,                               label: 'Hero photo' },
+    { ok: acts.length > 0,                            label: 'At least one activity' }
   ];
-  return Math.round(checks.filter(Boolean).length / checks.length * 100);
+}
+function profileMissingEssentials() { return profileEssentials().filter(i => !i.ok).map(i => i.label); }
+function profileIsComplete()  { return profileMissingEssentials().length === 0; }
+// providerProfile.status is only set once the profile loader has fetched real data from the DB —
+// use it to avoid flashing the "incomplete" warning before the profile has loaded.
+function profileDataLoaded()  { return !!providerProfile.status; }
+function computeProfileCompletion() {
+  const items = profileEssentials();
+  return Math.round(items.filter(i => i.ok).length / items.length * 100);
 }
 
 function renderProfileCompletion() {
@@ -3604,11 +3619,54 @@ function renderProfileCompletion() {
   const bar = document.getElementById('completion-bar');
   bar.style.width = pct + '%';
   bar.className = pct === 100 ? 'bar-fill green' : 'bar-fill yellow';
-  document.getElementById('completion-icon').textContent = pct === 100 ? 'verified' : 'trending_up';
-  document.getElementById('completion-sub').textContent = pct === 100
-    ? 'Your profile is complete and ranks higher in member search results.'
-    : 'Members see complete profiles first in search results. Fill in the missing fields below.';
+  document.getElementById('completion-icon').textContent = pct === 100 ? 'verified' : 'warning';
+  const missing = profileMissingEssentials();
+  document.getElementById('completion-sub').innerHTML = pct === 100
+    ? 'Your profile is complete — your listings can go live and appear on Find Fit People.'
+    : '<b>Your listings won’t appear on Find Fit People until your profile is complete.</b> Still needed: ' + missing.map(escHtml).join(', ') + '.';
+  if (typeof window.refreshListingGate === 'function') window.refreshListingGate();
 }
+
+// ── "Listings hidden until profile complete" notification ──
+// Shows a warning banner at the top of each listing panel whenever the profile is missing an essential.
+const LISTING_GATE_PANELS = ['events', 'experiences', 'classes', 'challenges', 'deals'];
+function _ensureGateCss() {
+  if (document.getElementById('listing-gate-css')) return;
+  const st = document.createElement('style');
+  st.id = 'listing-gate-css';
+  st.textContent =
+    '.listing-gate-banner{display:flex;align-items:center;gap:12px;background:rgba(255,204,0,.10);' +
+    'border:1px solid rgba(255,204,0,.45);border-radius:12px;padding:14px 16px;margin:0 0 18px;color:#f5f7fa;}' +
+    '.listing-gate-banner>.ms{color:#FFCC00;font-size:22px;flex-shrink:0;}' +
+    '.listing-gate-banner .lgb-text{flex:1;font-size:13px;line-height:1.45;}' +
+    '.listing-gate-banner .btn{flex-shrink:0;white-space:nowrap;}' +
+    '@media(max-width:560px){.listing-gate-banner{flex-wrap:wrap;}.listing-gate-banner .btn{width:100%;}}';
+  document.head.appendChild(st);
+}
+function renderListingGate(id) {
+  const panel = document.getElementById('panel-' + id);
+  if (!panel) return;
+  let banner = panel.querySelector('.listing-gate-banner');
+  const show = LISTING_GATE_PANELS.indexOf(id) !== -1 && profileDataLoaded() && !profileIsComplete();
+  if (!show) { if (banner) banner.remove(); return; }
+  _ensureGateCss();
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.className = 'listing-gate-banner';
+    panel.insertBefore(banner, panel.firstChild);
+  }
+  const missing = profileMissingEssentials();
+  banner.innerHTML =
+    '<span class="ms">visibility_off</span>' +
+    '<div class="lgb-text"><b>These listings won’t show on Find Fit People yet.</b> ' +
+    'Finish your business profile first — still needed: ' + missing.map(escHtml).join(', ') + '.</div>' +
+    '<button type="button" class="btn btn-pri" onclick="showPanel(\'profile\')">Complete profile</button>';
+}
+// Re-evaluate the gate on the currently-active panel (called after the profile loads).
+window.refreshListingGate = function () {
+  const active = document.querySelector('.panel.active');
+  if (active && active.id && active.id.indexOf('panel-') === 0) renderListingGate(active.id.slice(6));
+};
 
 // Refresh completion whenever any profile field changes
 document.addEventListener('input', e => {
