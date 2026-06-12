@@ -1,8 +1,12 @@
 // ════════════════════════════════════════════════════════════════════════
-// FFP Partner Portal — STAFF module  (Business → Staff) — v2 (2026-06-12)
+// FFP Partner Portal — STAFF module  (Business → Staff) — v3 (2026-06-12)
 // Deferred loader: registered in _provLoaderSrc, lazy-loaded by
 // ensureProviderLoader() the first time the Staff panel is opened.
 //
+// v3: COACH PHOTO — staff get a photo (provider_staff.photo_url) via the shared uploader (pickStaffPhoto →
+//     FFPUpload, quest-images bucket). Shows next to the coach + in the bio popup on their sessions.
+//     Also: PHONE now uses the standard country-code component (.phone-cc from FFP_TAX.phoneCodes + .phone-num) —
+//     was a plain text box. (Per the FORM FIELD STANDARDS checklist in FFP-MASTER.md.)
 // v2: added a "Short bio" field (provider_staff.bio) captured when adding a coach — shown to members in a popup
 //     on the sessions that coach runs (people book for the coach). Saved via provider_save_staff.
 // v1 = staff directory (records, roles, access level). Real per-staff logins
@@ -60,6 +64,16 @@ function staffRow(s) {
   '</div>';
 }
 
+// Coach photo upload — reuses the shared image uploader (quest-images bucket, like the profile/pro photo).
+function pickStaffPhoto() {
+  if (!window.FFPUpload || !FFPUpload.pick) { showToast('Uploader still loading — try again', 'error'); return; }
+  FFPUpload.pick({ bucket: 'quest-images', key: 'staff-' + (_staffProvId() || 'x') + '-' + Date.now(), aspect: 1, outW: 512, outH: 512, title: 'Coach photo',
+    onDone: function (url) {
+      var h = document.getElementById('st-photo_url'); if (h) h.value = url || '';
+      var box = document.getElementById('st-photo'); if (box && url) { box.style.background = "url('" + url + "') center/cover no-repeat"; box.innerHTML = ''; }
+    } });
+}
+
 function openStaffModal(id) {
   var editing = id ? _staff.find(function (x) { return x.id === id; }) : null;
   var s = editing || { full_name: '', email: '', phone: '', role: 'Coach', access_level: 'coach', status: 'active', notes: '', bio: '' };
@@ -69,9 +83,14 @@ function openStaffModal(id) {
     <div class="form-section">
       <div class="form-section-title">Person</div>
       <div class="form-grid">
+        <div class="field full" style="display:flex;align-items:center;gap:14px;">
+          <input type="hidden" id="st-photo_url" value="${escHtml(s.photo_url || '')}">
+          <div id="st-photo" onclick="pickStaffPhoto()" style="width:72px;height:72px;border-radius:50%;flex:0 0 auto;cursor:pointer;background:${s.photo_url ? ("url('" + escHtml(s.photo_url) + "') center/cover no-repeat") : 'var(--ffp-bg-card,#0f1f2c)'};border:1px solid var(--ffp-border,#1d3346);display:flex;align-items:center;justify-content:center;color:var(--ffp-text-dim,#6c7f90);overflow:hidden;">${s.photo_url ? '' : '<span class="ms" style="font-size:24px;">add_a_photo</span>'}</div>
+          <div><button class="btn btn-sec btn-sm" type="button" onclick="pickStaffPhoto()"><span class="ms">photo_camera</span> ${s.photo_url ? 'Change photo' : 'Add photo'}</button><div style="font-size:11px;color:var(--ffp-text-dim,#6c7f90);margin-top:6px;">Shown to members on this coach's sessions. Square works best.</div></div>
+        </div>
         <div class="field full"><div class="label">Full name <span class="req">*</span></div><input class="input" id="st-full_name" value="${escHtml(s.full_name)}" placeholder="e.g. Lee Carter"></div>
         <div class="field"><div class="label">Email</div><input class="input" id="st-email" value="${escHtml(s.email || '')}" placeholder="name@email.com"></div>
-        <div class="field"><div class="label">Phone</div><input class="input" id="st-phone" value="${escHtml(s.phone || '')}" placeholder="+971 50 000 0000"></div>
+        <div class="field"><div class="label">Phone</div><div class="phone-input"><select class="phone-cc" id="st-phone-cc"></select><input class="input phone-num" id="st-phone-num" placeholder="50 123 4567" inputmode="tel"></div></div>
       </div>
     </div>
     <div class="form-section">
@@ -94,6 +113,23 @@ function openStaffModal(id) {
     <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
     <button class="btn btn-pri" onclick="saveStaff('${editing ? editing.id : ''}')">${editing ? 'Save changes' : 'Add staff'}</button>
   `);
+
+  // Phone — standard country-code picker (same component as the rest of the platform), populated from FFP_TAX.
+  setTimeout(function () {
+    var cc = document.getElementById('st-phone-cc'), num = document.getElementById('st-phone-num');
+    if (!cc || !num) return;
+    var codes = (window.FFP_TAX && window.FFP_TAX.phoneCodes && window.FFP_TAX.phoneCodes.length) ? window.FFP_TAX.phoneCodes : [{ code: '+971' }];
+    if (!cc.options.length) codes.forEach(function (c) { var o = document.createElement('option'); o.value = c.code; o.textContent = (c.flag ? c.flag + ' ' : '') + c.code; cc.appendChild(o); });
+    cc.value = '+971'; num.value = '';
+    var full = (s.phone || '').trim();
+    if (full) {
+      var matched = false;
+      codes.map(function (c) { return c.code; }).sort(function (a, b) { return b.length - a.length; }).forEach(function (code) {
+        if (!matched && full.indexOf(code) === 0) { cc.value = code; num.value = full.slice(code.length).trim(); matched = true; }
+      });
+      if (!matched) num.value = full.replace(/^\+\d+\s*/, '').trim() || full;
+    }
+  }, 30);
 }
 
 async function saveStaff(id) {
@@ -102,7 +138,9 @@ async function saveStaff(id) {
   if (!name) { showToast('Name is required', 'error'); return; }
   var pid = _staffProvId();
   if (!pid) { showToast('Not signed in', 'error'); return; }
-  var payload = { full_name: name, email: g('email'), phone: g('phone'), role: g('role'), access_level: g('access_level') || 'coach', status: g('status') || 'active', notes: g('notes'), bio: g('bio') };
+  var ccEl = document.getElementById('st-phone-cc'), numEl = document.getElementById('st-phone-num');
+  var phone = (numEl && numEl.value.trim()) ? ((ccEl ? ccEl.value : '+971') + ' ' + numEl.value.trim()) : '';
+  var payload = { full_name: name, email: g('email'), phone: phone, role: g('role'), access_level: g('access_level') || 'coach', status: g('status') || 'active', notes: g('notes'), bio: g('bio'), photo_url: g('photo_url') };
   try {
     var r = await window.supabase.rpc('provider_save_staff', { p_provider: pid, p_id: id || null, p: payload });
     if (r && r.error) throw r.error;
