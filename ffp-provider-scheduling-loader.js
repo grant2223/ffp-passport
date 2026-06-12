@@ -1,5 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
-// FFP Partner Portal — SESSIONS module (was "Scheduling") — v2 (2026-06-12)
+// FFP Partner Portal — SESSIONS module (was "Scheduling") — v3 (2026-06-12)
+// v3: COACH BIO POPUP — the coach name on each session is tappable → popup with that coach's short bio (from the
+//     staff record, provider_staff.bio). People book for the coach. Coach bios fetched via provider_list_staff.
 // v2: WORLD-CLASS FIELDS — the "New session" form was raw free-text; rebuilt to standard: Activity + City now use
 //     the shared searchable taxonomy picker (window.FFPPicker, same as the listing forms — no free text), Coach is
 //     a dropdown of the provider's own staff (provider_list_staff), Location is a Google Maps URL, Price labelled
@@ -17,6 +19,7 @@
 // resolve against global scope, exactly as the other portal panels do.
 // ════════════════════════════════════════════════════════════════════════
 var _schedSessions = [];
+var _coachBios = {};   // coach full_name -> { bio, role } (from provider_list_staff) for the bio popup
 var SESSION_TYPES = { class: 'Group class', pt: 'Personal training', team: 'Team training' };
 
 function _schedProvId() {
@@ -34,6 +37,12 @@ async function renderScheduling() {
     var r = await window.supabase.rpc('provider_list_sessions', { p_provider: pid });
     _schedSessions = (r && r.data) ? r.data : [];
   } catch (e) { _schedSessions = []; }
+  // Coach bios (for the tappable coach popup) — from the provider's own staff.
+  try {
+    var sr = await window.supabase.rpc('provider_list_staff', { p_provider: pid });
+    _coachBios = {};
+    (sr && sr.data ? sr.data : []).forEach(function (c) { var nm = c.full_name || ''; if (nm) _coachBios[nm] = { bio: c.bio || '', role: c.role || '' }; });
+  } catch (e) {}
   if (!_schedSessions.length) {
     host.innerHTML = emptyState('No sessions yet', 'Add your first class, PT slot or team session. Members will be able to book it.', 'New session', 'openSessionModal()');
     return;
@@ -47,7 +56,7 @@ function schedRow(s) {
              d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   var typeLbl = SESSION_TYPES[s.session_type] || 'Session';
   var meta = [];
-  if (s.coach) meta.push('Coach ' + escHtml(s.coach));
+  if (s.coach) meta.push('<span style="color:#6fc6ef;cursor:pointer;text-decoration:underline;" onclick="showCoachBio(\'' + encodeURIComponent(s.coach) + '\')">Coach ' + escHtml(s.coach) + '</span>');
   if (s.session_type === 'team' && s.team_name) meta.push(escHtml(s.team_name));
   if (s.capacity) meta.push(s.capacity + ' spots');
   if (s.duration_min) meta.push(s.duration_min + ' min');
@@ -67,6 +76,18 @@ function schedRow(s) {
         '</div>' +
       '</div>' +
   '</div>';
+}
+
+// Coach bio popup — the short bio captured on the staff record (people book for the coach).
+function showCoachBio(enc) {
+  var name = ''; try { name = decodeURIComponent(enc); } catch (e) { name = enc; }
+  var c = _coachBios[name] || {};
+  var body = '<div style="display:flex;flex-direction:column;gap:8px;">' +
+      '<div style="font-weight:800;font-size:16px;color:var(--ffp-text,#eaf2f8);">' + escHtml(name) +
+        (c.role ? ' <span class="psub" style="font-weight:600;">· ' + escHtml(c.role) + '</span>' : '') + '</div>' +
+      '<div class="psub" style="margin:0;line-height:1.55;">' + (c.bio ? escHtml(c.bio) : 'No bio added yet — add one for this coach in the Staff tab.') + '</div>' +
+    '</div>';
+  openModalShell('', name || 'Coach', body, '<button class="btn btn-pri" onclick="closeModal()">Close</button>');
 }
 
 async function openSessionModal(id) {
