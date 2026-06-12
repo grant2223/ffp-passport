@@ -1,4 +1,6 @@
-<!-- FFP PROVIDER DASHBOARD — v58 (2026-06-12)
+<!-- FFP PROVIDER DASHBOARD — v59 (2026-06-12)
+     v59: SESSIONS = one strap per session (weekly recurrences grouped) + new "Timetable" tab (Mon–Sun weekly grid).
+          Tabs: Sessions | Timetable | Attendance. Cache-bust scheduling-loader?v=5.
      v58: COACH PHOTO — staff photo upload (provider_staff.photo_url via FFPUpload); shows next to the coach on
           each session + large in the bio popup. Cache-busts: scheduling-loader?v=4, staff-loader?v=3.
      v57: COACH BIO — staff get a "Short bio" (provider_staff.bio); on a session the coach name is tappable → popup
@@ -2578,15 +2580,20 @@ a { color: var(--ffp-blue); text-decoration: none; }
         <div class="ph">Sessions</div>
         <div class="psub">Your recurring classes, PT slots and team sessions — set the timetable, capacity and take attendance. Members book these. (One-off tours live in the Tours tab.)</div>
         <div class="biz-tabs">
-          <button class="biz-tab active" onclick="bizTab(this,'sch-calendar')">Calendar &amp; Bookings</button>
+          <button class="biz-tab active" onclick="bizTab(this,'sch-calendar')">Sessions</button>
+          <button class="biz-tab" onclick="bizTab(this,'sch-timetable'); if(typeof renderTimetable==='function')renderTimetable();">Timetable</button>
           <button class="biz-tab" onclick="bizTab(this,'sch-attendance'); if(typeof renderAttendance==='function')renderAttendance();">Attendance</button>
         </div>
         <div class="biz-pane active" id="sch-calendar">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
-            <div class="psub" style="margin:0;">Classes, personal training and team sessions you run — members will book these.</div>
+            <div class="psub" style="margin:0;">Each class, PT slot or team session you run — one card per session. Members book these.</div>
             <button class="btn btn-pri" onclick="openSessionModal()"><span class="ms">add</span> New session</button>
           </div>
           <div id="sched-list" style="margin-top:10px;"></div>
+        </div>
+        <div class="biz-pane" id="sch-timetable">
+          <div class="psub" style="margin:14px 0 8px;">Your week at a glance — each session in its day &amp; time slot.</div>
+          <div id="timetable-host" style="margin-top:8px;"></div>
         </div>
         <div class="biz-pane" id="sch-attendance">
           <div class="psub" style="margin:14px 0 4px;">Pick a session and tick who attended.</div>
@@ -3156,7 +3163,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js', 'scheduling': 'ffp-provider-scheduling-loader.js?v=4', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=7' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js', 'scheduling': 'ffp-provider-scheduling-loader.js?v=5', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=7' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
