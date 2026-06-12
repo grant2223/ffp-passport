@@ -1,4 +1,8 @@
-<!-- FFP PROVIDER DASHBOARD — v64 (2026-06-12)
+<!-- FFP PROVIDER DASHBOARD — v65 (2026-06-12)
+     v65: FACILITY TIMEZONE. New Profile "Timezone" picker (searchable IANA list via assets/ffp-time.js) →
+          providers.timezone. Shared FFPTime helper governs ALL listing date/time (Tours, Events, Trips, Sessions):
+          partners enter wall-clock in their facility tz, stored UTC, rendered back in facility tz. Cache-busts:
+          auth?v=6, ffp-time?v=1, profile?v=15, classes?v=9, events?v=11, experiences?v=8.
      v64: Class FEATURE re-pointed to the class template (session_templates.featured); Feature button on the class
           card. Cache-bust scheduling?v=9.
      v63: SESSIONS REBUILD UI — "New class" opens the class-template form (class details + DESCRIPTION + photo +
@@ -153,11 +157,12 @@
 <script src="assets/ffp-constants.js"></script>
 <script src="assets/ffp-taxonomy.js?v=11"></script>
 <script src="assets/ffp-location-picker.js"></script>
-<script src="ffp-provider-auth.js"></script>
+<script src="assets/ffp-time.js?v=1"></script>
+<script src="ffp-provider-auth.js?v=6"></script>
 <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>
 <script src="assets/ffp-image-upload.js?v=7"></script>
-<script src="ffp-provider-profile-loader.js?v=14"></script>
+<script src="ffp-provider-profile-loader.js?v=15"></script>
 <!-- Shared provider picker (FFPPicker) defined HERE in the dashboard so Events/Challenges/Experiences
      activity + country/city pickers never depend on a separately-uploaded loader being present. -->
 <script>
@@ -242,8 +247,8 @@
   console.log('[FFPPicker] ready (dashboard-owned, decoupled) ✓');
 })();
 </script>
-<script src="ffp-provider-events-loader.js?v=10"></script>
-<script src="ffp-provider-experiences-loader.js?v=7"></script>
+<script src="ffp-provider-events-loader.js?v=11"></script>
+<script src="ffp-provider-experiences-loader.js?v=8"></script>
 <script src="ffp-provider-challenges-loader.js"></script>
 <!-- v29 (2026-06-03): Taxonomy audit fixes — "Provider type" (pf-type) reads the unified provider_type
      taxonomy via FFP_TAX.providerTypes (shared with admin rankings; business_structure concept dropped);
@@ -2484,6 +2489,11 @@ a { color: var(--ffp-blue); text-decoration: none; }
               <select class="select" id="pf-city" data-ffp-loc="city" data-ffp-group="provider"></select>
             </div>
             <div class="field">
+              <div class="label">Timezone <span class="req">*</span></div>
+              <select class="select" id="pf-timezone"><option value="">Choose timezone…</option></select>
+              <div class="hint" style="font-size:12px;opacity:.7;margin-top:4px;">Used for all your class, tour, event &amp; trip times.</div>
+            </div>
+            <div class="field">
               <div class="label">Area / Neighbourhood</div>
               <input class="input" id="pf-area" placeholder="e.g. Al Quoz, JLT, Dubai Marina">
             </div>
@@ -3180,7 +3190,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js', 'scheduling': 'ffp-provider-scheduling-loader.js?v=9', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=8' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js', 'scheduling': 'ffp-provider-scheduling-loader.js?v=9', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=9' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
@@ -3487,6 +3497,7 @@ function loadProfile() {
   document.getElementById('pf-business-name').value = providerProfile.business_name || '';
   document.getElementById('pf-category').value = providerProfile.category || '';
   document.getElementById('pf-type').value = providerProfile.provider_type || '';
+  var _tzEl = document.getElementById('pf-timezone'); if (_tzEl) { _tzEl.value = providerProfile.timezone || (window.FFP_PROVIDER && window.FFP_PROVIDER.timezone) || 'Asia/Dubai'; }
   if (window.FFPLocation) { FFPLocation.setValue('provider', providerProfile.country || '', providerProfile.city || ''); } else { var _pc = document.getElementById('pf-city'); if (_pc) _pc.value = providerProfile.city || ''; }
   document.getElementById('pf-area').value = providerProfile.area || '';
   document.getElementById('pf-address').value = providerProfile.address || '';
