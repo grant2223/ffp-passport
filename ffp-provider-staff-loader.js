@@ -1,8 +1,10 @@
 // ════════════════════════════════════════════════════════════════════════
-// FFP Partner Portal — STAFF module  (Business → Staff)
+// FFP Partner Portal — STAFF module  (Business → Staff) — v2 (2026-06-12)
 // Deferred loader: registered in _provLoaderSrc, lazy-loaded by
 // ensureProviderLoader() the first time the Staff panel is opened.
 //
+// v2: added a "Short bio" field (provider_staff.bio) captured when adding a coach — shown to members in a popup
+//     on the sessions that coach runs (people book for the coach). Saved via provider_save_staff.
 // v1 = staff directory (records, roles, access level). Real per-staff logins
 // and permission enforcement come later. provider_staff via SECURITY DEFINER
 // RPCs (p_provider scoped): provider_save_staff / provider_list_staff /
@@ -60,7 +62,7 @@ function staffRow(s) {
 
 function openStaffModal(id) {
   var editing = id ? _staff.find(function (x) { return x.id === id; }) : null;
-  var s = editing || { full_name: '', email: '', phone: '', role: 'Coach', access_level: 'coach', status: 'active', notes: '' };
+  var s = editing || { full_name: '', email: '', phone: '', role: 'Coach', access_level: 'coach', status: 'active', notes: '', bio: '' };
   var roleOpts = STAFF_ROLES.map(function (r) { return '<option' + (s.role === r ? ' selected' : '') + '>' + r + '</option>'; }).join('');
   var accessOpts = Object.keys(ACCESS_LEVELS).map(function (k) { return '<option value="' + k + '"' + (s.access_level === k ? ' selected' : '') + '>' + ACCESS_LEVELS[k] + '</option>'; }).join('');
   openModalShell('lg', (editing ? 'Edit staff' : 'Add staff'), `
@@ -78,7 +80,13 @@ function openStaffModal(id) {
         <div class="field"><div class="label">Role</div><select class="select" id="st-role">${roleOpts}</select></div>
         <div class="field"><div class="label">Access level</div><select class="select" id="st-access_level">${accessOpts}</select></div>
         <div class="field"><div class="label">Status</div><select class="select" id="st-status"><option value="active"${s.status === 'active' ? ' selected' : ''}>Active</option><option value="inactive"${s.status !== 'active' ? ' selected' : ''}>Inactive</option></select></div>
-        <div class="field full"><div class="label">Notes</div><textarea class="textarea" id="st-notes" rows="2" placeholder="Optional">${escHtml(s.notes || '')}</textarea></div>
+        <div class="field full"><div class="label">Notes <span style="color:var(--ffp-text-dim,#6c7f90);">(internal — not shown to members)</span></div><textarea class="textarea" id="st-notes" rows="2" placeholder="Optional">${escHtml(s.notes || '')}</textarea></div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Coach bio</div>
+      <div class="form-grid">
+        <div class="field full"><div class="label">Short bio <span class="label-hint">— members see this on the sessions this coach runs</span></div><textarea class="textarea" id="st-bio" rows="3" placeholder="A couple of sentences members see about this coach — experience, style, specialties.">${escHtml(s.bio || '')}</textarea></div>
       </div>
     </div>
   `, `
@@ -94,7 +102,7 @@ async function saveStaff(id) {
   if (!name) { showToast('Name is required', 'error'); return; }
   var pid = _staffProvId();
   if (!pid) { showToast('Not signed in', 'error'); return; }
-  var payload = { full_name: name, email: g('email'), phone: g('phone'), role: g('role'), access_level: g('access_level') || 'coach', status: g('status') || 'active', notes: g('notes') };
+  var payload = { full_name: name, email: g('email'), phone: g('phone'), role: g('role'), access_level: g('access_level') || 'coach', status: g('status') || 'active', notes: g('notes'), bio: g('bio') };
   try {
     var r = await window.supabase.rpc('provider_save_staff', { p_provider: pid, p_id: id || null, p: payload });
     if (r && r.error) throw r.error;
