@@ -1,4 +1,13 @@
-/* FFP Provider Events Loader — v8 (2026-06-05)
+/* FFP Provider Events Loader — v10 (2026-06-12)
+   v10: UNIFIED FIELDS — Country/City now use the shared searchable picker (window.FFPPicker), the same
+        component as the Trips form and the activity field (no more native dropdowns). "Level" reads the
+        shared window.FFP_TAX.attendeeLevels (the dashboard em-intensity select). One look across all forms.
+   v9: GYG PARITY — injectEventDetail() adds a "Good to know" section to the event modal (DOM-injected, so only
+       this loader deploys): Highlights, What's included / NOT included, Meeting point + map coords, Min age,
+       Not allowed, Know before you go, Languages, Wheelchair accessible + notes, Free-cancellation hours + policy.
+       Saved as arrays/scalars via provider_save_listing kind='event'. Pre-fills on edit (mapForUi + fetch select extended).
+   --- prior ---
+   v8 (2026-06-05)
    v8: CATEGORY STANDARDISATION — removed the dead 23-granular FFP_CATEGORIES array (unused since v4 swapped
        the category dropdown for the activity picker). Events now derive their category from the activity
        picker, which reads activity_types.category — standardised platform-wide to the 6
@@ -119,6 +128,20 @@
       facilities: row.facilities || '',
       bring: row.bring || '',
       who: row.who_for || '',
+      highlights: Array.isArray(row.highlights) ? row.highlights : [],
+      included: Array.isArray(row.what_included) ? row.what_included : [],
+      not_included: Array.isArray(row.what_not_included) ? row.what_not_included : [],
+      not_allowed: Array.isArray(row.not_allowed) ? row.not_allowed : [],
+      know_before: Array.isArray(row.know_before) ? row.know_before : [],
+      languages: Array.isArray(row.languages) ? row.languages : [],
+      meeting_point: row.meeting_point || '',
+      meeting_lat: (row.meeting_lat != null ? row.meeting_lat : ''),
+      meeting_lng: (row.meeting_lng != null ? row.meeting_lng : ''),
+      min_age: (row.min_age != null ? row.min_age : ''),
+      wheelchair_accessible: (row.wheelchair_accessible == null ? null : !!row.wheelchair_accessible),
+      accessibility_notes: row.accessibility_notes || '',
+      free_cancellation_hours: (row.free_cancellation_hours != null ? row.free_cancellation_hours : ''),
+      cancellation_policy: row.cancellation_policy || '',
       hero_url: row.hero_image_url || null,
       status: row.status || 'pending',
       verified: row.status === 'live',
@@ -135,7 +158,7 @@
     var providerId = window.FFP_PROVIDER.id;
     var res = await window.supabase
       .from('events')
-      .select('id, provider_id, title, description, about, activity, category, fitness_level, group_filter, hero_image_url, country, city, venue, area, setting, starts_at, ends_at, capacity, price_aed, cost, parking, facilities, bring, who_for, status, featured, created_at, updated_at')
+      .select('id, provider_id, title, description, about, activity, category, fitness_level, group_filter, hero_image_url, country, city, venue, area, setting, starts_at, ends_at, capacity, price_aed, cost, parking, facilities, bring, who_for, status, featured, highlights, what_included, what_not_included, meeting_point, meeting_lat, meeting_lng, not_allowed, know_before, languages, min_age, wheelchair_accessible, accessibility_notes, free_cancellation_hours, cancellation_policy, created_at, updated_at')
       .eq('provider_id', providerId)
       .order('starts_at', { ascending: true });
     if (res.error) {
@@ -226,24 +249,34 @@
     });
   }
 
-  // Populate Country + City selects from the shared taxonomy (FFP_TAX.cities), with a country->city cascade.
+  // Country + City via the shared searchable picker (window.FFPPicker) — the SAME component as the Trips
+  // form and the activity field, reading the one shared taxonomy (FFP_TAX.cities). No native dropdowns.
   function fillEventLocation(existing) {
-    var TAX = window.FFP_TAX;
-    var cny = document.getElementById('em-country');
-    var cty = document.getElementById('em-city');
-    if (!cny || !cty || !TAX || !TAX.cities) return;
     var prof = window.providerProfile || {};
-    var countries = Object.keys(TAX.cities).sort();
-    var selCountry = (existing && existing.country) || prof.country || 'United Arab Emirates';
-    var selCity = (existing && existing.city) || prof.city || '';
-    if (countries.indexOf(selCountry) === -1) selCountry = countries[0] || '';
-    cny.innerHTML = countries.map(function (c) { return '<option' + (c === selCountry ? ' selected' : '') + '>' + c + '</option>'; }).join('');
-    function fillCities(country, keepCity) {
-      var list = (TAX.cities[country] || []).slice();
-      cty.innerHTML = '<option value="">Select city…</option>' + list.map(function (c) { return '<option' + (c === keepCity ? ' selected' : '') + '>' + c + '</option>'; }).join('');
-    }
-    fillCities(cny.value, selCity);
-    cny.addEventListener('change', function () { fillCities(cny.value, ''); });
+    var coBtn = document.getElementById('em-country-btn');
+    var ciBtn = document.getElementById('em-city-btn');
+    if (!coBtn || !ciBtn) return;
+    var setBtn = function (btn, val, ph) {
+      btn.dataset.value = val || '';
+      if (val) { btn.classList.remove('placeholder'); btn.innerHTML = '<span>' + escHtmlSafe(val) + '</span><span class="ms caret">expand_more</span>'; }
+      else { btn.classList.add('placeholder'); btn.innerHTML = '<span>' + ph + '</span><span class="ms caret">expand_more</span>'; }
+    };
+    var initCountry = (existing && existing.country) || prof.country || '';
+    var initCity = (existing && existing.city) || '';
+    if (initCountry) setBtn(coBtn, initCountry, 'Choose country…');
+    ciBtn.dataset.country = initCountry;
+    if (initCity) setBtn(ciBtn, initCity, 'Choose city…');
+    coBtn.addEventListener('click', function () {
+      if (!(window.FFPPicker && window.FFPPicker.openCountry)) { toast('Picker not ready', 'error'); return; }
+      window.FFPPicker.openCountry(coBtn.dataset.value, function (name) {
+        setBtn(coBtn, name, 'Choose country…');
+        if (ciBtn.dataset.country !== name) { ciBtn.dataset.country = name; setBtn(ciBtn, '', 'Choose city…'); }
+      });
+    });
+    ciBtn.addEventListener('click', function () {
+      if (!(window.FFPPicker && window.FFPPicker.openCity)) { toast('Picker not ready', 'error'); return; }
+      window.FFPPicker.openCity(ciBtn.dataset.country || coBtn.dataset.value, ciBtn.dataset.value, function (name) { setBtn(ciBtn, name, 'Choose city…'); });
+    });
   }
 
   function patchModalAfterOpen(editingId) {
@@ -262,11 +295,57 @@
       if (fieldEl && fieldEl.parentNode) fieldEl.parentNode.removeChild(fieldEl);
     }
 
+    // Inject the GYG-parity "Good to know" detail section
+    injectEventDetail(existing);
+
     // Clean prior re-approval note
     var modal = document.querySelector('.modal');
     if (!modal) return;
     var existingNote = modal.querySelector('.ffp-reapproval-note');
     if (existingNote) existingNote.remove();
+  }
+
+  // Inject GYG-parity detail fields into the open event modal (kept here so only the loader deploys).
+  function injectEventDetail(existing) {
+    var modalBody = document.querySelector('.modal .modal-body, .modal-body');
+    if (!modalBody || document.getElementById('em-highlights')) return;
+    var e = existing || {};
+    var arr = function (a) { return (Array.isArray(a) ? a : []).join('\n'); };
+    var latlng = (e.meeting_lat != null && e.meeting_lat !== '' && e.meeting_lng != null && e.meeting_lng !== '') ? (e.meeting_lat + ', ' + e.meeting_lng) : '';
+    var wheel = e.wheelchair_accessible;
+    var sec = document.createElement('div');
+    sec.className = 'form-section';
+    sec.innerHTML =
+      '<div class="form-section-title">Good to know</div>' +
+      '<div class="form-grid">' +
+        '<div class="field full"><div class="label">Highlights <span class="label-hint">— one per line</span></div>' +
+          '<textarea class="textarea" id="em-highlights" rows="3" placeholder="Live DJ &amp; finisher medal\nChip timing\nFree parking">' + escHtmlSafe(arr(e.highlights)) + '</textarea></div>' +
+        '<div class="field full"><div class="label">What\'s included <span class="label-hint">— one per line</span></div>' +
+          '<textarea class="textarea" id="em-includes" rows="3" placeholder="Race bib\nFinisher medal\nHydration stations">' + escHtmlSafe(arr(e.included)) + '</textarea></div>' +
+        '<div class="field full"><div class="label">What\'s NOT included <span class="label-hint">— one per line</span></div>' +
+          '<textarea class="textarea" id="em-excludes" rows="2" placeholder="Parking\nMeals">' + escHtmlSafe(arr(e.not_included)) + '</textarea></div>' +
+        '<div class="field full"><div class="label">Meeting point <span class="label-hint">— where to gather</span></div>' +
+          '<input class="input" id="em-meeting-point" value="' + escHtmlSafe(e.meeting_point) + '" placeholder="e.g. Kite Beach, north entrance"></div>' +
+        '<div class="field"><div class="label">Map coordinates <span class="label-hint">— paste &quot;lat, lng&quot;</span></div>' +
+          '<input class="input" id="em-latlng" value="' + escHtmlSafe(latlng) + '" placeholder="e.g. 25.14, 55.19"></div>' +
+        '<div class="field"><div class="label">Minimum age</div>' +
+          '<input class="input" type="number" id="em-min-age" value="' + escHtmlSafe(e.min_age) + '" placeholder="e.g. 12"></div>' +
+        '<div class="field full"><div class="label">Not allowed <span class="label-hint">— one per line</span></div>' +
+          '<textarea class="textarea" id="em-not-allowed" rows="2" placeholder="Pets (assistance dogs OK)\nGlass bottles">' + escHtmlSafe(arr(e.not_allowed)) + '</textarea></div>' +
+        '<div class="field full"><div class="label">Know before you go <span class="label-hint">— one per line</span></div>' +
+          '<textarea class="textarea" id="em-know-before" rows="2" placeholder="Arrive 30 min early\nBring photo ID">' + escHtmlSafe(arr(e.know_before)) + '</textarea></div>' +
+        '<div class="field"><div class="label">Languages <span class="label-hint">— one per line</span></div>' +
+          '<textarea class="textarea" id="em-languages" rows="2" placeholder="English\nArabic">' + escHtmlSafe(arr(e.languages)) + '</textarea></div>' +
+        '<div class="field"><div class="label">Wheelchair accessible</div>' +
+          '<select class="select" id="em-wheelchair"><option value="">—</option><option value="true"' + (wheel === true ? ' selected' : '') + '>Yes</option><option value="false"' + (wheel === false ? ' selected' : '') + '>No</option></select></div>' +
+        '<div class="field full"><div class="label">Accessibility notes</div>' +
+          '<input class="input" id="em-accessibility" value="' + escHtmlSafe(e.accessibility_notes) + '" placeholder="e.g. Step-free access; accessible WC on site"></div>' +
+        '<div class="field"><div class="label">Free cancellation <span class="label-hint">— hours before</span></div>' +
+          '<input class="input" type="number" id="em-cancel-hours" value="' + escHtmlSafe(e.free_cancellation_hours) + '" placeholder="e.g. 24"></div>' +
+        '<div class="field full"><div class="label">Cancellation policy</div>' +
+          '<input class="input" id="em-cancel-policy" value="' + escHtmlSafe(e.cancellation_policy) + '" placeholder="e.g. Free cancellation up to 24h before"></div>' +
+      '</div>';
+    modalBody.appendChild(sec);
   }
 
   function showReapprovalNoteIfNeeded(id) {
@@ -297,8 +376,10 @@
     var actBtn   = document.getElementById('em-activity-btn');
     var activity = actBtn ? actBtn.dataset.value : '';
     var category = actBtn ? actBtn.dataset.category : '';
-    var country  = get('country');
-    var city     = get('city');
+    var coBtn    = document.getElementById('em-country-btn');
+    var ciBtn    = document.getElementById('em-city-btn');
+    var country  = coBtn ? (coBtn.dataset.value || '') : '';
+    var city     = ciBtn ? (ciBtn.dataset.value || '') : '';
     if (!title)    { toast('Title is required', 'error'); return; }
     if (!activity) { toast('Activity is required', 'error'); return; }
     if (!date)     { toast('Start date is required', 'error'); return; }
@@ -319,6 +400,12 @@
     if (priceNum != null && isNaN(priceNum)) priceNum = null;
     var desc = get('description');
 
+    // GYG-parity detail fields (injected "Good to know" section)
+    var arrFrom = function (key) { var v = get(key); return v ? v.split('\n').map(function (x) { return x.trim(); }).filter(function (x) { return x.length; }) : []; };
+    var mLat = null, mLng = null, llRaw = get('latlng');
+    if (llRaw) { var pp = llRaw.split(','); if (pp.length >= 2) { var a = parseFloat(pp[0]), b = parseFloat(pp[1]); if (!isNaN(a)) mLat = a; if (!isNaN(b)) mLng = b; } }
+    var wheel = get('wheelchair'), minAgeRaw = get('min-age'), cancelHrsRaw = get('cancel-hours');
+
     var payload = {
       title: title,
       description: desc || null,
@@ -337,6 +424,20 @@
       parking: get('parking') || null,
       facilities: get('facilities') || null,
       bring: get('bring') || null,
+      highlights: arrFrom('highlights'),
+      what_included: arrFrom('includes'),
+      what_not_included: arrFrom('excludes'),
+      not_allowed: arrFrom('not-allowed'),
+      know_before: arrFrom('know-before'),
+      languages: arrFrom('languages'),
+      meeting_point: get('meeting-point') || null,
+      meeting_lat: mLat,
+      meeting_lng: mLng,
+      min_age: minAgeRaw ? parseInt(minAgeRaw, 10) : null,
+      wheelchair_accessible: (wheel === '' ? null : wheel === 'true'),
+      accessibility_notes: get('accessibility') || null,
+      free_cancellation_hours: cancelHrsRaw ? parseInt(cancelHrsRaw, 10) : null,
+      cancellation_policy: get('cancel-policy') || null,
       hero_image_url: heroUrl
     };
 
@@ -468,6 +569,8 @@
 
     window.saveEvent = realSaveEvent;
     window.confirmDeleteEvent = realDeleteEvent;
+    window.FFPReload = window.FFPReload || {};
+    window.FFPReload.event = refresh;   // used by the dashboard Duplicate flow
   }
 
   if (document.readyState === 'loading') {
