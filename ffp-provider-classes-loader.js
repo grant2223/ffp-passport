@@ -1,4 +1,11 @@
-/* FFP Provider Classes/Tours Loader (customer-facing "EXPERIENCES") — v1 (2026-06-12)
+/* FFP Provider Classes/Tours Loader (customer-facing "EXPERIENCES") — v2 (2026-06-12)
+   v2: LEVELS + CITY PICKER — (1) replaced the orphan "Difficulty" box (Beginner/Intermediate/Advanced/All
+       levels) with "Fitness level required" reading window.FFP_TAX.attendeeLevels (Not Tried/Social/
+       Competitive/Representative/Professional + All Levels) and saving to fitness_level — the SAME connected
+       scale as a member's own ability (verified provider_save_listing class branch persists fitness_level).
+       (2) Country/City native dropdowns replaced with the shared searchable picker (window.FFPPicker) — the
+       same component as Trips and the activity field — so every listing form looks and behaves identically.
+   v1 (2026-06-12)
    The partner create/edit form for single-session classes & tours (the `classes` table, shown to members as
    "Experiences" on findfitpeople.com). Self-contained modal via openModalShell, full GetYourGuide-parity fields.
    Save: provider_save_listing kind='class' (new rows insert as DRAFT). Publish/unpublish: provider_set_listing_status.
@@ -15,7 +22,9 @@
   function intn(v) { return v ? (isNaN(parseInt(v, 10)) ? null : parseInt(v, 10)) : null; }
   function num(v) { return v ? (isNaN(parseFloat(v)) ? null : parseFloat(v)) : null; }
 
-  var DIFFICULTY = ['Beginner', 'Intermediate', 'Advanced', 'All levels'];
+  // Fallback only — the canonical level list is window.FFP_TAX.attendeeLevels (the member ability scale +
+  // "All Levels"). The form saves the chosen value to fitness_level so it connects to a member's ability.
+  var FITNESS_LEVELS = ['All Levels', 'Not Tried', 'Social', 'Competitive', 'Representative', 'Professional'];
 
   // ── data ──
   async function fetchClasses() {
@@ -99,7 +108,6 @@
     var countries = Object.keys(cities).sort();
     var selCountry = e.country || (window.providerProfile || {}).country || 'United Arab Emirates';
     if (countries.length && countries.indexOf(selCountry) === -1) selCountry = countries[0];
-    var cityOpts = function (country, sel) { return '<option value="">Select city…</option>' + (cities[country] || []).map(function (ct) { return '<option' + (ct === sel ? ' selected' : '') + '>' + esc(ct) + '</option>'; }).join(''); };
 
     var body =
       '<div class="form-section"><div class="form-section-title">Photo</div>' +
@@ -111,12 +119,14 @@
           '<input class="input" id="cm-description" value="' + esc(e.description || '') + '" placeholder="One-sentence summary members see on the card"></div>' +
         '<div class="field"><div class="label">Activity <span class="req">*</span></div>' +
           '<button type="button" class="ffp-picker-btn placeholder" id="cm-activity-btn" data-value="" data-category=""><span>Choose activity…</span><span class="ms caret">expand_more</span></button></div>' +
-        '<div class="field"><div class="label">Difficulty</div>' +
-          '<select class="select" id="cm-difficulty"><option value="">—</option>' + DIFFICULTY.map(function (d) { return '<option' + (e.difficulty === d ? ' selected' : '') + '>' + d + '</option>'; }).join('') + '</select></div>' +
+        '<div class="field"><div class="label">Fitness level required</div>' +
+          '<select class="select" id="cm-fitness-level">' + ((window.FFP_TAX && window.FFP_TAX.attendeeLevels && window.FFP_TAX.attendeeLevels.length) ? window.FFP_TAX.attendeeLevels : FITNESS_LEVELS).map(function (d) { return '<option' + (((e.fitness_level || 'All Levels') === d) ? ' selected' : '') + '>' + d + '</option>'; }).join('') + '</select></div>' +
       '</div></div>' +
       '<div class="form-section"><div class="form-section-title">When &amp; where</div><div class="form-grid">' +
-        '<div class="field"><div class="label">Country <span class="req">*</span></div><select class="select" id="cm-country">' + countries.map(function (co) { return '<option' + (co === selCountry ? ' selected' : '') + '>' + esc(co) + '</option>'; }).join('') + '</select></div>' +
-        '<div class="field"><div class="label">City</div><select class="select" id="cm-city">' + cityOpts(selCountry, e.city || '') + '</select></div>' +
+        '<div class="field"><div class="label">Country <span class="req">*</span></div>' +
+          '<button type="button" class="ffp-picker-btn placeholder" id="cm-country-btn" data-value=""><span>Choose country…</span><span class="ms caret">expand_more</span></button></div>' +
+        '<div class="field"><div class="label">City</div>' +
+          '<button type="button" class="ffp-picker-btn placeholder" id="cm-city-btn" data-value="" data-country=""><span>Choose city…</span><span class="ms caret">expand_more</span></button></div>' +
         '<div class="field"><div class="label">Venue</div><input class="input" id="cm-venue" value="' + esc(e.venue || '') + '" placeholder="e.g. Kite Beach"></div>' +
         '<div class="field"><div class="label">Duration (min)</div><input class="input" type="number" id="cm-duration" value="' + esc(e.duration_min || '') + '" placeholder="e.g. 60"></div>' +
         '<div class="field"><div class="label">Capacity</div><input class="input" type="number" id="cm-capacity" value="' + esc(e.capacity || '') + '" placeholder="e.g. 12"></div>' +
@@ -166,8 +176,30 @@
           } else { toast('Activity picker not ready', 'error'); }
         });
       }
-      var cny = document.getElementById('cm-country'), cty = document.getElementById('cm-city');
-      if (cny && cty) cny.addEventListener('change', function () { cty.innerHTML = cityOpts(cny.value, ''); });
+      // Country + City — shared searchable pickers (same component as Trips & the activity field).
+      var coBtn = document.getElementById('cm-country-btn');
+      var ciBtn = document.getElementById('cm-city-btn');
+      var setBtn = function (btn, val, ph) {
+        if (!btn) return;
+        btn.dataset.value = val || '';
+        if (val) { btn.classList.remove('placeholder'); btn.innerHTML = '<span>' + esc(val) + '</span><span class="ms caret">expand_more</span>'; }
+        else { btn.classList.add('placeholder'); btn.innerHTML = '<span>' + ph + '</span><span class="ms caret">expand_more</span>'; }
+      };
+      var initCountry = e.country || selCountry || '';
+      if (initCountry) setBtn(coBtn, initCountry, 'Choose country…');
+      if (ciBtn) ciBtn.dataset.country = initCountry;
+      if (e.city) setBtn(ciBtn, e.city, 'Choose city…');
+      if (coBtn) coBtn.addEventListener('click', function () {
+        if (!(window.FFPPicker && window.FFPPicker.openCountry)) { toast('Picker not ready', 'error'); return; }
+        window.FFPPicker.openCountry(coBtn.dataset.value, function (name) {
+          setBtn(coBtn, name, 'Choose country…');
+          if (ciBtn && ciBtn.dataset.country !== name) { ciBtn.dataset.country = name; setBtn(ciBtn, '', 'Choose city…'); }
+        });
+      });
+      if (ciBtn) ciBtn.addEventListener('click', function () {
+        if (!(window.FFPPicker && window.FFPPicker.openCity)) { toast('Picker not ready', 'error'); return; }
+        window.FFPPicker.openCity(ciBtn.dataset.country || (coBtn ? coBtn.dataset.value : ''), ciBtn.dataset.value, function (name) { setBtn(ciBtn, name, 'Choose city…'); });
+      });
     }, 50);
   }
 
@@ -182,6 +214,9 @@
     if (!title) { toast('Title is required', 'error'); return; }
     if (!activity) { toast('Activity is required', 'error'); return; }
     var price = g('price'); if (!price) { toast('Price is required', 'error'); return; }
+    var coBtn = document.getElementById('cm-country-btn'), ciBtn = document.getElementById('cm-city-btn');
+    var country = coBtn ? (coBtn.dataset.value || '') : '', city = ciBtn ? (ciBtn.dataset.value || '') : '';
+    if (!country) { toast('Country is required', 'error'); return; }
     var photoSlot = document.getElementById('listing-photo-slot');
     var heroUrl = (photoSlot && photoSlot.dataset.url) ? photoSlot.dataset.url : null; if (heroUrl === '') heroUrl = null;
     var mLat = null, mLng = null, llv = g('latlng');
@@ -190,7 +225,7 @@
 
     var payload = {
       title: title, description: g('description') || null, activity: activity, category: category || null,
-      difficulty: g('difficulty') || null, country: g('country') || null, city: g('city') || null, venue: g('venue') || null,
+      fitness_level: g('fitness-level') || null, country: country || null, city: city || null, venue: g('venue') || null,
       duration_min: intn(g('duration')), capacity: intn(g('capacity')), price_aed: num(price), hero_image_url: heroUrl,
       highlights: arrFromText(g('highlights')), what_included: arrFromText(g('includes')), what_not_included: arrFromText(g('excludes')),
       what_to_bring: arrFromText(g('bring')), not_allowed: arrFromText(g('not-allowed')), know_before: arrFromText(g('know-before')),
