@@ -1,9 +1,11 @@
-/* FFP Provider TOURS & CLASSES Loader (the `classes` table — one-off Tours + recurring Classes) — v5 (2026-06-12)
-   v5: BOOKABLE DATES + Tours/Classes views. (1) The form now captures DATE(S) → creates class_sessions via
-       provider_save_class_session (Tour = 1 date, Class = add many); edits load via provider_list_class_sessions
-       and can add/remove (provider_delete_class_session). This is what makes a listing actually bookable
-       (members book item_type='class_session'). (2) One panel, two views — setClassView('tour'|'class') filters
-       the list; Tours = subtype 'tour'/legacy null, Classes = subtype 'class'.
+/* FFP Provider TOURS Loader (the `classes` table — ONE-OFF TOURS ONLY; Sessions/Classes are a SEPARATE tab) — v7 (2026-06-12)
+   v7: TOURS NEED APPROVAL — a new tour is submitted for review (status 'pending' via provider_set_listing_status)
+       instead of self-publishing; removed the partner "Go live"/"Unpublish" buttons (admin approves now); cards
+       show "Pending admin review"; modal button = "Submit for review". Admin approves in the new admin Tours tab.
+   v6: CLEAN SEPARATION — removed the listing_subtype crossover entirely. Tours and Sessions are separate things in
+       separate storage: this module = TOURS only (classes table); Sessions/Classes live in their own Sessions tab
+       (provider_sessions). A Tour is bookable via its date (class_sessions; members book item_type='class_session').
+       Kept the date capture; dropped the subtype field, the Tours/Classes toggle and the Class routing.
    v4: TOURS-ONLY — this module is now the partner "Tours" tab (one-off activities: jet ski, bungy, canyoning).
        Recurring CLASSES moved to the Sessions tab (provider_sessions). Default listing_subtype='tour'; all
        user-facing copy/toasts say "tour"; empty state → New tour.
@@ -45,7 +47,7 @@
   async function fetchClasses() {
     if (!provId()) return [];
     var res = await sb().from('classes')
-      .select('id, provider_id, title, description, category, activity, venue, city, country, duration_min, capacity, price_aed, hero_image_url, status, booking_source, highlights, what_included, what_not_included, meeting_point, meeting_lat, meeting_lng, what_to_bring, not_allowed, know_before, languages, min_age, difficulty, fitness_level, wheelchair_accessible, accessibility_notes, free_cancellation_hours, cancellation_policy, distance_km, listing_subtype, created_at')
+      .select('id, provider_id, title, description, category, activity, venue, city, country, duration_min, capacity, price_aed, hero_image_url, status, booking_source, highlights, what_included, what_not_included, meeting_point, meeting_lat, meeting_lng, what_to_bring, not_allowed, know_before, languages, min_age, difficulty, fitness_level, wheelchair_accessible, accessibility_notes, free_cancellation_hours, cancellation_policy, distance_km, created_at')
       .eq('provider_id', provId())
       .order('created_at', { ascending: false });
     if (res.error) { console.error('[FFP Classes] fetch', res.error); toast('Could not load tours', 'error'); return []; }
@@ -60,36 +62,21 @@
     if (typeof window.renderNav === 'function') { try { window.renderNav(); } catch (e) {} }
   }
 
-  // Which view is showing: 'tour' (one-off Tours) or 'class' (recurring Classes). Both = the classes table.
-  var _clsView = 'tour';
-  window.setClassView = function (v) {
-    _clsView = (v === 'class') ? 'class' : 'tour';
-    var tt = document.getElementById('cls-tab-tour'), tc = document.getElementById('cls-tab-class');
-    if (tt) tt.classList.toggle('active', _clsView === 'tour');
-    if (tc) tc.classList.toggle('active', _clsView === 'class');
-    renderClasses();
-  };
-
-  // ── list render ──
+  // ── list render (TOURS only) ──
   function renderClasses() {
     var grid = document.getElementById('cls-grid');
     if (!grid) return;
-    var all = Array.isArray(window.classesList) ? window.classesList : [];
-    // Tours = subtype 'tour' (or legacy null); Classes = subtype 'class'.
-    var list = all.filter(function (c) { return _clsView === 'class' ? c.listing_subtype === 'class' : c.listing_subtype !== 'class'; });
+    var list = Array.isArray(window.classesList) ? window.classesList : [];
     var sEl = document.getElementById('cls-search');
     var q = (sEl && sEl.value || '').trim().toLowerCase();
     var items = q ? list.filter(function (c) { return (c.title || '').toLowerCase().indexOf(q) >= 0 || (c.activity || '').toLowerCase().indexOf(q) >= 0; }) : list;
-    var isClass = _clsView === 'class';
     if (!items.length) {
       if (typeof window.emptyState === 'function') {
         grid.innerHTML = list.length
           ? window.emptyState('No matches', 'Try a different search.', '', '')
-          : (isClass
-              ? window.emptyState('No classes yet', 'Recurring sessions members book — yoga, tennis lessons, group fitness. Add your first one (with its dates).', 'New class', 'openCreateClass(\'class\')')
-              : window.emptyState('No tours yet', 'One-off activities members book — jet ski, bungy, canyoning, a guided tour. Add your first one (with its date).', 'New tour', 'openCreateClass(\'tour\')'));
+          : window.emptyState('No tours yet', 'One-off activities members book — jet ski, bungy, canyoning, a guided tour. Add your first one (with its date).', 'New tour', 'openClassModal()');
       } else {
-        grid.innerHTML = '<div style="padding:40px;text-align:center;color:#9dbdd0;">' + (list.length ? 'No matches' : (isClass ? 'No classes yet' : 'No tours yet')) + '</div>';
+        grid.innerHTML = '<div style="padding:40px;text-align:center;color:#9dbdd0;">' + (list.length ? 'No matches' : 'No tours yet') + '</div>';
       }
       return;
     }
@@ -107,7 +94,6 @@
         '<div class="lc-title">' + esc(c.title || 'Untitled') + '</div>' +
         '<div class="lc-sub">' + esc(c.description || '') + '</div>' +
         '<div class="lc-meta">' +
-          (c.listing_subtype ? '<span><span class="ms">' + (c.listing_subtype === 'tour' ? 'tour' : 'fitness_center') + '</span>' + (c.listing_subtype === 'tour' ? 'Tour' : 'Class') + '</span>' : '') +
           (c.city ? '<span><span class="ms">place</span>' + esc(c.city) + '</span>' : '') +
           (c.duration_min ? '<span><span class="ms">schedule</span>' + c.duration_min + ' min</span>' : '') +
           (c.booking_source && c.booking_source !== 'native' ? '<span><span class="ms">sync</span>' + esc(c.booking_source) + '</span>' : '') +
@@ -120,9 +106,7 @@
       '</div>' +
       '<div class="lc-actions">' +
         '<button class="btn btn-sec btn-sm" onclick="openClassModal(\'' + c.id + '\')"><span class="ms">edit</span> Edit</button>' +
-        (st === 'live'
-          ? '<button class="btn btn-ghost btn-sm" onclick="setClassStatus(\'' + c.id + '\',\'paused\')"><span class="ms">pause</span> Unpublish</button>'
-          : '<button class="btn btn-blue btn-sm" onclick="setClassStatus(\'' + c.id + '\',\'live\')"><span class="ms">publish</span> Go live</button>') +
+        (st === 'pending' ? '<span class="lc-review-note" style="font-size:12px;color:#FFCC00;align-self:center;"><span class="ms" style="font-size:15px;vertical-align:-2px;">schedule</span> Pending admin review</span>' : '') +
         '<button class="btn btn-ghost btn-sm" title="Duplicate" onclick="duplicateListing(\'class\',\'' + c.id + '\')"><span class="ms">content_copy</span></button>' +
         '<button class="btn btn-ghost btn-sm" title="Delete" onclick="confirmDeleteClass(\'' + c.id + '\')"><span class="ms">delete</span></button>' +
       '</div>' +
@@ -130,13 +114,9 @@
   }
 
   // ── modal (create / edit) ──
-  function openClassModal(id, newSubtype) {
+  function openClassModal(id) {
     var c = (id && Array.isArray(window.classesList)) ? window.classesList.find(function (x) { return x.id === id; }) : null;
     var e = c || {};
-    // 'class' = recurring/instructional, 'tour' = one-off activity. Both live in `classes`; the booking
-    // platform splits them by this. New listings get it from the create chooser; edits keep the saved value.
-    var subtype = (c && c.listing_subtype) || newSubtype || 'tour';
-    var kindWord = subtype === 'tour' ? 'tour' : (subtype === 'class' ? 'class' : 'experience');
     var ll = (e.meeting_lat != null && e.meeting_lng != null) ? (e.meeting_lat + ', ' + e.meeting_lng) : '';
     var TAX = window.FFP_TAX || {};
     var cities = TAX.cities || {};
@@ -145,7 +125,6 @@
     if (countries.length && countries.indexOf(selCountry) === -1) selCountry = countries[0];
 
     var body =
-      '<input type="hidden" id="cm-subtype" value="' + esc(subtype) + '">' +
       '<div class="form-section"><div class="form-section-title">Photo</div>' +
         '<div id="listing-photo-slot" data-url="' + esc(e.hero_image_url || '') + '"></div></div>' +
       '<div class="form-section"><div class="form-section-title">Basics</div><div class="form-grid">' +
@@ -168,10 +147,10 @@
         '<div class="field"><div class="label">Capacity</div><input class="input" type="number" id="cm-capacity" value="' + esc(e.capacity || '') + '" placeholder="e.g. 12"></div>' +
         '<div class="field"><div class="label">Price per person (AED) <span class="req">*</span></div><input class="input" type="number" id="cm-price" value="' + esc(e.price_aed != null ? e.price_aed : '') + '" placeholder="e.g. 150"></div>' +
       '</div></div>' +
-      '<div class="form-section"><div class="form-section-title">' + (subtype === 'tour' ? 'Date &amp; time' : 'Dates &amp; times') + '</div>' +
-        '<div class="psub" style="margin:-4px 0 10px;">' + (subtype === 'tour' ? 'When does this run? Members book this date. (Required for members to be able to book.)' : 'Add each time this class runs — members book a specific date. Add as many as you need. (Required for members to be able to book.)') + '</div>' +
+      '<div class="form-section"><div class="form-section-title">Date &amp; time</div>' +
+        '<div class="psub" style="margin:-4px 0 10px;">When does this tour run? Members book this date. (Required for members to be able to book.)</div>' +
         '<div id="cm-sessions"></div>' +
-        '<button type="button" class="btn btn-ghost btn-sm" id="cm-add-session" style="margin-top:6px;"><span class="ms">add</span> Add ' + (subtype === 'tour' ? 'date' : 'another date') + '</button>' +
+        '<button type="button" class="btn btn-ghost btn-sm" id="cm-add-session" style="margin-top:6px;"><span class="ms">add</span> Add another date</button>' +
       '</div>' +
       '<div class="form-section"><div class="form-section-title">Details</div><div class="form-grid">' +
         '<div class="field full"><div class="label">Highlights <span class="label-hint">— one per line</span></div><textarea class="textarea" id="cm-highlights" rows="3" placeholder="Eiffel-tower views\nAudio guide in 14 languages\nSmall group">' + esc(joinArr(e.highlights)) + '</textarea></div>' +
@@ -196,9 +175,9 @@
     var foot =
       (c ? '<button class="btn btn-ghost left" onclick="confirmDeleteClass(\'' + c.id + '\')"><span class="ms">delete</span> Delete</button>' : '') +
       '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>' +
-      '<button class="btn btn-pri" onclick="saveClass(\'' + (c ? c.id : '') + '\')">' + (c ? 'Save changes' : 'Create as draft') + '</button>';
+      '<button class="btn btn-pri" onclick="saveClass(\'' + (c ? c.id : '') + '\')">' + (c ? 'Save changes' : 'Submit for review') + '</button>';
 
-    if (typeof window.openModalShell === 'function') window.openModalShell('lg', (c ? 'Edit ' : 'New ') + kindWord, body, foot);
+    if (typeof window.openModalShell === 'function') window.openModalShell('lg', (c ? 'Edit tour' : 'New tour'), body, foot);
     if (typeof window.renderListingUploader === 'function') { try { window.renderListingUploader(e.hero_image_url || ''); } catch (er) {} }
 
     setTimeout(function () {
@@ -306,10 +285,7 @@
       var res = await sb().rpc('provider_save_listing', { p_kind: 'class', p_provider: provId(), p_id: id || null, p: payload });
       if (res.error) throw res.error;
       if (!res.data) throw new Error('Save failed — not found or not permitted');
-      // Persist the Class/Tour subtype (the shared field the booking platform splits on).
-      var subtype = g('subtype');
-      if (subtype) { try { await sb().rpc('provider_set_class_subtype', { p_provider: provId(), p_id: res.data, p_subtype: subtype }); } catch (e2) { console.warn('[FFP Classes] subtype', e2); } }
-      // Bookable dates → class_sessions (members book a specific date). Tour = one, Class = recurring.
+      // Bookable date(s) → class_sessions (members book a specific date).
       var _cid = res.data, _dur = intn(g('duration')), _cap = intn(g('capacity')), _kept = [];
       var _rows = Array.prototype.slice.call(document.querySelectorAll('#cm-sessions .cm-sess-row'));
       for (var _i = 0; _i < _rows.length; _i++) {
@@ -326,19 +302,20 @@
       for (var _j = 0; _j < _cmSessOrig.length; _j++) {
         if (_kept.indexOf(_cmSessOrig[_j]) < 0) { try { await sb().rpc('provider_delete_class_session', { p_provider: provId(), p_id: _cmSessOrig[_j] }); } catch (e4) {} }
       }
+      // Tours require admin approval — a NEW tour is submitted for review (status 'pending').
+      if (!id) { try { await sb().rpc('provider_set_listing_status', { p_kind: 'class', p_provider: provId(), p_id: res.data, p_status: 'pending' }); } catch (e5) { console.warn('[FFP Tours] submit', e5); } }
       if (typeof window.closeModal === 'function') window.closeModal();
-      toast(id ? 'Saved' : 'Saved as a draft — tap “Go live” to publish', 'success');
+      toast(id ? 'Saved' : 'Submitted — pending admin review (you’ll go live once approved)', 'success');
       await refresh();
-    } catch (er) { console.error('[FFP Classes] save', er); toast(er.message || 'Save failed', 'error'); }
+    } catch (er) { console.error('[FFP Tours] save', er); toast(er.message || 'Save failed', 'error'); }
   }
 
   async function setClassStatus(id, status) {
     try {
       var res = await sb().rpc('provider_set_listing_status', { p_kind: 'class', p_provider: provId(), p_id: id, p_status: status });
       if (res.error) throw res.error;
-      toast(status === 'live' ? 'Tour is now live' : 'Tour unpublished', 'success');
       await refresh();
-    } catch (er) { console.error('[FFP Classes] status', er); toast('Could not update status', 'error'); }
+    } catch (er) { console.error('[FFP Tours] status', er); toast('Could not update status', 'error'); }
   }
 
   function confirmDeleteClass(id) {
