@@ -1,5 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
-// FFP Partner Portal — SESSIONS module (was "Scheduling") — v3 (2026-06-12)
+// FFP Partner Portal — SESSIONS module (was "Scheduling") — v4 (2026-06-12)
+// v4: COACH PHOTO — the coach's photo (provider_staff.photo_url) shows as a small avatar next to the coach on each
+//     session and large in the bio popup. People book for the coach. Photo + bio fetched via provider_list_staff.
 // v3: COACH BIO POPUP — the coach name on each session is tappable → popup with that coach's short bio (from the
 //     staff record, provider_staff.bio). People book for the coach. Coach bios fetched via provider_list_staff.
 // v2: WORLD-CLASS FIELDS — the "New session" form was raw free-text; rebuilt to standard: Activity + City now use
@@ -41,7 +43,7 @@ async function renderScheduling() {
   try {
     var sr = await window.supabase.rpc('provider_list_staff', { p_provider: pid });
     _coachBios = {};
-    (sr && sr.data ? sr.data : []).forEach(function (c) { var nm = c.full_name || ''; if (nm) _coachBios[nm] = { bio: c.bio || '', role: c.role || '' }; });
+    (sr && sr.data ? sr.data : []).forEach(function (c) { var nm = c.full_name || ''; if (nm) _coachBios[nm] = { bio: c.bio || '', role: c.role || '', photo: c.photo_url || '' }; });
   } catch (e) {}
   if (!_schedSessions.length) {
     host.innerHTML = emptyState('No sessions yet', 'Add your first class, PT slot or team session. Members will be able to book it.', 'New session', 'openSessionModal()');
@@ -56,7 +58,11 @@ function schedRow(s) {
              d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   var typeLbl = SESSION_TYPES[s.session_type] || 'Session';
   var meta = [];
-  if (s.coach) meta.push('<span style="color:#6fc6ef;cursor:pointer;text-decoration:underline;" onclick="showCoachBio(\'' + encodeURIComponent(s.coach) + '\')">Coach ' + escHtml(s.coach) + '</span>');
+  if (s.coach) {
+    var _cb = _coachBios[s.coach] || {};
+    var _av = _cb.photo ? '<img src="' + escHtml(_cb.photo) + '" style="width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:-4px;margin-right:4px;">' : '';
+    meta.push('<span style="color:#6fc6ef;cursor:pointer;text-decoration:underline;" onclick="showCoachBio(\'' + encodeURIComponent(s.coach) + '\')">' + _av + 'Coach ' + escHtml(s.coach) + '</span>');
+  }
   if (s.session_type === 'team' && s.team_name) meta.push(escHtml(s.team_name));
   if (s.capacity) meta.push(s.capacity + ' spots');
   if (s.duration_min) meta.push(s.duration_min + ' min');
@@ -82,10 +88,15 @@ function schedRow(s) {
 function showCoachBio(enc) {
   var name = ''; try { name = decodeURIComponent(enc); } catch (e) { name = enc; }
   var c = _coachBios[name] || {};
-  var body = '<div style="display:flex;flex-direction:column;gap:8px;">' +
-      '<div style="font-weight:800;font-size:16px;color:var(--ffp-text,#eaf2f8);">' + escHtml(name) +
-        (c.role ? ' <span class="psub" style="font-weight:600;">· ' + escHtml(c.role) + '</span>' : '') + '</div>' +
-      '<div class="psub" style="margin:0;line-height:1.55;">' + (c.bio ? escHtml(c.bio) : 'No bio added yet — add one for this coach in the Staff tab.') + '</div>' +
+  var avatar = c.photo
+    ? '<div style="width:64px;height:64px;border-radius:50%;flex:0 0 auto;background:url(\'' + escHtml(c.photo) + '\') center/cover no-repeat;border:1px solid var(--ffp-border,#1d3346);"></div>'
+    : '<div style="width:64px;height:64px;border-radius:50%;flex:0 0 auto;background:rgba(43,168,224,.16);color:#6fc6ef;display:flex;align-items:center;justify-content:center;"><span class="ms" style="font-size:30px;">person</span></div>';
+  var body = '<div style="display:flex;gap:14px;align-items:flex-start;">' + avatar +
+      '<div style="min-width:0;display:flex;flex-direction:column;gap:6px;">' +
+        '<div style="font-weight:800;font-size:16px;color:var(--ffp-text,#eaf2f8);">' + escHtml(name) +
+          (c.role ? ' <span class="psub" style="font-weight:600;">· ' + escHtml(c.role) + '</span>' : '') + '</div>' +
+        '<div class="psub" style="margin:0;line-height:1.55;">' + (c.bio ? escHtml(c.bio) : 'No bio added yet — add one for this coach in the Staff tab.') + '</div>' +
+      '</div>' +
     '</div>';
   openModalShell('', name || 'Coach', body, '<button class="btn btn-pri" onclick="closeModal()">Close</button>');
 }
