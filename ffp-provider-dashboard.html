@@ -1,4 +1,7 @@
-<!-- FFP PROVIDER DASHBOARD — v59 (2026-06-12)
+<!-- FFP PROVIDER DASHBOARD — v60 (2026-06-12)
+     v60: PROFILE — "Partner type" is taxonomy-driven (FFP_TAX.providerTypes ← list_key='provider_type', Admin-
+          editable); its values were changed in the DB + taxonomy to Single location / Remote / Event organizer
+          (was Gym/Studio/…). "Passport member discount" field HIDDEN (FFP is not a discount site). Needs taxonomy?v=11.
      v59: SESSIONS = one strap per session (weekly recurrences grouped) + new "Timetable" tab (Mon–Sun weekly grid).
           Tabs: Sessions | Timetable | Attendance. Cache-bust scheduling-loader?v=5.
      v58: COACH PHOTO — staff photo upload (provider_staff.photo_url via FFPUpload); shows next to the coach on
@@ -137,7 +140,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/ffp-api-integration.js?v=12"></script>
 <script src="assets/ffp-constants.js"></script>
-<script src="assets/ffp-taxonomy.js?v=10"></script>
+<script src="assets/ffp-taxonomy.js?v=11"></script>
 <script src="assets/ffp-location-picker.js"></script>
 <script src="ffp-provider-auth.js"></script>
 <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css" rel="stylesheet">
@@ -2450,8 +2453,9 @@ a { color: var(--ffp-blue); text-decoration: none; }
               <select class="select" id="pf-type"><option value="">Choose…</option></select>
               <script>(function(){
                 var s=document.getElementById('pf-type'); if(!s) return;
+                // Partner type = how they operate — taxonomy-driven (Admin → Taxonomies → provider_type).
                 function fill(){
-                  var list=(window.FFP_TAX&&FFP_TAX.providerTypes&&FFP_TAX.providerTypes.length)?FFP_TAX.providerTypes:['Gym','Studio','Yoga Studio','Pilates Studio','CrossFit Box','Sports Club / Team','Adventure Provider','Wellness Centre','Recovery Studio','Health Food Cafe','Coaching / PT','Event Organizer','Other'];
+                  var list=(window.FFP_TAX&&FFP_TAX.providerTypes&&FFP_TAX.providerTypes.length)?FFP_TAX.providerTypes:['Single location','Remote','Event organizer'];
                   var cur=s.value;
                   s.innerHTML='<option value="">Choose…</option>'+list.map(function(x){return '<option'+(x===cur?' selected':'')+'>'+x+'</option>';}).join('');
                 }
@@ -2491,7 +2495,9 @@ a { color: var(--ffp-blue); text-decoration: none; }
               <div class="label">About <span class="label-hint">— shown on your partner profile</span></div>
               <textarea class="textarea" id="pf-about" rows="4" placeholder="A short paragraph about your business, what you offer, and what makes you different."></textarea>
             </div>
-            <div class="field full">
+            <!-- FFP is NOT a discount site (Grant) — the Passport member discount field is hidden. Kept in the DOM
+                 (display:none) so the save logic that reads pf-passport-discount doesn't break. -->
+            <div class="field full" style="display:none;">
               <div class="label">Passport member discount <span class="label-hint">— % off your Find Fit People bookings for paid Passport members</span></div>
               <input class="input" id="pf-passport-discount" type="number" min="0" max="100" step="0.5" placeholder="Leave blank for the platform default (10%)">
             </div>
