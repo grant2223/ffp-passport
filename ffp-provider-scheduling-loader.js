@@ -1,5 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
-// FFP Partner Portal — SESSIONS module (was "Scheduling") — v8 (2026-06-12)
+// FFP Partner Portal — SESSIONS module (was "Scheduling") — v9 (2026-06-12)
+// v9: FEATURE button re-pointed to the CLASS (session_templates.featured) — featuring a class features it on the
+//     homepage (not a single occurrence). Button shown on each class card.
 // v8: REBUILD to match how facilities work. A facility defines a CLASS (template) once, lays out its WEEKLY
 //     SCHEDULE (day + time + coach per slot), which generates the recurring session occurrences. Each occurrence
 //     can be managed individually: substitute the coach, change capacity, or cancel that single date.
@@ -76,9 +78,12 @@ function templateCard(t) {
           (meta.length ? '<div class="psub" style="margin:3px 0 0;">' + meta.join(' · ') + '</div>' : '') +
         '</div>' +
       '</div>' +
-      '<div style="display:flex;gap:6px;flex-shrink:0;">' +
-        '<button class="btn btn-sec btn-sm" onclick="openTemplateModal(\'' + t.id + '\')"><span class="ms">edit</span></button>' +
-        '<button class="btn btn-ghost btn-sm" onclick="confirmDeleteTemplate(\'' + t.id + '\')"><span class="ms">delete</span></button>' +
+      '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex-shrink:0;">' +
+        (typeof window.featureBtn === 'function' ? window.featureBtn('session', t.id, t.featured) : '') +
+        '<div style="display:flex;gap:6px;">' +
+          '<button class="btn btn-sec btn-sm" onclick="openTemplateModal(\'' + t.id + '\')"><span class="ms">edit</span></button>' +
+          '<button class="btn btn-ghost btn-sm" onclick="confirmDeleteTemplate(\'' + t.id + '\')"><span class="ms">delete</span></button>' +
+        '</div>' +
       '</div>' +
   '</div>';
 }
