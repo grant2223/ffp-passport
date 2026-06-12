@@ -1,4 +1,8 @@
-/* FFP Provider Profile Loader — v14
+/* FFP Provider Profile Loader — v15
+   v15 (2026-06-12): TIMEZONE picker — searchable IANA list (assets/ffp-time.js) wired as a dark picker
+       (wrapSelectAsPicker now adds a search box when options exceed 12); loads/validates/saves
+       providers.timezone via provider_save_profile; updates window.FFP_PROVIDER.timezone on save so
+       FFPTime immediately governs all listing date/time.
    v14 (2026-06-12): COMPLETION SYNC — providerProfile.activities is now kept live as chips are added/removed
        (activity is a profile-completion essential) and the completion % + "listings hidden until profile
        complete" banner re-render immediately; also refreshes that banner once the profile data loads.
@@ -126,6 +130,9 @@
       '.ffp-pp-pick-item{padding:9px 12px;border-radius:6px;font-size:13px;font-weight:600;color:#f5f7fa;cursor:pointer;}',
       '.ffp-pp-pick-item:hover{background:rgba(43,168,224,0.10);}',
       '.ffp-pp-pick-item.active{background:rgba(43,168,224,0.15);color:#2ba8e0;}',
+      '.ffp-pp-pick-search{position:sticky;top:-4px;background:#0f1e2e;padding:4px 4px 6px;margin:-4px -4px 4px;border-bottom:1px solid rgba(43,168,224,0.15);z-index:1;}',
+      '.ffp-pp-pick-input{width:100%;box-sizing:border-box;background:rgba(43,168,224,0.06);border:1px solid rgba(43,168,224,0.30);border-radius:6px;color:#f5f7fa;padding:8px 10px;font-size:13px;font-family:inherit;outline:none;}',
+      '.ffp-pp-pick-input:focus{border-color:#2ba8e0;}',
 
       // Phone country-code picker: preserve flex layout side-by-side with .phone-num
       '#panel-profile .phone-input .ffp-pp-pick{width:152px;flex-shrink:0;}',
@@ -162,10 +169,22 @@
       if (currentT) typeSel.value = currentT;
     }
 
+    // Timezone options — full IANA list (shared FFPTime helper), searchable picker
+    var tzSel = document.getElementById('pf-timezone');
+    if (tzSel) {
+      var currentTz = tzSel.value || (window.FFP_PROVIDER && window.FFP_PROVIDER.timezone) || 'Asia/Dubai';
+      var zones = (window.FFPTime && window.FFPTime.list) ? window.FFPTime.list() : ['Asia/Dubai', 'UTC'];
+      if (zones.indexOf(currentTz) === -1) zones.unshift(currentTz);
+      tzSel.innerHTML = '<option value="">Choose timezone…</option>' +
+        zones.map(function (z) { return '<option value="' + escText(z) + '">' + escText(z.replace(/_/g, ' ')) + '</option>'; }).join('');
+      tzSel.value = currentTz;
+    }
+
     // Wire up the custom dark pickers on top of existing <select>s
     wrapSelectAsPicker('pf-category',  'Choose category');
     wrapSelectAsPicker('pf-type',      'Choose type');
     wrapSelectAsPicker('pf-phone-cc',  'Code');
+    wrapSelectAsPicker('pf-timezone',  'Choose timezone…');
   }
 
   // ─── Custom dark picker wrapper ───
@@ -191,11 +210,20 @@
     var menu = document.createElement('div');
     menu.className = 'ffp-pp-pick-menu';
 
-    function rebuildMenu() {
+    // Show a search box once the list is long enough to need one (e.g. timezones).
+    var SEARCH_THRESHOLD = 12;
+    function optionCount() { var n = 0; Array.prototype.forEach.call(sel.options, function (o) { if (o.value) n++; }); return n; }
+
+    function rebuildMenu(filter) {
+      var withSearch = optionCount() > SEARCH_THRESHOLD;
+      var q = (filter || '').trim().toLowerCase();
       var html = '';
+      if (withSearch) {
+        html += '<div class="ffp-pp-pick-search"><input type="text" class="ffp-pp-pick-input" placeholder="Search…" value="' + escText(filter || '') + '"></div>';
+      }
       Array.prototype.forEach.call(sel.options, function (opt) {
-        if (!opt.value && !opt.textContent.trim()) return;
         if (!opt.value) return; // skip the placeholder ("")
+        if (q && opt.textContent.toLowerCase().indexOf(q) === -1 && opt.value.toLowerCase().indexOf(q) === -1) return;
         var active = (opt.value === sel.value) ? ' active' : '';
         html += '<div class="ffp-pp-pick-item' + active + '" data-value="' + escText(opt.value) + '">' + escText(opt.textContent) + '</div>';
       });
@@ -208,11 +236,19 @@
           closeMenu();
         });
       });
+      if (withSearch) {
+        var input = menu.querySelector('.ffp-pp-pick-input');
+        if (input) {
+          input.addEventListener('click', function (e) { e.stopPropagation(); });
+          input.addEventListener('input', function () { rebuildMenu(input.value); input.focus(); });
+          setTimeout(function () { try { input.focus(); } catch (e) {} }, 0);
+        }
+      }
     }
     function openMenu() {
       // Close any other open menus
       document.querySelectorAll('.ffp-pp-pick-menu.open').forEach(function (m) { m.classList.remove('open'); });
-      rebuildMenu();
+      rebuildMenu('');
       menu.classList.add('open');
     }
     function closeMenu() { menu.classList.remove('open'); }
@@ -264,7 +300,7 @@
 
     var provRes = await window.supabase
       .from('providers')
-      .select('id, business_name, letter_mark, category, provider_type, country, city, area, address, contact_email, contact_phone, website, instagram, about, logo_url, hero_photo_url, status, activities, latitude, longitude, maps_url, passport_discount_pct')
+      .select('id, business_name, letter_mark, category, provider_type, country, city, area, address, contact_email, contact_phone, website, instagram, about, logo_url, hero_photo_url, status, activities, latitude, longitude, maps_url, passport_discount_pct, timezone')
       .eq('id', id).single();
     if (provRes.error) throw provRes.error;
 
@@ -280,6 +316,7 @@
       letter_mark:   p.letter_mark || (p.business_name ? p.business_name[0].toUpperCase() : 'P'),
       category:      p.category || '',
       provider_type: p.provider_type || '',
+      timezone:      p.timezone || 'Asia/Dubai',
       city:          p.city || '',
       country:       p.country || '',
       area:          p.area || '',
@@ -320,6 +357,7 @@
     var providerType = document.getElementById('pf-type').value;
     var city         = document.getElementById('pf-city').value;
     var country      = (document.getElementById('pf-country') || {}).value || '';
+    var timezone     = (document.getElementById('pf-timezone') || {}).value || '';
     var area         = (document.getElementById('pf-area').value || '').trim();
     var address      = (document.getElementById('pf-address').value || '').trim();
     var phone        = (typeof window.getPhoneValue === 'function') ? window.getPhoneValue() : '';
@@ -330,6 +368,7 @@
     if (!businessName) { toast('Business name is required', 'error'); return; }
     if (!category)     { toast('Category is required', 'error'); return; }
     if (!city)         { toast('City is required', 'error'); return; }
+    if (!timezone)     { toast('Timezone is required', 'error'); return; }
 
     // Hours — AUTO-CLOSE any day where times are empty (no invalid open-but-no-times state)
     var hoursRows = [];
@@ -373,6 +412,7 @@
           letter_mark:    letterMark,
           category:       category,
           provider_type:  providerType || null,
+          timezone:       timezone || null,
           city:           city,
           country:        country || null,
           area:           area || null,
@@ -400,6 +440,7 @@
         providerProfile.letter_mark   = letterMark;
         providerProfile.category      = category;
         providerProfile.provider_type = providerType;
+        providerProfile.timezone      = timezone;
         providerProfile.city          = city;
         providerProfile.country       = country;
         providerProfile.area          = area;
@@ -423,6 +464,7 @@
       if (sbName) sbName.textContent = businessName || 'Your business';
       if (sbMark) sbMark.textContent = letterMark;
       window.FFP_PROVIDER.business_name = businessName;
+      if (timezone) window.FFP_PROVIDER.timezone = timezone;   // so FFPTime immediately uses the saved zone
 
       if (typeof window.renderProfileCompletion === 'function') { try { window.renderProfileCompletion(); } catch (e) {} }
       if (typeof window.setSaveBar === 'function') { try { window.setSaveBar(false); } catch (e) {} }
@@ -628,7 +670,7 @@
         if (profilePanel && profilePanel.classList.contains('active')) {
           try { window.loadProfile(); } catch (e) {}
           // After loadProfile, refresh picker labels (selects got new values)
-          ['pf-category', 'pf-type', 'pf-phone-cc'].forEach(function (id) {
+          ['pf-category', 'pf-type', 'pf-phone-cc', 'pf-timezone'].forEach(function (id) {
             var s = document.getElementById(id);
             if (s) refreshPickerLabel(s);
           });
@@ -648,7 +690,7 @@
     window.loadProfile = function () {
       try { origLoadProfile(); } catch (e) {}
       refineUI();
-      ['pf-category', 'pf-type', 'pf-phone-cc'].forEach(function (id) {
+      ['pf-category', 'pf-type', 'pf-phone-cc', 'pf-timezone'].forEach(function (id) {
         var s = document.getElementById(id);
         if (s) refreshPickerLabel(s);
       });
