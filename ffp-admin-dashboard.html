@@ -1450,6 +1450,12 @@ input, select, textarea { font-family: inherit; }
       <a class="sidebar-link" data-panel="panel-experiences" onclick="App.go('panel-experiences')">
         <span class="material-icons">flight_takeoff</span>Experiences
       </a>
+      <a class="sidebar-link" data-panel="panel-tours" onclick="App.go('panel-tours')">
+        <span class="material-icons">tour</span>Tours
+      </a>
+      <a class="sidebar-link" data-panel="panel-featured" onclick="App.go('panel-featured')">
+        <span class="material-icons">star</span>Featured
+      </a>
       <a class="sidebar-link" data-panel="panel-challenges" onclick="App.go('panel-challenges')">
         <span class="material-icons">emoji_events</span>Challenges
       </a>
@@ -1891,7 +1897,49 @@ input, select, textarea { font-family: inherit; }
         </div>
       </div>
     </section>
-    
+
+    <!-- ========== TOURS (one-off — the classes table) ========== -->
+    <section class="panel" id="panel-tours">
+      <div class="panel-head">
+        <h1>Tours</h1>
+      </div>
+      <div class="section">
+        <div class="search-row">
+          <div class="search-input-wrap">
+            <span class="material-icons">search</span>
+            <input type="text" placeholder="Search tours by title, organizer, city..." oninput="AdminTours.onSearch(this.value)">
+          </div>
+          <div class="search-meta" id="AdminTours-meta"></div>
+        </div>
+        <div class="section-body">
+          <table class="table">
+            <thead>
+              <tr><th>Title</th><th>Activity</th><th>Organizer</th><th>City</th><th></th></tr>
+            </thead>
+            <tbody id="tours-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== FEATURED REQUESTS ========== -->
+    <section class="panel" id="panel-featured">
+      <div class="panel-head"><h1>Featured requests</h1></div>
+      <div class="section">
+        <div class="search-row">
+          <div class="search-input-wrap"><span class="material-icons">search</span>
+            <input type="text" placeholder="Search by listing or provider..." oninput="AdminFeatured.onSearch(this.value)"></div>
+          <div class="search-meta" id="AdminFeatured-meta"></div>
+        </div>
+        <div class="section-body">
+          <table class="table">
+            <thead><tr><th>Listing</th><th>Type</th><th>Provider</th><th>Fee</th><th></th></tr></thead>
+            <tbody id="featured-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <!-- ========== CHALLENGES ========== -->
     <section class="panel" id="panel-challenges">
       <div class="panel-head">
@@ -2400,6 +2448,8 @@ const App = {
     'panel-quests':      'Quests',
     'panel-events':      'Events',
     'panel-experiences': 'Experiences',
+    'panel-tours':       'Tours',
+    'panel-featured':    'Featured',
     'panel-challenges':  'Challenges',
     'panel-meetups':     'Meet & Move',
     'panel-professionals':'Professionals',
@@ -2425,6 +2475,8 @@ const App = {
     'panel-quests':       'ffp-admin-quests-loader.js',
     'panel-events':       'ffp-admin-events-loader.js',
     'panel-experiences':  'ffp-admin-experiences-loader.js',
+    'panel-tours':        'ffp-admin-classes-loader.js',
+    'panel-featured':     'ffp-admin-featured-loader.js',
     'panel-challenges':   'ffp-admin-challenges-loader.js',
     'panel-meetups':      'ffp-admin-meetups-loader.js',
     'panel-analytics':    'ffp-admin-analytics-loader.js',
@@ -3203,6 +3255,11 @@ const AdminEvents = {
     `).join('');
   }
 };
+
+// Tours (classes table) — real data + behaviour come from ffp-admin-classes-loader.js (mirrors AdminExperiences).
+const AdminTours = { search: '', data: [], tab: 'pending', init() {}, onSearch() {}, render() {}, approve() {}, reject() {}, view() {} };
+// Featured requests — real data + behaviour from ffp-admin-featured-loader.js.
+const AdminFeatured = { search: '', data: [], init() {}, onSearch() {}, render() {}, decide() {} };
 
 const AdminExperiences = {
   search: '',
