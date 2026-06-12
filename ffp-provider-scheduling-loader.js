@@ -1,4 +1,9 @@
 // ════════════════════════════════════════════════════════════════════════
+// FFP Partner Portal — SESSIONS module (was "Scheduling") — v2 (2026-06-12)
+// v2: WORLD-CLASS FIELDS — the "New session" form was raw free-text; rebuilt to standard: Activity + City now use
+//     the shared searchable taxonomy picker (window.FFPPicker, same as the listing forms — no free text), Coach is
+//     a dropdown of the provider's own staff (provider_list_staff), Location is a Google Maps URL, Price labelled
+//     "per person · per session", Capacity has min=1 (can't go negative). Required: Title, Activity, Date, Capacity≥1.
 // FFP Partner Portal — SCHEDULING module  (Business → Scheduling)
 // Deferred loader: registered in _provLoaderSrc and lazy-loaded by
 // ensureProviderLoader() the first time the Scheduling panel is opened.
@@ -64,9 +69,18 @@ function schedRow(s) {
   '</div>';
 }
 
-function openSessionModal(id) {
+async function openSessionModal(id) {
   var editing = id ? _schedSessions.find(function (x) { return x.id === id; }) : null;
   var s = editing || { session_type: 'class', title: '', activity: '', coach: '', start_at: '', duration_min: 60, capacity: '', price_aed: '', location: '', city: (typeof providerProfile !== 'undefined' ? (providerProfile.city || '') : ''), team_name: '', notes: '' };
+  var pid = _schedProvId();
+  var provCountry = (typeof providerProfile !== 'undefined' ? (providerProfile.country || 'United Arab Emirates') : 'United Arab Emirates');
+
+  // COACH = chosen from the provider's own staff (not free text).
+  var coaches = [];
+  try { var cr = await window.supabase.rpc('provider_list_staff', { p_provider: pid }); coaches = (cr && cr.data) ? cr.data : []; } catch (e) {}
+  var coachOpts = '<option value="">' + (coaches.length ? 'Select coach…' : 'No staff added yet — add them in the Staff tab') + '</option>' +
+    coaches.map(function (c) { var nm = c.full_name || c.name || ''; return '<option value="' + escHtml(nm) + '"' + (s.coach === nm ? ' selected' : '') + '>' + escHtml(nm) + (c.role ? ' · ' + escHtml(c.role) : '') + '</option>'; }).join('');
+
   var dt = s.start_at ? new Date(s.start_at) : null;
   var dval = dt ? (dt.getFullYear() + '-' + ('0' + (dt.getMonth() + 1)).slice(-2) + '-' + ('0' + dt.getDate()).slice(-2)) : '';
   var tval = dt ? (('0' + dt.getHours()).slice(-2) + ':' + ('0' + dt.getMinutes()).slice(-2)) : '';
@@ -97,8 +111,9 @@ function openSessionModal(id) {
       <div class="form-section-title">Basics</div>
       <div class="form-grid">
         <div class="field full"><div class="label">Title <span class="req">*</span></div><input class="input" id="sm-title" value="${escHtml(s.title)}" placeholder="e.g. Sunset HIIT"></div>
-        <div class="field"><div class="label">Activity</div><input class="input" id="sm-activity" value="${escHtml(s.activity || '')}" placeholder="e.g. HIIT"></div>
-        <div class="field"><div class="label">Coach</div><input class="input" id="sm-coach" value="${escHtml(s.coach || '')}" placeholder="e.g. Lee"></div>
+        <div class="field"><div class="label">Activity <span class="req">*</span></div>
+          <button type="button" class="ffp-picker-btn placeholder" id="sm-activity-btn" data-value=""><span>Choose activity…</span><span class="ms caret">expand_more</span></button></div>
+        <div class="field"><div class="label">Coach</div><select class="select" id="sm-coach">${coachOpts}</select></div>
       </div>
     </div>
     <div class="form-section">
@@ -106,22 +121,23 @@ function openSessionModal(id) {
       <div class="form-grid">
         <div class="field"><div class="label">Date <span class="req">*</span></div><input class="input" type="date" id="sm-date" value="${dval}"></div>
         <div class="field"><div class="label">Time</div><input class="input" type="time" id="sm-time" value="${tval}"></div>
-        <div class="field"><div class="label">Duration (min)</div><input class="input" type="number" id="sm-duration" value="${escHtml(String(s.duration_min || ''))}" placeholder="60"></div>
+        <div class="field"><div class="label">Duration (min)</div><input class="input" type="number" min="1" id="sm-duration" value="${escHtml(String(s.duration_min || ''))}" placeholder="60"></div>
       </div>
     </div>
     ${repeatBlock}
     <div class="form-section">
       <div class="form-section-title">Capacity &amp; price</div>
       <div class="form-grid">
-        <div class="field"><div class="label">Capacity</div><input class="input" type="number" id="sm-capacity" value="${escHtml(String(s.capacity || ''))}" placeholder="e.g. 12 — use 1 for PT"></div>
-        <div class="field"><div class="label">Price (AED)</div><input class="input" type="number" id="sm-price" value="${escHtml(String(s.price_aed || ''))}" placeholder="0 = Free"></div>
+        <div class="field"><div class="label">Capacity <span class="req">*</span></div><input class="input" type="number" min="1" step="1" id="sm-capacity" value="${escHtml(String(s.capacity || ''))}" placeholder="e.g. 12 — use 1 for PT"></div>
+        <div class="field"><div class="label">Price per person <span class="label-hint">— for this session (AED, 0 = free)</span></div><input class="input" type="number" min="0" id="sm-price" value="${escHtml(String(s.price_aed || ''))}" placeholder="0 = Free"></div>
       </div>
     </div>
     <div class="form-section">
       <div class="form-section-title">Where</div>
       <div class="form-grid">
-        <div class="field"><div class="label">Location</div><input class="input" id="sm-location" value="${escHtml(s.location || '')}" placeholder="e.g. Main floor / Court 2"></div>
-        <div class="field"><div class="label">City</div><input class="input" id="sm-city" value="${escHtml(s.city || '')}" placeholder="City"></div>
+        <div class="field"><div class="label">City</div>
+          <button type="button" class="ffp-picker-btn placeholder" id="sm-city-btn" data-value="" data-country="${escHtml(provCountry)}"><span>Choose city…</span><span class="ms caret">expand_more</span></button></div>
+        <div class="field"><div class="label">Location map link <span class="label-hint">— Google Maps URL</span></div><input class="input" type="url" id="sm-location" value="${escHtml(s.location || '')}" placeholder="https://maps.google.com/…"></div>
         <div class="field full"><div class="label">Team <span style="color:var(--ffp-text-dim,#6c7f90);">(team sessions only)</span></div><input class="input" id="sm-team" value="${escHtml(s.team_name || '')}" placeholder="e.g. U16 squad (optional)"></div>
         <div class="field full"><div class="label">Notes</div><textarea class="textarea" id="sm-notes" rows="2" placeholder="Anything members should know (optional)">${escHtml(s.notes || '')}</textarea></div>
       </div>
@@ -131,22 +147,54 @@ function openSessionModal(id) {
     <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
     <button class="btn btn-pri" onclick="saveSession('${editing ? editing.id : ''}')">${editing ? 'Save changes' : 'Create session'}</button>
   `);
+
+  // Wire the shared searchable pickers (same component as the listing forms) — no free-text taxonomy fields.
+  setTimeout(function () {
+    var aBtn = document.getElementById('sm-activity-btn');
+    var setA = function (name) {
+      if (!aBtn) return; aBtn.dataset.value = name || '';
+      if (name) { aBtn.classList.remove('placeholder'); aBtn.innerHTML = '<span>' + escHtml(name) + '</span><span class="ms caret">expand_more</span>'; }
+      else { aBtn.classList.add('placeholder'); aBtn.innerHTML = '<span>Choose activity…</span><span class="ms caret">expand_more</span>'; }
+    };
+    if (s.activity) setA(s.activity);
+    if (aBtn) aBtn.addEventListener('click', function () {
+      if (window.FFPPicker && window.FFPPicker.openActivity) { window.FFPPicker.openActivity(aBtn.dataset.value, function (name) { setA(name); }); }
+      else { showToast('Activity picker not ready', 'error'); }
+    });
+    var cBtn = document.getElementById('sm-city-btn');
+    var setC = function (name) {
+      if (!cBtn) return; cBtn.dataset.value = name || '';
+      if (name) { cBtn.classList.remove('placeholder'); cBtn.innerHTML = '<span>' + escHtml(name) + '</span><span class="ms caret">expand_more</span>'; }
+      else { cBtn.classList.add('placeholder'); cBtn.innerHTML = '<span>Choose city…</span><span class="ms caret">expand_more</span>'; }
+    };
+    if (s.city) setC(s.city);
+    if (cBtn) cBtn.addEventListener('click', function () {
+      if (window.FFPPicker && window.FFPPicker.openCity) { window.FFPPicker.openCity(cBtn.dataset.country || provCountry, cBtn.dataset.value, function (name) { setC(name); }); }
+      else { showToast('City picker not ready', 'error'); }
+    });
+  }, 50);
 }
 
 async function saveSession(id) {
-  var g = function (i) { var el = document.getElementById('sm-' + i); return el ? el.value.trim() : ''; };
+  var g = function (i) { var el = document.getElementById('sm-' + i); return el ? (el.value || '').trim() : ''; };
   var title = g('title'); var date = g('date'); var time = g('time') || '00:00';
+  var aBtn = document.getElementById('sm-activity-btn'); var activity = aBtn ? (aBtn.dataset.value || '') : '';
+  var cBtn = document.getElementById('sm-city-btn'); var city = cBtn ? (cBtn.dataset.value || '') : '';
   if (!title) { showToast('Title is required', 'error'); return; }
+  if (!activity) { showToast('Activity is required', 'error'); return; }
   if (!date) { showToast('Date is required', 'error'); return; }
+  var capRaw = g('capacity');
+  var capacity = capRaw ? parseInt(capRaw, 10) : null;
+  if (capacity != null && (isNaN(capacity) || capacity < 1)) { showToast('Capacity must be at least 1', 'error'); return; }
   var pid = _schedProvId();
   if (!pid) { showToast('Not signed in', 'error'); return; }
   var startIso;
   try { startIso = new Date(date + 'T' + time).toISOString(); }
   catch (e) { showToast('Check the date and time', 'error'); return; }
   var payload = {
-    session_type: g('type') || 'class', title: title, activity: g('activity'), coach: g('coach'),
-    start_at: startIso, duration_min: g('duration'), capacity: g('capacity'),
-    price_aed: g('price'), location: g('location'), city: g('city'),
+    session_type: g('type') || 'class', title: title, activity: activity, coach: g('coach'),
+    start_at: startIso, duration_min: g('duration'), capacity: (capacity != null ? String(capacity) : ''),
+    price_aed: g('price'), location: g('location'), city: city,
     team_name: g('team'), notes: g('notes'),
     recurrence: g('recurrence') || 'none', repeat_until: g('repeat-until')
   };
