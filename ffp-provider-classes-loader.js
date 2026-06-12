@@ -1,4 +1,9 @@
-/* FFP Provider TOURS Loader (the `classes` table — one-off tours; tab renamed "Experiences"→"Tours") — v4 (2026-06-12)
+/* FFP Provider TOURS & CLASSES Loader (the `classes` table — one-off Tours + recurring Classes) — v5 (2026-06-12)
+   v5: BOOKABLE DATES + Tours/Classes views. (1) The form now captures DATE(S) → creates class_sessions via
+       provider_save_class_session (Tour = 1 date, Class = add many); edits load via provider_list_class_sessions
+       and can add/remove (provider_delete_class_session). This is what makes a listing actually bookable
+       (members book item_type='class_session'). (2) One panel, two views — setClassView('tour'|'class') filters
+       the list; Tours = subtype 'tour'/legacy null, Classes = subtype 'class'.
    v4: TOURS-ONLY — this module is now the partner "Tours" tab (one-off activities: jet ski, bungy, canyoning).
        Recurring CLASSES moved to the Sessions tab (provider_sessions). Default listing_subtype='tour'; all
        user-facing copy/toasts say "tour"; empty state → New tour.
@@ -33,6 +38,9 @@
   // "All Levels"). The form saves the chosen value to fitness_level so it connects to a member's ability.
   var FITNESS_LEVELS = ['All Levels', 'Not Tried', 'Social', 'Competitive', 'Representative', 'Professional'];
 
+  // Tracks the session-date ids loaded into the open modal, so we can delete any the partner removed.
+  var _cmSessOrig = [];
+
   // ── data ──
   async function fetchClasses() {
     if (!provId()) return [];
@@ -52,21 +60,36 @@
     if (typeof window.renderNav === 'function') { try { window.renderNav(); } catch (e) {} }
   }
 
+  // Which view is showing: 'tour' (one-off Tours) or 'class' (recurring Classes). Both = the classes table.
+  var _clsView = 'tour';
+  window.setClassView = function (v) {
+    _clsView = (v === 'class') ? 'class' : 'tour';
+    var tt = document.getElementById('cls-tab-tour'), tc = document.getElementById('cls-tab-class');
+    if (tt) tt.classList.toggle('active', _clsView === 'tour');
+    if (tc) tc.classList.toggle('active', _clsView === 'class');
+    renderClasses();
+  };
+
   // ── list render ──
   function renderClasses() {
     var grid = document.getElementById('cls-grid');
     if (!grid) return;
-    var list = Array.isArray(window.classesList) ? window.classesList : [];
+    var all = Array.isArray(window.classesList) ? window.classesList : [];
+    // Tours = subtype 'tour' (or legacy null); Classes = subtype 'class'.
+    var list = all.filter(function (c) { return _clsView === 'class' ? c.listing_subtype === 'class' : c.listing_subtype !== 'class'; });
     var sEl = document.getElementById('cls-search');
     var q = (sEl && sEl.value || '').trim().toLowerCase();
     var items = q ? list.filter(function (c) { return (c.title || '').toLowerCase().indexOf(q) >= 0 || (c.activity || '').toLowerCase().indexOf(q) >= 0; }) : list;
+    var isClass = _clsView === 'class';
     if (!items.length) {
       if (typeof window.emptyState === 'function') {
         grid.innerHTML = list.length
           ? window.emptyState('No matches', 'Try a different search.', '', '')
-          : window.emptyState('No tours yet', 'One-off activity experiences members book — jet ski, bungy, canyoning, a guided tour. Add your first one.', 'New tour', 'openCreateClass(\'tour\')');
+          : (isClass
+              ? window.emptyState('No classes yet', 'Recurring sessions members book — yoga, tennis lessons, group fitness. Add your first one (with its dates).', 'New class', 'openCreateClass(\'class\')')
+              : window.emptyState('No tours yet', 'One-off activities members book — jet ski, bungy, canyoning, a guided tour. Add your first one (with its date).', 'New tour', 'openCreateClass(\'tour\')'));
       } else {
-        grid.innerHTML = '<div style="padding:40px;text-align:center;color:#9dbdd0;">' + (list.length ? 'No matches' : 'No tours yet') + '</div>';
+        grid.innerHTML = '<div style="padding:40px;text-align:center;color:#9dbdd0;">' + (list.length ? 'No matches' : (isClass ? 'No classes yet' : 'No tours yet')) + '</div>';
       }
       return;
     }
@@ -145,6 +168,11 @@
         '<div class="field"><div class="label">Capacity</div><input class="input" type="number" id="cm-capacity" value="' + esc(e.capacity || '') + '" placeholder="e.g. 12"></div>' +
         '<div class="field"><div class="label">Price per person (AED) <span class="req">*</span></div><input class="input" type="number" id="cm-price" value="' + esc(e.price_aed != null ? e.price_aed : '') + '" placeholder="e.g. 150"></div>' +
       '</div></div>' +
+      '<div class="form-section"><div class="form-section-title">' + (subtype === 'tour' ? 'Date &amp; time' : 'Dates &amp; times') + '</div>' +
+        '<div class="psub" style="margin:-4px 0 10px;">' + (subtype === 'tour' ? 'When does this run? Members book this date. (Required for members to be able to book.)' : 'Add each time this class runs — members book a specific date. Add as many as you need. (Required for members to be able to book.)') + '</div>' +
+        '<div id="cm-sessions"></div>' +
+        '<button type="button" class="btn btn-ghost btn-sm" id="cm-add-session" style="margin-top:6px;"><span class="ms">add</span> Add ' + (subtype === 'tour' ? 'date' : 'another date') + '</button>' +
+      '</div>' +
       '<div class="form-section"><div class="form-section-title">Details</div><div class="form-grid">' +
         '<div class="field full"><div class="label">Highlights <span class="label-hint">— one per line</span></div><textarea class="textarea" id="cm-highlights" rows="3" placeholder="Eiffel-tower views\nAudio guide in 14 languages\nSmall group">' + esc(joinArr(e.highlights)) + '</textarea></div>' +
         '<div class="field full"><div class="label">What\'s included <span class="label-hint">— one per line</span></div><textarea class="textarea" id="cm-includes" rows="3" placeholder="Kayak &amp; paddle\nLife vest\nLocal guide">' + esc(joinArr(e.what_included)) + '</textarea></div>' +
@@ -213,6 +241,34 @@
         if (!(window.FFPPicker && window.FFPPicker.openCity)) { toast('Picker not ready', 'error'); return; }
         window.FFPPicker.openCity(ciBtn.dataset.country || (coBtn ? coBtn.dataset.value : ''), ciBtn.dataset.value, function (name) { setBtn(ciBtn, name, 'Choose city…'); });
       });
+
+      // ── Bookable dates (class_sessions) — members book a specific date ──
+      var sessWrap = document.getElementById('cm-sessions');
+      var addSessBtn = document.getElementById('cm-add-session');
+      _cmSessOrig = [];
+      var fmtLocal = function (ts) { if (!ts) return ''; var d = new Date(ts); if (isNaN(d.getTime())) return ''; return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
+      var bindSessDel = function () { sessWrap.querySelectorAll('.cm-sess-del').forEach(function (b) { b.onclick = function () { var r = b.closest('.cm-sess-row'); if (r) r.remove(); }; }); };
+      var addSessRow = function (val, sid) {
+        sessWrap.insertAdjacentHTML('beforeend',
+          '<div class="cm-sess-row" data-id="' + esc(sid || '') + '" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">' +
+            '<input class="input cm-sess-dt" type="datetime-local" value="' + esc(val || '') + '" style="flex:1;color-scheme:dark;">' +
+            '<button type="button" class="btn btn-ghost btn-sm cm-sess-del" title="Remove"><span class="ms">close</span></button>' +
+          '</div>');
+        bindSessDel();
+      };
+      if (sessWrap) {
+        if (addSessBtn) addSessBtn.onclick = function () { addSessRow('', ''); };
+        if (c && c.id) {
+          sb().rpc('provider_list_class_sessions', { p_provider: provId(), p_class: c.id }).then(function (r) {
+            var rows = (r && r.data) ? r.data : [];
+            sessWrap.innerHTML = '';
+            if (rows.length) { rows.forEach(function (s) { _cmSessOrig.push(s.id); addSessRow(fmtLocal(s.starts_at), s.id); }); }
+            else { addSessRow('', ''); }
+          }).catch(function () { addSessRow('', ''); });
+        } else {
+          addSessRow('', '');
+        }
+      }
     }, 50);
   }
 
@@ -253,8 +309,25 @@
       // Persist the Class/Tour subtype (the shared field the booking platform splits on).
       var subtype = g('subtype');
       if (subtype) { try { await sb().rpc('provider_set_class_subtype', { p_provider: provId(), p_id: res.data, p_subtype: subtype }); } catch (e2) { console.warn('[FFP Classes] subtype', e2); } }
+      // Bookable dates → class_sessions (members book a specific date). Tour = one, Class = recurring.
+      var _cid = res.data, _dur = intn(g('duration')), _cap = intn(g('capacity')), _kept = [];
+      var _rows = Array.prototype.slice.call(document.querySelectorAll('#cm-sessions .cm-sess-row'));
+      for (var _i = 0; _i < _rows.length; _i++) {
+        var _dt = _rows[_i].querySelector('.cm-sess-dt'); var _val = _dt ? (_dt.value || '').trim() : '';
+        if (!_val) continue;
+        var _d = new Date(_val); if (isNaN(_d.getTime())) continue;
+        var _endIso = _dur ? new Date(_d.getTime() + _dur * 60000).toISOString() : null;
+        var _existing = _rows[_i].getAttribute('data-id') || null;
+        try {
+          var _sr = await sb().rpc('provider_save_class_session', { p_provider: provId(), p_class: _cid, p_id: _existing, p_starts: _d.toISOString(), p_ends: _endIso, p_capacity: _cap });
+          if (_sr && _sr.data) _kept.push(_sr.data);
+        } catch (e3) { console.warn('[FFP Tours] session save', e3); }
+      }
+      for (var _j = 0; _j < _cmSessOrig.length; _j++) {
+        if (_kept.indexOf(_cmSessOrig[_j]) < 0) { try { await sb().rpc('provider_delete_class_session', { p_provider: provId(), p_id: _cmSessOrig[_j] }); } catch (e4) {} }
+      }
       if (typeof window.closeModal === 'function') window.closeModal();
-      toast(id ? 'Tour updated' : 'Saved as a draft — tap “Go live” to publish', 'success');
+      toast(id ? 'Saved' : 'Saved as a draft — tap “Go live” to publish', 'success');
       await refresh();
     } catch (er) { console.error('[FFP Classes] save', er); toast(er.message || 'Save failed', 'error'); }
   }
