@@ -1,4 +1,7 @@
-<!-- FFP PROVIDER DASHBOARD — v60 (2026-06-12)
+<!-- FFP PROVIDER DASHBOARD — v61 (2026-06-12)
+     v61: FEATURED LISTINGS — shared helper (featureBtn/applyFeature/loadFeatureMap) + "Feature — $99/mo" button on
+          every Tour/Event/Trip/Session card → provider_request_feature (pending) → admin approves in the new admin
+          Featured queue → listing.featured=true (homepage shows it). Cache-busts classes?v=8, scheduling?v=6.
      v60: PROFILE — "Partner type" is taxonomy-driven (FFP_TAX.providerTypes ← list_key='provider_type', Admin-
           editable); its values were changed in the DB + taxonomy to Single location / Remote / Event organizer
           (was Gym/Studio/…). "Passport member discount" field HIDDEN (FFP is not a discount site). Needs taxonomy?v=11.
@@ -3169,7 +3172,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js', 'scheduling': 'ffp-provider-scheduling-loader.js?v=5', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=7' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js', 'scheduling': 'ffp-provider-scheduling-loader.js?v=6', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=8' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
@@ -4118,6 +4121,7 @@ function eventCard(e) {
     '<div class="lc-actions">' +
       '<button class="btn btn-sec btn-sm" onclick="openEventModal(\'' + e.id + '\')"><span class="ms">edit</span> Edit</button>' +
       '<button class="btn btn-blue btn-sm" onclick="viewRsvps(\'' + e.id + '\')"><span class="ms">group</span> RSVPs</button>' +
+      (typeof featureBtn === 'function' ? featureBtn('event', e.id, e.featured) : '') +
       '<button class="btn btn-ghost btn-sm" title="Duplicate" onclick="duplicateListing(\'event\',\'' + e.id + '\')"><span class="ms">content_copy</span></button>' +
       '<button class="btn btn-ghost btn-sm" title="Delete" onclick="confirmDeleteEvent(\'' + e.id + '\')"><span class="ms">delete</span></button>' +
     '</div>' +
@@ -4345,6 +4349,7 @@ function experienceCard(e) {
     '<div class="lc-actions">' +
       '<button class="btn btn-sec btn-sm" onclick="openExperienceModal(\'' + e.id + '\')"><span class="ms">edit</span> Edit</button>' +
       '<button class="btn btn-blue btn-sm" onclick="viewApplications(\'' + e.id + '\')"><span class="ms">mark_email_read</span> Applications</button>' +
+      (typeof featureBtn === 'function' ? featureBtn('experience', e.id, e.featured) : '') +
       '<button class="btn btn-ghost btn-sm" title="Duplicate" onclick="duplicateListing(\'experience\',\'' + e.id + '\')"><span class="ms">content_copy</span></button>' +
       '<button class="btn btn-ghost btn-sm" title="Delete" onclick="confirmDeleteExperience(\'' + e.id + '\')"><span class="ms">delete</span></button>' +
     '</div>' +
@@ -5180,6 +5185,39 @@ function openCreateSession() {
   })();
 }
 
+// ── FEATURED LISTINGS — partner applies to feature a listing on the homepage ($99/mo); admin approves. ──
+window.FFP_FEATURE_MAP = window.FFP_FEATURE_MAP || {};   // 'kind:id' -> 'pending'|'approved'
+async function loadFeatureMap() {
+  var pid = (window.FFP_PROVIDER || {}).id; if (!pid) return;
+  try {
+    var r = await window.supabase.rpc('provider_feature_requests', { p_provider: pid });
+    var map = {}; (r && r.data ? r.data : []).forEach(function (x) { map[x.item_type + ':' + x.item_id] = x.status; });
+    window.FFP_FEATURE_MAP = map;
+  } catch (e) {}
+}
+// Returns the card control for featuring: ★Featured (live), "Feature pending", or a "Feature" apply button.
+function featureBtn(kind, id, featured) {
+  if (featured) return '<span title="Featured on the homepage" style="font-size:11px;color:#FFCC00;align-self:center;font-weight:800;white-space:nowrap;"><span class="ms" style="font-size:15px;vertical-align:-2px;">star</span> Featured</span>';
+  var st = (window.FFP_FEATURE_MAP || {})[kind + ':' + id];
+  if (st === 'pending') return '<span title="Awaiting admin approval" style="font-size:11px;color:#9dbdd0;align-self:center;white-space:nowrap;"><span class="ms" style="font-size:14px;vertical-align:-2px;">hourglass_empty</span> Feature pending</span>';
+  return '<button class="btn btn-ghost btn-sm" title="Apply to feature this on the FFP homepage — $99/mo" onclick="applyFeature(\'' + kind + '\',\'' + id + '\')"><span class="ms">star_border</span> Feature</button>';
+}
+async function applyFeature(kind, id) {
+  var go = async function () {
+    var pid = (window.FFP_PROVIDER || {}).id;
+    try {
+      var r = await window.supabase.rpc('provider_request_feature', { p_provider: pid, p_kind: kind, p_id: id });
+      if (r.error) throw r.error;
+      showToast('Applied to feature — pending admin review ($99/mo once approved).', 'success');
+      await loadFeatureMap();
+      var fn = { 'class': 'renderClasses', 'experience': 'renderExperiences', 'event': 'renderEvents', 'session': 'renderScheduling' }[kind];
+      if (fn && typeof window[fn] === 'function') { try { window[fn](); } catch (e) {} }
+    } catch (e) { showToast('Could not apply to feature', 'error'); }
+  };
+  if (typeof window.openConfirm === 'function') window.openConfirm('Feature on the homepage?', 'Apply to feature this listing on the FFP homepage. It costs $99/month once approved by admin.', go);
+  else go();
+}
+
 function openCreatePicker() {
   openModalShell('sm', 'Create new listing', `
     <div style="display: flex; flex-direction: column; gap: 10px;">
@@ -5384,6 +5422,7 @@ function enterDashboard() {
   if (!window._dashboardInited) {
     renderNav();
     showPanel('overview');
+    try { loadFeatureMap(); } catch (e) {}   // featured-listing state for the "Feature" buttons
     window._dashboardInited = true;
   }
 }
