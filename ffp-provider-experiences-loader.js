@@ -872,6 +872,8 @@
     window.openExperienceModal     = realOpenExperienceModal;
     window.saveExperience          = realSaveExperience;
     window.confirmDeleteExperience = realDeleteExperience;
+    window.FFPReload = window.FFPReload || {};
+    window.FFPReload.experience = refresh;   // used by the dashboard Duplicate flow
 
     // Expose pickers for events/deals loaders to reuse
     window.FFPPicker = {
