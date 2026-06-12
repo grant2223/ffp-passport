@@ -1,4 +1,5 @@
-/* FFP Provider TOURS Loader (the `classes` table — ONE-OFF TOURS ONLY; Sessions/Classes are a SEPARATE tab) — v7 (2026-06-12)
+/* FFP Provider TOURS Loader (the `classes` table — ONE-OFF TOURS ONLY; Sessions/Classes are a SEPARATE tab) — v8 (2026-06-12)
+   v8: FEATURE button on each tour card (window.featureBtn → applyFeature; $99/mo apply → admin approve). fetch +featured.
    v7: TOURS NEED APPROVAL — a new tour is submitted for review (status 'pending' via provider_set_listing_status)
        instead of self-publishing; removed the partner "Go live"/"Unpublish" buttons (admin approves now); cards
        show "Pending admin review"; modal button = "Submit for review". Admin approves in the new admin Tours tab.
@@ -47,7 +48,7 @@
   async function fetchClasses() {
     if (!provId()) return [];
     var res = await sb().from('classes')
-      .select('id, provider_id, title, description, category, activity, venue, city, country, duration_min, capacity, price_aed, hero_image_url, status, booking_source, highlights, what_included, what_not_included, meeting_point, meeting_lat, meeting_lng, what_to_bring, not_allowed, know_before, languages, min_age, difficulty, fitness_level, wheelchair_accessible, accessibility_notes, free_cancellation_hours, cancellation_policy, distance_km, created_at')
+      .select('id, provider_id, title, description, category, activity, venue, city, country, duration_min, capacity, price_aed, hero_image_url, status, booking_source, highlights, what_included, what_not_included, meeting_point, meeting_lat, meeting_lng, what_to_bring, not_allowed, know_before, languages, min_age, difficulty, fitness_level, wheelchair_accessible, accessibility_notes, free_cancellation_hours, cancellation_policy, distance_km, featured, created_at')
       .eq('provider_id', provId())
       .order('created_at', { ascending: false });
     if (res.error) { console.error('[FFP Classes] fetch', res.error); toast('Could not load tours', 'error'); return []; }
@@ -107,6 +108,7 @@
       '<div class="lc-actions">' +
         '<button class="btn btn-sec btn-sm" onclick="openClassModal(\'' + c.id + '\')"><span class="ms">edit</span> Edit</button>' +
         (st === 'pending' ? '<span class="lc-review-note" style="font-size:12px;color:#FFCC00;align-self:center;"><span class="ms" style="font-size:15px;vertical-align:-2px;">schedule</span> Pending admin review</span>' : '') +
+        (typeof window.featureBtn === 'function' ? window.featureBtn('class', c.id, c.featured) : '') +
         '<button class="btn btn-ghost btn-sm" title="Duplicate" onclick="duplicateListing(\'class\',\'' + c.id + '\')"><span class="ms">content_copy</span></button>' +
         '<button class="btn btn-ghost btn-sm" title="Delete" onclick="confirmDeleteClass(\'' + c.id + '\')"><span class="ms">delete</span></button>' +
       '</div>' +
