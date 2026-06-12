@@ -1,4 +1,6 @@
-/* FFP Provider Experiences Loader — v4 (country/city pickers now use shared FFP_TAX.cities — retires the duplicated/corrupted local list; create/edit via provider_save_listing RPC)
+/* FFP Provider Experiences Loader (TRIPS) — v6 (GYG parity: + Highlights, + "Good to know" section: Languages,
+   Min age, Not allowed, Meeting point + map coords, Wheelchair accessible + notes, Free-cancellation hours + policy.
+   Saved via provider_save_listing kind='experience'. v5 (adds Currency selector + Deposit field; country/city via shared FFP_TAX.cities; create/edit via provider_save_listing RPC)
    close edit modal after delete
 /*  Provider Experiences Loader — v3
    v3 changes (Grant's feedback):
@@ -371,6 +373,8 @@
       country: row.country || '',
       destination: row.destination || '',
       price_aed: row.price_aed || '',
+      currency: row.currency || 'AED',
+      deposit: (row.deposit != null ? row.deposit : ''),
       price_includes: arrFromText(row.what_included),
       price_excludes: arrFromText(row.what_not_included),
       accommodation: row.accommodation || '',
@@ -379,6 +383,17 @@
       fitness_reqs: row.fitness_reqs || '',
       fitness_level: row.fitness_level || 'Beginner',
       itinerary: Array.isArray(row.itinerary) ? row.itinerary : [],
+      highlights: Array.isArray(row.highlights) ? row.highlights : [],
+      not_allowed: Array.isArray(row.not_allowed) ? row.not_allowed : [],
+      languages: Array.isArray(row.languages) ? row.languages : [],
+      min_age: (row.min_age != null ? row.min_age : ''),
+      meeting_point: row.meeting_point || '',
+      meeting_lat: (row.meeting_lat != null ? row.meeting_lat : ''),
+      meeting_lng: (row.meeting_lng != null ? row.meeting_lng : ''),
+      wheelchair_accessible: (row.wheelchair_accessible == null ? null : !!row.wheelchair_accessible),
+      accessibility_notes: row.accessibility_notes || '',
+      free_cancellation_hours: (row.free_cancellation_hours != null ? row.free_cancellation_hours : ''),
+      cancellation_policy: row.cancellation_policy || '',
       hero_url: row.hero_image_url || null,
       status: row.status || 'pending',
       verified: row.status === 'live',
@@ -394,7 +409,7 @@
     if (!window.FFP_PROVIDER || !window.FFP_PROVIDER.id) return [];
     var res = await window.supabase
       .from('experiences')
-      .select('id, provider_id, title, description, overview, exp_type, activity, category, hero_image_url, destination, country, starts_at, ends_at, duration_days, price_aed, what_not_included, what_included, itinerary, accommodation, flights_info, travel_reqs, fitness_reqs, fitness_level, capacity, status, featured, created_at, updated_at')
+      .select('id, provider_id, title, description, overview, exp_type, activity, category, hero_image_url, destination, country, starts_at, ends_at, duration_days, price_aed, currency, deposit, what_not_included, what_included, itinerary, accommodation, flights_info, travel_reqs, fitness_reqs, fitness_level, capacity, status, featured, highlights, not_allowed, languages, min_age, meeting_point, meeting_lat, meeting_lng, wheelchair_accessible, accessibility_notes, free_cancellation_hours, cancellation_policy, created_at, updated_at')
       .eq('provider_id', window.FFP_PROVIDER.id)
       .order('starts_at', { ascending: true });
     if (res.error) {
@@ -474,11 +489,15 @@
       title: '', description: '', overview: '',
       activity: '', category: '',
       start_date: '', end_date: '',
-      country: '', destination: '', price_aed: '',
+      country: '', destination: '', price_aed: '', currency: 'AED', deposit: '',
       price_includes: [], price_excludes: [],
       accommodation: '', flights: '', travel_reqs: '',
       fitness_reqs: '', fitness_level: 'Beginner',
-      itinerary: [], hero_url: null, capacity: '', status: ''
+      itinerary: [], hero_url: null, capacity: '', status: '',
+      highlights: [], not_allowed: [], languages: [], min_age: '',
+      meeting_point: '', meeting_lat: '', meeting_lng: '',
+      wheelchair_accessible: null, accessibility_notes: '',
+      free_cancellation_hours: '', cancellation_policy: ''
     };
     window.modalItinerary = JSON.parse(JSON.stringify(e.itinerary || []));
 
@@ -502,6 +521,10 @@
             '<div class="label">Overview</div>' +
             '<textarea class="textarea" id="xm-overview" rows="4" placeholder="The full story — what makes this experience unique">' + escHtml(e.overview) + '</textarea>' +
           '</div>' +
+          '<div class="field full">' +
+            '<div class="label">Highlights <span class="label-hint">— short selling points, one per line</span></div>' +
+            '<textarea class="textarea" id="xm-highlights" rows="4" placeholder="Summit sunrise with a certified guide\nAll trail snacks &amp; transport included\nSmall group — max 12">' + escHtml((e.highlights || []).join('\n')) + '</textarea>' +
+          '</div>' +
           '<div class="field">' +
             '<div class="label">Activity <span class="req">*</span> <span class="label-hint">— what is it?</span></div>' +
             '<button type="button" class="ffp-picker-btn placeholder" id="xm-activity-btn" data-value="" data-category="">' +
@@ -512,7 +535,7 @@
             '<div class="label">Experience type <span class="req">*</span> <span class="label-hint">— what kind of trip?</span></div>' +
             '<select class="select" id="xm-exp-type">' +
               '<option value="">Choose type…</option>' +
-              EXPERIENCE_TYPES.map(function (t) {
+              ((window.FFP_TAX && window.FFP_TAX.experienceTypes && window.FFP_TAX.experienceTypes.length) ? window.FFP_TAX.experienceTypes : EXPERIENCE_TYPES).map(function (t) {
                 return '<option value="' + escHtml(t) + '"' + (e.experience_type === t ? ' selected' : '') + '>' + escHtml(t) + '</option>';
               }).join('') +
             '</select>' +
@@ -520,7 +543,7 @@
           '<div class="field">' +
             '<div class="label">Fitness level required</div>' +
             '<select class="select" id="xm-fitness-level">' +
-              FITNESS_LEVELS.map(function (l) {
+              ((window.FFP_TAX && window.FFP_TAX.fitnessLevels && window.FFP_TAX.fitnessLevels.length) ? window.FFP_TAX.fitnessLevels : FITNESS_LEVELS).map(function (l) {
                 return '<option value="' + escHtml(l) + '"' + (e.fitness_level === l ? ' selected' : '') + '>' + escHtml(l) + '</option>';
               }).join('') +
             '</select>' +
@@ -547,8 +570,14 @@
       '<div class="form-section">' +
         '<div class="form-section-title">Price</div>' +
         '<div class="form-grid">' +
-          '<div class="field"><div class="label">Price per person (AED) <span class="req">*</span></div>' +
+          '<div class="field"><div class="label">Currency <span class="req">*</span></div>' +
+            '<select class="select" id="xm-currency">' +
+              ['AED','USD','EUR','GBP','AUD','SAR','INR','CAD'].map(function(cur){ return '<option' + (((e.currency||'AED')===cur)?' selected':'') + '>' + cur + '</option>'; }).join('') +
+            '</select></div>' +
+          '<div class="field"><div class="label">Price per person <span class="req">*</span></div>' +
             '<input class="input" type="number" id="xm-price" value="' + escHtml(e.price_aed) + '" placeholder="e.g. 1850"></div>' +
+          '<div class="field"><div class="label">Deposit <span class="label-hint">— to secure a spot</span></div>' +
+            '<input class="input" type="number" id="xm-deposit" value="' + escHtml(e.deposit || '') + '" placeholder="e.g. 500"></div>' +
           '<div class="field"><div class="label">Capacity</div>' +
             '<input class="input" type="number" id="xm-capacity" value="' + escHtml(e.capacity) + '" placeholder="e.g. 16"></div>' +
           '<div class="field full"><div class="label">What\'s included <span class="label-hint">— one per line</span></div>' +
@@ -573,6 +602,33 @@
             '<textarea class="textarea" id="xm-travel-reqs" rows="2" placeholder="Visas, vaccinations, insurance">' + escHtml(e.travel_reqs) + '</textarea></div>' +
           '<div class="field full"><div class="label">Fitness requirements</div>' +
             '<textarea class="textarea" id="xm-fitness-reqs" rows="2" placeholder="What members should be able to do before joining">' + escHtml(e.fitness_reqs) + '</textarea></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="form-section">' +
+        '<div class="form-section-title">Good to know</div>' +
+        '<div class="form-grid">' +
+          '<div class="field"><div class="label">Languages <span class="label-hint">— one per line</span></div>' +
+            '<textarea class="textarea" id="xm-languages" rows="2" placeholder="English\nArabic">' + escHtml((e.languages || []).join('\n')) + '</textarea></div>' +
+          '<div class="field"><div class="label">Minimum age</div>' +
+            '<input class="input" type="number" id="xm-min-age" value="' + escHtml(e.min_age) + '" placeholder="e.g. 16"></div>' +
+          '<div class="field full"><div class="label">Not allowed <span class="label-hint">— one per line</span></div>' +
+            '<textarea class="textarea" id="xm-not-allowed" rows="2" placeholder="Pets (assistance dogs OK)\nOversized luggage">' + escHtml((e.not_allowed || []).join('\n')) + '</textarea></div>' +
+          '<div class="field full"><div class="label">Meeting point <span class="label-hint">— where members assemble</span></div>' +
+            '<input class="input" id="xm-meeting-point" value="' + escHtml(e.meeting_point) + '" placeholder="e.g. Hatta Dam car park, by the kiosk"></div>' +
+          '<div class="field"><div class="label">Map coordinates <span class="label-hint">— paste &quot;lat, lng&quot; from Google Maps</span></div>' +
+            '<input class="input" id="xm-latlng" value="' + escHtml((e.meeting_lat !== '' && e.meeting_lng !== '' && e.meeting_lat != null && e.meeting_lng != null) ? (e.meeting_lat + ', ' + e.meeting_lng) : '') + '" placeholder="e.g. 24.80, 56.12"></div>' +
+          '<div class="field"><div class="label">Wheelchair accessible</div>' +
+            '<select class="select" id="xm-wheelchair">' +
+              '<option value="">—</option>' +
+              '<option value="true"' + (e.wheelchair_accessible === true ? ' selected' : '') + '>Yes</option>' +
+              '<option value="false"' + (e.wheelchair_accessible === false ? ' selected' : '') + '>No</option>' +
+            '</select></div>' +
+          '<div class="field full"><div class="label">Accessibility notes</div>' +
+            '<input class="input" id="xm-accessibility" value="' + escHtml(e.accessibility_notes) + '" placeholder="e.g. Step-free access; accessible WC on site"></div>' +
+          '<div class="field"><div class="label">Free cancellation <span class="label-hint">— hours before</span></div>' +
+            '<input class="input" type="number" id="xm-cancel-hours" value="' + escHtml(e.free_cancellation_hours) + '" placeholder="e.g. 24"></div>' +
+          '<div class="field full"><div class="label">Cancellation policy</div>' +
+            '<input class="input" id="xm-cancel-policy" value="' + escHtml(e.cancellation_policy) + '" placeholder="e.g. Free cancellation up to 24h before; 50% after">' + '</div>' +
         '</div>' +
       '</div>' +
       (editing && (e.status === 'live' || e.status === 'paused')
@@ -675,6 +731,25 @@
 
     var priceNum = parseFloat(price);
     if (isNaN(priceNum)) priceNum = null;
+    var currency = get('currency') || 'AED';
+    var depositRaw = get('deposit');
+    var depositNum = depositRaw ? parseFloat(depositRaw) : null;
+    if (depositNum != null && isNaN(depositNum)) depositNum = null;
+
+    // meeting-point coordinates from a "lat, lng" paste
+    var mLat = null, mLng = null;
+    var llRaw = get('latlng');
+    if (llRaw) {
+      var llp = llRaw.split(',');
+      if (llp.length >= 2) {
+        var la = parseFloat(llp[0]), lo = parseFloat(llp[1]);
+        if (!isNaN(la)) mLat = la;
+        if (!isNaN(lo)) mLng = lo;
+      }
+    }
+    var minAgeRaw = get('min-age');
+    var cancelHrsRaw = get('cancel-hours');
+    var wheel = get('wheelchair');
 
     var payload = {
       title:           title,
@@ -690,6 +765,8 @@
       country:         country,
       destination:     city || null,
       price_aed:       priceNum,
+      currency:        currency,
+      deposit:         depositNum,
       capacity:        capacity,
       what_included:     textFromArr(arrFromText(get('includes'))),
       what_not_included: textFromArr(arrFromText(get('excludes'))),
@@ -698,6 +775,17 @@
       travel_reqs:     get('travel-reqs') || null,
       fitness_reqs:    get('fitness-reqs') || null,
       itinerary:       Array.isArray(window.modalItinerary) ? window.modalItinerary : [],
+      highlights:      arrFromText(get('highlights')),
+      languages:       arrFromText(get('languages')),
+      not_allowed:     arrFromText(get('not-allowed')),
+      meeting_point:   get('meeting-point') || null,
+      meeting_lat:     mLat,
+      meeting_lng:     mLng,
+      min_age:         minAgeRaw ? parseInt(minAgeRaw, 10) : null,
+      wheelchair_accessible: (wheel === '' ? null : wheel === 'true'),
+      accessibility_notes:   get('accessibility') || null,
+      free_cancellation_hours: cancelHrsRaw ? parseInt(cancelHrsRaw, 10) : null,
+      cancellation_policy:     get('cancel-policy') || null,
       hero_image_url:  heroUrl
     };
 
@@ -776,7 +864,7 @@
 
     try {
       await refresh();
-      console.log('[FFP Experiences] loaded v4 \u2014 country/city from shared FFP_TAX.cities \u2713');
+      console.log('[FFP Experiences] loaded v5 \u2014 currency + deposit fields added \u2713');
     } catch (e) {
       console.error('[FFP Experiences] initial load:', e);
     }
