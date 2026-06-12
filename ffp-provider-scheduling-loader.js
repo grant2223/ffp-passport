@@ -1,5 +1,6 @@
 // ════════════════════════════════════════════════════════════════════════
-// FFP Partner Portal — SESSIONS module (was "Scheduling") — v5 (2026-06-12)
+// FFP Partner Portal — SESSIONS module (was "Scheduling") — v6 (2026-06-12)
+// v6: FEATURE button on each session strap (window.featureBtn → applyFeature; $99/mo apply → admin approve).
 // v5: ONE STRAP PER SESSION + TIMETABLE. The list now shows ONE card per session (weekly recurrences grouped by
 //     series_id via _dedupeSessions — not one row per week). New "Timetable" tab (renderTimetable) = a Mon–Sun
 //     weekly grid placing each session in its day/time slot (tap a slot to edit).
@@ -94,6 +95,7 @@ function schedRow(s) {
       '</div>' +
       '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex-shrink:0;">' +
         '<span class="ni-lock-pill" style="background:rgba(43,168,224,.14);color:#6fc6ef;">' + typeLbl + '</span>' +
+        (typeof window.featureBtn === 'function' ? window.featureBtn('session', s.id, s.featured) : '') +
         '<div style="display:flex;gap:6px;">' +
           '<button class="btn btn-sec btn-sm" onclick="openSessionModal(\'' + s.id + '\')"><span class="ms">edit</span></button>' +
           '<button class="btn btn-ghost btn-sm" onclick="confirmDeleteSession(\'' + s.id + '\')"><span class="ms">delete</span></button>' +
