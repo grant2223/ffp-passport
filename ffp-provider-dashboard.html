@@ -1,4 +1,7 @@
-<!-- FFP PROVIDER DASHBOARD — v47 (2026-06-12)
+<!-- FFP PROVIDER DASHBOARD — v48 (2026-06-12)
+     v48: FACILITY PAYMENTS — Connect via Stripe-hosted Account Links (no client_id/redirect URI). renderPaymentsCard()
+          now also shows an "onboarding / Finish setup" state; ?stripe=incomplete handled. Card → connectStripe() →
+          POST /api/facility/connect/start → Stripe-hosted onboarding → /return updates payments_status.
      v47: FACILITY PAYMENTS (Phase 1) — "Connect Stripe" card in Billing → POST /api/facility/connect/start
           (refresh-token auth) → Stripe OAuth → callback stores providers.stripe_account_id. renderPaymentsCard()
           shows not-connected / connected ✓ / disconnected; ?stripe= bounce-back toast. Standard accounts, zero fee.
@@ -3195,12 +3198,18 @@ async function renderPaymentsCard() {
     var r = await window.supabase.from('providers').select('stripe_account_id, payments_status').eq('id', pid).maybeSingle();
     if (r && r.data) { connected = !!r.data.stripe_account_id; status = r.data.payments_status || (connected ? 'connected' : 'not_connected'); }
   } catch (e) {}
-  if (connected && status === 'connected') {
+  if (status === 'connected') {
     el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid rgba(34,197,94,.3);background:rgba(34,197,94,.08);border-radius:12px;">' +
       '<span class="ms" style="color:#22c55e;">check_circle</span>' +
       '<div style="flex:1;"><div style="font-weight:700;font-size:13px;color:#22c55e;">Payments connected</div>' +
       '<div class="psub" style="margin:2px 0 0;font-size:12px;">Your Stripe account is linked — member payments go straight to your bank, FFP takes no cut.</div></div>' +
       '<a class="btn btn-ghost btn-sm" href="https://dashboard.stripe.com" target="_blank" rel="noopener"><span class="ms">open_in_new</span> Stripe</a></div>';
+  } else if (status === 'onboarding') {
+    el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid rgba(255,204,0,.35);background:rgba(255,204,0,.08);border-radius:12px;">' +
+      '<span class="ms" style="color:#d9a400;">hourglass_top</span>' +
+      '<div style="flex:1;"><div style="font-weight:700;font-size:13px;color:#d9a400;">Finish setting up payments</div>' +
+      '<div class="psub" style="margin:2px 0 0;font-size:12px;">Your Stripe account was started but isn\'t ready to take payments yet — a few details are still needed.</div></div>' +
+      '<button class="btn btn-pri btn-sm" onclick="connectStripe()"><span class="ms">arrow_forward</span> Finish setup</button></div>';
   } else if (status === 'disconnected') {
     el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid rgba(239,68,68,.3);background:rgba(239,68,68,.08);border-radius:12px;">' +
       '<span class="ms" style="color:#ef4444;">link_off</span>' +
@@ -3239,9 +3248,10 @@ async function connectStripe() {
     var p = new URLSearchParams(window.location.search);
     var s = p.get('stripe');
     if (!s) return;
-    var msg = s === 'connected' ? ['Payments connected ✓', 'success']
-            : s === 'denied'    ? ['Stripe connection cancelled', 'info']
-            : ['Stripe connection failed — please try again', 'error'];
+    var msg = s === 'connected'  ? ['Payments connected ✓', 'success']
+            : s === 'incomplete' ? ['Almost there — finish your Stripe details to start taking payments', 'info']
+            : s === 'denied'     ? ['Stripe setup cancelled', 'info']
+            : ['Stripe setup didn’t finish — please try again', 'error'];
     document.addEventListener('ffp-provider-ready', function () {
       setTimeout(function () { try { showToast(msg[0], msg[1]); if (typeof showPanel === 'function') showPanel('billing'); } catch (e) {} }, 500);
     });
