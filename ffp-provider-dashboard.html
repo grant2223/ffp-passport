@@ -1,4 +1,10 @@
-<!-- FFP PROVIDER DASHBOARD — v61 (2026-06-12)
+<!-- FFP PROVIDER DASHBOARD — v63 (2026-06-12)
+     v63: SESSIONS REBUILD UI — "New class" opens the class-template form (class details + DESCRIPTION + photo +
+          weekly schedule rows: day/time/coach). List = one card per class. Timetable slot → manage one occurrence
+          (substitute coach / change capacity / cancel that date). openCreateSession → openTemplateModal.
+          Cache-bust scheduling?v=8.
+     v62: SESSION PHOTO — session form gets a photo (renderListingUploader → provider_sessions.hero_image_url),
+          thumbnail on the session card. Cache-bust scheduling?v=7.
      v61: FEATURED LISTINGS — shared helper (featureBtn/applyFeature/loadFeatureMap) + "Feature — $99/mo" button on
           every Tour/Event/Trip/Session card → provider_request_feature (pending) → admin approves in the new admin
           Featured queue → listing.featured=true (homepage shows it). Cache-busts classes?v=8, scheduling?v=6.
@@ -2595,8 +2601,8 @@ a { color: var(--ffp-blue); text-decoration: none; }
         </div>
         <div class="biz-pane active" id="sch-calendar">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
-            <div class="psub" style="margin:0;">Each class, PT slot or team session you run — one card per session. Members book these.</div>
-            <button class="btn btn-pri" onclick="openSessionModal()"><span class="ms">add</span> New session</button>
+            <div class="psub" style="margin:0;">Each class you run — set its weekly times and coaches once; members book the dates. One card per class.</div>
+            <button class="btn btn-pri" onclick="openTemplateModal()"><span class="ms">add</span> New class</button>
           </div>
           <div id="sched-list" style="margin-top:10px;"></div>
         </div>
@@ -3172,7 +3178,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js', 'scheduling': 'ffp-provider-scheduling-loader.js?v=6', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=8' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js', 'scheduling': 'ffp-provider-scheduling-loader.js?v=8', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=8' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
@@ -5174,13 +5180,13 @@ function openCreateClass() {
     setTimeout(waitForLoader, 50);
   })();
 }
-// A "Class" is a recurring session — it lives in the Sessions tab (the scheduling module, also lazy-loaded).
+// A "Class" is a recurring session — it lives in the Sessions tab (the scheduling module, lazy-loaded).
 function openCreateSession() {
   showPanel('scheduling');   // the "Sessions" tab
   var tries = 0;
   (function waitForLoader() {
-    if (typeof window.openSessionModal === 'function') { window.openSessionModal(); return; }
-    if (++tries > 120) { if (typeof showToast === 'function') showToast('Still loading — tap “New session” in a moment', 'info'); return; }
+    if (typeof window.openTemplateModal === 'function') { window.openTemplateModal(); return; }
+    if (++tries > 120) { if (typeof showToast === 'function') showToast('Still loading — tap “New class” in a moment', 'info'); return; }
     setTimeout(waitForLoader, 50);
   })();
 }
