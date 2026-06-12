@@ -1,4 +1,9 @@
-/* FFP Taxonomy - v9 (2026-06-10)
+/* FFP Taxonomy - v10 (2026-06-12)
+   v10: LISTING LEVELS — the partner listing forms (Trips/Events/Experiences) now use the SAME connected
+        level vocabulary as a member's own ability: fitnessLevels = Not Tried/Social/Competitive/
+        Representative/Professional, and attendeeLevels = those + "All Levels" (the "who can attend?"
+        question). attendeeLevels is derived from fitnessLevels so they can never drift apart. Kills the
+        per-form hardcoded level/difficulty lists.
    v9: PROFESSIONS taxonomy — professionalRoles is now (a) regrouped under the 6 STANDARD FFP
        categories (Sports/Fitness/Wellness/Recovery/Adventure/Health food) instead of made-up headings,
        and (b) DB-hydrated from list_key='professional_role' (each row's `parent` = its category), so
@@ -200,6 +205,9 @@
     { n: 'Spartan', c: 'Multi-sport' }
   ],
     fitnessLevels: ['Not Tried','Social','Competitive','Representative','Professional'],
+    // ^ ONE connected vocabulary: a MEMBER's own ability AND a LISTING's required level use these same
+    //   5 words, so a person's level connects to the listings they can attend. Listings add "All Levels"
+    //   on top — see window.FFP_TAX.attendeeLevels below, derived from this so the two never drift apart.
     nationalities: [
       'Argentinian','Australian','Austrian','Belgian','Brazilian','British','Bulgarian',
       'Canadian','Chilean','Chinese','Colombian','Croatian','Czech','Danish','Dutch',
@@ -213,6 +221,9 @@
   };
   // convenience: flat sorted city list across all countries
   window.FFP_TAX.allCities = function(){ var o=[]; var c=window.FFP_TAX.cities||{}; Object.keys(c).forEach(function(k){ (c[k]||[]).forEach(function(x){o.push(x);}); }); return o.sort(); };
+  // Listing "who can attend?" scale = the member ability scale (fitnessLevels) + "All Levels" on top, so a
+  // member's ability and a listing's required level use ONE connected vocabulary. Rebuilt on DB hydration.
+  window.FFP_TAX.attendeeLevels = ['All Levels'].concat(window.FFP_TAX.fitnessLevels || []);
 })();
 
 (function () {
@@ -315,7 +326,7 @@
       T.activities.length = 0;
       names.forEach(function (n) { T.activities.push({ n: n, c: (actParent[n] || actCat[n] || '') }); });
     }
-    if (by.fitness_level) fill(T.fitnessLevels, vals('fitness_level'));
+    if (by.fitness_level) { fill(T.fitnessLevels, vals('fitness_level')); T.attendeeLevels = ['All Levels'].concat(T.fitnessLevels); }
     if (by.nationality)   fill(T.nationalities, vals('nationality'));
     if (by.gender)        fill(T.genders, vals('gender'));
     if (by.age_group)     fill(T.ageGroups, vals('age_group'));
