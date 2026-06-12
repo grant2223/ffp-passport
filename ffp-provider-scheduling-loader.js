@@ -1,5 +1,8 @@
 // ════════════════════════════════════════════════════════════════════════
-// FFP Partner Portal — SESSIONS module (was "Scheduling") — v4 (2026-06-12)
+// FFP Partner Portal — SESSIONS module (was "Scheduling") — v5 (2026-06-12)
+// v5: ONE STRAP PER SESSION + TIMETABLE. The list now shows ONE card per session (weekly recurrences grouped by
+//     series_id via _dedupeSessions — not one row per week). New "Timetable" tab (renderTimetable) = a Mon–Sun
+//     weekly grid placing each session in its day/time slot (tap a slot to edit).
 // v4: COACH PHOTO — the coach's photo (provider_staff.photo_url) shows as a small avatar next to the coach on each
 //     session and large in the bio popup. People book for the coach. Photo + bio fetched via provider_list_staff.
 // v3: COACH BIO POPUP — the coach name on each session is tappable → popup with that coach's short bio (from the
@@ -49,13 +52,28 @@ async function renderScheduling() {
     host.innerHTML = emptyState('No sessions yet', 'Add your first class, PT slot or team session. Members will be able to book it.', 'New session', 'openSessionModal()');
     return;
   }
-  host.innerHTML = _schedSessions.map(schedRow).join('');
+  host.innerHTML = _dedupeSessions(_schedSessions).map(schedRow).join('');
+}
+
+// A weekly recurring session = many provider_sessions rows sharing series_id. Show ONE strap per session
+// (the earliest occurrence represents the series); one-offs (no series_id) show individually.
+function _dedupeSessions(list) {
+  var bySeries = {}, singles = [];
+  (list || []).forEach(function (s) {
+    if (s.series_id) { if (!bySeries[s.series_id] || new Date(s.start_at) < new Date(bySeries[s.series_id].start_at)) bySeries[s.series_id] = s; }
+    else singles.push(s);
+  });
+  var out = singles.concat(Object.keys(bySeries).map(function (k) { return bySeries[k]; }));
+  out.sort(function (a, b) { return new Date(a.start_at) - new Date(b.start_at); });
+  return out;
 }
 
 function schedRow(s) {
   var d = new Date(s.start_at);
-  var when = d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' +
-             d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  var weekly = (s.recurrence === 'weekly') || !!s.series_id;
+  var when = weekly
+    ? d.toLocaleDateString([], { weekday: 'long' }) + 's · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   var typeLbl = SESSION_TYPES[s.session_type] || 'Session';
   var meta = [];
   if (s.coach) {
@@ -82,6 +100,42 @@ function schedRow(s) {
         '</div>' +
       '</div>' +
   '</div>';
+}
+
+// Weekly TIMETABLE — each session placed in its day & time slot (one card per session, tap to edit).
+function renderTimetable() {
+  var host = document.getElementById('timetable-host');
+  if (!host) return;
+  var pid = _schedProvId();
+  var go = function () {
+    var sessions = _dedupeSessions(_schedSessions);
+    if (!sessions.length) { host.innerHTML = '<div class="psub" style="margin:10px 0;">No sessions yet — add one in the Sessions tab.</div>'; return; }
+    var days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    var byDay = [[], [], [], [], [], [], []];
+    sessions.forEach(function (s) { var d = new Date(s.start_at); var dow = (d.getDay() + 6) % 7; byDay[dow].push(s); });
+    byDay.forEach(function (arr) { arr.sort(function (a, b) { var da = new Date(a.start_at), db = new Date(b.start_at); return (da.getHours() * 60 + da.getMinutes()) - (db.getHours() * 60 + db.getMinutes()); }); });
+    var html = '<div style="display:grid;grid-template-columns:repeat(7,minmax(118px,1fr));gap:8px;overflow-x:auto;padding-bottom:6px;">';
+    days.forEach(function (day, i) {
+      html += '<div style="min-width:118px;">' +
+        '<div style="font-weight:800;color:var(--ffp-text,#eaf2f8);font-size:12px;margin-bottom:6px;text-align:center;text-transform:uppercase;letter-spacing:.04em;">' + day.slice(0, 3) + '</div>';
+      if (!byDay[i].length) html += '<div class="psub" style="text-align:center;font-size:11px;opacity:.45;margin-top:4px;">—</div>';
+      byDay[i].forEach(function (s) {
+        var d = new Date(s.start_at); var t = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        html += '<div onclick="openSessionModal(\'' + s.id + '\')" style="cursor:pointer;background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-left:3px solid #2ba8e0;border-radius:8px;padding:7px 8px;margin-bottom:6px;">' +
+          '<div style="font-weight:700;font-size:12px;color:var(--ffp-text,#eaf2f8);">' + escHtml(t) + '</div>' +
+          '<div style="font-size:12px;color:#cfd6dc;line-height:1.25;">' + escHtml(s.title) + '</div>' +
+          (s.coach ? '<div class="psub" style="margin:2px 0 0;font-size:11px;">' + escHtml(s.coach) + '</div>' : '') +
+        '</div>';
+      });
+      html += '</div>';
+    });
+    html += '</div>';
+    host.innerHTML = html;
+  };
+  // If sessions haven't loaded yet (e.g. Timetable opened first), fetch then render.
+  if (_schedSessions.length || !pid) { go(); return; }
+  host.innerHTML = '<div class="psub" style="margin:10px 0;">Loading…</div>';
+  window.supabase.rpc('provider_list_sessions', { p_provider: pid }).then(function (r) { _schedSessions = (r && r.data) ? r.data : []; go(); }).catch(function () { go(); });
 }
 
 // Coach bio popup — the short bio captured on the staff record (people book for the coach).
