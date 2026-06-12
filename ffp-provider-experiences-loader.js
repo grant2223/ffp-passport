@@ -1,4 +1,8 @@
-/* FFP Provider Experiences Loader (TRIPS) — v6 (GYG parity: + Highlights, + "Good to know" section: Languages,
+/* FFP Provider Experiences Loader (TRIPS) — v7 (TAXONOMY: removed the dead, corrupted hardcoded FFP_CITIES
+   list — country/city now come ONLY from the shared taxonomy window.FFP_TAX.cities via the searchable pickers.
+   "Fitness level required" now reads window.FFP_TAX.attendeeLevels — Not Tried/Social/Competitive/
+   Representative/Professional, plus "All Levels" — the SAME connected scale as a member's own ability.)
+   v6 (GYG parity: + Highlights, + "Good to know" section: Languages,
    Min age, Not allowed, Meeting point + map coords, Wheelchair accessible + notes, Free-cancellation hours + policy.
    Saved via provider_save_listing kind='experience'. v5 (adds Currency selector + Deposit field; country/city via shared FFP_TAX.cities; create/edit via provider_save_listing RPC)
    close edit modal after delete
@@ -16,74 +20,14 @@
 (function () {
   'use strict';
 
-  // ════════════════════════════════════════════════════════════════════════
-  // FFP_CITIES — 58 countries, 541 cities. UAE first, then alphabetical by region.
-  // ════════════════════════════════════════════════════════════════════════
-  var FFP_CITIES = {
-    'United Arab Emirates': ["Abu Dhabi", "Dubai", "Sharjah", "Ajman", "Ras Al Khaimah", "Fujairah", "Al Ain", "Umm Al Quwain"],
-    'Saudi Arabia': ["Riyadh", "Jeddah", "NEOM", "AlUla", "Medina", "Mecca", "Dammam", "Khobar"],
-    'Qatar': ["Doha", "Lusail", "Al Wakrah", "Al Khor"],
-    'Oman': ["Muscat", "Salalah", "Nizwa", "Sur", "Khasab"],
-    'Bahrain': ["Manama", "Riffa", "Muharraq"]
-  };
-  /* Cities data continues below — injected for compactness */
-  Object.assign(FFP_CITIES, {
-    'Kuwait': ["Kuwait City", "Hawalli", "Salmiya"],
-    'Lebanon': ["Beirut", "Byblos", "Tripoli", "Sidon", "Baalbek"],
-    'Jordan': ["Amman", "Petra", "Aqaba", "Wadi Rum", "Dead Sea", "Jerash"],
-    'Israel': ["Tel Aviv", "Jerusalem", "Haifa", "Eilat", "Nazareth", "Tiberias"],
-    'United Kingdom': ["London", "Manchester", "Edinburgh", "Glasgow", "Liverpool", "Birmingham", "Bristol", "Leeds", "Cardiff", "Belfast", "Newcastle", "Sheffield", "Brighton", "Oxford", "Cambridge", "Bath", "York", "Aberdeen"],
-    'France': ["Paris", "Nice", "Lyon", "Marseille", "Bordeaux", "Cannes", "Toulouse", "Strasbourg", "Montpellier", "Lille", "Nantes", "Saint-Tropez", "Biarritz", "Avignon", "Aix-en-Provence", "Chamonix"],
-    'Spain': ["Barcelona", "Madrid", "Valencia", "Seville", "Malaga", "Bilbao", "Ibiza", "Mallorca", "Granada", "Marbella", "San Sebastian", "Tenerife", "Gran Canaria", "Cordoba", "Salamanca"],
-    'Italy': ["Rome", "Milan", "Venice", "Florence", "Naples", "Turin", "Bologna", "Verona", "Sicily", "Palermo", "Genoa", "Pisa", "Amalfi", "Cinque Terre", "Sardinia", "Lake Como", "Capri", "Positano"],
-    'Germany': ["Berlin", "Munich", "Hamburg", "Frankfurt", "Cologne", "Stuttgart", "Düsseldorf", "Dresden", "Leipzig", "Heidelberg", "Nuremberg", "Bremen", "Hannover", "Baden-Baden"],
-    'Netherlands': ["Amsterdam", "Rotterdam", "The Hague", "Utrecht", "Eindhoven", "Groningen", "Maastricht", "Haarlem", "Delft", "Leiden"],
-    'Portugal': ["Lisbon", "Porto", "Faro", "Madeira", "Funchal", "Coimbra", "Braga", "Cascais", "Sintra", "Albufeira", "Lagos", "Azores"],
-    'Greece': ["Athens", "Santorini", "Mykonos", "Crete", "Thessaloniki", "Rhodes", "Corfu", "Naxos", "Paros", "Zakynthos", "Kos", "Patras", "Skiathos"],
-    'Switzerland': ["Zurich", "Geneva", "Bern", "Lausanne", "Lucerne", "Basel", "Zermatt", "Interlaken", "St. Moritz", "Davos", "Lugano", "Montreux"],
-    'Austria': ["Vienna", "Salzburg", "Innsbruck", "Graz", "Linz", "Hallstatt", "Klagenfurt", "Bregenz", "Kitzbühel"],
-    'Belgium': ["Brussels", "Bruges", "Antwerp", "Ghent", "Liège", "Leuven", "Mechelen", "Namur"],
-    'Czech Republic': ["Prague", "Brno", "Ostrava", "Karlovy Vary", "Cesky Krumlov", "Plzen", "Olomouc", "Liberec"],
-    'Denmark': ["Copenhagen", "Aarhus", "Odense", "Aalborg", "Esbjerg", "Helsingor", "Roskilde"],
-    'Finland': ["Helsinki", "Rovaniemi", "Tampere", "Turku", "Oulu", "Lapland", "Espoo", "Vantaa"],
-    'Hungary': ["Budapest", "Debrecen", "Szeged", "Pecs", "Miskolc", "Gyor", "Eger"],
-    'Iceland': ["Reykjavik", "Akureyri", "Vik", "Hofn", "Selfoss", "Keflavik", "Husavik"],
-    'Ireland': ["Dublin", "Galway", "Cork", "Limerick", "Killarney", "Belfast", "Kilkenny", "Waterford"],
-    'Norway': ["Oslo", "Bergen", "Tromso", "Stavanger", "Trondheim", "Lofoten", "Geiranger", "Alesund"],
-    'Poland': ["Warsaw", "Krakow", "Gdansk", "Wroclaw", "Poznan", "Lodz", "Zakopane", "Lublin"],
-    'Sweden': ["Stockholm", "Gothenburg", "Malmo", "Uppsala", "Lund", "Vasteras", "Lapland", "Kiruna"],
-    'Russia': ["Moscow", "Saint Petersburg", "Sochi", "Kazan", "Novosibirsk", "Yekaterinburg", "Vladivostok"],
-    'United States': ["New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "Philadelphia", "San Antonio", "San Diego", "Dallas", "Austin", "San Francisco", "Seattle", "Denver", "Washington DC", "Boston", "Miami", "Las Vegas", "Portland", "Atlanta", "Nashville", "New Orleans", "Honolulu", "Aspen", "Park City"],
-    'Canada': ["Toronto", "Vancouver", "Montreal", "Calgary", "Ottawa", "Edmonton", "Quebec City", "Winnipeg", "Halifax", "Victoria", "Banff", "Whistler", "Mont-Tremblant", "Niagara Falls"],
-    'Mexico': ["Mexico City", "Cancun", "Tulum", "Playa del Carmen", "Cabo San Lucas", "Puerto Vallarta", "Oaxaca", "Guadalajara", "Merida", "Cozumel", "Isla Mujeres"],
-    'Costa Rica': ["San Jose", "Manuel Antonio", "Tamarindo", "La Fortuna", "Monteverde", "Puerto Viejo"],
-    'Brazil': ["Rio de Janeiro", "Sao Paulo", "Salvador", "Florianopolis", "Brasilia", "Fortaleza", "Recife", "Manaus", "Iguazu Falls", "Buzios"],
-    'Argentina': ["Buenos Aires", "Mendoza", "Bariloche", "Cordoba", "Salta", "El Calafate", "Ushuaia", "Iguazu"],
-    'Chile': ["Santiago", "Valparaiso", "Atacama", "Patagonia", "Easter Island", "Pucon", "Punta Arenas"],
-    'Japan': ["Tokyo", "Kyoto", "Osaka", "Yokohama", "Sapporo", "Hiroshima", "Nagoya", "Kobe", "Fukuoka", "Sendai", "Nara", "Nikko", "Hakone", "Okinawa", "Niseko", "Kanazawa", "Takayama"],
-    'South Korea': ["Seoul", "Busan", "Incheon", "Jeju", "Daegu", "Daejeon", "Gwangju", "Suwon", "Gyeongju"],
-    'China': ["Shanghai", "Beijing", "Hong Kong", "Shenzhen", "Guangzhou", "Chengdu", "Xi'an", "Hangzhou", "Macau", "Suzhou", "Sanya", "Lhasa", "Chongqing"],
-    'Taiwan': ["Taipei", "Kaohsiung", "Taichung", "Tainan", "Hualien", "Taroko"],
-    'Singapore': ["Singapore"],
-    'Thailand': ["Bangkok", "Phuket", "Chiang Mai", "Koh Samui", "Krabi", "Pattaya", "Hua Hin", "Koh Phi Phi", "Koh Tao", "Chiang Rai"],
-    'Vietnam': ["Ho Chi Minh City", "Hanoi", "Da Nang", "Hoi An", "Nha Trang", "Hue", "Halong Bay", "Phu Quoc", "Sapa", "Dalat"],
-    'Indonesia': ["Bali", "Jakarta", "Yogyakarta", "Lombok", "Surabaya", "Bandung", "Komodo", "Gili Islands", "Ubud", "Seminyak"],
-    'Malaysia': ["Kuala Lumpur", "Penang", "Langkawi", "Johor Bahru", "Malacca", "Kota Kinabalu", "Kuching", "Ipoh", "Borneo"],
-    'Philippines': ["Manila", "Cebu", "Boracay", "Palawan", "Davao", "Bohol", "Siargao", "El Nido", "Coron"],
-    'India': ["Mumbai", "New Delhi", "Bangalore", "Goa", "Jaipur", "Kolkata", "Chennai", "Hyderabad", "Pune", "Agra", "Udaipur", "Varanasi", "Kerala", "Rishikesh", "Darjeeling"],
-    'Maldives': ["Male", "Hulhumale", "Maafushi"],
-    'Sri Lanka': ["Colombo", "Galle", "Kandy", "Negombo", "Nuwara Eliya", "Ella", "Mirissa", "Anuradhapura"],
-    'Australia': ["Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide", "Gold Coast", "Canberra", "Hobart", "Darwin", "Cairns", "Byron Bay", "Newcastle", "Wollongong", "Sunshine Coast"],
-    'New Zealand': ["Auckland", "Wellington", "Christchurch", "Queenstown", "Hamilton", "Tauranga", "Dunedin", "Rotorua", "Napier", "Nelson"],
-    'Egypt': ["Cairo", "Sharm El Sheikh", "Hurghada", "Luxor", "Aswan", "Alexandria", "Dahab", "Marsa Alam"],
-    'Morocco': ["Marrakech", "Casablanca", "Fez", "Tangier", "Rabat", "Chefchaouen", "Essaouira", "Agadir", "Meknes"],
-    'South Africa': ["Cape Town", "Johannesburg", "Durban", "Port Elizabeth", "Pretoria", "Stellenbosch", "Knysna", "Hermanus", "Plettenberg Bay"],
-    'Kenya': ["Nairobi", "Mombasa", "Maasai Mara", "Kisumu", "Nakuru", "Diani Beach", "Lamu"],
-    'Tanzania': ["Zanzibar", "Dar es Salaam", "Arusha", "Serengeti", "Stone Town", "Kilimanjaro"],
-    'Turkey': ["Istanbul", "Bodrum", "Antalya", "Cappadocia", "Izmir", "Marmaris", "Pamukkale", "Ankara", "Fethiye", "**58 countries**", "**541 cities**", "**8 regions:** Middle East", "Europe", "North America", "South America", "Asia", "Oceania", "Africa", "Other", "`ffp-member-dashboard-v3.html` - Add City modal in Passport panel", "Future: Travel wishlist", "journey tracking", "city autocomplete fields", "map pins"]
-  });
+  // Cities/countries come ONLY from the shared taxonomy (window.FFP_TAX.cities,
+  // assets/ffp-taxonomy.js — DB-hydrated, admin-managed). The old hardcoded
+  // FFP_CITIES list (541 cities, and corrupted with stray doc text) was removed
+  // in v7 — every form reads the one taxonomy source via the shared pickers.
 
-  var FITNESS_LEVELS = ['Beginner', 'Intermediate', 'Advanced', 'Elite', 'Professional'];
+  // Fallback only — the canonical list is window.FFP_TAX.attendeeLevels (the 5 levels + "All Levels"
+  // for the "who can attend?" question). Kept identical here so the dropdown is never empty pre-hydration.
+  var FITNESS_LEVELS = ['All Levels', 'Not Tried', 'Social', 'Competitive', 'Representative', 'Professional'];
 
   // Six clear experience types — replaces the old vague "Format" field
   var EXPERIENCE_TYPES = [
@@ -381,7 +325,7 @@
       flights: row.flights_info || '',
       travel_reqs: row.travel_reqs || '',
       fitness_reqs: row.fitness_reqs || '',
-      fitness_level: row.fitness_level || 'Beginner',
+      fitness_level: row.fitness_level || 'All Levels',
       itinerary: Array.isArray(row.itinerary) ? row.itinerary : [],
       highlights: Array.isArray(row.highlights) ? row.highlights : [],
       not_allowed: Array.isArray(row.not_allowed) ? row.not_allowed : [],
@@ -492,7 +436,7 @@
       country: '', destination: '', price_aed: '', currency: 'AED', deposit: '',
       price_includes: [], price_excludes: [],
       accommodation: '', flights: '', travel_reqs: '',
-      fitness_reqs: '', fitness_level: 'Beginner',
+      fitness_reqs: '', fitness_level: 'All Levels',
       itinerary: [], hero_url: null, capacity: '', status: '',
       highlights: [], not_allowed: [], languages: [], min_age: '',
       meeting_point: '', meeting_lat: '', meeting_lng: '',
@@ -543,7 +487,7 @@
           '<div class="field">' +
             '<div class="label">Fitness level required</div>' +
             '<select class="select" id="xm-fitness-level">' +
-              ((window.FFP_TAX && window.FFP_TAX.fitnessLevels && window.FFP_TAX.fitnessLevels.length) ? window.FFP_TAX.fitnessLevels : FITNESS_LEVELS).map(function (l) {
+              ((window.FFP_TAX && window.FFP_TAX.attendeeLevels && window.FFP_TAX.attendeeLevels.length) ? window.FFP_TAX.attendeeLevels : FITNESS_LEVELS).map(function (l) {
                 return '<option value="' + escHtml(l) + '"' + (e.fitness_level === l ? ' selected' : '') + '>' + escHtml(l) + '</option>';
               }).join('') +
             '</select>' +
