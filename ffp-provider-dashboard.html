@@ -1,4 +1,7 @@
-<!-- FFP PROVIDER DASHBOARD — v46 (2026-06-12)
+<!-- FFP PROVIDER DASHBOARD — v47 (2026-06-12)
+     v47: FACILITY PAYMENTS (Phase 1) — "Connect Stripe" card in Billing → POST /api/facility/connect/start
+          (refresh-token auth) → Stripe OAuth → callback stores providers.stripe_account_id. renderPaymentsCard()
+          shows not-connected / connected ✓ / disconnected; ?stripe= bounce-back toast. Standard accounts, zero fee.
      v46: NEW "Experiences" module (classes & tours = `classes` table) — nav item, #panel-classes, lazy loader
           ffp-provider-classes-loader.js (full GYG-parity create/edit form, self-publish draft→live). Renamed the
           existing listings nav/panel "Experiences"→"Trips" (= experiences table: retreats/camps/sport-event trips).
@@ -2614,6 +2617,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
       <section class="panel" id="panel-billing">
         <div class="ph">Payments &amp; Invoices</div>
         <div class="psub">Charge your members and send invoices — paid into your own account.</div>
+        <div id="facility-payments-card" style="margin:14px 0 6px;"></div>
         <div class="biz-tabs">
           <button class="biz-tab active" onclick="bizTab(this,'bil-pay'); if(typeof renderPayments==='function')renderPayments();">Payments</button>
           <button class="biz-tab" onclick="bizTab(this,'bil-inv'); if(typeof renderInvoices==='function')renderInvoices();">Invoices</button>
@@ -3180,6 +3184,73 @@ async function duplicateListing(kind, id) {
   }
 }
 
+// ── Facility payments — Stripe Connect onboarding card (Billing panel) ──
+async function renderPaymentsCard() {
+  var el = document.getElementById('facility-payments-card');
+  if (!el) return;
+  var pid = (window.FFP_PROVIDER || {}).id;
+  if (!pid) { el.innerHTML = ''; return; }
+  var connected = false, status = 'not_connected';
+  try {
+    var r = await window.supabase.from('providers').select('stripe_account_id, payments_status').eq('id', pid).maybeSingle();
+    if (r && r.data) { connected = !!r.data.stripe_account_id; status = r.data.payments_status || (connected ? 'connected' : 'not_connected'); }
+  } catch (e) {}
+  if (connected && status === 'connected') {
+    el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid rgba(34,197,94,.3);background:rgba(34,197,94,.08);border-radius:12px;">' +
+      '<span class="ms" style="color:#22c55e;">check_circle</span>' +
+      '<div style="flex:1;"><div style="font-weight:700;font-size:13px;color:#22c55e;">Payments connected</div>' +
+      '<div class="psub" style="margin:2px 0 0;font-size:12px;">Your Stripe account is linked — member payments go straight to your bank, FFP takes no cut.</div></div>' +
+      '<a class="btn btn-ghost btn-sm" href="https://dashboard.stripe.com" target="_blank" rel="noopener"><span class="ms">open_in_new</span> Stripe</a></div>';
+  } else if (status === 'disconnected') {
+    el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid rgba(239,68,68,.3);background:rgba(239,68,68,.08);border-radius:12px;">' +
+      '<span class="ms" style="color:#ef4444;">link_off</span>' +
+      '<div style="flex:1;"><div style="font-weight:700;font-size:13px;color:#ef4444;">Stripe disconnected</div>' +
+      '<div class="psub" style="margin:2px 0 0;font-size:12px;">Reconnect to keep collecting member payments.</div></div>' +
+      '<button class="btn btn-pri btn-sm" onclick="connectStripe()"><span class="ms">link</span> Reconnect</button></div>';
+  } else {
+    el.innerHTML = '<div style="display:flex;align-items:center;gap:12px;padding:14px;border:1px solid rgba(99,91,255,.35);background:rgba(99,91,255,.06);border-radius:12px;">' +
+      '<span class="ms" style="font-size:26px;color:#635bff;">account_balance</span>' +
+      '<div style="flex:1;"><div style="font-weight:700;font-size:13px;">Set up payments</div>' +
+      '<div class="psub" style="margin:2px 0 0;font-size:12px;">Connect your Stripe account to charge members for memberships, packs and drop-ins. Money goes straight to you — FFP takes no cut. Takes about a minute if you already have Stripe.</div></div>' +
+      '<button class="btn btn-pri" onclick="connectStripe()"><span class="ms">link</span> Connect Stripe</button></div>';
+  }
+}
+
+async function connectStripe() {
+  var pid = (window.FFP_PROVIDER || {}).id;
+  var refresh = (window.FFPAuth && FFPAuth.getRefresh && FFPAuth.getRefresh())
+    || (function () { try { return localStorage.getItem('ffp_refresh') || sessionStorage.getItem('ffp_refresh'); } catch (e) { return null; } })();
+  if (!pid || !refresh) { showToast('Please sign in again to connect payments', 'error'); return; }
+  try {
+    var res = await fetch('https://ffp-passport-backend.vercel.app/api/facility/connect/start', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh: refresh, provider_id: pid })
+    });
+    var j = await res.json().catch(function () { return {}; });
+    if (j.already_connected) { showToast('Payments already connected ✓', 'success'); renderPaymentsCard(); return; }
+    if (j.url) { window.location.href = j.url; return; }
+    showToast(j.error || 'Could not start Stripe connection', 'error');
+  } catch (e) { showToast('Network error — please try again', 'error'); }
+}
+
+// Bounce-back from Stripe Connect (?stripe=connected|denied|error) → toast + open Billing.
+(function () {
+  try {
+    var p = new URLSearchParams(window.location.search);
+    var s = p.get('stripe');
+    if (!s) return;
+    var msg = s === 'connected' ? ['Payments connected ✓', 'success']
+            : s === 'denied'    ? ['Stripe connection cancelled', 'info']
+            : ['Stripe connection failed — please try again', 'error'];
+    document.addEventListener('ffp-provider-ready', function () {
+      setTimeout(function () { try { showToast(msg[0], msg[1]); if (typeof showPanel === 'function') showPanel('billing'); } catch (e) {} }, 500);
+    });
+    p.delete('stripe'); p.delete('panel');
+    var qs = p.toString();
+    history.replaceState({}, '', window.location.pathname + (qs ? '?' + qs : ''));
+  } catch (e) {}
+})();
+
 function showPanel(id) {
   ensureProviderLoader(id);
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -3216,7 +3287,7 @@ function showPanel(id) {
   if (id === 'analytics') renderAnalytics();
   if (id === 'scheduling' && typeof renderScheduling === 'function') renderScheduling();
   if (id === 'members' && typeof renderMembers === 'function') renderMembers();
-  if (id === 'billing' && typeof renderPayments === 'function') renderPayments();
+  if (id === 'billing') { if (typeof renderPayments === 'function') renderPayments(); renderPaymentsCard(); }
   if (id === 'staff' && typeof renderStaff === 'function') renderStaff();
   window.scrollTo({ top: 0, behavior: 'smooth' });
   // Close mobile sidebar after navigation
