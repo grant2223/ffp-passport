@@ -1,10 +1,15 @@
-<!-- FFP PROVIDER DASHBOARD — v53 (2026-06-12)
-     v53: BOOKABLE Tours+Classes in ONE place (the `classes` table). The "Tours" panel is now "Tours & Classes"
-          with a Tours/Classes view toggle (setClassView) + "New tour" and "New class" buttons; both create via the
-          bookable classes form (which now captures DATES → class_sessions). Create chooser: Tour→openCreateClass
-          ('tour'), Class→openCreateClass('class') (reverted the openCreateSession route). provider_sessions tab
-          ("Scheduling") re-parked as soon:true — it's NOT bookable (create_booking uses class_sessions); the
-          bookable home is here. Needs ffp-provider-classes-loader.js?v=5.
+<!-- FFP PROVIDER DASHBOARD — v55 (2026-06-12)
+     v55: TOURS NEED APPROVAL — Tours panel shows "reviewed by admin within 24 hours" help-strip; new tours submit
+          as 'pending' (no partner self-publish). Sessions tab stays on the left menu (un-retired, label "Sessions").
+          Admin approves tours in the NEW admin Tours screen (ffp-admin-classes-loader.js). Needs classes-loader?v=7.
+     v54: CLEAN SEPARATION (Grant) — Tours and Sessions are two separate things, separate storage, NO subtype
+          crossover. (1) DB: dropped classes.listing_subtype + provider_set_class_subtype. (2) "Tours" tab (id
+          classes) = ONE-OFF TOURS only (classes table) — single "New tour" button, no Tours/Classes toggle, no
+          "New class". A Tour is bookable via its date (class_sessions). (3) "Sessions" tab (id scheduling,
+          provider_sessions) switched back ON as the separate home for recurring Classes. (4) Create chooser:
+          Tour→openCreateClass() (Tours), Class→openCreateSession() (Sessions). Needs classes-loader?v=6.
+     v53: (superseded) tried Tours+Classes in one panel with a subtype toggle — removed in v54 (it was the crossover
+          Grant flagged as confusing).
      v52: (superseded) "Experiences"→"Tours"; tried routing Class→provider_sessions ("Sessions" tab) — reverted in
           v53 because provider_sessions isn't bookable. Tours rename + chooser split retained.
      v51: CLASS vs TOUR — (superseded) create chooser had Class+Tour both in the Experiences modal + subtype field
@@ -2697,21 +2702,18 @@ a { color: var(--ffp-blue); text-decoration: none; }
         <div class="listing-grid" id="exp-grid"></div>
       </section>
 
-      <!-- ════════ EXPERIENCES (classes & tours) ════════ -->
+      <!-- ════════ TOURS (one-off activities — the classes table) ════════ -->
       <section class="panel" id="panel-classes">
         <div class="ph-row">
           <div>
-            <div class="ph">Tours &amp; Classes</div>
-            <div class="psub">One-off <b>Tours</b> (jet ski, bungy, canyoning, guided tours) and recurring <b>Classes</b> (yoga, tennis, group fitness). Members book a specific date — add at least one date so it's bookable. Self-publish: create a draft, then “Go live”.</div>
+            <div class="ph">Tours</div>
+            <div class="psub">One-off activities members book — jet ski hire, bungy jump, canyoning, a guided tour or cruise. Add a date so it's bookable. (Recurring classes are in the Sessions tab.)</div>
           </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn btn-pri" onclick="openCreateClass('tour')"><span class="ms">tour</span> New tour</button>
-            <button class="btn btn-pri" onclick="openCreateClass('class')"><span class="ms">fitness_center</span> New class</button>
-          </div>
+          <button class="btn btn-pri" onclick="openCreateClass()"><span class="ms">tour</span> New tour</button>
         </div>
-        <div class="biz-tabs" style="margin:4px 0 14px;">
-          <button class="biz-tab active" id="cls-tab-tour" onclick="setClassView('tour')">Tours</button>
-          <button class="biz-tab" id="cls-tab-class" onclick="setClassView('class')">Classes</button>
+        <div class="help-strip" style="margin-bottom:18px;">
+          <span class="ms">schedule</span>
+          <div>New tours are <b>reviewed by admin within 24 hours</b> before going live. Members book and check in via the venue QR.</div>
         </div>
         <div class="list-toolbar">
           <div class="search-box">
@@ -3058,7 +3060,7 @@ const NAV = [
   // ── Business management system (Check-ins on top; modules built one-by-one) ──
   { id: 'checkins',    icon: 'qr_code_scanner', label: 'Check-ins',           section: 'business' },
   { id: 'members',     icon: 'groups',          label: 'Members',             section: 'business', soon: true },
-  { id: 'scheduling',  icon: 'calendar_month',  label: 'Scheduling',          section: 'business', soon: true },
+  { id: 'scheduling',  icon: 'calendar_month',  label: 'Sessions',            section: 'business' },
   { id: 'staff',       icon: 'badge',           label: 'Staff',               section: 'business', soon: true },
   { id: 'billing',     icon: 'receipt_long',    label: 'Payments & Invoices', section: 'business', soon: true },
   // ── Engagement (member-facing listings) ──
@@ -3147,7 +3149,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js', 'scheduling': 'ffp-provider-scheduling-loader.js', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js', 'classes': 'ffp-provider-classes-loader.js?v=5' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js', 'scheduling': 'ffp-provider-scheduling-loader.js', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js', 'classes': 'ffp-provider-classes-loader.js?v=7' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
@@ -5135,15 +5137,14 @@ function openConfirm(title, body, onConfirm) {
   document.getElementById('confirm-yes').onclick = () => { closeModal(); onConfirm(); };
 }
 
-// The classes/Experiences loader is the ONE listing loader that's lazy-loaded. showPanel('classes') only
-// *starts* fetching that script (async), so calling openClassModal() on the very next line silently no-ops
-// the first time — this was the "create Experience does nothing / never saves" bug. Load it, then open the
-// modal as soon as the loader has registered openClassModal.
-function openCreateClass(subtype) {
+// The Tours loader is the ONE listing loader that's lazy-loaded. showPanel('classes') only *starts* fetching
+// that script (async), so calling openClassModal() on the very next line silently no-ops the first time — this
+// was the "create does nothing / never saves" bug. Load it, then open the modal once openClassModal is registered.
+function openCreateClass() {
   showPanel('classes');   // the "Tours" tab (panel id stays 'classes' = the classes table)
   var tries = 0;
   (function waitForLoader() {
-    if (typeof window.openClassModal === 'function') { window.openClassModal(null, subtype || 'tour'); return; }
+    if (typeof window.openClassModal === 'function') { window.openClassModal(); return; }
     if (++tries > 120) { if (typeof showToast === 'function') showToast('Still loading — tap the button again in a moment', 'info'); return; }
     setTimeout(waitForLoader, 50);
   })();
@@ -5176,18 +5177,18 @@ function openCreatePicker() {
           <div class="qa-sub">A multi-day trip, retreat, camp or sport-event trip</div>
         </div>
       </button>
-      <button class="qa" onclick="closeModal(); openCreateClass('class')">
-        <div class="qa-icon"><span class="ms">fitness_center</span></div>
-        <div class="qa-body">
-          <div class="qa-title">Class</div>
-          <div class="qa-sub">A recurring session — yoga, tennis lesson, group class (add each date members can book)</div>
-        </div>
-      </button>
-      <button class="qa" onclick="closeModal(); openCreateClass('tour')">
+      <button class="qa" onclick="closeModal(); openCreateClass()">
         <div class="qa-icon"><span class="ms">tour</span></div>
         <div class="qa-body">
           <div class="qa-title">Tour</div>
-          <div class="qa-sub">A one-off activity — jet ski hire, bungy jump, canyoning</div>
+          <div class="qa-sub">A one-off activity — jet ski hire, bungy jump, canyoning, guided tour</div>
+        </div>
+      </button>
+      <button class="qa" onclick="closeModal(); openCreateSession()">
+        <div class="qa-icon"><span class="ms">fitness_center</span></div>
+        <div class="qa-body">
+          <div class="qa-title">Class</div>
+          <div class="qa-sub">A recurring session — yoga, tennis lesson, group class (set up in Sessions)</div>
         </div>
       </button>
       <button class="qa" onclick="closeModal(); openChallengeModal()">
