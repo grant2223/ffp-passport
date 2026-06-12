@@ -1,4 +1,11 @@
-/* FFP Provider Classes/Tours Loader (customer-facing "EXPERIENCES") — v2 (2026-06-12)
+/* FFP Provider TOURS Loader (the `classes` table — one-off tours; tab renamed "Experiences"→"Tours") — v4 (2026-06-12)
+   v4: TOURS-ONLY — this module is now the partner "Tours" tab (one-off activities: jet ski, bungy, canyoning).
+       Recurring CLASSES moved to the Sessions tab (provider_sessions). Default listing_subtype='tour'; all
+       user-facing copy/toasts say "tour"; empty state → New tour.
+   v3: CLASS vs TOUR — openClassModal(id, newSubtype) tags new listings as 'class' (recurring: yoga/tennis/group
+       class) or 'tour' (one-off: jet ski/bungy/canyoning); modal title says "New class"/"New tour"/"Edit …";
+       hidden #cm-subtype carries it; on save, provider_set_class_subtype persists classes.listing_subtype (the
+       shared field the booking platform splits Classes vs Tours on). Cards show a Class/Tour tag; fetch includes it.
    v2: LEVELS + CITY PICKER — (1) replaced the orphan "Difficulty" box (Beginner/Intermediate/Advanced/All
        levels) with "Fitness level required" reading window.FFP_TAX.attendeeLevels (Not Tried/Social/
        Competitive/Representative/Professional + All Levels) and saving to fitness_level — the SAME connected
@@ -30,10 +37,10 @@
   async function fetchClasses() {
     if (!provId()) return [];
     var res = await sb().from('classes')
-      .select('id, provider_id, title, description, category, activity, venue, city, country, duration_min, capacity, price_aed, hero_image_url, status, booking_source, highlights, what_included, what_not_included, meeting_point, meeting_lat, meeting_lng, what_to_bring, not_allowed, know_before, languages, min_age, difficulty, fitness_level, wheelchair_accessible, accessibility_notes, free_cancellation_hours, cancellation_policy, distance_km, created_at')
+      .select('id, provider_id, title, description, category, activity, venue, city, country, duration_min, capacity, price_aed, hero_image_url, status, booking_source, highlights, what_included, what_not_included, meeting_point, meeting_lat, meeting_lng, what_to_bring, not_allowed, know_before, languages, min_age, difficulty, fitness_level, wheelchair_accessible, accessibility_notes, free_cancellation_hours, cancellation_policy, distance_km, listing_subtype, created_at')
       .eq('provider_id', provId())
       .order('created_at', { ascending: false });
-    if (res.error) { console.error('[FFP Classes] fetch', res.error); toast('Could not load experiences', 'error'); return []; }
+    if (res.error) { console.error('[FFP Classes] fetch', res.error); toast('Could not load tours', 'error'); return []; }
     return res.data || [];
   }
   async function refresh() {
@@ -57,9 +64,9 @@
       if (typeof window.emptyState === 'function') {
         grid.innerHTML = list.length
           ? window.emptyState('No matches', 'Try a different search.', '', '')
-          : window.emptyState('No experiences yet', 'Classes and tours members can book — add your first one.', 'New experience', 'openClassModal()');
+          : window.emptyState('No tours yet', 'One-off activity experiences members book — jet ski, bungy, canyoning, a guided tour. Add your first one.', 'New tour', 'openCreateClass(\'tour\')');
       } else {
-        grid.innerHTML = '<div style="padding:40px;text-align:center;color:#9dbdd0;">' + (list.length ? 'No matches' : 'No experiences yet') + '</div>';
+        grid.innerHTML = '<div style="padding:40px;text-align:center;color:#9dbdd0;">' + (list.length ? 'No matches' : 'No tours yet') + '</div>';
       }
       return;
     }
@@ -77,6 +84,7 @@
         '<div class="lc-title">' + esc(c.title || 'Untitled') + '</div>' +
         '<div class="lc-sub">' + esc(c.description || '') + '</div>' +
         '<div class="lc-meta">' +
+          (c.listing_subtype ? '<span><span class="ms">' + (c.listing_subtype === 'tour' ? 'tour' : 'fitness_center') + '</span>' + (c.listing_subtype === 'tour' ? 'Tour' : 'Class') + '</span>' : '') +
           (c.city ? '<span><span class="ms">place</span>' + esc(c.city) + '</span>' : '') +
           (c.duration_min ? '<span><span class="ms">schedule</span>' + c.duration_min + ' min</span>' : '') +
           (c.booking_source && c.booking_source !== 'native' ? '<span><span class="ms">sync</span>' + esc(c.booking_source) + '</span>' : '') +
@@ -99,9 +107,13 @@
   }
 
   // ── modal (create / edit) ──
-  function openClassModal(id) {
+  function openClassModal(id, newSubtype) {
     var c = (id && Array.isArray(window.classesList)) ? window.classesList.find(function (x) { return x.id === id; }) : null;
     var e = c || {};
+    // 'class' = recurring/instructional, 'tour' = one-off activity. Both live in `classes`; the booking
+    // platform splits them by this. New listings get it from the create chooser; edits keep the saved value.
+    var subtype = (c && c.listing_subtype) || newSubtype || 'tour';
+    var kindWord = subtype === 'tour' ? 'tour' : (subtype === 'class' ? 'class' : 'experience');
     var ll = (e.meeting_lat != null && e.meeting_lng != null) ? (e.meeting_lat + ', ' + e.meeting_lng) : '';
     var TAX = window.FFP_TAX || {};
     var cities = TAX.cities || {};
@@ -110,6 +122,7 @@
     if (countries.length && countries.indexOf(selCountry) === -1) selCountry = countries[0];
 
     var body =
+      '<input type="hidden" id="cm-subtype" value="' + esc(subtype) + '">' +
       '<div class="form-section"><div class="form-section-title">Photo</div>' +
         '<div id="listing-photo-slot" data-url="' + esc(e.hero_image_url || '') + '"></div></div>' +
       '<div class="form-section"><div class="form-section-title">Basics</div><div class="form-grid">' +
@@ -157,7 +170,7 @@
       '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>' +
       '<button class="btn btn-pri" onclick="saveClass(\'' + (c ? c.id : '') + '\')">' + (c ? 'Save changes' : 'Create as draft') + '</button>';
 
-    if (typeof window.openModalShell === 'function') window.openModalShell('lg', (c ? 'Edit experience' : 'New experience'), body, foot);
+    if (typeof window.openModalShell === 'function') window.openModalShell('lg', (c ? 'Edit ' : 'New ') + kindWord, body, foot);
     if (typeof window.renderListingUploader === 'function') { try { window.renderListingUploader(e.hero_image_url || ''); } catch (er) {} }
 
     setTimeout(function () {
@@ -237,8 +250,11 @@
       var res = await sb().rpc('provider_save_listing', { p_kind: 'class', p_provider: provId(), p_id: id || null, p: payload });
       if (res.error) throw res.error;
       if (!res.data) throw new Error('Save failed — not found or not permitted');
+      // Persist the Class/Tour subtype (the shared field the booking platform splits on).
+      var subtype = g('subtype');
+      if (subtype) { try { await sb().rpc('provider_set_class_subtype', { p_provider: provId(), p_id: res.data, p_subtype: subtype }); } catch (e2) { console.warn('[FFP Classes] subtype', e2); } }
       if (typeof window.closeModal === 'function') window.closeModal();
-      toast(id ? 'Experience updated' : 'Saved as a draft — tap “Go live” to publish', 'success');
+      toast(id ? 'Tour updated' : 'Saved as a draft — tap “Go live” to publish', 'success');
       await refresh();
     } catch (er) { console.error('[FFP Classes] save', er); toast(er.message || 'Save failed', 'error'); }
   }
@@ -247,7 +263,7 @@
     try {
       var res = await sb().rpc('provider_set_listing_status', { p_kind: 'class', p_provider: provId(), p_id: id, p_status: status });
       if (res.error) throw res.error;
-      toast(status === 'live' ? 'Experience is now live' : 'Experience unpublished', 'success');
+      toast(status === 'live' ? 'Tour is now live' : 'Tour unpublished', 'success');
       await refresh();
     } catch (er) { console.error('[FFP Classes] status', er); toast('Could not update status', 'error'); }
   }
@@ -257,13 +273,13 @@
       try {
         var res = await sb().rpc('provider_delete_listing', { p_kind: 'class', p_provider: provId(), p_id: id });
         if (res.error) throw res.error;
-        toast('Experience deleted', 'success');
+        toast('Tour deleted', 'success');
         if (typeof window.closeModal === 'function') window.closeModal();
         await refresh();
       } catch (er) { console.error('[FFP Classes] delete', er); toast('Delete failed', 'error'); }
     };
-    if (typeof window.openConfirm === 'function') window.openConfirm('Delete this experience?', 'This cannot be undone.', doIt);
-    else if (confirm('Delete this experience?')) doIt();
+    if (typeof window.openConfirm === 'function') window.openConfirm('Delete this tour?', 'This cannot be undone.', doIt);
+    else if (confirm('Delete this tour?')) doIt();
   }
 
   // ── expose ──
