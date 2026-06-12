@@ -1,4 +1,18 @@
-<!-- FFP PROVIDER DASHBOARD — v49 (2026-06-12)
+<!-- FFP PROVIDER DASHBOARD — v52 (2026-06-12)
+     v52: SEPARATE TOURS vs CLASSES (Grant: partners were confused). Nav: "Experiences"→"Tours" (id=classes,
+          one-off activities); "Scheduling"→"Sessions" and SWITCHED ON (was soon:true) — recurring classes live
+          here (provider_sessions, weekly). Create chooser: "Tour"→openCreateClass('tour') (Tours tab), "Class"→
+          openCreateSession() (Sessions tab). Removed the "Coming soon" strips from Sessions; panel headers/copy
+          reworded; Tours module is tour-only (default subtype 'tour'). Needs ffp-provider-classes-loader.js?v=4.
+     v51: CLASS vs TOUR — (superseded) create chooser had Class+Tour both in the Experiences modal + subtype field
+          (classes.listing_subtype via provider_set_class_subtype). The subtype plumbing stays; classes now route
+          to Sessions instead.
+     v50: CREATE-EXPERIENCE BUGFIX — the classes/Experiences loader is lazy-loaded, so "Create → Experience"
+          (openCreatePicker) and the panel's "New experience" button called openClassModal() *before* the loader
+          script had executed → it silently no-opped on first use (the "create class does nothing / never saves"
+          bug). New openCreateClass() loads the loader then opens the modal once openClassModal is registered.
+          Both create entry points now route through it. (Save/publish backend verified fine: provider_save_listing
+          kind=class inserts a draft with all fields incl fitness_level; provider_set_listing_status draft→live.)
      v49: UNIFIED FIELDS + PROFILE GATE. (a) Level fields read the shared FFP_TAX.attendeeLevels (Events #em-intensity
           + the base experiences modal); Events Country/City are now the shared searchable picker buttons
           (#em-country-btn/#em-city-btn) wired by the events loader — no native dropdowns. (b) Cache-busts:
@@ -2317,7 +2331,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
               <button class="qa" onclick="openExperienceModal()">
                 <div class="qa-icon"><span class="ms">flight</span></div>
                 <div class="qa-body">
-                  <div class="qa-title">New experience</div>
+                  <div class="qa-title">New trip</div>
                   <div class="qa-sub">Multi-day</div>
                 </div>
               </button>
@@ -2516,9 +2530,6 @@ a { color: var(--ffp-blue); text-decoration: none; }
           <button class="biz-tab" onclick="bizTab(this,'mem-comms'); if(typeof renderComms==='function')renderComms();">Communications</button>
         </div>
         <div class="biz-pane active" id="mem-directory">
-          <div style="display:flex;align-items:center;gap:8px;margin-top:16px;padding:9px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:#FFCC00;font-size:12px;font-weight:700;">
-            <span class="ms" style="font-size:16px;">construction</span> Coming soon — preview for partner testing
-          </div>
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
             <input class="input" id="mem-search" placeholder="Search name, email, phone or tag…" style="max-width:300px;" oninput="if(typeof renderMembersList==='function')renderMembersList()">
             <button class="btn btn-pri" onclick="openMemberModal()"><span class="ms">person_add</span> Add member</button>
@@ -2526,9 +2537,6 @@ a { color: var(--ffp-blue); text-decoration: none; }
           <div id="mem-list" style="margin-top:10px;"></div>
         </div>
         <div class="biz-pane" id="mem-plans">
-          <div style="display:flex;align-items:center;gap:8px;margin-top:16px;padding:9px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:#FFCC00;font-size:12px;font-weight:700;">
-            <span class="ms" style="font-size:16px;">construction</span> Coming soon — preview for partner testing
-          </div>
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
             <div class="psub" style="margin:0;">Memberships and class-packs. Assign them to members from the Directory.</div>
             <button class="btn btn-pri" onclick="openPlanModal()"><span class="ms">add</span> New plan</button>
@@ -2536,9 +2544,6 @@ a { color: var(--ffp-blue); text-decoration: none; }
           <div id="plans-list" style="margin-top:8px;"></div>
         </div>
         <div class="biz-pane" id="mem-teams">
-          <div style="display:flex;align-items:center;gap:8px;margin-top:16px;padding:9px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:#FFCC00;font-size:12px;font-weight:700;">
-            <span class="ms" style="font-size:16px;">construction</span> Coming soon — preview for partner testing
-          </div>
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
             <div class="psub" style="margin:0;">Squads and training groups — build a roster from your members.</div>
             <button class="btn btn-pri" onclick="openTeamModal()"><span class="ms">group_add</span> New team</button>
@@ -2546,9 +2551,6 @@ a { color: var(--ffp-blue); text-decoration: none; }
           <div id="teams-list" style="margin-top:8px;"></div>
         </div>
         <div class="biz-pane" id="mem-comms">
-          <div style="display:flex;align-items:center;gap:8px;margin-top:16px;padding:9px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:#FFCC00;font-size:12px;font-weight:700;">
-            <span class="ms" style="font-size:16px;">construction</span> Coming soon — preview for partner testing
-          </div>
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
             <div class="psub" style="margin:0;">Announcements and reminders to your members. Compose now; delivery switches on when channels connect.</div>
             <button class="btn btn-pri" onclick="openComposeModal()"><span class="ms">campaign</span> Compose</button>
@@ -2558,16 +2560,13 @@ a { color: var(--ffp-blue); text-decoration: none; }
       </section>
 
       <section class="panel" id="panel-scheduling">
-        <div class="ph">Scheduling</div>
-        <div class="psub">Your class &amp; session calendar — bookings, capacity and attendance.</div>
+        <div class="ph">Sessions</div>
+        <div class="psub">Your recurring classes, PT slots and team sessions — set the timetable, capacity and take attendance. Members book these. (One-off tours live in the Tours tab.)</div>
         <div class="biz-tabs">
           <button class="biz-tab active" onclick="bizTab(this,'sch-calendar')">Calendar &amp; Bookings</button>
           <button class="biz-tab" onclick="bizTab(this,'sch-attendance'); if(typeof renderAttendance==='function')renderAttendance();">Attendance</button>
         </div>
         <div class="biz-pane active" id="sch-calendar">
-          <div style="display:flex;align-items:center;gap:8px;margin-top:16px;padding:9px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:#FFCC00;font-size:12px;font-weight:700;">
-            <span class="ms" style="font-size:16px;">construction</span> Coming soon — preview for partner testing
-          </div>
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
             <div class="psub" style="margin:0;">Classes, personal training and team sessions you run — members will book these.</div>
             <button class="btn btn-pri" onclick="openSessionModal()"><span class="ms">add</span> New session</button>
@@ -2575,9 +2574,6 @@ a { color: var(--ffp-blue); text-decoration: none; }
           <div id="sched-list" style="margin-top:10px;"></div>
         </div>
         <div class="biz-pane" id="sch-attendance">
-          <div style="display:flex;align-items:center;gap:8px;margin-top:16px;padding:9px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:#FFCC00;font-size:12px;font-weight:700;">
-            <span class="ms" style="font-size:16px;">construction</span> Coming soon — preview for partner testing
-          </div>
           <div class="psub" style="margin:14px 0 4px;">Pick a session and tick who attended.</div>
           <div id="att-list" style="margin-top:8px;"></div>
         </div>
@@ -2592,9 +2588,6 @@ a { color: var(--ffp-blue); text-decoration: none; }
           <button class="biz-tab" onclick="bizTab(this,'stf-sched')">Schedules</button>
         </div>
         <div class="biz-pane active" id="stf-list">
-          <div style="display:flex;align-items:center;gap:8px;margin-top:16px;padding:9px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:#FFCC00;font-size:12px;font-weight:700;">
-            <span class="ms" style="font-size:16px;">construction</span> Coming soon — preview for partner testing
-          </div>
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
             <div class="psub" style="margin:0;">Your coaches and team members, each with a role and access level.</div>
             <button class="btn btn-pri" onclick="openStaffModal()"><span class="ms">person_add</span> Add staff</button>
@@ -2602,9 +2595,6 @@ a { color: var(--ffp-blue); text-decoration: none; }
           <div id="staff-list" style="margin-top:8px;"></div>
         </div>
         <div class="biz-pane" id="stf-roles">
-          <div style="display:flex;align-items:center;gap:8px;margin-top:16px;padding:9px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:#FFCC00;font-size:12px;font-weight:700;">
-            <span class="ms" style="font-size:16px;">construction</span> Coming soon — preview for partner testing
-          </div>
           <div class="psub" style="margin:14px 0 10px;">Access levels you can assign to each staff member. Separate staff logins that enforce these arrive in a later update — for now this sets each person's intended access.</div>
           <div style="display:flex;flex-direction:column;gap:9px;">
             <div style="background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-radius:12px;padding:11px 13px;"><div style="font-weight:800;color:var(--ffp-text,#eaf2f8);">Full access</div><div class="psub" style="margin:2px 0 0;">Everything — members, scheduling, attendance, payments and settings.</div></div>
@@ -2635,9 +2625,6 @@ a { color: var(--ffp-blue); text-decoration: none; }
           <button class="biz-tab" onclick="bizTab(this,'bil-reports'); if(typeof renderBillReports==='function')renderBillReports();">Reports</button>
         </div>
         <div class="biz-pane active" id="bil-pay">
-          <div style="display:flex;align-items:center;gap:8px;margin-top:16px;padding:9px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:#FFCC00;font-size:12px;font-weight:700;">
-            <span class="ms" style="font-size:16px;">construction</span> Coming soon — preview for partner testing
-          </div>
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
             <div class="psub" style="margin:0;">Record money you've collected — cash, card or transfer. No card processing yet.</div>
             <button class="btn btn-pri" onclick="openPaymentModal('','payment')"><span class="ms">add</span> Record payment</button>
@@ -2645,9 +2632,6 @@ a { color: var(--ffp-blue); text-decoration: none; }
           <div id="pay-list" style="margin-top:8px;"></div>
         </div>
         <div class="biz-pane" id="bil-inv">
-          <div style="display:flex;align-items:center;gap:8px;margin-top:16px;padding:9px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:#FFCC00;font-size:12px;font-weight:700;">
-            <span class="ms" style="font-size:16px;">construction</span> Coming soon — preview for partner testing
-          </div>
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
             <div class="psub" style="margin:0;">Money owed. Issue an invoice, then mark it paid when it comes in.</div>
             <button class="btn btn-pri" onclick="openPaymentModal('','invoice')"><span class="ms">add</span> New invoice</button>
@@ -2655,9 +2639,6 @@ a { color: var(--ffp-blue); text-decoration: none; }
           <div id="inv-list" style="margin-top:8px;"></div>
         </div>
         <div class="biz-pane" id="bil-reports">
-          <div style="display:flex;align-items:center;gap:8px;margin-top:16px;padding:9px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:#FFCC00;font-size:12px;font-weight:700;">
-            <span class="ms" style="font-size:16px;">construction</span> Coming soon — preview for partner testing
-          </div>
           <div class="psub" style="margin:14px 0 4px;">Your money at a glance.</div>
           <div id="bill-reports" style="margin-top:8px;"></div>
         </div>
@@ -2717,21 +2698,21 @@ a { color: var(--ffp-blue); text-decoration: none; }
       <section class="panel" id="panel-classes">
         <div class="ph-row">
           <div>
-            <div class="ph">Experiences</div>
-            <div class="psub">Single-session classes &amp; tours members can book — like a class, guided tour, or cruise. Saved as a draft so you can perfect it, then tap “Go live”.</div>
+            <div class="ph">Tours</div>
+            <div class="psub">One-off activity experiences members book — jet ski hire, bungy jump, guided tour, cruise. Saved as a draft so you can perfect it, then tap “Go live”. (Recurring classes live in the Sessions tab.)</div>
           </div>
-          <button class="btn btn-pri" onclick="openClassModal()">
-            <span class="ms">add</span> New experience
+          <button class="btn btn-pri" onclick="openCreateClass('tour')">
+            <span class="ms">tour</span> New tour
           </button>
         </div>
         <div class="help-strip" style="margin-bottom: 18px;">
           <span class="ms">bolt</span>
-          <div>Experiences <b>self-publish</b> — no admin review. Create a draft, fill in the details, then “Go live” when you're ready. Members book and check in via the venue QR.</div>
+          <div>Tours <b>self-publish</b> — no admin review. Create a draft, fill in the details, then “Go live” when you're ready. Members book and check in via the venue QR.</div>
         </div>
         <div class="list-toolbar">
           <div class="search-box">
             <span class="ms">search</span>
-            <input id="cls-search" placeholder="Search your experiences" oninput="renderClasses()">
+            <input id="cls-search" placeholder="Search your tours" oninput="renderClasses()">
           </div>
         </div>
         <div class="listing-grid" id="cls-grid"></div>
@@ -3073,13 +3054,13 @@ const NAV = [
   // ── Business management system (Check-ins on top; modules built one-by-one) ──
   { id: 'checkins',    icon: 'qr_code_scanner', label: 'Check-ins',           section: 'business' },
   { id: 'members',     icon: 'groups',          label: 'Members',             section: 'business', soon: true },
-  { id: 'scheduling',  icon: 'calendar_month',  label: 'Scheduling',          section: 'business', soon: true },
+  { id: 'scheduling',  icon: 'calendar_month',  label: 'Sessions',            section: 'business' },
   { id: 'staff',       icon: 'badge',           label: 'Staff',               section: 'business', soon: true },
   { id: 'billing',     icon: 'receipt_long',    label: 'Payments & Invoices', section: 'business', soon: true },
   // ── Engagement (member-facing listings) ──
   { id: 'events',      icon: 'event',           label: 'Events',      section: 'engagement' },
   { id: 'experiences', icon: 'flight',          label: 'Trips',       section: 'engagement' },
-  { id: 'classes',     icon: 'directions_run',  label: 'Experiences', section: 'engagement' },
+  { id: 'classes',     icon: 'tour',            label: 'Tours',       section: 'engagement' },
   { id: 'challenges',  icon: 'emoji_events',    label: 'Challenges',  section: 'engagement' },
   { id: 'quests',      icon: 'flag',            label: 'Quests',      section: 'engagement' },
   { id: 'deals',       icon: 'local_offer',     label: 'Deals',       section: 'engagement' },
@@ -3162,7 +3143,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js', 'scheduling': 'ffp-provider-scheduling-loader.js', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js', 'classes': 'ffp-provider-classes-loader.js?v=2' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js', 'scheduling': 'ffp-provider-scheduling-loader.js', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js', 'classes': 'ffp-provider-classes-loader.js?v=4' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
@@ -5150,6 +5131,30 @@ function openConfirm(title, body, onConfirm) {
   document.getElementById('confirm-yes').onclick = () => { closeModal(); onConfirm(); };
 }
 
+// The classes/Experiences loader is the ONE listing loader that's lazy-loaded. showPanel('classes') only
+// *starts* fetching that script (async), so calling openClassModal() on the very next line silently no-ops
+// the first time — this was the "create Experience does nothing / never saves" bug. Load it, then open the
+// modal as soon as the loader has registered openClassModal.
+function openCreateClass(subtype) {
+  showPanel('classes');   // the "Tours" tab (panel id stays 'classes' = the classes table)
+  var tries = 0;
+  (function waitForLoader() {
+    if (typeof window.openClassModal === 'function') { window.openClassModal(null, subtype || 'tour'); return; }
+    if (++tries > 120) { if (typeof showToast === 'function') showToast('Still loading — tap the button again in a moment', 'info'); return; }
+    setTimeout(waitForLoader, 50);
+  })();
+}
+// A "Class" is a recurring session — it lives in the Sessions tab (the scheduling module, also lazy-loaded).
+function openCreateSession() {
+  showPanel('scheduling');   // the "Sessions" tab
+  var tries = 0;
+  (function waitForLoader() {
+    if (typeof window.openSessionModal === 'function') { window.openSessionModal(); return; }
+    if (++tries > 120) { if (typeof showToast === 'function') showToast('Still loading — tap “New session” in a moment', 'info'); return; }
+    setTimeout(waitForLoader, 50);
+  })();
+}
+
 function openCreatePicker() {
   openModalShell('sm', 'Create new listing', `
     <div style="display: flex; flex-direction: column; gap: 10px;">
@@ -5167,11 +5172,18 @@ function openCreatePicker() {
           <div class="qa-sub">A multi-day trip, retreat, camp or sport-event trip</div>
         </div>
       </button>
-      <button class="qa" onclick="closeModal(); showPanel('classes'); openClassModal()">
-        <div class="qa-icon"><span class="ms">directions_run</span></div>
+      <button class="qa" onclick="closeModal(); openCreateSession()">
+        <div class="qa-icon"><span class="ms">fitness_center</span></div>
         <div class="qa-body">
-          <div class="qa-title">Experience</div>
-          <div class="qa-sub">A single-session class or tour members book</div>
+          <div class="qa-title">Class</div>
+          <div class="qa-sub">A recurring session — yoga, tennis lesson, group class (set up in Sessions)</div>
+        </div>
+      </button>
+      <button class="qa" onclick="closeModal(); openCreateClass('tour')">
+        <div class="qa-icon"><span class="ms">tour</span></div>
+        <div class="qa-body">
+          <div class="qa-title">Tour</div>
+          <div class="qa-sub">A one-off activity — jet ski hire, bungy jump, canyoning</div>
         </div>
       </button>
       <button class="qa" onclick="closeModal(); openChallengeModal()">
