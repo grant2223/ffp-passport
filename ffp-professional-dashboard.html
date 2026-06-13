@@ -410,6 +410,11 @@ a{color:var(--ffp-blue);}
         <div class="field" style="margin-top:10px;"><div class="label">Member code</div><input class="input" id="pci-code" placeholder="From their Passport app" oninput="this.value=this.value.toUpperCase()"></div>
         <button class="btn btn-pri" style="margin-top:14px;" onclick="proCheckinMember()"><span class="ms">check</span> Check in</button>
       </div>
+      <div style="max-width:480px;margin-top:24px;background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-radius:14px;padding:18px;text-align:center;">
+        <div style="font-size:14px;font-weight:800;color:var(--ffp-text,#eaf2f8);margin-bottom:4px;"><span class="ms" style="vertical-align:-3px;color:var(--ffp-purple,#9b7bf0);">qr_code_2</span> Your check-in QR</div>
+        <div class="psub" style="margin:0 0 14px;">Clients scan this to check themselves in and pick the service — then they're asked to review you afterwards.</div>
+        <div style="display:inline-block;background:#fff;padding:16px;border-radius:16px;"><div id="pro-qr-box"></div></div>
+      </div>
     </section>
 
     <!-- PACKAGES (members loader -> #plans-list) -->
@@ -961,6 +966,15 @@ async function renderProCheckin(){
   try{ var r=await window.supabase.rpc('pro_list_services',{p_pro:pid}); var svc=(r&&r.data)||[];
     sel.innerHTML = svc.length ? svc.map(function(s){ return '<option value="'+s.id+'">'+escHtml(s.name||'Service')+'</option>'; }).join('') : '<option value="">No services yet — add one in Services</option>';
   }catch(e){ sel.innerHTML='<option value="">Couldn’t load services</option>'; }
+  renderProQR();
+}
+function renderProQR(){
+  var box=document.getElementById('pro-qr-box'); var pid=window.FFP_PROVIDER&&FFP_PROVIDER.id;
+  if(!box||!pid) return;
+  var url='https://ffppassport.com/ffp-member-dashboard.html?pro='+encodeURIComponent(pid);
+  var draw=function(){ if(!window.QRCode){ box.textContent='QR unavailable'; return; } box.innerHTML=''; try{ new window.QRCode(box,{text:url,width:184,height:184,correctLevel:window.QRCode.CorrectLevel.M}); }catch(e){ box.textContent='QR unavailable'; } };
+  if(window.QRCode){ draw(); return; }
+  var s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'; s.onload=draw; s.onerror=function(){ box.textContent='QR unavailable'; }; document.body.appendChild(s);
 }
 async function proCheckinMember(){
   var pid=window.FFP_PROVIDER&&FFP_PROVIDER.id; if(!pid) return;
