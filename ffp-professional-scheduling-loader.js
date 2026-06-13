@@ -28,6 +28,23 @@ async function _ensureProClients(force){
   try{ var r=await window.supabase.rpc('pro_list_clients',{p_pro:pid}); _proClients=(r&&r.data)?r.data:[]; }catch(e){ _proClients=[]; }
 }
 
+// Services drive the slot picker. Fetched here so Scheduling works even if the Services panel was never opened.
+var _proSvc = [];
+async function _ensureProSvc(force){
+  if(_proSvc.length && !force) return _proSvc;
+  var pid=_proProvId(); if(!pid) return _proSvc;
+  try{ var r=await window.supabase.rpc('pro_list_services',{p_pro:pid}); _proSvc=(r&&r.data)?r.data:[]; }catch(e){ _proSvc=[]; }
+  return _proSvc;
+}
+// Autofill duration/capacity/title from the chosen service when creating a slot.
+function _slSvcPick(){
+  var sel=document.getElementById('sl-service_id'); if(!sel) return;
+  var sv=_proSvc.find(function(x){return x.id===sel.value;}); if(!sv) return;
+  var dur=document.getElementById('sl-duration_min'); if(dur && sv.duration_min) dur.value=sv.duration_min;
+  var cap=document.getElementById('sl-capacity'); if(cap && sv.capacity) cap.value=sv.capacity;
+  var ttl=document.getElementById('sl-title'); if(ttl && !ttl.value) ttl.value=sv.name||'';
+}
+
 async function renderScheduling(){
   var host=document.getElementById('pro-week'); if(!host) return;
   var pid=_proProvId(); if(!pid){ host.innerHTML='<div class="empty-sub" style="text-align:left;">Sign in to manage your schedule.</div>'; return; }
@@ -59,11 +76,11 @@ function renderWeekGrid(occs){
   return html;
 }
 function occCard(o){
-  var typeLbl=SLOT_TYPES[o.slot_type]||'';
+  var typeLbl=o.service_name||SLOT_TYPES[o.slot_type]||'';
   var sub=[]; var nClients=(o.clients&&o.clients.length)||0;
   if(nClients) sub.push(o.clients.join(', '));
-  sub.push(typeLbl);
-  if(!SLOT_SINGLE[o.slot_type]&&o.capacity) sub.push(nClients+'/'+o.capacity);
+  if(typeLbl) sub.push(typeLbl);
+  if((o.capacity||0)>1) sub.push(nClients+'/'+o.capacity);
   if(o.location) sub.push(o.location);
   return '<div onclick="openOccActions(\''+o.slot_id+'\',\''+o.date+'\')" style="background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:10px;padding:9px 12px;margin-bottom:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;">'+
     '<div style="min-width:0;"><div style="font-weight:800;color:var(--ffp-text);">'+_fmtTime(o.start_time)+' · '+escHtml(o.title||'Session')+(o.moved?' <span class="ni-lock-pill" style="background:rgba(255,204,0,.14);color:#FFCC00;">moved</span>':'')+'</div>'+
@@ -76,20 +93,29 @@ function occCard(o){
 async function openSlotModal(id){
   var pid=_proProvId(); if(!pid) return;
   await _ensureProClients();
+  await _ensureProSvc();
+  // A slot is availability FOR a service — require at least one service first.
+  if(!_proSvc.length){
+    openModalShell('', 'Add a service first',
+      '<div class="psub" style="margin:6px 0;">Slots are the times you offer a service. Create a service (a PT session, an assessment, a program) first — then set its times here.</div>',
+      '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>'+
+      '<button class="btn btn-pri" onclick="closeModal(); showPanel(\'services\');">Go to Services</button>');
+    return;
+  }
   var slots=_proSlotsCache||[];
   var editing=id?slots.find(function(s){return s.id===id;}):null;
-  var s=editing||{ title:'', slot_type:'one_to_one', weekday:1, start_time:'18:00', duration_min:60, capacity:1, location:'', clients:[] };
+  var s=editing||{ title:'', service_id:'', weekday:1, start_time:'18:00', duration_min:'', capacity:'', location:'', clients:[] };
   var chosen=(s.clients||[]).map(function(c){return c.id;});
   var clientList=_proClients.length
     ? _proClients.map(function(c){ var on=chosen.indexOf(c.id)!==-1; return '<label style="display:flex;align-items:center;gap:8px;padding:5px 2px;cursor:pointer;"><input type="checkbox" class="slot-cl" value="'+c.id+'" '+(on?'checked':'')+' style="width:16px;height:16px;accent-color:var(--ffp-purple);"> <span style="font-size:13px;">'+escHtml(c.full_name)+'</span></label>'; }).join('')
     : '<div class="psub" style="margin:4px 0;">No clients yet — add one below.</div>';
   var dayOpts=WEEKDAYS.map(function(w){ return '<option value="'+w[1]+'"'+(Number(s.weekday)===w[1]?' selected':'')+'>'+w[0]+'</option>'; }).join('');
-  var typeOpts=Object.keys(SLOT_TYPES).map(function(k){ return '<option value="'+k+'"'+(s.slot_type===k?' selected':'')+'>'+SLOT_TYPES[k]+'</option>'; }).join('');
+  var svcOpts='<option value="">Choose a service…</option>'+_proSvc.map(function(v){ return '<option value="'+v.id+'"'+(s.service_id===v.id?' selected':'')+'>'+escHtml(v.name||'Service')+'</option>'; }).join('');
   openModalShell('lg',(editing?'Edit standing slot':'New standing slot'),
     '<div class="form-section"><div class="form-section-title">Slot</div><div class="form-grid">'+
-      '<div class="field full"><div class="label">Title</div><input class="input" id="sl-title" value="'+escHtml(s.title||'')+'" placeholder="e.g. PT with Sam"></div>'+
-      '<div class="field"><div class="label">Type</div><select class="select" id="sl-slot_type">'+typeOpts+'</select></div>'+
-      '<div class="field"><div class="label">Capacity <span style="color:var(--ffp-text-dim);">(groups)</span></div><input class="input" type="number" id="sl-capacity" value="'+escHtml(String(s.capacity||1))+'"></div>'+
+      '<div class="field full"><div class="label">Service</div><select class="select" id="sl-service_id" onchange="_slSvcPick()">'+svcOpts+'</select></div>'+
+      '<div class="field full"><div class="label">Title <span style="color:var(--ffp-text-dim);">(optional)</span></div><input class="input" id="sl-title" value="'+escHtml(s.title||'')+'" placeholder="Defaults to the service name"></div>'+
+      '<div class="field"><div class="label">Capacity</div><input class="input" type="number" id="sl-capacity" value="'+escHtml(String(s.capacity||''))+'"></div>'+
       '<div class="field"><div class="label">Day</div><select class="select" id="sl-weekday">'+dayOpts+'</select></div>'+
       '<div class="field"><div class="label">Time</div><input class="input" type="time" id="sl-start_time" value="'+escHtml(String(s.start_time||'18:00').slice(0,5))+'"></div>'+
       '<div class="field"><div class="label">Duration (min)</div><input class="input" type="number" id="sl-duration_min" value="'+escHtml(String(s.duration_min||60))+'"></div>'+
@@ -120,9 +146,10 @@ async function addSlotClient(){
 async function saveSlot(id){
   var pid=_proProvId(); if(!pid) return;
   var g=function(i){var el=document.getElementById('sl-'+i);return el?el.value.trim():'';};
+  var serviceId=g('service_id'); if(!serviceId){ showToast('Choose a service','error'); return; }
   var time=g('start_time'); if(!time){ showToast('Pick a time','error'); return; }
   var clientIds=[]; document.querySelectorAll('.slot-cl:checked').forEach(function(c){clientIds.push(c.value);});
-  var payload={ title:g('title'), slot_type:g('slot_type')||'one_to_one', weekday:g('weekday'), start_time:time,
+  var payload={ service_id:serviceId, title:g('title'), weekday:g('weekday'), start_time:time,
     duration_min:g('duration_min'), capacity:g('capacity'), location:g('location'), client_ids:clientIds };
   try{
     var r=await window.supabase.rpc('pro_save_slot',{p_pro:pid,p_id:id||null,p:payload});
