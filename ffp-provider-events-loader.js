@@ -301,6 +301,9 @@
     // Inject the GYG-parity "Good to know" detail section
     injectEventDetail(existing);
 
+    // Standardise all native selects in this modal to the shared dark picker (matches Sessions/Profile).
+    setTimeout(function () { if (window.FFPSelect) { var m = document.querySelector('.modal'); if (m) window.FFPSelect.enhance(m); } }, 60);
+
     // Clean prior re-approval note
     var modal = document.querySelector('.modal');
     if (!modal) return;
