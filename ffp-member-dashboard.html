@@ -11763,6 +11763,7 @@ var ReviewPrompt = (function () {
     session: [['overall','Overall'],['coach','Coach'],['value','Value'],['atmosphere','Atmosphere']],
     event:   [['overall','Overall'],['organisation','Organisation'],['value','Value'],['atmosphere','Atmosphere']],
     trip:    [['overall','Overall'],['guide','Guide / host'],['value','Value'],['organisation','Logistics']],
+    pro:     [['overall','Overall'],['communication','Communication'],['environment','Environment'],['value','Value']],
     venue:   [['overall','Overall'],['experience','Experience'],['service','Service'],['facilities','Facilities']]
   };
 
@@ -11879,7 +11880,9 @@ var ReviewPrompt = (function () {
     try {
       var comment = (document.getElementById('rv-comment') || {}).value || '';
       var args = {
-        p_me: member.id, p_provider: state.log.provider_id, p_log: state.log.id,
+        p_me: member.id, p_log: state.log.id,
+        p_provider: (state.kind === 'pro') ? null : (state.log.provider_id || null),
+        p_professional: (state.kind === 'pro') ? (state.log.professional_id || null) : null,
         p_overall: state.stars.overall, p_comment: comment, p_kind: state.kind, p_photo: state.photo || null
       };
       if (state.kind === 'venue') {
@@ -12733,7 +12736,7 @@ window.FFPLocPick = (function(){
   return { open:open, close:close, onSearch:onSearch, pick:pick, use:use, locate:locate };
 })();
 </script>
-<script src="ffp-member-checkin-loader.js?v=9"></script>
+<script src="ffp-member-checkin-loader.js?v=10"></script>
 <!-- v294: PASSPORT MEMBERSHIP GATE — free/lapsed members get a Join/Renew screen instead of the member app.
      Self-contained + FAIL-OPEN: providers/admins, not-signed-in, or any error → NO gate (never lock out a
      payer). Uses the canonical member_passport_active RPC (shared with Find Fit People). -->
