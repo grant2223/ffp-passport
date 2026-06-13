@@ -1,5 +1,8 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP MEMBER CHECK-IN LOADER — v9 (2026-06-13)
+   FFP MEMBER CHECK-IN LOADER — v10 (2026-06-13)
+   v10: PRO QR. Scanning a professional's QR (?pro=<id>) → their services (member_pro_options) → tap →
+        pro_checkin_service (no geo) → 90-min pro review prompt. Parallel to the venue (?venue=) flow.
+
    v9: SESSIONS on the scan sheet. "On now — classes" section (member_provider_options) → tap → venue_checkin_session
        (session-linked activity log + mirrors attendance) → drives the session-level review. Sits between bookings and
        the Quest/Event/Challenge programs row.
@@ -72,6 +75,7 @@
   var _prov = null;
   var _bookings = [];     // the member's bookings at this venue happening around now (shared contract)
   var _sessions = [];     // the venue's sessions on now (member_provider_options) — walk-up check-in → session review
+  var _proId = null, _proRec = null, _proServices = [];  // scanned PROFESSIONAL's QR → their services → pro check-in → review
   // MODE: 'passport' (default — full check-in: bookings + quests/events/challenges + visit-logging/stamps) OR
   // 'booking' (FFP Booking platform — bookings + events ONLY; no quests/challenges/meetups, no visit-logging).
   // Set via window.FFP_CHECKIN_MODE, or data-mode="booking" on the <script> tag that includes this file.
@@ -95,6 +99,13 @@
     var m = String(t).match(/[?&]venue=([0-9a-fA-F-]{36})/); if (m) return m[1];
     m = String(t).match(/ffpvenue:([0-9a-fA-F-]{36})/); if (m) return m[1];
     var s = String(t).trim(); if (/^[0-9a-fA-F-]{36}$/.test(s)) return s;
+    return null;
+  }
+  // A professional's QR encodes ?pro=<professional_id> (or ffppro:<id>). Distinct from a venue's ?venue=.
+  function parsePro(t) {
+    if (!t) return null;
+    var m = String(t).match(/[?&]pro=([0-9a-fA-F-]{36})/); if (m) return m[1];
+    m = String(t).match(/ffppro:([0-9a-fA-F-]{36})/); if (m) return m[1];
     return null;
   }
 
@@ -547,18 +558,64 @@
     });
   }
 
+  // Member scanned a PROFESSIONAL's QR → show their services → tap → pro check-in → 90-min review prompt.
+  async function openProContext(proId) {
+    _proId = proId; _proRec = null; _proServices = [];
+    openSheet('<div class="ci-title">One sec…</div><div class="ci-spin"></div>');
+    var pr = null;
+    try { var r = await sb().from('professionals').select('id, display_name, given_names, surname, profile_photo_url').eq('id', proId).maybeSingle(); pr = r && r.data; } catch (e) {}
+    if (!pr) { resultMsg('error', 'Coach not found', 'That QR or link didn’t match a professional.'); return; }
+    _proRec = pr;
+    var nm = pr.display_name || ((((pr.given_names || '') + ' ' + (pr.surname || '')).trim()) || 'Coach');
+    try { var sr = await sb().rpc('member_pro_options', { p_professional: proId }); if (sr && sr.data) _proServices = sr.data; } catch (e) {}
+    var logo = pr.profile_photo_url ? '<img class="ci-logo" src="' + esc(pr.profile_photo_url) + '" alt="">' : '<div class="ci-logo mono">' + esc(nm.charAt(0).toUpperCase()) + '</div>';
+    var head = logo + '<div class="ci-title">You’re with ' + esc(nm) + '</div>';
+    if (!_proServices.length) {
+      openSheet(head + '<div class="ci-sub">' + esc(nm) + ' hasn’t listed any services yet.</div><div class="ci-foot"><button class="ci-btn ghost" onclick="FFPCheckin.close()">Close</button></div>', true);
+      return;
+    }
+    var rows = _proServices.map(function (s, i) {
+      var sub = s.duration_min ? (s.duration_min + ' min') : '';
+      return '<button type="button" class="ci-act" onclick="FFPCheckin._proCheckin(' + i + ')"><span>' + esc(s.name || 'Service') + (sub ? ('<br><span style="font-size:11.5px;color:#9dbdd0;font-weight:600;">' + esc(sub) + '</span>') : '') + '</span><span class="tick" style="opacity:1;">›</span></button>';
+    }).join('');
+    openSheet(head + '<div class="ci-seclbl">What are you doing today?</div><div class="ci-acts">' + rows + '</div><div class="ci-foot"><button class="ci-btn ghost" onclick="FFPCheckin.close()">Close</button></div>', true);
+  }
+  function proServiceCheckin(idx) {
+    var mid = memberId(); if (!mid) { resultMsg('error', 'Not signed in', 'Sign in on this phone, then try again.'); return; }
+    var s = (_proServices || [])[idx]; if (!s) { toast('That service is no longer available', 'error'); return; }
+    openSheet('<div class="ci-title">Checking you in…</div><div class="ci-spin"></div>');
+    sb().rpc('pro_checkin_service', { p_me: mid, p_professional: _proId, p_service: s.id })
+      .then(function (res) {
+        var d = res && res.data;
+        if (res.error || !d || d.ok === false) { resultMsg('error', 'Couldn’t check in', (d && d.error === 'service_not_found') ? 'That service is no longer available.' : 'Please try again.'); return; }
+        if (d.blocked) { resultMsg('error', 'Already checked in', d.message || 'You can check in again in a couple of hours.'); return; }
+        resultMsg('ok', 'Checked in ✓', esc(s.name || 'Session') + ' with ' + esc(d.pro || (_proRec && _proRec.display_name) || 'your coach') + '. We’ll ask you to rate it afterwards.');
+        try { document.dispatchEvent(new CustomEvent('ffp-activity-logged')); } catch (e) {}
+      })
+      .catch(function (e) { console.error('[FFP Check-in] pro:', e); resultMsg('error', 'Couldn’t check in', 'Please try again.'); });
+  }
+
   // ── public + boot ──
   window.FFPCheckin = {
     scan: startScan, close: closeSheet, _manual: manual, _save: save, _context: openContext, _pick: pickAct,
     _pickType: pickType, _program: program, _questSubmit: questSubmit, _challengeSubmit: challengeSubmit,
-    _eventCheckin: eventCheckin, _bookingCheckin: bookingCheckin, _sessionCheckin: sessionCheckin
+    _eventCheckin: eventCheckin, _bookingCheckin: bookingCheckin, _sessionCheckin: sessionCheckin,
+    _proContext: openProContext, _proCheckin: proServiceCheckin
   };
 
   function pendingVenue() { try { return localStorage.getItem('ffp_pending_venue') || ''; } catch (e) { return ''; } }
   function clearPendingVenue() { try { localStorage.removeItem('ffp_pending_venue'); } catch (e) {} }
+  function pendingPro() { try { return localStorage.getItem('ffp_pending_pro') || ''; } catch (e) { return ''; } }
+  function clearPendingPro() { try { localStorage.removeItem('ffp_pending_pro'); } catch (e) {} }
 
   function boot() {
     injectCss();
+    // A scanned PROFESSIONAL QR lands as ?pro=<id> (resume-after-login like venues).
+    var pq = parsePro(window.location.search) || pendingPro();
+    if (pq) {
+      if (memberId()) { clearPendingPro(); setTimeout(function () { openProContext(pq); }, 600); return; }
+      try { localStorage.setItem('ffp_pending_pro', pq); } catch (e) {}
+    }
     // Entry points: the "Scan QR" button on the Passport panel (FFPCheckin.scan()), OR a
     // phone-camera scan of the venue link landing here as ?venue=<id>. For the phone-scan
     // case the visitor may not be signed in yet — the head-script stashes the venue and the
