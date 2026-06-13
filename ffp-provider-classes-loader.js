@@ -51,7 +51,7 @@
       .select('id, provider_id, title, description, category, activity, venue, city, country, duration_min, capacity, price_aed, hero_image_url, status, booking_source, highlights, what_included, what_not_included, meeting_point, meeting_lat, meeting_lng, what_to_bring, not_allowed, know_before, languages, min_age, difficulty, fitness_level, wheelchair_accessible, accessibility_notes, free_cancellation_hours, cancellation_policy, distance_km, featured, created_at')
       .eq('provider_id', provId())
       .order('created_at', { ascending: false });
-    if (res.error) { console.error('[FFP Classes] fetch', res.error); toast('Could not load tours', 'error'); return []; }
+    if (res.error) { console.error('[FFP Classes] fetch', res.error); toast('Could not load experiences', 'error'); return []; }
     return res.data || [];
   }
   async function refresh() {
@@ -75,9 +75,9 @@
       if (typeof window.emptyState === 'function') {
         grid.innerHTML = list.length
           ? window.emptyState('No matches', 'Try a different search.', '', '')
-          : window.emptyState('No tours yet', 'One-off activities members book — jet ski, bungy, canyoning, a guided tour. Add your first one (with its date).', 'New tour', 'openClassModal()');
+          : window.emptyState('No experiences yet', 'One-off activities members book — jet ski, bungy, canyoning, a guided experience. Add your first one (with its date).', 'New experience', 'openClassModal()');
       } else {
-        grid.innerHTML = '<div style="padding:40px;text-align:center;color:#9dbdd0;">' + (list.length ? 'No matches' : 'No tours yet') + '</div>';
+        grid.innerHTML = '<div style="padding:40px;text-align:center;color:#9dbdd0;">' + (list.length ? 'No matches' : 'No experiences yet') + '</div>';
       }
       return;
     }
@@ -150,7 +150,7 @@
         '<div class="field"><div class="label">Price per person (AED) <span class="req">*</span></div><input class="input" type="number" id="cm-price" value="' + esc(e.price_aed != null ? e.price_aed : '') + '" placeholder="e.g. 150"></div>' +
       '</div></div>' +
       '<div class="form-section"><div class="form-section-title">Date &amp; time</div>' +
-        '<div class="psub" style="margin:-4px 0 10px;">When does this tour run? Members book this date. (Required for members to be able to book.)</div>' +
+        '<div class="psub" style="margin:-4px 0 10px;">When does this experience run? Members book this date. (Required for members to be able to book.)</div>' +
         '<div id="cm-sessions"></div>' +
         '<button type="button" class="btn btn-ghost btn-sm" id="cm-add-session" style="margin-top:6px;"><span class="ms">add</span> Add another date</button>' +
       '</div>' +
@@ -165,7 +165,7 @@
         '<div class="field"><div class="label">Map coordinates <span class="label-hint">— paste &quot;lat, lng&quot;</span></div><input class="input" id="cm-latlng" value="' + esc(ll) + '" placeholder="e.g. 25.14, 55.19"></div>' +
         '<div class="field"><div class="label">Minimum age</div><input class="input" type="number" id="cm-min-age" value="' + esc(e.min_age || '') + '" placeholder="e.g. 12"></div>' +
         '<div class="field"><div class="label">Languages <span class="label-hint">— one per line</span></div><textarea class="textarea" id="cm-languages" rows="2" placeholder="English\nArabic">' + esc(joinArr(e.languages)) + '</textarea></div>' +
-        '<div class="field"><div class="label">Distance (km) <span class="label-hint">— for tours</span></div><input class="input" type="number" id="cm-distance" value="' + esc(e.distance_km || '') + '" placeholder="e.g. 4"></div>' +
+        '<div class="field"><div class="label">Distance (km) <span class="label-hint">— optional</span></div><input class="input" type="number" id="cm-distance" value="' + esc(e.distance_km || '') + '" placeholder="e.g. 4"></div>' +
         '<div class="field full"><div class="label">Not allowed <span class="label-hint">— one per line</span></div><textarea class="textarea" id="cm-not-allowed" rows="2" placeholder="Oversized luggage\nPets (assistance dogs OK)">' + esc(joinArr(e.not_allowed)) + '</textarea></div>' +
         '<div class="field full"><div class="label">Know before you go <span class="label-hint">— one per line</span></div><textarea class="textarea" id="cm-know-before" rows="2" placeholder="Departures every 30 min\nArrive 15 min early">' + esc(joinArr(e.know_before)) + '</textarea></div>' +
         '<div class="field"><div class="label">Wheelchair accessible</div><select class="select" id="cm-wheelchair"><option value="">—</option><option value="true"' + (e.wheelchair_accessible === true ? ' selected' : '') + '>Yes</option><option value="false"' + (e.wheelchair_accessible === false ? ' selected' : '') + '>No</option></select></div>' +
@@ -179,7 +179,7 @@
       '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>' +
       '<button class="btn btn-pri" onclick="saveClass(\'' + (c ? c.id : '') + '\')">' + (c ? 'Save changes' : 'Submit for review') + '</button>';
 
-    if (typeof window.openModalShell === 'function') window.openModalShell('lg', (c ? 'Edit tour' : 'New tour'), body, foot);
+    if (typeof window.openModalShell === 'function') window.openModalShell('lg', (c ? 'Edit experience' : 'New experience'), body, foot);
     if (typeof window.renderListingUploader === 'function') { try { window.renderListingUploader(e.hero_image_url || ''); } catch (er) {} }
 
     setTimeout(function () {
@@ -328,13 +328,13 @@
       try {
         var res = await sb().rpc('provider_delete_listing', { p_kind: 'class', p_provider: provId(), p_id: id });
         if (res.error) throw res.error;
-        toast('Tour deleted', 'success');
+        toast('Experience deleted', 'success');
         if (typeof window.closeModal === 'function') window.closeModal();
         await refresh();
       } catch (er) { console.error('[FFP Classes] delete', er); toast('Delete failed', 'error'); }
     };
-    if (typeof window.openConfirm === 'function') window.openConfirm('Delete this tour?', 'This cannot be undone.', doIt);
-    else if (confirm('Delete this tour?')) doIt();
+    if (typeof window.openConfirm === 'function') window.openConfirm('Delete this experience?', 'This cannot be undone.', doIt);
+    else if (confirm('Delete this experience?')) doIt();
   }
 
   // ── expose ──
