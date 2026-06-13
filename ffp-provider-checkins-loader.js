@@ -1,7 +1,10 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP PROVIDER CHECK-INS LOADER · CURRENT VERSION: v2
+   FFP PROVIDER CHECK-INS LOADER · CURRENT VERSION: v3
    File path: ffp-provider-checkins-loader.js (repo root)
-   On-load log: [FFP Check-ins v2] Loaded ✓
+   On-load log: [FFP Check-ins v3] Loaded ✓
+   v3: SESSION check-in added — pick today's session, scan QR / type member code (FFP Passport access_code or
+       passport_no) or pick from facility members; records attendance via provider_checkin_session. Code-first,
+       auto-links a Passport member into provider_members, falls back to the local member list.
    ═══════════════════════════════════════════════════════════════ */
 
 /* WHAT v2 CHANGES (from v1):
@@ -260,6 +263,100 @@
     }
   }
 
+  // ═══ SESSION CHECK-IN (members into a class occurrence) ═══
+  function _provId() { return (window.FFP_PROVIDER && window.FFP_PROVIDER.id) || null; }
+  var _ciSessions = [];
+
+  async function renderSessionCheckin() {
+    var sel = document.getElementById('ci-session'); if (!sel) return;
+    var pid = _provId(); if (!pid) return;
+    try {
+      var r = await window.supabase.rpc('provider_today_sessions', { p_provider: pid });
+      _ciSessions = (r && r.data) ? r.data : [];
+    } catch (e) { _ciSessions = []; }
+    if (!_ciSessions.length) {
+      sel.innerHTML = '<option value="">No sessions today</option>';
+      var rosterEmpty = document.getElementById('ci-roster'); if (rosterEmpty) rosterEmpty.innerHTML = '<div class="psub" style="margin:6px 0;">No sessions scheduled in the next day or so.</div>';
+      return;
+    }
+    sel.innerHTML = _ciSessions.map(function (s) {
+      var d = new Date(s.start_at); var t = d.toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+      var cap = (s.capacity != null) ? '/' + s.capacity : '';
+      return '<option value="' + s.id + '">' + escHtml(t + ' · ' + (s.title || 'Session') + ' (' + (s.present || 0) + cap + ')') + '</option>';
+    }).join('');
+    ffpSessionRoster();
+  }
+
+  async function ffpSessionRoster() {
+    var host = document.getElementById('ci-roster'); if (!host) return;
+    var pid = _provId(); var sid = (document.getElementById('ci-session') || {}).value || '';
+    if (!pid || !sid) { host.innerHTML = ''; return; }
+    try {
+      var r = await window.supabase.rpc('provider_session_attendance', { p_provider: pid, p_session: sid });
+      var rows = (r && r.data) ? r.data : [];
+      var present = rows.filter(function (x) { return x.status === 'present'; });
+      if (!present.length) { host.innerHTML = '<div class="psub" style="margin:6px 0;">No one checked in yet.</div>'; return; }
+      host.innerHTML = '<div class="psub" style="margin:6px 0 4px;font-weight:700;">Checked in (' + present.length + ')</div>' +
+        present.map(function (m) {
+          return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid var(--ffp-border,#1d3346);">' +
+            '<span class="ms" style="color:var(--ffp-green,#4ade80);font-size:18px;">check_circle</span>' +
+            '<span style="font-size:13px;">' + escHtml(m.full_name || 'Member') + '</span></div>';
+        }).join('');
+    } catch (e) { host.innerHTML = ''; }
+  }
+
+  async function _doSessionCheckin(payload) {
+    var pid = _provId(); var sid = (document.getElementById('ci-session') || {}).value || '';
+    if (!sid) { toast('Pick a session', 'error'); return; }
+    payload = payload || {};
+    try {
+      var r = await window.supabase.rpc('provider_checkin_session', { p_provider: pid, p_session: sid, p: payload });
+      var res = (r && r.data) ? r.data : null;
+      if (r && r.error) throw r.error;
+      if (!res || !res.ok) {
+        var msg = res && res.error === 'member_not_found' ? 'No member found for that code' : 'Could not check in';
+        toast(msg, 'error'); return;
+      }
+      toast((res.name || 'Member') + ' checked in', 'success');
+      var ci = document.getElementById('ci-member-code'); if (ci) ci.value = '';
+      ffpSessionRoster();
+    } catch (e) { console.error('[FFP Check-ins] session checkin', e); toast('Could not check in', 'error'); }
+  }
+
+  function ffpSessionCheckin() {
+    var code = ((document.getElementById('ci-member-code') || {}).value || '').trim();
+    if (!code) { toast('Enter a member code or use My members', 'error'); return; }
+    _doSessionCheckin({ code: code });
+  }
+
+  async function ffpSessionPickMember() {
+    var pid = _provId(); if (!pid) return;
+    var sid = (document.getElementById('ci-session') || {}).value || '';
+    if (!sid) { toast('Pick a session first', 'error'); return; }
+    var rows = [];
+    try { var r = await window.supabase.rpc('provider_list_members', { p_provider: pid }); rows = (r && r.data) ? r.data : []; } catch (e) {}
+    var list = rows.length
+      ? rows.map(function (m) {
+          return '<button class="btn btn-ghost btn-block" style="justify-content:flex-start;margin-bottom:6px;" onclick="window._ffpCheckinMember(\'' + m.id + '\')">' + escHtml(m.full_name || m.email || 'Member') + '</button>';
+        }).join('')
+      : '<div class="psub" style="margin:6px 0;">No members yet. Add them in the Members panel.</div>';
+    if (typeof window.openModalShell === 'function') {
+      window.openModalShell('', 'Check in a member', '<div style="max-height:50vh;overflow-y:auto;">' + list + '</div>', '<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
+    }
+  }
+  window._ffpCheckinMember = function (mid) { if (typeof window.closeModal === 'function') window.closeModal(); _doSessionCheckin({ provider_member_id: mid }); };
+
+  function ffpSessionScan() {
+    toast('On mobile, scan the member’s Passport QR — or type their member code here.', 'info');
+    var ci = document.getElementById('ci-member-code'); if (ci) ci.focus();
+  }
+
+  window.ffpRenderSessionCheckin = renderSessionCheckin;
+  window.ffpSessionRoster = ffpSessionRoster;
+  window.ffpSessionCheckin = ffpSessionCheckin;
+  window.ffpSessionPickMember = ffpSessionPickMember;
+  window.ffpSessionScan = ffpSessionScan;
+
   // ─── Init ───
   async function init() {
     var ok = await waitFor(function () {
@@ -285,7 +382,8 @@
 
     try {
       await refresh();
-      console.log('[FFP Check-ins v2] Loaded \u2713');
+      try { await renderSessionCheckin(); } catch (e2) { console.error('[FFP Check-ins] session render:', e2); }
+      console.log('[FFP Check-ins v3] Loaded \u2713');
     } catch (e) {
       console.error('[FFP Check-ins] initial load:', e);
     }
