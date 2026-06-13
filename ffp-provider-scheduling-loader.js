@@ -1,5 +1,8 @@
 // ════════════════════════════════════════════════════════════════════════
-// FFP Partner Portal — SESSIONS module (was "Scheduling") — v9 (2026-06-12)
+// FFP Partner Portal — SESSIONS module (was "Scheduling") — v10 (2026-06-13)
+// v10: TIMETABLE gains "Add session" (openAddSession) — pick a class + weekly-recurring (provider_add_template_slot)
+//      OR a one-off date (provider_add_oneoff_session, tz via FFPTime). Each timetable thumb shows a present/capacity
+//      badge (provider_attendance_counts). Attendance tab retired from the dashboard (check-in lives in Check-ins).
 // v9: FEATURE button re-pointed to the CLASS (session_templates.featured) — featuring a class features it on the
 //     homepage (not a single occurrence). Button shown on each class card.
 // v8: REBUILD to match how facilities work. A facility defines a CLASS (template) once, lays out its WEEKLY
@@ -13,6 +16,7 @@
 // ════════════════════════════════════════════════════════════════════════
 var _schedTemplates = [];   // class templates (the list)
 var _schedSessions = [];    // generated occurrences (for timetable + attendance)
+var _schedAttCounts = {};   // session_id -> present count (timetable badge)
 var _coachBios = {};        // coach full_name -> { bio, role, photo }
 var _schedStaff = [];       // provider's staff (for coach dropdowns)
 
@@ -120,8 +124,11 @@ function renderTimetable() {
       if (!byDay[i].length) html += '<div class="psub" style="text-align:center;font-size:11px;opacity:.45;margin-top:4px;">—</div>';
       byDay[i].forEach(function (s) {
         var d = new Date(s.start_at); var t = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        html += '<div onclick="openOccurrence(\'' + s.id + '\')" style="cursor:pointer;background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-left:3px solid #2ba8e0;border-radius:8px;padding:7px 8px;margin-bottom:6px;">' +
-          '<div style="font-weight:700;font-size:12px;color:var(--ffp-text,#eaf2f8);">' + escHtml(t) + '</div>' +
+        var present = _schedAttCounts[s.id] || 0;
+        var cap = (s.capacity != null && s.capacity !== '') ? s.capacity : null;
+        var badge = '<span style="float:right;font-size:11px;font-weight:800;color:' + (cap && present >= cap ? '#ff7a7a' : '#6fc6ef') + ';">' + present + (cap != null ? '/' + cap : '') + '</span>';
+        html += '<div onclick="openOccurrence(\'' + s.id + '\')" title="' + present + (cap != null ? ' of ' + cap : '') + ' attending" style="cursor:pointer;background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-left:3px solid #2ba8e0;border-radius:8px;padding:7px 8px;margin-bottom:6px;">' +
+          '<div style="font-weight:700;font-size:12px;color:var(--ffp-text,#eaf2f8);">' + escHtml(t) + badge + '</div>' +
           '<div style="font-size:12px;color:#cfd6dc;line-height:1.25;">' + escHtml(s.title) + '</div>' +
           (s.coach ? '<div class="psub" style="margin:2px 0 0;font-size:11px;">' + escHtml(s.coach) + '</div>' : '') +
         '</div>';
@@ -131,9 +138,85 @@ function renderTimetable() {
     html += '</div>';
     host.innerHTML = html;
   };
-  if (_schedSessions.length || !pid) { go(); return; }
+  if (!pid) { go(); return; }
   host.innerHTML = '<div class="psub" style="margin:10px 0;">Loading…</div>';
-  window.supabase.rpc('provider_list_sessions', { p_provider: pid }).then(function (r) { _schedSessions = (r && r.data) ? r.data : []; go(); }).catch(function () { go(); });
+  var loadCounts = window.supabase.rpc('provider_attendance_counts', { p_provider: pid })
+    .then(function (rc) { _schedAttCounts = (rc && rc.data) ? rc.data : {}; }).catch(function () { _schedAttCounts = {}; });
+  var loadSessions = _schedSessions.length
+    ? Promise.resolve()
+    : window.supabase.rpc('provider_list_sessions', { p_provider: pid }).then(function (r) { _schedSessions = (r && r.data) ? r.data : []; }).catch(function () { _schedSessions = []; });
+  Promise.all([loadCounts, loadSessions]).then(go);
+}
+
+// ── ADD SESSION (from Timetable): pick a class, then weekly-recurring OR a one-off date ──
+async function openAddSession() {
+  var pid = _schedProvId(); if (!pid) return;
+  if (!_schedTemplates.length) {
+    try { var r = await window.supabase.rpc('provider_list_session_templates', { p_provider: pid }); _schedTemplates = (r && r.data) ? r.data : []; } catch (e) {}
+    await _loadSchedStaff();
+  }
+  if (!_schedTemplates.length) {
+    openModalShell('', 'Create a class first',
+      '<div class="psub" style="margin:6px 0;">Add a session to the timetable by first creating a class in the Sessions tab, then place it on a day &amp; time here.</div>',
+      '<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
+    return;
+  }
+  var clsOpts = '<option value="">Choose a class…</option>' + _schedTemplates.map(function (t) {
+    return '<option value="' + t.id + '">' + escHtml(t.title || 'Class') + '</option>'; }).join('');
+  var dayOpts = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(function (d, i) {
+    return '<option value="' + i + '"' + (i === 1 ? ' selected' : '') + '>' + d + '</option>'; }).join('');
+  openModalShell('lg', 'Add session to timetable',
+    '<div class="form-section"><div class="form-grid">' +
+      '<div class="field full"><div class="label">Class</div><select class="select" id="as-template">' + clsOpts + '</select></div>' +
+      '<div class="field full"><div class="label">When</div>' +
+        '<div style="display:flex;gap:8px;">' +
+          '<button type="button" class="btn btn-sec btn-sm as-mode" data-mode="weekly" onclick="_asSetMode(\'weekly\')" style="flex:1;">Repeats weekly</button>' +
+          '<button type="button" class="btn btn-ghost btn-sm as-mode" data-mode="once" onclick="_asSetMode(\'once\')" style="flex:1;">One-off date</button>' +
+        '</div></div>' +
+      '<div class="field as-weekly"><div class="label">Day</div><select class="select" id="as-weekday">' + dayOpts + '</select></div>' +
+      '<div class="field as-weekly"><div class="label">Time</div><input class="input" type="time" id="as-time" value="18:00" style="color-scheme:dark;"></div>' +
+      '<div class="field full as-once" style="display:none;"><div class="label">Date &amp; time</div><input class="input" type="datetime-local" id="as-datetime" style="color-scheme:dark;"></div>' +
+      '<div class="field full"><div class="label">Coach <span style="color:var(--ffp-text-dim,#8a99a8);">(optional)</span></div><select class="select" id="as-coach">' + _coachOpts('') + '</select></div>' +
+    '</div></div>',
+    '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>' +
+    '<button class="btn btn-pri" onclick="saveAddSession()">Add to timetable</button>');
+  _asSetMode('weekly');
+}
+function _asSetMode(mode) {
+  window._asMode = mode;
+  document.querySelectorAll('.as-mode').forEach(function (b) {
+    var on = b.dataset.mode === mode;
+    b.classList.toggle('btn-sec', on); b.classList.toggle('btn-ghost', !on);
+  });
+  document.querySelectorAll('.as-weekly').forEach(function (e) { e.style.display = mode === 'weekly' ? '' : 'none'; });
+  document.querySelectorAll('.as-once').forEach(function (e) { e.style.display = mode === 'once' ? '' : 'none'; });
+}
+async function saveAddSession() {
+  var pid = _schedProvId(); if (!pid) return;
+  var tpl = (document.getElementById('as-template') || {}).value || '';
+  if (!tpl) { showToast('Choose a class', 'error'); return; }
+  var coach = (document.getElementById('as-coach') || {}).value || '';
+  var mode = window._asMode || 'weekly';
+  try {
+    if (mode === 'weekly') {
+      var time = (document.getElementById('as-time') || {}).value || '';
+      if (!time) { showToast('Pick a time', 'error'); return; }
+      var wd = (document.getElementById('as-weekday') || {}).value || '1';
+      var r = await window.supabase.rpc('provider_add_template_slot', { p_provider: pid, p_template: tpl, p: { day_of_week: wd, slot_time: time, coach: coach } });
+      if (r && r.error) throw r.error;
+    } else {
+      var dt = (document.getElementById('as-datetime') || {}).value || '';
+      if (!dt) { showToast('Pick a date & time', 'error'); return; }
+      var startIso = window.FFPTime ? window.FFPTime.toUTC(dt) : new Date(dt).toISOString();
+      var r2 = await window.supabase.rpc('provider_add_oneoff_session', { p_provider: pid, p_template: tpl, p: { start_at: startIso, coach: coach } });
+      if (r2 && r2.error) throw r2.error;
+    }
+    showToast('Session added', 'success');
+    closeModal();
+    _schedSessions = [];               // force refresh of occurrences
+    renderTimetable();
+    if (typeof renderScheduling === 'function') renderScheduling();
+  } catch (e) { console.error('[FFP Sched] add session', e); showToast('Could not add session', 'error'); }
 }
 
 // Coach bio popup — the short bio captured on the staff record (people book for the coach).
