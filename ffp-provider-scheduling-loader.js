@@ -1,5 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
-// FFP Partner Portal — SESSIONS module (was "Scheduling") — v10 (2026-06-13)
+// FFP Partner Portal — SESSIONS module (was "Scheduling") — v11 (2026-06-13)
+// v11: POLISH — all Sessions dropdowns (level/day/coach/add-session) now use the shared dark picker
+//      (assets/ffp-select.js) to match Profile; timetable shows the facility timezone + flags one-off sessions.
 // v10: TIMETABLE gains "Add session" (openAddSession) — pick a class + weekly-recurring (provider_add_template_slot)
 //      OR a one-off date (provider_add_oneoff_session, tz via FFPTime). Each timetable thumb shows a present/capacity
 //      badge (provider_attendance_counts). Attendance tab retired from the dashboard (check-in lives in Check-ins).
@@ -117,7 +119,9 @@ function renderTimetable() {
     var byDay = [[], [], [], [], [], [], []];
     sessions.forEach(function (s) { var d = new Date(s.start_at); var dow = (d.getDay() + 6) % 7; byDay[dow].push(s); });
     byDay.forEach(function (arr) { arr.sort(function (a, b) { var da = new Date(a.start_at), db = new Date(b.start_at); return (da.getHours() * 60 + da.getMinutes()) - (db.getHours() * 60 + db.getMinutes()); }); });
-    var html = '<div style="display:grid;grid-template-columns:repeat(7,minmax(118px,1fr));gap:8px;overflow-x:auto;padding-bottom:6px;">';
+    var tzName = (window.FFPTime && window.FFPTime.tz) ? window.FFPTime.tz() : ((window.FFP_PROVIDER && window.FFP_PROVIDER.timezone) || 'Asia/Dubai');
+    var html = '<div class="psub" style="margin:0 0 8px;font-size:11px;"><span class="ms" style="font-size:13px;vertical-align:-2px;">schedule</span> Times shown in ' + escHtml(tzName.replace(/_/g, ' ')) + '</div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(7,minmax(118px,1fr));gap:8px;overflow-x:auto;padding-bottom:6px;">';
     days.forEach(function (day, i) {
       html += '<div style="min-width:118px;">' +
         '<div style="font-weight:800;color:var(--ffp-text,#eaf2f8);font-size:12px;margin-bottom:6px;text-align:center;text-transform:uppercase;letter-spacing:.04em;">' + day.slice(0, 3) + '</div>';
@@ -130,6 +134,7 @@ function renderTimetable() {
         html += '<div onclick="openOccurrence(\'' + s.id + '\')" title="' + present + (cap != null ? ' of ' + cap : '') + ' attending" style="cursor:pointer;background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-left:3px solid #2ba8e0;border-radius:8px;padding:7px 8px;margin-bottom:6px;">' +
           '<div style="font-weight:700;font-size:12px;color:var(--ffp-text,#eaf2f8);">' + escHtml(t) + badge + '</div>' +
           '<div style="font-size:12px;color:#cfd6dc;line-height:1.25;">' + escHtml(s.title) + '</div>' +
+          (s.recurrence === 'once' ? '<div style="margin:2px 0 0;font-size:10px;font-weight:800;color:#FFCC00;">one-off · ' + escHtml(new Date(s.start_at).toLocaleDateString([], { day: 'numeric', month: 'short' })) + '</div>' : '') +
           (s.coach ? '<div class="psub" style="margin:2px 0 0;font-size:11px;">' + escHtml(s.coach) + '</div>' : '') +
         '</div>';
       });
@@ -181,6 +186,7 @@ async function openAddSession() {
     '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>' +
     '<button class="btn btn-pri" onclick="saveAddSession()">Add to timetable</button>');
   _asSetMode('weekly');
+  if (window.FFPSelect) setTimeout(function () { ['as-template', 'as-weekday', 'as-coach'].forEach(function (id) { var el = document.getElementById(id); if (el) { try { window.FFPSelect.enhance(el); } catch (e) {} } }); }, 30);
 }
 function _asSetMode(mode) {
   window._asMode = mode;
@@ -275,6 +281,7 @@ function openTemplateModal(id) {
 
   setTimeout(function () {
     if (typeof window.renderListingUploader === 'function') { try { window.renderListingUploader(e.hero_image_url || ''); } catch (er) {} }
+    if (window.FFPSelect) { try { window.FFPSelect.enhance(document.getElementById('tpl-level')); } catch (er) {} }
     // Activity picker
     var aBtn = document.getElementById('tpl-activity-btn');
     var setA = function (name) {
@@ -311,6 +318,7 @@ function _tplAddSlotRow(dow, time, coach) {
     '<button type="button" class="btn btn-ghost btn-sm" title="Remove" onclick="this.closest(\'.tpl-slot-row\').remove()"><span class="ms">close</span></button>';
   wrap.appendChild(row);
   if (coach) { var cs = row.querySelector('.tpl-slot-coach'); if (cs) cs.value = coach; }
+  if (window.FFPSelect) { try { window.FFPSelect.enhance(row); } catch (e) {} }
 }
 
 async function saveTemplate(id) {
@@ -378,6 +386,7 @@ async function openOccurrence(id) {
     '<button class="btn btn-ghost" onclick="closeModal()">Close</button>' +
     '<button class="btn btn-pri" onclick="saveOccurrence(\'' + id + '\')">Save changes</button>';
   openModalShell('', 'Manage session', body, foot);
+  if (window.FFPSelect) setTimeout(function () { var el = document.getElementById('occ-coach'); if (el) { try { window.FFPSelect.enhance(el); } catch (e) {} } }, 30);
 }
 async function saveOccurrence(id) {
   var pid = _schedProvId();
