@@ -772,7 +772,7 @@ function enterDashboard(){
   if(_pro.profile_photo_url){ document.getElementById('av-btn').innerHTML='<img src="'+escHtml(_pro.profile_photo_url)+'" alt="">'; }
   else { document.getElementById('av-initials').textContent=_initials(nm); }
   providerProfile.city=_pro.city||'';
-  window.FFP_PROVIDER={ id:_pro.id, member_id:m&&m.id, email:m&&m.email, role:'professional', display_name:_pro.display_name };
+  window.FFP_PROVIDER={ id:_pro.id, member_id:m&&m.id, email:m&&m.email, role:'professional', display_name:_pro.display_name, timezone:(_pro.timezone||'Asia/Dubai') };
   renderNav();
   showPanel('overview');
   proNotifBadge();
