@@ -1,4 +1,10 @@
-<!-- FFP PROVIDER DASHBOARD — v65 (2026-06-12)
+<!-- FFP PROVIDER DASHBOARD — v66 (2026-06-13)
+     v66: POLISH + FEATURED per-day. Sessions dropdowns use shared dark picker (assets/ffp-select.js); session
+          check-in card cleaned (deal claim card removed, recent-checkins hidden). FEATURED is now $99 USD/DAY:
+          Feature button → day-picker (range or multi-select) + live total → provider_request_feature_days
+          (pending → admin approve → partner pays → admin Set live). Cache-busts: scheduling?v=11, ffp-select?v=1,
+          checkins?v=3.
+     v65 (2026-06-12)
      v65: FACILITY TIMEZONE. New Profile "Timezone" picker (searchable IANA list via assets/ffp-time.js) →
           providers.timezone. Shared FFPTime helper governs ALL listing date/time (Tours, Events, Trips, Sessions):
           partners enter wall-clock in their facility tz, stored UTC, rendered back in facility tz. Cache-busts:
@@ -158,6 +164,7 @@
 <script src="assets/ffp-taxonomy.js?v=11"></script>
 <script src="assets/ffp-location-picker.js"></script>
 <script src="assets/ffp-time.js?v=1"></script>
+<script src="assets/ffp-select.js?v=1"></script>
 <script src="ffp-provider-auth.js?v=6"></script>
 <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>
@@ -2798,7 +2805,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
       <!-- ════════ CHECK-INS ════════ -->
       <section class="panel" id="panel-checkins">
         <div class="ph">Check-ins</div>
-        <div class="psub">Check members into a session, or verify a deal claim code. Codes appear in the member's Passport app.</div>
+        <div class="psub">Check members into a session — scan their Passport QR, enter their member code, or pick from your members.</div>
 
         <div class="checkin-card" id="session-checkin-card">
           <div class="checkin-title">Check in to a session</div>
@@ -2813,24 +2820,11 @@ a { color: var(--ffp-blue); text-decoration: none; }
           <div id="ci-roster" style="margin-top:12px;"></div>
         </div>
 
-        <div class="checkin-card">
-          <div class="checkin-title">Enter member claim code</div>
-          <div class="checkin-sub">Or use the camera button to scan a QR</div>
-          <input class="code-input" id="claim-code-input" maxlength="8" placeholder="XXXX-XXXX" oninput="formatClaimCode(this)">
-          <div class="checkin-actions">
-            <button class="btn btn-ghost" onclick="showToast('QR scanner opens on mobile camera', 'info')">
-              <span class="ms">qr_code_scanner</span> Scan QR
-            </button>
-            <button class="btn btn-pri" onclick="verifyClaimCode()">
-              <span class="ms">check</span> Verify code
-            </button>
-          </div>
-        </div>
-
-        <div class="section-head">
+        <!-- "Recent check-ins" was the deals/claims feed (removed). Kept hidden so the loader has its target; repurpose to recent session check-ins later. -->
+        <div class="section-head" style="display:none;">
           <div class="section-title">Recent check-ins</div>
         </div>
-        <div class="checkin-list" id="checkin-list"></div>
+        <div class="checkin-list" id="checkin-list" style="display:none;"></div>
       </section>
 
 
@@ -3201,7 +3195,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=3', 'scheduling': 'ffp-provider-scheduling-loader.js?v=10', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=9' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=3', 'scheduling': 'ffp-provider-scheduling-loader.js?v=11', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=9' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
@@ -5215,37 +5209,73 @@ function openCreateSession() {
   })();
 }
 
-// ── FEATURED LISTINGS — partner applies to feature a listing on the homepage ($99/mo); admin approves. ──
-window.FFP_FEATURE_MAP = window.FFP_FEATURE_MAP || {};   // 'kind:id' -> 'pending'|'approved'
+// ── FEATURED LISTINGS — partner requests specific DAYS to feature on the homepage ($99 USD/day). ──
+// Flow: request days → admin confirms → partner pays upfront → admin sets live. Live only on the paid days.
+window.FFP_FEATURE_MAP = window.FFP_FEATURE_MAP || {};   // 'kind:id' -> best status ('live'>'approved'>'pending')
 async function loadFeatureMap() {
   var pid = (window.FFP_PROVIDER || {}).id; if (!pid) return;
   try {
+    var rank = { pending: 1, approved: 2, live: 3 };
     var r = await window.supabase.rpc('provider_feature_requests', { p_provider: pid });
-    var map = {}; (r && r.data ? r.data : []).forEach(function (x) { map[x.item_type + ':' + x.item_id] = x.status; });
+    var map = {}; (r && r.data ? r.data : []).forEach(function (x) {
+      var k = x.item_type + ':' + x.item_id;
+      if (!map[k] || (rank[x.status] || 0) > (rank[map[k]] || 0)) map[k] = x.status;
+    });
     window.FFP_FEATURE_MAP = map;
   } catch (e) {}
 }
-// Returns the card control for featuring: ★Featured (live), "Feature pending", or a "Feature" apply button.
+// Card control: ★Featured (live), Approved·pay to activate, Feature pending, or a "Feature — $99/day" button.
 function featureBtn(kind, id, featured) {
-  if (featured) return '<span title="Featured on the homepage" style="font-size:11px;color:#FFCC00;align-self:center;font-weight:800;white-space:nowrap;"><span class="ms" style="font-size:15px;vertical-align:-2px;">star</span> Featured</span>';
   var st = (window.FFP_FEATURE_MAP || {})[kind + ':' + id];
-  if (st === 'pending') return '<span title="Awaiting admin approval" style="font-size:11px;color:#9dbdd0;align-self:center;white-space:nowrap;"><span class="ms" style="font-size:14px;vertical-align:-2px;">hourglass_empty</span> Feature pending</span>';
-  return '<button class="btn btn-ghost btn-sm" title="Apply to feature this on the FFP homepage — $99/mo" onclick="applyFeature(\'' + kind + '\',\'' + id + '\')"><span class="ms">star_border</span> Feature</button>';
+  if (featured || st === 'live') return '<span title="Featured on the homepage" style="font-size:11px;color:#FFCC00;align-self:center;font-weight:800;white-space:nowrap;"><span class="ms" style="font-size:15px;vertical-align:-2px;">star</span> Featured</span>';
+  if (st === 'approved') return '<span title="Approved — pay upfront to activate" style="font-size:11px;color:#4ade80;align-self:center;white-space:nowrap;"><span class="ms" style="font-size:14px;vertical-align:-2px;">task_alt</span> Approved · pay to activate</span>';
+  if (st === 'pending') return '<span title="Awaiting admin confirmation" style="font-size:11px;color:#9dbdd0;align-self:center;white-space:nowrap;"><span class="ms" style="font-size:14px;vertical-align:-2px;">hourglass_empty</span> Feature pending</span>';
+  return '<button class="btn btn-ghost btn-sm" title="Feature this on the FFP homepage — $99 USD/day" onclick="applyFeature(\'' + kind + '\',\'' + id + '\')"><span class="ms">star_border</span> Feature — $99/day</button>';
 }
-async function applyFeature(kind, id) {
-  var go = async function () {
-    var pid = (window.FFP_PROVIDER || {}).id;
-    try {
-      var r = await window.supabase.rpc('provider_request_feature', { p_provider: pid, p_kind: kind, p_id: id });
-      if (r.error) throw r.error;
-      showToast('Applied to feature — pending admin review ($99/mo once approved).', 'success');
-      await loadFeatureMap();
-      var fn = { 'class': 'renderClasses', 'experience': 'renderExperiences', 'event': 'renderEvents', 'session': 'renderScheduling' }[kind];
-      if (fn && typeof window[fn] === 'function') { try { window[fn](); } catch (e) {} }
-    } catch (e) { showToast('Could not apply to feature', 'error'); }
-  };
-  if (typeof window.openConfirm === 'function') window.openConfirm('Feature on the homepage?', 'Apply to feature this listing on the FFP homepage. It costs $99/month once approved by admin.', go);
-  else go();
+function applyFeature(kind, id) {
+  window._feat = { kind: kind, id: id, mode: 'days', days: [] };
+  var today = new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  openModalShell('lg', 'Feature on the FFP homepage',
+    '<div class="psub" style="margin:0 0 12px;">$99 USD per day. Choose the days you want this featured. Our team confirms your request, then you pay upfront to activate — it goes live only on the days you pay for.</div>' +
+    '<div style="display:flex;gap:8px;margin-bottom:12px;">' +
+      '<button type="button" class="btn btn-sec btn-sm feat-mode" data-m="days" onclick="_featMode(\'days\')" style="flex:1;">Specific days</button>' +
+      '<button type="button" class="btn btn-ghost btn-sm feat-mode" data-m="range" onclick="_featMode(\'range\')" style="flex:1;">Date range</button>' +
+    '</div>' +
+    '<div id="feat-days-pane"><div style="display:flex;gap:8px;align-items:flex-end;"><div style="flex:1;"><div class="label">Add a day</div><input class="input" type="date" id="feat-day-input" min="' + today + '" style="color-scheme:dark;"></div><button class="btn btn-sec" onclick="_featAddDay()">Add</button></div><div id="feat-day-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;"></div></div>' +
+    '<div id="feat-range-pane" style="display:none;"><div style="display:flex;gap:8px;"><div style="flex:1;"><div class="label">From</div><input class="input" type="date" id="feat-from" min="' + today + '" style="color-scheme:dark;"></div><div style="flex:1;"><div class="label">To</div><input class="input" type="date" id="feat-to" min="' + today + '" style="color-scheme:dark;"></div></div><button class="btn btn-sec btn-sm" style="margin-top:10px;" onclick="_featAddRange()">Add these days</button></div>' +
+    '<div id="feat-total" style="margin-top:16px;font-weight:800;font-size:15px;"></div>',
+    '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>' +
+    '<button class="btn btn-pri" onclick="_featSubmit()">Request these days</button>');
+  _featRenderTotal();
+}
+function _featMode(m) {
+  window._feat.mode = m;
+  document.querySelectorAll('.feat-mode').forEach(function (b) { var on = b.dataset.m === m; b.classList.toggle('btn-sec', on); b.classList.toggle('btn-ghost', !on); });
+  var dp = document.getElementById('feat-days-pane'); if (dp) dp.style.display = m === 'days' ? '' : 'none';
+  var rp = document.getElementById('feat-range-pane'); if (rp) rp.style.display = m === 'range' ? '' : 'none';
+}
+function _featAddDay() { var el = document.getElementById('feat-day-input'); var v = el && el.value; if (!v) return; if (window._feat.days.indexOf(v) === -1) window._feat.days.push(v); window._feat.days.sort(); if (el) el.value = ''; _featRenderTotal(); }
+function _featAddRange() { var f = (document.getElementById('feat-from') || {}).value, t = (document.getElementById('feat-to') || {}).value; if (!f || !t) { showToast('Pick a start and end date', 'error'); return; } var d = new Date(f), e = new Date(t); if (e < d) { showToast('End date is before start', 'error'); return; } var guard = 0; while (d <= e && guard < 400) { var s = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); if (window._feat.days.indexOf(s) === -1) window._feat.days.push(s); d.setDate(d.getDate() + 1); guard++; } window._feat.days.sort(); _featRenderTotal(); }
+function _featRemoveDay(s) { window._feat.days = window._feat.days.filter(function (x) { return x !== s; }); _featRenderTotal(); }
+function _featRenderTotal() {
+  var chips = document.getElementById('feat-day-chips');
+  if (chips) chips.innerHTML = window._feat.days.map(function (s) { return '<span style="background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.3);border-radius:14px;padding:4px 10px;font-size:12px;white-space:nowrap;">' + s + ' <span class="ms" style="font-size:13px;cursor:pointer;vertical-align:-2px;" onclick="_featRemoveDay(\'' + s + '\')">close</span></span>'; }).join('');
+  var n = window._feat.days.length; var tot = document.getElementById('feat-total');
+  if (tot) tot.textContent = n ? (n + ' day' + (n > 1 ? 's' : '') + ' × $99 = $' + (n * 99) + ' USD') : 'No days selected yet';
+}
+async function _featSubmit() {
+  var pid = (window.FFP_PROVIDER || {}).id;
+  if (!window._feat.days.length) { showToast('Pick at least one day', 'error'); return; }
+  try {
+    var r = await window.supabase.rpc('provider_request_feature_days', { p_provider: pid, p_kind: window._feat.kind, p_id: window._feat.id, p_days: window._feat.days });
+    var res = r && r.data; if (r.error) throw r.error;
+    if (!res || !res.ok) { showToast('Could not submit request', 'error'); return; }
+    showToast('Requested ' + res.days + ' day(s) — $' + res.total_usd + ' USD. Our team will confirm, then you pay upfront to activate.', 'success');
+    closeModal();
+    await loadFeatureMap();
+    var fn = { 'class': 'renderClasses', 'experience': 'renderExperiences', 'event': 'renderEvents', 'session': 'renderScheduling' }[window._feat.kind];
+    if (fn && typeof window[fn] === 'function') { try { window[fn](); } catch (e) {} }
+  } catch (e) { showToast('Could not submit request', 'error'); }
 }
 
 function openCreatePicker() {
