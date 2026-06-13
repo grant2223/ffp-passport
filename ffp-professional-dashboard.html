@@ -350,6 +350,11 @@ a{color:var(--ffp-blue);}
         <div class="ov-sec-h"><div class="t">Today’s sessions</div><div class="a" onclick="showPanel('scheduling')">This week →</div></div>
         <div id="ov-sessions"><div class="ov-empty">Loading…</div></div>
       </div>
+      <div class="ov-sec">
+        <div class="ov-sec-h"><div class="t">Your rating</div></div>
+        <div id="pro-rating-summary"></div>
+        <div id="pro-rating-reviews" style="margin-top:12px;"></div>
+      </div>
     </section>
 
     <!-- PROFILE / STOREFRONT -->
@@ -394,6 +399,17 @@ a{color:var(--ffp-blue);}
         <button class="btn btn-pri" onclick="openServiceModal()"><span class="ms">add</span> New service</button>
       </div>
       <div id="pro-services-list" style="margin-top:8px;"></div>
+    </section>
+
+    <!-- CHECK-IN (pro checks a client in by Passport code/QR → 90-min review prompt) -->
+    <section class="panel" id="panel-checkin">
+      <div class="ph">Check in a client</div>
+      <div class="psub">Pick the service, then scan the client's FFP Passport QR or type their member code. They're asked to rate the session about 90 minutes later. (Clients can also scan your QR to check themselves in.)</div>
+      <div style="max-width:480px;margin-top:14px;">
+        <div class="field"><div class="label">Service</div><select class="select" id="pci-service"></select></div>
+        <div class="field" style="margin-top:10px;"><div class="label">Member code</div><input class="input" id="pci-code" placeholder="From their Passport app" oninput="this.value=this.value.toUpperCase()"></div>
+        <button class="btn btn-pri" style="margin-top:14px;" onclick="proCheckinMember()"><span class="ms">check</span> Check in</button>
+      </div>
     </section>
 
     <!-- PACKAGES (members loader -> #plans-list) -->
@@ -491,6 +507,7 @@ function renderPanel(id){
   if(id==='clients'    && typeof renderMembers==='function')     renderMembers();
   if(id==='scheduling' && typeof renderScheduling==='function')  renderScheduling();
   if(id==='services'   && typeof renderServices==='function')    renderServices();
+  if(id==='checkin'    && typeof renderProCheckin==='function')   renderProCheckin();
   if(id==='packages'   && typeof renderPlans==='function')       renderPlans();
   if(id==='payments'   && typeof renderPayments==='function')    renderPayments();
   if(id==='comms'      && typeof renderComms==='function')       renderComms();
@@ -502,6 +519,7 @@ var PRO_NAV=[
   {id:'clients',icon:'groups',label:'Clients'},
   {id:'services',icon:'sell',label:'Services'},
   {id:'scheduling',icon:'calendar_month',label:'Scheduling'},
+  {id:'checkin',icon:'qr_code_scanner',label:'Check-in'},
   {id:'payments',icon:'receipt_long',label:'Payments'}
 ];
 // Panels reachable but not in the primary nav (so showPanel title/labels still resolve)
@@ -902,6 +920,61 @@ async function renderOverview(){
     var all=((r&&r.data)||[]);
     sessEl.innerHTML=_todaySessions(_iso(today),all);   // Overview = TODAY only; yesterday/tomorrow/week live in Scheduling
   }catch(e){ sessEl.innerHTML='<div class="ov-empty">Couldn’t load sessions.</div>'; }
+  renderProRating();
+}
+// Members' reviews of THIS professional (pro_rating + pro_reviews_list).
+var PRO_RLBL={ communication:'Communication', environment:'Environment', value:'Value', coach:'Coach', atmosphere:'Atmosphere', organisation:'Organisation', guide:'Guide' };
+function _proStars(v){ var n=Math.round(Number(v)||0),s=''; for(var i=1;i<=5;i++) s+='<span class="ms" style="font-size:15px;color:'+(i<=n?'#FFCC00':'rgba(255,255,255,.18)')+';">star</span>'; return s; }
+async function renderProRating(){
+  var sumEl=document.getElementById('pro-rating-summary'), listEl=document.getElementById('pro-rating-reviews');
+  if(!sumEl||!listEl) return;
+  var pid=window.FFP_PROVIDER&&FFP_PROVIDER.id; if(!pid) return;
+  try{
+    var r=await window.supabase.rpc('pro_rating',{p_professional:pid}); var d=(r&&r.data)||{};
+    if(!d.n){ sumEl.innerHTML='<div class="ov-empty">No reviews yet. Clients are asked to rate their session about 90 minutes after they check in with you.</div>'; listEl.innerHTML=''; return; }
+    sumEl.innerHTML='<div style="display:flex;align-items:center;gap:14px;">'+
+      '<div style="font-size:30px;font-weight:800;">'+(d.avg_overall!=null?d.avg_overall:'—')+'</div>'+
+      '<div>'+_proStars(d.avg_overall)+'<div class="psub" style="margin:2px 0 0;">'+d.n+' review'+(d.n===1?'':'s')+'</div></div>'+
+      '<div style="margin-left:auto;display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ffp-text-muted,#8a99a8);">'+
+        '<span>Comm. <b style="color:#fff;">'+(d.avg_communication!=null?d.avg_communication:'—')+'</b></span>'+
+        '<span>Env. <b style="color:#fff;">'+(d.avg_environment!=null?d.avg_environment:'—')+'</b></span>'+
+        '<span>Value <b style="color:#fff;">'+(d.avg_value!=null?d.avg_value:'—')+'</b></span>'+
+      '</div></div>';
+    var lr=await window.supabase.rpc('pro_reviews_list',{p_professional:pid}); var rows=(lr&&lr.data)||[];
+    listEl.innerHTML=rows.map(function(rv){
+      var when=''; try{ when=new Date(rv.created_at).toLocaleDateString(undefined,{day:'numeric',month:'short'}); }catch(e){}
+      var subs=(rv.ratings&&typeof rv.ratings==='object')?Object.keys(rv.ratings).map(function(k){ return '<span style="font-size:11px;font-weight:800;color:#9dbdd0;background:rgba(43,168,224,.10);border:1px solid rgba(43,168,224,.2);border-radius:10px;padding:2px 8px;">'+escHtml(PRO_RLBL[k]||k)+' '+escHtml(rv.ratings[k])+'★</span>'; }).join(''):'';
+      return '<div style="background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-radius:10px;padding:11px 13px;margin-bottom:8px;">'+
+        '<div style="display:flex;justify-content:space-between;gap:10px;"><div style="font-weight:700;">'+escHtml(rv.member_name||'Member')+'</div><div>'+_proStars(rv.stars_overall)+'</div></div>'+
+        '<div class="psub" style="margin:2px 0 0;">'+(rv.service?escHtml(rv.service)+' · ':'')+when+'</div>'+
+        (subs?'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;">'+subs+'</div>':'')+
+        (rv.comment?'<div class="psub" style="margin:7px 0 0;color:#cfd6dc;">'+escHtml(rv.comment)+'</div>':'')+
+        (rv.photo_url?'<img src="'+escHtml(rv.photo_url)+'" alt="" style="margin-top:8px;width:100%;max-width:170px;border-radius:10px;border:1px solid rgba(43,168,224,.2);display:block;">':'')+
+      '</div>';
+    }).join('');
+  }catch(e){ sumEl.innerHTML='<div class="ov-empty">Couldn’t load reviews.</div>'; listEl.innerHTML=''; }
+}
+// ─── Pro Check-in: pick a service, then check a member in by their Passport code/QR (pro_checkin_member). ───
+async function renderProCheckin(){
+  var sel=document.getElementById('pci-service'); if(!sel) return;
+  var pid=window.FFP_PROVIDER&&FFP_PROVIDER.id; if(!pid) return;
+  try{ var r=await window.supabase.rpc('pro_list_services',{p_pro:pid}); var svc=(r&&r.data)||[];
+    sel.innerHTML = svc.length ? svc.map(function(s){ return '<option value="'+s.id+'">'+escHtml(s.name||'Service')+'</option>'; }).join('') : '<option value="">No services yet — add one in Services</option>';
+  }catch(e){ sel.innerHTML='<option value="">Couldn’t load services</option>'; }
+}
+async function proCheckinMember(){
+  var pid=window.FFP_PROVIDER&&FFP_PROVIDER.id; if(!pid) return;
+  var svc=(document.getElementById('pci-service')||{}).value||'';
+  var code=((document.getElementById('pci-code')||{}).value||'').trim();
+  if(!svc){ showToast('Pick a service','error'); return; }
+  if(!code){ showToast('Scan or enter the member code','error'); return; }
+  try{
+    var r=await window.supabase.rpc('pro_checkin_member',{p_professional:pid,p_service:svc,p_code:code});
+    var d=r&&r.data;
+    if(r.error||!d||d.ok===false){ showToast(d&&d.error==='member_not_found'?'No member found for that code':'Could not check in','error'); return; }
+    showToast((d.member||'Member')+' checked in for '+(d.service||'session'),'success');
+    var ci=document.getElementById('pci-code'); if(ci) ci.value='';
+  }catch(e){ showToast('Could not check in','error'); }
 }
 async function boot(){
   var member=_member();
