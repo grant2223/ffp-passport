@@ -587,7 +587,8 @@
       '</button>';
 
     if (typeof window.openModalShell === 'function') {
-      window.openModalShell('lg', (editing ? 'Edit experience' : 'New experience'), body, foot);
+      window.openModalShell('lg', (editing ? 'Edit trip' : 'New trip'), body, foot);
+      setTimeout(function () { if (window.FFPSelect) { var m = document.getElementById('modal'); if (m) window.FFPSelect.enhance(m); } }, 40);
     }
     if (typeof window.renderListingUploader === 'function') {
       try { window.renderListingUploader(e.hero_url); } catch (er) {}
