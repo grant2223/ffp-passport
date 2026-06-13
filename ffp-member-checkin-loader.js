@@ -1,5 +1,8 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP MEMBER CHECK-IN LOADER — v8 (2026-06-11)
+   FFP MEMBER CHECK-IN LOADER — v9 (2026-06-13)
+   v9: SESSIONS on the scan sheet. "On now — classes" section (member_provider_options) → tap → venue_checkin_session
+       (session-linked activity log + mirrors attendance) → drives the session-level review. Sits between bookings and
+       the Quest/Event/Challenge programs row.
    v8: BOOKING CHECK-IN + shared modes. After scanning a venue, the member's bookings there (happening around
        now) appear as "Your booking(s) here" → tap → booking_checkin RPC (geo-verified, stamps via activity log).
        Uses member_bookings_at_venue + booking_checkin (shared with the FFP Booking platform). NEW MODE flag:
@@ -68,6 +71,7 @@
   var _provId = null;
   var _prov = null;
   var _bookings = [];     // the member's bookings at this venue happening around now (shared contract)
+  var _sessions = [];     // the venue's sessions on now (member_provider_options) — walk-up check-in → session review
   // MODE: 'passport' (default — full check-in: bookings + quests/events/challenges + visit-logging/stamps) OR
   // 'booking' (FFP Booking platform — bookings + events ONLY; no quests/challenges/meetups, no visit-logging).
   // Set via window.FFP_CHECKIN_MODE, or data-mode="booking" on the <script> tag that includes this file.
@@ -213,7 +217,10 @@
     // The member's bookings at this venue happening around now (member_bookings_at_venue — shared with FFP Booking).
     _bookings = [];
     try { var br = await sb().rpc('member_bookings_at_venue', { p_member: memberId(), p_provider: providerId }); if (br && br.data) _bookings = br.data; } catch (e) {}
+    _sessions = [];
+    try { var sr = await sb().rpc('member_provider_options', { p_provider: providerId }); if (sr && sr.data) _sessions = sr.data; } catch (e) {}
     var bookHtml = bookingsHtml();
+    var sessHtml = sessionsHtml();
     var progHtml = programsHtml();
     var head = logo + '<div class="ci-title">You’re at ' + name + '</div>';
 
@@ -236,7 +243,7 @@
       '</div>';
     if (!acts.length) {
       openSheet(
-        head + bookHtml + progHtml +
+        head + bookHtml + sessHtml + progHtml +
         '<div class="ci-sub">Check in to log your visit to this venue.</div>' +
         '<div class="ci-foot">' +
           durFields +
@@ -253,7 +260,7 @@
     }).join('');
     var actLabel = progHtml ? '<div class="ci-divlbl">Or log your visit</div>' : '<div class="ci-sub">What did you do here? Tap an activity — it saves to your passport.</div>';
     openSheet(
-      head + bookHtml + progHtml + actLabel +
+      head + bookHtml + sessHtml + progHtml + actLabel +
       '<div class="ci-acts">' + items + '</div>' +
       '<div class="ci-foot">' +
         durFields +
@@ -279,6 +286,18 @@
              '<span class="tick" style="opacity:1;">' + (done ? '✓' : '›') + '</span></button>';
     }).join('');
     return '<div class="ci-seclbl">Your booking' + (bs.length > 1 ? 's' : '') + ' here</div><div class="ci-acts">' + rows + '</div>';
+  }
+  // The venue's classes on now — walk-up: tap the one you're doing → session check-in → it becomes the reviewed session.
+  function sessionsHtml() {
+    var ss = _sessions || [];
+    if (!ss.length) return '';
+    var rows = ss.map(function (s, i) {
+      var sub = [s.start_at ? eventWhen(s.start_at) : '', s.coach].filter(Boolean).join(' · ');
+      return '<button type="button" class="ci-act" onclick="FFPCheckin._sessionCheckin(' + i + ')">' +
+             '<span>' + esc(s.title || 'Session') + (sub ? ('<br><span style="font-size:11.5px;color:#9dbdd0;font-weight:600;">' + esc(sub) + '</span>') : '') + '</span>' +
+             '<span class="tick" style="opacity:1;">›</span></button>';
+    }).join('');
+    return '<div class="ci-seclbl">On now — classes</div><div class="ci-acts">' + rows + '</div>';
   }
   function programsHtml() {
     var p = _programs || {};
@@ -508,11 +527,31 @@
     });
   }
 
+  // Walk-up session check-in → session-linked activity log (+ mirrors attendance) → drives the session review.
+  function sessionCheckin(idx) {
+    var mid = memberId(); if (!mid) { resultMsg('error', 'Not signed in', 'Sign in on this phone, then try again.'); return; }
+    var s = (_sessions || [])[idx]; if (!s) { toast('That class is no longer available', 'error'); return; }
+    openSheet('<div class="ci-title">Checking you in…</div><div class="ci-sub">Confirming you’re at the venue.</div><div class="ci-spin"></div>');
+    getPosition(function (coords) {
+      sb().rpc('venue_checkin_session', { p_me: mid, p_provider: _provId, p_session: s.id, p_lat: coords ? coords.lat : null, p_lng: coords ? coords.lng : null })
+        .then(function (res) {
+          var d = res && res.data;
+          if (res.error || !d || d.ok === false) { resultMsg('error', 'Couldn’t check in', (d && d.error === 'session_not_found') ? 'That class is no longer available.' : 'Please try again.'); return; }
+          if (d.blocked) { resultMsg('error', 'Already checked in here', d.message || 'You can check in again at this venue in a couple of hours.'); return; }
+          var v = !!d.verified;
+          resultMsg('ok', v ? 'Checked in ✓' : 'Checked in',
+            esc(s.title || 'Session') + (s.coach ? ' · ' + esc(s.coach) : '') + (v ? ' · verified on-site.' : '.') + ' We’ll ask you to rate it afterwards.');
+          try { document.dispatchEvent(new CustomEvent('ffp-activity-logged')); } catch (e) {}
+        })
+        .catch(function (e) { console.error('[FFP Check-in] session:', e); resultMsg('error', 'Couldn’t check in', 'Please try again.'); });
+    });
+  }
+
   // ── public + boot ──
   window.FFPCheckin = {
     scan: startScan, close: closeSheet, _manual: manual, _save: save, _context: openContext, _pick: pickAct,
     _pickType: pickType, _program: program, _questSubmit: questSubmit, _challengeSubmit: challengeSubmit,
-    _eventCheckin: eventCheckin, _bookingCheckin: bookingCheckin
+    _eventCheckin: eventCheckin, _bookingCheckin: bookingCheckin, _sessionCheckin: sessionCheckin
   };
 
   function pendingVenue() { try { return localStorage.getItem('ffp_pending_venue') || ''; } catch (e) { return ''; } }
