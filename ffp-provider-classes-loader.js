@@ -180,6 +180,7 @@
       '<button class="btn btn-pri" onclick="saveClass(\'' + (c ? c.id : '') + '\')">' + (c ? 'Save changes' : 'Submit for review') + '</button>';
 
     if (typeof window.openModalShell === 'function') window.openModalShell('lg', (c ? 'Edit experience' : 'New experience'), body, foot);
+    setTimeout(function () { if (window.FFPSelect) { var m = document.getElementById('modal'); if (m) window.FFPSelect.enhance(m); } }, 40);
     if (typeof window.renderListingUploader === 'function') { try { window.renderListingUploader(e.hero_image_url || ''); } catch (er) {} }
 
     setTimeout(function () {
