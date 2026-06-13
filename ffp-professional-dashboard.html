@@ -373,7 +373,7 @@ a{color:var(--ffp-blue);}
     <!-- SCHEDULING (scheduling loader -> #sched-list / #att-list) -->
     <section class="panel" id="panel-scheduling">
       <div class="ph">Scheduling</div>
-      <div class="psub">Your week, built from each client's standing slot. Reschedule a single week, or shift a slot for good.</div>
+      <div class="psub">Your weekly availability. Each time slot offers one of your services — assign a client yourself, or let clients book the open spot online. Reschedule a single week, or shift a slot for good.</div>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 6px;flex-wrap:wrap;">
         <div style="display:flex;align-items:center;gap:8px;">
           <button class="btn btn-sec btn-sm" onclick="proWeekShift(-1)" aria-label="Previous week"><span class="ms">chevron_left</span></button>
@@ -381,9 +381,19 @@ a{color:var(--ffp-blue);}
           <button class="btn btn-sec btn-sm" onclick="proWeekShift(1)" aria-label="Next week"><span class="ms">chevron_right</span></button>
           <button class="btn btn-ghost btn-sm" onclick="proWeekToday()">Today</button>
         </div>
-        <button class="btn btn-pri" onclick="openSlotModal()"><span class="ms">add</span> New standing slot</button>
+        <button class="btn btn-pri" onclick="openSlotModal()"><span class="ms">add</span> New time slot</button>
       </div>
       <div id="pro-week" style="margin-top:8px;"></div>
+    </section>
+
+    <!-- SERVICES (services loader -> #pro-services-list) -->
+    <section class="panel" id="panel-services">
+      <div class="ph">Services</div>
+      <div class="psub">The services you offer — a PT session, an assessment, a 12-week program. Set each one's pricing, then add its times in Scheduling so clients can book.</div>
+      <div style="display:flex;justify-content:flex-end;align-items:center;gap:12px;margin:14px 0 6px;flex-wrap:wrap;">
+        <button class="btn btn-pri" onclick="openServiceModal()"><span class="ms">add</span> New service</button>
+      </div>
+      <div id="pro-services-list" style="margin-top:8px;"></div>
     </section>
 
     <!-- PACKAGES (members loader -> #plans-list) -->
@@ -473,13 +483,14 @@ function emptyState(title,sub,ctaLabel,ctaFn){
 function bizTab(btn,paneId){ var panel=btn.closest('.panel'); if(!panel)return; panel.querySelectorAll('.biz-tab').forEach(function(t){t.classList.remove('active');}); btn.classList.add('active'); panel.querySelectorAll('.biz-pane').forEach(function(p){p.classList.remove('active');}); var pane=panel.querySelector('#'+paneId); if(pane)pane.classList.add('active'); }
 
 // ─── Deferred Business module loaders (reused, scoped to FFP_PROVIDER.id = professional id) ───
-var _provLoaderSrc = { clients:'ffp-professional-client-loader.js', packages:'ffp-professional-client-loader.js', comms:'ffp-professional-client-loader.js', scheduling:'ffp-professional-scheduling-loader.js', payments:'ffp-professional-billing-loader.js' };
+var _provLoaderSrc = { clients:'ffp-professional-client-loader.js', packages:'ffp-professional-client-loader.js', comms:'ffp-professional-client-loader.js', scheduling:'ffp-professional-scheduling-loader.js', services:'ffp-professional-services-loader.js', payments:'ffp-professional-billing-loader.js' };
 var _provLoaded = {};
-var PRO_BUILD='7'; // bump on any pro loader change so the lazy loaders re-fetch (no stale cache)
+var PRO_BUILD='8'; // bump on any pro loader change so the lazy loaders re-fetch (no stale cache)
 function ensureProviderLoader(id){ var src=_provLoaderSrc[id]; if(!src||_provLoaded[src])return; _provLoaded[src]=true; var sc=document.createElement('script'); sc.src=src+'?v='+PRO_BUILD; sc.async=false; sc.onload=function(){ renderPanel(id); }; sc.onerror=function(){ console.error('[FFP Pro] failed to load '+src); }; document.body.appendChild(sc); }
 function renderPanel(id){
   if(id==='clients'    && typeof renderMembers==='function')     renderMembers();
   if(id==='scheduling' && typeof renderScheduling==='function')  renderScheduling();
+  if(id==='services'   && typeof renderServices==='function')    renderServices();
   if(id==='packages'   && typeof renderPlans==='function')       renderPlans();
   if(id==='payments'   && typeof renderPayments==='function')    renderPayments();
   if(id==='comms'      && typeof renderComms==='function')       renderComms();
@@ -489,6 +500,7 @@ function renderPanel(id){
 var PRO_NAV=[
   {id:'overview',icon:'dashboard',label:'Overview'},
   {id:'clients',icon:'groups',label:'Clients'},
+  {id:'services',icon:'sell',label:'Services'},
   {id:'scheduling',icon:'calendar_month',label:'Scheduling'},
   {id:'payments',icon:'receipt_long',label:'Payments'}
 ];
