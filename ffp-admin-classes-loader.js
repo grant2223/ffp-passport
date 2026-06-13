@@ -112,7 +112,7 @@
     var body = document.getElementById('tours-tbody');
     if (!body) return;
     body.innerHTML = rows.length === 0
-      ? '<tr><td colspan="5" class="text-muted" style="text-align:center; padding:30px;">No tours in this tab</td></tr>'
+      ? '<tr><td colspan="5" class="text-muted" style="text-align:center; padding:30px;">No experiences in this tab</td></tr>'
       : rows.map(function (d) {
           var actBtns = '';
           if (d.status === 'pending') {
@@ -134,16 +134,16 @@
     try {
       var res = await window.supabase.from('classes').update({ status: 'live' }).eq('id', id);
       if (res.error) throw res.error;
-      toast('Tour approved — now live', 'success');
+      toast('Experience approved — now live', 'success');
       await refresh();
     } catch (e) { console.error(e); toast(e.message || 'Approve failed', 'error'); }
   }
   async function reject(id) {
-    if (!confirm('Reject this tour? It will be archived.')) return;
+    if (!confirm('Reject this experience? It will be archived.')) return;
     try {
       var res = await window.supabase.from('classes').update({ status: 'archived' }).eq('id', id);
       if (res.error) throw res.error;
-      toast('Tour rejected', 'success');
+      toast('Experience rejected', 'success');
       await refresh();
     } catch (e) { console.error(e); toast(e.message || 'Reject failed', 'error'); }
   }
@@ -168,7 +168,7 @@
       foot = '<button class="btn btn-danger" onclick="closeAdminModal(); AdminTours.reject(\'' + d.id + '\')"><span class="material-icons">close</span>Reject</button>' +
              '<button class="btn btn-blue" onclick="closeAdminModal(); AdminTours.approve(\'' + d.id + '\')"><span class="material-icons">check</span>Approve</button>';
     }
-    if (typeof window.openAdminModal === 'function') window.openAdminModal('Tour preview', content, foot);
+    if (typeof window.openAdminModal === 'function') window.openAdminModal('Experience preview', content, foot);
   }
 
   async function init() {
