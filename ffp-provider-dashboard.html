@@ -257,8 +257,8 @@
   console.log('[FFPPicker] ready (dashboard-owned, decoupled) ✓');
 })();
 </script>
-<script src="ffp-provider-events-loader.js?v=11"></script>
-<script src="ffp-provider-experiences-loader.js?v=8"></script>
+<script src="ffp-provider-events-loader.js?v=12"></script>
+<script src="ffp-provider-experiences-loader.js?v=9"></script>
 <script src="ffp-provider-challenges-loader.js"></script>
 <!-- v29 (2026-06-03): Taxonomy audit fixes — "Provider type" (pf-type) reads the unified provider_type
      taxonomy via FFP_TAX.providerTypes (shared with admin rankings; business_structure concept dropped);
@@ -3198,7 +3198,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=3', 'scheduling': 'ffp-provider-scheduling-loader.js?v=11', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=10' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=3', 'scheduling': 'ffp-provider-scheduling-loader.js?v=11', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=11' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
