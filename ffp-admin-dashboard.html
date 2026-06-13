@@ -1448,7 +1448,7 @@ input, select, textarea { font-family: inherit; }
         <span class="material-icons">event</span>Events
       </a>
       <a class="sidebar-link" data-panel="panel-experiences" onclick="App.go('panel-experiences')">
-        <span class="material-icons">flight_takeoff</span>Experiences
+        <span class="material-icons">flight_takeoff</span>Trips
       </a>
       <a class="sidebar-link" data-panel="panel-tours" onclick="App.go('panel-tours')">
         <span class="material-icons">tour</span>Experiences
@@ -1873,9 +1873,9 @@ input, select, textarea { font-family: inherit; }
     <!-- ========== EXPERIENCES ========== -->
     <section class="panel" id="panel-experiences">
       <div class="panel-head">
-        <h1>Experiences</h1>
+        <h1>Trips</h1>
         <div class="panel-head-actions">
-          <button class="btn btn-primary" onclick="showToast('Create FFP-organized experience form coming')"><span class="material-icons">add</span>FFP-Organized Trip</button>
+          <button class="btn btn-primary" onclick="showToast('Create FFP-organized trip form coming')"><span class="material-icons">add</span>FFP-Organized Trip</button>
         </div>
       </div>
       
@@ -1883,7 +1883,7 @@ input, select, textarea { font-family: inherit; }
         <div class="search-row">
           <div class="search-input-wrap">
             <span class="material-icons">search</span>
-            <input type="text" placeholder="Search experiences by title, organizer..." oninput="AdminExperiences.onSearch(this.value)">
+            <input type="text" placeholder="Search trips by title, organizer..." oninput="AdminExperiences.onSearch(this.value)">
           </div>
           <div class="search-meta" id="AdminExperiences-meta"></div>
         </div>
@@ -1907,7 +1907,7 @@ input, select, textarea { font-family: inherit; }
         <div class="search-row">
           <div class="search-input-wrap">
             <span class="material-icons">search</span>
-            <input type="text" placeholder="Search tours by title, organizer, city..." oninput="AdminTours.onSearch(this.value)">
+            <input type="text" placeholder="Search experiences by title, organizer, city..." oninput="AdminTours.onSearch(this.value)">
           </div>
           <div class="search-meta" id="AdminTours-meta"></div>
         </div>
@@ -2447,7 +2447,7 @@ const App = {
     'panel-broadcast':   'Broadcast',
     'panel-quests':      'Quests',
     'panel-events':      'Events',
-    'panel-experiences': 'Experiences',
+    'panel-experiences': 'Trips',
     'panel-tours':       'Experiences',
     'panel-featured':    'Featured',
     'panel-challenges':  'Challenges',
