@@ -15,12 +15,55 @@ function _money(v){ var n=Number(v||0); return 'AED '+(isNaN(n)?0:n).toLocaleStr
 function _metric(label,val){ return '<div style="flex:1;min-width:140px;background:#0c1d2b;border-radius:10px;padding:11px 13px;"><div class="psub" style="margin:0 0 3px;">'+label+'</div><div style="font-size:18px;font-weight:800;color:var(--ffp-text);">'+val+'</div></div>'; }
 async function _ensureBillClients(){ if(_payClients.length) return; var pid=_billProvId(); if(!pid) return; try{ var r=await window.supabase.rpc('pro_list_clients',{p_pro:pid}); _payClients=(r&&r.data)?r.data:[]; }catch(e){ _payClients=[]; } }
 
+// ── Stripe Connect (online card payments) — mirrors the facility portal card ──
+var PRO_BACKEND = (typeof PRO_API!=='undefined'&&PRO_API) || 'https://ffp-passport-backend.vercel.app';
+function _proRefresh(){ try{ return (window.FFPAuth&&FFPAuth.getRefresh&&FFPAuth.getRefresh()) || localStorage.getItem('ffp_refresh') || sessionStorage.getItem('ffp_refresh'); }catch(e){ return null; } }
+async function _proStripeCard(){
+  var pid=_billProvId(); if(!pid) return '';
+  var connected=false, status='not_connected';
+  try{ var r=await window.supabase.from('professionals').select('stripe_account_id, payments_status').eq('id',pid).maybeSingle();
+       if(r&&r.data){ connected=!!r.data.stripe_account_id; status=r.data.payments_status||(connected?'connected':'not_connected'); } }catch(e){}
+  var wrap=function(inner){ return '<div style="background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:12px;padding:13px 15px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">'+inner+'</div>'; };
+  if(status==='connected'){
+    return wrap('<span class="ms" style="color:#22c55e;font-size:22px;">verified</span>'+
+      '<div style="flex:1;min-width:180px;"><div style="font-weight:700;font-size:13px;color:#22c55e;">Online payments connected</div>'+
+      '<div class="psub" style="margin:2px 0 0;font-size:12px;">Clients can pay you by card on findfitpeople — money goes straight to your Stripe account, FFP takes no cut.</div></div>'+
+      '<a class="btn btn-ghost btn-sm" href="https://dashboard.stripe.com" target="_blank" rel="noopener"><span class="ms">open_in_new</span> Stripe</a>');
+  } else if(status==='onboarding'){
+    return wrap('<span class="ms" style="color:#f59e0b;font-size:22px;">hourglass_top</span>'+
+      '<div style="flex:1;min-width:180px;"><div style="font-weight:700;font-size:13px;color:#f59e0b;">Finish your Stripe setup</div>'+
+      '<div class="psub" style="margin:2px 0 0;font-size:12px;">Your account was started but isn\'t ready to take payments yet — a few details are still needed.</div></div>'+
+      '<button class="btn btn-pri btn-sm" onclick="connectStripePro()"><span class="ms">arrow_forward</span> Finish setup</button>');
+  } else if(status==='disconnected'){
+    return wrap('<span class="ms" style="color:#ef4444;font-size:22px;">link_off</span>'+
+      '<div style="flex:1;min-width:180px;"><div style="font-weight:700;font-size:13px;color:#ef4444;">Stripe disconnected</div>'+
+      '<div class="psub" style="margin:2px 0 0;font-size:12px;">Reconnect to keep taking online card payments from clients.</div></div>'+
+      '<button class="btn btn-pri btn-sm" onclick="connectStripePro()"><span class="ms">link</span> Reconnect</button>');
+  }
+  return wrap('<span class="ms" style="color:var(--ffp-purple);font-size:22px;">credit_card</span>'+
+    '<div style="flex:1;min-width:180px;"><div style="font-weight:700;font-size:13px;color:var(--ffp-text);">Take card payments online</div>'+
+    '<div class="psub" style="margin:2px 0 0;font-size:12px;">Connect Stripe so clients can buy your packages and book sessions by card on findfitpeople. Money goes straight to you — FFP takes no cut. About a minute if you already have Stripe.</div></div>'+
+    '<button class="btn btn-pri" onclick="connectStripePro()"><span class="ms">link</span> Connect Stripe</button>');
+}
+async function connectStripePro(){
+  var pid=_billProvId(); var refresh=_proRefresh();
+  if(!pid||!refresh){ showToast('Please sign in again to connect payments','error'); return; }
+  try{
+    var res=await fetch(PRO_BACKEND+'/api/pro/connect/start',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ refresh:refresh, professional_id:pid }) });
+    var j=await res.json().catch(function(){return {};});
+    if(j.already_connected){ showToast('Payments already connected ✓','success'); renderPayments(); return; }
+    if(j.url){ window.location.href=j.url; return; }
+    showToast(j.error||'Could not start Stripe connection','error');
+  }catch(e){ showToast('Network error — please try again','error'); }
+}
+
 async function renderPayments(){
   var host=document.getElementById('pay-list'); if(!host) return;
   var pid=_billProvId(); if(!pid){ host.innerHTML='<div class="empty-sub" style="text-align:left;">Sign in to manage payments.</div>'; return; }
   host.innerHTML='<div class="psub" style="margin:10px 0;">Loading…</div>'; var sum={};
   try{ var r=await window.supabase.rpc('pro_list_payments',{p_pro:pid,p_status:'paid'}); _billPayments=(r&&r.data)?r.data:[]; var rs=await window.supabase.rpc('pro_business_report',{p_pro:pid}); sum=(rs&&rs.data)?rs.data:{}; }catch(e){ _billPayments=[]; }
-  var head='<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;">'+_metric('Collected (all time)',_money(sum.collected_total))+_metric('This month',_money(sum.collected_month))+'</div>';
+  var card=await _proStripeCard();
+  var head=card+'<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;">'+_metric('Collected (all time)',_money(sum.collected_total))+_metric('This month',_money(sum.collected_month))+'</div>';
   if(!_billPayments.length){ host.innerHTML=head+emptyState('No payments yet','Record your first payment — cash, card or transfer.','Record payment',"openPaymentModal('','payment')"); return; }
   host.innerHTML=head+_billPayments.map(function(p){return payRow(p,'payment');}).join('');
 }
