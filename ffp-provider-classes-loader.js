@@ -150,7 +150,7 @@
         '<div class="field"><div class="label">Price per person (AED) <span class="req">*</span></div><input class="input" type="number" id="cm-price" value="' + esc(e.price_aed != null ? e.price_aed : '') + '" placeholder="e.g. 150"></div>' +
       '</div></div>' +
       '<div class="form-section"><div class="form-section-title">Date &amp; time</div>' +
-        '<div class="psub" style="margin:-4px 0 10px;">When does this experience run? Members book this date. (Required for members to be able to book.)</div>' +
+        '<div class="psub" style="margin:-4px 0 10px;">When does this experience run? Members book this date. (Required for members to be able to book.) ' + (window.FFPTime ? 'Times shown in ' + esc(window.FFPTime.tz().replace(/_/g, " ")) + '.' : '') + '</div>' +
         '<div id="cm-sessions"></div>' +
         '<button type="button" class="btn btn-ghost btn-sm" id="cm-add-session" style="margin-top:6px;"><span class="ms">add</span> Add another date</button>' +
       '</div>' +
