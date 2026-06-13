@@ -6,7 +6,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FFP Admin Dashboard</title>
-<!-- FFP ADMIN DASHBOARD — v47 (2026-06-11): SECURITY — payout-receipts bucket is now PRIVATE; payouts loader
+<!-- FFP ADMIN DASHBOARD — v48 (2026-06-13): "Tours" relabelled "Experiences" (classes); the experiences table is
+     "Trips" (no more duplicate). Sidebar section headers (Mission Control/Approvals/Marketplace/Platform) are now
+     larger/brighter and COLLAPSIBLE (click to toggle; state saved per-section in localStorage).
+     ---- v47 (2026-06-11): SECURITY — payout-receipts bucket is now PRIVATE; payouts loader
      uses createSignedUrl (1yr) not getPublicUrl. Lazy cache-bust v=51→52.
      ---- v46 (2026-06-10): PROFESSIONALS verification queue — new Platform nav item
      + #panel-professionals fed by ffp-admin-professionals-loader.js (?v=51): lists professionals whose
@@ -845,13 +848,25 @@ input, select, textarea { font-family: inherit; }
   flex: 1;
 }
 .sidebar-section-label {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 800;
-  letter-spacing: 1px;
-  color: var(--muted);
+  letter-spacing: 1.2px;
+  color: var(--text);
   text-transform: uppercase;
-  padding: 10px 12px 6px;
+  padding: 11px 12px 8px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  border-top: 1px solid rgba(255,255,255,0.06);
 }
+.sidebar-section-label:first-of-type { border-top: 0; margin-top: 0; }
+.sidebar-section-label:hover { color: #fff; }
+.sidebar-section-label .sec-caret { font-size: 16px; color: var(--muted); transition: transform .15s ease; }
+.sidebar-section-label.collapsed .sec-caret { transform: rotate(-90deg); }
+.sidebar-link.sec-hidden { display: none !important; }
 .sidebar-link {
   display: flex;
   align-items: center;
@@ -1474,6 +1489,31 @@ input, select, textarea { font-family: inherit; }
         <span class="material-icons">settings</span>Settings
       </a>
     </nav>
+    <script>
+    (function(){
+      function setup(){
+        var labels = document.querySelectorAll('.sidebar-nav .sidebar-section-label');
+        labels.forEach(function(lbl){
+          if(lbl.dataset.collapsibleWired) return; lbl.dataset.collapsibleWired='1';
+          var key = 'ffp_admin_sec_' + (lbl.textContent||'').trim().toLowerCase().replace(/\s+/g,'_');
+          var caret = document.createElement('span'); caret.className = 'material-icons sec-caret'; caret.textContent = 'expand_more';
+          lbl.appendChild(caret);
+          var collapsed = false; try { collapsed = localStorage.getItem(key) === '1'; } catch(e){}
+          function apply(){
+            lbl.classList.toggle('collapsed', collapsed);
+            var n = lbl.nextElementSibling;
+            while(n && !n.classList.contains('sidebar-section-label')){
+              if(n.classList.contains('sidebar-link')) n.classList.toggle('sec-hidden', collapsed);
+              n = n.nextElementSibling;
+            }
+          }
+          apply();
+          lbl.addEventListener('click', function(){ collapsed = !collapsed; try{ localStorage.setItem(key, collapsed?'1':'0'); }catch(e){} apply(); });
+        });
+      }
+      if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', setup); else setup();
+    })();
+    </script>
     
     <div class="sidebar-user" id="ffp-admin-identity" title="Signed in">
       <div class="sidebar-user-avatar" id="ffp-admin-avatar">—</div>
@@ -1483,7 +1523,7 @@ input, select, textarea { font-family: inherit; }
       </div>
     </div>
     <div class="sidebar-footer">
-      build v47 &middot; FFP Admin
+      build v48 &middot; FFP Admin
     </div>
   </aside>
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.toggleSidebar()"></div>
