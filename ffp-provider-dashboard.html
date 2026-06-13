@@ -1,4 +1,7 @@
-<!-- FFP PROVIDER DASHBOARD — v66 (2026-06-13)
+<!-- FFP PROVIDER DASHBOARD — v67 (2026-06-13)
+     v67: REVIEWS — Overview "Your rating" now shows each review's session+coach context, the type-specific
+          sub-ratings (Coach/Value/Atmosphere etc.) as chips, and the member's review photo.
+     v66 (2026-06-13)
      v66: POLISH + FEATURED per-day. Sessions dropdowns use shared dark picker (assets/ffp-select.js); session
           check-in card cleaned (deal claim card removed, recent-checkins hidden). FEATURED is now $99 USD/DAY:
           Feature button → day-picker (range or multi-select) + live total → provider_request_feature_days
@@ -3430,6 +3433,7 @@ function prEsc(t) {
     return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
   });
 }
+var PR_RLBL = { coach: 'Coach', value: 'Value', atmosphere: 'Atmosphere', organisation: 'Organisation', guide: 'Guide / host' };
 async function renderProviderRating() {
   var sumEl = document.getElementById('prov-rating-summary');
   var listEl = document.getElementById('prov-rating-reviews');
@@ -3470,13 +3474,19 @@ async function renderProviderRating() {
       var photo = rv.member_photo
         ? '<img class="pr-rev-photo" src="' + prEsc(rv.member_photo) + '" alt="">'
         : '<div class="pr-rev-photo pr-rev-photo-ph"><span class="ms">person</span></div>';
+      var ctx = rv.session_title ? (prEsc(rv.session_title) + (rv.coach ? ' · ' + prEsc(rv.coach) : '')) : '';
+      var subrat = (rv.ratings && typeof rv.ratings === 'object')
+        ? Object.keys(rv.ratings).map(function (k) { return '<span style="font-size:11px;font-weight:800;color:#9dbdd0;background:rgba(43,168,224,.10);border:1px solid rgba(43,168,224,.2);border-radius:10px;padding:2px 8px;">' + prEsc(PR_RLBL[k] || k) + ' ' + prEsc(rv.ratings[k]) + '★</span>'; }).join('')
+        : '';
       return '<div class="pr-rev">' +
         '<div class="pr-rev-head">' + photo +
           '<div class="pr-rev-id"><div class="pr-rev-name">' + prEsc(rv.member_name) + '</div>' +
-          '<div class="pr-rev-when">' + when + '</div></div>' +
+          '<div class="pr-rev-when">' + when + (ctx ? ' · ' + ctx : '') + '</div></div>' +
           '<div class="pr-rev-stars">' + prStars(rv.stars_overall) + '</div>' +
         '</div>' +
+        (subrat ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;">' + subrat + '</div>' : '') +
         (rv.comment ? '<div class="pr-rev-comment">' + prEsc(rv.comment) + '</div>' : '') +
+        (rv.photo_url ? '<img src="' + prEsc(rv.photo_url) + '" alt="" style="margin-top:8px;width:100%;max-width:170px;border-radius:10px;border:1px solid rgba(43,168,224,.2);display:block;">' : '') +
       '</div>';
     }).join('') : '';
   } catch (e) {
