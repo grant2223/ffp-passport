@@ -2605,11 +2605,10 @@ a { color: var(--ffp-blue); text-decoration: none; }
 
       <section class="panel" id="panel-scheduling">
         <div class="ph">Sessions</div>
-        <div class="psub">Your recurring classes, PT slots and team sessions — set the timetable, capacity and take attendance. Members book these. (One-off tours live in the Tours tab.)</div>
+        <div class="psub">Your recurring classes, PT slots and team sessions — set the timetable and capacity. Members book these. (One-off tours live in the Tours tab. To check people in, use the Check-ins panel.)</div>
         <div class="biz-tabs">
           <button class="biz-tab active" onclick="bizTab(this,'sch-calendar')">Sessions</button>
           <button class="biz-tab" onclick="bizTab(this,'sch-timetable'); if(typeof renderTimetable==='function')renderTimetable();">Timetable</button>
-          <button class="biz-tab" onclick="bizTab(this,'sch-attendance'); if(typeof renderAttendance==='function')renderAttendance();">Attendance</button>
         </div>
         <div class="biz-pane active" id="sch-calendar">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
@@ -2619,12 +2618,11 @@ a { color: var(--ffp-blue); text-decoration: none; }
           <div id="sched-list" style="margin-top:10px;"></div>
         </div>
         <div class="biz-pane" id="sch-timetable">
-          <div class="psub" style="margin:14px 0 8px;">Your week at a glance — each session in its day &amp; time slot.</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 8px;flex-wrap:wrap;">
+            <div class="psub" style="margin:0;">Your week at a glance — each session in its day &amp; time slot. The badge shows attendance vs capacity.</div>
+            <button class="btn btn-pri" onclick="if(typeof openAddSession==='function')openAddSession()"><span class="ms">add</span> Add session</button>
+          </div>
           <div id="timetable-host" style="margin-top:8px;"></div>
-        </div>
-        <div class="biz-pane" id="sch-attendance">
-          <div class="psub" style="margin:14px 0 4px;">Pick a session and tick who attended.</div>
-          <div id="att-list" style="margin-top:8px;"></div>
         </div>
       </section>
 
@@ -2800,7 +2798,20 @@ a { color: var(--ffp-blue); text-decoration: none; }
       <!-- ════════ CHECK-INS ════════ -->
       <section class="panel" id="panel-checkins">
         <div class="ph">Check-ins</div>
-        <div class="psub">Verify a member's claim code at your venue. The code appears in their Passport app when they redeem your deal.</div>
+        <div class="psub">Check members into a session, or verify a deal claim code. Codes appear in the member's Passport app.</div>
+
+        <div class="checkin-card" id="session-checkin-card">
+          <div class="checkin-title">Check in to a session</div>
+          <div class="checkin-sub">Pick the session, then scan the member's QR or type their member code. Or pick from your members.</div>
+          <select class="select" id="ci-session" style="margin:8px 0;" onchange="window.ffpSessionRoster&&ffpSessionRoster()"></select>
+          <input class="code-input" id="ci-member-code" maxlength="16" placeholder="MEMBER CODE" oninput="this.value=this.value.toUpperCase()">
+          <div class="checkin-actions">
+            <button class="btn btn-ghost" onclick="window.ffpSessionScan&&ffpSessionScan()"><span class="ms">qr_code_scanner</span> Scan QR</button>
+            <button class="btn btn-sec" onclick="window.ffpSessionPickMember&&ffpSessionPickMember()"><span class="ms">groups</span> My members</button>
+            <button class="btn btn-pri" onclick="window.ffpSessionCheckin&&ffpSessionCheckin()"><span class="ms">check</span> Check in</button>
+          </div>
+          <div id="ci-roster" style="margin-top:12px;"></div>
+        </div>
 
         <div class="checkin-card">
           <div class="checkin-title">Enter member claim code</div>
@@ -3190,7 +3201,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js', 'scheduling': 'ffp-provider-scheduling-loader.js?v=9', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=9' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=3', 'scheduling': 'ffp-provider-scheduling-loader.js?v=10', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=9' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
