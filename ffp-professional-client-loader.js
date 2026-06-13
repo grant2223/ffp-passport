@@ -155,18 +155,27 @@ async function renderPlans(){
   host.innerHTML=_plans.map(planRow).join('');
 }
 function planRow(p){
-  var meta=[PKG_TYPES[p.pkg_type]||'Package']; if(p.price_aed!=null&&p.price_aed!=='')meta.push(_money2(p.price_aed)); if(p.credits)meta.push(p.credits+' sessions'); if(p.period_days)meta.push(p.period_days+' days');
+  var meta=[]; if(p.service_name)meta.push(p.service_name); meta.push(PKG_TYPES[p.pkg_type]||'Package'); if(p.price_aed!=null&&p.price_aed!=='')meta.push(_money2(p.price_aed)); if(p.credits)meta.push(p.credits+' sessions'); if(p.period_days)meta.push(p.period_days+' days');
   var n=p.client_count||0;
   return '<div style="background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:12px;padding:11px 13px;margin-bottom:9px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">'+
     '<div style="min-width:0;"><div style="font-weight:800;color:var(--ffp-text);">'+escHtml(p.name)+'</div><div class="psub" style="margin:2px 0 0;">'+meta.join(' · ')+'</div><div class="psub" style="margin:2px 0 0;">'+n+' on this package</div></div>'+
     '<div style="display:flex;gap:6px;flex-shrink:0;"><button class="btn btn-sec btn-sm" onclick="openPlanModal(\''+p.id+'\')"><span class="ms">edit</span></button><button class="btn btn-ghost btn-sm" onclick="confirmDeletePlan(\''+p.id+'\')"><span class="ms">delete</span></button></div></div>';
 }
-function openPlanModal(id){
+var _memSvc=[];
+async function _ensureMemSvc(){
+  var pid=_memProvId(); if(!pid) return _memSvc;
+  try{ var r=await window.supabase.rpc('pro_list_services',{p_pro:pid}); _memSvc=(r&&r.data)?r.data:[]; }catch(e){ _memSvc=[]; }
+  return _memSvc;
+}
+async function openPlanModal(id){
   var editing=id?_plans.find(function(x){return x.id===id;}):null;
-  var p=editing||{name:'',pkg_type:'sessions',credits:'',price_aed:'',period_days:'',notes:''};
+  var p=editing||{name:'',pkg_type:'sessions',credits:'',price_aed:'',period_days:'',notes:'',service_id:''};
+  await _ensureMemSvc();
+  var svcOpts='<option value="">— No specific service —</option>'+_memSvc.map(function(v){ return '<option value="'+v.id+'"'+(p.service_id===v.id?' selected':'')+'>'+escHtml(v.name||'Service')+'</option>'; }).join('');
   openModalShell('lg',(editing?'Edit package':'New package'),
     '<div class="form-section"><div class="form-section-title">Package</div><div class="form-grid">'+
       '<div class="field full"><div class="label">Name <span class="req">*</span></div><input class="input" id="pl-name" value="'+escHtml(p.name)+'" placeholder="e.g. 10 PT Sessions"></div>'+
+      '<div class="field full"><div class="label">For which service</div><select class="select" id="pl-service_id">'+svcOpts+'</select></div>'+
       '<div class="field"><div class="label">Type</div><select class="select" id="pl-pkg_type"><option value="sessions"'+(p.pkg_type==='sessions'?' selected':'')+'>Session pack</option><option value="recurring"'+(p.pkg_type==='recurring'?' selected':'')+'>Recurring</option><option value="term"'+(p.pkg_type==='term'?' selected':'')+'>Term</option></select></div>'+
       '<div class="field"><div class="label">Price (AED)</div><input class="input" type="number" id="pl-price_aed" value="'+escHtml(String(p.price_aed||''))+'"></div>'+
       '<div class="field"><div class="label">Sessions / credits</div><input class="input" type="number" id="pl-credits" value="'+escHtml(String(p.credits||''))+'" placeholder="e.g. 10"></div>'+
@@ -180,7 +189,7 @@ async function savePlan(id){
   var g=function(i){var el=document.getElementById('pl-'+i);return el?el.value.trim():'';};
   var name=g('name'); if(!name){ showToast('Name is required','error'); return; }
   var pid=_memProvId();
-  var payload={name:name,pkg_type:g('pkg_type')||'sessions',price_aed:g('price_aed'),credits:g('credits'),period_days:g('period_days'),notes:g('notes')};
+  var payload={name:name,service_id:g('service_id'),pkg_type:g('pkg_type')||'sessions',price_aed:g('price_aed'),credits:g('credits'),period_days:g('period_days'),notes:g('notes')};
   try{ var r=await window.supabase.rpc('pro_save_package',{p_pro:pid,p_id:id||null,p:payload}); if(r&&r.error)throw r.error; showToast(id?'Package updated':'Package created','success'); closeModal(); renderPlans(); }catch(e){ showToast('Could not save package','error'); }
 }
 function confirmDeletePlan(id){ openModalShell('','Delete package?','<div class="psub" style="margin:6px 0;">Clients already assigned keep their record.</div>','<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="doDeletePlan(\''+id+'\')">Delete</button>'); }
