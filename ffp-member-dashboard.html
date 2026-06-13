@@ -6022,26 +6022,15 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         </div>
       </div>
 
-      <div class="rv-row">
-        <div class="rv-row-lbl">Overall</div>
-        <div class="rv-stars" id="rv-stars-overall" data-key="overall"></div>
-      </div>
-      <div class="rv-row">
-        <div class="rv-row-lbl">Experience</div>
-        <div class="rv-stars" id="rv-stars-experience" data-key="experience"></div>
-      </div>
-      <div class="rv-row">
-        <div class="rv-row-lbl">Service</div>
-        <div class="rv-stars" id="rv-stars-service" data-key="service"></div>
-      </div>
-      <div class="rv-row">
-        <div class="rv-row-lbl">Facilities</div>
-        <div class="rv-stars" id="rv-stars-facilities" data-key="facilities"></div>
-      </div>
+      <div id="rv-cats"></div>
 
       <div class="activity-add-row">
         <label class="activity-add-label" for="rv-comment">Comment (optional)</label>
-        <textarea id="rv-comment" rows="3" placeholder="Tell others about your session…" style="width:100%; padding:10px 11px; background:rgba(43,168,224,0.06); border:1px solid var(--border-mid); border-radius:8px; color:var(--text); font-size:14px; font-family:inherit; resize:vertical;"></textarea>
+        <textarea id="rv-comment" rows="3" placeholder="Tell others what it was like…" style="width:100%; padding:10px 11px; background:rgba(43,168,224,0.06); border:1px solid var(--border-mid); border-radius:8px; color:var(--text); font-size:14px; font-family:inherit; resize:vertical;"></textarea>
+      </div>
+      <div class="activity-add-row">
+        <label class="activity-add-label">Add a photo (optional)</label>
+        <div id="rv-photo-slot"></div>
       </div>
       <div id="rv-error" style="display:none; color:#ff6b6b; font-size:12px; margin-top:4px;"></div>
     </div>
@@ -11767,8 +11756,15 @@ window.ffpViewSharedActivity = async function (id) {
 // PROVIDER REVIEW PROMPT (rate your session ~1h after a venue check-in)
 // ════════════════════════════════════════════════
 var ReviewPrompt = (function () {
-  var state = { log: null, stars: { overall: 0, experience: 0, service: 0, facilities: 0 } };
+  var state = { log: null, kind: 'venue', stars: {}, photo: '' };
   var PENDING = [];
+  // Review dimensions depend on what the member did. Overall is the headline (drives ranking); the rest are type-specific.
+  var DIMS = {
+    session: [['overall','Overall'],['coach','Coach'],['value','Value'],['atmosphere','Atmosphere']],
+    event:   [['overall','Overall'],['organisation','Organisation'],['value','Value'],['atmosphere','Atmosphere']],
+    trip:    [['overall','Overall'],['guide','Guide / host'],['value','Value'],['organisation','Logistics']],
+    venue:   [['overall','Overall'],['experience','Experience'],['service','Service'],['facilities','Facilities']]
+  };
 
   async function load() {
     var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
@@ -11788,8 +11784,9 @@ var ReviewPrompt = (function () {
     var log = PENDING.filter(function (r) { return r.id === logId; })[0];
     if (!log) return;
     state.log = log;
-    state.stars = { overall: 0, experience: 0, service: 0, facilities: 0 };
-    // Branded header: provider logo + name + the session they did (if logged).
+    state.kind = log.review_kind || 'venue';
+    state.stars = {};
+    state.photo = '';
     var logoEl = document.getElementById('rv-logo');
     if (logoEl) {
       if (log.logo_url) {
@@ -11801,21 +11798,50 @@ var ReviewPrompt = (function () {
       }
     }
     var nameEl = document.getElementById('rv-provider');
-    if (nameEl) nameEl.textContent = log.provider_name || log.venue || 'Your session';
+    if (nameEl) nameEl.textContent = log.provider_name || log.venue || 'Your visit';
     var sessEl = document.getElementById('rv-session');
     if (sessEl) {
       var bits = [];
       if (log.activity) bits.push(log.activity);
+      if (state.kind === 'session' && log.coach) bits.push('with ' + log.coach);
       var d = log.logged_at ? new Date(log.logged_at) : null;
       if (d && !isNaN(d.getTime())) bits.push(d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }));
-      sessEl.textContent = bits.length ? bits.join(' · ') : 'How was your session?';
+      sessEl.textContent = bits.length ? bits.join(' · ') : 'How was it?';
     }
     var c = document.getElementById('rv-comment'); if (c) c.value = '';
     var err = document.getElementById('rv-error'); if (err) err.style.display = 'none';
-    ['overall', 'experience', 'service', 'facilities'].forEach(function (k) { paint(k); });
+    renderCats();
+    renderPhoto();
     var bd = document.getElementById('review-modal-backdrop');
     if (bd) bd.classList.add('open');
   }
+  // Render the rating rows for this review kind (session/event/trip/venue).
+  function renderCats() {
+    var dims = DIMS[state.kind] || DIMS.venue;
+    var host = document.getElementById('rv-cats'); if (!host) return;
+    host.innerHTML = dims.map(function (d) {
+      var key = d[0], lbl = d[1];
+      if (key === 'coach' && state.log && state.log.coach) lbl = 'Coach · ' + state.log.coach;
+      return '<div class="rv-row"><div class="rv-row-lbl">' + escHtml(lbl) + '</div><div class="rv-stars" id="rv-stars-' + key + '" data-key="' + key + '"></div></div>';
+    }).join('');
+    dims.forEach(function (d) { paint(d[0]); });
+  }
+  function renderPhoto() {
+    var slot = document.getElementById('rv-photo-slot'); if (!slot) return;
+    if (state.photo) {
+      slot.innerHTML = '<div style="position:relative;display:inline-block;"><img src="' + escHtml(state.photo) + '" style="width:92px;height:92px;object-fit:cover;border-radius:10px;border:1px solid rgba(43,168,224,.3);"><button type="button" aria-label="Remove photo" onclick="ReviewPrompt.clearPhoto()" style="position:absolute;top:-8px;right:-8px;width:24px;height:24px;border-radius:50%;background:#0b1a28;border:1px solid var(--border-mid);color:#fff;cursor:pointer;line-height:1;">&times;</button></div>';
+    } else {
+      slot.innerHTML = '<button type="button" onclick="ReviewPrompt.pickPhoto()" style="display:inline-flex;align-items:center;gap:7px;background:rgba(43,168,224,0.06);border:1.5px dashed rgba(43,168,224,0.4);border-radius:10px;color:#9dbdd0;padding:11px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:18px;">add_a_photo</span> Add a photo</button>';
+    }
+  }
+  function pickPhoto() {
+    if (!window.FFPUpload || !window.FFPUpload.pick) { if (window.showToast) showToast('Photo upload unavailable', 'error'); return; }
+    var mid = ((window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || {}).id || 'm';
+    window.FFPUpload.pick({ bucket: 'activity-photos', key: 'review/' + mid + '-' + Date.now() + '.jpg', aspect: 1, outW: 800, outH: 800, title: 'Review photo',
+      onDone: function (url) { state.photo = url || ''; renderPhoto(); },
+      onError: function (e) { if (window.showToast) showToast('Photo upload failed', 'error'); console.warn('[review photo]', e); } });
+  }
+  function clearPhoto() { state.photo = ''; renderPhoto(); }
 
   function paint(key) {
     var el = document.getElementById('rv-stars-' + key);
@@ -11852,16 +11878,20 @@ var ReviewPrompt = (function () {
     if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
     try {
       var comment = (document.getElementById('rv-comment') || {}).value || '';
-      var res = await window.supabase.rpc('submit_provider_review', {
-        p_me: member.id,
-        p_provider: state.log.provider_id,
-        p_log: state.log.id,
-        p_overall: state.stars.overall,
-        p_experience: state.stars.experience || null,
-        p_service: state.stars.service || null,
-        p_facilities: state.stars.facilities || null,
-        p_comment: comment
-      });
+      var args = {
+        p_me: member.id, p_provider: state.log.provider_id, p_log: state.log.id,
+        p_overall: state.stars.overall, p_comment: comment, p_kind: state.kind, p_photo: state.photo || null
+      };
+      if (state.kind === 'venue') {
+        args.p_experience = state.stars.experience || null;
+        args.p_service = state.stars.service || null;
+        args.p_facilities = state.stars.facilities || null;
+      } else {
+        var rt = {};
+        (DIMS[state.kind] || []).forEach(function (d) { if (d[0] !== 'overall' && state.stars[d[0]]) rt[d[0]] = state.stars[d[0]]; });
+        args.p_ratings = rt;
+      }
+      var res = await window.supabase.rpc('submit_provider_review', args);
       if (res.error) throw res.error;
       if (!res.data) throw new Error('Could not save — this check-in could not be verified.');
       // success: drop the prompt, close, and refresh the notifications bell
@@ -11877,7 +11907,7 @@ var ReviewPrompt = (function () {
     }
   }
 
-  return { load: load, open: open, set: set, submit: submit, close: close, pending: pending };
+  return { load: load, open: open, set: set, submit: submit, close: close, pending: pending, pickPhoto: pickPhoto, clearPhoto: clearPhoto };
 })();
 
 function setupLogPickers() {
@@ -12703,7 +12733,7 @@ window.FFPLocPick = (function(){
   return { open:open, close:close, onSearch:onSearch, pick:pick, use:use, locate:locate };
 })();
 </script>
-<script src="ffp-member-checkin-loader.js?v=8"></script>
+<script src="ffp-member-checkin-loader.js?v=9"></script>
 <!-- v294: PASSPORT MEMBERSHIP GATE — free/lapsed members get a Join/Renew screen instead of the member app.
      Self-contained + FAIL-OPEN: providers/admins, not-signed-in, or any error → NO gate (never lock out a
      payer). Uses the canonical member_passport_active RPC (shared with Find Fit People). -->
