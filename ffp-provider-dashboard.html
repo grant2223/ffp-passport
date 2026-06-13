@@ -2615,7 +2615,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
 
       <section class="panel" id="panel-scheduling">
         <div class="ph">Sessions</div>
-        <div class="psub">Your recurring classes, PT slots and team sessions — set the timetable and capacity. Members book these. (One-off tours live in the Tours tab. To check people in, use the Check-ins panel.)</div>
+        <div class="psub">Your recurring classes, PT slots and team sessions — set the timetable and capacity. Members book these. (One-off experiences live in the Experiences tab. To check people in, use the Check-ins panel.)</div>
         <div class="biz-tabs">
           <button class="biz-tab active" onclick="bizTab(this,'sch-calendar')">Sessions</button>
           <button class="biz-tab" onclick="bizTab(this,'sch-timetable'); if(typeof renderTimetable==='function')renderTimetable();">Timetable</button>
@@ -2755,14 +2755,14 @@ a { color: var(--ffp-blue); text-decoration: none; }
       <section class="panel" id="panel-classes">
         <div class="ph-row">
           <div>
-            <div class="ph">Tours</div>
-            <div class="psub">One-off activities members book — jet ski hire, bungy jump, canyoning, a guided tour or cruise. Add a date so it's bookable. (Recurring classes are in the Sessions tab.)</div>
+            <div class="ph">Experiences</div>
+            <div class="psub">One-off activities members book — jet ski hire, bungy jump, canyoning, a guided experience or cruise. Add a date so it's bookable. (Recurring classes are in the Sessions tab.)</div>
           </div>
-          <button class="btn btn-pri" onclick="openCreateClass()"><span class="ms">tour</span> New tour</button>
+          <button class="btn btn-pri" onclick="openCreateClass()"><span class="ms">tour</span> New experience</button>
         </div>
         <div class="help-strip" style="margin-bottom:18px;">
           <span class="ms">schedule</span>
-          <div>New tours are <b>reviewed by admin within 24 hours</b> before going live. Members book and check in via the venue QR.</div>
+          <div>New experiences are <b>reviewed by admin within 24 hours</b> before going live. Members book and check in via the venue QR.</div>
         </div>
         <div class="list-toolbar">
           <div class="search-box">
@@ -3115,7 +3115,7 @@ const NAV = [
   // ── Engagement (member-facing listings) ──
   { id: 'events',      icon: 'event',           label: 'Events',      section: 'engagement' },
   { id: 'experiences', icon: 'flight',          label: 'Trips',       section: 'engagement' },
-  { id: 'classes',     icon: 'tour',            label: 'Tours',       section: 'engagement' },
+  { id: 'classes',     icon: 'tour',            label: 'Experiences', section: 'engagement' },
   { id: 'challenges',  icon: 'emoji_events',    label: 'Challenges',  section: 'engagement' },
   { id: 'quests',      icon: 'flag',            label: 'Quests',      section: 'engagement' },
   { id: 'deals',       icon: 'local_offer',     label: 'Deals',       section: 'engagement' },
@@ -3198,7 +3198,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=3', 'scheduling': 'ffp-provider-scheduling-loader.js?v=11', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=9' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=3', 'scheduling': 'ffp-provider-scheduling-loader.js?v=11', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=10' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
