@@ -414,6 +414,7 @@ a{color:var(--ffp-blue);}
         <div style="font-size:14px;font-weight:800;color:var(--ffp-text,#eaf2f8);margin-bottom:4px;"><span class="ms" style="vertical-align:-3px;color:var(--ffp-purple,#9b7bf0);">qr_code_2</span> Your check-in QR</div>
         <div class="psub" style="margin:0 0 14px;">Clients scan this to check themselves in and pick the service — then they're asked to review you afterwards.</div>
         <div style="display:inline-block;background:#fff;padding:16px;border-radius:16px;"><div id="pro-qr-box"></div></div>
+        <div style="margin-top:14px;"><button class="btn btn-sec" onclick="proDownloadQR()"><span class="ms">download</span> Download QR (PNG)</button></div>
       </div>
     </section>
 
@@ -506,7 +507,7 @@ function bizTab(btn,paneId){ var panel=btn.closest('.panel'); if(!panel)return; 
 // ─── Deferred Business module loaders (reused, scoped to FFP_PROVIDER.id = professional id) ───
 var _provLoaderSrc = { clients:'ffp-professional-client-loader.js', packages:'ffp-professional-client-loader.js', comms:'ffp-professional-client-loader.js', scheduling:'ffp-professional-scheduling-loader.js', services:'ffp-professional-services-loader.js', payments:'ffp-professional-billing-loader.js' };
 var _provLoaded = {};
-var PRO_BUILD='9'; // bump on any pro loader change so the lazy loaders re-fetch (no stale cache)
+var PRO_BUILD='10'; // bump on any pro loader change so the lazy loaders re-fetch (no stale cache) — v10: pro Connect Stripe card in billing loader
 function ensureProviderLoader(id){ var src=_provLoaderSrc[id]; if(!src||_provLoaded[src])return; _provLoaded[src]=true; var sc=document.createElement('script'); sc.src=src+'?v='+PRO_BUILD; sc.async=false; sc.onload=function(){ renderPanel(id); }; sc.onerror=function(){ console.error('[FFP Pro] failed to load '+src); }; document.body.appendChild(sc); }
 function renderPanel(id){
   if(id==='clients'    && typeof renderMembers==='function')     renderMembers();
@@ -975,6 +976,17 @@ function renderProQR(){
   var draw=function(){ if(!window.QRCode){ box.textContent='QR unavailable'; return; } box.innerHTML=''; try{ new window.QRCode(box,{text:url,width:184,height:184,correctLevel:window.QRCode.CorrectLevel.M}); }catch(e){ box.textContent='QR unavailable'; } };
   if(window.QRCode){ draw(); return; }
   var s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'; s.onload=draw; s.onerror=function(){ box.textContent='QR unavailable'; }; document.body.appendChild(s);
+}
+// Download the pro QR as a padded white PNG (print/share), mirroring the facility venue QR.
+function proDownloadQR(){
+  var box=document.getElementById('pro-qr-box'); if(!box) return;
+  var src=box.querySelector('canvas')||box.querySelector('img');
+  if(!src){ if(window.showToast) showToast('QR not ready yet','error'); return; }
+  var size=(src.width||184), pad=44, dim=size+pad*2;
+  var out=document.createElement('canvas'); out.width=dim; out.height=dim;
+  var ctx=out.getContext('2d'); ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,dim,dim);
+  var save=function(img){ ctx.drawImage(img,pad,pad,size,size); var a=document.createElement('a'); a.href=out.toDataURL('image/png'); a.download='FFP-Pro-QR.png'; document.body.appendChild(a); a.click(); a.remove(); };
+  if(src.tagName==='IMG' && !src.complete){ var im=new Image(); im.onload=function(){ save(im); }; im.src=src.src; } else { save(src); }
 }
 async function proCheckinMember(){
   var pid=window.FFP_PROVIDER&&FFP_PROVIDER.id; if(!pid) return;
