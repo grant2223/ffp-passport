@@ -17,7 +17,8 @@ var COMMS_CHANNELS = { email: 'Email', push: 'Push', sms: 'SMS' };
 var _cstStyle = { active:'background:rgba(43,168,224,.16);color:#6fc6ef', paused:'background:rgba(255,204,0,.16);color:#FFCC00', archived:'background:rgba(255,255,255,.08);color:#9fb0bf' };
 
 function _memProvId(){ return (window.FFP_PROVIDER&&window.FFP_PROVIDER.id)||(typeof providerProfile!=='undefined'&&providerProfile.id)||null; }
-function _money2(v){ var n=Number(v||0); return 'AED '+(isNaN(n)?0:n).toLocaleString(); }
+function _ccy2(){ return (window.FFP_PROVIDER&&FFP_PROVIDER.currency)||'AED'; }
+function _money2(v){ var n=Number(v||0); if(window.FFPCurrency)return FFPCurrency.format(isNaN(n)?0:n,_ccy2()); return _ccy2()+' '+(isNaN(n)?0:n).toLocaleString(); }
 
 // ── CLIENTS ──
 async function renderMembers(){
@@ -177,7 +178,7 @@ async function openPlanModal(id){
       '<div class="field full"><div class="label">Name <span class="req">*</span></div><input class="input" id="pl-name" value="'+escHtml(p.name)+'" placeholder="e.g. 10 PT Sessions"></div>'+
       '<div class="field full"><div class="label">For which service</div><select class="select" id="pl-service_id">'+svcOpts+'</select></div>'+
       '<div class="field"><div class="label">Type</div><select class="select" id="pl-pkg_type"><option value="sessions"'+(p.pkg_type==='sessions'?' selected':'')+'>Session pack</option><option value="recurring"'+(p.pkg_type==='recurring'?' selected':'')+'>Recurring</option><option value="term"'+(p.pkg_type==='term'?' selected':'')+'>Term</option></select></div>'+
-      '<div class="field"><div class="label">Price (AED)</div><input class="input" type="number" id="pl-price_aed" value="'+escHtml(String(p.price_aed||''))+'"></div>'+
+      '<div class="field"><div class="label">Price ('+_ccy2()+')</div><input class="input" type="number" id="pl-price_aed" value="'+escHtml(String(p.price_aed||''))+'"></div>'+
       '<div class="field"><div class="label">Sessions / credits</div><input class="input" type="number" id="pl-credits" value="'+escHtml(String(p.credits||''))+'" placeholder="e.g. 10"></div>'+
       '<div class="field"><div class="label">Valid days</div><input class="input" type="number" id="pl-period_days" value="'+escHtml(String(p.period_days||''))+'" placeholder="e.g. 60"></div>'+
       '<div class="field full"><div class="label">Notes</div><textarea class="textarea" id="pl-notes" rows="2">'+escHtml(p.notes||'')+'</textarea></div>'+
