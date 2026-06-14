@@ -279,6 +279,13 @@
     for (var i = 0; i < cats.length; i++) { if ((roles[cats[i]] || []).indexOf(role) !== -1) return cats[i]; }
     return '';
   };
+  // ── Professional-portal pick-lists (shared so every pro form reads the same vocabulary) ──
+  T.sessionTypes  = { one_to_one: 'One on One', group: 'Group', assessment: 'Assessment' };
+  T.serviceTypes  = { pt_session: 'Personal training session', assessment: 'Assessment', program: 'Program (e.g. 12-week)', group: 'Group session', other: 'Other' };
+  T.clientStatus  = { active: 'Active', paused: 'Paused', archived: 'Archived' };
+  T.packageTypes  = { sessions: 'Session pack', recurring: 'Recurring', term: 'Term' };
+  T.commsChannels = { email: 'Email', push: 'Push', sms: 'SMS' };
+  T.payMethods    = { cash: 'Cash', card: 'Card', transfer: 'Bank transfer', online: 'Online', other: 'Other' };
 })();
 
 /* ── DB HYDRATION (v4, 2026-06-01) ──────────────────────────────────────────────
