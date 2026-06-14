@@ -98,5 +98,9 @@
     }).join('');
   }
 
-  window.FFPCurrency = { LIST: LIST, byCode: byCode, symbol: symbol, format: format, optionsHtml: optionsHtml };
+  // Convenience: the signed-in partner's currency (provider or pro) — defaults AED.
+  function providerCode() { return (window.FFP_PROVIDER && window.FFP_PROVIDER.currency) || 'AED'; }
+  function formatProvider(amount) { return format(amount, providerCode()); }
+
+  window.FFPCurrency = { LIST: LIST, byCode: byCode, symbol: symbol, format: format, optionsHtml: optionsHtml, providerCode: providerCode, formatProvider: formatProvider };
 })();
