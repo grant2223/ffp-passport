@@ -8,7 +8,7 @@
 var _billPayments = [];
 var _billInvoices = [];
 var _payClients = [];
-var PAY_METHODS = { cash:'Cash', card:'Card', transfer:'Bank transfer', online:'Online', other:'Other' };
+var PAY_METHODS = (window.FFP_TAX && FFP_TAX.payMethods) || { cash:'Cash', card:'Card', transfer:'Bank transfer', online:'Online', other:'Other' };
 
 function _billProvId(){ return (window.FFP_PROVIDER&&window.FFP_PROVIDER.id)||(typeof providerProfile!=='undefined'&&providerProfile.id)||null; }
 function _ccy(){ return (window.FFP_PROVIDER&&FFP_PROVIDER.currency)||'AED'; }
