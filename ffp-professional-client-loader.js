@@ -11,9 +11,9 @@ var _members = [];
 var _plans = [];
 var _broadcasts = [];
 var _curMembershipMember = null;
-var CLIENT_STATUS = { active: 'Active', paused: 'Paused', archived: 'Archived' };
-var PKG_TYPES = { sessions: 'Session pack', recurring: 'Recurring', term: 'Term' };
-var COMMS_CHANNELS = { email: 'Email', push: 'Push', sms: 'SMS' };
+var CLIENT_STATUS = (window.FFP_TAX && FFP_TAX.clientStatus) || { active: 'Active', paused: 'Paused', archived: 'Archived' };
+var PKG_TYPES = (window.FFP_TAX && FFP_TAX.packageTypes) || { sessions: 'Session pack', recurring: 'Recurring', term: 'Term' };
+var COMMS_CHANNELS = (window.FFP_TAX && FFP_TAX.commsChannels) || { email: 'Email', push: 'Push', sms: 'SMS' };
 var _cstStyle = { active:'background:rgba(43,168,224,.16);color:#6fc6ef', paused:'background:rgba(255,204,0,.16);color:#FFCC00', archived:'background:rgba(255,255,255,.08);color:#9fb0bf' };
 
 function _memProvId(){ return (window.FFP_PROVIDER&&window.FFP_PROVIDER.id)||(typeof providerProfile!=='undefined'&&providerProfile.id)||null; }
@@ -63,8 +63,8 @@ function openMemberModal(id){
     '<div class="form-section"><div class="form-section-title">Client</div><div class="form-grid">'+
       '<div class="field full"><div class="label">Full name <span class="req">*</span></div><input class="input" id="mm-full_name" value="'+escHtml(m.full_name)+'"></div>'+
       '<div class="field"><div class="label">Email</div><input class="input" id="mm-email" value="'+escHtml(m.email||'')+'"></div>'+
-      '<div class="field"><div class="label">Phone</div><input class="input" id="mm-phone" value="'+escHtml(m.phone||'')+'"></div>'+
-      '<div class="field"><div class="label">Status</div><select class="select" id="mm-status"><option value="active"'+(m.status==='active'?' selected':'')+'>Active</option><option value="paused"'+(m.status==='paused'?' selected':'')+'>Paused</option><option value="archived"'+(m.status==='archived'?' selected':'')+'>Archived</option></select></div>'+
+      '<div class="field"><div class="label">Phone</div>'+(window._phoneField?_phoneField('mm-phone'):'<input class="input" id="mm-phone" value="'+escHtml(m.phone||'')+'">')+'</div>'+
+      '<div class="field"><div class="label">Status</div><select class="select" id="mm-status">'+Object.keys(CLIENT_STATUS).map(function(k){return '<option value="'+k+'"'+(m.status===k?' selected':'')+'>'+escHtml(CLIENT_STATUS[k])+'</option>';}).join('')+'</select></div>'+
       '<div class="field"><div class="label">Since</div><input class="input" type="date" id="mm-join_date" value="'+jd+'"></div>'+
       '<div class="field full"><div class="label">Tags</div><input class="input" id="mm-tags" value="'+escHtml(m.tags||'')+'" placeholder="comma,separated"></div>'+
       '<div class="field full"><div class="label">Notes</div><textarea class="textarea" id="mm-notes" rows="2">'+escHtml(m.notes||'')+'</textarea></div>'+
@@ -72,12 +72,13 @@ function openMemberModal(id){
     (editing?'<button class="btn btn-ghost left" onclick="confirmDeleteMember(\''+editing.id+'\')"><span class="ms">delete</span> Delete</button>':'')+
     '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>'+
     '<button class="btn btn-pri" onclick="saveMember(\''+(editing?editing.id:'')+'\')">'+(editing?'Save':'Add client')+'</button>');
+  if(window._phoneSet) _phoneSet('mm-phone', m.phone||'');
 }
 async function saveMember(id){
   var g=function(i){var el=document.getElementById('mm-'+i);return el?el.value.trim():'';};
   var name=g('full_name'); if(!name){ showToast('Name is required','error'); return; }
   var pid=_memProvId(); if(!pid) return;
-  var payload={full_name:name,email:g('email'),phone:g('phone'),status:g('status')||'active',tags:g('tags'),join_date:g('join_date'),notes:g('notes')};
+  var payload={full_name:name,email:g('email'),phone:(window._phoneGet?_phoneGet('mm-phone'):g('phone')),status:g('status')||'active',tags:g('tags'),join_date:g('join_date'),notes:g('notes')};
   try{ var r=await window.supabase.rpc('pro_save_client',{p_pro:pid,p_id:id||null,p:payload}); if(r&&r.error)throw r.error; showToast(id?'Client updated':'Client added','success'); closeModal(); renderMembers(); }catch(e){ showToast('Could not save client','error'); }
 }
 function confirmDeleteMember(id){ openModalShell('','Remove client?','<div class="psub" style="margin:6px 0;">This removes them from your client list.</div>','<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="doDeleteMember(\''+id+'\')">Remove</button>'); }
