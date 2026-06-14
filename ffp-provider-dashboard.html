@@ -167,12 +167,13 @@
 <script src="assets/ffp-taxonomy.js?v=11"></script>
 <script src="assets/ffp-location-picker.js"></script>
 <script src="assets/ffp-time.js?v=1"></script>
+<script src="assets/ffp-currency.js?v=1"></script>
 <script src="assets/ffp-select.js?v=1"></script>
-<script src="ffp-provider-auth.js?v=6"></script>
+<script src="ffp-provider-auth.js?v=7"></script>
 <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>
 <script src="assets/ffp-image-upload.js?v=7"></script>
-<script src="ffp-provider-profile-loader.js?v=15"></script>
+<script src="ffp-provider-profile-loader.js?v=16"></script>
 <!-- Shared provider picker (FFPPicker) defined HERE in the dashboard so Events/Challenges/Experiences
      activity + country/city pickers never depend on a separately-uploaded loader being present. -->
 <script>
@@ -2504,6 +2505,11 @@ a { color: var(--ffp-blue); text-decoration: none; }
               <div class="hint" style="font-size:12px;opacity:.7;margin-top:4px;">Used for all your class, tour, event &amp; trip times.</div>
             </div>
             <div class="field">
+              <div class="label">Currency <span class="req">*</span></div>
+              <select class="select" id="pf-currency"><option value="">Choose currency</option></select>
+              <div class="hint" style="font-size:12px;opacity:.7;margin-top:4px;">All your prices &amp; member payments use this currency.</div>
+            </div>
+            <div class="field">
               <div class="label">Area / Neighbourhood</div>
               <input class="input" id="pf-area" placeholder="e.g. Al Quoz, JLT, Dubai Marina">
             </div>
@@ -3198,7 +3204,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=3', 'scheduling': 'ffp-provider-scheduling-loader.js?v=11', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=11' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=3', 'scheduling': 'ffp-provider-scheduling-loader.js?v=11', 'members': 'ffp-provider-members-loader.js', 'billing': 'ffp-provider-billing-loader.js?v=2', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=11' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
@@ -3508,11 +3514,14 @@ function kpi(label, val, delta, dir, tone) {
 // ════════════════════════════════════════════════
 // PROFILE
 // ════════════════════════════════════════════════
+function _provCcy() { return (window.FFP_PROVIDER && FFP_PROVIDER.currency) || (typeof providerProfile !== 'undefined' && providerProfile.currency) || 'AED'; }
+function _provMoney(n) { return window.FFPCurrency ? FFPCurrency.format(n, _provCcy()) : (_provCcy() + ' ' + Number(n || 0).toLocaleString()); }
 function loadProfile() {
   document.getElementById('pf-business-name').value = providerProfile.business_name || '';
   document.getElementById('pf-category').value = providerProfile.category || '';
   document.getElementById('pf-type').value = providerProfile.provider_type || '';
   var _tzEl = document.getElementById('pf-timezone'); if (_tzEl) { _tzEl.value = providerProfile.timezone || (window.FFP_PROVIDER && window.FFP_PROVIDER.timezone) || 'Asia/Dubai'; }
+  var _ccyEl = document.getElementById('pf-currency'); if (_ccyEl) { if (window.FFPCurrency && _ccyEl.options.length <= 1) { _ccyEl.innerHTML = window.FFPCurrency.optionsHtml(providerProfile.currency || 'AED'); } _ccyEl.value = providerProfile.currency || (window.FFP_PROVIDER && window.FFP_PROVIDER.currency) || 'AED'; }
   if (window.FFPLocation) { FFPLocation.setValue('provider', providerProfile.country || '', providerProfile.city || ''); } else { var _pc = document.getElementById('pf-city'); if (_pc) _pc.value = providerProfile.city || ''; }
   document.getElementById('pf-area').value = providerProfile.area || '';
   document.getElementById('pf-address').value = providerProfile.address || '';
@@ -4250,7 +4259,7 @@ function openEventModal(id) {
       <div class="form-section-title">Pricing & capacity</div>
       <div class="form-grid">
         <div class="field">
-          <div class="label">Price (AED)</div>
+          <div class="label">Price (${_provCcy()})</div>
           <input class="input" type="number" id="em-price" value="${escHtml(e.price_aed)}" placeholder="0 = Free">
         </div>
         <div class="field">
@@ -4376,7 +4385,7 @@ function experienceCard(e) {
         (e.duration_days ? '<span><span class="ms">schedule</span>' + e.duration_days + ' days</span>' : '') +
       '</div>' +
       '<div class="lc-stat-row">' +
-        '<div class="lc-stat"><div class="lc-stat-val">AED ' + (e.price_aed || 0) + '</div><div class="lc-stat-lbl">Per person</div></div>' +
+        '<div class="lc-stat"><div class="lc-stat-val">' + _provMoney(e.price_aed || 0) + '</div><div class="lc-stat-lbl">Per person</div></div>' +
         '<div class="lc-stat"><div class="lc-stat-val">' + (e.applications || 0) + '</div><div class="lc-stat-lbl">Applications</div></div>' +
         '<div class="lc-stat"><div class="lc-stat-val">' + (e.capacity || 0) + '</div><div class="lc-stat-lbl">Capacity</div></div>' +
       '</div>' +
@@ -4476,7 +4485,7 @@ function openExperienceModal(id) {
       <div class="form-section-title">Price</div>
       <div class="form-grid">
         <div class="field">
-          <div class="label">Price per person (AED) <span class="req">*</span></div>
+          <div class="label">Price per person (${_provCcy()}) <span class="req">*</span></div>
           <input class="input" type="number" id="xm-price" value="${escHtml(e.price_aed)}" placeholder="e.g. 1850">
         </div>
         <div class="field">
