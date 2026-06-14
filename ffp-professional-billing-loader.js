@@ -11,7 +11,8 @@ var _payClients = [];
 var PAY_METHODS = { cash:'Cash', card:'Card', transfer:'Bank transfer', online:'Online', other:'Other' };
 
 function _billProvId(){ return (window.FFP_PROVIDER&&window.FFP_PROVIDER.id)||(typeof providerProfile!=='undefined'&&providerProfile.id)||null; }
-function _money(v){ var n=Number(v||0); return 'AED '+(isNaN(n)?0:n).toLocaleString(); }
+function _ccy(){ return (window.FFP_PROVIDER&&FFP_PROVIDER.currency)||'AED'; }
+function _money(v){ var n=Number(v||0); if(window.FFPCurrency)return FFPCurrency.format(isNaN(n)?0:n,_ccy()); return _ccy()+' '+(isNaN(n)?0:n).toLocaleString(); }
 function _metric(label,val){ return '<div style="flex:1;min-width:140px;background:#0c1d2b;border-radius:10px;padding:11px 13px;"><div class="psub" style="margin:0 0 3px;">'+label+'</div><div style="font-size:18px;font-weight:800;color:var(--ffp-text);">'+val+'</div></div>'; }
 async function _ensureBillClients(){ if(_payClients.length) return; var pid=_billProvId(); if(!pid) return; try{ var r=await window.supabase.rpc('pro_list_clients',{p_pro:pid}); _payClients=(r&&r.data)?r.data:[]; }catch(e){ _payClients=[]; } }
 
@@ -112,7 +113,7 @@ async function openPaymentModal(id,mode){
     '<div class="form-section"><div class="form-section-title">'+(mode==='invoice'?'Invoice':'Payment')+'</div><div class="form-grid">'+
       '<div class="field full"><div class="label">Description <span class="req">*</span></div><input class="input" id="pm-description" value="'+escHtml(p.description||'')+'" placeholder="'+(mode==='invoice'?'e.g. June block':'e.g. PT session')+'"></div>'+
       '<div class="field"><div class="label">Client</div><select class="select" id="pm-client_id">'+clientOpts+'</select></div>'+
-      '<div class="field"><div class="label">Amount (AED) <span class="req">*</span></div><input class="input" type="number" id="pm-amount_aed" value="'+escHtml(String(p.amount_aed||''))+'"></div>'+
+      '<div class="field"><div class="label">Amount ('+_ccy()+') <span class="req">*</span></div><input class="input" type="number" id="pm-amount_aed" value="'+escHtml(String(p.amount_aed||''))+'"></div>'+
       when+
     '</div></div>',
     (editing?'<button class="btn btn-ghost left" onclick="confirmDeletePayment(\''+editing.id+'\',\''+mode+'\')"><span class="ms">delete</span> Delete</button>':'')+
