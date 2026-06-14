@@ -51,6 +51,7 @@
 <script src="assets/ffp-api-integration.js?v=12"></script>
 <script src="assets/ffp-constants.js"></script>
 <script src="assets/ffp-taxonomy.js?v=9"></script>
+<script src="assets/ffp-currency.js?v=1"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 <script src="assets/ffp-image-upload.js?v=6"></script>
@@ -508,7 +509,7 @@ function bizTab(btn,paneId){ var panel=btn.closest('.panel'); if(!panel)return; 
 // ─── Deferred Business module loaders (reused, scoped to FFP_PROVIDER.id = professional id) ───
 var _provLoaderSrc = { clients:'ffp-professional-client-loader.js', packages:'ffp-professional-client-loader.js', comms:'ffp-professional-client-loader.js', scheduling:'ffp-professional-scheduling-loader.js', services:'ffp-professional-services-loader.js', payments:'ffp-professional-billing-loader.js' };
 var _provLoaded = {};
-var PRO_BUILD='10'; // bump on any pro loader change so the lazy loaders re-fetch (no stale cache) — v10: pro Connect Stripe card in billing loader
+var PRO_BUILD='11'; // bump on any pro loader change so the lazy loaders re-fetch (no stale cache) — v11: multi-currency (billing/client/services loaders use FFP_PROVIDER.currency)
 function ensureProviderLoader(id){ var src=_provLoaderSrc[id]; if(!src||_provLoaded[src])return; _provLoaded[src]=true; var sc=document.createElement('script'); sc.src=src+'?v='+PRO_BUILD; sc.async=false; sc.onload=function(){ renderPanel(id); }; sc.onerror=function(){ console.error('[FFP Pro] failed to load '+src); }; document.body.appendChild(sc); }
 function renderPanel(id){
   if(id==='clients'    && typeof renderMembers==='function')     renderMembers();
@@ -587,6 +588,7 @@ function renderProfileForm(){
       '<div class="field"><div class="label">Public contact email <span style="color:var(--ffp-text-dim);">(optional)</span></div><input class="input" id="pf-work_email" value="'+escHtml(_pro.work_email||'')+'" placeholder="shown on your storefront"></div>'+
       '<div class="field"><div class="label">Phone <span style="color:var(--ffp-text-dim);">(optional)</span></div><input class="input" id="pf-phone" type="tel" value="'+escHtml(_pro.phone||'')+'" placeholder="+971 50 123 4567"></div>'+
       '<div class="field full"><div class="label">Languages spoken</div><div id="pf-langs" class="chips" style="margin-bottom:0;"></div></div>'+
+      '<div class="field"><div class="label">Currency</div><select class="select" id="pf-currency">'+(window.FFPCurrency?FFPCurrency.optionsHtml((_pro&&_pro.currency)||'AED'):'<option value="AED">AED — UAE Dirham</option>')+'</select><div class="psub" style="margin:4px 0 0;font-size:11px;">Your service prices &amp; client payments use this.</div></div>'+
       '<div class="field"><div class="label">Years of experience <span style="color:var(--ffp-text-dim);font-weight:600;">(optional)</span></div><input class="input" id="pf-years_experience" type="number" min="0" max="80" value="'+(_pro.years_experience!=null?_pro.years_experience:'')+'" placeholder="e.g. 8"></div>'+
       '<div class="field full"><div class="label">Certifications <span style="color:var(--ffp-text-dim);font-weight:600;">— one per line; shown once approved</span></div><textarea class="textarea" id="pf-certifications" rows="3" placeholder="e.g. NASM-CPT&#10;Precision Nutrition L1">'+escHtml((_pro.certifications||[]).join('\n'))+'</textarea></div>'+
     '</div></div>'+
@@ -611,7 +613,7 @@ async function saveProfile(){
   var category=(_pfProfs[0]&&_pfProfs[0].category)||(window.FFP_TAX&&FFP_TAX.categoryOfRole?FFP_TAX.categoryOfRole(types[0]):'');
   var certs=g('certifications').split(/\n+/).map(function(s){return s.trim();}).filter(Boolean);
   var yrsRaw=g('years_experience'); var yrs=(yrsRaw===''?null:yrsRaw);
-  var payload={ given_names:given, surname:surname, display_name:name, headline:g('headline'), bio:g('bio'), country:g('country'), city:g('city'), work_email:g('work_email'), phone:g('phone'), languages:_pfLangs, certifications:certs, years_experience:yrs, professional_types:types, category:category, is_published:document.getElementById('pf-published').checked };
+  var payload={ given_names:given, surname:surname, display_name:name, headline:g('headline'), bio:g('bio'), country:g('country'), city:g('city'), work_email:g('work_email'), phone:g('phone'), languages:_pfLangs, certifications:certs, years_experience:yrs, currency:((document.getElementById('pf-currency')||{}).value||null), professional_types:types, category:category, is_published:document.getElementById('pf-published').checked };
   try{
     var r=await window.supabase.rpc('professional_save_profile',{p_professional:_pro.id,p:payload});
     if(r&&r.error)throw r.error;
@@ -801,7 +803,7 @@ function enterDashboard(){
   if(_pro.profile_photo_url){ document.getElementById('av-btn').innerHTML='<img src="'+escHtml(_pro.profile_photo_url)+'" alt="">'; }
   else { document.getElementById('av-initials').textContent=_initials(nm); }
   providerProfile.city=_pro.city||'';
-  window.FFP_PROVIDER={ id:_pro.id, member_id:m&&m.id, email:m&&m.email, role:'professional', display_name:_pro.display_name, timezone:(_pro.timezone||'Asia/Dubai') };
+  window.FFP_PROVIDER={ id:_pro.id, member_id:m&&m.id, email:m&&m.email, role:'professional', display_name:_pro.display_name, timezone:(_pro.timezone||'Asia/Dubai'), currency:(_pro.currency||'AED') };
   renderNav();
   showPanel('overview');
   proNotifBadge();
@@ -949,7 +951,7 @@ async function renderOverview(){
   var pid=window.FFP_PROVIDER&&FFP_PROVIDER.id; if(!pid)return;
   try{
     var rep=await window.supabase.rpc('pro_business_report',{p_pro:pid}); var d=(rep&&rep.data)||{};
-    var aed=function(n){ return 'AED '+Number(n||0).toLocaleString(); };
+    var aed=function(n){ var c=(window.FFP_PROVIDER&&FFP_PROVIDER.currency)||'AED'; return window.FFPCurrency?FFPCurrency.format(n,c):(c+' '+Number(n||0).toLocaleString()); };
     statsEl.innerHTML=_ovTile(aed(d.collected_month),'Earned this month')+_ovTile(d.clients_active||0,'Active clients')+_ovTile(aed(d.outstanding_total),'Outstanding')+_ovTile(d.standing_slots||0,'Standing slots');
   }catch(e){ statsEl.innerHTML=''; }
   try{
