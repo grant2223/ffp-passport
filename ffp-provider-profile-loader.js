@@ -180,11 +180,20 @@
       tzSel.value = currentTz;
     }
 
+    // Currency options — full 54-currency list (assets/ffp-currency.js), searchable picker
+    var ccySel = document.getElementById('pf-currency');
+    if (ccySel && window.FFPCurrency) {
+      var curCcy = ccySel.value || (window.FFP_PROVIDER && window.FFP_PROVIDER.currency) || 'AED';
+      ccySel.innerHTML = window.FFPCurrency.optionsHtml(curCcy);
+      ccySel.value = curCcy;
+    }
+
     // Wire up the custom dark pickers on top of existing <select>s
     wrapSelectAsPicker('pf-category',  'Choose category');
     wrapSelectAsPicker('pf-type',      'Choose type');
     wrapSelectAsPicker('pf-phone-cc',  'Code');
     wrapSelectAsPicker('pf-timezone',  'Choose timezone…');
+    wrapSelectAsPicker('pf-currency',  'Choose currency');
   }
 
   // ─── Custom dark picker wrapper ───
@@ -300,7 +309,7 @@
 
     var provRes = await window.supabase
       .from('providers')
-      .select('id, business_name, letter_mark, category, provider_type, country, city, area, address, contact_email, contact_phone, website, instagram, about, logo_url, hero_photo_url, status, activities, latitude, longitude, maps_url, passport_discount_pct, timezone')
+      .select('id, business_name, letter_mark, category, provider_type, country, city, area, address, contact_email, contact_phone, website, instagram, about, logo_url, hero_photo_url, status, activities, latitude, longitude, maps_url, passport_discount_pct, timezone, currency')
       .eq('id', id).single();
     if (provRes.error) throw provRes.error;
 
@@ -317,6 +326,7 @@
       category:      p.category || '',
       provider_type: p.provider_type || '',
       timezone:      p.timezone || 'Asia/Dubai',
+      currency:      p.currency || 'AED',
       city:          p.city || '',
       country:       p.country || '',
       area:          p.area || '',
@@ -358,6 +368,7 @@
     var city         = document.getElementById('pf-city').value;
     var country      = (document.getElementById('pf-country') || {}).value || '';
     var timezone     = (document.getElementById('pf-timezone') || {}).value || '';
+    var currency     = (document.getElementById('pf-currency') || {}).value || '';
     var area         = (document.getElementById('pf-area').value || '').trim();
     var address      = (document.getElementById('pf-address').value || '').trim();
     var phone        = (typeof window.getPhoneValue === 'function') ? window.getPhoneValue() : '';
@@ -413,6 +424,7 @@
           category:       category,
           provider_type:  providerType || null,
           timezone:       timezone || null,
+          currency:       currency || null,
           city:           city,
           country:        country || null,
           area:           area || null,
@@ -465,6 +477,7 @@
       if (sbMark) sbMark.textContent = letterMark;
       window.FFP_PROVIDER.business_name = businessName;
       if (timezone) window.FFP_PROVIDER.timezone = timezone;   // so FFPTime immediately uses the saved zone
+      if (currency) window.FFP_PROVIDER.currency = currency;   // so price labels immediately use the saved currency
 
       if (typeof window.renderProfileCompletion === 'function') { try { window.renderProfileCompletion(); } catch (e) {} }
       if (typeof window.setSaveBar === 'function') { try { window.setSaveBar(false); } catch (e) {} }
@@ -670,7 +683,7 @@
         if (profilePanel && profilePanel.classList.contains('active')) {
           try { window.loadProfile(); } catch (e) {}
           // After loadProfile, refresh picker labels (selects got new values)
-          ['pf-category', 'pf-type', 'pf-phone-cc', 'pf-timezone'].forEach(function (id) {
+          ['pf-category', 'pf-type', 'pf-phone-cc', 'pf-timezone', 'pf-currency'].forEach(function (id) {
             var s = document.getElementById(id);
             if (s) refreshPickerLabel(s);
           });
@@ -690,7 +703,7 @@
     window.loadProfile = function () {
       try { origLoadProfile(); } catch (e) {}
       refineUI();
-      ['pf-category', 'pf-type', 'pf-phone-cc', 'pf-timezone'].forEach(function (id) {
+      ['pf-category', 'pf-type', 'pf-phone-cc', 'pf-timezone', 'pf-currency'].forEach(function (id) {
         var s = document.getElementById(id);
         if (s) refreshPickerLabel(s);
       });
