@@ -178,8 +178,8 @@ async function openSlotModal(id){
     : '<div class="psub" style="margin:4px 0;">No clients yet — add one below.</div>';
   var dayOpts=WEEKDAYS.map(function(w){ return '<option value="'+w[1]+'"'+(Number(s.weekday)===w[1]?' selected':'')+'>'+w[0]+'</option>'; }).join('');
   var svcOpts='<option value="">Choose a service…</option>'+_proSvc.map(function(v){ return '<option value="'+v.id+'"'+(s.service_id===v.id?' selected':'')+'>'+escHtml(v.name||'Service')+'</option>'; }).join('');
-  openModalShell('lg',(editing?'Edit session':'New session'),
-    '<div class="form-section"><div class="form-section-title">Session</div><div class="form-grid">'+
+  openModalShell('lg',(editing?'Edit slot':'New slot'),
+    '<div class="form-section"><div class="form-section-title">Slot</div><div class="form-grid">'+
       '<div class="field"><div class="label">Session type</div><select class="select" id="sl-slot_type">'+_sessTypeOpts(s.slot_type)+'</select></div>'+
       '<div class="field"><div class="label">Service <span style="color:var(--ffp-text-dim);">(optional)</span></div><select class="select" id="sl-service_id" onchange="_slSvcPick()">'+svcOpts+'</select></div>'+
       '<div class="field full"><div class="label">Title <span style="color:var(--ffp-text-dim);">(optional)</span></div><input class="input" id="sl-title" value="'+escHtml(s.title||'')+'" placeholder="Defaults to the service name"></div>'+
