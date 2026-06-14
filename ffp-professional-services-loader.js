@@ -12,6 +12,8 @@
 // openModalShell, closeModal, emptyState) + window.FFP_PROVIDER.id.
 // ════════════════════════════════════════════════════════════════════════
 
+function _svcCcy(){ return (window.FFP_PROVIDER&&FFP_PROVIDER.currency)||'AED'; }
+function _svcMoney(n){ return window.FFPCurrency?FFPCurrency.format(n,_svcCcy()):(_svcCcy()+' '+Number(n||0).toLocaleString()); }
 var _proServicesCache = [];
 var SERVICE_TYPES = {
   pt_session: 'Personal training session',
@@ -51,7 +53,7 @@ async function renderServices(){
 
 function serviceCard(sv){
   var typeLbl = SERVICE_TYPES[sv.service_type] || _svcEsc(sv.service_type || 'Service');
-  var price = (sv.price_aed != null && sv.price_aed !== '') ? ('AED ' + sv.price_aed + ' / session') : 'No single-session price set';
+  var price = (sv.price_aed != null && sv.price_aed !== '') ? (_svcMoney(sv.price_aed) + ' / session') : 'No single-session price set';
   var meta = [typeLbl];
   if (sv.duration_min) meta.push(sv.duration_min + ' min');
   if (sv.capacity && sv.capacity > 1) meta.push('up to ' + sv.capacity);
@@ -86,7 +88,7 @@ async function openServiceModal(id){
       '<div class="field"><div class="label">Type</div><select class="select" id="sv-service_type">'+typeOpts+'</select></div>'+
       '<div class="field"><div class="label">Session length (min)</div><input class="input" type="number" min="1" id="sv-duration_min" value="'+_svcEsc(String(s.duration_min||''))+'"></div>'+
       '<div class="field"><div class="label">Capacity <span style="color:var(--ffp-text-dim);">(per slot)</span></div><input class="input" type="number" min="1" id="sv-capacity" value="'+_svcEsc(String(s.capacity||1))+'"></div>'+
-      '<div class="field"><div class="label">Price per session (AED)</div><input class="input" type="number" min="0" id="sv-price_aed" value="'+_svcEsc(String(s.price_aed==null?'':s.price_aed))+'" placeholder="For a single booking"></div>'+
+      '<div class="field"><div class="label">Price per session ('+_svcCcy()+')</div><input class="input" type="number" min="0" id="sv-price_aed" value="'+_svcEsc(String(s.price_aed==null?'':s.price_aed))+'" placeholder="For a single booking"></div>'+
       '<div class="field"><div class="label">Location</div><input class="input" id="sv-location" value="'+_svcEsc(s.location||'')+'" placeholder="Optional"></div>'+
       '<div class="field full"><div class="label">Description</div><input class="input" id="sv-description" value="'+_svcEsc(s.description||'')+'" placeholder="What this service includes (optional)"></div>'+
     '</div>'+
