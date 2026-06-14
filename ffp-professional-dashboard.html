@@ -277,6 +277,7 @@ a{color:var(--ffp-blue);}
         </div>
         <div class="gate-err" id="si-code-err"></div>
         <button class="btn btn-pri btn-block" id="si-code-btn" onclick="proVerifyCode()">Sign in</button>
+        <div class="gate-link" style="cursor:default;">Didn't get it? <a id="pro-resend-link" onclick="proResendCode()" style="cursor:pointer;text-decoration:underline;font-weight:700;">Resend code</a><span id="pro-resend-timer" style="margin-left:6px;opacity:.8;"></span></div>
         <div class="gate-link" onclick="proSigninBack()">Use a different email</div>
       </div>
     </div>
@@ -586,6 +587,8 @@ function renderProfileForm(){
       '<div class="field"><div class="label">Public contact email <span style="color:var(--ffp-text-dim);">(optional)</span></div><input class="input" id="pf-work_email" value="'+escHtml(_pro.work_email||'')+'" placeholder="shown on your storefront"></div>'+
       '<div class="field"><div class="label">Phone <span style="color:var(--ffp-text-dim);">(optional)</span></div><input class="input" id="pf-phone" type="tel" value="'+escHtml(_pro.phone||'')+'" placeholder="+971 50 123 4567"></div>'+
       '<div class="field full"><div class="label">Languages spoken</div><div id="pf-langs" class="chips" style="margin-bottom:0;"></div></div>'+
+      '<div class="field"><div class="label">Years of experience <span style="color:var(--ffp-text-dim);font-weight:600;">(optional)</span></div><input class="input" id="pf-years_experience" type="number" min="0" max="80" value="'+(_pro.years_experience!=null?_pro.years_experience:'')+'" placeholder="e.g. 8"></div>'+
+      '<div class="field full"><div class="label">Certifications <span style="color:var(--ffp-text-dim);font-weight:600;">— one per line; shown once approved</span></div><textarea class="textarea" id="pf-certifications" rows="3" placeholder="e.g. NASM-CPT&#10;Precision Nutrition L1">'+escHtml((_pro.certifications||[]).join('\n'))+'</textarea></div>'+
     '</div></div>'+
     '<div class="form-section"><div class="form-section-title">Videos</div><div class="psub" style="margin:-2px 0 8px;">Add YouTube, Vimeo or Instagram links — they appear on your public profile.</div><div id="pf-videos"><div class="ov-empty" style="padding:4px 0;">Loading…</div></div><button class="btn btn-sec btn-sm" type="button" style="margin-top:8px;" onclick="openVideoModal()"><span class="ms">add</span> Add video</button></div>'+
     '<div class="form-section"><div class="form-section-title">Visibility</div>'+
@@ -606,7 +609,9 @@ async function saveProfile(){
   if(!_pfProfs.length){ showToast('Add at least one profession','error'); return; }
   var types=_pfProfs.map(function(p){return p.name;});
   var category=(_pfProfs[0]&&_pfProfs[0].category)||(window.FFP_TAX&&FFP_TAX.categoryOfRole?FFP_TAX.categoryOfRole(types[0]):'');
-  var payload={ given_names:given, surname:surname, display_name:name, headline:g('headline'), bio:g('bio'), country:g('country'), city:g('city'), work_email:g('work_email'), phone:g('phone'), languages:_pfLangs, professional_types:types, category:category, is_published:document.getElementById('pf-published').checked };
+  var certs=g('certifications').split(/\n+/).map(function(s){return s.trim();}).filter(Boolean);
+  var yrsRaw=g('years_experience'); var yrs=(yrsRaw===''?null:yrsRaw);
+  var payload={ given_names:given, surname:surname, display_name:name, headline:g('headline'), bio:g('bio'), country:g('country'), city:g('city'), work_email:g('work_email'), phone:g('phone'), languages:_pfLangs, certifications:certs, years_experience:yrs, professional_types:types, category:category, is_published:document.getElementById('pf-published').checked };
   try{
     var r=await window.supabase.rpc('professional_save_profile',{p_professional:_pro.id,p:payload});
     if(r&&r.error)throw r.error;
@@ -849,6 +854,7 @@ function proRequestCode(){
     document.getElementById('signin-step-email').classList.add('hidden');
     document.getElementById('signin-step-code').classList.remove('hidden');
     var f=document.querySelector('#signin-step-code .code-box'); if(f)f.focus();
+    proStartCooldown(60);
   }).catch(function(){ btn.disabled=false; btn.textContent=lbl; err.textContent='Network error. Please try again.'; });
 }
 function siCodeMove(el,i){
@@ -873,6 +879,32 @@ function proSigninBack(){
   document.getElementById('signin-step-email').classList.remove('hidden');
   document.getElementById('si-code-err').textContent='';
   document.querySelectorAll('#signin-step-code .code-box').forEach(function(b){b.value='';});
+}
+// ── Resend code with a 60s cooldown (resend in place — stays on the code step) ──
+var _proResendTimer=null;
+function proStartCooldown(secs){
+  secs=secs||60;
+  var link=document.getElementById('pro-resend-link'); var timerEl=document.getElementById('pro-resend-timer');
+  if(!link) return;
+  if(_proResendTimer) clearInterval(_proResendTimer);
+  var remaining=secs;
+  link.style.pointerEvents='none'; link.style.opacity='0.45';
+  var tick=function(){
+    if(remaining<=0){ clearInterval(_proResendTimer); _proResendTimer=null; link.style.pointerEvents=''; link.style.opacity=''; if(timerEl)timerEl.textContent=''; return; }
+    if(timerEl) timerEl.textContent='· available in '+remaining+'s';
+    remaining--;
+  };
+  tick(); _proResendTimer=setInterval(tick,1000);
+}
+function proResendCode(){
+  var link=document.getElementById('pro-resend-link');
+  if(link && link.style.pointerEvents==='none') return; // cooling down
+  if(!_siEmail){ proSigninBack(); return; }
+  var timerEl=document.getElementById('pro-resend-timer'); if(timerEl)timerEl.textContent='· sending…';
+  FFPApi.requestCode(_siEmail,null,'signin').then(function(res){
+    if(res&&res.error){ if(timerEl)timerEl.textContent='· '+res.error; return; }
+    if(timerEl)timerEl.textContent='· new code sent'; proStartCooldown(60);
+  }).catch(function(){ if(timerEl)timerEl.textContent='· network error — try again'; });
 }
 
 // ─── Overview (default landing) ───
