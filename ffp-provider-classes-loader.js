@@ -100,7 +100,7 @@
           (c.booking_source && c.booking_source !== 'native' ? '<span><span class="ms">sync</span>' + esc(c.booking_source) + '</span>' : '') +
         '</div>' +
         '<div class="lc-stat-row">' +
-          '<div class="lc-stat"><div class="lc-stat-val">AED ' + (c.price_aed || 0) + '</div><div class="lc-stat-lbl">Per person</div></div>' +
+          '<div class="lc-stat"><div class="lc-stat-val">' + FFPCurrency.formatProvider(c.price_aed || 0) + '</div><div class="lc-stat-lbl">Per person</div></div>' +
           '<div class="lc-stat"><div class="lc-stat-val">' + (c.capacity || 0) + '</div><div class="lc-stat-lbl">Capacity</div></div>' +
           '<div class="lc-stat"><div class="lc-stat-val">' + (c.min_age || '—') + '</div><div class="lc-stat-lbl">Min age</div></div>' +
         '</div>' +
@@ -147,7 +147,7 @@
         '<div class="field"><div class="label">Venue</div><input class="input" id="cm-venue" value="' + esc(e.venue || '') + '" placeholder="e.g. Kite Beach"></div>' +
         '<div class="field"><div class="label">Duration (min)</div><input class="input" type="number" id="cm-duration" value="' + esc(e.duration_min || '') + '" placeholder="e.g. 60"></div>' +
         '<div class="field"><div class="label">Capacity</div><input class="input" type="number" id="cm-capacity" value="' + esc(e.capacity || '') + '" placeholder="e.g. 12"></div>' +
-        '<div class="field"><div class="label">Price per person (AED) <span class="req">*</span></div><input class="input" type="number" id="cm-price" value="' + esc(e.price_aed != null ? e.price_aed : '') + '" placeholder="e.g. 150"></div>' +
+        '<div class="field"><div class="label">Price per person (' + FFPCurrency.providerCode() + ') <span class="req">*</span></div><input class="input" type="number" id="cm-price" value="' + esc(e.price_aed != null ? e.price_aed : '') + '" placeholder="e.g. 150"></div>' +
       '</div></div>' +
       '<div class="form-section"><div class="form-section-title">Date &amp; time</div>' +
         '<div class="psub" style="margin:-4px 0 10px;">When does this experience run? Members book this date. (Required for members to be able to book.) ' + (window.FFPTime ? 'Times shown in ' + esc(window.FFPTime.tz().replace(/_/g, " ")) + '.' : '') + '</div>' +
