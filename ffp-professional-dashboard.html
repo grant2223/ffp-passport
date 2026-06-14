@@ -101,7 +101,7 @@ a{color:var(--ffp-blue);}
 .sb-foot-mark{width:34px;height:34px;border-radius:9px;background:var(--ffp-purple);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;flex-shrink:0;}
 .sb-foot-name{font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .sb-foot-out{font-size:10px;color:var(--ffp-text-dim);cursor:pointer;}
-.main{flex:1;overflow-y:auto;padding:0 26px 80px;}
+.main{flex:1;overflow-y:auto;padding:0 26px 120px;}
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;z-index:60;background:var(--ffp-bg);padding:16px 0 12px;margin:0 0 6px;border-bottom:1px solid var(--ffp-border);}
 .tb-title{font-size:18px;font-weight:800;}
 .preview-pill{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:var(--ffp-yellow);font-size:12px;font-weight:700;margin-bottom:14px;}
@@ -120,7 +120,7 @@ a{color:var(--ffp-blue);}
 .field{display:flex;flex-direction:column;}
 .field.full{grid-column:1 / -1;}
 .label{font-size:12px;font-weight:700;color:var(--ffp-text-muted);margin-bottom:5px;}
-#panel-profile .form-section{background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:14px;padding:16px 16px 18px;margin-top:14px;}
+#panel-profile .form-section{margin-top:26px;}
 #panel-profile .form-section-title{color:var(--ffp-purple);font-size:12px;}
 .req{color:var(--ffp-purple);}
 .input,.select,.textarea{width:100%;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:var(--r-md);padding:11px 13px;font-size:13px;font-weight:600;color:var(--ffp-text);font-family:inherit;color-scheme:dark;}
@@ -219,7 +219,7 @@ a{color:var(--ffp-blue);}
 @media (max-width:859px){
   .sidebar{display:none;}
   .bottom-nav{display:flex;}
-  .main{padding:0 14px 120px;}
+  .main{padding:0 14px 160px;}
   .topbar{position:sticky;top:0;background:var(--ffp-bg);z-index:50;padding:12px 0 8px;border-bottom:1px solid var(--ffp-border);}
   .preview-pill{width:100%;justify-content:center;}
 }
@@ -390,16 +390,15 @@ a{color:var(--ffp-blue);}
     <section class="panel" id="panel-scheduling">
       <div class="ph">Scheduling</div>
       <div class="psub">Your sessions — view by week or month. Each session offers a service; clients book the open spots or you assign them.</div>
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:14px 0 8px;flex-wrap:wrap;">
+      <button class="btn btn-pri" style="width:100%;justify-content:center;margin:14px 0 12px;" onclick="openSlotModal()"><span class="ms">add</span> Add slot</button>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 8px;flex-wrap:wrap;">
         <div style="display:flex;align-items:center;gap:6px;">
           <button class="btn btn-sec btn-sm" onclick="proPeriodShift(-1)" aria-label="Previous"><span class="ms">chevron_left</span></button>
           <div id="pro-sched-rangelbl" style="font-weight:800;min-width:150px;text-align:center;"></div>
           <button class="btn btn-sec btn-sm" onclick="proPeriodShift(1)" aria-label="Next"><span class="ms">chevron_right</span></button>
-          <button class="btn btn-sec btn-sm" onclick="proSchedToday()">Today</button>
         </div>
         <div class="seg" id="pro-view-seg"><button class="seg-btn" data-view="day" onclick="proSetView('day')">Day</button><button class="seg-btn" data-view="week" onclick="proSetView('week')">Week</button><button class="seg-btn" data-view="month" onclick="proSetView('month')">Month</button></div>
       </div>
-      <button class="btn btn-pri" style="width:100%;justify-content:center;margin:0 0 14px;" onclick="openSlotModal()"><span class="ms">add</span> Add session</button>
       <div id="pro-week" style="margin-top:4px;"></div>
     </section>
 
@@ -519,7 +518,7 @@ function bizTab(btn,paneId){ var panel=btn.closest('.panel'); if(!panel)return; 
 // ─── Deferred Business module loaders (reused, scoped to FFP_PROVIDER.id = professional id) ───
 var _provLoaderSrc = { clients:'ffp-professional-client-loader.js', packages:'ffp-professional-client-loader.js', comms:'ffp-professional-client-loader.js', scheduling:'ffp-professional-scheduling-loader.js', services:'ffp-professional-services-loader.js', payments:'ffp-professional-billing-loader.js' };
 var _provLoaded = {};
-var PRO_BUILD='15'; // bump on any pro loader change so the lazy loaders re-fetch (no stale cache) — v15: UI polish (frozen header, Day/Week/Month, full-width Add, profile layout)
+var PRO_BUILD='16'; // bump on any pro loader change so the lazy loaders re-fetch (no stale cache) — v16: no section boxes, Add slot above date, Today removed, nav reorder
 function ensureProviderLoader(id){ var src=_provLoaderSrc[id]; if(!src||_provLoaded[src])return; _provLoaded[src]=true; var sc=document.createElement('script'); sc.src=src+'?v='+PRO_BUILD; sc.async=false; sc.onload=function(){ renderPanel(id); }; sc.onerror=function(){ console.error('[FFP Pro] failed to load '+src); }; document.body.appendChild(sc); }
 function renderPanel(id){
   if(id==='clients'    && typeof renderMembers==='function')     renderMembers();
@@ -534,19 +533,19 @@ function renderPanel(id){
 // Primary nav = the day-to-day business flow. Profile / Packages / Messages live in the avatar menu.
 var PRO_NAV=[
   {id:'overview',icon:'dashboard',label:'Overview'},
-  {id:'clients',icon:'groups',label:'Clients'},
-  {id:'services',icon:'sell',label:'Services'},
-  {id:'scheduling',icon:'calendar_month',label:'Scheduling'},
+  {id:'scheduling',icon:'calendar_month',label:'Schedule'},
   {id:'checkin',icon:'qr_code_scanner',label:'Check-in'},
+  {id:'clients',icon:'groups',label:'Clients'},
   {id:'payments',icon:'receipt_long',label:'Payments'}
 ];
 // Panels reachable but not in the primary nav (so showPanel title/labels still resolve)
 var PRO_NAV_EXTRA=[
   {id:'profile',icon:'badge',label:'Profile'},
+  {id:'services',icon:'sell',label:'Services'},
   {id:'packages',icon:'card_membership',label:'Packages'},
   {id:'comms',icon:'campaign',label:'Messages'}
 ];
-var PRO_BOTTOM=['overview','clients','checkin','scheduling','payments']; // mobile tab bar; checkin = raised center icon
+var PRO_BOTTOM=['overview','scheduling','checkin','clients','payments']; // mobile tab bar; checkin = raised center icon
 function renderNav(){
   document.getElementById('sb-nav').innerHTML = PRO_NAV.map(function(n){
     return '<button class="ni'+(n.id==='overview'?' active':'')+'" data-nav="'+n.id+'" onclick="showPanel(\''+n.id+'\')"><span class="ms">'+n.icon+'</span><span>'+n.label+'</span></button>';
@@ -614,7 +613,7 @@ function renderProfileForm(){
     '<div class="form-section"><div class="form-section-title">Visibility</div>'+
       '<label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;"><input type="checkbox" id="pf-published" '+(_pro.is_published?'checked':'')+' style="width:18px;height:18px;accent-color:var(--ffp-purple);margin-top:1px;flex:0 0 auto;"> <span style="font-size:13px;font-weight:700;line-height:1.5;">List me on Find Fit People<br><span style="font-weight:500;color:var(--ffp-text-muted);">Your listing is reviewed by our team before it goes public.</span></span></label>'+
     '</div>'+
-    '<div style="margin-top:18px;"><button class="btn btn-pri" onclick="saveProfile()"><span class="ms">save</span> Save profile</button></div>';
+    '<div style="margin-top:22px;"><button class="btn btn-pri" style="width:100%;justify-content:center;" onclick="saveProfile()"><span class="ms">save</span> Save profile</button></div>';
   renderProfProfs();
   renderProfLangs();
   _phoneSet('pf-phone', _pro.phone||'');
