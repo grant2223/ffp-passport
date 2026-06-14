@@ -516,7 +516,7 @@
         '<div class="form-grid">' +
           '<div class="field"><div class="label">Currency <span class="req">*</span></div>' +
             '<select class="select" id="xm-currency">' +
-              ['AED','USD','EUR','GBP','AUD','SAR','INR','CAD'].map(function(cur){ return '<option' + (((e.currency||'AED')===cur)?' selected':'') + '>' + cur + '</option>'; }).join('') +
+              (window.FFPCurrency ? FFPCurrency.optionsHtml(e.currency || (window.FFP_PROVIDER && FFP_PROVIDER.currency) || 'AED') : ['AED','USD','EUR','GBP','AUD','SAR','INR','CAD'].map(function(cur){ return '<option' + (((e.currency||'AED')===cur)?' selected':'') + '>' + cur + '</option>'; }).join('')) +
             '</select></div>' +
           '<div class="field"><div class="label">Price per person <span class="req">*</span></div>' +
             '<input class="input" type="number" id="xm-price" value="' + escHtml(e.price_aed) + '" placeholder="e.g. 1850"></div>' +
