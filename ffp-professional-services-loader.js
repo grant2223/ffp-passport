@@ -15,7 +15,7 @@
 function _svcCcy(){ return (window.FFP_PROVIDER&&FFP_PROVIDER.currency)||'AED'; }
 function _svcMoney(n){ return window.FFPCurrency?FFPCurrency.format(n,_svcCcy()):(_svcCcy()+' '+Number(n||0).toLocaleString()); }
 var _proServicesCache = [];
-var SERVICE_TYPES = {
+var SERVICE_TYPES = (window.FFP_TAX && FFP_TAX.serviceTypes) || {
   pt_session: 'Personal training session',
   assessment: 'Assessment',
   program:    'Program (e.g. 12-week)',
