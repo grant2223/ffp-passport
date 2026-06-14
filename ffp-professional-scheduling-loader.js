@@ -8,12 +8,16 @@
 // Uses the professional dashboard shell helpers (escHtml, showToast,
 // openModalShell, closeModal, emptyState) + window.FFP_PROVIDER.id.
 // ════════════════════════════════════════════════════════════════════════
-var _proSelDate = null;     // the selected day (Date)
-var _proStripStart = null;  // first day shown in the horizontal date strip (Date)
+var _proView = 'week';      // 'week' | 'month'
+var _proAnchor = null;      // a Date inside the current period
 var _proWeekCache = {};     // weekStartISO -> occurrences (cleared on any mutation)
+var _MONF = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 var _proClients = [];
-var SLOT_TYPES = { one_to_one: '1-to-1', assessment: 'Initial / assessment', small_group: 'Small group', large_group: 'Large group' };
+var SLOT_TYPES = (window.FFP_TAX && FFP_TAX.sessionTypes) || { one_to_one:'One on One', group:'Group', assessment:'Assessment' };
 var SLOT_SINGLE = { one_to_one: 1, assessment: 1 }; // single-person slot types (capacity = 1, no group count)
+function _sessTypeOpts(sel){
+  return Object.keys(SLOT_TYPES).map(function(k){ return '<option value="'+k+'"'+((sel||'one_to_one')===k?' selected':'')+'>'+escHtml(SLOT_TYPES[k])+'</option>'; }).join('');
+}
 var WEEKDAYS = [['Mon',1],['Tue',2],['Wed',3],['Thu',4],['Fri',5],['Sat',6],['Sun',0]];
 var _MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 var _DAY = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -31,15 +35,19 @@ function _injectSchedCss(){
   if(document.getElementById('pro-sched-css')) return;
   var s=document.createElement('style'); s.id='pro-sched-css';
   s.textContent=[
-    '#pro-datestrip::-webkit-scrollbar{height:0;}',
-    '.ds-arrow{flex:0 0 auto;background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:10px;color:var(--ffp-text-muted);width:32px;height:58px;cursor:pointer;display:flex;align-items:center;justify-content:center;}',
-    '.ds-day{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:50px;height:58px;background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:10px;color:var(--ffp-text-muted);cursor:pointer;font-family:inherit;padding:0 4px;}',
-    '.ds-day.on{background:var(--ffp-purple);border-color:var(--ffp-purple);color:#fff;}',
-    '.ds-day.has::after{content:"";width:5px;height:5px;border-radius:50%;background:var(--ffp-purple);margin-top:1px;}',
-    '.ds-day.on.has::after{background:#fff;}',
-    '.ds-dow{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;}',
-    '.ds-num{font-size:17px;font-weight:800;line-height:1;}',
-    '.ds-rel{font-size:8px;font-weight:800;opacity:.85;text-transform:uppercase;letter-spacing:.3px;}',
+    '.seg{display:inline-flex;background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:9px;padding:2px;}',
+    '.seg-btn{background:none;border:none;color:var(--ffp-text-muted);font-family:inherit;font-size:12px;font-weight:800;padding:6px 14px;border-radius:7px;cursor:pointer;}',
+    '.seg-btn.on{background:var(--ffp-purple);color:#fff;}',
+    '.sched-day-h{font-size:11px;font-weight:800;letter-spacing:.5px;color:var(--ffp-text-dim);text-transform:uppercase;margin:14px 2px 6px;}',
+    '.sched-day-h.today{color:var(--ffp-purple);}',
+    '.cal-head{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px;}',
+    '.cal-head span{text-align:center;font-size:10px;font-weight:800;color:var(--ffp-text-dim);text-transform:uppercase;}',
+    '.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}',
+    '.cal-cell{position:relative;min-height:46px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:5px 0;background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:8px;color:var(--ffp-text);cursor:pointer;font-family:inherit;}',
+    '.cal-cell.out{opacity:.35;}',
+    '.cal-cell.today{border-color:var(--ffp-purple);}',
+    '.cal-num{font-size:13px;font-weight:700;}',
+    '.cal-dot{margin-top:4px;background:var(--ffp-purple);color:#fff;font-size:10px;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 4px;}',
     '.ds-open{background:rgba(34,197,94,.15);color:#22c55e;font-size:11px;font-weight:800;padding:2px 9px;border-radius:100px;white-space:nowrap;}',
     '.ds-full{background:rgba(255,255,255,.07);color:var(--ffp-text-dim);font-size:11px;font-weight:800;padding:2px 9px;border-radius:100px;white-space:nowrap;}'
   ].join('');
@@ -73,57 +81,63 @@ async function renderScheduling(){
   var host=document.getElementById('pro-week'); if(!host) return;
   var pid=_proProvId(); if(!pid){ host.innerHTML='<div class="empty-sub" style="text-align:left;">Sign in to manage your schedule.</div>'; return; }
   _injectSchedCss();
-  if(!_proSelDate) _proSelDate=_today0();
-  if(!_proStripStart) _proStripStart=_addDays(_proSelDate,-2);
-  renderDateStrip();
-  var lbl=document.getElementById('pro-sched-rangelbl');
-  if(lbl){ var rel=_relLabel(_proSelDate); lbl.textContent=(rel?rel+' · ':'')+_DAY[_proSelDate.getDay()]+' '+_proSelDate.getDate()+' '+_mon(_proSelDate); }
+  if(!_proAnchor) _proAnchor=_today0();
+  _setSegActive(_proView);
   host.innerHTML='<div class="psub" style="margin:10px 0;">Loading…</div>';
-  var occs=await _fetchWeekFor(_proSelDate);
-  host.innerHTML=renderDayTimetable(occs, _isoDate(_proSelDate));
-  renderDateStrip(occs); // re-render strip now we know which days have sessions (dots)
+  if(_proView==='month') await renderMonth(host); else await renderWeek(host);
 }
-// Fetch (and cache) the standing-slot occurrences for the week containing date d.
-async function _fetchWeekFor(d){
-  var ws=_mondayOf(d); var key=_isoDate(ws);
+function _setRange(txt){ var el=document.getElementById('pro-sched-rangelbl'); if(el) el.textContent=txt; }
+function _setSegActive(v){ var seg=document.getElementById('pro-view-seg'); if(!seg) return; seg.querySelectorAll('.seg-btn').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-view')===v); }); }
+function proSetView(v){ _proView=v; renderScheduling(); }
+function proSchedToday(){ _proAnchor=_today0(); renderScheduling(); }
+function proPeriodShift(n){ if(!_proAnchor)_proAnchor=_today0(); if(_proView==='month'){ _proAnchor=new Date(_proAnchor.getFullYear(), _proAnchor.getMonth()+n, 1); } else { _proAnchor=_addDays(_proAnchor, n*7); } renderScheduling(); }
+function _schedRefresh(){ _proWeekCache={}; renderScheduling(); }
+
+// Fetch (and cache) the occurrences for the Mon–Sun week starting at Date ws.
+async function _fetchWeek(ws){
+  var key=_isoDate(ws);
   if(_proWeekCache[key]) return _proWeekCache[key];
   var pid=_proProvId(); var occs=[];
   try{ var r=await window.supabase.rpc('pro_week_schedule',{p_pro:pid,p_week_start:key}); occs=(r&&r.data)?r.data:[]; }catch(e){ occs=[]; }
   _proWeekCache[key]=occs; return occs;
 }
-function renderDateStrip(occsForWeek){
-  var el=document.getElementById('pro-datestrip'); if(!el) return;
-  var selIso=_isoDate(_proSelDate);
-  var has={}; (occsForWeek||[]).forEach(function(o){ has[o.date]=true; });
-  var html='<button class="ds-arrow" onclick="proStripShift(-7)"><span class="ms">chevron_left</span></button>';
-  for(var i=0;i<10;i++){
-    var d=_addDays(_proStripStart,i); var iso=_isoDate(d); var on=iso===selIso; var rel=_relLabel(d);
-    html+='<button class="ds-day'+(on?' on':'')+(has[iso]?' has':'')+'" onclick="proSelectDate(\''+iso+'\')">'+
-      '<span class="ds-dow">'+_DAY[d.getDay()].slice(0,3)+'</span>'+
-      '<span class="ds-num">'+d.getDate()+'</span>'+
-      (rel?'<span class="ds-rel">'+rel+'</span>':'')+
-    '</button>';
-  }
-  html+='<button class="ds-arrow" onclick="proStripShift(7)"><span class="ms">chevron_right</span></button>';
-  el.innerHTML=html;
-}
-function proSelectDate(iso){ _proSelDate=_parseIso(iso); renderScheduling(); }
-function proStripShift(n){ if(!_proStripStart)_proStripStart=_addDays(_today0(),-2); _proStripStart=_addDays(_proStripStart,n); renderDateStrip(); }
-function proWeekToday(){ _proSelDate=_today0(); _proStripStart=_addDays(_proSelDate,-2); renderScheduling(); }
-function _schedRefresh(){ _proWeekCache={}; renderScheduling(); }
 
-function renderDayTimetable(occs, iso){
-  var list=(occs||[]).filter(function(o){return o.date===iso;}).sort(function(a,b){return String(a.start_time).localeCompare(String(b.start_time));});
-  if(!list.length){
-    var anyEver=(_proSlotsCache&&_proSlotsCache.length)>0;
-    if(!anyEver) return emptyState('No sessions yet','Add a regular weekly session — it repeats each week. Clients can book the open spots, or you can assign them yourself.','Add session','openSlotModal()');
-    return '<div style="text-align:center;padding:28px 10px;color:var(--ffp-text-dim);">'+
-      '<div class="ms" style="font-size:30px;opacity:.5;">event_available</div>'+
-      '<div class="psub" style="margin:6px 0 12px;color:var(--ffp-text-dim);">Nothing on this day.</div>'+
-      '<button class="btn btn-sec btn-sm" onclick="openSlotModal()"><span class="ms">add</span> Add a session</button></div>';
+async function renderWeek(host){
+  var mon=_mondayOf(_proAnchor); var end=_addDays(mon,6);
+  _setRange(mon.getDate()+' '+_mon(mon)+' – '+end.getDate()+' '+_mon(end));
+  var occs=await _fetchWeek(mon);
+  if(!(_proSlotsCache&&_proSlotsCache.length) && !occs.length){
+    host.innerHTML=emptyState('No sessions yet','Add a regular weekly session — it repeats each week. Clients book the open spots, or you assign them.','Add session','openSlotModal()');
+    return;
   }
-  return list.map(occCard).join('');
+  var byDate={}; occs.forEach(function(o){ (byDate[o.date]=byDate[o.date]||[]).push(o); });
+  var todayIso=_isoDate(_today0()); var html='';
+  for(var i=0;i<7;i++){
+    var d=_addDays(mon,i); var iso=_isoDate(d); var isToday=iso===todayIso;
+    var list=(byDate[iso]||[]).sort(function(a,b){return String(a.start_time).localeCompare(String(b.start_time));});
+    html+='<div class="sched-day-h'+(isToday?' today':'')+'">'+_DAY[d.getDay()]+' '+d.getDate()+' '+_mon(d)+(isToday?' · Today':'')+'</div>'+
+      (list.length?list.map(occCard).join(''):'<div class="psub" style="margin:0 2px;color:var(--ffp-text-dim);">—</div>');
+  }
+  host.innerHTML=html;
 }
+
+async function renderMonth(host){
+  var first=new Date(_proAnchor.getFullYear(), _proAnchor.getMonth(), 1);
+  _setRange(_MONF[first.getMonth()]+' '+first.getFullYear());
+  var gridStart=_mondayOf(first); var occs=[];
+  for(var w=0;w<6;w++){ var wk=await _fetchWeek(_addDays(gridStart,w*7)); occs=occs.concat(wk); }
+  var cnt={}; occs.forEach(function(o){ cnt[o.date]=(cnt[o.date]||0)+1; });
+  var todayIso=_isoDate(_today0());
+  var html='<div class="cal-head"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div><div class="cal-grid">';
+  for(var c=0;c<42;c++){
+    var d=_addDays(gridStart,c); var iso=_isoDate(d); var inMonth=d.getMonth()===first.getMonth(); var isToday=iso===todayIso; var n=cnt[iso]||0;
+    html+='<button class="cal-cell'+(inMonth?'':' out')+(isToday?' today':'')+'" onclick="proOpenDay(\''+iso+'\')">'+
+      '<span class="cal-num">'+d.getDate()+'</span>'+(n?'<span class="cal-dot">'+n+'</span>':'')+'</button>';
+  }
+  html+='</div>';
+  host.innerHTML=html;
+}
+function proOpenDay(iso){ _proAnchor=_parseIso(iso); _proView='week'; renderScheduling(); }
 function occCard(o){
   var typeLbl=o.service_name||SLOT_TYPES[o.slot_type]||'';
   var nClients=(o.clients&&o.clients.length)||0;
@@ -147,14 +161,6 @@ async function openSlotModal(id){
   var pid=_proProvId(); if(!pid) return;
   await _ensureProClients();
   await _ensureProSvc();
-  // A slot is availability FOR a service — require at least one service first.
-  if(!_proSvc.length){
-    openModalShell('', 'Add a service first',
-      '<div class="psub" style="margin:6px 0;">Slots are the times you offer a service. Create a service (a PT session, an assessment, a program) first — then set its times here.</div>',
-      '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>'+
-      '<button class="btn btn-pri" onclick="closeModal(); showPanel(\'services\');">Go to Services</button>');
-    return;
-  }
   var slots=_proSlotsCache||[];
   var editing=id?slots.find(function(s){return s.id===id;}):null;
   var s=editing||{ title:'', service_id:'', weekday:1, start_time:'18:00', duration_min:'', capacity:'', location:'', clients:[] };
@@ -164,9 +170,10 @@ async function openSlotModal(id){
     : '<div class="psub" style="margin:4px 0;">No clients yet — add one below.</div>';
   var dayOpts=WEEKDAYS.map(function(w){ return '<option value="'+w[1]+'"'+(Number(s.weekday)===w[1]?' selected':'')+'>'+w[0]+'</option>'; }).join('');
   var svcOpts='<option value="">Choose a service…</option>'+_proSvc.map(function(v){ return '<option value="'+v.id+'"'+(s.service_id===v.id?' selected':'')+'>'+escHtml(v.name||'Service')+'</option>'; }).join('');
-  openModalShell('lg',(editing?'Edit standing slot':'New standing slot'),
-    '<div class="form-section"><div class="form-section-title">Slot</div><div class="form-grid">'+
-      '<div class="field full"><div class="label">Service</div><select class="select" id="sl-service_id" onchange="_slSvcPick()">'+svcOpts+'</select></div>'+
+  openModalShell('lg',(editing?'Edit session':'New session'),
+    '<div class="form-section"><div class="form-section-title">Session</div><div class="form-grid">'+
+      '<div class="field"><div class="label">Session type</div><select class="select" id="sl-slot_type">'+_sessTypeOpts(s.slot_type)+'</select></div>'+
+      '<div class="field"><div class="label">Service <span style="color:var(--ffp-text-dim);">(optional)</span></div><select class="select" id="sl-service_id" onchange="_slSvcPick()">'+svcOpts+'</select></div>'+
       '<div class="field full"><div class="label">Title <span style="color:var(--ffp-text-dim);">(optional)</span></div><input class="input" id="sl-title" value="'+escHtml(s.title||'')+'" placeholder="Defaults to the service name"></div>'+
       '<div class="field"><div class="label">Capacity</div><input class="input" type="number" id="sl-capacity" value="'+escHtml(String(s.capacity||''))+'"></div>'+
       '<div class="field"><div class="label">Day</div><select class="select" id="sl-weekday">'+dayOpts+'</select></div>'+
@@ -199,10 +206,10 @@ async function addSlotClient(){
 async function saveSlot(id){
   var pid=_proProvId(); if(!pid) return;
   var g=function(i){var el=document.getElementById('sl-'+i);return el?el.value.trim():'';};
-  var serviceId=g('service_id'); if(!serviceId){ showToast('Choose a service','error'); return; }
+  var serviceId=g('service_id');
   var time=g('start_time'); if(!time){ showToast('Pick a time','error'); return; }
   var clientIds=[]; document.querySelectorAll('.slot-cl:checked').forEach(function(c){clientIds.push(c.value);});
-  var payload={ service_id:serviceId, title:g('title'), weekday:g('weekday'), start_time:time,
+  var payload={ service_id:serviceId, slot_type:g('slot_type')||'one_to_one', title:g('title'), weekday:g('weekday'), start_time:time,
     duration_min:g('duration_min'), capacity:g('capacity'), location:g('location'), client_ids:clientIds };
   try{
     var r=await window.supabase.rpc('pro_save_slot',{p_pro:pid,p_id:id||null,p:payload});
