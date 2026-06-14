@@ -25,9 +25,11 @@ async function _ensureBillMembers() {
   try { var r = await window.supabase.rpc('provider_list_members', { p_provider: pid }); _payMembers = (r && r.data) ? r.data : []; } catch (e) { _payMembers = []; }
 }
 
+function _ccy() { return (window.FFP_PROVIDER && FFP_PROVIDER.currency) || 'AED'; }
 function _money(v) {
   var n = Number(v || 0);
-  return 'AED ' + (isNaN(n) ? 0 : n).toLocaleString();
+  if (window.FFPCurrency) return FFPCurrency.format(isNaN(n) ? 0 : n, _ccy());
+  return _ccy() + ' ' + (isNaN(n) ? 0 : n).toLocaleString();
 }
 
 function _metric(label, val) {
@@ -162,7 +164,7 @@ async function openPaymentModal(id, mode) {
       <div class="form-grid">
         <div class="field full"><div class="label">Description <span class="req">*</span></div><input class="input" id="pm-description" value="${escHtml(p.description || '')}" placeholder="${mode === 'invoice' ? 'e.g. June monthly membership' : 'e.g. Drop-in class'}"></div>
         <div class="field"><div class="label">Member</div><select class="select" id="pm-member_id">${memberOpts}</select></div>
-        <div class="field"><div class="label">Amount (AED) <span class="req">*</span></div><input class="input" type="number" id="pm-amount_aed" value="${escHtml(String(p.amount_aed || ''))}" placeholder="e.g. 50"></div>
+        <div class="field"><div class="label">Amount (${_ccy()}) <span class="req">*</span></div><input class="input" type="number" id="pm-amount_aed" value="${escHtml(String(p.amount_aed || ''))}" placeholder="e.g. 50"></div>
         ${whenField}
       </div>
     </div>
