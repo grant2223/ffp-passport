@@ -332,6 +332,9 @@ a{color:var(--ffp-blue);}
           <div class="av-menu" id="av-menu">
             <div class="av-head"><div class="nm" id="av-name">Professional</div><div class="st" id="av-status">Professional</div></div>
             <button class="av-item" onclick="closeAvMenu();showPanel('profile')"><span class="ms">badge</span>My profile</button>
+            <button class="av-item" onclick="closeAvMenu();showPanel('scheduling')"><span class="ms">calendar_month</span>Scheduling</button>
+            <button class="av-item" onclick="closeAvMenu();showPanel('services')"><span class="ms">sell</span>Services</button>
+            <button class="av-item" onclick="closeAvMenu();showPanel('checkin')"><span class="ms">qr_code_scanner</span>Check-in</button>
             <button class="av-item" onclick="closeAvMenu();showPanel('packages')"><span class="ms">card_membership</span>Packages</button>
             <button class="av-item" onclick="closeAvMenu();showPanel('comms')"><span class="ms">campaign</span>Messages</button>
             <div class="av-div"></div>
@@ -380,17 +383,16 @@ a{color:var(--ffp-blue);}
     <!-- SCHEDULING (scheduling loader -> #sched-list / #att-list) -->
     <section class="panel" id="panel-scheduling">
       <div class="ph">Scheduling</div>
-      <div class="psub">Your weekly availability. Each time slot offers one of your services — assign a client yourself, or let clients book the open spot online. Reschedule a single week, or shift a slot for good.</div>
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 6px;flex-wrap:wrap;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <button class="btn btn-sec btn-sm" onclick="proWeekShift(-1)" aria-label="Previous week"><span class="ms">chevron_left</span></button>
-          <div id="pro-week-label" style="font-weight:800;min-width:150px;text-align:center;">This week</div>
-          <button class="btn btn-sec btn-sm" onclick="proWeekShift(1)" aria-label="Next week"><span class="ms">chevron_right</span></button>
+      <div class="psub">Scroll the dates to see any day. Each session offers one of your services — assign a client yourself, or let clients book the open spots online.</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 8px;flex-wrap:wrap;">
+        <div id="pro-sched-rangelbl" style="font-weight:800;"></div>
+        <div style="display:flex;gap:8px;">
           <button class="btn btn-ghost btn-sm" onclick="proWeekToday()">Today</button>
+          <button class="btn btn-pri" onclick="openSlotModal()"><span class="ms">add</span> Add session</button>
         </div>
-        <button class="btn btn-pri" onclick="openSlotModal()"><span class="ms">add</span> New time slot</button>
       </div>
-      <div id="pro-week" style="margin-top:8px;"></div>
+      <div id="pro-datestrip" style="display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch;"></div>
+      <div id="pro-week" style="margin-top:4px;"></div>
     </section>
 
     <!-- SERVICES (services loader -> #pro-services-list) -->
@@ -509,7 +511,7 @@ function bizTab(btn,paneId){ var panel=btn.closest('.panel'); if(!panel)return; 
 // ─── Deferred Business module loaders (reused, scoped to FFP_PROVIDER.id = professional id) ───
 var _provLoaderSrc = { clients:'ffp-professional-client-loader.js', packages:'ffp-professional-client-loader.js', comms:'ffp-professional-client-loader.js', scheduling:'ffp-professional-scheduling-loader.js', services:'ffp-professional-services-loader.js', payments:'ffp-professional-billing-loader.js' };
 var _provLoaded = {};
-var PRO_BUILD='11'; // bump on any pro loader change so the lazy loaders re-fetch (no stale cache) — v11: multi-currency (billing/client/services loaders use FFP_PROVIDER.currency)
+var PRO_BUILD='12'; // bump on any pro loader change so the lazy loaders re-fetch (no stale cache) — v12: scheduling redesign (date-scroll timetable + open-spot badges)
 function ensureProviderLoader(id){ var src=_provLoaderSrc[id]; if(!src||_provLoaded[src])return; _provLoaded[src]=true; var sc=document.createElement('script'); sc.src=src+'?v='+PRO_BUILD; sc.async=false; sc.onload=function(){ renderPanel(id); }; sc.onerror=function(){ console.error('[FFP Pro] failed to load '+src); }; document.body.appendChild(sc); }
 function renderPanel(id){
   if(id==='clients'    && typeof renderMembers==='function')     renderMembers();
