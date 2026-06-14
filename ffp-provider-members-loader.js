@@ -357,7 +357,7 @@ async function renderPlans() {
 
 function planRow(p) {
   var meta = [PLAN_TYPES[p.plan_type] || 'Plan'];
-  if (p.price_aed != null && p.price_aed !== '') meta.push('AED ' + p.price_aed);
+  if (p.price_aed != null && p.price_aed !== '') meta.push(FFPCurrency.formatProvider(p.price_aed));
   if (p.plan_type === 'pack' && p.credits) meta.push(p.credits + ' credits');
   if (p.period_days) meta.push(p.period_days + ' days');
   var n = p.member_count || 0;
@@ -390,7 +390,7 @@ function openPlanModal(id) {
             <option value="term"${p.plan_type === 'term' ? ' selected' : ''}>Term membership</option>
           </select>
         </div>
-        <div class="field"><div class="label">Price (AED)</div><input class="input" type="number" id="pl-price_aed" value="${escHtml(String(p.price_aed || ''))}" placeholder="e.g. 300"></div>
+        <div class="field"><div class="label">Price (${FFPCurrency.providerCode()})</div><input class="input" type="number" id="pl-price_aed" value="${escHtml(String(p.price_aed || ''))}" placeholder="e.g. 300"></div>
         <div class="field"><div class="label">Credits <span style="color:var(--ffp-text-dim,#6c7f90);">(class packs)</span></div><input class="input" type="number" id="pl-credits" value="${escHtml(String(p.credits || ''))}" placeholder="e.g. 10"></div>
         <div class="field"><div class="label">Length in days <span style="color:var(--ffp-text-dim,#6c7f90);">(membership/term)</span></div><input class="input" type="number" id="pl-period_days" value="${escHtml(String(p.period_days || ''))}" placeholder="e.g. 30"></div>
         <div class="field full"><div class="label">Notes</div><textarea class="textarea" id="pl-notes" rows="2" placeholder="Optional">${escHtml(p.notes || '')}</textarea></div>
