@@ -73,7 +73,7 @@ function templateCard(t) {
   var meta = [];
   if (t.capacity) meta.push(t.capacity + ' spots');
   if (t.duration_min) meta.push(t.duration_min + ' min');
-  if (t.price_aed != null && Number(t.price_aed) > 0) meta.push('AED ' + t.price_aed);
+  if (t.price_aed != null && Number(t.price_aed) > 0) meta.push(FFPCurrency.formatProvider(t.price_aed));
   if (t.fitness_level) meta.push(escHtml(t.fitness_level));
   return '<div style="background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">' +
       '<div style="display:flex;gap:11px;min-width:0;align-items:flex-start;">' +
@@ -264,7 +264,7 @@ function openTemplateModal(id) {
         <div class="field full"><div class="label">Session description <span class="label-hint">— what the session includes, so members know what to expect</span></div><textarea class="textarea" id="tpl-description" rows="3" placeholder="e.g. A 60-min vinyasa flow for all levels — mats provided, bring water. Suitable for beginners.">${escHtml(e.description || '')}</textarea></div>
         <div class="field"><div class="label">Capacity <span class="req">*</span></div><input class="input" type="number" min="1" step="1" id="tpl-capacity" value="${escHtml(String(e.capacity || ''))}" placeholder="e.g. 12"></div>
         <div class="field"><div class="label">Duration (min)</div><input class="input" type="number" min="1" id="tpl-duration" value="${escHtml(String(e.duration_min || ''))}" placeholder="60"></div>
-        <div class="field"><div class="label">Price per person <span class="label-hint">— per session (AED, 0 = free)</span></div><input class="input" type="number" min="0" id="tpl-price" value="${escHtml(String(e.price_aed || ''))}" placeholder="0 = Free"></div>
+        <div class="field"><div class="label">Price per person <span class="label-hint">— per session (${FFPCurrency.providerCode()}, 0 = free)</span></div><input class="input" type="number" min="0" id="tpl-price" value="${escHtml(String(e.price_aed || ''))}" placeholder="0 = Free"></div>
       </div>
     </div>
     <div class="form-section">
