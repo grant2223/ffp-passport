@@ -52,6 +52,7 @@
 <script src="assets/ffp-constants.js"></script>
 <script src="assets/ffp-taxonomy.js?v=10"></script>
 <script src="assets/ffp-currency.js?v=2"></script>
+<script src="assets/ffp-select.js?v=1"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 <script src="assets/ffp-image-upload.js?v=6"></script>
@@ -184,6 +185,9 @@ a{color:var(--ffp-blue);}
 .bn-item.active{color:var(--ffp-purple);}
 .bn-center{flex:0 0 auto;width:54px;height:54px;border-radius:50%;background:var(--ffp-purple);color:#fff;border:none;display:flex;align-items:center;justify-content:center;margin:-18px 8px 0;box-shadow:0 6px 18px rgba(139,92,246,.5);cursor:pointer;}
 .bn-center .ms{font-size:27px;}
+.phone-input{display:flex;gap:0;}
+.phone-cc{width:118px;flex-shrink:0;background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-right:none;border-radius:10px 0 0 10px;padding:11px 26px 11px 12px;font-size:13px;font-weight:700;color:var(--ffp-text);font-family:inherit;appearance:none;cursor:pointer;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a99a8' stroke-width='2.5'><polyline points='6 9 12 15 18 9'/></svg>");background-repeat:no-repeat;background-position:right 10px center;}
+.phone-num{flex:1;min-width:0;border-radius:0 10px 10px 0 !important;}
 
 /* Overview landing panel */
 .ov-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px;}
@@ -495,12 +499,12 @@ a{color:var(--ffp-blue);}
 <script>
 // ─── Shared shell helpers (match the Business loaders' expectations) ───
 var providerProfile = {};                 // loaders read providerProfile.city defensively
-var PRO_TYPE_OPTIONS = ['Soccer coach','Fitness trainer','Personal trainer','Nutritionist','Physiotherapist','Chiropractor','Yoga teacher','Pilates teacher','Wellness coach','Specialist'];
+// (professions come from FFP_TAX.professionalRolesFlat(); the old PRO_TYPE_OPTIONS list was dead code — removed)
 var _pro = null;                           // the professional record (with can_access etc.)
 
 function escHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function showToast(msg,type){ var t=document.getElementById('ffp-toast'); t.textContent=msg; t.className='toast show '+(type||''); clearTimeout(window._toastT); window._toastT=setTimeout(function(){t.className='toast';},2600); }
-function openModalShell(size,title,body,foot){ var ov=document.getElementById('ffp-modal'); ov.querySelector('.mc-title').textContent=title||''; ov.querySelector('.mc-body').innerHTML=body||''; ov.querySelector('.mc-foot').innerHTML=foot||''; ov.classList.add('show'); } /* modals are full-bleed (CSS); size param kept for call-site compat */
+function openModalShell(size,title,body,foot){ var ov=document.getElementById('ffp-modal'); ov.querySelector('.mc-title').textContent=title||''; ov.querySelector('.mc-body').innerHTML=body||''; ov.querySelector('.mc-foot').innerHTML=foot||''; ov.classList.add('show'); try{ if(window.FFPSelect) FFPSelect.enhance(ov.querySelector('.mc-body')); }catch(e){} } /* modals are full-bleed (CSS); size param kept for call-site compat. Selects → dark searchable picker. */
 function closeModal(){ document.getElementById('ffp-modal').classList.remove('show'); }
 function emptyState(title,sub,ctaLabel,ctaFn){
   return '<div class="panel-placeholder" style="margin-top:24px;">'+
@@ -515,7 +519,7 @@ function bizTab(btn,paneId){ var panel=btn.closest('.panel'); if(!panel)return; 
 // ─── Deferred Business module loaders (reused, scoped to FFP_PROVIDER.id = professional id) ───
 var _provLoaderSrc = { clients:'ffp-professional-client-loader.js', packages:'ffp-professional-client-loader.js', comms:'ffp-professional-client-loader.js', scheduling:'ffp-professional-scheduling-loader.js', services:'ffp-professional-services-loader.js', payments:'ffp-professional-billing-loader.js' };
 var _provLoaded = {};
-var PRO_BUILD='13'; // bump on any pro loader change so the lazy loaders re-fetch (no stale cache) — v13: scheduling Week/Month views + session types (One on One/Group/Assessment)
+var PRO_BUILD='14'; // bump on any pro loader change so the lazy loaders re-fetch (no stale cache) — v14: forms overhaul (FFP_TAX pick-lists, phone picker, FFPSelect modals)
 function ensureProviderLoader(id){ var src=_provLoaderSrc[id]; if(!src||_provLoaded[src])return; _provLoaded[src]=true; var sc=document.createElement('script'); sc.src=src+'?v='+PRO_BUILD; sc.async=false; sc.onload=function(){ renderPanel(id); }; sc.onerror=function(){ console.error('[FFP Pro] failed to load '+src); }; document.body.appendChild(sc); }
 function renderPanel(id){
   if(id==='clients'    && typeof renderMembers==='function')     renderMembers();
@@ -574,6 +578,11 @@ function showPanel(id){
 
 // ─── Profile / storefront editor ───
 function pfCountryChange(){ document.getElementById('pf-city').innerHTML=cityOptionsHtml(document.getElementById('pf-country').value,''); }
+// Shared phone-picker (country-code select + number) — standard across the platform. Works for any id prefix.
+function _phoneOptionsHtml(){ var cs=(window.FFP_TAX&&FFP_TAX.phoneCodes)||[{code:'+971',flag:'🇦🇪'}]; return cs.map(function(c){ return '<option value="'+c.code+'">'+(c.flag?c.flag+' ':'')+c.code+'</option>'; }).join(''); }
+function _phoneField(prefix){ return '<div class="phone-input"><select class="phone-cc" id="'+prefix+'-cc">'+_phoneOptionsHtml()+'</select><input class="input phone-num" id="'+prefix+'-num" inputmode="tel" placeholder="50 123 4567"></div>'; }
+function _phoneSet(prefix, full){ full=(full||'').trim(); var cc=document.getElementById(prefix+'-cc'), num=document.getElementById(prefix+'-num'); if(!cc||!num)return; var codes=((window.FFP_TAX&&FFP_TAX.phoneCodes)||[]).map(function(c){return c.code;}); if(!full){ cc.value='+971'; num.value=''; return; } for(var i=0;i<codes.length;i++){ if(full.indexOf(codes[i])===0){ cc.value=codes[i]; num.value=full.slice(codes[i].length).trim(); return; } } cc.value='+971'; num.value=full.replace(/^\+\d+\s*/,'').trim()||full; }
+function _phoneGet(prefix){ var cc=document.getElementById(prefix+'-cc'), num=document.getElementById(prefix+'-num'); if(!cc||!num)return ''; var n=num.value.trim(); return n?cc.value+' '+n:''; }
 function renderProfileForm(){
   var host=document.getElementById('profile-form'); if(!host||!_pro)return;
   _pfProfs=(_pro.professional_types||[]).slice(0,4).map(function(n){ return {name:n,category:(_pro.category||(window.FFP_TAX&&FFP_TAX.categoryOfRole?FFP_TAX.categoryOfRole(n):''))||''}; });
@@ -595,7 +604,7 @@ function renderProfileForm(){
       '<div class="field"><div class="label">Country</div><select class="select" id="pf-country" onchange="pfCountryChange()">'+countryOptionsHtml(_pro.country||'')+'</select></div>'+
       '<div class="field"><div class="label">City</div><select class="select" id="pf-city">'+cityOptionsHtml(_pro.country||'', _pro.city||'')+'</select></div>'+
       '<div class="field"><div class="label">Public contact email <span style="color:var(--ffp-text-dim);">(optional)</span></div><input class="input" id="pf-work_email" value="'+escHtml(_pro.work_email||'')+'" placeholder="shown on your storefront"></div>'+
-      '<div class="field"><div class="label">Phone <span style="color:var(--ffp-text-dim);">(optional)</span></div><input class="input" id="pf-phone" type="tel" value="'+escHtml(_pro.phone||'')+'" placeholder="+971 50 123 4567"></div>'+
+      '<div class="field"><div class="label">Phone <span style="color:var(--ffp-text-dim);">(optional)</span></div>'+_phoneField('pf-phone')+'</div>'+
       '<div class="field full"><div class="label">Languages spoken</div><div id="pf-langs" class="chips" style="margin-bottom:0;"></div></div>'+
       '<div class="field"><div class="label">Currency</div><select class="select" id="pf-currency">'+(window.FFPCurrency?FFPCurrency.optionsHtml((_pro&&_pro.currency)||'AED'):'<option value="AED">AED — UAE Dirham</option>')+'</select><div class="psub" style="margin:4px 0 0;font-size:11px;">Your service prices &amp; client payments use this.</div></div>'+
       '<div class="field"><div class="label">Years of experience <span style="color:var(--ffp-text-dim);font-weight:600;">(optional)</span></div><input class="input" id="pf-years_experience" type="number" min="0" max="80" value="'+(_pro.years_experience!=null?_pro.years_experience:'')+'" placeholder="e.g. 8"></div>'+
@@ -608,6 +617,8 @@ function renderProfileForm(){
     '<div style="margin-top:18px;"><button class="btn btn-pri" onclick="saveProfile()"><span class="ms">save</span> Save profile</button></div>';
   renderProfProfs();
   renderProfLangs();
+  _phoneSet('pf-phone', _pro.phone||'');
+  try{ if(window.FFPSelect){ FFPSelect.enhance(document.getElementById('pf-currency')); } }catch(e){}
   renderVerifBanner('pf-verif');
   renderProVideos();
 }
@@ -622,7 +633,7 @@ async function saveProfile(){
   var category=(_pfProfs[0]&&_pfProfs[0].category)||(window.FFP_TAX&&FFP_TAX.categoryOfRole?FFP_TAX.categoryOfRole(types[0]):'');
   var certs=g('certifications').split(/\n+/).map(function(s){return s.trim();}).filter(Boolean);
   var yrsRaw=g('years_experience'); var yrs=(yrsRaw===''?null:yrsRaw);
-  var payload={ given_names:given, surname:surname, display_name:name, headline:g('headline'), bio:g('bio'), country:g('country'), city:g('city'), work_email:g('work_email'), phone:g('phone'), languages:_pfLangs, certifications:certs, years_experience:yrs, currency:((document.getElementById('pf-currency')||{}).value||null), professional_types:types, category:category, is_published:document.getElementById('pf-published').checked };
+  var payload={ given_names:given, surname:surname, display_name:name, headline:g('headline'), bio:g('bio'), country:g('country'), city:g('city'), work_email:g('work_email'), phone:_phoneGet('pf-phone'), languages:_pfLangs, certifications:certs, years_experience:yrs, currency:((document.getElementById('pf-currency')||{}).value||null), professional_types:types, category:category, is_published:document.getElementById('pf-published').checked };
   try{
     var r=await window.supabase.rpc('professional_save_profile',{p_professional:_pro.id,p:payload});
     if(r&&r.error)throw r.error;
