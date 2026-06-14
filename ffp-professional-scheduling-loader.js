@@ -84,13 +84,13 @@ async function renderScheduling(){
   if(!_proAnchor) _proAnchor=_today0();
   _setSegActive(_proView);
   host.innerHTML='<div class="psub" style="margin:10px 0;">Loading…</div>';
-  if(_proView==='month') await renderMonth(host); else await renderWeek(host);
+  if(_proView==='month') await renderMonth(host); else if(_proView==='day') await renderDay(host); else await renderWeek(host);
 }
 function _setRange(txt){ var el=document.getElementById('pro-sched-rangelbl'); if(el) el.textContent=txt; }
 function _setSegActive(v){ var seg=document.getElementById('pro-view-seg'); if(!seg) return; seg.querySelectorAll('.seg-btn').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-view')===v); }); }
 function proSetView(v){ _proView=v; renderScheduling(); }
 function proSchedToday(){ _proAnchor=_today0(); renderScheduling(); }
-function proPeriodShift(n){ if(!_proAnchor)_proAnchor=_today0(); if(_proView==='month'){ _proAnchor=new Date(_proAnchor.getFullYear(), _proAnchor.getMonth()+n, 1); } else { _proAnchor=_addDays(_proAnchor, n*7); } renderScheduling(); }
+function proPeriodShift(n){ if(!_proAnchor)_proAnchor=_today0(); if(_proView==='month'){ _proAnchor=new Date(_proAnchor.getFullYear(), _proAnchor.getMonth()+n, 1); } else if(_proView==='day'){ _proAnchor=_addDays(_proAnchor, n); } else { _proAnchor=_addDays(_proAnchor, n*7); } renderScheduling(); }
 function _schedRefresh(){ _proWeekCache={}; renderScheduling(); }
 
 // Fetch (and cache) the occurrences for the Mon–Sun week starting at Date ws.
@@ -106,10 +106,6 @@ async function renderWeek(host){
   var mon=_mondayOf(_proAnchor); var end=_addDays(mon,6);
   _setRange(mon.getDate()+' '+_mon(mon)+' – '+end.getDate()+' '+_mon(end));
   var occs=await _fetchWeek(mon);
-  if(!(_proSlotsCache&&_proSlotsCache.length) && !occs.length){
-    host.innerHTML=emptyState('No sessions yet','Add a regular weekly session — it repeats each week. Clients book the open spots, or you assign them.','Add session','openSlotModal()');
-    return;
-  }
   var byDate={}; occs.forEach(function(o){ (byDate[o.date]=byDate[o.date]||[]).push(o); });
   var todayIso=_isoDate(_today0()); var html='';
   for(var i=0;i<7;i++){
@@ -137,7 +133,19 @@ async function renderMonth(host){
   html+='</div>';
   host.innerHTML=html;
 }
-function proOpenDay(iso){ _proAnchor=_parseIso(iso); _proView='week'; renderScheduling(); }
+function proOpenDay(iso){ _proAnchor=_parseIso(iso); _proView='day'; renderScheduling(); }
+
+async function renderDay(host){
+  var d=_proAnchor; var iso=_isoDate(d); var isToday=iso===_isoDate(_today0());
+  _setRange(_DAY[d.getDay()]+' '+d.getDate()+' '+_mon(d)+(isToday?' · Today':''));
+  var occs=await _fetchWeek(_mondayOf(d));
+  var list=occs.filter(function(o){return o.date===iso;}).sort(function(a,b){return String(a.start_time).localeCompare(String(b.start_time));});
+  if(!list.length){
+    host.innerHTML='<div style="text-align:center;padding:34px 10px;color:var(--ffp-text-dim);"><div class="ms" style="font-size:32px;opacity:.5;">event_available</div><div class="psub" style="margin:8px 0 0;color:var(--ffp-text-dim);">No sessions on this day.</div></div>';
+    return;
+  }
+  host.innerHTML=list.map(occCard).join('');
+}
 function occCard(o){
   var typeLbl=o.service_name||SLOT_TYPES[o.slot_type]||'';
   var nClients=(o.clients&&o.clients.length)||0;
