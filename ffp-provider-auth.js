@@ -83,7 +83,7 @@
     }
     var lookup = await supabase
       .from('providers')
-      .select('id, business_name, status, owner_user_id, timezone')
+      .select('id, business_name, status, owner_user_id, timezone, currency')
       .eq('owner_user_id', member.id)
       .maybeSingle();
 
@@ -107,7 +107,8 @@
       role:          'provider',
       business_name: lookup.data.business_name || member.full_name || '',
       status:        lookup.data.status || 'pending',
-      timezone:      lookup.data.timezone || 'Asia/Dubai'   // facility timezone — governs all listing date/time (Tours, Events, Trips, Sessions)
+      timezone:      lookup.data.timezone || 'Asia/Dubai',  // facility timezone — governs all listing date/time (Tours, Events, Trips, Sessions)
+      currency:      lookup.data.currency || 'AED'           // facility currency — governs all price labels + charges
     };
     console.log('[FFP Provider Auth v5] Access granted ✓ ' + member.email + ' · provider_id=' + lookup.data.id);
 
