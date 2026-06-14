@@ -280,6 +280,7 @@
     return '';
   };
   // ── Professional-portal pick-lists (shared so every pro form reads the same vocabulary) ──
+  T.languages     = ['English','Arabic','French','Spanish','German','Italian','Portuguese','Russian','Hindi','Urdu','Tagalog','Mandarin','Cantonese','Japanese','Korean','Thai','Bahasa Indonesia','Bahasa Malaysia','Vietnamese','Turkish','Farsi','Greek','Dutch','Swahili','Afrikaans'];
   T.sessionTypes  = { one_to_one: 'One on One', group: 'Group', assessment: 'Assessment' };
   T.serviceTypes  = { pt_session: 'Personal training session', assessment: 'Assessment', program: 'Program (e.g. 12-week)', group: 'Group session', other: 'Other' };
   T.clientStatus  = { active: 'Active', paused: 'Paused', archived: 'Archived' };
