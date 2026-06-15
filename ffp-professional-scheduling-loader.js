@@ -180,8 +180,7 @@ async function openSlotModal(id){
   var svcOpts='<option value="">Choose a service…</option>'+_proSvc.map(function(v){ return '<option value="'+v.id+'"'+(s.service_id===v.id?' selected':'')+'>'+escHtml(v.name||'Service')+'</option>'; }).join('');
   openModalShell('lg',(editing?'Edit slot':'New slot'),
     '<div class="form-section"><div class="form-section-title">Slot</div><div class="form-grid">'+
-      '<div class="field"><div class="label">Session type</div><select class="select" id="sl-slot_type">'+_sessTypeOpts(s.slot_type)+'</select></div>'+
-      '<div class="field"><div class="label">Service <span style="color:var(--ffp-text-dim);">(optional)</span></div><select class="select" id="sl-service_id" onchange="_slSvcPick()">'+svcOpts+'</select></div>'+
+      '<div class="field full"><div class="label">Service</div><select class="select" id="sl-service_id" onchange="_slSvcPick()">'+svcOpts+'</select></div>'+
       '<div class="field"><div class="label">Day</div><select class="select" id="sl-weekday">'+dayOpts+'</select></div>'+
       '<div class="field"><div class="label">Time</div><input class="input" type="time" id="sl-start_time" value="'+escHtml(String(s.start_time||'18:00').slice(0,5))+'"></div>'+
       '<div class="field"><div class="label">Duration (min)</div><input class="input" type="number" id="sl-duration_min" value="'+escHtml(String(s.duration_min||60))+'"></div>'+
@@ -189,8 +188,8 @@ async function openSlotModal(id){
       '<div class="field full"><div class="label">Location</div><input class="input" id="sl-location" value="'+escHtml(s.location||'')+'" placeholder="Optional"></div>'+
     '</div></div>'+
     '<div class="form-section"><div class="form-section-title">Who\'s in this slot</div>'+
+      '<div style="display:flex;gap:8px;margin-bottom:8px;"><input class="input" id="sl-newclient" placeholder="Add a client by name" style="flex:1;"><button class="btn btn-sec" onclick="addSlotClient()">Add</button></div>'+
       '<div id="sl-clients" style="max-height:170px;overflow-y:auto;border:1px solid var(--ffp-border);border-radius:10px;padding:6px 10px;">'+clientList+'</div>'+
-      '<div style="display:flex;gap:8px;margin-top:8px;"><input class="input" id="sl-newclient" placeholder="Add a client by name" style="flex:1;"><button class="btn btn-sec" onclick="addSlotClient()">Add</button></div>'+
     '</div>',
     (editing?'<button class="btn btn-ghost left" onclick="confirmEndSlot(\''+editing.id+'\')"><span class="ms">delete</span> End slot</button>':'')+
     '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>'+
