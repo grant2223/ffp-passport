@@ -258,7 +258,7 @@
   console.log('[FFPPicker] ready (dashboard-owned, decoupled) ✓');
 })();
 </script>
-<script src="ffp-provider-events-loader.js?v=12"></script>
+<script src="ffp-provider-events-loader.js?v=13"></script>
 <script src="ffp-provider-experiences-loader.js?v=10"></script>
 <script src="ffp-provider-challenges-loader.js"></script>
 <!-- v29 (2026-06-03): Taxonomy audit fixes — "Provider type" (pf-type) reads the unified provider_type
@@ -4182,6 +4182,8 @@ function openEventModal(id) {
   const editing = id ? events.find(e => e.id === id) : null;
   const e = editing || { title: '', description: '', about: '', category: '', activity: '', event_date: '', event_time: '', end_date: '', end_time: '', country: (providerProfile.country || 'United Arab Emirates'), city: (providerProfile.city || ''), area: (providerProfile.area || ''), venue: '', capacity: '', price_aed: '', intensity: 'Social', parking: '', facilities: '', bring: '', hero_url: null };
   openModalShell('lg', (editing ? 'Edit event' : 'New event'), `
+    <div id="ev-stepbar" style="font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-purple,#8b5cf6);margin:0 0 12px;">Step 1 of 2 · Details</div>
+    <div id="ev-step1">
     <div class="form-section">
       <div class="form-section-title">Photo</div>
       <div id="listing-photo-slot" data-url="${e.hero_url || ''}"></div>
@@ -4268,8 +4270,10 @@ function openEventModal(id) {
         </div>
       </div>
     </div>
+    </div><!-- /ev-step1 -->
+    <div id="ev-step2" style="display:none;">
     <div class="form-section">
-      <div class="form-section-title">Good to know</div>
+      <div class="form-section-title">Good to know <span class="label-hint" style="text-transform:none;letter-spacing:0;font-weight:600;">— all optional, but they make your listing shine</span></div>
       <div class="form-grid">
         <div class="field">
           <div class="label">Parking</div>
@@ -4285,12 +4289,37 @@ function openEventModal(id) {
         </div>
       </div>
     </div>
+    </div><!-- /ev-step2 -->
   `, `
-    ${editing ? '<button class="btn btn-ghost left" onclick="confirmDeleteEvent(\''+editing.id+'\')"><span class="ms">delete</span> Delete</button>' : ''}
-    <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-    <button class="btn btn-pri" onclick="saveEvent('${editing ? editing.id : ''}')">${editing ? 'Save changes' : 'Submit for review'}</button>
+    ${editing ? '<button class="btn btn-ghost left ev-s2" style="display:none;" onclick="confirmDeleteEvent(\''+editing.id+'\')"><span class="ms">delete</span> Delete</button>' : ''}
+    <button class="btn btn-ghost ev-s1" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-ghost ev-s2" style="display:none;" onclick="evStep(1)"><span class="ms">chevron_left</span> Back</button>
+    <button class="btn btn-pri ev-s1" onclick="evStep(2)">Next: Good to know <span class="ms" style="font-size:16px;vertical-align:-3px;">chevron_right</span></button>
+    <button class="btn btn-pri ev-s2" style="display:none;" onclick="saveEvent('${editing ? editing.id : ''}')">${editing ? 'Save changes' : 'Submit for review'}</button>
   `);
   renderListingUploader(e.hero_url);
+}
+
+function evStep(n) {
+  const get = i => { const el = document.getElementById('em-' + i); return el ? (el.value || '').trim() : ''; };
+  if (n === 2) {
+    const ab = document.getElementById('em-activity-btn'); const activity = ab ? (ab.dataset.value || '') : '';
+    const cob = document.getElementById('em-country-btn'); const country = cob ? (cob.dataset.value || '') : '';
+    const cib = document.getElementById('em-city-btn'); const city = cib ? (cib.dataset.value || '') : '';
+    if (!get('title'))  { showToast('Title is required', 'error'); return; }
+    if (!activity)      { showToast('Activity is required', 'error'); return; }
+    if (!get('date'))   { showToast('Start date is required', 'error'); return; }
+    if (!country)       { showToast('Country is required', 'error'); return; }
+    if (!city)          { showToast('City is required', 'error'); return; }
+  }
+  const s1 = document.getElementById('ev-step1'), s2 = document.getElementById('ev-step2');
+  if (s1) s1.style.display = n === 1 ? '' : 'none';
+  if (s2) s2.style.display = n === 2 ? '' : 'none';
+  document.querySelectorAll('.ev-s1').forEach(x => { x.style.display = n === 1 ? '' : 'none'; });
+  document.querySelectorAll('.ev-s2').forEach(x => { x.style.display = n === 2 ? '' : 'none'; });
+  const bar = document.getElementById('ev-stepbar');
+  if (bar) bar.textContent = n === 1 ? 'Step 1 of 2 · Details' : 'Step 2 of 2 · Good to know';
+  const mb = document.querySelector('.modal-body'); if (mb) mb.scrollTop = 0;
 }
 
 function saveEvent(id) {
