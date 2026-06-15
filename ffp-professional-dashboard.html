@@ -231,7 +231,7 @@ a{color:var(--ffp-blue);}
 }
 /* iOS auto-zooms inputs under 16px on focus — keep form fields at 16px on phones */
 @media (max-width:768px){
-  .input,.select,.textarea,.code-box{font-size:16px;}
+  .input,.select,.textarea,.code-box,.ffp-sel-btn,.phone-cc{font-size:16px;}
 }
 
 /* Business tabs */
@@ -395,14 +395,12 @@ a{color:var(--ffp-blue);}
       <div class="ph">Scheduling</div>
       <div class="psub">Your sessions — view by week or month. Each session offers a service; clients book the open spots or you assign them.</div>
       <button class="btn btn-pri" style="width:100%;justify-content:center;margin:14px 0 12px;" onclick="openSlotModal()"><span class="ms">add</span> Add slot</button>
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 8px;flex-wrap:wrap;">
-        <div style="display:flex;align-items:center;gap:6px;">
-          <button class="btn btn-sec btn-sm" onclick="proPeriodShift(-1)" aria-label="Previous"><span class="ms">chevron_left</span></button>
-          <div id="pro-sched-rangelbl" style="font-weight:800;min-width:150px;text-align:center;"></div>
-          <button class="btn btn-sec btn-sm" onclick="proPeriodShift(1)" aria-label="Next"><span class="ms">chevron_right</span></button>
-        </div>
-        <div class="seg" id="pro-view-seg"><button class="seg-btn" data-view="day" onclick="proSetView('day')">Day</button><button class="seg-btn" data-view="week" onclick="proSetView('week')">Week</button><button class="seg-btn" data-view="month" onclick="proSetView('month')">Month</button></div>
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 10px;">
+        <button class="btn btn-sec btn-sm" onclick="proPeriodShift(-1)" aria-label="Previous"><span class="ms">chevron_left</span></button>
+        <div id="pro-sched-rangelbl" style="flex:1;text-align:center;font-weight:800;"></div>
+        <button class="btn btn-sec btn-sm" onclick="proPeriodShift(1)" aria-label="Next"><span class="ms">chevron_right</span></button>
       </div>
+      <div class="seg" id="pro-view-seg" style="display:flex;width:100%;margin:0 0 12px;"><button class="seg-btn" data-view="day" onclick="proSetView('day')">Day</button><button class="seg-btn" data-view="week" onclick="proSetView('week')">Week</button><button class="seg-btn" data-view="month" onclick="proSetView('month')">Month</button></div>
       <div id="pro-week" style="margin-top:4px;"></div>
     </section>
 
@@ -523,7 +521,7 @@ function bizTab(btn,paneId){ var panel=btn.closest('.panel'); if(!panel)return; 
 // ─── Deferred Business module loaders (reused, scoped to FFP_PROVIDER.id = professional id) ───
 var _provLoaderSrc = { clients:'ffp-professional-client-loader.js', packages:'ffp-professional-client-loader.js', comms:'ffp-professional-client-loader.js', scheduling:'ffp-professional-scheduling-loader.js', services:'ffp-professional-services-loader.js', payments:'ffp-professional-billing-loader.js' };
 var _provLoaded = {};
-var PRO_BUILD='18'; // bump on any pro loader change so the lazy loaders re-fetch (no stale cache) — v18: frozen header (flex), slot = Service only (session type dropped), add-client at top, service type = One on One/Group/Assessment
+var PRO_BUILD='19'; // bump on any pro loader change so the lazy loaders re-fetch (no stale cache) — v19: no overlapping slots, full-width date+toggle, equal field font sizes, capacity = spots available
 function ensureProviderLoader(id){ var src=_provLoaderSrc[id]; if(!src||_provLoaded[src])return; _provLoaded[src]=true; var sc=document.createElement('script'); sc.src=src+'?v='+PRO_BUILD; sc.async=false; sc.onload=function(){ renderPanel(id); }; sc.onerror=function(){ console.error('[FFP Pro] failed to load '+src); }; document.body.appendChild(sc); }
 function renderPanel(id){
   if(id==='clients'    && typeof renderMembers==='function')     renderMembers();
