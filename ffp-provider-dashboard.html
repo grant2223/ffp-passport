@@ -488,11 +488,11 @@ a { color: var(--ffp-blue); text-decoration: none; }
 
 /* MAIN */
 .main {
-  flex: 1; overflow-y: auto;
+  flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0;
   background: radial-gradient(ellipse at top, #0a1825 0%, var(--ffp-bg) 60%);
 }
-.main::-webkit-scrollbar { width: 6px; }
-.main::-webkit-scrollbar-thumb { background: rgba(43, 168, 224, .2); border-radius: 3px; }
+.panel-wrap::-webkit-scrollbar { width: 6px; }
+.panel-wrap::-webkit-scrollbar-thumb { background: rgba(43, 168, 224, .2); border-radius: 3px; }
 
 .topbar {
   background: rgba(8, 20, 32, .88);
@@ -500,10 +500,10 @@ a { color: var(--ffp-blue); text-decoration: none; }
   border-bottom: 1px solid var(--ffp-border);
   padding: 0 28px; height: 62px;
   display: flex; align-items: center; gap: 14px;
-  position: sticky; top: 0; z-index: 20;
+  flex: 0 0 auto; z-index: 20;
 }
-/* Big green save banner — sticks right under the topbar, shown on Profile when there are unsaved changes */
-.ffp-save-banner{display:none;position:sticky;top:62px;z-index:19;align-items:center;justify-content:space-between;gap:14px;background:linear-gradient(90deg,#15a34a,#22c55e);color:#fff;padding:13px 28px;box-shadow:0 10px 26px rgba(0,0,0,.30);}
+/* Big green save banner — fixed under the topbar (part of the frozen header), shown on Profile when there are unsaved changes */
+.ffp-save-banner{display:none;flex:0 0 auto;z-index:19;align-items:center;justify-content:space-between;gap:14px;background:linear-gradient(90deg,#15a34a,#22c55e);color:#fff;padding:13px 28px;box-shadow:0 10px 26px rgba(0,0,0,.30);}
 .ffp-save-banner.show{display:flex;}
 .ffp-save-banner-msg{font-size:14px;font-weight:800;display:flex;align-items:center;gap:9px;min-width:0;}
 .ffp-save-banner-msg .ms{font-size:20px;flex:0 0 auto;}
@@ -567,7 +567,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
   cursor: pointer;
 }
 
-.panel-wrap { padding: 28px 32px 80px; max-width: 1280px; margin: 0 auto; }
+.panel-wrap { flex: 1; min-height: 0; overflow-y: auto; width: 100%; padding: 28px 32px 80px; max-width: 1280px; margin: 0 auto; }
 .panel { display: none; }
 .panel.active { display: block; }
 
@@ -2621,15 +2621,15 @@ a { color: var(--ffp-blue); text-decoration: none; }
 
       <section class="panel" id="panel-scheduling">
         <div class="ph">Sessions</div>
-        <div class="psub">Your recurring classes, PT slots and team sessions — set the timetable and capacity. Members book these. (One-off experiences live in the Experiences tab. To check people in, use the Check-ins panel.)</div>
+        <div class="psub">Your recurring sessions — PT slots, group classes and team sessions. Set the timetable and capacity once; members book the dates. (One-off experiences live in the Experiences tab. To check people in, use the Check-ins panel.)</div>
         <div class="biz-tabs">
           <button class="biz-tab active" onclick="bizTab(this,'sch-calendar')">Sessions</button>
           <button class="biz-tab" onclick="bizTab(this,'sch-timetable'); if(typeof renderTimetable==='function')renderTimetable();">Timetable</button>
         </div>
         <div class="biz-pane active" id="sch-calendar">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
-            <div class="psub" style="margin:0;">Each class you run — set its weekly times and coaches once; members book the dates. One card per class.</div>
-            <button class="btn btn-pri" onclick="openTemplateModal()"><span class="ms">add</span> New class</button>
+            <div class="psub" style="margin:0;">Each session you run — set its weekly times and coach once; members book the dates. One card per session.</div>
+            <button class="btn btn-pri" onclick="openTemplateModal()"><span class="ms">add</span> Create session</button>
           </div>
           <div id="sched-list" style="margin-top:10px;"></div>
         </div>
@@ -3204,7 +3204,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=3', 'scheduling': 'ffp-provider-scheduling-loader.js?v=12', 'members': 'ffp-provider-members-loader.js?v=2', 'billing': 'ffp-provider-billing-loader.js?v=2', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=12' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=3', 'scheduling': 'ffp-provider-scheduling-loader.js?v=13', 'members': 'ffp-provider-members-loader.js?v=2', 'billing': 'ffp-provider-billing-loader.js?v=2', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=12' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
@@ -5325,8 +5325,8 @@ function openCreatePicker() {
       <button class="qa" onclick="closeModal(); openCreateSession()">
         <div class="qa-icon"><span class="ms">fitness_center</span></div>
         <div class="qa-body">
-          <div class="qa-title">Class</div>
-          <div class="qa-sub">A recurring session — yoga, tennis lesson, group class (set up in Sessions)</div>
+          <div class="qa-title">Session</div>
+          <div class="qa-sub">A recurring session — yoga, tennis, group class, PT. Set its weekly times in Sessions.</div>
         </div>
       </button>
       <button class="qa" onclick="closeModal(); openChallengeModal()">
