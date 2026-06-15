@@ -101,8 +101,9 @@ a{color:var(--ffp-blue);}
 .sb-foot-mark{width:34px;height:34px;border-radius:9px;background:var(--ffp-purple);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;flex-shrink:0;}
 .sb-foot-name{font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .sb-foot-out{font-size:10px;color:var(--ffp-text-dim);cursor:pointer;}
-.main{flex:1;overflow-y:auto;padding:0 26px 120px;}
-.topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;z-index:60;background:var(--ffp-bg);padding:16px 0 12px;margin:0 0 6px;border-bottom:1px solid var(--ffp-border);}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex:0 0 auto;z-index:60;background:var(--ffp-bg);padding:16px 26px 12px;border-bottom:1px solid var(--ffp-border);}
+.main-scroll{flex:1;min-height:0;overflow-y:auto;padding:18px 26px 120px;}
 .tb-title{font-size:18px;font-weight:800;}
 .preview-pill{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid rgba(255,204,0,.3);background:rgba(255,204,0,.07);border-radius:10px;color:var(--ffp-yellow);font-size:12px;font-weight:700;margin-bottom:14px;}
 
@@ -139,6 +140,7 @@ a{color:var(--ffp-blue);}
 .pick-row .pr-cat{font-size:11px;font-weight:700;color:var(--ffp-text-dim);white-space:nowrap;}
 .pick-empty{padding:22px;text-align:center;color:var(--ffp-text-dim);font-size:13px;}
 .input[type="date"]::-webkit-calendar-picker-indicator,.input[type="time"]::-webkit-calendar-picker-indicator{filter:invert(.85);cursor:pointer;opacity:.8;}
+.input[type="time"],.input[type="date"]{-webkit-appearance:none;appearance:none;}
 
 /* Buttons */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:var(--r-md);font-size:13px;font-weight:800;padding:10px 15px;cursor:pointer;border:1px solid transparent;font-family:inherit;}
@@ -219,8 +221,9 @@ a{color:var(--ffp-blue);}
 @media (max-width:859px){
   .sidebar{display:none;}
   .bottom-nav{display:flex;}
-  .main{padding:0 14px 160px;}
-  .topbar{position:sticky;top:0;background:var(--ffp-bg);z-index:50;padding:12px 0 8px;border-bottom:1px solid var(--ffp-border);}
+  .main{padding:0;}
+  .topbar{padding:12px 14px 8px;}
+  .main-scroll{padding:14px 14px 160px;}
   .preview-pill{width:100%;justify-content:center;}
 }
 @media (min-width:860px){
@@ -349,6 +352,7 @@ a{color:var(--ffp-blue);}
         </div>
       </div>
     </div>
+    <div class="main-scroll">
     <div class="preview-pill"><span class="ms" style="font-size:15px;">construction</span> Preview — professional portal in testing</div>
 
     <!-- OVERVIEW (default landing) -->
@@ -479,6 +483,7 @@ a{color:var(--ffp-blue);}
       </div>
       <div id="comms-list" style="margin-top:8px;"></div>
     </section>
+    </div><!-- /.main-scroll -->
   </main>
   <!-- Bottom tab nav (mobile, Passport-style) -->
   <nav class="bottom-nav" id="bottom-nav"></nav>
@@ -518,7 +523,7 @@ function bizTab(btn,paneId){ var panel=btn.closest('.panel'); if(!panel)return; 
 // ─── Deferred Business module loaders (reused, scoped to FFP_PROVIDER.id = professional id) ───
 var _provLoaderSrc = { clients:'ffp-professional-client-loader.js', packages:'ffp-professional-client-loader.js', comms:'ffp-professional-client-loader.js', scheduling:'ffp-professional-scheduling-loader.js', services:'ffp-professional-services-loader.js', payments:'ffp-professional-billing-loader.js' };
 var _provLoaded = {};
-var PRO_BUILD='17'; // bump on any pro loader change so the lazy loaders re-fetch (no stale cache) — v17: New slot form (no title; Day+Time / Duration+Capacity; Location full)
+var PRO_BUILD='18'; // bump on any pro loader change so the lazy loaders re-fetch (no stale cache) — v18: frozen header (flex), slot = Service only (session type dropped), add-client at top, service type = One on One/Group/Assessment
 function ensureProviderLoader(id){ var src=_provLoaderSrc[id]; if(!src||_provLoaded[src])return; _provLoaded[src]=true; var sc=document.createElement('script'); sc.src=src+'?v='+PRO_BUILD; sc.async=false; sc.onload=function(){ renderPanel(id); }; sc.onerror=function(){ console.error('[FFP Pro] failed to load '+src); }; document.body.appendChild(sc); }
 function renderPanel(id){
   if(id==='clients'    && typeof renderMembers==='function')     renderMembers();
@@ -569,7 +574,7 @@ function showPanel(id){
   var bb=document.querySelector('.bn-item[data-bn="'+id+'"]'); if(bb)bb.classList.add('active');
   var item=PRO_NAV.concat(PRO_NAV_EXTRA).find(function(x){return x.id===id;});
   document.getElementById('tb-title').textContent=item?item.label:'';
-  try{ var mn=document.querySelector('.main'); if(mn)mn.scrollTop=0; }catch(e){}
+  try{ var mn=document.querySelector('.main-scroll'); if(mn)mn.scrollTop=0; }catch(e){}
   if(id==='overview') renderOverview();
   else if(id==='profile') renderProfileForm();
   else renderPanel(id);
