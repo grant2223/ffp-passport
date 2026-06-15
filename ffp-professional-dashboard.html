@@ -591,13 +591,15 @@ function renderProfileForm(){
   var host=document.getElementById('profile-form'); if(!host||!_pro)return;
   _pfProfs=(_pro.professional_types||[]).slice(0,4).map(function(n){ return {name:n,category:(_pro.category||(window.FFP_TAX&&FFP_TAX.categoryOfRole?FFP_TAX.categoryOfRole(n):''))||''}; });
   _pfLangs=(_pro.languages||[]).slice();
-  var photo=_pro.profile_photo_url||'';
+  var photo=_pro.profile_photo_url||''; var cover=_pro.cover_photo_url||'';
   host.innerHTML =
     '<div id="pf-verif"></div>'+
-    '<div class="form-section"><div class="form-section-title">Photo</div>'+
+    '<div class="form-section"><div class="form-section-title">Photo &amp; header</div>'+
+      '<div id="pf-cover" onclick="pickProCover()" style="width:100%;height:130px;border-radius:12px;cursor:pointer;background:'+(cover?("url('"+escHtml(cover)+"') center/cover no-repeat"):'var(--ffp-bg-card)')+';border:1px solid var(--ffp-border-mid);display:flex;align-items:center;justify-content:center;color:var(--ffp-text-dim);overflow:hidden;">'+(cover?'':'<span class="ms" style="font-size:26px;">add_photo_alternate</span>')+'</div>'+
+      '<div style="display:flex;gap:10px;align-items:center;margin:10px 0 16px;"><button class="btn btn-sec btn-sm" type="button" onclick="pickProCover()"><span class="ms">image</span> '+(cover?'Change header':'Add header')+'</button><div style="font-size:11px;color:var(--ffp-text-dim);">Wide image — the banner at the top of your storefront.</div></div>'+
       '<div style="display:flex;align-items:center;gap:14px;">'+
         '<div id="pf-photo" onclick="pickProPhoto()" style="width:84px;height:84px;border-radius:50%;flex:0 0 auto;cursor:pointer;background:'+(photo?("url('"+escHtml(photo)+"') center/cover no-repeat"):'var(--ffp-bg-card)')+';border:1px solid var(--ffp-border-mid);display:flex;align-items:center;justify-content:center;color:var(--ffp-text-dim);overflow:hidden;">'+(photo?'':'<span class="ms" style="font-size:26px;">add_a_photo</span>')+'</div>'+
-        '<div><button class="btn btn-sec btn-sm" type="button" onclick="pickProPhoto()"><span class="ms">photo_camera</span> '+(photo?'Change photo':'Add photo')+'</button><div style="font-size:11px;color:var(--ffp-text-dim);margin-top:6px;">Square works best — shown on your storefront.</div></div>'+
+        '<div><button class="btn btn-sec btn-sm" type="button" onclick="pickProPhoto()"><span class="ms">photo_camera</span> '+(photo?'Change photo':'Add photo')+'</button><div style="font-size:11px;color:var(--ffp-text-dim);margin-top:6px;">Square works best — your profile photo.</div></div>'+
       '</div></div>'+
     '<div class="form-section"><div class="form-section-title">Public profile</div><div class="form-grid">'+
       '<div class="field"><div class="label">Given names <span class="req">*</span></div><input class="input" id="pf-given_names" value="'+escHtml(_pro.given_names||'')+'"></div>'+
@@ -730,6 +732,22 @@ function pickProPhoto(){
         var avb=document.getElementById('av-btn'); if(avb){ avb.innerHTML='<img src="'+escHtml(url)+'" alt="">'; }
         showToast('Photo updated','success');
       }catch(e){ showToast('Photo uploaded but didn’t save — please try again','error'); }
+    },
+    onError:function(){ showToast('Upload failed — please try again','error'); }
+  });
+}
+// Header / cover image (wide banner — quest-images bucket; saved to professionals.cover_photo_url)
+function pickProCover(){
+  if(!window.FFPUpload||!FFPUpload.pick){ showToast('Uploader still loading — try again','error'); return; }
+  FFPUpload.pick({ bucket:'quest-images', key:'pro-cover-'+(_pro.id||'x'), aspect:16/9, outW:1280, outH:720, title:'Header image',
+    onDone:async function(url){
+      try{
+        var r=await window.supabase.rpc('professional_save_profile',{p_professional:_pro.id,p:{cover_photo_url:url}});
+        if(r&&r.error)throw r.error;
+        _pro.cover_photo_url=url;
+        var box=document.getElementById('pf-cover'); if(box){ box.style.background="url('"+url+"') center/cover no-repeat"; box.innerHTML=''; }
+        showToast('Header image updated','success');
+      }catch(e){ showToast('Header uploaded but didn’t save — please try again','error'); }
     },
     onError:function(){ showToast('Upload failed — please try again','error'); }
   });
