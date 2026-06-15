@@ -182,12 +182,11 @@ async function openSlotModal(id){
     '<div class="form-section"><div class="form-section-title">Slot</div><div class="form-grid">'+
       '<div class="field"><div class="label">Session type</div><select class="select" id="sl-slot_type">'+_sessTypeOpts(s.slot_type)+'</select></div>'+
       '<div class="field"><div class="label">Service <span style="color:var(--ffp-text-dim);">(optional)</span></div><select class="select" id="sl-service_id" onchange="_slSvcPick()">'+svcOpts+'</select></div>'+
-      '<div class="field full"><div class="label">Title <span style="color:var(--ffp-text-dim);">(optional)</span></div><input class="input" id="sl-title" value="'+escHtml(s.title||'')+'" placeholder="Defaults to the service name"></div>'+
-      '<div class="field"><div class="label">Capacity</div><input class="input" type="number" id="sl-capacity" value="'+escHtml(String(s.capacity||''))+'"></div>'+
       '<div class="field"><div class="label">Day</div><select class="select" id="sl-weekday">'+dayOpts+'</select></div>'+
       '<div class="field"><div class="label">Time</div><input class="input" type="time" id="sl-start_time" value="'+escHtml(String(s.start_time||'18:00').slice(0,5))+'"></div>'+
       '<div class="field"><div class="label">Duration (min)</div><input class="input" type="number" id="sl-duration_min" value="'+escHtml(String(s.duration_min||60))+'"></div>'+
-      '<div class="field"><div class="label">Location</div><input class="input" id="sl-location" value="'+escHtml(s.location||'')+'" placeholder="Optional"></div>'+
+      '<div class="field"><div class="label">Capacity <span style="color:var(--ffp-text-dim);">— spots clients can book</span></div><input class="input" type="number" id="sl-capacity" value="'+escHtml(String(s.capacity||''))+'"></div>'+
+      '<div class="field full"><div class="label">Location</div><input class="input" id="sl-location" value="'+escHtml(s.location||'')+'" placeholder="Optional"></div>'+
     '</div></div>'+
     '<div class="form-section"><div class="form-section-title">Who\'s in this slot</div>'+
       '<div id="sl-clients" style="max-height:170px;overflow-y:auto;border:1px solid var(--ffp-border);border-radius:10px;padding:6px 10px;">'+clientList+'</div>'+
