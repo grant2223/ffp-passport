@@ -351,7 +351,7 @@
         '<div class="field full"><div class="label">Cancellation policy</div>' +
           '<input class="input" id="em-cancel-policy" value="' + escHtmlSafe(e.cancellation_policy) + '" placeholder="e.g. Free cancellation up to 24h before"></div>' +
       '</div>';
-    modalBody.appendChild(sec);
+    (document.getElementById('ev-step2') || modalBody).appendChild(sec);
   }
 
   function showReapprovalNoteIfNeeded(id) {
@@ -367,7 +367,7 @@
     note.className = 'help-strip ffp-reapproval-note';
     note.style.marginTop = '14px';
     note.innerHTML = '<span class="ms">info</span><div><b>This event is approved.</b> Saving changes will send it back to admin for re-approval.</div>';
-    modalBody.appendChild(note);
+    (document.getElementById('ev-step2') || modalBody).appendChild(note);
   }
 
   // ─── Save (INSERT / UPDATE) ───
@@ -534,7 +534,7 @@
       var sec = document.createElement('div');
       sec.id = 'ffp-ev-roster'; sec.className = 'field';
       sec.innerHTML = '<div class="label">Guest list</div><div id="ffp-ev-roster-body" style="font-size:13px;color:#9fb4c4;padding:4px 0;">Loading…</div>';
-      modalBody.appendChild(sec);
+      (document.getElementById('ev-step2') || modalBody).appendChild(sec);
       try {
         var res = await window.supabase.rpc('provider_event_roster', { p_me: meId, p_event: editingId });
         var rows = (res && res.data) || [];
