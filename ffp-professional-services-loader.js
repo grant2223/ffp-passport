@@ -15,13 +15,8 @@
 function _svcCcy(){ return (window.FFP_PROVIDER&&FFP_PROVIDER.currency)||'AED'; }
 function _svcMoney(n){ return window.FFPCurrency?FFPCurrency.format(n,_svcCcy()):(_svcCcy()+' '+Number(n||0).toLocaleString()); }
 var _proServicesCache = [];
-var SERVICE_TYPES = (window.FFP_TAX && FFP_TAX.serviceTypes) || {
-  pt_session: 'Personal training session',
-  assessment: 'Assessment',
-  program:    'Program (e.g. 12-week)',
-  group:      'Group session',
-  other:      'Other'
-};
+// A Service IS the typed offering (One on One / Group / Assessment) — same vocabulary the slots inherit.
+var SERVICE_TYPES = (window.FFP_TAX && FFP_TAX.sessionTypes) || { one_to_one:'One on One', group:'Group', assessment:'Assessment' };
 
 function _svcProvId(){ return (window.FFP_PROVIDER || {}).id || null; }
 function _svcEsc(s){ return (typeof escHtml === 'function') ? escHtml(s == null ? '' : String(s)) : String(s == null ? '' : s); }
