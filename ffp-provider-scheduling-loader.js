@@ -38,7 +38,7 @@ async function _loadSchedStaff() {
   } catch (e) {}
 }
 function _coachOpts(selected) {
-  return '<option value="">' + (_schedStaff.length ? 'Coach…' : 'No staff yet') + '</option>' +
+  return '<option value="">' + (_schedStaff.length ? 'No coach' : 'No staff yet') + '</option>' +
     _schedStaff.map(function (c) { var nm = c.full_name || ''; return '<option value="' + escHtml(nm) + '"' + (selected === nm ? ' selected' : '') + '>' + escHtml(nm) + (c.role ? ' · ' + escHtml(c.role) : '') + '</option>'; }).join('');
 }
 
@@ -47,7 +47,7 @@ async function renderScheduling() {
   var host = document.getElementById('sched-list');
   if (!host) return;
   var pid = _schedProvId();
-  if (!pid) { host.innerHTML = '<div class="empty-sub" style="text-align:left;">Sign in to manage classes.</div>'; return; }
+  if (!pid) { host.innerHTML = '<div class="empty-sub" style="text-align:left;">Sign in to manage sessions.</div>'; return; }
   host.innerHTML = '<div class="psub" style="margin:10px 0;">Loading…</div>';
   await _loadSchedStaff();
   try {
@@ -59,7 +59,7 @@ async function renderScheduling() {
     _schedSessions = (ro && ro.data) ? ro.data : [];
   } catch (e) { _schedSessions = []; }
   if (!_schedTemplates.length) {
-    host.innerHTML = emptyState('No classes yet', 'Create a class, set its weekly times, and assign a coach. Members will be able to book it.', 'New class', 'openTemplateModal()');
+    host.innerHTML = emptyState('No sessions yet', 'Create a session, set its weekly times and a coach — members can then book the dates.', 'Create session', 'openTemplateModal()');
     return;
   }
   host.innerHTML = _schedTemplates.map(templateCard).join('');
@@ -79,7 +79,7 @@ function templateCard(t) {
       '<div style="display:flex;gap:11px;min-width:0;align-items:flex-start;">' +
         (t.hero_image_url ? '<div style="width:46px;height:46px;border-radius:8px;flex:0 0 auto;background:#0a1825 url(\'' + escHtml(t.hero_image_url) + '\') center/cover no-repeat;"></div>' : '') +
         '<div style="min-width:0;">' +
-          '<div style="font-weight:800;color:var(--ffp-text,#eaf2f8);">' + escHtml(t.title || 'Untitled class') + (t.activity ? ' <span class="psub" style="font-weight:600;">· ' + escHtml(t.activity) + '</span>' : '') + '</div>' +
+          '<div style="font-weight:800;color:var(--ffp-text,#eaf2f8);">' + escHtml(t.title || 'Untitled session') + (t.activity ? ' <span class="psub" style="font-weight:600;">· ' + escHtml(t.activity) + '</span>' : '') + '</div>' +
           '<div class="psub" style="margin:3px 0 0;">' + (slots.length ? slots.join('  ·  ') : '<span style="color:#FFCC00;">No weekly times yet — edit to add</span>') + '</div>' +
           (meta.length ? '<div class="psub" style="margin:3px 0 0;">' + meta.join(' · ') + '</div>' : '') +
         '</div>' +
@@ -114,7 +114,7 @@ function renderTimetable() {
   var pid = _schedProvId();
   var go = function () {
     var sessions = _weeklyPattern(_schedSessions);
-    if (!sessions.length) { host.innerHTML = '<div class="psub" style="margin:10px 0;">No classes scheduled yet — add one in the Sessions tab.</div>'; return; }
+    if (!sessions.length) { host.innerHTML = '<div class="psub" style="margin:10px 0;">No sessions scheduled yet — create one in the Sessions tab.</div>'; return; }
     var days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     var byDay = [[], [], [], [], [], [], []];
     sessions.forEach(function (s) { var d = new Date(s.start_at); var dow = (d.getDay() + 6) % 7; byDay[dow].push(s); });
@@ -161,18 +161,18 @@ async function openAddSession() {
     await _loadSchedStaff();
   }
   if (!_schedTemplates.length) {
-    openModalShell('', 'Create a class first',
-      '<div class="psub" style="margin:6px 0;">Add a session to the timetable by first creating a class in the Sessions tab, then place it on a day &amp; time here.</div>',
-      '<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
+    openModalShell('', 'Create a session first',
+      '<div class="psub" style="margin:6px 0;">Add a time to the timetable by first creating a session, then placing it on a day &amp; time here.</div>',
+      '<button class="btn btn-ghost" onclick="closeModal()">Close</button><button class="btn btn-pri" onclick="closeModal(); openTemplateModal()"><span class="ms">add</span> Create session</button>');
     return;
   }
-  var clsOpts = '<option value="">Choose a class…</option>' + _schedTemplates.map(function (t) {
-    return '<option value="' + t.id + '">' + escHtml(t.title || 'Class') + '</option>'; }).join('');
+  var clsOpts = '<option value="">Choose a session…</option>' + _schedTemplates.map(function (t) {
+    return '<option value="' + t.id + '">' + escHtml(t.title || 'Session') + '</option>'; }).join('');
   var dayOpts = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(function (d, i) {
     return '<option value="' + i + '"' + (i === 1 ? ' selected' : '') + '>' + d + '</option>'; }).join('');
-  openModalShell('lg', 'Add session to timetable',
+  openModalShell('lg', 'Add a time',
     '<div class="form-section"><div class="form-grid">' +
-      '<div class="field full"><div class="label">Class</div><select class="select" id="as-template">' + clsOpts + '</select></div>' +
+      '<div class="field full"><div class="label">Session</div><select class="select" id="as-template">' + clsOpts + '</select></div>' +
       '<div class="field full"><div class="label">When</div>' +
         '<div style="display:flex;gap:8px;">' +
           '<button type="button" class="btn btn-sec btn-sm as-mode" data-mode="weekly" onclick="_asSetMode(\'weekly\')" style="flex:1;">Repeats weekly</button>' +
@@ -249,15 +249,15 @@ function openTemplateModal(id) {
   var levels = (window.FFP_TAX && window.FFP_TAX.attendeeLevels && window.FFP_TAX.attendeeLevels.length) ? window.FFP_TAX.attendeeLevels : ['All Levels', 'Not Tried', 'Social', 'Competitive', 'Representative', 'Professional'];
   var levelOpts = levels.map(function (l) { return '<option' + ((e.fitness_level || 'All Levels') === l ? ' selected' : '') + '>' + escHtml(l) + '</option>'; }).join('');
 
-  openModalShell('lg', (t ? 'Edit class' : 'New class'), `
+  openModalShell('lg', (t ? 'Edit session' : 'Create session'), `
     <div class="form-section">
       <div class="form-section-title">Photo</div>
       <div id="listing-photo-slot" data-url="${escHtml(e.hero_image_url || '')}"></div>
     </div>
     <div class="form-section">
-      <div class="form-section-title">The class</div>
+      <div class="form-section-title">The session</div>
       <div class="form-grid">
-        <div class="field full"><div class="label">Class name <span class="req">*</span></div><input class="input" id="tpl-title" value="${escHtml(e.title || '')}" placeholder="e.g. Sunrise Yoga"></div>
+        <div class="field full"><div class="label">Session name <span class="req">*</span></div><input class="input" id="tpl-title" value="${escHtml(e.title || '')}" placeholder="e.g. Sunrise Yoga"></div>
         <div class="field"><div class="label">Activity <span class="req">*</span></div>
           <button type="button" class="ffp-picker-btn placeholder" id="tpl-activity-btn" data-value=""><span>Choose activity…</span><span class="ms caret">expand_more</span></button></div>
         <div class="field"><div class="label">Fitness level</div><select class="select" id="tpl-level">${levelOpts}</select></div>
@@ -276,7 +276,7 @@ function openTemplateModal(id) {
   `, `
     ${t ? '<button class="btn btn-ghost left" onclick="confirmDeleteTemplate(\'' + t.id + '\')"><span class="ms">delete</span> Delete</button>' : ''}
     <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-    <button class="btn btn-pri" onclick="saveTemplate('${t ? t.id : ''}')">${t ? 'Save changes' : 'Create class'}</button>
+    <button class="btn btn-pri" onclick="saveTemplate('${t ? t.id : ''}')">${t ? 'Save changes' : 'Create session'}</button>
   `);
 
   setTimeout(function () {
@@ -299,7 +299,7 @@ function openTemplateModal(id) {
     if (addBtn) addBtn.onclick = function () { _tplAddSlotRow('', '', ''); };
     var existing = (e.slots || []);
     if (existing.length) existing.forEach(function (sl) { _tplAddSlotRow(sl.day_of_week, (sl.slot_time || '').slice(0, 5), sl.coach || ''); });
-    else _tplAddSlotRow('', '', '');
+    else _tplAddSlotRow('1', '18:00', '');
   }, 50);
 }
 
@@ -325,7 +325,7 @@ async function saveTemplate(id) {
   var g = function (i) { var el = document.getElementById('tpl-' + i); return el ? (el.value || '').trim() : ''; };
   var title = g('title');
   var aBtn = document.getElementById('tpl-activity-btn'); var activity = aBtn ? (aBtn.dataset.value || '') : '';
-  if (!title) { showToast('Class name is required', 'error'); return; }
+  if (!title) { showToast('Session name is required', 'error'); return; }
   if (!activity) { showToast('Activity is required', 'error'); return; }
   var capRaw = g('capacity'); var capacity = capRaw ? parseInt(capRaw, 10) : null;
   if (capacity != null && (isNaN(capacity) || capacity < 1)) { showToast('Capacity must be at least 1', 'error'); return; }
@@ -348,21 +348,21 @@ async function saveTemplate(id) {
   try {
     var r = await window.supabase.rpc('provider_save_session_template', { p_provider: pid, p_id: id || null, p: payload });
     if (r && r.error) throw r.error;
-    showToast(id ? 'Class updated — weekly schedule regenerated' : 'Class created — weekly sessions added', 'success');
+    showToast(id ? 'Session updated' : 'Session created — it\'s now live and bookable', 'success');
     closeModal();
     renderScheduling();
-  } catch (e) { console.error('[FFP Sessions] saveTemplate', e); showToast('Could not save class', 'error'); }
+  } catch (e) { console.error('[FFP Sessions] saveTemplate', e); showToast('Could not save session', 'error'); }
 }
 
 function confirmDeleteTemplate(id) {
-  openModalShell('', 'Delete this class?', '<div class="psub" style="margin:6px 0;">This removes the class and its upcoming sessions from your schedule.</div>', '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="doDeleteTemplate(\'' + id + '\')">Delete</button>');
+  openModalShell('', 'Delete this session?', '<div class="psub" style="margin:6px 0;">This removes the session and its upcoming dates from your schedule.</div>', '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="doDeleteTemplate(\'' + id + '\')">Delete</button>');
 }
 async function doDeleteTemplate(id) {
   var pid = _schedProvId();
   try {
     var r = await window.supabase.rpc('provider_delete_session_template', { p_provider: pid, p_id: id });
     if (r && r.error) throw r.error;
-    showToast('Class deleted', 'success');
+    showToast('Session deleted', 'success');
   } catch (e) { showToast('Could not delete', 'error'); }
   closeModal();
   renderScheduling();
@@ -377,10 +377,10 @@ async function openOccurrence(id) {
   var when = d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   var body =
     '<div class="psub" style="margin:0 0 12px;"><b style="color:var(--ffp-text,#eaf2f8);">' + escHtml(s.title || 'Session') + '</b> — ' + when + '. Changes here apply to <b>this date only</b>.</div>' +
-    '<div class="form-grid">' +
+    '<div class="form-section"><div class="form-grid">' +
       '<div class="field"><div class="label">Coach <span class="label-hint">— substitute / cover</span></div><select class="select" id="occ-coach">' + _coachOpts(s.coach || '') + '</select></div>' +
       '<div class="field"><div class="label">Capacity</div><input class="input" type="number" min="1" id="occ-capacity" value="' + escHtml(String(s.capacity || '')) + '"></div>' +
-    '</div>';
+    '</div></div>';
   var foot =
     '<button class="btn btn-ghost left" style="color:#ff6b6b;" onclick="cancelOccurrence(\'' + id + '\')"><span class="ms">event_busy</span> Cancel this session</button>' +
     '<button class="btn btn-ghost" onclick="closeModal()">Close</button>' +
@@ -436,7 +436,7 @@ async function renderAttendance() {
     _attCounts = (rc && rc.data) ? rc.data : {};
   } catch (e) { _schedSessions = _schedSessions || []; _attCounts = {}; }
   if (!_schedSessions.length) {
-    host.innerHTML = emptyState('No sessions yet', 'Create classes in the Sessions tab first, then take attendance here.', '', '');
+    host.innerHTML = emptyState('No sessions yet', 'Create a session in the Sessions tab first, then take attendance here.', '', '');
     return;
   }
   host.innerHTML = _schedSessions.filter(function (s) { return s.status !== 'cancelled'; }).map(attRow).join('');
