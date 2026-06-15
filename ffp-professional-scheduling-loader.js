@@ -38,7 +38,7 @@ function _injectSchedCss(){
     '.seg{display:inline-flex;background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:9px;padding:2px;}',
     '.seg-btn{flex:1;text-align:center;background:none;border:none;color:var(--ffp-text-muted);font-family:inherit;font-size:13px;font-weight:800;padding:8px 14px;border-radius:7px;cursor:pointer;}',
     '.seg-btn.on{background:var(--ffp-purple);color:#fff;}',
-    '.sched-day-h{font-size:11px;font-weight:800;letter-spacing:.5px;color:var(--ffp-text-dim);text-transform:uppercase;margin:14px 2px 6px;}',
+    '.sched-day-h{font-size:14px;font-weight:800;letter-spacing:.3px;color:var(--ffp-text);margin:16px 2px 8px;}',
     '.sched-day-h.today{color:var(--ffp-purple);}',
     '.cal-head{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px;}',
     '.cal-head span{text-align:center;font-size:10px;font-weight:800;color:var(--ffp-text-dim);text-transform:uppercase;}',
@@ -151,14 +151,15 @@ function occCard(o){
   var nClients=(o.clients&&o.clients.length)||0;
   var cap=Number(o.capacity)||1;
   var openN=Math.max(0,cap-nClients);
-  var badge=openN>0?'<span class="ds-open">'+openN+' open</span>':'<span class="ds-full">Full</span>';
+  // Headline = the booked person's name (or names); falls back to the session type when the spot is open.
+  var who=nClients?o.clients.join(', '):(typeLbl||o.title||'Session');
+  var badge=openN>0?(cap===1?'<span class="ds-open">Available</span>':'<span class="ds-open">'+openN+' available</span>'):'<span class="ds-full">Full</span>';
   var sub=[];
-  if(nClients) sub.push(o.clients.join(', '));
-  if(typeLbl) sub.push(typeLbl);
-  if(cap>1) sub.push(nClients+'/'+cap);
+  if(nClients && typeLbl) sub.push(typeLbl);   // type shown quietly when a name is the headline
+  if(cap>1) sub.push(nClients+'/'+cap+' booked');
   if(o.location) sub.push(o.location);
   return '<div onclick="openOccActions(\''+o.slot_id+'\',\''+o.date+'\')" style="background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:10px;padding:10px 12px;margin-bottom:7px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;">'+
-    '<div style="min-width:0;"><div style="font-weight:800;color:var(--ffp-text);">'+_fmtTime(o.start_time)+' · '+escHtml(o.title||'Session')+(o.moved?' <span class="ni-lock-pill" style="background:rgba(255,204,0,.14);color:#FFCC00;">moved</span>':'')+'</div>'+
+    '<div style="min-width:0;"><div style="font-weight:800;color:var(--ffp-text);">'+_fmtTime(o.start_time)+' · '+escHtml(who)+(o.moved?' <span class="ni-lock-pill" style="background:rgba(255,204,0,.14);color:#FFCC00;">moved</span>':'')+'</div>'+
     (sub.length?'<div class="psub" style="margin:2px 0 0;">'+escHtml(sub.join(' · '))+'</div>':'')+'</div>'+
     '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">'+badge+'<span class="ms" style="color:var(--ffp-text-dim);">more_horiz</span></div>'+
   '</div>';
