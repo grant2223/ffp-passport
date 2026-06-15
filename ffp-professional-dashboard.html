@@ -521,7 +521,7 @@ function bizTab(btn,paneId){ var panel=btn.closest('.panel'); if(!panel)return; 
 // ─── Deferred Business module loaders (reused, scoped to FFP_PROVIDER.id = professional id) ───
 var _provLoaderSrc = { clients:'ffp-professional-client-loader.js', packages:'ffp-professional-client-loader.js', comms:'ffp-professional-client-loader.js', scheduling:'ffp-professional-scheduling-loader.js', services:'ffp-professional-services-loader.js', payments:'ffp-professional-billing-loader.js' };
 var _provLoaded = {};
-var PRO_BUILD='19'; // bump on any pro loader change so the lazy loaders re-fetch (no stale cache) — v19: no overlapping slots, full-width date+toggle, equal field font sizes, capacity = spots available
+var PRO_BUILD='20'; // bump on any pro loader change so the lazy loaders re-fetch (no stale cache) — v20: slot card = time · name + Available/N available badge; bigger date header; overview availability
 function ensureProviderLoader(id){ var src=_provLoaderSrc[id]; if(!src||_provLoaded[src])return; _provLoaded[src]=true; var sc=document.createElement('script'); sc.src=src+'?v='+PRO_BUILD; sc.async=false; sc.onload=function(){ renderPanel(id); }; sc.onerror=function(){ console.error('[FFP Pro] failed to load '+src); }; document.body.appendChild(sc); }
 function renderPanel(id){
   if(id==='clients'    && typeof renderMembers==='function')     renderMembers();
@@ -954,23 +954,25 @@ function _wkStart(d){ var x=new Date(d); x.setDate(x.getDate()-x.getDay()); x.se
 function _addDays(d,n){ var x=new Date(d); x.setDate(x.getDate()+n); return x; }
 function _iso(d){ var x=new Date(d); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'); }
 function _fmtTime(t){ if(!t)return ''; var p=String(t).split(':'); var h=+p[0],m=p[1]||'00'; var ap=h<12?'AM':'PM'; var hh=h%12; if(hh===0)hh=12; return hh+':'+m+' '+ap; }
+function _ovSessRow(o){
+  var nClients=(o.clients&&o.clients.length)||0; var cap=Number(o.capacity)||1; var openN=Math.max(0,cap-nClients);
+  var typeLbl=o.service_name||(o.slot_type?String(o.slot_type).replace(/_/g,' '):'')||'';
+  var who=nClients?o.clients.join(', '):(typeLbl||o.title||'Session');
+  var avail=openN>0?(cap===1?'Available':openN+' available'):'Full';
+  var col=openN>0?'#22c55e':'var(--ffp-text-dim)';
+  var subParts=[]; if(nClients&&typeLbl)subParts.push(typeLbl); if(o.location)subParts.push(o.location);
+  var sub=subParts.join(' · ');
+  return '<div class="ov-sess"><div class="tm">'+escHtml(_fmtTime(o.start_time))+'</div><div class="info"><div class="nm">'+escHtml(who)+'</div>'+(sub?'<div class="sub">'+escHtml(sub)+'</div>':'')+'</div><div style="font-size:11px;font-weight:800;color:'+col+';white-space:nowrap;align-self:center;">'+avail+'</div></div>';
+}
 function _daySessions(label,dateIso,all){
   var rows=all.filter(function(o){ return o.date===dateIso; }).sort(function(a,b){ return String(a.start_time).localeCompare(String(b.start_time)); });
-  var inner=rows.length?rows.map(function(o){
-    var clients=(o.clients&&o.clients.length)?o.clients.join(', '):(o.title||'Session');
-    var sub=[(o.slot_type?String(o.slot_type).replace(/_/g,' '):''),(o.location||'')].filter(Boolean).join(' · ');
-    return '<div class="ov-sess"><div class="tm">'+escHtml(_fmtTime(o.start_time))+'</div><div class="info"><div class="nm">'+escHtml(clients)+'</div>'+(sub?'<div class="sub">'+escHtml(sub)+'</div>':'')+'</div></div>';
-  }).join(''):'<div class="ov-empty">No sessions.</div>';
+  var inner=rows.length?rows.map(_ovSessRow).join(''):'<div class="ov-empty">No sessions.</div>';
   return '<div class="ov-day">'+escHtml(label)+'</div>'+inner;
 }
 function _todaySessions(dateIso,all){
   var rows=all.filter(function(o){ return o.date===dateIso; }).sort(function(a,b){ return String(a.start_time).localeCompare(String(b.start_time)); });
   if(!rows.length) return '<div class="ov-empty">No sessions today.</div>';
-  return rows.map(function(o){
-    var clients=(o.clients&&o.clients.length)?o.clients.join(', '):(o.title||'Session');
-    var sub=[(o.slot_type?String(o.slot_type).replace(/_/g,' '):''),(o.location||'')].filter(Boolean).join(' · ');
-    return '<div class="ov-sess"><div class="tm">'+escHtml(_fmtTime(o.start_time))+'</div><div class="info"><div class="nm">'+escHtml(clients)+'</div>'+(sub?'<div class="sub">'+escHtml(sub)+'</div>':'')+'</div></div>';
-  }).join('');
+  return rows.map(_ovSessRow).join('');
 }
 function _ovBanner(icon,title,sub){ return '<div style="display:flex;gap:10px;align-items:flex-start;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:12px;padding:12px 14px;margin-top:14px;"><span class="ms" style="color:var(--ffp-purple);">'+icon+'</span><div><div style="font-size:13px;font-weight:800;">'+escHtml(title)+'</div><div style="font-size:12px;color:var(--ffp-text-muted);margin-top:2px;line-height:1.5;">'+escHtml(sub)+'</div></div></div>'; }
 function renderVerifBanner(host){
