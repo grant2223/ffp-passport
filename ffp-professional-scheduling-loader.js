@@ -36,7 +36,7 @@ function _injectSchedCss(){
   var s=document.createElement('style'); s.id='pro-sched-css';
   s.textContent=[
     '.seg{display:inline-flex;background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:9px;padding:2px;}',
-    '.seg-btn{background:none;border:none;color:var(--ffp-text-muted);font-family:inherit;font-size:12px;font-weight:800;padding:6px 14px;border-radius:7px;cursor:pointer;}',
+    '.seg-btn{flex:1;text-align:center;background:none;border:none;color:var(--ffp-text-muted);font-family:inherit;font-size:13px;font-weight:800;padding:8px 14px;border-radius:7px;cursor:pointer;}',
     '.seg-btn.on{background:var(--ffp-purple);color:#fff;}',
     '.sched-day-h{font-size:11px;font-weight:800;letter-spacing:.5px;color:var(--ffp-text-dim);text-transform:uppercase;margin:14px 2px 6px;}',
     '.sched-day-h.today{color:var(--ffp-purple);}',
@@ -184,7 +184,7 @@ async function openSlotModal(id){
       '<div class="field"><div class="label">Day</div><select class="select" id="sl-weekday">'+dayOpts+'</select></div>'+
       '<div class="field"><div class="label">Time</div><input class="input" type="time" id="sl-start_time" value="'+escHtml(String(s.start_time||'18:00').slice(0,5))+'"></div>'+
       '<div class="field"><div class="label">Duration (min)</div><input class="input" type="number" id="sl-duration_min" value="'+escHtml(String(s.duration_min||60))+'"></div>'+
-      '<div class="field"><div class="label">Capacity <span style="color:var(--ffp-text-dim);">— spots clients can book</span></div><input class="input" type="number" id="sl-capacity" value="'+escHtml(String(s.capacity||''))+'"></div>'+
+      '<div class="field"><div class="label">Capacity <span style="color:var(--ffp-text-dim);">— spots available</span></div><input class="input" type="number" id="sl-capacity" value="'+escHtml(String(s.capacity||''))+'"></div>'+
       '<div class="field full"><div class="label">Location</div><input class="input" id="sl-location" value="'+escHtml(s.location||'')+'" placeholder="Optional"></div>'+
     '</div></div>'+
     '<div class="form-section"><div class="form-section-title">Who\'s in this slot</div>'+
@@ -214,6 +214,16 @@ async function saveSlot(id){
   var g=function(i){var el=document.getElementById('sl-'+i);return el?el.value.trim():'';};
   var serviceId=g('service_id');
   var time=g('start_time'); if(!time){ showToast('Pick a time','error'); return; }
+  var wd=g('weekday'); var dur=parseInt(g('duration_min'),10)||60;
+  var _toMin=function(t){ var p=String(t).split(':'); return (parseInt(p[0],10)||0)*60+(parseInt(p[1],10)||0); };
+  var ns=_toMin(time), ne=ns+dur;
+  var clash=(_proSlotsCache||[]).some(function(sl){
+    if(id && sl.id===id) return false;
+    if(String(sl.weekday)!==String(wd)) return false;
+    var ss=_toMin(String(sl.start_time||'').slice(0,5)), se=ss+(parseInt(sl.duration_min,10)||60);
+    return ns < se && ss < ne;
+  });
+  if(clash){ showToast('That time overlaps another slot on the same day','error'); return; }
   var clientIds=[]; document.querySelectorAll('.slot-cl:checked').forEach(function(c){clientIds.push(c.value);});
   var payload={ service_id:serviceId, slot_type:g('slot_type')||'one_to_one', title:g('title'), weekday:g('weekday'), start_time:time,
     duration_min:g('duration_min'), capacity:g('capacity'), location:g('location'), client_ids:clientIds };
