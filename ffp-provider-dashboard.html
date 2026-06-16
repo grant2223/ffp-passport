@@ -262,8 +262,8 @@
   console.log('[FFPPicker] ready (dashboard-owned, decoupled) ✓');
 })();
 </script>
-<script src="ffp-provider-events-loader.js?v=15"></script>
-<script src="ffp-provider-experiences-loader.js?v=13"></script>
+<script src="ffp-provider-events-loader.js?v=16"></script>
+<script src="ffp-provider-experiences-loader.js?v=14"></script>
 <script src="ffp-provider-challenges-loader.js"></script>
 <!-- v29 (2026-06-03): Taxonomy audit fixes — "Provider type" (pf-type) reads the unified provider_type
      taxonomy via FFP_TAX.providerTypes (shared with admin rankings; business_structure concept dropped);
@@ -2462,7 +2462,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
               </div>
             </div>
             <div class="field">
-              <div class="label">Hero photo <span class="label-hint">— shown on listings + profile</span></div>
+              <div class="label">Profile banner <span class="label-hint">— the wide image across the top of your public profile; also the fallback cover for any listing without its own</span></div>
               <div class="uploader" id="up-hero" onclick="pickProviderImage('hero')">
                 <div class="uploader-icon"><span class="ms">image</span></div>
                 <div class="uploader-title">Click or drag to upload</div>
@@ -3211,7 +3211,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=3', 'scheduling': 'ffp-provider-scheduling-loader.js?v=14', 'members': 'ffp-provider-members-loader.js?v=2', 'billing': 'ffp-provider-billing-loader.js?v=2', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=17' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=3', 'scheduling': 'ffp-provider-scheduling-loader.js?v=15', 'members': 'ffp-provider-members-loader.js?v=2', 'billing': 'ffp-provider-billing-loader.js?v=2', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=18' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
@@ -3656,7 +3656,7 @@ function profileEssentials() {
     { ok: !!p.city,                                   label: 'City' },
     { ok: !!(p.about && p.about.trim().length >= 40), label: 'About (a sentence or two)' },
     { ok: !!p.logo_url,                               label: 'Logo' },
-    { ok: !!p.hero_url,                               label: 'Hero photo' },
+    { ok: !!p.hero_url,                               label: 'Profile banner' },
     { ok: acts.length > 0,                            label: 'At least one activity' }
   ];
 }
@@ -4192,11 +4192,7 @@ function openEventModal(id) {
     <div id="ev-stepbar" style="font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-purple,#8b5cf6);margin:0 0 12px;">Step 1 of 2 · Details</div>
     <div id="ev-step1">
     <div class="form-section">
-      <div class="form-section-title">Cover photo</div>
-      <div id="listing-photo-slot" data-url="${e.hero_url || ''}"></div>
-    </div>
-    <div class="form-section">
-      <div class="form-section-title">Gallery <span class="label-hint" style="text-transform:none;letter-spacing:0;font-weight:600;">— extra photos shown on the listing; use the arrows to reorder</span></div>
+      <div class="form-section-title">Photos <span class="label-hint" style="text-transform:none;letter-spacing:0;font-weight:600;">— drag to reorder; the first photo is the cover shown on the card</span></div>
       <div id="em-gallery"></div>
       <button type="button" class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="FFPGallery.add('em-gallery')"><span class="ms">add_photo_alternate</span> Add photo</button>
     </div>
