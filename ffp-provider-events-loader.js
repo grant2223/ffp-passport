@@ -352,7 +352,7 @@
     prefillEventTickets(editingId);
 
     // Gallery (shared helper)
-    if (window.FFPGallery) window.FFPGallery.init('em-gallery', existing ? existing.gallery : []);
+    if (window.FFPGallery) window.FFPGallery.init('em-gallery', (existing && existing.gallery && existing.gallery.length) ? existing.gallery : ((existing && (existing.hero_image_url || existing.hero_url)) ? [existing.hero_image_url || existing.hero_url] : []));
 
     // Standardise all native selects in this modal to the shared dark picker (matches Sessions/Profile).
     setTimeout(function () { if (window.FFPSelect) { var m = document.querySelector('.modal'); if (m) window.FFPSelect.enhance(m); } }, 60);
@@ -446,9 +446,8 @@
     var startsAt = buildStartsAt(date, get('time'));
     var endDate  = get('end-date');
     var endsAt   = endDate ? buildStartsAt(endDate, get('end-time')) : null;
-    var photoSlot = document.getElementById('listing-photo-slot');
-    var heroUrl = (photoSlot && photoSlot.dataset.url) ? photoSlot.dataset.url : null;
-    if (heroUrl === '') heroUrl = null;
+    var _pics = (window.FFPGallery ? window.FFPGallery.get('em-gallery') : []);
+    var heroUrl = (_pics && _pics.length) ? _pics[0] : null;
     var capRaw = get('capacity');
     var capacity = capRaw ? parseInt(capRaw, 10) : null;
     if (capacity != null && isNaN(capacity)) capacity = null;
