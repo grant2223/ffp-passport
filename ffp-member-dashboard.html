@@ -7940,7 +7940,10 @@ async function loadNotifications() {
     listEl.innerHTML = combined || '<div class="empty-state" style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">No notifications yet</div>';
   }
   if (badge) {
-    var total = unread + reviews.length;
+    // Review prompts only count as "new" until the bell has been opened (seen). Regular notifs use notifs_seen_at.
+    var _seenR = []; try { _seenR = JSON.parse(localStorage.getItem('ffp_seen_reviews') || '[]'); } catch (e) {}
+    var _unseenReviews = reviews.filter(function (r) { return _seenR.indexOf(r.id) < 0; });
+    var total = unread + _unseenReviews.length;
     if (total > 0) { badge.textContent = total > 9 ? '9+' : String(total); badge.style.display = ''; }
     else { badge.style.display = 'none'; }
   }
@@ -7949,6 +7952,13 @@ async function markNotifsSeen() {
   var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
   if (!member || !member.id) return;
   var badge = document.getElementById('notif-badge'); if (badge) badge.style.display = 'none';
+  // Mark the currently-pending review prompts as seen so they stop counting toward the "new" badge.
+  try {
+    var _rev = (typeof ReviewPrompt !== 'undefined' && ReviewPrompt.pending) ? ReviewPrompt.pending() : [];
+    var _seen = []; try { _seen = JSON.parse(localStorage.getItem('ffp_seen_reviews') || '[]'); } catch (e) {}
+    _rev.forEach(function (r) { if (r && r.id && _seen.indexOf(r.id) < 0) _seen.push(r.id); });
+    localStorage.setItem('ffp_seen_reviews', JSON.stringify(_seen.slice(-200)));
+  } catch (e) {}
   try { await fetch(FFP_API_NOTIF + '/api/notifications/seen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ member_id: member.id }) }); } catch (e) {}
 }
 
@@ -12301,7 +12311,7 @@ else init();
 .ffp-deck-flash.show{ opacity:1; }
 </style>
 <script src="assets/ffp-connections-core.js?v=356"></script>
-<script defer src="assets/ffp-connections-feed-loader.js?v=326"></script>
+<script defer src="assets/ffp-connections-feed-loader.js?v=327"></script>
 <script defer src="assets/ffp-event-results-loader.js?v=329"></script>
 <script>
 (function(){
