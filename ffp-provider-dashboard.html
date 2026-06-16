@@ -1218,6 +1218,9 @@ a { color: var(--ffp-blue); text-decoration: none; }
 }
 .modal.lg { max-width: 880px; }
 .modal.sm { max-width: 460px; }
+.modal.full { max-width: 1180px; width: calc(100vw - 40px); }
+.modal.full .modal-body { max-height: calc(100vh - 190px); }
+@media (max-width: 600px) { .modal.full { width: calc(100vw - 16px); } }
 .modal-head {
   padding: 20px 26px;
   border-bottom: 1px solid var(--ffp-border);
@@ -3204,7 +3207,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=3', 'scheduling': 'ffp-provider-scheduling-loader.js?v=13', 'members': 'ffp-provider-members-loader.js?v=2', 'billing': 'ffp-provider-billing-loader.js?v=2', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=13' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=3', 'scheduling': 'ffp-provider-scheduling-loader.js?v=13', 'members': 'ffp-provider-members-loader.js?v=2', 'billing': 'ffp-provider-billing-loader.js?v=2', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=14' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
