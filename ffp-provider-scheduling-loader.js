@@ -251,11 +251,7 @@ function openTemplateModal(id) {
 
   openModalShell('full', (t ? 'Edit session' : 'Create session'), `
     <div class="form-section">
-      <div class="form-section-title">Cover photo</div>
-      <div id="listing-photo-slot" data-url="${escHtml(e.hero_image_url || '')}"></div>
-    </div>
-    <div class="form-section">
-      <div class="form-section-title">Gallery <span class="label-hint" style="text-transform:none;letter-spacing:0;font-weight:600;">— extra photos shown on the listing; use the arrows to reorder</span></div>
+      <div class="form-section-title">Photos <span class="label-hint" style="text-transform:none;letter-spacing:0;font-weight:600;">— drag to reorder; the first photo is the cover shown on the card</span></div>
       <div id="sm-gallery"></div>
       <button type="button" class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="FFPGallery.add('sm-gallery')"><span class="ms">add_photo_alternate</span> Add photo</button>
     </div>
@@ -285,8 +281,7 @@ function openTemplateModal(id) {
   `);
 
   setTimeout(function () {
-    if (typeof window.renderListingUploader === 'function') { try { window.renderListingUploader(e.hero_image_url || ''); } catch (er) {} }
-    if (window.FFPGallery) { try { window.FFPGallery.init('sm-gallery', e.gallery || []); } catch (er) {} }
+    if (window.FFPGallery) { try { window.FFPGallery.init('sm-gallery', (e.gallery && e.gallery.length) ? e.gallery : (e.hero_image_url ? [e.hero_image_url] : [])); } catch (er) {} }
     if (window.FFPSelect) { try { window.FFPSelect.enhance(document.getElementById('tpl-level')); } catch (er) {} }
     // Activity picker
     var aBtn = document.getElementById('tpl-activity-btn');
@@ -344,8 +339,8 @@ async function saveTemplate(id) {
   });
   if (!slots.length) { showToast('Add at least one weekly time', 'error'); return; }
   var pid = _schedProvId(); if (!pid) { showToast('Not signed in', 'error'); return; }
-  var photoSlot = document.getElementById('listing-photo-slot');
-  var heroUrl = (photoSlot && photoSlot.dataset.url) ? photoSlot.dataset.url : null; if (heroUrl === '') heroUrl = null;
+  var _pics = (window.FFPGallery ? window.FFPGallery.get('sm-gallery') : []);
+  var heroUrl = (_pics && _pics.length) ? _pics[0] : null;
   var payload = {
     title: title, activity: activity, description: g('description') || null,
     capacity: (capacity != null ? String(capacity) : ''), price_aed: g('price'), duration_min: g('duration'),
