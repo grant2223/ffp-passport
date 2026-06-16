@@ -282,6 +282,53 @@
     });
   }
 
+  // ── Ticket types (event_tickets) — optional per-tier pricing & allocation ──
+  var _emTixDel = [];
+  function _emCcy() { return (window.FFPCurrency && window.FFPCurrency.providerCode) ? window.FFPCurrency.providerCode() : 'AED'; }
+  function emTicketRowHtml(t) {
+    t = t || {};
+    return '<div class="em-tk-row" data-id="' + escHtmlSafe(t.id || '') + '" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px;border:1px solid var(--ffp-border);border-radius:10px;padding:10px;">' +
+      '<div style="flex:2;min-width:150px;"><div class="label">Name</div><input class="input em-tk-name" value="' + escHtmlSafe(t.name || '') + '" placeholder="e.g. Competitor"></div>' +
+      '<div style="flex:1;min-width:88px;"><div class="label">Price (' + _emCcy() + ')</div><input class="input em-tk-price" type="number" value="' + escHtmlSafe(t.price_aed != null ? t.price_aed : '') + '" placeholder="0 = free"></div>' +
+      '<div style="flex:1;min-width:88px;"><div class="label">Allocation</div><input class="input em-tk-cap" type="number" value="' + escHtmlSafe(t.capacity != null ? t.capacity : '') + '" placeholder="∞"></div>' +
+      '<div style="flex:1;min-width:88px;"><div class="label">Max/order</div><input class="input em-tk-max" type="number" value="' + escHtmlSafe(t.max_per_order != null ? t.max_per_order : '') + '" placeholder="—"></div>' +
+      '<button type="button" class="btn btn-ghost btn-sm" title="Remove" onclick="emRemoveTicket(this)"><span class="ms">delete</span></button>' +
+    '</div>';
+  }
+  window.emAddTicket = function (t) { var w = document.getElementById('em-tickets'); if (!w) return; w.insertAdjacentHTML('beforeend', emTicketRowHtml(t)); };
+  window.emRemoveTicket = function (btn) { var r = btn.closest('.em-tk-row'); if (!r) return; var idv = r.getAttribute('data-id'); if (idv) _emTixDel.push(idv); r.remove(); };
+  function prefillEventTickets(editingId) {
+    _emTixDel = [];
+    var w = document.getElementById('em-tickets'); if (!w) return;
+    w.innerHTML = '';
+    if (!editingId) return;
+    window.supabase.rpc('provider_list_event_tickets', { p_provider: (window.FFP_PROVIDER || {}).id, p_event: editingId })
+      .then(function (r) { ((r && r.data) ? r.data : []).forEach(function (t) { window.emAddTicket(t); }); })
+      .catch(function () {});
+  }
+  async function saveEventTickets(eventId) {
+    if (!eventId) return;
+    var prov = (window.FFP_PROVIDER || {}).id;
+    var rows = Array.prototype.slice.call(document.querySelectorAll('#em-tickets .em-tk-row'));
+    var ord = 0;
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      var nameEl = r.querySelector('.em-tk-name'); var name = nameEl ? (nameEl.value || '').trim() : '';
+      if (!name) continue;
+      var price = (r.querySelector('.em-tk-price') || {}).value || '0';
+      var cap = (r.querySelector('.em-tk-cap') || {}).value || '';
+      var mx = (r.querySelector('.em-tk-max') || {}).value || '';
+      var idv = r.getAttribute('data-id') || null;
+      var p = { name: name, price_aed: price, capacity: cap, max_per_order: mx, sort_order: ord++ };
+      try { await window.supabase.rpc('provider_save_event_ticket', { p_provider: prov, p_event: eventId, p_id: idv, p: p }); }
+      catch (e) { console.warn('[FFP Events] ticket save', e); }
+    }
+    for (var j = 0; j < _emTixDel.length; j++) {
+      try { await window.supabase.rpc('provider_delete_event_ticket', { p_provider: prov, p_id: _emTixDel[j] }); } catch (e) {}
+    }
+    _emTixDel = [];
+  }
+
   function patchModalAfterOpen(editingId) {
     // Find the activity/category for editing event
     var existing = editingId ? events.find(function (x) { return x.id === editingId; }) : null;
@@ -300,6 +347,9 @@
 
     // Inject the GYG-parity "Good to know" detail section
     injectEventDetail(existing);
+
+    // Prefill ticket types (edit) / clear (new)
+    prefillEventTickets(editingId);
 
     // Standardise all native selects in this modal to the shared dark picker (matches Sessions/Profile).
     setTimeout(function () { if (window.FFPSelect) { var m = document.querySelector('.modal'); if (m) window.FFPSelect.enhance(m); } }, 60);
@@ -455,12 +505,14 @@
         var upd = await window.supabase.rpc('provider_save_listing', { p_kind: 'event', p_provider: (window.FFP_PROVIDER || {}).id, p_id: id, p: payload });
         if (upd.error) throw upd.error;
         if (!upd.data) throw new Error('Update failed — not found or not permitted');
+        await saveEventTickets(id);
         toast('Event updated', 'success');
         if (typeof window.closeModal === 'function') window.closeModal();
       } else {
         var ins = await window.supabase.rpc('provider_save_listing', { p_kind: 'event', p_provider: (window.FFP_PROVIDER || {}).id, p_id: null, p: payload });
         if (ins.error) throw ins.error;
         if (!ins.data) throw new Error('Submit failed — please try again');
+        await saveEventTickets(ins.data);
         if (typeof window.closeModal === 'function') window.closeModal();
         if (typeof window.showSubmittedModal === 'function') {
           try { window.showSubmittedModal('event'); } catch (e) {}
