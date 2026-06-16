@@ -64,8 +64,17 @@
     document.head.appendChild(s);
   }
 
+  // Count only genuinely NEW people — not ones you've already connected with or already sent a request to.
+  // connection: 'none' (can add) / 'incoming' (they asked you) are NEW; 'connected' / 'requested' are not.
   function matchesCount() {
-    try { if (window.MeetMove && Array.isArray(MeetMove.matches)) return MeetMove.matches.length; } catch (e) {}
+    try {
+      if (window.MeetMove && Array.isArray(MeetMove.matches)) {
+        return MeetMove.matches.filter(function (m) {
+          var c = m && m.connection;
+          return c == null || c === 'none' || c === 'incoming';
+        }).length;
+      }
+    } catch (e) {}
     return 0;
   }
   function iconFor(it) {
@@ -94,7 +103,7 @@
     html += '<div class="cf-strap" onclick="FFPConnFeed.discover()">' +
       '<span class="material-icons">auto_awesome</span>' +
       '<div class="cf-strap-txt"><div class="cf-strap-t">People you might click with</div>' +
-      '<div class="cf-strap-s">Discover athletes who match you</div></div>' +
+      '<div class="cf-strap-s">' + (n > 0 ? 'Discover athletes who match you' : 'No new connections to view') + '</div></div>' +
       (n > 0 ? '<span class="cf-badge">' + n + ' new</span>' : '') +
       '<span class="material-icons cf-chev">chevron_right</span></div>';
 
