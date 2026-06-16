@@ -446,6 +446,8 @@
     window.modalItinerary = JSON.parse(JSON.stringify(e.itinerary || []));
 
     var body =
+      '<div id="tr-stepbar" style="font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-purple,#8b5cf6);margin:0 0 12px;">Step 1 of 2 · Trip details</div>' +
+      '<div id="tr-step1">' +
       '<div class="form-section">' +
         '<div class="form-section-title">Photo</div>' +
         '<div id="listing-photo-slot" data-url="' + escHtml(e.hero_url || '') + '"></div>' +
@@ -509,6 +511,15 @@
             '<button type="button" class="ffp-picker-btn placeholder" id="xm-city-btn" data-value="" data-country="">' +
               '<span>Choose city…</span><span class="ms caret">expand_more</span>' +
             '</button></div>' +
+          '<div class="field full"><div class="label">Location pin <span class="label-hint">— paste a Google Maps link; we’ll set the pin so members get directions</span></div>' +
+            '<div style="display:flex;gap:8px;align-items:center;">' +
+              '<input class="input" id="xm-maps-url" placeholder="Paste your Google Maps link (any format)" style="flex:1;min-width:0;">' +
+              '<button type="button" class="btn btn-ghost" style="flex:0 0 auto;" onclick="resolveTripMapsLink()"><span class="ms" style="font-size:16px;vertical-align:-3px;">place</span> Find pin</button>' +
+            '</div>' +
+            '<span id="xm-loc-status" class="psub" style="display:block;margin-top:6px;">' + ((e.meeting_lat !== '' && e.meeting_lng !== '' && e.meeting_lat != null && e.meeting_lng != null) ? ('✓ Pin set (' + Number(e.meeting_lat).toFixed(5) + ', ' + Number(e.meeting_lng).toFixed(5) + ')') : 'No pin set') + '</span>' +
+            '<input type="hidden" id="xm-lat" value="' + escHtml((e.meeting_lat != null && e.meeting_lat !== '') ? e.meeting_lat : '') + '">' +
+            '<input type="hidden" id="xm-lng" value="' + escHtml((e.meeting_lng != null && e.meeting_lng !== '') ? e.meeting_lng : '') + '">' +
+          '</div>' +
         '</div>' +
       '</div>' +
       '<div class="form-section">' +
@@ -530,6 +541,8 @@
             '<textarea class="textarea" id="xm-excludes" rows="3" placeholder="Personal gear\nTrail running shoes\nTravel insurance">' + escHtml((e.price_excludes || []).join('\n')) + '</textarea></div>' +
         '</div>' +
       '</div>' +
+      '</div>' /* /tr-step1 */ +
+      '<div id="tr-step2" style="display:none;">' +
       '<div class="form-section">' +
         '<div class="form-section-title">Itinerary</div>' +
         '<div class="itin-wrap" id="xm-itinerary"></div>' +
@@ -559,8 +572,6 @@
             '<textarea class="textarea" id="xm-not-allowed" rows="2" placeholder="Pets (assistance dogs OK)\nOversized luggage">' + escHtml((e.not_allowed || []).join('\n')) + '</textarea></div>' +
           '<div class="field full"><div class="label">Meeting point <span class="label-hint">— where members assemble</span></div>' +
             '<input class="input" id="xm-meeting-point" value="' + escHtml(e.meeting_point) + '" placeholder="e.g. Hatta Dam car park, by the kiosk"></div>' +
-          '<div class="field"><div class="label">Map coordinates <span class="label-hint">— paste &quot;lat, lng&quot; from Google Maps</span></div>' +
-            '<input class="input" id="xm-latlng" value="' + escHtml((e.meeting_lat !== '' && e.meeting_lng !== '' && e.meeting_lat != null && e.meeting_lng != null) ? (e.meeting_lat + ', ' + e.meeting_lng) : '') + '" placeholder="e.g. 24.80, 56.12"></div>' +
           '<div class="field"><div class="label">Wheelchair accessible</div>' +
             '<select class="select" id="xm-wheelchair">' +
               '<option value="">—</option>' +
@@ -575,14 +586,17 @@
             '<input class="input" id="xm-cancel-policy" value="' + escHtml(e.cancellation_policy) + '" placeholder="e.g. Free cancellation up to 24h before; 50% after">' + '</div>' +
         '</div>' +
       '</div>' +
+      '</div>' /* /tr-step2 */ +
       (editing && (e.status === 'live' || e.status === 'paused')
         ? ''
         : '');
 
     var foot =
-      (editing ? '<button class="btn btn-ghost left" onclick="confirmDeleteExperience(\'' + editing.id + '\')"><span class="ms">delete</span> Delete</button>' : '') +
-      '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>' +
-      '<button class="btn btn-pri" onclick="saveExperience(\'' + (editing ? editing.id : '') + '\')">' +
+      (editing ? '<button class="btn btn-ghost left tr-s2" style="display:none;" onclick="confirmDeleteExperience(\'' + editing.id + '\')"><span class="ms">delete</span> Delete</button>' : '') +
+      '<button class="btn btn-ghost tr-s1" onclick="closeModal()">Cancel</button>' +
+      '<button class="btn btn-ghost tr-s2" style="display:none;" onclick="trStep(1)"><span class="ms">chevron_left</span> Back</button>' +
+      '<button class="btn btn-pri tr-s1" onclick="trStep(2)">Next: Itinerary &amp; details <span class="ms" style="font-size:16px;vertical-align:-3px;">chevron_right</span></button>' +
+      '<button class="btn btn-pri tr-s2" style="display:none;" onclick="saveExperience(\'' + (editing ? editing.id : '') + '\')">' +
         (editing ? 'Save changes' : 'Submit for review') +
       '</button>';
 
@@ -681,15 +695,23 @@
     var depositNum = depositRaw ? parseFloat(depositRaw) : null;
     if (depositNum != null && isNaN(depositNum)) depositNum = null;
 
-    // meeting-point coordinates from a "lat, lng" paste
+    // meeting-point coordinates — resolved pin (Find pin) first, fall back to any legacy "lat, lng" paste
     var mLat = null, mLng = null;
-    var llRaw = get('latlng');
-    if (llRaw) {
-      var llp = llRaw.split(',');
-      if (llp.length >= 2) {
-        var la = parseFloat(llp[0]), lo = parseFloat(llp[1]);
-        if (!isNaN(la)) mLat = la;
-        if (!isNaN(lo)) mLng = lo;
+    var latEl = document.getElementById('xm-lat'), lngEl = document.getElementById('xm-lng');
+    var latV = latEl ? (latEl.value || '').trim() : '', lngV = lngEl ? (lngEl.value || '').trim() : '';
+    if (latV && lngV) {
+      var la0 = parseFloat(latV), lo0 = parseFloat(lngV);
+      if (!isNaN(la0)) mLat = la0;
+      if (!isNaN(lo0)) mLng = lo0;
+    } else {
+      var llRaw = get('latlng');
+      if (llRaw) {
+        var llp = llRaw.split(',');
+        if (llp.length >= 2) {
+          var la = parseFloat(llp[0]), lo = parseFloat(llp[1]);
+          if (!isNaN(la)) mLat = la;
+          if (!isNaN(lo)) mLng = lo;
+        }
       }
     }
     var minAgeRaw = get('min-age');
@@ -788,6 +810,46 @@
   }
 
   // ════════════════════════════════════════════════════════════════════════
+  // Two-step wizard nav + functional map pin
+  // ════════════════════════════════════════════════════════════════════════
+  window.trStep = function (n) {
+    var g = function (i) { var el = document.getElementById('xm-' + i); return el ? (el.value || '').trim() : ''; };
+    if (n === 2) {
+      var ab = document.getElementById('xm-activity-btn'); var activity = ab ? (ab.dataset.value || '') : '';
+      var cob = document.getElementById('xm-country-btn'); var country = cob ? (cob.dataset.value || '') : '';
+      if (!g('title'))    { toast('Title is required', 'error'); return; }
+      if (!activity)      { toast('Activity is required', 'error'); return; }
+      if (!g('exp-type')) { toast('Experience type is required', 'error'); return; }
+      if (!country)       { toast('Country is required', 'error'); return; }
+      if (!g('start'))    { toast('Start date is required', 'error'); return; }
+      if (!g('end'))      { toast('End date is required', 'error'); return; }
+      if (!g('price'))    { toast('Price is required', 'error'); return; }
+    }
+    var s1 = document.getElementById('tr-step1'), s2 = document.getElementById('tr-step2');
+    if (s1) s1.style.display = n === 1 ? '' : 'none';
+    if (s2) s2.style.display = n === 2 ? '' : 'none';
+    Array.prototype.forEach.call(document.querySelectorAll('.tr-s1'), function (x) { x.style.display = n === 1 ? '' : 'none'; });
+    Array.prototype.forEach.call(document.querySelectorAll('.tr-s2'), function (x) { x.style.display = n === 2 ? '' : 'none'; });
+    var bar = document.getElementById('tr-stepbar'); if (bar) bar.textContent = n === 1 ? 'Step 1 of 2 · Trip details' : 'Step 2 of 2 · Itinerary & details';
+    var mb = document.querySelector('.modal-body'); if (mb) mb.scrollTop = 0;
+  };
+
+  window.resolveTripMapsLink = async function () {
+    var inp = document.getElementById('xm-maps-url'), st = document.getElementById('xm-loc-status');
+    var url = inp ? (inp.value || '').trim() : '';
+    if (!url) { if (st) st.textContent = 'Paste your Google Maps link first'; return; }
+    if (st) st.textContent = 'Finding your pin…';
+    try {
+      var res = await fetch('https://ffp-passport-backend.vercel.app/api/geo/resolve?url=' + encodeURIComponent(url));
+      var j = await res.json();
+      if (!res.ok || j.lat == null) { if (st) st.textContent = (j && j.error) ? j.error : 'Couldn’t read a pin from that link'; return; }
+      var la = document.getElementById('xm-lat'), ln = document.getElementById('xm-lng');
+      if (la) la.value = j.lat; if (ln) ln.value = j.lng;
+      if (st) st.textContent = '✓ Pin set (' + Number(j.lat).toFixed(5) + ', ' + Number(j.lng).toFixed(5) + ')';
+    } catch (e) { console.error('[Trip] resolve maps link:', e); if (st) st.textContent = 'Couldn’t reach the resolver — try again'; }
+  };
+
+  // ════════════════════════════════════════════════════════════════════════
   // Init
   // ════════════════════════════════════════════════════════════════════════
   async function init() {
@@ -810,7 +872,7 @@
 
     try {
       await refresh();
-      console.log('[FFP Experiences] loaded v5 \u2014 currency + deposit fields added \u2713');
+      console.log('[FFP Experiences] loaded v8 \u2014 2-step wizard + functional map pin \u2713');
     } catch (e) {
       console.error('[FFP Experiences] initial load:', e);
     }
