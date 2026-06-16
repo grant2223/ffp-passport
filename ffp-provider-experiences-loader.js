@@ -450,11 +450,7 @@
       '<div id="tr-stepbar" style="font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-purple,#8b5cf6);margin:0 0 12px;">Step 1 of 2 · Trip details</div>' +
       '<div id="tr-step1">' +
       '<div class="form-section">' +
-        '<div class="form-section-title">Cover photo</div>' +
-        '<div id="listing-photo-slot" data-url="' + escHtml(e.hero_url || '') + '"></div>' +
-      '</div>' +
-      '<div class="form-section">' +
-        '<div class="form-section-title">Gallery <span class="label-hint" style="text-transform:none;letter-spacing:0;font-weight:600;">— extra photos shown on the listing; use the arrows to reorder</span></div>' +
+        '<div class="form-section-title">Photos <span class="label-hint" style="text-transform:none;letter-spacing:0;font-weight:600;">— drag to reorder; the first photo is the cover shown on the card</span></div>' +
         '<div id="xm-gallery"></div>' +
         '<button type="button" class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="FFPGallery.add(\'xm-gallery\')"><span class="ms">add_photo_alternate</span> Add photo</button>' +
       '</div>' +
@@ -608,11 +604,8 @@
 
     if (typeof window.openModalShell === 'function') {
       window.openModalShell('full', (editing ? 'Edit trip' : 'New trip'), body, foot);
-      if (window.FFPGallery) window.FFPGallery.init('xm-gallery', e.gallery || []);
+      if (window.FFPGallery) window.FFPGallery.init('xm-gallery', (e.gallery && e.gallery.length) ? e.gallery : (e.hero_url ? [e.hero_url] : []));
       setTimeout(function () { if (window.FFPSelect) { var m = document.getElementById('modal'); if (m) window.FFPSelect.enhance(m); } }, 40);
-    }
-    if (typeof window.renderListingUploader === 'function') {
-      try { window.renderListingUploader(e.hero_url); } catch (er) {}
     }
     if (typeof window.renderItinerary === 'function') {
       try { window.renderItinerary(); } catch (er) {}
@@ -687,9 +680,8 @@
     if (!end)      { toast('End date is required', 'error'); return; }
     if (!price)    { toast('Price is required', 'error'); return; }
 
-    var photoSlot = document.getElementById('listing-photo-slot');
-    var heroUrl = (photoSlot && photoSlot.dataset.url) ? photoSlot.dataset.url : null;
-    if (heroUrl === '') heroUrl = null;
+    var _pics = (window.FFPGallery ? window.FFPGallery.get('xm-gallery') : []);
+    var heroUrl = (_pics && _pics.length) ? _pics[0] : null;
 
     var capRaw = get('capacity');
     var capacity = capRaw ? parseInt(capRaw, 10) : null;
