@@ -159,7 +159,7 @@
     var providerId = window.FFP_PROVIDER.id;
     var res = await window.supabase
       .from('events')
-      .select('id, provider_id, title, description, about, activity, category, fitness_level, group_filter, hero_image_url, country, city, venue, area, setting, starts_at, ends_at, capacity, price_aed, cost, parking, facilities, bring, who_for, status, featured, highlights, what_included, what_not_included, meeting_point, meeting_lat, meeting_lng, not_allowed, know_before, languages, min_age, wheelchair_accessible, accessibility_notes, free_cancellation_hours, cancellation_policy, created_at, updated_at')
+      .select('id, provider_id, title, description, about, activity, category, fitness_level, group_filter, hero_image_url, gallery, country, city, venue, area, setting, starts_at, ends_at, capacity, price_aed, cost, parking, facilities, bring, who_for, status, featured, highlights, what_included, what_not_included, meeting_point, meeting_lat, meeting_lng, not_allowed, know_before, languages, min_age, wheelchair_accessible, accessibility_notes, free_cancellation_hours, cancellation_policy, created_at, updated_at')
       .eq('provider_id', providerId)
       .order('starts_at', { ascending: true });
     if (res.error) {
@@ -351,6 +351,9 @@
     // Prefill ticket types (edit) / clear (new)
     prefillEventTickets(editingId);
 
+    // Gallery (shared helper)
+    if (window.FFPGallery) window.FFPGallery.init('em-gallery', existing ? existing.gallery : []);
+
     // Standardise all native selects in this modal to the shared dark picker (matches Sessions/Profile).
     setTimeout(function () { if (window.FFPSelect) { var m = document.querySelector('.modal'); if (m) window.FFPSelect.enhance(m); } }, 60);
 
@@ -495,7 +498,8 @@
       accessibility_notes: get('accessibility') || null,
       free_cancellation_hours: cancelHrsRaw ? parseInt(cancelHrsRaw, 10) : null,
       cancellation_policy: get('cancel-policy') || null,
-      hero_image_url: heroUrl
+      hero_image_url: heroUrl,
+      gallery: (window.FFPGallery ? window.FFPGallery.get('em-gallery') : [])
     };
 
     var reapprovalNote = '';
