@@ -339,6 +339,7 @@
       free_cancellation_hours: (row.free_cancellation_hours != null ? row.free_cancellation_hours : ''),
       cancellation_policy: row.cancellation_policy || '',
       hero_url: row.hero_image_url || null,
+      gallery: Array.isArray(row.gallery) ? row.gallery : [],
       status: row.status || 'pending',
       verified: row.status === 'live',
       featured: !!row.featured,
@@ -353,7 +354,7 @@
     if (!window.FFP_PROVIDER || !window.FFP_PROVIDER.id) return [];
     var res = await window.supabase
       .from('experiences')
-      .select('id, provider_id, title, description, overview, exp_type, activity, category, hero_image_url, destination, country, starts_at, ends_at, duration_days, price_aed, currency, deposit, what_not_included, what_included, itinerary, accommodation, flights_info, travel_reqs, fitness_reqs, fitness_level, capacity, status, featured, highlights, not_allowed, languages, min_age, meeting_point, meeting_lat, meeting_lng, wheelchair_accessible, accessibility_notes, free_cancellation_hours, cancellation_policy, created_at, updated_at')
+      .select('id, provider_id, title, description, overview, exp_type, activity, category, hero_image_url, gallery, destination, country, starts_at, ends_at, duration_days, price_aed, currency, deposit, what_not_included, what_included, itinerary, accommodation, flights_info, travel_reqs, fitness_reqs, fitness_level, capacity, status, featured, highlights, not_allowed, languages, min_age, meeting_point, meeting_lat, meeting_lng, wheelchair_accessible, accessibility_notes, free_cancellation_hours, cancellation_policy, created_at, updated_at')
       .eq('provider_id', window.FFP_PROVIDER.id)
       .order('starts_at', { ascending: true });
     if (res.error) {
@@ -449,8 +450,13 @@
       '<div id="tr-stepbar" style="font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-purple,#8b5cf6);margin:0 0 12px;">Step 1 of 2 · Trip details</div>' +
       '<div id="tr-step1">' +
       '<div class="form-section">' +
-        '<div class="form-section-title">Photo</div>' +
+        '<div class="form-section-title">Cover photo</div>' +
         '<div id="listing-photo-slot" data-url="' + escHtml(e.hero_url || '') + '"></div>' +
+      '</div>' +
+      '<div class="form-section">' +
+        '<div class="form-section-title">Gallery <span class="label-hint" style="text-transform:none;letter-spacing:0;font-weight:600;">— extra photos shown on the listing; use the arrows to reorder</span></div>' +
+        '<div id="xm-gallery"></div>' +
+        '<button type="button" class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="FFPGallery.add(\'xm-gallery\')"><span class="ms">add_photo_alternate</span> Add photo</button>' +
       '</div>' +
       '<div class="form-section">' +
         '<div class="form-section-title">Overview</div>' +
@@ -601,7 +607,8 @@
       '</button>';
 
     if (typeof window.openModalShell === 'function') {
-      window.openModalShell('lg', (editing ? 'Edit trip' : 'New trip'), body, foot);
+      window.openModalShell('full', (editing ? 'Edit trip' : 'New trip'), body, foot);
+      if (window.FFPGallery) window.FFPGallery.init('xm-gallery', e.gallery || []);
       setTimeout(function () { if (window.FFPSelect) { var m = document.getElementById('modal'); if (m) window.FFPSelect.enhance(m); } }, 40);
     }
     if (typeof window.renderListingUploader === 'function') {
@@ -754,7 +761,8 @@
       accessibility_notes:   get('accessibility') || null,
       free_cancellation_hours: cancelHrsRaw ? parseInt(cancelHrsRaw, 10) : null,
       cancellation_policy:     get('cancel-policy') || null,
-      hero_image_url:  heroUrl
+      hero_image_url:  heroUrl,
+      gallery: (window.FFPGallery ? window.FFPGallery.get('xm-gallery') : [])
     };
 
     var reapprovalNote = '';
