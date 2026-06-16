@@ -567,7 +567,9 @@ const MeetMove = {
         ? `<div style="display:grid; grid-template-columns:repeat(2,1fr); gap:10px;">${list.map(mk).join('')}</div>`
         : `<div style="font-size:12px;color:var(--muted);padding:12px 0 4px;">${empty}</div>`;
     };
-    var suggestions = (this.matches || []).filter(function (m) { return m.connection !== 'connected'; });
+    // "Matching with" = NEW, non-added passports only. Once you've added someone (request sent = 'requested')
+    // or you're connected, they drop out of matches and live in your collection / "Connected with".
+    var suggestions = (this.matches || []).filter(function (m) { var c = m.connection; return c == null || c === 'none' || c === 'incoming'; });
     var connected = (this.matches || []).filter(function (m) { return m.connection === 'connected'; });
     const body = `
       <div class="dm-body">
@@ -576,7 +578,7 @@ const MeetMove = {
           <button class="mm-tab active" onclick="MeetMove.matchesTab('suggest', this)">Matching with</button>
           <button class="mm-tab" onclick="MeetMove.matchesTab('connected', this)">Connected with</button>
         </div>
-        <div id="mm-list-suggest">${grid(suggestions, 'No matches yet — check back as more people join.')}</div>
+        <div id="mm-list-suggest">${grid(suggestions, 'No new matches right now — you’ve added everyone we found. Check back as more people join.')}</div>
         <div id="mm-list-connected" style="display:none;">${grid(connected, 'No connections yet — open a match and connect to start your circle.')}</div>
       </div>
     `;
