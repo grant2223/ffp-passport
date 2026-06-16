@@ -493,7 +493,7 @@
             '</select>' +
           '</div>' +
           '<div class="field">' +
-            '<div class="label">Fitness level required</div>' +
+            '<div class="label">Fitness level <span class="label-hint">— optional</span></div>' +
             '<select class="select" id="xm-fitness-level">' +
               ((window.FFP_TAX && window.FFP_TAX.attendeeLevels && window.FFP_TAX.attendeeLevels.length) ? window.FFP_TAX.attendeeLevels : FITNESS_LEVELS).map(function (l) {
                 return '<option value="' + escHtml(l) + '"' + (e.fitness_level === l ? ' selected' : '') + '>' + escHtml(l) + '</option>';
