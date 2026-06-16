@@ -127,6 +127,8 @@
     if (countries.length && countries.indexOf(selCountry) === -1) selCountry = countries[0];
 
     var body =
+      '<div id="cl-stepbar" style="font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-purple,#8b5cf6);margin:0 0 12px;">Step 1 of 2 · Experience details</div>' +
+      '<div id="cl-step1">' +
       '<div class="form-section"><div class="form-section-title">Photo</div>' +
         '<div id="listing-photo-slot" data-url="' + esc(e.hero_image_url || '') + '"></div></div>' +
       '<div class="form-section"><div class="form-section-title">Basics</div><div class="form-grid">' +
@@ -148,12 +150,23 @@
         '<div class="field"><div class="label">Duration (min)</div><input class="input" type="number" id="cm-duration" value="' + esc(e.duration_min || '') + '" placeholder="e.g. 60"></div>' +
         '<div class="field"><div class="label">Capacity</div><input class="input" type="number" id="cm-capacity" value="' + esc(e.capacity || '') + '" placeholder="e.g. 12"></div>' +
         '<div class="field"><div class="label">Price per person (' + FFPCurrency.providerCode() + ') <span class="req">*</span></div><input class="input" type="number" id="cm-price" value="' + esc(e.price_aed != null ? e.price_aed : '') + '" placeholder="e.g. 150"></div>' +
+        '<div class="field full"><div class="label">Location pin <span class="label-hint">— paste a Google Maps link; we’ll set the pin so members get directions</span></div>' +
+          '<div style="display:flex;gap:8px;align-items:center;">' +
+            '<input class="input" id="cm-maps-url" placeholder="Paste your Google Maps link (any format)" style="flex:1;min-width:0;">' +
+            '<button type="button" class="btn btn-ghost" style="flex:0 0 auto;" onclick="resolveClassMapsLink()"><span class="ms" style="font-size:16px;vertical-align:-3px;">place</span> Find pin</button>' +
+          '</div>' +
+          '<span id="cm-loc-status" class="psub" style="display:block;margin-top:6px;">' + ((e.meeting_lat != null && e.meeting_lng != null) ? ('✓ Pin set (' + Number(e.meeting_lat).toFixed(5) + ', ' + Number(e.meeting_lng).toFixed(5) + ')') : 'No pin set') + '</span>' +
+          '<input type="hidden" id="cm-lat" value="' + esc(e.meeting_lat != null ? e.meeting_lat : '') + '">' +
+          '<input type="hidden" id="cm-lng" value="' + esc(e.meeting_lng != null ? e.meeting_lng : '') + '">' +
+        '</div>' +
       '</div></div>' +
       '<div class="form-section"><div class="form-section-title">Date &amp; time</div>' +
         '<div class="psub" style="margin:-4px 0 10px;">When does this experience run? Members book this date. (Required for members to be able to book.) ' + (window.FFPTime ? 'Times shown in ' + esc(window.FFPTime.tz().replace(/_/g, " ")) + '.' : '') + '</div>' +
         '<div id="cm-sessions"></div>' +
         '<button type="button" class="btn btn-ghost btn-sm" id="cm-add-session" style="margin-top:6px;"><span class="ms">add</span> Add another date</button>' +
       '</div>' +
+      '</div>' /* /cl-step1 */ +
+      '<div id="cl-step2" style="display:none;">' +
       '<div class="form-section"><div class="form-section-title">Details</div><div class="form-grid">' +
         '<div class="field full"><div class="label">Highlights <span class="label-hint">— one per line</span></div><textarea class="textarea" id="cm-highlights" rows="3" placeholder="Eiffel-tower views\nAudio guide in 14 languages\nSmall group">' + esc(joinArr(e.highlights)) + '</textarea></div>' +
         '<div class="field full"><div class="label">What\'s included <span class="label-hint">— one per line</span></div><textarea class="textarea" id="cm-includes" rows="3" placeholder="Kayak &amp; paddle\nLife vest\nLocal guide">' + esc(joinArr(e.what_included)) + '</textarea></div>' +
@@ -162,7 +175,6 @@
       '</div></div>' +
       '<div class="form-section"><div class="form-section-title">Good to know</div><div class="form-grid">' +
         '<div class="field full"><div class="label">Meeting point</div><input class="input" id="cm-meeting-point" value="' + esc(e.meeting_point || '') + '" placeholder="e.g. Pier 3, by the Bateaux Parisiens sign"></div>' +
-        '<div class="field"><div class="label">Map coordinates <span class="label-hint">— paste &quot;lat, lng&quot;</span></div><input class="input" id="cm-latlng" value="' + esc(ll) + '" placeholder="e.g. 25.14, 55.19"></div>' +
         '<div class="field"><div class="label">Minimum age</div><input class="input" type="number" id="cm-min-age" value="' + esc(e.min_age || '') + '" placeholder="e.g. 12"></div>' +
         '<div class="field"><div class="label">Languages <span class="label-hint">— one per line</span></div><textarea class="textarea" id="cm-languages" rows="2" placeholder="English\nArabic">' + esc(joinArr(e.languages)) + '</textarea></div>' +
         '<div class="field"><div class="label">Distance (km) <span class="label-hint">— optional</span></div><input class="input" type="number" id="cm-distance" value="' + esc(e.distance_km || '') + '" placeholder="e.g. 4"></div>' +
@@ -172,12 +184,15 @@
         '<div class="field"><div class="label">Free cancellation <span class="label-hint">— hours before</span></div><input class="input" type="number" id="cm-cancel-hours" value="' + esc(e.free_cancellation_hours || '') + '" placeholder="e.g. 24"></div>' +
         '<div class="field full"><div class="label">Accessibility notes</div><input class="input" id="cm-accessibility" value="' + esc(e.accessibility_notes || '') + '" placeholder="e.g. Step-free boarding; accessible WC"></div>' +
         '<div class="field full"><div class="label">Cancellation policy</div><input class="input" id="cm-cancel-policy" value="' + esc(e.cancellation_policy || '') + '" placeholder="e.g. Free cancellation up to 24h before"></div>' +
-      '</div></div>';
+      '</div></div>' +
+      '</div>' /* /cl-step2 */;
 
     var foot =
-      (c ? '<button class="btn btn-ghost left" onclick="confirmDeleteClass(\'' + c.id + '\')"><span class="ms">delete</span> Delete</button>' : '') +
-      '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>' +
-      '<button class="btn btn-pri" onclick="saveClass(\'' + (c ? c.id : '') + '\')">' + (c ? 'Save changes' : 'Submit for review') + '</button>';
+      (c ? '<button class="btn btn-ghost left cl-s2" style="display:none;" onclick="confirmDeleteClass(\'' + c.id + '\')"><span class="ms">delete</span> Delete</button>' : '') +
+      '<button class="btn btn-ghost cl-s1" onclick="closeModal()">Cancel</button>' +
+      '<button class="btn btn-ghost cl-s2" style="display:none;" onclick="clStep(1)"><span class="ms">chevron_left</span> Back</button>' +
+      '<button class="btn btn-pri cl-s1" onclick="clStep(2)">Next: Details &amp; good to know <span class="ms" style="font-size:16px;vertical-align:-3px;">chevron_right</span></button>' +
+      '<button class="btn btn-pri cl-s2" style="display:none;" onclick="saveClass(\'' + (c ? c.id : '') + '\')">' + (c ? 'Save changes' : 'Submit for review') + '</button>';
 
     if (typeof window.openModalShell === 'function') window.openModalShell('lg', (c ? 'Edit experience' : 'New experience'), body, foot);
     setTimeout(function () { if (window.FFPSelect) { var m = document.getElementById('modal'); if (m) window.FFPSelect.enhance(m); } }, 40);
@@ -271,8 +286,11 @@
     if (!country) { toast('Country is required', 'error'); return; }
     var photoSlot = document.getElementById('listing-photo-slot');
     var heroUrl = (photoSlot && photoSlot.dataset.url) ? photoSlot.dataset.url : null; if (heroUrl === '') heroUrl = null;
-    var mLat = null, mLng = null, llv = g('latlng');
-    if (llv) { var pp = llv.split(','); if (pp.length >= 2) { var a = parseFloat(pp[0]), b = parseFloat(pp[1]); if (!isNaN(a)) mLat = a; if (!isNaN(b)) mLng = b; } }
+    var mLat = null, mLng = null;
+    var latEl = document.getElementById('cm-lat'), lngEl = document.getElementById('cm-lng');
+    var latV = latEl ? (latEl.value || '').trim() : '', lngV = lngEl ? (lngEl.value || '').trim() : '';
+    if (latV && lngV) { var a0 = parseFloat(latV), b0 = parseFloat(lngV); if (!isNaN(a0)) mLat = a0; if (!isNaN(b0)) mLng = b0; }
+    else { var llv = g('latlng'); if (llv) { var pp = llv.split(','); if (pp.length >= 2) { var a = parseFloat(pp[0]), b = parseFloat(pp[1]); if (!isNaN(a)) mLat = a; if (!isNaN(b)) mLng = b; } } }
     var wheel = g('wheelchair');
 
     var payload = {
@@ -338,6 +356,40 @@
     else if (confirm('Delete this experience?')) doIt();
   }
 
+  // ── two-step wizard nav + functional map pin ──
+  window.clStep = function (n) {
+    var g = function (i) { var el = document.getElementById('cm-' + i); return el ? (el.value || '').trim() : ''; };
+    if (n === 2) {
+      var ab = document.getElementById('cm-activity-btn'); var activity = ab ? (ab.dataset.value || '') : '';
+      var cob = document.getElementById('cm-country-btn'); var country = cob ? (cob.dataset.value || '') : '';
+      if (!g('title'))   { toast('Title is required', 'error'); return; }
+      if (!activity)     { toast('Activity is required', 'error'); return; }
+      if (!country)      { toast('Country is required', 'error'); return; }
+      if (!g('price'))   { toast('Price is required', 'error'); return; }
+    }
+    var s1 = document.getElementById('cl-step1'), s2 = document.getElementById('cl-step2');
+    if (s1) s1.style.display = n === 1 ? '' : 'none';
+    if (s2) s2.style.display = n === 2 ? '' : 'none';
+    Array.prototype.forEach.call(document.querySelectorAll('.cl-s1'), function (x) { x.style.display = n === 1 ? '' : 'none'; });
+    Array.prototype.forEach.call(document.querySelectorAll('.cl-s2'), function (x) { x.style.display = n === 2 ? '' : 'none'; });
+    var bar = document.getElementById('cl-stepbar'); if (bar) bar.textContent = n === 1 ? 'Step 1 of 2 · Experience details' : 'Step 2 of 2 · Details & good to know';
+    var mb = document.querySelector('.modal-body'); if (mb) mb.scrollTop = 0;
+  };
+  window.resolveClassMapsLink = async function () {
+    var inp = document.getElementById('cm-maps-url'), st = document.getElementById('cm-loc-status');
+    var url = inp ? (inp.value || '').trim() : '';
+    if (!url) { if (st) st.textContent = 'Paste your Google Maps link first'; return; }
+    if (st) st.textContent = 'Finding your pin…';
+    try {
+      var res = await fetch('https://ffp-passport-backend.vercel.app/api/geo/resolve?url=' + encodeURIComponent(url));
+      var j = await res.json();
+      if (!res.ok || j.lat == null) { if (st) st.textContent = (j && j.error) ? j.error : 'Couldn’t read a pin from that link'; return; }
+      var la = document.getElementById('cm-lat'), ln = document.getElementById('cm-lng');
+      if (la) la.value = j.lat; if (ln) ln.value = j.lng;
+      if (st) st.textContent = '✓ Pin set (' + Number(j.lat).toFixed(5) + ', ' + Number(j.lng).toFixed(5) + ')';
+    } catch (e) { console.error('[Tour] resolve maps link:', e); if (st) st.textContent = 'Couldn’t reach the resolver — try again'; }
+  };
+
   // ── expose ──
   window.renderClasses = renderClasses;
   window.openClassModal = openClassModal;
@@ -353,6 +405,6 @@
     var ok = await waitFor(function () { return window.supabase && window.FFP_PROVIDER && window.FFP_PROVIDER.id; }, 30000);
     if (!ok) { console.warn('[FFP Classes] deps not ready'); return; }
     await refresh();
-    console.log('[FFP Provider Classes] loaded v1 ✓');
+    console.log('[FFP Provider Classes] loaded v9 — 2-step wizard + functional map pin ✓');
   })();
 })();
