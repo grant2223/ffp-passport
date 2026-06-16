@@ -258,7 +258,7 @@
   console.log('[FFPPicker] ready (dashboard-owned, decoupled) ✓');
 })();
 </script>
-<script src="ffp-provider-events-loader.js?v=13"></script>
+<script src="ffp-provider-events-loader.js?v=14"></script>
 <script src="ffp-provider-experiences-loader.js?v=11"></script>
 <script src="ffp-provider-challenges-loader.js"></script>
 <!-- v29 (2026-06-03): Taxonomy audit fixes — "Provider type" (pf-type) reads the unified provider_type
@@ -4279,6 +4279,11 @@ function openEventModal(id) {
           <input class="input" type="number" id="em-capacity" value="${escHtml(e.capacity)}" placeholder="e.g. 24">
         </div>
       </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Ticket types <span class="label-hint" style="text-transform:none;letter-spacing:0;font-weight:600;">— optional. Add tiers (e.g. "Free spectator" + "Competitor"), each with its own price &amp; allocation. Leave empty to use the single price above.</span></div>
+      <div id="em-tickets"></div>
+      <button type="button" class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="emAddTicket()"><span class="ms">add</span> Add ticket type</button>
     </div>
     </div><!-- /ev-step1 -->
     <div id="ev-step2" style="display:none;">
