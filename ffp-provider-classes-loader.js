@@ -1,499 +1,5603 @@
-/* FFP Provider TOURS Loader (the `classes` table — ONE-OFF TOURS ONLY; Sessions/Classes are a SEPARATE tab) — v8 (2026-06-12)
-   v8: FEATURE button on each tour card (window.featureBtn → applyFeature; $99/mo apply → admin approve). fetch +featured.
-   v7: TOURS NEED APPROVAL — a new tour is submitted for review (status 'pending' via provider_set_listing_status)
-       instead of self-publishing; removed the partner "Go live"/"Unpublish" buttons (admin approves now); cards
-       show "Pending admin review"; modal button = "Submit for review". Admin approves in the new admin Tours tab.
-   v6: CLEAN SEPARATION — removed the listing_subtype crossover entirely. Tours and Sessions are separate things in
-       separate storage: this module = TOURS only (classes table); Sessions/Classes live in their own Sessions tab
-       (provider_sessions). A Tour is bookable via its date (class_sessions; members book item_type='class_session').
-       Kept the date capture; dropped the subtype field, the Tours/Classes toggle and the Class routing.
-   v4: TOURS-ONLY — this module is now the partner "Tours" tab (one-off activities: jet ski, bungy, canyoning).
-       Recurring CLASSES moved to the Sessions tab (provider_sessions). Default listing_subtype='tour'; all
-       user-facing copy/toasts say "tour"; empty state → New tour.
-   v3: CLASS vs TOUR — openClassModal(id, newSubtype) tags new listings as 'class' (recurring: yoga/tennis/group
-       class) or 'tour' (one-off: jet ski/bungy/canyoning); modal title says "New class"/"New tour"/"Edit …";
-       hidden #cm-subtype carries it; on save, provider_set_class_subtype persists classes.listing_subtype (the
-       shared field the booking platform splits Classes vs Tours on). Cards show a Class/Tour tag; fetch includes it.
-   v2: LEVELS + CITY PICKER — (1) replaced the orphan "Difficulty" box (Beginner/Intermediate/Advanced/All
-       levels) with "Fitness level required" reading window.FFP_TAX.attendeeLevels (Not Tried/Social/
-       Competitive/Representative/Professional + All Levels) and saving to fitness_level — the SAME connected
-       scale as a member's own ability (verified provider_save_listing class branch persists fitness_level).
-       (2) Country/City native dropdowns replaced with the shared searchable picker (window.FFPPicker) — the
-       same component as Trips and the activity field — so every listing form looks and behaves identically.
-   v1 (2026-06-12)
-   The partner create/edit form for single-session classes & tours (the `classes` table, shown to members as
-   "Experiences" on findfitpeople.com). Self-contained modal via openModalShell, full GetYourGuide-parity fields.
-   Save: provider_save_listing kind='class' (new rows insert as DRAFT). Publish/unpublish: provider_set_listing_status.
-   Delete: provider_delete_listing kind='class'. Duplicate: dashboard duplicateListing('class', id) → provider_duplicate_listing.
-   Renders cards into #cls-grid (panel-classes). Lazy-loaded by ensureProviderLoader('classes'). */
+<!-- FFP PROVIDER DASHBOARD — v67 (2026-06-13)
+     v67: REVIEWS — Overview "Your rating" now shows each review's session+coach context, the type-specific
+          sub-ratings (Coach/Value/Atmosphere etc.) as chips, and the member's review photo.
+     v66 (2026-06-13)
+     v66: POLISH + FEATURED per-day. Sessions dropdowns use shared dark picker (assets/ffp-select.js); session
+          check-in card cleaned (deal claim card removed, recent-checkins hidden). FEATURED is now $99 USD/DAY:
+          Feature button → day-picker (range or multi-select) + live total → provider_request_feature_days
+          (pending → admin approve → partner pays → admin Set live). Cache-busts: scheduling?v=11, ffp-select?v=1,
+          checkins?v=3.
+     v65 (2026-06-12)
+     v65: FACILITY TIMEZONE. New Profile "Timezone" picker (searchable IANA list via assets/ffp-time.js) →
+          providers.timezone. Shared FFPTime helper governs ALL listing date/time (Tours, Events, Trips, Sessions):
+          partners enter wall-clock in their facility tz, stored UTC, rendered back in facility tz. Cache-busts:
+          auth?v=6, ffp-time?v=1, profile?v=15, classes?v=9, events?v=11, experiences?v=8.
+     v64: Class FEATURE re-pointed to the class template (session_templates.featured); Feature button on the class
+          card. Cache-bust scheduling?v=9.
+     v63: SESSIONS REBUILD UI — "New class" opens the class-template form (class details + DESCRIPTION + photo +
+          weekly schedule rows: day/time/coach). List = one card per class. Timetable slot → manage one occurrence
+          (substitute coach / change capacity / cancel that date). openCreateSession → openTemplateModal.
+          Cache-bust scheduling?v=8.
+     v62: SESSION PHOTO — session form gets a photo (renderListingUploader → provider_sessions.hero_image_url),
+          thumbnail on the session card. Cache-bust scheduling?v=7.
+     v61: FEATURED LISTINGS — shared helper (featureBtn/applyFeature/loadFeatureMap) + "Feature — $99/mo" button on
+          every Tour/Event/Trip/Session card → provider_request_feature (pending) → admin approves in the new admin
+          Featured queue → listing.featured=true (homepage shows it). Cache-busts classes?v=8, scheduling?v=6.
+     v60: PROFILE — "Partner type" is taxonomy-driven (FFP_TAX.providerTypes ← list_key='provider_type', Admin-
+          editable); its values were changed in the DB + taxonomy to Single location / Remote / Event organizer
+          (was Gym/Studio/…). "Passport member discount" field HIDDEN (FFP is not a discount site). Needs taxonomy?v=11.
+     v59: SESSIONS = one strap per session (weekly recurrences grouped) + new "Timetable" tab (Mon–Sun weekly grid).
+          Tabs: Sessions | Timetable | Attendance. Cache-bust scheduling-loader?v=5.
+     v58: COACH PHOTO — staff photo upload (provider_staff.photo_url via FFPUpload); shows next to the coach on
+          each session + large in the bio popup. Cache-busts: scheduling-loader?v=4, staff-loader?v=3.
+     v57: COACH BIO — staff get a "Short bio" (provider_staff.bio); on a session the coach name is tappable → popup
+          with their bio (people book for the coach). Cache-busts: scheduling-loader?v=3, staff-loader?v=2.
+     v56: SESSIONS form rebuilt to standard — Activity + City use the shared searchable picker, Coach is a dropdown
+          of the provider's own staff, Location is a Maps URL, Price labelled per-person/per-session, Capacity min=1.
+          Cache-bust ffp-provider-scheduling-loader.js?v=2.
+     v55: TOURS NEED APPROVAL — Tours panel shows "reviewed by admin within 24 hours" help-strip; new tours submit
+          as 'pending' (no partner self-publish). Sessions tab stays on the left menu (un-retired, label "Sessions").
+          Admin approves tours in the NEW admin Tours screen (ffp-admin-classes-loader.js). Needs classes-loader?v=7.
+     v54: CLEAN SEPARATION (Grant) — Tours and Sessions are two separate things, separate storage, NO subtype
+          crossover. (1) DB: dropped classes.listing_subtype + provider_set_class_subtype. (2) "Tours" tab (id
+          classes) = ONE-OFF TOURS only (classes table) — single "New tour" button, no Tours/Classes toggle, no
+          "New class". A Tour is bookable via its date (class_sessions). (3) "Sessions" tab (id scheduling,
+          provider_sessions) switched back ON as the separate home for recurring Classes. (4) Create chooser:
+          Tour→openCreateClass() (Tours), Class→openCreateSession() (Sessions). Needs classes-loader?v=6.
+     v53: (superseded) tried Tours+Classes in one panel with a subtype toggle — removed in v54 (it was the crossover
+          Grant flagged as confusing).
+     v52: (superseded) "Experiences"→"Tours"; tried routing Class→provider_sessions ("Sessions" tab) — reverted in
+          v53 because provider_sessions isn't bookable. Tours rename + chooser split retained.
+     v51: CLASS vs TOUR — (superseded) create chooser had Class+Tour both in the Experiences modal + subtype field
+          (classes.listing_subtype via provider_set_class_subtype). The subtype plumbing stays; classes now route
+          to Sessions instead.
+     v50: CREATE-EXPERIENCE BUGFIX — the classes/Experiences loader is lazy-loaded, so "Create → Experience"
+          (openCreatePicker) and the panel's "New experience" button called openClassModal() *before* the loader
+          script had executed → it silently no-opped on first use (the "create class does nothing / never saves"
+          bug). New openCreateClass() loads the loader then opens the modal once openClassModal is registered.
+          Both create entry points now route through it. (Save/publish backend verified fine: provider_save_listing
+          kind=class inserts a draft with all fields incl fitness_level; provider_set_listing_status draft→live.)
+     v49: UNIFIED FIELDS + PROFILE GATE. (a) Level fields read the shared FFP_TAX.attendeeLevels (Events #em-intensity
+          + the base experiences modal); Events Country/City are now the shared searchable picker buttons
+          (#em-country-btn/#em-city-btn) wired by the events loader — no native dropdowns. (b) Cache-busts:
+          ffp-taxonomy.js?v=10, ffp-provider-experiences-loader.js?v=7, ffp-provider-events-loader.js?v=10,
+          ffp-provider-classes-loader.js?v=2, ffp-provider-profile-loader.js?v=14. (c) PROFILE COMPLETION reworked to
+          the real storefront ESSENTIALS (business name, category, city, about, logo, hero, ≥1 activity — 100% now
+          reachable; website/hours are non-blocking extras) + a "your listings won't show on Find Fit People until
+          your profile is complete" warning banner on every listing panel (renderListingGate in showPanel).
+     v48: FACILITY PAYMENTS — Connect via Stripe-hosted Account Links (no client_id/redirect URI). renderPaymentsCard()
+          now also shows an "onboarding / Finish setup" state; ?stripe=incomplete handled. Card → connectStripe() →
+          POST /api/facility/connect/start → Stripe-hosted onboarding → /return updates payments_status.
+     v47: FACILITY PAYMENTS (Phase 1) — "Connect Stripe" card in Billing → POST /api/facility/connect/start
+          (refresh-token auth) → Stripe OAuth → callback stores providers.stripe_account_id. renderPaymentsCard()
+          shows not-connected / connected ✓ / disconnected; ?stripe= bounce-back toast. Standard accounts, zero fee.
+     v46: NEW "Experiences" module (classes & tours = `classes` table) — nav item, #panel-classes, lazy loader
+          ffp-provider-classes-loader.js (full GYG-parity create/edit form, self-publish draft→live). Renamed the
+          existing listings nav/panel "Experiences"→"Trips" (= experiences table: retreats/camps/sport-event trips).
+          DUPLICATE button on every listing card (Trips/Events/Experiences) → duplicateListing() →
+          provider_duplicate_listing → reloads + opens the "(Copy)" draft for editing. Create-listing chooser updated.
+     v45: Removed the on-screen build stamp (must NOT be partner/client-facing — version stays in this comment).
+     v44: ANALYTICS — GA4 (assets/ffp-analytics.js) + per-panel page_view via window.ffpTrackView in
+          showPanel (SPA panel switches now show in GA4 Pages report).
+     v43: Pre-login "Apply to join" (opened the dead stub form) → "Create a partner account" linking to the
+          live /provider-signup.html. Removes the only path to the legacy in-dashboard apply form. Visible
+          build stamp reconciled to v43 (was stale at v31).
+     v42 (2026-06-05): Passport-member DISCOUNT field — providers set their own % off Find Fit People bookings for paid
+          Passport members (Business Details tab; blank = platform default 10%). Saved to
+          providers.passport_discount_pct via provider_save_profile; the booking site reads it at checkout.
+          Loads ffp-provider-profile-loader.js?v=13.
+     v41: Listing covers → Storage. handleUpload('listing:…') (shared by events/experiences/challenges/
+          deals/quests via #listing-photo-slot) now uploads to the listing-covers bucket via FFPUpload and
+          stores the public URL in hero_image_url, instead of base64-in-DB. Depends on ffp-image-upload.js.
+     v40: Removed dead <script> ref to ffp-provider-quest-analytics-loader.js (file doesn't exist in repo →
+          404 → "Unexpected token '<'" console error). NOTE: the live upload/venue-QR errors are DEPLOY gaps,
+          not code — assets/ffp-image-upload.js (new file) must be committed+pushed to the repo (server
+          returns HTML for it = not deployed → FFPUpload never loads → uploads fail), and the fixed
+          ffp-provider-venue-qr-loader.js must be pushed (server still runs the old passport_no query).
+     v39: SAVE BAR OVERLAP FIX — the sticky save bar (.save-bar, z-index 5) sat on top of the hero image's
+          bottom-right Replace/Remove buttons on the short Branding tab (panes had no bottom padding to clear
+          it). Added padding-bottom:104px to .pf-pane so content always clears the save bar.
+     v38: STUCK "Uploading…" FIX — the crop modal is reused; a successful upload closed it without resetting
+          the Save button, so the 2nd+ crop was stuck disabled (which also meant the hero never saved →
+          no Replace/Remove buttons). Save button now resets every time the crop modal opens
+          (ffp-image-upload.js?v=6). Logo + hero share the identical Replace/Remove buttons via renderUploader.
+          Also cache-busts ffp-provider-venue-qr-loader.js?v=2 — the deployed copy was stale and still
+          selected providers.passport_no (no such column → the 400 in the console); the fixed file selects
+          only business_name. (That 400 was the venue-QR card, NOT the image upload.)
+     v37: UPLOAD 400 FIX — storage RLS requires the file folder to equal auth.uid() (the login JWT `sub`).
+          The uploader was using the record id (provider id ≠ the owner's auth id), so writes were rejected
+          with a 400. The shared uploader now reads the id from the login token, so the folder always
+          matches the policy. Loads ffp-image-upload.js?v=5. (Verified: provider 2fc1da8a → owner 9783f7d0.)
+     v36: CROP SAVE FIX + header ratio — the crop "Save" pulled the image through a dataURL re-decode that
+          could hang (looked like "crop won't save"); now reads the JPEG straight off the cropped canvas
+          (ffp-image-upload.js?v=4). Header crop set to 16:9 (was 16:10) per the real banner shape.
+     v35: CROP/POSITION step for Logo + Hero — added Cropper.js; logo crops square, hero crops to a 16:10
+          banner so providers frame the image how they want. Click + drag-drop both open the crop modal
+          (pickProviderImage / dropProviderImage → FFPUpload.pick / .cropFile). Loads ffp-image-upload.js?v=3
+          (adds cropFile()). Native file inputs removed from the uploaders (crop modal supplies its own).
+     v34: Logo/hero RE-UPLOAD fix — uploads go to a stable path (upsert), so the URL was identical on the
+          2nd change and the browser showed the cached old image. The shared uploader now appends a ?v=
+          cache-buster so each upload returns a fresh URL (loads assets/ffp-image-upload.js?v=2).
+     v33: IMAGE STORAGE — provider Logo + Hero now upload to Supabase Storage (provider-logos /
+          provider-heroes buckets) via the shared assets/ffp-image-upload.js and store the public URL,
+          instead of base64-in-DB. handleUpload('logo'|'hero') resizes + uploads + sets providerProfile
+          url; saved via provider_save_profile on Save. (Event/listing photos still to migrate.)
+     v32: CATEGORY STANDARDISATION — activity picker now groups by the standardised 6 categories
+          (activity_types.category migrated platform-wide to fitness/sports/wellness/recovery/adventure/food,
+          granular values preserved in activity_types.subcategory). Picker group headers Title-cased for
+          display (storage stays lowercase). Loads ffp-provider-events-loader.js?v=8 (dead 23-category
+          array removed). New events derive the standard category from the picker.
+     v31: Event GUEST LIST — loads ffp-provider-events-loader.js?v=7, which shows who RSVP'd to an event
+          (passport info: photo + name + city) with "Going" / "Checked in" badges inside the event modal
+          (provider_event_roster RPC, owner-gated). Lets providers see who's coming + who showed up.
+     v30: #quests P1 — providers can now CREATE facility quests. New ffp-provider-quest-create-loader.js?v=1
+          injects a "Your quests" card (create/edit/pause) at the top of the Quests panel → provider_save_quest
+          RPC (quest goes live on submit, venue-bound, awards a venue stamp). Completion uses the existing
+          check-in → provider_quest_approve flow. (DB layer already applied + verified.)
+     v29: (Taxonomy audit fixes) "Provider type" field (pf-type) now reads the UNIFIED provider_type
+          taxonomy (Gym / Studio / Event Organizer / Sports Club / Team / Adventure Provider / Health
+          Food Cafe / …) via FFP_TAX.providerTypes (re-fills on ffp-tax-ready) — one concept shared with
+          the admin rankings classifier (was a hardcoded "business structure" list conflicting on the
+          same column; business_structure dropped). Experience Type + Experience/Event Level selects now
+          read FFP_TAX.experienceTypes / FFP_TAX.fitnessLevels instead of hardcoded arrays, so admin
+          Taxonomy edits propagate. Needs ffp-taxonomy.js v6.
+     v28: PROVIDER RATING block on the Overview ("Your rating") — avg overall + per-category
+          (Experience/Service/Facilities) stars + recent member reviews, via RPCs provider_rating()
+          + provider_reviews_list(). renderProviderRating() runs inside renderOverview(). Also
+          reconciled the on-screen build stamp (was stale at v25 while code was v27 + the
+          feedback-widget ?v=4 ref had been added without a bump). Full per-version history is in the
+          comment block just above the <body> scripts (search "v28 (2026-06-03): PROVIDER RATING").
+     v27: GREEN "Save changes" banner under the topbar on Profile. v26: Profile tab reorder +
+          styled Activities dropdown. v25: portal restructure (profile tabs + check-ins split). -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FFP Passport — Partners Portal</title>
+<link rel="icon" href="/assets/icons/ffp-favicon-32.png?v=2" sizes="32x32" type="image/png">
+<link rel="icon" href="/assets/icons/ffp-favicon-16.png?v=2" sizes="16x16" type="image/png">
+<link rel="apple-touch-icon" href="/assets/icons/ffp-apple-touch-180.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/ffp-api-integration.js?v=12"></script>
+<script src="assets/ffp-constants.js"></script>
+<script src="assets/ffp-taxonomy.js?v=11"></script>
+<script src="assets/ffp-location-picker.js"></script>
+<script src="assets/ffp-time.js?v=1"></script>
+<script src="assets/ffp-currency.js?v=2"></script>
+<script src="assets/ffp-select.js?v=1"></script>
+<script src="ffp-provider-auth.js?v=7"></script>
+<link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>
+<script src="assets/ffp-image-upload.js?v=7"></script>
+<script src="assets/ffp-gallery.js?v=1"></script>
+<script src="ffp-provider-profile-loader.js?v=16"></script>
+<!-- Shared provider picker (FFPPicker) defined HERE in the dashboard so Events/Challenges/Experiences
+     activity + country/city pickers never depend on a separately-uploaded loader being present. -->
+<script>
 (function () {
-  'use strict';
-  function sb() { return window.supabase; }
-  function provId() { return (window.FFP_PROVIDER || {}).id; }
-  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
-  function toast(m, k) { if (typeof window.showToast === 'function') { try { window.showToast(m, k || 'info'); return; } catch (e) {} } console.log('[FFP Classes]', m); }
-  function arrFromText(s) { return s ? String(s).split('\n').map(function (x) { return x.trim(); }).filter(function (x) { return x.length; }) : []; }
-  function joinArr(a) { return (Array.isArray(a) ? a : []).join('\n'); }
-  function intn(v) { return v ? (isNaN(parseInt(v, 10)) ? null : parseInt(v, 10)) : null; }
-  function num(v) { return v ? (isNaN(parseFloat(v)) ? null : parseFloat(v)) : null; }
-
-  // Fallback only — the canonical level list is window.FFP_TAX.attendeeLevels (the member ability scale +
-  // "All Levels"). The form saves the chosen value to fitness_level so it connects to a member's ability.
-  var FITNESS_LEVELS = ['All Levels', 'Not Tried', 'Social', 'Competitive', 'Representative', 'Professional'];
-
-  // Gallery image URLs + the currently-loaded upcoming departures for the open modal.
-  var _cmGallery = [], _cmUpcoming = [];
-
-  // ── data ──
-  async function fetchClasses() {
-    if (!provId()) return [];
-    var res = await sb().from('classes')
-      .select('id, provider_id, title, description, category, activity, venue, city, country, duration_min, capacity, price_aed, hero_image_url, gallery, status, booking_source, highlights, what_included, what_not_included, meeting_point, meeting_lat, meeting_lng, what_to_bring, not_allowed, know_before, languages, min_age, difficulty, fitness_level, wheelchair_accessible, accessibility_notes, free_cancellation_hours, cancellation_policy, distance_km, featured, created_at')
-      .eq('provider_id', provId())
-      .order('created_at', { ascending: false });
-    if (res.error) { console.error('[FFP Classes] fetch', res.error); toast('Could not load experiences', 'error'); return []; }
-    return res.data || [];
+  "use strict";
+  function esc(s){ return (window.escHtml ? window.escHtml(s) : String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')); }
+  function toast(m,k){ if (window.showToast){ try{ window.showToast(m,k||'info'); return; }catch(e){} } }
+  if (!document.getElementById('ffp-shared-picker-css')) {
+    var css = document.createElement('style'); css.id = 'ffp-shared-picker-css';
+    css.textContent = [
+      '.ffp-picker-btn{width:100%;display:flex;align-items:center;justify-content:space-between;background:#0a1825;border:1px solid #1a2f44;border-radius:10px;padding:11px 14px;color:#e8eef4;font-size:14px;font-family:inherit;cursor:pointer;text-align:left;}',
+      '.ffp-picker-btn:hover{border-color:#2a4564;}',
+      '.ffp-picker-btn.placeholder{color:#6c7a8b;}',
+      '.ffp-picker-btn .caret{flex-shrink:0;margin-left:10px;color:#8a99a8;}',
+      '.ffp-picker-overlay{position:fixed;inset:0;background:rgba(0,8,20,0.75);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;transition:opacity 150ms ease;}',
+      '.ffp-picker-overlay.open{opacity:1;}',
+      '.ffp-picker-modal{background:#0f1e2e;border:1px solid #1a2f44;border-radius:16px;width:100%;max-width:520px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.5);overflow:hidden;}',
+      '.ffp-picker-header{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid #1a2f44;}',
+      '.ffp-picker-title{color:#e8eef4;font-size:16px;font-weight:600;}',
+      '.ffp-picker-close{background:transparent;border:none;color:#8a99a8;cursor:pointer;font-size:24px;line-height:1;padding:0 4px;}',
+      '.ffp-picker-search{padding:14px 20px;border-bottom:1px solid #1a2f44;}',
+      '.ffp-picker-search input{width:100%;background:#0a1825;border:1px solid #1a2f44;border-radius:10px;padding:10px 14px;color:#e8eef4;font-size:14px;font-family:inherit;outline:none;}',
+      '.ffp-picker-search input:focus{border-color:#2ba8e0;}',
+      '.ffp-picker-list{flex:1;overflow-y:auto;padding:8px 0;}',
+      '.ffp-picker-group-hdr{padding:10px 20px 6px;color:#8a99a8;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;}',
+      '.ffp-picker-item{padding:11px 20px;color:#e8eef4;font-size:14px;cursor:pointer;}',
+      '.ffp-picker-item:hover{background:rgba(43,168,224,0.08);}',
+      '.ffp-picker-item.selected{background:rgba(43,168,224,0.15);color:#2ba8e0;font-weight:500;}',
+      '.ffp-picker-empty{padding:30px 20px;text-align:center;color:#6c7a8b;font-size:14px;}'
+    ].join('');
+    document.head.appendChild(css);
   }
-  async function refresh() {
-    var rows = await fetchClasses();
-    if (!Array.isArray(window.classesList)) window.classesList = [];
-    window.classesList.length = 0;
-    rows.forEach(function (r) { window.classesList.push(r); });
-    renderClasses();
-    if (typeof window.renderNav === 'function') { try { window.renderNav(); } catch (e) {} }
+  async function getActivities(){
+    if (window.FFP_ACTIVITIES_CACHE && window.FFP_ACTIVITIES_CACHE.length) return window.FFP_ACTIVITIES_CACHE;
+    if (!window.supabase) return [];
+    var res = await window.supabase.from('activity_types').select('slug, name, category').eq('active', true).order('sort_order');
+    if (res.error){ console.error('[FFPPicker] activities:', res.error); return []; }
+    window.FFP_ACTIVITIES_CACHE = res.data || []; return window.FFP_ACTIVITIES_CACHE;
   }
-
-  // ── list render (TOURS only) ──
-  function renderClasses() {
-    var grid = document.getElementById('cls-grid');
-    if (!grid) return;
-    var list = Array.isArray(window.classesList) ? window.classesList : [];
-    var sEl = document.getElementById('cls-search');
-    var q = (sEl && sEl.value || '').trim().toLowerCase();
-    var items = q ? list.filter(function (c) { return (c.title || '').toLowerCase().indexOf(q) >= 0 || (c.activity || '').toLowerCase().indexOf(q) >= 0; }) : list;
-    if (!items.length) {
-      if (typeof window.emptyState === 'function') {
-        grid.innerHTML = list.length
-          ? window.emptyState('No matches', 'Try a different search.', '', '')
-          : window.emptyState('No experiences yet', 'One-off activities members book — jet ski, bungy, canyoning, a guided experience. Add your first one (with its date).', 'New experience', 'openClassModal()');
+  function escClosePicker(e){ if (e.key === 'Escape') closePicker(); }
+  function closePicker(){ var ov=document.getElementById('ffp-picker-overlay'); if(ov) ov.remove(); document.removeEventListener('keydown', escClosePicker); }
+  function openPicker(opts){
+    closePicker();
+    var overlay=document.createElement('div'); overlay.className='ffp-picker-overlay'; overlay.id='ffp-picker-overlay';
+    overlay.innerHTML='<div class="ffp-picker-modal"><div class="ffp-picker-header"><div class="ffp-picker-title">'+esc(opts.title||'Choose')+'</div><button type="button" class="ffp-picker-close" id="ffp-picker-close">&times;</button></div><div class="ffp-picker-search"><input type="text" id="ffp-picker-search-input" placeholder="'+esc(opts.placeholder||'Search…')+'" autocomplete="off"></div><div class="ffp-picker-list" id="ffp-picker-list"></div></div>';
+    document.body.appendChild(overlay);
+    requestAnimationFrame(function(){ overlay.classList.add('open'); });
+    var input=document.getElementById('ffp-picker-search-input'); var listEl=document.getElementById('ffp-picker-list');
+    function renderList(filter){
+      var f=(filter||'').trim().toLowerCase(); var items=opts.items||[];
+      var matches=items.filter(function(it){ if(!f) return true; return (it.name||'').toLowerCase().indexOf(f)>=0 || (it.group||'').toLowerCase().indexOf(f)>=0; });
+      if(!matches.length){ listEl.innerHTML='<div class="ffp-picker-empty">No matches</div>'; return; }
+      if(opts.groupBy){
+        var groups={},order=[]; matches.forEach(function(it){ var g=it.group||'Other'; if(!groups[g]){groups[g]=[];order.push(g);} groups[g].push(it); });
+        var html=''; order.forEach(function(g){ var gLbl=g?(g.charAt(0).toUpperCase()+g.slice(1)):g; html+='<div class="ffp-picker-group-hdr">'+esc(gLbl)+'</div>'; groups[g].forEach(function(it){ var sel=(it.name===opts.currentValue)?' selected':''; html+='<div class="ffp-picker-item'+sel+'" data-value="'+esc(it.name)+'" data-group="'+esc(it.group||'')+'">'+esc(it.name)+'</div>'; }); }); listEl.innerHTML=html;
       } else {
-        grid.innerHTML = '<div style="padding:40px;text-align:center;color:#9dbdd0;">' + (list.length ? 'No matches' : 'No experiences yet') + '</div>';
+        var h2=''; matches.forEach(function(it){ var sel=(it.name===opts.currentValue)?' selected':''; h2+='<div class="ffp-picker-item'+sel+'" data-value="'+esc(it.name)+'">'+esc(it.name)+'</div>'; }); listEl.innerHTML=h2;
       }
+    }
+    renderList(''); input.addEventListener('input', function(){ renderList(input.value); }); input.focus();
+    listEl.addEventListener('click', function(e){ var item=e.target.closest('.ffp-picker-item'); if(!item) return; var v=item.dataset.value, g=item.dataset.group||''; closePicker(); if(opts.onSelect) opts.onSelect(v,g); });
+    document.getElementById('ffp-picker-close').addEventListener('click', closePicker);
+    overlay.addEventListener('click', function(e){ if(e.target===overlay) closePicker(); });
+    document.addEventListener('keydown', escClosePicker);
+  }
+  async function openActivityPicker(currentValue, onSelect){
+    var acts=await getActivities();
+    var items=acts.map(function(a){ return { name:a.name, group:a.category, slug:a.slug }; });
+    openPicker({ title:'Choose activity', placeholder:'Search activities…', items:items, currentValue:currentValue, groupBy:'category', onSelect:onSelect });
+  }
+  function citiesTax(){ return (window.FFP_TAX && window.FFP_TAX.cities) || {}; }
+  function openCountryPicker(currentValue, onSelect){
+    var items=Object.keys(citiesTax()).sort().map(function(c){ return { name:c }; });
+    openPicker({ title:'Choose country', placeholder:'Search countries…', items:items, currentValue:currentValue, onSelect:onSelect });
+  }
+  function openCityPicker(country, currentValue, onSelect){
+    var C=citiesTax(); if(!country || !C[country]){ toast('Choose a country first','info'); return; }
+    var items=C[country].map(function(c){ return { name:c }; });
+    openPicker({ title:'Choose city in '+country, placeholder:'Search cities…', items:items, currentValue:currentValue, onSelect:onSelect });
+  }
+  window.FFPPicker = { openActivity: openActivityPicker, openCountry: openCountryPicker, openCity: openCityPicker, getActivities: getActivities };
+  console.log('[FFPPicker] ready (dashboard-owned, decoupled) ✓');
+})();
+</script>
+<script src="ffp-provider-events-loader.js?v=15"></script>
+<script src="ffp-provider-experiences-loader.js?v=12"></script>
+<script src="ffp-provider-challenges-loader.js"></script>
+<!-- v29 (2026-06-03): Taxonomy audit fixes — "Provider type" (pf-type) reads the unified provider_type
+     taxonomy via FFP_TAX.providerTypes (shared with admin rankings; business_structure concept dropped);
+     Experience Type + Experience/Event Level selects read FFP_TAX.experienceTypes / fitnessLevels (no more
+     hardcoded arrays). Needs ffp-taxonomy.js v6.
+     v28 (2026-06-03): PROVIDER RATING block on the Overview ("Your rating") — avg overall + per-
+     category (Experience/Service/Facilities) stars + recent member reviews, via RPCs
+     provider_rating() + provider_reviews_list(). renderProviderRating() runs inside renderOverview().
+     Also: build stamp + version were stale (stamp read v25 while code was v27 + the feedback-widget
+     ?v=4 ref from the feedback-photo change was added without bumping) — now reconciled to v28.
+     v27 (2026-06-02): Big GREEN "Save changes" banner sticks under the topbar (#ffp-save-banner),
+     shown only on Profile when there are unsaved changes — calls saveProfile(); hidden on save /
+     when leaving Profile. setSaveBar() toggles it.
+     v26 (2026-06-02): Profile tab order is now Business Details · Activities · Branding (default
+     Business Details); "Business info" renamed "Business Details". Activities input uses our own
+     styled dropdown (profile loader v12, ref ?v=12) instead of the native datalist.
+     v25 (2026-06-02): PORTAL RESTRUCTURE. (1) Business profile split into TABS — Branding
+     (name, logo, hero) / Business info (category, type, location + Maps pin, hours, contact, about)
+     / Activities (chips). showProfileTab() toggles panes; profile loader v11 injects Activities
+     into #pf-activities-host + Maps link after Address. (2) Combined check-ins console split across
+     panels (quests loader v4, ref ?v=4): Quest check-ins → new #panel-quests (+ Quests nav item);
+     Challenge results → #panel-challenges (above listings); Event check-ins → #panel-checkins.
+     (3) Deals nav item + #panel-deals restored as a dormant "Coming soon" placeholder.
+     v24 (2026-06-02): Check-ins console rewired to Supabase RPCs — quests loader ref now
+     ffp-provider-quests-loader.js?v=3. Three cards: Quest check-ins (approve/decline),
+     Challenge results (verify), Event check-ins (attendance). Fixes the old /api/quests 404s.
+     v23 (2026-06-01): Notifications are now a prominent TOP banner (was an easy-to-miss
+     bottom-right corner toast). Full-width on mobile. Delete confirmed working.
+     v22 (2026-06-01): FIX delete buttons broken in v21 (missing ')' → syntax error). Restored.
+     v21 (2026-06-01): (regression) delete-from-edit-modal — removed the 'confirmDeleteX(id); closeModal()'
+     race that instantly dismissed the confirm dialog (delete never fired). Card + modal delete now work.
+     v20 (2026-06-01): E/E/C create forms to FFP form standards — labels not bold; Venue->Location
+     + Google Maps link (events, challenges) + map link on experience destination. Time/date already
+     native. Country/City cascade intentionally NOT forced (experiences international). -->
+<!-- v12: notifications loader restored (this branch was missing it) — wires the
+     topbar bell to real data AND overrides signOut() to do a real ffpLogout()
+     instead of the inline demo that showed a blank screen. -->
+<script src="ffp-provider-notifications-loader.js"></script>
+<!-- v12: check-ins loader now loads on first open of the Check-ins panel
+     (see ensureProviderLoader in showPanel) — not needed on initial load. -->
+<script src="ffp-provider-quests-loader.js?v=4"></script>
+<!-- Provider quest CREATION (#quests P1): "Your quests" card + create/edit form at the top of the Quests panel -> provider_save_quest RPC. -->
+<script src="ffp-provider-quest-create-loader.js?v=1"></script>
+<script src="ffp-provider-venue-qr-loader.js?v=3"></script>
+<!-- ffp-provider-quest-analytics-loader.js reference removed (v40): that file does not exist in the repo,
+     so it 404'd → returned the HTML fallback → "Unexpected token '<'" console error on every load. -->
+<!-- Feedback widget (shared) -> public.feedback -> admin Feedback panel -->
+<script src="assets/ffp-feedback-widget.js?v=5" data-source="provider" data-fab="off"></script>
+<!-- Removed 2026-05-30: phantom refs to loaders that don't exist (earnings/overview/analytics/team/settings). Overview & Analytics render inline. Normalized quests/venue-qr/quest-analytics refs to plain GitHub filenames. -->
+   
+<style>
+/* ════════════════════════════════════════════════
+   DESIGN TOKENS — synced with member + admin
+   ════════════════════════════════════════════════ */
+:root {
+  --ffp-blue:         #2ba8e0;
+  --ffp-blue-dark:    #1980AD;
+  --ffp-blue-darker:  #0f5a7a;
+  --ffp-bg:           #081420;
+  --ffp-bg-2:         #0f1e2e;
+  --ffp-bg-3:         #142a3f;
+  --ffp-bg-card:      rgba(15, 30, 46, 0.55);
+  --ffp-border:       rgba(43, 168, 224, 0.10);
+  --ffp-border-mid:   rgba(43, 168, 224, 0.22);
+  --ffp-border-str:   rgba(43, 168, 224, 0.38);
+  --ffp-text:         #e8eef4;
+  --ffp-text-muted:   #8a99a8;
+  --ffp-text-dim:     #4d5b6a;
+  --ffp-yellow:       #FFCC00;
+  --ffp-yellow-dk:    #d4a700;
+  --ffp-gold:         #d4af37;
+  --ffp-green:        #4ade80;
+  --ffp-green-dk:     #22c55e;
+  --ffp-red:          #ef4444;
+  --ffp-orange:       #f97316;
+  --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px;
+  --shadow-card: 0 4px 14px rgba(0, 0, 0, 0.25);
+  --shadow-pop: 0 18px 50px rgba(0, 0, 0, 0.5);
+}
+
+/* Material Symbols Outlined baseline */
+.ms {
+  font-family: 'Material Symbols Outlined';
+  font-weight: 400;
+  font-style: normal;
+  font-size: 18px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+  user-select: none;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: var(--ffp-bg);
+  color: var(--ffp-text);
+  font-family: 'Montserrat', system-ui, sans-serif;
+  font-weight: 400;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  height: 100%;
+}
+button, input, select, textarea { font-family: inherit; color: inherit; outline: none; }
+button { cursor: pointer; border: none; background: none; }
+a { color: var(--ffp-blue); text-decoration: none; }
+
+/* ════════════════════════════════════════════════
+   APP SHELL
+   ════════════════════════════════════════════════ */
+.app { display: flex; height: 100vh; overflow: hidden; }
+
+/* SIDEBAR */
+.sidebar {
+  width: 244px; flex-shrink: 0;
+  background: var(--ffp-bg-2);
+  border-right: 1px solid var(--ffp-border);
+  display: flex; flex-direction: column;
+}
+.sb-logo { padding: 20px 22px 16px; border-bottom: 1px solid var(--ffp-border); }
+.sb-brand { font-size: 15px; font-weight: 900; letter-spacing: 2px; line-height: 1.1; }
+.sb-brand span { color: var(--ffp-blue); }
+.sb-sub {
+  font-size: 9px; font-weight: 800; letter-spacing: 1.6px;
+  color: var(--ffp-yellow); margin-top: 4px;
+  text-transform: uppercase;
+}
+.sb-nav {
+  flex: 1; padding: 12px 10px;
+  display: flex; flex-direction: column; gap: 2px;
+  overflow-y: auto;
+}
+.sb-nav::-webkit-scrollbar { width: 4px; }
+.sb-nav::-webkit-scrollbar-thumb { background: rgba(43, 168, 224, .15); border-radius: 2px; }
+.sb-section {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11px; font-weight: 900; letter-spacing: 1.5px;
+  color: var(--ffp-text-muted);
+  text-transform: uppercase;
+  padding: 14px 12px 8px;
+  background: none; border: none; width: 100%; cursor: pointer; text-align: left;
+}
+.sb-section:hover { color: var(--ffp-text); }
+.sb-section .sb-chev { font-size: 18px; color: var(--ffp-text-dim); transition: transform .18s; }
+.sb-section.collapsed .sb-chev { transform: rotate(-90deg); }
+.sb-sec-items { display: flex; flex-direction: column; gap: 2px; }
+.sb-sec-items.collapsed { display: none; }
+/* Business module tabs */
+.biz-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin: 18px 0 0; border-bottom: 1px solid var(--ffp-border); }
+.biz-tab { background: none; border: none; border-bottom: 2px solid transparent; color: var(--ffp-text-muted); font-weight: 700; font-size: 13px; padding: 10px 14px; cursor: pointer; transition: all .15s; }
+.biz-tab:hover { color: var(--ffp-text); }
+.biz-tab.active { color: var(--ffp-text); border-bottom-color: var(--ffp-yellow, #FFCC00); }
+.biz-pane { display: none; }
+.biz-pane.active { display: block; }
+.ni {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 14px; border-radius: 9px;
+  font-size: 13px; font-weight: 700;
+  color: var(--ffp-text-muted);
+  cursor: pointer; transition: all .15s;
+  border: 1px solid transparent;
+  width: 100%; text-align: left;
+}
+.ni:hover { background: rgba(43, 168, 224, .06); color: var(--ffp-text); }
+.ni.active {
+  background: rgba(43, 168, 224, .14);
+  color: var(--ffp-text);
+  border-color: var(--ffp-border-mid);
+}
+.ni.locked { color: var(--ffp-text-dim); cursor: not-allowed; }
+.ni.locked:hover { background: transparent; color: var(--ffp-text-dim); }
+.ni .ms { font-size: 16px; flex-shrink: 0; }
+.ni-badge {
+  margin-left: auto;
+  background: var(--ffp-yellow); color: #000;
+  border-radius: 100px; padding: 2px 7px;
+  font-size: 9px; font-weight: 800;
+  min-width: 20px; text-align: center;
+}
+.ni-badge.blue { background: var(--ffp-blue); color: #fff; }
+.ni-badge.dim { background: var(--ffp-bg-3); color: var(--ffp-text-muted); }
+.ni-lock-pill {
+  margin-left: auto;
+  background: var(--ffp-bg-3); color: var(--ffp-text-dim);
+  border-radius: 100px; padding: 2px 8px;
+  font-size: 8px; font-weight: 800; letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.sb-foot {
+  padding: 14px 14px;
+  border-top: 1px solid var(--ffp-border);
+  display: flex; align-items: center; gap: 11px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.sb-foot:hover { background: rgba(43, 168, 224, .04); }
+.sb-foot-mark {
+  width: 36px; height: 36px;
+  border-radius: 9px;
+  background: var(--ffp-blue);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 900; color: #fff;
+  flex-shrink: 0;
+}
+.sb-foot-info { flex: 1; min-width: 0; }
+.sb-foot-name {
+  font-size: 12px; font-weight: 800;
+  color: var(--ffp-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sb-foot-tag {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  color: var(--ffp-green); text-transform: uppercase;
+  margin-top: 2px;
+}
+.sb-foot-tag.pending { color: var(--ffp-yellow); }
+.sb-foot-tag.suspended { color: var(--ffp-red); }
+
+/* MAIN */
+.main {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0;
+  background: radial-gradient(ellipse at top, #0a1825 0%, var(--ffp-bg) 60%);
+}
+.panel-wrap::-webkit-scrollbar { width: 6px; }
+.panel-wrap::-webkit-scrollbar-thumb { background: rgba(43, 168, 224, .2); border-radius: 3px; }
+
+.topbar {
+  background: rgba(8, 20, 32, .88);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--ffp-border);
+  padding: 0 28px; height: 62px;
+  display: flex; align-items: center; gap: 14px;
+  flex: 0 0 auto; z-index: 20;
+}
+/* Big green save banner — fixed under the topbar (part of the frozen header), shown on Profile when there are unsaved changes */
+.ffp-save-banner{display:none;flex:0 0 auto;z-index:19;align-items:center;justify-content:space-between;gap:14px;background:linear-gradient(90deg,#15a34a,#22c55e);color:#fff;padding:13px 28px;box-shadow:0 10px 26px rgba(0,0,0,.30);}
+.ffp-save-banner.show{display:flex;}
+.ffp-save-banner-msg{font-size:14px;font-weight:800;display:flex;align-items:center;gap:9px;min-width:0;}
+.ffp-save-banner-msg .ms{font-size:20px;flex:0 0 auto;}
+.ffp-save-banner-btn{background:#fff;color:#0b7a37;border:none;border-radius:11px;padding:12px 26px;font-size:15px;font-weight:900;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;box-shadow:0 2px 0 rgba(0,0,0,.14);}
+.ffp-save-banner-btn:hover{filter:brightness(1.06);}
+.ffp-save-banner-btn:disabled{opacity:.7;cursor:default;}
+.ffp-save-banner-btn .ms{font-size:19px;}
+@media(max-width:640px){.ffp-save-banner{padding:11px 16px;} .ffp-save-banner-msg{font-size:12.5px;} .ffp-save-banner-btn{padding:11px 18px;font-size:14px;}}
+.tb-title { font-size: 18px; font-weight: 900; letter-spacing: -.3px; }
+.tb-status {
+  font-size: 10px; font-weight: 800; letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 5px 10px;
+  border-radius: 100px;
+  background: rgba(74, 222, 128, .15);
+  color: var(--ffp-green);
+  border: 1px solid rgba(74, 222, 128, .3);
+}
+.tb-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.tb-btn {
+  height: 38px;
+  padding: 0 14px;
+  border-radius: var(--r-md);
+  background: var(--ffp-bg-3);
+  color: var(--ffp-text);
+  font-size: 12px; font-weight: 800;
+  letter-spacing: .3px;
+  display: inline-flex; align-items: center; gap: 7px;
+  border: 1px solid var(--ffp-border-mid);
+  transition: all .15s;
+}
+.tb-btn:hover { border-color: var(--ffp-border-str); background: var(--ffp-bg-2); }
+.tb-btn .ms { font-size: 15px; }
+.tb-bell {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: var(--ffp-bg-3);
+  border: 1px solid var(--ffp-border-mid);
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  color: var(--ffp-text);
+  transition: all .15s;
+}
+.tb-bell:hover { border-color: var(--ffp-border-str); }
+.tb-bell::after {
+  content: ""; position: absolute;
+  top: 8px; right: 9px;
+  width: 8px; height: 8px;
+  background: var(--ffp-yellow);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--ffp-bg-2);
+}
+.tb-bell .ms { font-size: 17px; }
+.tb-avatar {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: var(--ffp-blue);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800; color: #fff;
+  letter-spacing: .3px;
+  cursor: pointer;
+}
+
+.panel-wrap { flex: 1; min-height: 0; overflow-y: auto; width: 100%; padding: 28px 32px 80px; max-width: 1280px; margin: 0 auto; }
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* PAGE HEADER */
+.ph {
+  font-size: 28px; font-weight: 900;
+  letter-spacing: -.5px; line-height: 1.1;
+  margin-bottom: 8px;
+}
+.psub {
+  font-size: 14px; color: var(--ffp-text-muted);
+  margin-bottom: 22px; line-height: 1.6;
+  font-weight: 500;
+}
+.ph-row {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 16px; margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+.ph-row .ph { margin-bottom: 4px; }
+.ph-row .psub { margin-bottom: 0; }
+
+/* PRIMARY BUTTONS */
+.btn {
+  height: 42px;
+  padding: 0 18px;
+  border-radius: var(--r-md);
+  font-size: 12px; font-weight: 800;
+  letter-spacing: .5px; text-transform: uppercase;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.btn .ms { font-size: 16px; }
+.btn-pri {
+  background: var(--ffp-yellow);
+  color: #000;
+}
+.btn-pri:hover { background: var(--ffp-yellow-dk); }
+.btn-sec {
+  background: var(--ffp-bg-3);
+  color: var(--ffp-text);
+  border: 1px solid var(--ffp-border-mid);
+}
+.btn-sec:hover { border-color: var(--ffp-border-str); background: var(--ffp-bg-2); }
+.btn-blue {
+  background: var(--ffp-blue);
+  color: #fff;
+}
+.btn-blue:hover { background: var(--ffp-blue-dark); }
+.btn-ghost {
+  background: transparent;
+  color: var(--ffp-text-muted);
+  border: 1px solid var(--ffp-border-mid);
+}
+.btn-ghost:hover { color: var(--ffp-text); border-color: var(--ffp-border-str); }
+.btn-danger {
+  background: var(--ffp-red);
+  color: #fff;
+}
+.btn-danger:hover { background: #c93535; }
+.btn-sm { height: 34px; padding: 0 14px; font-size: 11px; }
+.btn-xs { height: 28px; padding: 0 11px; font-size: 10px; }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+
+/* CARD BASE */
+.card {
+  background: var(--ffp-bg-card);
+  border: 1px solid var(--ffp-border);
+  border-radius: var(--r-lg);
+}
+
+/* ════════════════════════════════════════════════
+   OVERVIEW — KPI TILES + ACTIVITY
+   ════════════════════════════════════════════════ */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.kpi {
+  background: var(--ffp-bg-card);
+  border: 1px solid var(--ffp-border);
+  border-radius: var(--r-lg);
+  padding: 18px 18px 16px;
+}
+.kpi-lbl {
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 1.4px; text-transform: uppercase;
+  color: var(--ffp-text-muted);
+  margin-bottom: 10px;
+}
+.kpi-val {
+  font-size: 30px; font-weight: 900;
+  letter-spacing: -.8px; line-height: 1;
+  color: var(--ffp-text);
+}
+.kpi-val.yellow { color: var(--ffp-yellow); }
+.kpi-val.green { color: var(--ffp-green); }
+.kpi-val.blue { color: var(--ffp-blue); }
+.kpi-delta {
+  margin-top: 10px;
+  font-size: 11px; font-weight: 700;
+  color: var(--ffp-green);
+  display: flex; align-items: center; gap: 4px;
+}
+.kpi-delta.down { color: var(--ffp-red); }
+.kpi-delta.flat { color: var(--ffp-text-muted); }
+.kpi-delta .ms { font-size: 14px; }
+
+.split-2 {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 18px;
+  margin-bottom: 28px;
+}
+
+.section-card {
+  background: var(--ffp-bg-card);
+  border: 1px solid var(--ffp-border);
+  border-radius: var(--r-lg);
+  padding: 20px 22px;
+}
+.section-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.section-title {
+  font-size: 14px; font-weight: 800;
+  letter-spacing: .3px;
+}
+.section-link {
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 1px; text-transform: uppercase;
+  color: var(--ffp-blue);
+  cursor: pointer;
+}
+.section-link:hover { color: var(--ffp-yellow); }
+
+.activity-list { display: flex; flex-direction: column; gap: 12px; }
+
+/* Provider rating block */
+.pr-empty { opacity:.7; font-size:14px; padding:6px 0; }
+.pr-stars { display:inline-flex; }
+.pr-star { font-size:18px; color: var(--ffp-border); }
+.pr-star.on { color:#FFCC00; }
+.pr-summary { display:flex; flex-wrap:wrap; gap:24px; align-items:center; }
+.pr-overall { display:flex; align-items:center; gap:12px; }
+.pr-big { font-size:40px; font-weight:800; line-height:1; }
+.pr-count { font-size:12px; opacity:.65; margin-top:2px; }
+.pr-cats { display:flex; flex-direction:column; gap:6px; flex:1; min-width:220px; }
+.pr-cat { display:flex; align-items:center; gap:10px; font-size:13px; }
+.pr-cat span { width:84px; opacity:.75; }
+.pr-cat .pr-star { font-size:15px; }
+.pr-cat b { margin-left:auto; font-weight:700; }
+.pr-reviews { display:flex; flex-direction:column; gap:12px; margin-top:16px; }
+.pr-reviews:empty { margin-top:0; }
+.pr-rev { border-top:1px dashed var(--ffp-border); padding-top:12px; }
+.pr-rev-head { display:flex; align-items:center; gap:10px; }
+.pr-rev-photo { width:34px; height:34px; border-radius:50%; object-fit:cover; }
+.pr-rev-photo-ph { display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,.06); color:var(--ffp-border); }
+.pr-rev-id { line-height:1.2; }
+.pr-rev-name { font-weight:600; font-size:14px; }
+.pr-rev-when { font-size:11px; opacity:.6; }
+.pr-rev-stars { margin-left:auto; }
+.pr-rev-comment { font-size:13px; opacity:.9; margin-top:6px; }
+.act-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px dashed var(--ffp-border);
+}
+.act-row:last-child { border-bottom: none; padding-bottom: 0; }
+.act-icon {
+  width: 36px; height: 36px;
+  border-radius: 9px;
+  background: rgba(43, 168, 224, .12);
+  color: var(--ffp-blue);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.act-icon.yellow { background: rgba(255, 204, 0, .12); color: var(--ffp-yellow); }
+.act-icon.green { background: rgba(74, 222, 128, .12); color: var(--ffp-green); }
+.act-icon .ms { font-size: 18px; }
+.act-body { flex: 1; min-width: 0; }
+.act-text { font-size: 13px; font-weight: 600; color: var(--ffp-text); }
+.act-text b { font-weight: 800; }
+.act-time {
+  font-size: 10px; font-weight: 700;
+  color: var(--ffp-text-muted);
+  letter-spacing: .3px;
+  margin-top: 2px;
+}
+
+.quick-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.qa {
+  background: var(--ffp-bg-3);
+  border: 1px solid var(--ffp-border-mid);
+  border-radius: var(--r-md);
+  padding: 14px 14px;
+  display: flex; align-items: center; gap: 11px;
+  cursor: pointer;
+  transition: all .15s;
+  text-align: left;
+  width: 100%;
+}
+.qa:hover { border-color: var(--ffp-border-str); background: var(--ffp-bg-2); }
+.qa-icon {
+  width: 36px; height: 36px;
+  border-radius: 9px;
+  background: var(--ffp-blue);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.qa-icon.yellow { background: var(--ffp-yellow); color: #000; }
+.qa-icon .ms { font-size: 18px; }
+.qa-body { flex: 1; min-width: 0; }
+.qa-title { font-size: 12px; font-weight: 800; color: var(--ffp-text); }
+.qa-sub { font-size: 10px; font-weight: 600; color: var(--ffp-text-muted); margin-top: 2px; }
+
+.welcome-banner {
+  background: linear-gradient(135deg, rgba(43, 168, 224, .14) 0%, rgba(255, 204, 0, .08) 100%);
+  border: 1px solid var(--ffp-border-mid);
+  border-radius: var(--r-lg);
+  padding: 18px 22px;
+  margin-bottom: 22px;
+  display: flex; align-items: center; gap: 16px;
+}
+.welcome-banner-body { flex: 1; }
+.welcome-banner-title { font-size: 15px; font-weight: 800; margin-bottom: 4px; }
+.welcome-banner-sub { font-size: 12px; color: var(--ffp-text-muted); font-weight: 500; }
+.welcome-banner-close {
+  background: transparent; border: none;
+  color: var(--ffp-text-muted);
+  font-size: 20px; cursor: pointer;
+  padding: 4px;
+}
+.welcome-banner-close:hover { color: var(--ffp-text); }
+
+/* ════════════════════════════════════════════════
+   FORMS
+   ════════════════════════════════════════════════ */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 18px;
+}
+.form-grid .full { grid-column: 1 / -1; }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.label {
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.6px; text-transform: uppercase;
+  color: var(--ffp-text-muted);
+}
+.label .req { color: var(--ffp-yellow); margin-left: 3px; }
+.label-hint {
+  font-size: 10px; font-weight: 600;
+  color: var(--ffp-text-dim);
+  margin-left: 6px;
+  letter-spacing: 0; text-transform: none;
+}
+.input, .select, .textarea {
+  width: 100%;
+  background: var(--ffp-bg-card);
+  border: 1px solid var(--ffp-border-mid);
+  border-radius: var(--r-md);
+  padding: 11px 14px;
+  font-size: 13px; font-weight: 600;
+  color: var(--ffp-text);
+  transition: border-color .15s;
+  color-scheme: dark;
+}
+/* Native date/time controls render in dark theme (visible icon + dark picker) */
+.input[type="date"], .input[type="time"], .input[type="datetime-local"] { color-scheme: dark; }
+.input[type="date"]::-webkit-calendar-picker-indicator,
+.input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(0.85); cursor: pointer; opacity: .8; }
+.input:focus, .select:focus, .textarea:focus { border-color: var(--ffp-blue); }
+.input::placeholder, .textarea::placeholder { color: var(--ffp-text-muted); font-weight: 500; }
+.textarea { resize: vertical; min-height: 80px; line-height: 1.55; font-weight: 500; }
+.select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a99a8' stroke-width='2.5'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 38px;
+}
+
+.form-section {
+  margin-bottom: 26px;
+}
+.form-section-title {
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 1.4px; text-transform: uppercase;
+  color: var(--ffp-yellow);
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--ffp-border);
+}
+
+/* PHOTO UPLOADER */
+.uploader {
+  background: var(--ffp-bg-card);
+  border: 1.5px dashed var(--ffp-border-mid);
+  border-radius: var(--r-lg);
+  padding: 22px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .15s;
+  position: relative;
+  min-height: 140px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px;
+}
+.uploader:hover { border-color: var(--ffp-blue); background: rgba(43, 168, 224, .04); }
+.uploader.dragover { border-color: var(--ffp-yellow); background: rgba(255, 204, 0, .06); }
+.uploader-icon {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: rgba(43, 168, 224, .14);
+  color: var(--ffp-blue);
+  display: flex; align-items: center; justify-content: center;
+}
+.uploader-icon .ms { font-size: 22px; }
+.uploader-title { font-size: 13px; font-weight: 800; color: var(--ffp-text); }
+.uploader-hint { font-size: 11px; color: var(--ffp-text-muted); font-weight: 500; }
+.uploader input[type="file"] { display: none; }
+
+.uploader.has-image {
+  border-style: solid;
+  border-color: var(--ffp-border);
+  padding: 0;
+  overflow: hidden;
+  min-height: 180px;
+}
+.uploader-preview {
+  position: relative;
+  width: 100%;
+  min-height: 180px;
+  background-size: cover;
+  background-position: center;
+  border-radius: var(--r-lg);
+}
+.uploader-preview-actions {
+  position: absolute;
+  bottom: 10px; right: 10px;
+  display: flex; gap: 6px;
+}
+.uploader-preview-btn {
+  background: rgba(8, 20, 32, .9);
+  border: 1px solid var(--ffp-border-mid);
+  color: var(--ffp-text);
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.uploader-preview-btn:hover { background: var(--ffp-bg-2); border-color: var(--ffp-border-str); }
+.uploader-preview-btn .ms { font-size: 14px; }
+.uploader-preview-btn.del:hover { color: var(--ffp-red); border-color: var(--ffp-red); }
+
+.uploader.logo-uploader {
+  min-height: 120px;
+  max-width: 160px;
+}
+.uploader.logo-uploader.has-image .uploader-preview { min-height: 120px; }
+.uploader.logo-uploader .uploader-icon { width: 36px; height: 36px; }
+.uploader.logo-uploader .uploader-icon .ms { font-size: 18px; }
+.uploader.logo-uploader .uploader-title { font-size: 11px; }
+.uploader.logo-uploader .uploader-hint { font-size: 10px; }
+
+/* HOURS GRID */
+.hours-grid { display: flex; flex-direction: column; gap: 8px; }
+.hours-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+.hours-day {
+  font-size: 12px; font-weight: 800;
+  letter-spacing: .3px;
+  color: var(--ffp-text);
+}
+.hours-row .input { padding: 8px 11px; font-size: 12px; }
+.hours-closed {
+  font-size: 10px; font-weight: 700;
+  color: var(--ffp-text-muted);
+  text-transform: uppercase; letter-spacing: 1px;
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer; user-select: none;
+}
+.hours-closed input { accent-color: var(--ffp-blue); }
+.hours-row.is-closed .input { opacity: .35; pointer-events: none; }
+
+/* STICKY SAVE BAR */
+.save-bar {
+  position: sticky;
+  bottom: 0;
+  background: rgba(8, 20, 32, .94);
+  backdrop-filter: blur(14px);
+  border-top: 1px solid var(--ffp-border-mid);
+  margin: 28px -32px -80px;
+  padding: 14px 32px;
+  display: flex; justify-content: flex-end; gap: 10px;
+  z-index: 5;
+}
+.save-bar-msg {
+  margin-right: auto;
+  font-size: 12px; font-weight: 700;
+  color: var(--ffp-text-muted);
+  display: flex; align-items: center; gap: 7px;
+}
+.save-bar-msg.dirty { color: var(--ffp-yellow); }
+.save-bar-msg .ms { font-size: 14px; }
+
+/* ════════════════════════════════════════════════
+   LIST + CARDS (Deals / Events / Experiences / Challenges)
+   ════════════════════════════════════════════════ */
+.list-toolbar {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.search-box {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+}
+.search-box input {
+  width: 100%;
+  background: var(--ffp-bg-card);
+  border: 1px solid var(--ffp-border-mid);
+  border-radius: var(--r-md);
+  padding: 10px 14px 10px 38px;
+  font-size: 13px; font-weight: 600;
+  color: var(--ffp-text);
+}
+.search-box input:focus { border-color: var(--ffp-blue); }
+.search-box .ms {
+  position: absolute; left: 12px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--ffp-text-muted);
+  font-size: 16px;
+  pointer-events: none;
+}
+
+.tabs {
+  display: flex; gap: 0; margin-bottom: 18px;
+  border-bottom: 1px solid var(--ffp-border);
+  overflow-x: auto;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  background: transparent; border: none;
+  color: var(--ffp-text-muted);
+  font-size: 11px; font-weight: 800;
+  padding: 12px 4px;
+  margin-right: 26px;
+  cursor: pointer;
+  position: relative;
+  letter-spacing: 1.2px; text-transform: uppercase;
+  transition: color .15s;
+  white-space: nowrap;
+}
+.tab:hover { color: var(--ffp-text); }
+.tab.active { color: var(--ffp-text); }
+.tab.active::after {
+  content: ""; position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 2px; background: var(--ffp-yellow);
+}
+.tab .count {
+  background: var(--ffp-bg-3);
+  color: var(--ffp-text-muted);
+  border-radius: 100px;
+  padding: 1px 7px;
+  font-size: 10px; font-weight: 800;
+  margin-left: 5px;
+}
+.tab.active .count { background: var(--ffp-yellow); color: #000; }
+
+/* LISTING CARD */
+.listing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+}
+.listing-card {
+  background: var(--ffp-bg-card);
+  border: 1px solid var(--ffp-border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  transition: border-color .15s, transform .15s;
+}
+.listing-card:hover { border-color: var(--ffp-border-mid); transform: translateY(-2px); }
+.lc-hero {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background-color: var(--ffp-bg-3);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.lc-hero::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, transparent 40%, rgba(0, 0, 0, .55));
+}
+.lc-status-pill {
+  position: absolute;
+  top: 12px; left: 12px;
+  background: var(--ffp-green);
+  color: #000;
+  font-size: 9px; font-weight: 900;
+  letter-spacing: 1.4px; text-transform: uppercase;
+  padding: 4px 9px;
+  border-radius: 4px;
+  z-index: 2;
+}
+.lc-status-pill.draft { background: var(--ffp-text-muted); color: #000; }
+.lc-status-pill.pending { background: var(--ffp-yellow); color: #000; }
+.lc-status-pill.paused { background: var(--ffp-orange); color: #fff; }
+.lc-status-pill.cancelled, .lc-status-pill.rejected { background: var(--ffp-red); color: #fff; }
+.lc-status-pill.past { background: var(--ffp-text-dim); color: #fff; }
+.lc-cat-pill {
+  position: absolute;
+  top: 12px; right: 12px;
+  background: rgba(8, 20, 32, .85);
+  color: var(--ffp-text);
+  font-size: 9px; font-weight: 800;
+  letter-spacing: 1px; text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 4px;
+  z-index: 2;
+  border: 1px solid var(--ffp-border-mid);
+}
+.lc-body {
+  padding: 16px 18px 14px;
+  display: flex; flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+.lc-title {
+  font-size: 15px; font-weight: 800;
+  letter-spacing: -.2px; line-height: 1.3;
+  color: var(--ffp-text);
+}
+.lc-sub {
+  font-size: 11px; font-weight: 600;
+  color: var(--ffp-text-muted);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.lc-meta {
+  display: flex; flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+  font-size: 10px; font-weight: 700;
+  color: var(--ffp-text-muted);
+  letter-spacing: .3px;
+  text-transform: uppercase;
+}
+.lc-meta span { display: inline-flex; align-items: center; gap: 4px; }
+.lc-meta .ms { font-size: 12px; }
+.lc-stat-row {
+  display: flex;
+  gap: 10px;
+  padding-top: 12px;
+  margin-top: 4px;
+  border-top: 1px solid var(--ffp-border);
+}
+.lc-stat {
+  flex: 1;
+  text-align: center;
+}
+.lc-stat-val {
+  font-size: 17px; font-weight: 900;
+  color: var(--ffp-yellow);
+  line-height: 1;
+}
+.lc-stat-lbl {
+  font-size: 9px; font-weight: 700;
+  color: var(--ffp-text-muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+.lc-actions {
+  display: flex;
+  gap: 6px;
+  padding: 0 14px 14px;
+}
+.lc-actions .btn { flex: 1; }
+
+/* EMPTY STATE */
+.empty-state {
+  text-align: center;
+  padding: 60px 30px;
+  border: 1.5px dashed var(--ffp-border-mid);
+  border-radius: var(--r-lg);
+  background: var(--ffp-bg-card);
+}
+.empty-icon {
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  background: rgba(43, 168, 224, .12);
+  color: var(--ffp-blue);
+  margin: 0 auto 16px;
+  display: flex; align-items: center; justify-content: center;
+}
+.empty-icon .ms { font-size: 30px; }
+.empty-title { font-size: 16px; font-weight: 800; margin-bottom: 6px; }
+.empty-sub { font-size: 13px; color: var(--ffp-text-muted); margin-bottom: 18px; font-weight: 500; max-width: 360px; margin-left: auto; margin-right: auto; }
+
+/* ════════════════════════════════════════════════
+   MODAL
+   ════════════════════════════════════════════════ */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, .72);
+  backdrop-filter: blur(6px);
+  z-index: 100;
+  display: none;
+  align-items: flex-start; justify-content: center;
+  padding: 40px 20px;
+  overflow-y: auto;
+}
+.modal-backdrop.open { display: flex; }
+.modal {
+  width: 100%;
+  max-width: 720px;
+  background: var(--ffp-bg-2);
+  border: 1px solid var(--ffp-border-mid);
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-pop);
+  margin: auto;
+}
+.modal.lg { max-width: 880px; }
+.modal.sm { max-width: 460px; }
+.modal.full { max-width: 1180px; width: calc(100vw - 40px); }
+.modal.full .modal-body { max-height: calc(100vh - 190px); }
+@media (max-width: 600px) { .modal.full { width: calc(100vw - 16px); } }
+.modal-head {
+  padding: 20px 26px;
+  border-bottom: 1px solid var(--ffp-border);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+}
+.modal-title { font-size: 17px; font-weight: 800; letter-spacing: -.2px; }
+.modal-close {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: var(--ffp-bg-3);
+  color: var(--ffp-text-muted);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+}
+.modal-close:hover { color: var(--ffp-text); border-color: var(--ffp-border-mid); }
+.modal-close .ms { font-size: 18px; }
+.modal-body {
+  padding: 22px 26px;
+  max-height: calc(100vh - 240px);
+  overflow-y: auto;
+}
+.modal-foot {
+  padding: 16px 26px;
+  border-top: 1px solid var(--ffp-border);
+  display: flex; justify-content: flex-end; gap: 10px;
+  background: rgba(8, 20, 32, .5);
+}
+.modal-foot .btn { min-width: 100px; }
+.modal-foot .left { margin-right: auto; }
+
+/* ITINERARY BUILDER */
+.itin-wrap {
+  display: flex; flex-direction: column;
+  gap: 10px;
+}
+.itin-day {
+  border: 1px solid var(--ffp-border-mid);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: rgba(8, 20, 32, .35);
+}
+.itin-day-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px;
+  background: var(--ffp-bg-3);
+}
+.itin-day-num {
+  background: var(--ffp-yellow); color: #000;
+  font-size: 10px; font-weight: 900; letter-spacing: 1px;
+  padding: 4px 9px; border-radius: 4px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.itin-day-title-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  font-size: 13px; font-weight: 800;
+  color: var(--ffp-text);
+  padding: 4px 0;
+}
+.itin-day-title-input:focus { outline: 1px solid var(--ffp-border-str); border-radius: 4px; padding: 4px 6px; }
+.itin-day-del {
+  background: transparent; border: none;
+  color: var(--ffp-text-muted);
+  width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.itin-day-del:hover { color: var(--ffp-red); background: rgba(239, 68, 68, .1); }
+.itin-day-body {
+  padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.itin-event {
+  display: grid;
+  grid-template-columns: 90px 1fr 32px;
+  gap: 10px;
+  align-items: center;
+}
+.itin-event .input { font-size: 12px; padding: 8px 11px; }
+.itin-event-del {
+  background: transparent; border: none;
+  color: var(--ffp-text-dim);
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  border-radius: 50%;
+}
+.itin-event-del:hover { color: var(--ffp-red); background: rgba(239, 68, 68, .1); }
+.itin-add-event {
+  background: transparent;
+  border: 1px dashed var(--ffp-border-mid);
+  color: var(--ffp-text-muted);
+  font-size: 11px; font-weight: 800;
+  letter-spacing: .8px; text-transform: uppercase;
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.itin-add-event:hover { color: var(--ffp-text); border-color: var(--ffp-border-str); }
+
+.itin-add-day {
+  background: transparent;
+  border: 1.5px dashed var(--ffp-border-mid);
+  color: var(--ffp-text);
+  font-size: 12px; font-weight: 800;
+  letter-spacing: 1px; text-transform: uppercase;
+  padding: 14px;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.itin-add-day:hover { border-color: var(--ffp-blue); color: var(--ffp-blue); }
+
+/* CHIP / TAG LIST */
+.chip-input-wrap {
+  background: var(--ffp-bg-card);
+  border: 1px solid var(--ffp-border-mid);
+  border-radius: var(--r-md);
+  padding: 8px 10px;
+  display: flex; flex-wrap: wrap; gap: 6px;
+  min-height: 44px;
+  align-items: center;
+}
+.chip-input-wrap:focus-within { border-color: var(--ffp-blue); }
+.chip {
+  background: var(--ffp-bg-3);
+  border: 1px solid var(--ffp-border-mid);
+  border-radius: 100px;
+  padding: 3px 4px 3px 11px;
+  font-size: 11px; font-weight: 700;
+  display: inline-flex; align-items: center; gap: 4px;
+  color: var(--ffp-text);
+}
+.chip button {
+  background: transparent; border: none;
+  color: var(--ffp-text-muted);
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.chip button:hover { color: var(--ffp-red); background: rgba(239, 68, 68, .1); }
+.chip-input {
+  flex: 1; min-width: 100px;
+  background: transparent; border: none;
+  font-size: 13px; font-weight: 500;
+  padding: 4px;
+  color: var(--ffp-text);
+}
+
+/* CHECK-INS PANEL */
+.checkin-card {
+  background: var(--ffp-bg-card);
+  border: 1px solid var(--ffp-border-mid);
+  border-radius: var(--r-xl);
+  padding: 28px 26px;
+  margin-bottom: 22px;
+  text-align: center;
+}
+.checkin-title { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
+.checkin-sub { font-size: 12px; color: var(--ffp-text-muted); font-weight: 500; margin-bottom: 22px; }
+
+.code-input {
+  width: 100%; max-width: 360px;
+  margin: 0 auto;
+  background: var(--ffp-bg);
+  border: 2px solid var(--ffp-border-mid);
+  border-radius: var(--r-md);
+  padding: 18px 20px;
+  font-size: 22px; font-weight: 800;
+  letter-spacing: 4px;
+  text-align: center;
+  color: var(--ffp-text);
+  text-transform: uppercase;
+}
+.code-input:focus { border-color: var(--ffp-yellow); }
+.code-input::placeholder { color: var(--ffp-text-dim); letter-spacing: 4px; }
+
+.checkin-actions {
+  display: flex; gap: 10px; margin-top: 18px; justify-content: center;
+}
+
+.checkin-list { display: flex; flex-direction: column; gap: 10px; }
+.checkin-row {
+  background: var(--ffp-bg-card);
+  border: 1px solid var(--ffp-border);
+  border-radius: var(--r-md);
+  padding: 14px 18px;
+  display: flex; align-items: center; gap: 14px;
+}
+.checkin-avatar {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: var(--ffp-blue);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800;
+  flex-shrink: 0;
+}
+.checkin-info { flex: 1; min-width: 0; }
+.checkin-name { font-size: 13px; font-weight: 800; }
+.checkin-listing { font-size: 11px; color: var(--ffp-text-muted); font-weight: 600; margin-top: 2px; }
+.checkin-time {
+  font-size: 10px; font-weight: 700; letter-spacing: .5px;
+  color: var(--ffp-text-muted);
+  text-transform: uppercase;
+  text-align: right;
+}
+.checkin-status {
+  font-size: 9px; font-weight: 800; letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 4px 9px; border-radius: 4px;
+  background: var(--ffp-green); color: #000;
+}
+
+/* RSVP / APPLICATION LIST (inside detail modal) */
+.member-list { display: flex; flex-direction: column; gap: 6px; }
+.member-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px;
+  background: var(--ffp-bg-3);
+  border: 1px solid var(--ffp-border);
+  border-radius: var(--r-md);
+}
+.member-avatar {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: var(--ffp-blue);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800;
+  flex-shrink: 0;
+}
+.member-info { flex: 1; min-width: 0; }
+.member-name { font-size: 12px; font-weight: 800; }
+.member-sub { font-size: 10px; color: var(--ffp-text-muted); font-weight: 600; letter-spacing: .3px; }
+.member-actions { display: flex; gap: 6px; }
+
+/* TOAST */
+.toast-wrap {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 99998;
+  display: flex; flex-direction: column; gap: 8px; align-items: center;
+  padding: 12px 12px 0;
+  pointer-events: none;
+}
+.toast {
+  width: 100%; max-width: 560px;
+  background: var(--ffp-bg-2);
+  border: 1px solid var(--ffp-border-mid);
+  border-top: 4px solid var(--ffp-yellow);
+  border-radius: var(--r-md);
+  padding: 15px 20px;
+  font-size: 15px; font-weight: 700;
+  color: var(--ffp-text);
+  box-shadow: var(--shadow-pop);
+  display: flex; align-items: center; gap: 12px;
+  animation: toast-in .3s ease;
+  pointer-events: auto;
+}
+.toast.success { border-top-color: var(--ffp-green); }
+.toast.error { border-top-color: var(--ffp-red); }
+.toast .ms { font-size: 22px; color: var(--ffp-yellow); flex-shrink: 0; }
+.toast.success .ms { color: var(--ffp-green); }
+.toast.error .ms { color: var(--ffp-red); }
+@keyframes toast-in {
+  from { transform: translateY(-120%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* LOCKED PANEL */
+.locked-panel {
+  background: var(--ffp-bg-card);
+  border: 1.5px dashed var(--ffp-border-mid);
+  border-radius: var(--r-xl);
+  padding: 60px 30px;
+  text-align: center;
+}
+.locked-panel .empty-icon { background: rgba(255, 204, 0, .12); color: var(--ffp-yellow); }
+
+/* SUPPORT BAR (sticky help on every panel) */
+.help-strip {
+  background: rgba(43, 168, 224, .08);
+  border: 1px solid var(--ffp-border);
+  border-radius: var(--r-md);
+  padding: 12px 16px;
+  font-size: 12px; font-weight: 600;
+  color: var(--ffp-text-muted);
+  margin-bottom: 20px;
+  display: flex; align-items: center; gap: 10px;
+}
+.help-strip .ms { color: var(--ffp-blue); font-size: 18px; flex-shrink: 0; }
+.help-strip b { color: var(--ffp-text); font-weight: 800; }
+.help-strip a { font-weight: 800; text-decoration: underline; }
+
+/* ════════════════════════════════════════════════
+   RESPONSIVE
+   ════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .split-2 { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .panel-wrap { padding: 22px 18px 80px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .hours-row { grid-template-columns: 90px 1fr 1fr; }
+  .hours-row .hours-closed { grid-column: 1 / -1; padding-top: 4px; }
+  .topbar { padding: 0 18px; }
+  .tb-btn span { display: none; }
+  .modal-foot { flex-wrap: wrap; }
+  .save-bar { margin-left: -18px; margin-right: -18px; padding: 12px 18px; }
+}
+
+/* ════════════════════════════════════════════════
+   ANALYTICS
+   ════════════════════════════════════════════════ */
+.period-chips {
+  display: flex; flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 22px;
+}
+.period-chip {
+  background: var(--ffp-bg-3);
+  border: 1px solid var(--ffp-border-mid);
+  color: var(--ffp-text-muted);
+  padding: 8px 13px;
+  border-radius: 100px;
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 1px; text-transform: uppercase;
+  cursor: pointer;
+  transition: all .15s;
+}
+.period-chip:hover { color: var(--ffp-text); border-color: var(--ffp-border-str); }
+.period-chip.active {
+  background: var(--ffp-yellow);
+  color: #000;
+  border-color: var(--ffp-yellow);
+}
+
+.analytics-3col {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.analytics-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+@media (max-width: 1024px) {
+  .analytics-3col { grid-template-columns: 1fr; }
+  .analytics-2col { grid-template-columns: 1fr; }
+}
+
+/* Horizontal bar list (for demographics) */
+.bar-list { display: flex; flex-direction: column; gap: 11px; }
+.bar-row { display: flex; flex-direction: column; gap: 5px; }
+.bar-head {
+  display: flex; justify-content: space-between;
+  font-size: 12px; font-weight: 700;
+  gap: 8px;
+}
+.bar-head .bar-label {
+  color: var(--ffp-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.bar-head .bar-val {
+  color: var(--ffp-text-muted);
+  font-weight: 800;
+  letter-spacing: .3px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.bar-track {
+  background: var(--ffp-bg-3);
+  border-radius: 100px;
+  height: 8px;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  background: var(--ffp-blue);
+  border-radius: 100px;
+  transition: width .4s ease;
+}
+.bar-fill.yellow { background: var(--ffp-yellow); }
+.bar-fill.green { background: var(--ffp-green); }
+
+/* Ranked list (top performers) */
+.rank-list { display: flex; flex-direction: column; gap: 8px; }
+.rank-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 12px;
+  background: var(--ffp-bg-3);
+  border: 1px solid var(--ffp-border);
+  border-radius: var(--r-md);
+}
+.rank-num {
+  width: 26px; height: 26px;
+  background: var(--ffp-yellow); color: #000;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 900;
+  flex-shrink: 0;
+}
+.rank-num.silver { background: #c8c8c8; color: #000; }
+.rank-num.bronze { background: #cd7f32; color: #fff; }
+.rank-num.other { background: var(--ffp-bg); color: var(--ffp-text-muted); border: 1px solid var(--ffp-border-mid); }
+.rank-info { flex: 1; min-width: 0; }
+.rank-title {
+  font-size: 12px; font-weight: 800;
+  color: var(--ffp-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.rank-sub {
+  font-size: 10px; font-weight: 600;
+  color: var(--ffp-text-muted);
+  margin-top: 2px;
+  letter-spacing: .3px;
+}
+.rank-val {
+  font-size: 17px; font-weight: 900;
+  color: var(--ffp-yellow);
+  text-align: right;
+  line-height: 1;
+}
+.rank-val-lbl {
+  font-size: 9px; font-weight: 700;
+  color: var(--ffp-text-muted);
+  letter-spacing: .9px;
+  text-transform: uppercase;
+  margin-top: 4px;
+  text-align: right;
+}
+
+/* Funnel */
+.funnel {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 8px;
+}
+.funnel-step {
+  background: var(--ffp-bg-3);
+  border: 1px solid var(--ffp-border-mid);
+  border-radius: var(--r-md);
+  padding: 14px 16px;
+}
+.funnel-icon-wrap {
+  width: 34px; height: 34px;
+  background: rgba(43, 168, 224, .14);
+  color: var(--ffp-blue);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 9px;
+}
+.funnel-icon-wrap.yellow { background: rgba(255, 204, 0, .14); color: var(--ffp-yellow); }
+.funnel-icon-wrap.green { background: rgba(74, 222, 128, .14); color: var(--ffp-green); }
+.funnel-label {
+  font-size: 9px; font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ffp-text-muted);
+  margin-bottom: 4px;
+}
+.funnel-value {
+  font-size: 22px; font-weight: 900;
+  letter-spacing: -.4px;
+  color: var(--ffp-text);
+}
+.funnel-pct {
+  font-size: 10px; font-weight: 700;
+  color: var(--ffp-green);
+  margin-top: 4px;
+  letter-spacing: .3px;
+}
+@media (max-width: 768px) {
+  .funnel { grid-template-columns: 1fr 1fr; }
+}
+
+/* Trend chart */
+.trend-chart {
+  width: 100%;
+  height: 180px;
+  display: block;
+}
+.trend-bar {
+  fill: var(--ffp-blue);
+  transition: fill .15s;
+}
+.trend-bar:hover {
+  fill: var(--ffp-yellow);
+}
+.trend-axis-label {
+  fill: var(--ffp-text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* Peak engagement heatmap */
+.peak-grid-7 {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+.peak-cell {
+  aspect-ratio: 1;
+  background: var(--ffp-bg-3);
+  border-radius: 6px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  color: var(--ffp-text-muted);
+  border: 1px solid var(--ffp-border);
+}
+.peak-cell-day {
+  font-size: 9px; font-weight: 800;
+  letter-spacing: .8px; text-transform: uppercase;
+}
+.peak-cell-val {
+  font-size: 15px; font-weight: 900;
+  color: var(--ffp-text);
+  margin-top: 4px;
+}
+.peak-cell.hot {
+  background: var(--ffp-yellow);
+  color: #000;
+  border-color: var(--ffp-yellow);
+}
+.peak-cell.hot .peak-cell-val { color: #000; }
+.peak-cell.hot .peak-cell-day { color: #000; }
+.peak-cell.warm {
+  background: rgba(43, 168, 224, .22);
+  border-color: var(--ffp-border-str);
+}
+
+.hours-chart {
+  width: 100%;
+  height: 110px;
+  margin-top: 14px;
+}
+.hours-bar {
+  fill: var(--ffp-blue);
+}
+.hours-bar.peak {
+  fill: var(--ffp-yellow);
+}
+
+/* Retention */
+.retention-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 0;
+  border-bottom: 1px dashed var(--ffp-border);
+}
+.retention-row:last-child { border-bottom: none; padding-bottom: 0; }
+.retention-row:first-child { padding-top: 0; }
+.retention-circle {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: var(--ffp-bg-3);
+  border: 1px solid var(--ffp-border-mid);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; font-weight: 900;
+  color: var(--ffp-yellow);
+  flex-shrink: 0;
+}
+.retention-info { flex: 1; min-width: 0; }
+.retention-label { font-size: 13px; font-weight: 800; color: var(--ffp-text); }
+.retention-sub {
+  font-size: 11px; font-weight: 600;
+  color: var(--ffp-text-muted);
+  margin-top: 3px;
+  line-height: 1.4;
+}
+
+.section-sub {
+  font-size: 11px; font-weight: 700;
+  color: var(--ffp-text-muted);
+  letter-spacing: .3px;
+}
+
+/* Small adjustment: Material Symbols icons inside .kpi-delta, .funnel etc. should be 14-15px */
+.kpi-delta .ms { font-size: 14px; }
+.funnel-icon-wrap .ms { font-size: 18px; }
+.retention-circle .ms { font-size: 26px; }
+
+/* ════════════════════════════════════════════════
+   PHONE INPUT (split: country code + local number)
+   ════════════════════════════════════════════════ */
+.phone-input { display: flex; gap: 0; }
+.phone-cc {
+  width: 152px;
+  flex-shrink: 0;
+  background: var(--ffp-bg-card);
+  border: 1px solid var(--ffp-border-mid);
+  border-right: 1px solid var(--ffp-border);
+  border-radius: var(--r-md) 0 0 var(--r-md);
+  padding: 11px 30px 11px 14px;
+  font-size: 13px; font-weight: 700;
+  color: var(--ffp-text);
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a99a8' stroke-width='2.5'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.phone-cc:focus { border-color: var(--ffp-blue); outline: none; }
+.phone-num {
+  flex: 1; min-width: 0;
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+  border-left: none;
+}
+.phone-num:focus { border-color: var(--ffp-blue); }
+
+/* ════════════════════════════════════════════════
+   PROFILE COMPLETION CARD
+   ════════════════════════════════════════════════ */
+.completion-card {
+  background: rgba(255, 204, 0, .08);
+  border: 1px solid rgba(255, 204, 0, .28);
+  border-radius: var(--r-md);
+  padding: 16px 18px;
+  margin-bottom: 22px;
+}
+.completion-card.full {
+  background: rgba(74, 222, 128, .08);
+  border-color: rgba(74, 222, 128, .28);
+}
+.completion-head {
+  display: flex; align-items: flex-start; gap: 14px;
+  margin-bottom: 12px;
+}
+.completion-head .ms {
+  font-size: 28px;
+  color: var(--ffp-yellow);
+  flex-shrink: 0;
+}
+.completion-card.full .completion-head .ms { color: var(--ffp-green); }
+.completion-text { flex: 1; }
+.completion-title { font-size: 13px; font-weight: 800; }
+.completion-title em { color: var(--ffp-yellow); font-style: normal; }
+.completion-card.full .completion-title em { color: var(--ffp-green); }
+.completion-sub {
+  font-size: 11px;
+  color: var(--ffp-text-muted);
+  font-weight: 600;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+/* ════════════════════════════════════════════════
+   MOBILE MENU TOGGLE + SLIDE-OUT SIDEBAR
+   ════════════════════════════════════════════════ */
+.menu-toggle {
+  display: none;
+  width: 38px; height: 38px;
+  border-radius: var(--r-md);
+  background: var(--ffp-bg-3);
+  border: 1px solid var(--ffp-border-mid);
+  color: var(--ffp-text);
+  align-items: center; justify-content: center;
+  flex-shrink: 0;
+  margin-right: 6px;
+}
+.menu-toggle:hover { border-color: var(--ffp-border-str); }
+.menu-toggle .ms { font-size: 22px; }
+.sidebar-backdrop {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, .65);
+  z-index: 49;
+  backdrop-filter: blur(4px);
+}
+.sidebar-backdrop.open { display: block; }
+
+@media (max-width: 768px) {
+  .menu-toggle { display: flex; }
+  .sidebar {
+    display: flex;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    transform: translateX(-100%);
+    transition: transform .25s ease;
+    z-index: 50;
+    box-shadow: 12px 0 36px rgba(0, 0, 0, .4);
+  }
+  .sidebar.open { transform: translateX(0); }
+}
+
+/* ════════════════════════════════════════════════
+   PENDING REVIEW BANNER (overview)
+   ════════════════════════════════════════════════ */
+.welcome-banner.pending {
+  background: linear-gradient(135deg, rgba(255, 204, 0, .14) 0%, rgba(255, 204, 0, .04) 100%);
+  border-color: rgba(255, 204, 0, .35);
+}
+.welcome-banner-pre {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 204, 0, .14);
+  color: var(--ffp-yellow);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.welcome-banner-pre .ms { font-size: 22px; }
+
+/* ════════════════════════════════════════════════
+   AUTH SCREEN — Apply + Email code sign-in
+   ════════════════════════════════════════════════ */
+.auth-screen {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at top, #0a1825 0%, var(--ffp-bg) 70%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 30px 20px;
+  z-index: 1000;
+  overflow-y: auto;
+}
+.auth-card {
+  width: 100%;
+  max-width: 460px;
+  background: var(--ffp-bg-2);
+  border: 1px solid var(--ffp-border-mid);
+  border-radius: var(--r-xl);
+  padding: 34px 32px 28px;
+  box-shadow: var(--shadow-pop);
+}
+.auth-logo {
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: 2.5px;
+  text-align: center;
+  margin-bottom: 4px;
+}
+.auth-logo span { color: var(--ffp-blue); }
+.auth-tag {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.8px;
+  color: var(--ffp-yellow);
+  text-align: center;
+  text-transform: uppercase;
+  margin-bottom: 26px;
+}
+.auth-section { display: none; }
+.auth-section.active { display: block; }
+.auth-back {
+  background: transparent;
+  border: none;
+  color: var(--ffp-text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 6px 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+.auth-back:hover { color: var(--ffp-text); }
+.auth-back .ms { font-size: 16px; }
+.auth-title {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -.3px;
+  margin-bottom: 6px;
+  line-height: 1.2;
+}
+.auth-sub {
+  font-size: 13px;
+  color: var(--ffp-text-muted);
+  margin-bottom: 22px;
+  line-height: 1.55;
+  font-weight: 500;
+}
+.auth-sub b { color: var(--ffp-text); font-weight: 800; }
+.auth-cta {
+  display: flex;
+  width: 100%;
+  margin-top: 8px;
+}
+.auth-alt {
+  text-align: center;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--ffp-border);
+  font-size: 12px;
+  color: var(--ffp-text-muted);
+  font-weight: 600;
+}
+.auth-alt-link {
+  display: inline-block;
+  margin-top: 6px;
+  color: var(--ffp-blue);
+  font-weight: 800;
+  font-size: 12px;
+  cursor: pointer;
+}
+.auth-alt-link:hover { color: var(--ffp-yellow); }
+.auth-footer {
+  margin-top: 22px;
+  font-size: 11px;
+  color: var(--ffp-text-muted);
+  font-weight: 600;
+  text-align: center;
+}
+.auth-footer a { color: var(--ffp-text); font-weight: 800; }
+
+/* OTP boxes */
+.otp-boxes {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+  margin-top: 4px;
+}
+.otp-box {
+  flex: 1;
+  height: 58px;
+  background: var(--ffp-bg);
+  border: 1.5px solid var(--ffp-border-mid);
+  border-radius: var(--r-md);
+  text-align: center;
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--ffp-text);
+  outline: none;
+  transition: border-color .15s;
+  font-family: inherit;
+}
+.otp-box:focus { border-color: var(--ffp-yellow); }
+.otp-box[data-filled="true"] { border-color: var(--ffp-blue); }
+.auth-resend {
+  font-size: 11px;
+  color: var(--ffp-text-muted);
+  text-align: center;
+  margin-top: 14px;
+  font-weight: 600;
+}
+.auth-resend button {
+  background: transparent;
+  border: none;
+  color: var(--ffp-blue);
+  font-weight: 800;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0 4px;
+  font-family: inherit;
+}
+.auth-resend button:hover { color: var(--ffp-yellow); }
+.auth-success {
+  text-align: center;
+  padding: 6px 0 6px;
+}
+.auth-success-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(74, 222, 128, .14);
+  color: var(--ffp-green);
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.auth-success-icon .ms { font-size: 32px; }
+.demo-banner {
+  background: rgba(43, 168, 224, .08);
+  border: 1px dashed var(--ffp-border-mid);
+  border-radius: var(--r-md);
+  padding: 10px 14px;
+  margin-bottom: 22px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ffp-text-muted);
+  text-align: center;
+  line-height: 1.5;
+}
+.demo-banner b { color: var(--ffp-yellow); font-weight: 800; }
+.auth-skip {
+  display: block;
+  text-align: center;
+  margin-top: 14px;
+  font-size: 11px;
+  color: var(--ffp-text-dim);
+  text-decoration: underline;
+  font-weight: 600;
+  cursor: pointer;
+}
+.auth-skip:hover { color: var(--ffp-text-muted); }
+
+</style>
+<!-- Google Analytics 4 (platform-wide) -->
+<script src="assets/ffp-analytics.js"></script>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════
+     AUTH SCREEN — shown until provider signs in
+     ════════════════════════════════════════════════ -->
+<div class="auth-screen" id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">FFP <span>PASSPORT</span></div>
+    <div class="auth-tag">Partners Portal</div>
+
+    <!-- Landing -->
+    <div class="auth-section active" id="auth-landing">
+      <div class="demo-banner">
+        <b>Demo mode</b> — sign in with any email + any 6-digit code, or try the apply flow.
+      </div>
+      <div class="auth-title">Sign in to your partner account</div>
+      <div class="auth-sub">No password needed. Enter your email and we'll send a 6-digit code.</div>
+      <button class="btn btn-pri auth-cta" onclick="setAuthState('signin_email')">
+        <span class="ms">login</span> Sign in
+      </button>
+      <div class="auth-alt">
+        Want to become an FFP partner?
+        <span class="auth-alt-link" onclick="window.location.href='/provider-signup.html'">Create a partner account</span>
+      </div>
+    </div>
+
+    <!-- Sign in: email entry -->
+    <div class="auth-section" id="auth-signin-email">
+      <button class="auth-back" onclick="setAuthState('landing')">
+        <span class="ms">arrow_back</span> Back
+      </button>
+      <div class="auth-title">Sign in</div>
+      <div class="auth-sub">Enter the email tied to your partner account. We'll send a 6-digit code that's valid for 10 minutes.</div>
+      <div class="field">
+        <div class="label">Email <span class="req">*</span></div>
+        <input class="input" type="email" id="auth-email-input" placeholder="bookings@yourbusiness.ae" value="bookings@forgefitness.ae" autocomplete="email">
+      </div>
+      <button class="btn btn-pri auth-cta" style="margin-top: 18px;" onclick="submitEmail()">
+        <span class="ms">send</span> Send sign-in code
+      </button>
+    </div>
+
+    <!-- Sign in: code entry -->
+    <div class="auth-section" id="auth-signin-code">
+      <button class="auth-back" onclick="setAuthState('signin_email')">
+        <span class="ms">arrow_back</span> Back
+      </button>
+      <div class="auth-title">Enter your code</div>
+      <div class="auth-sub">We sent a 6-digit code to <b id="auth-code-email">bookings@forgefitness.ae</b>.<br>Demo: enter any 6 digits.</div>
+      <div class="otp-boxes" id="otp-boxes">
+        <input class="otp-box" inputmode="numeric" maxlength="1" autocomplete="one-time-code">
+        <input class="otp-box" inputmode="numeric" maxlength="1">
+        <input class="otp-box" inputmode="numeric" maxlength="1">
+        <input class="otp-box" inputmode="numeric" maxlength="1">
+        <input class="otp-box" inputmode="numeric" maxlength="1">
+        <input class="otp-box" inputmode="numeric" maxlength="1">
+      </div>
+      <button class="btn btn-pri auth-cta" style="margin-top: 18px;" onclick="verifyCode()">
+        <span class="ms">login</span> Verify and sign in
+      </button>
+      <div class="auth-resend">
+        Didn't get it? <button onclick="resendCode()">Resend code</button>
+      </div>
+    </div>
+
+    <!-- Apply form -->
+    <div class="auth-section" id="auth-apply">
+      <button class="auth-back" onclick="setAuthState('landing')">
+        <span class="ms">arrow_back</span> Back
+      </button>
+      <div class="auth-title">Apply to become a provider</div>
+      <div class="auth-sub">Tell us about your business. We review applications within 48 hours and email you when you're approved.</div>
+      <div class="form-grid">
+        <div class="field full">
+          <div class="label">Business name <span class="req">*</span></div>
+          <input class="input" id="ap-business" placeholder="e.g. Forge Fitness">
+        </div>
+        <div class="field">
+          <div class="label">Your name <span class="req">*</span></div>
+          <input class="input" id="ap-contact" placeholder="Primary contact">
+        </div>
+        <div class="field">
+          <div class="label">Email <span class="req">*</span></div>
+          <input class="input" type="email" id="ap-email" placeholder="you@business.com">
+        </div>
+        <div class="field full">
+          <div class="label">Phone <span class="req">*</span></div>
+          <div class="phone-input">
+            <select class="phone-cc" id="ap-phone-cc"></select>
+            <input class="input phone-num" id="ap-phone-num" placeholder="50 123 4567" inputmode="tel">
+          </div>
+        </div>
+        <div class="field">
+          <div class="label">Category <span class="req">*</span></div>
+          <select class="select" id="ap-category">
+            <option value="">Choose category</option>
+            <option>Fitness studio</option>
+            <option>Wellness centre</option>
+            <option>Padel club</option>
+            <option>Pilates / Yoga</option>
+            <option>Climbing</option>
+            <option>Combat sports</option>
+            <option>Recovery / Spa</option>
+            <option>Performance lab</option>
+            <option>Nutrition / Cafe</option>
+            <option>Adventure / Outdoor</option>
+            <option>Coach / Trainer</option>
+            <option>Retail</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <div class="label">City <span class="req">*</span></div>
+          <select class="select" id="ap-city">
+            <option value="">Choose city</option>
+            <option>Dubai</option>
+            <option>Abu Dhabi</option>
+            <option>Sharjah</option>
+            <option>Ajman</option>
+            <option>Ras Al Khaimah</option>
+            <option>Fujairah</option>
+            <option>Al Ain</option>
+            <option>Umm Al Quwain</option>
+          </select>
+        </div>
+        <div class="field full">
+          <div class="label">Website</div>
+          <input class="input" id="ap-website" placeholder="https://yourbusiness.com">
+        </div>
+        <div class="field full">
+          <div class="label">Tell us about your business <span class="req">*</span></div>
+          <textarea class="textarea" id="ap-about" rows="3" placeholder="What you offer, who you serve, what makes you different."></textarea>
+        </div>
+      </div>
+      <button class="btn btn-pri auth-cta" style="margin-top: 20px;" onclick="submitApplication()">
+        <span class="ms">send</span> Submit application
+      </button>
+    </div>
+
+    <!-- Apply submitted -->
+    <div class="auth-section" id="auth-apply-submitted">
+      <div class="auth-success">
+        <div class="auth-success-icon"><span class="ms">check_circle</span></div>
+        <div class="auth-title" style="margin-bottom: 8px;">Application received</div>
+        <div class="auth-sub">Thanks. We'll review and email you at <b id="auth-applied-email"></b> within 48 hours. If approved, your sign-in code will arrive at the same address.</div>
+      </div>
+      <button class="btn btn-sec auth-cta" onclick="setAuthState('landing')">
+        <span class="ms">arrow_back</span> Back to sign in
+      </button>
+    </div>
+
+  </div>
+
+  <a class="auth-skip" onclick="bypassAuthDemo()">Skip to dashboard (demo only)</a>
+
+  <div class="auth-footer">
+    Need help? <a href="mailto:providers@ffppassport.com">providers@ffppassport.com</a>
+  </div>
+</div>
+
+<div class="app" id="app" style="display: none;">
+
+  <!-- ════════════════════════════════════════════════
+       SIDEBAR
+       ════════════════════════════════════════════════ -->
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-brand">FFP <span>PASSPORT</span></div>
+      <div class="sb-sub">Partners Portal</div>
+    </div>
+    <nav class="sb-nav" id="sb-nav"></nav>
+    <button class="sb-foot" id="sb-foot" onclick="showPanel('profile')">
+      <div class="sb-foot-mark" id="sb-foot-mark">F</div>
+      <div class="sb-foot-info">
+        <div class="sb-foot-name" id="sb-foot-name">Your business</div>
+        <div class="sb-foot-tag" id="sb-foot-tag">Approved</div>
+      </div>
+    </button>
+  </aside>
+
+  <!-- ════════════════════════════════════════════════
+       MAIN
+       ════════════════════════════════════════════════ -->
+  <div class="main">
+    <header class="topbar">
+      <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Open menu">
+        <span class="ms">menu</span>
+      </button>
+      <div class="tb-title" id="tb-title">Overview</div>
+      <div class="tb-status" id="tb-status">Live</div>
+      <div class="tb-actions">
+        <button class="tb-btn" id="ffp-feedback-btn" title="Send feedback" onclick="window.FFPFeedback && window.FFPFeedback.open()" style="background:#2ba8e0;color:#fff;border-color:#2ba8e0;">
+          <span class="ms">feedback</span><span>Feedback</span>
+        </button>
+        <button class="tb-bell" onclick="showToast('1 new RSVP, 1 new application', 'info')">
+          <span class="ms">notifications</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Big green save banner — sticks under the topbar on Profile when there are unsaved changes -->
+    <div class="ffp-save-banner" id="ffp-save-banner">
+      <div class="ffp-save-banner-msg"><span class="ms">error_outline</span> You have unsaved changes to your business profile</div>
+      <button class="ffp-save-banner-btn" id="ffp-save-banner-btn" onclick="saveProfile()"><span class="ms">save</span> Save changes</button>
+    </div>
+
+    <div class="panel-wrap">
+
+      <!-- ════════ OVERVIEW ════════ -->
+      <section class="panel active" id="panel-overview">
+        <div class="welcome-banner" id="welcome-banner" style="display: none;"></div>
+
+        <div class="ph-row">
+          <div>
+            <div class="ph">Welcome back</div>
+            <div class="psub">Here's what's happening across your listings today.</div>
+          </div>
+          <button class="btn btn-pri" onclick="openCreatePicker()">
+            <span class="ms">add</span> Create new listing
+          </button>
+        </div>
+
+        <div class="kpi-grid" id="kpi-grid"></div>
+
+        <div class="split-2">
+          <div class="section-card">
+            <div class="section-head">
+              <div class="section-title">Recent activity</div>
+              <button class="section-link" onclick="showToast('Full activity log coming soon', 'info')">View all</button>
+            </div>
+            <div class="activity-list" id="activity-list"></div>
+          </div>
+          <div class="section-card">
+            <div class="section-head">
+              <div class="section-title">Quick actions</div>
+            </div>
+            <div class="quick-actions">
+              <button class="qa" onclick="openEventModal()">
+                <div class="qa-icon"><span class="ms">event</span></div>
+                <div class="qa-body">
+                  <div class="qa-title">New event</div>
+                  <div class="qa-sub">Single date</div>
+                </div>
+              </button>
+              <button class="qa" onclick="openExperienceModal()">
+                <div class="qa-icon"><span class="ms">flight</span></div>
+                <div class="qa-body">
+                  <div class="qa-title">New trip</div>
+                  <div class="qa-sub">Multi-day</div>
+                </div>
+              </button>
+              <button class="qa" onclick="showPanel('checkins')">
+                <div class="qa-icon"><span class="ms">qr_code_scanner</span></div>
+                <div class="qa-body">
+                  <div class="qa-title">Check in</div>
+                  <div class="qa-sub">Verify claim</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-card" style="margin-top:18px;">
+          <div class="section-head">
+            <div class="section-title">Your rating</div>
+            <div class="psub" style="margin:0;">What members say after checking in at your venue</div>
+          </div>
+          <div id="prov-rating-summary" class="pr-summary"></div>
+          <div id="prov-rating-reviews" class="pr-reviews"></div>
+        </div>
+      </section>
+
+      <!-- ════════ PROFILE ════════ -->
+      <section class="panel" id="panel-profile">
+        <div class="ph">Business profile</div>
+        <div class="psub">This is the information members see when they discover you on the platform. Changes go to admin for review before going live.</div>
+
+        <div class="help-strip">
+          <span class="ms">info</span>
+          <div>Upload high quality photos — landscape 16:10 for hero, square logo with transparent background works best.</div>
+        </div>
+
+        <div class="completion-card" id="completion-card">
+          <div class="completion-head">
+            <span class="ms" id="completion-icon">trending_up</span>
+            <div class="completion-text">
+              <div class="completion-title">Profile <em><span id="completion-pct">0</span>%</em> complete</div>
+              <div class="completion-sub" id="completion-sub">Complete profiles rank higher in member search and get more engagement.</div>
+            </div>
+          </div>
+          <div class="bar-track"><div class="bar-fill yellow" id="completion-bar" style="width: 0%"></div></div>
+        </div>
+
+        <style>
+          #panel-profile .pf-tabs{display:flex;gap:8px;margin:18px 0 4px;border-bottom:1px solid var(--border-mid,rgba(43,168,224,.2));flex-wrap:wrap;}
+          #panel-profile .pf-tab{appearance:none;background:none;border:none;border-bottom:2px solid transparent;color:var(--ffp-text-muted,#8a99a8);font-size:13px;font-weight:800;padding:10px 6px;margin-bottom:-1px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;}
+          #panel-profile .pf-tab .ms{font-size:18px;}
+          #panel-profile .pf-tab.active{color:var(--ffp-text,#e8eef4);border-bottom-color:var(--ffp-yellow,#FFCC00);}
+          #panel-profile .pf-pane{display:none;padding-top:16px;padding-bottom:104px;}
+          #panel-profile .pf-pane.active{display:block;}
+        </style>
+
+        <div class="pf-tabs" role="tablist">
+          <button class="pf-tab active" data-pftab="info" onclick="showProfileTab('info')"><span class="ms">storefront</span> Business Details</button>
+          <button class="pf-tab" data-pftab="activities" onclick="showProfileTab('activities')"><span class="ms">fitness_center</span> Activities</button>
+          <button class="pf-tab" data-pftab="branding" onclick="showProfileTab('branding')"><span class="ms">palette</span> Branding</button>
+        </div>
+
+        <!-- ── BRANDING ── -->
+        <div class="pf-pane" id="pf-pane-branding">
+          <div class="form-grid">
+            <div class="field full">
+              <div class="label">Business name <span class="req">*</span></div>
+              <input class="input" id="pf-business-name" placeholder="e.g. Forge Fitness">
+            </div>
+            <div class="field">
+              <div class="label">Logo</div>
+              <div class="uploader logo-uploader" id="up-logo" onclick="pickProviderImage('logo')">
+                <div class="uploader-icon"><span class="ms">image</span></div>
+                <div class="uploader-title">Upload logo</div>
+                <div class="uploader-hint">PNG · square · crop to fit</div>
+              </div>
+            </div>
+            <div class="field">
+              <div class="label">Hero photo <span class="label-hint">— shown on listings + profile</span></div>
+              <div class="uploader" id="up-hero" onclick="pickProviderImage('hero')">
+                <div class="uploader-icon"><span class="ms">image</span></div>
+                <div class="uploader-title">Click or drag to upload</div>
+                <div class="uploader-hint">JPG or PNG · 16:9 · position &amp; crop to fit the banner</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── BUSINESS DETAILS ── -->
+        <div class="pf-pane active" id="pf-pane-info">
+          <div class="form-grid">
+            <div class="field">
+              <div class="label">Category <span class="req">*</span></div>
+              <select class="select" id="pf-category">
+                <option value="">Choose category</option>
+              </select>
+              <script>(function(){var s=document.getElementById('pf-category');if(!s)return;var c=(window.FFP_CONST&&window.FFP_CONST.providerCategories)||['Fitness','Wellness','Padel','Yoga & Pilates','Climbing','Combat sports','Recovery','Adventure','Nutrition','Coaching','Retail','Other'];c.forEach(function(x){var o=document.createElement('option');o.textContent=x;s.appendChild(o);});})();</script>
+            </div>
+            <div class="field">
+              <div class="label">Partner type</div>
+              <select class="select" id="pf-type"><option value="">Choose…</option></select>
+              <script>(function(){
+                var s=document.getElementById('pf-type'); if(!s) return;
+                // Partner type = how they operate — taxonomy-driven (Admin → Taxonomies → provider_type).
+                function fill(){
+                  var list=(window.FFP_TAX&&FFP_TAX.providerTypes&&FFP_TAX.providerTypes.length)?FFP_TAX.providerTypes:['Single location','Remote','Event organizer'];
+                  var cur=s.value;
+                  s.innerHTML='<option value="">Choose…</option>'+list.map(function(x){return '<option'+(x===cur?' selected':'')+'>'+x+'</option>';}).join('');
+                }
+                fill();
+                if(window.FFP_TAX_READY&&typeof window.FFP_TAX_READY.then==='function'){window.FFP_TAX_READY.then(fill);}
+                document.addEventListener('ffp-tax-ready',fill);
+              })();</script>
+            </div>
+            <div class="field">
+              <div class="label">Country <span class="req">*</span></div>
+              <select class="select" id="pf-country" data-ffp-loc="country" data-ffp-group="provider"></select>
+            </div>
+            <div class="field">
+              <div class="label">City <span class="req">*</span></div>
+              <select class="select" id="pf-city" data-ffp-loc="city" data-ffp-group="provider"></select>
+            </div>
+            <div class="field">
+              <div class="label">Timezone <span class="req">*</span></div>
+              <select class="select" id="pf-timezone"><option value="">Choose timezone…</option></select>
+              <div class="hint" style="font-size:12px;opacity:.7;margin-top:4px;">Used for all your class, tour, event &amp; trip times.</div>
+            </div>
+            <div class="field">
+              <div class="label">Currency <span class="req">*</span></div>
+              <select class="select" id="pf-currency"><option value="">Choose currency</option></select>
+              <div class="hint" style="font-size:12px;opacity:.7;margin-top:4px;">All your prices &amp; member payments use this currency.</div>
+            </div>
+            <div class="field">
+              <div class="label">Area / Neighbourhood</div>
+              <input class="input" id="pf-area" placeholder="e.g. Al Quoz, JLT, Dubai Marina">
+            </div>
+            <div class="field full">
+              <div class="label">Address</div>
+              <input class="input" id="pf-address" placeholder="Building, street, unit number">
+            </div>
+            <div class="field">
+              <div class="label">Phone</div>
+              <div class="phone-input">
+                <select class="phone-cc" id="pf-phone-cc"></select>
+                <input class="input phone-num" id="pf-phone-num" placeholder="50 123 4567" inputmode="tel">
+              </div>
+            </div>
+            <div class="field">
+              <div class="label">Website</div>
+              <input class="input" id="pf-website" placeholder="https://yourbusiness.com">
+            </div>
+            <div class="field full">
+              <div class="label">About <span class="label-hint">— shown on your partner profile</span></div>
+              <textarea class="textarea" id="pf-about" rows="4" placeholder="A short paragraph about your business, what you offer, and what makes you different."></textarea>
+            </div>
+            <!-- FFP is NOT a discount site (Grant) — the Passport member discount field is hidden. Kept in the DOM
+                 (display:none) so the save logic that reads pf-passport-discount doesn't break. -->
+            <div class="field full" style="display:none;">
+              <div class="label">Passport member discount <span class="label-hint">— % off your Find Fit People bookings for paid Passport members</span></div>
+              <input class="input" id="pf-passport-discount" type="number" min="0" max="100" step="0.5" placeholder="Leave blank for the platform default (10%)">
+            </div>
+          </div>
+          <div class="form-section" style="margin-top:18px;">
+            <div class="form-section-title">Hours of operation</div>
+            <div class="hours-grid" id="hours-grid"></div>
+          </div>
+        </div>
+
+        <!-- ── ACTIVITIES ── (chips injected by ffp-provider-profile-loader.js into #pf-activities-host) -->
+        <div class="pf-pane" id="pf-pane-activities">
+          <div class="psub" style="margin:0 0 4px;">The activities you offer. Members see these on your profile, and they're the exact options shown when someone checks in at your venue.</div>
+          <div id="pf-activities-host"></div>
+        </div>
+
+        <div class="save-bar">
+          <div class="save-bar-msg" id="profile-save-msg">
+            <span class="ms">check</span> All changes saved
+          </div>
+          <button class="btn btn-ghost" onclick="loadProfile()">Discard</button>
+          <button class="btn btn-pri" onclick="saveProfile()">
+            <span class="ms">save</span> Save changes
+          </button>
+        </div>
+      </section>
+
+      <!-- ════════ DEALS ════════ -->
+      <section class="panel" id="panel-deals">
+        <div class="ph">Deals</div>
+        <div class="psub">Member perks at your venue — like a 2-for-1 or a member discount.</div>
+        <div class="panel-placeholder" style="margin-top:18px;">
+          <span class="ms" style="font-size:46px;color:var(--ffp-yellow,#FFCC00);">local_offer</span>
+          <h3 style="margin:14px 0 6px;">Deals are coming soon</h3>
+          <p style="max-width:420px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
+            Soon you'll be able to offer members perks at your venue — 2-for-1s, member discounts,
+            off-peak offers and more. We're finishing this off; you'll see it here when it's ready.
+          </p>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════════════════════════
+           BUSINESS MANAGEMENT — outline. Four panels, each with tabs that
+           become real tools (DB + UI + some backend). Built one at a time.
+           ════════════════════════════════════════════════════════════════ -->
+      <section class="panel" id="panel-members">
+        <div class="ph">Members</div>
+        <div class="psub">Everyone who trains with you — your member &amp; client base.</div>
+        <div class="biz-tabs">
+          <button class="biz-tab active" onclick="bizTab(this,'mem-directory')">Directory</button>
+          <button class="biz-tab" onclick="bizTab(this,'mem-plans'); if(typeof renderPlans==='function')renderPlans();">Memberships &amp; Packages</button>
+          <button class="biz-tab" onclick="bizTab(this,'mem-teams'); if(typeof renderTeams==='function')renderTeams();">Teams &amp; Rosters</button>
+          <button class="biz-tab" onclick="bizTab(this,'mem-comms'); if(typeof renderComms==='function')renderComms();">Communications</button>
+        </div>
+        <div class="biz-pane active" id="mem-directory">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
+            <input class="input" id="mem-search" placeholder="Search name, email, phone or tag…" style="max-width:300px;" oninput="if(typeof renderMembersList==='function')renderMembersList()">
+            <button class="btn btn-pri" onclick="openMemberModal()"><span class="ms">person_add</span> Add member</button>
+          </div>
+          <div id="mem-list" style="margin-top:10px;"></div>
+        </div>
+        <div class="biz-pane" id="mem-plans">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
+            <div class="psub" style="margin:0;">Memberships and class-packs. Assign them to members from the Directory.</div>
+            <button class="btn btn-pri" onclick="openPlanModal()"><span class="ms">add</span> New plan</button>
+          </div>
+          <div id="plans-list" style="margin-top:8px;"></div>
+        </div>
+        <div class="biz-pane" id="mem-teams">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
+            <div class="psub" style="margin:0;">Squads and training groups — build a roster from your members.</div>
+            <button class="btn btn-pri" onclick="openTeamModal()"><span class="ms">group_add</span> New team</button>
+          </div>
+          <div id="teams-list" style="margin-top:8px;"></div>
+        </div>
+        <div class="biz-pane" id="mem-comms">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
+            <div class="psub" style="margin:0;">Announcements and reminders to your members. Compose now; delivery switches on when channels connect.</div>
+            <button class="btn btn-pri" onclick="openComposeModal()"><span class="ms">campaign</span> Compose</button>
+          </div>
+          <div id="comms-list" style="margin-top:8px;"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-scheduling">
+        <div class="ph">Sessions</div>
+        <div class="psub">Your recurring sessions — PT slots, group classes and team sessions. Set the timetable and capacity once; members book the dates. (One-off experiences live in the Experiences tab. To check people in, use the Check-ins panel.)</div>
+        <div class="biz-tabs">
+          <button class="biz-tab active" onclick="bizTab(this,'sch-calendar')">Sessions</button>
+          <button class="biz-tab" onclick="bizTab(this,'sch-timetable'); if(typeof renderTimetable==='function')renderTimetable();">Timetable</button>
+        </div>
+        <div class="biz-pane active" id="sch-calendar">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
+            <div class="psub" style="margin:0;">Each session you run — set its weekly times and coach once; members book the dates. One card per session.</div>
+            <button class="btn btn-pri" onclick="openTemplateModal()"><span class="ms">add</span> Create session</button>
+          </div>
+          <div id="sched-list" style="margin-top:10px;"></div>
+        </div>
+        <div class="biz-pane" id="sch-timetable">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 8px;flex-wrap:wrap;">
+            <div class="psub" style="margin:0;">Your week at a glance — each session in its day &amp; time slot. The badge shows attendance vs capacity.</div>
+            <button class="btn btn-pri" onclick="if(typeof openAddSession==='function')openAddSession()"><span class="ms">add</span> Add session</button>
+          </div>
+          <div id="timetable-host" style="margin-top:8px;"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-staff">
+        <div class="ph">Staff</div>
+        <div class="psub">Coaches and staff — accounts, access and schedules.</div>
+        <div class="biz-tabs">
+          <button class="biz-tab active" onclick="bizTab(this,'stf-list'); if(typeof renderStaff==='function')renderStaff();">Staff</button>
+          <button class="biz-tab" onclick="bizTab(this,'stf-roles')">Roles &amp; Access</button>
+          <button class="biz-tab" onclick="bizTab(this,'stf-sched')">Schedules</button>
+        </div>
+        <div class="biz-pane active" id="stf-list">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
+            <div class="psub" style="margin:0;">Your coaches and team members, each with a role and access level.</div>
+            <button class="btn btn-pri" onclick="openStaffModal()"><span class="ms">person_add</span> Add staff</button>
+          </div>
+          <div id="staff-list" style="margin-top:8px;"></div>
+        </div>
+        <div class="biz-pane" id="stf-roles">
+          <div class="psub" style="margin:14px 0 10px;">Access levels you can assign to each staff member. Separate staff logins that enforce these arrive in a later update — for now this sets each person's intended access.</div>
+          <div style="display:flex;flex-direction:column;gap:9px;">
+            <div style="background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-radius:12px;padding:11px 13px;"><div style="font-weight:800;color:var(--ffp-text,#eaf2f8);">Full access</div><div class="psub" style="margin:2px 0 0;">Everything — members, scheduling, attendance, payments and settings.</div></div>
+            <div style="background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-radius:12px;padding:11px 13px;"><div style="font-weight:800;color:var(--ffp-text,#eaf2f8);">Manager</div><div class="psub" style="margin:2px 0 0;">Members, bookings, attendance and payments — but not account settings.</div></div>
+            <div style="background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-radius:12px;padding:11px 13px;"><div style="font-weight:800;color:var(--ffp-text,#eaf2f8);">Classes only</div><div class="psub" style="margin:2px 0 0;">Run their own sessions and take attendance. No payments or settings.</div></div>
+            <div style="background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-radius:12px;padding:11px 13px;"><div style="font-weight:800;color:var(--ffp-text,#eaf2f8);">View only</div><div class="psub" style="margin:2px 0 0;">Read-only — can see schedules and members but change nothing.</div></div>
+          </div>
+        </div>
+        <div class="biz-pane" id="stf-sched">
+          <div class="panel-placeholder" style="margin-top:26px;">
+            <span class="ms" style="font-size:44px;color:var(--ffp-yellow,#FFCC00);">event_available</span>
+            <h3 style="margin:14px 0 6px;">Staff schedules — coming soon</h3>
+            <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
+              Assign staff to sessions and teams and see each person's roster at a glance — who's coaching
+              what, and when.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-billing">
+        <div class="ph">Payments &amp; Invoices</div>
+        <div class="psub">Charge your members and send invoices — paid into your own account.</div>
+        <div id="facility-payments-card" style="margin:14px 0 6px;"></div>
+        <div class="biz-tabs">
+          <button class="biz-tab active" onclick="bizTab(this,'bil-pay'); if(typeof renderPayments==='function')renderPayments();">Payments</button>
+          <button class="biz-tab" onclick="bizTab(this,'bil-inv'); if(typeof renderInvoices==='function')renderInvoices();">Invoices</button>
+          <button class="biz-tab" onclick="bizTab(this,'bil-reports'); if(typeof renderBillReports==='function')renderBillReports();">Reports</button>
+        </div>
+        <div class="biz-pane active" id="bil-pay">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
+            <div class="psub" style="margin:0;">Record money you've collected — cash, card or transfer. No card processing yet.</div>
+            <button class="btn btn-pri" onclick="openPaymentModal('','payment')"><span class="ms">add</span> Record payment</button>
+          </div>
+          <div id="pay-list" style="margin-top:8px;"></div>
+        </div>
+        <div class="biz-pane" id="bil-inv">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
+            <div class="psub" style="margin:0;">Money owed. Issue an invoice, then mark it paid when it comes in.</div>
+            <button class="btn btn-pri" onclick="openPaymentModal('','invoice')"><span class="ms">add</span> New invoice</button>
+          </div>
+          <div id="inv-list" style="margin-top:8px;"></div>
+        </div>
+        <div class="biz-pane" id="bil-reports">
+          <div class="psub" style="margin:14px 0 4px;">Your money at a glance.</div>
+          <div id="bill-reports" style="margin-top:8px;"></div>
+        </div>
+      </section>
+
+      <!-- ════════ EVENTS ════════ -->
+      <section class="panel" id="panel-events">
+        <div class="ph-row">
+          <div>
+            <div class="ph">Events</div>
+            <div class="psub">Single-date sessions members can RSVP to. RSVPs route directly to you.</div>
+          </div>
+          <button class="btn btn-pri" onclick="openEventModal()">
+            <span class="ms">add</span> New event
+          </button>
+        </div>
+        <div class="tabs" id="events-tabs"></div>
+        <div class="help-strip" style="margin-bottom: 18px;">
+          <span class="ms">schedule</span>
+          <div>New events are <b>reviewed by admin within 24 hours</b> before going live. Once approved, RSVPs route straight to you.</div>
+        </div>
+        <div class="list-toolbar">
+          <div class="search-box">
+            <span class="ms">search</span>
+            <input id="events-search" placeholder="Search your events" oninput="renderEvents()">
+          </div>
+        </div>
+        <div class="listing-grid" id="events-grid"></div>
+      </section>
+
+      <!-- ════════ EXPERIENCES ════════ -->
+      <section class="panel" id="panel-experiences">
+        <div class="ph-row">
+          <div>
+            <div class="ph">Trips</div>
+            <div class="psub">Multi-day trips and sport events — retreats, training camps, marathon/Hyrox trips. Members apply, you review and approve, then send deposit details.</div>
+          </div>
+          <button class="btn btn-pri" onclick="openExperienceModal()">
+            <span class="ms">add</span> New trip
+          </button>
+        </div>
+        <div class="tabs" id="exp-tabs"></div>
+        <div class="help-strip" style="margin-bottom: 18px;">
+          <span class="ms">schedule</span>
+          <div>New trips are <b>reviewed by admin within 24 hours</b> before going live. Applications then route to you for approval and deposit handling.</div>
+        </div>
+        <div class="list-toolbar">
+          <div class="search-box">
+            <span class="ms">search</span>
+            <input id="exp-search" placeholder="Search your experiences" oninput="renderExperiences()">
+          </div>
+        </div>
+        <div class="listing-grid" id="exp-grid"></div>
+      </section>
+
+      <!-- ════════ TOURS (one-off activities — the classes table) ════════ -->
+      <section class="panel" id="panel-classes">
+        <div class="ph-row">
+          <div>
+            <div class="ph">Experiences</div>
+            <div class="psub">One-off activities members book — jet ski hire, bungy jump, canyoning, a guided experience or cruise. Add a date so it's bookable. (Recurring classes are in the Sessions tab.)</div>
+          </div>
+          <button class="btn btn-pri" onclick="openCreateClass()"><span class="ms">tour</span> New experience</button>
+        </div>
+        <div class="help-strip" style="margin-bottom:18px;">
+          <span class="ms">schedule</span>
+          <div>New experiences are <b>reviewed by admin within 24 hours</b> before going live. Members book and check in via the venue QR.</div>
+        </div>
+        <div class="list-toolbar">
+          <div class="search-box">
+            <span class="ms">search</span>
+            <input id="cls-search" placeholder="Search" oninput="renderClasses()">
+          </div>
+        </div>
+        <div class="listing-grid" id="cls-grid"></div>
+      </section>
+
+      <!-- ════════ CHALLENGES ════════ -->
+      <section class="panel" id="panel-challenges">
+        <div class="ph-row">
+          <div>
+            <div class="ph">Challenges</div>
+            <div class="psub">Partner challenges you organize at your venue. Upload results after the event.</div>
+          </div>
+          <button class="btn btn-pri" onclick="openChallengeModal()">
+            <span class="ms">add</span> New challenge
+          </button>
+        </div>
+        <div class="tabs" id="ch-tabs"></div>
+        <div class="help-strip" style="margin-bottom: 18px;">
+          <span class="ms">schedule</span>
+          <div>New challenges are <b>reviewed by admin within 24 hours</b> before going live. Upload results when the challenge ends to publish the leaderboard.</div>
+        </div>
+        <div class="list-toolbar">
+          <div class="search-box">
+            <span class="ms">search</span>
+            <input id="ch-search" placeholder="Search your challenges" oninput="renderChallenges()">
+          </div>
+        </div>
+        <div class="listing-grid" id="ch-grid"></div>
+      </section>
+
+      <!-- ════════ QUESTS ════════ -->
+      <section class="panel" id="panel-quests">
+        <div class="ph">Quests</div>
+        <div class="psub">When your venue is part of an FFP quest, members who complete a step here show up for your approval. Approve to stamp their step.</div>
+        <!-- ffp-provider-quests-loader.js injects the quest check-in queue here (#ffp-q-quests) -->
+      </section>
+
+      <!-- ════════ CHECK-INS ════════ -->
+      <section class="panel" id="panel-checkins">
+        <div class="ph">Check-ins</div>
+        <div class="psub">Check members into a session — scan their Passport QR, enter their member code, or pick from your members.</div>
+
+        <div class="checkin-card" id="session-checkin-card">
+          <div class="checkin-title">Check in to a session</div>
+          <div class="checkin-sub">Pick the session, then scan the member's QR or type their member code. Or pick from your members.</div>
+          <select class="select" id="ci-session" style="margin:8px 0;" onchange="window.ffpSessionRoster&&ffpSessionRoster()"></select>
+          <input class="code-input" id="ci-member-code" maxlength="16" placeholder="MEMBER CODE" oninput="this.value=this.value.toUpperCase()">
+          <div class="checkin-actions">
+            <button class="btn btn-ghost" onclick="window.ffpSessionScan&&ffpSessionScan()"><span class="ms">qr_code_scanner</span> Scan QR</button>
+            <button class="btn btn-sec" onclick="window.ffpSessionPickMember&&ffpSessionPickMember()"><span class="ms">groups</span> My members</button>
+            <button class="btn btn-pri" onclick="window.ffpSessionCheckin&&ffpSessionCheckin()"><span class="ms">check</span> Check in</button>
+          </div>
+          <div id="ci-roster" style="margin-top:12px;"></div>
+        </div>
+
+        <!-- "Recent check-ins" was the deals/claims feed (removed). Kept hidden so the loader has its target; repurpose to recent session check-ins later. -->
+        <div class="section-head" style="display:none;">
+          <div class="section-title">Recent check-ins</div>
+        </div>
+        <div class="checkin-list" id="checkin-list" style="display:none;"></div>
+      </section>
+
+
+      <!-- ════════ ANALYTICS ════════ -->
+      <section class="panel" id="panel-analytics">
+        <div class="ph-row">
+          <div>
+            <div class="ph">Analytics</div>
+            <div class="psub">How members are discovering, engaging with, and visiting your business.</div>
+          </div>
+          <button class="btn btn-sec" onclick="showToast('PDF export starting', 'success')">
+            <span class="ms">download</span> Export report
+          </button>
+        </div>
+
+        <div class="period-chips" id="period-chips"></div>
+
+        <div class="kpi-grid" id="analytics-kpi-grid"></div>
+
+        <div class="section-card" style="margin-bottom: 18px;">
+          <div class="section-head">
+            <div class="section-title">Engagement funnel</div>
+            <div class="section-sub" id="funnel-summary"></div>
+          </div>
+          <div class="funnel" id="funnel"></div>
+        </div>
+
+        <div class="section-card" style="margin-bottom: 18px;">
+          <div class="section-head">
+            <div class="section-title">Engagement trend</div>
+            <div class="section-sub" id="trend-summary"></div>
+          </div>
+          <div id="trend-chart-wrap"></div>
+        </div>
+
+        <div class="analytics-3col">
+          <div class="section-card">
+            <div class="section-head"><div class="section-title">Age groups</div></div>
+            <div class="bar-list" id="age-bars"></div>
+          </div>
+          <div class="section-card">
+            <div class="section-head"><div class="section-title">Gender</div></div>
+            <div class="bar-list" id="gender-bars"></div>
+          </div>
+          <div class="section-card">
+            <div class="section-head"><div class="section-title">Member tier</div></div>
+            <div class="bar-list" id="tier-bars"></div>
+          </div>
+        </div>
+
+        <div class="analytics-2col">
+          <div class="section-card">
+            <div class="section-head"><div class="section-title">Where members are based</div></div>
+            <div class="bar-list" id="area-bars"></div>
+          </div>
+          <div class="section-card">
+            <div class="section-head"><div class="section-title">Top member sports</div></div>
+            <div class="bar-list" id="sport-bars"></div>
+          </div>
+        </div>
+
+        <div class="analytics-2col">
+          <div class="section-card">
+            <div class="section-head"><div class="section-title">Top deals</div></div>
+            <div class="rank-list" id="top-deals"></div>
+          </div>
+          <div class="section-card">
+            <div class="section-head"><div class="section-title">Top events & experiences</div></div>
+            <div class="rank-list" id="top-events"></div>
+          </div>
+        </div>
+
+        <div class="analytics-2col">
+          <div class="section-card">
+            <div class="section-head"><div class="section-title">Peak engagement</div></div>
+            <div id="peak-grid"></div>
+          </div>
+          <div class="section-card">
+            <div class="section-head"><div class="section-title">New vs returning</div></div>
+            <div id="retention"></div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ════════ SETTINGS ════════ -->
+      <section class="panel" id="panel-settings">
+        <div class="ph">Settings</div>
+        <div class="psub">Notification preferences and account management.</div>
+
+        <div class="form-section">
+          <div class="form-section-title">Notifications</div>
+          <div class="form-grid">
+            <div class="field full">
+              <label class="hours-closed">
+                <input type="checkbox" checked> Email me when a member RSVPs to an event
+              </label>
+            </div>
+            <div class="field full">
+              <label class="hours-closed">
+                <input type="checkbox" checked> Email me when a member applies for an experience
+              </label>
+            </div>
+            <div class="field full">
+              <label class="hours-closed">
+                <input type="checkbox" checked> Email me when admin approves a new listing
+              </label>
+            </div>
+            <div class="field full">
+              <label class="hours-closed">
+                <input type="checkbox"> Weekly performance summary
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">Account</div>
+          <div class="form-grid">
+            <div class="field">
+              <div class="label">Login email</div>
+              <input class="input" value="bookings@forgefitness.ae" disabled>
+            </div>
+            <div class="field">
+              <div class="label">Password</div>
+              <button class="btn btn-sec" onclick="showToast('Password reset email sent', 'success')">Send reset email</button>
+            </div>
+            <div class="field full">
+              <div class="label">Session</div>
+              <button class="btn btn-sec" style="width: auto;" onclick="signOut()">
+                <span class="ms">logout</span> Sign out
+              </button>
+            </div>
+            <div class="field full">
+              <div class="label">Danger zone</div>
+              <button class="btn btn-ghost" style="color: var(--ffp-red); border-color: rgba(239,68,68,.3);" onclick="showToast('Contact admin to close your account', 'info')">
+                <span class="ms">delete</span> Close my partner account
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     MODAL CONTAINER
+     ════════════════════════════════════════════════ -->
+<div class="modal-backdrop" id="modal-backdrop" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal" onclick="event.stopPropagation()"></div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<!-- SIDEBAR BACKDROP (mobile) -->
+<div class="sidebar-backdrop" id="sidebar-backdrop" onclick="toggleSidebar()"></div>
+
+<script>
+/* ════════════════════════════════════════════════
+   FFP PROVIDER DASHBOARD — v17 (2026-05-31)
+   v18: phone country code shown uniformly as FLAG + + + digits (e.g. 🇦🇪 +971), from
+        shared ffp-taxonomy.js v4 — matches member dashboard.
+   v17: phone country codes now from shared FFP_TAX.phoneCodes (removed two embedded
+        21-option lists + inline PHONE_CODES array).
+   v16: profile Country + City now use the shared FFPLocation cascade (assets/
+        ffp-location-picker.js + ffp-taxonomy.js) — identical to apply/member/signup.
+        Added Country field; city cascades from country. +taxonomy/picker includes.
+   v15: provider Category (profile) now reads the canonical list from assets/ffp-constants.js
+        (single source of truth, matches the Apply form). Included ffp-constants.js.
+   v14: Feedback moved into the topbar (replaces the Help button) as a BLUE button;
+        floating button suppressed (data-fab="off").
+   v13: full demo scrub (empty events/experiences/challenges/check-ins, no fake KPI
+        deltas, "No activity yet" feed, "Your business" identity); Analytics shows an
+        honest empty state (was fabricated numbers); notifications loader restored
+        (real bell + ffpLogout sign-out); check-ins loader lazy-loads on panel open;
+        shared feedback widget included (data-source="provider").
+   ════════════════════════════════════════════════ */
+
+// ════════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════════
+function escHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+function showToast(msg, type) {
+  type = type || 'info';
+  const wrap = document.getElementById('toast-wrap');
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  const iconMap = { success: 'check_circle', error: 'error', info: 'info' };
+  t.innerHTML = '<span class="ms">' + (iconMap[type] || 'info') + '</span><span>' + escHtml(msg) + '</span>';
+  wrap.appendChild(t);
+  setTimeout(() => { t.style.transition = 'opacity .3s'; t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3200);
+}
+
+function uid() { return 'id_' + Math.random().toString(36).slice(2, 10); }
+
+function fmtDate(d) {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt)) return d;
+  return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+function fmtDateShort(d) {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt)) return d;
+  return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+function fmtRelative(ts) {
+  const now = Date.now();
+  const diff = Math.floor((now - new Date(ts).getTime()) / 1000);
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+  if (diff < 604800) return Math.floor(diff/86400) + 'd ago';
+  return fmtDateShort(ts);
+}
+
+// ════════════════════════════════════════════════
+// SAMPLE DATA — represents one logged-in provider
+// ════════════════════════════════════════════════
+const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+let providerProfile = {
+  business_name: '',
+  letter_mark: '',
+  category: '',
+  provider_type: '',
+  city: '',
+  area: '',
+  address: '',
+  phone: '',
+  website: '',
+  about: '',
+  status: '',
+  verified: false,
+  logo_url: null,
+  hero_url: null,
+  hours: {
+    Monday:    { open: '', close: '', closed: false },
+    Tuesday:   { open: '', close: '', closed: false },
+    Wednesday: { open: '', close: '', closed: false },
+    Thursday:  { open: '', close: '', closed: false },
+    Friday:    { open: '', close: '', closed: false },
+    Saturday:  { open: '', close: '', closed: false },
+    Sunday:    { open: '', close: '', closed: false }
+  }
+};
+
+let deals = [];
+
+let events = [];
+
+let experiences = [];
+
+let classesList = [];   // customer-facing "Experiences" = classes/tours (filled by ffp-provider-classes-loader.js)
+
+let challenges = [];
+
+let checkIns = [];
+
+// SAMPLE pending RSVPs / applications (used in detail modal)
+const sampleRsvps = [];
+
+// ════════════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════════════
+const NAV = [
+  { id: 'overview',    icon: 'dashboard',       label: 'Overview',    section: 'manage' },
+  { id: 'analytics',   icon: 'analytics',       label: 'Analytics',   section: 'manage' },
+  // ── Business management system (Check-ins on top; modules built one-by-one) ──
+  { id: 'checkins',    icon: 'qr_code_scanner', label: 'Check-ins',           section: 'business' },
+  { id: 'members',     icon: 'groups',          label: 'Members',             section: 'business', soon: true },
+  { id: 'scheduling',  icon: 'calendar_month',  label: 'Sessions',            section: 'business' },
+  { id: 'staff',       icon: 'badge',           label: 'Staff',               section: 'business', soon: true },
+  { id: 'billing',     icon: 'receipt_long',    label: 'Payments & Invoices', section: 'business', soon: true },
+  // ── Engagement (member-facing listings) ──
+  { id: 'classes',     icon: 'tour',            label: 'Experiences', section: 'engagement' },
+  { id: 'events',      icon: 'event',           label: 'Events',      section: 'engagement' },
+  { id: 'experiences', icon: 'flight',          label: 'Trips',       section: 'engagement' },
+  { id: 'challenges',  icon: 'emoji_events',    label: 'Challenges',  section: 'engagement' },
+  { id: 'quests',      icon: 'flag',            label: 'Quests',      section: 'engagement', soon: true, locked: true },
+  { id: 'deals',       icon: 'local_offer',     label: 'Deals',       section: 'engagement' },
+  // ── Account ──
+  { id: 'profile',     icon: 'storefront',      label: 'Profile',     section: 'account' },
+  { id: 'settings',    icon: 'settings',        label: 'Settings',    section: 'account' }
+];
+
+var _navCollapsed = {};   // section id -> true when collapsed
+const sectionLabels = { manage: 'Manage', business: 'Business', engagement: 'Engagement', account: 'Account' };
+
+function renderNav() {
+  const nav = document.getElementById('sb-nav');
+  // group items by section, preserving NAV order
+  const order = [];
+  const groups = {};
+  NAV.forEach(item => {
+    if (!groups[item.section]) { groups[item.section] = []; order.push(item.section); }
+    groups[item.section].push(item);
+  });
+  let html = '';
+  order.forEach(sec => {
+    const isCol = !!_navCollapsed[sec];
+    html += '<button class="sb-section' + (isCol ? ' collapsed' : '') + '" data-sec-head="' + sec + '" ' +
+            'onclick="toggleNavSection(\'' + sec + '\')">' +
+            '<span>' + (sectionLabels[sec] || sec) + '</span>' +
+            '<span class="ms sb-chev">expand_more</span></button>';
+    html += '<div class="sb-sec-items' + (isCol ? ' collapsed' : '') + '" data-sec="' + sec + '">';
+    groups[sec].forEach(item => {
+      const lockedClass = item.locked ? ' locked' : '';
+      const onclick = item.locked ? '' : ' onclick="showPanel(\'' + item.id + '\')"';
+      let badge = '';
+      if (item.id === 'deals') {
+        badge = '<span class="ni-lock-pill">Soon</span>';
+      } else if (item.id === 'events') {
+        badge = '<span class="ni-badge dim">' + events.length + '</span>';
+      } else if (item.id === 'experiences') {
+        badge = '<span class="ni-badge dim">' + experiences.length + '</span>';
+      } else if (item.id === 'classes') {
+        badge = '<span class="ni-badge dim">' + (Array.isArray(window.classesList) ? window.classesList.length : 0) + '</span>';
+      } else if (item.id === 'challenges') {
+        badge = '<span class="ni-badge dim">' + challenges.length + '</span>';
+      } else if (item.soon || item.locked) {
+        badge = '<span class="ni-lock-pill">Soon</span>';
+      }
+      html += '<button class="ni' + lockedClass + '" data-nav="' + item.id + '"' + onclick + '>' +
+              '<span class="ms">' + item.icon + '</span>' +
+              '<span>' + item.label + '</span>' + badge +
+              '</button>';
+    });
+    html += '</div>';
+  });
+  nav.innerHTML = html;
+}
+
+// Switch tabs inside a Business module panel.
+function bizTab(btn, paneId) {
+  const panel = btn.closest('.panel');
+  if (!panel) return;
+  panel.querySelectorAll('.biz-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  panel.querySelectorAll('.biz-pane').forEach(p => p.classList.remove('active'));
+  const pane = panel.querySelector('#' + paneId);
+  if (pane) pane.classList.add('active');
+}
+
+// Collapse/expand a sidebar section without re-rendering the whole nav.
+function toggleNavSection(sec) {
+  _navCollapsed[sec] = !_navCollapsed[sec];
+  const head = document.querySelector('.sb-section[data-sec-head="' + sec + '"]');
+  const items = document.querySelector('.sb-sec-items[data-sec="' + sec + '"]');
+  if (head)  head.classList.toggle('collapsed', !!_navCollapsed[sec]);
+  if (items) items.classList.toggle('collapsed', !!_navCollapsed[sec]);
+}
+
+// SCHEDULING (Business → Scheduling) now lives in its own deferred module:
+//   ffp-provider-scheduling-loader.js  (repo root, like the other provider loaders)
+// Registered in _provLoaderSrc below and lazy-loaded by ensureProviderLoader()
+// the first time the Scheduling panel is opened (same pattern as Check-ins).
+
+// v12: load a panel's data loader the first time that panel is opened.
+// Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=3', 'scheduling': 'ffp-provider-scheduling-loader.js?v=14', 'members': 'ffp-provider-members-loader.js?v=2', 'billing': 'ffp-provider-billing-loader.js?v=2', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=15' };
+var _provLoaded = {};
+function ensureProviderLoader(id) {
+  var src = _provLoaderSrc[id];
+  if (!src || _provLoaded[src]) return;
+  _provLoaded[src] = true;
+  var sc = document.createElement('script');
+  sc.src = src; sc.async = false;
+  sc.onerror = function () { console.error('[FFP] failed to load ' + src); };
+  document.body.appendChild(sc);
+}
+
+// Duplicate any listing → fresh draft "(Copy)" (+ cloned photos) via provider_duplicate_listing,
+// then reload that listing type and open the copy in the edit modal so the partner can tweak before going live.
+window.FFPReload = window.FFPReload || {};
+async function duplicateListing(kind, id) {
+  try {
+    const res = await window.supabase.rpc('provider_duplicate_listing', { p_kind: kind, p_provider: (window.FFP_PROVIDER || {}).id, p_id: id });
+    if (res.error) throw res.error;
+    if (!res.data) throw new Error('not permitted');
+    const newId = res.data;
+    showToast('Duplicated as a draft — edit and publish when ready', 'success');
+    const reload = window.FFPReload[kind];
+    if (reload) { try { await reload(); } catch (e) {} }
+    const openers = { class: 'openClassModal', experience: 'openExperienceModal', event: 'openEventModal' };
+    const opener = openers[kind];
+    if (opener && typeof window[opener] === 'function') { setTimeout(function () { try { window[opener](newId); } catch (e) {} }, 200); }
+  } catch (e) {
+    console.error('[FFP] duplicate', e);
+    showToast('Could not duplicate this listing', 'error');
+  }
+}
+
+// ── Facility payments — Stripe Connect onboarding card (Billing panel) ──
+async function renderPaymentsCard() {
+  var el = document.getElementById('facility-payments-card');
+  if (!el) return;
+  var pid = (window.FFP_PROVIDER || {}).id;
+  if (!pid) { el.innerHTML = ''; return; }
+  var connected = false, status = 'not_connected';
+  try {
+    var r = await window.supabase.from('providers').select('stripe_account_id, payments_status').eq('id', pid).maybeSingle();
+    if (r && r.data) { connected = !!r.data.stripe_account_id; status = r.data.payments_status || (connected ? 'connected' : 'not_connected'); }
+  } catch (e) {}
+  if (status === 'connected') {
+    el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid rgba(34,197,94,.3);background:rgba(34,197,94,.08);border-radius:12px;">' +
+      '<span class="ms" style="color:#22c55e;">check_circle</span>' +
+      '<div style="flex:1;"><div style="font-weight:700;font-size:13px;color:#22c55e;">Payments connected</div>' +
+      '<div class="psub" style="margin:2px 0 0;font-size:12px;">Your Stripe account is linked — member payments go straight to your bank, FFP takes no cut.</div></div>' +
+      '<a class="btn btn-ghost btn-sm" href="https://dashboard.stripe.com" target="_blank" rel="noopener"><span class="ms">open_in_new</span> Stripe</a></div>';
+  } else if (status === 'onboarding') {
+    el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid rgba(255,204,0,.35);background:rgba(255,204,0,.08);border-radius:12px;">' +
+      '<span class="ms" style="color:#d9a400;">hourglass_top</span>' +
+      '<div style="flex:1;"><div style="font-weight:700;font-size:13px;color:#d9a400;">Finish setting up payments</div>' +
+      '<div class="psub" style="margin:2px 0 0;font-size:12px;">Your Stripe account was started but isn\'t ready to take payments yet — a few details are still needed.</div></div>' +
+      '<button class="btn btn-pri btn-sm" onclick="connectStripe()"><span class="ms">arrow_forward</span> Finish setup</button></div>';
+  } else if (status === 'disconnected') {
+    el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid rgba(239,68,68,.3);background:rgba(239,68,68,.08);border-radius:12px;">' +
+      '<span class="ms" style="color:#ef4444;">link_off</span>' +
+      '<div style="flex:1;"><div style="font-weight:700;font-size:13px;color:#ef4444;">Stripe disconnected</div>' +
+      '<div class="psub" style="margin:2px 0 0;font-size:12px;">Reconnect to keep collecting member payments.</div></div>' +
+      '<button class="btn btn-pri btn-sm" onclick="connectStripe()"><span class="ms">link</span> Reconnect</button></div>';
+  } else {
+    el.innerHTML = '<div style="display:flex;align-items:center;gap:12px;padding:14px;border:1px solid rgba(99,91,255,.35);background:rgba(99,91,255,.06);border-radius:12px;">' +
+      '<span class="ms" style="font-size:26px;color:#635bff;">account_balance</span>' +
+      '<div style="flex:1;"><div style="font-weight:700;font-size:13px;">Set up payments</div>' +
+      '<div class="psub" style="margin:2px 0 0;font-size:12px;">Connect your Stripe account to charge members for memberships, packs and drop-ins. Money goes straight to you — FFP takes no cut. Takes about a minute if you already have Stripe.</div></div>' +
+      '<button class="btn btn-pri" onclick="connectStripe()"><span class="ms">link</span> Connect Stripe</button></div>';
+  }
+}
+
+async function connectStripe() {
+  var pid = (window.FFP_PROVIDER || {}).id;
+  var refresh = (window.FFPAuth && FFPAuth.getRefresh && FFPAuth.getRefresh())
+    || (function () { try { return localStorage.getItem('ffp_refresh') || sessionStorage.getItem('ffp_refresh'); } catch (e) { return null; } })();
+  if (!pid || !refresh) { showToast('Please sign in again to connect payments', 'error'); return; }
+  try {
+    var res = await fetch('https://ffp-passport-backend.vercel.app/api/facility/connect/start', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh: refresh, provider_id: pid })
+    });
+    var j = await res.json().catch(function () { return {}; });
+    if (j.already_connected) { showToast('Payments already connected ✓', 'success'); renderPaymentsCard(); return; }
+    if (j.url) { window.location.href = j.url; return; }
+    showToast(j.error || 'Could not start Stripe connection', 'error');
+  } catch (e) { showToast('Network error — please try again', 'error'); }
+}
+
+// Bounce-back from Stripe Connect (?stripe=connected|denied|error) → toast + open Billing.
+(function () {
+  try {
+    var p = new URLSearchParams(window.location.search);
+    var s = p.get('stripe');
+    if (!s) return;
+    var msg = s === 'connected'  ? ['Payments connected ✓', 'success']
+            : s === 'incomplete' ? ['Almost there — finish your Stripe details to start taking payments', 'info']
+            : s === 'denied'     ? ['Stripe setup cancelled', 'info']
+            : ['Stripe setup didn’t finish — please try again', 'error'];
+    document.addEventListener('ffp-provider-ready', function () {
+      setTimeout(function () { try { showToast(msg[0], msg[1]); if (typeof showPanel === 'function') showPanel('billing'); } catch (e) {} }, 500);
+    });
+    p.delete('stripe'); p.delete('panel');
+    var qs = p.toString();
+    history.replaceState({}, '', window.location.pathname + (qs ? '?' + qs : ''));
+  } catch (e) {}
+})();
+
+function showPanel(id) {
+  ensureProviderLoader(id);
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const el = document.getElementById('panel-' + id);
+  if (el) el.classList.add('active');
+  document.querySelectorAll('.ni').forEach(n => n.classList.remove('active'));
+  const navBtn = document.querySelector('.ni[data-nav="' + id + '"]');
+  if (navBtn) navBtn.classList.add('active');
+  const item = NAV.find(x => x.id === id);
+  // If the active panel lives in a collapsed section, open that section.
+  if (item && _navCollapsed[item.section]) toggleNavSection(item.section);
+  document.getElementById('tb-title').textContent = item ? item.label : '';
+  // GA4 per-panel page_view (SPA — no real page reload on panel switch)
+  try { if (window.ffpTrackView) window.ffpTrackView('partner/' + id, 'Partner · ' + (item ? item.label : id)); } catch (e) {}
+  // Top bar status pill reflects provider account status (not listing status)
+  const statusPill = document.getElementById('tb-status');
+  if (id === 'overview' || id === 'profile') {
+    statusPill.style.display = 'inline-block';
+  } else {
+    statusPill.style.display = 'none';
+  }
+  // The green save banner only belongs on the Profile panel
+  var _sb = document.getElementById('ffp-save-banner');
+  if (_sb && id !== 'profile') _sb.classList.remove('show');
+  // Initial render hooks
+  if (id === 'overview') renderOverview();
+  if (id === 'profile') loadProfile();
+  if (id === 'events') renderEvents();
+  if (id === 'experiences') renderExperiences();
+  if (id === 'classes' && typeof renderClasses === 'function') renderClasses();
+  if (id === 'challenges') { renderChallenges(); if (window.FFPQuestCheckins) FFPQuestCheckins.reload(); }
+  if (id === 'quests' && window.FFPQuestCheckins) FFPQuestCheckins.reload();
+  if (id === 'checkins') { renderCheckIns(); if (window.FFPQuestCheckins) FFPQuestCheckins.reload(); }
+  if (id === 'analytics') renderAnalytics();
+  if (id === 'scheduling' && typeof renderScheduling === 'function') renderScheduling();
+  if (id === 'members' && typeof renderMembers === 'function') renderMembers();
+  if (id === 'billing') { if (typeof renderPayments === 'function') renderPayments(); renderPaymentsCard(); }
+  if (id === 'staff' && typeof renderStaff === 'function') renderStaff();
+  renderListingGate(id);   // show/hide the "listings hidden until profile complete" banner
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  // Close mobile sidebar after navigation
+  if (window.innerWidth <= 768) closeSidebar();
+}
+
+// Business-profile tabs: Branding / Business info / Activities
+function showProfileTab(name) {
+  document.querySelectorAll('#panel-profile .pf-tab').forEach(function (b) {
+    b.classList.toggle('active', b.getAttribute('data-pftab') === name);
+  });
+  document.querySelectorAll('#panel-profile .pf-pane').forEach(function (p) {
+    p.classList.toggle('active', p.id === 'pf-pane-' + name);
+  });
+}
+window.showProfileTab = showProfileTab;
+
+// ════════════════════════════════════════════════
+// OVERVIEW
+// ════════════════════════════════════════════════
+function renderOverview() {
+  // Pending review banner
+  const banner = document.getElementById('welcome-banner');
+  if (banner) {
+    const pendingCount = getPendingCount();
+    if (pendingCount > 0) {
+      banner.classList.add('pending');
+      banner.innerHTML =
+        '<div class="welcome-banner-pre"><span class="ms">schedule</span></div>' +
+        '<div class="welcome-banner-body">' +
+          '<div class="welcome-banner-title">' + pendingCount + ' ' + (pendingCount === 1 ? 'item' : 'items') + ' pending admin review</div>' +
+          '<div class="welcome-banner-sub">Admin typically approves new listings within 24 hours. You\'ll get an email when each one goes live to members.</div>' +
+        '</div>' +
+        '<button class="welcome-banner-close" onclick="this.parentElement.style.display=\'none\'">&times;</button>';
+      banner.style.display = 'flex';
+    } else {
+      banner.classList.remove('pending');
+      banner.innerHTML =
+        '<div class="welcome-banner-pre" style="background: rgba(43, 168, 224, .14); color: var(--ffp-blue);"><span class="ms">check_circle</span></div>' +
+        '<div class="welcome-banner-body">' +
+          '<div class="welcome-banner-title">Everything is up to date</div>' +
+          '<div class="welcome-banner-sub">No listings in review. All your live items are visible to members right now.</div>' +
+        '</div>' +
+        '<button class="welcome-banner-close" onclick="this.parentElement.style.display=\'none\'">&times;</button>';
+      banner.style.display = 'flex';
+    }
+  }
+
+  const liveDeals = deals.filter(d => d.status === 'live').length;
+  const totalClaims = deals.reduce((a, d) => a + (d.claims || 0), 0);
+  const totalRsvps = events.reduce((a, e) => a + (e.rsvps || 0), 0);
+  const totalApps = experiences.reduce((a, e) => a + (e.applications || 0), 0);
+  const totalListings = deals.length + events.length + experiences.length + challenges.length;
+
+  const kpiGrid = document.getElementById('kpi-grid');
+  kpiGrid.innerHTML = '' +
+    kpi('Active listings', totalListings, '', '') +
+    kpi('Deal claims', totalClaims, '', '', 'yellow') +
+    kpi('Event RSVPs', totalRsvps, '', '', 'green') +
+    kpi('Experience applications', totalApps, '', '', 'blue');
+
+  const acts = [];
+  const al = document.getElementById('activity-list');
+  al.innerHTML = acts.length ? acts.map(a =>
+    '<div class="act-row">' +
+      '<div class="act-icon ' + a.tone + '"><span class="ms">' + a.icon + '</span></div>' +
+      '<div class="act-body">' +
+        '<div class="act-text">' + a.text + '</div>' +
+        '<div class="act-time">' + fmtRelative(a.ts) + '</div>' +
+      '</div>' +
+    '</div>'
+  ).join('') : '<div class="act-row" style="opacity:.7;"><div class="act-body"><div class="act-text">No activity yet</div><div class="act-time">Member RSVPs, applications and check-ins will show here</div></div></div>';
+
+  renderProviderRating();
+}
+
+// ════════════════════════════════════════════════
+// PROVIDER RATING (member reviews of this provider)
+// ════════════════════════════════════════════════
+function prStars(v) {
+  var n = Math.round(Number(v) || 0);
+  var s = '';
+  for (var i = 1; i <= 5; i++) s += '<span class="ms pr-star' + (i <= n ? ' on' : '') + '">star</span>';
+  return '<span class="pr-stars">' + s + '</span>';
+}
+function prEsc(t) {
+  return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+  });
+}
+var PR_RLBL = { coach: 'Coach', value: 'Value', atmosphere: 'Atmosphere', organisation: 'Organisation', guide: 'Guide / host' };
+async function renderProviderRating() {
+  var sumEl = document.getElementById('prov-rating-summary');
+  var listEl = document.getElementById('prov-rating-reviews');
+  if (!sumEl || !listEl) return;
+  var pid = (window.FFP_PROVIDER || {}).id;
+  if (!pid || !window.supabase) {
+    sumEl.innerHTML = '<div class="pr-empty">Sign in to see your member reviews.</div>';
+    listEl.innerHTML = '';
+    return;
+  }
+  try {
+    var r = await window.supabase.rpc('provider_rating', { p_provider: pid });
+    if (r.error) throw r.error;
+    var d = r.data || {};
+    var n = d.n || 0;
+    if (!n) {
+      sumEl.innerHTML = '<div class="pr-empty">No reviews yet. Members are prompted to rate their session about an hour after they check in at your venue.</div>';
+      listEl.innerHTML = '';
       return;
     }
-    grid.innerHTML = items.map(classCard).join('');
+    sumEl.innerHTML =
+      '<div class="pr-overall">' +
+        '<div class="pr-big">' + (d.avg_overall != null ? d.avg_overall : '—') + '</div>' +
+        '<div>' + prStars(d.avg_overall) + '<div class="pr-count">' + n + ' review' + (n === 1 ? '' : 's') + '</div></div>' +
+      '</div>' +
+      '<div class="pr-cats">' +
+        '<div class="pr-cat"><span>Experience</span>' + prStars(d.avg_experience) + '<b>' + (d.avg_experience != null ? d.avg_experience : '—') + '</b></div>' +
+        '<div class="pr-cat"><span>Service</span>' + prStars(d.avg_service) + '<b>' + (d.avg_service != null ? d.avg_service : '—') + '</b></div>' +
+        '<div class="pr-cat"><span>Facilities</span>' + prStars(d.avg_facilities) + '<b>' + (d.avg_facilities != null ? d.avg_facilities : '—') + '</b></div>' +
+      '</div>';
+
+    var lr = await window.supabase.rpc('provider_reviews_list', { p_provider: pid });
+    if (lr.error) throw lr.error;
+    var rows = lr.data || [];
+    listEl.innerHTML = rows.length ? rows.map(function (rv) {
+      var when = '';
+      try { when = new Date(rv.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); } catch (e) {}
+      var photo = rv.member_photo
+        ? '<img class="pr-rev-photo" src="' + prEsc(rv.member_photo) + '" alt="">'
+        : '<div class="pr-rev-photo pr-rev-photo-ph"><span class="ms">person</span></div>';
+      var ctx = rv.session_title ? (prEsc(rv.session_title) + (rv.coach ? ' · ' + prEsc(rv.coach) : '')) : '';
+      var subrat = (rv.ratings && typeof rv.ratings === 'object')
+        ? Object.keys(rv.ratings).map(function (k) { return '<span style="font-size:11px;font-weight:800;color:#9dbdd0;background:rgba(43,168,224,.10);border:1px solid rgba(43,168,224,.2);border-radius:10px;padding:2px 8px;">' + prEsc(PR_RLBL[k] || k) + ' ' + prEsc(rv.ratings[k]) + '★</span>'; }).join('')
+        : '';
+      return '<div class="pr-rev">' +
+        '<div class="pr-rev-head">' + photo +
+          '<div class="pr-rev-id"><div class="pr-rev-name">' + prEsc(rv.member_name) + '</div>' +
+          '<div class="pr-rev-when">' + when + (ctx ? ' · ' + ctx : '') + '</div></div>' +
+          '<div class="pr-rev-stars">' + prStars(rv.stars_overall) + '</div>' +
+        '</div>' +
+        (subrat ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;">' + subrat + '</div>' : '') +
+        (rv.comment ? '<div class="pr-rev-comment">' + prEsc(rv.comment) + '</div>' : '') +
+        (rv.photo_url ? '<img src="' + prEsc(rv.photo_url) + '" alt="" style="margin-top:8px;width:100%;max-width:170px;border-radius:10px;border:1px solid rgba(43,168,224,.2);display:block;">' : '') +
+      '</div>';
+    }).join('') : '';
+  } catch (e) {
+    sumEl.innerHTML = '<div class="pr-empty">Couldn\'t load reviews right now.</div>';
+    listEl.innerHTML = '';
   }
-  function heroStyle(url) { return url ? ('style="background-image:url(\'' + esc(url) + '\')"') : ''; }
-  function classCard(c) {
-    var st = c.status || 'draft';
-    return '<div class="listing-card">' +
-      '<div class="lc-hero" ' + heroStyle(c.hero_image_url) + '>' +
-        '<div class="lc-status-pill ' + esc(st) + '">' + esc(st) + '</div>' +
-        (c.activity ? '<div class="lc-cat-pill">' + esc(c.activity) + '</div>' : '') +
-      '</div>' +
-      '<div class="lc-body">' +
-        '<div class="lc-title">' + esc(c.title || 'Untitled') + '</div>' +
-        '<div class="lc-sub">' + esc(c.description || '') + '</div>' +
-        '<div class="lc-meta">' +
-          (c.city ? '<span><span class="ms">place</span>' + esc(c.city) + '</span>' : '') +
-          (c.duration_min ? '<span><span class="ms">schedule</span>' + c.duration_min + ' min</span>' : '') +
-          (c.booking_source && c.booking_source !== 'native' ? '<span><span class="ms">sync</span>' + esc(c.booking_source) + '</span>' : '') +
-        '</div>' +
-        '<div class="lc-stat-row">' +
-          '<div class="lc-stat"><div class="lc-stat-val">' + FFPCurrency.formatProvider(c.price_aed || 0) + '</div><div class="lc-stat-lbl">Per person</div></div>' +
-          '<div class="lc-stat"><div class="lc-stat-val">' + (c.capacity || 0) + '</div><div class="lc-stat-lbl">Capacity</div></div>' +
-          '<div class="lc-stat"><div class="lc-stat-val">' + (c.min_age || '—') + '</div><div class="lc-stat-lbl">Min age</div></div>' +
-        '</div>' +
-      '</div>' +
-      '<div class="lc-actions">' +
-        '<button class="btn btn-sec btn-sm" onclick="openClassModal(\'' + c.id + '\')"><span class="ms">edit</span> Edit</button>' +
-        (st === 'pending' ? '<span class="lc-review-note" style="font-size:12px;color:#FFCC00;align-self:center;"><span class="ms" style="font-size:15px;vertical-align:-2px;">schedule</span> Pending admin review</span>' : '') +
-        (typeof window.featureBtn === 'function' ? window.featureBtn('class', c.id, c.featured) : '') +
-        '<button class="btn btn-ghost btn-sm" title="Duplicate" onclick="duplicateListing(\'class\',\'' + c.id + '\')"><span class="ms">content_copy</span></button>' +
-        '<button class="btn btn-ghost btn-sm" title="Delete" onclick="confirmDeleteClass(\'' + c.id + '\')"><span class="ms">delete</span></button>' +
-      '</div>' +
+}
+
+function kpi(label, val, delta, dir, tone) {
+  const arrow = dir === 'up' ? 'trending_up' : dir === 'down' ? 'trending_down' : 'remove';
+  const dirCls = dir === 'down' ? 'down' : dir === 'flat' ? 'flat' : '';
+  return '<div class="kpi">' +
+    '<div class="kpi-lbl">' + label + '</div>' +
+    '<div class="kpi-val ' + (tone || '') + '">' + val + '</div>' +
+    '<div class="kpi-delta ' + dirCls + '"><span class="ms">' + arrow + '</span>' + delta + '</div>' +
+  '</div>';
+}
+
+// ════════════════════════════════════════════════
+// PROFILE
+// ════════════════════════════════════════════════
+function _provCcy() { return (window.FFP_PROVIDER && FFP_PROVIDER.currency) || (typeof providerProfile !== 'undefined' && providerProfile.currency) || 'AED'; }
+function _provMoney(n) { return window.FFPCurrency ? FFPCurrency.format(n, _provCcy()) : (_provCcy() + ' ' + Number(n || 0).toLocaleString()); }
+function loadProfile() {
+  document.getElementById('pf-business-name').value = providerProfile.business_name || '';
+  document.getElementById('pf-category').value = providerProfile.category || '';
+  document.getElementById('pf-type').value = providerProfile.provider_type || '';
+  var _tzEl = document.getElementById('pf-timezone'); if (_tzEl) { _tzEl.value = providerProfile.timezone || (window.FFP_PROVIDER && window.FFP_PROVIDER.timezone) || 'Asia/Dubai'; }
+  var _ccyEl = document.getElementById('pf-currency'); if (_ccyEl) { if (window.FFPCurrency && _ccyEl.options.length <= 1) { _ccyEl.innerHTML = window.FFPCurrency.optionsHtml(providerProfile.currency || 'AED'); } _ccyEl.value = providerProfile.currency || (window.FFP_PROVIDER && window.FFP_PROVIDER.currency) || 'AED'; }
+  if (window.FFPLocation) { FFPLocation.setValue('provider', providerProfile.country || '', providerProfile.city || ''); } else { var _pc = document.getElementById('pf-city'); if (_pc) _pc.value = providerProfile.city || ''; }
+  document.getElementById('pf-area').value = providerProfile.area || '';
+  document.getElementById('pf-address').value = providerProfile.address || '';
+  setPhoneValue(providerProfile.phone || '');
+  document.getElementById('pf-website').value = providerProfile.website || '';
+  document.getElementById('pf-about').value = providerProfile.about || '';
+  var _pdEl = document.getElementById('pf-passport-discount'); if (_pdEl) _pdEl.value = (providerProfile.passport_discount_pct != null ? providerProfile.passport_discount_pct : '');
+  renderHours();
+  renderUploader('up-logo', providerProfile.logo_url, 'logo');
+  renderUploader('up-hero', providerProfile.hero_url, 'hero');
+  renderProfileCompletion();
+  setSaveBar(false);
+}
+
+function renderHours() {
+  const grid = document.getElementById('hours-grid');
+  grid.innerHTML = DAYS.map(day => {
+    const h = providerProfile.hours[day] || { open: '', close: '', closed: false };
+    return '<div class="hours-row' + (h.closed ? ' is-closed' : '') + '" data-day="' + day + '">' +
+      '<div class="hours-day">' + day + '</div>' +
+      '<input class="input" type="time" value="' + escHtml(h.open || '') + '" data-field="open">' +
+      '<input class="input" type="time" value="' + escHtml(h.close || '') + '" data-field="close">' +
+      '<label class="hours-closed"><input type="checkbox"' + (h.closed ? ' checked' : '') + ' onchange="toggleClosed(\'' + day + '\', this.checked)"> Closed</label>' +
     '</div>';
+  }).join('');
+  grid.querySelectorAll('input').forEach(el => el.addEventListener('change', () => setSaveBar(true)));
+}
+
+function toggleClosed(day, isClosed) {
+  providerProfile.hours[day].closed = isClosed;
+  renderHours();
+  setSaveBar(true);
+}
+
+function setSaveBar(dirty) {
+  // Big green top banner — only on the Profile panel, only when there are unsaved changes.
+  const banner = document.getElementById('ffp-save-banner');
+  const onProfile = !!document.querySelector('#panel-profile.active');
+  if (banner) banner.classList.toggle('show', !!dirty && onProfile);
+  const m = document.getElementById('profile-save-msg');
+  if (!m) return;
+  if (dirty) {
+    m.classList.add('dirty');
+    m.innerHTML = '<span class="ms">error</span> Unsaved changes';
+  } else {
+    m.classList.remove('dirty');
+    m.innerHTML = '<span class="ms">check</span> All changes saved';
   }
+}
 
-  // ── modal (create / edit) ──
-  function openClassModal(id) {
-    var c = (id && Array.isArray(window.classesList)) ? window.classesList.find(function (x) { return x.id === id; }) : null;
-    var e = c || {};
-    var ll = (e.meeting_lat != null && e.meeting_lng != null) ? (e.meeting_lat + ', ' + e.meeting_lng) : '';
-    var TAX = window.FFP_TAX || {};
-    var cities = TAX.cities || {};
-    var countries = Object.keys(cities).sort();
-    var selCountry = e.country || (window.providerProfile || {}).country || 'United Arab Emirates';
-    if (countries.length && countries.indexOf(selCountry) === -1) selCountry = countries[0];
+// mark profile dirty on any input change
+document.addEventListener('input', e => {
+  if (e.target.closest('#panel-profile')) setSaveBar(true);
+});
 
-    var body =
-      '<div id="cl-stepbar" style="font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-purple,#8b5cf6);margin:0 0 12px;">Step 1 of 2 · Experience details</div>' +
-      '<div id="cl-step1">' +
-      '<div class="form-section"><div class="form-section-title">Cover photo</div>' +
-        '<div id="listing-photo-slot" data-url="' + esc(e.hero_image_url || '') + '"></div></div>' +
-      '<div class="form-section"><div class="form-section-title">Gallery <span class="label-hint" style="text-transform:none;letter-spacing:0;font-weight:600;">— extra photos shown on the listing; use the arrows to reorder</span></div>' +
-        '<div id="cm-gallery" style="display:flex;flex-wrap:wrap;gap:10px;"></div>' +
-        '<button type="button" class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="cmAddGalleryImage()"><span class="ms">add_photo_alternate</span> Add photo</button>' +
-      '</div>' +
-      '<div class="form-section"><div class="form-section-title">Basics</div><div class="form-grid">' +
-        '<div class="field full"><div class="label">Title <span class="req">*</span></div>' +
-          '<input class="input" id="cm-title" value="' + esc(e.title || '') + '" placeholder="e.g. Sunset Kayak Tour"></div>' +
-        '<div class="field full"><div class="label">Short description</div>' +
-          '<input class="input" id="cm-description" value="' + esc(e.description || '') + '" placeholder="One-sentence summary members see on the card"></div>' +
-        '<div class="field"><div class="label">Activity <span class="req">*</span></div>' +
-          '<button type="button" class="ffp-picker-btn placeholder" id="cm-activity-btn" data-value="" data-category=""><span>Choose activity…</span><span class="ms caret">expand_more</span></button></div>' +
-        '<div class="field"><div class="label">Fitness level required</div>' +
-          '<select class="select" id="cm-fitness-level">' + ((window.FFP_TAX && window.FFP_TAX.attendeeLevels && window.FFP_TAX.attendeeLevels.length) ? window.FFP_TAX.attendeeLevels : FITNESS_LEVELS).map(function (d) { return '<option' + (((e.fitness_level || 'All Levels') === d) ? ' selected' : '') + '>' + d + '</option>'; }).join('') + '</select></div>' +
-      '</div></div>' +
-      '<div class="form-section"><div class="form-section-title">When &amp; where</div><div class="form-grid">' +
-        '<div class="field"><div class="label">Country <span class="req">*</span></div>' +
-          '<button type="button" class="ffp-picker-btn placeholder" id="cm-country-btn" data-value=""><span>Choose country…</span><span class="ms caret">expand_more</span></button></div>' +
-        '<div class="field"><div class="label">City</div>' +
-          '<button type="button" class="ffp-picker-btn placeholder" id="cm-city-btn" data-value="" data-country=""><span>Choose city…</span><span class="ms caret">expand_more</span></button></div>' +
-        '<div class="field"><div class="label">Venue</div><input class="input" id="cm-venue" value="' + esc(e.venue || '') + '" placeholder="e.g. Kite Beach"></div>' +
-        '<div class="field"><div class="label">Duration (min)</div><input class="input" type="number" id="cm-duration" value="' + esc(e.duration_min || '') + '" placeholder="e.g. 60"></div>' +
-        '<div class="field"><div class="label">Price per person (' + FFPCurrency.providerCode() + ') <span class="req">*</span></div><input class="input" type="number" id="cm-price" value="' + esc(e.price_aed != null ? e.price_aed : '') + '" placeholder="e.g. 150"></div>' +
-        '<div class="field full"><div class="label">Location pin <span class="label-hint">— paste a Google Maps link; we’ll set the pin so members get directions</span></div>' +
-          '<div style="display:flex;gap:8px;align-items:center;">' +
-            '<input class="input" id="cm-maps-url" placeholder="Paste your Google Maps link (any format)" style="flex:1;min-width:0;">' +
-            '<button type="button" class="btn btn-ghost" style="flex:0 0 auto;" onclick="resolveClassMapsLink()"><span class="ms" style="font-size:16px;vertical-align:-3px;">place</span> Find pin</button>' +
-          '</div>' +
-          '<span id="cm-loc-status" class="psub" style="display:block;margin-top:6px;">' + ((e.meeting_lat != null && e.meeting_lng != null) ? ('✓ Pin set (' + Number(e.meeting_lat).toFixed(5) + ', ' + Number(e.meeting_lng).toFixed(5) + ')') : 'No pin set') + '</span>' +
-          '<input type="hidden" id="cm-lat" value="' + esc(e.meeting_lat != null ? e.meeting_lat : '') + '">' +
-          '<input type="hidden" id="cm-lng" value="' + esc(e.meeting_lng != null ? e.meeting_lng : '') + '">' +
-        '</div>' +
-      '</div></div>' +
-      '<div class="form-section"><div class="form-section-title">Schedule</div>' +
-        '<div class="psub" style="margin:-4px 0 12px;">Set the days and departure times this runs — we create all the bookable slots through your end date (members can book up to a year ahead). ' + (window.FFPTime ? 'Times in ' + esc(window.FFPTime.tz().replace(/_/g, " ")) + '.' : '') + '</div>' +
-        '<div class="form-grid">' +
-          '<div class="field full"><div class="label">Days of the week</div>' +
-            '<div id="cm-sched-days" style="display:flex;gap:6px;flex-wrap:wrap;">' +
-              ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(function (dn, ix) { return '<button type="button" class="cm-day" data-dow="' + ix + '" data-on="0" onclick="cmToggleDay(this)" style="padding:8px 13px;border-radius:999px;border:1px solid var(--ffp-border-mid);background:transparent;color:var(--ffp-text-muted);font-size:13px;font-weight:700;cursor:pointer;">' + dn + '</button>'; }).join('') +
-            '</div>' +
-          '</div>' +
-          '<div class="field full"><div class="label">Departure times</div>' +
-            '<div id="cm-sched-times" style="display:flex;flex-wrap:wrap;gap:8px;"></div>' +
-            '<button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="cmAddTime()"><span class="ms">add</span> Add a time</button>' +
-          '</div>' +
-          '<div class="field"><div class="label">Capacity per departure</div><input class="input" type="number" id="cm-capacity" value="' + esc(e.capacity || '') + '" placeholder="e.g. 8"></div>' +
-          '<div class="field"><div class="label">Start date</div><input class="input" type="date" id="cm-sched-start" style="color-scheme:dark;"></div>' +
-          '<div class="field"><div class="label">End date <span class="label-hint">— up to 1 year ahead</span></div><input class="input" type="date" id="cm-sched-end" style="color-scheme:dark;"></div>' +
-        '</div>' +
-        '<div id="cm-upcoming" style="margin-top:16px;"></div>' +
-      '</div>' +
-      '</div>' /* /cl-step1 */ +
-      '<div id="cl-step2" style="display:none;">' +
-      '<div class="form-section"><div class="form-section-title">Details</div><div class="form-grid">' +
-        '<div class="field full"><div class="label">Highlights <span class="label-hint">— one per line</span></div><textarea class="textarea" id="cm-highlights" rows="3" placeholder="Eiffel-tower views\nAudio guide in 14 languages\nSmall group">' + esc(joinArr(e.highlights)) + '</textarea></div>' +
-        '<div class="field full"><div class="label">What\'s included <span class="label-hint">— one per line</span></div><textarea class="textarea" id="cm-includes" rows="3" placeholder="Kayak &amp; paddle\nLife vest\nLocal guide">' + esc(joinArr(e.what_included)) + '</textarea></div>' +
-        '<div class="field full"><div class="label">What\'s NOT included <span class="label-hint">— one per line</span></div><textarea class="textarea" id="cm-excludes" rows="2" placeholder="Hotel pickup\nGratuities">' + esc(joinArr(e.what_not_included)) + '</textarea></div>' +
-        '<div class="field full"><div class="label">What to bring <span class="label-hint">— one per line</span></div><textarea class="textarea" id="cm-bring" rows="2" placeholder="Swimwear\nTowel\nWater">' + esc(joinArr(e.what_to_bring)) + '</textarea></div>' +
-      '</div></div>' +
-      '<div class="form-section"><div class="form-section-title">Good to know</div><div class="form-grid">' +
-        '<div class="field full"><div class="label">Meeting point</div><input class="input" id="cm-meeting-point" value="' + esc(e.meeting_point || '') + '" placeholder="e.g. Pier 3, by the Bateaux Parisiens sign"></div>' +
-        '<div class="field"><div class="label">Minimum age</div><input class="input" type="number" id="cm-min-age" value="' + esc(e.min_age || '') + '" placeholder="e.g. 12"></div>' +
-        '<div class="field"><div class="label">Languages <span class="label-hint">— one per line</span></div><textarea class="textarea" id="cm-languages" rows="2" placeholder="English\nArabic">' + esc(joinArr(e.languages)) + '</textarea></div>' +
-        '<div class="field"><div class="label">Distance (km) <span class="label-hint">— optional</span></div><input class="input" type="number" id="cm-distance" value="' + esc(e.distance_km || '') + '" placeholder="e.g. 4"></div>' +
-        '<div class="field full"><div class="label">Not allowed <span class="label-hint">— one per line</span></div><textarea class="textarea" id="cm-not-allowed" rows="2" placeholder="Oversized luggage\nPets (assistance dogs OK)">' + esc(joinArr(e.not_allowed)) + '</textarea></div>' +
-        '<div class="field full"><div class="label">Know before you go <span class="label-hint">— one per line</span></div><textarea class="textarea" id="cm-know-before" rows="2" placeholder="Departures every 30 min\nArrive 15 min early">' + esc(joinArr(e.know_before)) + '</textarea></div>' +
-        '<div class="field"><div class="label">Wheelchair accessible</div><select class="select" id="cm-wheelchair"><option value="">—</option><option value="true"' + (e.wheelchair_accessible === true ? ' selected' : '') + '>Yes</option><option value="false"' + (e.wheelchair_accessible === false ? ' selected' : '') + '>No</option></select></div>' +
-        '<div class="field"><div class="label">Free cancellation <span class="label-hint">— hours before</span></div><input class="input" type="number" id="cm-cancel-hours" value="' + esc(e.free_cancellation_hours || '') + '" placeholder="e.g. 24"></div>' +
-        '<div class="field full"><div class="label">Accessibility notes</div><input class="input" id="cm-accessibility" value="' + esc(e.accessibility_notes || '') + '" placeholder="e.g. Step-free boarding; accessible WC"></div>' +
-        '<div class="field full"><div class="label">Cancellation policy</div><input class="input" id="cm-cancel-policy" value="' + esc(e.cancellation_policy || '') + '" placeholder="e.g. Free cancellation up to 24h before"></div>' +
-      '</div></div>' +
-      '</div>' /* /cl-step2 */;
+function saveProfile() {
+  providerProfile.business_name = document.getElementById('pf-business-name').value.trim();
+  providerProfile.category      = document.getElementById('pf-category').value;
+  providerProfile.provider_type = document.getElementById('pf-type').value;
+  providerProfile.country       = (document.getElementById('pf-country') || {}).value || '';
+  providerProfile.city          = document.getElementById('pf-city').value;
+  providerProfile.area          = document.getElementById('pf-area').value.trim();
+  providerProfile.address       = document.getElementById('pf-address').value.trim();
+  providerProfile.phone         = getPhoneValue();
+  providerProfile.website       = document.getElementById('pf-website').value.trim();
+  providerProfile.about         = document.getElementById('pf-about').value.trim();
+  // capture hours from inputs
+  document.querySelectorAll('#hours-grid .hours-row').forEach(row => {
+    const day = row.dataset.day;
+    providerProfile.hours[day].open  = row.querySelector('[data-field="open"]').value;
+    providerProfile.hours[day].close = row.querySelector('[data-field="close"]').value;
+  });
+  providerProfile.letter_mark = (providerProfile.business_name || 'P').charAt(0).toUpperCase();
+  // Update sidebar foot + topbar avatar
+  document.getElementById('sb-foot-name').textContent = providerProfile.business_name || 'Your business';
+  document.getElementById('sb-foot-mark').textContent = providerProfile.letter_mark;
+  renderProfileCompletion();
+  // PRODUCTION: send to Supabase here
+  setSaveBar(false);
+  showToast('Profile saved', 'success');
+}
 
-    var foot =
-      (c ? '<button class="btn btn-ghost left cl-s2" style="display:none;" onclick="confirmDeleteClass(\'' + c.id + '\')"><span class="ms">delete</span> Delete</button>' : '') +
-      '<button class="btn btn-ghost cl-s1" onclick="closeModal()">Cancel</button>' +
-      '<button class="btn btn-ghost cl-s2" style="display:none;" onclick="clStep(1)"><span class="ms">chevron_left</span> Back</button>' +
-      '<button class="btn btn-pri cl-s1" onclick="clStep(2)">Next: Details &amp; good to know <span class="ms" style="font-size:16px;vertical-align:-3px;">chevron_right</span></button>' +
-      '<button class="btn btn-pri cl-s2" style="display:none;" onclick="saveClass(\'' + (c ? c.id : '') + '\')">' + (c ? 'Save changes' : 'Submit for review') + '</button>';
+// ════════════════════════════════════════════════
+// PHONE — country code split helpers
+// ════════════════════════════════════════════════
+const PHONE_CODES = (window.FFP_TAX && window.FFP_TAX.phoneCodes) ? window.FFP_TAX.phoneCodes.map(function(c){return c.code;}) : [];
 
-    if (typeof window.openModalShell === 'function') window.openModalShell('full', (c ? 'Edit experience' : 'New experience'), body, foot);
-    setTimeout(function () { if (window.FFPSelect) { var m = document.getElementById('modal'); if (m) window.FFPSelect.enhance(m); } }, 40);
-    if (typeof window.renderListingUploader === 'function') { try { window.renderListingUploader(e.hero_image_url || ''); } catch (er) {} }
-
-    setTimeout(function () {
-      var aBtn = document.getElementById('cm-activity-btn');
-      if (aBtn) {
-        if (e.activity) {
-          aBtn.classList.remove('placeholder'); aBtn.dataset.value = e.activity; aBtn.dataset.category = e.category || '';
-          aBtn.innerHTML = '<div class="picked"><div class="name">' + esc(e.activity) + '</div>' + (e.category ? '<div class="group">' + esc(e.category) + '</div>' : '') + '</div><span class="ms caret">expand_more</span>';
-        }
-        aBtn.addEventListener('click', function () {
-          if (window.FFPPicker && window.FFPPicker.openActivity) {
-            window.FFPPicker.openActivity(aBtn.dataset.value, function (name, cat) {
-              aBtn.classList.remove('placeholder'); aBtn.dataset.value = name || ''; aBtn.dataset.category = cat || '';
-              aBtn.innerHTML = '<div class="picked"><div class="name">' + esc(name) + '</div>' + (cat ? '<div class="group">' + esc(cat) + '</div>' : '') + '</div><span class="ms caret">expand_more</span>';
-            });
-          } else { toast('Activity picker not ready', 'error'); }
-        });
-      }
-      // Country + City — shared searchable pickers (same component as Trips & the activity field).
-      var coBtn = document.getElementById('cm-country-btn');
-      var ciBtn = document.getElementById('cm-city-btn');
-      var setBtn = function (btn, val, ph) {
-        if (!btn) return;
-        btn.dataset.value = val || '';
-        if (val) { btn.classList.remove('placeholder'); btn.innerHTML = '<span>' + esc(val) + '</span><span class="ms caret">expand_more</span>'; }
-        else { btn.classList.add('placeholder'); btn.innerHTML = '<span>' + ph + '</span><span class="ms caret">expand_more</span>'; }
-      };
-      var initCountry = e.country || selCountry || '';
-      if (initCountry) setBtn(coBtn, initCountry, 'Choose country…');
-      if (ciBtn) ciBtn.dataset.country = initCountry;
-      if (e.city) setBtn(ciBtn, e.city, 'Choose city…');
-      if (coBtn) coBtn.addEventListener('click', function () {
-        if (!(window.FFPPicker && window.FFPPicker.openCountry)) { toast('Picker not ready', 'error'); return; }
-        window.FFPPicker.openCountry(coBtn.dataset.value, function (name) {
-          setBtn(coBtn, name, 'Choose country…');
-          if (ciBtn && ciBtn.dataset.country !== name) { ciBtn.dataset.country = name; setBtn(ciBtn, '', 'Choose city…'); }
-        });
-      });
-      if (ciBtn) ciBtn.addEventListener('click', function () {
-        if (!(window.FFPPicker && window.FFPPicker.openCity)) { toast('Picker not ready', 'error'); return; }
-        window.FFPPicker.openCity(ciBtn.dataset.country || (coBtn ? coBtn.dataset.value : ''), ciBtn.dataset.value, function (name) { setBtn(ciBtn, name, 'Choose city…'); });
-      });
-
-      // ── Gallery ──
-      _cmGallery = Array.isArray(e.gallery) ? e.gallery.slice() : [];
-      window.cmRenderGallery();
-
-      // ── Schedule defaults ──
-      var todayStr = new Date().toISOString().slice(0, 10);
-      var maxD = new Date(); maxD.setFullYear(maxD.getFullYear() + 1);
-      var maxStr = maxD.toISOString().slice(0, 10);
-      var startEl = document.getElementById('cm-sched-start'); if (startEl) { startEl.value = todayStr; startEl.min = todayStr; startEl.max = maxStr; }
-      var endEl = document.getElementById('cm-sched-end'); if (endEl) { endEl.min = todayStr; endEl.max = maxStr; }
-      var tWrap = document.getElementById('cm-sched-times'); if (tWrap && !tWrap.children.length) window.cmAddTime();
-
-      // ── Existing departures (edit only) — cancel / reopen / delete / close-day ──
-      window._cmEditId = (c && c.id) ? c.id : null;
-      if (window._cmEditId) window.cmLoadUpcoming(window._cmEditId);
-    }, 50);
+function setPhoneValue(full) {
+  full = (full || '').trim();
+  const cc = document.getElementById('pf-phone-cc');
+  const num = document.getElementById('pf-phone-num');
+  if (!cc || !num) return;
+  if (!full) { cc.value = '+971'; num.value = ''; return; }
+  for (const code of PHONE_CODES) {
+    if (full.startsWith(code)) {
+      cc.value = code;
+      num.value = full.slice(code.length).trim();
+      return;
+    }
   }
+  cc.value = '+971';
+  num.value = full.replace(/^\+\d+\s*/, '').trim() || full;
+}
 
-  // ── save / status / delete ──
-  async function saveClass(id) {
-    if (!provId()) { toast('Provider not loaded', 'error'); return; }
-    var g = function (k) { var el = document.getElementById('cm-' + k); return el ? (el.value || '').trim() : ''; };
-    var title = g('title');
-    var aBtn = document.getElementById('cm-activity-btn');
-    var activity = aBtn ? aBtn.dataset.value : '';
-    var category = aBtn ? aBtn.dataset.category : '';
-    if (!title) { toast('Title is required', 'error'); return; }
-    if (!activity) { toast('Activity is required', 'error'); return; }
-    var price = g('price'); if (!price) { toast('Price is required', 'error'); return; }
-    var coBtn = document.getElementById('cm-country-btn'), ciBtn = document.getElementById('cm-city-btn');
-    var country = coBtn ? (coBtn.dataset.value || '') : '', city = ciBtn ? (ciBtn.dataset.value || '') : '';
-    if (!country) { toast('Country is required', 'error'); return; }
-    // Schedule config (recurring weekly → generated bookable slots)
-    var schedDays = Array.prototype.slice.call(document.querySelectorAll('#cm-sched-days .cm-day')).filter(function (b) { return b.dataset.on === '1'; }).map(function (b) { return parseInt(b.dataset.dow, 10); });
-    var schedTimes = Array.prototype.slice.call(document.querySelectorAll('#cm-sched-times .cm-time')).map(function (i) { return (i.value || '').trim(); }).filter(Boolean);
-    var schedStart = g('sched-start'), schedEnd = g('sched-end');
-    var hasSched = schedDays.length && schedTimes.length;
-    if (hasSched && !schedEnd) { toast('Add a schedule end date (up to a year ahead)', 'error'); return; }
-    var photoSlot = document.getElementById('listing-photo-slot');
-    var heroUrl = (photoSlot && photoSlot.dataset.url) ? photoSlot.dataset.url : null; if (heroUrl === '') heroUrl = null;
-    var mLat = null, mLng = null;
-    var latEl = document.getElementById('cm-lat'), lngEl = document.getElementById('cm-lng');
-    var latV = latEl ? (latEl.value || '').trim() : '', lngV = lngEl ? (lngEl.value || '').trim() : '';
-    if (latV && lngV) { var a0 = parseFloat(latV), b0 = parseFloat(lngV); if (!isNaN(a0)) mLat = a0; if (!isNaN(b0)) mLng = b0; }
-    else { var llv = g('latlng'); if (llv) { var pp = llv.split(','); if (pp.length >= 2) { var a = parseFloat(pp[0]), b = parseFloat(pp[1]); if (!isNaN(a)) mLat = a; if (!isNaN(b)) mLng = b; } } }
-    var wheel = g('wheelchair');
+function getPhoneValue() {
+  const cc = document.getElementById('pf-phone-cc');
+  const num = document.getElementById('pf-phone-num');
+  if (!cc || !num) return '';
+  const n = num.value.trim();
+  return n ? cc.value + ' ' + n : '';
+}
 
-    var payload = {
-      title: title, description: g('description') || null, activity: activity, category: category || null,
-      fitness_level: g('fitness-level') || null, country: country || null, city: city || null, venue: g('venue') || null,
-      duration_min: intn(g('duration')), capacity: intn(g('capacity')), price_aed: num(price), hero_image_url: heroUrl,
-      highlights: arrFromText(g('highlights')), what_included: arrFromText(g('includes')), what_not_included: arrFromText(g('excludes')),
-      what_to_bring: arrFromText(g('bring')), not_allowed: arrFromText(g('not-allowed')), know_before: arrFromText(g('know-before')),
-      languages: arrFromText(g('languages')), meeting_point: g('meeting-point') || null, meeting_lat: mLat, meeting_lng: mLng,
-      min_age: intn(g('min-age')), distance_km: num(g('distance')), wheelchair_accessible: (wheel === '' ? null : wheel === 'true'),
-      accessibility_notes: g('accessibility') || null, free_cancellation_hours: intn(g('cancel-hours')), cancellation_policy: g('cancel-policy') || null,
-      gallery: _cmGallery
-    };
-    try {
-      var res = await sb().rpc('provider_save_listing', { p_kind: 'class', p_provider: provId(), p_id: id || null, p: payload });
-      if (res.error) throw res.error;
-      if (!res.data) throw new Error('Save failed — not found or not permitted');
-      var _cid = res.data;
-      // Generate the recurring bookable slots (class_sessions) from the schedule — capped at +1yr, idempotent.
-      if (hasSched) {
-        try {
-          var _tz = (window.FFPTime && window.FFPTime.tz) ? window.FFPTime.tz() : 'Asia/Dubai';
-          await sb().rpc('provider_generate_class_sessions', {
-            p_provider: provId(), p_class: _cid, p_weekdays: schedDays, p_times: schedTimes,
-            p_capacity: intn(g('capacity')), p_start: schedStart || null, p_end: schedEnd, p_tz: _tz
-          });
-        } catch (e3) { console.warn('[FFP Tours] generate schedule', e3); }
-      }
-      // Tours require admin approval — a NEW tour is submitted for review (status 'pending').
-      if (!id) { try { await sb().rpc('provider_set_listing_status', { p_kind: 'class', p_provider: provId(), p_id: res.data, p_status: 'pending' }); } catch (e5) { console.warn('[FFP Tours] submit', e5); } }
-      if (typeof window.closeModal === 'function') window.closeModal();
-      toast(id ? 'Saved' : 'Submitted — pending admin review (you’ll go live once approved)', 'success');
-      await refresh();
-    } catch (er) { console.error('[FFP Tours] save', er); toast(er.message || 'Save failed', 'error'); }
+// ════════════════════════════════════════════════
+// PROFILE COMPLETION
+// ════════════════════════════════════════════════
+// The STOREFRONT ESSENTIALS — the fields that make a listing display properly on Find Fit People.
+// A listing won't show publicly until ALL of these are filled. (Website, hours, address etc. are
+// recommended extras that boost ranking but don't block — they're not gating fields.)
+function profileEssentials() {
+  const p = providerProfile;
+  const acts = Array.isArray(p.activities) ? p.activities : [];
+  return [
+    { ok: !!p.business_name,                          label: 'Business name' },
+    { ok: !!p.category,                               label: 'Category' },
+    { ok: !!p.city,                                   label: 'City' },
+    { ok: !!(p.about && p.about.trim().length >= 40), label: 'About (a sentence or two)' },
+    { ok: !!p.logo_url,                               label: 'Logo' },
+    { ok: !!p.hero_url,                               label: 'Hero photo' },
+    { ok: acts.length > 0,                            label: 'At least one activity' }
+  ];
+}
+function profileMissingEssentials() { return profileEssentials().filter(i => !i.ok).map(i => i.label); }
+function profileIsComplete()  { return profileMissingEssentials().length === 0; }
+// providerProfile.status is only set once the profile loader has fetched real data from the DB —
+// use it to avoid flashing the "incomplete" warning before the profile has loaded.
+function profileDataLoaded()  { return !!providerProfile.status; }
+function computeProfileCompletion() {
+  const items = profileEssentials();
+  return Math.round(items.filter(i => i.ok).length / items.length * 100);
+}
+
+function renderProfileCompletion() {
+  const card = document.getElementById('completion-card');
+  if (!card) return;
+  const pct = computeProfileCompletion();
+  card.classList.toggle('full', pct === 100);
+  document.getElementById('completion-pct').textContent = pct;
+  const bar = document.getElementById('completion-bar');
+  bar.style.width = pct + '%';
+  bar.className = pct === 100 ? 'bar-fill green' : 'bar-fill yellow';
+  document.getElementById('completion-icon').textContent = pct === 100 ? 'verified' : 'warning';
+  const missing = profileMissingEssentials();
+  document.getElementById('completion-sub').innerHTML = pct === 100
+    ? 'Your profile is complete — your listings can go live and appear on Find Fit People.'
+    : '<b>Your listings won’t appear on Find Fit People until your profile is complete.</b> Still needed: ' + missing.map(escHtml).join(', ') + '.';
+  if (typeof window.refreshListingGate === 'function') window.refreshListingGate();
+}
+
+// ── "Listings hidden until profile complete" notification ──
+// Shows a warning banner at the top of each listing panel whenever the profile is missing an essential.
+const LISTING_GATE_PANELS = ['events', 'experiences', 'classes', 'challenges', 'deals'];
+function _ensureGateCss() {
+  if (document.getElementById('listing-gate-css')) return;
+  const st = document.createElement('style');
+  st.id = 'listing-gate-css';
+  st.textContent =
+    '.listing-gate-banner{display:flex;align-items:center;gap:12px;background:rgba(255,204,0,.10);' +
+    'border:1px solid rgba(255,204,0,.45);border-radius:12px;padding:14px 16px;margin:0 0 18px;color:#f5f7fa;}' +
+    '.listing-gate-banner>.ms{color:#FFCC00;font-size:22px;flex-shrink:0;}' +
+    '.listing-gate-banner .lgb-text{flex:1;font-size:13px;line-height:1.45;}' +
+    '.listing-gate-banner .btn{flex-shrink:0;white-space:nowrap;}' +
+    '@media(max-width:560px){.listing-gate-banner{flex-wrap:wrap;}.listing-gate-banner .btn{width:100%;}}';
+  document.head.appendChild(st);
+}
+function renderListingGate(id) {
+  const panel = document.getElementById('panel-' + id);
+  if (!panel) return;
+  let banner = panel.querySelector('.listing-gate-banner');
+  const show = LISTING_GATE_PANELS.indexOf(id) !== -1 && profileDataLoaded() && !profileIsComplete();
+  if (!show) { if (banner) banner.remove(); return; }
+  _ensureGateCss();
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.className = 'listing-gate-banner';
+    panel.insertBefore(banner, panel.firstChild);
   }
+  const missing = profileMissingEssentials();
+  banner.innerHTML =
+    '<span class="ms">visibility_off</span>' +
+    '<div class="lgb-text"><b>These listings won’t show on Find Fit People yet.</b> ' +
+    'Finish your business profile first — still needed: ' + missing.map(escHtml).join(', ') + '.</div>' +
+    '<button type="button" class="btn btn-pri" onclick="showPanel(\'profile\')">Complete profile</button>';
+}
+// Re-evaluate the gate on the currently-active panel (called after the profile loads).
+window.refreshListingGate = function () {
+  const active = document.querySelector('.panel.active');
+  if (active && active.id && active.id.indexOf('panel-') === 0) renderListingGate(active.id.slice(6));
+};
 
-  async function setClassStatus(id, status) {
-    try {
-      var res = await sb().rpc('provider_set_listing_status', { p_kind: 'class', p_provider: provId(), p_id: id, p_status: status });
-      if (res.error) throw res.error;
-      await refresh();
-    } catch (er) { console.error('[FFP Tours] status', er); toast('Could not update status', 'error'); }
-  }
+// Refresh completion whenever any profile field changes
+document.addEventListener('input', e => {
+  if (e.target.closest('#panel-profile')) renderProfileCompletion();
+});
+document.addEventListener('change', e => {
+  if (e.target.closest('#panel-profile')) renderProfileCompletion();
+});
 
-  function confirmDeleteClass(id) {
-    var doIt = async function () {
-      try {
-        var res = await sb().rpc('provider_delete_listing', { p_kind: 'class', p_provider: provId(), p_id: id });
-        if (res.error) throw res.error;
-        toast('Experience deleted', 'success');
-        if (typeof window.closeModal === 'function') window.closeModal();
-        await refresh();
-      } catch (er) { console.error('[FFP Classes] delete', er); toast('Delete failed', 'error'); }
-    };
-    if (typeof window.openConfirm === 'function') window.openConfirm('Delete this experience?', 'This cannot be undone.', doIt);
-    else if (confirm('Delete this experience?')) doIt();
-  }
+// ════════════════════════════════════════════════
+// PENDING REVIEW COUNT (for overview banner)
+// ════════════════════════════════════════════════
+function getPendingCount() {
+  return [].concat(deals, events, experiences, challenges).filter(x => x.status === 'pending').length;
+}
 
-  // ── Gallery (multi-image; first = cover) ──
-  window.cmRenderGallery = function () {
-    var wrap = document.getElementById('cm-gallery'); if (!wrap) return;
-    if (!_cmGallery.length) { wrap.innerHTML = '<div class="psub">No extra photos yet. Add a few to show this experience off.</div>'; return; }
-    wrap.innerHTML = _cmGallery.map(function (url, i) {
-      return '<div style="position:relative;width:128px;height:84px;border-radius:10px;overflow:hidden;border:1px solid var(--ffp-border-mid);background:#0a1825 center/cover no-repeat;background-image:url(\'' + esc(url) + '\');">' +
-        (i === 0 ? '<span style="position:absolute;top:4px;left:4px;background:var(--ffp-purple,#8b5cf6);color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:6px;">COVER</span>' : '') +
-        '<div style="position:absolute;bottom:0;left:0;right:0;display:flex;background:rgba(0,8,20,.6);">' +
-          '<button type="button" title="Move left" onclick="cmMoveGalleryImage(' + i + ',-1)" style="flex:1;border:none;background:transparent;color:#fff;cursor:pointer;font-size:16px;line-height:1;padding:5px 0;">‹</button>' +
-          '<button type="button" title="Remove" onclick="cmRemoveGalleryImage(' + i + ')" style="flex:1;border:none;background:transparent;color:#fff;cursor:pointer;padding:5px 0;"><span class="ms" style="font-size:15px;vertical-align:-2px;">delete</span></button>' +
-          '<button type="button" title="Move right" onclick="cmMoveGalleryImage(' + i + ',1)" style="flex:1;border:none;background:transparent;color:#fff;cursor:pointer;font-size:16px;line-height:1;padding:5px 0;">›</button>' +
+// ════════════════════════════════════════════════
+// MOBILE SIDEBAR TOGGLE
+// ════════════════════════════════════════════════
+function toggleSidebar() {
+  document.querySelector('.sidebar').classList.toggle('open');
+  document.getElementById('sidebar-backdrop').classList.toggle('open');
+}
+function closeSidebar() {
+  document.querySelector('.sidebar').classList.remove('open');
+  document.getElementById('sidebar-backdrop').classList.remove('open');
+}
+
+// ════════════════════════════════════════════════
+// SUBMIT-FOR-REVIEW CONFIRMATION MODAL
+// ════════════════════════════════════════════════
+function showSubmittedModal(typeLabel) {
+  openModalShell('sm', 'Pending admin review', `
+    <div style="text-align: center; padding: 8px 0 14px;">
+      <div style="width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 50%; background: rgba(255, 204, 0, .14); color: var(--ffp-yellow); display: flex; align-items: center; justify-content: center;">
+        <span class="ms" style="font-size: 32px;">schedule</span>
+      </div>
+      <div style="font-size: 16px; font-weight: 800; margin-bottom: 6px;">Your ${escHtml(typeLabel)} is in admin review</div>
+      <div style="font-size: 13px; color: var(--ffp-text-muted); font-weight: 500; line-height: 1.55; max-width: 340px; margin: 0 auto;">
+        We typically approve new listings within 24 hours. You'll get an email when it goes live so members can discover it.
+      </div>
+    </div>
+  `, `
+    <button class="btn btn-blue" onclick="closeModal()">Got it</button>
+  `);
+}
+
+// ════════════════════════════════════════════════
+// PHOTO UPLOADER
+// ════════════════════════════════════════════════
+function renderUploader(targetId, dataUrl, kind) {
+  const el = document.getElementById(targetId);
+  if (!el) return;
+  if (dataUrl) {
+    el.classList.add('has-image');
+    const isLogo = kind === 'logo';
+    el.innerHTML =
+      '<div class="uploader-preview" style="background-image: url(\'' + dataUrl + '\')">' +
+        '<div class="uploader-preview-actions">' +
+          '<button class="uploader-preview-btn" onclick="event.stopPropagation(); pickProviderImage(\'' + kind + '\')" title="Replace"><span class="ms">refresh</span></button>' +
+          '<button class="uploader-preview-btn del" onclick="event.stopPropagation(); removeUpload(\'' + kind + '\')" title="Remove"><span class="ms">delete</span></button>' +
         '</div>' +
       '</div>';
-    }).join('');
-  };
-  window.cmAddGalleryImage = function () {
-    if (!window.FFPUpload) { toast('Uploader not ready — refresh and retry', 'error'); return; }
-    var pid = provId() || 'provider';
-    window.FFPUpload.pick({ bucket: 'listing-covers', key: 'gallery-' + pid + '-' + Date.now(), aspect: 16 / 9, outW: 1600, outH: 900, title: 'Add a photo',
-      onDone: function (url) { _cmGallery.push(url); window.cmRenderGallery(); },
-      onError: function (er) { toast('Upload failed: ' + ((er && er.message) || 'try again'), 'error'); } });
-  };
-  window.cmRemoveGalleryImage = function (i) { _cmGallery.splice(i, 1); window.cmRenderGallery(); };
-  window.cmMoveGalleryImage = function (i, dir) { var j = i + dir; if (j < 0 || j >= _cmGallery.length) return; var t = _cmGallery[i]; _cmGallery[i] = _cmGallery[j]; _cmGallery[j] = t; window.cmRenderGallery(); };
+  } else {
+    el.classList.remove('has-image');
+    const isLogo = kind === 'logo';
+    el.innerHTML =
+      '<div class="uploader-icon"><span class="ms">image</span></div>' +
+      '<div class="uploader-title">' + (isLogo ? 'Upload logo' : 'Click or drag to upload') + '</div>' +
+      '<div class="uploader-hint">' + (isLogo ? 'PNG · square · crop to fit' : 'JPG or PNG · 16:9 · position & crop') + '</div>';
+  }
+}
 
-  // ── Schedule builder controls ──
-  window.cmToggleDay = function (btn) {
-    var on = btn.dataset.on === '1'; btn.dataset.on = on ? '0' : '1';
-    if (on) { btn.style.background = 'transparent'; btn.style.color = 'var(--ffp-text-muted)'; btn.style.borderColor = 'var(--ffp-border-mid)'; }
-    else { btn.style.background = 'var(--ffp-purple,#8b5cf6)'; btn.style.color = '#fff'; btn.style.borderColor = 'var(--ffp-purple,#8b5cf6)'; }
+// Logo + hero now upload to Supabase Storage WITH a crop/position step (Cropper.js via the shared
+// uploader). Square crop for the logo, 16:10 banner crop for the hero. Returns a public URL which we
+// store on providerProfile and commit via provider_save_profile on Save.
+function ffpImgOpts(kind) {
+  var pid = (window.FFP_PROVIDER && window.FFP_PROVIDER.id) || (typeof providerProfile !== 'undefined' && providerProfile.id);
+  if (!pid) { showToast('Provider not loaded', 'error'); return null; }
+  if (!window.FFPUpload) { showToast('Uploader not ready — refresh and retry', 'error'); return null; }
+  var isLogo = kind === 'logo';
+  return {
+    bucket: isLogo ? 'provider-logos' : 'provider-heroes',
+    key: kind + '-' + pid,
+    aspect: isLogo ? 1 : (16 / 9),
+    outW: isLogo ? 512 : 1600,
+    outH: isLogo ? 512 : 900,
+    title: isLogo ? 'Crop your logo' : 'Position your banner (16:9)',
+    onDone: function (url) {
+      if (isLogo) { providerProfile.logo_url = url; renderUploader('up-logo', url, 'logo'); }
+      else { providerProfile.hero_url = url; renderUploader('up-hero', url, 'hero'); }
+      setSaveBar(true);
+      showToast('Photo uploaded — Save to commit', 'success');
+    },
+    onError: function (err) { console.error('[provider upload]', err); showToast('Upload failed: ' + (err.message || 'try again'), 'error'); }
   };
-  window.cmAddTime = function (t) {
-    var wrap = document.getElementById('cm-sched-times'); if (!wrap) return;
-    var row = document.createElement('div'); row.style.cssText = 'display:flex;align-items:center;gap:2px;';
-    row.innerHTML = '<input class="input cm-time" type="time" value="' + esc(t || '') + '" style="width:128px;color-scheme:dark;">' +
-      '<button type="button" title="Remove" onclick="this.closest(\'div\').remove()" style="border:none;background:transparent;color:var(--ffp-text-muted);cursor:pointer;"><span class="ms" style="font-size:16px;">close</span></button>';
-    wrap.appendChild(row);
-  };
+}
+function pickProviderImage(kind) { var o = ffpImgOpts(kind); if (o) window.FFPUpload.pick(o); }
+function dropProviderImage(kind, file) { var o = ffpImgOpts(kind); if (o) window.FFPUpload.cropFile(file, o); }
 
-  // ── Existing departures management (edit) ──
-  window.cmLoadUpcoming = function (classId) {
-    var wrap = document.getElementById('cm-upcoming'); if (!wrap) return;
-    wrap.innerHTML = '<div class="psub">Loading scheduled departures…</div>';
-    sb().rpc('provider_list_class_sessions', { p_provider: provId(), p_class: classId }).then(function (r) {
-      var rows = (r && r.data) ? r.data.slice() : [];
-      rows.sort(function (a, b) { return new Date(a.starts_at) - new Date(b.starts_at); });
-      _cmUpcoming = rows;
-      if (!rows.length) { wrap.innerHTML = '<div class="psub">No departures yet. Set the days + times above, then Save to generate them.</div>'; return; }
-      var di = function (ts) { return (window.FFPTime && window.FFPTime.toDateInput) ? window.FFPTime.toDateInput(ts) : String(ts).slice(0, 10); };
-      var ti = function (ts) { return (window.FFPTime && window.FFPTime.toTimeInput) ? window.FFPTime.toTimeInput(ts) : String(ts).slice(11, 16); };
-      var groups = {}, order = [];
-      rows.forEach(function (s) { var k = di(s.starts_at); if (!groups[k]) { groups[k] = []; order.push(k); } groups[k].push(s); });
-      var html = '<div class="label" style="margin-bottom:8px;">Scheduled departures (' + rows.length + ')</div>';
-      order.forEach(function (k) {
-        html += '<div style="margin-bottom:10px;border:1px solid var(--ffp-border);border-radius:10px;overflow:hidden;">' +
-          '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(8,20,32,.5);">' +
-            '<b style="font-size:13px;">' + esc(k) + '</b>' +
-            '<button type="button" class="btn btn-ghost btn-sm" onclick="cmCloseDay(\'' + esc(k) + '\')">Close this day</button>' +
-          '</div>';
-        groups[k].forEach(function (s) {
-          var cancelled = s.status === 'cancelled';
-          html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--ffp-border);' + (cancelled ? 'opacity:.55;' : '') + '">' +
-            '<span style="font-size:13px;">' + esc(ti(s.starts_at)) + ' · ' + (s.spots_taken || 0) + '/' + (s.capacity || 0) + (cancelled ? ' · <b style="color:#e0556b;">Cancelled</b>' : '') + '</span>' +
-            '<span style="display:flex;gap:6px;flex-shrink:0;">' +
-              (cancelled
-                ? '<button type="button" class="btn btn-ghost btn-sm" onclick="cmReopenDeparture(\'' + s.id + '\')">Reopen</button>'
-                : '<button type="button" class="btn btn-ghost btn-sm" onclick="cmCancelDeparture(\'' + s.id + '\')">Cancel</button>') +
-              '<button type="button" class="btn btn-ghost btn-sm" title="Delete" onclick="cmDeleteDeparture(\'' + s.id + '\')"><span class="ms" style="font-size:15px;">delete</span></button>' +
-            '</span>' +
-          '</div>';
-        });
-        html += '</div>';
-      });
-      wrap.innerHTML = html;
-    }).catch(function () { wrap.innerHTML = '<div class="psub">Could not load departures.</div>'; });
-  };
-  function _cmReload() { if (window._cmEditId) window.cmLoadUpcoming(window._cmEditId); }
-  window.cmCancelDeparture = function (idv) { sb().rpc('provider_set_class_session_status', { p_provider: provId(), p_id: idv, p_status: 'cancelled' }).then(_cmReload); };
-  window.cmReopenDeparture = function (idv) { sb().rpc('provider_set_class_session_status', { p_provider: provId(), p_id: idv, p_status: 'scheduled' }).then(_cmReload); };
-  window.cmDeleteDeparture = function (idv) { sb().rpc('provider_delete_class_session', { p_provider: provId(), p_id: idv }).then(_cmReload); };
-  window.cmCloseDay = function (k) {
-    var di = function (ts) { return (window.FFPTime && window.FFPTime.toDateInput) ? window.FFPTime.toDateInput(ts) : String(ts).slice(0, 10); };
-    var ids = (_cmUpcoming || []).filter(function (s) { return di(s.starts_at) === k && s.status !== 'cancelled'; }).map(function (s) { return s.id; });
-    if (!ids.length) return;
-    Promise.all(ids.map(function (idv) { return sb().rpc('provider_set_class_session_status', { p_provider: provId(), p_id: idv, p_status: 'cancelled' }); })).then(_cmReload);
-  };
+function handleUpload(kind, file) {
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('File too large — max 5 MB', 'error');
+    return;
+  }
+  if (!file.type.startsWith('image/')) {
+    showToast('Please upload an image', 'error');
+    return;
+  }
+  // Logo + hero → Supabase Storage (NOT base64-in-DB). Uses the shared uploader; stores the
+  // returned public URL on providerProfile, saved via provider_save_profile on "Save".
+  if (kind === 'logo' || kind === 'hero') {
+    var pid = (window.FFP_PROVIDER && window.FFP_PROVIDER.id) || (typeof providerProfile !== 'undefined' && providerProfile.id);
+    if (!pid) { showToast('Provider not loaded', 'error'); return; }
+    if (!window.FFPUpload) { showToast('Uploader not ready — refresh and retry', 'error'); return; }
+    var bucket = kind === 'logo' ? 'provider-logos' : 'provider-heroes';
+    var dims = kind === 'logo' ? { maxW: 512, maxH: 512 } : { maxW: 1280, maxH: 800 };
+    showToast('Uploading photo…', 'info');
+    window.FFPUpload.uploadFile(bucket, kind + '-' + pid, file, dims).then(function (url) {
+      if (kind === 'logo') { providerProfile.logo_url = url; renderUploader('up-logo', url, 'logo'); }
+      else { providerProfile.hero_url = url; renderUploader('up-hero', url, 'hero'); }
+      setSaveBar(true);
+      showToast('Photo uploaded — Save to commit', 'success');
+    }).catch(function (err) {
+      console.error('[provider upload]', err);
+      showToast('Upload failed: ' + (err.message || 'try again'), 'error');
+    });
+    return;
+  }
+  // Listing covers (events / experiences / challenges / deals / quests all share #listing-photo-slot)
+  // → Supabase Storage (listing-covers bucket), NOT base64-in-DB. The returned URL is stored on the
+  // slot's dataset.url and saved into hero_image_url when the listing is committed.
+  if (kind && kind.startsWith('listing:')) {
+    var pid = (window.FFP_PROVIDER && window.FFP_PROVIDER.id) || (typeof providerProfile !== 'undefined' && providerProfile.id) || 'provider';
+    if (!window.FFPUpload) { showToast('Uploader not ready — refresh and retry', 'error'); return; }
+    showToast('Uploading photo…', 'info');
+    window.FFPUpload.uploadFile('listing-covers', 'listing-' + pid + '-' + Date.now(), file, { maxW: 1600, maxH: 1000 }).then(function (url) {
+      var slotEl = document.getElementById('listing-photo-slot');
+      if (slotEl) { slotEl.dataset.url = url; renderListingUploader(url); }
+      setSaveBar(true);
+      showToast('Photo uploaded — save to commit', 'success');
+    }).catch(function (err) {
+      console.error('[listing upload]', err);
+      showToast('Upload failed: ' + (err.message || 'try again'), 'error');
+    });
+    return;
+  }
+}
 
-  // ── two-step wizard nav + functional map pin ──
-  window.clStep = function (n) {
-    var g = function (i) { var el = document.getElementById('cm-' + i); return el ? (el.value || '').trim() : ''; };
-    if (n === 2) {
-      var ab = document.getElementById('cm-activity-btn'); var activity = ab ? (ab.dataset.value || '') : '';
-      var cob = document.getElementById('cm-country-btn'); var country = cob ? (cob.dataset.value || '') : '';
-      if (!g('title'))   { toast('Title is required', 'error'); return; }
-      if (!activity)     { toast('Activity is required', 'error'); return; }
-      if (!country)      { toast('Country is required', 'error'); return; }
-      if (!g('price'))   { toast('Price is required', 'error'); return; }
+function removeUpload(kind) {
+  if (kind === 'logo') {
+    providerProfile.logo_url = null;
+    renderUploader('up-logo', null, 'logo');
+  } else if (kind === 'hero') {
+    providerProfile.hero_url = null;
+    renderUploader('up-hero', null, 'hero');
+  } else if (kind === 'listing') {
+    const slotEl = document.getElementById('listing-photo-slot');
+    if (slotEl) {
+      slotEl.dataset.url = '';
+      renderListingUploader(null);
     }
-    var s1 = document.getElementById('cl-step1'), s2 = document.getElementById('cl-step2');
-    if (s1) s1.style.display = n === 1 ? '' : 'none';
-    if (s2) s2.style.display = n === 2 ? '' : 'none';
-    Array.prototype.forEach.call(document.querySelectorAll('.cl-s1'), function (x) { x.style.display = n === 1 ? '' : 'none'; });
-    Array.prototype.forEach.call(document.querySelectorAll('.cl-s2'), function (x) { x.style.display = n === 2 ? '' : 'none'; });
-    var bar = document.getElementById('cl-stepbar'); if (bar) bar.textContent = n === 1 ? 'Step 1 of 2 · Experience details' : 'Step 2 of 2 · Details & good to know';
-    var mb = document.querySelector('.modal-body'); if (mb) mb.scrollTop = 0;
+  }
+  setSaveBar(true);
+}
+
+// Drag and drop on uploaders (delegated)
+document.addEventListener('dragover', e => {
+  const up = e.target.closest('.uploader');
+  if (up) {
+    e.preventDefault();
+    up.classList.add('dragover');
+  }
+});
+document.addEventListener('dragleave', e => {
+  const up = e.target.closest('.uploader');
+  if (up) up.classList.remove('dragover');
+});
+document.addEventListener('drop', e => {
+  const up = e.target.closest('.uploader');
+  if (!up) return;
+  e.preventDefault();
+  up.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (!f) return;
+  // Determine kind by uploader id
+  if (up.id === 'up-logo') dropProviderImage('logo', f);
+  else if (up.id === 'up-hero') dropProviderImage('hero', f);
+  else if (up.id === 'up-listing') handleUpload('listing:listing', f);
+});
+
+// ════════════════════════════════════════════════
+// LISTING TABS (status filter)
+// ════════════════════════════════════════════════
+const listingTabState = { deals: 'all', events: 'all', experiences: 'all', challenges: 'all' };
+
+function renderTabs(containerId, kind, items, statuses) {
+  const wrap = document.getElementById(containerId);
+  const cur = listingTabState[kind];
+  const counts = { all: items.length };
+  statuses.forEach(s => { counts[s] = items.filter(x => x.status === s).length; });
+  const tabs = [['all', 'All']].concat(statuses.map(s => [s, s.charAt(0).toUpperCase() + s.slice(1)]));
+  wrap.innerHTML = tabs.map(([id, lbl]) =>
+    '<button class="tab' + (cur === id ? ' active' : '') + '" onclick="setListingTab(\'' + kind + '\', \'' + id + '\')">' +
+    lbl + ' <span class="count">' + counts[id] + '</span></button>'
+  ).join('');
+}
+
+function setListingTab(kind, status) {
+  listingTabState[kind] = status;
+  if (kind === 'deals') renderDeals();
+  if (kind === 'events') renderEvents();
+  if (kind === 'experiences') renderExperiences();
+  if (kind === 'challenges') renderChallenges();
+}
+
+function applyFilters(items, kind, searchValue) {
+  const status = listingTabState[kind];
+  const q = (searchValue || '').toLowerCase().trim();
+  return items.filter(it => {
+    if (status !== 'all' && it.status !== status) return false;
+    if (!q) return true;
+    const blob = Object.values(it).filter(v => typeof v === 'string' || typeof v === 'number').join(' ').toLowerCase();
+    return blob.includes(q);
+  });
+}
+
+function emptyState(title, sub, ctaLabel, ctaFn) {
+  return '<div class="empty-state" style="grid-column: 1 / -1;">' +
+    '<div class="empty-icon"><span class="ms">sentiment_neutral</span></div>' +
+    '<div class="empty-title">' + escHtml(title) + '</div>' +
+    '<div class="empty-sub">' + escHtml(sub) + '</div>' +
+    (ctaLabel ? '<button class="btn btn-pri" onclick="' + ctaFn + '"><span class="ms">add</span> ' + escHtml(ctaLabel) + '</button>' : '') +
+  '</div>';
+}
+
+function heroStyle(url) {
+  if (url) return 'style="background-image: url(\'' + url + '\')"';
+  // fallback gradient varies by hash of nothing — keep single subtle gradient
+  return 'style="background: linear-gradient(135deg, #142a3f 0%, #0f1e2e 60%, #081420 100%)"';
+}
+
+// ════════════════════════════════════════════════
+// DEALS
+// ════════════════════════════════════════════════
+function renderDeals() {
+  renderTabs('deals-tabs', 'deals', deals, ['live', 'pending', 'draft', 'paused']);
+  const q = document.getElementById('deals-search').value;
+  const items = applyFilters(deals, 'deals', q);
+  const grid = document.getElementById('deals-grid');
+  if (items.length === 0) {
+    grid.innerHTML = deals.length === 0
+      ? emptyState('No deals yet', 'Create your first member perk. Deals show up in the FFP Passport app under your business.', 'New deal', 'openDealModal()')
+      : emptyState('No matches', 'Try a different search or change tab', '', '');
+    return;
+  }
+  grid.innerHTML = items.map(d => dealCard(d)).join('');
+}
+
+function dealCard(d) {
+  return '<div class="listing-card">' +
+    '<div class="lc-hero" ' + heroStyle(d.hero_url) + '>' +
+      '<div class="lc-status-pill ' + d.status + '">' + d.status + '</div>' +
+      (d.category ? '<div class="lc-cat-pill">' + escHtml(d.category) + '</div>' : '') +
+    '</div>' +
+    '<div class="lc-body">' +
+      '<div class="lc-title">' + escHtml(d.perk) + '</div>' +
+      '<div class="lc-sub">' + escHtml(d.breakdown || d.about || '') + '</div>' +
+      '<div class="lc-meta">' +
+        (d.service ? '<span><span class="ms">inventory_2</span>' + escHtml(d.service) + '</span>' : '') +
+        (d.valid ? '<span><span class="ms">calendar_today</span>' + escHtml(d.valid) + '</span>' : '') +
+      '</div>' +
+      '<div class="lc-stat-row">' +
+        '<div class="lc-stat"><div class="lc-stat-val">' + (d.claims || 0) + '</div><div class="lc-stat-lbl">Total claims</div></div>' +
+        '<div class="lc-stat"><div class="lc-stat-val">' + (d.claims_this_month || 0) + '</div><div class="lc-stat-lbl">This month</div></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="lc-actions">' +
+      '<button class="btn btn-sec btn-sm" onclick="openDealModal(\'' + d.id + '\')"><span class="ms">edit</span> Edit</button>' +
+      (d.status === 'live'
+        ? '<button class="btn btn-ghost btn-sm" onclick="toggleDeal(\'' + d.id + '\', \'paused\')"><span class="ms">pause</span> Pause</button>'
+        : d.status === 'paused'
+        ? '<button class="btn btn-blue btn-sm" onclick="toggleDeal(\'' + d.id + '\', \'live\')"><span class="ms">play_arrow</span> Resume</button>'
+        : '<button class="btn btn-ghost btn-sm" disabled><span class="ms">schedule</span> Awaiting</button>') +
+      '<button class="btn btn-ghost btn-sm" onclick="confirmDeleteDeal(\'' + d.id + '\')"><span class="ms">delete</span></button>' +
+    '</div>' +
+  '</div>';
+}
+
+function toggleDeal(id, newStatus) {
+  const d = deals.find(x => x.id === id);
+  if (!d) return;
+  d.status = newStatus;
+  renderDeals();
+  renderNav();
+  showToast(newStatus === 'paused' ? 'Deal paused' : 'Deal resumed', 'success');
+}
+
+function confirmDeleteDeal(id) {
+  openConfirm('Delete this deal?', 'Members who already claimed it keep their record, but no new claims can be made.', () => {
+    deals = deals.filter(x => x.id !== id);
+    renderDeals();
+    renderNav();
+    showToast('Deal deleted', 'success');
+  });
+}
+
+function openDealModal(id) {
+  const editing = id ? deals.find(d => d.id === id) : null;
+  const d = editing || { perk: '', breakdown: '', about: '', category: '', service: '', valid: '', booking: '', limits: '', frequency: '', hero_url: null };
+  openModalShell('lg', (editing ? 'Edit deal' : 'New deal'), `
+    <div class="form-section">
+      <div class="form-section-title">Photo</div>
+      <div id="listing-photo-slot" data-url="${d.hero_url || ''}"></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">The offer</div>
+      <div class="form-grid">
+        <div class="field full">
+          <div class="label">Headline perk <span class="req">*</span> <span class="label-hint">— what the member sees first</span></div>
+          <input class="input" id="dm-perk" value="${escHtml(d.perk)}" placeholder="e.g. Member rate on monthly unlimited">
+        </div>
+        <div class="field full">
+          <div class="label">Price breakdown</div>
+          <input class="input" id="dm-breakdown" value="${escHtml(d.breakdown)}" placeholder="e.g. 600 AED instead of 850 AED for the first month">
+        </div>
+        <div class="field full">
+          <div class="label">About the deal</div>
+          <textarea class="textarea" id="dm-about" rows="3" placeholder="What the member gets, conditions, what to expect">${escHtml(d.about)}</textarea>
+        </div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Details</div>
+      <div class="form-grid">
+        <div class="field">
+          <div class="label">Category <span class="req">*</span></div>
+          <select class="select" id="dm-category">
+            ${['Fitness','Wellness','Recovery','Nutrition','Padel','Yoga / Pilates','Climbing','Combat','Adventure','Retail','Other'].map(c => `<option ${d.category===c?'selected':''}>${c}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <div class="label">Service / Product</div>
+          <input class="input" id="dm-service" value="${escHtml(d.service)}" placeholder="e.g. Monthly membership">
+        </div>
+        <div class="field">
+          <div class="label">Valid</div>
+          <input class="input" id="dm-valid" value="${escHtml(d.valid)}" placeholder="e.g. Weekdays only">
+        </div>
+        <div class="field">
+          <div class="label">Booking</div>
+          <input class="input" id="dm-booking" value="${escHtml(d.booking)}" placeholder="e.g. Walk in or book in app">
+        </div>
+        <div class="field">
+          <div class="label">Limits</div>
+          <input class="input" id="dm-limits" value="${escHtml(d.limits)}" placeholder="e.g. Once per member">
+        </div>
+        <div class="field">
+          <div class="label">Frequency</div>
+          <select class="select" id="dm-frequency">
+            ${['one-time','weekly','monthly','quarterly','annual','ongoing'].map(f => `<option ${d.frequency===f?'selected':''}>${f}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+    </div>
+  `, `
+    ${editing ? '<button class="btn btn-ghost left" onclick="confirmDeleteDeal(\''+editing.id+'\')"><span class="ms">delete</span> Delete</button>' : ''}
+    <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-pri" onclick="saveDeal('${editing ? editing.id : ''}')">${editing ? 'Save changes' : 'Submit for review'}</button>
+  `);
+  renderListingUploader(d.hero_url);
+}
+
+function saveDeal(id) {
+  const get = i => document.getElementById('dm-' + i).value.trim();
+  const photo = document.getElementById('listing-photo-slot').dataset.url || null;
+  const perk = get('perk');
+  if (!perk) { showToast('Headline perk is required', 'error'); return; }
+  const data = {
+    perk, breakdown: get('breakdown'), about: get('about'),
+    category: get('category'), service: get('service'),
+    valid: get('valid'), booking: get('booking'),
+    limits: get('limits'), frequency: get('frequency'),
+    hero_url: photo
   };
-  window.resolveClassMapsLink = async function () {
-    var inp = document.getElementById('cm-maps-url'), st = document.getElementById('cm-loc-status');
-    var url = inp ? (inp.value || '').trim() : '';
-    if (!url) { if (st) st.textContent = 'Paste your Google Maps link first'; return; }
-    if (st) st.textContent = 'Finding your pin…';
-    try {
-      var res = await fetch('https://ffp-passport-backend.vercel.app/api/geo/resolve?url=' + encodeURIComponent(url));
-      var j = await res.json();
-      if (!res.ok || j.lat == null) { if (st) st.textContent = (j && j.error) ? j.error : 'Couldn’t read a pin from that link'; return; }
-      var la = document.getElementById('cm-lat'), ln = document.getElementById('cm-lng');
-      if (la) la.value = j.lat; if (ln) ln.value = j.lng;
-      if (st) st.textContent = '✓ Pin set (' + Number(j.lat).toFixed(5) + ', ' + Number(j.lng).toFixed(5) + ')';
-    } catch (e) { console.error('[Tour] resolve maps link:', e); if (st) st.textContent = 'Couldn’t reach the resolver — try again'; }
+  if (id) {
+    const d = deals.find(x => x.id === id);
+    Object.assign(d, data);
+    showToast('Deal updated', 'success');
+    closeModal();
+  } else {
+    deals.unshift(Object.assign({
+      id: uid(), status: 'pending', featured: false, claims: 0, claims_this_month: 0,
+      created_at: new Date().toISOString().slice(0,10)
+    }, data));
+    closeModal();
+    showSubmittedModal('deal');
+  }
+  renderDeals();
+  renderNav();
+  renderOverview();
+}
+
+// ════════════════════════════════════════════════
+// EVENTS
+// ════════════════════════════════════════════════
+function renderEvents() {
+  renderTabs('events-tabs', 'events', events, ['live', 'pending', 'draft', 'past', 'cancelled']);
+  const q = document.getElementById('events-search').value;
+  const items = applyFilters(events, 'events', q);
+  const grid = document.getElementById('events-grid');
+  if (items.length === 0) {
+    grid.innerHTML = events.length === 0
+      ? emptyState('No events yet', 'Create a single-date session members can RSVP to.', 'New event', 'openEventModal()')
+      : emptyState('No matches', 'Try a different search or change tab', '', '');
+    return;
+  }
+  grid.innerHTML = items.map(e => eventCard(e)).join('');
+}
+
+function eventCard(e) {
+  const pct = Math.min(100, Math.round(((e.rsvps || 0) / (e.capacity || 1)) * 100));
+  return '<div class="listing-card">' +
+    '<div class="lc-hero" ' + heroStyle(e.hero_url) + '>' +
+      '<div class="lc-status-pill ' + e.status + '">' + e.status + '</div>' +
+      (e.category ? '<div class="lc-cat-pill">' + escHtml(e.category) + '</div>' : '') +
+    '</div>' +
+    '<div class="lc-body">' +
+      '<div class="lc-title">' + escHtml(e.title) + '</div>' +
+      '<div class="lc-sub">' + escHtml(e.description || '') + '</div>' +
+      '<div class="lc-meta">' +
+        '<span><span class="ms">calendar_today</span>' + fmtDate(e.event_date) + (e.event_time ? ' ' + escHtml(e.event_time) : '') + '</span>' +
+        (e.venue ? '<span><span class="ms">place</span>' + escHtml(e.venue) + '</span>' : '') +
+      '</div>' +
+      '<div class="lc-stat-row">' +
+        '<div class="lc-stat"><div class="lc-stat-val">' + (e.rsvps || 0) + '</div><div class="lc-stat-lbl">RSVPs</div></div>' +
+        '<div class="lc-stat"><div class="lc-stat-val">' + (e.capacity || 0) + '</div><div class="lc-stat-lbl">Capacity</div></div>' +
+        '<div class="lc-stat"><div class="lc-stat-val">' + pct + '%</div><div class="lc-stat-lbl">Filled</div></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="lc-actions">' +
+      '<button class="btn btn-sec btn-sm" title="Edit" onclick="openEventModal(\'' + e.id + '\')"><span class="ms">edit</span></button>' +
+      '<button class="btn btn-blue btn-sm" title="RSVPs" onclick="viewRsvps(\'' + e.id + '\')"><span class="ms">group</span></button>' +
+      (typeof featureBtn === 'function' ? featureBtn('event', e.id, e.featured) : '') +
+      '<button class="btn btn-ghost btn-sm" title="Duplicate" onclick="duplicateListing(\'event\',\'' + e.id + '\')"><span class="ms">content_copy</span></button>' +
+      '<button class="btn btn-ghost btn-sm" title="Delete" onclick="confirmDeleteEvent(\'' + e.id + '\')"><span class="ms">delete</span></button>' +
+    '</div>' +
+  '</div>';
+}
+
+function confirmDeleteEvent(id) {
+  openConfirm('Delete this event?', 'Members with RSVPs will be notified by email. This cannot be undone.', () => {
+    events = events.filter(x => x.id !== id);
+    renderEvents(); renderNav(); showToast('Event deleted', 'success');
+  });
+}
+
+function openEventModal(id) {
+  const editing = id ? events.find(e => e.id === id) : null;
+  const e = editing || { title: '', description: '', about: '', category: '', activity: '', event_date: '', event_time: '', end_date: '', end_time: '', country: (providerProfile.country || 'United Arab Emirates'), city: (providerProfile.city || ''), area: (providerProfile.area || ''), venue: '', capacity: '', price_aed: '', intensity: 'Social', parking: '', facilities: '', bring: '', hero_url: null };
+  openModalShell('full', (editing ? 'Edit event' : 'New event'), `
+    <div id="ev-stepbar" style="font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-purple,#8b5cf6);margin:0 0 12px;">Step 1 of 2 · Details</div>
+    <div id="ev-step1">
+    <div class="form-section">
+      <div class="form-section-title">Cover photo</div>
+      <div id="listing-photo-slot" data-url="${e.hero_url || ''}"></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Gallery <span class="label-hint" style="text-transform:none;letter-spacing:0;font-weight:600;">— extra photos shown on the listing; use the arrows to reorder</span></div>
+      <div id="em-gallery"></div>
+      <button type="button" class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="FFPGallery.add('em-gallery')"><span class="ms">add_photo_alternate</span> Add photo</button>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Basics</div>
+      <div class="form-grid">
+        <div class="field full">
+          <div class="label">Title <span class="req">*</span></div>
+          <input class="input" id="em-title" value="${escHtml(e.title)}" placeholder="e.g. Sunset beach padel social">
+        </div>
+        <div class="field">
+          <div class="label">Activity <span class="req">*</span></div>
+          <select class="select" id="em-category"><option ${e.category?'selected':''}>${escHtml(e.category||'')}</option></select>
+        </div>
+        <div class="field">
+          <div class="label">Level</div>
+          <select class="select" id="em-intensity">
+            ${((window.FFP_TAX&&FFP_TAX.attendeeLevels&&FFP_TAX.attendeeLevels.length?FFP_TAX.attendeeLevels:['All Levels','Not Tried','Social','Competitive','Representative','Professional'])).map(l => `<option ${e.intensity===l?'selected':''}>${l}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field full">
+          <div class="label">Description</div>
+          <textarea class="textarea" id="em-description" rows="3" placeholder="What to expect — format, vibe, who it's for">${escHtml(e.description || e.about || '')}</textarea>
+        </div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">When</div>
+      <div class="psub" style="margin:-6px 0 10px;">${window.FFPTime ? 'Times shown in ' + escHtml(window.FFPTime.tz().replace(/_/g, ' ')) + '.' : ''}</div>
+      <div class="form-grid">
+        <div class="field">
+          <div class="label">Starts <span class="req">*</span></div>
+          <input class="input" type="date" id="em-date" value="${escHtml(e.event_date)}">
+        </div>
+        <div class="field">
+          <div class="label">Time</div>
+          <input class="input" type="time" id="em-time" value="${escHtml(e.event_time)}">
+        </div>
+        <div class="field">
+          <div class="label">Ends</div>
+          <input class="input" type="date" id="em-end-date" value="${escHtml(e.end_date)}">
+        </div>
+        <div class="field">
+          <div class="label">Time</div>
+          <input class="input" type="time" id="em-end-time" value="${escHtml(e.end_time)}">
+        </div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Where</div>
+      <div class="form-grid">
+        <div class="field">
+          <div class="label">Country <span class="req">*</span></div>
+          <button type="button" class="ffp-picker-btn placeholder" id="em-country-btn" data-value=""><span>Choose country…</span><span class="ms caret">expand_more</span></button>
+        </div>
+        <div class="field">
+          <div class="label">City <span class="req">*</span></div>
+          <button type="button" class="ffp-picker-btn placeholder" id="em-city-btn" data-value="" data-country=""><span>Choose city…</span><span class="ms caret">expand_more</span></button>
+        </div>
+        <div class="field">
+          <div class="label">Area</div>
+          <input class="input" id="em-area" value="${escHtml(e.area)}" placeholder="Neighbourhood (optional)">
+        </div>
+        <div class="field">
+          <div class="label">Venue</div>
+          <input class="input" id="em-venue" value="${escHtml(e.venue)}" placeholder="e.g. Kite Beach courts (optional)">
+        </div>
+        <div class="field full">
+          <div class="label">Location pin <span class="label-hint">— paste a Google Maps link; we'll set the map pin so members get directions</span></div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input class="input" id="em-maps-url" value="" placeholder="Paste your Google Maps link (any format)" style="flex:1;min-width:0;">
+            <button type="button" class="btn btn-ghost" style="flex:0 0 auto;" onclick="resolveEventMapsLink()"><span class="ms" style="font-size:16px;vertical-align:-3px;">place</span> Find pin</button>
+          </div>
+          <span id="em-loc-status" class="psub" style="display:block;margin-top:6px;">${(e.meeting_lat!=null && e.meeting_lng!=null && e.meeting_lat!=='' && e.meeting_lng!=='') ? ('✓ Pin set ('+Number(e.meeting_lat).toFixed(5)+', '+Number(e.meeting_lng).toFixed(5)+')') : 'No pin set'}</span>
+          <input type="hidden" id="em-lat" value="${e.meeting_lat!=null ? escHtml(e.meeting_lat) : ''}">
+          <input type="hidden" id="em-lng" value="${e.meeting_lng!=null ? escHtml(e.meeting_lng) : ''}">
+        </div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Pricing & capacity</div>
+      <div class="form-grid">
+        <div class="field">
+          <div class="label">Price (${_provCcy()})</div>
+          <input class="input" type="number" id="em-price" value="${escHtml(e.price_aed)}" placeholder="0 = Free">
+        </div>
+        <div class="field">
+          <div class="label">Capacity</div>
+          <input class="input" type="number" id="em-capacity" value="${escHtml(e.capacity)}" placeholder="e.g. 24">
+        </div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Ticket types <span class="label-hint" style="text-transform:none;letter-spacing:0;font-weight:600;">— optional. Add tiers (e.g. "Free spectator" + "Competitor"), each with its own price &amp; allocation. Leave empty to use the single price above.</span></div>
+      <div id="em-tickets"></div>
+      <button type="button" class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="emAddTicket()"><span class="ms">add</span> Add ticket type</button>
+    </div>
+    </div><!-- /ev-step1 -->
+    <div id="ev-step2" style="display:none;">
+    <div class="form-section">
+      <div class="form-section-title">Good to know <span class="label-hint" style="text-transform:none;letter-spacing:0;font-weight:600;">— all optional, but they make your listing shine</span></div>
+      <div class="form-grid">
+        <div class="field">
+          <div class="label">Parking</div>
+          <input class="input" id="em-parking" value="${escHtml(e.parking)}" placeholder="e.g. Free on site">
+        </div>
+        <div class="field">
+          <div class="label">Facilities</div>
+          <input class="input" id="em-facilities" value="${escHtml(e.facilities)}" placeholder="e.g. Showers, lockers, towels">
+        </div>
+        <div class="field full">
+          <div class="label">What to bring</div>
+          <input class="input" id="em-bring" value="${escHtml(e.bring)}" placeholder="e.g. Water bottle, training shoes">
+        </div>
+      </div>
+    </div>
+    </div><!-- /ev-step2 -->
+  `, `
+    ${editing ? '<button class="btn btn-ghost left ev-s2" style="display:none;" onclick="confirmDeleteEvent(\''+editing.id+'\')"><span class="ms">delete</span> Delete</button>' : ''}
+    <button class="btn btn-ghost ev-s1" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-ghost ev-s2" style="display:none;" onclick="evStep(1)"><span class="ms">chevron_left</span> Back</button>
+    <button class="btn btn-pri ev-s1" onclick="evStep(2)">Next: Good to know <span class="ms" style="font-size:16px;vertical-align:-3px;">chevron_right</span></button>
+    <button class="btn btn-pri ev-s2" style="display:none;" onclick="saveEvent('${editing ? editing.id : ''}')">${editing ? 'Save changes' : 'Submit for review'}</button>
+  `);
+  renderListingUploader(e.hero_url);
+}
+
+function evStep(n) {
+  const get = i => { const el = document.getElementById('em-' + i); return el ? (el.value || '').trim() : ''; };
+  if (n === 2) {
+    const ab = document.getElementById('em-activity-btn'); const activity = ab ? (ab.dataset.value || '') : '';
+    const cob = document.getElementById('em-country-btn'); const country = cob ? (cob.dataset.value || '') : '';
+    const cib = document.getElementById('em-city-btn'); const city = cib ? (cib.dataset.value || '') : '';
+    if (!get('title'))  { showToast('Title is required', 'error'); return; }
+    if (!activity)      { showToast('Activity is required', 'error'); return; }
+    if (!get('date'))   { showToast('Start date is required', 'error'); return; }
+    if (!country)       { showToast('Country is required', 'error'); return; }
+    if (!city)          { showToast('City is required', 'error'); return; }
+  }
+  const s1 = document.getElementById('ev-step1'), s2 = document.getElementById('ev-step2');
+  if (s1) s1.style.display = n === 1 ? '' : 'none';
+  if (s2) s2.style.display = n === 2 ? '' : 'none';
+  document.querySelectorAll('.ev-s1').forEach(x => { x.style.display = n === 1 ? '' : 'none'; });
+  document.querySelectorAll('.ev-s2').forEach(x => { x.style.display = n === 2 ? '' : 'none'; });
+  const bar = document.getElementById('ev-stepbar');
+  if (bar) bar.textContent = n === 1 ? 'Step 1 of 2 · Details' : 'Step 2 of 2 · Good to know';
+  const mb = document.querySelector('.modal-body'); if (mb) mb.scrollTop = 0;
+}
+
+async function resolveEventMapsLink() {
+  const inp = document.getElementById('em-maps-url'), st = document.getElementById('em-loc-status');
+  const url = inp ? (inp.value || '').trim() : '';
+  if (!url) { if (st) st.textContent = 'Paste your Google Maps link first'; return; }
+  if (st) st.textContent = 'Finding your pin…';
+  try {
+    const res = await fetch('https://ffp-passport-backend.vercel.app/api/geo/resolve?url=' + encodeURIComponent(url));
+    const j = await res.json();
+    if (!res.ok || j.lat == null) { if (st) st.textContent = (j && j.error) ? j.error : 'Couldn’t read a pin from that link'; return; }
+    const la = document.getElementById('em-lat'), ln = document.getElementById('em-lng');
+    if (la) la.value = j.lat; if (ln) ln.value = j.lng;
+    if (st) st.textContent = '✓ Pin set (' + Number(j.lat).toFixed(5) + ', ' + Number(j.lng).toFixed(5) + ')';
+  } catch (e) { console.error('[Event] resolve maps link:', e); if (st) st.textContent = 'Couldn’t reach the resolver — try again'; }
+}
+
+function saveEvent(id) {
+  const get = i => document.getElementById('em-' + i).value.trim();
+  const title = get('title');
+  const date = get('date');
+  if (!title) { showToast('Title is required', 'error'); return; }
+  if (!date) { showToast('Date is required', 'error'); return; }
+  const photo = document.getElementById('listing-photo-slot').dataset.url || null;
+  const data = {
+    title, description: get('description'), about: get('about'),
+    category: get('category'), intensity: get('intensity'),
+    event_date: date, event_time: get('time'),
+    venue: get('venue'), city: get('city'), area: get('area'),
+    setting: get('setting'),
+    capacity: parseInt(get('capacity'), 10) || 0,
+    cost: get('cost'), parking: get('parking'), facilities: get('facilities'),
+    bring: get('bring'), who: get('who'),
+    hero_url: photo
+  };
+  if (id) {
+    const e = events.find(x => x.id === id);
+    Object.assign(e, data);
+    showToast('Event updated', 'success');
+    closeModal();
+  } else {
+    events.unshift(Object.assign({
+      id: uid(), status: 'pending', verified: false, rsvps: 0,
+      created_at: new Date().toISOString().slice(0,10)
+    }, data));
+    closeModal();
+    showSubmittedModal('event');
+  }
+  renderEvents(); renderNav(); renderOverview();
+}
+
+function viewRsvps(id) {
+  const e = events.find(x => x.id === id);
+  if (!e) return;
+  const list = sampleRsvps.slice(0, e.rsvps || 0).map(m =>
+    `<div class="member-row">
+      <div class="member-avatar">${m.letter}</div>
+      <div class="member-info">
+        <div class="member-name">${escHtml(m.name)}</div>
+        <div class="member-sub">RSVP'd ${escHtml(m.joined)}</div>
+      </div>
+      <div class="member-actions">
+        <button class="btn btn-sec btn-xs" onclick="showToast('Message sent to ${escHtml(m.name)}', 'success')"><span class="ms">chat_bubble</span></button>
+        <button class="btn btn-ghost btn-xs" onclick="showToast('${escHtml(m.name)} removed', 'success')"><span class="ms">person_remove</span></button>
+      </div>
+    </div>`
+  ).join('');
+  openModalShell('', escHtml(e.title) + ' — RSVPs', `
+    <div class="psub" style="margin-bottom: 14px;">${e.rsvps || 0} of ${e.capacity || '∞'} confirmed for ${fmtDate(e.event_date)}.</div>
+    <div class="member-list">${list || '<div class="empty-sub" style="text-align:left;">No RSVPs yet.</div>'}</div>
+  `, `
+    <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+    <button class="btn btn-sec" onclick="showToast('CSV export started', 'success')"><span class="ms">download</span> Export CSV</button>
+    <button class="btn btn-blue" onclick="showToast('Broadcast email sent to all RSVPs', 'success')"><span class="ms">mail</span> Email all</button>
+  `);
+}
+
+// ════════════════════════════════════════════════
+// EXPERIENCES
+// ════════════════════════════════════════════════
+function renderExperiences() {
+  renderTabs('exp-tabs', 'experiences', experiences, ['live', 'pending', 'draft', 'past']);
+  const q = document.getElementById('exp-search').value;
+  const items = applyFilters(experiences, 'experiences', q);
+  const grid = document.getElementById('exp-grid');
+  if (items.length === 0) {
+    grid.innerHTML = experiences.length === 0
+      ? emptyState('No experiences yet', 'Multi-day trips, retreats, and sport events go here. Members apply, you review.', 'New experience', 'openExperienceModal()')
+      : emptyState('No matches', 'Try a different search or change tab', '', '');
+    return;
+  }
+  grid.innerHTML = items.map(e => experienceCard(e)).join('');
+}
+
+function experienceCard(e) {
+  return '<div class="listing-card">' +
+    '<div class="lc-hero" ' + heroStyle(e.hero_url) + '>' +
+      '<div class="lc-status-pill ' + e.status + '">' + e.status + '</div>' +
+      (e.experience_type ? '<div class="lc-cat-pill">' + escHtml(e.experience_type) + '</div>' : '') +
+    '</div>' +
+    '<div class="lc-body">' +
+      '<div class="lc-title">' + escHtml(e.title) + '</div>' +
+      '<div class="lc-sub">' + escHtml(e.description || '') + '</div>' +
+      '<div class="lc-meta">' +
+        '<span><span class="ms">calendar_today</span>' + fmtDateShort(e.start_date) + ' — ' + fmtDateShort(e.end_date) + '</span>' +
+        (e.destination ? '<span><span class="ms">place</span>' + escHtml(e.destination) + '</span>' : '') +
+        (e.duration_days ? '<span><span class="ms">schedule</span>' + e.duration_days + ' days</span>' : '') +
+      '</div>' +
+      '<div class="lc-stat-row">' +
+        '<div class="lc-stat"><div class="lc-stat-val">' + _provMoney(e.price_aed || 0) + '</div><div class="lc-stat-lbl">Per person</div></div>' +
+        '<div class="lc-stat"><div class="lc-stat-val">' + (e.applications || 0) + '</div><div class="lc-stat-lbl">Applications</div></div>' +
+        '<div class="lc-stat"><div class="lc-stat-val">' + (e.capacity || 0) + '</div><div class="lc-stat-lbl">Capacity</div></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="lc-actions">' +
+      '<button class="btn btn-sec btn-sm" title="Edit" onclick="openExperienceModal(\'' + e.id + '\')"><span class="ms">edit</span></button>' +
+      '<button class="btn btn-blue btn-sm" onclick="viewApplications(\'' + e.id + '\')"><span class="ms">mark_email_read</span> Applications</button>' +
+      (typeof featureBtn === 'function' ? featureBtn('experience', e.id, e.featured) : '') +
+      '<button class="btn btn-ghost btn-sm" title="Duplicate" onclick="duplicateListing(\'experience\',\'' + e.id + '\')"><span class="ms">content_copy</span></button>' +
+      '<button class="btn btn-ghost btn-sm" title="Delete" onclick="confirmDeleteExperience(\'' + e.id + '\')"><span class="ms">delete</span></button>' +
+    '</div>' +
+  '</div>';
+}
+
+function confirmDeleteExperience(id) {
+  openConfirm('Delete this experience?', 'All applicants will be notified by email. This cannot be undone.', () => {
+    experiences = experiences.filter(x => x.id !== id);
+    renderExperiences(); renderNav(); showToast('Experience deleted', 'success');
+  });
+}
+
+let modalItinerary = [];
+let modalIncludes = [];
+let modalExcludes = [];
+
+function openExperienceModal(id) {
+  const editing = id ? experiences.find(e => e.id === id) : null;
+  const e = editing || {
+    title: '', description: '', overview: '', experience_type: 'Fitness',
+    start_date: '', end_date: '', duration_days: '',
+    country: '', destination: '', price_aed: '',
+    price_includes: [], price_excludes: [],
+    accommodation: '', flights: '', travel_reqs: '',
+    fitness_reqs: '', fitness_level: 'Social',
+    itinerary: [], hero_url: null, capacity: ''
+  };
+  modalItinerary = JSON.parse(JSON.stringify(e.itinerary || []));
+  modalIncludes  = (e.price_includes || []).slice();
+  modalExcludes  = (e.price_excludes || []).slice();
+  openModalShell('lg', (editing ? 'Edit experience' : 'New experience'), `
+    <div class="form-section">
+      <div class="form-section-title">Photo</div>
+      <div id="listing-photo-slot" data-url="${e.hero_url || ''}"></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Overview</div>
+      <div class="form-grid">
+        <div class="field full">
+          <div class="label">Title <span class="req">*</span></div>
+          <input class="input" id="xm-title" value="${escHtml(e.title)}" placeholder="e.g. Hatta Mountain Endurance Camp">
+        </div>
+        <div class="field full">
+          <div class="label">Short description</div>
+          <input class="input" id="xm-description" value="${escHtml(e.description)}" placeholder="One-sentence summary">
+        </div>
+        <div class="field full">
+          <div class="label">Overview</div>
+          <textarea class="textarea" id="xm-overview" rows="4" placeholder="The full story — what makes this experience unique">${escHtml(e.overview)}</textarea>
+        </div>
+        <div class="field">
+          <div class="label">Type</div>
+          <select class="select" id="xm-type">
+            ${((window.FFP_TAX&&FFP_TAX.experienceTypes&&FFP_TAX.experienceTypes.length?FFP_TAX.experienceTypes:['Fitness','Adventure','Wellness','Retreat','Sports Event','Hybrid'])).map(t => `<option ${e.experience_type===t?'selected':''}>${t}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <div class="label">Fitness level required</div>
+          <select class="select" id="xm-fitness-level">
+            ${((window.FFP_TAX&&FFP_TAX.attendeeLevels&&FFP_TAX.attendeeLevels.length?FFP_TAX.attendeeLevels:['All Levels','Not Tried','Social','Competitive','Representative','Professional'])).map(l => `<option ${e.fitness_level===l?'selected':''}>${l}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">When & where</div>
+      <div class="form-grid">
+        <div class="field">
+          <div class="label">Start date <span class="req">*</span></div>
+          <input class="input" type="date" id="xm-start" value="${escHtml(e.start_date)}">
+        </div>
+        <div class="field">
+          <div class="label">End date <span class="req">*</span></div>
+          <input class="input" type="date" id="xm-end" value="${escHtml(e.end_date)}">
+        </div>
+        <div class="field">
+          <div class="label">Country</div>
+          <input class="input" id="xm-country" value="${escHtml(e.country)}" placeholder="e.g. United Arab Emirates">
+        </div>
+        <div class="field">
+          <div class="label">Destination</div>
+          <input class="input" id="xm-destination" value="${escHtml(e.destination)}" placeholder="e.g. Hatta, Dubai">
+          <a class="label-hint" style="cursor:pointer;color:#2ba8e0;display:inline-flex;align-items:center;gap:4px;margin-top:5px;" onclick="ffpOpenMap('xm-destination')"><span class="ms" style="font-size:14px;">place</span> View on Google Maps</a>
+        </div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Price</div>
+      <div class="form-grid">
+        <div class="field">
+          <div class="label">Price per person (${_provCcy()}) <span class="req">*</span></div>
+          <input class="input" type="number" id="xm-price" value="${escHtml(e.price_aed)}" placeholder="e.g. 1850">
+        </div>
+        <div class="field">
+          <div class="label">Capacity</div>
+          <input class="input" type="number" id="xm-capacity" value="${escHtml(e.capacity)}" placeholder="e.g. 16">
+        </div>
+        <div class="field full">
+          <div class="label">What's included</div>
+          <div class="chip-input-wrap" id="xm-includes-wrap"></div>
+        </div>
+        <div class="field full">
+          <div class="label">What's NOT included</div>
+          <div class="chip-input-wrap" id="xm-excludes-wrap"></div>
+        </div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Itinerary</div>
+      <div class="itin-wrap" id="xm-itinerary"></div>
+      <button class="itin-add-day" type="button" onclick="addItinDay()"><span class="ms">add</span> Add a day</button>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Practical info</div>
+      <div class="form-grid">
+        <div class="field full">
+          <div class="label">Accommodation</div>
+          <textarea class="textarea" id="xm-accommodation" rows="2" placeholder="Where members stay, room type, amenities">${escHtml(e.accommodation)}</textarea>
+        </div>
+        <div class="field full">
+          <div class="label">Flights / Transport</div>
+          <textarea class="textarea" id="xm-flights" rows="2" placeholder="Are flights included? Group transport? Self-arrival?">${escHtml(e.flights)}</textarea>
+        </div>
+        <div class="field full">
+          <div class="label">Travel requirements</div>
+          <textarea class="textarea" id="xm-travel-reqs" rows="2" placeholder="Visas, vaccinations, insurance">${escHtml(e.travel_reqs)}</textarea>
+        </div>
+        <div class="field full">
+          <div class="label">Fitness requirements</div>
+          <textarea class="textarea" id="xm-fitness-reqs" rows="2" placeholder="What members should be able to do before joining">${escHtml(e.fitness_reqs)}</textarea>
+        </div>
+      </div>
+    </div>
+  `, `
+    ${editing ? '<button class="btn btn-ghost left" onclick="confirmDeleteExperience(\''+editing.id+'\')"><span class="ms">delete</span> Delete</button>' : ''}
+    <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-pri" onclick="saveExperience('${editing ? editing.id : ''}')">${editing ? 'Save changes' : 'Submit for review'}</button>
+  `);
+  renderListingUploader(e.hero_url);
+  renderItinerary();
+  renderChips('xm-includes-wrap', modalIncludes, 'includes');
+  renderChips('xm-excludes-wrap', modalExcludes, 'excludes');
+}
+
+function renderItinerary() {
+  const wrap = document.getElementById('xm-itinerary');
+  if (!wrap) return;
+  if (modalItinerary.length === 0) {
+    wrap.innerHTML = '<div class="empty-sub" style="text-align:left;">No days yet. Click "Add a day" below to start.</div>';
+    return;
+  }
+  wrap.innerHTML = modalItinerary.map((day, i) => `
+    <div class="itin-day">
+      <div class="itin-day-head">
+        <div class="itin-day-num">Day ${i+1}</div>
+        <input class="itin-day-title-input" value="${escHtml(day.title)}" placeholder="Day title (e.g. Hill repeats day)" onchange="modalItinerary[${i}].title=this.value">
+        <button class="itin-day-del" onclick="removeItinDay(${i})" title="Remove day"><span class="ms">delete</span></button>
+      </div>
+      <div class="itin-day-body">
+        ${(day.events || []).map((ev, j) => `
+          <div class="itin-event">
+            <input class="input" type="time" value="${escHtml(ev.time)}" onchange="modalItinerary[${i}].events[${j}].time=this.value">
+            <input class="input" value="${escHtml(ev.item)}" placeholder="What happens" onchange="modalItinerary[${i}].events[${j}].item=this.value">
+            <button class="itin-event-del" onclick="removeItinEvent(${i}, ${j})"><span class="ms">close</span></button>
+          </div>
+        `).join('')}
+        <button class="itin-add-event" onclick="addItinEvent(${i})"><span class="ms">add</span> Add item</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function addItinDay() {
+  const next = modalItinerary.length + 1;
+  modalItinerary.push({ day: next, title: '', events: [] });
+  renderItinerary();
+}
+function removeItinDay(i) { modalItinerary.splice(i, 1); renderItinerary(); }
+function addItinEvent(i) { modalItinerary[i].events.push({ time: '', item: '' }); renderItinerary(); }
+function removeItinEvent(i, j) { modalItinerary[i].events.splice(j, 1); renderItinerary(); }
+
+function renderChips(containerId, list, kind) {
+  const wrap = document.getElementById(containerId);
+  if (!wrap) return;
+  wrap.innerHTML = list.map((item, i) =>
+    `<span class="chip">${escHtml(item)}<button onclick="removeChip('${kind}', ${i})"><span class="ms">close</span></button></span>`
+  ).join('') +
+  `<input class="chip-input" placeholder="Type and press Enter..." onkeydown="if(event.key==='Enter'){event.preventDefault();addChip('${kind}', this.value); this.value=''}">`;
+}
+
+function addChip(kind, value) {
+  value = value.trim();
+  if (!value) return;
+  if (kind === 'includes') { modalIncludes.push(value); renderChips('xm-includes-wrap', modalIncludes, 'includes'); }
+  if (kind === 'excludes') { modalExcludes.push(value); renderChips('xm-excludes-wrap', modalExcludes, 'excludes'); }
+}
+function removeChip(kind, i) {
+  if (kind === 'includes') { modalIncludes.splice(i, 1); renderChips('xm-includes-wrap', modalIncludes, 'includes'); }
+  if (kind === 'excludes') { modalExcludes.splice(i, 1); renderChips('xm-excludes-wrap', modalExcludes, 'excludes'); }
+}
+
+function saveExperience(id) {
+  const get = i => document.getElementById('xm-' + i).value.trim();
+  const title = get('title');
+  if (!title) { showToast('Title is required', 'error'); return; }
+  const start = get('start'), end = get('end');
+  if (!start || !end) { showToast('Start and end dates are required', 'error'); return; }
+  const photo = document.getElementById('listing-photo-slot').dataset.url || null;
+  const days = Math.max(1, Math.round((new Date(end) - new Date(start)) / (1000 * 60 * 60 * 24)) + 1);
+  const data = {
+    title, description: get('description'), overview: get('overview'),
+    experience_type: get('type'),
+    start_date: start, end_date: end, duration_days: days,
+    country: get('country'), destination: get('destination'),
+    price_aed: parseFloat(get('price')) || 0,
+    capacity: parseInt(get('capacity'), 10) || 0,
+    price_includes: modalIncludes.slice(),
+    price_excludes: modalExcludes.slice(),
+    accommodation: get('accommodation'), flights: get('flights'),
+    travel_reqs: get('travel-reqs'), fitness_reqs: get('fitness-reqs'),
+    fitness_level: get('fitness-level'),
+    itinerary: JSON.parse(JSON.stringify(modalItinerary)),
+    hero_url: photo
+  };
+  if (id) {
+    const e = experiences.find(x => x.id === id);
+    Object.assign(e, data);
+    showToast('Experience updated', 'success');
+    closeModal();
+  } else {
+    experiences.unshift(Object.assign({
+      id: uid(), status: 'pending', applications: 0,
+      created_at: new Date().toISOString().slice(0,10)
+    }, data));
+    closeModal();
+    showSubmittedModal('experience');
+  }
+  renderExperiences(); renderNav(); renderOverview();
+}
+
+function viewApplications(id) {
+  const e = experiences.find(x => x.id === id);
+  if (!e) return;
+  const list = sampleRsvps.slice(0, e.applications || 0).map(m =>
+    `<div class="member-row">
+      <div class="member-avatar">${m.letter}</div>
+      <div class="member-info">
+        <div class="member-name">${escHtml(m.name)}</div>
+        <div class="member-sub">Applied ${escHtml(m.joined)}</div>
+      </div>
+      <div class="member-actions">
+        <button class="btn btn-blue btn-xs" onclick="showToast('Deposit details sent to ${escHtml(m.name)}', 'success')"><span class="ms">check</span> Approve</button>
+        <button class="btn btn-sec btn-xs" onclick="showToast('Message sent to ${escHtml(m.name)}', 'success')"><span class="ms">chat_bubble</span></button>
+        <button class="btn btn-ghost btn-xs" onclick="showToast('${escHtml(m.name)} declined', 'success')"><span class="ms">close</span></button>
+      </div>
+    </div>`
+  ).join('');
+  openModalShell('', escHtml(e.title) + ' — Applications', `
+    <div class="psub" style="margin-bottom: 14px;">${e.applications || 0} of ${e.capacity || '∞'} spots requested for ${fmtDate(e.start_date)} — ${fmtDate(e.end_date)}.</div>
+    <div class="help-strip" style="margin-bottom: 14px;">
+      <span class="ms">info</span>
+      <div>Approve an applicant to send them your deposit details. Members are notified by email automatically.</div>
+    </div>
+    <div class="member-list">${list || '<div class="empty-sub" style="text-align:left;">No applications yet.</div>'}</div>
+  `, `
+    <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+    <button class="btn btn-sec" onclick="showToast('CSV export started', 'success')"><span class="ms">download</span> Export CSV</button>
+    <button class="btn btn-blue" onclick="showToast('Broadcast email sent to all applicants', 'success')"><span class="ms">mail</span> Email all</button>
+  `);
+}
+
+// ════════════════════════════════════════════════
+// CHALLENGES
+// ════════════════════════════════════════════════
+function renderChallenges() {
+  renderTabs('ch-tabs', 'challenges', challenges, ['live', 'pending', 'draft', 'past']);
+  const q = document.getElementById('ch-search').value;
+  const items = applyFilters(challenges, 'challenges', q);
+  const grid = document.getElementById('ch-grid');
+  if (items.length === 0) {
+    grid.innerHTML = challenges.length === 0
+      ? emptyState('No challenges yet', 'Create a provider challenge at your venue. You upload results after the event.', 'New challenge', 'openChallengeModal()')
+      : emptyState('No matches', 'Try a different search or change tab', '', '');
+    return;
+  }
+  grid.innerHTML = items.map(c => challengeCard(c)).join('');
+}
+
+function challengeCard(c) {
+  return '<div class="listing-card">' +
+    '<div class="lc-hero" ' + heroStyle(c.hero_url) + '>' +
+      '<div class="lc-status-pill ' + c.status + '">' + c.status + '</div>' +
+      '<div class="lc-cat-pill">Partner</div>' +
+    '</div>' +
+    '<div class="lc-body">' +
+      '<div class="lc-title">' + escHtml(c.title) + '</div>' +
+      '<div class="lc-sub">' + escHtml(c.description || '') + '</div>' +
+      '<div class="lc-meta">' +
+        '<span><span class="ms">calendar_today</span>' + fmtDateShort(c.start_date) + ' — ' + fmtDateShort(c.end_date) + '</span>' +
+        (c.venue ? '<span><span class="ms">place</span>' + escHtml(c.venue) + '</span>' : '') +
+      '</div>' +
+      '<div class="lc-stat-row">' +
+        '<div class="lc-stat"><div class="lc-stat-val">' + (c.participants || 0) + '</div><div class="lc-stat-lbl">Entrants</div></div>' +
+        '<div class="lc-stat"><div class="lc-stat-val">' + (c.results_uploaded ? 'Yes' : 'No') + '</div><div class="lc-stat-lbl">Results in</div></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="lc-actions">' +
+      '<button class="btn btn-sec btn-sm" title="Edit" onclick="openChallengeModal(\'' + c.id + '\')"><span class="ms">edit</span></button>' +
+      '<button class="btn btn-blue btn-sm" onclick="openResultsModal(\'' + c.id + '\')"><span class="ms">upload</span> ' + (c.results_uploaded ? 'Update results' : 'Upload results') + '</button>' +
+      '<button class="btn btn-ghost btn-sm" onclick="confirmDeleteChallenge(\'' + c.id + '\')"><span class="ms">delete</span></button>' +
+    '</div>' +
+  '</div>';
+}
+
+function confirmDeleteChallenge(id) {
+  openConfirm('Delete this challenge?', 'All entrants will be notified by email. This cannot be undone.', () => {
+    challenges = challenges.filter(x => x.id !== id);
+    renderChallenges(); renderNav(); showToast('Challenge deleted', 'success');
+  });
+}
+
+function openChallengeModal(id) {
+  const editing = id ? challenges.find(c => c.id === id) : null;
+  const c = editing || { title: '', description: '', metric: '', venue: providerProfile.business_name, start_date: '', end_date: '', prize: '', category: 'Strength', hero_url: null };
+  openModalShell('lg', (editing ? 'Edit challenge' : 'New challenge'), `
+    <div class="help-strip">
+      <span class="ms">info</span>
+      <div><b>Partner challenge:</b> you set the rules and upload results at the end. Members see a leaderboard with your results. No FFP coins — prizes are physical only.</div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Photo</div>
+      <div id="listing-photo-slot" data-url="${c.hero_url || ''}"></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Challenge</div>
+      <div class="form-grid">
+        <div class="field full">
+          <div class="label">Title <span class="req">*</span></div>
+          <input class="input" id="cm-title" value="${escHtml(c.title)}" placeholder="e.g. Forge May Strength Push">
+        </div>
+        <div class="field full">
+          <div class="label">Description</div>
+          <textarea class="textarea" id="cm-description" rows="3" placeholder="The rules — what entrants do, how scores are recorded">${escHtml(c.description)}</textarea>
+        </div>
+        <div class="field">
+          <div class="label">Category</div>
+          <select class="select" id="cm-category">
+            ${['Strength','Endurance','Speed','Skill','Recovery','Team','Other'].map(x => `<option ${c.category===x?'selected':''}>${x}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <div class="label">Metric</div>
+          <input class="input" id="cm-metric" value="${escHtml(c.metric)}" placeholder="e.g. Combined PR kg increase">
+        </div>
+        <div class="field">
+          <div class="label">Location</div>
+          <input class="input" id="cm-venue" value="${escHtml(c.venue)}" placeholder="e.g. Studio, Dubai (or Virtual)">
+          <a class="label-hint" style="cursor:pointer;color:#2ba8e0;display:inline-flex;align-items:center;gap:4px;margin-top:5px;" onclick="ffpOpenMap('cm-venue')"><span class="ms" style="font-size:14px;">place</span> View on Google Maps</a>
+        </div>
+        <div class="field">
+          <div class="label">Prize <span class="label-hint">— physical gift only</span></div>
+          <input class="input" id="cm-prize" value="${escHtml(c.prize)}" placeholder="e.g. Recovery kit for top 3">
+        </div>
+        <div class="field">
+          <div class="label">Start date <span class="req">*</span></div>
+          <input class="input" type="date" id="cm-start" value="${escHtml(c.start_date)}">
+        </div>
+        <div class="field">
+          <div class="label">End date <span class="req">*</span></div>
+          <input class="input" type="date" id="cm-end" value="${escHtml(c.end_date)}">
+        </div>
+      </div>
+    </div>
+  `, `
+    ${editing ? '<button class="btn btn-ghost left" onclick="confirmDeleteChallenge(\''+editing.id+'\')"><span class="ms">delete</span> Delete</button>' : ''}
+    <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-pri" onclick="saveChallenge('${editing ? editing.id : ''}')">${editing ? 'Save changes' : 'Submit for review'}</button>
+  `);
+  renderListingUploader(c.hero_url);
+}
+
+function saveChallenge(id) {
+  const get = i => document.getElementById('cm-' + i).value.trim();
+  const title = get('title');
+  if (!title) { showToast('Title is required', 'error'); return; }
+  if (!get('start') || !get('end')) { showToast('Start and end dates are required', 'error'); return; }
+  const photo = document.getElementById('listing-photo-slot').dataset.url || null;
+  const data = {
+    title, description: get('description'),
+    metric: get('metric'), venue: get('venue'),
+    prize: get('prize'), category: get('category'),
+    start_date: get('start'), end_date: get('end'),
+    hero_url: photo
+  };
+  if (id) {
+    const c = challenges.find(x => x.id === id);
+    Object.assign(c, data);
+    showToast('Challenge updated', 'success');
+    closeModal();
+  } else {
+    challenges.unshift(Object.assign({
+      id: uid(), status: 'pending', challenge_type: 'provider',
+      participants: 0, results_uploaded: false,
+      created_at: new Date().toISOString().slice(0,10)
+    }, data));
+    closeModal();
+    showSubmittedModal('challenge');
+  }
+  renderChallenges(); renderNav();
+}
+
+function openResultsModal(id) {
+  const c = challenges.find(x => x.id === id);
+  if (!c) return;
+  openModalShell('', c.title + ' — Upload results', `
+    <div class="psub" style="margin-bottom: 18px;">Upload a CSV with member name, score, and rank. Results render as the live leaderboard.</div>
+    <div class="uploader" id="up-results" onclick="document.getElementById('up-results-input').click()">
+      <input type="file" id="up-results-input" accept=".csv,.xlsx,.xls" onchange="document.getElementById('results-filename').textContent = this.files[0] ? this.files[0].name : 'No file chosen'">
+      <div class="uploader-icon"><span class="ms">table_view</span></div>
+      <div class="uploader-title">Click to upload CSV or Excel</div>
+      <div class="uploader-hint" id="results-filename">Columns: name, score, rank</div>
+    </div>
+    <div style="margin-top: 14px;">
+      <a style="font-size: 12px; font-weight: 700;" onclick="showToast('Template downloaded', 'success')"><span class="ms">download</span> Download results template</a>
+    </div>
+  `, `
+    <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-pri" onclick="finalizeResults('${id}')"><span class="ms">emoji_events</span> Publish leaderboard</button>
+  `);
+}
+
+function finalizeResults(id) {
+  const c = challenges.find(x => x.id === id);
+  if (c) { c.results_uploaded = true; c.status = 'past'; }
+  closeModal();
+  renderChallenges();
+  showToast('Results published — members notified', 'success');
+}
+
+
+// ════════════════════════════════════════════════
+// ANALYTICS
+// ════════════════════════════════════════════════
+const PERIODS = [
+  { id: 'today',         label: 'Today' },
+  { id: 'yesterday',     label: 'Yesterday' },
+  { id: 'this_week',     label: 'This week' },
+  { id: 'last_week',     label: 'Last week' },
+  { id: 'this_month',    label: 'This month' },
+  { id: 'last_month',    label: 'Last month' },
+  { id: 'this_quarter',  label: 'This quarter' },
+  { id: 'last_quarter',  label: 'Last quarter' },
+  { id: 'last_6_months', label: 'Last 6 months' },
+  { id: 'this_year',     label: 'This year' },
+  { id: 'last_year',     label: 'Last year' }
+];
+
+let analyticsState = { period: 'this_month' };
+
+function setPeriod(p) {
+  analyticsState.period = p;
+  renderAnalytics();
+}
+
+// Deterministic hash so same period gives same numbers in a session
+function _seedRand(seed) {
+  let s = seed;
+  return () => {
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+}
+
+function generateAnalyticsData(period) {
+  const mult = {
+    today: 0.04, yesterday: 0.05,
+    this_week: 0.22, last_week: 0.19,
+    this_month: 1, last_month: 0.94,
+    this_quarter: 2.7, last_quarter: 2.45,
+    last_6_months: 5.2,
+    this_year: 9.4, last_year: 8.6
+  }[period] || 1;
+
+  const seed = period.split('').reduce((a, c) => a + c.charCodeAt(0), 0) * 17;
+  const rng = _seedRand(seed);
+
+  // Current period totals
+  const cur = {
+    views: Math.round(1247 * mult * (0.95 + rng() * 0.10)),
+    engagements: Math.round(89 * mult * (0.92 + rng() * 0.16)),
+    checkins: Math.round(34 * mult * (0.90 + rng() * 0.20)),
+    followers: Math.round(12 * mult * (0.85 + rng() * 0.30))
+  };
+  // Previous period (for delta calc)
+  const prev = {
+    views: Math.round(cur.views * (0.78 + rng() * 0.25)),
+    engagements: Math.round(cur.engagements * (0.72 + rng() * 0.30)),
+    checkins: Math.round(cur.checkins * (0.80 + rng() * 0.22)),
+    followers: Math.round(cur.followers * (0.92 + rng() * 0.35))
   };
 
-  // ── expose ──
-  window.renderClasses = renderClasses;
-  window.openClassModal = openClassModal;
-  window.saveClass = saveClass;
-  window.setClassStatus = setClassStatus;
-  window.confirmDeleteClass = confirmDeleteClass;
-  window.FFPReload = window.FFPReload || {};
-  window.FFPReload['class'] = refresh;
+  // Trend buckets — granularity by period
+  let buckets, xLabels;
+  if (period === 'today' || period === 'yesterday') {
+    buckets = 24;
+    xLabels = ['12a','','','','','6a','','','','','12p','','','','','6p','','','','','','','',''];
+  } else if (period === 'this_week' || period === 'last_week') {
+    buckets = 7;
+    xLabels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  } else if (period === 'this_month' || period === 'last_month') {
+    buckets = 30;
+    xLabels = ['Day 1','','','','Day 5','','','','','Day 10','','','','','Day 15','','','','','Day 20','','','','','Day 25','','','','','Day 30'];
+  } else if (period === 'this_quarter' || period === 'last_quarter') {
+    buckets = 13;
+    xLabels = ['Wk 1','Wk 2','Wk 3','Wk 4','Wk 5','Wk 6','Wk 7','Wk 8','Wk 9','Wk 10','Wk 11','Wk 12','Wk 13'];
+  } else if (period === 'last_6_months') {
+    buckets = 26;
+    xLabels = Array.from({length: 26}, (_, i) => i % 4 === 0 ? `Wk ${i+1}` : '');
+  } else {
+    buckets = 12;
+    xLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  }
+  const trend = Array.from({ length: buckets }, () => Math.round(cur.engagements / buckets * (0.5 + rng() * 1.1)));
 
-  // ── init ──
-  function waitFor(cond, ms) { return new Promise(function (resolve) { var t0 = Date.now(); (function poll() { if (cond()) return resolve(true); if (Date.now() - t0 > ms) return resolve(false); setTimeout(poll, 200); })(); }); }
-  (async function init() {
-    var ok = await waitFor(function () { return window.supabase && window.FFP_PROVIDER && window.FFP_PROVIDER.id; }, 30000);
-    if (!ok) { console.warn('[FFP Classes] deps not ready'); return; }
-    await refresh();
-    console.log('[FFP Provider Classes] loaded v10 — full-screen editor + schedule generator + gallery ✓');
+  // Funnel
+  const views = cur.views;
+  const saved = Math.round(views * (0.16 + rng() * 0.06));
+  const claimed = Math.round(views * (0.06 + rng() * 0.04));
+  const checkedIn = cur.checkins;
+
+  // Demographics — age
+  const ageWeights = [0.12, 0.41, 0.28, 0.13, 0.06];
+  const age = ['18-24','25-34','35-44','45-54','55+'].map((label, i) => ({
+    label, val: Math.round(cur.engagements * ageWeights[i])
+  }));
+  // Gender
+  const gender = [
+    { label: 'Male',                val: Math.round(cur.engagements * 0.56) },
+    { label: 'Female',              val: Math.round(cur.engagements * 0.42) },
+    { label: 'Other / Not stated',  val: Math.round(cur.engagements * 0.02) }
+  ];
+  // Tier
+  const tier = [
+    { label: 'Member',     val: Math.round(cur.engagements * 0.71) },
+    { label: 'Supporter',  val: Math.round(cur.engagements * 0.22) },
+    { label: 'Ambassador', val: Math.round(cur.engagements * 0.07) }
+  ];
+  // Areas
+  const areaWeights = [0.22, 0.18, 0.15, 0.12, 0.10, 0.08, 0.15];
+  const areaNames = ['Dubai Marina','Downtown Dubai','JLT','Al Quoz','Business Bay','Jumeirah','Other'];
+  const areas = areaNames.map((label, i) => ({ label, val: Math.round(cur.engagements * areaWeights[i]) }));
+  // Sports
+  const sportWeights = [0.28, 0.19, 0.16, 0.13, 0.11, 0.08, 0.05];
+  const sportNames = ['Strength training','Running','Yoga','Padel','HIIT','Cycling','Pilates'];
+  const sports = sportNames.map((label, i) => ({ label, val: Math.round(cur.engagements * sportWeights[i]) }));
+
+  // Top listings from real data
+  const topDeals = deals.slice()
+    .map(d => ({ title: d.perk || 'Untitled', sub: d.category || '—', val: Math.round((d.claims || 0) * mult / 6) + Math.round(rng() * 4) }))
+    .sort((a, b) => b.val - a.val);
+  const topEvents = events.slice()
+    .map(e => ({ title: e.title || 'Untitled', sub: 'Event · ' + (fmtDateShort(e.event_date) || ''), val: Math.round((e.rsvps || 0) * mult / 3) + Math.round(rng() * 3) }))
+    .sort((a, b) => b.val - a.val);
+  const topExps = experiences.slice()
+    .map(e => ({ title: e.title || 'Untitled', sub: 'Experience · ' + (e.destination || ''), val: Math.round((e.applications || 0) * mult / 2) + Math.round(rng() * 2) }))
+    .sort((a, b) => b.val - a.val);
+  const topEventsCombined = [...topEvents, ...topExps].sort((a, b) => b.val - a.val);
+
+  // Peak days
+  const dayNames = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const dayWeights = [0.15, 0.12, 0.14, 0.13, 0.13, 0.20, 0.13];
+  const peakDays = dayNames.map((d, i) => ({ day: d, val: Math.round(cur.engagements * dayWeights[i]) }));
+  const peakSorted = peakDays.slice().sort((a, b) => b.val - a.val);
+  peakDays.forEach(d => {
+    if (d.val === peakSorted[0].val) d.tag = 'hot';
+    else if (d.val >= peakSorted[0].val * 0.78) d.tag = 'warm';
+  });
+
+  // Hours
+  const hours = Array.from({ length: 24 }, (_, h) => {
+    let m;
+    if (h >= 5 && h < 9) m = 1.4;
+    else if (h >= 17 && h < 21) m = 1.7;
+    else if (h >= 11 && h < 14) m = 1.0;
+    else if (h >= 21 || h < 5) m = 0.2;
+    else m = 0.6;
+    return { hour: h, val: Math.round(cur.engagements / 24 * m * (0.7 + rng() * 0.5)) };
+  });
+
+  // Retention
+  const totalUnique = Math.round(cur.engagements * 1.35);
+  const returning = Math.round(totalUnique * 0.62);
+  const newMembers = totalUnique - returning;
+
+  return {
+    cur, prev, trend, xLabels, views, saved, claimed, checkedIn,
+    age, gender, tier, areas, sports,
+    topDeals, topEvents: topEventsCombined,
+    peakDays, hours,
+    retention: { total: totalUnique, returning, newMembers }
+  };
+}
+
+function delta(cur, prev) {
+  if (prev === 0) return { txt: 'New', dir: 'up' };
+  const pct = ((cur - prev) / prev) * 100;
+  const dir = pct > 1 ? 'up' : pct < -1 ? 'down' : 'flat';
+  const sign = pct > 0 ? '+' : '';
+  return { txt: sign + Math.round(pct) + '% vs prev', dir };
+}
+
+function renderAnalytics() {
+  // v13: analytics shows REAL data only. Engagement tracking (views/RSVPs/check-ins)
+  // isn't wired yet, so show an honest empty state instead of fabricated figures.
+  var chips = document.getElementById('period-chips');
+  if (chips) chips.innerHTML = PERIODS.map(function(p){ return '<button class="period-chip'+(analyticsState.period===p.id?' active':'')+'" onclick="setPeriod(\''+p.id+'\')">'+p.label+'</button>'; }).join('');
+  var kg = document.getElementById('analytics-kpi-grid');
+  if (kg) kg.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="empty-icon"><span class="ms">insights</span></div><div class="empty-title">No analytics yet</div><div class="empty-sub">Real engagement data \u2014 profile views, RSVPs, check-ins \u2014 appears here as members start interacting with your listings.</div></div>';
+  ['funnel','trend-chart-wrap','age-bars','gender-bars','tier-bars','area-bars','sport-bars','top-deals','top-events','peak-grid','retention'].forEach(function(id){ var el=document.getElementById(id); if(el) el.innerHTML=''; });
+  ['funnel-summary','trend-summary'].forEach(function(id){ var el=document.getElementById(id); if(el) el.textContent=''; });
+}
+function renderBars(targetId, items, toneClass) {
+  const max = Math.max.apply(null, items.map(i => i.val)) || 1;
+  const total = items.reduce((a, i) => a + i.val, 0) || 1;
+  document.getElementById(targetId).innerHTML = items.map(it => {
+    const pct = Math.round(it.val / total * 100);
+    const w = Math.max(2, (it.val / max) * 100);
+    return '<div class="bar-row">' +
+      '<div class="bar-head">' +
+        '<span class="bar-label">' + escHtml(it.label) + '</span>' +
+        '<span class="bar-val">' + it.val.toLocaleString() + ' · ' + pct + '%</span>' +
+      '</div>' +
+      '<div class="bar-track"><div class="bar-fill ' + toneClass + '" style="width: ' + w + '%"></div></div>' +
+    '</div>';
+  }).join('');
+}
+
+function rankRow(item, i, valLbl) {
+  const cls = i === 0 ? '' : i === 1 ? 'silver' : i === 2 ? 'bronze' : 'other';
+  return '<div class="rank-row">' +
+    '<div class="rank-num ' + cls + '">' + (i + 1) + '</div>' +
+    '<div class="rank-info">' +
+      '<div class="rank-title">' + escHtml(item.title) + '</div>' +
+      '<div class="rank-sub">' + escHtml(item.sub || '') + '</div>' +
+    '</div>' +
+    '<div>' +
+      '<div class="rank-val">' + (item.val || 0).toLocaleString() + '</div>' +
+      '<div class="rank-val-lbl">' + escHtml(valLbl) + '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+function emptyRank(msg) {
+  return '<div class="empty-sub" style="text-align:left; padding: 18px 4px;">' + escHtml(msg) + '</div>';
+}
+
+function renderTrendChart(data, xLabels) {
+  const w = 800, h = 170;
+  const padding = { top: 14, right: 8, bottom: 28, left: 8 };
+  const max = Math.max.apply(null, data) || 1;
+  const innerW = w - padding.left - padding.right;
+  const innerH = h - padding.top - padding.bottom;
+  const stepW = innerW / data.length;
+  const barW = stepW * 0.7;
+
+  let bars = '';
+  for (let i = 0; i < data.length; i++) {
+    const x = padding.left + i * stepW + (stepW - barW) / 2;
+    const barH = Math.max(2, (data[i] / max) * innerH);
+    const y = padding.top + innerH - barH;
+    bars += '<rect class="trend-bar" x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + barH.toFixed(1) + '" rx="2"><title>' + data[i] + '</title></rect>';
+  }
+
+  let labels = '';
+  const labelArr = xLabels || [];
+  if (labelArr.length === data.length) {
+    for (let i = 0; i < labelArr.length; i++) {
+      if (!labelArr[i]) continue;
+      const x = padding.left + (i + 0.5) * stepW;
+      labels += '<text class="trend-axis-label" x="' + x.toFixed(1) + '" y="' + (h - 8) + '" text-anchor="middle">' + escHtml(labelArr[i]) + '</text>';
+    }
+  }
+
+  return '<svg class="trend-chart" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none">' + bars + labels + '</svg>';
+}
+
+function renderHoursChart(hours) {
+  const w = 800, h = 100;
+  const padding = { top: 8, right: 6, bottom: 22, left: 6 };
+  const max = Math.max.apply(null, hours.map(h => h.val)) || 1;
+  const innerW = w - padding.left - padding.right;
+  const innerH = h - padding.top - padding.bottom;
+  const stepW = innerW / 24;
+  const barW = stepW * 0.7;
+
+  let bars = '';
+  let labels = '';
+  for (let i = 0; i < 24; i++) {
+    const x = padding.left + i * stepW + (stepW - barW) / 2;
+    const barH = Math.max(1, (hours[i].val / max) * innerH);
+    const y = padding.top + innerH - barH;
+    const isPeak = hours[i].val === max;
+    bars += '<rect class="hours-bar ' + (isPeak ? 'peak' : '') + '" x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + barH.toFixed(1) + '" rx="2"><title>' + hours[i].hour + ':00 — ' + hours[i].val + '</title></rect>';
+    if (i % 4 === 0) {
+      const cx = padding.left + (i + 0.5) * stepW;
+      const hr = i === 0 ? '12a' : i === 12 ? '12p' : i < 12 ? i + 'a' : (i - 12) + 'p';
+      labels += '<text class="trend-axis-label" x="' + cx.toFixed(1) + '" y="' + (h - 6) + '" text-anchor="middle">' + hr + '</text>';
+    }
+  }
+
+  return '<svg class="hours-chart" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none">' + bars + labels + '</svg>';
+}
+
+
+// ════════════════════════════════════════════════
+// CHECK-INS
+// ════════════════════════════════════════════════
+function renderCheckIns() {
+  const list = document.getElementById('checkin-list');
+  list.innerHTML = checkIns.map(c =>
+    '<div class="checkin-row">' +
+      '<div class="checkin-avatar">' + escHtml(c.member_letter) + '</div>' +
+      '<div class="checkin-info">' +
+        '<div class="checkin-name">' + escHtml(c.member_name) + '</div>' +
+        '<div class="checkin-listing">' + escHtml(c.listing) + ' · ' + escHtml(c.code) + '</div>' +
+      '</div>' +
+      '<div>' +
+        '<div class="checkin-status">' + c.status + '</div>' +
+        '<div class="checkin-time" style="margin-top:4px;">' + fmtRelative(c.ts) + '</div>' +
+      '</div>' +
+    '</div>'
+  ).join('');
+}
+
+function formatClaimCode(input) {
+  let v = input.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  if (v.length > 4) v = v.slice(0,4) + '-' + v.slice(4,8);
+  input.value = v;
+}
+
+function verifyClaimCode() {
+  const code = document.getElementById('claim-code-input').value.trim();
+  if (code.length < 9) { showToast('Enter the full 8-character code', 'error'); return; }
+  // Sample verify success
+  const firstNames = ['Yusuf','Layla','Ben','Maya','Khalid','Noor'];
+  const name = firstNames[Math.floor(Math.random() * firstNames.length)] + ' ' + ['Ahmed','Smith','Lee','Patel'][Math.floor(Math.random()*4)];
+  openModalShell('sm', 'Code verified', `
+    <div style="text-align: center; padding: 12px 0 22px;">
+      <div style="width: 72px; height: 72px; margin: 0 auto 14px; border-radius: 50%; background: rgba(74, 222, 128, .15); color: var(--ffp-green); display: flex; align-items: center; justify-content: center;">
+        <span class="ms" style="font-size: 38px;">check_circle</span>
+      </div>
+      <div style="font-size: 18px; font-weight: 800; margin-bottom: 4px;">${escHtml(name)}</div>
+      <div style="font-size: 12px; font-weight: 600; color: var(--ffp-text-muted); letter-spacing: .3px;">Member · FFP Passport</div>
+      <div style="margin-top: 14px; padding: 12px 16px; background: var(--ffp-bg-3); border-radius: var(--r-md); display: inline-block;">
+        <div style="font-size: 10px; font-weight: 800; color: var(--ffp-text-muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px;">Claiming</div>
+        <div style="font-size: 13px; font-weight: 800;">First class free</div>
+      </div>
+    </div>
+  `, `
+    <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-pri" onclick="confirmCheckIn('${escHtml(name)}', '${code}')">
+      <span class="ms">check</span> Confirm check-in
+    </button>
+  `);
+}
+
+function confirmCheckIn(name, code) {
+  checkIns.unshift({
+    id: uid(),
+    member_name: name,
+    member_letter: name.charAt(0).toUpperCase(),
+    listing: 'First class free',
+    code: code,
+    ts: Date.now(),
+    status: 'verified'
+  });
+  document.getElementById('claim-code-input').value = '';
+  closeModal();
+  renderCheckIns();
+  showToast('Checked in — member earns activity log entry', 'success');
+}
+
+// ════════════════════════════════════════════════
+// MODAL UTILITIES
+// ════════════════════════════════════════════════
+function openModalShell(size, title, bodyHtml, footHtml) {
+  const back = document.getElementById('modal-backdrop');
+  const modal = document.getElementById('modal');
+  modal.className = 'modal' + (size ? ' ' + size : '');
+  modal.innerHTML =
+    '<div class="modal-head">' +
+      '<div class="modal-title">' + title + '</div>' +
+      '<button class="modal-close" onclick="closeModal()"><span class="ms">close</span></button>' +
+    '</div>' +
+    '<div class="modal-body">' + bodyHtml + '</div>' +
+    (footHtml ? '<div class="modal-foot">' + footHtml + '</div>' : '');
+  back.classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-backdrop').classList.remove('open');
+}
+
+function openConfirm(title, body, onConfirm) {
+  openModalShell('sm', title, `<div style="font-size: 13px; color: var(--ffp-text-muted); line-height: 1.6;">${escHtml(body)}</div>`, `
+    <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-danger" id="confirm-yes"><span class="ms">delete</span> Yes, delete</button>
+  `);
+  document.getElementById('confirm-yes').onclick = () => { closeModal(); onConfirm(); };
+}
+
+// The Tours loader is the ONE listing loader that's lazy-loaded. showPanel('classes') only *starts* fetching
+// that script (async), so calling openClassModal() on the very next line silently no-ops the first time — this
+// was the "create does nothing / never saves" bug. Load it, then open the modal once openClassModal is registered.
+function openCreateClass() {
+  showPanel('classes');   // the "Tours" tab (panel id stays 'classes' = the classes table)
+  var tries = 0;
+  (function waitForLoader() {
+    if (typeof window.openClassModal === 'function') { window.openClassModal(); return; }
+    if (++tries > 120) { if (typeof showToast === 'function') showToast('Still loading — tap the button again in a moment', 'info'); return; }
+    setTimeout(waitForLoader, 50);
   })();
+}
+// A "Class" is a recurring session — it lives in the Sessions tab (the scheduling module, lazy-loaded).
+function openCreateSession() {
+  showPanel('scheduling');   // the "Sessions" tab
+  var tries = 0;
+  (function waitForLoader() {
+    if (typeof window.openTemplateModal === 'function') { window.openTemplateModal(); return; }
+    if (++tries > 120) { if (typeof showToast === 'function') showToast('Still loading — tap “New class” in a moment', 'info'); return; }
+    setTimeout(waitForLoader, 50);
+  })();
+}
+
+// ── FEATURED LISTINGS — partner requests specific DAYS to feature on the homepage ($99 USD/day). ──
+// Flow: request days → admin confirms → partner pays upfront → admin sets live. Live only on the paid days.
+window.FFP_FEATURE_MAP = window.FFP_FEATURE_MAP || {};   // 'kind:id' -> best status ('live'>'approved'>'pending')
+async function loadFeatureMap() {
+  var pid = (window.FFP_PROVIDER || {}).id; if (!pid) return;
+  try {
+    var rank = { pending: 1, approved: 2, live: 3 };
+    var r = await window.supabase.rpc('provider_feature_requests', { p_provider: pid });
+    var map = {}; (r && r.data ? r.data : []).forEach(function (x) {
+      var k = x.item_type + ':' + x.item_id;
+      if (!map[k] || (rank[x.status] || 0) > (rank[map[k]] || 0)) map[k] = x.status;
+    });
+    window.FFP_FEATURE_MAP = map;
+  } catch (e) {}
+}
+// Card control: ★Featured (live), Approved·pay to activate, Feature pending, or a "Feature — $99/day" button.
+function featureBtn(kind, id, featured) {
+  var st = (window.FFP_FEATURE_MAP || {})[kind + ':' + id];
+  if (featured || st === 'live') return '<button class="btn btn-ghost btn-sm" title="Featured on the FFP homepage today" style="color:#FFCC00;"><span class="ms">star</span></button>';
+  if (st === 'approved') return '<button class="btn btn-ghost btn-sm" title="Feature approved — pay upfront to activate" style="color:#4ade80;" onclick="applyFeature(\'' + kind + '\',\'' + id + '\')"><span class="ms">task_alt</span></button>';
+  if (st === 'pending') return '<button class="btn btn-ghost btn-sm" title="Feature request pending admin confirmation" style="color:#9dbdd0;"><span class="ms">hourglass_empty</span></button>';
+  return '<button class="btn btn-ghost btn-sm" title="Feature on the FFP homepage — $99 USD/day" onclick="applyFeature(\'' + kind + '\',\'' + id + '\')"><span class="ms">star_border</span></button>';
+}
+function applyFeature(kind, id) {
+  window._feat = { kind: kind, id: id, mode: 'days', days: [] };
+  var today = new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  openModalShell('lg', 'Feature on the FFP homepage',
+    '<div class="psub" style="margin:0 0 12px;">$99 USD per day. Choose the days you want this featured. Our team confirms your request, then you pay upfront to activate — it goes live only on the days you pay for.</div>' +
+    '<div style="display:flex;gap:8px;margin-bottom:12px;">' +
+      '<button type="button" class="btn btn-sec btn-sm feat-mode" data-m="days" onclick="_featMode(\'days\')" style="flex:1;">Specific days</button>' +
+      '<button type="button" class="btn btn-ghost btn-sm feat-mode" data-m="range" onclick="_featMode(\'range\')" style="flex:1;">Date range</button>' +
+    '</div>' +
+    '<div id="feat-days-pane"><div style="display:flex;gap:8px;align-items:flex-end;"><div style="flex:1;"><div class="label">Add a day</div><input class="input" type="date" id="feat-day-input" min="' + today + '" style="color-scheme:dark;"></div><button class="btn btn-sec" onclick="_featAddDay()">Add</button></div><div id="feat-day-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;"></div></div>' +
+    '<div id="feat-range-pane" style="display:none;"><div style="display:flex;gap:8px;"><div style="flex:1;"><div class="label">From</div><input class="input" type="date" id="feat-from" min="' + today + '" style="color-scheme:dark;"></div><div style="flex:1;"><div class="label">To</div><input class="input" type="date" id="feat-to" min="' + today + '" style="color-scheme:dark;"></div></div><button class="btn btn-sec btn-sm" style="margin-top:10px;" onclick="_featAddRange()">Add these days</button></div>' +
+    '<div id="feat-total" style="margin-top:16px;font-weight:800;font-size:15px;"></div>',
+    '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>' +
+    '<button class="btn btn-pri" onclick="_featSubmit()">Request these days</button>');
+  _featRenderTotal();
+}
+function _featMode(m) {
+  window._feat.mode = m;
+  document.querySelectorAll('.feat-mode').forEach(function (b) { var on = b.dataset.m === m; b.classList.toggle('btn-sec', on); b.classList.toggle('btn-ghost', !on); });
+  var dp = document.getElementById('feat-days-pane'); if (dp) dp.style.display = m === 'days' ? '' : 'none';
+  var rp = document.getElementById('feat-range-pane'); if (rp) rp.style.display = m === 'range' ? '' : 'none';
+}
+function _featAddDay() { var el = document.getElementById('feat-day-input'); var v = el && el.value; if (!v) return; if (window._feat.days.indexOf(v) === -1) window._feat.days.push(v); window._feat.days.sort(); if (el) el.value = ''; _featRenderTotal(); }
+function _featAddRange() { var f = (document.getElementById('feat-from') || {}).value, t = (document.getElementById('feat-to') || {}).value; if (!f || !t) { showToast('Pick a start and end date', 'error'); return; } var d = new Date(f), e = new Date(t); if (e < d) { showToast('End date is before start', 'error'); return; } var guard = 0; while (d <= e && guard < 400) { var s = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); if (window._feat.days.indexOf(s) === -1) window._feat.days.push(s); d.setDate(d.getDate() + 1); guard++; } window._feat.days.sort(); _featRenderTotal(); }
+function _featRemoveDay(s) { window._feat.days = window._feat.days.filter(function (x) { return x !== s; }); _featRenderTotal(); }
+function _featRenderTotal() {
+  var chips = document.getElementById('feat-day-chips');
+  if (chips) chips.innerHTML = window._feat.days.map(function (s) { return '<span style="background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.3);border-radius:14px;padding:4px 10px;font-size:12px;white-space:nowrap;">' + s + ' <span class="ms" style="font-size:13px;cursor:pointer;vertical-align:-2px;" onclick="_featRemoveDay(\'' + s + '\')">close</span></span>'; }).join('');
+  var n = window._feat.days.length; var tot = document.getElementById('feat-total');
+  if (tot) tot.textContent = n ? (n + ' day' + (n > 1 ? 's' : '') + ' × $99 = $' + (n * 99) + ' USD') : 'No days selected yet';
+}
+async function _featSubmit() {
+  var pid = (window.FFP_PROVIDER || {}).id;
+  if (!window._feat.days.length) { showToast('Pick at least one day', 'error'); return; }
+  try {
+    var r = await window.supabase.rpc('provider_request_feature_days', { p_provider: pid, p_kind: window._feat.kind, p_id: window._feat.id, p_days: window._feat.days });
+    var res = r && r.data; if (r.error) throw r.error;
+    if (!res || !res.ok) { showToast('Could not submit request', 'error'); return; }
+    showToast('Requested ' + res.days + ' day(s) — $' + res.total_usd + ' USD. Our team will confirm, then you pay upfront to activate.', 'success');
+    closeModal();
+    await loadFeatureMap();
+    var fn = { 'class': 'renderClasses', 'experience': 'renderExperiences', 'event': 'renderEvents', 'session': 'renderScheduling' }[window._feat.kind];
+    if (fn && typeof window[fn] === 'function') { try { window[fn](); } catch (e) {} }
+  } catch (e) { showToast('Could not submit request', 'error'); }
+}
+
+function openCreatePicker() {
+  openModalShell('sm', 'Create new listing', `
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <button class="qa" onclick="closeModal(); openCreateClass()">
+        <div class="qa-icon"><span class="ms">tour</span></div>
+        <div class="qa-body">
+          <div class="qa-title">Experience</div>
+          <div class="qa-sub">A one-off or recurring activity — jet ski, rafting, bungy, guided experience. Set its schedule.</div>
+        </div>
+      </button>
+      <button class="qa" onclick="closeModal(); openCreateSession()">
+        <div class="qa-icon"><span class="ms">fitness_center</span></div>
+        <div class="qa-body">
+          <div class="qa-title">Session</div>
+          <div class="qa-sub">A recurring session — yoga, tennis, group class, PT. Set its weekly times in Sessions.</div>
+        </div>
+      </button>
+      <button class="qa" onclick="closeModal(); openEventModal()">
+        <div class="qa-icon"><span class="ms">event</span></div>
+        <div class="qa-body">
+          <div class="qa-title">Event</div>
+          <div class="qa-sub">A single-date session members RSVP to</div>
+        </div>
+      </button>
+      <button class="qa" onclick="closeModal(); openExperienceModal()">
+        <div class="qa-icon"><span class="ms">flight</span></div>
+        <div class="qa-body">
+          <div class="qa-title">Trip</div>
+          <div class="qa-sub">A multi-day trip, retreat, camp or sport-event trip</div>
+        </div>
+      </button>
+      <button class="qa" onclick="closeModal(); openChallengeModal()">
+        <div class="qa-icon yellow"><span class="ms">emoji_events</span></div>
+        <div class="qa-body">
+          <div class="qa-title">Challenge</div>
+          <div class="qa-sub">A timed competition at your venue</div>
+        </div>
+      </button>
+    </div>
+  `, '');
+}
+
+// ════════════════════════════════════════════════
+// LISTING-PHOTO UPLOADER (used inside modals)
+// ════════════════════════════════════════════════
+function renderListingUploader(dataUrl) {
+  const slot = document.getElementById('listing-photo-slot');
+  if (!slot) return;
+  slot.dataset.url = dataUrl || '';
+  if (dataUrl) {
+    slot.innerHTML = `
+      <div class="uploader has-image" id="up-listing">
+        <div class="uploader-preview" style="background-image: url('${dataUrl}')">
+          <div class="uploader-preview-actions">
+            <button class="uploader-preview-btn" onclick="event.stopPropagation(); document.getElementById('up-listing-input').click()" title="Replace"><span class="ms">refresh</span></button>
+            <button class="uploader-preview-btn del" onclick="event.stopPropagation(); removeUpload('listing')" title="Remove"><span class="ms">delete</span></button>
+          </div>
+          <input type="file" id="up-listing-input" accept="image/*" onchange="handleUpload('listing:listing', this.files[0])">
+        </div>
+      </div>
+    `;
+  } else {
+    slot.innerHTML = `
+      <div class="uploader" id="up-listing" onclick="document.getElementById('up-listing-input').click()">
+        <input type="file" id="up-listing-input" accept="image/*" onchange="handleUpload('listing:listing', this.files[0])">
+        <div class="uploader-icon"><span class="ms">image</span></div>
+        <div class="uploader-title">Click or drag to upload photo</div>
+        <div class="uploader-hint">JPG or PNG · 16:10 · up to 5 MB</div>
+      </div>
+    `;
+  }
+}
+
+// ════════════════════════════════════════════════
+// AUTH — Passwordless email code sign-in + apply
+// ════════════════════════════════════════════════
+let authState = 'landing';
+let authEmail = '';
+
+function setAuthState(state) {
+  authState = state;
+  document.querySelectorAll('.auth-section').forEach(s => s.classList.remove('active'));
+  const map = {
+    'landing':           'auth-landing',
+    'signin_email':      'auth-signin-email',
+    'signin_code':       'auth-signin-code',
+    'apply':             'auth-apply',
+    'apply_submitted':   'auth-apply-submitted'
+  };
+  const target = document.getElementById(map[state]);
+  if (target) target.classList.add('active');
+  // Focus first input shortly after switch
+  setTimeout(() => {
+    if (!target) return;
+    if (state === 'signin_code') {
+      setupOtp();
+    } else {
+      const focusEl = target.querySelector('input:not([type=hidden]), textarea, select');
+      if (focusEl) try { focusEl.focus(); } catch (e) {}
+    }
+  }, 50);
+}
+
+function submitEmail() {
+  const email = document.getElementById('auth-email-input').value.trim();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showToast('Enter a valid email', 'error');
+    return;
+  }
+  authEmail = email;
+  document.getElementById('auth-code-email').textContent = email;
+  setAuthState('signin_code');
+  // In production: POST { email } -> /api/auth/request-code
+  showToast('Demo: enter any 6 digits to sign in', 'info');
+}
+
+function resendCode() {
+  // In production: POST { email: authEmail } -> /api/auth/request-code
+  showToast('Code resent to ' + authEmail, 'success');
+}
+
+function setupOtp() {
+  const boxes = document.querySelectorAll('#otp-boxes .otp-box');
+  if (!boxes.length) return;
+  boxes.forEach((box, i) => {
+    box.value = '';
+    box.removeAttribute('data-filled');
+    box.oninput = () => {
+      box.value = box.value.replace(/\D/g, '');
+      if (box.value) {
+        box.setAttribute('data-filled', 'true');
+        if (i < boxes.length - 1) boxes[i + 1].focus();
+      } else {
+        box.removeAttribute('data-filled');
+      }
+    };
+    box.onkeydown = (e) => {
+      if (e.key === 'Backspace' && !box.value && i > 0) boxes[i - 1].focus();
+      if (e.key === 'Enter') verifyCode();
+    };
+    box.onpaste = (e) => {
+      const text = ((e.clipboardData || window.clipboardData).getData('text') || '').replace(/\D/g, '').slice(0, 6);
+      if (!text) return;
+      boxes.forEach((b, j) => {
+        b.value = text[j] || '';
+        if (text[j]) b.setAttribute('data-filled', 'true');
+        else b.removeAttribute('data-filled');
+      });
+      e.preventDefault();
+      const last = Math.min(text.length, 5);
+      boxes[last].focus();
+    };
+  });
+  setTimeout(() => { try { boxes[0].focus(); } catch (e) {} }, 80);
+}
+
+function getOtpValue() {
+  return Array.from(document.querySelectorAll('#otp-boxes .otp-box')).map(b => b.value).join('');
+}
+
+function verifyCode() {
+  const code = getOtpValue();
+  if (code.length !== 6) {
+    showToast('Enter all 6 digits', 'error');
+    return;
+  }
+  // In production: POST { email: authEmail, code } -> /api/auth/verify
+  // Demo accepts any 6 digits
+  enterDashboard();
+}
+
+function submitApplication() {
+  const business = document.getElementById('ap-business').value.trim();
+  const contact  = document.getElementById('ap-contact').value.trim();
+  const email    = document.getElementById('ap-email').value.trim();
+  const phoneNum = document.getElementById('ap-phone-num').value.trim();
+  const phoneCc  = document.getElementById('ap-phone-cc').value;
+  const category = document.getElementById('ap-category').value;
+  const city     = document.getElementById('ap-city').value;
+  const about    = document.getElementById('ap-about').value.trim();
+  const website  = document.getElementById('ap-website').value.trim();
+
+  if (!business || !contact || !email || !phoneNum || !category || !city || !about) {
+    showToast('Fill all required fields', 'error');
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showToast('Enter a valid email', 'error');
+    return;
+  }
+  // In production: POST to /api/provider-applications
+  // Payload: { business_name, contact_name, email, phone, category, city, about, website }
+  document.getElementById('auth-applied-email').textContent = email;
+  setAuthState('apply_submitted');
+}
+
+function bypassAuthDemo() { enterDashboard(); }
+
+function enterDashboard() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  if (!window._dashboardInited) {
+    renderNav();
+    showPanel('overview');
+    try { loadFeatureMap(); } catch (e) {}   // featured-listing state for the "Feature" buttons
+    window._dashboardInited = true;
+  }
+}
+
+function signOut() {
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+  setAuthState('landing');
+  showToast('Signed out', 'info');
+}
+
+// ════════════════════════════════════════════════
+// INIT — start on auth screen, NOT dashboard
+// ════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  setAuthState('landing');
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+  });
+});
+</script>
+<script>
+(function(){ if(!(window.FFP_TAX&&window.FFP_TAX.phoneCodes))return;
+  document.querySelectorAll('select.phone-cc').forEach(function(sel){ if(sel.options.length)return;
+    window.FFP_TAX.phoneCodes.forEach(function(c){ var o=document.createElement('option'); o.value=c.code; o.textContent=(c.flag?c.flag+' ':'')+c.code; sel.appendChild(o); }); });  // v18: uniform flag + + + digits
 })();
+</script>
+<script>window.ffpOpenMap=function(id){var el=document.getElementById(id);var v=el?(el.value||'').trim():'';if(v)window.open('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(v),'_blank');};</script>
+</body>
+</html>
