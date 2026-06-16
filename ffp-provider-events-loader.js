@@ -332,8 +332,6 @@
           '<textarea class="textarea" id="em-excludes" rows="2" placeholder="Parking\nMeals">' + escHtmlSafe(arr(e.not_included)) + '</textarea></div>' +
         '<div class="field full"><div class="label">Meeting point <span class="label-hint">— where to gather</span></div>' +
           '<input class="input" id="em-meeting-point" value="' + escHtmlSafe(e.meeting_point) + '" placeholder="e.g. Kite Beach, north entrance"></div>' +
-        '<div class="field"><div class="label">Map coordinates <span class="label-hint">— paste &quot;lat, lng&quot;</span></div>' +
-          '<input class="input" id="em-latlng" value="' + escHtmlSafe(latlng) + '" placeholder="e.g. 25.14, 55.19"></div>' +
         '<div class="field"><div class="label">Minimum age</div>' +
           '<input class="input" type="number" id="em-min-age" value="' + escHtmlSafe(e.min_age) + '" placeholder="e.g. 12"></div>' +
         '<div class="field full"><div class="label">Not allowed <span class="label-hint">— one per line</span></div>' +
@@ -408,8 +406,11 @@
 
     // GYG-parity detail fields (injected "Good to know" section)
     var arrFrom = function (key) { var v = get(key); return v ? v.split('\n').map(function (x) { return x.trim(); }).filter(function (x) { return x.length; }) : []; };
-    var mLat = null, mLng = null, llRaw = get('latlng');
-    if (llRaw) { var pp = llRaw.split(','); if (pp.length >= 2) { var a = parseFloat(pp[0]), b = parseFloat(pp[1]); if (!isNaN(a)) mLat = a; if (!isNaN(b)) mLng = b; } }
+    var mLat = null, mLng = null;
+    var latEl = document.getElementById('em-lat'), lngEl = document.getElementById('em-lng');
+    var latV = latEl ? (latEl.value || '').trim() : '', lngV = lngEl ? (lngEl.value || '').trim() : '';
+    if (latV && lngV) { var a = parseFloat(latV), b = parseFloat(lngV); if (!isNaN(a)) mLat = a; if (!isNaN(b)) mLng = b; }
+    else { var llRaw = get('latlng'); if (llRaw) { var pp = llRaw.split(','); if (pp.length >= 2) { var a1 = parseFloat(pp[0]), b1 = parseFloat(pp[1]); if (!isNaN(a1)) mLat = a1; if (!isNaN(b1)) mLng = b1; } } }
     var wheel = get('wheelchair'), minAgeRaw = get('min-age'), cancelHrsRaw = get('cancel-hours');
 
     var payload = {
