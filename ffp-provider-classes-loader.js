@@ -42,13 +42,13 @@
   var FITNESS_LEVELS = ['All Levels', 'Not Tried', 'Social', 'Competitive', 'Representative', 'Professional'];
 
   // Gallery image URLs + the currently-loaded upcoming departures for the open modal.
-  var _cmGallery = [], _cmUpcoming = [];
+  var _cmGallery = [], _cmUpcoming = [], _cmQuestions = [];
 
   // ── data ──
   async function fetchClasses() {
     if (!provId()) return [];
     var res = await sb().from('classes')
-      .select('id, provider_id, title, description, category, activity, venue, city, country, duration_min, capacity, price_aed, hero_image_url, gallery, status, booking_source, highlights, what_included, what_not_included, meeting_point, meeting_lat, meeting_lng, what_to_bring, not_allowed, know_before, languages, min_age, difficulty, fitness_level, wheelchair_accessible, accessibility_notes, free_cancellation_hours, cancellation_policy, distance_km, featured, created_at')
+      .select('id, provider_id, title, description, category, activity, venue, city, country, duration_min, capacity, price_aed, hero_image_url, gallery, schedule_rule, booking_questions, status, booking_source, highlights, what_included, what_not_included, meeting_point, meeting_lat, meeting_lng, what_to_bring, not_allowed, know_before, languages, min_age, difficulty, fitness_level, wheelchair_accessible, accessibility_notes, free_cancellation_hours, cancellation_policy, distance_km, featured, created_at')
       .eq('provider_id', provId())
       .order('created_at', { ascending: false });
     if (res.error) { console.error('[FFP Classes] fetch', res.error); toast('Could not load experiences', 'error'); return []; }
@@ -127,7 +127,7 @@
     if (countries.length && countries.indexOf(selCountry) === -1) selCountry = countries[0];
 
     var body =
-      '<div id="cl-stepbar" style="font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-purple,#8b5cf6);margin:0 0 12px;">Step 1 of 2 · Experience details</div>' +
+      '<div id="cl-stepbar" style="font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-purple,#8b5cf6);margin:0 0 12px;">Step 1 of 3 · Details</div>' +
       '<div id="cl-step1">' +
       '<div class="form-section"><div class="form-section-title">Cover photo</div>' +
         '<div id="listing-photo-slot" data-url="' + esc(e.hero_image_url || '') + '"></div></div>' +
@@ -163,24 +163,6 @@
           '<input type="hidden" id="cm-lng" value="' + esc(e.meeting_lng != null ? e.meeting_lng : '') + '">' +
         '</div>' +
       '</div></div>' +
-      '<div class="form-section"><div class="form-section-title">Schedule</div>' +
-        '<div class="psub" style="margin:-4px 0 12px;">Set the days and departure times this runs — we create all the bookable slots through your end date (members can book up to a year ahead). ' + (window.FFPTime ? 'Times in ' + esc(window.FFPTime.tz().replace(/_/g, " ")) + '.' : '') + '</div>' +
-        '<div class="form-grid">' +
-          '<div class="field full"><div class="label">Days of the week</div>' +
-            '<div id="cm-sched-days" style="display:flex;gap:6px;flex-wrap:wrap;">' +
-              ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(function (dn, ix) { return '<button type="button" class="cm-day" data-dow="' + ix + '" data-on="0" onclick="cmToggleDay(this)" style="padding:8px 13px;border-radius:999px;border:1px solid var(--ffp-border-mid);background:transparent;color:var(--ffp-text-muted);font-size:13px;font-weight:700;cursor:pointer;">' + dn + '</button>'; }).join('') +
-            '</div>' +
-          '</div>' +
-          '<div class="field full"><div class="label">Departure times</div>' +
-            '<div id="cm-sched-times" style="display:flex;flex-wrap:wrap;gap:8px;"></div>' +
-            '<button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="cmAddTime()"><span class="ms">add</span> Add a time</button>' +
-          '</div>' +
-          '<div class="field"><div class="label">Capacity per departure</div><input class="input" type="number" id="cm-capacity" value="' + esc(e.capacity || '') + '" placeholder="e.g. 8"></div>' +
-          '<div class="field"><div class="label">Start date</div><input class="input" type="date" id="cm-sched-start" style="color-scheme:dark;"></div>' +
-          '<div class="field"><div class="label">End date <span class="label-hint">— up to 1 year ahead</span></div><input class="input" type="date" id="cm-sched-end" style="color-scheme:dark;"></div>' +
-        '</div>' +
-        '<div id="cm-upcoming" style="margin-top:16px;"></div>' +
-      '</div>' +
       '</div>' /* /cl-step1 */ +
       '<div id="cl-step2" style="display:none;">' +
       '<div class="form-section"><div class="form-section-title">Details</div><div class="form-grid">' +
@@ -201,14 +183,42 @@
         '<div class="field full"><div class="label">Accessibility notes</div><input class="input" id="cm-accessibility" value="' + esc(e.accessibility_notes || '') + '" placeholder="e.g. Step-free boarding; accessible WC"></div>' +
         '<div class="field full"><div class="label">Cancellation policy</div><input class="input" id="cm-cancel-policy" value="' + esc(e.cancellation_policy || '') + '" placeholder="e.g. Free cancellation up to 24h before"></div>' +
       '</div></div>' +
-      '</div>' /* /cl-step2 */;
+      '<div class="form-section"><div class="form-section-title">Booking questions <span class="label-hint" style="text-transform:none;letter-spacing:0;font-weight:600;">— extra info collected when members book (e.g. helmet size). Leave empty for none.</span></div>' +
+        '<div id="cm-questions"></div>' +
+        '<button type="button" class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="cmAddQuestion()"><span class="ms">add</span> Add a question</button>' +
+      '</div>' +
+      '</div>' /* /cl-step2 */ +
+      '<div id="cl-step3" style="display:none;">' +
+      '<div class="form-section"><div class="form-section-title">Availability pattern</div>' +
+        '<div class="psub" style="margin:-4px 0 12px;">Pick the days and departure times this runs — we create the bookable slots automatically. ' + (window.FFPTime ? 'Times in ' + esc(window.FFPTime.tz().replace(/_/g, " ")) + '.' : '') + '</div>' +
+        '<div class="form-grid">' +
+          '<div class="field full"><div class="label">Days of the week</div>' +
+            '<div id="cm-sched-days" style="display:flex;gap:6px;flex-wrap:wrap;">' +
+              ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(function (dn, ix) { return '<button type="button" class="cm-day" data-dow="' + ix + '" data-on="0" onclick="cmToggleDay(this)" style="padding:8px 13px;border-radius:999px;border:1px solid var(--ffp-border-mid);background:transparent;color:var(--ffp-text-muted);font-size:13px;font-weight:700;cursor:pointer;">' + dn + '</button>'; }).join('') +
+            '</div>' +
+          '</div>' +
+          '<div class="field full"><div class="label">Departure times</div>' +
+            '<div id="cm-sched-times" style="display:flex;flex-wrap:wrap;gap:8px;"></div>' +
+            '<button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="cmAddTime()"><span class="ms">add</span> Add a time</button>' +
+          '</div>' +
+          '<div class="field"><div class="label">Capacity per departure</div><input class="input" type="number" id="cm-capacity" value="' + esc(e.capacity || '') + '" placeholder="e.g. 8"></div>' +
+          '<div class="field"><div class="label">Start date</div><input class="input" type="date" id="cm-sched-start" style="color-scheme:dark;"></div>' +
+          '<div class="field"><div class="label">End date <span class="label-hint">— optional</span></div><input class="input" type="date" id="cm-sched-end" style="color-scheme:dark;" disabled></div>' +
+          '<div class="field full"><label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;font-size:13px;color:var(--ffp-text);"><input type="checkbox" id="cm-sched-ongoing" checked onchange="cmToggleOngoing()" style="margin-top:2px;flex:0 0 auto;"><span>Keep this running — automatically stays bookable a year ahead (recommended). Untick to set a fixed end date.</span></label></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="form-section"><div class="form-section-title">Scheduled departures</div>' +
+        '<div class="psub" style="margin:-4px 0 10px;">Manage individual departures — cancel a trip, close a whole day, or see who\'s booked.</div>' +
+        '<div id="cm-upcoming"></div>' +
+      '</div>' +
+      '</div>' /* /cl-step3 */;
 
     var foot =
-      (c ? '<button class="btn btn-ghost left cl-s2" style="display:none;" onclick="confirmDeleteClass(\'' + c.id + '\')"><span class="ms">delete</span> Delete</button>' : '') +
-      '<button class="btn btn-ghost cl-s1" onclick="closeModal()">Cancel</button>' +
-      '<button class="btn btn-ghost cl-s2" style="display:none;" onclick="clStep(1)"><span class="ms">chevron_left</span> Back</button>' +
-      '<button class="btn btn-pri cl-s1" onclick="clStep(2)">Next: Details &amp; good to know <span class="ms" style="font-size:16px;vertical-align:-3px;">chevron_right</span></button>' +
-      '<button class="btn btn-pri cl-s2" style="display:none;" onclick="saveClass(\'' + (c ? c.id : '') + '\')">' + (c ? 'Save changes' : 'Submit for review') + '</button>';
+      (c ? '<button class="btn btn-ghost left" id="cl-del" style="display:none;" onclick="confirmDeleteClass(\'' + c.id + '\')"><span class="ms">delete</span> Delete</button>' : '') +
+      '<button class="btn btn-ghost" id="cl-cancel" onclick="closeModal()">Cancel</button>' +
+      '<button class="btn btn-ghost" id="cl-back" style="display:none;" onclick="clBack()"><span class="ms">chevron_left</span> Back</button>' +
+      '<button class="btn btn-pri" id="cl-next" onclick="clNext()">Next <span class="ms" style="font-size:16px;vertical-align:-3px;">chevron_right</span></button>' +
+      '<button class="btn btn-pri" id="cl-save" style="display:none;" onclick="saveClass(\'' + (c ? c.id : '') + '\')">' + (c ? 'Save changes' : 'Submit for review') + '</button>';
 
     if (typeof window.openModalShell === 'function') window.openModalShell('full', (c ? 'Edit experience' : 'New experience'), body, foot);
     setTimeout(function () { if (window.FFPSelect) { var m = document.getElementById('modal'); if (m) window.FFPSelect.enhance(m); } }, 40);
@@ -259,23 +269,43 @@
       _cmGallery = Array.isArray(e.gallery) ? e.gallery.slice() : [];
       window.cmRenderGallery();
 
-      // ── Schedule defaults ──
+      // ── Booking questions (Step 2) ──
+      _cmQuestions = Array.isArray(e.booking_questions) ? e.booking_questions.slice() : [];
+      window.cmRenderQuestions();
+
+      // ── Schedule (Step 3) ──
       var todayStr = new Date().toISOString().slice(0, 10);
       var maxD = new Date(); maxD.setFullYear(maxD.getFullYear() + 1);
       var maxStr = maxD.toISOString().slice(0, 10);
-      var startEl = document.getElementById('cm-sched-start'); if (startEl) { startEl.value = todayStr; startEl.min = todayStr; startEl.max = maxStr; }
-      var endEl = document.getElementById('cm-sched-end'); if (endEl) { endEl.min = todayStr; endEl.max = maxStr; }
-      var tWrap = document.getElementById('cm-sched-times'); if (tWrap && !tWrap.children.length) window.cmAddTime();
+      var rule = (e.schedule_rule && typeof e.schedule_rule === 'object') ? e.schedule_rule : null;
+      var startEl = document.getElementById('cm-sched-start');
+      var endEl = document.getElementById('cm-sched-end');
+      if (startEl) { startEl.min = todayStr; startEl.max = maxStr; startEl.value = (rule && rule.start_date) ? rule.start_date : todayStr; }
+      if (endEl)   { endEl.min = todayStr; endEl.max = maxStr; if (rule && rule.end_date) endEl.value = rule.end_date; }
+      var ongEl = document.getElementById('cm-sched-ongoing'); if (ongEl) ongEl.checked = !(rule && rule.end_date);
+      window.cmToggleOngoing();
+      if (rule && Array.isArray(rule.weekdays)) {
+        rule.weekdays.forEach(function (d) { var b = document.querySelector('#cm-sched-days .cm-day[data-dow="' + d + '"]'); if (b) { b.dataset.on = '1'; b.style.background = 'var(--ffp-purple,#8b5cf6)'; b.style.color = '#fff'; b.style.borderColor = 'var(--ffp-purple,#8b5cf6)'; } });
+      }
+      var tWrap = document.getElementById('cm-sched-times');
+      if (tWrap) {
+        if (rule && Array.isArray(rule.times) && rule.times.length) rule.times.forEach(function (t) { window.cmAddTime(t); });
+        else if (!tWrap.children.length) window.cmAddTime();
+      }
+      if (rule && rule.capacity != null) { var capEl = document.getElementById('cm-capacity'); if (capEl && !capEl.value) capEl.value = rule.capacity; }
 
       // ── Existing departures (edit only) — cancel / reopen / delete / close-day ──
       window._cmEditId = (c && c.id) ? c.id : null;
       if (window._cmEditId) window.cmLoadUpcoming(window._cmEditId);
+
+      window.clStep(1);
     }, 50);
   }
 
   // ── save / status / delete ──
   async function saveClass(id) {
     if (!provId()) { toast('Provider not loaded', 'error'); return; }
+    if (window.cmSyncQuestions) { try { window.cmSyncQuestions(); } catch (e) {} }
     var g = function (k) { var el = document.getElementById('cm-' + k); return el ? (el.value || '').trim() : ''; };
     var title = g('title');
     var aBtn = document.getElementById('cm-activity-btn');
@@ -287,12 +317,13 @@
     var coBtn = document.getElementById('cm-country-btn'), ciBtn = document.getElementById('cm-city-btn');
     var country = coBtn ? (coBtn.dataset.value || '') : '', city = ciBtn ? (ciBtn.dataset.value || '') : '';
     if (!country) { toast('Country is required', 'error'); return; }
-    // Schedule config (recurring weekly → generated bookable slots)
+    // Schedule (Step 3): recurring weekly rule. End date optional — ongoing = rolling 1yr (auto-extends daily).
     var schedDays = Array.prototype.slice.call(document.querySelectorAll('#cm-sched-days .cm-day')).filter(function (b) { return b.dataset.on === '1'; }).map(function (b) { return parseInt(b.dataset.dow, 10); });
     var schedTimes = Array.prototype.slice.call(document.querySelectorAll('#cm-sched-times .cm-time')).map(function (i) { return (i.value || '').trim(); }).filter(Boolean);
-    var schedStart = g('sched-start'), schedEnd = g('sched-end');
+    var ongEl = document.getElementById('cm-sched-ongoing'); var schedOngoing = ongEl ? ongEl.checked : true;
+    var schedStart = g('sched-start') || null; var schedEnd = schedOngoing ? null : (g('sched-end') || null);
     var hasSched = schedDays.length && schedTimes.length;
-    if (hasSched && !schedEnd) { toast('Add a schedule end date (up to a year ahead)', 'error'); return; }
+    if (hasSched && !schedOngoing && !schedEnd) { toast('Add an end date, or tick “Keep this running”', 'error'); return; }
     var photoSlot = document.getElementById('listing-photo-slot');
     var heroUrl = (photoSlot && photoSlot.dataset.url) ? photoSlot.dataset.url : null; if (heroUrl === '') heroUrl = null;
     var mLat = null, mLng = null;
@@ -318,15 +349,16 @@
       if (res.error) throw res.error;
       if (!res.data) throw new Error('Save failed — not found or not permitted');
       var _cid = res.data;
-      // Generate the recurring bookable slots (class_sessions) from the schedule — capped at +1yr, idempotent.
+      // Save booking questions (Step 2).
+      try { await sb().rpc('provider_set_booking_questions', { p_provider: provId(), p_kind: 'class', p_id: _cid, p: (_cmQuestions || []) }); } catch (eq) { console.warn('[FFP Tours] questions', eq); }
+      // Save the recurring schedule rule + generate slots (ongoing rule self-extends daily via cron).
       if (hasSched) {
         try {
-          var _tz = (window.FFPTime && window.FFPTime.tz) ? window.FFPTime.tz() : 'Asia/Dubai';
-          await sb().rpc('provider_generate_class_sessions', {
-            p_provider: provId(), p_class: _cid, p_weekdays: schedDays, p_times: schedTimes,
-            p_capacity: intn(g('capacity')), p_start: schedStart || null, p_end: schedEnd, p_tz: _tz
-          });
-        } catch (e3) { console.warn('[FFP Tours] generate schedule', e3); }
+          await sb().rpc('provider_set_class_schedule', { p_provider: provId(), p_class: _cid, p_rule: {
+            weekdays: schedDays, times: schedTimes, capacity: intn(g('capacity')),
+            start_date: schedStart, end_date: schedEnd
+          } });
+        } catch (e3) { console.warn('[FFP Tours] schedule', e3); }
       }
       // Tours require admin approval — a NEW tour is submitted for review (status 'pending').
       if (!id) { try { await sb().rpc('provider_set_listing_status', { p_kind: 'class', p_provider: provId(), p_id: res.data, p_status: 'pending' }); } catch (e5) { console.warn('[FFP Tours] submit', e5); } }
@@ -444,52 +476,11 @@
     Promise.all(ids.map(function (idv) { return sb().rpc('provider_set_class_session_status', { p_provider: provId(), p_id: idv, p_status: 'cancelled' }); })).then(_cmReload);
   };
 
+  var _clTitles = ['Step 1 of 3 · Details', 'Step 2 of 3 · Good to know', 'Step 3 of 3 · Schedule'];
+  function _clShow(id, on) { var x = document.getElementById(id); if (x) x.style.display = on ? '' : 'none'; }
   window.clStep = function (n) {
-    var g = function (i) { var el = document.getElementById('cm-' + i); return el ? (el.value || '').trim() : ''; };
-    if (n === 2) {
-      var ab = document.getElementById('cm-activity-btn'); var activity = ab ? (ab.dataset.value || '') : '';
-      var cob = document.getElementById('cm-country-btn'); var country = cob ? (cob.dataset.value || '') : '';
-      if (!g('title'))   { toast('Title is required', 'error'); return; }
-      if (!activity)     { toast('Activity is required', 'error'); return; }
-      if (!country)      { toast('Country is required', 'error'); return; }
-      if (!g('price'))   { toast('Price is required', 'error'); return; }
-    }
-    var s1 = document.getElementById('cl-step1'), s2 = document.getElementById('cl-step2');
-    if (s1) s1.style.display = n === 1 ? '' : 'none';
-    if (s2) s2.style.display = n === 2 ? '' : 'none';
-    Array.prototype.forEach.call(document.querySelectorAll('.cl-s1'), function (x) { x.style.display = n === 1 ? '' : 'none'; });
-    Array.prototype.forEach.call(document.querySelectorAll('.cl-s2'), function (x) { x.style.display = n === 2 ? '' : 'none'; });
-    var bar = document.getElementById('cl-stepbar'); if (bar) bar.textContent = n === 1 ? 'Step 1 of 2 · Experience details' : 'Step 2 of 2 · Details & good to know';
-    var mb = document.querySelector('.modal-body'); if (mb) mb.scrollTop = 0;
-  };
-  window.resolveClassMapsLink = async function () {
-    var inp = document.getElementById('cm-maps-url'), st = document.getElementById('cm-loc-status');
-    var url = inp ? (inp.value || '').trim() : '';
-    if (!url) { if (st) st.textContent = 'Paste your Google Maps link first'; return; }
-    if (st) st.textContent = 'Finding your pin…';
-    try {
-      var res = await fetch('https://ffp-passport-backend.vercel.app/api/geo/resolve?url=' + encodeURIComponent(url));
-      var j = await res.json();
-      if (!res.ok || j.lat == null) { if (st) st.textContent = (j && j.error) ? j.error : 'Could not read a pin from that link'; return; }
-      var la = document.getElementById('cm-lat'), ln = document.getElementById('cm-lng');
-      if (la) la.value = j.lat; if (ln) ln.value = j.lng;
-      if (st) st.textContent = 'Pin set (' + Number(j.lat).toFixed(5) + ', ' + Number(j.lng).toFixed(5) + ')';
-    } catch (e) { console.error('[Tour] resolve maps link:', e); if (st) st.textContent = 'Could not reach the resolver'; }
-  };
-
-  window.renderClasses = renderClasses;
-  window.openClassModal = openClassModal;
-  window.saveClass = saveClass;
-  window.setClassStatus = setClassStatus;
-  window.confirmDeleteClass = confirmDeleteClass;
-  window.FFPReload = window.FFPReload || {};
-  window.FFPReload['class'] = refresh;
-
-  function waitFor(cond, ms) { return new Promise(function (resolve) { var t0 = Date.now(); (function poll() { if (cond()) return resolve(true); if (Date.now() - t0 > ms) return resolve(false); setTimeout(poll, 200); })(); }); }
-  (async function init() {
-    var ok = await waitFor(function () { return window.supabase && window.FFP_PROVIDER && window.FFP_PROVIDER.id; }, 30000);
-    if (!ok) { console.warn('[FFP Classes] deps not ready'); return; }
-    await refresh();
-    console.log('[FFP Provider Classes] loaded v11 — full-screen editor + schedule + gallery + icon actions');
-  })();
-})();
+    n = Math.min(3, Math.max(1, n || 1));
+    window._clStep = n;
+    _clShow('cl-step1', n === 1); _clShow('cl-step2', n === 2); _clShow('cl-step3', n === 3);
+    _clShow('cl-cancel', n === 1);
+    _clShow('
