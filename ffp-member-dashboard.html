@@ -12274,13 +12274,16 @@ else init();
 </script>
 <style id="ffp-pc-styles">
 .ffp-pc{ position:relative; width:100%; aspect-ratio:540/340; perspective:1400px; }
-.ffp-pc-flip{ position:absolute; inset:0; transform-style:preserve-3d; transition:transform .55s cubic-bezier(.2,.7,.2,1); }
+.ffp-pc-flip{ position:absolute; inset:0; transform-style:preserve-3d; transition:transform .55s cubic-bezier(.2,.7,.2,1); will-change:transform; }
 .ffp-pc.flipped .ffp-pc-flip{ transform:rotateY(180deg); }
 .ffp-pc-face{ position:absolute; inset:0; -webkit-backface-visibility:hidden; backface-visibility:hidden; border-radius:14px; overflow:hidden; }
 .ffp-pc-back{ transform:rotateY(180deg); }
 /* The scaled .pass-shell (its own transform) must also hide its backface, or the FRONT face bleeds
    through the BACK on flip (Chrome bug: a transformed child inside a backface-hidden face). */
 .ffp-pc-face .pass-shell{ position:absolute; top:0; left:0; box-shadow:none; -webkit-backface-visibility:hidden; backface-visibility:hidden; }
+/* Any transformed descendant (badges, scaled inners, avatars) inside a face can still bleed the
+   FRONT through the BACK mid-flip — hide every descendant's backface to kill the "mirror flash". */
+.ffp-pc-face *{ -webkit-backface-visibility:hidden; backface-visibility:hidden; }
 .ffp-pc-front{ background:#0a1825; }
 .ffp-pc-back{ background:#0a1825; }
 .ffp-pc-badge{ font-size:12px; font-weight:900; letter-spacing:1px; color:var(--pass-blue); border:2px solid var(--pass-blue); border-radius:8px; padding:6px 10px; }
