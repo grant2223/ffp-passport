@@ -129,9 +129,7 @@
     var body =
       '<div id="cl-stepbar" style="font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-purple,#8b5cf6);margin:0 0 12px;">Step 1 of 3 · Details</div>' +
       '<div id="cl-step1">' +
-      '<div class="form-section"><div class="form-section-title">Cover photo</div>' +
-        '<div id="listing-photo-slot" data-url="' + esc(e.hero_image_url || '') + '"></div></div>' +
-      '<div class="form-section"><div class="form-section-title">Gallery <span class="label-hint" style="text-transform:none;letter-spacing:0;font-weight:600;">— extra photos shown on the listing; use the arrows to reorder</span></div>' +
+      '<div class="form-section"><div class="form-section-title">Photos <span class="label-hint" style="text-transform:none;letter-spacing:0;font-weight:600;">— drag to reorder; the first photo is the cover shown on the card</span></div>' +
         '<div id="cm-gallery" style="display:flex;flex-wrap:wrap;gap:10px;"></div>' +
         '<button type="button" class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="cmAddGalleryImage()"><span class="ms">add_photo_alternate</span> Add photo</button>' +
       '</div>' +
@@ -266,7 +264,7 @@
       });
 
       // ── Gallery ──
-      _cmGallery = Array.isArray(e.gallery) ? e.gallery.slice() : [];
+      _cmGallery = (Array.isArray(e.gallery) && e.gallery.length) ? e.gallery.slice() : (e.hero_image_url ? [e.hero_image_url] : []);
       window.cmRenderGallery();
 
       // ── Booking questions (Step 2) ──
@@ -324,8 +322,7 @@
     var schedStart = g('sched-start') || null; var schedEnd = schedOngoing ? null : (g('sched-end') || null);
     var hasSched = schedDays.length && schedTimes.length;
     if (hasSched && !schedOngoing && !schedEnd) { toast('Add an end date, or tick “Keep this running”', 'error'); return; }
-    var photoSlot = document.getElementById('listing-photo-slot');
-    var heroUrl = (photoSlot && photoSlot.dataset.url) ? photoSlot.dataset.url : null; if (heroUrl === '') heroUrl = null;
+    var heroUrl = (_cmGallery && _cmGallery.length) ? _cmGallery[0] : null;
     var mLat = null, mLng = null;
     var latEl = document.getElementById('cm-lat'), lngEl = document.getElementById('cm-lng');
     var latV = latEl ? (latEl.value || '').trim() : '', lngV = lngEl ? (lngEl.value || '').trim() : '';
