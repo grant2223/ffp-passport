@@ -4253,7 +4253,14 @@ function openEventModal(id) {
           <input class="input" id="em-venue" value="${escHtml(e.venue)}" placeholder="e.g. Kite Beach courts (optional)">
         </div>
         <div class="field full">
-          <a class="label-hint" style="cursor:pointer;color:#2ba8e0;display:inline-flex;align-items:center;gap:4px;" onclick="ffpOpenMap('em-venue')"><span class="ms" style="font-size:14px;">place</span> Location pin — view on Google Maps</a>
+          <div class="label">Location pin <span class="label-hint">— paste a Google Maps link; we'll set the map pin so members get directions</span></div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input class="input" id="em-maps-url" value="" placeholder="Paste your Google Maps link (any format)" style="flex:1;min-width:0;">
+            <button type="button" class="btn btn-ghost" style="flex:0 0 auto;" onclick="resolveEventMapsLink()"><span class="ms" style="font-size:16px;vertical-align:-3px;">place</span> Find pin</button>
+          </div>
+          <span id="em-loc-status" class="psub" style="display:block;margin-top:6px;">${(e.meeting_lat!=null && e.meeting_lng!=null && e.meeting_lat!=='' && e.meeting_lng!=='') ? ('✓ Pin set ('+Number(e.meeting_lat).toFixed(5)+', '+Number(e.meeting_lng).toFixed(5)+')') : 'No pin set'}</span>
+          <input type="hidden" id="em-lat" value="${e.meeting_lat!=null ? escHtml(e.meeting_lat) : ''}">
+          <input type="hidden" id="em-lng" value="${e.meeting_lng!=null ? escHtml(e.meeting_lng) : ''}">
         </div>
       </div>
     </div>
@@ -4320,6 +4327,21 @@ function evStep(n) {
   const bar = document.getElementById('ev-stepbar');
   if (bar) bar.textContent = n === 1 ? 'Step 1 of 2 · Details' : 'Step 2 of 2 · Good to know';
   const mb = document.querySelector('.modal-body'); if (mb) mb.scrollTop = 0;
+}
+
+async function resolveEventMapsLink() {
+  const inp = document.getElementById('em-maps-url'), st = document.getElementById('em-loc-status');
+  const url = inp ? (inp.value || '').trim() : '';
+  if (!url) { if (st) st.textContent = 'Paste your Google Maps link first'; return; }
+  if (st) st.textContent = 'Finding your pin…';
+  try {
+    const res = await fetch('https://ffp-passport-backend.vercel.app/api/geo/resolve?url=' + encodeURIComponent(url));
+    const j = await res.json();
+    if (!res.ok || j.lat == null) { if (st) st.textContent = (j && j.error) ? j.error : 'Couldn’t read a pin from that link'; return; }
+    const la = document.getElementById('em-lat'), ln = document.getElementById('em-lng');
+    if (la) la.value = j.lat; if (ln) ln.value = j.lng;
+    if (st) st.textContent = '✓ Pin set (' + Number(j.lat).toFixed(5) + ', ' + Number(j.lng).toFixed(5) + ')';
+  } catch (e) { console.error('[Event] resolve maps link:', e); if (st) st.textContent = 'Couldn’t reach the resolver — try again'; }
 }
 
 function saveEvent(id) {
