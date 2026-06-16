@@ -142,7 +142,7 @@
           '<input class="input" id="cm-description" value="' + esc(e.description || '') + '" placeholder="One-sentence summary members see on the card"></div>' +
         '<div class="field"><div class="label">Activity <span class="req">*</span></div>' +
           '<button type="button" class="ffp-picker-btn placeholder" id="cm-activity-btn" data-value="" data-category=""><span>Choose activity…</span><span class="ms caret">expand_more</span></button></div>' +
-        '<div class="field"><div class="label">Fitness level required</div>' +
+        '<div class="field"><div class="label">Fitness level <span class="label-hint">— optional</span></div>' +
           '<select class="select" id="cm-fitness-level">' + ((window.FFP_TAX && window.FFP_TAX.attendeeLevels && window.FFP_TAX.attendeeLevels.length) ? window.FFP_TAX.attendeeLevels : FITNESS_LEVELS).map(function (d) { return '<option' + (((e.fitness_level || 'All Levels') === d) ? ' selected' : '') + '>' + d + '</option>'; }).join('') + '</select></div>' +
       '</div></div>' +
       '<div class="form-section"><div class="form-section-title">When &amp; where</div><div class="form-grid">' +
