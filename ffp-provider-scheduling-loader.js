@@ -1,5 +1,10 @@
 // ════════════════════════════════════════════════════════════════════════
-// FFP Partner Portal — SESSIONS module (was "Scheduling") — v11 (2026-06-13)
+// FFP Partner Portal — SESSIONS module (was "Scheduling") — v12 (2026-06-16)
+// v12: TIMETABLE tap → roster. openOccurrence now shows who's booked into that date with
+//      payment (Credit/Paid/Comp/Unpaid) + membership (active/expired/none) chips, an "Add member"
+//      picker (provider_searchable_members → provider_session_add_member: credit/cash/comp), and
+//      remove (provider_session_remove_member, refunds a credit if it was credit-paid). Coach/capacity/
+//      cancel kept as "Session settings". RPCs: provider_session_roster + add/remove/searchable.
 // v11: POLISH — all Sessions dropdowns (level/day/coach/add-session) now use the shared dark picker
 //      (assets/ffp-select.js) to match Profile; timetable shows the facility timezone + flags one-off sessions.
 // v10: TIMETABLE gains "Add session" (openAddSession) — pick a class + weekly-recurring (provider_add_template_slot)
@@ -370,25 +375,157 @@ async function doDeleteTemplate(id) {
   renderScheduling();
 }
 
-// ── Manage a SINGLE occurrence (one date): substitute coach, change capacity, or cancel ──
+// ── Manage a SINGLE occurrence (one date): who's booked + pay/membership status, add a member,
+//    plus substitute coach / change capacity / cancel ──
+var _occCur = null;       // current occurrence id (for the open modal)
+var _occRoster = [];      // current roster rows
+var _occAddList = [];     // searchable members for the add picker
+
 async function openOccurrence(id) {
   var pid = _schedProvId();
   if (!_schedStaff.length) await _loadSchedStaff();
   var s = (_schedSessions || []).find(function (x) { return x.id === id; }) || {};
+  _occCur = id;
   var d = new Date(s.start_at);
   var when = d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   var body =
-    '<div class="psub" style="margin:0 0 12px;"><b style="color:var(--ffp-text,#eaf2f8);">' + escHtml(s.title || 'Session') + '</b> — ' + when + '. Changes here apply to <b>this date only</b>.</div>' +
-    '<div class="form-section"><div class="form-grid">' +
-      '<div class="field"><div class="label">Coach <span class="label-hint">— substitute / cover</span></div><select class="select" id="occ-coach">' + _coachOpts(s.coach || '') + '</select></div>' +
-      '<div class="field"><div class="label">Capacity</div><input class="input" type="number" min="1" id="occ-capacity" value="' + escHtml(String(s.capacity || '')) + '"></div>' +
-    '</div></div>';
+    '<div class="psub" style="margin:0 0 12px;"><b style="color:var(--ffp-text,#eaf2f8);">' + escHtml(s.title || 'Session') + '</b> — ' + when + '.</div>' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 6px;">' +
+      '<div style="font-weight:800;color:var(--ffp-text,#eaf2f8);">Booked in <span id="occ-count" class="psub" style="font-weight:600;"></span></div>' +
+      '<button class="btn btn-pri btn-sm" onclick="occAddOpen()"><span class="ms">person_add</span> Add member</button>' +
+    '</div>' +
+    '<div id="occ-roster"><div class="psub" style="margin:10px 0;">Loading…</div></div>' +
+    '<div class="form-section" style="margin-top:14px;border-top:1px solid var(--ffp-border,#1d3346);padding-top:14px;">' +
+      '<div class="form-section-title">Session settings <span class="label-hint" style="text-transform:none;letter-spacing:0;font-weight:600;">— this date only</span></div>' +
+      '<div class="form-grid">' +
+        '<div class="field"><div class="label">Coach <span class="label-hint">— substitute / cover</span></div><select class="select" id="occ-coach">' + _coachOpts(s.coach || '') + '</select></div>' +
+        '<div class="field"><div class="label">Capacity</div><input class="input" type="number" min="1" id="occ-capacity" value="' + escHtml(String(s.capacity || '')) + '"></div>' +
+      '</div></div>';
   var foot =
     '<button class="btn btn-ghost left" style="color:#ff6b6b;" onclick="cancelOccurrence(\'' + id + '\')"><span class="ms">event_busy</span> Cancel this session</button>' +
     '<button class="btn btn-ghost" onclick="closeModal()">Close</button>' +
-    '<button class="btn btn-pri" onclick="saveOccurrence(\'' + id + '\')">Save changes</button>';
-  openModalShell('', 'Manage session', body, foot);
+    '<button class="btn btn-pri" onclick="saveOccurrence(\'' + id + '\')">Save settings</button>';
+  openModalShell('lg', 'Manage session', body, foot);
   if (window.FFPSelect) setTimeout(function () { var el = document.getElementById('occ-coach'); if (el) { try { window.FFPSelect.enhance(el); } catch (e) {} } }, 30);
+  occLoadRoster();
+}
+
+async function occLoadRoster() {
+  var pid = _schedProvId();
+  var host = document.getElementById('occ-roster'); if (!host) return;
+  try {
+    var r = await window.supabase.rpc('provider_session_roster', { p_provider: pid, p_occurrence: _occCur });
+    _occRoster = (r && r.data) ? r.data : [];
+  } catch (e) { _occRoster = []; }
+  var cnt = document.getElementById('occ-count'); if (cnt) cnt.textContent = '· ' + _occRoster.length;
+  if (!_occRoster.length) {
+    host.innerHTML = '<div class="psub" style="margin:4px 0 2px;padding:14px;border:1px dashed var(--ffp-border,#1d3346);border-radius:10px;text-align:center;">No one booked into this date yet. Use <b>Add member</b> to book someone in.</div>';
+    return;
+  }
+  host.innerHTML = _occRoster.map(occRosterRow).join('');
+}
+
+function _occChip(text, color, bg) {
+  return '<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;color:' + color + ';background:' + bg + ';">' + text + '</span>';
+}
+function occPayChip(p) {
+  if (p === 'credit') return _occChip('Credit used', '#6fc6ef', 'rgba(43,168,224,.16)');
+  if (p === 'paid')   return _occChip('Paid', '#7ee0a8', 'rgba(46,204,113,.15)');
+  if (p === 'comp')   return _occChip('Comp', '#cbd6df', 'rgba(255,255,255,.08)');
+  return _occChip('Unpaid', '#ff9b9b', 'rgba(255,107,107,.15)');
+}
+function occMemChip(m, credits) {
+  if (m === 'active')  return _occChip('Membership active' + (credits != null ? ' · ' + credits + ' credits' : ''), '#7ee0a8', 'rgba(46,204,113,.15)');
+  if (m === 'expired') return _occChip('Membership expired', '#ffcf8f', 'rgba(243,156,18,.16)');
+  return _occChip('No membership', '#cbd6df', 'rgba(255,255,255,.08)');
+}
+function _occInitials(name) {
+  return (name || '?').split(/\s+/).map(function (w) { return w[0] || ''; }).join('').slice(0, 2).toUpperCase();
+}
+function occRosterRow(r) {
+  return '<div style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--ffp-border,#1d3346);">' +
+      '<div style="width:34px;height:34px;border-radius:9px;background:rgba(43,168,224,.16);color:#6fc6ef;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0;">' + escHtml(_occInitials(r.full_name)) + '</div>' +
+      '<div style="flex:1;min-width:0;">' +
+        '<div style="font-weight:700;color:var(--ffp-text,#eaf2f8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(r.full_name || r.email || '—') + '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;">' + occPayChip(r.paid_with) + occMemChip(r.membership_status, r.credits_remaining) + '</div>' +
+      '</div>' +
+      '<button class="btn btn-ghost btn-sm" title="Remove from session" onclick="occRemove(\'' + r.booking_id + '\')"><span class="ms">close</span></button>' +
+  '</div>';
+}
+
+// ── Add a member into this occurrence ──
+async function occAddOpen() {
+  var pid = _schedProvId();
+  var body =
+    '<input class="input" id="occ-add-search" placeholder="Search members by name or email…" style="margin-bottom:10px;" oninput="occAddFilter()">' +
+    '<div id="occ-add-rows"><div class="psub" style="margin:10px 0;">Loading…</div></div>';
+  var foot =
+    '<button class="btn btn-ghost left" onclick="occBackToManage()"><span class="ms">arrow_back</span> Back</button>' +
+    '<button class="btn btn-ghost" onclick="closeModal()">Close</button>';
+  openModalShell('lg', 'Add a member', body, foot);
+  try {
+    var r = await window.supabase.rpc('provider_searchable_members', { p_provider: pid, p_q: '' });
+    _occAddList = (r && r.data) ? r.data : [];
+  } catch (e) { _occAddList = []; }
+  occRenderAdd();
+}
+function occRenderAdd() {
+  var host = document.getElementById('occ-add-rows'); if (!host) return;
+  var booked = {}; (_occRoster || []).forEach(function (x) { booked[x.member_id] = 1; });
+  var rows = (_occAddList || []).filter(function (m) { return !booked[m.member_id]; });
+  if (!rows.length) { host.innerHTML = '<div class="psub" style="margin:10px 0;">No members to add. People appear here once they\'ve booked with you or been added to your member list.</div>'; return; }
+  host.innerHTML = rows.map(occAddRow).join('');
+}
+function occAddRow(m) {
+  var hasCredit = (m.credits_remaining != null && Number(m.credits_remaining) > 0);
+  return '<div class="occ-add-row" data-name="' + escHtml(((m.full_name || '') + ' ' + (m.email || '')).toLowerCase()) + '" style="padding:9px 4px;border-bottom:1px solid var(--ffp-border,#1d3346);">' +
+      '<div style="display:flex;align-items:center;gap:10px;">' +
+        '<div style="width:34px;height:34px;border-radius:9px;background:rgba(43,168,224,.16);color:#6fc6ef;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0;">' + escHtml(_occInitials(m.full_name)) + '</div>' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="font-weight:700;color:var(--ffp-text,#eaf2f8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(m.full_name || m.email || '—') + '</div>' +
+          '<div style="margin-top:3px;">' + occMemChip(m.membership_status, m.credits_remaining) + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px;margin-top:8px;justify-content:flex-end;flex-wrap:wrap;">' +
+        (hasCredit ? '<button class="btn btn-sec btn-sm" onclick="occDoAdd(\'' + m.member_id + '\',\'credit\')"><span class="ms">confirmation_number</span> Use credit</button>' : '') +
+        '<button class="btn btn-ghost btn-sm" onclick="occDoAdd(\'' + m.member_id + '\',\'cash\')">Mark paid</button>' +
+        '<button class="btn btn-ghost btn-sm" onclick="occDoAdd(\'' + m.member_id + '\',\'comp\')">Comp</button>' +
+      '</div>' +
+  '</div>';
+}
+function occAddFilter() {
+  var q = ((document.getElementById('occ-add-search') || {}).value || '').trim().toLowerCase();
+  Array.prototype.forEach.call(document.querySelectorAll('#occ-add-rows .occ-add-row'), function (row) {
+    row.style.display = (!q || row.getAttribute('data-name').indexOf(q) !== -1) ? '' : 'none';
+  });
+}
+async function occDoAdd(memberId, payWith) {
+  var pid = _schedProvId();
+  try {
+    var r = await window.supabase.rpc('provider_session_add_member', { p_provider: pid, p_occurrence: _occCur, p_member: memberId, p_pay_with: payWith });
+    if (r && r.error) throw r.error;
+    var res = (r && r.data) ? r.data : null;
+    if (!res || !res.ok) {
+      var msg = (res && res.error === 'sold_out') ? 'This session is full' :
+                (res && res.error === 'already_booked') ? 'Already booked in' :
+                (res && res.error === 'insufficient_credits') ? 'No credits available — use Mark paid or Comp' : 'Could not add member';
+      showToast(msg, 'error'); return;
+    }
+    showToast('Member added', 'success');
+    await occBackToManage();
+  } catch (e) { showToast('Could not add member', 'error'); }
+}
+async function occRemove(bookingId) {
+  var pid = _schedProvId();
+  try {
+    var r = await window.supabase.rpc('provider_session_remove_member', { p_provider: pid, p_booking: bookingId });
+    if (r && r.error) throw r.error;
+    showToast('Removed from session', 'success');
+    occLoadRoster();
+  } catch (e) { showToast('Could not remove', 'error'); }
+}
+async function occBackToManage() {
+  if (_occCur) await openOccurrence(_occCur);
 }
 async function saveOccurrence(id) {
   var pid = _schedProvId();
