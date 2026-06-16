@@ -155,6 +155,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FFP Passport — Partners Portal</title>
+<link rel="icon" href="/assets/icons/ffp-favicon-32.png?v=2" sizes="32x32" type="image/png">
+<link rel="icon" href="/assets/icons/ffp-favicon-16.png?v=2" sizes="16x16" type="image/png">
+<link rel="apple-touch-icon" href="/assets/icons/ffp-apple-touch-180.png">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -3208,7 +3211,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=3', 'scheduling': 'ffp-provider-scheduling-loader.js?v=14', 'members': 'ffp-provider-members-loader.js?v=2', 'billing': 'ffp-provider-billing-loader.js?v=2', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=14' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=3', 'scheduling': 'ffp-provider-scheduling-loader.js?v=14', 'members': 'ffp-provider-members-loader.js?v=2', 'billing': 'ffp-provider-billing-loader.js?v=2', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=15' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
@@ -4166,8 +4169,8 @@ function eventCard(e) {
       '</div>' +
     '</div>' +
     '<div class="lc-actions">' +
-      '<button class="btn btn-sec btn-sm" onclick="openEventModal(\'' + e.id + '\')"><span class="ms">edit</span> Edit</button>' +
-      '<button class="btn btn-blue btn-sm" onclick="viewRsvps(\'' + e.id + '\')"><span class="ms">group</span> RSVPs</button>' +
+      '<button class="btn btn-sec btn-sm" title="Edit" onclick="openEventModal(\'' + e.id + '\')"><span class="ms">edit</span></button>' +
+      '<button class="btn btn-blue btn-sm" title="RSVPs" onclick="viewRsvps(\'' + e.id + '\')"><span class="ms">group</span></button>' +
       (typeof featureBtn === 'function' ? featureBtn('event', e.id, e.featured) : '') +
       '<button class="btn btn-ghost btn-sm" title="Duplicate" onclick="duplicateListing(\'event\',\'' + e.id + '\')"><span class="ms">content_copy</span></button>' +
       '<button class="btn btn-ghost btn-sm" title="Delete" onclick="confirmDeleteEvent(\'' + e.id + '\')"><span class="ms">delete</span></button>' +
@@ -4456,7 +4459,7 @@ function experienceCard(e) {
       '</div>' +
     '</div>' +
     '<div class="lc-actions">' +
-      '<button class="btn btn-sec btn-sm" onclick="openExperienceModal(\'' + e.id + '\')"><span class="ms">edit</span> Edit</button>' +
+      '<button class="btn btn-sec btn-sm" title="Edit" onclick="openExperienceModal(\'' + e.id + '\')"><span class="ms">edit</span></button>' +
       '<button class="btn btn-blue btn-sm" onclick="viewApplications(\'' + e.id + '\')"><span class="ms">mark_email_read</span> Applications</button>' +
       (typeof featureBtn === 'function' ? featureBtn('experience', e.id, e.featured) : '') +
       '<button class="btn btn-ghost btn-sm" title="Duplicate" onclick="duplicateListing(\'experience\',\'' + e.id + '\')"><span class="ms">content_copy</span></button>' +
@@ -4767,7 +4770,7 @@ function challengeCard(c) {
       '</div>' +
     '</div>' +
     '<div class="lc-actions">' +
-      '<button class="btn btn-sec btn-sm" onclick="openChallengeModal(\'' + c.id + '\')"><span class="ms">edit</span> Edit</button>' +
+      '<button class="btn btn-sec btn-sm" title="Edit" onclick="openChallengeModal(\'' + c.id + '\')"><span class="ms">edit</span></button>' +
       '<button class="btn btn-blue btn-sm" onclick="openResultsModal(\'' + c.id + '\')"><span class="ms">upload</span> ' + (c.results_uploaded ? 'Update results' : 'Upload results') + '</button>' +
       '<button class="btn btn-ghost btn-sm" onclick="confirmDeleteChallenge(\'' + c.id + '\')"><span class="ms">delete</span></button>' +
     '</div>' +
@@ -5312,10 +5315,10 @@ async function loadFeatureMap() {
 // Card control: ★Featured (live), Approved·pay to activate, Feature pending, or a "Feature — $99/day" button.
 function featureBtn(kind, id, featured) {
   var st = (window.FFP_FEATURE_MAP || {})[kind + ':' + id];
-  if (featured || st === 'live') return '<span title="Featured on the homepage" style="font-size:11px;color:#FFCC00;align-self:center;font-weight:800;white-space:nowrap;"><span class="ms" style="font-size:15px;vertical-align:-2px;">star</span> Featured</span>';
-  if (st === 'approved') return '<span title="Approved — pay upfront to activate" style="font-size:11px;color:#4ade80;align-self:center;white-space:nowrap;"><span class="ms" style="font-size:14px;vertical-align:-2px;">task_alt</span> Approved · pay to activate</span>';
-  if (st === 'pending') return '<span title="Awaiting admin confirmation" style="font-size:11px;color:#9dbdd0;align-self:center;white-space:nowrap;"><span class="ms" style="font-size:14px;vertical-align:-2px;">hourglass_empty</span> Feature pending</span>';
-  return '<button class="btn btn-ghost btn-sm" title="Feature this on the FFP homepage — $99 USD/day" onclick="applyFeature(\'' + kind + '\',\'' + id + '\')"><span class="ms">star_border</span> Feature — $99/day</button>';
+  if (featured || st === 'live') return '<button class="btn btn-ghost btn-sm" title="Featured on the FFP homepage today" style="color:#FFCC00;"><span class="ms">star</span></button>';
+  if (st === 'approved') return '<button class="btn btn-ghost btn-sm" title="Feature approved — pay upfront to activate" style="color:#4ade80;" onclick="applyFeature(\'' + kind + '\',\'' + id + '\')"><span class="ms">task_alt</span></button>';
+  if (st === 'pending') return '<button class="btn btn-ghost btn-sm" title="Feature request pending admin confirmation" style="color:#9dbdd0;"><span class="ms">hourglass_empty</span></button>';
+  return '<button class="btn btn-ghost btn-sm" title="Feature on the FFP homepage — $99 USD/day" onclick="applyFeature(\'' + kind + '\',\'' + id + '\')"><span class="ms">star_border</span></button>';
 }
 function applyFeature(kind, id) {
   window._feat = { kind: kind, id: id, mode: 'days', days: [] };
