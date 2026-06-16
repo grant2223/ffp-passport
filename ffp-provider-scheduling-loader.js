@@ -249,10 +249,15 @@ function openTemplateModal(id) {
   var levels = (window.FFP_TAX && window.FFP_TAX.attendeeLevels && window.FFP_TAX.attendeeLevels.length) ? window.FFP_TAX.attendeeLevels : ['All Levels', 'Not Tried', 'Social', 'Competitive', 'Representative', 'Professional'];
   var levelOpts = levels.map(function (l) { return '<option' + ((e.fitness_level || 'All Levels') === l ? ' selected' : '') + '>' + escHtml(l) + '</option>'; }).join('');
 
-  openModalShell('lg', (t ? 'Edit session' : 'Create session'), `
+  openModalShell('full', (t ? 'Edit session' : 'Create session'), `
     <div class="form-section">
-      <div class="form-section-title">Photo</div>
+      <div class="form-section-title">Cover photo</div>
       <div id="listing-photo-slot" data-url="${escHtml(e.hero_image_url || '')}"></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Gallery <span class="label-hint" style="text-transform:none;letter-spacing:0;font-weight:600;">— extra photos shown on the listing; use the arrows to reorder</span></div>
+      <div id="sm-gallery"></div>
+      <button type="button" class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="FFPGallery.add('sm-gallery')"><span class="ms">add_photo_alternate</span> Add photo</button>
     </div>
     <div class="form-section">
       <div class="form-section-title">The session</div>
@@ -281,6 +286,7 @@ function openTemplateModal(id) {
 
   setTimeout(function () {
     if (typeof window.renderListingUploader === 'function') { try { window.renderListingUploader(e.hero_image_url || ''); } catch (er) {} }
+    if (window.FFPGallery) { try { window.FFPGallery.init('sm-gallery', e.gallery || []); } catch (er) {} }
     if (window.FFPSelect) { try { window.FFPSelect.enhance(document.getElementById('tpl-level')); } catch (er) {} }
     // Activity picker
     var aBtn = document.getElementById('tpl-activity-btn');
@@ -343,7 +349,8 @@ async function saveTemplate(id) {
   var payload = {
     title: title, activity: activity, description: g('description') || null,
     capacity: (capacity != null ? String(capacity) : ''), price_aed: g('price'), duration_min: g('duration'),
-    hero_image_url: heroUrl, fitness_level: g('level') || null, slots: slots
+    hero_image_url: heroUrl, fitness_level: g('level') || null, slots: slots,
+    gallery: (window.FFPGallery ? window.FFPGallery.get('sm-gallery') : [])
   };
   try {
     var r = await window.supabase.rpc('provider_save_session_template', { p_provider: pid, p_id: id || null, p: payload });
