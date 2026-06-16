@@ -3122,11 +3122,11 @@ const NAV = [
   { id: 'staff',       icon: 'badge',           label: 'Staff',               section: 'business', soon: true },
   { id: 'billing',     icon: 'receipt_long',    label: 'Payments & Invoices', section: 'business', soon: true },
   // ── Engagement (member-facing listings) ──
+  { id: 'classes',     icon: 'tour',            label: 'Experiences', section: 'engagement' },
   { id: 'events',      icon: 'event',           label: 'Events',      section: 'engagement' },
   { id: 'experiences', icon: 'flight',          label: 'Trips',       section: 'engagement' },
-  { id: 'classes',     icon: 'tour',            label: 'Experiences', section: 'engagement' },
   { id: 'challenges',  icon: 'emoji_events',    label: 'Challenges',  section: 'engagement' },
-  { id: 'quests',      icon: 'flag',            label: 'Quests',      section: 'engagement' },
+  { id: 'quests',      icon: 'flag',            label: 'Quests',      section: 'engagement', soon: true, locked: true },
   { id: 'deals',       icon: 'local_offer',     label: 'Deals',       section: 'engagement' },
   // ── Account ──
   { id: 'profile',     icon: 'storefront',      label: 'Profile',     section: 'account' },
@@ -5355,6 +5355,20 @@ async function _featSubmit() {
 function openCreatePicker() {
   openModalShell('sm', 'Create new listing', `
     <div style="display: flex; flex-direction: column; gap: 10px;">
+      <button class="qa" onclick="closeModal(); openCreateClass()">
+        <div class="qa-icon"><span class="ms">tour</span></div>
+        <div class="qa-body">
+          <div class="qa-title">Experience</div>
+          <div class="qa-sub">A one-off or recurring activity — jet ski, rafting, bungy, guided experience. Set its schedule.</div>
+        </div>
+      </button>
+      <button class="qa" onclick="closeModal(); openCreateSession()">
+        <div class="qa-icon"><span class="ms">fitness_center</span></div>
+        <div class="qa-body">
+          <div class="qa-title">Session</div>
+          <div class="qa-sub">A recurring session — yoga, tennis, group class, PT. Set its weekly times in Sessions.</div>
+        </div>
+      </button>
       <button class="qa" onclick="closeModal(); openEventModal()">
         <div class="qa-icon"><span class="ms">event</span></div>
         <div class="qa-body">
@@ -5367,20 +5381,6 @@ function openCreatePicker() {
         <div class="qa-body">
           <div class="qa-title">Trip</div>
           <div class="qa-sub">A multi-day trip, retreat, camp or sport-event trip</div>
-        </div>
-      </button>
-      <button class="qa" onclick="closeModal(); openCreateClass()">
-        <div class="qa-icon"><span class="ms">tour</span></div>
-        <div class="qa-body">
-          <div class="qa-title">Tour</div>
-          <div class="qa-sub">A one-off activity — jet ski hire, bungy jump, canyoning, guided tour</div>
-        </div>
-      </button>
-      <button class="qa" onclick="closeModal(); openCreateSession()">
-        <div class="qa-icon"><span class="ms">fitness_center</span></div>
-        <div class="qa-body">
-          <div class="qa-title">Session</div>
-          <div class="qa-sub">A recurring session — yoga, tennis, group class, PT. Set its weekly times in Sessions.</div>
         </div>
       </button>
       <button class="qa" onclick="closeModal(); openChallengeModal()">
