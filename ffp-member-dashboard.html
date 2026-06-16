@@ -12551,7 +12551,8 @@ else init();
     },
     openDeck: function(){
       this._ensureDeckDom();
-      this.deck=(this.matches||[]).slice();
+      // Only NEW, non-added passports. Once added (request sent) or connected, they leave the deck.
+      this.deck=(this.matches||[]).filter(function(m){ var c=m&&m.connection; return c==null||c==="none"||c==="incoming"; });
       this.deckIndex=0;
       document.getElementById("ffp-deck-overlay").classList.add("open");
       this.renderDeck();
@@ -12604,7 +12605,7 @@ else init();
     _fly: function(card,dir){ if(!card)return; card.style.transition="transform .3s ease, opacity .3s ease"; card.style.transform="translateY(-50%) translateX("+(dir*640)+"px) rotate("+(dir*26)+"deg)"; card.style.opacity="0"; },
     deckGo: function(dir){ var self=this; var n=(this.deck||[]).length; if(!n)return; var c=document.getElementById("ffp-top"); if(c)this._fly(c,dir); this.deckIndex=((((this.deckIndex||0)+dir)%n)+n)%n; setTimeout(function(){ self.renderDeck(); },260); },
     deckFlip: function(){ var pc=document.querySelector("#ffp-top .ffp-pc"); if(pc)pc.classList.toggle("flipped"); },
-    deckShare: function(){ var self=this; var m=(this.deck||[])[this.deckIndex||0]; if(!m)return; if(m.connection==="requested"||m.connection==="connected")return; var p=this.connectViaRpc(m.id); if(p&&p.then){ p.then(function(){ self._updateConnectBtn(); }); } else { self._updateConnectBtn(); } },
+    deckShare: function(){ var self=this; var m=(this.deck||[])[this.deckIndex||0]; if(!m)return; if(m.connection==="requested"||m.connection==="connected")return; var p=this.connectViaRpc(m.id); var drop=function(ok){ if(ok===false){ self._updateConnectBtn(); return; } self.deck=(self.deck||[]).filter(function(x){return x.id!==m.id;}); if(self.deckIndex>=self.deck.length) self.deckIndex=Math.max(0,self.deck.length-1); self.renderDeck(); }; if(p&&p.then){ p.then(drop); } else { drop(true); } },
     _bindTop: function(){
       var self=this; var card=document.getElementById("ffp-top"); if(!card)return;
       var startX=0,startY=0,dx=0,dy=0,t0=0,active=false,moved=false;
