@@ -483,4 +483,97 @@
     window._clStep = n;
     _clShow('cl-step1', n === 1); _clShow('cl-step2', n === 2); _clShow('cl-step3', n === 3);
     _clShow('cl-cancel', n === 1);
-    _clShow('
+    _clShow('cl-back', n > 1);
+    _clShow('cl-next', n < 3);
+    _clShow('cl-save', n === 3);
+    _clShow('cl-del', n === 3);
+    var nx = document.getElementById('cl-next'); if (nx) nx.innerHTML = (n === 1 ? 'Next' : 'Next: Schedule') + ' <span class="ms" style="font-size:16px;vertical-align:-3px;">chevron_right</span>';
+    var bar = document.getElementById('cl-stepbar'); if (bar) bar.textContent = _clTitles[n - 1];
+    var mb = document.querySelector('.modal-body'); if (mb) mb.scrollTop = 0;
+  };
+  window.clBack = function () { window.clStep((window._clStep || 1) - 1); };
+  window.clNext = function () {
+    var g = function (i) { var el = document.getElementById('cm-' + i); return el ? (el.value || '').trim() : ''; };
+    var step = window._clStep || 1;
+    if (step === 1) {
+      var ab = document.getElementById('cm-activity-btn'); var activity = ab ? (ab.dataset.value || '') : '';
+      var cob = document.getElementById('cm-country-btn'); var country = cob ? (cob.dataset.value || '') : '';
+      if (!g('title'))   { toast('Title is required', 'error'); return; }
+      if (!activity)     { toast('Activity is required', 'error'); return; }
+      if (!country)      { toast('Country is required', 'error'); return; }
+      if (!g('price'))   { toast('Price is required', 'error'); return; }
+    }
+    window.clStep(step + 1);
+  };
+  window.cmToggleOngoing = function () {
+    var on = document.getElementById('cm-sched-ongoing'); var end = document.getElementById('cm-sched-end');
+    if (!end) return;
+    var ongoing = on ? on.checked : true;
+    end.disabled = ongoing;
+    if (ongoing) { end.value = ''; end.style.opacity = '0.5'; } else { end.style.opacity = '1'; }
+  };
+  window.cmRenderQuestions = function () {
+    var w = document.getElementById('cm-questions'); if (!w) return;
+    if (!_cmQuestions.length) { w.innerHTML = '<div class="psub" style="color:var(--ffp-text-muted);">No questions yet. Add one to collect info like helmet size at booking.</div>'; return; }
+    w.innerHTML = _cmQuestions.map(function (q, i) {
+      var opts = Array.isArray(q.options) ? q.options.join(', ') : '';
+      return '<div style="border:1px solid var(--ffp-border);border-radius:10px;padding:10px;margin-bottom:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;">' +
+        '<div style="flex:2;min-width:150px;"><div class="label">Question</div><input class="input cmq-label" value="' + esc(q.label || '') + '" placeholder="e.g. Helmet size"></div>' +
+        '<div style="flex:1;min-width:110px;"><div class="label">Type</div><select class="select cmq-type" onchange="cmSyncQuestions()"><option value="select"' + (q.type === 'select' ? ' selected' : '') + '>Choose from list</option><option value="text"' + (q.type === 'text' ? ' selected' : '') + '>Text</option><option value="number"' + (q.type === 'number' ? ' selected' : '') + '>Number</option></select></div>' +
+        '<div style="flex:2;min-width:150px;' + (q.type === 'select' ? '' : 'display:none;') + '" class="cmq-opts-wrap"><div class="label">Options <span class="label-hint">— comma separated</span></div><input class="input cmq-opts" value="' + esc(opts) + '" placeholder="S, M, L, XL"></div>' +
+        '<label style="display:flex;gap:5px;align-items:center;font-size:12px;cursor:pointer;"><input type="checkbox" class="cmq-required"' + (q.required ? ' checked' : '') + '> Required</label>' +
+        '<label style="display:flex;gap:5px;align-items:center;font-size:12px;cursor:pointer;"><input type="checkbox" class="cmq-perguest"' + (q.per_guest ? ' checked' : '') + '> Per guest</label>' +
+        '<button type="button" class="btn btn-ghost btn-sm" title="Remove" onclick="cmRemoveQuestion(' + i + ')"><span class="ms" style="font-size:15px;">delete</span></button>' +
+      '</div>';
+    }).join('');
+  };
+  window.cmSyncQuestions = function () {
+    var rows = Array.prototype.slice.call(document.querySelectorAll('#cm-questions > div'));
+    if (!rows.length || !document.querySelector('#cm-questions .cmq-label')) return;
+    _cmQuestions = rows.filter(function (r) { return r.querySelector('.cmq-label'); }).map(function (r) {
+      var label = (r.querySelector('.cmq-label') || {}).value || '';
+      var type = (r.querySelector('.cmq-type') || {}).value || 'text';
+      var optsRaw = (r.querySelector('.cmq-opts') || {}).value || '';
+      var key = label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || ('q' + Math.random().toString(36).slice(2, 6));
+      var q = { key: key, label: label.trim(), type: type, required: !!(r.querySelector('.cmq-required') || {}).checked, per_guest: !!(r.querySelector('.cmq-perguest') || {}).checked };
+      if (type === 'select') q.options = optsRaw.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+      return q;
+    }).filter(function (q) { return q.label; });
+    window.cmRenderQuestions();
+  };
+  window.cmAddQuestion = function () { window.cmSyncQuestions(); _cmQuestions.push({ key: '', label: '', type: 'select', options: [], required: false, per_guest: true }); window.cmRenderQuestions(); };
+  window.cmRemoveQuestion = function (i) { window.cmSyncQuestions(); _cmQuestions.splice(i, 1); window.cmRenderQuestions(); };
+
+  window.resolveClassMapsLink = async function () {
+    var inp = document.getElementById('cm-maps-url'), st = document.getElementById('cm-loc-status');
+    var url = inp ? (inp.value || '').trim() : '';
+    if (!url) { if (st) st.textContent = 'Paste your Google Maps link first'; return; }
+    if (st) st.textContent = 'Finding your pin…';
+    try {
+      var res = await fetch('https://ffp-passport-backend.vercel.app/api/geo/resolve?url=' + encodeURIComponent(url));
+      var j = await res.json();
+      if (!res.ok || j.lat == null) { if (st) st.textContent = (j && j.error) ? j.error : 'Couldn’t read a pin from that link'; return; }
+      var la = document.getElementById('cm-lat'), ln = document.getElementById('cm-lng');
+      if (la) la.value = j.lat; if (ln) ln.value = j.lng;
+      if (st) st.textContent = '✓ Pin set (' + Number(j.lat).toFixed(5) + ', ' + Number(j.lng).toFixed(5) + ')';
+    } catch (e) { console.error('[Tour] resolve maps link:', e); if (st) st.textContent = 'Couldn’t reach the resolver — try again'; }
+  };
+
+  // ── expose ──
+  window.renderClasses = renderClasses;
+  window.openClassModal = openClassModal;
+  window.saveClass = saveClass;
+  window.setClassStatus = setClassStatus;
+  window.confirmDeleteClass = confirmDeleteClass;
+  window.FFPReload = window.FFPReload || {};
+  window.FFPReload['class'] = refresh;
+
+  // ── init ──
+  function waitFor(cond, ms) { return new Promise(function (resolve) { var t0 = Date.now(); (function poll() { if (cond()) return resolve(true); if (Date.now() - t0 > ms) return resolve(false); setTimeout(poll, 200); })(); }); }
+  (async function init() {
+    var ok = await waitFor(function () { return window.supabase && window.FFP_PROVIDER && window.FFP_PROVIDER.id; }, 30000);
+    if (!ok) { console.warn('[FFP Classes] deps not ready'); return; }
+    await refresh();
+    console.log('[FFP Provider Classes] loaded v12 — 3-step editor + rolling schedule + booking questions');
+  })();
+})();
