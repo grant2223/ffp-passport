@@ -8,7 +8,7 @@
 //   provider_packages, provider_client_packages, provider_appointments + RPCs.
 // Coach commission is frozen + released only on facility confirmation (provider_confirm_appointment).
 // ════════════════════════════════════════════════════════════════════════
-var _apStaff = [], _apServices = [], _apPackages = [], _apSlots = [], _apMembers = [], _apAppts = [];
+var _apStaff = [], _apServices = [], _apPackages = [], _apSlots = [], _apMembers = [], _apAppts = [], _apBlocks = [];
 var _apWeekStart = null;          // Monday 00:00 of the displayed week
 var _apClientPkgCache = {};       // member_id -> [active client packages] (for booking)
 
@@ -57,13 +57,15 @@ async function _apLoadConfig() {
       window.supabase.rpc('provider_list_services', { p_provider: pid }),
       window.supabase.rpc('provider_list_packages', { p_provider: pid }),
       window.supabase.rpc('provider_list_trainer_slots', { p_provider: pid }),
-      window.supabase.rpc('provider_searchable_members', { p_provider: pid, p_q: '' })
+      window.supabase.rpc('provider_searchable_members', { p_provider: pid, p_q: '' }),
+      window.supabase.rpc('provider_list_trainer_blocks', { p_provider: pid })
     ]);
     _apStaff    = (res[0] && res[0].data) ? res[0].data : [];
     _apServices = (res[1] && res[1].data) ? res[1].data : [];
     _apPackages = (res[2] && res[2].data) ? res[2].data : [];
     _apSlots    = (res[3] && res[3].data) ? res[3].data : [];
     _apMembers  = (res[4] && res[4].data) ? res[4].data : [];
+    _apBlocks   = (res[5] && res[5].data) ? res[5].data : [];
   } catch (e) { /* leave whatever loaded */ }
 }
 
@@ -217,10 +219,13 @@ async function _apRpc(fn, args, okMsg) {
     if (res && res.ok === false) {
       var em = {
         coach_busy: 'That coach already has a session at this time',
+        coach_unavailable: 'The coach is blocked / unavailable at that time',
         no_sessions_left: 'No sessions left on that package',
         package_expired: 'That package has expired',
         no_package_selected: 'Pick which package to use',
         bad_state: 'That action isn’t available for this appointment',
+        bad_window: 'End time must be after the start time',
+        need_date: 'Pick a date',
         already_booked: 'Already booked'
       };
       apToast(em[res.error] || 'Could not complete that', 'error');
@@ -470,57 +475,146 @@ async function apRemoveCoach(linkId) {
 // ════════════════════════════════════════════════════════════════════════
 // AVAILABILITY (recurring trainer slots)
 // ════════════════════════════════════════════════════════════════════════
+var _AP_CHIP = 'display:inline-flex;align-items:center;gap:8px;background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-radius:10px;padding:7px 11px;';
 function apRenderAvailability() {
   var host = document.getElementById('ap-availability-host'); if (!host) return;
-  if (!_apSlots.length) { host.innerHTML = _apEmpty('No availability set', 'Add the weekly day/time slots each trainer is available for appointments.'); return; }
-  // group by coach
-  var byCoach = {};
-  _apSlots.forEach(function (s) { (byCoach[s.coach_name || 'Coach'] = byCoach[s.coach_name || 'Coach'] || []).push(s); });
+  if (!_apSlots.length && !_apBlocks.length) {
+    host.innerHTML = _apEmpty('No availability set', 'Set each trainer’s weekly available hours (day + start–end time), then add any blocked times or days off.');
+    return;
+  }
+  var coaches = {};
+  _apSlots.forEach(function (s) { (coaches[s.coach_name || 'Coach'] = coaches[s.coach_name || 'Coach'] || { slots: [], blocks: [] }).slots.push(s); });
+  _apBlocks.forEach(function (b) { (coaches[b.coach_name || 'Coach'] = coaches[b.coach_name || 'Coach'] || { slots: [], blocks: [] }).blocks.push(b); });
   var html = '';
-  Object.keys(byCoach).sort().forEach(function (name) {
-    html += '<div style="margin:6px 0 4px;font-weight:800;color:var(--ffp-text,#eaf2f8);">' + apEsc(name) + '</div>';
-    html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">' + byCoach[name].map(function (s) {
-      return '<span style="display:inline-flex;align-items:center;gap:8px;background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-radius:10px;padding:7px 11px;">' +
-        '<b style="color:var(--ffp-text,#eaf2f8);">' + DOW_AP[s.day_of_week] + ' ' + s.slot_time + '</b>' +
+  Object.keys(coaches).sort().forEach(function (name) {
+    var c = coaches[name];
+    html += '<div style="background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-radius:12px;padding:13px 15px;margin-bottom:12px;">';
+    html += '<div style="font-weight:800;color:var(--ffp-text,#eaf2f8);margin-bottom:8px;">' + apEsc(name) + '</div>';
+    html += '<div class="psub" style="margin:0 0 5px;">Available hours</div>';
+    if (!c.slots.length) html += '<div class="psub" style="margin:0 0 6px;opacity:.7;">No weekly hours set.</div>';
+    else html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px;">' + c.slots.map(function (s) {
+      var rng = s.end_time ? (s.start_time + '–' + s.end_time) : s.start_time;
+      return '<span style="' + _AP_CHIP + '"><b style="color:var(--ffp-text,#eaf2f8);">' + DOW_AP[s.day_of_week] + ' ' + rng + '</b>' +
         '<span class="psub">' + (s.service_name ? apEsc(s.service_name) : 'Any') + ' · ' + (s.duration_min || 60) + 'm</span>' +
         '<button class="btn btn-ghost btn-sm" onclick="apSlotModal(\'' + s.id + '\')"><span class="ms">edit</span></button>' +
-        '<button class="btn btn-ghost btn-sm" onclick="apDeleteSlot(\'' + s.id + '\')"><span class="ms">delete</span></button>' +
-      '</span>';
+        '<button class="btn btn-ghost btn-sm" onclick="apDeleteSlot(\'' + s.id + '\')"><span class="ms">delete</span></button></span>';
     }).join('') + '</div>';
+    if (c.blocks.length) {
+      html += '<div class="psub" style="margin:10px 0 5px;">Blocked / unavailable</div>';
+      html += '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + c.blocks.map(function (b) {
+        var when = b.block_type === 'recurring' ? ('Every ' + DOW_AP[b.day_of_week]) : (b.block_date || '');
+        var time = (b.start_time && b.end_time) ? (b.start_time + '–' + b.end_time) : 'All day';
+        return '<span style="' + _AP_CHIP + 'border-color:rgba(243,156,18,.4);">' +
+          '<span class="ms" style="color:#ffcf8f;font-size:16px;">block</span>' +
+          '<b style="color:#ffcf8f;">' + when + ' · ' + time + '</b>' +
+          (b.reason ? '<span class="psub">' + apEsc(b.reason) + '</span>' : '') +
+          '<button class="btn btn-ghost btn-sm" onclick="apBlockModal(\'' + b.id + '\')"><span class="ms">edit</span></button>' +
+          '<button class="btn btn-ghost btn-sm" onclick="apDeleteBlock(\'' + b.id + '\')"><span class="ms">delete</span></button></span>';
+      }).join('') + '</div>';
+    }
+    html += '</div>';
   });
   host.innerHTML = html;
 }
+
+// ── Availability hours (window: day + start–end) ──
 function apSlotModal(id) {
   if (!_apStaff.length) { apToast('Add a coach in Staff first', 'error'); return; }
-  var s = _apSlots.find(function (x) { return x.id === id; }) || { staff_id: '', service_id: '', day_of_week: 1, slot_time: '09:00', duration_min: 60, status: 'active' };
+  var s = _apSlots.find(function (x) { return x.id === id; }) || { staff_id: '', service_id: '', day_of_week: 1, start_time: '09:00', end_time: '17:00', duration_min: 60 };
   var dows = [1, 2, 3, 4, 5, 6, 0];
   var body =
+    '<div class="psub" style="margin:0 0 10px;">The weekly hours this trainer is available for appointments on a day.</div>' +
     '<div class="form-section"><div class="form-grid">' +
       '<div class="field"><div class="label">Coach <span class="req">*</span></div><select class="select" id="ap-sl-staff">' + _apStaffOpts(s.staff_id) + '</select></div>' +
+      '<div class="field"><div class="label">Day <span class="req">*</span></div><select class="select" id="ap-sl-dow">' + dows.map(function (d) { return '<option value="' + d + '"' + (s.day_of_week === d ? ' selected' : '') + '>' + DOW_AP[d] + '</option>'; }).join('') + '</select></div>' +
+      '<div class="field"><div class="label">Start time <span class="req">*</span></div><input class="input" type="time" id="ap-sl-start" value="' + apEsc(s.start_time || '09:00') + '"></div>' +
+      '<div class="field"><div class="label">End time <span class="req">*</span></div><input class="input" type="time" id="ap-sl-end" value="' + apEsc(s.end_time || '17:00') + '"></div>' +
       '<div class="field"><div class="label">Service <span class="label-hint">— optional</span></div><select class="select" id="ap-sl-service">' + _apServiceOpts(s.service_id, true) + '</select></div>' +
-      '<div class="field"><div class="label">Day</div><select class="select" id="ap-sl-dow">' + dows.map(function (d) { return '<option value="' + d + '"' + (s.day_of_week === d ? ' selected' : '') + '>' + DOW_AP[d] + '</option>'; }).join('') + '</select></div>' +
-      '<div class="field"><div class="label">Time</div><input class="input" type="time" id="ap-sl-time" value="' + apEsc(s.slot_time || '09:00') + '"></div>' +
-      '<div class="field"><div class="label">Duration (min)</div><input class="input" type="number" min="5" step="5" id="ap-sl-duration" value="' + apEsc(String(s.duration_min || 60)) + '"></div>' +
+      '<div class="field"><div class="label">Default session (min)</div><input class="input" type="number" min="5" step="5" id="ap-sl-duration" value="' + apEsc(String(s.duration_min || 60)) + '"></div>' +
     '</div></div>';
-  openModalShell('', id ? 'Edit slot' : 'Add availability slot', body,
+  openModalShell('', id ? 'Edit available hours' : 'Add available hours', body,
     '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="apSaveSlot(\'' + (id || '') + '\')">Save</button>');
   apEnhance(['ap-sl-staff', 'ap-sl-service', 'ap-sl-dow']);
 }
 async function apSaveSlot(id) {
   var staff = (document.getElementById('ap-sl-staff') || {}).value;
-  var time = (document.getElementById('ap-sl-time') || {}).value;
-  if (!staff || !time) { apToast('Coach and time are required', 'error'); return; }
+  var start = (document.getElementById('ap-sl-start') || {}).value;
+  var end = (document.getElementById('ap-sl-end') || {}).value;
+  if (!staff || !start || !end) { apToast('Coach, start and end time are required', 'error'); return; }
+  if (end <= start) { apToast('End time must be after the start time', 'error'); return; }
   var p = {
     staff_id: staff, service_id: (document.getElementById('ap-sl-service') || {}).value || '',
-    day_of_week: (document.getElementById('ap-sl-dow') || {}).value, slot_time: time,
+    day_of_week: (document.getElementById('ap-sl-dow') || {}).value, start_time: start, end_time: end,
     duration_min: (document.getElementById('ap-sl-duration') || {}).value || '60'
   };
-  var r = await _apRpc('provider_save_trainer_slot', { p_provider: apProvId(), p_id: id || null, p: p }, 'Slot saved');
+  var r = await _apRpc('provider_save_trainer_slot', { p_provider: apProvId(), p_id: id || null, p: p }, 'Availability saved');
   if (r) { closeModal(); await _apLoadConfig(); apRenderAvailability(); }
 }
 async function apDeleteSlot(id) {
-  if (!confirm('Delete this availability slot?')) return;
-  var r = await _apRpc('provider_delete_trainer_slot', { p_provider: apProvId(), p_id: id }, 'Slot deleted');
+  if (!confirm('Remove these available hours?')) return;
+  var r = await _apRpc('provider_delete_trainer_slot', { p_provider: apProvId(), p_id: id }, 'Removed');
+  if (r) { await _apLoadConfig(); apRenderAvailability(); }
+}
+
+// ── Blocks / day off ──
+function apBlockModal(id) {
+  if (!_apStaff.length) { apToast('Add a coach in Staff first', 'error'); return; }
+  var b = _apBlocks.find(function (x) { return x.id === id; }) || { staff_id: '', block_type: 'date', day_of_week: 1, block_date: '', start_time: '', end_time: '', reason: '' };
+  var allDay = !(b.start_time && b.end_time);
+  var dows = [1, 2, 3, 4, 5, 6, 0];
+  var body =
+    '<div class="psub" style="margin:0 0 10px;">Mark a time the trainer is <b>not</b> available — a one-off day/time, or every week. Clients can’t be booked then.</div>' +
+    '<div class="form-section"><div class="form-grid">' +
+      '<div class="field"><div class="label">Coach <span class="req">*</span></div><select class="select" id="ap-blk-staff">' + _apStaffOpts(b.staff_id) + '</select></div>' +
+      '<div class="field"><div class="label">Repeats</div><select class="select" id="ap-blk-type" onchange="apBlkTypeChange()">' +
+        '<option value="date"' + (b.block_type === 'date' ? ' selected' : '') + '>One-off date</option>' +
+        '<option value="recurring"' + (b.block_type === 'recurring' ? ' selected' : '') + '>Every week</option>' +
+      '</select></div>' +
+      '<div class="field" id="ap-blk-date-wrap"><div class="label">Date</div><input class="input" type="date" id="ap-blk-date" value="' + apEsc(b.block_date || '') + '"></div>' +
+      '<div class="field" id="ap-blk-dow-wrap" style="display:none;"><div class="label">Day</div><select class="select" id="ap-blk-dow">' + dows.map(function (d) { return '<option value="' + d + '"' + (b.day_of_week === d ? ' selected' : '') + '>' + DOW_AP[d] + '</option>'; }).join('') + '</select></div>' +
+    '</div>' +
+    '<label style="display:flex;align-items:center;gap:8px;margin:10px 0;cursor:pointer;"><input type="checkbox" id="ap-blk-allday" ' + (allDay ? 'checked' : '') + ' onchange="apBlkAllDayChange()"> <span>Whole day off</span></label>' +
+    '<div class="form-grid" id="ap-blk-time-wrap" style="' + (allDay ? 'display:none;' : '') + '">' +
+      '<div class="field"><div class="label">From</div><input class="input" type="time" id="ap-blk-start" value="' + apEsc(b.start_time || '12:00') + '"></div>' +
+      '<div class="field"><div class="label">To</div><input class="input" type="time" id="ap-blk-end" value="' + apEsc(b.end_time || '13:00') + '"></div>' +
+    '</div>' +
+    '<div class="field" style="margin-top:10px;"><div class="label">Reason <span class="label-hint">— optional</span></div><input class="input" id="ap-blk-reason" value="' + apEsc(b.reason || '') + '" placeholder="e.g. Lunch, leave, training"></div>' +
+    '</div>';
+  openModalShell('', id ? 'Edit block' : 'Add block / day off', body,
+    '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="apSaveBlock(\'' + (id || '') + '\')">Save</button>');
+  apEnhance(['ap-blk-staff', 'ap-blk-type', 'ap-blk-dow']);
+  apBlkTypeChange();
+}
+function apBlkTypeChange() {
+  var t = (document.getElementById('ap-blk-type') || {}).value;
+  var dw = document.getElementById('ap-blk-date-wrap'), ow = document.getElementById('ap-blk-dow-wrap');
+  if (dw) dw.style.display = (t === 'date') ? '' : 'none';
+  if (ow) ow.style.display = (t === 'recurring') ? '' : 'none';
+}
+function apBlkAllDayChange() {
+  var on = (document.getElementById('ap-blk-allday') || {}).checked;
+  var w = document.getElementById('ap-blk-time-wrap'); if (w) w.style.display = on ? 'none' : '';
+}
+async function apSaveBlock(id) {
+  var staff = (document.getElementById('ap-blk-staff') || {}).value;
+  var type = (document.getElementById('ap-blk-type') || {}).value || 'date';
+  var allDay = (document.getElementById('ap-blk-allday') || {}).checked;
+  if (!staff) { apToast('Pick a coach', 'error'); return; }
+  var p = { staff_id: staff, block_type: type, reason: (document.getElementById('ap-blk-reason') || {}).value || '' };
+  if (type === 'date') { p.block_date = (document.getElementById('ap-blk-date') || {}).value; if (!p.block_date) { apToast('Pick a date', 'error'); return; } }
+  else { p.day_of_week = (document.getElementById('ap-blk-dow') || {}).value; }
+  if (!allDay) {
+    p.start_time = (document.getElementById('ap-blk-start') || {}).value;
+    p.end_time = (document.getElementById('ap-blk-end') || {}).value;
+    if (!p.start_time || !p.end_time) { apToast('Set a from/to time, or tick Whole day off', 'error'); return; }
+    if (p.end_time <= p.start_time) { apToast('End time must be after the start time', 'error'); return; }
+  }
+  var r = await _apRpc('provider_save_trainer_block', { p_provider: apProvId(), p_id: id || null, p: p }, 'Block saved');
+  if (r) { closeModal(); await _apLoadConfig(); apRenderAvailability(); }
+}
+async function apDeleteBlock(id) {
+  if (!confirm('Remove this block?')) return;
+  var r = await _apRpc('provider_delete_trainer_block', { p_provider: apProvId(), p_id: id }, 'Block removed');
   if (r) { await _apLoadConfig(); apRenderAvailability(); }
 }
 
