@@ -352,20 +352,26 @@
     });
   }
   async function uploadHero(input) {
-    var file = input && input.files && input.files[0]; if (!file) return;
-    toast('Uploading image…');
+    console.log('[Admin Quests] uploadHero fired');
+    var file = input && input.files && input.files[0];
+    if (!file) { console.warn('[Admin Quests] no file selected'); toast('No file selected', 'error'); return; }
+    console.log('[Admin Quests] file:', file.name, file.type, file.size + ' bytes');
+    // Upload the RAW file — NO canvas compression. compressImage()'s toBlob() callback can hang forever
+    // on some images (large / HEIC / memory pressure), which leaves the upload stuck with no error. The
+    // bucket accepts the raw file fine, so we skip that whole failure mode.
     var ext = ((file.name || '').split('.').pop() || 'jpg').toLowerCase();
-    if (!/^(jpg|jpeg|png|webp|gif)$/.test(ext)) ext = 'jpg';
-    var blob = file, ct = file.type || 'image/jpeg';
-    try { var c = await compressImage(file, 1280, 0.82); if (c) { blob = c; ext = 'jpg'; ct = 'image/jpeg'; } } catch (e) { /* compression failed — upload the raw file instead */ }
+    if (!/^(jpg|jpeg|png|webp|gif|heic|heif)$/.test(ext)) ext = 'jpg';
+    var ct = file.type || 'image/jpeg';
     var path = 'q-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
     try {
       // Direct REST upload via NATIVE fetch — no window.supabase (avoids the JWT-injecting fetch wrapper) and no SDK.
+      console.log('[Admin Quests] POST →', SB_URL + '/storage/v1/object/' + HERO_BUCKET + '/' + path);
       var resp = await window.fetch(SB_URL + '/storage/v1/object/' + HERO_BUCKET + '/' + path, {
         method: 'POST',
         headers: { 'apikey': SB_ANON, 'Authorization': 'Bearer ' + SB_ANON, 'Content-Type': ct, 'x-upsert': 'true', 'cache-control': '3600' },
-        body: blob
+        body: file
       });
+      console.log('[Admin Quests] upload response status:', resp && resp.status);
       if (!resp || !resp.ok) {
         var detail = ''; try { detail = await resp.text(); } catch (e) {}
         throw new Error('HTTP ' + (resp ? resp.status : '?') + (detail ? ' — ' + detail.slice(0, 200) : ''));
@@ -373,6 +379,7 @@
       var publicUrl = SB_URL + '/storage/v1/object/public/' + HERO_BUCKET + '/' + path;
       var hid = document.getElementById('q-hero'); if (hid) hid.value = publicUrl;
       var pv = document.getElementById('q-hero-preview'); if (pv) { pv.style.backgroundImage = "url('" + publicUrl + "')"; pv.style.borderStyle = 'solid'; pv.innerHTML = ''; }
+      console.log('[Admin Quests] upload OK →', publicUrl);
       toast('Image uploaded ✓', 'success');
     } catch (e) {
       console.error('[Admin Quests] upload error', e);
