@@ -125,7 +125,7 @@
   // ── QUEST FORM (details) + MISSIONS builder — full-screen, taxonomy-driven ──
   function taxCountries() { var T = window.FFP_TAX || {}; return (T.cities && Object.keys(T.cities).length) ? Object.keys(T.cities).sort() : ['United Arab Emirates']; }
   function taxCities(country) { var T = window.FFP_TAX || {}; return (T.cities && T.cities[country]) ? T.cities[country] : []; }
-  function taxCats() { var T = window.FFP_TAX || {}; if (Array.isArray(T.categories) && T.categories.length) { return T.categories.map(function (c) { return (typeof c === 'string') ? c : (c.n || c.name || ''); }).filter(Boolean); } return CATS; }
+  function taxCats() { return CATS; } // the 6 standard categories ARE the taxonomy (DB enforces these exact 6)
 
   function openForm(id) {
     var q = id ? S.quests.find(function (x) { return x.id === id; }) : null;
@@ -148,6 +148,7 @@
         '<div id="q-city-wrap"><label>City</label><select class="qf-sel" id="q-city">' + cityOpts + '</select></div>' +
       '</div>' +
       '<div class="qf-row"><label>Leaderboard</label><select class="qf-sel" id="q-leaderboard">' + lbOpts + '</select></div>' +
+      '<div class="qf-row"><label style="display:flex;align-items:center;gap:9px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13px;color:#cfd6dc;"><input type="checkbox" id="q-headline"' + (q && q.is_headline ? ' checked' : '') + '> <span><b>Headline quest</b> — featured big at the top of the member Passport (one at a time)</span></label></div>' +
       '<div class="qf-row"><label>Hero image</label>' +
         '<div id="q-hero-preview" onclick="document.getElementById(\'q-hero-file\').click()" style="height:150px;border-radius:12px;background-color:#0f2335;background-size:cover;background-position:center;background-repeat:no-repeat;border:2px dashed rgba(43,168,224,0.35);margin-bottom:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#8a99a8;font-size:13px;' + (q && q.hero_image_url ? "background-image:url('" + esc(q.hero_image_url) + "');border-style:solid;" : '') + '">' + (q && q.hero_image_url ? '' : '<span><span class="material-icons" style="vertical-align:-5px;">add_photo_alternate</span> Click to upload</span>') + '</div>' +
         '<input type="file" id="q-hero-file" accept="image/*" style="display:none" onchange="AdminQuests.uploadHero(this)">' +
@@ -273,6 +274,7 @@
         city: scope === 'city' ? (city || null) : null,
         country: (scope === 'city' || scope === 'country') ? (country || null) : null,
         leaderboard: val('q-leaderboard') || 'global', hero_image_url: val('q-hero') || null,
+        is_headline: !!(document.getElementById('q-headline') && document.getElementById('q-headline').checked),
         updated_at: new Date().toISOString()
       };
       if (S.editing) {
@@ -282,6 +284,7 @@
         await fetchAll(); renderList();
       } else {
         payload.owner_type = 'ffp'; payload.visibility = 'public'; payload.reward_type = 'points';
+        payload.eligibility = 'all'; payload.require_distinct_venues = false;
         payload.status = 'draft'; payload.active_from = new Date().toISOString(); payload.target_count = 1;
         var cr = await window.supabase.from('quests').insert(payload).select('*').single();
         if (cr.error) throw cr.error;
@@ -344,19 +347,24 @@
   }
   async function uploadHero(input) {
     var file = input && input.files && input.files[0]; if (!file) return;
-    if (!window.supabase) { toast('Storage not ready', 'error'); return; }
+    if (!window.supabase || !window.supabase.storage) { toast('Storage not ready — reload and try again', 'error'); return; }
     toast('Uploading image…');
+    var blob = file, ext = ((file.name || '').split('.').pop() || 'jpg').toLowerCase(), ct = file.type || 'image/jpeg';
+    if (!/^(jpg|jpeg|png|webp|gif)$/.test(ext)) ext = 'jpg';
+    try { var c = await compressImage(file, 1280, 0.82); if (c) { blob = c; ext = 'jpg'; ct = 'image/jpeg'; } } catch (e) { /* compression failed — upload the raw file instead */ }
     try {
-      var blob = await compressImage(file, 1280, 0.82);
-      var path = 'q-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.jpg';
-      var up = await window.supabase.storage.from(HERO_BUCKET).upload(path, blob, { contentType: 'image/jpeg', upsert: true, cacheControl: '3600' });
-      if (up.error) throw up.error;
+      var path = 'q-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+      var up = await window.supabase.storage.from(HERO_BUCKET).upload(path, blob, { contentType: ct, upsert: true, cacheControl: '3600' });
+      if (up && up.error) throw up.error;
       var pub = window.supabase.storage.from(HERO_BUCKET).getPublicUrl(path);
-      var publicUrl = pub && pub.data && pub.data.publicUrl; if (!publicUrl) throw new Error('Could not resolve image URL');
+      var publicUrl = pub && pub.data && pub.data.publicUrl; if (!publicUrl) throw new Error('no public URL');
       var hid = document.getElementById('q-hero'); if (hid) hid.value = publicUrl;
       var pv = document.getElementById('q-hero-preview'); if (pv) { pv.style.backgroundImage = "url('" + publicUrl + "')"; pv.style.borderStyle = 'solid'; pv.innerHTML = ''; }
       toast('Image uploaded ✓', 'success');
-    } catch (e) { toast((e && e.message) || 'Upload failed', 'error'); } finally { try { input.value = ''; } catch (e) {} }
+    } catch (e) {
+      console.error('[Admin Quests] upload error', e);
+      toast('Upload failed: ' + ((e && (e.message || e.error || e.statusCode)) || 'unknown — see console'), 'error');
+    } finally { try { input.value = ''; } catch (e) {} }
   }
 
   window.AdminQuests = {
