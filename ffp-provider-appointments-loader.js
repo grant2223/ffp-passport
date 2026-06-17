@@ -627,6 +627,92 @@ async function apDoSell() {
   if (r) { closeModal(); apRenderPackages(); }
 }
 
+// ════════════════════════════════════════════════════════════════════════
+// REPORTS (completed sessions, revenue, tax, commission, net — by coach & service)
+// ════════════════════════════════════════════════════════════════════════
+function _apRangeBounds(key) {
+  var now = new Date(), from = null, to = null;
+  var startOfMonth = function (y, m) { return new Date(y, m, 1, 0, 0, 0); };
+  if (key === 'this_month') { from = startOfMonth(now.getFullYear(), now.getMonth()); to = startOfMonth(now.getFullYear(), now.getMonth() + 1); }
+  else if (key === 'last_month') { from = startOfMonth(now.getFullYear(), now.getMonth() - 1); to = startOfMonth(now.getFullYear(), now.getMonth()); }
+  else if (key === 'last_30') { to = new Date(now.getTime() + 86400000); from = new Date(now.getTime() - 30 * 86400000); }
+  else if (key === 'this_year') { from = new Date(now.getFullYear(), 0, 1); to = new Date(now.getFullYear() + 1, 0, 1); }
+  else { from = null; to = null; } // all time
+  return { from: from ? from.toISOString() : null, to: to ? to.toISOString() : null };
+}
+async function apRenderReports() {
+  var host = document.getElementById('ap-reports-host'); if (!host) return;
+  var key = (document.getElementById('ap-rep-range') || {}).value || 'this_month';
+  var b = _apRangeBounds(key);
+  host.innerHTML = '<div class="psub" style="margin:10px 0;">Loading…</div>';
+  var rep = null;
+  try {
+    var r = await window.supabase.rpc('provider_appointments_report', { p_provider: apProvId(), p_from: b.from, p_to: b.to });
+    rep = (r && r.data) ? r.data : null;
+  } catch (e) {}
+  if (!rep) { host.innerHTML = _apEmpty('No report', 'Could not load the report — try again.'); return; }
+  var s = rep.summary || {};
+  var kpi = function (label, val, color) {
+    return '<div style="flex:1;min-width:130px;background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-radius:12px;padding:13px 15px;">' +
+      '<div class="psub" style="margin:0 0 4px;font-size:12px;">' + label + '</div>' +
+      '<div style="font-weight:800;font-size:20px;color:' + (color || 'var(--ffp-text,#eaf2f8)') + ';">' + val + '</div></div>';
+  };
+  var money = apMoney;
+  var html = '';
+  // money KPIs
+  html += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">' +
+    kpi('Gross revenue', money(s.gross_aed)) +
+    kpi('Tax', money(s.tax_aed)) +
+    kpi('Coach commission', money(s.commission_aed), '#ffcf8f') +
+    kpi('Facility net', money(s.net_aed), '#7ee0a8') +
+  '</div>';
+  // session-count KPIs
+  html += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;">' +
+    kpi('Completed', s.completed || 0, '#7ee0a8') +
+    kpi('Awaiting confirm', s.completed_pending || 0, '#ffcf8f') +
+    kpi('No-shows', s.no_show || 0, '#ff9b9b') +
+    kpi('Cancelled', s.cancelled || 0) +
+    kpi('Unpaid', (s.unpaid_count || 0) + ' · ' + money(s.unpaid_aed), (s.unpaid_count ? '#ff9b9b' : null)) +
+  '</div>';
+  // by coach
+  html += '<div class="form-section-title" style="margin-top:18px;">By coach</div>';
+  var coaches = rep.by_coach || [];
+  if (!coaches.length) html += '<div class="psub" style="margin:6px 0;">No completed sessions in this period.</div>';
+  else {
+    html += '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+      '<thead><tr style="text-align:left;color:#9fb3c2;">' +
+      '<th style="padding:7px 8px;">Coach</th><th style="padding:7px 8px;">Sessions</th><th style="padding:7px 8px;">Gross</th><th style="padding:7px 8px;">Commission</th><th style="padding:7px 8px;">Facility net</th></tr></thead><tbody>';
+    coaches.forEach(function (c) {
+      html += '<tr style="border-top:1px solid var(--ffp-border,#1d3346);">' +
+        '<td style="padding:7px 8px;font-weight:700;color:var(--ffp-text,#eaf2f8);">' + apEsc(c.coach_name) + '</td>' +
+        '<td style="padding:7px 8px;">' + c.sessions + '</td>' +
+        '<td style="padding:7px 8px;">' + money(c.gross_aed) + '</td>' +
+        '<td style="padding:7px 8px;color:#ffcf8f;">' + money(c.commission_aed) + '</td>' +
+        '<td style="padding:7px 8px;color:#7ee0a8;">' + money(c.net_aed) + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+  // by service
+  html += '<div class="form-section-title" style="margin-top:18px;">By service</div>';
+  var svcs = rep.by_service || [];
+  if (!svcs.length) html += '<div class="psub" style="margin:6px 0;">No completed sessions in this period.</div>';
+  else {
+    html += '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+      '<thead><tr style="text-align:left;color:#9fb3c2;">' +
+      '<th style="padding:7px 8px;">Service</th><th style="padding:7px 8px;">Sessions</th><th style="padding:7px 8px;">Gross</th><th style="padding:7px 8px;">Tax</th><th style="padding:7px 8px;">Facility net</th></tr></thead><tbody>';
+    svcs.forEach(function (sv) {
+      html += '<tr style="border-top:1px solid var(--ffp-border,#1d3346);">' +
+        '<td style="padding:7px 8px;font-weight:700;color:var(--ffp-text,#eaf2f8);">' + apEsc(sv.service_name) + '</td>' +
+        '<td style="padding:7px 8px;">' + sv.sessions + '</td>' +
+        '<td style="padding:7px 8px;">' + money(sv.gross_aed) + '</td>' +
+        '<td style="padding:7px 8px;">' + money(sv.tax_aed) + '</td>' +
+        '<td style="padding:7px 8px;color:#7ee0a8;">' + money(sv.net_aed) + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+  host.innerHTML = html;
+}
+
 // First open: showPanel('appointments') calls renderAppointments(); this also covers the case
 // where the script loads after the panel is already shown.
 try { if (document.getElementById('ap-calendar-host') && document.getElementById('panel-appointments') && document.getElementById('panel-appointments').classList.contains('active')) renderAppointments(); } catch (e) {}
