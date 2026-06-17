@@ -337,6 +337,12 @@
   window.closeQuestModal = function () { var o = document.getElementById('ffp-quest-modal-overlay'); if (o) o.remove(); };
 
   var HERO_BUCKET = 'quest-images';
+  // Storage is uploaded DIRECTLY via native fetch (NOT window.supabase) so it bypasses the
+  // ffp-api-integration global.fetch wrapper, which overrides Authorization with FFPAuth.getJwt()
+  // — a stale/expired member JWT there was silently breaking admin uploads. Anon apikey has an
+  // INSERT policy on quest-images (verified), so anon auth always works regardless of session state.
+  var SB_URL = 'https://kxzyuofecmtymablnmak.supabase.co';
+  var SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4enl1b2ZlY210eW1hYmxubWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NDM1MTYsImV4cCI6MjA5NTAxOTUxNn0.cWn0x1AeD-x9C-HHf9MShXbFRWdkWi5RMgHLgWJwOuE';
   function compressImage(file, maxW, quality) {
     return new Promise(function (resolve, reject) {
       var img = new Image(); var url = URL.createObjectURL(file);
@@ -347,23 +353,30 @@
   }
   async function uploadHero(input) {
     var file = input && input.files && input.files[0]; if (!file) return;
-    if (!window.supabase || !window.supabase.storage) { toast('Storage not ready — reload and try again', 'error'); return; }
     toast('Uploading image…');
-    var blob = file, ext = ((file.name || '').split('.').pop() || 'jpg').toLowerCase(), ct = file.type || 'image/jpeg';
+    var ext = ((file.name || '').split('.').pop() || 'jpg').toLowerCase();
     if (!/^(jpg|jpeg|png|webp|gif)$/.test(ext)) ext = 'jpg';
+    var blob = file, ct = file.type || 'image/jpeg';
     try { var c = await compressImage(file, 1280, 0.82); if (c) { blob = c; ext = 'jpg'; ct = 'image/jpeg'; } } catch (e) { /* compression failed — upload the raw file instead */ }
+    var path = 'q-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
     try {
-      var path = 'q-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
-      var up = await window.supabase.storage.from(HERO_BUCKET).upload(path, blob, { contentType: ct, upsert: true, cacheControl: '3600' });
-      if (up && up.error) throw up.error;
-      var pub = window.supabase.storage.from(HERO_BUCKET).getPublicUrl(path);
-      var publicUrl = pub && pub.data && pub.data.publicUrl; if (!publicUrl) throw new Error('no public URL');
+      // Direct REST upload via NATIVE fetch — no window.supabase (avoids the JWT-injecting fetch wrapper) and no SDK.
+      var resp = await window.fetch(SB_URL + '/storage/v1/object/' + HERO_BUCKET + '/' + path, {
+        method: 'POST',
+        headers: { 'apikey': SB_ANON, 'Authorization': 'Bearer ' + SB_ANON, 'Content-Type': ct, 'x-upsert': 'true', 'cache-control': '3600' },
+        body: blob
+      });
+      if (!resp || !resp.ok) {
+        var detail = ''; try { detail = await resp.text(); } catch (e) {}
+        throw new Error('HTTP ' + (resp ? resp.status : '?') + (detail ? ' — ' + detail.slice(0, 200) : ''));
+      }
+      var publicUrl = SB_URL + '/storage/v1/object/public/' + HERO_BUCKET + '/' + path;
       var hid = document.getElementById('q-hero'); if (hid) hid.value = publicUrl;
       var pv = document.getElementById('q-hero-preview'); if (pv) { pv.style.backgroundImage = "url('" + publicUrl + "')"; pv.style.borderStyle = 'solid'; pv.innerHTML = ''; }
       toast('Image uploaded ✓', 'success');
     } catch (e) {
       console.error('[Admin Quests] upload error', e);
-      toast('Upload failed: ' + ((e && (e.message || e.error || e.statusCode)) || 'unknown — see console'), 'error');
+      toast('Upload failed: ' + ((e && e.message) || 'unknown — see console'), 'error');
     } finally { try { input.value = ''; } catch (e) {} }
   }
 
