@@ -1,49 +1,31 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP ADMIN QUESTS LOADER · v2
-   File path: ffp-admin-quests-loader.js (repo root)
-   On-load log: [FFP Admin Quests v2] Loaded ✓
-
-   v2 (2026-05-29): Hero image is now an UPLOAD (Supabase Storage bucket
-   'quest-images') instead of a pasted URL. Stored public URL still lands in
-   quests.hero_image_url, so the member quest modal renders it unchanged.
-
-   Builds the admin "Quests" panel: list quests, create/edit a quest, pick or
-   create the stamp it awards, pick or create a sponsor (for prize quests),
-   stake the venues that count toward it, and publish / pause / end.
-
-   Writes directly to Supabase (admin is_admin() RLS already permits this).
-   Self-contained: only needs an empty <section id="panel-quests"> + a sidebar
-   link in the dashboard. Mirrors the ffp-admin-deals-loader pattern.
+   FFP ADMIN QUESTS LOADER · v3 (2026-06-17) — REBUILD
+   FFP quests are now POINT-scored MISSION CHECKLISTS with a leaderboard.
+   This screen authors FFP (public, global) quests: details + a Missions builder
+   (each mission has points, a proof type, a verifier, optional venue/GPS, and an
+   auto-generated QR token), publish/pause/end, plus a Reviews queue to approve or
+   reject member proof submissions (photo / partner-verified missions).
+   Quest details still written directly to `quests` (admin is_admin() RLS); missions
+   + reviews use SECURITY DEFINER RPCs (quest_save_task / quest_list_tasks /
+   quest_delete_task / quest_pending_completions / quest_verify_completion).
    ═══════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
-
   var CATS = ['fitness', 'sports', 'wellness', 'recovery', 'adventure', 'food'];
+  var PROOFS = [['auto', 'Auto (tracked)'], ['qr', 'Scan QR'], ['photo', 'Photo'], ['gps', 'GPS check-in'], ['photo_gps', 'Photo + GPS'], ['partner', 'Partner confirms'], ['referral', 'Bring a friend']];
+  var VERIFIERS = [['auto', 'Auto'], ['partner', 'Partner'], ['admin', 'Admin']];
 
-  function toast(m, k) {
-    if (typeof window.showToast === 'function') { try { window.showToast(m, k || 'info'); return; } catch (e) {} }
-    console.log('[FFP Admin Quests]', m);
-  }
-  function esc(s) {
-    if (typeof window.escHtml === 'function') return window.escHtml(s);
-    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
+  function toast(m, k) { if (typeof window.showToast === 'function') { try { window.showToast(m, k || 'info'); return; } catch (e) {} } console.log('[FFP Admin Quests]', m); }
+  function esc(s) { if (typeof window.escHtml === 'function') return window.escHtml(s); return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function cap(s) { s = s || ''; return s.charAt(0).toUpperCase() + s.slice(1); }
   function val(id) { var e = document.getElementById(id); return e ? e.value.trim() : ''; }
-  function checked(id) { var e = document.getElementById(id); return !!(e && e.checked); }
-  function waitFor(check, ms) {
-    return new Promise(function (resolve) {
-      var t = 0, lim = Math.ceil((ms || 30000) / 150);
-      var iv = setInterval(function () { if (check() || t++ >= lim) { clearInterval(iv); resolve(check()); } }, 150);
-    });
-  }
+  function waitFor(check, ms) { return new Promise(function (resolve) { var t = 0, lim = Math.ceil((ms || 30000) / 150); var iv = setInterval(function () { if (check() || t++ >= lim) { clearInterval(iv); resolve(check()); } }, 150); }); }
 
-  var S = { quests: [], stamps: [], sponsors: [], providers: [], tab: 'live', editing: null };
+  var S = { quests: [], providers: [], tab: 'live', editing: null, curQuest: null, taskEdit: null, reviews: [] };
 
   function injectStyles() {
     if (document.getElementById('ffp-admin-quests-css')) return;
-    var css = document.createElement('style');
-    css.id = 'ffp-admin-quests-css';
+    var css = document.createElement('style'); css.id = 'ffp-admin-quests-css';
     css.textContent = [
       '#panel-quests .aq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-top:18px;}',
       '#panel-quests .aq-card{background:#0f1e2e;border:1px solid #1a2f44;border-radius:14px;padding:16px;}',
@@ -51,22 +33,15 @@
       '#panel-quests .aq-title{font-size:15px;font-weight:800;color:#e8eef4;}',
       '#panel-quests .aq-meta{font-size:11px;color:#8a99a8;margin-top:3px;text-transform:capitalize;}',
       '#panel-quests .aq-pill{font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;padding:4px 9px;border-radius:5px;flex-shrink:0;}',
-      '#panel-quests .aq-pill.live{background:#4ade80;color:#04210f;}',
-      '#panel-quests .aq-pill.draft{background:rgba(255,204,0,.18);color:#FFCC00;}',
-      '#panel-quests .aq-pill.ended{background:rgba(138,153,168,.18);color:#8a99a8;}',
-      '#panel-quests .aq-reward{font-size:12px;color:#cfd6dc;margin:12px 0;display:flex;align-items:center;gap:6px;}',
-      '#panel-quests .aq-reward .material-icons{font-size:16px;color:#b8965a;}',
+      '#panel-quests .aq-pill.live{background:#4ade80;color:#04210f;}#panel-quests .aq-pill.draft{background:rgba(255,204,0,.18);color:#FFCC00;}#panel-quests .aq-pill.ended{background:rgba(138,153,168,.18);color:#8a99a8;}',
+      '#panel-quests .aq-reward{font-size:12px;color:#cfd6dc;margin:12px 0;display:flex;align-items:center;gap:6px;}#panel-quests .aq-reward .material-icons{font-size:16px;color:#b8965a;}',
       '#panel-quests .aq-foot{display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid #1a2f44;padding-top:12px;}',
-      '.qf-row{margin-bottom:14px;}',
-      '.qf-row label{display:block;font-size:11px;font-weight:700;color:#8a99a8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}',
-      '.qf-input,.qf-sel,.qf-area{width:100%;background:#08131f;border:1px solid #1a2f44;border-radius:9px;padding:11px 12px;color:#e8eef4;font-size:14px;font-family:inherit;}',
-      '.qf-area{min-height:70px;resize:vertical;}',
-      '.qf-two{display:flex;gap:12px;}.qf-two>div{flex:1;}',
-      '.qf-check{display:flex;align-items:center;gap:8px;font-size:13px;color:#cfd6dc;}',
-      '.qf-venues{max-height:160px;overflow-y:auto;border:1px solid #1a2f44;border-radius:9px;padding:10px;}',
-      '.qf-venue{display:flex;align-items:center;gap:8px;font-size:13px;color:#cfd6dc;padding:5px 0;}',
-      '.qf-venue-row{padding:7px 0;border-bottom:1px solid #14283c;}',
-      '.qf-task{margin-top:6px;font-size:12px;padding:8px 10px;}'
+      '.qf-row{margin-bottom:14px;}.qf-row label{display:block;font-size:11px;font-weight:700;color:#8a99a8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}',
+      '.qf-input,.qf-sel,.qf-area{width:100%;background:#08131f;border:1px solid #1a2f44;border-radius:9px;padding:11px 12px;color:#e8eef4;font-size:14px;font-family:inherit;box-sizing:border-box;}',
+      '.qf-area{min-height:70px;resize:vertical;}.qf-two{display:flex;gap:12px;}.qf-two>div{flex:1;}',
+      '.qt-card{display:flex;align-items:flex-start;gap:10px;background:#08131f;border:1px solid #1a2f44;border-radius:10px;padding:10px 12px;margin-bottom:8px;}',
+      '.qt-card .qt-pts{font-weight:800;color:#FFCC00;font-size:13px;white-space:nowrap;}',
+      '.qt-qr{font-family:monospace;font-size:11px;color:#2ba8e0;background:rgba(43,168,224,.1);padding:2px 6px;border-radius:5px;}'
     ].join('');
     document.head.appendChild(css);
   }
@@ -77,22 +52,15 @@
     panel.setAttribute('data-built', '1');
     panel.innerHTML =
       '<div class="panel-head"><h1>Quests</h1><div class="panel-head-actions">' +
-        '<button class="btn btn-primary" onclick="AdminQuests.openForm()"><span class="material-icons">add</span>New quest</button>' +
+        '<button class="btn btn-primary" onclick="AdminQuests.openForm()"><span class="material-icons">add</span>New FFP quest</button>' +
       '</div></div>' +
-      '<div class="section"><div class="tabs" id="aq-tabs"></div>' +
-      '<div class="aq-grid" id="aq-list"></div></div>';
+      '<div class="section"><div class="tabs" id="aq-tabs"></div><div class="aq-grid" id="aq-list"></div></div>';
   }
 
   async function fetchAll() {
-    var q = await window.supabase.from('quests')
-      .select('*, sponsors(name, logo), quest_venues(provider_id, task)')
-      .order('created_at', { ascending: false });
-    if (q.error) { console.error('[Admin Quests] quests:', q.error); toast('Could not load quests', 'error'); }
+    var q = await window.supabase.from('quests').select('*, quest_tasks(id)').order('created_at', { ascending: false });
+    if (q.error) { console.error('[Admin Quests] quests:', q.error); }
     S.quests = q.data || [];
-    var st = await window.supabase.from('stamps').select('id, name, icon').order('name');
-    S.stamps = st.data || [];
-    var sp = await window.supabase.from('sponsors').select('id, name, logo').order('name');
-    S.sponsors = sp.data || [];
     var pr = await window.supabase.from('providers').select('id, business_name, status').order('business_name');
     S.providers = (pr.data || []).filter(function (p) { return p.status !== 'archived'; });
   }
@@ -101,180 +69,201 @@
     var el = document.getElementById('aq-tabs'); if (!el) return;
     var c = { live: 0, draft: 0, ended: 0 };
     S.quests.forEach(function (q) { if (c[q.status] != null) c[q.status]++; });
-    ['live', 'draft', 'ended'].forEach(function () {});
     el.innerHTML = ['live', 'draft', 'ended'].map(function (t) {
-      return '<button class="tab-btn' + (S.tab === t ? ' active' : '') + '" onclick="AdminQuests.setTab(\'' + t + '\')">' +
-        cap(t) + ' <span class="count">' + c[t] + '</span></button>';
-    }).join('');
+      return '<button class="tab-btn' + (S.tab === t ? ' active' : '') + '" onclick="AdminQuests.setTab(\'' + t + '\')">' + cap(t) + ' <span class="count">' + c[t] + '</span></button>';
+    }).join('') + '<button class="tab-btn' + (S.tab === 'review' ? ' active' : '') + '" onclick="AdminQuests.setTab(\'review\')">Reviews</button>';
   }
 
   function renderList() {
     renderTabs();
     var el = document.getElementById('aq-list'); if (!el) return;
+    if (S.tab === 'review') { renderReview(el); return; }
     var rows = S.quests.filter(function (q) { return q.status === S.tab; });
     if (!rows.length) { el.innerHTML = '<div style="color:#8a99a8;padding:24px;">No ' + S.tab + ' quests.</div>'; return; }
     el.innerHTML = rows.map(function (q) {
-      var venues = (q.quest_venues || []).length;
-      var reward = q.reward_type === 'prize'
-        ? '<span class="material-icons">redeem</span> Prize · ' + (q.prize_remaining != null ? q.prize_remaining : '?') + ' of ' + (q.prize_total != null ? q.prize_total : '?') + ' left' + (q.sponsors ? ' · ' + esc(q.sponsors.name) : '')
-        : '<span class="material-icons">approval</span> Stamp';
+      var nTasks = (q.quest_tasks || []).length;
+      var kind = q.owner_type === 'ffp' ? 'FFP' : q.owner_type === 'provider' ? 'Partner' : 'Member';
       var foot = '<button class="btn btn-sm btn-ghost" onclick="AdminQuests.openForm(\'' + q.id + '\')"><span class="material-icons">edit</span>Edit</button>';
       if (q.status === 'draft') foot += '<button class="btn btn-sm btn-blue" onclick="AdminQuests.setStatus(\'' + q.id + '\',\'live\')"><span class="material-icons">publish</span>Publish</button>';
-      if (q.status === 'live')  foot += '<button class="btn btn-sm btn-ghost" onclick="AdminQuests.setStatus(\'' + q.id + '\',\'draft\')"><span class="material-icons">pause</span>Unpublish</button>';
+      if (q.status === 'live') foot += '<button class="btn btn-sm btn-ghost" onclick="AdminQuests.setStatus(\'' + q.id + '\',\'draft\')"><span class="material-icons">pause</span>Unpublish</button>';
       if (q.status !== 'ended') foot += '<button class="btn btn-sm btn-ghost" onclick="AdminQuests.setStatus(\'' + q.id + '\',\'ended\')"><span class="material-icons">flag</span>End</button>';
       return '<div class="aq-card"><div class="aq-top"><div>' +
           '<div class="aq-title">' + esc(q.title) + '</div>' +
-          '<div class="aq-meta">' + esc(q.scope) + ' · ' + esc(q.category) + ' · ' + q.target_count + ' stamps · ' + venues + ' venue' + (venues === 1 ? '' : 's') + '</div>' +
+          '<div class="aq-meta">' + kind + ' · ' + esc(q.scope || '') + ' · ' + nTasks + ' mission' + (nTasks === 1 ? '' : 's') + '</div>' +
         '</div><span class="aq-pill ' + q.status + '">' + q.status + '</span></div>' +
-        '<div class="aq-reward">' + reward + '</div>' +
+        '<div class="aq-reward"><span class="material-icons">military_tech</span> ' + (q.points_total || 0) + ' pts · ' + cap(q.leaderboard || 'none') + ' board</div>' +
         '<div class="aq-foot">' + foot + '</div></div>';
     }).join('');
   }
 
+  // ── REVIEW QUEUE ──
+  async function renderReview(el) {
+    el.innerHTML = '<div style="color:#8a99a8;padding:20px;">Loading submissions…</div>';
+    try { var r = await window.supabase.rpc('quest_pending_completions', { p_provider: null }); S.reviews = (r && r.data) ? r.data : []; }
+    catch (e) { S.reviews = []; }
+    if (!S.reviews.length) { el.innerHTML = '<div style="color:#8a99a8;padding:24px;">No submissions awaiting review.</div>'; return; }
+    el.innerHTML = S.reviews.map(function (c) {
+      var img = c.photo_proof ? '<div style="height:120px;border-radius:10px;background:#08131f center/cover no-repeat url(\'' + esc(c.photo_proof) + '\');margin:10px 0;"></div>' : '';
+      return '<div class="aq-card"><div class="aq-title" style="font-size:14px;">' + esc(c.task_title) + '</div>' +
+        '<div class="aq-meta">' + esc(c.quest_title) + ' · ' + esc(c.member_name || 'Member') + ' · +' + (c.points || 0) + ' pts</div>' + img +
+        (c.note ? '<div style="font-size:12px;color:#cfd6dc;margin-bottom:8px;">“' + esc(c.note) + '”</div>' : '') +
+        '<div class="aq-foot">' +
+          '<button class="btn btn-sm btn-blue" onclick="AdminQuests.review(\'' + c.id + '\',\'approve\')"><span class="material-icons">check</span>Approve</button>' +
+          '<button class="btn btn-sm btn-ghost" onclick="AdminQuests.review(\'' + c.id + '\',\'reject\')"><span class="material-icons">close</span>Reject</button>' +
+        '</div></div>';
+    }).join('');
+  }
+  async function review(id, decision) {
+    try {
+      var r = await window.supabase.rpc('quest_verify_completion', { p_id: id, p_decision: decision, p_by: 'FFP admin' });
+      if (r && r.error) throw r.error;
+      toast(decision === 'approve' ? 'Approved — points awarded' : 'Rejected', 'success');
+      var el = document.getElementById('aq-list'); if (el) renderReview(el);
+    } catch (e) { toast('Could not update', 'error'); }
+  }
+
+  // ── QUEST FORM (details) + MISSIONS builder ──
   function openForm(id) {
     var q = id ? S.quests.find(function (x) { return x.id === id; }) : null;
-    S.editing = q || null;
-    var stakedIds = q ? (q.quest_venues || []).map(function (v) { return v.provider_id; }) : [];
-    var stakedTask = {};
-    if (q) (q.quest_venues || []).forEach(function (v) { stakedTask[v.provider_id] = v.task || ''; });
-
-    var stampOpts = '<option value="__new">+ New stamp…</option>' + S.stamps.map(function (s) {
-      return '<option value="' + s.id + '"' + (q && q.stamp_id === s.id ? ' selected' : '') + '>' + esc(s.name) + '</option>';
-    }).join('');
-    var sponsorOpts = '<option value="">— none —</option><option value="__new">+ New sponsor…</option>' + S.sponsors.map(function (s) {
-      return '<option value="' + s.id + '"' + (q && q.sponsor_id === s.id ? ' selected' : '') + '>' + esc(s.name) + '</option>';
-    }).join('');
+    S.editing = q || null; S.curQuest = q ? q.id : null; S.taskEdit = null;
     var catOpts = CATS.map(function (c) { return '<option value="' + c + '"' + (q && q.category === c ? ' selected' : '') + '>' + cap(c) + '</option>'; }).join('');
     var scopeOpts = ['city', 'country', 'global'].map(function (c) { return '<option value="' + c + '"' + (q && q.scope === c ? ' selected' : '') + '>' + cap(c) + '</option>'; }).join('');
-    var venueRows = S.providers.map(function (p) {
-      var on = stakedIds.indexOf(p.id) >= 0;
-      return '<div class="qf-venue-row">' +
-        '<label class="qf-venue"><input type="checkbox" id="qv-' + p.id + '"' + (on ? ' checked' : '') + '> ' + esc(p.business_name) + '</label>' +
-        '<input class="qf-input qf-task" id="qvt-' + p.id + '" placeholder="What to do here — e.g. a class, ice bath, main meal" value="' + esc(stakedTask[p.id] || '') + '">' +
-        '</div>';
-    }).join('') || '<div style="color:#8a99a8;font-size:13px;">No providers yet.</div>';
-
+    var lbOpts = [['global', 'Global + city/country'], ['quest', 'This quest only'], ['none', 'No leaderboard']].map(function (o) { return '<option value="' + o[0] + '"' + (q && q.leaderboard === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('');
     var body =
-      '<div class="qf-row"><label>Title</label><input class="qf-input" id="q-title" value="' + esc(q ? q.title : '') + '" placeholder="e.g. Sport Sampler"></div>' +
+      '<div class="qf-row"><label>Title</label><input class="qf-input" id="q-title" value="' + esc(q ? q.title : '') + '" placeholder="e.g. FFP World Streak"></div>' +
       '<div class="qf-row"><label>Description</label><textarea class="qf-area" id="q-desc" placeholder="What the member does">' + esc(q ? (q.description || '') : '') + '</textarea></div>' +
-      '<div class="qf-row qf-two"><div><label>Category</label><select class="qf-sel" id="q-category">' + catOpts + '</select></div>' +
-        '<div><label>Scope</label><select class="qf-sel" id="q-scope">' + scopeOpts + '</select></div></div>' +
-      '<div class="qf-row"><label>City / Country (leave blank for Global)</label><input class="qf-input" id="q-location" value="' + esc(q ? (q.city || q.country || '') : '') + '" placeholder="e.g. Dubai"></div>' +
-      '<div class="qf-row qf-two"><div><label>Stamps to complete</label><input class="qf-input" id="q-target" type="number" min="1" value="' + (q ? q.target_count : 5) + '"></div>' +
-        '<div><label style="visibility:hidden;">x</label><label class="qf-check"><input type="checkbox" id="q-distinct"' + (q && q.require_distinct_venues ? ' checked' : '') + '> Different venues only</label></div></div>' +
-      '<div class="qf-row"><label>Reward stamp</label><select class="qf-sel" id="q-stamp" onchange="AdminQuests.toggleStamp()">' + stampOpts + '</select>' +
-        '<div id="q-stamp-new" style="display:none;margin-top:10px;" class="qf-two"><div><input class="qf-input" id="q-stamp-name" placeholder="Stamp name"></div><div><input class="qf-input" id="q-stamp-icon" placeholder="icon (e.g. approval)"></div></div></div>' +
-      '<div class="qf-row"><label>Reward type</label><select class="qf-sel" id="q-reward" onchange="AdminQuests.toggleReward()">' +
-        '<option value="stamp"' + (q && q.reward_type === 'stamp' ? ' selected' : '') + '>Stamp only</option>' +
-        '<option value="prize"' + (q && q.reward_type === 'prize' ? ' selected' : '') + '>Sponsored prize (first N win)</option></select></div>' +
-      '<div id="q-prize-box" style="display:none;">' +
-        '<div class="qf-row"><label>Sponsor</label><select class="qf-sel" id="q-sponsor" onchange="AdminQuests.toggleSponsor()">' + sponsorOpts + '</select>' +
-          '<div id="q-sponsor-new" style="display:none;margin-top:10px;" class="qf-two"><div><input class="qf-input" id="q-sponsor-name" placeholder="Sponsor name"></div><div><input class="qf-input" id="q-sponsor-logo" placeholder="Logo text (e.g. GS)"></div></div></div>' +
-        '<div class="qf-row"><label>Number of prizes (first N to finish win)</label><input class="qf-input" id="q-prize-total" type="number" min="1" value="' + (q && q.prize_total != null ? q.prize_total : 5) + '"></div>' +
-      '</div>' +
+      '<div class="qf-row qf-two"><div><label>Category</label><select class="qf-sel" id="q-category">' + catOpts + '</select></div><div><label>Scope</label><select class="qf-sel" id="q-scope">' + scopeOpts + '</select></div></div>' +
+      '<div class="qf-row"><label>City / Country (blank = global)</label><input class="qf-input" id="q-location" value="' + esc(q ? (q.city || q.country || '') : '') + '" placeholder="e.g. Dubai"></div>' +
+      '<div class="qf-row"><label>Leaderboard</label><select class="qf-sel" id="q-leaderboard">' + lbOpts + '</select></div>' +
       '<div class="qf-row"><label>Hero image</label>' +
         '<div id="q-hero-preview" style="height:120px;border-radius:12px;background-color:#0f2335;background-size:cover;background-position:center;background-repeat:no-repeat;border:1px solid rgba(43,168,224,0.25);margin-bottom:8px;' + (q && q.hero_image_url ? "background-image:url('" + esc(q.hero_image_url) + "');" : '') + '"></div>' +
         '<input type="file" id="q-hero-file" accept="image/*" style="display:none" onchange="AdminQuests.uploadHero(this)">' +
         '<button type="button" class="btn btn-ghost" onclick="document.getElementById(\'q-hero-file\').click()"><span class="material-icons">upload</span> Upload image</button>' +
-        '<input type="hidden" id="q-hero" value="' + esc(q ? (q.hero_image_url || '') : '') + '">' +
-      '</div>' +
-      '<div class="qf-row"><label>Venues that count toward this quest</label><div class="qf-venues">' + venueRows + '</div></div>';
-
-    var foot = '<button class="btn btn-ghost" onclick="closeQuestModal()">Cancel</button>' +
-      '<button class="btn btn-primary" onclick="AdminQuests.save()"><span class="material-icons">save</span>' + (q ? 'Save changes' : 'Save as draft') + '</button>';
-
-    openModal(q ? 'Edit quest' : 'New quest', body, foot);
-    toggleReward(); toggleStamp(); toggleSponsor();
+        '<input type="hidden" id="q-hero" value="' + esc(q ? (q.hero_image_url || '') : '') + '"></div>' +
+      '<div id="q-missions-wrap" style="border-top:1px solid #1a2f44;padding-top:14px;">' +
+        (q ? '<label style="display:block;font-size:11px;font-weight:700;color:#8a99a8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Missions · points come from these</label><div id="q-task-list"></div>' + taskBuilderHtml()
+           : '<div style="color:#8a99a8;font-size:13px;">Save the quest first, then add its missions here.</div>') +
+      '</div>';
+    var foot = '<button class="btn btn-ghost" onclick="closeQuestModal()">Close</button>' +
+      '<button class="btn btn-primary" onclick="AdminQuests.save()"><span class="material-icons">save</span>' + (q ? 'Save details' : 'Save & add missions') + '</button>';
+    openModal(q ? 'Edit FFP quest' : 'New FFP quest', body, foot);
+    if (q) renderTasks();
   }
 
-  function toggleReward() { var b = document.getElementById('q-prize-box'); if (b) b.style.display = (val('q-reward') === 'prize') ? 'block' : 'none'; }
-  function toggleStamp() { var n = document.getElementById('q-stamp-new'); if (n) n.style.display = (val('q-stamp') === '__new') ? 'flex' : 'none'; }
-  function toggleSponsor() { var n = document.getElementById('q-sponsor-new'); if (n) n.style.display = (val('q-sponsor') === '__new') ? 'flex' : 'none'; }
+  function taskBuilderHtml() {
+    var proofOpts = PROOFS.map(function (p) { return '<option value="' + p[0] + '">' + p[1] + '</option>'; }).join('');
+    var verOpts = VERIFIERS.map(function (p) { return '<option value="' + p[0] + '">' + p[1] + '</option>'; }).join('');
+    var provOpts = '<option value="">— no specific venue —</option>' + S.providers.map(function (p) { return '<option value="' + p.id + '">' + esc(p.business_name) + '</option>'; }).join('');
+    return '<div style="background:#0b1623;border:1px dashed #2a4a66;border-radius:10px;padding:12px;margin-top:10px;">' +
+      '<div style="font-size:12px;font-weight:700;color:#cfd6dc;margin-bottom:8px;" id="qt-form-title">Add a mission</div>' +
+      '<div class="qf-row"><input class="qf-input" id="qt-title" placeholder="Mission title — e.g. Scan our QR"></div>' +
+      '<div class="qf-row"><input class="qf-input" id="qt-instr" placeholder="Instruction (optional)"></div>' +
+      '<div class="qf-row qf-two"><div><label>Points</label><input class="qf-input" id="qt-points" type="number" min="0" value="5"></div>' +
+        '<div><label>Proof</label><select class="qf-sel" id="qt-proof" onchange="AdminQuests.qtProofChange()">' + proofOpts + '</select></div></div>' +
+      '<div class="qf-row qf-two"><div><label>Verified by</label><select class="qf-sel" id="qt-verifier">' + verOpts + '</select></div>' +
+        '<div><label>Venue (optional)</label><select class="qf-sel" id="qt-provider">' + provOpts + '</select></div></div>' +
+      '<div class="qf-row" id="qt-gps-row" style="display:none;"><label>GPS lat / lng / radius (m)</label><div class="qf-two" style="gap:8px;"><div><input class="qf-input" id="qt-lat" placeholder="lat"></div><div><input class="qf-input" id="qt-lng" placeholder="lng"></div><div><input class="qf-input" id="qt-radius" type="number" value="50"></div></div></div>' +
+      '<div style="display:flex;gap:8px;"><button class="btn btn-sm btn-blue" id="qt-add-btn" onclick="AdminQuests.saveTask()"><span class="material-icons">add</span>Add mission</button>' +
+        '<button class="btn btn-sm btn-ghost" id="qt-cancel-btn" style="display:none;" onclick="AdminQuests.cancelTaskEdit()">Cancel edit</button></div>' +
+      '</div>';
+  }
+  function qtProofChange() { var p = val('qt-proof'); var r = document.getElementById('qt-gps-row'); if (r) r.style.display = (p === 'gps' || p === 'photo_gps') ? 'block' : 'none'; }
+
+  async function renderTasks() {
+    var host = document.getElementById('q-task-list'); if (!host || !S.curQuest) return;
+    var list = [];
+    try { var r = await window.supabase.rpc('quest_list_tasks', { p_quest: S.curQuest }); list = (r && r.data) ? r.data : []; } catch (e) {}
+    if (!list.length) { host.innerHTML = '<div style="color:#8a99a8;font-size:13px;margin-bottom:8px;">No missions yet — add the first below.</div>'; return; }
+    var pmap = {}; PROOFS.forEach(function (p) { pmap[p[0]] = p[1]; });
+    host.innerHTML = list.map(function (t) {
+      return '<div class="qt-card"><div style="flex:1;min-width:0;">' +
+          '<div style="font-weight:700;color:#e8eef4;">' + esc(t.title) + '</div>' +
+          '<div style="font-size:11px;color:#8a99a8;margin-top:2px;">' + esc(pmap[t.proof_type] || t.proof_type) + ' · ' + esc(t.verifier) + (t.qr_token ? ' · <span class="qt-qr">' + esc(t.qr_token) + '</span>' : '') + '</div>' +
+        '</div><div class="qt-pts">+' + (t.points || 0) + '</div>' +
+        '<div style="display:flex;flex-direction:column;gap:4px;">' +
+          '<button class="btn btn-sm btn-ghost" onclick="AdminQuests.editTask(\'' + t.id + '\')" style="padding:3px 7px;"><span class="material-icons" style="font-size:15px;">edit</span></button>' +
+          '<button class="btn btn-sm btn-ghost" onclick="AdminQuests.deleteTask(\'' + t.id + '\')" style="padding:3px 7px;"><span class="material-icons" style="font-size:15px;">delete</span></button>' +
+        '</div></div>';
+    }).join('');
+  }
+
+  async function saveTask() {
+    if (!S.curQuest) { toast('Save the quest first', 'error'); return; }
+    var title = val('qt-title'); if (!title) { toast('Mission needs a title', 'error'); return; }
+    var p = {
+      title: title, instruction: val('qt-instr') || null, points: parseInt(val('qt-points'), 10) || 0,
+      proof_type: val('qt-proof') || 'auto', verifier: val('qt-verifier') || 'auto',
+      provider_id: val('qt-provider') || null
+    };
+    var pt = p.proof_type;
+    if (pt === 'gps' || pt === 'photo_gps') { p.lat = val('qt-lat') || null; p.lng = val('qt-lng') || null; p.radius_m = parseInt(val('qt-radius'), 10) || 50; }
+    try {
+      var r = await window.supabase.rpc('quest_save_task', { p_quest: S.curQuest, p_id: S.taskEdit, p: p });
+      if (r && r.error) throw r.error;
+      var d = (r && r.data) || {};
+      toast(S.taskEdit ? 'Mission updated' : 'Mission added' + (d.qr_token ? ' · QR ' + d.qr_token : ''), 'success');
+      cancelTaskEdit();
+      await renderTasks();
+      await fetchAll(); // refresh points_total in the list behind
+    } catch (e) { toast('Could not save mission', 'error'); }
+  }
+  async function editTask(id) {
+    var r; try { r = await window.supabase.rpc('quest_list_tasks', { p_quest: S.curQuest }); } catch (e) { return; }
+    var t = ((r && r.data) || []).find(function (x) { return x.id === id; }); if (!t) return;
+    S.taskEdit = id;
+    var set = function (i, v) { var e = document.getElementById(i); if (e) e.value = (v == null ? '' : v); };
+    set('qt-title', t.title); set('qt-instr', t.instruction); set('qt-points', t.points);
+    set('qt-proof', t.proof_type); set('qt-verifier', t.verifier); set('qt-provider', t.provider_id || '');
+    set('qt-lat', t.lat); set('qt-lng', t.lng); set('qt-radius', t.radius_m || 50);
+    qtProofChange();
+    var ft = document.getElementById('qt-form-title'); if (ft) ft.textContent = 'Edit mission';
+    var ab = document.getElementById('qt-add-btn'); if (ab) ab.innerHTML = '<span class="material-icons">save</span>Update mission';
+    var cb = document.getElementById('qt-cancel-btn'); if (cb) cb.style.display = '';
+  }
+  function cancelTaskEdit() {
+    S.taskEdit = null;
+    ['qt-title', 'qt-instr', 'qt-lat', 'qt-lng'].forEach(function (i) { var e = document.getElementById(i); if (e) e.value = ''; });
+    var pts = document.getElementById('qt-points'); if (pts) pts.value = '5';
+    var pr = document.getElementById('qt-proof'); if (pr) pr.value = 'auto';
+    var vr = document.getElementById('qt-verifier'); if (vr) vr.value = 'auto';
+    var pv = document.getElementById('qt-provider'); if (pv) pv.value = '';
+    qtProofChange();
+    var ft = document.getElementById('qt-form-title'); if (ft) ft.textContent = 'Add a mission';
+    var ab = document.getElementById('qt-add-btn'); if (ab) ab.innerHTML = '<span class="material-icons">add</span>Add mission';
+    var cb = document.getElementById('qt-cancel-btn'); if (cb) cb.style.display = 'none';
+  }
+  async function deleteTask(id) {
+    if (!window.confirm('Delete this mission?')) return;
+    try { var r = await window.supabase.rpc('quest_delete_task', { p_id: id }); if (r && r.error) throw r.error; await renderTasks(); await fetchAll(); }
+    catch (e) { toast('Could not delete', 'error'); }
+  }
 
   async function save() {
     try {
-      var title = val('q-title');
-      if (!title) { toast('Title is required', 'error'); return; }
-      var target = parseInt(val('q-target'), 10);
-      if (!target || target < 1) { toast('Stamps to complete must be at least 1', 'error'); return; }
-
-      // resolve stamp
-      var stampId = val('q-stamp');
-      if (stampId === '__new') {
-        var sn = val('q-stamp-name'); var si = val('q-stamp-icon') || 'approval';
-        if (!sn) { toast('New stamp needs a name', 'error'); return; }
-        var ins = await window.supabase.from('stamps').insert({ name: sn, icon: si, color: '#b8965a' }).select('id').single();
-        if (ins.error) throw ins.error;
-        stampId = ins.data.id;
-      }
-      if (!stampId) { toast('Pick or create a stamp', 'error'); return; }
-
-      var reward = val('q-reward');
-      var sponsorId = null, prizeTotal = null, prizeRemaining = null;
-      if (reward === 'prize') {
-        sponsorId = val('q-sponsor');
-        if (sponsorId === '__new') {
-          var spn = val('q-sponsor-name'); var spl = val('q-sponsor-logo');
-          if (!spn) { toast('New sponsor needs a name', 'error'); return; }
-          var si2 = await window.supabase.from('sponsors').insert({ name: spn, logo: spl }).select('id').single();
-          if (si2.error) throw si2.error;
-          sponsorId = si2.data.id;
-        }
-        if (!sponsorId) { toast('Prize quests need a sponsor', 'error'); return; }
-        prizeTotal = parseInt(val('q-prize-total'), 10) || 1;
-        prizeRemaining = S.editing && S.editing.prize_remaining != null && S.editing.reward_type === 'prize'
-          ? Math.min(S.editing.prize_remaining, prizeTotal) : prizeTotal;
-      }
-
-      var scope = val('q-scope');
-      var loc = val('q-location');
+      var title = val('q-title'); if (!title) { toast('Title is required', 'error'); return; }
+      var scope = val('q-scope'), loc = val('q-location');
       var payload = {
-        title: title,
-        description: val('q-desc') || null,
-        category: val('q-category'),
-        scope: scope,
-        city: scope === 'city' ? (loc || null) : null,
-        country: scope === 'country' ? (loc || null) : null,
-        target_count: target,
-        require_distinct_venues: checked('q-distinct'),
-        stamp_id: stampId,
-        reward_type: reward,
-        sponsor_id: sponsorId,
-        prize_total: prizeTotal,
-        prize_remaining: prizeRemaining,
-        hero_image_url: val('q-hero') || null,
+        title: title, description: val('q-desc') || null, category: val('q-category'), scope: scope,
+        city: scope === 'city' ? (loc || null) : null, country: scope === 'country' ? (loc || null) : null,
+        leaderboard: val('q-leaderboard') || 'global', hero_image_url: val('q-hero') || null,
         updated_at: new Date().toISOString()
       };
-
-      var questId;
       if (S.editing) {
         var up = await window.supabase.from('quests').update(payload).eq('id', S.editing.id);
         if (up.error) throw up.error;
-        questId = S.editing.id;
+        toast('Details saved', 'success');
+        await fetchAll(); renderList();
       } else {
-        payload.status = 'draft';
-        payload.active_from = new Date().toISOString();
-        var cr = await window.supabase.from('quests').insert(payload).select('id').single();
+        payload.owner_type = 'ffp'; payload.visibility = 'public'; payload.reward_type = 'points';
+        payload.status = 'draft'; payload.active_from = new Date().toISOString(); payload.target_count = 1;
+        var cr = await window.supabase.from('quests').insert(payload).select('*').single();
         if (cr.error) throw cr.error;
-        questId = cr.data.id;
+        S.editing = cr.data; S.curQuest = cr.data.id;
+        toast('Quest created — now add its missions', 'success');
+        await fetchAll();
+        openForm(cr.data.id); // reopen in edit mode → missions builder visible
       }
-
-      // venues: replace set
-      var selected = S.providers.filter(function (p) { return checked('qv-' + p.id); }).map(function (p) { return p.id; });
-      await window.supabase.from('quest_venues').delete().eq('quest_id', questId);
-      if (selected.length) {
-        var rows = selected.map(function (pid) { return { quest_id: questId, provider_id: pid, task: (val('qvt-' + pid) || null) }; });
-        var iv = await window.supabase.from('quest_venues').insert(rows);
-        if (iv.error) throw iv.error;
-      }
-
-      closeQuestModal();
-      toast(S.editing ? 'Quest saved' : 'Quest created (draft)', 'success');
-      await refresh();
-    } catch (e) {
-      console.error('[Admin Quests] save:', e);
-      toast(e.message || 'Save failed', 'error');
-    }
+    } catch (e) { console.error('[Admin Quests] save:', e); toast(e.message || 'Save failed', 'error'); }
   }
 
   async function setStatus(id, status) {
@@ -283,55 +272,40 @@
       if (status === 'live') patch.active_from = new Date().toISOString();
       var res = await window.supabase.from('quests').update(patch).eq('id', id);
       if (res.error) throw res.error;
-      toast(status === 'live' ? 'Quest is now live' : status === 'draft' ? 'Quest unpublished' : 'Quest ended', 'success');
+      toast(status === 'live' ? 'Quest is live' : status === 'draft' ? 'Unpublished' : 'Ended', 'success');
       await refresh();
-    } catch (e) { console.error('[Admin Quests] setStatus:', e); toast(e.message || 'Update failed', 'error'); }
+    } catch (e) { toast(e.message || 'Update failed', 'error'); }
   }
 
   async function refresh() { await fetchAll(); renderList(); }
 
-  // ── modal ──
   function openModal(title, content, footer) {
     closeQuestModal();
-    var ov = document.createElement('div');
-    ov.id = 'ffp-quest-modal-overlay';
+    var ov = document.createElement('div'); ov.id = 'ffp-quest-modal-overlay';
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,8,20,0.75);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;';
-    ov.innerHTML =
-      '<div style="background:#0f1e2e;border:1px solid #1a2f44;border-radius:16px;width:100%;max-width:560px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.5);overflow:hidden;">' +
+    ov.innerHTML = '<div style="background:#0f1e2e;border:1px solid #1a2f44;border-radius:16px;width:100%;max-width:560px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.5);overflow:hidden;">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid #1a2f44;">' +
           '<div style="color:#e8eef4;font-size:16px;font-weight:700;">' + esc(title) + '</div>' +
-          '<button onclick="closeQuestModal()" style="background:transparent;border:none;color:#8a99a8;cursor:pointer;font-size:24px;line-height:1;">&times;</button>' +
-        '</div>' +
+          '<button onclick="closeQuestModal()" style="background:transparent;border:none;color:#8a99a8;cursor:pointer;font-size:24px;line-height:1;">&times;</button></div>' +
         '<div style="padding:20px;overflow-y:auto;flex:1;">' + content + '</div>' +
-        '<div style="display:flex;gap:10px;justify-content:flex-end;padding:14px 20px;border-top:1px solid #1a2f44;">' + footer + '</div>' +
-      '</div>';
+        '<div style="display:flex;gap:10px;justify-content:flex-end;padding:14px 20px;border-top:1px solid #1a2f44;">' + footer + '</div></div>';
     ov.addEventListener('click', function (e) { if (e.target === ov) closeQuestModal(); });
     document.body.appendChild(ov);
   }
   window.closeQuestModal = function () { var o = document.getElementById('ffp-quest-modal-overlay'); if (o) o.remove(); };
 
-  // ── Hero image upload (Supabase Storage, public bucket 'quest-images') ──
   var HERO_BUCKET = 'quest-images';
   function compressImage(file, maxW, quality) {
     return new Promise(function (resolve, reject) {
-      var img = new Image();
-      var url = URL.createObjectURL(file);
-      img.onload = function () {
-        var scale = Math.min(1, maxW / img.width);
-        var w = Math.round(img.width * scale), h = Math.round(img.height * scale);
-        var c = document.createElement('canvas'); c.width = w; c.height = h;
-        c.getContext('2d').drawImage(img, 0, 0, w, h);
-        URL.revokeObjectURL(url);
-        c.toBlob(function (b) { b ? resolve(b) : reject(new Error('Could not process image')); }, 'image/jpeg', quality || 0.82);
-      };
+      var img = new Image(); var url = URL.createObjectURL(file);
+      img.onload = function () { var scale = Math.min(1, maxW / img.width); var w = Math.round(img.width * scale), h = Math.round(img.height * scale); var c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(img, 0, 0, w, h); URL.revokeObjectURL(url); c.toBlob(function (b) { b ? resolve(b) : reject(new Error('Could not process image')); }, 'image/jpeg', quality || 0.82); };
       img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('Could not read image')); };
       img.src = url;
     });
   }
   async function uploadHero(input) {
-    var file = input && input.files && input.files[0];
-    if (!file) return;
-    if (!window.supabase) { toast('Storage not ready — try again', 'error'); return; }
+    var file = input && input.files && input.files[0]; if (!file) return;
+    if (!window.supabase) { toast('Storage not ready', 'error'); return; }
     toast('Uploading image…');
     try {
       var blob = await compressImage(file, 1280, 0.82);
@@ -339,21 +313,18 @@
       var up = await window.supabase.storage.from(HERO_BUCKET).upload(path, blob, { contentType: 'image/jpeg', upsert: true, cacheControl: '3600' });
       if (up.error) throw up.error;
       var pub = window.supabase.storage.from(HERO_BUCKET).getPublicUrl(path);
-      var publicUrl = pub && pub.data && pub.data.publicUrl;
-      if (!publicUrl) throw new Error('Could not resolve image URL');
+      var publicUrl = pub && pub.data && pub.data.publicUrl; if (!publicUrl) throw new Error('Could not resolve image URL');
       var hid = document.getElementById('q-hero'); if (hid) hid.value = publicUrl;
       var pv = document.getElementById('q-hero-preview'); if (pv) pv.style.backgroundImage = "url('" + publicUrl + "')";
       toast('Image uploaded ✓', 'success');
-    } catch (e) {
-      toast((e && e.message) || 'Upload failed — check the quest-images bucket exists', 'error');
-    } finally { try { input.value = ''; } catch (e) {} }
+    } catch (e) { toast((e && e.message) || 'Upload failed', 'error'); } finally { try { input.value = ''; } catch (e) {} }
   }
 
   window.AdminQuests = {
     openForm: openForm, save: save, setStatus: setStatus, refresh: refresh,
     setTab: function (t) { S.tab = t; renderList(); },
-    toggleReward: toggleReward, toggleStamp: toggleStamp, toggleSponsor: toggleSponsor,
-    uploadHero: uploadHero
+    uploadHero: uploadHero, qtProofChange: qtProofChange,
+    saveTask: saveTask, editTask: editTask, cancelTaskEdit: cancelTaskEdit, deleteTask: deleteTask, review: review
   };
 
   async function init() {
@@ -361,12 +332,9 @@
     if (!ok) { console.warn('[FFP Admin Quests] supabase or panel not ready'); return; }
     await waitFor(function () { return !!window.FFP_ADMIN; }, 30000);
     if (window.App && window.App.panelNames) window.App.panelNames['panel-quests'] = 'Quests';
-    injectStyles();
-    buildScaffold();
-    try { await refresh(); console.log('[FFP Admin Quests v2] Loaded ✓'); }
-    catch (e) { console.error('[FFP Admin Quests] initial load:', e); }
+    injectStyles(); buildScaffold();
+    try { await refresh(); console.log('[FFP Admin Quests v3] Loaded ✓'); } catch (e) { console.error('[FFP Admin Quests] initial load:', e); }
   }
-
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 })();
