@@ -17,6 +17,7 @@ window.Quests = {
   explore: [],
   mine: [],
   globalBoard: [],
+  headline: null,
   _openQuest: null,
 
   memberId() {
@@ -78,61 +79,51 @@ window.Quests = {
     try {
       var r = await window.supabase.rpc('member_quests_feed', { p_me: mid });
       var d = (r && r.data) ? r.data : {};
-      this.explore = d.explore || []; this.mine = d.mine || [];
-    } catch (e) { this.explore = []; this.mine = []; }
-    try {
-      var rb = await window.supabase.rpc('ffp_global_leaderboard', { p_city: null, p_country: null, p_limit: 100 });
-      this.globalBoard = (rb && rb.data) ? rb.data : [];
-    } catch (e) { this.globalBoard = []; }
+      this.headline = d.headline || null; this.explore = d.explore || []; this.mine = d.mine || [];
+    } catch (e) { this.headline = null; this.explore = []; this.mine = []; }
     this.renderHero();
     this.render();
   },
 
   renderHero() {
     var el = document.getElementById('quest-hero'); if (!el) return;
-    var mid = this.memberId();
-    var rank = 0, pts = 0;
-    for (var i = 0; i < this.globalBoard.length; i++) { if (this.globalBoard[i].member_id === mid) { rank = i + 1; pts = this.globalBoard[i].points; break; } }
-    if (!pts) { this.mine.forEach(function (q) { if (q.kind === 'ffp') pts += (q.my_points || 0); }); }
-    var done = this.mine.filter(function (q) { return q.status === 'completed'; }).length;
+    var h = this.headline;
+    if (!h) { el.style.display = 'none'; el.innerHTML = ''; return; }
+    el.style.display = '';
+    var done = h.my_completed || 0, total = h.task_count || 0;
+    var bg = h.hero_image_url
+      ? "linear-gradient(180deg,rgba(8,20,32,0.25),rgba(8,20,32,0.82)),url('" + h.hero_image_url + "')"
+      : 'linear-gradient(135deg,rgba(43,168,224,0.30),rgba(255,204,0,0.12))';
     el.innerHTML =
-      '<div class="hero-top">' +
-        '<div class="hero-tier-badge"><span class="material-icons">public</span></div>' +
-        '<div class="hero-tier-info" style="min-width:0;flex:1;">' +
-          '<div class="tier-name">FFP points</div>' +
-          '<div class="tier-meta"><b>' + done + '</b> quests completed</div>' +
+      '<div onclick="Quests.open(\'' + h.id + '\',\'ffp\')" style="cursor:pointer;border-radius:18px;overflow:hidden;border:1px solid var(--q-border-mid);background:' + bg + ';background-size:cover;background-position:center;padding:20px;min-height:160px;display:flex;flex-direction:column;justify-content:flex-end;">' +
+        '<div style="display:inline-flex;align-self:flex-start;align-items:center;gap:5px;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#082335;background:var(--q-yellow);border-radius:20px;padding:4px 10px;margin-bottom:10px;"><span class="material-icons" style="font-size:13px;">stars</span> Featured quest</div>' +
+        '<div style="font-size:21px;font-weight:900;color:#fff;line-height:1.15;">' + escHtml(h.title) + '</div>' +
+        (h.description ? '<div style="font-size:13px;color:#cfe0ee;margin-top:4px;max-width:90%;">' + escHtml(h.description) + '</div>' : '') +
+        '<div style="display:flex;align-items:center;gap:14px;margin-top:14px;flex-wrap:wrap;">' +
+          '<span style="font-size:12px;font-weight:700;color:#fff;"><span class="material-icons" style="font-size:14px;vertical-align:-2px;">flag</span> ' + total + ' tasks · ' + (h.points_total || 0) + ' pts</span>' +
+          '<span style="font-size:12px;font-weight:700;color:#fff;"><span class="material-icons" style="font-size:14px;vertical-align:-2px;">group</span> ' + (h.joined_count || 0) + ' joined</span>' +
+          (h.joined
+            ? '<span style="margin-left:auto;font-size:13px;font-weight:800;color:#082335;background:#fff;border-radius:10px;padding:8px 16px;">Continue · ' + done + '/' + total + '</span>'
+            : '<span style="margin-left:auto;font-size:13px;font-weight:800;color:#082335;background:var(--q-yellow);border-radius:10px;padding:8px 16px;">Join the quest</span>') +
         '</div>' +
-      '</div>' +
-      '<div class="hero-stats">' +
-        '<div class="hero-stat"><div class="num gold">' + pts + '</div><div class="lbl">Points</div></div>' +
-        '<div class="hero-stat"><div class="num blue">' + (rank ? ('#' + rank) : '—') + '</div><div class="lbl">Global rank</div></div>' +
-        '<div class="hero-stat"><div class="num">' + this.mine.length + '</div><div class="lbl">Joined</div></div>' +
       '</div>';
-  },
-
-  _setControls() {
-    var catRow = document.getElementById('quest-cat-row');
-    var scopeSeg = document.getElementById('quest-scope-seg');
-    if (catRow) catRow.style.display = (this.tab === 'explore') ? '' : 'none';
-    if (scopeSeg) scopeSeg.style.display = (this.tab === 'board') ? '' : 'none';
   },
 
   render() {
     var setC = function (id, n) { var e = document.getElementById(id); if (e) e.textContent = n; };
     setC('q-browse-count', this.explore.length);
     setC('q-active-count', this.mine.length);
-    this._setControls();
+    var hero = document.getElementById('quest-hero');
+    if (hero) hero.style.display = (this.tab === 'explore' && this.headline) ? '' : 'none';
     var grid = document.getElementById('quest-grid'); if (!grid) return;
-    if (this.tab === 'board') { this.renderBoard(); return; }
     if (this.tab === 'mine') {
-      if (!this.mine.length) { grid.innerHTML = this._empty('No quests yet', 'Join an FFP quest from Explore, or unlock a partner quest with their code.'); return; }
+      if (!this.mine.length) { grid.innerHTML = this._empty('No quests yet', 'Join an FFP quest from Explore to get started.'); return; }
       grid.innerHTML = this.mine.map(this.cardMine.bind(this)).join('');
       return;
     }
     var items = this.explore.slice();
-    if (this.cat !== 'all') items = items.filter(function (q) { return q.category === this.cat; }, this);
-    if (!items.length) { grid.innerHTML = this._empty('Nothing here yet', 'New FFP quests are on the way — check back soon.'); return; }
-    grid.innerHTML = items.map(this.cardExplore.bind(this)).join('');
+    if (!items.length) { grid.innerHTML = this.headline ? '' : this._empty('Nothing here yet', 'New FFP quests are on the way — check back soon.'); return; }
+    grid.innerHTML = '<div style="grid-column:1/-1;font-size:12px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--q-muted);margin:2px 0 -2px;">More FFP quests</div>' + items.map(this.cardExplore.bind(this)).join('');
   },
 
   _empty(t, s) {
@@ -250,9 +241,33 @@ window.Quests = {
           rankLine +
           '<div class="q-venues-title">Tasks</div>' +
           '<div id="q-task-list" style="display:flex;flex-direction:column;gap:9px;">' + tasksHtml + '</div>' +
+          ((d.leaderboard && d.leaderboard !== 'none') ? '<div class="q-venues-title" style="margin-top:18px;">Leaderboard</div><div id="q-board-list"><div style="font-size:12px;color:#8a99a8;padding:6px 0;">Loading…</div></div>' : '') +
         '</div>' +
       '</div>';
     openDetailModal(html);
+    if (d.leaderboard && d.leaderboard !== 'none') this.loadQuestBoard(id);
+  },
+
+  async loadQuestBoard(questId) {
+    var host = document.getElementById('q-board-list'); if (!host) return;
+    var rows = [];
+    try { var r = await window.supabase.rpc('quest_leaderboard', { p_quest: questId, p_limit: 25 }); rows = (r && r.data) ? r.data : []; } catch (e) {}
+    if (!rows.length) { host.innerHTML = '<div style="font-size:12px;color:#8a99a8;padding:6px 0;">No points yet — be the first to climb.</div>'; return; }
+    var mid = this.memberId();
+    host.innerHTML = rows.map(function (b, i) {
+      var me = b.member_id === mid;
+      var medal = i === 0 ? '#f4d77a' : i === 1 ? '#c8d2dc' : i === 2 ? '#d8a06a' : '#8a99a8';
+      var av = b.photo
+        ? '<img src="' + b.photo + '" alt="" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;">'
+        : '<div style="width:32px;height:32px;border-radius:50%;background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0;">' + escHtml((b.name || 'M').charAt(0).toUpperCase()) + '</div>';
+      var loc = [b.city, b.country].filter(Boolean).join(' · ');
+      return '<div style="display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:10px;margin-bottom:6px;background:' + (me ? 'rgba(43,168,224,0.12)' : 'rgba(255,255,255,0.03)') + ';border:1px solid ' + (me ? '#2ba8e0' : 'rgba(255,255,255,0.07)') + ';">' +
+        '<div style="width:20px;text-align:center;font-weight:900;color:' + medal + ';">' + (i + 1) + '</div>' + av +
+        '<div style="flex:1;min-width:0;"><div style="font-weight:700;color:#e8eef4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(b.name || 'Member') + (me ? ' <span style="color:#2ba8e0;font-size:11px;">• you</span>' : '') + '</div>' +
+        (loc ? '<div style="font-size:11px;color:#8a99a8;">' + escHtml(loc) + '</div>' : '') + '</div>' +
+        '<div style="font-weight:900;color:#e8eef4;">' + b.points + '<span style="font-size:11px;color:#8a99a8;font-weight:700;"> pts</span></div>' +
+      '</div>';
+    }).join('');
   },
 
   taskRow(t) {
