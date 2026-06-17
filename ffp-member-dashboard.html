@@ -4238,7 +4238,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 <!-- Google Analytics 4 (platform-wide) -->
 <script src="assets/ffp-analytics.js"></script>
 <!-- Quests panel module (extracted from inline) — defines window.Quests before the dashboard boot calls init -->
-<script src="assets/ffp-quests-core.js?v=5"></script>
+<script src="assets/ffp-quests-core.js?v=6"></script>
 </head>
 <body>
 
@@ -4600,19 +4600,14 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
   <div id="panel-quests" class="panel-view">
     <div class="user-panel-head">
       <h2>Quests</h2>
-      <div class="user-panel-sub">Complete FFP quests around the city, earn points, and climb the leaderboard.</div>
+      <div class="user-panel-sub">Take on the city-wide quest, complete FFP missions, and climb the leaderboard.</div>
     </div>
 
-    <!-- HERO + TIER -->
-    <div class="quest-hero" id="quest-hero"></div>
+    <!-- MAJOR (headline) quest -->
+    <div id="quest-hero"></div>
 
-    <!-- TABS -->
-    <div class="tabs-underline" id="quest-tabs">
-      <button class="tabs-underline-btn active" data-quest-tab="explore">Explore <span class="count-pill" id="q-browse-count">0</span></button>
-      <button class="tabs-underline-btn" data-quest-tab="mine">My quests <span class="count-pill" id="q-active-count">0</span></button>
-    </div>
-
-    <div class="quest-grid" id="quest-grid"></div>
+    <!-- MINOR (FFP missions) + PARTNER quests, rendered by Quests.renderAll() -->
+    <div id="quest-sections"></div>
   </div>
 
   <!-- PANEL: EVENTS removed 2026-06-07 — Events now live on findfitpeople.com (booking platform), not the Passport. -->
