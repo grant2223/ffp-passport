@@ -11,7 +11,7 @@
 var _apStaff = [], _apServices = [], _apPackages = [], _apSlots = [], _apMembers = [], _apAppts = [], _apBlocks = [];
 var _apWeekStart = null;          // (legacy)
 var _apAnchor = null;             // focused date — source of truth for all views
-var _apView = 'week';             // 'day' | 'week' | 'month' (default week)
+var _apView = 'day';              // 'day' | 'week' | 'month' (default day)
 var _apCalCoach = '';             // calendar coach filter ('' = all)
 var _apClientPkgCache = {};       // member_id -> [active client packages] (for booking)
 
@@ -47,7 +47,7 @@ function apMondayOf(d) {
 
 // ── entry ──
 async function renderAppointments() {
-  if (!_apAnchor) _apAnchor = new Date();
+  if (!_apAnchor) _apAnchor = _apFacilityToday();
   await _apLoadConfig();
   apRenderCalendar();
 }
@@ -94,7 +94,7 @@ function _apMemberOpts(sel) {
 // CALENDAR (booked appointments, by day) + week nav + actions
 // ════════════════════════════════════════════════════════════════════════
 function apSetView(v) { _apView = v; apRenderCalendar(); }
-function apToday() { _apAnchor = new Date(); apRenderCalendar(); }
+function apToday() { _apAnchor = _apFacilityToday(); apRenderCalendar(); }
 function apThisWeek() { apToday(); }   // back-compat
 function apCalCoachChange(v) { _apCalCoach = v || ''; apRenderCalendar(); }
 function apNavPrev() { _apShiftAnchor(-1); }
@@ -175,6 +175,24 @@ async function apRenderCalendar() {
 function _apMin(hhmm) { if (!hhmm) return null; var p = hhmm.split(':'); return (+p[0]) * 60 + (+p[1]); }
 function _apHHMM(m) { var h = Math.floor(m / 60), x = m % 60; return (h < 10 ? '0' : '') + h + ':' + (x < 10 ? '0' : '') + x; }
 function _apDateStr(d) { var p = function (n) { return (n < 10 ? '0' : '') + n; }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
+// ── facility-timezone helpers: render appointments in the FACILITY's clock, not the viewer's ──
+function _apFacilityTz() {
+  return (window.FFP_PROVIDER && window.FFP_PROVIDER.timezone) ||
+         (window.FFPTime && window.FFPTime.tz && window.FFPTime.tz()) ||
+         (Intl.DateTimeFormat().resolvedOptions().timeZone) || 'UTC';
+}
+// {dateStr:'YYYY-MM-DD', min:<minutes since midnight>} for an ISO instant, in facility tz
+function _apLocalParts(iso) {
+  try {
+    var parts = new Intl.DateTimeFormat('en-CA', { timeZone: _apFacilityTz(), year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+      .formatToParts(new Date(iso)).reduce(function (o, p) { o[p.type] = p.value; return o; }, {});
+    var hh = +parts.hour; if (hh === 24) hh = 0;
+    return { dateStr: parts.year + '-' + parts.month + '-' + parts.day, min: hh * 60 + (+parts.minute) };
+  } catch (e) {
+    var d = new Date(iso); return { dateStr: _apDateStr(d), min: d.getHours() * 60 + d.getMinutes() };
+  }
+}
+function _apFacilityToday() { var d = _apLocalParts(new Date().toISOString()).dateStr.split('-'); return new Date(+d[0], +d[1] - 1, +d[2]); }
 function _apBlockedAt(staffId, weekday, dateStr, sMin, eMin) {
   return (_apBlocks || []).some(function (b) {
     if (b.staff_id !== staffId) return false;
@@ -208,7 +226,7 @@ function _apOpenSlots(day, apptsForDay) {
       var taken = (apptsForDay || []).some(function (a) {
         if (a.staff_id !== w.staff_id) return false;
         if (['cancelled', 'no_show'].indexOf(a.status) !== -1) return false;
-        var ad = new Date(a.start_at); var aS = ad.getHours() * 60 + ad.getMinutes(); var aE = aS + (a.duration_min || 60);
+        var aS = _apLocalParts(a.start_at).min; var aE = aS + (a.duration_min || 60);
         return sMin < aE && eMin > aS;
       });
       if (taken) continue;
@@ -237,12 +255,12 @@ function _apBlockColor(st) {
   return { bd: 'rgba(43,168,224,.55)', bg: 'rgba(43,168,224,.16)', fg: '#6fc6ef' };
 }
 function _apGridItems(day, coachF) {
-  var dateStr = _apDateStr(day), key = day.toDateString();
-  var appts = (_apAppts || []).filter(function (a) { return (!coachF || a.staff_id === coachF) && new Date(a.start_at).toDateString() === key; });
+  var dateStr = _apDateStr(day);
+  var appts = (_apAppts || []).filter(function (a) { return (!coachF || a.staff_id === coachF) && _apLocalParts(a.start_at).dateStr === dateStr; });
   var items = [];
   appts.forEach(function (a) {
     if (a.status === 'cancelled') return;
-    var d = new Date(a.start_at); var sM = d.getHours() * 60 + d.getMinutes();
+    var sM = _apLocalParts(a.start_at).min;
     items.push({ kind: 'appt', a: a, startMin: sM, endMin: sM + (a.duration_min || 60) });
   });
   var open = _apOpenSlots(day, appts.filter(function (a) { return ['cancelled', 'no_show'].indexOf(a.status) === -1; }));
@@ -282,7 +300,7 @@ function _apRenderGrid(host, days) {
   var coachF = _apCalCoach, minM = 24 * 60, maxM = 0, has = false;
   (_apAppts || []).forEach(function (a) {
     if (coachF && a.staff_id !== coachF) return; if (a.status === 'cancelled') return;
-    var d = new Date(a.start_at); var sM = d.getHours() * 60 + d.getMinutes();
+    var sM = _apLocalParts(a.start_at).min;
     minM = Math.min(minM, sM); maxM = Math.max(maxM, sM + (a.duration_min || 60)); has = true;
   });
   days.forEach(function (day) {
@@ -296,7 +314,7 @@ function _apRenderGrid(host, days) {
   if (!has) { startH = 7; endH = 20; }
   else { startH = Math.max(0, Math.floor(minM / 60)); endH = Math.min(24, Math.ceil(maxM / 60)); if (endH - startH < 6) endH = Math.min(24, startH + 8); }
   var rangeStart = startH * 60, rows = endH - startH;
-  var todayStr = _apDateStr(new Date());
+  var todayStr = _apDateStr(_apFacilityToday());
   var colW = days.length === 1 ? '1fr' : 'repeat(' + days.length + ',1fr)';
   var minW = days.length > 1 ? 660 : 300;
   var html = '<div style="overflow-x:auto;"><div style="min-width:' + minW + 'px;">';
@@ -336,11 +354,11 @@ function _apRenderGrid(host, days) {
 // ── MONTH grid ──
 function _apRenderMonth(host) {
   var first = new Date(_apAnchor.getFullYear(), _apAnchor.getMonth(), 1);
-  var gs = apMondayOf(first), todayStr = _apDateStr(new Date()), coachF = _apCalCoach;
+  var gs = apMondayOf(first), todayStr = _apDateStr(_apFacilityToday()), coachF = _apCalCoach;
   var byDate = {};
   (_apAppts || []).forEach(function (a) {
     if (coachF && a.staff_id !== coachF) return; if (a.status === 'cancelled') return;
-    var k = _apDateStr(new Date(a.start_at)); (byDate[k] = byDate[k] || []).push(a);
+    var k = _apLocalParts(a.start_at).dateStr; (byDate[k] = byDate[k] || []).push(a);
   });
   var dows = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var html = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">';
@@ -354,7 +372,7 @@ function _apRenderMonth(host) {
     html += '<div onclick="apOpenDay(\'' + k + '\')" style="min-height:94px;cursor:pointer;border:1px solid ' + (isT ? '#2ba8e0' : 'var(--ffp-border,#1d3346)') + ';border-radius:8px;padding:5px 6px;background:' + (inMonth ? 'var(--ffp-bg-2,#0f1f2c)' : 'transparent') + ';opacity:' + (inMonth ? 1 : .45) + ';overflow:hidden;">';
     html += '<div style="font-weight:800;font-size:12px;color:' + (isT ? '#2ba8e0' : 'var(--ffp-text,#eaf2f8)') + ';">' + day.getDate() + '</div>';
     list.slice(0, 3).forEach(function (a) {
-      var t = new Date(a.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      var t = _apHHMM(_apLocalParts(a.start_at).min);
       html += '<div style="font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:' + _apBlockColor(a.status).fg + ';">' + t + ' ' + apEsc(a.member_name || a.member_email || '') + '</div>';
     });
     if (list.length > 3) html += '<div class="psub" style="font-size:10px;">+' + (list.length - 3) + ' more</div>';
@@ -380,17 +398,17 @@ function _apRenderDay(host, day) {
     _apAvailForDayCoach(c.id, day).forEach(function (w) { var s = _apMin(w.start_time), e = _apMin(w.end_time); if (s != null && e != null) { minM = Math.min(minM, s); maxM = Math.max(maxM, e); has = true; } });
   });
   (_apAppts || []).forEach(function (a) {
-    if (new Date(a.start_at).toDateString() !== key || a.status === 'cancelled') return;
+    if (_apLocalParts(a.start_at).dateStr !== dateStr || a.status === 'cancelled') return;
     if (_apCalCoach && a.staff_id !== _apCalCoach) return;
-    var d = new Date(a.start_at); var sM = d.getHours() * 60 + d.getMinutes();
+    var sM = _apLocalParts(a.start_at).min;
     minM = Math.min(minM, sM); maxM = Math.max(maxM, sM + (a.duration_min || 60)); has = true;
   });
   var startH, endH;
   if (!has) { startH = 7; endH = 20; }
   else { startH = Math.max(0, Math.floor(minM / 60)); endH = Math.min(24, Math.ceil(maxM / 60)); if (endH - startH < 6) endH = Math.min(24, startH + 8); }
   var HH = _AP_HH, halfH = HH / 2, rangeStart = startH * 60, halfRows = (endH - startH) * 2;
-  var colW = 'repeat(' + coaches.length + ',minmax(120px,1fr))';
-  var minW = 56 + coaches.length * 132;
+  var colW = 'repeat(' + coaches.length + ',150px)';
+  var minW = 56 + coaches.length * 150;
   var html = '<div style="overflow-x:auto;"><div style="min-width:' + minW + 'px;">';
   // coach header
   html += '<div style="display:grid;grid-template-columns:54px ' + colW + ';"><div></div>';
@@ -406,7 +424,7 @@ function _apRenderDay(host, day) {
   html += '</div>';
   coaches.forEach(function (c) {
     var avail = _apAvailForDayCoach(c.id, day);
-    var appts = (_apAppts || []).filter(function (a) { return a.staff_id === c.id && new Date(a.start_at).toDateString() === key && a.status !== 'cancelled'; });
+    var appts = (_apAppts || []).filter(function (a) { return a.staff_id === c.id && _apLocalParts(a.start_at).dateStr === dateStr && a.status !== 'cancelled'; });
     var col = '<div onclick="apDayColClick(event,this,\'' + c.id + '\',\'' + dateStr + '\',' + startH + ')" style="position:relative;border-left:1px solid var(--ffp-border,#1d3346);height:' + (halfRows * halfH) + 'px;cursor:copy;">';
     // availability shading (behind)
     avail.forEach(function (w) {
@@ -417,7 +435,7 @@ function _apRenderDay(host, day) {
     // 30-min gridlines
     for (var r2 = 0; r2 < halfRows; r2++) { col += '<div style="position:absolute;left:0;right:0;top:' + (r2 * halfH) + 'px;border-top:1px ' + (r2 % 2 === 0 ? 'solid' : 'dashed') + ' var(--ffp-border,#1d3346);opacity:' + (r2 % 2 === 0 ? .5 : .3) + ';pointer-events:none;"></div>'; }
     // appointment blocks
-    var items = appts.map(function (a) { var d = new Date(a.start_at); var sM = d.getHours() * 60 + d.getMinutes(); return { kind: 'appt', a: a, startMin: sM, endMin: sM + (a.duration_min || 60) }; });
+    var items = appts.map(function (a) { var sM = _apLocalParts(a.start_at).min; return { kind: 'appt', a: a, startMin: sM, endMin: sM + (a.duration_min || 60) }; });
     _apLanePack(items);
     items.forEach(function (it) { var top = ((it.startMin - rangeStart) / 60) * HH; var hgt = Math.max(20, ((it.endMin - it.startMin) / 60) * HH - 2); var lw = 100 / (it.lanes || 1), left = (it.lane || 0) * lw; col += _apGridBlock(it, top, hgt, left, lw); });
     col += '</div>';
@@ -444,8 +462,8 @@ function apDayColClick(ev, el, coachId, dateStr, startH) {
 // ── Appointment detail + actions (opened from a grid block) ──
 function apApptDetail(id) {
   var a = (_apAppts || []).find(function (x) { return x.id === id; }); if (!a) return;
-  var d = new Date(a.start_at);
-  var when = d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  var lp = _apLocalParts(a.start_at); var dp = lp.dateStr.split('-'); var dd = new Date(+dp[0], +dp[1] - 1, +dp[2]);
+  var when = dd.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'short' }) + ' · ' + _apHHMM(lp.min);
   var body = '<div class="form-section">' +
     '<div style="display:flex;gap:6px;margin-bottom:10px;">' + _apStatusChip(a.status) + _apPayChip(a) + '</div>' +
     '<div class="psub" style="line-height:1.7;">' +
@@ -484,8 +502,7 @@ function _apPayChip(a) {
 }
 
 function apApptCard(a) {
-  var d = new Date(a.start_at);
-  var t = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  var t = _apHHMM(_apLocalParts(a.start_at).min);
   var dim = (a.status === 'cancelled' || a.status === 'no_show');
   var acts = [];
   if (a.status === 'scheduled') {
@@ -603,9 +620,8 @@ async function apSaveReschedule(id) {
 }
 function _apToLocalInput(iso) {
   if (!iso) return '';
-  var d = new Date(iso);
-  var p = function (n) { return String(n).padStart(2, '0'); };
-  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+  var p = _apLocalParts(iso);   // facility-local, matches FFPTime.toUTC on save
+  return p.dateStr + 'T' + _apHHMM(p.min);
 }
 function _apToISO(localVal) {
   try { if (window.FFPTime && window.FFPTime.toUTC) return window.FFPTime.toUTC(localVal); } catch (e) {}
