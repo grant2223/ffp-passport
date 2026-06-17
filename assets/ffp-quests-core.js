@@ -64,8 +64,8 @@ window.Quests = {
   },
 
   _ensureCss() {
-    if (document.getElementById('ffp-quests-v6-css')) return;
-    var s = document.createElement('style'); s.id = 'ffp-quests-v6-css';
+    if (document.getElementById('ffp-quests-v7-css')) return;
+    var s = document.createElement('style'); s.id = 'ffp-quests-v7-css';
     s.textContent = [
       // major
       '#panel-quests .q-major{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--q-border-mid);padding:16px;min-height:138px;display:flex;flex-direction:column;justify-content:flex-end;cursor:pointer;}',
@@ -117,6 +117,49 @@ window.Quests = {
       '.q-trow-done{color:#4ade80;flex-shrink:0;display:flex;}.q-trow-done .material-icons{font-size:18px;}',
       '.q-trow-pend{font-size:11px;font-weight:800;color:#f3b14e;flex-shrink:0;white-space:nowrap;}',
       '.q-trow-auto{font-size:11px;font-weight:700;color:#7d8b99;flex-shrink:0;}',
+      // major progress / cta
+      '#panel-quests .q-major-prog{display:flex;align-items:center;gap:12px;margin-top:13px;}',
+      '#panel-quests .q-major-bar{flex:1;height:8px;border-radius:6px;background:rgba(255,255,255,.25);overflow:hidden;}',
+      '#panel-quests .q-major-bar i{display:block;height:100%;border-radius:6px;background:var(--q-yellow);transition:width .6s cubic-bezier(.2,.8,.2,1);}',
+      '#panel-quests .q-major-go{font-size:13px;font-weight:800;color:#fff;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;}',
+      '#panel-quests .q-major-go .material-icons{font-size:16px;}',
+      '#panel-quests .q-major-cta{display:inline-flex;align-self:flex-start;align-items:center;gap:6px;margin-top:13px;font-size:13.5px;font-weight:800;color:#082335;background:var(--q-yellow);border-radius:10px;padding:9px 16px;}',
+      '#panel-quests .q-major-cta .material-icons{font-size:17px;}',
+      '#panel-quests .q-major-cta.done{background:#4ade80;}',
+      // row progress
+      '#panel-quests .q-row-prog{margin-top:7px;}',
+      '#panel-quests .q-row-bar{height:6px;border-radius:5px;background:rgba(255,255,255,.08);overflow:hidden;}',
+      '#panel-quests .q-row-bar i{display:block;height:100%;border-radius:5px;background:#2ba8e0;transition:width .5s ease;}',
+      '#panel-quests .q-row-go{color:#5b6b7a;font-size:24px;flex-shrink:0;}',
+      '#panel-quests .q-row-state.done{color:#4ade80;}#panel-quests .q-row-state.done .material-icons{font-size:22px;}',
+      // detail progress hero
+      '.q-prog{background:rgba(8,20,32,.55);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px;margin-bottom:14px;}',
+      '.q-prog.complete{border-color:rgba(74,222,128,.5);background:linear-gradient(135deg,rgba(74,222,128,.12),rgba(8,20,32,.55));}',
+      '.q-prog-win{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:900;color:#4ade80;margin-bottom:10px;}.q-prog-win .material-icons{font-size:20px;}',
+      '.q-prog-row{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:9px;gap:10px;}',
+      '.q-prog-count{font-size:13px;color:#9fb4c4;font-weight:700;}.q-prog-count b{font-size:24px;color:#fff;font-weight:900;}',
+      '.q-prog-stats{font-size:12.5px;color:#8a99a8;font-weight:700;white-space:nowrap;}.q-prog-stats b{font-size:15px;}.q-prog-stats b.gold{color:#f4d77a;}.q-prog-stats b.blue{color:#2ba8e0;}',
+      '.q-prog-bar{height:10px;border-radius:7px;background:rgba(255,255,255,.08);overflow:hidden;}',
+      '.q-prog-bar i{display:block;height:100%;border-radius:7px;background:linear-gradient(90deg,#2ba8e0,#4ade80);transition:width .7s cubic-bezier(.2,.8,.2,1);}',
+      // accordion task
+      '.q-task{border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(255,255,255,.03);overflow:hidden;transition:border-color .15s;}',
+      '.q-task.done{border-color:rgba(74,222,128,.35);background:rgba(74,222,128,.06);}',
+      '.q-task-head{display:flex;align-items:center;gap:11px;padding:12px;cursor:pointer;}',
+      '.q-task-ck{font-size:22px;color:#3f5161;flex-shrink:0;}.q-task-ck.done{color:#4ade80;}.q-task-ck.pend{color:#f3b14e;}',
+      '.q-task-ti{flex:1;min-width:0;font-size:14px;font-weight:700;color:#e8eef4;}',
+      '.q-task.done .q-task-ti{color:#9fb4c4;}',
+      '.q-task-tag{font-size:11.5px;font-weight:800;color:#f4d77a;background:rgba(244,215,122,.12);border-radius:7px;padding:3px 8px;flex-shrink:0;}',
+      '.q-task-tag.done{color:#4ade80;background:rgba(74,222,128,.14);}.q-task-tag.pend{color:#f3b14e;background:rgba(243,177,78,.14);}',
+      '.q-task-chev{font-size:22px;color:#5b6b7a;flex-shrink:0;transition:transform .2s;}',
+      '.q-task.open .q-task-chev{transform:rotate(180deg);}',
+      '.q-task-d{max-height:0;overflow:hidden;transition:max-height .28s ease;}',
+      '.q-task.open .q-task-d{max-height:360px;}',
+      '.q-task-how{padding:0 14px 2px 47px;}',
+      '.q-task-how-h{font-size:10.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#7d8b99;}',
+      '.q-task-how-t{font-size:13px;color:#cfd6dc;margin-top:3px;line-height:1.5;}',
+      '.q-task-btn{display:flex;align-items:center;justify-content:center;gap:7px;width:auto;margin:11px 14px 14px;padding:12px;border:none;border-radius:11px;background:#2ba8e0;color:#082335;font-size:14px;font-weight:800;font-family:inherit;cursor:pointer;}.q-task-btn .material-icons{font-size:18px;}',
+      '.q-task-status{display:flex;align-items:center;gap:7px;margin:9px 14px 14px;padding:10px 12px;border-radius:10px;font-size:13px;font-weight:700;}.q-task-status .material-icons{font-size:18px;}',
+      '.q-task-status.ok{color:#4ade80;background:rgba(74,222,128,.1);}.q-task-status.wait{color:#f3b14e;background:rgba(243,177,78,.1);}.q-task-status.auto{color:#9fb4c4;background:rgba(255,255,255,.04);}',
       // leaderboard
       '.q-board-filters{display:flex;flex-direction:column;gap:9px;margin-bottom:12px;}',
       '.q-board-chips{display:flex;gap:6px;}',
@@ -143,11 +186,11 @@ window.Quests = {
     this.renderMajor();
     var host = document.getElementById('quest-sections'); if (!host) return;
     var html = '';
-    // Minor (FFP missions)
-    html += '<div class="q-sec-h">FFP missions</div>';
+    // Minor — more FFP quests
+    html += '<div class="q-sec-h">More quests</div>';
     html += this.minor.length
       ? '<div class="q-list">' + this.minor.map(this.rowMinor.bind(this)).join('') + '</div>'
-      : '<div class="q-sec-empty">New FFP missions are on the way — check back soon.</div>';
+      : '<div class="q-sec-empty">New quests are on the way — check back soon.</div>';
     // Partner (only if any unlocked)
     if (this.partner.length) {
       html += '<div class="q-sec-h" style="margin-top:22px;">Partner quests <span class="q-sec-h-sub">unlocked for you</span></div>';
@@ -162,20 +205,28 @@ window.Quests = {
     if (!h) { el.style.display = 'none'; el.innerHTML = ''; return; }
     el.style.display = '';
     var done = h.my_completed || 0, total = h.task_count || 0;
+    var pct = total ? Math.round(done / total * 100) : 0;
+    var complete = total > 0 && done >= total;
     var bg = h.hero_image_url
-      ? "linear-gradient(180deg,rgba(8,20,32,0.15),rgba(8,20,32,0.85)),url('" + h.hero_image_url + "')"
-      : 'linear-gradient(135deg,rgba(43,168,224,0.45),rgba(8,30,46,0.9))';
+      ? "linear-gradient(180deg,rgba(8,20,32,0.10),rgba(8,20,32,0.88)),url('" + h.hero_image_url + "')"
+      : 'linear-gradient(135deg,rgba(43,168,224,0.5),rgba(8,30,46,0.92))';
+    var foot;
+    if (complete) {
+      foot = '<div class="q-major-cta done"><span class="material-icons">emoji_events</span> Quest complete</div>';
+    } else if (h.joined) {
+      foot = '<div class="q-major-prog">' +
+          '<div class="q-major-bar"><i style="width:' + pct + '%;"></i></div>' +
+          '<span class="q-major-go">Continue <span class="material-icons">arrow_forward</span></span>' +
+        '</div>';
+    } else {
+      foot = '<div class="q-major-cta"><span class="material-icons">bolt</span> Start the quest</div>';
+    }
     el.innerHTML =
       '<div class="q-major" onclick="Quests.open(\'' + h.id + '\',\'ffp\')" style="background:' + bg + ';background-size:cover;background-position:center;">' +
         '<span class="q-major-pill"><span class="material-icons">stars</span> Featured quest</span>' +
         '<div class="q-major-title">' + escHtml(h.title) + '</div>' +
         (h.description ? '<div class="q-major-desc">' + escHtml(h.description) + '</div>' : '') +
-        '<div class="q-major-foot">' +
-          '<span class="q-major-meta">' + total + ' tasks · ' + (h.points_total || 0) + ' pts · ' + (h.joined_count || 0) + ' joined</span>' +
-          (h.joined
-            ? '<span class="q-major-btn cont">Continue · ' + done + '/' + total + '</span>'
-            : '<span class="q-major-btn join">Join</span>') +
-        '</div>' +
+        foot +
       '</div>';
   },
 
@@ -190,24 +241,39 @@ window.Quests = {
       : '<div class="q-row-thumb ' + c + '"><span class="material-icons">flag</span></div>';
   },
   // Compact full-width list rows (scale to any count — no giant squares)
+  _rowProgress(done, total) {
+    var pct = total ? Math.round(done / total * 100) : 0;
+    return '<div class="q-row-prog"><div class="q-row-bar"><i style="width:' + pct + '%;"></i></div></div>';
+  },
   rowMinor(q) {
     var joined = !!q.joined, done = q.my_completed || 0, total = q.task_count || 0;
-    var right = joined
-      ? '<span class="q-row-state">' + done + '/' + total + '</span>'
-      : '<button class="q-row-join" onclick="event.stopPropagation();Quests.join(\'' + q.id + '\')">Join</button>';
+    var complete = total > 0 && done >= total;
+    var body, right;
+    if (joined) {
+      body = '<div class="q-row-title">' + escHtml(q.title) + '</div>' + this._rowProgress(done, total);
+      right = complete
+        ? '<span class="q-row-state done"><span class="material-icons">emoji_events</span></span>'
+        : '<span class="material-icons q-row-go">chevron_right</span>';
+    } else {
+      var social = (q.joined_count || 0) > 0 ? (q.joined_count + ' playing') : 'Be the first to join';
+      body = '<div class="q-row-title">' + escHtml(q.title) + '</div><div class="q-row-meta">' + social + '</div>';
+      right = '<button class="q-row-join" onclick="event.stopPropagation();Quests.join(\'' + q.id + '\')">Join</button>';
+    }
     return '<div class="q-row" onclick="Quests.open(\'' + q.id + '\',\'ffp\')">' +
-      this._thumb(q) +
-      '<div class="q-row-body"><div class="q-row-title">' + escHtml(q.title) + '</div>' +
-        '<div class="q-row-meta">' + total + ' tasks · ' + (q.points_total || 0) + ' pts · ' + (q.joined_count || 0) + ' joined</div></div>' +
-      right + '</div>';
+      this._thumb(q) + '<div class="q-row-body">' + body + '</div>' + right + '</div>';
   },
   rowPartner(q) {
     var done = q.my_completed || 0, total = q.task_count || 0;
+    var complete = total > 0 && done >= total;
+    var right = complete
+      ? '<span class="q-row-state done"><span class="material-icons">emoji_events</span></span>'
+      : '<span class="material-icons q-row-go">chevron_right</span>';
     return '<div class="q-row" onclick="Quests.open(\'' + q.id + '\',\'partner\')">' +
       this._thumb(q) +
       '<div class="q-row-body"><div class="q-row-title">' + escHtml(q.title) + '</div>' +
-        '<div class="q-row-meta"><span class="material-icons" style="font-size:12px;vertical-align:-2px;">lock</span> ' + escHtml(q.provider_name || 'Partner') + ' · ' + total + ' tasks</div></div>' +
-      '<span class="q-row-state">' + done + '/' + total + '</span></div>';
+        '<div class="q-row-meta"><span class="material-icons" style="font-size:12px;vertical-align:-2px;">lock</span> ' + escHtml(q.provider_name || 'Partner') + '</div>' +
+        this._rowProgress(done, total) + '</div>' +
+      right + '</div>';
   },
 
   open(id, kind) {
@@ -231,15 +297,22 @@ window.Quests = {
     var tasks = d.tasks || [];
     var total = tasks.length;
     var done = tasks.filter(function (t) { return (t.my_state || '') === 'verified'; }).length;
+    var pct = total ? Math.round(done / total * 100) : 0;
+    var complete = total > 0 && done >= total;
     var pill = (d.kind === 'ffp') ? 'Open to all' : ('Members · ' + escHtml(d.provider_name || 'Partner'));
-    var tasksHtml = tasks.map(this.taskRow.bind(this)).join('') || '<div class="q-board-empty">Tasks announced soon.</div>';
-    var statBar = '<div class="q-statbar">' +
-        '<span><b class="gold">' + (d.my_points || 0) + '</b> pts</span>' +
-        (hasBoard ? '<span><b class="blue">' + (d.my_rank ? '#' + d.my_rank : '—') + '</b> rank</span>' : '') +
-        '<span><b>' + done + '/' + total + '</b> done</span>' +
+    var tasksHtml = tasks.map(this.taskAccordion.bind(this)).join('') || '<div class="q-board-empty">Tasks announced soon.</div>';
+    // Gamified progress hero — the dopamine loop: a big bar that fills, points climbing, rank to chase.
+    var prog = '<div class="q-prog' + (complete ? ' complete' : '') + '">' +
+        (complete ? '<div class="q-prog-win"><span class="material-icons">emoji_events</span> Quest complete!</div>' : '') +
+        '<div class="q-prog-row">' +
+          '<span class="q-prog-count"><b>' + done + '</b> <span>/ ' + total + ' done</span></span>' +
+          '<span class="q-prog-stats"><b class="gold">' + (d.my_points || 0) + '</b> pts' +
+            (hasBoard ? ' &nbsp;·&nbsp; <b class="blue">' + (d.my_rank ? '#' + d.my_rank : '—') + '</b> rank' : '') + '</span>' +
+        '</div>' +
+        '<div class="q-prog-bar"><i style="width:' + pct + '%;"></i></div>' +
       '</div>';
     var toggle = hasBoard
-      ? '<div class="q-seg"><button id="q-seg-tasks" class="active" onclick="Quests.questPane(\'tasks\')">Tasks (' + total + ')</button>' +
+      ? '<div class="q-seg"><button id="q-seg-tasks" class="active" onclick="Quests.questPane(\'tasks\')">Tasks</button>' +
         '<button id="q-seg-board" onclick="Quests.questPane(\'board\')">Leaderboard</button></div>' : '';
     var boardPane = hasBoard
       ? '<div id="q-pane-board" style="display:none;">' +
@@ -261,12 +334,21 @@ window.Quests = {
         '</div>' +
         '<div class="q-d2-body">' +
           (d.description ? '<p class="q-d2-desc">' + escHtml(d.description) + '</p>' : '') +
-          statBar + toggle +
+          prog + toggle +
           '<div id="q-pane-tasks"><div class="q-tasklist">' + tasksHtml + '</div></div>' +
           boardPane +
         '</div>' +
       '</div>';
     openDetailModal(html);
+    var bar = document.querySelector('.q-prog-bar i'); if (bar) { bar.style.width = '0%'; setTimeout(function () { bar.style.width = pct + '%'; }, 60); }
+  },
+
+  toggleTask(id) {
+    var row = document.getElementById('q-task-' + id); if (!row) return;
+    var open = row.classList.contains('open');
+    var all = document.querySelectorAll('#q-pane-tasks .q-task.open');
+    for (var i = 0; i < all.length; i++) all[i].classList.remove('open');
+    if (!open) row.classList.add('open');
   },
 
   questPane(which) {
@@ -321,21 +403,32 @@ window.Quests = {
     }).join('');
   },
 
-  taskRow(t) {
+  // Accordion task: tap the head → expands to show how-to + the action. Completion = filled green check + row tint.
+  taskAccordion(t) {
     var pm = this.PROOF[t.proof_type] || this.PROOF.photo;
     var st = t.my_state || 'open';
-    var right;
-    if (st === 'verified') right = '<span class="q-trow-done"><span class="material-icons">check_circle</span></span>';
-    else if (st === 'pending') right = '<span class="q-trow-pend">Review</span>';
-    else if (t.proof_type === 'auto') right = '<span class="q-trow-auto">Auto</span>';
-    else right = '<button class="q-trow-btn" onclick="Quests.doTask(\'' + t.id + '\',\'' + t.proof_type + '\',' + (t.has_geo ? 'true' : 'false') + ')">' + pm.label + '</button>';
-    var done = st === 'verified';
-    return '<div class="q-trow' + (done ? ' done' : '') + '">' +
-      '<span class="material-icons q-trow-ic' + (done ? ' done' : '') + '">' + (done ? 'check_circle' : pm.icon) + '</span>' +
-      '<div class="q-trow-body"><div class="q-trow-title">' + escHtml(t.title) + '</div>' +
-        (t.instruction ? '<div class="q-trow-sub">' + escHtml(t.instruction) + '</div>' : '') + '</div>' +
-      '<div class="q-trow-pts">+' + (t.points || 0) + '</div>' + right +
-    '</div>';
+    var done = st === 'verified', pending = st === 'pending';
+    // head: status circle, title, points (hidden once done), chevron
+    var ck = done ? 'check_circle' : (pending ? 'hourglass_top' : 'radio_button_unchecked');
+    var head = '<div class="q-task-head" onclick="Quests.toggleTask(\'' + t.id + '\')">' +
+        '<span class="material-icons q-task-ck' + (done ? ' done' : (pending ? ' pend' : '')) + '">' + ck + '</span>' +
+        '<div class="q-task-ti">' + escHtml(t.title) + '</div>' +
+        (done ? '<span class="q-task-tag done">+' + (t.points || 0) + '</span>'
+              : pending ? '<span class="q-task-tag pend">Pending</span>'
+              : '<span class="q-task-tag">+' + (t.points || 0) + '</span>') +
+        '<span class="material-icons q-task-chev">expand_more</span>' +
+      '</div>';
+    // expanded body: how to complete + action
+    var act;
+    if (done) act = '<div class="q-task-status ok"><span class="material-icons">check_circle</span> Completed</div>';
+    else if (pending) act = '<div class="q-task-status wait"><span class="material-icons">hourglass_top</span> Awaiting confirmation</div>';
+    else if (t.proof_type === 'auto') act = '<div class="q-task-status auto"><span class="material-icons">bolt</span> Tracked automatically — just do it</div>';
+    else act = '<button class="q-task-btn" onclick="Quests.doTask(\'' + t.id + '\',\'' + t.proof_type + '\',' + (t.has_geo ? 'true' : 'false') + ')"><span class="material-icons">' + pm.icon + '</span> ' + pm.label + '</button>';
+    var how = '<div class="q-task-how"><span class="q-task-how-h">How to complete</span>' +
+        (t.instruction ? '<div class="q-task-how-t">' + escHtml(t.instruction) + '</div>' : '<div class="q-task-how-t">' + escHtml(pm.label) + (t.provider_name ? ' at ' + escHtml(t.provider_name) : '') + '.</div>') +
+      '</div>';
+    return '<div class="q-task' + (done ? ' done' : '') + '" id="q-task-' + t.id + '">' + head +
+      '<div class="q-task-d">' + how + act + '</div></div>';
   },
 
   getGeo() {
