@@ -167,6 +167,7 @@ async function apRenderCalendar() {
     return;
   }
   if (_apView === 'month') _apRenderMonth(host);
+  else if (_apView === 'day') _apRenderDay(host, new Date(_apAnchor));
   else _apRenderGrid(host, _apViewDays());
 }
 
@@ -183,10 +184,20 @@ function _apBlockedAt(staffId, weekday, dateStr, sMin, eMin) {
     return sMin < _apMin(b.end_time) && eMin > _apMin(b.start_time);
   });
 }
-function _apOpenSlots(weekday, dateStr, dayKey, apptsForDay) {
-  var out = [];
+// does a recurring/one-off availability window apply on a given Date?
+function _apSlotOnDate(w, day) {
+  if (w.status === 'inactive') return false;
+  if (w.slot_date) return w.slot_date === _apDateStr(day);
+  return w.day_of_week === day.getDay();
+}
+// availability windows for a coach on a given Date (recurring weekday + one-off date)
+function _apAvailForDayCoach(coachId, day) {
+  return (_apSlots || []).filter(function (w) { return w.staff_id === coachId && _apSlotOnDate(w, day); });
+}
+function _apOpenSlots(day, apptsForDay) {
+  var out = [], dateStr = _apDateStr(day), weekday = day.getDay();
   (_apSlots || []).forEach(function (w) {
-    if (w.day_of_week !== weekday || w.status === 'inactive') return;
+    if (!_apSlotOnDate(w, day)) return;
     if (_apCalCoach && w.staff_id !== _apCalCoach) return;
     var s = _apMin(w.start_time), e = _apMin(w.end_time);
     if (s == null || e == null || e <= s) return;
@@ -234,7 +245,7 @@ function _apGridItems(day, coachF) {
     var d = new Date(a.start_at); var sM = d.getHours() * 60 + d.getMinutes();
     items.push({ kind: 'appt', a: a, startMin: sM, endMin: sM + (a.duration_min || 60) });
   });
-  var open = _apOpenSlots(day.getDay(), dateStr, key, appts.filter(function (a) { return ['cancelled', 'no_show'].indexOf(a.status) === -1; }));
+  var open = _apOpenSlots(day, appts.filter(function (a) { return ['cancelled', 'no_show'].indexOf(a.status) === -1; }));
   open.forEach(function (s) { var sM = _apMin(s.time); items.push({ kind: 'open', s: s, startMin: sM, endMin: sM + (s.duration || 60) }); });
   return items;
 }
@@ -258,10 +269,10 @@ function _apGridBlock(it, top, hgt, leftPct, wPct) {
   var base = 'position:absolute;top:' + top + 'px;height:' + hgt + 'px;left:calc(' + leftPct + '% + 2px);width:calc(' + wPct + '% - 4px);border-radius:7px;padding:3px 6px;overflow:hidden;font-size:11px;line-height:1.2;cursor:pointer;box-sizing:border-box;';
   if (it.kind === 'open') {
     var s = it.s;
-    return '<div onclick="apBookFromSlot(\'' + s.staff_id + '\',\'' + (s.service_id || '') + '\',\'' + s.dateStr + '\',\'' + s.time + '\',' + s.duration + ')" title="Book ' + s.time + ' · ' + apEsc(s.coach_name || '') + '" style="' + base + 'border:1px dashed var(--ffp-border,#3a5168);background:rgba(43,168,224,.05);color:#9fb3c2;display:flex;align-items:center;justify-content:center;gap:4px;"><span class="ms" style="font-size:13px;">add</span>' + s.time + (it.lanes < 2 ? (' · ' + apEsc(s.coach_name || '')) : '') + '</div>';
+    return '<div onclick="event.stopPropagation(); apBookFromSlot(\'' + s.staff_id + '\',\'' + (s.service_id || '') + '\',\'' + s.dateStr + '\',\'' + s.time + '\',' + s.duration + ')" title="Book ' + s.time + ' · ' + apEsc(s.coach_name || '') + '" style="' + base + 'border:1px dashed var(--ffp-border,#3a5168);background:rgba(43,168,224,.05);color:#9fb3c2;display:flex;align-items:center;justify-content:center;gap:4px;"><span class="ms" style="font-size:13px;">add</span>' + s.time + (it.lanes < 2 ? (' · ' + apEsc(s.coach_name || '')) : '') + '</div>';
   }
   var a = it.a, col = _apBlockColor(a.status), name = apEsc(a.member_name || a.member_email || 'Client');
-  return '<div onclick="apApptDetail(\'' + a.id + '\')" title="' + name + '" style="' + base + 'border:1px solid ' + col.bd + ';background:' + col.bg + ';color:' + col.fg + ';">' +
+  return '<div onclick="event.stopPropagation(); apApptDetail(\'' + a.id + '\')" title="' + name + '" style="' + base + 'border:1px solid ' + col.bd + ';background:' + col.bg + ';color:' + col.fg + ';">' +
     '<div style="font-weight:800;">' + _apHHMM(it.startMin) + '</div>' +
     '<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + name + '</div>' +
     (hgt > 42 ? '<div style="opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + apEsc(a.coach_name || '') + '</div>' : '') +
@@ -276,7 +287,7 @@ function _apRenderGrid(host, days) {
   });
   days.forEach(function (day) {
     (_apSlots || []).forEach(function (w) {
-      if (w.day_of_week !== day.getDay()) return; if (coachF && w.staff_id !== coachF) return;
+      if (!_apSlotOnDate(w, day)) return; if (coachF && w.staff_id !== coachF) return;
       var s = _apMin(w.start_time), e = _apMin(w.end_time); if (s == null || e == null) return;
       minM = Math.min(minM, s); maxM = Math.max(maxM, e); has = true;
     });
@@ -353,6 +364,82 @@ function _apRenderMonth(host) {
   host.innerHTML = html;
 }
 function apOpenDay(dateStr) { var p = dateStr.split('-'); _apAnchor = new Date(+p[0], +p[1] - 1, +p[2]); _apView = 'day'; apRenderCalendar(); }
+
+// ── DAY view: a column per coach, 30-min rows, shaded availability, click empty space to book ──
+function _apDayCoaches() {
+  var list = (_apStaff || []).slice();
+  if (_apCalCoach) list = list.filter(function (s) { return s.id === _apCalCoach; });
+  return list;
+}
+function _apRenderDay(host, day) {
+  var coaches = _apDayCoaches();
+  if (!coaches.length) { host.innerHTML = _apEmpty('No coaches', 'Add a coach in Staff, then set their availability — they’ll each get a column here.'); return; }
+  var dateStr = _apDateStr(day), key = day.toDateString();
+  var minM = 24 * 60, maxM = 0, has = false;
+  coaches.forEach(function (c) {
+    _apAvailForDayCoach(c.id, day).forEach(function (w) { var s = _apMin(w.start_time), e = _apMin(w.end_time); if (s != null && e != null) { minM = Math.min(minM, s); maxM = Math.max(maxM, e); has = true; } });
+  });
+  (_apAppts || []).forEach(function (a) {
+    if (new Date(a.start_at).toDateString() !== key || a.status === 'cancelled') return;
+    if (_apCalCoach && a.staff_id !== _apCalCoach) return;
+    var d = new Date(a.start_at); var sM = d.getHours() * 60 + d.getMinutes();
+    minM = Math.min(minM, sM); maxM = Math.max(maxM, sM + (a.duration_min || 60)); has = true;
+  });
+  var startH, endH;
+  if (!has) { startH = 7; endH = 20; }
+  else { startH = Math.max(0, Math.floor(minM / 60)); endH = Math.min(24, Math.ceil(maxM / 60)); if (endH - startH < 6) endH = Math.min(24, startH + 8); }
+  var HH = _AP_HH, halfH = HH / 2, rangeStart = startH * 60, halfRows = (endH - startH) * 2;
+  var colW = 'repeat(' + coaches.length + ',minmax(120px,1fr))';
+  var minW = 56 + coaches.length * 132;
+  var html = '<div style="overflow-x:auto;"><div style="min-width:' + minW + 'px;">';
+  // coach header
+  html += '<div style="display:grid;grid-template-columns:54px ' + colW + ';"><div></div>';
+  coaches.forEach(function (c) {
+    html += '<div style="text-align:center;padding:7px 4px;border-left:1px solid var(--ffp-border,#1d3346);font-weight:800;font-size:12px;color:var(--ffp-text,#eaf2f8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + apEsc(c.full_name || 'Coach') + '</div>';
+  });
+  html += '</div>';
+  // body
+  html += '<div style="display:grid;grid-template-columns:54px ' + colW + ';">';
+  // time gutter (30-min)
+  html += '<div>';
+  for (var r = 0; r < halfRows; r++) { var mm = rangeStart + r * 30; html += '<div style="height:' + halfH + 'px;font-size:10px;color:#9fb3c2;text-align:right;padding-right:6px;"><span style="position:relative;top:-6px;">' + _apHHMM(mm) + '</span></div>'; }
+  html += '</div>';
+  coaches.forEach(function (c) {
+    var avail = _apAvailForDayCoach(c.id, day);
+    var appts = (_apAppts || []).filter(function (a) { return a.staff_id === c.id && new Date(a.start_at).toDateString() === key && a.status !== 'cancelled'; });
+    var col = '<div onclick="apDayColClick(event,this,\'' + c.id + '\',\'' + dateStr + '\',' + startH + ')" style="position:relative;border-left:1px solid var(--ffp-border,#1d3346);height:' + (halfRows * halfH) + 'px;cursor:copy;">';
+    // availability shading (behind)
+    avail.forEach(function (w) {
+      var s = _apMin(w.start_time), e = _apMin(w.end_time); if (s == null || e == null) return;
+      var top = ((s - rangeStart) / 60) * HH, h = ((e - s) / 60) * HH;
+      col += '<div style="position:absolute;left:0;right:0;top:' + top + 'px;height:' + h + 'px;background:rgba(46,204,113,.09);border-left:2px solid rgba(46,204,113,.4);pointer-events:none;"></div>';
+    });
+    // 30-min gridlines
+    for (var r2 = 0; r2 < halfRows; r2++) { col += '<div style="position:absolute;left:0;right:0;top:' + (r2 * halfH) + 'px;border-top:1px ' + (r2 % 2 === 0 ? 'solid' : 'dashed') + ' var(--ffp-border,#1d3346);opacity:' + (r2 % 2 === 0 ? .5 : .3) + ';pointer-events:none;"></div>'; }
+    // appointment blocks
+    var items = appts.map(function (a) { var d = new Date(a.start_at); var sM = d.getHours() * 60 + d.getMinutes(); return { kind: 'appt', a: a, startMin: sM, endMin: sM + (a.duration_min || 60) }; });
+    _apLanePack(items);
+    items.forEach(function (it) { var top = ((it.startMin - rangeStart) / 60) * HH; var hgt = Math.max(20, ((it.endMin - it.startMin) / 60) * HH - 2); var lw = 100 / (it.lanes || 1), left = (it.lane || 0) * lw; col += _apGridBlock(it, top, hgt, left, lw); });
+    col += '</div>';
+    html += col;
+  });
+  html += '</div></div></div>';
+  html += '<div class="psub" style="margin:8px 2px 0;">Shaded = available · tap any open space in a coach’s column to book at that time.</div>';
+  host.innerHTML = html;
+}
+function apDayColClick(ev, el, coachId, dateStr, startH) {
+  var rect = el.getBoundingClientRect();
+  var y = (ev.clientY != null ? ev.clientY : 0) - rect.top;
+  var mins = startH * 60 + Math.round(((y / _AP_HH) * 60) / 30) * 30;
+  if (mins < startH * 60) mins = startH * 60;
+  var p = dateStr.split('-'); var day = new Date(+p[0], +p[1] - 1, +p[2]);
+  var svc = '', dur = 60;
+  _apAvailForDayCoach(coachId, day).forEach(function (w) {
+    var s = _apMin(w.start_time), e = _apMin(w.end_time);
+    if (s != null && e != null && mins >= s && mins < e) { svc = w.service_id || svc; dur = w.duration_min || dur; }
+  });
+  apBookModal({ start: dateStr + 'T' + _apHHMM(mins), staff_id: coachId, service_id: svc, duration: dur });
+}
 
 // ── Appointment detail + actions (opened from a grid block) ──
 function apApptDetail(id) {
@@ -744,7 +831,8 @@ function apRenderAvailability() {
     if (!c.slots.length) html += '<div class="psub" style="margin:0 0 6px;opacity:.7;">No weekly hours set.</div>';
     else html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px;">' + c.slots.map(function (s) {
       var rng = s.end_time ? (s.start_time + '–' + s.end_time) : s.start_time;
-      return '<span style="' + _AP_CHIP + '"><b style="color:var(--ffp-text,#eaf2f8);">' + DOW_AP[s.day_of_week] + ' ' + rng + '</b>' +
+      var label = s.slot_date ? (s.slot_date + ' (one-off)') : ('Every ' + DOW_AP[s.day_of_week]);
+      return '<span style="' + _AP_CHIP + '"><b style="color:var(--ffp-text,#eaf2f8);">' + label + ' ' + rng + '</b>' +
         '<span class="psub">' + (s.service_name ? apEsc(s.service_name) : 'Any') + ' · ' + (s.duration_min || 60) + 'm</span>' +
         '<button class="btn btn-ghost btn-sm" onclick="apSlotModal(\'' + s.id + '\')"><span class="ms">edit</span></button>' +
         '<button class="btn btn-ghost btn-sm" onclick="apDeleteSlot(\'' + s.id + '\')"><span class="ms">delete</span></button></span>';
@@ -770,13 +858,19 @@ function apRenderAvailability() {
 // ── Availability hours (window: day + start–end) ──
 function apSlotModal(id) {
   if (!_apStaff.length) { apToast('Add a coach in Staff first', 'error'); return; }
-  var s = _apSlots.find(function (x) { return x.id === id; }) || { staff_id: '', service_id: '', day_of_week: 1, start_time: '09:00', end_time: '17:00', duration_min: 60 };
+  var s = _apSlots.find(function (x) { return x.id === id; }) || { staff_id: '', service_id: '', day_of_week: 1, slot_date: '', start_time: '09:00', end_time: '17:00', duration_min: 60 };
+  var oneOff = !!s.slot_date;
   var dows = [1, 2, 3, 4, 5, 6, 0];
   var body =
-    '<div class="psub" style="margin:0 0 10px;">The weekly hours this trainer is available for appointments on a day.</div>' +
+    '<div class="psub" style="margin:0 0 10px;">The hours this trainer is available for appointments.</div>' +
     '<div class="form-section"><div class="form-grid">' +
       '<div class="field"><div class="label">Coach <span class="req">*</span></div><select class="select" id="ap-sl-staff">' + _apStaffOpts(s.staff_id) + '</select></div>' +
-      '<div class="field"><div class="label">Day <span class="req">*</span></div><select class="select" id="ap-sl-dow">' + dows.map(function (d) { return '<option value="' + d + '"' + (s.day_of_week === d ? ' selected' : '') + '>' + DOW_AP[d] + '</option>'; }).join('') + '</select></div>' +
+      '<div class="field"><div class="label">Repeats</div><select class="select" id="ap-sl-repeat" onchange="apSlotRepeatChange()">' +
+        '<option value="weekly"' + (!oneOff ? ' selected' : '') + '>Every week</option>' +
+        '<option value="once"' + (oneOff ? ' selected' : '') + '>One-off date</option>' +
+      '</select></div>' +
+      '<div class="field" id="ap-sl-dow-wrap"' + (oneOff ? ' style="display:none;"' : '') + '><div class="label">Day <span class="req">*</span></div><select class="select" id="ap-sl-dow">' + dows.map(function (d) { return '<option value="' + d + '"' + (s.day_of_week === d ? ' selected' : '') + '>' + DOW_AP[d] + '</option>'; }).join('') + '</select></div>' +
+      '<div class="field" id="ap-sl-date-wrap"' + (!oneOff ? ' style="display:none;"' : '') + '><div class="label">Date <span class="req">*</span></div><input class="input" type="date" id="ap-sl-date" value="' + apEsc(s.slot_date || '') + '"></div>' +
       '<div class="field"><div class="label">Start time <span class="req">*</span></div><input class="input" type="time" id="ap-sl-start" value="' + apEsc(s.start_time || '09:00') + '"></div>' +
       '<div class="field"><div class="label">End time <span class="req">*</span></div><input class="input" type="time" id="ap-sl-end" value="' + apEsc(s.end_time || '17:00') + '"></div>' +
       '<div class="field"><div class="label">Service <span class="label-hint">— optional</span></div><select class="select" id="ap-sl-service">' + _apServiceOpts(s.service_id, true) + '</select></div>' +
@@ -784,19 +878,31 @@ function apSlotModal(id) {
     '</div></div>';
   openModalShell('', id ? 'Edit available hours' : 'Add available hours', body,
     '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="apSaveSlot(\'' + (id || '') + '\')">Save</button>');
-  apEnhance(['ap-sl-staff', 'ap-sl-service', 'ap-sl-dow']);
+  apEnhance(['ap-sl-staff', 'ap-sl-repeat', 'ap-sl-service', 'ap-sl-dow']);
+}
+function apSlotRepeatChange() {
+  var v = (document.getElementById('ap-sl-repeat') || {}).value;
+  var dw = document.getElementById('ap-sl-dow-wrap'), dt = document.getElementById('ap-sl-date-wrap');
+  if (dw) dw.style.display = (v === 'weekly') ? '' : 'none';
+  if (dt) dt.style.display = (v === 'once') ? '' : 'none';
 }
 async function apSaveSlot(id) {
   var staff = (document.getElementById('ap-sl-staff') || {}).value;
+  var repeat = (document.getElementById('ap-sl-repeat') || {}).value || 'weekly';
   var start = (document.getElementById('ap-sl-start') || {}).value;
   var end = (document.getElementById('ap-sl-end') || {}).value;
   if (!staff || !start || !end) { apToast('Coach, start and end time are required', 'error'); return; }
   if (end <= start) { apToast('End time must be after the start time', 'error'); return; }
   var p = {
     staff_id: staff, service_id: (document.getElementById('ap-sl-service') || {}).value || '',
-    day_of_week: (document.getElementById('ap-sl-dow') || {}).value, start_time: start, end_time: end,
-    duration_min: (document.getElementById('ap-sl-duration') || {}).value || '60'
+    start_time: start, end_time: end, duration_min: (document.getElementById('ap-sl-duration') || {}).value || '60'
   };
+  if (repeat === 'once') {
+    p.slot_date = (document.getElementById('ap-sl-date') || {}).value;
+    if (!p.slot_date) { apToast('Pick a date', 'error'); return; }
+  } else {
+    p.day_of_week = (document.getElementById('ap-sl-dow') || {}).value;
+  }
   var r = await _apRpc('provider_save_trainer_slot', { p_provider: apProvId(), p_id: id || null, p: p }, 'Availability saved');
   if (r) { closeModal(); await _apLoadConfig(); apRenderAvailability(); }
 }
