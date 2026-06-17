@@ -4238,7 +4238,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 <!-- Google Analytics 4 (platform-wide) -->
 <script src="assets/ffp-analytics.js"></script>
 <!-- Quests panel module (extracted from inline) — defines window.Quests before the dashboard boot calls init -->
-<script src="assets/ffp-quests-core.js?v=3"></script>
+<script src="assets/ffp-quests-core.js?v=4"></script>
 </head>
 <body>
 
@@ -4600,28 +4600,13 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
   <div id="panel-quests" class="panel-view">
     <div class="user-panel-head">
       <h2>Quests</h2>
-      <div class="user-panel-sub">Go on a solo or partner quest discovering top services in the region.</div>
+      <div class="user-panel-sub">Complete FFP quests around the city, earn points, and climb the leaderboard.</div>
     </div>
 
     <!-- HERO + TIER -->
     <div class="quest-hero" id="quest-hero"></div>
 
-    <!-- CREATE YOUR OWN QUEST / UNLOCK PARTNER QUEST -->
-    <button class="quest-create-btn" onclick="Quests.openCreate()"><span class="material-icons">add_circle</span> Create your own quest</button>
-    <button class="quest-create-btn" onclick="Quests.promptUnlock()" style="margin-top:8px;"><span class="material-icons">qr_code_2</span> Have a partner code? Unlock</button>
-
-    <!-- CATEGORY NAV -->
-    <div class="cat-row" id="quest-cat-row">
-      <button class="cat-item active" data-cat="all"><span class="cat-ic"><span class="material-icons">grid_view</span></span><span class="cat-lbl">All</span></button>
-      <button class="cat-item" data-cat="fitness"><span class="cat-ic"><span class="material-icons">fitness_center</span></span><span class="cat-lbl">Fitness</span></button>
-      <button class="cat-item" data-cat="sports"><span class="cat-ic"><span class="material-icons">sports_tennis</span></span><span class="cat-lbl">Sports</span></button>
-      <button class="cat-item" data-cat="wellness"><span class="cat-ic"><span class="material-icons">self_improvement</span></span><span class="cat-lbl">Wellness</span></button>
-      <button class="cat-item" data-cat="recovery"><span class="cat-ic"><span class="material-icons">spa</span></span><span class="cat-lbl">Recovery</span></button>
-      <button class="cat-item" data-cat="adventure"><span class="cat-ic"><span class="material-icons">hiking</span></span><span class="cat-lbl">Adventure</span></button>
-      <button class="cat-item" data-cat="food"><span class="cat-ic"><span class="material-icons">restaurant</span></span><span class="cat-lbl">Food</span></button>
-    </div>
-
-    <!-- SCOPE -->
+    <!-- SCOPE (leaderboard scope — shown only on the Leaderboard tab) -->
     <div class="scope-seg" id="quest-scope-seg">
       <button class="scope-btn active" data-scope="all"><span class="material-icons">apps</span> All</button>
       <button class="scope-btn" data-scope="city"><span class="material-icons">location_city</span> City</button>
