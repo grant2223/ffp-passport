@@ -151,7 +151,7 @@ window.Quests = {
       this._cover(q) + '<span class="qc-scope-pill">Open to all</span></div>' +
       '<div class="qc-pad">' +
         '<div class="qc-title">' + escHtml(q.title) + '</div>' +
-        '<div style="font-size:12px;color:var(--q-muted);margin:4px 0 2px;font-weight:700;">' + (q.task_count || 0) + ' missions · ' + (q.points_total || 0) + ' pts</div>' +
+        '<div style="font-size:12px;color:var(--q-muted);margin:4px 0 2px;font-weight:700;">' + (q.task_count || 0) + ' tasks · ' + (q.points_total || 0) + ' pts</div>' +
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:9px;">' +
           '<span style="font-size:12px;color:#9fb4c4;font-weight:700;"><span class="material-icons" style="font-size:14px;vertical-align:-2px;">group</span> ' + (q.joined_count || 0) + '</span>' +
           '<button onclick="event.stopPropagation();Quests.join(\'' + q.id + '\')" style="font-size:12px;font-weight:800;color:#082335;background:#2ba8e0;border:none;border-radius:8px;padding:6px 13px;cursor:pointer;font-family:inherit;">Join</button>' +
@@ -248,7 +248,7 @@ window.Quests = {
           '<h3 class="q-title">' + escHtml(d.title) + '</h3>' +
           '<p class="q-desc">' + escHtml(d.description || '') + '</p>' +
           rankLine +
-          '<div class="q-venues-title">Missions</div>' +
+          '<div class="q-venues-title">Tasks</div>' +
           '<div id="q-task-list" style="display:flex;flex-direction:column;gap:9px;">' + tasksHtml + '</div>' +
         '</div>' +
       '</div>';
