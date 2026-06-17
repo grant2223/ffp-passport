@@ -2649,6 +2649,64 @@ a { color: var(--ffp-blue); text-decoration: none; }
         </div>
       </section>
 
+      <section class="panel" id="panel-appointments">
+        <div class="ph">Appointments</div>
+        <div class="psub">1-on-1 &amp; coaching appointments — set up your services and trainers, sell session packages, book and check clients in, then confirm completed sessions to release the coach's commission.</div>
+        <div class="biz-tabs">
+          <button class="biz-tab active" onclick="bizTab(this,'ap-calendar'); if(typeof apRenderCalendar==='function')apRenderCalendar();">Calendar</button>
+          <button class="biz-tab" onclick="bizTab(this,'ap-services'); if(typeof apRenderServices==='function')apRenderServices();">Services &amp; Coaches</button>
+          <button class="biz-tab" onclick="bizTab(this,'ap-availability'); if(typeof apRenderAvailability==='function')apRenderAvailability();">Availability</button>
+          <button class="biz-tab" onclick="bizTab(this,'ap-packages'); if(typeof apRenderPackages==='function')apRenderPackages();">Packages</button>
+          <button class="biz-tab" onclick="bizTab(this,'ap-reports'); if(typeof apRenderReports==='function')apRenderReports();">Reports</button>
+        </div>
+        <div class="biz-pane active" id="ap-calendar">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 8px;flex-wrap:wrap;">
+            <div id="ap-week-nav" class="psub" style="margin:0;display:flex;align-items:center;gap:8px;"></div>
+            <button class="btn btn-pri" onclick="if(typeof apBookModal==='function')apBookModal()"><span class="ms">add</span> Book appointment</button>
+          </div>
+          <div id="ap-calendar-host" style="margin-top:8px;"></div>
+        </div>
+        <div class="biz-pane" id="ap-services">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
+            <div class="psub" style="margin:0;">Services your facility delivers by appointment — set price, duration, tax, and which coaches deliver each (with their commission).</div>
+            <button class="btn btn-pri" onclick="if(typeof apServiceModal==='function')apServiceModal()"><span class="ms">add</span> Add service</button>
+          </div>
+          <div id="ap-services-host" style="margin-top:10px;"></div>
+        </div>
+        <div class="biz-pane" id="ap-availability">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
+            <div class="psub" style="margin:0;">Each trainer's recurring weekly availability — the day/time slots clients can be booked into.</div>
+            <button class="btn btn-pri" onclick="if(typeof apSlotModal==='function')apSlotModal()"><span class="ms">add</span> Add slot</button>
+          </div>
+          <div id="ap-availability-host" style="margin-top:10px;"></div>
+        </div>
+        <div class="biz-pane" id="ap-packages">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
+            <div class="psub" style="margin:0;">Session packages clients can buy (e.g. 10 PT sessions). Sell one to a client and each booked appointment counts down.</div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-sec" onclick="if(typeof apSellModal==='function')apSellModal()"><span class="ms">sell</span> Sell to client</button>
+              <button class="btn btn-pri" onclick="if(typeof apPackageModal==='function')apPackageModal()"><span class="ms">add</span> Add package</button>
+            </div>
+          </div>
+          <div id="ap-packages-host" style="margin-top:10px;"></div>
+          <div class="form-section-title" style="margin-top:22px;">Client packages — sessions remaining</div>
+          <div id="ap-client-packages-host" style="margin-top:8px;"></div>
+        </div>
+        <div class="biz-pane" id="ap-reports">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 10px;flex-wrap:wrap;">
+            <div class="psub" style="margin:0;">Completed sessions, revenue, tax, coach commission and your net — by coach and by service.</div>
+            <select class="select" id="ap-rep-range" style="max-width:200px;" onchange="if(typeof apRenderReports==='function')apRenderReports();">
+              <option value="this_month">This month</option>
+              <option value="last_month">Last month</option>
+              <option value="last_30">Last 30 days</option>
+              <option value="this_year">This year</option>
+              <option value="all">All time</option>
+            </select>
+          </div>
+          <div id="ap-reports-host" style="margin-top:8px;"></div>
+        </div>
+      </section>
+
       <section class="panel" id="panel-staff">
         <div class="ph">Staff</div>
         <div class="psub">Coaches and staff — accounts, access and schedules.</div>
@@ -3123,6 +3181,7 @@ const NAV = [
   { id: 'checkins',    icon: 'qr_code_scanner', label: 'Check-ins',           section: 'business' },
   { id: 'members',     icon: 'groups',          label: 'Members',             section: 'business', soon: true },
   { id: 'scheduling',  icon: 'calendar_month',  label: 'Sessions',            section: 'business' },
+  { id: 'appointments',icon: 'event_available', label: 'Appointments',        section: 'business' },
   { id: 'staff',       icon: 'badge',           label: 'Staff',               section: 'business', soon: true },
   { id: 'billing',     icon: 'receipt_long',    label: 'Payments & Invoices', section: 'business', soon: true },
   // ── Engagement (member-facing listings) ──
@@ -3211,7 +3270,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=3', 'scheduling': 'ffp-provider-scheduling-loader.js?v=16', 'members': 'ffp-provider-members-loader.js?v=2', 'billing': 'ffp-provider-billing-loader.js?v=2', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=18' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=3', 'scheduling': 'ffp-provider-scheduling-loader.js?v=16', 'members': 'ffp-provider-members-loader.js?v=2', 'billing': 'ffp-provider-billing-loader.js?v=2', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=18', 'appointments': 'ffp-provider-appointments-loader.js?v=1' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
@@ -3356,6 +3415,7 @@ function showPanel(id) {
   if (id === 'members' && typeof renderMembers === 'function') renderMembers();
   if (id === 'billing') { if (typeof renderPayments === 'function') renderPayments(); renderPaymentsCard(); }
   if (id === 'staff' && typeof renderStaff === 'function') renderStaff();
+  if (id === 'appointments' && typeof renderAppointments === 'function') renderAppointments();
   renderListingGate(id);   // show/hide the "listings hidden until profile complete" banner
   window.scrollTo({ top: 0, behavior: 'smooth' });
   // Close mobile sidebar after navigation
