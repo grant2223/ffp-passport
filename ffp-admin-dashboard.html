@@ -1442,6 +1442,9 @@ input, select, textarea { font-family: inherit; }
         <span class="material-icons">account_balance</span>Payouts
         <span class="sidebar-link-badge" id="badge-payouts" style="display:none"></span>
       </a>
+      <a class="sidebar-link" data-panel="panel-appointments" onclick="App.go('panel-appointments')">
+        <span class="material-icons">event_available</span>Appointments
+      </a>
       <a class="sidebar-link" data-panel="panel-referrals" onclick="App.go('panel-referrals')">
         <span class="material-icons">group_add</span>Referrals
         <span class="sidebar-link-badge" id="badge-referrals" style="display:none"></span>
@@ -1810,7 +1813,43 @@ input, select, textarea { font-family: inherit; }
         </div>
       </div>
     </section>
-    
+
+    <!-- ========== APPOINTMENTS ========== -->
+    <section class="panel" id="panel-appointments">
+      <div class="panel-head">
+        <h1>Appointments</h1>
+        <div class="panel-head-sub">Facility coaching sessions — client packages with sessions remaining, and the platform-wide session report (gross, commission payout, net).</div>
+      </div>
+      <div class="section">
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="remaining" onclick="AdminAppts.setTab('remaining')">Sessions remaining</button>
+          <button class="tab-btn" data-tab="report" onclick="AdminAppts.setTab('report')">Sessions report</button>
+        </div>
+        <div id="aa-remaining-pane">
+          <div class="search-row">
+            <div class="search-input-wrap">
+              <span class="material-icons">search</span>
+              <input type="text" id="aa-search" placeholder="Search by client, email or facility..." oninput="AdminAppts.onSearch(this.value)">
+            </div>
+            <div class="search-meta" id="aa-remaining-meta"></div>
+          </div>
+          <div id="aa-remaining-host"></div>
+        </div>
+        <div id="aa-report-pane" style="display:none;">
+          <div class="search-row">
+            <select class="select" id="aa-rep-range" onchange="AdminAppts.renderReport()" style="max-width:200px;">
+              <option value="this_month">This month</option>
+              <option value="last_month">Last month</option>
+              <option value="last_30">Last 30 days</option>
+              <option value="this_year">This year</option>
+              <option value="all">All time</option>
+            </select>
+          </div>
+          <div id="aa-report-host"></div>
+        </div>
+      </div>
+    </section>
+
     <!-- ========== REFERRALS ========== -->
     <section class="panel" id="panel-referrals">
       <div class="panel-head">
@@ -2482,6 +2521,7 @@ const App = {
     'panel-members':     'Members',
     'panel-content':     'Content Moderation',
     'panel-payouts':     'Payouts',
+    'panel-appointments':'Appointments',
     'panel-referrals':   'Referrals',
     'panel-feedback':    'Feedback',
     'panel-broadcast':   'Broadcast',
@@ -2508,6 +2548,7 @@ const App = {
   _panelScript: {
     'panel-providers':    'ffp-admin-providers-loader.js',
     'panel-payouts':      'ffp-admin-payouts-loader.js',
+    'panel-appointments': 'ffp-admin-appointments-loader.js',
     'panel-content':      'ffp-admin-content-loader.js',
     'panel-referrals':    'ffp-admin-referrals-loader.js',
     'panel-feedback':     'ffp-admin-feedback-loader.js',
@@ -2534,7 +2575,7 @@ const App = {
       var sc = document.createElement('script');
       // Cache-bust lazy loaders so a new deploy never serves a stale cached .js.
       // BUMP this with the dashboard build number on every deploy (matches footer build).
-      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=52'; sc.async = false;
+      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=53'; sc.async = false;
       sc.onload = function () {
         if (panelId === 'panel-analytics') {
           setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 80);
