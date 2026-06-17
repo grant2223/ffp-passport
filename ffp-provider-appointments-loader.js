@@ -46,7 +46,14 @@ function apMondayOf(d) {
 }
 
 // ── entry ──
+function _apInjectStyle() {
+  if (document.getElementById('ap-cal-style')) return;
+  var st = document.createElement('style'); st.id = 'ap-cal-style';
+  st.textContent = 'input.input[type="date"],input.input[type="time"],input.input[type="datetime-local"]{color-scheme:dark;}';
+  (document.head || document.body).appendChild(st);
+}
 async function renderAppointments() {
+  _apInjectStyle();
   if (!_apAnchor) _apAnchor = _apFacilityToday();
   await _apLoadConfig();
   apRenderCalendar();
@@ -113,14 +120,19 @@ function _apViewDays() {
   return arr;
 }
 function _apRangeBounds() {
+  var from, to;
   if (_apView === 'month') {
     var first = new Date(_apAnchor.getFullYear(), _apAnchor.getMonth(), 1);
-    var gs = apMondayOf(first); var ge = new Date(gs); ge.setDate(ge.getDate() + 42);
-    return { from: gs, to: ge };
+    from = apMondayOf(first); to = new Date(from); to.setDate(to.getDate() + 42);
+  } else {
+    var days = _apViewDays();
+    from = new Date(days[0]); from.setHours(0, 0, 0, 0);
+    to = new Date(days[days.length - 1]); to.setHours(0, 0, 0, 0); to.setDate(to.getDate() + 1);
   }
-  var days = _apViewDays();
-  var from = new Date(days[0]); from.setHours(0, 0, 0, 0);
-  var to = new Date(days[days.length - 1]); to.setHours(0, 0, 0, 0); to.setDate(to.getDate() + 1);
+  // Pad ±1 day: the fetch window is in the viewer's tz but we bucket appts in the FACILITY tz,
+  // so over-fetch a day on each side to be sure the facility-local day's appts are included.
+  from = new Date(from); from.setDate(from.getDate() - 1);
+  to = new Date(to); to.setDate(to.getDate() + 1);
   return { from: from, to: to };
 }
 function _apTitle() {
@@ -645,14 +657,16 @@ function apBookModal(prefill) {
   if (!_apStaff.length) { apToast('Add a coach in Staff first', 'error'); return; }
   prefill = (prefill && typeof prefill === 'object') ? prefill : {};
   var when = prefill.start || _apToLocalInput(new Date(Date.now() + 3600000).toISOString());
+  var whenDate = (when.split('T')[0] || ''), whenTime = (when.split('T')[1] || '09:00');
   var selSvc = prefill.service_id || '', selCoach = prefill.staff_id || '', dur = prefill.duration || 60;
   var coachOpts = selSvc ? _apServiceCoachOpts(selSvc, selCoach) : _apStaffOpts(selCoach);
   var body =
     '<div class="form-section"><div class="form-grid">' +
+      '<div class="field"><div class="label">Date <span class="req">*</span></div><input class="input" type="date" id="ap-bk-date" value="' + whenDate + '"></div>' +
+      '<div class="field"><div class="label">Time <span class="req">*</span></div><input class="input" type="time" step="300" id="ap-bk-time" value="' + whenTime + '"></div>' +
       '<div class="field"><div class="label">Service <span class="req">*</span></div><select class="select" id="ap-bk-service" onchange="apBkServiceChange()">' + _apServiceOpts(selSvc) + '</select></div>' +
       '<div class="field"><div class="label">Coach <span class="req">*</span></div><select class="select" id="ap-bk-coach">' + coachOpts + '</select></div>' +
       '<div class="field"><div class="label">Client <span class="req">*</span></div><select class="select" id="ap-bk-client" onchange="apBkClientChange()">' + _apMemberOpts('') + '</select></div>' +
-      '<div class="field"><div class="label">Date &amp; time <span class="req">*</span></div><input class="input" type="datetime-local" id="ap-bk-when" value="' + when + '"></div>' +
       '<div class="field"><div class="label">Duration (min)</div><input class="input" type="number" min="5" step="5" id="ap-bk-duration" value="' + dur + '"></div>' +
       '<div class="field"><div class="label">Payment</div><select class="select" id="ap-bk-pay" onchange="apBkPayChange()">' +
         '<option value="package">Use a package</option><option value="cash">Cash</option><option value="card">Card</option><option value="comp">Comp (free)</option><option value="unpaid">Unpaid / bill later</option>' +
@@ -712,12 +726,14 @@ async function apSaveBooking() {
   var service = (document.getElementById('ap-bk-service') || {}).value;
   var coach = (document.getElementById('ap-bk-coach') || {}).value;
   var client = (document.getElementById('ap-bk-client') || {}).value;
-  var when = (document.getElementById('ap-bk-when') || {}).value;
+  var date = (document.getElementById('ap-bk-date') || {}).value;
+  var time = (document.getElementById('ap-bk-time') || {}).value;
   var dur = parseInt((document.getElementById('ap-bk-duration') || {}).value, 10) || 60;
   var pay = (document.getElementById('ap-bk-pay') || {}).value;
   var pkg = (document.getElementById('ap-bk-pkg') || {}).value;
   var notes = (document.getElementById('ap-bk-notes') || {}).value;
-  if (!service || !coach || !client || !when) { apToast('Service, coach, client and time are required', 'error'); return; }
+  if (!service || !coach || !client || !date || !time) { apToast('Date, time, service, coach and client are required', 'error'); return; }
+  var when = date + 'T' + time;
   if (pay === 'package' && !pkg) { apToast('Pick which package to use (or change the payment method)', 'error'); return; }
   var payload = {
     staff_id: coach, service_id: service, member_id: client, start_at: _apToISO(when),
