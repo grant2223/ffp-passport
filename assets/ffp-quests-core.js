@@ -11,13 +11,11 @@
    window.supabase, FFP_TAX, MemberProfile, FFPUpload. Boot calls window.Quests.init() when the panel shows. */
 window.Quests = {
   base: 'https://ffp-passport-backend.vercel.app',
-  cat: 'all',
+  major: null,
+  minor: [],
+  partner: [],
   boardScope: 'global',
-  tab: 'explore',
-  explore: [],
-  mine: [],
-  globalBoard: [],
-  headline: null,
+  boardSearch: '',
   _openQuest: null,
 
   memberId() {
@@ -44,27 +42,6 @@ window.Quests = {
   },
 
   async init() {
-    var self = this;
-    document.querySelectorAll('#quest-cat-row .cat-item').forEach(function (b) {
-      b.addEventListener('click', function () {
-        document.querySelectorAll('#quest-cat-row .cat-item').forEach(function (x) { x.classList.remove('active'); });
-        b.classList.add('active'); self.cat = b.dataset.cat; self.render();
-      });
-    });
-    document.querySelectorAll('#quest-scope-seg .scope-btn').forEach(function (b) {
-      b.addEventListener('click', function () {
-        document.querySelectorAll('#quest-scope-seg .scope-btn').forEach(function (x) { x.classList.remove('active'); });
-        b.classList.add('active');
-        self.boardScope = (b.dataset.scope === 'all') ? 'global' : b.dataset.scope;
-        self.loadBoard();
-      });
-    });
-    document.querySelectorAll('#quest-tabs .tabs-underline-btn').forEach(function (b) {
-      b.addEventListener('click', function () {
-        document.querySelectorAll('#quest-tabs .tabs-underline-btn').forEach(function (x) { x.classList.remove('active'); });
-        b.classList.add('active'); self.tab = b.dataset.questTab; self.render();
-      });
-    });
     await this.load();
     try {
       var qp = new URLSearchParams(window.location.search).get('quest');
@@ -73,139 +50,164 @@ window.Quests = {
   },
 
   async load() {
-    var grid = document.getElementById('quest-grid');
-    if (grid) grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--q-muted);padding:30px;">Loading quests…</div>';
+    var host = document.getElementById('quest-sections');
+    if (host) host.innerHTML = '<div style="text-align:center;color:var(--q-muted);padding:30px;">Loading quests…</div>';
     var mid = this.memberId();
     try {
       var r = await window.supabase.rpc('member_quests_feed', { p_me: mid });
       var d = (r && r.data) ? r.data : {};
-      this.headline = d.headline || null; this.explore = d.explore || []; this.mine = d.mine || [];
-    } catch (e) { this.headline = null; this.explore = []; this.mine = []; }
-    this.renderHero();
-    this.render();
+      this.major = d.major || d.headline || null;
+      this.minor = d.minor || d.explore || [];
+      this.partner = d.partner || [];
+    } catch (e) { this.major = null; this.minor = []; this.partner = []; }
+    this.renderAll();
   },
 
-  renderHero() {
+  _ensureCss() {
+    if (document.getElementById('ffp-quests-v6-css')) return;
+    var s = document.createElement('style'); s.id = 'ffp-quests-v6-css';
+    s.textContent = [
+      // major
+      '#panel-quests .q-major{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--q-border-mid);padding:16px;min-height:138px;display:flex;flex-direction:column;justify-content:flex-end;cursor:pointer;}',
+      '#panel-quests .q-major-pill{position:absolute;top:12px;left:12px;display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#082335;background:var(--q-yellow);border-radius:20px;padding:4px 9px;}',
+      '#panel-quests .q-major-pill .material-icons{font-size:12px;}',
+      '#panel-quests .q-major-title{font-size:19px;font-weight:900;color:#fff;line-height:1.15;}',
+      '#panel-quests .q-major-desc{font-size:12.5px;color:#cfe0ee;margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}',
+      '#panel-quests .q-major-foot{display:flex;align-items:center;gap:10px;margin-top:13px;}',
+      '#panel-quests .q-major-meta{font-size:11.5px;font-weight:700;color:#fff;flex:1;min-width:0;}',
+      '#panel-quests .q-major-btn{font-size:12.5px;font-weight:800;border-radius:9px;padding:8px 15px;white-space:nowrap;}',
+      '#panel-quests .q-major-btn.join{color:#082335;background:var(--q-yellow);}',
+      '#panel-quests .q-major-btn.cont{color:#082335;background:#fff;}',
+      // sections + rows
+      '#panel-quests .q-sec-h{font-size:12px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--q-muted);margin:20px 0 10px;}',
+      '#panel-quests .q-sec-h-sub{font-weight:700;text-transform:none;letter-spacing:0;color:#7d8b99;font-size:11px;margin-left:4px;}',
+      '#panel-quests .q-sec-empty{font-size:13px;color:var(--q-muted);padding:6px 2px 2px;}',
+      '#panel-quests .q-list{display:flex;flex-direction:column;gap:8px;}',
+      '#panel-quests .q-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:13px;background:var(--q-card);border:1px solid var(--q-border);cursor:pointer;transition:border-color .15s;}',
+      '#panel-quests .q-row:hover{border-color:var(--q-border-mid);}',
+      '#panel-quests .q-row-thumb{width:46px;height:46px;border-radius:11px;flex-shrink:0;background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;color:#fff;}',
+      '#panel-quests .q-row-thumb .material-icons{font-size:20px;opacity:.85;}',
+      '#panel-quests .q-row-body{flex:1;min-width:0;}',
+      '#panel-quests .q-row-title{font-size:14.5px;font-weight:800;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
+      '#panel-quests .q-row-meta{font-size:11.5px;color:var(--q-muted);font-weight:700;margin-top:2px;}',
+      '#panel-quests .q-row-join{font-size:12px;font-weight:800;color:#082335;background:#2ba8e0;border:none;border-radius:8px;padding:7px 14px;cursor:pointer;font-family:inherit;flex-shrink:0;}',
+      '#panel-quests .q-row-state{font-size:12.5px;font-weight:800;color:#9fb4c4;flex-shrink:0;}',
+      // detail modal
+      '.q-detail2{display:flex;flex-direction:column;}',
+      '.q-d2-cover{position:relative;height:120px;background-size:cover;background-position:center;background-color:#155e85;display:flex;align-items:flex-end;padding:14px;border-radius:14px 14px 0 0;}',
+      '.q-d2-cover.cov-fitness{background-image:linear-gradient(135deg,#ff6b4a,#b23a1c);}.q-d2-cover.cov-sports{background-image:linear-gradient(135deg,#2ba8e0,#155e85);}.q-d2-cover.cov-wellness{background-image:linear-gradient(135deg,#36c5b0,#0d6b5f);}.q-d2-cover.cov-recovery{background-image:linear-gradient(135deg,#8b7cf0,#4c2c9c);}.q-d2-cover.cov-adventure{background-image:linear-gradient(135deg,#f5a623,#a85e08);}.q-d2-cover.cov-food{background-image:linear-gradient(135deg,#4ade80,#15803d);}',
+      '.q-d2-pill{position:absolute;top:12px;left:12px;font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#fff;background:rgba(0,0,0,.45);border-radius:20px;padding:3px 9px;}',
+      '.q-d2-title{font-size:20px;font-weight:900;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.5);}',
+      '.q-d2-body{padding:14px 4px 4px;}',
+      '.q-d2-desc{font-size:13px;color:#9fb4c4;margin:0 0 12px;line-height:1.5;}',
+      '.q-statbar{display:flex;gap:18px;padding:10px 14px;background:rgba(8,20,32,.5);border:1px solid rgba(255,255,255,.07);border-radius:11px;margin-bottom:12px;}',
+      '.q-statbar span{font-size:12px;color:#8a99a8;font-weight:700;}.q-statbar b{font-size:16px;color:#e8eef4;font-weight:900;}.q-statbar b.gold{color:#f4d77a;}.q-statbar b.blue{color:#2ba8e0;}',
+      '.q-seg{display:flex;gap:6px;background:rgba(8,20,32,.5);border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:4px;margin-bottom:14px;}',
+      '.q-seg button{flex:1;font-size:13px;font-weight:800;color:#8a99a8;background:transparent;border:none;border-radius:8px;padding:9px 6px;cursor:pointer;font-family:inherit;}',
+      '.q-seg button.active{background:#2ba8e0;color:#fff;}',
+      '.q-tasklist{display:flex;flex-direction:column;gap:8px;max-height:54vh;overflow:auto;-webkit-overflow-scrolling:touch;}',
+      '.q-trow{display:flex;align-items:center;gap:10px;padding:10px 11px;border-radius:11px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);}',
+      '.q-trow.done{border-color:rgba(74,222,128,.4);}',
+      '.q-trow-ic{font-size:19px;color:#2ba8e0;flex-shrink:0;}.q-trow-ic.done{color:#4ade80;}',
+      '.q-trow-body{flex:1;min-width:0;}',
+      '.q-trow-title{font-size:13.5px;font-weight:700;color:#e8eef4;}',
+      '.q-trow-sub{font-size:11.5px;color:#8a99a8;margin-top:1px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}',
+      '.q-trow-pts{font-size:12px;font-weight:800;color:#9fb4c4;flex-shrink:0;}',
+      '.q-trow-btn{font-size:12px;font-weight:800;color:#082335;background:#2ba8e0;border:none;border-radius:8px;padding:7px 12px;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;}',
+      '.q-trow-done{color:#4ade80;flex-shrink:0;display:flex;}.q-trow-done .material-icons{font-size:18px;}',
+      '.q-trow-pend{font-size:11px;font-weight:800;color:#f3b14e;flex-shrink:0;white-space:nowrap;}',
+      '.q-trow-auto{font-size:11px;font-weight:700;color:#7d8b99;flex-shrink:0;}',
+      // leaderboard
+      '.q-board-filters{display:flex;flex-direction:column;gap:9px;margin-bottom:12px;}',
+      '.q-board-chips{display:flex;gap:6px;}',
+      '.q-chip{flex:1;font-size:12px;font-weight:700;color:#8a99a8;background:rgba(8,20,32,.5);border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:8px 6px;cursor:pointer;font-family:inherit;}',
+      '.q-chip.active{background:#2ba8e0;color:#fff;border-color:#2ba8e0;}',
+      '#q-board-search{width:100%;box-sizing:border-box;padding:10px 13px;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:rgba(8,20,32,.4);color:#e8eef4;font-size:13px;font-family:inherit;}',
+      '.q-board-list{max-height:50vh;overflow:auto;-webkit-overflow-scrolling:touch;}',
+      '.q-board-loading,.q-board-empty{font-size:12.5px;color:#8a99a8;padding:14px 4px;text-align:center;}',
+      '.q-lb-row{display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:10px;margin-bottom:6px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);}',
+      '.q-lb-row.me{background:rgba(43,168,224,.12);border-color:#2ba8e0;}',
+      '.q-lb-rank{width:22px;text-align:center;font-weight:900;font-size:13px;flex-shrink:0;}',
+      '.q-lb-av{width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;}',
+      '.q-lb-ph{background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;}',
+      '.q-lb-meta{flex:1;min-width:0;}',
+      '.q-lb-name{font-weight:700;color:#e8eef4;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
+      '.q-lb-loc{font-size:11px;color:#8a99a8;}',
+      '.q-lb-pts{font-weight:900;color:#e8eef4;font-size:14px;flex-shrink:0;}.q-lb-pts span{font-size:10px;color:#8a99a8;font-weight:700;margin-left:2px;}'
+    ].join('');
+    document.head.appendChild(s);
+  },
+
+  renderAll() {
+    this._ensureCss();
+    this.renderMajor();
+    var host = document.getElementById('quest-sections'); if (!host) return;
+    var html = '';
+    // Minor (FFP missions)
+    html += '<div class="q-sec-h">FFP missions</div>';
+    html += this.minor.length
+      ? '<div class="q-list">' + this.minor.map(this.rowMinor.bind(this)).join('') + '</div>'
+      : '<div class="q-sec-empty">New FFP missions are on the way — check back soon.</div>';
+    // Partner (only if any unlocked)
+    if (this.partner.length) {
+      html += '<div class="q-sec-h" style="margin-top:22px;">Partner quests <span class="q-sec-h-sub">unlocked for you</span></div>';
+      html += '<div class="q-list">' + this.partner.map(this.rowPartner.bind(this)).join('') + '</div>';
+    }
+    host.innerHTML = html;
+  },
+
+  renderMajor() {
     var el = document.getElementById('quest-hero'); if (!el) return;
-    var h = this.headline;
+    var h = this.major;
     if (!h) { el.style.display = 'none'; el.innerHTML = ''; return; }
     el.style.display = '';
     var done = h.my_completed || 0, total = h.task_count || 0;
     var bg = h.hero_image_url
-      ? "linear-gradient(180deg,rgba(8,20,32,0.25),rgba(8,20,32,0.82)),url('" + h.hero_image_url + "')"
-      : 'linear-gradient(135deg,rgba(43,168,224,0.30),rgba(255,204,0,0.12))';
+      ? "linear-gradient(180deg,rgba(8,20,32,0.15),rgba(8,20,32,0.85)),url('" + h.hero_image_url + "')"
+      : 'linear-gradient(135deg,rgba(43,168,224,0.45),rgba(8,30,46,0.9))';
     el.innerHTML =
-      '<div onclick="Quests.open(\'' + h.id + '\',\'ffp\')" style="cursor:pointer;border-radius:18px;overflow:hidden;border:1px solid var(--q-border-mid);background:' + bg + ';background-size:cover;background-position:center;padding:20px;min-height:160px;display:flex;flex-direction:column;justify-content:flex-end;">' +
-        '<div style="display:inline-flex;align-self:flex-start;align-items:center;gap:5px;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#082335;background:var(--q-yellow);border-radius:20px;padding:4px 10px;margin-bottom:10px;"><span class="material-icons" style="font-size:13px;">stars</span> Featured quest</div>' +
-        '<div style="font-size:21px;font-weight:900;color:#fff;line-height:1.15;">' + escHtml(h.title) + '</div>' +
-        (h.description ? '<div style="font-size:13px;color:#cfe0ee;margin-top:4px;max-width:90%;">' + escHtml(h.description) + '</div>' : '') +
-        '<div style="display:flex;align-items:center;gap:14px;margin-top:14px;flex-wrap:wrap;">' +
-          '<span style="font-size:12px;font-weight:700;color:#fff;"><span class="material-icons" style="font-size:14px;vertical-align:-2px;">flag</span> ' + total + ' tasks · ' + (h.points_total || 0) + ' pts</span>' +
-          '<span style="font-size:12px;font-weight:700;color:#fff;"><span class="material-icons" style="font-size:14px;vertical-align:-2px;">group</span> ' + (h.joined_count || 0) + ' joined</span>' +
+      '<div class="q-major" onclick="Quests.open(\'' + h.id + '\',\'ffp\')" style="background:' + bg + ';background-size:cover;background-position:center;">' +
+        '<span class="q-major-pill"><span class="material-icons">stars</span> Featured quest</span>' +
+        '<div class="q-major-title">' + escHtml(h.title) + '</div>' +
+        (h.description ? '<div class="q-major-desc">' + escHtml(h.description) + '</div>' : '') +
+        '<div class="q-major-foot">' +
+          '<span class="q-major-meta">' + total + ' tasks · ' + (h.points_total || 0) + ' pts · ' + (h.joined_count || 0) + ' joined</span>' +
           (h.joined
-            ? '<span style="margin-left:auto;font-size:13px;font-weight:800;color:#082335;background:#fff;border-radius:10px;padding:8px 16px;">Continue · ' + done + '/' + total + '</span>'
-            : '<span style="margin-left:auto;font-size:13px;font-weight:800;color:#082335;background:var(--q-yellow);border-radius:10px;padding:8px 16px;">Join the quest</span>') +
+            ? '<span class="q-major-btn cont">Continue · ' + done + '/' + total + '</span>'
+            : '<span class="q-major-btn join">Join</span>') +
         '</div>' +
       '</div>';
-  },
-
-  render() {
-    var setC = function (id, n) { var e = document.getElementById(id); if (e) e.textContent = n; };
-    setC('q-browse-count', this.explore.length);
-    setC('q-active-count', this.mine.length);
-    var hero = document.getElementById('quest-hero');
-    if (hero) hero.style.display = (this.tab === 'explore' && this.headline) ? '' : 'none';
-    var grid = document.getElementById('quest-grid'); if (!grid) return;
-    if (this.tab === 'mine') {
-      if (!this.mine.length) { grid.innerHTML = this._empty('No quests yet', 'Join an FFP quest from Explore to get started.'); return; }
-      grid.innerHTML = this.mine.map(this.cardMine.bind(this)).join('');
-      return;
-    }
-    var items = this.explore.slice();
-    if (!items.length) { grid.innerHTML = this.headline ? '' : this._empty('Nothing here yet', 'New FFP quests are on the way — check back soon.'); return; }
-    grid.innerHTML = '<div style="grid-column:1/-1;font-size:12px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--q-muted);margin:2px 0 -2px;">More FFP quests</div>' + items.map(this.cardExplore.bind(this)).join('');
   },
 
   _empty(t, s) {
-    return '<div style="grid-column:1/-1;text-align:center;color:var(--q-muted);padding:34px 16px;">' +
+    return '<div style="text-align:center;color:var(--q-muted);padding:34px 16px;">' +
       '<div style="font-weight:800;color:var(--q-text);">' + t + '</div><div style="margin-top:6px;font-size:13px;">' + s + '</div></div>';
   },
-  _cover(q) {
-    var c = (this.CAT[q.category] || {}).cover || '';
+  _thumb(q) {
+    var c = (this.CAT[q.category] || {}).cover || 'cov-fitness';
     return q.hero_image_url
-      ? '<div class="qc-cover image" style="background-image:url(\'' + q.hero_image_url + '\');">'
-      : '<div class="qc-cover ' + c + '">';
+      ? '<div class="q-row-thumb" style="background-image:url(\'' + q.hero_image_url + '\');"></div>'
+      : '<div class="q-row-thumb ' + c + '"><span class="material-icons">flag</span></div>';
   },
-
-  cardExplore(q) {
-    return '<div class="quest-card" onclick="Quests.open(\'' + q.id + '\',\'ffp\')">' +
-      this._cover(q) + '<span class="qc-scope-pill">Open to all</span></div>' +
-      '<div class="qc-pad">' +
-        '<div class="qc-title">' + escHtml(q.title) + '</div>' +
-        '<div style="font-size:12px;color:var(--q-muted);margin:4px 0 2px;font-weight:700;">' + (q.task_count || 0) + ' tasks · ' + (q.points_total || 0) + ' pts</div>' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:9px;">' +
-          '<span style="font-size:12px;color:#9fb4c4;font-weight:700;"><span class="material-icons" style="font-size:14px;vertical-align:-2px;">group</span> ' + (q.joined_count || 0) + '</span>' +
-          '<button onclick="event.stopPropagation();Quests.join(\'' + q.id + '\')" style="font-size:12px;font-weight:800;color:#082335;background:#2ba8e0;border:none;border-radius:8px;padding:6px 13px;cursor:pointer;font-family:inherit;">Join</button>' +
-        '</div>' +
-      '</div></div>';
+  // Compact full-width list rows (scale to any count — no giant squares)
+  rowMinor(q) {
+    var joined = !!q.joined, done = q.my_completed || 0, total = q.task_count || 0;
+    var right = joined
+      ? '<span class="q-row-state">' + done + '/' + total + '</span>'
+      : '<button class="q-row-join" onclick="event.stopPropagation();Quests.join(\'' + q.id + '\')">Join</button>';
+    return '<div class="q-row" onclick="Quests.open(\'' + q.id + '\',\'ffp\')">' +
+      this._thumb(q) +
+      '<div class="q-row-body"><div class="q-row-title">' + escHtml(q.title) + '</div>' +
+        '<div class="q-row-meta">' + total + ' tasks · ' + (q.points_total || 0) + ' pts · ' + (q.joined_count || 0) + ' joined</div></div>' +
+      right + '</div>';
   },
-  cardMine(q) {
+  rowPartner(q) {
     var done = q.my_completed || 0, total = q.task_count || 0;
-    var pct = total ? Math.round(done / total * 100) : 0;
-    var ffp = q.kind === 'ffp';
-    var badge = ffp ? '<span class="qc-scope-pill">FFP</span>'
-      : '<span class="qc-scope-pill" style="background:rgba(0,0,0,0.55);"><span class="material-icons" style="font-size:10px;vertical-align:-1px;">lock</span> ' + escHtml(q.provider_name || 'Partner') + '</span>';
-    return '<div class="quest-card" onclick="Quests.open(\'' + q.id + '\',\'' + (q.kind || 'ffp') + '\')">' +
-      this._cover(q) + badge + '</div>' +
-      '<div class="qc-pad">' +
-        '<div class="qc-title">' + escHtml(q.title) + '</div>' +
-        '<div style="font-size:12px;color:var(--q-muted);margin:4px 0 8px;font-weight:700;">' + (q.kind === 'member' ? 'Exploration quest' : (q.my_points || 0) + ' pts · ' + done + '/' + total + ' done') + '</div>' +
-        '<div class="chal-progress-bar"><div class="chal-progress-bar-fill" style="width:' + pct + '%;"></div></div>' +
-        (q.status === 'completed' ? '<div style="font-size:12px;color:#4ade80;font-weight:800;margin-top:8px;">Completed ✓</div>' : '') +
-      '</div></div>';
-  },
-
-  // ── Leaderboard (city / country / global ambassadors) ──
-  async loadBoard() {
-    this._setControls();
-    var grid = document.getElementById('quest-grid'); if (!grid) return;
-    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--q-muted);padding:30px;">Loading leaderboard…</div>';
-    var p = this.meProfile();
-    var args = { p_city: null, p_country: null, p_limit: 100 };
-    if (this.boardScope === 'city') args.p_city = p.city || null;
-    if (this.boardScope === 'country') args.p_country = p.country || null;
-    try {
-      var r = await window.supabase.rpc('ffp_global_leaderboard', args);
-      this._board = (r && r.data) ? r.data : [];
-    } catch (e) { this._board = []; }
-    this.renderBoard();
-  },
-  renderBoard() {
-    var grid = document.getElementById('quest-grid'); if (!grid) return;
-    var rows = (this.boardScope === 'global') ? this.globalBoard : (this._board || []);
-    var p = this.meProfile();
-    var scopeLabel = this.boardScope === 'city' ? ('your city' + (p.city ? ' · ' + escHtml(p.city) : '')) :
-                     this.boardScope === 'country' ? ('your country' + (p.country ? ' · ' + escHtml(p.country) : '')) : 'worldwide';
-    if (!rows || !rows.length) { grid.innerHTML = this._empty('No ranking yet', 'Earn points on FFP quests to climb the ' + scopeLabel + ' board.'); return; }
-    var mid = this.memberId();
-    var html = '<div style="grid-column:1/-1;">' +
-      '<div style="font-size:12px;color:var(--q-muted);font-weight:700;margin:0 0 10px;">Ambassadors — ' + scopeLabel + '</div>';
-    rows.forEach(function (b, i) {
-      var me = b.member_id === mid;
-      var medal = i === 0 ? '#f4d77a' : i === 1 ? '#c8d2dc' : i === 2 ? '#d8a06a' : 'var(--q-muted)';
-      var av = b.photo
-        ? '<img src="' + b.photo + '" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;">'
-        : '<div style="width:36px;height:36px;border-radius:50%;background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0;">' + escHtml((b.name || 'M').charAt(0).toUpperCase()) + '</div>';
-      var loc = [b.city, b.country].filter(Boolean).join(' · ');
-      html += '<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;margin-bottom:7px;background:' + (me ? 'rgba(43,168,224,0.12)' : 'rgba(255,255,255,0.03)') + ';border:1px solid ' + (me ? '#2ba8e0' : 'rgba(255,255,255,0.07)') + ';">' +
-        '<div style="width:24px;text-align:center;font-weight:900;color:' + medal + ';">' + (i + 1) + '</div>' + av +
-        '<div style="flex:1;min-width:0;"><div style="font-weight:700;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(b.name || 'Member') + (me ? ' <span style="color:#2ba8e0;font-size:11px;">• you</span>' : '') + '</div>' +
-        (loc ? '<div style="font-size:11px;color:var(--q-muted);">' + escHtml(loc) + '</div>' : '') + '</div>' +
-        '<div style="font-weight:900;color:var(--q-text);">' + b.points + '<span style="font-size:11px;color:var(--q-muted);font-weight:700;"> pts</span></div>' +
-      '</div>';
-    });
-    html += '</div>';
-    grid.innerHTML = html;
+    return '<div class="q-row" onclick="Quests.open(\'' + q.id + '\',\'partner\')">' +
+      this._thumb(q) +
+      '<div class="q-row-body"><div class="q-row-title">' + escHtml(q.title) + '</div>' +
+        '<div class="q-row-meta"><span class="material-icons" style="font-size:12px;vertical-align:-2px;">lock</span> ' + escHtml(q.provider_name || 'Partner') + ' · ' + total + ' tasks</div></div>' +
+      '<span class="q-row-state">' + done + '/' + total + '</span></div>';
   },
 
   open(id, kind) {
@@ -213,59 +215,108 @@ window.Quests = {
     return this.openTaskDetail(id);
   },
 
-  // ── NEW: FFP / partner quest detail = mission checklist + proof ──
+  // ── FFP / partner quest detail = compact task checklist + filterable leaderboard ──
   async openTaskDetail(id) {
     var mid = this.memberId();
-    this._openQuest = id;
+    this._ensureCss();
+    this._openQuest = id; this._boardLoaded = false; this.boardScope = 'global'; this.boardSearch = '';
     var d = null;
     try { var r = await window.supabase.rpc('member_quest_detail', { p_me: mid, p_quest: id }); d = (r && r.data) ? r.data : null; } catch (e) {}
     if (!d) { showToast('Could not open quest', 'error'); return; }
-    var catCover = (this.CAT[d.category] && this.CAT[d.category].cover) || '';
-    var cover = d.hero_image_url
-      ? '<div class="q-cover" style="background-image:linear-gradient(180deg,rgba(8,20,32,0.20),rgba(8,20,32,0.6)),url(\'' + d.hero_image_url + '\');">'
-      : '<div class="q-cover ' + catCover + '">';
+    this._openData = d;
+    var hasBoard = (d.leaderboard && d.leaderboard !== 'none');
+    var catCover = (this.CAT[d.category] && this.CAT[d.category].cover) || 'cov-fitness';
+    var coverBg = d.hero_image_url
+      ? "linear-gradient(180deg,rgba(8,20,32,0.12),rgba(8,20,32,0.80)),url('" + d.hero_image_url + "')" : '';
+    var tasks = d.tasks || [];
+    var total = tasks.length;
+    var done = tasks.filter(function (t) { return (t.my_state || '') === 'verified'; }).length;
     var pill = (d.kind === 'ffp') ? 'Open to all' : ('Members · ' + escHtml(d.provider_name || 'Partner'));
-    cover += '<span class="q-cover-pill">' + pill + '</span></div>';
-    var rankLine = (d.leaderboard && d.leaderboard !== 'none')
-      ? '<div style="display:flex;gap:10px;margin:0 0 14px;">' +
-          '<div class="hero-stat" style="flex:1;"><div class="num gold">' + (d.my_points || 0) + '</div><div class="lbl">Your points</div></div>' +
-          '<div class="hero-stat" style="flex:1;"><div class="num blue">' + (d.my_rank ? '#' + d.my_rank : '—') + '</div><div class="lbl">Rank</div></div>' +
-        '</div>'
-      : '';
-    var tasksHtml = (d.tasks || []).map(this.taskRow.bind(this)).join('') || '<div class="q-venue muted">Missions announced soon.</div>';
+    var tasksHtml = tasks.map(this.taskRow.bind(this)).join('') || '<div class="q-board-empty">Tasks announced soon.</div>';
+    var statBar = '<div class="q-statbar">' +
+        '<span><b class="gold">' + (d.my_points || 0) + '</b> pts</span>' +
+        (hasBoard ? '<span><b class="blue">' + (d.my_rank ? '#' + d.my_rank : '—') + '</b> rank</span>' : '') +
+        '<span><b>' + done + '/' + total + '</b> done</span>' +
+      '</div>';
+    var toggle = hasBoard
+      ? '<div class="q-seg"><button id="q-seg-tasks" class="active" onclick="Quests.questPane(\'tasks\')">Tasks (' + total + ')</button>' +
+        '<button id="q-seg-board" onclick="Quests.questPane(\'board\')">Leaderboard</button></div>' : '';
+    var boardPane = hasBoard
+      ? '<div id="q-pane-board" style="display:none;">' +
+          '<div class="q-board-filters">' +
+            '<div class="q-board-chips">' +
+              '<button class="q-chip active" data-scope="global" onclick="Quests.boardFilter(\'global\')">Global</button>' +
+              '<button class="q-chip" data-scope="country" onclick="Quests.boardFilter(\'country\')">My country</button>' +
+              '<button class="q-chip" data-scope="city" onclick="Quests.boardFilter(\'city\')">My city</button>' +
+            '</div>' +
+            '<input id="q-board-search" placeholder="Search name…" oninput="Quests.boardSearchInput(this.value)">' +
+          '</div>' +
+          '<div id="q-board-list" class="q-board-list"><div class="q-board-loading">Loading…</div></div>' +
+        '</div>' : '';
     var html =
-      '<div class="q-detail">' + cover +
-        '<div class="q-detail-body">' +
-          '<h3 class="q-title">' + escHtml(d.title) + '</h3>' +
-          '<p class="q-desc">' + escHtml(d.description || '') + '</p>' +
-          rankLine +
-          '<div class="q-venues-title">Tasks</div>' +
-          '<div id="q-task-list" style="display:flex;flex-direction:column;gap:9px;">' + tasksHtml + '</div>' +
-          ((d.leaderboard && d.leaderboard !== 'none') ? '<div class="q-venues-title" style="margin-top:18px;">Leaderboard</div><div id="q-board-list"><div style="font-size:12px;color:#8a99a8;padding:6px 0;">Loading…</div></div>' : '') +
+      '<div class="q-detail2">' +
+        '<div class="q-d2-cover ' + (coverBg ? '' : catCover) + '"' + (coverBg ? ' style="background-image:' + coverBg + ';"' : '') + '>' +
+          '<span class="q-d2-pill">' + pill + '</span>' +
+          '<div class="q-d2-title">' + escHtml(d.title) + '</div>' +
+        '</div>' +
+        '<div class="q-d2-body">' +
+          (d.description ? '<p class="q-d2-desc">' + escHtml(d.description) + '</p>' : '') +
+          statBar + toggle +
+          '<div id="q-pane-tasks"><div class="q-tasklist">' + tasksHtml + '</div></div>' +
+          boardPane +
         '</div>' +
       '</div>';
     openDetailModal(html);
-    if (d.leaderboard && d.leaderboard !== 'none') this.loadQuestBoard(id);
   },
 
-  async loadQuestBoard(questId) {
-    var host = document.getElementById('q-board-list'); if (!host) return;
+  questPane(which) {
+    var t = document.getElementById('q-pane-tasks'), b = document.getElementById('q-pane-board');
+    var st = document.getElementById('q-seg-tasks'), sb = document.getElementById('q-seg-board');
+    if (which === 'board') {
+      if (t) t.style.display = 'none'; if (b) b.style.display = '';
+      if (st) st.classList.remove('active'); if (sb) sb.classList.add('active');
+      if (!this._boardLoaded) { this._boardLoaded = true; this.loadQuestBoard(); }
+    } else {
+      if (b) b.style.display = 'none'; if (t) t.style.display = '';
+      if (sb) sb.classList.remove('active'); if (st) st.classList.add('active');
+    }
+  },
+  boardFilter(scope) {
+    this.boardScope = scope;
+    var chips = document.querySelectorAll('.q-board-chips .q-chip');
+    for (var i = 0; i < chips.length; i++) chips[i].classList.toggle('active', chips[i].getAttribute('data-scope') === scope);
+    this.loadQuestBoard();
+  },
+  boardSearchInput(v) {
+    this.boardSearch = v || '';
+    var self = this; clearTimeout(this._boardT);
+    this._boardT = setTimeout(function () { self.loadQuestBoard(); }, 250);
+  },
+
+  async loadQuestBoard() {
+    var host = document.getElementById('q-board-list'); if (!host || !this._openQuest) return;
+    host.innerHTML = '<div class="q-board-loading">Loading…</div>';
+    var p = this.meProfile();
+    var args = { p_quest: this._openQuest, p_limit: 50, p_search: this.boardSearch || null };
+    if (this.boardScope === 'city') args.p_city = p.city || null;
+    if (this.boardScope === 'country') args.p_country = p.country || null;
     var rows = [];
-    try { var r = await window.supabase.rpc('quest_leaderboard', { p_quest: questId, p_limit: 25 }); rows = (r && r.data) ? r.data : []; } catch (e) {}
-    if (!rows.length) { host.innerHTML = '<div style="font-size:12px;color:#8a99a8;padding:6px 0;">No points yet — be the first to climb.</div>'; return; }
+    try { var r = await window.supabase.rpc('quest_leaderboard', args); rows = (r && r.data) ? r.data : []; } catch (e) {}
+    if (!rows.length) {
+      host.innerHTML = '<div class="q-board-empty">' + (this.boardSearch ? 'No one matches “' + escHtml(this.boardSearch) + '”.' : 'No one here yet — be the first to climb.') + '</div>';
+      return;
+    }
     var mid = this.memberId();
     host.innerHTML = rows.map(function (b, i) {
       var me = b.member_id === mid;
-      var medal = i === 0 ? '#f4d77a' : i === 1 ? '#c8d2dc' : i === 2 ? '#d8a06a' : '#8a99a8';
-      var av = b.photo
-        ? '<img src="' + b.photo + '" alt="" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;">'
-        : '<div style="width:32px;height:32px;border-radius:50%;background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0;">' + escHtml((b.name || 'M').charAt(0).toUpperCase()) + '</div>';
+      var medal = i === 0 ? '#f4d77a' : i === 1 ? '#c8d2dc' : i === 2 ? '#d8a06a' : '#7d8b99';
+      var av = b.photo ? '<img src="' + b.photo + '" alt="" class="q-lb-av">' : '<div class="q-lb-av q-lb-ph">' + escHtml((b.name || 'M').charAt(0).toUpperCase()) + '</div>';
       var loc = [b.city, b.country].filter(Boolean).join(' · ');
-      return '<div style="display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:10px;margin-bottom:6px;background:' + (me ? 'rgba(43,168,224,0.12)' : 'rgba(255,255,255,0.03)') + ';border:1px solid ' + (me ? '#2ba8e0' : 'rgba(255,255,255,0.07)') + ';">' +
-        '<div style="width:20px;text-align:center;font-weight:900;color:' + medal + ';">' + (i + 1) + '</div>' + av +
-        '<div style="flex:1;min-width:0;"><div style="font-weight:700;color:#e8eef4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(b.name || 'Member') + (me ? ' <span style="color:#2ba8e0;font-size:11px;">• you</span>' : '') + '</div>' +
-        (loc ? '<div style="font-size:11px;color:#8a99a8;">' + escHtml(loc) + '</div>' : '') + '</div>' +
-        '<div style="font-weight:900;color:#e8eef4;">' + b.points + '<span style="font-size:11px;color:#8a99a8;font-weight:700;"> pts</span></div>' +
+      return '<div class="q-lb-row' + (me ? ' me' : '') + '">' +
+        '<div class="q-lb-rank" style="color:' + medal + ';">' + (i + 1) + '</div>' + av +
+        '<div class="q-lb-meta"><div class="q-lb-name">' + escHtml(b.name || 'Member') + (me ? ' • you' : '') + '</div>' +
+        (loc ? '<div class="q-lb-loc">' + escHtml(loc) + '</div>' : '') + '</div>' +
+        '<div class="q-lb-pts">' + b.points + '<span>pts</span></div>' +
       '</div>';
     }).join('');
   },
@@ -274,18 +325,16 @@ window.Quests = {
     var pm = this.PROOF[t.proof_type] || this.PROOF.photo;
     var st = t.my_state || 'open';
     var right;
-    if (st === 'verified') right = '<span style="font-size:12px;color:#4ade80;font-weight:800;white-space:nowrap;"><span class="material-icons" style="font-size:16px;vertical-align:-3px;">check_circle</span> Done</span>';
-    else if (st === 'pending') right = '<span style="font-size:12px;color:#f3b14e;font-weight:800;white-space:nowrap;">Awaiting review</span>';
-    else if (t.proof_type === 'auto') right = '<span style="font-size:11px;color:var(--q-muted);white-space:nowrap;">Auto</span>';
-    else right = '<button onclick="Quests.doTask(\'' + t.id + '\',\'' + t.proof_type + '\',' + (t.has_geo ? 'true' : 'false') + ')" style="font-size:12px;font-weight:800;color:#082335;background:#2ba8e0;border:none;border-radius:8px;padding:7px 13px;cursor:pointer;font-family:inherit;white-space:nowrap;">' + pm.label + '</button>';
+    if (st === 'verified') right = '<span class="q-trow-done"><span class="material-icons">check_circle</span></span>';
+    else if (st === 'pending') right = '<span class="q-trow-pend">Review</span>';
+    else if (t.proof_type === 'auto') right = '<span class="q-trow-auto">Auto</span>';
+    else right = '<button class="q-trow-btn" onclick="Quests.doTask(\'' + t.id + '\',\'' + t.proof_type + '\',' + (t.has_geo ? 'true' : 'false') + ')">' + pm.label + '</button>';
     var done = st === 'verified';
-    return '<div style="display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid ' + (done ? 'rgba(74,222,128,0.4)' : 'rgba(255,255,255,0.08)') + ';">' +
-      '<span class="material-icons" style="font-size:20px;color:' + (done ? '#4ade80' : '#2ba8e0') + ';flex-shrink:0;">' + (done ? 'check_circle' : pm.icon) + '</span>' +
-      '<div style="flex:1;min-width:0;">' +
-        '<div style="font-weight:700;color:var(--q-text);">' + escHtml(t.title) + '</div>' +
-        (t.instruction ? '<div style="font-size:12px;color:var(--q-muted);">' + escHtml(t.instruction) + '</div>' : '') +
-        '<div style="font-size:11px;color:#9fb4c4;font-weight:700;margin-top:3px;">+' + (t.points || 0) + ' pts' + (t.provider_name ? ' · ' + escHtml(t.provider_name) : '') + '</div>' +
-      '</div>' + right +
+    return '<div class="q-trow' + (done ? ' done' : '') + '">' +
+      '<span class="material-icons q-trow-ic' + (done ? ' done' : '') + '">' + (done ? 'check_circle' : pm.icon) + '</span>' +
+      '<div class="q-trow-body"><div class="q-trow-title">' + escHtml(t.title) + '</div>' +
+        (t.instruction ? '<div class="q-trow-sub">' + escHtml(t.instruction) + '</div>' : '') + '</div>' +
+      '<div class="q-trow-pts">+' + (t.points || 0) + '</div>' + right +
     '</div>';
   },
 
