@@ -9,7 +9,9 @@
 // Coach commission is frozen + released only on facility confirmation (provider_confirm_appointment).
 // ════════════════════════════════════════════════════════════════════════
 var _apStaff = [], _apServices = [], _apPackages = [], _apSlots = [], _apMembers = [], _apAppts = [], _apBlocks = [];
-var _apWeekStart = null;          // Monday 00:00 of the displayed week
+var _apWeekStart = null;          // (legacy)
+var _apAnchor = null;             // focused date — source of truth for all views
+var _apView = 'week';             // 'day' | 'week' | 'month' (default week)
 var _apCalCoach = '';             // calendar coach filter ('' = all)
 var _apClientPkgCache = {};       // member_id -> [active client packages] (for booking)
 
@@ -45,7 +47,7 @@ function apMondayOf(d) {
 
 // ── entry ──
 async function renderAppointments() {
-  if (!_apWeekStart) _apWeekStart = apMondayOf(new Date());
+  if (!_apAnchor) _apAnchor = new Date();
   await _apLoadConfig();
   apRenderCalendar();
 }
@@ -91,68 +93,81 @@ function _apMemberOpts(sel) {
 // ════════════════════════════════════════════════════════════════════════
 // CALENDAR (booked appointments, by day) + week nav + actions
 // ════════════════════════════════════════════════════════════════════════
-function apShiftWeek(n) { var d = new Date(_apWeekStart); d.setDate(d.getDate() + n * 7); _apWeekStart = apMondayOf(d); apRenderCalendar(); }
-function apThisWeek() { _apWeekStart = apMondayOf(new Date()); apRenderCalendar(); }
+function apSetView(v) { _apView = v; apRenderCalendar(); }
+function apToday() { _apAnchor = new Date(); apRenderCalendar(); }
+function apThisWeek() { apToday(); }   // back-compat
 function apCalCoachChange(v) { _apCalCoach = v || ''; apRenderCalendar(); }
-
+function apNavPrev() { _apShiftAnchor(-1); }
+function apNavNext() { _apShiftAnchor(1); }
+function _apShiftAnchor(dir) {
+  var d = new Date(_apAnchor || new Date());
+  if (_apView === 'day') d.setDate(d.getDate() + dir);
+  else if (_apView === 'month') d.setMonth(d.getMonth() + dir);
+  else d.setDate(d.getDate() + dir * 7);
+  _apAnchor = d; apRenderCalendar();
+}
+function _apViewDays() {
+  if (_apView === 'day') return [new Date(_apAnchor)];
+  var ms = apMondayOf(_apAnchor); var arr = [];
+  for (var i = 0; i < 7; i++) { var d = new Date(ms); d.setDate(d.getDate() + i); arr.push(d); }
+  return arr;
+}
+function _apRangeBounds() {
+  if (_apView === 'month') {
+    var first = new Date(_apAnchor.getFullYear(), _apAnchor.getMonth(), 1);
+    var gs = apMondayOf(first); var ge = new Date(gs); ge.setDate(ge.getDate() + 42);
+    return { from: gs, to: ge };
+  }
+  var days = _apViewDays();
+  var from = new Date(days[0]); from.setHours(0, 0, 0, 0);
+  var to = new Date(days[days.length - 1]); to.setHours(0, 0, 0, 0); to.setDate(to.getDate() + 1);
+  return { from: from, to: to };
+}
+function _apTitle() {
+  var a = _apAnchor;
+  if (_apView === 'day') return a.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  if (_apView === 'month') return a.toLocaleDateString([], { month: 'long', year: 'numeric' });
+  var days = _apViewDays();
+  return days[0].toLocaleDateString([], { day: 'numeric', month: 'short' }) + ' – ' + days[6].toLocaleDateString([], { day: 'numeric', month: 'short' });
+}
+function _apHeader() {
+  var vbtn = function (v, label) { return '<button class="btn ' + (_apView === v ? 'btn-pri' : 'btn-ghost') + ' btn-sm" onclick="apSetView(\'' + v + '\')">' + label + '</button>'; };
+  var coach = '';
+  if (_apStaff.length) {
+    coach = '<select class="select" id="ap-cal-coach" onchange="apCalCoachChange(this.value)" style="max-width:180px;">' +
+      '<option value="">All coaches</option>' +
+      _apStaff.map(function (st) { return '<option value="' + st.id + '"' + (_apCalCoach === st.id ? ' selected' : '') + '>' + apEsc(st.full_name || 'Coach') + '</option>'; }).join('') + '</select>';
+  }
+  return '<div style="display:flex;align-items:center;gap:4px;">' + vbtn('day', 'Day') + vbtn('week', 'Week') + vbtn('month', 'Month') + '</div>' +
+    '<div style="display:flex;align-items:center;gap:4px;">' +
+      '<button class="btn btn-ghost btn-sm" onclick="apNavPrev()"><span class="ms">chevron_left</span></button>' +
+      '<b style="color:var(--ffp-text,#eaf2f8);min-width:140px;text-align:center;display:inline-block;">' + _apTitle() + '</b>' +
+      '<button class="btn btn-ghost btn-sm" onclick="apNavNext()"><span class="ms">chevron_right</span></button>' +
+      '<button class="btn btn-ghost btn-sm" onclick="apToday()">Today</button>' +
+    '</div>' + (coach ? '<div>' + coach + '</div>' : '');
+}
 async function apRenderCalendar() {
   var pid = apProvId();
   var nav = document.getElementById('ap-week-nav');
   var host = document.getElementById('ap-calendar-host');
   if (!host) return;
-  if (!_apWeekStart) _apWeekStart = apMondayOf(new Date());
-  var end = new Date(_apWeekStart); end.setDate(end.getDate() + 7);
+  if (!_apAnchor) _apAnchor = new Date();
+  var rb = _apRangeBounds();
   if (nav) {
-    var s = _apWeekStart, e = new Date(end); e.setDate(e.getDate() - 1);
-    var label = s.toLocaleDateString([], { day: 'numeric', month: 'short' }) + ' – ' + e.toLocaleDateString([], { day: 'numeric', month: 'short' });
-    var coachFilter = '';
-    if (_apStaff.length) {
-      coachFilter = '<select class="select" id="ap-cal-coach" onchange="apCalCoachChange(this.value)" style="max-width:190px;margin-left:6px;">' +
-        '<option value="">All coaches</option>' +
-        _apStaff.map(function (st) { return '<option value="' + st.id + '"' + (_apCalCoach === st.id ? ' selected' : '') + '>' + apEsc(st.full_name || 'Coach') + '</option>'; }).join('') +
-        '</select>';
-    }
-    nav.innerHTML =
-      '<button class="btn btn-ghost btn-sm" onclick="apShiftWeek(-1)"><span class="ms">chevron_left</span></button>' +
-      '<b style="color:var(--ffp-text,#eaf2f8);min-width:130px;text-align:center;display:inline-block;">' + label + '</b>' +
-      '<button class="btn btn-ghost btn-sm" onclick="apShiftWeek(1)"><span class="ms">chevron_right</span></button>' +
-      '<button class="btn btn-ghost btn-sm" onclick="apThisWeek()">Today</button>' + coachFilter;
+    nav.innerHTML = _apHeader();
     if (window.FFPSelect) { setTimeout(function () { var el = document.getElementById('ap-cal-coach'); if (el) { try { window.FFPSelect.enhance(el); } catch (e) {} } }, 30); }
   }
   host.innerHTML = '<div class="psub" style="margin:10px 0;">Loading…</div>';
   try {
-    var r = await window.supabase.rpc('provider_list_appointments', { p_provider: pid, p_from: _apWeekStart.toISOString(), p_to: end.toISOString() });
+    var r = await window.supabase.rpc('provider_list_appointments', { p_provider: pid, p_from: rb.from.toISOString(), p_to: rb.to.toISOString() });
     _apAppts = (r && r.data) ? r.data : [];
   } catch (e) { _apAppts = []; }
-
   if (!_apServices.length && !_apStaff.length) {
     host.innerHTML = _apEmpty('Set up your coaching first', 'Add a service and link a coach (Services &amp; Coaches tab), then book appointments here.');
     return;
   }
-  // group appointments by local day
-  var byDay = {};
-  _apAppts.forEach(function (a) {
-    var d = new Date(a.start_at); var key = d.toDateString();
-    (byDay[key] = byDay[key] || []).push(a);
-  });
-  var html = '', anyDay = false;
-  for (var i = 0; i < 7; i++) {
-    var day = new Date(_apWeekStart); day.setDate(day.getDate() + i);
-    var key = day.toDateString();
-    var appts = (byDay[key] || []).filter(function (a) { return !_apCalCoach || a.staff_id === _apCalCoach; });
-    var open = _apOpenSlots(day.getDay(), _apDateStr(day), key, appts);
-    if (!appts.length && !open.length) continue;
-    anyDay = true;
-    html += '<div style="margin:16px 0 6px;font-weight:800;color:var(--ffp-text,#eaf2f8);">' +
-            day.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'short' }) + '</div>';
-    html += appts.map(apApptCard).join('');
-    if (open.length) {
-      html += '<div class="psub" style="margin:4px 0 4px;">Open slots — tap to book</div>';
-      html += '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:6px;">' + open.map(_apSlotChip).join('') + '</div>';
-    }
-  }
-  if (!anyDay) html = _apEmpty('Nothing this week', 'No appointments or available hours this week. Set each trainer’s hours in the Availability tab, or use “Book appointment”.');
-  host.innerHTML = html;
+  if (_apView === 'month') _apRenderMonth(host);
+  else _apRenderGrid(host, _apViewDays());
 }
 
 // minutes helpers + open-slot generation (browser-local clock, matching how appts are grouped)
@@ -198,6 +213,168 @@ function _apSlotChip(s) {
 }
 function apBookFromSlot(staffId, serviceId, dateStr, time, duration) {
   apBookModal({ start: dateStr + 'T' + time, staff_id: staffId, service_id: serviceId || '', duration: duration });
+}
+
+// ── TIME GRID (Day / Week): time down Y, days across X ──
+var _AP_HH = 46; // px per hour row
+function _apBlockColor(st) {
+  if (st === 'completed') return { bd: 'rgba(46,204,113,.5)', bg: 'rgba(46,204,113,.16)', fg: '#7ee0a8' };
+  if (st === 'completed_pending') return { bd: 'rgba(243,156,18,.55)', bg: 'rgba(243,156,18,.16)', fg: '#ffcf8f' };
+  if (st === 'checked_in') return { bd: 'rgba(46,204,113,.45)', bg: 'rgba(46,204,113,.12)', fg: '#7ee0a8' };
+  if (st === 'no_show') return { bd: 'rgba(255,107,107,.45)', bg: 'rgba(255,107,107,.12)', fg: '#ff9b9b' };
+  if (st === 'cancelled') return { bd: 'var(--ffp-border,#1d3346)', bg: 'rgba(255,255,255,.04)', fg: '#9fb3c2' };
+  return { bd: 'rgba(43,168,224,.55)', bg: 'rgba(43,168,224,.16)', fg: '#6fc6ef' };
+}
+function _apGridItems(day, coachF) {
+  var dateStr = _apDateStr(day), key = day.toDateString();
+  var appts = (_apAppts || []).filter(function (a) { return (!coachF || a.staff_id === coachF) && new Date(a.start_at).toDateString() === key; });
+  var items = [];
+  appts.forEach(function (a) {
+    if (a.status === 'cancelled') return;
+    var d = new Date(a.start_at); var sM = d.getHours() * 60 + d.getMinutes();
+    items.push({ kind: 'appt', a: a, startMin: sM, endMin: sM + (a.duration_min || 60) });
+  });
+  var open = _apOpenSlots(day.getDay(), dateStr, key, appts.filter(function (a) { return ['cancelled', 'no_show'].indexOf(a.status) === -1; }));
+  open.forEach(function (s) { var sM = _apMin(s.time); items.push({ kind: 'open', s: s, startMin: sM, endMin: sM + (s.duration || 60) }); });
+  return items;
+}
+function _apLanePack(items) {
+  items.sort(function (a, b) { return a.startMin - b.startMin || a.endMin - b.endMin; });
+  var i = 0;
+  while (i < items.length) {
+    var cluster = [items[i]], maxEnd = items[i].endMin, j = i + 1;
+    while (j < items.length && items[j].startMin < maxEnd) { cluster.push(items[j]); maxEnd = Math.max(maxEnd, items[j].endMin); j++; }
+    var lanes = [];
+    cluster.forEach(function (it) {
+      var placed = false;
+      for (var L = 0; L < lanes.length; L++) { if (lanes[L] <= it.startMin) { it.lane = L; lanes[L] = it.endMin; placed = true; break; } }
+      if (!placed) { it.lane = lanes.length; lanes.push(it.endMin); }
+    });
+    cluster.forEach(function (it) { it.lanes = lanes.length; });
+    i = j;
+  }
+}
+function _apGridBlock(it, top, hgt, leftPct, wPct) {
+  var base = 'position:absolute;top:' + top + 'px;height:' + hgt + 'px;left:calc(' + leftPct + '% + 2px);width:calc(' + wPct + '% - 4px);border-radius:7px;padding:3px 6px;overflow:hidden;font-size:11px;line-height:1.2;cursor:pointer;box-sizing:border-box;';
+  if (it.kind === 'open') {
+    var s = it.s;
+    return '<div onclick="apBookFromSlot(\'' + s.staff_id + '\',\'' + (s.service_id || '') + '\',\'' + s.dateStr + '\',\'' + s.time + '\',' + s.duration + ')" title="Book ' + s.time + ' · ' + apEsc(s.coach_name || '') + '" style="' + base + 'border:1px dashed var(--ffp-border,#3a5168);background:rgba(43,168,224,.05);color:#9fb3c2;display:flex;align-items:center;justify-content:center;gap:4px;"><span class="ms" style="font-size:13px;">add</span>' + s.time + (it.lanes < 2 ? (' · ' + apEsc(s.coach_name || '')) : '') + '</div>';
+  }
+  var a = it.a, col = _apBlockColor(a.status), name = apEsc(a.member_name || a.member_email || 'Client');
+  return '<div onclick="apApptDetail(\'' + a.id + '\')" title="' + name + '" style="' + base + 'border:1px solid ' + col.bd + ';background:' + col.bg + ';color:' + col.fg + ';">' +
+    '<div style="font-weight:800;">' + _apHHMM(it.startMin) + '</div>' +
+    '<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + name + '</div>' +
+    (hgt > 42 ? '<div style="opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + apEsc(a.coach_name || '') + '</div>' : '') +
+  '</div>';
+}
+function _apRenderGrid(host, days) {
+  var coachF = _apCalCoach, minM = 24 * 60, maxM = 0, has = false;
+  (_apAppts || []).forEach(function (a) {
+    if (coachF && a.staff_id !== coachF) return; if (a.status === 'cancelled') return;
+    var d = new Date(a.start_at); var sM = d.getHours() * 60 + d.getMinutes();
+    minM = Math.min(minM, sM); maxM = Math.max(maxM, sM + (a.duration_min || 60)); has = true;
+  });
+  days.forEach(function (day) {
+    (_apSlots || []).forEach(function (w) {
+      if (w.day_of_week !== day.getDay()) return; if (coachF && w.staff_id !== coachF) return;
+      var s = _apMin(w.start_time), e = _apMin(w.end_time); if (s == null || e == null) return;
+      minM = Math.min(minM, s); maxM = Math.max(maxM, e); has = true;
+    });
+  });
+  var startH, endH;
+  if (!has) { startH = 7; endH = 20; }
+  else { startH = Math.max(0, Math.floor(minM / 60)); endH = Math.min(24, Math.ceil(maxM / 60)); if (endH - startH < 6) endH = Math.min(24, startH + 8); }
+  var rangeStart = startH * 60, rows = endH - startH;
+  var todayStr = _apDateStr(new Date());
+  var colW = days.length === 1 ? '1fr' : 'repeat(' + days.length + ',1fr)';
+  var minW = days.length > 1 ? 660 : 300;
+  var html = '<div style="overflow-x:auto;"><div style="min-width:' + minW + 'px;">';
+  // day header
+  html += '<div style="display:grid;grid-template-columns:54px ' + colW + ';">';
+  html += '<div></div>';
+  days.forEach(function (day) {
+    var isT = _apDateStr(day) === todayStr;
+    html += '<div style="text-align:center;padding:6px 2px;border-left:1px solid var(--ffp-border,#1d3346);">' +
+      '<div style="font-weight:800;font-size:12px;color:' + (isT ? '#2ba8e0' : 'var(--ffp-text,#eaf2f8)') + ';">' + day.toLocaleDateString([], { weekday: 'short' }) + '</div>' +
+      '<div style="font-size:15px;font-weight:800;color:' + (isT ? '#2ba8e0' : 'var(--ffp-text,#eaf2f8)') + ';">' + day.getDate() + '</div></div>';
+  });
+  html += '</div>';
+  // body
+  html += '<div style="display:grid;grid-template-columns:54px ' + colW + ';">';
+  html += '<div>';
+  for (var h = startH; h < endH; h++) html += '<div style="height:' + _AP_HH + 'px;font-size:11px;color:#9fb3c2;text-align:right;padding-right:6px;"><span style="position:relative;top:-7px;">' + _apHHMM(h * 60) + '</span></div>';
+  html += '</div>';
+  days.forEach(function (day) {
+    var isT = _apDateStr(day) === todayStr;
+    var items = _apGridItems(day, coachF); _apLanePack(items);
+    var col = '<div style="position:relative;border-left:1px solid var(--ffp-border,#1d3346);height:' + (rows * _AP_HH) + 'px;background:' + (isT ? 'rgba(43,168,224,.04)' : 'transparent') + ';">';
+    for (var h2 = startH; h2 < endH; h2++) col += '<div style="position:absolute;left:0;right:0;top:' + ((h2 - startH) * _AP_HH) + 'px;border-top:1px solid var(--ffp-border,#1d3346);opacity:.45;"></div>';
+    items.forEach(function (it) {
+      var top = ((it.startMin - rangeStart) / 60) * _AP_HH;
+      var hgt = Math.max(20, ((it.endMin - it.startMin) / 60) * _AP_HH - 2);
+      var lw = 100 / (it.lanes || 1), left = (it.lane || 0) * lw;
+      col += _apGridBlock(it, top, hgt, left, lw);
+    });
+    col += '</div>';
+    html += col;
+  });
+  html += '</div></div></div>';
+  host.innerHTML = html;
+}
+
+// ── MONTH grid ──
+function _apRenderMonth(host) {
+  var first = new Date(_apAnchor.getFullYear(), _apAnchor.getMonth(), 1);
+  var gs = apMondayOf(first), todayStr = _apDateStr(new Date()), coachF = _apCalCoach;
+  var byDate = {};
+  (_apAppts || []).forEach(function (a) {
+    if (coachF && a.staff_id !== coachF) return; if (a.status === 'cancelled') return;
+    var k = _apDateStr(new Date(a.start_at)); (byDate[k] = byDate[k] || []).push(a);
+  });
+  var dows = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  var html = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">';
+  dows.forEach(function (d) { html += '<div class="psub" style="text-align:center;font-weight:700;">' + d + '</div>'; });
+  for (var i = 0; i < 42; i++) {
+    var day = new Date(gs); day.setDate(day.getDate() + i);
+    var inMonth = day.getMonth() === _apAnchor.getMonth();
+    var k = _apDateStr(day);
+    var list = (byDate[k] || []).sort(function (a, b) { return new Date(a.start_at) - new Date(b.start_at); });
+    var isT = k === todayStr;
+    html += '<div onclick="apOpenDay(\'' + k + '\')" style="min-height:94px;cursor:pointer;border:1px solid ' + (isT ? '#2ba8e0' : 'var(--ffp-border,#1d3346)') + ';border-radius:8px;padding:5px 6px;background:' + (inMonth ? 'var(--ffp-bg-2,#0f1f2c)' : 'transparent') + ';opacity:' + (inMonth ? 1 : .45) + ';overflow:hidden;">';
+    html += '<div style="font-weight:800;font-size:12px;color:' + (isT ? '#2ba8e0' : 'var(--ffp-text,#eaf2f8)') + ';">' + day.getDate() + '</div>';
+    list.slice(0, 3).forEach(function (a) {
+      var t = new Date(a.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      html += '<div style="font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:' + _apBlockColor(a.status).fg + ';">' + t + ' ' + apEsc(a.member_name || a.member_email || '') + '</div>';
+    });
+    if (list.length > 3) html += '<div class="psub" style="font-size:10px;">+' + (list.length - 3) + ' more</div>';
+    html += '</div>';
+  }
+  html += '</div>';
+  host.innerHTML = html;
+}
+function apOpenDay(dateStr) { var p = dateStr.split('-'); _apAnchor = new Date(+p[0], +p[1] - 1, +p[2]); _apView = 'day'; apRenderCalendar(); }
+
+// ── Appointment detail + actions (opened from a grid block) ──
+function apApptDetail(id) {
+  var a = (_apAppts || []).find(function (x) { return x.id === id; }); if (!a) return;
+  var d = new Date(a.start_at);
+  var when = d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  var body = '<div class="form-section">' +
+    '<div style="display:flex;gap:6px;margin-bottom:10px;">' + _apStatusChip(a.status) + _apPayChip(a) + '</div>' +
+    '<div class="psub" style="line-height:1.7;">' +
+      '<div><b style="color:var(--ffp-text,#eaf2f8);font-size:15px;">' + apEsc(a.member_name || a.member_email || 'Client') + '</b></div>' +
+      '<div>' + apEsc(a.service_name || 'Service') + ' · ' + apEsc(a.coach_name || 'Coach') + '</div>' +
+      '<div>' + when + ' · ' + (a.duration_min || 60) + ' min</div>' +
+      (a.status === 'completed' ? '<div style="margin-top:6px;">Value ' + apMoney(a.price_aed) + ' · tax ' + apMoney(a.tax_aed) + ' · coach ' + apMoney(a.commission_aed) + ' · facility net <b style="color:#7ee0a8;">' + apMoney(a.payout_aed) + '</b></div>' : '') +
+      (a.notes ? '<div style="margin-top:6px;">“' + apEsc(a.notes) + '”</div>' : '') +
+    '</div></div>';
+  var B = function (fn, label, cls, icon) { return '<button class="btn ' + (cls || 'btn-ghost') + ' btn-sm" onclick="closeModal(); ' + fn + '(\'' + a.id + '\')"><span class="ms">' + icon + '</span> ' + label + '</button>'; };
+  var acts = [];
+  if (a.status === 'scheduled') { acts = [B('apCheckin', 'Check in', 'btn-sec', 'how_to_reg'), B('apTrainerDone', 'Mark done', 'btn-ghost', 'task_alt'), B('apReschedule', 'Reschedule', 'btn-ghost', 'edit_calendar'), B('apNoShow', 'No-show', 'btn-ghost', 'person_off'), B('apCancel', 'Cancel', 'btn-ghost', 'close')]; }
+  else if (a.status === 'checked_in') { acts = [B('apTrainerDone', 'Mark done', 'btn-sec', 'task_alt'), B('apNoShow', 'No-show', 'btn-ghost', 'person_off'), B('apCancel', 'Cancel', 'btn-ghost', 'close')]; }
+  else if (a.status === 'completed_pending') { acts = [B('apConfirm', 'Confirm completed', 'btn-pri', 'verified'), B('apCancel', 'Cancel', 'btn-ghost', 'close')]; }
+  body += '<div style="display:flex;gap:6px;flex-wrap:wrap;">' + acts.join('') + '</div>';
+  openModalShell('', 'Appointment', body, '<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
 }
 
 function _apStatusChip(st) {
