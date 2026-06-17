@@ -2675,8 +2675,11 @@ a { color: var(--ffp-blue); text-decoration: none; }
         </div>
         <div class="biz-pane" id="ap-availability">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
-            <div class="psub" style="margin:0;">Each trainer's recurring weekly availability — the day/time slots clients can be booked into.</div>
-            <button class="btn btn-pri" onclick="if(typeof apSlotModal==='function')apSlotModal()"><span class="ms">add</span> Add slot</button>
+            <div class="psub" style="margin:0;">Per trainer — set the weekly hours they're available (day + start/end), and block out any times or days off.</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-sec" onclick="if(typeof apBlockModal==='function')apBlockModal()"><span class="ms">block</span> Add block / day off</button>
+              <button class="btn btn-pri" onclick="if(typeof apSlotModal==='function')apSlotModal()"><span class="ms">add</span> Add hours</button>
+            </div>
           </div>
           <div id="ap-availability-host" style="margin-top:10px;"></div>
         </div>
@@ -3270,7 +3273,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=3', 'scheduling': 'ffp-provider-scheduling-loader.js?v=16', 'members': 'ffp-provider-members-loader.js?v=2', 'billing': 'ffp-provider-billing-loader.js?v=2', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=18', 'appointments': 'ffp-provider-appointments-loader.js?v=1' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=3', 'scheduling': 'ffp-provider-scheduling-loader.js?v=16', 'members': 'ffp-provider-members-loader.js?v=2', 'billing': 'ffp-provider-billing-loader.js?v=2', 'staff': 'ffp-provider-staff-loader.js?v=3', 'classes': 'ffp-provider-classes-loader.js?v=18', 'appointments': 'ffp-provider-appointments-loader.js?v=2' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
