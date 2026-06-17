@@ -363,12 +363,18 @@
     if (!/^(jpg|jpeg|png|webp|gif|heic|heif)$/.test(ext)) ext = 'jpg';
     var ct = file.type || 'image/jpeg';
     var path = 'q-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+    // Auth: use the signed-in admin's JWT (role=authenticated) — verified via DB probe that BOTH anon and
+    // authenticated can insert into quest-images, and the live anon-only request was rejected by storage RLS
+    // (403) for a role mismatch. The admin JWT is the same identity that loads all admin data + passes is_admin(),
+    // and it's how every other bucket upload in the app authenticates. Fall back to the anon key if no JWT.
+    var token = (window.FFPAuth && window.FFPAuth.getJwt && window.FFPAuth.getJwt()) || SB_ANON;
+    console.log('[Admin Quests] auth token:', token === SB_ANON ? 'anon key' : 'admin JWT (' + token.slice(0, 12) + '…)');
     try {
-      // Direct REST upload via NATIVE fetch — no window.supabase (avoids the JWT-injecting fetch wrapper) and no SDK.
+      // Direct REST upload via NATIVE fetch (bypasses the SDK; full control + exact error surfacing).
       console.log('[Admin Quests] POST →', SB_URL + '/storage/v1/object/' + HERO_BUCKET + '/' + path);
       var resp = await window.fetch(SB_URL + '/storage/v1/object/' + HERO_BUCKET + '/' + path, {
         method: 'POST',
-        headers: { 'apikey': SB_ANON, 'Authorization': 'Bearer ' + SB_ANON, 'Content-Type': ct, 'x-upsert': 'true', 'cache-control': '3600' },
+        headers: { 'apikey': SB_ANON, 'Authorization': 'Bearer ' + token, 'Content-Type': ct, 'x-upsert': 'true', 'cache-control': '3600' },
         body: file
       });
       console.log('[Admin Quests] upload response status:', resp && resp.status);
