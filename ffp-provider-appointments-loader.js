@@ -10,6 +10,7 @@
 // ════════════════════════════════════════════════════════════════════════
 var _apStaff = [], _apServices = [], _apPackages = [], _apSlots = [], _apMembers = [], _apAppts = [], _apBlocks = [];
 var _apWeekStart = null;          // Monday 00:00 of the displayed week
+var _apCalCoach = '';             // calendar coach filter ('' = all)
 var _apClientPkgCache = {};       // member_id -> [active client packages] (for booking)
 
 var DOW_AP = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -92,6 +93,7 @@ function _apMemberOpts(sel) {
 // ════════════════════════════════════════════════════════════════════════
 function apShiftWeek(n) { var d = new Date(_apWeekStart); d.setDate(d.getDate() + n * 7); _apWeekStart = apMondayOf(d); apRenderCalendar(); }
 function apThisWeek() { _apWeekStart = apMondayOf(new Date()); apRenderCalendar(); }
+function apCalCoachChange(v) { _apCalCoach = v || ''; apRenderCalendar(); }
 
 async function apRenderCalendar() {
   var pid = apProvId();
@@ -103,11 +105,19 @@ async function apRenderCalendar() {
   if (nav) {
     var s = _apWeekStart, e = new Date(end); e.setDate(e.getDate() - 1);
     var label = s.toLocaleDateString([], { day: 'numeric', month: 'short' }) + ' – ' + e.toLocaleDateString([], { day: 'numeric', month: 'short' });
+    var coachFilter = '';
+    if (_apStaff.length) {
+      coachFilter = '<select class="select" id="ap-cal-coach" onchange="apCalCoachChange(this.value)" style="max-width:190px;margin-left:6px;">' +
+        '<option value="">All coaches</option>' +
+        _apStaff.map(function (st) { return '<option value="' + st.id + '"' + (_apCalCoach === st.id ? ' selected' : '') + '>' + apEsc(st.full_name || 'Coach') + '</option>'; }).join('') +
+        '</select>';
+    }
     nav.innerHTML =
       '<button class="btn btn-ghost btn-sm" onclick="apShiftWeek(-1)"><span class="ms">chevron_left</span></button>' +
       '<b style="color:var(--ffp-text,#eaf2f8);min-width:130px;text-align:center;display:inline-block;">' + label + '</b>' +
       '<button class="btn btn-ghost btn-sm" onclick="apShiftWeek(1)"><span class="ms">chevron_right</span></button>' +
-      '<button class="btn btn-ghost btn-sm" onclick="apThisWeek()">Today</button>';
+      '<button class="btn btn-ghost btn-sm" onclick="apThisWeek()">Today</button>' + coachFilter;
+    if (window.FFPSelect) { setTimeout(function () { var el = document.getElementById('ap-cal-coach'); if (el) { try { window.FFPSelect.enhance(el); } catch (e) {} } }, 30); }
   }
   host.innerHTML = '<div class="psub" style="margin:10px 0;">Loading…</div>';
   try {
@@ -119,24 +129,75 @@ async function apRenderCalendar() {
     host.innerHTML = _apEmpty('Set up your coaching first', 'Add a service and link a coach (Services &amp; Coaches tab), then book appointments here.');
     return;
   }
-  if (!_apAppts.length) {
-    host.innerHTML = _apEmpty('No appointments this week', 'Use “Book appointment” to schedule a 1-on-1, or jump to another week.');
-    return;
-  }
-  // group by day
+  // group appointments by local day
   var byDay = {};
   _apAppts.forEach(function (a) {
     var d = new Date(a.start_at); var key = d.toDateString();
     (byDay[key] = byDay[key] || []).push(a);
   });
-  var html = '';
-  Object.keys(byDay).sort(function (x, y) { return new Date(x) - new Date(y); }).forEach(function (key) {
-    var d = new Date(key);
+  var html = '', anyDay = false;
+  for (var i = 0; i < 7; i++) {
+    var day = new Date(_apWeekStart); day.setDate(day.getDate() + i);
+    var key = day.toDateString();
+    var appts = (byDay[key] || []).filter(function (a) { return !_apCalCoach || a.staff_id === _apCalCoach; });
+    var open = _apOpenSlots(day.getDay(), _apDateStr(day), key, appts);
+    if (!appts.length && !open.length) continue;
+    anyDay = true;
     html += '<div style="margin:16px 0 6px;font-weight:800;color:var(--ffp-text,#eaf2f8);">' +
-            d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'short' }) + '</div>';
-    html += byDay[key].map(apApptCard).join('');
-  });
+            day.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'short' }) + '</div>';
+    html += appts.map(apApptCard).join('');
+    if (open.length) {
+      html += '<div class="psub" style="margin:4px 0 4px;">Open slots — tap to book</div>';
+      html += '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:6px;">' + open.map(_apSlotChip).join('') + '</div>';
+    }
+  }
+  if (!anyDay) html = _apEmpty('Nothing this week', 'No appointments or available hours this week. Set each trainer’s hours in the Availability tab, or use “Book appointment”.');
   host.innerHTML = html;
+}
+
+// minutes helpers + open-slot generation (browser-local clock, matching how appts are grouped)
+function _apMin(hhmm) { if (!hhmm) return null; var p = hhmm.split(':'); return (+p[0]) * 60 + (+p[1]); }
+function _apHHMM(m) { var h = Math.floor(m / 60), x = m % 60; return (h < 10 ? '0' : '') + h + ':' + (x < 10 ? '0' : '') + x; }
+function _apDateStr(d) { var p = function (n) { return (n < 10 ? '0' : '') + n; }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
+function _apBlockedAt(staffId, weekday, dateStr, sMin, eMin) {
+  return (_apBlocks || []).some(function (b) {
+    if (b.staff_id !== staffId) return false;
+    var match = (b.block_type === 'recurring' && b.day_of_week === weekday) || (b.block_type === 'date' && b.block_date === dateStr);
+    if (!match) return false;
+    if (!b.start_time || !b.end_time) return true; // whole day
+    return sMin < _apMin(b.end_time) && eMin > _apMin(b.start_time);
+  });
+}
+function _apOpenSlots(weekday, dateStr, dayKey, apptsForDay) {
+  var out = [];
+  (_apSlots || []).forEach(function (w) {
+    if (w.day_of_week !== weekday || w.status === 'inactive') return;
+    if (_apCalCoach && w.staff_id !== _apCalCoach) return;
+    var s = _apMin(w.start_time), e = _apMin(w.end_time);
+    if (s == null || e == null || e <= s) return;
+    var step = w.duration_min || 60;
+    for (var m = s; m + step <= e; m += step) {
+      var sMin = m, eMin = m + step;
+      if (_apBlockedAt(w.staff_id, weekday, dateStr, sMin, eMin)) continue;
+      var taken = (apptsForDay || []).some(function (a) {
+        if (a.staff_id !== w.staff_id) return false;
+        if (['cancelled', 'no_show'].indexOf(a.status) !== -1) return false;
+        var ad = new Date(a.start_at); var aS = ad.getHours() * 60 + ad.getMinutes(); var aE = aS + (a.duration_min || 60);
+        return sMin < aE && eMin > aS;
+      });
+      if (taken) continue;
+      out.push({ staff_id: w.staff_id, coach_name: w.coach_name, service_id: w.service_id || '', service_name: w.service_name || '', time: _apHHMM(m), duration: step, dateStr: dateStr });
+    }
+  });
+  out.sort(function (a, b) { return a.time < b.time ? -1 : a.time > b.time ? 1 : (a.coach_name || '').localeCompare(b.coach_name || ''); });
+  return out;
+}
+function _apSlotChip(s) {
+  return '<button class="btn btn-ghost btn-sm" style="border-style:dashed;" onclick="apBookFromSlot(\'' + s.staff_id + '\',\'' + (s.service_id || '') + '\',\'' + s.dateStr + '\',\'' + s.time + '\',' + s.duration + ')">' +
+    '<span class="ms">add</span> ' + s.time + ' · ' + apEsc(s.coach_name || 'Coach') + (s.service_name ? ' · ' + apEsc(s.service_name) : '') + '</button>';
+}
+function apBookFromSlot(staffId, serviceId, dateStr, time, duration) {
+  apBookModal({ start: dateStr + 'T' + time, staff_id: staffId, service_id: serviceId || '', duration: duration });
 }
 
 function _apStatusChip(st) {
@@ -290,17 +351,29 @@ function _apToISO(localVal) {
 // ════════════════════════════════════════════════════════════════════════
 // BOOK APPOINTMENT
 // ════════════════════════════════════════════════════════════════════════
-function apBookModal(prefillStart) {
+function _apServiceCoachOpts(serviceId, sel) {
+  var sv = _apServices.find(function (s) { return s.id === serviceId; });
+  if (sv && sv.coaches && sv.coaches.length) {
+    return '<option value="">Select a coach…</option>' + sv.coaches.map(function (c) {
+      return '<option value="' + c.staff_id + '"' + (sel === c.staff_id ? ' selected' : '') + '>' + apEsc(c.coach_name) + '</option>';
+    }).join('');
+  }
+  return _apStaffOpts(sel);
+}
+function apBookModal(prefill) {
   if (!_apServices.length) { apToast('Add a service first (Services & Coaches tab)', 'error'); return; }
   if (!_apStaff.length) { apToast('Add a coach in Staff first', 'error'); return; }
-  var when = prefillStart || _apToLocalInput(new Date(Date.now() + 3600000).toISOString());
+  prefill = (prefill && typeof prefill === 'object') ? prefill : {};
+  var when = prefill.start || _apToLocalInput(new Date(Date.now() + 3600000).toISOString());
+  var selSvc = prefill.service_id || '', selCoach = prefill.staff_id || '', dur = prefill.duration || 60;
+  var coachOpts = selSvc ? _apServiceCoachOpts(selSvc, selCoach) : _apStaffOpts(selCoach);
   var body =
     '<div class="form-section"><div class="form-grid">' +
-      '<div class="field"><div class="label">Service <span class="req">*</span></div><select class="select" id="ap-bk-service" onchange="apBkServiceChange()">' + _apServiceOpts('') + '</select></div>' +
-      '<div class="field"><div class="label">Coach <span class="req">*</span></div><select class="select" id="ap-bk-coach">' + _apStaffOpts('') + '</select></div>' +
+      '<div class="field"><div class="label">Service <span class="req">*</span></div><select class="select" id="ap-bk-service" onchange="apBkServiceChange()">' + _apServiceOpts(selSvc) + '</select></div>' +
+      '<div class="field"><div class="label">Coach <span class="req">*</span></div><select class="select" id="ap-bk-coach">' + coachOpts + '</select></div>' +
       '<div class="field"><div class="label">Client <span class="req">*</span></div><select class="select" id="ap-bk-client" onchange="apBkClientChange()">' + _apMemberOpts('') + '</select></div>' +
       '<div class="field"><div class="label">Date &amp; time <span class="req">*</span></div><input class="input" type="datetime-local" id="ap-bk-when" value="' + when + '"></div>' +
-      '<div class="field"><div class="label">Duration (min)</div><input class="input" type="number" min="5" step="5" id="ap-bk-duration" value="60"></div>' +
+      '<div class="field"><div class="label">Duration (min)</div><input class="input" type="number" min="5" step="5" id="ap-bk-duration" value="' + dur + '"></div>' +
       '<div class="field"><div class="label">Payment</div><select class="select" id="ap-bk-pay" onchange="apBkPayChange()">' +
         '<option value="package">Use a package</option><option value="cash">Cash</option><option value="card">Card</option><option value="comp">Comp (free)</option><option value="unpaid">Unpaid / bill later</option>' +
       '</select></div>' +
