@@ -54,14 +54,20 @@ function clientProfile(id){
   var m=_members.find(function(x){return x.id===id;}); if(!m){ showToast('Client not found','error'); return; }
   var st=m.status||'active'; var stStyle=_cstStyle[st]||_cstStyle.active;
   var jd=m.join_date?String(m.join_date).slice(0,10):'';
+  var dob=''; if(m.date_of_birth){ try{ dob=new Date(String(m.date_of_birth).slice(0,10)+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}); }catch(e){ dob=String(m.date_of_birth).slice(0,10); } }
+  // Legacy clients have only full_name — split it so Given/Surname still show.
+  var gn=m.given_names||'', sn=m.surname||'';
+  if(!gn && !sn && m.full_name){ var _np=String(m.full_name).trim().split(/\s+/); gn=_np.shift()||''; sn=_np.join(' '); }
   var tags=(m.tags||'').split(',').map(function(t){return t.trim();}).filter(Boolean);
-  var row=function(lbl,val){ return val?('<div style="display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid var(--ffp-border);"><span class="psub">'+lbl+'</span><span style="color:var(--ffp-text);font-weight:600;text-align:right;word-break:break-word;">'+escHtml(val)+'</span></div>'):''; };
+  // Passport-style rows — ALWAYS shown ("—" when empty) so the profile reads like a record.
+  var prow=function(lbl,val){ return '<div style="display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid var(--ffp-border);"><span class="psub">'+lbl+'</span><span style="color:var(--ffp-text);font-weight:600;text-align:right;word-break:break-word;">'+(val?escHtml(val):'<span style="color:var(--ffp-text-dim);">—</span>')+'</span></div>'; };
   var act=function(ic,lbl,fn){ return '<button class="btn btn-sec btn-block" style="justify-content:flex-start;gap:9px;" onclick="closeModal();'+fn+'"><span class="ms">'+ic+'</span> '+lbl+'</button>'; };
-  openModalShell('lg', escHtml(m.full_name||'Client'),
-    '<div style="margin:-2px 0 10px;"><span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;'+stStyle+'">'+(CLIENT_STATUS[st]||'Active')+'</span></div>'+
-    row('Phone', m.phone)+row('Email', m.email)+row('Client since', jd)+row('Tags', tags.join(', '))+
+  openModalShell('lg', escHtml(m.full_name||((gn+' '+sn).trim())||'Client'),
+    '<div style="margin:-2px 0 12px;"><span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;'+stStyle+'">'+(CLIENT_STATUS[st]||'Active')+'</span></div>'+
+    prow('Given name', gn)+prow('Surname', sn)+prow('Gender', m.gender)+prow('Date of birth', dob)+prow('Email', m.email)+prow('Phone', m.phone)+prow('Nationality', m.nationality)+
+    (jd?prow('Client since', jd):'')+(tags.length?prow('Tags', tags.join(', ')):'')+
     (m.notes?'<div style="margin-top:12px;"><div class="psub" style="margin-bottom:5px;">Notes</div><div style="background:var(--ffp-bg-card);border:1px solid var(--ffp-border);border-radius:10px;padding:11px 13px;color:var(--ffp-text);line-height:1.6;white-space:pre-wrap;">'+escHtml(m.notes)+'</div></div>':'')+
-    '<div style="display:flex;flex-direction:column;gap:8px;margin-top:16px;">'+
+    '<div style="display:flex;flex-direction:column;gap:8px;margin-top:18px;">'+
       act('health_and_safety','Connect client Passport','openClientHealth(\''+id+'\')')+
       act('card_membership','Packages','openMembership(\''+id+'\')')+
       act('assignment','Assessment form','clientAssessment(\''+id+'\')')+
