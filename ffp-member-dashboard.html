@@ -7167,11 +7167,16 @@ window.JourneyMap = (function () {
     var logs = (typeof logsInRange==='function') ? logsInRange() : ((typeof LOGS!=='undefined')?LOGS:[]);
     logs.forEach(function(l){
       if (l.lat==null || l.lng==null) return;
-      var ttl = esc(l.venue || l.activity || 'Activity');
-      var when = (l.daysAgo!=null) ? (l.daysAgo===0?'today':(l.daysAgo===1?'1 day ago':(l.daysAgo+' days ago'))) : '';
-      var sub = [l.city, when].filter(Boolean).join(' · ');
+      var ttl = esc(l.activity || 'Activity');
+      var mins = l.duration||0, secs = l.durationSec||0;
+      var durTxt = (mins||secs) ? ((Math.floor(mins/60)?Math.floor(mins/60)+'h ':'')+(mins%60)+'m'+(secs?(' '+secs+'s'):'')) : '';
+      var dateTxt = '';
+      try { dateTxt = l.date ? new Date(l.date+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : ''; } catch(e){}
+      if (!dateTxt) dateTxt = (l.daysAgo===0?'today':(l.daysAgo===1?'1 day ago':(l.daysAgo+' days ago')));
+      var meta = [durTxt, dateTxt].filter(Boolean).join(' · ');
+      var link = l.id ? '<div class="jm-pop-s" style="margin-top:5px;"><a href="#" onclick="event.preventDefault();window.ffpViewSharedActivity&&window.ffpViewSharedActivity(\''+jsStr(l.id)+'\');return false;" style="color:#2ba8e0;font-weight:700;">Open activity</a></div>' : '';
       L.marker([l.lat,l.lng],{icon:dotIcon('#2ba8e0',7)}).addTo(pinLayer)
-        .bindPopup('<div class="jm-pop-t">'+ttl+'</div>'+(sub?'<div class="jm-pop-s">'+esc(sub)+'</div>':''));
+        .bindPopup('<div class="jm-pop-t">'+ttl+'</div>'+(meta?'<div class="jm-pop-s">'+esc(meta)+'</div>':'')+link);
     });
     // Yellow — FFP partners
     (PARTNERS||[]).forEach(function(p){
@@ -11558,6 +11563,7 @@ async function loadJourneyLogs() {
     rows.forEach(function (r) {
       var dt = r.logged_at ? new Date(r.logged_at) : new Date();
       LOGS.push({
+        id: r.id || null,
         activity: r.activity || 'Activity', venue: r.venue || '', city: r.city || '',
         country: r.country || countryForCity(r.city) || '',
         provider_id: r.provider_id || null,
@@ -11629,6 +11635,7 @@ window.ffpActivityIcon = function (name) {
 // location and notes. Used for your own rows and (deep-linked) a connection's shared activity.
 window.ffpRenderActivityCard = function (a, isOwn) {
   if (!a) return;
+  window._ffpActCard = a;
   var esc = (window.escHtml ? window.escHtml : function (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); });
   function dur(min, sec) { min = Math.max(0, Math.round(min || 0)); var h = Math.floor(min / 60), m = min % 60; return (h ? h + 'h ' : '') + m + 'm' + (sec ? (' ' + sec + 's') : ''); }
   var lat = (a.lat != null ? a.lat : a.checkin_lat), lng = (a.lng != null ? a.lng : a.checkin_lng);
@@ -11667,9 +11674,12 @@ window.ffpRenderActivityCard = function (a, isOwn) {
     locBlock = '<div style="margin-top:22px;"><div style="' + lblCss + '">Location</div><div style="font-size:14px;color:#e8eef4;display:flex;align-items:center;gap:8px;"><span class="material-icons" style="font-size:19px;color:#2ba8e0;">place</span>' + esc(loc) + '</div></div>';
   }
   var notesBlock = a.notes ? ('<div style="margin-top:22px;"><div style="' + lblCss + '">How it felt</div><div style="font-size:14px;color:#cfe0ee;line-height:1.65;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:14px 16px;">' + esc(a.notes) + '</div></div>') : '';
-  var shareBtn = (isOwn && a.id) ? '<button onclick="window.ffpShareActivity&&window.ffpShareActivity(\'' + a.id + '\')" style="width:100%;margin-top:24px;padding:14px;border-radius:12px;border:none;background:#2ba8e0;color:#082335;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:middle;">' + (a.shared ? 'group' : 'share') + '</span> ' + (a.shared ? 'Share again with connections' : 'Share with my connections') + '</button>' : '';
+  // OWN activity → Share to social (native share sheet → WhatsApp/Instagram/etc.) + the existing in-app
+  // connections share. OTHERS' activity → a Like button (mirrors the congratulate reaction).
+  var socialBtn = (isOwn && a.id) ? '<button onclick="window.ffpSocialShareActivity&&window.ffpSocialShareActivity(\'' + a.id + '\')" style="width:100%;margin-top:24px;padding:14px;border-radius:12px;border:none;background:#FFCC00;color:#082335;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:middle;">ios_share</span> Share</button>' : '';
+  var shareBtn = (isOwn && a.id) ? '<button onclick="window.ffpShareActivity&&window.ffpShareActivity(\'' + a.id + '\')" style="width:100%;margin-top:10px;padding:14px;border-radius:12px;border:1px solid rgba(43,168,224,0.35);background:rgba(43,168,224,0.07);color:#2ba8e0;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:middle;">' + (a.shared ? 'group' : 'group_add') + '</span> ' + (a.shared ? 'Shared with connections' : 'Share with my connections') + '</button>' : '';
   var editBtn = (isOwn && a.id) ? '<button onclick="ffpCloseActivityCard();window.ffpEditActivity&&window.ffpEditActivity(\'' + a.id + '\')" style="width:100%;margin-top:10px;padding:13px;border-radius:12px;border:1px solid rgba(43,168,224,0.35);background:rgba(43,168,224,0.07);color:#2ba8e0;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:middle;">edit</span> Edit activity</button>' : '';
-  var body = '<div style="padding:22px 20px 40px;max-width:640px;margin:0 auto;width:100%;box-sizing:border-box;">' + owner + statGrid + locBlock + notesBlock + shareBtn + editBtn + '</div>';
+  var body = '<div style="padding:22px 20px 40px;max-width:640px;margin:0 auto;width:100%;box-sizing:border-box;">' + owner + statGrid + locBlock + notesBlock + socialBtn + shareBtn + editBtn + '</div>';
 
   ffpCloseActivityCard();
   var ov = document.createElement('div'); ov.id = 'ffp-act-card-ov';
@@ -11709,6 +11719,27 @@ window.ffpShareActivity = async function (id) {
     if (typeof window.ffpActivityReload === 'function') window.ffpActivityReload();
     ffpCloseActivityCard();
   } catch (e) { if (typeof showToast === 'function') showToast('Could not share — try again', 'error'); }
+};
+// Share an activity OUT to social platforms via the device's native share sheet (WhatsApp, Instagram,
+// Messages, etc.). Falls back to copying the link on desktop browsers that lack navigator.share.
+window.ffpSocialShareActivity = function (id) {
+  var a = window._ffpActCard || {};
+  var url = 'https://ffppassport.com/ffp-member-dashboard.html?activity=' + encodeURIComponent(id);
+  var bits = [a.activity || 'My activity'];
+  if (a.distance_km != null && a.distance_km > 0) bits.push((Math.round(a.distance_km * 100) / 100) + ' km');
+  var mins = Math.round(a.duration_min || 0);
+  if (mins || a.duration_sec) bits.push(mins + ' min');
+  var text = bits.join(' · ') + ' — tracked on my FFP Passport';
+  try {
+    if (navigator.share) {
+      navigator.share({ title: 'FFP Passport', text: text, url: url }).catch(function () {});
+    } else if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text + ' ' + url);
+      if (typeof showToast === 'function') showToast('Link copied — paste it anywhere', 'success');
+    } else if (typeof showToast === 'function') {
+      showToast('Sharing isn’t supported on this device', 'error');
+    }
+  } catch (e) { if (typeof showToast === 'function') showToast('Could not open share', 'error'); }
 };
 // Deep-linked shared activity (notification tap → ?activity=<id>) → fetch via RPC, then render the card.
 window.ffpViewSharedActivity = async function (id) {
@@ -12780,9 +12811,9 @@ window.FFPLocPick = (function(){
     d.innerHTML =
       '<div style="max-width:420px;width:100%;text-align:center;">' +
         '<div style="font-weight:900;letter-spacing:1px;font-size:14px;color:#2ba8e0;margin-bottom:18px;">FFP PASSPORT</div>' +
-        '<div style="font-size:24px;font-weight:800;line-height:1.25;margin-bottom:10px;">Your Passport unlocks the app</div>' +
+        '<div style="font-size:24px;font-weight:800;line-height:1.25;margin-bottom:10px;">The Active Lifestyle Community</div>' +
         '<div style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:#FFCC00;text-transform:uppercase;margin-bottom:12px;">Start with 7 days free</div>' +
-        '<div style="font-size:14px;color:#9fb4c4;line-height:1.6;margin-bottom:20px;">Membership gets you your passport &amp; stamps, member connections &amp; meet-ups, quests &amp; challenges, and member savings on Find Fit People bookings.</div>' +
+        '<div style="font-size:14px;color:#9fb4c4;line-height:1.6;margin-bottom:20px;">Passport holders can connect, meet up and engage with highly motivated and active people — an environment for truly active people.</div>' +
         '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">' +
           '<button onclick="window.__ffpGateCheckout(\'annual\', this)" style="width:100%;background:#FFCC00;color:#081420;font-weight:800;border:none;cursor:pointer;padding:15px;border-radius:12px;font-size:15px;font-family:inherit;line-height:1.3;">Annual — $149 <span style="font-weight:700;color:#5c4a00;">/ year</span><div style="font-size:11px;font-weight:700;color:#5c4a00;margin-top:3px;">After your 7-day free trial · 4.5 months free vs monthly</div></button>' +
           '<button onclick="window.__ffpGateCheckout(\'monthly\', this)" style="width:100%;background:rgba(43,168,224,0.12);color:#e8eef4;font-weight:800;border:1px solid rgba(43,168,224,0.4);cursor:pointer;padding:15px;border-radius:12px;font-size:15px;font-family:inherit;line-height:1.3;">Monthly — $20 <span style="font-weight:700;color:#9fb4c4;">/ month</span><div style="font-size:11px;font-weight:700;color:#9fb4c4;margin-top:3px;">After your 7-day free trial</div></button>' +
