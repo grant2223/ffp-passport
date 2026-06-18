@@ -521,7 +521,7 @@ function bizTab(btn,paneId){ var panel=btn.closest('.panel'); if(!panel)return; 
 // ─── Deferred Business module loaders (reused, scoped to FFP_PROVIDER.id = professional id) ───
 var _provLoaderSrc = { clients:'ffp-professional-client-loader.js', packages:'ffp-professional-client-loader.js', comms:'ffp-professional-client-loader.js', scheduling:'ffp-professional-scheduling-loader.js', services:'ffp-professional-services-loader.js', payments:'ffp-professional-billing-loader.js' };
 var _provLoaded = {};
-var PRO_BUILD='26'; // bump on any pro loader change so the lazy loaders re-fetch (no stale cache) — v26: client profile shows passport-style detail rows (Given/Surname/Gender/DOB/Email/Phone/Nationality, "—" when empty; given/surname split from full_name for legacy). NEXT: pull these from the client's FFP account when connected (don't duplicate). (v25 inline phone sizing)
+var PRO_BUILD='27'; // bump on any pro loader change so the lazy loaders re-fetch (no stale cache) — v27: client profile auto-PULLS identity (given/surname/gender/dob/nationality/phone) from the client's FFP Passport by email match (pro_client_passport RPC) — no duplication; shows "Pulled from their FFP Passport" + upgrades rows in place. (v26 passport-field rows)
 function ensureProviderLoader(id){ var src=_provLoaderSrc[id]; if(!src||_provLoaded[src])return; _provLoaded[src]=true; var sc=document.createElement('script'); sc.src=src+'?v='+PRO_BUILD; sc.async=false; sc.onload=function(){ renderPanel(id); }; sc.onerror=function(){ console.error('[FFP Pro] failed to load '+src); }; document.body.appendChild(sc); }
 function renderPanel(id){
   if(id==='clients'    && typeof renderMembers==='function')     renderMembers();
