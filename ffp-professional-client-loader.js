@@ -62,12 +62,12 @@ function openMemberModal(id){
   openModalShell('lg',(editing?'Edit client':'Add client'),
     '<div class="form-section"><div class="form-section-title">Client</div><div class="form-grid">'+
       '<div class="field full"><div class="label">Full name <span class="req">*</span></div><input class="input" id="mm-full_name" value="'+escHtml(m.full_name)+'"></div>'+
-      '<div class="field"><div class="label">Email</div><input class="input" id="mm-email" value="'+escHtml(m.email||'')+'"></div>'+
-      '<div class="field"><div class="label">Phone</div>'+(window._phoneField?_phoneField('mm-phone'):'<input class="input" id="mm-phone" value="'+escHtml(m.phone||'')+'">')+'</div>'+
+      '<div class="field full"><div class="label">Email</div><input class="input" id="mm-email" value="'+escHtml(m.email||'')+'"></div>'+
+      '<div class="field full"><div class="label">Phone</div>'+(window._phoneField?_phoneField('mm-phone'):'<input class="input" id="mm-phone" value="'+escHtml(m.phone||'')+'">')+'</div>'+
       '<div class="field"><div class="label">Status</div><select class="select" id="mm-status">'+Object.keys(CLIENT_STATUS).map(function(k){return '<option value="'+k+'"'+(m.status===k?' selected':'')+'>'+escHtml(CLIENT_STATUS[k])+'</option>';}).join('')+'</select></div>'+
       '<div class="field"><div class="label">Since</div><input class="input" type="date" id="mm-join_date" value="'+jd+'"></div>'+
       '<div class="field full"><div class="label">Tags</div><input class="input" id="mm-tags" value="'+escHtml(m.tags||'')+'" placeholder="comma,separated"></div>'+
-      '<div class="field full"><div class="label">Notes</div><textarea class="textarea" id="mm-notes" rows="2">'+escHtml(m.notes||'')+'</textarea></div>'+
+      '<div class="field full"><div class="label">Notes</div><textarea class="textarea" id="mm-notes" rows="4">'+escHtml(m.notes||'')+'</textarea></div>'+
     '</div></div>',
     (editing?'<button class="btn btn-ghost left" onclick="confirmDeleteMember(\''+editing.id+'\')"><span class="ms">delete</span> Delete</button>':'')+
     '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>'+
