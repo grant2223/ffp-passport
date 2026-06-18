@@ -89,11 +89,14 @@ function clientAssessment(id){ showToast('Assessment form coming — tell me wha
 function openMemberModal(id){
   var editing=id?_members.find(function(x){return x.id===id;}):null;
   var today=new Date(); var todayStr=today.getFullYear()+'-'+('0'+(today.getMonth()+1)).slice(-2)+'-'+('0'+today.getDate()).slice(-2);
-  var m=editing||{full_name:'',email:'',phone:'',status:'active',tags:'',join_date:todayStr,notes:''};
+  var m=editing||{full_name:'',given_names:'',surname:'',email:'',phone:'',status:'active',tags:'',join_date:todayStr,notes:''};
   var jd=m.join_date?String(m.join_date).slice(0,10):'';
+  var gn=m.given_names||'', sn=m.surname||'';
+  if(!gn && !sn && m.full_name){ var _np=String(m.full_name).trim().split(/\s+/); gn=_np.shift()||''; sn=_np.join(' '); }
   openModalShell('lg',(editing?'Edit client':'Add client'),
     '<div class="form-section"><div class="form-section-title">Client</div><div class="form-grid">'+
-      '<div class="field full"><div class="label">Full name <span class="req">*</span></div><input class="input" id="mm-full_name" value="'+escHtml(m.full_name)+'"></div>'+
+      '<div class="field"><div class="label">Given names <span class="req">*</span></div><input class="input" id="mm-given_names" value="'+escHtml(gn)+'"></div>'+
+      '<div class="field"><div class="label">Surname</div><input class="input" id="mm-surname" value="'+escHtml(sn)+'"></div>'+
       '<div class="field full"><div class="label">Email</div><input class="input" id="mm-email" value="'+escHtml(m.email||'')+'"></div>'+
       '<div class="field full"><div class="label">Phone</div>'+(window._phoneField?_phoneField('mm-phone'):'<input class="input" id="mm-phone" value="'+escHtml(m.phone||'')+'">')+'</div>'+
       '<div class="field"><div class="label">Status</div><select class="select" id="mm-status">'+Object.keys(CLIENT_STATUS).map(function(k){return '<option value="'+k+'"'+(m.status===k?' selected':'')+'>'+escHtml(CLIENT_STATUS[k])+'</option>';}).join('')+'</select></div>'+
@@ -108,9 +111,10 @@ function openMemberModal(id){
 }
 async function saveMember(id){
   var g=function(i){var el=document.getElementById('mm-'+i);return el?el.value.trim():'';};
-  var name=g('full_name'); if(!name){ showToast('Name is required','error'); return; }
+  var given=g('given_names'), surname=g('surname'); var name=(given+' '+surname).trim();
+  if(!given){ showToast('Given name is required','error'); return; }
   var pid=_memProvId(); if(!pid) return;
-  var payload={full_name:name,email:g('email'),phone:(window._phoneGet?_phoneGet('mm-phone'):g('phone')),status:g('status')||'active',tags:g('tags'),join_date:g('join_date'),notes:g('notes')};
+  var payload={full_name:name,given_names:given,surname:surname,email:g('email'),phone:(window._phoneGet?_phoneGet('mm-phone'):g('phone')),status:g('status')||'active',tags:g('tags'),join_date:g('join_date'),notes:g('notes')};
   try{ var r=await window.supabase.rpc('pro_save_client',{p_pro:pid,p_id:id||null,p:payload}); if(r&&r.error)throw r.error; showToast(id?'Client updated':'Client added','success'); closeModal(); renderMembers(); }catch(e){ showToast('Could not save client','error'); }
 }
 function confirmDeleteMember(id){ openModalShell('','Remove client?','<div class="psub" style="margin:6px 0;">This removes them from your client list.</div>','<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="doDeleteMember(\''+id+'\')">Remove</button>'); }
