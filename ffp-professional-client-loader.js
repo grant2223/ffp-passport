@@ -39,21 +39,39 @@ function renderMembersList(){
 function memberRow(m){
   var initials=(m.full_name||'?').split(/\s+/).map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
   var st=m.status||'active'; var stStyle=_cstStyle[st]||_cstStyle.active;
-  var contact=[]; if(m.email)contact.push(escHtml(m.email)); if(m.phone)contact.push(escHtml(m.phone));
+  var contact=[];   // strap stays clean — phone/email live on the client profile
   var tags=(m.tags||'').split(',').map(function(t){return t.trim();}).filter(Boolean);
   var tagHtml=tags.length?'<div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:5px;">'+tags.map(function(t){return '<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(255,255,255,.06);color:#9fb0bf;">'+escHtml(t)+'</span>';}).join('')+'</div>':'';
-  return '<div style="background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:12px;padding:11px 13px;margin-bottom:9px;display:flex;align-items:flex-start;gap:11px;">'+
+  return '<div onclick="clientProfile(\''+m.id+'\')" style="background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:12px;padding:11px 13px;margin-bottom:9px;display:flex;align-items:center;gap:11px;cursor:pointer;">'+
     '<div style="width:38px;height:38px;border-radius:10px;background:rgba(139,92,246,.16);color:#c4b5fd;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;">'+escHtml(initials)+'</div>'+
     '<div style="min-width:0;flex:1;"><div style="font-weight:800;color:var(--ffp-text);">'+escHtml(m.full_name||'—')+'</div>'+(contact.length?'<div class="psub" style="margin:2px 0 0;">'+contact.join(' · ')+'</div>':'')+tagHtml+'</div>'+
-    '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex-shrink:0;">'+
-      '<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;'+stStyle+'">'+(CLIENT_STATUS[st]||'Active')+'</span>'+
-      '<div style="display:flex;gap:6px;">'+
-        '<button class="btn btn-sec btn-sm" onclick="openClientHealth(\''+m.id+'\')" title="Health data"><span class="ms">monitor_heart</span></button>'+
-        '<button class="btn btn-sec btn-sm" onclick="openMembership(\''+m.id+'\')" title="Packages"><span class="ms">card_membership</span></button>'+
-        '<button class="btn btn-sec btn-sm" onclick="openMemberModal(\''+m.id+'\')"><span class="ms">edit</span></button>'+
-        '<button class="btn btn-ghost btn-sm" onclick="confirmDeleteMember(\''+m.id+'\')"><span class="ms">delete</span></button>'+
-      '</div></div></div>';
+    '<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;flex-shrink:0;'+stStyle+'">'+(CLIENT_STATUS[st]||'Active')+'</span>'+
+    '<span class="ms" style="color:var(--ffp-text-dim);flex-shrink:0;">chevron_right</span>'+
+  '</div>';
 }
+// Tap a client strap → their profile, with everything you do for a client in one place.
+function clientProfile(id){
+  var m=_members.find(function(x){return x.id===id;}); if(!m){ showToast('Client not found','error'); return; }
+  var st=m.status||'active'; var stStyle=_cstStyle[st]||_cstStyle.active;
+  var jd=m.join_date?String(m.join_date).slice(0,10):'';
+  var tags=(m.tags||'').split(',').map(function(t){return t.trim();}).filter(Boolean);
+  var row=function(lbl,val){ return val?('<div style="display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid var(--ffp-border);"><span class="psub">'+lbl+'</span><span style="color:var(--ffp-text);font-weight:600;text-align:right;word-break:break-word;">'+escHtml(val)+'</span></div>'):''; };
+  var act=function(ic,lbl,fn){ return '<button class="btn btn-sec btn-block" style="justify-content:flex-start;gap:9px;" onclick="closeModal();'+fn+'"><span class="ms">'+ic+'</span> '+lbl+'</button>'; };
+  openModalShell('lg', escHtml(m.full_name||'Client'),
+    '<div style="margin:-2px 0 10px;"><span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;'+stStyle+'">'+(CLIENT_STATUS[st]||'Active')+'</span></div>'+
+    row('Phone', m.phone)+row('Email', m.email)+row('Client since', jd)+row('Tags', tags.join(', '))+
+    (m.notes?'<div style="margin-top:12px;"><div class="psub" style="margin-bottom:5px;">Notes</div><div style="background:var(--ffp-bg-card);border:1px solid var(--ffp-border);border-radius:10px;padding:11px 13px;color:var(--ffp-text);line-height:1.6;white-space:pre-wrap;">'+escHtml(m.notes)+'</div></div>':'')+
+    '<div style="display:flex;flex-direction:column;gap:8px;margin-top:16px;">'+
+      act('health_and_safety','Connect client Passport','openClientHealth(\''+id+'\')')+
+      act('card_membership','Packages','openMembership(\''+id+'\')')+
+      act('assignment','Assessment form','clientAssessment(\''+id+'\')')+
+      act('edit','Edit profile','openMemberModal(\''+id+'\')')+
+    '</div>',
+    '<button class="btn btn-ghost left" onclick="closeModal();confirmDeleteMember(\''+id+'\')"><span class="ms">delete</span> Delete client</button>'+
+    '<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
+}
+// Placeholder until Grant defines the assessment fields/storage.
+function clientAssessment(id){ showToast('Assessment form coming — tell me what it should capture','info'); }
 function openMemberModal(id){
   var editing=id?_members.find(function(x){return x.id===id;}):null;
   var today=new Date(); var todayStr=today.getFullYear()+'-'+('0'+(today.getMonth()+1)).slice(-2)+'-'+('0'+today.getDate()).slice(-2);
