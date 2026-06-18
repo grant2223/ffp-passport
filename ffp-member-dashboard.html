@@ -11266,7 +11266,11 @@ function openLogModal() {
   document.getElementById('log-date').value = now.toISOString().substring(0, 10);
   var _lt = document.getElementById('log-time');
   if (_lt) _lt.value = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-  // Fresh form: clear the optional metric fields each open
+  // Fresh form: clear the activity + optional fields each open so a NEW log never inherits
+  // the previous entry's values (openLogModalForEdit re-applies them afterwards for edit mode).
+  var _la = document.getElementById('log-activity'); if (_la) _la.value = '';
+  var _lc = document.getElementById('log-calories'); if (_lc) _lc.value = '';
+  var _ln = document.getElementById('log-notes'); if (_ln) _ln.value = '';
   var _ld = document.getElementById('log-distance'); if (_ld) _ld.value = '';
   var _lh = document.getElementById('log-hr'); if (_lh) _lh.value = '';
   // Clear the optional location pin each fresh open
