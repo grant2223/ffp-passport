@@ -38,6 +38,7 @@ window.Quests = {
     photo:     { icon: 'photo_camera', label: 'Add a photo' },
     gps:       { icon: 'my_location', label: 'Check in here' },
     photo_gps: { icon: 'add_a_photo', label: 'Photo + check in' },
+    qr_gps:    { icon: 'qr_code_scanner', label: 'Scan QR + check in' },
     partner:   { icon: 'verified_user', label: 'Confirmed by venue' },
     referral:  { icon: 'group_add', label: 'Bring a friend' }
   },
@@ -489,6 +490,13 @@ window.Quests = {
       var code = window.prompt('Enter the code shown at this spot (or scan the QR):');
       if (!code) return;
       return this._complete(taskId, { scanned_code: code.trim() });
+    }
+    if (proofType === 'qr_gps') {
+      var codeg = window.prompt('Enter the code shown at this spot (or scan the QR):');
+      if (!codeg) return;
+      showToast('Getting your location…', 'info');
+      try { var gg = await this.getGeo(); return this._complete(taskId, { scanned_code: codeg.trim(), lat: gg.lat, lng: gg.lng }); }
+      catch (e) { showToast('Turn on location to check in here', 'error'); return; }
     }
     if (proofType === 'gps') {
       showToast('Getting your location…', 'info');
