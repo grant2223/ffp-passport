@@ -166,6 +166,7 @@ a{color:var(--ffp-blue);}
 .av-head .nm{font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .av-head .st{font-size:11px;color:var(--ffp-purple);font-weight:700;margin-top:1px;}
 .av-div{height:1px;background:var(--ffp-border);margin:5px 4px;}
+.av-build{padding:7px 11px 4px;font-size:10px;font-weight:700;letter-spacing:.4px;color:var(--ffp-text-dim);text-align:center;}
 .av-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:none;color:var(--ffp-text-muted);font-family:inherit;font-size:13px;font-weight:700;padding:10px 11px;border-radius:8px;cursor:pointer;}
 .av-item:hover{background:rgba(139,92,246,.08);color:var(--ffp-text);}
 .av-item.danger{color:#f07171;}
@@ -349,6 +350,7 @@ a{color:var(--ffp-blue);}
             <button class="av-item" onclick="closeAvMenu();showPanel('comms')"><span class="ms">campaign</span>Messages</button>
             <div class="av-div"></div>
             <button class="av-item danger" onclick="signOut()"><span class="ms">logout</span>Sign out</button>
+            <div class="av-build" id="av-build"></div>
           </div>
         </div>
       </div>
@@ -521,7 +523,7 @@ function bizTab(btn,paneId){ var panel=btn.closest('.panel'); if(!panel)return; 
 // ─── Deferred Business module loaders (reused, scoped to FFP_PROVIDER.id = professional id) ───
 var _provLoaderSrc = { clients:'ffp-professional-client-loader.js', packages:'ffp-professional-client-loader.js', comms:'ffp-professional-client-loader.js', scheduling:'ffp-professional-scheduling-loader.js', services:'ffp-professional-services-loader.js', payments:'ffp-professional-billing-loader.js' };
 var _provLoaded = {};
-var PRO_BUILD='29'; // bump on any pro loader change so the lazy loaders re-fetch (no stale cache) — v29: forces fresh client-loader (v28's loader edits — Given names+Surname form, single-source phone, save — were stuck behind the cached ?v=28 URL and never reaching the device). Edit-client title shows "·b29" so the live device can confirm the new loader actually loaded. ALSO this build: .app uses 100dvh (was 100vh) so the topbar stays frozen on mobile instead of scrolling off. (v28 given/surname + phone single source; v27 pull-from-passport; v26 passport rows)
+var PRO_BUILD='30'; // ⭐ THE single version number. Bump on EVERY change (HTML or any pro loader). It (a) cache-busts the lazy loaders so edits actually reach the device, and (b) is shown live as "Build 30" at the bottom of the avatar menu — that's how we both know exactly what's deployed. If the avatar menu shows the number I just bumped to, the latest IS live. CHANGELOG: v30 single visible Build stamp in avatar menu (replaces ad-hoc ·b29) + carries v29's fixes; v29 forced fresh client-loader after v28's loader edits were stuck behind cached ?v=28, .app 100dvh so the mobile topbar stays frozen; v28 client form Given names+Surname + single-source phone; v27 pull-from-passport; v26 passport rows.
 function ensureProviderLoader(id){ var src=_provLoaderSrc[id]; if(!src||_provLoaded[src])return; _provLoaded[src]=true; var sc=document.createElement('script'); sc.src=src+'?v='+PRO_BUILD; sc.async=false; sc.onload=function(){ renderPanel(id); }; sc.onerror=function(){ console.error('[FFP Pro] failed to load '+src); }; document.body.appendChild(sc); }
 function renderPanel(id){
   if(id==='clients'    && typeof renderMembers==='function')     renderMembers();
@@ -839,6 +841,7 @@ function enterDashboard(){
   // topbar avatar menu (Profile + Sign out under the avatar)
   document.getElementById('av-name').textContent=nm;
   document.getElementById('av-status').textContent=types;
+  try{ document.getElementById('av-build').textContent='Build '+PRO_BUILD; }catch(e){}
   if(_pro.profile_photo_url){ document.getElementById('av-btn').innerHTML='<img src="'+escHtml(_pro.profile_photo_url)+'" alt="">'; }
   else { document.getElementById('av-initials').textContent=_initials(nm); }
   providerProfile.city=_pro.city||'';
