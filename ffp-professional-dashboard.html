@@ -124,7 +124,8 @@ a{color:var(--ffp-blue);}
 #panel-profile .form-section{margin-top:26px;}
 #panel-profile .form-section-title{color:var(--ffp-purple);font-size:12px;}
 .req{color:var(--ffp-purple);}
-.input,.select,.textarea{width:100%;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:var(--r-md);padding:11px 13px;font-size:13px;font-weight:600;color:var(--ffp-text);font-family:inherit;color-scheme:dark;}
+.input,.select,.textarea{width:100%;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:var(--r-md);padding:11px 13px;font-size:16px;font-weight:600;color:var(--ffp-text);font-family:inherit;color-scheme:dark;box-sizing:border-box;}
+.input,.select{min-height:44px;}
 .input:focus,.select:focus,.textarea:focus{outline:none;border-color:var(--ffp-purple);}
 .input::placeholder,.textarea::placeholder{color:var(--ffp-text-dim);font-weight:500;}
 /* Single searchable picker (FFP standard: tap to open, search at top) */
@@ -189,9 +190,9 @@ a{color:var(--ffp-blue);}
 .bn-item.active{color:var(--ffp-purple);}
 .bn-center{flex:0 0 auto;width:54px;height:54px;border-radius:50%;background:var(--ffp-purple);color:#fff;border:none;display:flex;align-items:center;justify-content:center;margin:-18px 8px 0;box-shadow:0 6px 18px rgba(139,92,246,.5);cursor:pointer;}
 .bn-center .ms{font-size:27px;}
-.phone-input{display:flex;gap:0;}
-.phone-cc{width:92px;flex-shrink:0;background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-right:none;border-radius:10px 0 0 10px;padding:11px 22px 11px 12px;font-size:13px;font-weight:700;color:var(--ffp-text);font-family:inherit;appearance:none;cursor:pointer;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a99a8' stroke-width='2.5'><polyline points='6 9 12 15 18 9'/></svg>");background-repeat:no-repeat;background-position:right 10px center;}
-.phone-num{flex:1;min-width:0;border-radius:0 10px 10px 0 !important;}
+.phone-input{display:flex;gap:0;width:100%;}
+.phone-cc{width:96px;flex:0 0 96px;box-sizing:border-box;background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-right:none;border-radius:10px 0 0 10px;padding:11px 22px 11px 12px;font-size:16px;font-weight:700;color:var(--ffp-text);font-family:inherit;appearance:none;cursor:pointer;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a99a8' stroke-width='2.5'><polyline points='6 9 12 15 18 9'/></svg>");background-repeat:no-repeat;background-position:right 10px center;}
+.phone-num{flex:1 1 auto;min-width:0;width:auto;border-radius:0 10px 10px 0 !important;}
 
 /* Overview landing panel */
 .ov-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px;}
@@ -353,7 +354,6 @@ a{color:var(--ffp-blue);}
       </div>
     </div>
     <div class="main-scroll">
-    <div class="preview-pill"><span class="ms" style="font-size:15px;">construction</span> Preview — professional portal in testing</div>
 
     <!-- OVERVIEW (default landing) -->
     <section class="panel active" id="panel-overview">
@@ -521,7 +521,7 @@ function bizTab(btn,paneId){ var panel=btn.closest('.panel'); if(!panel)return; 
 // ─── Deferred Business module loaders (reused, scoped to FFP_PROVIDER.id = professional id) ───
 var _provLoaderSrc = { clients:'ffp-professional-client-loader.js', packages:'ffp-professional-client-loader.js', comms:'ffp-professional-client-loader.js', scheduling:'ffp-professional-scheduling-loader.js', services:'ffp-professional-services-loader.js', payments:'ffp-professional-billing-loader.js' };
 var _provLoaded = {};
-var PRO_BUILD='22'; // bump on any pro loader change so the lazy loaders re-fetch (no stale cache) — v22: slot edit no longer duplicates (reload+confirm, abort if missing); double-submit guard; services refresh on slot open + autofill (dur/cap/location); slot "who's in" = select existing clients only (add via Clients tab)
+var PRO_BUILD='25'; // bump on any pro loader change so the lazy loaders re-fetch (no stale cache) — v25: phone field sizing now INLINE on _phoneField (CC 96px fixed + number fills) so a stale/overriding CSS rule can't break it; (v24: client profile view on strap tap, tags save, robust _phoneSet; v23 CSS)
 function ensureProviderLoader(id){ var src=_provLoaderSrc[id]; if(!src||_provLoaded[src])return; _provLoaded[src]=true; var sc=document.createElement('script'); sc.src=src+'?v='+PRO_BUILD; sc.async=false; sc.onload=function(){ renderPanel(id); }; sc.onerror=function(){ console.error('[FFP Pro] failed to load '+src); }; document.body.appendChild(sc); }
 function renderPanel(id){
   if(id==='clients'    && typeof renderMembers==='function')     renderMembers();
@@ -582,8 +582,8 @@ function showPanel(id){
 function pfCountryChange(){ document.getElementById('pf-city').innerHTML=cityOptionsHtml(document.getElementById('pf-country').value,''); }
 // Shared phone-picker (country-code select + number) — standard across the platform. Works for any id prefix.
 function _phoneOptionsHtml(){ var cs=(window.FFP_TAX&&FFP_TAX.phoneCodes)||[{code:'+971',flag:'🇦🇪'}]; return cs.map(function(c){ return '<option value="'+c.code+'">'+(c.flag?c.flag+' ':'')+c.code+'</option>'; }).join(''); }
-function _phoneField(prefix){ return '<div class="phone-input"><select class="phone-cc" id="'+prefix+'-cc">'+_phoneOptionsHtml()+'</select><input class="input phone-num" id="'+prefix+'-num" inputmode="tel" placeholder="50 123 4567"></div>'; }
-function _phoneSet(prefix, full){ full=(full||'').trim(); var cc=document.getElementById(prefix+'-cc'), num=document.getElementById(prefix+'-num'); if(!cc||!num)return; var codes=((window.FFP_TAX&&FFP_TAX.phoneCodes)||[]).map(function(c){return c.code;}); if(!full){ cc.value='+971'; num.value=''; return; } for(var i=0;i<codes.length;i++){ if(full.indexOf(codes[i])===0){ cc.value=codes[i]; num.value=full.slice(codes[i].length).trim(); return; } } cc.value='+971'; num.value=full.replace(/^\+\d+\s*/,'').trim()||full; }
+function _phoneField(prefix){ return '<div class="phone-input" style="display:flex;width:100%;gap:0;"><select class="phone-cc" id="'+prefix+'-cc" style="flex:0 0 96px;width:96px;min-width:96px;box-sizing:border-box;">'+_phoneOptionsHtml()+'</select><input class="input phone-num" id="'+prefix+'-num" inputmode="tel" placeholder="50 123 4567" style="flex:1 1 auto;min-width:0;width:auto;"></div>'; }
+function _phoneSet(prefix, full){ full=(full||'').trim(); var cc=document.getElementById(prefix+'-cc'), num=document.getElementById(prefix+'-num'); if(!cc||!num)return; var codes=((window.FFP_TAX&&FFP_TAX.phoneCodes)||[]).map(function(c){return c.code;}); if(!full){ cc.value='+971'; num.value=''; return; } for(var i=0;i<codes.length;i++){ if(full.indexOf(codes[i])===0){ cc.value=codes[i]; num.value=full.slice(codes[i].length).trim(); return; } } var mm=full.match(/^(\+\d{1,4})\s+(.*)$/); if(mm){ var ex=false; for(var j=0;j<cc.options.length;j++){ if(cc.options[j].value===mm[1]){ ex=true; break; } } if(!ex){ var o=document.createElement('option'); o.value=mm[1]; o.textContent=mm[1]; cc.appendChild(o); } cc.value=mm[1]; num.value=mm[2].trim(); return; } cc.value='+971'; num.value=full.replace(/^\+\d+\s*/,'').trim()||full; }
 function _phoneGet(prefix){ var cc=document.getElementById(prefix+'-cc'), num=document.getElementById(prefix+'-num'); if(!cc||!num)return ''; var n=num.value.trim(); return n?cc.value+' '+n:''; }
 function renderProfileForm(){
   var host=document.getElementById('profile-form'); if(!host||!_pro)return;
