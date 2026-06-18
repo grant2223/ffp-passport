@@ -178,6 +178,8 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420
 .success-icon{width:64px;height:64px;border-radius:50%;background:rgba(34,197,94,.1);border:2px solid rgba(34,197,94,.3);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;}
 .resend-row{text-align:center;margin-top:16px;font-size:12px;color:#6a90a8;}
 .resend-row a{color:#2ba8e0;text-decoration:none;font-weight:700;cursor:pointer;}
+.resend-timer{color:#6a90a8;font-weight:600;margin-left:6px;}
+.resend-link.is-disabled{opacity:.45;pointer-events:none;cursor:default;}
 .error-msg{color:#ef4444;font-size:12px;font-weight:700;margin-top:8px;text-align:center;min-height:18px;}
 @media (max-width:360px){.code-wrap{gap:6px;max-width:280px;} .code-digit{height:52px;}}
 </style>
@@ -282,7 +284,8 @@ Back
 </label>
 <button class="btn-primary" id="signin-code-btn" onclick="verifyCode('signin')">Sign In</button>
 <div class="error-msg" id="signin-code-err"></div>
-<div class="resend-row">Lost or forgot your code? <a onclick="goTo('screen-reset')">Get new code</a></div>
+<div class="resend-row">Didn&rsquo;t get it? <a id="signin-resend-link" class="resend-link" onclick="resendCode('signin')">Resend code</a><span id="signin-resend-timer" class="resend-timer"></span></div>
+<div class="resend-row"><a onclick="goTo('screen-signin-email')">Use a different email</a></div>
 </div>
 <!-- SCREEN 4: BECOME A MEMBER -->
 <div class="screen" id="screen-signup">
@@ -413,7 +416,7 @@ Back
 </div>
 <button class="btn-primary green" id="signup-code-btn" onclick="verifyCode('signup')">Confirm &amp; Enter</button>
 <div class="error-msg" id="signup-code-err"></div>
-<div class="resend-row">Didn&rsquo;t receive it? <a onclick="requestCode('signup')">Resend code</a></div>
+<div class="resend-row">Didn&rsquo;t receive it? <a id="signup-resend-link" class="resend-link" onclick="resendCode('signup')">Resend code</a><span id="signup-resend-timer" class="resend-timer"></span></div>
 </div>
 <!-- SCREEN 6: RESET CODE -->
 <div class="screen" id="screen-reset">
@@ -563,6 +566,46 @@ function setBusy(btnId, busy, normalLabel) {
     b.textContent = normalLabel || b.dataset.label || b.textContent;
   }
 }
+// ── Resend code with a 60s cooldown (resend in place — never bounce back to the email screen) ──
+var _resendTimers = {};
+function startResendCooldown(flow, secs) {
+  secs = secs || 60;
+  var link = document.getElementById(flow + '-resend-link');
+  var timerEl = document.getElementById(flow + '-resend-timer');
+  if (!link) return;
+  if (_resendTimers[flow]) clearInterval(_resendTimers[flow]);
+  var remaining = secs;
+  link.classList.add('is-disabled');
+  var tick = function () {
+    if (remaining <= 0) {
+      clearInterval(_resendTimers[flow]); _resendTimers[flow] = null;
+      link.classList.remove('is-disabled');
+      if (timerEl) timerEl.textContent = '';
+      return;
+    }
+    if (timerEl) timerEl.textContent = '· available in ' + remaining + 's';
+    remaining--;
+  };
+  tick();
+  _resendTimers[flow] = setInterval(tick, 1000);
+}
+async function resendCode(flow) {
+  var link = document.getElementById(flow + '-resend-link');
+  if (link && link.classList.contains('is-disabled')) return; // still cooling down
+  var emailEl = document.getElementById(flow + '-email');
+  var email = emailEl ? emailEl.value.trim().toLowerCase() : '';
+  var timerEl = document.getElementById(flow + '-resend-timer');
+  if (!email || !email.includes('@')) { goTo(flow === 'signup' ? 'screen-signup' : 'screen-signin-email'); return; }
+  if (timerEl) timerEl.textContent = '· sending…';
+  try {
+    var res = await FFPApi.requestCode(email, null, flow);
+    if (res && res.error) { if (timerEl) timerEl.textContent = '· ' + res.error; return; }
+    if (timerEl) timerEl.textContent = '· new code sent';
+    startResendCooldown(flow, 60);
+  } catch (e) {
+    if (timerEl) timerEl.textContent = '· network error — try again';
+  }
+}
 async function requestCode(flow) {
   var emailEl = document.getElementById(flow + '-email') || document.getElementById('signin-email');
   var email = emailEl ? emailEl.value.trim().toLowerCase() : ''; // v9: normalize case — backend match is case-insensitive; prevents "account does not exist" on capitalized email
@@ -598,10 +641,12 @@ async function requestCode(flow) {
       var ce1 = document.getElementById('signin-code-email');
       if (ce1) ce1.textContent = email;
       goTo('screen-signin-code');
+      startResendCooldown('signin', 60);
     } else if (flow === 'signup') {
       var ce2 = document.getElementById('signup-code-email');
       if (ce2) ce2.textContent = email;
       goTo('screen-signup-code');
+      startResendCooldown('signup', 60);
     } else if (flow === 'reset') {
       var sentBtn = document.getElementById('sent-btn');
       if (sentBtn) { sentBtn.textContent = 'Back to Sign In'; sentBtn.onclick = function () { goTo('screen-signin-email'); }; }
@@ -680,6 +725,11 @@ document.addEventListener('DOMContentLoaded', function () {
   try {
     var _qs = new URLSearchParams(window.location.search);
     var _skip = _qs.get('switch') === '1' || _qs.get('verified') || _qs.get('verify') || window.location.hash === '#switch';
+    // Professional pathway: ?portal=professional (or #professional) means "send me to the Professional
+    // portal", NOT the member Passport. Set the portal BEFORE the auto-redirect so handleAuthRedirect routes
+    // a signed-in pro straight to ffp-professional-dashboard.html (its gate handles passport/onboarding).
+    var _portal = _qs.get('portal') || (window.location.hash === '#professional' ? 'professional' : '');
+    if (_portal === 'professional') selectedPortal = 'professional';
     var _existing = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null;
     if (_existing && _existing.id && !_skip && typeof handleAuthRedirect === 'function') {
       handleAuthRedirect({ member: _existing });
