@@ -16,6 +16,7 @@ window.Quests = {
   partner: [],
   boardScope: 'global',
   boardSearch: '',
+  boardGender: '',
   _openQuest: null,
 
   memberId() {
@@ -64,11 +65,11 @@ window.Quests = {
   },
 
   _ensureCss() {
-    if (document.getElementById('ffp-quests-v7-css')) return;
-    var s = document.createElement('style'); s.id = 'ffp-quests-v7-css';
+    if (document.getElementById('ffp-quests-v8-css')) return;
+    var s = document.createElement('style'); s.id = 'ffp-quests-v8-css';
     s.textContent = [
       // major
-      '#panel-quests .q-major{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--q-border-mid);padding:16px;min-height:138px;display:flex;flex-direction:column;justify-content:flex-end;cursor:pointer;}',
+      '#panel-quests .q-major{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--q-border-mid);padding:16px;min-height:276px;display:flex;flex-direction:column;justify-content:flex-end;cursor:pointer;}',
       '#panel-quests .q-major-pill{position:absolute;top:12px;left:12px;display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#082335;background:var(--q-yellow);border-radius:20px;padding:4px 9px;}',
       '#panel-quests .q-major-pill .material-icons{font-size:12px;}',
       '#panel-quests .q-major-title{font-size:19px;font-weight:900;color:#fff;line-height:1.15;}',
@@ -163,6 +164,14 @@ window.Quests = {
       // leaderboard
       '.q-board-filters{display:flex;flex-direction:column;gap:9px;margin-bottom:12px;}',
       '.q-board-chips{display:flex;gap:6px;}',
+      '.q-board-top{display:flex;gap:8px;align-items:center;margin-bottom:12px;}',
+      '.q-board-top #q-board-search{flex:1;}',
+      '.q-filter-btn{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-size:13px;font-weight:700;color:#cfe0ee;background:rgba(8,20,32,.5);border:1px solid rgba(255,255,255,.12);border-radius:9px;padding:9px 13px;cursor:pointer;font-family:inherit;}',
+      '.q-filter-btn .material-icons{font-size:17px;}',
+      '.q-filter-btn.on{background:#2ba8e0;color:#fff;border-color:#2ba8e0;}',
+      '.q-filter-badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:var(--q-yellow);color:#082335;font-size:10px;font-weight:900;margin-left:2px;}',
+      '.q-board-panel{background:rgba(8,20,32,.5);border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:12px;margin-bottom:12px;display:flex;flex-direction:column;gap:11px;}',
+      '.q-flt-label{font-size:10.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#7d8b99;margin-bottom:7px;}',
       '.q-chip{flex:1;font-size:12px;font-weight:700;color:#8a99a8;background:rgba(8,20,32,.5);border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:8px 6px;cursor:pointer;font-family:inherit;}',
       '.q-chip.active{background:#2ba8e0;color:#fff;border-color:#2ba8e0;}',
       '#q-board-search{width:100%;box-sizing:border-box;padding:10px 13px;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:rgba(8,20,32,.4);color:#e8eef4;font-size:13px;font-family:inherit;}',
@@ -285,7 +294,7 @@ window.Quests = {
   async openTaskDetail(id) {
     var mid = this.memberId();
     this._ensureCss();
-    this._openQuest = id; this._boardLoaded = false; this.boardScope = 'global'; this.boardSearch = '';
+    this._openQuest = id; this._boardLoaded = false; this.boardScope = 'global'; this.boardSearch = ''; this.boardGender = '';
     var d = null;
     try { var r = await window.supabase.rpc('member_quest_detail', { p_me: mid, p_quest: id }); d = (r && r.data) ? r.data : null; } catch (e) {}
     if (!d) { showToast('Could not open quest', 'error'); return; }
@@ -316,13 +325,25 @@ window.Quests = {
         '<button id="q-seg-board" onclick="Quests.questPane(\'board\')">Leaderboard</button></div>' : '';
     var boardPane = hasBoard
       ? '<div id="q-pane-board" style="display:none;">' +
-          '<div class="q-board-filters">' +
-            '<div class="q-board-chips">' +
-              '<button class="q-chip active" data-scope="global" onclick="Quests.boardFilter(\'global\')">Global</button>' +
-              '<button class="q-chip" data-scope="country" onclick="Quests.boardFilter(\'country\')">My country</button>' +
-              '<button class="q-chip" data-scope="city" onclick="Quests.boardFilter(\'city\')">My city</button>' +
-            '</div>' +
+          '<div class="q-board-top">' +
             '<input id="q-board-search" placeholder="Search name…" oninput="Quests.boardSearchInput(this.value)">' +
+            '<button id="q-filter-btn" class="q-filter-btn" onclick="Quests.toggleBoardFilters()"><span class="material-icons">tune</span> Filters<span id="q-filter-badge" class="q-filter-badge" style="display:none;"></span></button>' +
+          '</div>' +
+          '<div id="q-board-panel" class="q-board-panel" style="display:none;">' +
+            '<div><div class="q-flt-label">Location</div>' +
+              '<div class="q-board-chips">' +
+                '<button class="q-chip active" data-scope="global" onclick="Quests.boardFilter(\'global\')">Global</button>' +
+                '<button class="q-chip" data-scope="country" onclick="Quests.boardFilter(\'country\')">My country</button>' +
+                '<button class="q-chip" data-scope="city" onclick="Quests.boardFilter(\'city\')">My city</button>' +
+              '</div>' +
+            '</div>' +
+            '<div><div class="q-flt-label">Gender</div>' +
+              '<div class="q-board-chips">' +
+                '<button class="q-chip gchip active" data-gender="" onclick="Quests.boardGenderFilter(\'\')">All</button>' +
+                '<button class="q-chip gchip" data-gender="Male" onclick="Quests.boardGenderFilter(\'Male\')">Men</button>' +
+                '<button class="q-chip gchip" data-gender="Female" onclick="Quests.boardGenderFilter(\'Female\')">Women</button>' +
+              '</div>' +
+            '</div>' +
           '</div>' +
           '<div id="q-board-list" class="q-board-list"><div class="q-board-loading">Loading…</div></div>' +
         '</div>' : '';
@@ -365,9 +386,29 @@ window.Quests = {
   },
   boardFilter(scope) {
     this.boardScope = scope;
-    var chips = document.querySelectorAll('.q-board-chips .q-chip');
+    var chips = document.querySelectorAll('#q-board-panel .q-chip[data-scope]');
     for (var i = 0; i < chips.length; i++) chips[i].classList.toggle('active', chips[i].getAttribute('data-scope') === scope);
+    this._updateFilterBadge();
     this.loadQuestBoard();
+  },
+  boardGenderFilter(g) {
+    this.boardGender = g || '';
+    var chips = document.querySelectorAll('#q-board-panel .q-chip[data-gender]');
+    for (var i = 0; i < chips.length; i++) chips[i].classList.toggle('active', chips[i].getAttribute('data-gender') === this.boardGender);
+    this._updateFilterBadge();
+    this.loadQuestBoard();
+  },
+  toggleBoardFilters() {
+    var p = document.getElementById('q-board-panel'), b = document.getElementById('q-filter-btn');
+    if (!p) return;
+    var show = p.style.display === 'none';
+    p.style.display = show ? '' : 'none';
+    if (b) b.classList.toggle('on', show);
+  },
+  _updateFilterBadge() {
+    var n = (this.boardScope && this.boardScope !== 'global' ? 1 : 0) + (this.boardGender ? 1 : 0);
+    var badge = document.getElementById('q-filter-badge'); if (!badge) return;
+    if (n) { badge.textContent = n; badge.style.display = ''; } else { badge.style.display = 'none'; }
   },
   boardSearchInput(v) {
     this.boardSearch = v || '';
@@ -382,6 +423,7 @@ window.Quests = {
     var args = { p_quest: this._openQuest, p_limit: 50, p_search: this.boardSearch || null };
     if (this.boardScope === 'city') args.p_city = p.city || null;
     if (this.boardScope === 'country') args.p_country = p.country || null;
+    if (this.boardGender) args.p_gender = this.boardGender;
     var rows = [];
     try { var r = await window.supabase.rpc('quest_leaderboard', args); rows = (r && r.data) ? r.data : []; } catch (e) {}
     if (!rows.length) {
