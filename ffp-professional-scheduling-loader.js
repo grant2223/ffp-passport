@@ -74,6 +74,7 @@ function _slSvcPick(){
   var sv=_proSvc.find(function(x){return x.id===sel.value;}); if(!sv) return;
   var dur=document.getElementById('sl-duration_min'); if(dur && sv.duration_min) dur.value=sv.duration_min;
   var cap=document.getElementById('sl-capacity'); if(cap && sv.capacity) cap.value=sv.capacity;
+  var loc=document.getElementById('sl-location'); if(loc && sv.location) loc.value=sv.location;
   var ttl=document.getElementById('sl-title'); if(ttl && !ttl.value) ttl.value=sv.name||'';
 }
 
@@ -169,14 +170,18 @@ function occCard(o){
 async function openSlotModal(id){
   var pid=_proProvId(); if(!pid) return;
   await _ensureProClients();
-  await _ensureProSvc();
+  await _ensureProSvc(true);   // always refresh services so a just-added service shows in the picker
+  // EDIT must never silently fall back to "New slot" (which inserts a duplicate at the default day/time).
+  // If we're editing an id that isn't in the cache, reload; if it's still missing, abort with an error.
+  if(id && !(_proSlotsCache||[]).some(function(s){return s.id===id;})) await _loadSlotsCache();
   var slots=_proSlotsCache||[];
   var editing=id?slots.find(function(s){return s.id===id;}):null;
+  if(id && !editing){ showToast('Could not load that slot — please reopen it','error'); return; }
   var s=editing||{ title:'', service_id:'', weekday:1, start_time:'18:00', duration_min:'', capacity:'', location:'', clients:[] };
   var chosen=(s.clients||[]).map(function(c){return c.id;});
   var clientList=_proClients.length
     ? _proClients.map(function(c){ var on=chosen.indexOf(c.id)!==-1; return '<label style="display:flex;align-items:center;gap:8px;padding:5px 2px;cursor:pointer;"><input type="checkbox" class="slot-cl" value="'+c.id+'" '+(on?'checked':'')+' style="width:16px;height:16px;accent-color:var(--ffp-purple);"> <span style="font-size:13px;">'+escHtml(c.full_name)+'</span></label>'; }).join('')
-    : '<div class="psub" style="margin:4px 0;">No clients yet — add one below.</div>';
+    : '<div class="psub" style="margin:4px 0;">No clients yet — add them in the Clients tab first, then assign them here.</div>';
   var dayOpts=WEEKDAYS.map(function(w){ return '<option value="'+w[1]+'"'+(Number(s.weekday)===w[1]?' selected':'')+'>'+w[0]+'</option>'; }).join('');
   var svcOpts='<option value="">Choose a service…</option>'+_proSvc.map(function(v){ return '<option value="'+v.id+'"'+(s.service_id===v.id?' selected':'')+'>'+escHtml(v.name||'Service')+'</option>'; }).join('');
   openModalShell('lg',(editing?'Edit slot':'New slot'),
@@ -189,8 +194,7 @@ async function openSlotModal(id){
       '<div class="field full"><div class="label">Location</div><input class="input" id="sl-location" value="'+escHtml(s.location||'')+'" placeholder="Optional"></div>'+
     '</div></div>'+
     '<div class="form-section"><div class="form-section-title">Who\'s in this slot</div>'+
-      '<div style="display:flex;gap:8px;margin-bottom:8px;"><input class="input" id="sl-newclient" placeholder="Add a client by name" style="flex:1;"><button class="btn btn-sec" onclick="addSlotClient()">Add</button></div>'+
-      '<div id="sl-clients" style="max-height:170px;overflow-y:auto;border:1px solid var(--ffp-border);border-radius:10px;padding:6px 10px;">'+clientList+'</div>'+
+      '<div id="sl-clients" style="max-height:200px;overflow-y:auto;border:1px solid var(--ffp-border);border-radius:10px;padding:6px 10px;">'+clientList+'</div>'+
     '</div>',
     (editing?'<button class="btn btn-ghost left" onclick="confirmEndSlot(\''+editing.id+'\')"><span class="ms">delete</span> End slot</button>':'')+
     '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>'+
@@ -210,7 +214,9 @@ async function addSlotClient(){
     inp.value='';
   }catch(e){ showToast('Could not add client','error'); }
 }
+var _savingSlot=false;
 async function saveSlot(id){
+  if(_savingSlot) return;   // guard against a double-tap firing two inserts
   var pid=_proProvId(); if(!pid) return;
   var g=function(i){var el=document.getElementById('sl-'+i);return el?el.value.trim():'';};
   var serviceId=g('service_id');
@@ -228,12 +234,14 @@ async function saveSlot(id){
   var clientIds=[]; document.querySelectorAll('.slot-cl:checked').forEach(function(c){clientIds.push(c.value);});
   var payload={ service_id:serviceId, slot_type:g('slot_type')||'one_to_one', title:g('title'), weekday:g('weekday'), start_time:time,
     duration_min:g('duration_min'), capacity:g('capacity'), location:g('location'), client_ids:clientIds };
+  _savingSlot=true;
   try{
     var r=await window.supabase.rpc('pro_save_slot',{p_pro:pid,p_id:id||null,p:payload});
     if(r&&r.error)throw r.error;
     showToast(id?'Slot updated':'Slot created','success');
     closeModal(); _loadSlotsCache().then(_schedRefresh);
   }catch(e){ showToast('Could not save slot','error'); }
+  finally{ _savingSlot=false; }
 }
 var _proSlotsCache=[];
 async function _loadSlotsCache(){ var pid=_proProvId(); try{ var r=await window.supabase.rpc('pro_list_slots',{p_pro:pid}); _proSlotsCache=(r&&r.data)?r.data:[]; }catch(e){ _proSlotsCache=[]; } }
