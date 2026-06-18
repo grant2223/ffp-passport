@@ -11679,7 +11679,10 @@ window.ffpRenderActivityCard = function (a, isOwn) {
   var socialBtn = (isOwn && a.id) ? '<button onclick="window.ffpSocialShareActivity&&window.ffpSocialShareActivity(\'' + a.id + '\')" style="width:100%;margin-top:24px;padding:14px;border-radius:12px;border:none;background:#FFCC00;color:#082335;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:middle;">ios_share</span> Share</button>' : '';
   var shareBtn = (isOwn && a.id) ? '<button onclick="window.ffpShareActivity&&window.ffpShareActivity(\'' + a.id + '\')" style="width:100%;margin-top:10px;padding:14px;border-radius:12px;border:1px solid rgba(43,168,224,0.35);background:rgba(43,168,224,0.07);color:#2ba8e0;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:middle;">' + (a.shared ? 'group' : 'group_add') + '</span> ' + (a.shared ? 'Shared with connections' : 'Share with my connections') + '</button>' : '';
   var editBtn = (isOwn && a.id) ? '<button onclick="ffpCloseActivityCard();window.ffpEditActivity&&window.ffpEditActivity(\'' + a.id + '\')" style="width:100%;margin-top:10px;padding:13px;border-radius:12px;border:1px solid rgba(43,168,224,0.35);background:rgba(43,168,224,0.07);color:#2ba8e0;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:middle;">edit</span> Edit activity</button>' : '';
-  var body = '<div style="padding:22px 20px 40px;max-width:640px;margin:0 auto;width:100%;box-sizing:border-box;">' + owner + statGrid + locBlock + notesBlock + socialBtn + shareBtn + editBtn + '</div>';
+  // OTHERS' activity → High five button (FFP yellow when you've high-fived) showing the count.
+  var liked = !!a.i_liked, lc = a.like_count || 0;
+  var likeBtn = (!isOwn && a.id) ? '<button id="ffp-like-btn" onclick="window.ffpToggleActivityLike&&window.ffpToggleActivityLike(\'' + a.id + '\')" style="width:100%;margin-top:24px;padding:14px;border-radius:12px;border:none;background:' + (liked ? '#FFCC00' : '#2ba8e0') + ';color:#082335;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:middle;">front_hand</span> <span id="ffp-like-label">' + (liked ? 'High five given' : 'High five') + '</span><span id="ffp-like-count" style="opacity:.85;font-weight:700;">' + (lc > 0 ? ' · ' + lc : '') + '</span></button>' : '';
+  var body = '<div style="padding:22px 20px 40px;max-width:640px;margin:0 auto;width:100%;box-sizing:border-box;">' + owner + statGrid + locBlock + notesBlock + socialBtn + shareBtn + editBtn + likeBtn + '</div>';
 
   ffpCloseActivityCard();
   var ov = document.createElement('div'); ov.id = 'ffp-act-card-ov';
@@ -11740,6 +11743,26 @@ window.ffpSocialShareActivity = function (id) {
       showToast('Sharing isn’t supported on this device', 'error');
     }
   } catch (e) { if (typeof showToast === 'function') showToast('Could not open share', 'error'); }
+};
+// Like / un-like someone else's activity (member_like_activity toggles + pings the owner's bell on a new like).
+window.ffpToggleActivityLike = async function (id) {
+  var me = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || {};
+  if (!id || !me.id || !window.supabase) { if (typeof showToast === 'function') showToast('Please sign in again', 'error'); return; }
+  var btn = document.getElementById('ffp-like-btn'); if (btn) btn.disabled = true;
+  try {
+    var r = await window.supabase.rpc('member_like_activity', { p_me: me.id, p_id: id });
+    if (r && r.error) throw r.error;
+    var d = (r && r.data) || {};
+    if (!d.ok) { if (typeof showToast === 'function') showToast('Could not like that', 'error'); if (btn) btn.disabled = false; return; }
+    if (btn) {
+      btn.disabled = false;
+      btn.style.background = d.liked ? '#FFCC00' : '#2ba8e0';
+      btn.style.color = '#082335';
+      var lbl = document.getElementById('ffp-like-label'); if (lbl) lbl.textContent = d.liked ? 'High five given' : 'High five';
+      var cnt = document.getElementById('ffp-like-count'); if (cnt) cnt.textContent = (d.count > 0 ? ' · ' + d.count : '');
+    }
+    if (window._ffpActCard) { window._ffpActCard.i_liked = d.liked; window._ffpActCard.like_count = d.count; }
+  } catch (e) { if (btn) btn.disabled = false; if (typeof showToast === 'function') showToast('Could not like that', 'error'); }
 };
 // Deep-linked shared activity (notification tap → ?activity=<id>) → fetch via RPC, then render the card.
 window.ffpViewSharedActivity = async function (id) {
