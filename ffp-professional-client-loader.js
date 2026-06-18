@@ -93,7 +93,7 @@ function openMemberModal(id){
   var jd=m.join_date?String(m.join_date).slice(0,10):'';
   var gn=m.given_names||'', sn=m.surname||'';
   if(!gn && !sn && m.full_name){ var _np=String(m.full_name).trim().split(/\s+/); gn=_np.shift()||''; sn=_np.join(' '); }
-  openModalShell('lg',(editing?'Edit client':'Add client'),
+  openModalShell('lg',(editing?'Edit client':'Add client')+'  ·b29',
     '<div class="form-section"><div class="form-section-title">Client</div><div class="form-grid">'+
       '<div class="field"><div class="label">Given names <span class="req">*</span></div><input class="input" id="mm-given_names" value="'+escHtml(gn)+'"></div>'+
       '<div class="field"><div class="label">Surname</div><input class="input" id="mm-surname" value="'+escHtml(sn)+'"></div>'+
