@@ -54,17 +54,19 @@ function clientProfile(id){
   var m=_members.find(function(x){return x.id===id;}); if(!m){ showToast('Client not found','error'); return; }
   var st=m.status||'active'; var stStyle=_cstStyle[st]||_cstStyle.active;
   var jd=m.join_date?String(m.join_date).slice(0,10):'';
-  var dob=''; if(m.date_of_birth){ try{ dob=new Date(String(m.date_of_birth).slice(0,10)+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}); }catch(e){ dob=String(m.date_of_birth).slice(0,10); } }
   // Legacy clients have only full_name — split it so Given/Surname still show.
   var gn=m.given_names||'', sn=m.surname||'';
   if(!gn && !sn && m.full_name){ var _np=String(m.full_name).trim().split(/\s+/); gn=_np.shift()||''; sn=_np.join(' '); }
   var tags=(m.tags||'').split(',').map(function(t){return t.trim();}).filter(Boolean);
+  var fmtDob=function(d){ if(!d)return ''; try{ return new Date(String(d).slice(0,10)+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}); }catch(e){ return String(d).slice(0,10); } };
   // Passport-style rows — ALWAYS shown ("—" when empty) so the profile reads like a record.
   var prow=function(lbl,val){ return '<div style="display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid var(--ffp-border);"><span class="psub">'+lbl+'</span><span style="color:var(--ffp-text);font-weight:600;text-align:right;word-break:break-word;">'+(val?escHtml(val):'<span style="color:var(--ffp-text-dim);">—</span>')+'</span></div>'; };
+  var mkRows=function(d){ return prow('Given name',d.given_names)+prow('Surname',d.surname)+prow('Gender',d.gender)+prow('Date of birth',fmtDob(d.date_of_birth))+prow('Email',d.email)+prow('Phone',d.phone)+prow('Nationality',d.nationality); };
   var act=function(ic,lbl,fn){ return '<button class="btn btn-sec btn-block" style="justify-content:flex-start;gap:9px;" onclick="closeModal();'+fn+'"><span class="ms">'+ic+'</span> '+lbl+'</button>'; };
   openModalShell('lg', escHtml(m.full_name||((gn+' '+sn).trim())||'Client'),
     '<div style="margin:-2px 0 12px;"><span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;'+stStyle+'">'+(CLIENT_STATUS[st]||'Active')+'</span></div>'+
-    prow('Given name', gn)+prow('Surname', sn)+prow('Gender', m.gender)+prow('Date of birth', dob)+prow('Email', m.email)+prow('Phone', m.phone)+prow('Nationality', m.nationality)+
+    '<div id="cp-src" style="display:none;font-size:11px;font-weight:700;color:var(--ffp-purple);margin:0 0 8px;"><span class="ms" style="font-size:14px;vertical-align:-2px;">verified_user</span> Pulled from their FFP Passport</div>'+
+    '<div id="cp-details">'+mkRows({given_names:gn,surname:sn,gender:m.gender,date_of_birth:m.date_of_birth,email:m.email,phone:m.phone,nationality:m.nationality})+'</div>'+
     (jd?prow('Client since', jd):'')+(tags.length?prow('Tags', tags.join(', ')):'')+
     (m.notes?'<div style="margin-top:12px;"><div class="psub" style="margin-bottom:5px;">Notes</div><div style="background:var(--ffp-bg-card);border:1px solid var(--ffp-border);border-radius:10px;padding:11px 13px;color:var(--ffp-text);line-height:1.6;white-space:pre-wrap;">'+escHtml(m.notes)+'</div></div>':'')+
     '<div style="display:flex;flex-direction:column;gap:8px;margin-top:18px;">'+
@@ -75,6 +77,12 @@ function clientProfile(id){
     '</div>',
     '<button class="btn btn-ghost left" onclick="closeModal();confirmDeleteMember(\''+id+'\')"><span class="ms">delete</span> Delete client</button>'+
     '<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
+  // Auto-pull identity from the client's FFP Passport by email match (per Grant) — upgrades the rows in place.
+  if(window.supabase){ try{ window.supabase.rpc('pro_client_passport',{p_pro:_memProvId(),p_client:id}).then(function(r){
+    var d=(r&&r.data)||{}; if(!d.has_account) return;
+    var el=document.getElementById('cp-details'); if(el) el.innerHTML=mkRows(d);
+    var src=document.getElementById('cp-src'); if(src) src.style.display='';
+  }).catch(function(){}); }catch(e){} }
 }
 // Placeholder until Grant defines the assessment fields/storage.
 function clientAssessment(id){ showToast('Assessment form coming — tell me what it should capture','info'); }
