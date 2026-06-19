@@ -193,8 +193,11 @@
         if (type === 'challenge') { goPanel('panel-challenges'); setTimeout(function () { try { if (window.Challenges && Challenges.openDetail) Challenges.openDetail(id); } catch (e) {} }, 250); return; }
         if (type === 'activity') { if (window.ffpViewSharedActivity) window.ffpViewSharedActivity(id); else this.openCard(id); return; }
         if (type === 'birthday') { this.openCard(id); return; }
+        if (type === 'connection') { this.openCard(id); return; }   // → their passport in Connections
         if (type === 'notif') {
           if (!link) return;
+          // Reuse the bell's router so a notification opens its REAL target (activity card, meetup, panel, URL).
+          if (window.ffpHandleNotifClick) { window.ffpHandleNotifClick(link); return; }
           if (/^https?:/i.test(link)) { window.open(link, '_blank'); return; }
           var l = link.toLowerCase();
           if (l.indexOf('challenge') >= 0) goPanel('panel-challenges');
