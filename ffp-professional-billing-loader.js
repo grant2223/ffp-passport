@@ -13,7 +13,7 @@ var PAY_METHODS = (window.FFP_TAX && FFP_TAX.payMethods) || { cash:'Cash', card:
 function _billProvId(){ return (window.FFP_PROVIDER&&window.FFP_PROVIDER.id)||(typeof providerProfile!=='undefined'&&providerProfile.id)||null; }
 function _ccy(){ return (window.FFP_PROVIDER&&FFP_PROVIDER.currency)||'AED'; }
 function _money(v){ var n=Number(v||0); if(window.FFPCurrency)return FFPCurrency.format(isNaN(n)?0:n,_ccy()); return _ccy()+' '+(isNaN(n)?0:n).toLocaleString(); }
-function _metric(label,val){ return '<div style="flex:1;min-width:140px;background:#0c1d2b;border-radius:10px;padding:11px 13px;"><div class="psub" style="margin:0 0 3px;">'+label+'</div><div style="font-size:18px;font-weight:800;color:var(--ffp-text);">'+val+'</div></div>'; }
+function _metric(label,val){ return '<div style="flex:1;min-width:140px;background:var(--ffp-bg-card);border:1px solid var(--ffp-border);border-radius:10px;padding:11px 13px;"><div class="psub" style="margin:0 0 3px;">'+label+'</div><div style="font-size:18px;font-weight:800;color:var(--ffp-text);">'+val+'</div></div>'; }
 async function _ensureBillClients(){ if(_payClients.length) return; var pid=_billProvId(); if(!pid) return; try{ var r=await window.supabase.rpc('pro_list_clients',{p_pro:pid}); _payClients=(r&&r.data)?r.data:[]; }catch(e){ _payClients=[]; } }
 
 // ── Stripe Connect (online card payments) — mirrors the facility portal card ──
