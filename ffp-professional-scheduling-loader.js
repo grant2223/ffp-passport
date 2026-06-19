@@ -49,7 +49,7 @@ function _injectSchedCss(){
     '.cal-num{font-size:13px;font-weight:700;}',
     '.cal-dot{margin-top:4px;background:var(--ffp-purple);color:#fff;font-size:10px;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 4px;}',
     '.ds-open{background:rgba(34,197,94,.15);color:#22c55e;font-size:11px;font-weight:800;padding:2px 9px;border-radius:100px;white-space:nowrap;}',
-    '.ds-full{background:rgba(255,255,255,.07);color:var(--ffp-text-dim);font-size:11px;font-weight:800;padding:2px 9px;border-radius:100px;white-space:nowrap;}'
+    '.ds-full{background:rgba(10,62,68,.07);color:var(--ffp-text-dim);font-size:11px;font-weight:800;padding:2px 9px;border-radius:100px;white-space:nowrap;}'
   ].join('');
   document.head.appendChild(s);
 }
@@ -203,7 +203,7 @@ function occCard(o){
   // Headline = the booked person's name (or names); falls back to the session type when the spot is open.
   var who=nClients?o.clients.join(', '):(typeLbl||o.title||'Session');
   var blocked=!!o.blocked;
-  var badge=blocked?'<span class="ds-full" style="background:rgba(255,255,255,.08);color:#8a99a8;">Blocked</span>':(openN>0?(cap===1?'<span class="ds-open">Available</span>':'<span class="ds-open">'+openN+' available</span>'):'<span class="ds-full">Full</span>');
+  var badge=blocked?'<span class="ds-full" style="background:rgba(10,62,68,.08);color:#8a99a8;">Blocked</span>':(openN>0?(cap===1?'<span class="ds-open">Available</span>':'<span class="ds-open">'+openN+' available</span>'):'<span class="ds-full">Full</span>');
   var sub=[];
   if(nClients && typeLbl) sub.push(typeLbl);   // type shown quietly when a name is the headline
   if(cap>1) sub.push(nClients+'/'+cap+' booked');
@@ -306,12 +306,12 @@ async function openOccActions(slotId,date,blocked){
   var slot=(_proSlotsCache||[]).find(function(s){return s.id===slotId;})||{};
   // Session note at the top
   var noteHtml=(slot.notes && String(slot.notes).trim())
-    ? '<div style="background:rgba(139,92,246,0.08);border:1px solid var(--ffp-border-mid);border-radius:10px;padding:11px 13px;margin:0 0 12px;"><div style="font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-text-dim);margin-bottom:4px;">Session note</div><div style="font-size:13px;color:var(--ffp-text);line-height:1.5;white-space:pre-wrap;">'+escHtml(slot.notes)+'</div></div>'
+    ? '<div style="background:rgba(10,62,68,0.08);border:1px solid var(--ffp-border-mid);border-radius:10px;padding:11px 13px;margin:0 0 12px;"><div style="font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-text-dim);margin-bottom:4px;">Session note</div><div style="font-size:13px;color:var(--ffp-text);line-height:1.5;white-space:pre-wrap;">'+escHtml(slot.notes)+'</div></div>'
     : '';
   // Booked clients → tap a strap for their full details
   var clients=slot.clients||[];
   var clientHtml=clients.length
-    ? '<div style="margin:0 0 12px;"><div style="font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-text-dim);margin:0 2px 6px;">Booked in</div>'+clients.map(function(c){ return '<div onclick="closeModal(); if(window.clientProfile)clientProfile(\''+c.id+'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:10px;margin-bottom:7px;cursor:pointer;"><span style="width:34px;height:34px;border-radius:50%;background:rgba(139,92,246,0.16);color:#c4b5fd;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex:0 0 auto;">'+escHtml((c.full_name||"?").slice(0,1).toUpperCase())+'</span><div style="flex:1;min-width:0;"><div style="font-weight:700;color:var(--ffp-text);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(c.full_name||"Client")+'</div><div class="psub" style="margin:0;">Tap for details</div></div><span class="ms" style="color:var(--ffp-text-dim);flex:0 0 auto;">chevron_right</span></div>'; }).join('')+'</div>'
+    ? '<div style="margin:0 0 12px;"><div style="font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-text-dim);margin:0 2px 6px;">Booked in</div>'+clients.map(function(c){ return '<div onclick="closeModal(); if(window.clientProfile)clientProfile(\''+c.id+'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:10px;margin-bottom:7px;cursor:pointer;"><span style="width:34px;height:34px;border-radius:50%;background:rgba(10,62,68,0.16);color:#0a3e44;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex:0 0 auto;">'+escHtml((c.full_name||"?").slice(0,1).toUpperCase())+'</span><div style="flex:1;min-width:0;"><div style="font-weight:700;color:var(--ffp-text);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(c.full_name||"Client")+'</div><div class="psub" style="margin:0;">Tap for details</div></div><span class="ms" style="color:var(--ffp-text-dim);flex:0 0 auto;">chevron_right</span></div>'; }).join('')+'</div>'
     : '';
   var blockBtn=blocked
     ? '<button class="btn btn-sec btn-block" onclick="unblockOcc(\''+slotId+'\',\''+date+'\')"><span class="ms">event_available</span> Make available again</button>'
