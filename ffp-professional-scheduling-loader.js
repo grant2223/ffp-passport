@@ -69,13 +69,21 @@ async function _ensureProSvc(force){
   return _proSvc;
 }
 // Autofill duration/capacity/title from the chosen service when creating a slot.
+function _slUpdateOnline(){
+  var ind=document.getElementById('sl-online-ind'); if(!ind) return;
+  var sel=document.getElementById('sl-service_id'); var sv=sel?_proSvc.find(function(x){return x.id===sel.value;}):null;
+  if(sv && sv.bookable_online){ ind.innerHTML='<span class="ms" style="font-size:16px;vertical-align:-3px;color:#22c55e;">public</span> <b style="color:var(--ffp-text);">Bookable online</b> — members can self-book this slot, up to capacity.'; ind.style.borderColor='rgba(34,197,94,0.45)'; }
+  else if(sv){ ind.innerHTML='<span class="ms" style="font-size:16px;vertical-align:-3px;color:var(--ffp-text-dim);">lock</span> Not offered online. Turn on “Offer online” on this service to let members self-book.'; ind.style.borderColor='var(--ffp-border)'; }
+  else { ind.innerHTML='<span class="ms" style="font-size:16px;vertical-align:-3px;color:var(--ffp-text-dim);">public</span> Online booking follows the service’s “Offer online” setting.'; ind.style.borderColor='var(--ffp-border)'; }
+}
 function _slSvcPick(){
   var sel=document.getElementById('sl-service_id'); if(!sel) return;
-  var sv=_proSvc.find(function(x){return x.id===sel.value;}); if(!sv) return;
+  var sv=_proSvc.find(function(x){return x.id===sel.value;}); if(!sv){ _slUpdateOnline(); return; }
   var dur=document.getElementById('sl-duration_min'); if(dur && sv.duration_min) dur.value=sv.duration_min;
   var cap=document.getElementById('sl-capacity'); if(cap && sv.capacity) cap.value=sv.capacity;
   var loc=document.getElementById('sl-location'); if(loc && sv.location) loc.value=sv.location;
   var ttl=document.getElementById('sl-title'); if(ttl && !ttl.value) ttl.value=sv.name||'';
+  _slUpdateOnline();
 }
 
 async function renderScheduling(){
@@ -86,6 +94,46 @@ async function renderScheduling(){
   _setSegActive(_proView);
   host.innerHTML='<div class="psub" style="margin:10px 0;">Loading…</div>';
   if(_proView==='month') await renderMonth(host); else if(_proView==='day') await renderDay(host); else await renderWeek(host);
+  try{ await _renderPausedStrap(host); }catch(e){}
+}
+// Paused standing slots — listed under the schedule with a Resume action (paused slots don't appear in the week/day views).
+async function _renderPausedStrap(host){
+  var pid=_proProvId(); if(!pid||!host) return;
+  var rows=[]; try{ var r=await window.supabase.rpc('pro_paused_slots',{p_pro:pid}); rows=(r&&r.data)?r.data:[]; }catch(e){ rows=[]; }
+  if(!rows.length) return;
+  var dayName=function(wd){ for(var i=0;i<WEEKDAYS.length;i++){ if(WEEKDAYS[i][1]===Number(wd)) return WEEKDAYS[i][0]; } return ''; };
+  var html='<div style="margin-top:18px;border:1px solid var(--ffp-border);border-radius:12px;padding:12px 14px;background:var(--ffp-bg-2);">'+
+    '<div class="form-section-title" style="margin-bottom:6px;">Paused slots</div>'+
+    rows.map(function(s){ return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--ffp-border);"><div style="flex:1;min-width:0;"><div style="font-weight:700;color:var(--ffp-text);font-size:13px;">'+escHtml(s.title||s.service_name||'Session')+'</div><div class="psub" style="margin:1px 0 0;">'+escHtml(dayName(s.weekday))+' · '+escHtml(String(s.start_time||'').slice(0,5))+'</div></div><button class="btn btn-sec btn-sm" onclick="resumeSlot(\''+s.id+'\')"><span class="ms">play_arrow</span> Resume</button></div>'; }).join('')+
+    '</div>';
+  host.insertAdjacentHTML('beforeend', html);
+}
+async function pauseSlot(id){
+  var pid=_proProvId(); try{ var r=await window.supabase.rpc('pro_set_slot_status',{p_pro:pid,p_id:id,p_status:'paused'}); if(r&&r.error)throw r.error; showToast('Slot paused','success'); }catch(e){ showToast('Could not pause','error'); }
+  closeModal(); _loadSlotsCache().then(_schedRefresh);
+}
+async function resumeSlot(id){
+  var pid=_proProvId(); try{ var r=await window.supabase.rpc('pro_set_slot_status',{p_pro:pid,p_id:id,p_status:'active'}); if(r&&r.error)throw r.error; showToast('Slot resumed','success'); }catch(e){ showToast('Could not resume','error'); }
+  _loadSlotsCache().then(_schedRefresh);
+}
+// Tap a session → manage who's in it directly (no full edit). Reuses pro_save_slot with only client_ids.
+async function openSlotPeople(slotId){
+  var pid=_proProvId(); if(!pid) return;
+  await _ensureProClients();
+  if(!(_proSlotsCache||[]).some(function(s){return s.id===slotId;})) await _loadSlotsCache();
+  var slot=(_proSlotsCache||[]).find(function(s){return s.id===slotId;});
+  if(!slot){ showToast('Could not load that slot — please reopen it','error'); return; }
+  var chosen=(slot.clients||[]).map(function(c){return c.id;});
+  var clientList=_proClients.length
+    ? _proClients.map(function(c){ var on=chosen.indexOf(c.id)!==-1; return '<label style="display:flex;align-items:center;gap:9px;padding:8px 2px;cursor:pointer;border-bottom:1px solid var(--ffp-border);"><input type="checkbox" class="slp-cl" value="'+c.id+'" '+(on?'checked':'')+' style="width:17px;height:17px;accent-color:var(--ffp-purple);"> <span style="font-size:14px;">'+escHtml(c.full_name)+'</span></label>'; }).join('')
+    : '<div class="psub" style="margin:4px 0;">No clients yet — add them in the Clients tab first.</div>';
+  openModalShell('', 'Who\'s in this session',
+    '<div class="psub" style="margin:0 0 8px;">Tick to add, untick to remove. Add new clients in the Clients tab.</div><div id="slp-clients" style="max-height:340px;overflow-y:auto;">'+clientList+'</div>',
+    '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="saveSlotPeople(\''+slotId+'\')">Save</button>');
+}
+async function saveSlotPeople(slotId){
+  var pid=_proProvId(); var ids=[]; document.querySelectorAll('.slp-cl:checked').forEach(function(c){ids.push(c.value);});
+  try{ var r=await window.supabase.rpc('pro_save_slot',{p_pro:pid,p_id:slotId,p:{client_ids:ids}}); if(r&&r.error)throw r.error; showToast('Updated','success'); closeModal(); _loadSlotsCache().then(_schedRefresh); }catch(e){ showToast('Could not update','error'); }
 }
 function _setRange(txt){ var el=document.getElementById('pro-sched-rangelbl'); if(el) el.textContent=txt; }
 function _setSegActive(v){ var seg=document.getElementById('pro-view-seg'); if(!seg) return; seg.querySelectorAll('.seg-btn').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-view')===v); }); }
@@ -192,13 +240,17 @@ async function openSlotModal(id){
       '<div class="field"><div class="label">Duration (min)</div><input class="input" type="number" id="sl-duration_min" value="'+escHtml(String(s.duration_min||60))+'"></div>'+
       '<div class="field"><div class="label">Capacity <span style="color:var(--ffp-text-dim);">— spots available</span></div><input class="input" type="number" id="sl-capacity" value="'+escHtml(String(s.capacity||''))+'"></div>'+
       '<div class="field full"><div class="label">Location</div><input class="input" id="sl-location" value="'+escHtml(s.location||'')+'" placeholder="Optional"></div>'+
+      '<div class="field full"><div class="label">Session note <span style="color:var(--ffp-text-dim);">— private to you</span></div><textarea class="textarea" id="sl-notes" rows="2" placeholder="e.g. focus on mobility; bring resistance bands">'+escHtml(s.notes||'')+'</textarea></div>'+
+      '<div class="field full"><div id="sl-online-ind" style="font-size:12px;font-weight:600;color:var(--ffp-text-dim);background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:10px;padding:10px 12px;"></div></div>'+
     '</div></div>'+
     '<div class="form-section"><div class="form-section-title">Who\'s in this slot</div>'+
       '<div id="sl-clients" style="max-height:200px;overflow-y:auto;border:1px solid var(--ffp-border);border-radius:10px;padding:6px 10px;">'+clientList+'</div>'+
     '</div>',
     (editing?'<button class="btn btn-ghost left" onclick="confirmEndSlot(\''+editing.id+'\')"><span class="ms">delete</span> End slot</button>':'')+
+    (editing?'<button class="btn btn-ghost" onclick="pauseSlot(\''+editing.id+'\')"><span class="ms">pause</span> Pause</button>':'')+
     '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>'+
     '<button class="btn btn-pri" onclick="saveSlot(\''+(editing?editing.id:'')+'\')">'+(editing?'Save':'Create slot')+'</button>');
+  _slUpdateOnline();
 }
 async function addSlotClient(){
   var pid=_proProvId(); var inp=document.getElementById('sl-newclient'); var name=inp?inp.value.trim():'';
@@ -233,7 +285,7 @@ async function saveSlot(id){
   if(clash){ showToast('That time overlaps another slot on the same day','error'); return; }
   var clientIds=[]; document.querySelectorAll('.slot-cl:checked').forEach(function(c){clientIds.push(c.value);});
   var payload={ service_id:serviceId, slot_type:g('slot_type')||'one_to_one', title:g('title'), weekday:g('weekday'), start_time:time,
-    duration_min:g('duration_min'), capacity:g('capacity'), location:g('location'), client_ids:clientIds };
+    duration_min:g('duration_min'), capacity:g('capacity'), location:g('location'), notes:g('notes'), client_ids:clientIds };
   _savingSlot=true;
   try{
     var r=await window.supabase.rpc('pro_save_slot',{p_pro:pid,p_id:id||null,p:payload});
@@ -251,9 +303,10 @@ function openOccActions(slotId,date){
   openModalShell('', 'Session options',
     '<div class="psub" style="margin:4px 0 12px;">'+escHtml(date)+'</div>'+
     '<div style="display:flex;flex-direction:column;gap:8px;">'+
+      '<button class="btn btn-sec btn-block" onclick="closeModal(); openSlotPeople(\''+slotId+'\')"><span class="ms">group</span> Add or remove people</button>'+
       '<button class="btn btn-sec btn-block" onclick="openReschedule(\''+slotId+'\',\''+date+'\',\'this_week\')"><span class="ms">event_repeat</span> Reschedule just this week</button>'+
       '<button class="btn btn-sec btn-block" onclick="openReschedule(\''+slotId+'\',\''+date+'\',\'from_now\')"><span class="ms">update</span> Shift this slot from now on</button>'+
-      '<button class="btn btn-ghost btn-block" onclick="cancelOcc(\''+slotId+'\',\''+date+'\')"><span class="ms">event_busy</span> Cancel just this week</button>'+
+      '<button class="btn btn-ghost btn-block" onclick="cancelOcc(\''+slotId+'\',\''+date+'\')"><span class="ms">event_busy</span> Block this date (skip this week)</button>'+
       '<button class="btn btn-ghost btn-block" onclick="closeModal(); _loadSlotsCache().then(function(){openSlotModal(\''+slotId+'\');})"><span class="ms">edit</span> Edit standing slot</button>'+
     '</div>',
     '<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
