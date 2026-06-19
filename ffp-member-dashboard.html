@@ -7982,7 +7982,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '367';
+  const FFP_BUILD = '368';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -11799,63 +11799,54 @@ window.ffpRenderActivityCard = function (a, isOwn) {
   var esc = (window.escHtml ? window.escHtml : function (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); });
   function dur(min, sec) { min = Math.max(0, Math.round(min || 0)); var h = Math.floor(min / 60), m = min % 60; return (h ? h + 'h ' : '') + m + 'm' + (sec ? (' ' + sec + 's') : ''); }
   var lat = (a.lat != null ? a.lat : a.checkin_lat), lng = (a.lng != null ? a.lng : a.checkin_lng);
-  var when = a.logged_at ? new Date(a.logged_at).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  var dateStr = a.logged_at ? new Date(a.logged_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
   var icon = (window.ffpActivityIcon ? window.ffpActivityIcon(a.activity) : 'fitness_center');
-  // WHOOP-style start→end time range from logged_at + duration.
   var startEnd = '';
   try { if (a.logged_at) { var _sd = new Date(a.logged_at), _ed = new Date(_sd.getTime() + (Math.round(a.duration_min || 0)) * 60000 + (a.duration_sec || 0) * 1000); var _hm = function (d) { return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }; startEnd = _hm(_sd) + ' → ' + _hm(_ed); } } catch (e) {}
-  var titleBlock = '<div style="font-size:28px;font-weight:900;color:#fff;line-height:1.1;letter-spacing:-0.5px;">' + esc(a.activity || 'Activity') + '</div>' +
-    (when ? '<div style="font-size:12.5px;color:#cfe0ee;font-weight:700;margin-top:7px;">' + esc(when) + (startEnd ? ' · ' + startEnd : '') + '</div>' : '');
-  var hero = a.photo_url
-    ? '<div style="position:relative;width:100%;aspect-ratio:16/9;max-height:38vh;background:#13324a center/cover no-repeat;background-image:linear-gradient(180deg,rgba(8,20,32,0.05),rgba(8,20,32,0.85)),url(\'' + a.photo_url + '\');"><div style="position:absolute;left:0;right:0;bottom:0;padding:18px 20px;">' + titleBlock + '</div></div>'
-    : '<div style="width:100%;padding:64px 20px 30px;background:linear-gradient(135deg,rgba(43,168,224,0.22),rgba(255,204,0,0.07));text-align:center;"><div style="width:86px;height:86px;border-radius:24px;margin:0 auto 16px;background:rgba(43,168,224,0.16);display:flex;align-items:center;justify-content:center;color:#2ba8e0;"><span class="material-icons" style="font-size:46px;">' + icon + '</span></div>' + titleBlock + '</div>';
-  // 2×2 grid of icon stat tiles (milestone style): Time · Distance · Burn · Heart. Missing → "—".
-  function tile(ic, color, val, label) {
-    return '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px 12px;text-align:center;">' +
-      '<span class="material-icons" style="font-size:25px;color:' + color + ';">' + ic + '</span>' +
-      '<div style="font-size:19px;font-weight:900;color:#e8eef4;margin-top:7px;">' + val + '</div>' +
-      '<div style="font-size:10px;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;color:#8a99a8;margin-top:3px;">' + label + '</div></div>';
-  }
-  var num = '<span style="font-size:12px;font-weight:700;">';
-  // Pace (min/km) when there's distance + time.
-  var pace = '';
-  if (a.distance_km > 0 && (a.duration_min || a.duration_sec)) { var _tm = (a.duration_min || 0) + (a.duration_sec || 0) / 60; var _pm = _tm / a.distance_km; var _pmi = Math.floor(_pm); var _ps = Math.round((_pm - _pmi) * 60); if (_ps === 60) { _pmi++; _ps = 0; } pace = _pmi + ':' + ('0' + _ps).slice(-2); }
-  // Show only the stats this activity actually has (Duration always).
-  var _tiles = [tile('schedule', '#2ba8e0', (a.duration_min || a.duration_sec) ? dur(a.duration_min, a.duration_sec) : '—', 'Duration')];
-  if (a.distance_km != null && a.distance_km > 0) _tiles.push(tile('route', '#2ba8e0', (Math.round(a.distance_km * 100) / 100) + num + ' km</span>', 'Distance'));
-  if (pace) _tiles.push(tile('speed', '#7cc6ff', pace + num + ' /km</span>', 'Pace'));
-  if (a.calories) _tiles.push(tile('local_fire_department', '#f3914e', a.calories + num + ' kcal</span>', 'Burn'));
-  if (a.avg_heart_rate) _tiles.push(tile('favorite', '#ef6a6a', a.avg_heart_rate + num + ' bpm</span>', 'Avg HR'));
-  var statGrid = '<div style="font-size:11px;font-weight:800;letter-spacing:0.6px;text-transform:uppercase;color:#8a99a8;margin:0 2px 10px;">Key statistics</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' + _tiles.join('') + '</div>';
-  var lblCss = 'font-size:10px;font-weight:800;letter-spacing:0.6px;text-transform:uppercase;color:#8a99a8;margin-bottom:7px;';
-  // High five = an ICON on the RIGHT of the owner row (opposite the name, under the photo) — not a full-width button.
-  var liked = !!a.i_liked, lc = a.like_count || 0;
-  var hiFive = (!isOwn && a.id) ? ('<button id="ffp-like-btn" onclick="window.ffpToggleActivityLike&&window.ffpToggleActivityLike(\'' + a.id + '\')" aria-label="High five" title="High five" style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;font-family:inherit;padding:0;">' +
-      '<span id="ffp-like-circle" style="width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:' + (liked ? '#FFCC00' : 'rgba(43,168,224,0.12)') + ';color:' + (liked ? '#082335' : '#2ba8e0') + ';"><span class="material-icons" style="font-size:24px;">front_hand</span></span>' +
-      '<span id="ffp-like-count" style="font-size:11px;font-weight:800;color:' + (liked ? '#FFCC00' : '#8a99a8') + ';">' + (lc > 0 ? lc : '') + '</span></button>') : '';
-  var owner = (!isOwn && (a.owner_name || a.id)) ? ('<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">' +
-      (a.owner_photo ? '<img src="' + esc(a.owner_photo) + '" style="width:42px;height:42px;border-radius:50%;object-fit:cover;flex:0 0 auto;">' : '<div style="width:42px;height:42px;border-radius:50%;background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;flex:0 0 auto;">' + esc((a.owner_name || 'M').charAt(0).toUpperCase()) + '</div>') +
-      '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:800;color:#e8eef4;">' + esc(a.owner_name || 'Member') + '</div><div style="font-size:11px;color:#8a99a8;">shared this activity with you</div></div>' +
-      hiFive + '</div>') : '';
   var loc = [a.venue, a.city, a.country].filter(Boolean).join(', ');
-  var locBlock = '';
+  var hasDist = (a.distance_km != null && a.distance_km > 0);
+  var heroVal = hasDist ? String(Math.round(a.distance_km * 100) / 100) : dur(a.duration_min, a.duration_sec);
+  var heroUnit = hasDist ? 'km' : '';
+  var eyebrow = [esc(a.activity || 'Activity'), dateStr].filter(Boolean).join(' · ');
+  var subline = [startEnd, loc].filter(Boolean).join(' · ');
+  // IMMERSIVE hero — photo (or rich gradient) full-bleed, big watermark glyph, scrim into the page; headline METRIC large.
+  var heroBg = a.photo_url ? ("#0a1a28 url('" + esc(a.photo_url) + "') center/cover no-repeat") : 'linear-gradient(155deg,#1f5b86 0%,#123a59 45%,#0a2236 100%)';
+  var hero = '<div style="position:relative;height:312px;background:' + heroBg + ';overflow:hidden;">' +
+    '<div style="position:absolute;right:-26px;top:-6px;line-height:1;z-index:0;"><span class="material-icons" style="font-size:230px;color:#fff;opacity:0.07;">' + icon + '</span></div>' +
+    '<div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,20,32,0.15) 0%,rgba(8,20,32,0.55) 60%,#081420 100%);"></div>' +
+    '<div style="position:absolute;bottom:20px;left:22px;right:22px;z-index:1;">' +
+      '<div style="font-size:11px;font-weight:800;letter-spacing:2.5px;color:#7fc4ec;text-transform:uppercase;">' + eyebrow + '</div>' +
+      '<div style="display:flex;align-items:flex-end;gap:9px;margin-top:8px;"><div style="font-size:56px;font-weight:900;line-height:0.88;letter-spacing:-2px;color:#fff;">' + esc(heroVal) + '</div>' + (heroUnit ? '<div style="font-size:19px;font-weight:800;color:#9fc4e0;margin-bottom:8px;">' + heroUnit + '</div>' : '') + '</div>' +
+      (subline ? '<div style="font-size:12.5px;color:#cfe0ee;font-weight:600;margin-top:6px;">' + esc(subline) + '</div>' : '') +
+    '</div>' +
+  '</div>';
+  // EDITORIAL stat ribbon (no boxes). Distance is the hero, so the ribbon carries the rest.
+  var pace = '';
+  if (hasDist && (a.duration_min || a.duration_sec)) { var _tm = (a.duration_min || 0) + (a.duration_sec || 0) / 60; var _pm = _tm / a.distance_km; var _pmi = Math.floor(_pm); var _ps = Math.round((_pm - _pmi) * 60); if (_ps === 60) { _pmi++; _ps = 0; } pace = _pmi + ':' + ('0' + _ps).slice(-2); }
+  var ribItems = [];
+  if (hasDist) { ribItems.push(['Duration', dur(a.duration_min, a.duration_sec), '#fff']); if (pace) ribItems.push(['Pace /km', pace, '#7cc6ff']); }
+  if (a.calories) ribItems.push(['kcal', String(a.calories), '#f3914e']);
+  if (a.avg_heart_rate) ribItems.push(['Avg HR', String(a.avg_heart_rate), '#ef6a6a']);
+  var ribbon = ribItems.length ? ('<div style="display:flex;padding:22px 6px 16px;">' + ribItems.map(function (it, i) { return '<div style="flex:1;text-align:center;' + (i ? 'border-left:1px solid rgba(255,255,255,0.09);' : '') + '"><div style="font-size:21px;font-weight:900;color:' + it[2] + ';">' + esc(it[1]) + '</div><div style="font-size:9.5px;font-weight:800;letter-spacing:.6px;color:#8a99a8;text-transform:uppercase;margin-top:5px;">' + esc(it[0]) + '</div></div>'; }).join('') + '</div>') : '';
+  // Map strip — full-width, immersive (falls back to a location line).
+  var mapBlock = '';
   if (lat != null && lng != null) {
-    locBlock = '<div style="margin-top:22px;"><div style="' + lblCss + '">Location</div>' +
-      '<div id="ffp-act-map" style="width:100%;height:190px;border-radius:14px;overflow:hidden;background:#13324a;"></div>' +
-      '<div style="font-size:13px;color:#cfe0ee;margin-top:9px;display:flex;align-items:center;gap:7px;"><span class="material-icons" style="font-size:17px;color:#2ba8e0;">place</span><span>' + (loc ? esc(loc) + ' · ' : '') + '<a href="https://www.google.com/maps?q=' + lat + ',' + lng + '" target="_blank" rel="noopener" style="color:#2ba8e0;font-weight:700;">Open in Maps</a></span></div></div>';
+    mapBlock = '<div style="margin:6px 18px 0;height:160px;border-radius:16px;overflow:hidden;position:relative;background:#0e2c44;"><div id="ffp-act-map" style="position:absolute;inset:0;"></div><div style="position:absolute;left:0;right:0;bottom:0;padding:11px 14px;background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,0.55));font-size:12.5px;font-weight:700;color:#cfe0ee;z-index:500;pointer-events:none;"><span class="material-icons" style="font-size:15px;vertical-align:-2px;color:#2ba8e0;">place</span> ' + (loc ? esc(loc) + ' · ' : '') + '<a href="https://www.google.com/maps?q=' + lat + ',' + lng + '" target="_blank" rel="noopener" style="color:#2ba8e0;font-weight:800;pointer-events:auto;">Open in Maps</a></div></div>';
   } else if (loc) {
-    locBlock = '<div style="margin-top:22px;"><div style="' + lblCss + '">Location</div><div style="font-size:14px;color:#e8eef4;display:flex;align-items:center;gap:8px;"><span class="material-icons" style="font-size:19px;color:#2ba8e0;">place</span>' + esc(loc) + '</div></div>';
+    mapBlock = '<div style="margin:18px 18px 0;font-size:14px;color:#e8eef4;display:flex;align-items:center;gap:8px;"><span class="material-icons" style="font-size:19px;color:#2ba8e0;">place</span>' + esc(loc) + '</div>';
   }
-  var notesBlock = a.notes ? ('<div style="margin-top:22px;"><div style="' + lblCss + '">How it felt</div><div style="font-size:14px;color:#cfe0ee;line-height:1.65;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:14px 16px;">' + esc(a.notes) + '</div></div>') : '';
-  // OWN activity → Share to social (native share sheet → WhatsApp/Instagram/etc.) + the existing in-app
-  // connections share. OTHERS' activity → a Like button (mirrors the congratulate reaction).
-  var socialBtn = (isOwn && a.id) ? '<button onclick="window.ffpSocialShareActivity&&window.ffpSocialShareActivity(\'' + a.id + '\')" style="width:100%;margin-top:24px;padding:14px;border-radius:12px;border:none;background:#FFCC00;color:#082335;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:middle;">ios_share</span> Share card</button>' : '';
-  var downloadBtn = (isOwn && a.id) ? '<button onclick="window.ffpDownloadActivityCard&&window.ffpDownloadActivityCard(\'' + a.id + '\')" style="width:100%;margin-top:10px;padding:13px;border-radius:12px;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.05);color:#cfe0ee;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:middle;">download</span> Download card</button>' : '';
-  var shareBtn = (isOwn && a.id) ? '<button onclick="window.ffpShareActivity&&window.ffpShareActivity(\'' + a.id + '\')" style="width:100%;margin-top:10px;padding:14px;border-radius:12px;border:1px solid rgba(43,168,224,0.35);background:rgba(43,168,224,0.07);color:#2ba8e0;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:middle;">' + (a.shared ? 'group' : 'group_add') + '</span> ' + (a.shared ? 'Shared with connections' : 'Share with my connections') + '</button>' : '';
-  var editBtn = (isOwn && a.id) ? '<button onclick="ffpCloseActivityCard();window.ffpEditActivity&&window.ffpEditActivity(\'' + a.id + '\')" style="width:100%;margin-top:10px;padding:13px;border-radius:12px;border:1px solid rgba(43,168,224,0.35);background:rgba(43,168,224,0.07);color:#2ba8e0;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:middle;">edit</span> Edit activity</button>' : '';
-  // High five now lives as an icon in the owner row (above) — no full-width button.
-  var likeBtn = '';
-  var body = '<div style="padding:22px 20px 40px;max-width:640px;margin:0 auto;width:100%;box-sizing:border-box;">' + owner + statGrid + locBlock + notesBlock + socialBtn + downloadBtn + shareBtn + editBtn + likeBtn + '</div>';
+  // Note — quote-style with an accent bar, not a box.
+  var notesBlock = a.notes ? ('<div style="margin:20px 18px 0;padding-left:14px;border-left:3px solid #2ba8e0;"><div style="font-size:9.5px;font-weight:800;letter-spacing:.6px;color:#8a99a8;text-transform:uppercase;">How it felt</div><div style="font-size:14px;color:#dfeaf3;line-height:1.6;margin-top:5px;font-style:italic;">' + esc(a.notes) + '</div></div>') : '';
+  // Shared activity (viewing someone else's) → owner row with the high-five icon on the right.
+  var liked = !!a.i_liked, lc = a.like_count || 0;
+  var hiFive = (!isOwn && a.id) ? ('<button id="ffp-like-btn" onclick="window.ffpToggleActivityLike&&window.ffpToggleActivityLike(\'' + a.id + '\')" aria-label="High five" style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;font-family:inherit;padding:0;"><span id="ffp-like-circle" style="width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:' + (liked ? '#FFCC00' : 'rgba(43,168,224,0.12)') + ';color:' + (liked ? '#082335' : '#2ba8e0') + ';"><span class="material-icons" style="font-size:24px;">front_hand</span></span><span id="ffp-like-count" style="font-size:11px;font-weight:800;color:' + (liked ? '#FFCC00' : '#8a99a8') + ';">' + (lc > 0 ? lc : '') + '</span></button>') : '';
+  var ownerRow = (!isOwn && (a.owner_name || a.id)) ? ('<div style="display:flex;align-items:center;gap:10px;margin:18px 18px 0;">' + (a.owner_photo ? '<img src="' + esc(a.owner_photo) + '" style="width:42px;height:42px;border-radius:50%;object-fit:cover;flex:0 0 auto;">' : '<div style="width:42px;height:42px;border-radius:50%;background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;flex:0 0 auto;">' + esc((a.owner_name || 'M').charAt(0).toUpperCase()) + '</div>') + '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:800;color:#e8eef4;">' + esc(a.owner_name || 'Member') + '</div><div style="font-size:11px;color:#8a99a8;">shared this activity with you</div></div>' + hiFive + '</div>') : '';
+  var actions = (isOwn && a.id) ? ('<div style="padding:24px 18px 40px;display:flex;flex-direction:column;gap:10px;">' +
+    '<button onclick="window.ffpSocialShareActivity&&window.ffpSocialShareActivity(\'' + a.id + '\')" style="width:100%;padding:15px;border:none;border-radius:14px;background:linear-gradient(135deg,#2ba8e0,#1d7fb0);color:#fff;font-weight:900;font-size:15px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;"><span class="material-icons" style="font-size:18px;">ios_share</span> Share card</button>' +
+    '<button onclick="window.ffpShareActivity&&window.ffpShareActivity(\'' + a.id + '\')" style="width:100%;padding:13px;border-radius:13px;border:1px solid rgba(43,168,224,0.35);background:rgba(43,168,224,0.07);color:#2ba8e0;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:-3px;">' + (a.shared ? 'group' : 'group_add') + '</span> ' + (a.shared ? 'Shared with connections' : 'Share with my connections') + '</button>' +
+    '<button onclick="ffpCloseActivityCard();window.ffpEditActivity&&window.ffpEditActivity(\'' + a.id + '\')" style="width:100%;padding:13px;border-radius:13px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:#cfe0ee;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:-3px;">edit</span> Edit activity</button>' +
+  '</div>') : '<div style="height:28px;"></div>';
+  var body = ownerRow + ribbon + mapBlock + notesBlock + actions;
 
   ffpCloseActivityCard();
   var ov = document.createElement('div'); ov.id = 'ffp-act-card-ov';
@@ -11865,8 +11856,6 @@ window.ffpRenderActivityCard = function (a, isOwn) {
     '<div style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;">' + hero + body + '</div>';
   document.body.appendChild(ov);
   document.body.style.overflow = 'hidden';
-  // Pre-render the shareable card image (idle) so tapping Share can fire instantly (iOS user-activation).
-  if (isOwn && a.id) { try { (window.requestIdleCallback ? requestIdleCallback(function () { _ffpPrerenderActivityShare(a); }, { timeout: 4000 }) : setTimeout(function () { _ffpPrerenderActivityShare(a); }, 800)); } catch (e) {} }
   // Render the location mini-map (Leaflet, same basemap as the journey map) if we have coordinates.
   if (lat != null && lng != null) {
     setTimeout(function () {
@@ -11901,71 +11890,101 @@ window.ffpShareActivity = async function (id) {
 // ── Shareable social CARD (branded stats image) ─────────────────────────────────────────────
 // Builds an offscreen FFP-branded card, rasterises it with html2canvas (already loaded), and shares
 // it as an image via the native share sheet — or downloads it. Mirrors the Passport share pipeline.
-function _ffpActShareStats(a) {
-  function dur(min, sec) { min = Math.max(0, Math.round(min || 0)); var h = Math.floor(min / 60), m = min % 60; return (h ? h + 'h ' : '') + m + 'm' + (sec ? (' ' + sec + 's') : ''); }
-  var out = [['Duration', (a.duration_min || a.duration_sec) ? dur(a.duration_min, a.duration_sec) : '—']];
-  if (a.distance_km != null && a.distance_km > 0) out.push(['Distance', (Math.round(a.distance_km * 100) / 100) + ' km']);
-  if (a.calories) out.push(['Calories', a.calories + ' kcal']);
-  if (a.avg_heart_rate) out.push(['Avg HR', a.avg_heart_rate + ' bpm']);
-  return out.slice(0, 4);
-}
-function _ffpBuildShareCard(a) {
+function _ffpCardDims(r) { var w = 540; return { w: w, h: r === '1:1' ? w : r === '4:5' ? Math.round(w * 5 / 4) : Math.round(w * 16 / 9) }; }
+function _ffpDurStr(a) { var min = Math.max(0, Math.round(a.duration_min || 0)); var h = Math.floor(min / 60), m = min % 60; return (h ? h + 'h ' : '') + m + 'm' + (a.duration_sec ? (' ' + a.duration_sec + 's') : ''); }
+function _ffpActBottomStats(a) { var row = []; if (a.distance_km != null && a.distance_km > 0) row.push(['Time', _ffpDurStr(a)]); if (a.calories) row.push(['Calories', a.calories + ' kcal']); if (a.avg_heart_rate) row.push(['Avg HR', a.avg_heart_rate + ' bpm']); return row.slice(0, 3); }
+function _ffpBuildShareCard(a, ratio, usePhoto) {
   var esc = (window.escHtml ? window.escHtml : function (s) { return String(s == null ? '' : s); });
   var icon = (window.ffpActivityIcon ? window.ffpActivityIcon(a.activity) : 'fitness_center');
   var when = a.logged_at ? new Date(a.logged_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
   var sub = [when, [a.city, a.country].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
-  var statHtml = _ffpActShareStats(a).map(function (s) { return '<div style="text-align:center;flex:1;"><div style="font-size:27px;font-weight:900;color:#fff;line-height:1;">' + esc(s[1]) + '</div><div style="font-size:11px;color:#9fc4e0;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-top:6px;">' + esc(s[0]) + '</div></div>'; }).join('');
-  var el = document.createElement('div');
-  el.style.cssText = 'position:fixed;left:-10000px;top:0;width:540px;height:700px;';
-  el.innerHTML = '<div style="width:540px;height:700px;box-sizing:border-box;background:linear-gradient(160deg,#11436c 0%,#0a2740 52%,#06121f 100%);font-family:Montserrat,-apple-system,system-ui,sans-serif;color:#fff;position:relative;padding:44px 40px;">' +
-    '<div style="font-size:19px;font-weight:900;letter-spacing:3px;">FFP <span style="color:#FFCC00;">PASSPORT</span></div>' +
-    '<div style="text-align:center;margin-top:76px;">' +
-      '<div style="width:124px;height:124px;border-radius:50%;background:rgba(43,168,224,0.18);display:flex;align-items:center;justify-content:center;margin:0 auto;"><span class="material-icons" style="font-size:66px;color:#3fb0e8;line-height:1;">' + icon + '</span></div>' +
-      '<div style="font-size:36px;font-weight:900;margin-top:26px;letter-spacing:-0.5px;">' + esc(a.activity || 'Activity') + '</div>' +
-      (sub ? '<div style="font-size:14px;color:#9fc4e0;font-weight:700;margin-top:10px;">' + esc(sub) + '</div>' : '') +
+  var d = _ffpCardDims(ratio), pad = Math.round(d.w * 0.075), hasPhoto = !!(usePhoto && a.photo_url);
+  var hasDist = (a.distance_km != null && a.distance_km > 0);
+  var heroVal = hasDist ? String(Math.round(a.distance_km * 100) / 100) : _ffpDurStr(a), heroUnit = hasDist ? 'km' : '';
+  var statHtml = _ffpActBottomStats(a).map(function (s) { return '<div style="text-align:center;flex:1;"><div style="font-size:' + Math.round(d.w * 0.052) + 'px;font-weight:900;color:#fff;line-height:1;">' + esc(s[1]) + '</div><div style="font-size:' + Math.round(d.w * 0.022) + 'px;color:#9fc4e0;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-top:6px;">' + esc(s[0]) + '</div></div>'; }).join('');
+  var bg = hasPhoto ? ("#06121f url('" + esc(a.photo_url) + "') center/cover no-repeat") : 'linear-gradient(160deg,#11436c 0%,#0a2740 52%,#06121f 100%)';
+  var scrim = hasPhoto ? '<div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,12,20,0.35) 0%,rgba(5,12,20,0.5) 50%,rgba(5,12,20,0.82) 100%);"></div>' : '';
+  var el = document.createElement('div'); el.style.cssText = 'position:relative;width:' + d.w + 'px;height:' + d.h + 'px;';
+  el.innerHTML = '<div style="position:absolute;inset:0;box-sizing:border-box;background:' + bg + ';font-family:Montserrat,-apple-system,system-ui,sans-serif;color:#fff;display:flex;flex-direction:column;padding:' + pad + 'px;overflow:hidden;">' +
+    scrim +
+    '<div style="position:absolute;right:' + Math.round(-d.w * 0.1) + 'px;top:' + Math.round(d.h * 0.2) + 'px;z-index:0;line-height:1;"><span class="material-icons" style="font-size:' + Math.round(d.w * 0.66) + 'px;color:#fff;opacity:0.06;">' + icon + '</span></div>' +
+    '<div style="position:relative;z-index:1;font-size:' + Math.round(d.w * 0.04) + 'px;font-weight:900;letter-spacing:3px;">FFP <span style="color:#FFCC00;">PASSPORT</span></div>' +
+    '<div style="position:relative;z-index:1;flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;">' +
+      '<div style="font-size:' + Math.round(d.w * 0.072) + 'px;font-weight:900;letter-spacing:-1px;">' + esc(a.activity || 'Activity') + '</div>' +
+      '<div style="display:flex;align-items:flex-end;gap:' + Math.round(d.w * 0.018) + 'px;margin-top:' + Math.round(d.w * 0.03) + 'px;"><div style="font-size:' + Math.round(d.w * 0.165) + 'px;font-weight:900;line-height:0.86;letter-spacing:-3px;">' + esc(heroVal) + '</div>' + (heroUnit ? '<div style="font-size:' + Math.round(d.w * 0.05) + 'px;font-weight:800;color:#9fc4e0;margin-bottom:' + Math.round(d.w * 0.022) + 'px;">' + heroUnit + '</div>' : '') + '</div>' +
+      (sub ? '<div style="font-size:' + Math.round(d.w * 0.027) + 'px;color:#bcd5e8;font-weight:700;margin-top:' + Math.round(d.w * 0.028) + 'px;">' + esc(sub) + '</div>' : '') +
     '</div>' +
-    '<div style="position:absolute;left:40px;right:40px;bottom:46px;">' +
-      '<div style="display:flex;justify-content:space-between;gap:12px;border-top:1px solid rgba(255,255,255,0.14);padding-top:26px;">' + statHtml + '</div>' +
-      '<div style="text-align:center;font-size:11px;color:#7fa6c4;font-weight:800;letter-spacing:1.5px;margin-top:24px;">TRACKED ON FFP PASSPORT</div>' +
-    '</div>' +
+    (statHtml ? '<div style="position:relative;z-index:1;display:flex;justify-content:space-between;gap:' + Math.round(d.w * 0.02) + 'px;border-top:1px solid rgba(255,255,255,0.16);padding-top:' + Math.round(d.w * 0.04) + 'px;">' + statHtml + '</div>' : '') +
+    '<div style="position:relative;z-index:1;text-align:center;font-size:' + Math.round(d.w * 0.021) + 'px;color:#9ec0db;font-weight:800;letter-spacing:1.5px;margin-top:' + Math.round(d.w * 0.035) + 'px;">TRACKED ON FFP PASSPORT</div>' +
   '</div>';
   return el;
 }
-var _ffpActShareFile = null, _ffpActShareForId = null, _ffpActRendering = false;
-async function _ffpPrerenderActivityShare(a) {
-  if (_ffpActRendering || typeof html2canvas === 'undefined' || !a || !a.id) return;
-  _ffpActRendering = true; _ffpActShareFile = null; _ffpActShareForId = a.id;
-  var el = null;
+var _ffpShareCfg = { ratio: '9:16', usePhoto: false, id: null };
+var _ffpShareFile = null, _ffpShareKey = null, _ffpShareRendering = false;
+function _ffpCurKey() { return (_ffpShareCfg.id || '') + '|' + _ffpShareCfg.ratio + '|' + (_ffpShareCfg.usePhoto ? 1 : 0); }
+async function _ffpCaptureShareCard() {
+  if (typeof html2canvas === 'undefined') return null;
+  var a = window._ffpActCard || {}; var node = _ffpBuildShareCard(a, _ffpShareCfg.ratio, _ffpShareCfg.usePhoto);
+  node.style.position = 'fixed'; node.style.left = '-10000px'; node.style.top = '0'; document.body.appendChild(node);
   try {
-    el = _ffpBuildShareCard(a); document.body.appendChild(el);
-    var canvas = await html2canvas(el.firstChild, { backgroundColor: null, scale: 2, useCORS: true, logging: false });
-    await new Promise(function (res) { canvas.toBlob(function (blob) { if (blob) { var nm = (a.activity || 'activity').replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '') || 'activity'; _ffpActShareFile = new File([blob], 'ffp-' + nm + '.png', { type: 'image/png' }); } res(); }, 'image/png'); });
-  } catch (e) { } finally { if (el && el.parentNode) el.parentNode.removeChild(el); _ffpActRendering = false; }
+    var canvas = await html2canvas(node.firstChild, { backgroundColor: null, scale: 2, useCORS: true, logging: false });
+    return await new Promise(function (res) { canvas.toBlob(function (b) { var nm = (a.activity || 'activity').replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '') || 'activity'; res(b ? new File([b], 'ffp-' + nm + '.png', { type: 'image/png' }) : null); }, 'image/png'); });
+  } catch (e) { return null; } finally { if (node.parentNode) node.parentNode.removeChild(node); }
 }
-// Tap handler — fires share synchronously (image if pre-rendered) so iOS keeps the user activation.
-window.ffpSocialShareActivity = async function (id) {
-  var a = window._ffpActCard || {};
-  var url = 'https://ffppassport.com/ffp-member-dashboard.html?activity=' + encodeURIComponent(id);
-  var bits = [a.activity || 'My activity'];
-  if (a.distance_km != null && a.distance_km > 0) bits.push((Math.round(a.distance_km * 100) / 100) + ' km');
-  var mins = Math.round(a.duration_min || 0); if (mins || a.duration_sec) bits.push(mins + ' min');
+async function _ffpPrerenderShareFile() { if (_ffpShareRendering) return; _ffpShareRendering = true; var key = _ffpCurKey(); var f = await _ffpCaptureShareCard(); if (_ffpCurKey() === key) { _ffpShareFile = f; _ffpShareKey = key; } _ffpShareRendering = false; }
+function _ffpRenderSharePreview() {
+  var host = document.getElementById('ffp-sc-preview'); if (!host) return;
+  var a = window._ffpActCard || {}; var d = _ffpCardDims(_ffpShareCfg.ratio);
+  var maxH = Math.min((window.innerHeight || 700) * 0.5, 540), maxW = host.clientWidth || 300;
+  var scale = Math.min(maxW / d.w, maxH / d.h); if (!(scale > 0)) scale = 0.5;
+  host.style.height = Math.round(d.h * scale) + 'px';
+  var node = _ffpBuildShareCard(a, _ffpShareCfg.ratio, _ffpShareCfg.usePhoto);
+  node.style.position = 'absolute'; node.style.left = '50%'; node.style.top = '0'; node.style.transformOrigin = 'top center'; node.style.transform = 'translateX(-50%) scale(' + scale + ')';
+  host.innerHTML = ''; host.appendChild(node);
+  ['1:1', '4:5', '9:16'].forEach(function (r) { var t = document.getElementById('ffp-sc-tab-' + r.replace(':', '-')); if (t) { var on = (r === _ffpShareCfg.ratio); t.style.background = on ? '#2ba8e0' : 'transparent'; t.style.color = on ? '#fff' : '#8a99a8'; } });
+  _ffpShareFile = null; _ffpShareKey = null;
+  (window.requestIdleCallback ? requestIdleCallback(function () { _ffpPrerenderShareFile(); }, { timeout: 2500 }) : setTimeout(function () { _ffpPrerenderShareFile(); }, 250));
+}
+window.ffpShareSetRatio = function (r) { _ffpShareCfg.ratio = r; _ffpRenderSharePreview(); };
+window.ffpShareTogglePhoto = function (el) { _ffpShareCfg.usePhoto = !_ffpShareCfg.usePhoto; if (el) { el.style.background = _ffpShareCfg.usePhoto ? '#2ba8e0' : '#3a4654'; var k = el.firstChild; if (k) k.style.right = _ffpShareCfg.usePhoto ? '2px' : '20px'; } _ffpRenderSharePreview(); };
+window.ffpCloseShareSheet = function () { var o = document.getElementById('ffp-sc-ov'); if (o && o.parentNode) o.parentNode.removeChild(o); };
+// Tap "Share card" → open the PREVIEW first (pick format, then Share / Download).
+window.ffpSocialShareActivity = function (id) { _ffpOpenShareSheet(id); };
+function _ffpOpenShareSheet(id) {
+  var a = window._ffpActCard || {}; _ffpShareCfg = { ratio: '9:16', usePhoto: false, id: id }; _ffpShareFile = null; _ffpShareKey = null;
+  var esc = (window.escHtml ? window.escHtml : function (s) { return String(s == null ? '' : s); });
+  var hasPhoto = !!a.photo_url;
+  var tab = function (r, lbl) { return '<div id="ffp-sc-tab-' + r.replace(':', '-') + '" onclick="ffpShareSetRatio(\'' + r + '\')" style="flex:1;text-align:center;padding:9px;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;color:#8a99a8;">' + lbl + '</div>'; };
+  var ov = document.createElement('div'); ov.id = 'ffp-sc-ov';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:100060;background:rgba(4,9,15,0.94);display:flex;flex-direction:column;font-family:inherit;';
+  ov.innerHTML = '<div style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:16px 16px calc(22px + env(safe-area-inset-bottom));max-width:480px;width:100%;margin:0 auto;box-sizing:border-box;">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;"><div style="font-size:17px;font-weight:800;color:#fff;">Share your ' + esc((a.activity || 'activity')).toLowerCase() + '</div><span onclick="ffpCloseShareSheet()" class="material-icons" style="color:#8a99a8;cursor:pointer;">close</span></div>' +
+    '<div style="display:flex;gap:6px;background:#111a26;border-radius:11px;padding:4px;margin-bottom:16px;">' + tab('1:1', 'Square 1:1') + tab('4:5', 'Portrait 4:5') + tab('9:16', 'Story 9:16') + '</div>' +
+    '<div id="ffp-sc-preview" style="position:relative;width:100%;"></div>' +
+    (hasPhoto ? '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;background:#111a26;border-radius:11px;padding:11px 14px;"><span style="font-size:13px;font-weight:700;color:#cfe0ee;">Use my photo as background</span><span onclick="ffpShareTogglePhoto(this)" style="width:40px;height:22px;border-radius:20px;background:#3a4654;position:relative;cursor:pointer;display:inline-block;flex:0 0 auto;"><span style="position:absolute;right:20px;top:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:right .15s;"></span></span></div>' : '') +
+    '<div style="display:flex;gap:10px;margin-top:16px;"><button onclick="ffpDownloadActivityCard()" style="flex:1;padding:14px;border:1px solid rgba(255,255,255,0.18);border-radius:13px;background:rgba(255,255,255,0.05);color:#cfe0ee;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:16px;vertical-align:-3px;">download</span> Download</button><button onclick="ffpDoShareCard()" style="flex:2;padding:14px;border:none;border-radius:13px;background:linear-gradient(135deg,#2ba8e0,#1d7fb0);color:#fff;font-weight:900;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:16px;vertical-align:-3px;">ios_share</span> Share</button></div>' +
+  '</div>';
+  document.body.appendChild(ov);
+  _ffpRenderSharePreview();
+}
+window.ffpDoShareCard = async function () {
+  var a = window._ffpActCard || {}; var id = _ffpShareCfg.id;
+  var url = 'https://ffppassport.com/ffp-member-dashboard.html?activity=' + encodeURIComponent(id || '');
+  var bits = [a.activity || 'My activity']; if (a.distance_km != null && a.distance_km > 0) bits.push((Math.round(a.distance_km * 100) / 100) + ' km'); var mins = Math.round(a.duration_min || 0); if (mins || a.duration_sec) bits.push(mins + ' min');
   var text = bits.join(' · ') + ' — tracked on my FFP Passport';
   function cancel(e) { return e && (e.name === 'AbortError' || /abort|cancel|dismiss/i.test(e.message || '')); }
   try {
-    if (_ffpActShareFile && _ffpActShareForId === id && navigator.canShare && navigator.canShare({ files: [_ffpActShareFile] })) {
-      await navigator.share({ files: [_ffpActShareFile], text: text + '\n\n' + url }); return;
-    }
-    if (navigator.share) { await navigator.share({ title: 'FFP Passport', text: text, url: url }); return; }
+    if (_ffpShareFile && _ffpShareKey === _ffpCurKey() && navigator.canShare && navigator.canShare({ files: [_ffpShareFile] })) { await navigator.share({ files: [_ffpShareFile], text: text + '\n\n' + url }); return; }
+    if (navigator.share) { await navigator.share({ title: 'FFP Passport', text: text, url: url }); _ffpPrerenderShareFile(); return; }
     if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text + ' ' + url); if (typeof showToast === 'function') showToast('Link copied — paste it anywhere', 'success'); return; }
-    if (typeof showToast === 'function') showToast('Sharing isn’t supported on this device', 'error');
+    if (typeof showToast === 'function') showToast('Sharing isn’t supported here — try Download', 'error');
   } catch (e) { if (cancel(e)) return; if (typeof showToast === 'function') showToast('Could not open share', 'error'); }
 };
-// Download the branded card as a PNG (desktop or "save to camera roll" flows).
-window.ffpDownloadActivityCard = async function (id) {
-  var a = window._ffpActCard || {};
-  if (!(_ffpActShareFile && _ffpActShareForId === id)) { if (typeof showToast === 'function') showToast('Preparing image…', 'info'); await _ffpPrerenderActivityShare(a); }
-  if (!_ffpActShareFile) { if (typeof showToast === 'function') showToast('Could not make the image', 'error'); return; }
-  var u = URL.createObjectURL(_ffpActShareFile); var aTag = document.createElement('a'); aTag.href = u; aTag.download = _ffpActShareFile.name; document.body.appendChild(aTag); aTag.click(); setTimeout(function () { URL.revokeObjectURL(u); aTag.remove(); }, 500);
+window.ffpDownloadActivityCard = async function () {
+  var f = (_ffpShareFile && _ffpShareKey === _ffpCurKey()) ? _ffpShareFile : null;
+  if (!f) { if (typeof showToast === 'function') showToast('Preparing image…', 'info'); f = await _ffpCaptureShareCard(); }
+  if (!f) { if (typeof showToast === 'function') showToast('Could not make the image', 'error'); return; }
+  var u = URL.createObjectURL(f); var aTag = document.createElement('a'); aTag.href = u; aTag.download = f.name; document.body.appendChild(aTag); aTag.click(); setTimeout(function () { URL.revokeObjectURL(u); aTag.remove(); }, 500);
 };
 // Like / un-like someone else's activity (member_like_activity toggles + pings the owner's bell on a new like).
 window.ffpToggleActivityLike = async function (id) {
