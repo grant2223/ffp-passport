@@ -202,12 +202,13 @@ function occCard(o){
   var openN=Math.max(0,cap-nClients);
   // Headline = the booked person's name (or names); falls back to the session type when the spot is open.
   var who=nClients?o.clients.join(', '):(typeLbl||o.title||'Session');
-  var badge=openN>0?(cap===1?'<span class="ds-open">Available</span>':'<span class="ds-open">'+openN+' available</span>'):'<span class="ds-full">Full</span>';
+  var blocked=!!o.blocked;
+  var badge=blocked?'<span class="ds-full" style="background:rgba(255,255,255,.08);color:#8a99a8;">Blocked</span>':(openN>0?(cap===1?'<span class="ds-open">Available</span>':'<span class="ds-open">'+openN+' available</span>'):'<span class="ds-full">Full</span>');
   var sub=[];
   if(nClients && typeLbl) sub.push(typeLbl);   // type shown quietly when a name is the headline
   if(cap>1) sub.push(nClients+'/'+cap+' booked');
   if(o.location) sub.push(o.location);
-  return '<div onclick="openOccActions(\''+o.slot_id+'\',\''+o.date+'\')" style="background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:10px;padding:10px 12px;margin-bottom:7px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;">'+
+  return '<div onclick="openOccActions(\''+o.slot_id+'\',\''+o.date+'\','+(blocked?1:0)+')" style="background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:10px;padding:10px 12px;margin-bottom:7px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;'+(blocked?'opacity:.5;':'')+'">'+
     '<div style="min-width:0;"><div style="font-weight:800;color:var(--ffp-text);">'+_fmtTime(o.start_time)+' · '+escHtml(who)+(o.moved?' <span class="ni-lock-pill" style="background:rgba(255,204,0,.14);color:#FFCC00;">moved</span>':'')+'</div>'+
     (sub.length?'<div class="psub" style="margin:2px 0 0;">'+escHtml(sub.join(' · '))+'</div>':'')+'</div>'+
     '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">'+badge+'<span class="ms" style="color:var(--ffp-text-dim);">more_horiz</span></div>'+
@@ -299,17 +300,41 @@ var _proSlotsCache=[];
 async function _loadSlotsCache(){ var pid=_proProvId(); try{ var r=await window.supabase.rpc('pro_list_slots',{p_pro:pid}); _proSlotsCache=(r&&r.data)?r.data:[]; }catch(e){ _proSlotsCache=[]; } }
 
 // ── Occurrence actions ──
-function openOccActions(slotId,date){
+async function openOccActions(slotId,date,blocked){
+  blocked = (blocked===true||blocked===1||blocked==='1');
+  if(!(_proSlotsCache||[]).some(function(s){return s.id===slotId;})){ try{ await _loadSlotsCache(); }catch(e){} }
+  var slot=(_proSlotsCache||[]).find(function(s){return s.id===slotId;})||{};
+  // Session note at the top
+  var noteHtml=(slot.notes && String(slot.notes).trim())
+    ? '<div style="background:rgba(139,92,246,0.08);border:1px solid var(--ffp-border-mid);border-radius:10px;padding:11px 13px;margin:0 0 12px;"><div style="font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-text-dim);margin-bottom:4px;">Session note</div><div style="font-size:13px;color:var(--ffp-text);line-height:1.5;white-space:pre-wrap;">'+escHtml(slot.notes)+'</div></div>'
+    : '';
+  // Booked clients → tap a strap for their full details
+  var clients=slot.clients||[];
+  var clientHtml=clients.length
+    ? '<div style="margin:0 0 12px;"><div style="font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-text-dim);margin:0 2px 6px;">Booked in</div>'+clients.map(function(c){ return '<div onclick="closeModal(); if(window.clientProfile)clientProfile(\''+c.id+'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:10px;margin-bottom:7px;cursor:pointer;"><span style="width:34px;height:34px;border-radius:50%;background:rgba(139,92,246,0.16);color:#c4b5fd;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex:0 0 auto;">'+escHtml((c.full_name||"?").slice(0,1).toUpperCase())+'</span><div style="flex:1;min-width:0;"><div style="font-weight:700;color:var(--ffp-text);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(c.full_name||"Client")+'</div><div class="psub" style="margin:0;">Tap for details</div></div><span class="ms" style="color:var(--ffp-text-dim);flex:0 0 auto;">chevron_right</span></div>'; }).join('')+'</div>'
+    : '';
+  var blockBtn=blocked
+    ? '<button class="btn btn-sec btn-block" onclick="unblockOcc(\''+slotId+'\',\''+date+'\')"><span class="ms">event_available</span> Make available again</button>'
+    : '<button class="btn btn-ghost btn-block" onclick="cancelOcc(\''+slotId+'\',\''+date+'\')"><span class="ms">event_busy</span> Block this date (grey it out)</button>';
   openModalShell('', 'Session options',
-    '<div class="psub" style="margin:4px 0 12px;">'+escHtml(date)+'</div>'+
+    noteHtml +
+    '<div class="psub" style="margin:0 0 12px;">'+escHtml(date)+(blocked?' · <span style="color:#8a99a8;font-weight:700;">Blocked</span>':'')+'</div>'+
+    clientHtml +
     '<div style="display:flex;flex-direction:column;gap:8px;">'+
-      '<button class="btn btn-sec btn-block" onclick="closeModal(); openSlotPeople(\''+slotId+'\')"><span class="ms">group</span> Add or remove people</button>'+
+      '<button class="btn btn-pri btn-block" style="padding:14px;font-size:14px;" onclick="closeModal(); openSlotPeople(\''+slotId+'\')"><span class="ms">group_add</span> Add or remove people</button>'+
       '<button class="btn btn-sec btn-block" onclick="openReschedule(\''+slotId+'\',\''+date+'\',\'this_week\')"><span class="ms">event_repeat</span> Reschedule just this week</button>'+
       '<button class="btn btn-sec btn-block" onclick="openReschedule(\''+slotId+'\',\''+date+'\',\'from_now\')"><span class="ms">update</span> Shift this slot from now on</button>'+
-      '<button class="btn btn-ghost btn-block" onclick="cancelOcc(\''+slotId+'\',\''+date+'\')"><span class="ms">event_busy</span> Block this date (skip this week)</button>'+
+      blockBtn +
       '<button class="btn btn-ghost btn-block" onclick="closeModal(); _loadSlotsCache().then(function(){openSlotModal(\''+slotId+'\');})"><span class="ms">edit</span> Edit standing slot</button>'+
     '</div>',
     '<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
+}
+function unblockOcc(slotId,date){
+  var pid=_proProvId();
+  window.supabase.rpc('pro_unblock_occurrence',{p_pro:pid,p_slot:slotId,p_occ_date:date}).then(function(r){
+    if(r&&r.error){ showToast('Could not update','error'); return; }
+    showToast('Session is available again','success'); closeModal(); _schedRefresh();
+  }).catch(function(){ showToast('Could not update','error'); });
 }
 function openReschedule(slotId,date,scope){
   var hint=scope==='from_now'?'Pick the new day &amp; time — this changes the slot from here on.':'Move just this week\'s session. The slot stays put after.';
@@ -336,8 +361,8 @@ async function cancelOcc(slotId,date){
   try{
     var r=await window.supabase.rpc('pro_cancel_occurrence',{p_pro:pid,p_slot:slotId,p_occ_date:date});
     if(r&&r.error)throw r.error;
-    showToast('Cancelled for this week','success'); closeModal(); _schedRefresh();
-  }catch(e){ showToast('Could not cancel','error'); }
+    showToast('Session blocked — greyed on your calendar','success'); closeModal(); _schedRefresh();
+  }catch(e){ showToast('Could not block','error'); }
 }
 function confirmEndSlot(slotId){
   openModalShell('', 'End this slot?', '<div class="psub" style="margin:6px 0;">This removes the standing slot and stops it repeating. Past attendance is kept.</div>',
