@@ -7982,7 +7982,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '366';
+  const FFP_BUILD = '367';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -11801,8 +11801,11 @@ window.ffpRenderActivityCard = function (a, isOwn) {
   var lat = (a.lat != null ? a.lat : a.checkin_lat), lng = (a.lng != null ? a.lng : a.checkin_lng);
   var when = a.logged_at ? new Date(a.logged_at).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '';
   var icon = (window.ffpActivityIcon ? window.ffpActivityIcon(a.activity) : 'fitness_center');
-  var titleBlock = '<div style="font-size:27px;font-weight:900;color:#fff;line-height:1.12;">' + esc(a.activity || 'Activity') + '</div>' +
-    (when ? '<div style="font-size:12.5px;color:#cfe0ee;font-weight:700;margin-top:7px;">' + esc(when) + '</div>' : '');
+  // WHOOP-style start→end time range from logged_at + duration.
+  var startEnd = '';
+  try { if (a.logged_at) { var _sd = new Date(a.logged_at), _ed = new Date(_sd.getTime() + (Math.round(a.duration_min || 0)) * 60000 + (a.duration_sec || 0) * 1000); var _hm = function (d) { return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }; startEnd = _hm(_sd) + ' → ' + _hm(_ed); } } catch (e) {}
+  var titleBlock = '<div style="font-size:28px;font-weight:900;color:#fff;line-height:1.1;letter-spacing:-0.5px;">' + esc(a.activity || 'Activity') + '</div>' +
+    (when ? '<div style="font-size:12.5px;color:#cfe0ee;font-weight:700;margin-top:7px;">' + esc(when) + (startEnd ? ' · ' + startEnd : '') + '</div>' : '');
   var hero = a.photo_url
     ? '<div style="position:relative;width:100%;aspect-ratio:16/9;max-height:38vh;background:#13324a center/cover no-repeat;background-image:linear-gradient(180deg,rgba(8,20,32,0.05),rgba(8,20,32,0.85)),url(\'' + a.photo_url + '\');"><div style="position:absolute;left:0;right:0;bottom:0;padding:18px 20px;">' + titleBlock + '</div></div>'
     : '<div style="width:100%;padding:64px 20px 30px;background:linear-gradient(135deg,rgba(43,168,224,0.22),rgba(255,204,0,0.07));text-align:center;"><div style="width:86px;height:86px;border-radius:24px;margin:0 auto 16px;background:rgba(43,168,224,0.16);display:flex;align-items:center;justify-content:center;color:#2ba8e0;"><span class="material-icons" style="font-size:46px;">' + icon + '</span></div>' + titleBlock + '</div>';
@@ -11814,12 +11817,16 @@ window.ffpRenderActivityCard = function (a, isOwn) {
       '<div style="font-size:10px;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;color:#8a99a8;margin-top:3px;">' + label + '</div></div>';
   }
   var num = '<span style="font-size:12px;font-weight:700;">';
-  var statGrid = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
-    tile('schedule', '#2ba8e0', (a.duration_min || a.duration_sec) ? dur(a.duration_min, a.duration_sec) : '—', 'Time') +
-    tile('route', '#2ba8e0', (a.distance_km != null && a.distance_km > 0) ? ((Math.round(a.distance_km * 100) / 100) + num + ' km</span>') : '—', 'Distance') +
-    tile('local_fire_department', '#f3914e', a.calories ? (a.calories + num + ' kcal</span>') : '—', 'Burn') +
-    tile('favorite', '#ef6a6a', a.avg_heart_rate ? (a.avg_heart_rate + num + ' bpm</span>') : '—', 'Heart') +
-    '</div>';
+  // Pace (min/km) when there's distance + time.
+  var pace = '';
+  if (a.distance_km > 0 && (a.duration_min || a.duration_sec)) { var _tm = (a.duration_min || 0) + (a.duration_sec || 0) / 60; var _pm = _tm / a.distance_km; var _pmi = Math.floor(_pm); var _ps = Math.round((_pm - _pmi) * 60); if (_ps === 60) { _pmi++; _ps = 0; } pace = _pmi + ':' + ('0' + _ps).slice(-2); }
+  // Show only the stats this activity actually has (Duration always).
+  var _tiles = [tile('schedule', '#2ba8e0', (a.duration_min || a.duration_sec) ? dur(a.duration_min, a.duration_sec) : '—', 'Duration')];
+  if (a.distance_km != null && a.distance_km > 0) _tiles.push(tile('route', '#2ba8e0', (Math.round(a.distance_km * 100) / 100) + num + ' km</span>', 'Distance'));
+  if (pace) _tiles.push(tile('speed', '#7cc6ff', pace + num + ' /km</span>', 'Pace'));
+  if (a.calories) _tiles.push(tile('local_fire_department', '#f3914e', a.calories + num + ' kcal</span>', 'Burn'));
+  if (a.avg_heart_rate) _tiles.push(tile('favorite', '#ef6a6a', a.avg_heart_rate + num + ' bpm</span>', 'Avg HR'));
+  var statGrid = '<div style="font-size:11px;font-weight:800;letter-spacing:0.6px;text-transform:uppercase;color:#8a99a8;margin:0 2px 10px;">Key statistics</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' + _tiles.join('') + '</div>';
   var lblCss = 'font-size:10px;font-weight:800;letter-spacing:0.6px;text-transform:uppercase;color:#8a99a8;margin-bottom:7px;';
   // High five = an ICON on the RIGHT of the owner row (opposite the name, under the photo) — not a full-width button.
   var liked = !!a.i_liked, lc = a.like_count || 0;
@@ -11842,12 +11849,13 @@ window.ffpRenderActivityCard = function (a, isOwn) {
   var notesBlock = a.notes ? ('<div style="margin-top:22px;"><div style="' + lblCss + '">How it felt</div><div style="font-size:14px;color:#cfe0ee;line-height:1.65;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:14px 16px;">' + esc(a.notes) + '</div></div>') : '';
   // OWN activity → Share to social (native share sheet → WhatsApp/Instagram/etc.) + the existing in-app
   // connections share. OTHERS' activity → a Like button (mirrors the congratulate reaction).
-  var socialBtn = (isOwn && a.id) ? '<button onclick="window.ffpSocialShareActivity&&window.ffpSocialShareActivity(\'' + a.id + '\')" style="width:100%;margin-top:24px;padding:14px;border-radius:12px;border:none;background:#FFCC00;color:#082335;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:middle;">ios_share</span> Share</button>' : '';
+  var socialBtn = (isOwn && a.id) ? '<button onclick="window.ffpSocialShareActivity&&window.ffpSocialShareActivity(\'' + a.id + '\')" style="width:100%;margin-top:24px;padding:14px;border-radius:12px;border:none;background:#FFCC00;color:#082335;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:middle;">ios_share</span> Share card</button>' : '';
+  var downloadBtn = (isOwn && a.id) ? '<button onclick="window.ffpDownloadActivityCard&&window.ffpDownloadActivityCard(\'' + a.id + '\')" style="width:100%;margin-top:10px;padding:13px;border-radius:12px;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.05);color:#cfe0ee;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:middle;">download</span> Download card</button>' : '';
   var shareBtn = (isOwn && a.id) ? '<button onclick="window.ffpShareActivity&&window.ffpShareActivity(\'' + a.id + '\')" style="width:100%;margin-top:10px;padding:14px;border-radius:12px;border:1px solid rgba(43,168,224,0.35);background:rgba(43,168,224,0.07);color:#2ba8e0;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:middle;">' + (a.shared ? 'group' : 'group_add') + '</span> ' + (a.shared ? 'Shared with connections' : 'Share with my connections') + '</button>' : '';
   var editBtn = (isOwn && a.id) ? '<button onclick="ffpCloseActivityCard();window.ffpEditActivity&&window.ffpEditActivity(\'' + a.id + '\')" style="width:100%;margin-top:10px;padding:13px;border-radius:12px;border:1px solid rgba(43,168,224,0.35);background:rgba(43,168,224,0.07);color:#2ba8e0;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:middle;">edit</span> Edit activity</button>' : '';
   // High five now lives as an icon in the owner row (above) — no full-width button.
   var likeBtn = '';
-  var body = '<div style="padding:22px 20px 40px;max-width:640px;margin:0 auto;width:100%;box-sizing:border-box;">' + owner + statGrid + locBlock + notesBlock + socialBtn + shareBtn + editBtn + likeBtn + '</div>';
+  var body = '<div style="padding:22px 20px 40px;max-width:640px;margin:0 auto;width:100%;box-sizing:border-box;">' + owner + statGrid + locBlock + notesBlock + socialBtn + downloadBtn + shareBtn + editBtn + likeBtn + '</div>';
 
   ffpCloseActivityCard();
   var ov = document.createElement('div'); ov.id = 'ffp-act-card-ov';
@@ -11857,6 +11865,8 @@ window.ffpRenderActivityCard = function (a, isOwn) {
     '<div style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;">' + hero + body + '</div>';
   document.body.appendChild(ov);
   document.body.style.overflow = 'hidden';
+  // Pre-render the shareable card image (idle) so tapping Share can fire instantly (iOS user-activation).
+  if (isOwn && a.id) { try { (window.requestIdleCallback ? requestIdleCallback(function () { _ffpPrerenderActivityShare(a); }, { timeout: 4000 }) : setTimeout(function () { _ffpPrerenderActivityShare(a); }, 800)); } catch (e) {} }
   // Render the location mini-map (Leaflet, same basemap as the journey map) if we have coordinates.
   if (lat != null && lng != null) {
     setTimeout(function () {
@@ -11888,26 +11898,74 @@ window.ffpShareActivity = async function (id) {
     ffpCloseActivityCard();
   } catch (e) { if (typeof showToast === 'function') showToast('Could not share — try again', 'error'); }
 };
-// Share an activity OUT to social platforms via the device's native share sheet (WhatsApp, Instagram,
-// Messages, etc.). Falls back to copying the link on desktop browsers that lack navigator.share.
-window.ffpSocialShareActivity = function (id) {
+// ── Shareable social CARD (branded stats image) ─────────────────────────────────────────────
+// Builds an offscreen FFP-branded card, rasterises it with html2canvas (already loaded), and shares
+// it as an image via the native share sheet — or downloads it. Mirrors the Passport share pipeline.
+function _ffpActShareStats(a) {
+  function dur(min, sec) { min = Math.max(0, Math.round(min || 0)); var h = Math.floor(min / 60), m = min % 60; return (h ? h + 'h ' : '') + m + 'm' + (sec ? (' ' + sec + 's') : ''); }
+  var out = [['Duration', (a.duration_min || a.duration_sec) ? dur(a.duration_min, a.duration_sec) : '—']];
+  if (a.distance_km != null && a.distance_km > 0) out.push(['Distance', (Math.round(a.distance_km * 100) / 100) + ' km']);
+  if (a.calories) out.push(['Calories', a.calories + ' kcal']);
+  if (a.avg_heart_rate) out.push(['Avg HR', a.avg_heart_rate + ' bpm']);
+  return out.slice(0, 4);
+}
+function _ffpBuildShareCard(a) {
+  var esc = (window.escHtml ? window.escHtml : function (s) { return String(s == null ? '' : s); });
+  var icon = (window.ffpActivityIcon ? window.ffpActivityIcon(a.activity) : 'fitness_center');
+  var when = a.logged_at ? new Date(a.logged_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  var sub = [when, [a.city, a.country].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
+  var statHtml = _ffpActShareStats(a).map(function (s) { return '<div style="text-align:center;flex:1;"><div style="font-size:27px;font-weight:900;color:#fff;line-height:1;">' + esc(s[1]) + '</div><div style="font-size:11px;color:#9fc4e0;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-top:6px;">' + esc(s[0]) + '</div></div>'; }).join('');
+  var el = document.createElement('div');
+  el.style.cssText = 'position:fixed;left:-10000px;top:0;width:540px;height:700px;';
+  el.innerHTML = '<div style="width:540px;height:700px;box-sizing:border-box;background:linear-gradient(160deg,#11436c 0%,#0a2740 52%,#06121f 100%);font-family:Montserrat,-apple-system,system-ui,sans-serif;color:#fff;position:relative;padding:44px 40px;">' +
+    '<div style="font-size:19px;font-weight:900;letter-spacing:3px;">FFP <span style="color:#FFCC00;">PASSPORT</span></div>' +
+    '<div style="text-align:center;margin-top:76px;">' +
+      '<div style="width:124px;height:124px;border-radius:50%;background:rgba(43,168,224,0.18);display:flex;align-items:center;justify-content:center;margin:0 auto;"><span class="material-icons" style="font-size:66px;color:#3fb0e8;line-height:1;">' + icon + '</span></div>' +
+      '<div style="font-size:36px;font-weight:900;margin-top:26px;letter-spacing:-0.5px;">' + esc(a.activity || 'Activity') + '</div>' +
+      (sub ? '<div style="font-size:14px;color:#9fc4e0;font-weight:700;margin-top:10px;">' + esc(sub) + '</div>' : '') +
+    '</div>' +
+    '<div style="position:absolute;left:40px;right:40px;bottom:46px;">' +
+      '<div style="display:flex;justify-content:space-between;gap:12px;border-top:1px solid rgba(255,255,255,0.14);padding-top:26px;">' + statHtml + '</div>' +
+      '<div style="text-align:center;font-size:11px;color:#7fa6c4;font-weight:800;letter-spacing:1.5px;margin-top:24px;">TRACKED ON FFP PASSPORT</div>' +
+    '</div>' +
+  '</div>';
+  return el;
+}
+var _ffpActShareFile = null, _ffpActShareForId = null, _ffpActRendering = false;
+async function _ffpPrerenderActivityShare(a) {
+  if (_ffpActRendering || typeof html2canvas === 'undefined' || !a || !a.id) return;
+  _ffpActRendering = true; _ffpActShareFile = null; _ffpActShareForId = a.id;
+  var el = null;
+  try {
+    el = _ffpBuildShareCard(a); document.body.appendChild(el);
+    var canvas = await html2canvas(el.firstChild, { backgroundColor: null, scale: 2, useCORS: true, logging: false });
+    await new Promise(function (res) { canvas.toBlob(function (blob) { if (blob) { var nm = (a.activity || 'activity').replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '') || 'activity'; _ffpActShareFile = new File([blob], 'ffp-' + nm + '.png', { type: 'image/png' }); } res(); }, 'image/png'); });
+  } catch (e) { } finally { if (el && el.parentNode) el.parentNode.removeChild(el); _ffpActRendering = false; }
+}
+// Tap handler — fires share synchronously (image if pre-rendered) so iOS keeps the user activation.
+window.ffpSocialShareActivity = async function (id) {
   var a = window._ffpActCard || {};
   var url = 'https://ffppassport.com/ffp-member-dashboard.html?activity=' + encodeURIComponent(id);
   var bits = [a.activity || 'My activity'];
   if (a.distance_km != null && a.distance_km > 0) bits.push((Math.round(a.distance_km * 100) / 100) + ' km');
-  var mins = Math.round(a.duration_min || 0);
-  if (mins || a.duration_sec) bits.push(mins + ' min');
+  var mins = Math.round(a.duration_min || 0); if (mins || a.duration_sec) bits.push(mins + ' min');
   var text = bits.join(' · ') + ' — tracked on my FFP Passport';
+  function cancel(e) { return e && (e.name === 'AbortError' || /abort|cancel|dismiss/i.test(e.message || '')); }
   try {
-    if (navigator.share) {
-      navigator.share({ title: 'FFP Passport', text: text, url: url }).catch(function () {});
-    } else if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text + ' ' + url);
-      if (typeof showToast === 'function') showToast('Link copied — paste it anywhere', 'success');
-    } else if (typeof showToast === 'function') {
-      showToast('Sharing isn’t supported on this device', 'error');
+    if (_ffpActShareFile && _ffpActShareForId === id && navigator.canShare && navigator.canShare({ files: [_ffpActShareFile] })) {
+      await navigator.share({ files: [_ffpActShareFile], text: text + '\n\n' + url }); return;
     }
-  } catch (e) { if (typeof showToast === 'function') showToast('Could not open share', 'error'); }
+    if (navigator.share) { await navigator.share({ title: 'FFP Passport', text: text, url: url }); return; }
+    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text + ' ' + url); if (typeof showToast === 'function') showToast('Link copied — paste it anywhere', 'success'); return; }
+    if (typeof showToast === 'function') showToast('Sharing isn’t supported on this device', 'error');
+  } catch (e) { if (cancel(e)) return; if (typeof showToast === 'function') showToast('Could not open share', 'error'); }
+};
+// Download the branded card as a PNG (desktop or "save to camera roll" flows).
+window.ffpDownloadActivityCard = async function (id) {
+  var a = window._ffpActCard || {};
+  if (!(_ffpActShareFile && _ffpActShareForId === id)) { if (typeof showToast === 'function') showToast('Preparing image…', 'info'); await _ffpPrerenderActivityShare(a); }
+  if (!_ffpActShareFile) { if (typeof showToast === 'function') showToast('Could not make the image', 'error'); return; }
+  var u = URL.createObjectURL(_ffpActShareFile); var aTag = document.createElement('a'); aTag.href = u; aTag.download = _ffpActShareFile.name; document.body.appendChild(aTag); aTag.click(); setTimeout(function () { URL.revokeObjectURL(u); aTag.remove(); }, 500);
 };
 // Like / un-like someone else's activity (member_like_activity toggles + pings the owner's bell on a new like).
 window.ffpToggleActivityLike = async function (id) {
