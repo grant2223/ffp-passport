@@ -86,6 +86,7 @@ async function openServiceModal(id){
       '<div class="field"><div class="label">Price per session ('+_svcCcy()+')</div><input class="input" type="number" min="0" id="sv-price_aed" value="'+_svcEsc(String(s.price_aed==null?'':s.price_aed))+'" placeholder="For a single booking"></div>'+
       '<div class="field"><div class="label">Location</div><input class="input" id="sv-location" value="'+_svcEsc(s.location||'')+'" placeholder="Optional"></div>'+
       '<div class="field full"><div class="label">Description</div><input class="input" id="sv-description" value="'+_svcEsc(s.description||'')+'" placeholder="What this service includes (optional)"></div>'+
+      '<div class="field full"><label style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;background:rgba(139,92,246,0.07);border:1px solid var(--ffp-border-mid);border-radius:10px;padding:12px 14px;"><span style="display:flex;flex-direction:column;gap:2px;"><span style="font-size:13px;font-weight:800;color:var(--ffp-text);">Offer online</span><span style="font-size:11px;color:var(--ffp-text-dim);font-weight:600;">Members can self-book slots that use this service, up to capacity.</span></span><input type="checkbox" id="sv-bookable_online" '+(s.bookable_online?'checked':'')+' style="width:20px;height:20px;accent-color:var(--ffp-purple);flex:0 0 auto;cursor:pointer;"></label></div>'+
     '</div>'+
       '<div class="psub" style="margin:2px 0 0;">Set the price for a single session here. To sell a multi-session bundle for this service, add a <b>Package</b> in the Packages tab and link it to this service.</div>'+
     '</div>',
@@ -98,10 +99,12 @@ async function saveService(id){
   var pid = _svcProvId(); if (!pid) return;
   var g = function (k){ var el = document.getElementById('sv-' + k); return el ? (el.value || '').trim() : ''; };
   var name = g('name'); if (!name) { _svcToast('Name your service', 'error'); return; }
+  var _onlineEl = document.getElementById('sv-bookable_online');
   var payload = {
     name: name, service_type: g('service_type') || 'pt_session', description: g('description'),
     duration_min: g('duration_min'), capacity: g('capacity') || '1',
-    price_aed: g('price_aed'), location: g('location')
+    price_aed: g('price_aed'), location: g('location'),
+    bookable_online: !!(_onlineEl && _onlineEl.checked)
   };
   try {
     var r = await window.supabase.rpc('pro_save_service', { p_pro: pid, p_id: id || null, p: payload });
