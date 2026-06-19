@@ -7982,7 +7982,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '374';
+  const FFP_BUILD = '376';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -11909,67 +11909,85 @@ function _ffpImgToDataUrl(url) {
 }
 async function _ffpEnsureLogo() { if (_ffpLogoData === null) { _ffpLogoData = await _ffpImgToDataUrl(_ffpLogoUrl); } return _ffpLogoData; }
 async function _ffpEnsurePhoto(src) { if (!src) return ''; if (_ffpPhotoSrc !== src) { _ffpPhotoSrc = src; _ffpPhotoData = await _ffpImgToDataUrl(src); } return _ffpPhotoData || ''; }
-function _ffpBuildShareCard(a, ratio, usePhoto) {
-  var esc = (window.escHtml ? window.escHtml : function (s) { return String(s == null ? '' : s); });
-  var icon = (window.ffpActivityIcon ? window.ffpActivityIcon(a.activity) : 'fitness_center');
-  var when = a.logged_at ? new Date(a.logged_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
-  var sub = [when, [a.city, a.country].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
-  var d = _ffpCardDims(ratio), pad = Math.round(d.w * 0.075);
-  var photoData = (usePhoto && _ffpPhotoData && _ffpPhotoSrc === a.photo_url) ? _ffpPhotoData : ''; var hasPhoto = !!photoData;
+// Load a data-URL into an Image (cached). data: URLs never taint the canvas → toDataURL always works.
+var _ffpImgCache = {};
+function _ffpLoadImg(dataUrl) { return new Promise(function (res) { if (!dataUrl) { res(null); return; } if (_ffpImgCache[dataUrl]) { res(_ffpImgCache[dataUrl]); return; } var im = new Image(); im.onload = function () { _ffpImgCache[dataUrl] = im; res(im); }; im.onerror = function () { res(null); }; im.src = dataUrl; }); }
+// Draw the share card DIRECTLY to a <canvas> with the 2D API — no html2canvas (which hangs in the iOS webapp). Returns the canvas.
+async function _ffpMakeCardCanvas(a, ratio, usePhoto) {
+  var d = _ffpCardDims(ratio), W = d.w, H = d.h, S = 2, pad = Math.round(W * 0.075);
+  var fam = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif';
+  var cv = document.createElement('canvas'); cv.width = W * S; cv.height = H * S;
+  var ctx = cv.getContext('2d'); ctx.scale(S, S);
+  var logo = null, photo = null;
+  try { await _ffpEnsureLogo(); if (_ffpLogoData) logo = await _ffpLoadImg(_ffpLogoData); } catch (e) {}
+  if (usePhoto && a.photo_url) { try { await _ffpEnsurePhoto(a.photo_url); if (_ffpPhotoData) photo = await _ffpLoadImg(_ffpPhotoData); } catch (e) {} }
+  if (photo && photo.width) {
+    var ir = photo.width / photo.height, cr = W / H, dw, dh; if (ir > cr) { dh = H; dw = H * ir; } else { dw = W; dh = W / ir; }
+    ctx.drawImage(photo, (W - dw) / 2, (H - dh) / 2, dw, dh);
+    var sg = ctx.createLinearGradient(0, 0, 0, H); sg.addColorStop(0, 'rgba(5,12,20,0.35)'); sg.addColorStop(0.5, 'rgba(5,12,20,0.5)'); sg.addColorStop(1, 'rgba(5,12,20,0.85)'); ctx.fillStyle = sg; ctx.fillRect(0, 0, W, H);
+  } else {
+    var bg = ctx.createLinearGradient(0, 0, W, H); bg.addColorStop(0, '#11436c'); bg.addColorStop(0.52, '#0a2740'); bg.addColorStop(1, '#06121f'); ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  }
+  ctx.textAlign = 'center';
+  if (logo && logo.width) { var lw = Math.round(W * 0.32), lh = Math.round(lw * (logo.height / logo.width)); ctx.drawImage(logo, (W - lw) / 2, pad, lw, lh); }
+  else { ctx.fillStyle = '#fff'; ctx.font = '900 italic ' + Math.round(W * 0.07) + 'px ' + fam; ctx.fillText('FFP', W / 2, pad + Math.round(W * 0.075)); }
+  var cy = Math.round(H * 0.44);
+  ctx.fillStyle = '#fff'; ctx.font = '900 ' + Math.round(W * 0.072) + 'px ' + fam; ctx.fillText(a.activity || 'Activity', W / 2, cy - Math.round(W * 0.085));
   var hasDist = (a.distance_km != null && a.distance_km > 0);
-  var heroVal = hasDist ? String(Math.round(a.distance_km * 100) / 100) : _ffpDurStr(a), heroUnit = hasDist ? 'km' : '';
-  var statHtml = _ffpActBottomStats(a).map(function (s) { return '<div style="text-align:center;flex:1;"><div style="font-size:' + Math.round(d.w * 0.052) + 'px;font-weight:900;color:#fff;line-height:1;">' + esc(s[1]) + '</div><div style="font-size:' + Math.round(d.w * 0.022) + 'px;color:#9fc4e0;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-top:6px;">' + esc(s[0]) + '</div></div>'; }).join('');
-  var bg = hasPhoto ? ("#06121f url('" + photoData + "') center/cover no-repeat") : 'linear-gradient(160deg,#11436c 0%,#0a2740 52%,#06121f 100%)';
-  var scrim = hasPhoto ? '<div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,12,20,0.35) 0%,rgba(5,12,20,0.5) 50%,rgba(5,12,20,0.82) 100%);"></div>' : '';
-  var el = document.createElement('div');
-  el.style.cssText = 'position:relative;box-sizing:border-box;width:' + d.w + 'px;height:' + d.h + 'px;background:' + bg + ';font-family:Montserrat,-apple-system,system-ui,sans-serif;color:#fff;display:flex;flex-direction:column;padding:' + pad + 'px;overflow:hidden;';
-  el.innerHTML = scrim +
-    '<div style="position:absolute;right:' + Math.round(-d.w * 0.1) + 'px;top:' + Math.round(d.h * 0.2) + 'px;z-index:0;line-height:1;"><span class="material-icons" style="font-size:' + Math.round(d.w * 0.66) + 'px;color:#fff;opacity:0.06;">' + icon + '</span></div>' +
-    '<div style="position:relative;z-index:1;text-align:center;">' + (_ffpLogoData ? '<img src="' + _ffpLogoData + '" alt="FFP" style="width:' + Math.round(d.w * 0.32) + 'px;height:auto;display:inline-block;">' : '<span style="font-style:italic;font-weight:900;font-size:' + Math.round(d.w * 0.075) + 'px;letter-spacing:-1px;color:#fff;">FFP</span>') + '</div>' +
-    '<div style="position:relative;z-index:1;flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;">' +
-      '<div style="font-size:' + Math.round(d.w * 0.072) + 'px;font-weight:900;letter-spacing:-1px;">' + esc(a.activity || 'Activity') + '</div>' +
-      '<div style="display:flex;align-items:flex-end;gap:' + Math.round(d.w * 0.018) + 'px;margin-top:' + Math.round(d.w * 0.03) + 'px;"><div style="font-size:' + Math.round(d.w * 0.165) + 'px;font-weight:900;line-height:0.86;letter-spacing:-3px;">' + esc(heroVal) + '</div>' + (heroUnit ? '<div style="font-size:' + Math.round(d.w * 0.05) + 'px;font-weight:800;color:#9fc4e0;margin-bottom:' + Math.round(d.w * 0.022) + 'px;">' + heroUnit + '</div>' : '') + '</div>' +
-      (sub ? '<div style="font-size:' + Math.round(d.w * 0.027) + 'px;color:#bcd5e8;font-weight:700;margin-top:' + Math.round(d.w * 0.028) + 'px;">' + esc(sub) + '</div>' : '') +
-    '</div>' +
-    (statHtml ? '<div style="position:relative;z-index:1;display:flex;justify-content:space-between;gap:' + Math.round(d.w * 0.02) + 'px;border-top:1px solid rgba(255,255,255,0.16);padding-top:' + Math.round(d.w * 0.04) + 'px;">' + statHtml + '</div>' : '') +
-    '<div style="position:relative;z-index:1;text-align:center;font-size:' + Math.round(d.w * 0.021) + 'px;color:#9ec0db;font-weight:800;letter-spacing:1.5px;margin-top:' + Math.round(d.w * 0.035) + 'px;">TRACKED ON FFP PASSPORT</div>' +
-    '';
-  return el;
+  var heroVal = hasDist ? String(Math.round(a.distance_km * 100) / 100) : _ffpDurStr(a), heroUnit = hasDist ? ' km' : '';
+  var hs = Math.round(W * 0.165), us = Math.round(W * 0.05), heroY = cy + Math.round(W * 0.04);
+  ctx.font = '900 ' + hs + 'px ' + fam; var hwid = ctx.measureText(heroVal).width;
+  ctx.font = '800 ' + us + 'px ' + fam; var uwid = heroUnit ? ctx.measureText(heroUnit).width : 0;
+  var startX = W / 2 - (hwid + uwid) / 2; ctx.textAlign = 'left';
+  ctx.font = '900 ' + hs + 'px ' + fam; ctx.fillStyle = '#fff'; ctx.fillText(heroVal, startX, heroY);
+  if (heroUnit) { ctx.font = '800 ' + us + 'px ' + fam; ctx.fillStyle = '#9fc4e0'; ctx.fillText(heroUnit, startX + hwid, heroY); }
+  ctx.textAlign = 'center';
+  var sub = [(a.logged_at ? new Date(a.logged_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : ''), [a.city, a.country].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
+  if (sub) { ctx.fillStyle = '#bcd5e8'; ctx.font = '700 ' + Math.round(W * 0.027) + 'px ' + fam; ctx.fillText(sub, W / 2, cy + Math.round(W * 0.115)); }
+  var stats = _ffpActBottomStats(a);
+  if (stats.length) {
+    var rowY = H - Math.round(W * 0.155), divY = rowY - Math.round(W * 0.055);
+    ctx.strokeStyle = 'rgba(255,255,255,0.16)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(pad, divY); ctx.lineTo(W - pad, divY); ctx.stroke();
+    var n = stats.length, colW = (W - 2 * pad) / n;
+    for (var i = 0; i < n; i++) { var x = pad + colW * (i + 0.5); ctx.fillStyle = '#fff'; ctx.font = '900 ' + Math.round(W * 0.052) + 'px ' + fam; ctx.fillText(stats[i][1], x, rowY); ctx.fillStyle = '#9fc4e0'; ctx.font = '700 ' + Math.round(W * 0.022) + 'px ' + fam; ctx.fillText(String(stats[i][0]).toUpperCase(), x, rowY + Math.round(W * 0.04)); }
+  }
+  ctx.fillStyle = '#9ec0db'; ctx.font = '800 ' + Math.round(W * 0.021) + 'px ' + fam; ctx.fillText('TRACKED ON FFP PASSPORT', W / 2, H - Math.round(W * 0.045));
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';   // backing store is 2×; display at design size
+  return cv;
 }
 var _ffpShareCfg = { ratio: '1:1', usePhoto: false, id: null };
-var _ffpShareFile = null, _ffpShareKey = null, _ffpShareRendering = false;
+var _ffpShareFile = null, _ffpShareKey = null, _ffpShareRendering = false, _ffpShareErr = '';
 function _ffpCurKey() { return (_ffpShareCfg.id || '') + '|' + _ffpShareCfg.ratio + '|' + (_ffpShareCfg.usePhoto ? 1 : 0); }
-async function _ffpCaptureShareCard() {
-  if (typeof html2canvas === 'undefined') return null;
-  var a = window._ffpActCard || {};
-  await _ffpEnsureLogo(); if (_ffpShareCfg.usePhoto) await _ffpEnsurePhoto(a.photo_url);
-  var node = _ffpBuildShareCard(a, _ffpShareCfg.ratio, _ffpShareCfg.usePhoto);
-  node.style.position = 'fixed'; node.style.left = '-10000px'; node.style.top = '0'; document.body.appendChild(node);
-  try {
-    var canvas = await html2canvas(node, { backgroundColor: null, scale: 2, useCORS: true, imageTimeout: 6000, logging: false });
-    return await new Promise(function (res) { canvas.toBlob(function (b) { var nm = (a.activity || 'activity').replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '') || 'activity'; res(b ? new File([b], 'ffp-' + nm + '.png', { type: 'image/png' }) : null); }, 'image/png'); });
-  } catch (e) { return null; } finally { if (node.parentNode) node.parentNode.removeChild(node); }
+function _ffpDataUrlToFile(dataUrl, name) {
+  var parts = dataUrl.split(','); var bin = atob(parts[1]); var len = bin.length; var arr = new Uint8Array(len);
+  for (var i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);
+  var blob = new Blob([arr], { type: 'image/png' });
+  try { return new File([blob], name, { type: 'image/png' }); } catch (e) { try { blob.name = name; } catch (e2) {} return blob; }
 }
-async function _ffpPrerenderShareFile() { if (_ffpShareRendering) return; _ffpShareRendering = true; var key = _ffpCurKey(); var f = await _ffpCaptureShareCard(); if (_ffpCurKey() === key) { _ffpShareFile = f; _ffpShareKey = key; } _ffpShareRendering = false; }
-function _ffpDrawPreview() {
+async function _ffpCaptureShareCard() {
+  _ffpShareErr = '';
+  try {
+    var a = window._ffpActCard || {};
+    var cv = await _ffpMakeCardCanvas(a, _ffpShareCfg.ratio, _ffpShareCfg.usePhoto);
+    var dataUrl = cv.toDataURL('image/png');
+    if (!dataUrl || dataUrl.length < 100) { _ffpShareErr = 'empty canvas'; return null; }
+    var nm = (a.activity || 'activity').replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '') || 'activity';
+    return _ffpDataUrlToFile(dataUrl, 'ffp-' + nm + '.png');
+  } catch (e) { _ffpShareErr = (e && (e.message || e.name)) || ('' + e); return null; }
+}
+async function _ffpRenderSharePreview() {
   var host = document.getElementById('ffp-sc-preview'); if (!host) return;
   var a = window._ffpActCard || {}; var d = _ffpCardDims(_ffpShareCfg.ratio);
+  ['1:1', '4:5', '9:16'].forEach(function (r) { var t = document.getElementById('ffp-sc-tab-' + r.replace(':', '-')); if (t) { var on = (r === _ffpShareCfg.ratio); t.style.background = on ? '#2ba8e0' : 'transparent'; t.style.color = on ? '#fff' : '#8a99a8'; } });
   var maxH = Math.min((window.innerHeight || 700) * 0.5, 540), maxW = host.clientWidth || 300;
   var scale = Math.min(maxW / d.w, maxH / d.h); if (!(scale > 0)) scale = 0.5;
   host.style.height = Math.round(d.h * scale) + 'px';
-  var node = _ffpBuildShareCard(a, _ffpShareCfg.ratio, _ffpShareCfg.usePhoto);
-  node.style.position = 'absolute'; node.style.left = '50%'; node.style.top = '0'; node.style.transformOrigin = 'top center'; node.style.transform = 'translateX(-50%) scale(' + scale + ')';
-  host.innerHTML = ''; host.appendChild(node);
-  ['1:1', '4:5', '9:16'].forEach(function (r) { var t = document.getElementById('ffp-sc-tab-' + r.replace(':', '-')); if (t) { var on = (r === _ffpShareCfg.ratio); t.style.background = on ? '#2ba8e0' : 'transparent'; t.style.color = on ? '#fff' : '#8a99a8'; } });
-}
-async function _ffpRenderSharePreview() {
-  _ffpDrawPreview();   // show immediately (text-logo fallback until the asset is ready)
-  var a = window._ffpActCard || {}; var changed = false;
-  if (_ffpLogoData === null) { await _ffpEnsureLogo(); changed = true; }
-  if (_ffpShareCfg.usePhoto && a.photo_url && _ffpPhotoSrc !== a.photo_url) { await _ffpEnsurePhoto(a.photo_url); changed = true; }
-  if (changed) _ffpDrawPreview();
+  var cv = await _ffpMakeCardCanvas(a, _ffpShareCfg.ratio, _ffpShareCfg.usePhoto);
+  cv.style.position = 'absolute'; cv.style.left = '50%'; cv.style.top = '0'; cv.style.transformOrigin = 'top center'; cv.style.transform = 'translateX(-50%) scale(' + scale + ')';
+  host.innerHTML = ''; host.appendChild(cv);
+  // The preview canvas IS the export — cache the file now so Share/Download fire instantly (within the iOS tap).
   _ffpShareFile = null; _ffpShareKey = null;
-  (window.requestIdleCallback ? requestIdleCallback(function () { _ffpPrerenderShareFile(); }, { timeout: 2500 }) : setTimeout(function () { _ffpPrerenderShareFile(); }, 250));
+  try { var nm = (a.activity || 'activity').replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '') || 'activity'; _ffpShareFile = _ffpDataUrlToFile(cv.toDataURL('image/png'), 'ffp-' + nm + '.png'); _ffpShareKey = _ffpCurKey(); } catch (e) { _ffpShareErr = (e && (e.message || e.name)) || ('' + e); }
 }
 window.ffpShareSetRatio = function (r) { _ffpShareCfg.ratio = r; _ffpRenderSharePreview(); };
 window.ffpShareTogglePhoto = function (el) { _ffpShareCfg.usePhoto = !_ffpShareCfg.usePhoto; if (el) { el.style.background = _ffpShareCfg.usePhoto ? '#2ba8e0' : '#3a4654'; var k = el.firstChild; if (k) k.style.right = _ffpShareCfg.usePhoto ? '2px' : '20px'; } _ffpRenderSharePreview(); };
@@ -12001,7 +12019,7 @@ window.ffpDoShareCard = async function () {
   // ALWAYS share the IMAGE (never a URL/link). Use the pre-rendered file if ready, else make it now.
   var f = (_ffpShareFile && _ffpShareKey === _ffpCurKey()) ? _ffpShareFile : null;
   if (!f) { f = await _ffpCaptureShareCard(); if (f) { _ffpShareFile = f; _ffpShareKey = _ffpCurKey(); } }
-  if (!f) { if (typeof showToast === 'function') showToast('Could not make the image — try Download', 'error'); return; }
+  if (!f) { if (typeof showToast === 'function') showToast('Image failed: ' + (_ffpShareErr || 'unknown'), 'error'); return; }
   try {
     if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], text: caption }); return; }
     // Device can't share images (most desktop browsers) → download it instead of sharing a link.
@@ -12021,10 +12039,17 @@ window.ffpDownloadActivityCard = async function () {
   timer = setInterval(function () { if (pct < 92) paint(pct + (ready ? 14 : 6)); }, 110);   // animate while the image renders (no native progress events for a local export)
   var f = ready ? _ffpShareFile : await _ffpCaptureShareCard();
   if (timer) clearInterval(timer);
-  if (!f) { if (btn) btn.disabled = false; reset(); if (typeof showToast === 'function') showToast('Could not make the image', 'error'); return; }
-  var u = URL.createObjectURL(f); var aTag = document.createElement('a'); aTag.href = u; aTag.download = f.name; document.body.appendChild(aTag); aTag.click(); setTimeout(function () { URL.revokeObjectURL(u); aTag.remove(); }, 500);
+  if (!f) { if (btn) btn.disabled = false; reset(); if (typeof showToast === 'function') showToast('Image failed: ' + (_ffpShareErr || 'unknown'), 'error'); return; }
   paint(100);
-  if (typeof showToast === 'function') showToast('Saved to your device', 'success');
+  var iOS = /iPad|iPhone|iPod/.test(navigator.userAgent || '') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  try {
+    if (iOS && navigator.canShare && navigator.canShare({ files: [f] })) {
+      await navigator.share({ files: [f] });   // iOS ignores <a download>; saving to the camera roll is "Save Image" in the share sheet
+    } else {
+      var u = URL.createObjectURL(f); var aTag = document.createElement('a'); aTag.href = u; aTag.download = f.name; document.body.appendChild(aTag); aTag.click(); setTimeout(function () { URL.revokeObjectURL(u); aTag.remove(); }, 500);
+      if (typeof showToast === 'function') showToast('Saved to your device', 'success');
+    }
+  } catch (e) { if (!(e && e.name === 'AbortError') && typeof showToast === 'function') showToast('Could not save', 'error'); }
   if (btn) btn.disabled = false;
   setTimeout(reset, 1800);
 };
