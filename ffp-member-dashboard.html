@@ -7982,7 +7982,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '368';
+  const FFP_BUILD = '369';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -11908,7 +11908,7 @@ function _ffpBuildShareCard(a, ratio, usePhoto) {
   el.innerHTML = '<div style="position:absolute;inset:0;box-sizing:border-box;background:' + bg + ';font-family:Montserrat,-apple-system,system-ui,sans-serif;color:#fff;display:flex;flex-direction:column;padding:' + pad + 'px;overflow:hidden;">' +
     scrim +
     '<div style="position:absolute;right:' + Math.round(-d.w * 0.1) + 'px;top:' + Math.round(d.h * 0.2) + 'px;z-index:0;line-height:1;"><span class="material-icons" style="font-size:' + Math.round(d.w * 0.66) + 'px;color:#fff;opacity:0.06;">' + icon + '</span></div>' +
-    '<div style="position:relative;z-index:1;font-size:' + Math.round(d.w * 0.04) + 'px;font-weight:900;letter-spacing:3px;">FFP <span style="color:#FFCC00;">PASSPORT</span></div>' +
+    '<img src="/assets/ffp-emblem.png" alt="FFP" crossorigin="anonymous" style="position:relative;z-index:1;width:' + Math.round(d.w * 0.14) + 'px;height:' + Math.round(d.w * 0.14) + 'px;display:block;">' +
     '<div style="position:relative;z-index:1;flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;">' +
       '<div style="font-size:' + Math.round(d.w * 0.072) + 'px;font-weight:900;letter-spacing:-1px;">' + esc(a.activity || 'Activity') + '</div>' +
       '<div style="display:flex;align-items:flex-end;gap:' + Math.round(d.w * 0.018) + 'px;margin-top:' + Math.round(d.w * 0.03) + 'px;"><div style="font-size:' + Math.round(d.w * 0.165) + 'px;font-weight:900;line-height:0.86;letter-spacing:-3px;">' + esc(heroVal) + '</div>' + (heroUnit ? '<div style="font-size:' + Math.round(d.w * 0.05) + 'px;font-weight:800;color:#9fc4e0;margin-bottom:' + Math.round(d.w * 0.022) + 'px;">' + heroUnit + '</div>' : '') + '</div>' +
@@ -11919,7 +11919,7 @@ function _ffpBuildShareCard(a, ratio, usePhoto) {
   '</div>';
   return el;
 }
-var _ffpShareCfg = { ratio: '9:16', usePhoto: false, id: null };
+var _ffpShareCfg = { ratio: '1:1', usePhoto: false, id: null };
 var _ffpShareFile = null, _ffpShareKey = null, _ffpShareRendering = false;
 function _ffpCurKey() { return (_ffpShareCfg.id || '') + '|' + _ffpShareCfg.ratio + '|' + (_ffpShareCfg.usePhoto ? 1 : 0); }
 async function _ffpCaptureShareCard() {
@@ -11951,7 +11951,7 @@ window.ffpCloseShareSheet = function () { var o = document.getElementById('ffp-s
 // Tap "Share card" → open the PREVIEW first (pick format, then Share / Download).
 window.ffpSocialShareActivity = function (id) { _ffpOpenShareSheet(id); };
 function _ffpOpenShareSheet(id) {
-  var a = window._ffpActCard || {}; _ffpShareCfg = { ratio: '9:16', usePhoto: false, id: id }; _ffpShareFile = null; _ffpShareKey = null;
+  var a = window._ffpActCard || {}; _ffpShareCfg = { ratio: '1:1', usePhoto: false, id: id }; _ffpShareFile = null; _ffpShareKey = null;
   var esc = (window.escHtml ? window.escHtml : function (s) { return String(s == null ? '' : s); });
   var hasPhoto = !!a.photo_url;
   var tab = function (r, lbl) { return '<div id="ffp-sc-tab-' + r.replace(':', '-') + '" onclick="ffpShareSetRatio(\'' + r + '\')" style="flex:1;text-align:center;padding:9px;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;color:#8a99a8;">' + lbl + '</div>'; };
