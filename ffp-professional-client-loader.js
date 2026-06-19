@@ -14,7 +14,7 @@ var _curMembershipMember = null;
 var CLIENT_STATUS = (window.FFP_TAX && FFP_TAX.clientStatus) || { active: 'Active', paused: 'Paused', archived: 'Archived' };
 var PKG_TYPES = (window.FFP_TAX && FFP_TAX.packageTypes) || { sessions: 'Session pack', recurring: 'Recurring', term: 'Term' };
 var COMMS_CHANNELS = (window.FFP_TAX && FFP_TAX.commsChannels) || { email: 'Email', push: 'Push', sms: 'SMS' };
-var _cstStyle = { active:'background:rgba(43,168,224,.16);color:#6fc6ef', paused:'background:rgba(255,204,0,.16);color:#FFCC00', archived:'background:rgba(255,255,255,.08);color:#9fb0bf' };
+var _cstStyle = { active:'background:rgba(43,168,224,.16);color:#6fc6ef', paused:'background:rgba(255,204,0,.16);color:#FFCC00', archived:'background:rgba(10,62,68,.08);color:#5a6b6e' };
 
 function _memProvId(){ return (window.FFP_PROVIDER&&window.FFP_PROVIDER.id)||(typeof providerProfile!=='undefined'&&providerProfile.id)||null; }
 function _ccy2(){ return (window.FFP_PROVIDER&&FFP_PROVIDER.currency)||'AED'; }
@@ -41,9 +41,9 @@ function memberRow(m){
   var st=m.status||'active'; var stStyle=_cstStyle[st]||_cstStyle.active;
   var contact=[];   // strap stays clean — phone/email live on the client profile
   var tags=(m.tags||'').split(',').map(function(t){return t.trim();}).filter(Boolean);
-  var tagHtml=tags.length?'<div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:5px;">'+tags.map(function(t){return '<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(255,255,255,.06);color:#9fb0bf;">'+escHtml(t)+'</span>';}).join('')+'</div>':'';
+  var tagHtml=tags.length?'<div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:5px;">'+tags.map(function(t){return '<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(10,62,68,.06);color:#5a6b6e;">'+escHtml(t)+'</span>';}).join('')+'</div>':'';
   return '<div onclick="clientProfile(\''+m.id+'\')" style="background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:12px;padding:11px 13px;margin-bottom:9px;display:flex;align-items:center;gap:11px;cursor:pointer;">'+
-    '<div style="width:38px;height:38px;border-radius:10px;background:rgba(139,92,246,.16);color:#c4b5fd;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;">'+escHtml(initials)+'</div>'+
+    '<div style="width:38px;height:38px;border-radius:10px;background:rgba(10,62,68,.16);color:#0a3e44;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;">'+escHtml(initials)+'</div>'+
     '<div style="min-width:0;flex:1;"><div style="font-weight:800;color:var(--ffp-text);">'+escHtml(m.full_name||'—')+'</div>'+(contact.length?'<div class="psub" style="margin:2px 0 0;">'+contact.join(' · ')+'</div>':'')+tagHtml+'</div>'+
     '<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;flex-shrink:0;'+stStyle+'">'+(CLIENT_STATUS[st]||'Active')+'</span>'+
     '<span class="ms" style="color:var(--ffp-text-dim);flex-shrink:0;">chevron_right</span>'+
@@ -280,7 +280,7 @@ async function openMembership(clientId){
   openModalShell('lg','Packages · '+escHtml(m.full_name||'Client'),'<div class="form-section"><div class="form-section-title">Current</div>'+current+'</div>'+form,'<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
 }
 function membershipRow(a){
-  var active=a.status==='active'; var stColor=active?'rgba(43,168,224,.16);color:#6fc6ef':'rgba(255,255,255,.08);color:#9fb0bf';
+  var active=a.status==='active'; var stColor=active?'rgba(43,168,224,.16);color:#6fc6ef':'rgba(10,62,68,.08);color:#5a6b6e';
   var bits=[]; if(a.credits_remaining!=null)bits.push(a.credits_remaining+' left'); if(a.expiry_date)bits.push('expires '+a.expiry_date);
   return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--ffp-border);">'+
     '<div style="min-width:0;"><div style="font-weight:700;color:var(--ffp-text);">'+escHtml(a.package_name||'Package')+'</div>'+(bits.length?'<div class="psub" style="margin:2px 0 0;">'+bits.join(' · ')+'</div>':'')+'</div>'+
