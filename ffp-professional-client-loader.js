@@ -93,7 +93,10 @@ function openMemberModal(id){
   var jd=m.join_date?String(m.join_date).slice(0,10):'';
   var gn=m.given_names||'', sn=m.surname||'';
   if(!gn && !sn && m.full_name){ var _np=String(m.full_name).trim().split(/\s+/); gn=_np.shift()||''; sn=_np.join(' '); }
+  window._mmPulled=null;
   openModalShell('lg',(editing?'Edit client':'Add client'),
+    '<button type="button" class="btn btn-sec btn-block" onclick="pullClientFromPassport()" style="justify-content:center;gap:8px;margin-bottom:6px;"><span class="ms">cloud_download</span> Pull from FFP Passport</button>'+
+    '<div class="psub" id="mm-pull-hint" style="margin:0 0 14px;">Enter their email below, then tap to auto-fill from their Passport.</div>'+
     '<div class="form-section"><div class="form-section-title">Client</div><div class="form-grid">'+
       '<div class="field"><div class="label">Given names <span class="req">*</span></div><input class="input" id="mm-given_names" value="'+escHtml(gn)+'"></div>'+
       '<div class="field"><div class="label">Surname</div><input class="input" id="mm-surname" value="'+escHtml(sn)+'"></div>'+
@@ -109,12 +112,37 @@ function openMemberModal(id){
     '<button class="btn btn-pri" onclick="saveMember(\''+(editing?editing.id:'')+'\')">'+(editing?'Save':'Add client')+'</button>');
   if(window._phoneSet) _phoneSet('mm-phone', m.phone||'');
 }
+// "Pull from FFP Passport" — look up the email entered in the form; if that person holds an FFP Passport, auto-fill the client.
+async function pullClientFromPassport(){
+  var pid=_memProvId(); var emEl=document.getElementById('mm-email'); var email=emEl?emEl.value.trim():'';
+  var hint=document.getElementById('mm-pull-hint');
+  if(!email){ if(hint){ hint.textContent='Enter their email below first, then tap Pull.'; hint.style.color=''; } showToast('Enter their email first','error'); if(emEl)emEl.focus(); return; }
+  if(hint){ hint.textContent='Looking up…'; hint.style.color=''; }
+  try{
+    var r=await window.supabase.rpc('pro_passport_by_email',{p_pro:pid,p_email:email});
+    var d=(r&&r.data)||{};
+    if(!d.has_account){ window._mmPulled=null; if(hint){ hint.textContent='No FFP Passport found for that email — fill it in manually.'; hint.style.color='var(--ffp-text-dim)'; } showToast('No Passport found for that email','error'); return; }
+    var gn=d.given_names||'', sn=d.surname||'';
+    if(!gn && !sn && d.full_name){ var p=String(d.full_name).trim().split(/\s+/); gn=p.shift()||''; sn=p.join(' '); }
+    var set=function(i,v){ var el=document.getElementById('mm-'+i); if(el)el.value=v||''; };
+    set('given_names', gn); set('surname', sn);
+    if(window._phoneSet && d.phone) _phoneSet('mm-phone', d.phone);
+    window._mmPulled=d;
+    if(hint){ hint.innerHTML='<span class="ms" style="font-size:15px;vertical-align:-3px;color:var(--ffp-purple);">verified_user</span> Pulled from '+escHtml(d.full_name||'their')+'’s FFP Passport'+(d.passport_active?'':' (Passport not active)'); hint.style.color='var(--ffp-purple)'; }
+    showToast('Pulled from their Passport','success');
+  }catch(e){ if(hint){ hint.textContent='Could not pull — try again.'; } showToast('Could not pull','error'); }
+}
 async function saveMember(id){
   var g=function(i){var el=document.getElementById('mm-'+i);return el?el.value.trim():'';};
   var given=g('given_names'), surname=g('surname'); var name=(given+' '+surname).trim();
   if(!given){ showToast('Given name is required','error'); return; }
   var pid=_memProvId(); if(!pid) return;
   var payload={full_name:name,given_names:given,surname:surname,email:g('email'),phone:(window._phoneGet?_phoneGet('mm-phone'):g('phone')),status:g('status')||'active',tags:g('tags'),join_date:g('join_date'),notes:g('notes')};
+  // Persist gender/DOB/nationality pulled from their Passport (only if the email still matches the pulled one).
+  var pulled=window._mmPulled||null;
+  if(pulled && pulled.email && String(pulled.email).toLowerCase()===String(g('email')).toLowerCase()){
+    if(pulled.gender)payload.gender=pulled.gender; if(pulled.date_of_birth)payload.date_of_birth=pulled.date_of_birth; if(pulled.nationality)payload.nationality=pulled.nationality;
+  }
   try{ var r=await window.supabase.rpc('pro_save_client',{p_pro:pid,p_id:id||null,p:payload}); if(r&&r.error)throw r.error; showToast(id?'Client updated':'Client added','success'); closeModal(); renderMembers(); }catch(e){ showToast('Could not save client','error'); }
 }
 function confirmDeleteMember(id){ openModalShell('','Remove client?','<div class="psub" style="margin:6px 0;">This removes them from your client list.</div>','<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="doDeleteMember(\''+id+'\')">Remove</button>'); }
