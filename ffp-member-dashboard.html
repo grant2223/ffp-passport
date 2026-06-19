@@ -5502,6 +5502,15 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         <textarea id="log-notes" class="pm-form-textarea" rows="2" placeholder="How did it feel?"></textarea>
       </div>
       <div class="pm-form-field">
+        <label class="pm-form-label">Training partners (optional)</label>
+        <div id="log-with-chips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+        <button type="button" id="log-with-btn" onclick="toggleLogWith()" style="width:100%;text-align:left;cursor:pointer;background:rgba(43,168,224,0.06);border:1px solid rgba(43,168,224,0.25);border-radius:12px;padding:13px 14px;color:var(--muted,#8a99a8);font-family:inherit;font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;">
+          <span class="material-icons" style="font-size:20px;color:var(--blue,#2ba8e0);">group_add</span>Add a connection you trained with
+        </button>
+        <div id="log-with-list" style="display:none;margin-top:8px;border:1px solid rgba(43,168,224,0.25);border-radius:12px;max-height:230px;overflow-y:auto;-webkit-overflow-scrolling:touch;"></div>
+        <div style="font-size:11px;color:var(--muted,#8a99a8);font-weight:600;margin-top:6px;">They get a request to confirm — it shows on their journey once they accept.</div>
+      </div>
+      <div class="pm-form-field">
         <label class="ffp-log-share" style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;background:rgba(43,168,224,0.06);border:1px solid rgba(43,168,224,0.25);border-radius:12px;padding:13px 14px;">
           <span style="display:flex;align-items:center;gap:10px;">
             <span class="material-icons" style="color:var(--blue,#2ba8e0);font-size:20px;">group</span>
@@ -7876,6 +7885,7 @@ function ffpHandleNotifClick(link) {
   if (!link) return;
   link = String(link).replace(/%27/g, "'");
   try {
+    if (link.indexOf('#activity-tags') !== -1 && typeof openActivityTags === 'function') { openActivityTags(); return; }
     var am = link.match(/[?&]activity=([^&#]+)/);
     if (am && window.ffpViewSharedActivity) { window.ffpViewSharedActivity(decodeURIComponent(am[1])); return; }
     var mm = link.match(/[?&]meetup=([^&#]+)/);
@@ -7966,7 +7976,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '363';
+  const FFP_BUILD = '364';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -11286,6 +11296,8 @@ function openLogModal() {
   ['log-venue', 'log-lat', 'log-lng', 'log-maps'].forEach(function (id) { var e = document.getElementById(id); if (e) e.value = ''; });
   var _lld = document.getElementById('log-loc-display'); if (_lld) { _lld.textContent = 'Drop a pin — where in the city?'; _lld.classList.add('pmf-pick-ph'); _lld.classList.remove('set'); }
   var _llm = document.getElementById('log-maplink'); if (_llm) _llm.style.display = 'none';
+  // Fresh training-partner selection each open
+  _logPartners = []; var _wl = document.getElementById('log-with-list'); if (_wl) _wl.style.display = 'none'; if (typeof renderLogWithChips === 'function') renderLogWithChips();
 }
 // Fill the Log Activity pin fields from the FFPLocPick result. City stays the rollup ("Dubai"); this marks
 // WHERE in the city. Stored into activity_logs.venue + checkin_lat/lng (same columns venue check-ins use).
@@ -11354,6 +11366,52 @@ function openScanLog() {
 }
 function closeLogModal() { document.getElementById('log-modal-backdrop').classList.remove('open'); }
 function closeLogIfBackdrop(e) { if (e.target.id === 'log-modal-backdrop') closeLogModal(); }
+
+// ── Training partners ("With") — pick from ACCEPTED connections; they confirm before it lands on their journey.
+var _logPartners = [];
+var _logWithCache = null;
+async function _ensureLogWith(){
+  var member = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null;
+  if (!member || !member.id || !window.supabase) { _logWithCache = []; return _logWithCache; }
+  try {
+    var r = await window.supabase.rpc('member_connections_list', { p_me: member.id });
+    var all = (r && r.data) ? r.data : [];
+    _logWithCache = all.filter(function (c) { return c && (c.mutual || c.status === 'accepted'); });
+  } catch (e) { _logWithCache = []; }
+  return _logWithCache;
+}
+async function toggleLogWith(){
+  var list = document.getElementById('log-with-list'); if (!list) return;
+  if (list.style.display === 'block') { list.style.display = 'none'; return; }
+  list.innerHTML = '<div style="padding:12px;color:var(--muted,#8a99a8);font-size:13px;">Loading…</div>';
+  list.style.display = 'block';
+  await _ensureLogWith();
+  renderLogWithList();
+}
+function renderLogWithList(){
+  var list = document.getElementById('log-with-list'); if (!list) return;
+  var conns = _logWithCache || [];
+  if (!conns.length) { list.innerHTML = '<div style="padding:14px;color:var(--muted,#8a99a8);font-size:13px;">No connections yet — connect with people in Connections, then add them here.</div>'; return; }
+  list.innerHTML = conns.map(function (c) {
+    var on = _logPartners.indexOf(c.id) !== -1;
+    var ph = c.photo ? '<img src="' + escHtml(c.photo) + '" alt="" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex:0 0 auto;">' : '<span style="width:32px;height:32px;border-radius:50%;background:rgba(43,168,224,0.16);color:#2ba8e0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex:0 0 auto;">' + escHtml((c.name || '?').slice(0, 1).toUpperCase()) + '</span>';
+    return '<button type="button" onclick="toggleLogPartner(\'' + c.id + '\')" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;background:' + (on ? 'rgba(43,168,224,0.12)' : 'transparent') + ';border:none;border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer;text-align:left;font-family:inherit;">' + ph + '<span style="flex:1;min-width:0;font-size:14px;font-weight:700;color:var(--text,#e8eef4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(c.name || 'Member') + '</span><span class="material-icons" style="color:' + (on ? '#2ba8e0' : 'var(--muted,#8a99a8)') + ';font-size:22px;">' + (on ? 'check_circle' : 'radio_button_unchecked') + '</span></button>';
+  }).join('');
+}
+function toggleLogPartner(id){
+  var i = _logPartners.indexOf(id);
+  if (i === -1) _logPartners.push(id); else _logPartners.splice(i, 1);
+  renderLogWithList(); renderLogWithChips();
+}
+function renderLogWithChips(){
+  var box = document.getElementById('log-with-chips'); if (!box) return;
+  var conns = _logWithCache || [];
+  box.style.marginBottom = _logPartners.length ? '8px' : '0';
+  box.innerHTML = _logPartners.map(function (id) {
+    var c = conns.find(function (x) { return x.id === id; }) || { name: 'Member' };
+    return '<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(43,168,224,0.14);border:1px solid rgba(43,168,224,0.3);color:#cfeaf9;border-radius:20px;padding:5px 6px 5px 11px;font-size:12px;font-weight:700;">' + escHtml(c.name || 'Member') + '<span class="material-icons" onclick="toggleLogPartner(\'' + id + '\')" style="font-size:16px;cursor:pointer;color:#9fb0bf;">close</span></span>';
+  }).join('');
+}
 // ── Reusable single-tap DURATION wheel picker (Hours / Minutes / Seconds) ──
 // One tap on a field opens an iOS-style 3-wheel sheet; Done returns total seconds.
 // Exposed as window.FFPDurationPicker so any duration field on the platform can reuse it.
@@ -11541,6 +11599,10 @@ async function saveLog() {
       }).catch(function () {});
     } catch (e) {}
   }
+  // Training partners — tag accepted connections; they confirm before it lands on their journey.
+  if (_newId && _logPartners && _logPartners.length) {
+    try { await window.supabase.rpc('activity_add_partners', { p_me: member.id, p_activity: _newId, p_members: _logPartners }); } catch (e) {}
+  }
   if (typeof window.ffpActivityReload === 'function') window.ffpActivityReload();   // refresh the Stats activity list (photo row)
   if (typeof showToast === 'function') showToast('Logged ' + act + (city ? ' in ' + city : '') + (_shareVal ? ' · shared with connections' : ''), 'success');
   closeLogModal();
@@ -11577,6 +11639,27 @@ async function loadJourneyLogs() {
         verified: !!r.verified, partner: false
       });
     });
+    // Merge in activities I was tagged in and CONFIRMED — they show on MY journey too (with whose they were).
+    try {
+      if (window.supabase) {
+        var pr = await window.supabase.rpc('member_partner_activities', { p_me: member.id });
+        var prows = (pr && pr.data) ? pr.data : [];
+        prows.forEach(function (r) {
+          if (!r || (r.id && LOGS.some(function (x) { return x.id === r.id; }))) return;
+          var dt = r.logged_at ? new Date(r.logged_at) : new Date();
+          LOGS.push({
+            id: r.id || null,
+            activity: r.activity || 'Activity', venue: r.venue || '', city: r.city || '',
+            country: r.country || countryForCity(r.city) || '',
+            lat: (r.lat != null ? Number(r.lat) : null), lng: (r.lng != null ? Number(r.lng) : null),
+            date: dt.toISOString().substring(0, 10),
+            daysAgo: (function () { var a = new Date(dt.getTime()); a.setHours(0, 0, 0, 0); var t = new Date(); t.setHours(0, 0, 0, 0); return Math.max(0, Math.round((t - a) / 86400000)); })(),
+            duration: r.duration_min || 0, durationSec: r.duration_sec || 0, calories: r.calories || 0,
+            notes: r.notes || '', verified: false, partner: true, with_name: r.with_name || ''
+          });
+        });
+      }
+    } catch (e) {}
     if (typeof renderAll === 'function') renderAll();
     if (typeof ReviewPrompt !== 'undefined') ReviewPrompt.load();
     console.log('[FFP Journey] loaded ' + rows.length + ' saved logs (backend)');
@@ -11584,6 +11667,48 @@ async function loadJourneyLogs() {
 }
 // Refresh the passport whenever a check-in / activity is logged (venue check-in fires this).
 document.addEventListener('ffp-activity-logged', function () { loadJourneyLogs(); });
+
+// ── Activity invites — confirm/decline being tagged in someone's activity (opened from the bell notification). ──
+window.openActivityTags = async function () {
+  var member = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null;
+  if (!member || !member.id || !window.supabase) return;
+  try { var nm = document.getElementById('notif-menu'); if (nm) nm.classList.remove('show'); } catch (e) {}
+  var ov = document.getElementById('ffp-tags-ov');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'ffp-tags-ov'; ov.style.cssText = 'position:fixed;inset:0;z-index:6000;background:rgba(4,12,20,0.86);display:flex;align-items:flex-end;justify-content:center;'; ov.onclick = function (e) { if (e.target === ov) window.ffpCloseTags(); }; document.body.appendChild(ov); }
+  ov.innerHTML = '<div style="background:#0b1622;border:1px solid rgba(43,168,224,0.25);border-radius:18px 18px 0 0;width:100%;max-width:560px;max-height:85vh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px 16px calc(20px + env(safe-area-inset-bottom));">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><div style="font-size:17px;font-weight:800;color:#e8eef4;">Activity invites</div><span class="material-icons" onclick="ffpCloseTags()" style="cursor:pointer;color:#8a99a8;">close</span></div>'
+    + '<div id="ffp-tags-body"><div style="padding:18px;color:#8a99a8;text-align:center;">Loading…</div></div></div>';
+  document.body.style.overflow = 'hidden';
+  await renderActivityTags();
+};
+window.ffpCloseTags = function () { var o = document.getElementById('ffp-tags-ov'); if (o && o.parentNode) o.parentNode.removeChild(o); document.body.style.overflow = ''; };
+async function renderActivityTags() {
+  var member = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null;
+  var body = document.getElementById('ffp-tags-body'); if (!body) return;
+  var rows = [];
+  try { var r = await window.supabase.rpc('activity_pending_tags', { p_me: member.id }); rows = (r && r.data) ? r.data : []; } catch (e) {}
+  if (!rows.length) { body.innerHTML = '<div style="padding:24px 12px;color:#8a99a8;text-align:center;">No pending activity invites.</div>'; return; }
+  body.innerHTML = rows.map(function (t) {
+    var dt = t.logged_at ? new Date(t.logged_at) : null;
+    var when = dt ? dt.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
+    var meta = [t.city, when, (t.duration_min ? t.duration_min + ' min' : '')].filter(Boolean).join(' · ');
+    var ph = t.by_photo ? '<img src="' + escNotif(t.by_photo) + '" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex:0 0 auto;">' : '<span style="width:40px;height:40px;border-radius:50%;background:rgba(43,168,224,0.16);color:#2ba8e0;display:flex;align-items:center;justify-content:center;font-weight:800;flex:0 0 auto;">' + escNotif((t.by_name || '?').slice(0, 1).toUpperCase()) + '</span>';
+    return '<div style="display:flex;gap:11px;align-items:flex-start;padding:13px;border:1px solid rgba(255,255,255,0.07);border-radius:14px;margin-bottom:10px;">' + ph
+      + '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:800;color:#e8eef4;">' + escNotif(t.by_name || 'Someone') + ' added you to ' + escNotif(t.activity || 'an activity') + '</div>'
+      + '<div style="font-size:12px;color:#8a99a8;font-weight:600;margin:2px 0 10px;">' + escNotif(meta) + '</div>'
+      + '<div style="display:flex;gap:8px;"><button onclick="respondActivityTag(\'' + t.id + '\',true)" style="flex:1;background:#2ba8e0;color:#04121d;border:none;border-radius:9px;padding:9px;font-weight:800;font-family:inherit;cursor:pointer;">Confirm</button>'
+      + '<button onclick="respondActivityTag(\'' + t.id + '\',false)" style="flex:1;background:transparent;color:#cfe9f7;border:1px solid rgba(255,255,255,0.15);border-radius:9px;padding:9px;font-weight:700;font-family:inherit;cursor:pointer;">Decline</button></div></div></div>';
+  }).join('');
+}
+window.respondActivityTag = async function (id, accept) {
+  var member = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null;
+  if (!member || !window.supabase) return;
+  try { await window.supabase.rpc('activity_partner_respond', { p_me: member.id, p_id: id, p_accept: !!accept }); } catch (e) {}
+  if (typeof showToast === 'function') showToast(accept ? 'Added to your journey' : 'Declined', 'success');
+  try { if (accept && typeof loadJourneyLogs === 'function') loadJourneyLogs(); } catch (e) {}
+  try { if (typeof loadNotifications === 'function') loadNotifications(); } catch (e) {}
+  await renderActivityTags();
+};
 
 // Activity breakdown is collapsed by default — this expands/collapses it (Fitness Stats › Activity).
 function ffpToggleBreakdown() {
