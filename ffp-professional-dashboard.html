@@ -59,9 +59,9 @@
 <script src="assets/ffp-feedback-widget.js?v=5" data-source="professional" data-fab="off"></script>
 <style>
 :root{
-  --ffp-bg:#081420; --ffp-bg-2:#0f1f2c; --ffp-bg-3:#16273a; --ffp-bg-card:#0c1d2b;
-  --ffp-border:#1d3346; --ffp-border-mid:#24435c; --ffp-text:#eaf2f8; --ffp-text-muted:#8a99a8;
-  --ffp-text-dim:#6c7f90; --ffp-blue:#2ba8e0; --ffp-yellow:#FFCC00; --ffp-purple:#8b5cf6; --r-md:9px;
+  --ffp-bg:#f4f7f8; --ffp-bg-2:#ffffff; --ffp-bg-3:#eef3f4; --ffp-bg-card:#ffffff;
+  --ffp-border:#e4ebec; --ffp-border-mid:#ccd9da; --ffp-text:#0f2327; --ffp-text-muted:#5a6b6e;
+  --ffp-text-dim:#869599; --ffp-blue:#2ba8e0; --ffp-yellow:#FFCC00; --ffp-purple:#0a3e44; --r-md:9px;
 }
 *{box-sizing:border-box;scrollbar-width:none;-ms-overflow-style:none;}
 ::-webkit-scrollbar{width:0 !important;height:0 !important;display:none !important;}
@@ -83,7 +83,7 @@ a{color:var(--ffp-blue);}
 @keyframes sp{to{transform:rotate(360deg);}}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 4px;}
 .chip{border:1px solid var(--ffp-border-mid);border-radius:20px;padding:7px 13px;font-size:12px;font-weight:700;color:var(--ffp-text-muted);cursor:pointer;user-select:none;}
-.chip.on{background:rgba(139,92,246,.16);border-color:var(--ffp-purple);color:#c4b5fd;}
+.chip.on{background:rgba(10,62,68,.16);border-color:var(--ffp-purple);color:#0a3e44;}
 
 /* App layout */
 .app{display:flex;height:100vh;height:100dvh;overflow:hidden;}
@@ -94,8 +94,8 @@ a{color:var(--ffp-blue);}
 .sb-tag{font-size:9px;font-weight:800;letter-spacing:1.4px;color:var(--ffp-purple);text-transform:uppercase;margin-top:3px;}
 .sb-nav{flex:1;padding:12px 10px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;}
 .ni{display:flex;align-items:center;gap:11px;padding:10px 13px;border-radius:9px;font-size:13px;font-weight:700;color:var(--ffp-text-muted);cursor:pointer;border:1px solid transparent;width:100%;text-align:left;background:none;font-family:inherit;}
-.ni:hover{background:rgba(139,92,246,.06);color:var(--ffp-text);}
-.ni.active{background:rgba(139,92,246,.14);color:#fff;border-color:var(--ffp-border-mid);}
+.ni:hover{background:rgba(10,62,68,.06);color:var(--ffp-text);}
+.ni.active{background:rgba(10,62,68,.12);color:var(--ffp-purple);border-color:rgba(10,62,68,.25);}
 .ni .ms{font-size:18px;}
 .sb-foot{padding:12px 14px;border-top:1px solid var(--ffp-border);display:flex;align-items:center;gap:10px;}
 .sb-foot-mark{width:34px;height:34px;border-radius:9px;background:var(--ffp-purple);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;flex-shrink:0;}
@@ -124,7 +124,7 @@ a{color:var(--ffp-blue);}
 #panel-profile .form-section{margin-top:26px;}
 #panel-profile .form-section-title{color:var(--ffp-purple);font-size:12px;}
 .req{color:var(--ffp-purple);}
-.input,.select,.textarea{width:100%;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:var(--r-md);padding:11px 13px;font-size:16px;font-weight:600;color:var(--ffp-text);font-family:inherit;color-scheme:dark;box-sizing:border-box;}
+.input,.select,.textarea{width:100%;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:var(--r-md);padding:11px 13px;font-size:16px;font-weight:600;color:var(--ffp-text);font-family:inherit;color-scheme:light;box-sizing:border-box;}
 .input,.select{min-height:44px;}
 .input:focus,.select:focus,.textarea:focus{outline:none;border-color:var(--ffp-purple);}
 .input::placeholder,.textarea::placeholder{color:var(--ffp-text-dim);font-weight:500;}
@@ -148,7 +148,7 @@ a{color:var(--ffp-blue);}
 .btn .ms{font-size:17px;}
 .btn-pri{background:var(--ffp-purple);color:#fff;}
 .btn-pri:hover{filter:brightness(1.07);}
-.btn-sec{background:rgba(139,92,246,.12);color:#c4b5fd;border-color:var(--ffp-border-mid);}
+.btn-sec{background:rgba(10,62,68,.12);color:#0a3e44;border-color:var(--ffp-border-mid);}
 .btn-ghost{background:transparent;color:var(--ffp-text-muted);border-color:var(--ffp-border-mid);}
 .btn-ghost.left{margin-right:auto;}
 .btn-sm{padding:7px 11px;font-size:11px;}
@@ -168,7 +168,7 @@ a{color:var(--ffp-blue);}
 .av-div{height:1px;background:var(--ffp-border);margin:5px 4px;}
 .av-build{padding:7px 11px 4px;font-size:10px;font-weight:700;letter-spacing:.4px;color:var(--ffp-text-dim);text-align:center;}
 .av-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:none;color:var(--ffp-text-muted);font-family:inherit;font-size:13px;font-weight:700;padding:10px 11px;border-radius:8px;cursor:pointer;}
-.av-item:hover{background:rgba(139,92,246,.08);color:var(--ffp-text);}
+.av-item:hover{background:rgba(10,62,68,.08);color:var(--ffp-text);}
 .av-item.danger{color:#f07171;}
 .av-item .ms{font-size:18px;}
 /* Topbar icon buttons + notifications */
@@ -182,14 +182,14 @@ a{color:var(--ffp-blue);}
 .nt-head{font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-text-dim);padding:12px 14px 8px;}
 .nt-list{max-height:60vh;overflow-y:auto;}
 .nt-item{display:flex;gap:10px;align-items:flex-start;padding:11px 14px;border-top:1px solid var(--ffp-border);}
-.nt-item:hover{background:rgba(139,92,246,.06);}
+.nt-item:hover{background:rgba(10,62,68,.06);}
 
 /* Bottom tab nav (mobile, Passport-style) */
 .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--ffp-bg-2);border-top:1px solid var(--ffp-border);display:none;align-items:center;z-index:120;padding:6px 4px;padding-bottom:calc(6px + env(safe-area-inset-bottom));}
 .bn-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;color:var(--ffp-text-dim);font-family:inherit;font-size:10px;font-weight:700;cursor:pointer;padding:4px 2px;}
 .bn-item .ms{font-size:22px;}
 .bn-item.active{color:var(--ffp-purple);}
-.bn-center{flex:0 0 auto;width:54px;height:54px;border-radius:50%;background:var(--ffp-purple);color:#fff;border:none;display:flex;align-items:center;justify-content:center;margin:-18px 8px 0;box-shadow:0 6px 18px rgba(139,92,246,.5);cursor:pointer;}
+.bn-center{flex:0 0 auto;width:54px;height:54px;border-radius:50%;background:var(--ffp-purple);color:#fff;border:none;display:flex;align-items:center;justify-content:center;margin:-18px 8px 0;box-shadow:0 6px 18px rgba(10,62,68,.5);cursor:pointer;}
 .bn-center .ms{font-size:27px;}
 /* Phone country code = native <select class="phone-cc"> enhanced by the shared FFPSelect picker (flag + code, searchable) — the SAME component every other dropdown uses. FFPSelect wraps the select in a full-width .ffp-sel control; here we only constrain that control's WIDTH so the number fills the rest. */
 .phone-input{display:flex;gap:0;width:100%;align-items:stretch;}
@@ -260,7 +260,7 @@ a{color:var(--ffp-blue);}
 .mc-foot:empty{display:none;}
 
 /* Toast */
-.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ffp-bg-3);border:1px solid var(--ffp-border-mid);color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:700;opacity:0;pointer-events:none;transition:all .2s;z-index:400;}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ffp-purple);border:none;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:700;opacity:0;pointer-events:none;transition:all .2s;z-index:400;box-shadow:0 8px 22px rgba(10,62,68,.28);}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 .toast.success{border-color:#1d9e75;}
 .toast.error{border-color:#a32d2d;}
@@ -526,7 +526,7 @@ function bizTab(btn,paneId){ var panel=btn.closest('.panel'); if(!panel)return; 
 // ─── Deferred Business module loaders (reused, scoped to FFP_PROVIDER.id = professional id) ───
 var _provLoaderSrc = { clients:'ffp-professional-client-loader.js', packages:'ffp-professional-client-loader.js', comms:'ffp-professional-client-loader.js', scheduling:'ffp-professional-scheduling-loader.js', services:'ffp-professional-services-loader.js', payments:'ffp-professional-billing-loader.js' };
 var _provLoaded = {};
-var PRO_BUILD='37'; // ⭐ THE single version number. Bump on EVERY change (HTML or any pro loader). It (a) cache-busts the lazy loaders so edits actually reach the device, and (b) is shown live as "Build N" at the bottom of the avatar menu — that's how we both know exactly what's deployed. If the avatar menu shows the number I just bumped to, the latest IS live. CHANGELOG: v32 iOS NATIVE-CHROME FIXES (verified by rendering the exact CSS): avatar img wasn't filling because the <button> had no padding:0 (+ -webkit-appearance:none) so iOS inset the image; phone country-code <select> was too wide because it only had appearance:none, not -webkit-appearance:none, so iOS kept native select chrome and ignored the 96px — added -webkit-appearance:none + min/max-width:96px lock, and .phone-num→flex:1 1 0 so the number fills the rest. v31 PIN THE TOP BAR ON MOBILE for real — root cause was the whole DOCUMENT scrolling on iOS (carrying the topbar), not the topbar itself; fix = lock html/body (overflow:hidden + overscroll-behavior:none) so only .main-scroll scrolls, and give .gate its own overflow-y:auto + margin:auto card so the sign-in/apply forms aren't trapped by the lock; v30 single visible Build stamp in avatar menu (replaces ad-hoc ·b29) + carries v29's fixes; v29 forced fresh client-loader after v28's loader edits were stuck behind cached ?v=28, .app 100dvh so the mobile topbar stays frozen; v28 client form Given names+Surname + single-source phone; v27 pull-from-passport; v26 passport rows.
+var PRO_BUILD='38'; // ⭐ THE single version number. Bump on EVERY change (HTML or any pro loader). It (a) cache-busts the lazy loaders so edits actually reach the device, and (b) is shown live as "Build N" at the bottom of the avatar menu — that's how we both know exactly what's deployed. If the avatar menu shows the number I just bumped to, the latest IS live. CHANGELOG: v32 iOS NATIVE-CHROME FIXES (verified by rendering the exact CSS): avatar img wasn't filling because the <button> had no padding:0 (+ -webkit-appearance:none) so iOS inset the image; phone country-code <select> was too wide because it only had appearance:none, not -webkit-appearance:none, so iOS kept native select chrome and ignored the 96px — added -webkit-appearance:none + min/max-width:96px lock, and .phone-num→flex:1 1 0 so the number fills the rest. v31 PIN THE TOP BAR ON MOBILE for real — root cause was the whole DOCUMENT scrolling on iOS (carrying the topbar), not the topbar itself; fix = lock html/body (overflow:hidden + overscroll-behavior:none) so only .main-scroll scrolls, and give .gate its own overflow-y:auto + margin:auto card so the sign-in/apply forms aren't trapped by the lock; v30 single visible Build stamp in avatar menu (replaces ad-hoc ·b29) + carries v29's fixes; v29 forced fresh client-loader after v28's loader edits were stuck behind cached ?v=28, .app 100dvh so the mobile topbar stays frozen; v28 client form Given names+Surname + single-source phone; v27 pull-from-passport; v26 passport rows.
 function ensureProviderLoader(id){ var src=_provLoaderSrc[id]; if(!src||_provLoaded[src])return; _provLoaded[src]=true; var sc=document.createElement('script'); sc.src=src+'?v='+PRO_BUILD; sc.async=false; sc.onload=function(){ renderPanel(id); }; sc.onerror=function(){ console.error('[FFP Pro] failed to load '+src); }; document.body.appendChild(sc); }
 function renderPanel(id){
   if(id==='clients'    && typeof renderMembers==='function')     renderMembers();
@@ -704,7 +704,7 @@ function pickProfession(name,category){
 function renderProfProfs(){
   var el=document.getElementById('pf-profs'); if(!el)return;
   var chips=_pfProfs.map(function(p,i){
-    return '<span class="chip on" style="display:inline-flex;align-items:center;gap:6px;">'+(i===0?'<span style="color:#fff;">★</span> ':'')+escHtml(p.name)+'<span class="ms" style="font-size:15px;cursor:pointer;" onclick="pfRemoveProf('+i+')">close</span></span>';
+    return '<span class="chip on" style="display:inline-flex;align-items:center;gap:6px;">'+(i===0?'<span style="color:#FFCC00;">★</span> ':'')+escHtml(p.name)+'<span class="ms" style="font-size:15px;cursor:pointer;" onclick="pfRemoveProf('+i+')">close</span></span>';
   });
   if(_pfProfs.length<4) chips.push('<button type="button" class="btn btn-sec btn-sm" style="border-radius:20px;" onclick="openProfPicker(\'pfmulti\')"><span class="ms">add</span> Add profession</button>');
   el.innerHTML=chips.join('');
@@ -1012,7 +1012,7 @@ async function renderOverview(){
 }
 // Members' reviews of THIS professional (pro_rating + pro_reviews_list).
 var PRO_RLBL={ communication:'Communication', environment:'Environment', value:'Value', coach:'Coach', atmosphere:'Atmosphere', organisation:'Organisation', guide:'Guide' };
-function _proStars(v){ var n=Math.round(Number(v)||0),s=''; for(var i=1;i<=5;i++) s+='<span class="ms" style="font-size:15px;color:'+(i<=n?'#FFCC00':'rgba(255,255,255,.18)')+';">star</span>'; return s; }
+function _proStars(v){ var n=Math.round(Number(v)||0),s=''; for(var i=1;i<=5;i++) s+='<span class="ms" style="font-size:15px;color:'+(i<=n?'#FFCC00':'rgba(10,62,68,.16)')+';">star</span>'; return s; }
 async function renderProRating(){
   var sumEl=document.getElementById('pro-rating-summary'), listEl=document.getElementById('pro-rating-reviews');
   if(!sumEl||!listEl) return;
@@ -1024,9 +1024,9 @@ async function renderProRating(){
       '<div style="font-size:30px;font-weight:800;">'+(d.avg_overall!=null?d.avg_overall:'—')+'</div>'+
       '<div>'+_proStars(d.avg_overall)+'<div class="psub" style="margin:2px 0 0;">'+d.n+' review'+(d.n===1?'':'s')+'</div></div>'+
       '<div style="margin-left:auto;display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ffp-text-muted,#8a99a8);">'+
-        '<span>Comm. <b style="color:#fff;">'+(d.avg_communication!=null?d.avg_communication:'—')+'</b></span>'+
-        '<span>Env. <b style="color:#fff;">'+(d.avg_environment!=null?d.avg_environment:'—')+'</b></span>'+
-        '<span>Value <b style="color:#fff;">'+(d.avg_value!=null?d.avg_value:'—')+'</b></span>'+
+        '<span>Comm. <b style="color:var(--ffp-text);">'+(d.avg_communication!=null?d.avg_communication:'—')+'</b></span>'+
+        '<span>Env. <b style="color:var(--ffp-text);">'+(d.avg_environment!=null?d.avg_environment:'—')+'</b></span>'+
+        '<span>Value <b style="color:var(--ffp-text);">'+(d.avg_value!=null?d.avg_value:'—')+'</b></span>'+
       '</div></div>';
     var lr=await window.supabase.rpc('pro_reviews_list',{p_professional:pid}); var rows=(lr&&lr.data)||[];
     listEl.innerHTML=rows.map(function(rv){
