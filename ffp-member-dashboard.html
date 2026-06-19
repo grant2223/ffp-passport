@@ -7982,7 +7982,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '372';
+  const FFP_BUILD = '373';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -11893,22 +11893,39 @@ window.ffpShareActivity = async function (id) {
 function _ffpCardDims(r) { var w = 540; return { w: w, h: r === '1:1' ? w : r === '4:5' ? Math.round(w * 5 / 4) : Math.round(w * 16 / 9) }; }
 function _ffpDurStr(a) { var min = Math.max(0, Math.round(a.duration_min || 0)); var h = Math.floor(min / 60), m = min % 60; return (h ? h + 'h ' : '') + m + 'm' + (a.duration_sec ? (' ' + a.duration_sec + 's') : ''); }
 function _ffpActBottomStats(a) { var row = []; if (a.distance_km != null && a.distance_km > 0) row.push(['Time', _ffpDurStr(a)]); if (a.calories) row.push(['Calories', a.calories + ' kcal']); if (a.avg_heart_rate) row.push(['Avg HR', a.avg_heart_rate + ' bpm']); return row.slice(0, 3); }
+// Preload remote images to DATA URLs so html2canvas never has a cross-origin image to hang/taint on.
+var _ffpLogoUrl = 'https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-logo-white.png';
+var _ffpLogoData = null;            // null = not tried, '' = failed (use text fallback), else dataURL
+var _ffpPhotoData = '', _ffpPhotoSrc = null;
+function _ffpImgToDataUrl(url) {
+  return new Promise(function (res) {
+    var done = false; function fin(v) { if (!done) { done = true; res(v); } }
+    try { var img = new Image(); img.crossOrigin = 'anonymous';
+      img.onload = function () { try { var c = document.createElement('canvas'); c.width = img.naturalWidth || 600; c.height = img.naturalHeight || 600; c.getContext('2d').drawImage(img, 0, 0); fin(c.toDataURL('image/png')); } catch (e) { fin(''); } };
+      img.onerror = function () { fin(''); };
+      img.src = url; setTimeout(function () { fin(''); }, 5000);
+    } catch (e) { fin(''); }
+  });
+}
+async function _ffpEnsureLogo() { if (_ffpLogoData === null) { _ffpLogoData = await _ffpImgToDataUrl(_ffpLogoUrl); } return _ffpLogoData; }
+async function _ffpEnsurePhoto(src) { if (!src) return ''; if (_ffpPhotoSrc !== src) { _ffpPhotoSrc = src; _ffpPhotoData = await _ffpImgToDataUrl(src); } return _ffpPhotoData || ''; }
 function _ffpBuildShareCard(a, ratio, usePhoto) {
   var esc = (window.escHtml ? window.escHtml : function (s) { return String(s == null ? '' : s); });
   var icon = (window.ffpActivityIcon ? window.ffpActivityIcon(a.activity) : 'fitness_center');
   var when = a.logged_at ? new Date(a.logged_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
   var sub = [when, [a.city, a.country].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
-  var d = _ffpCardDims(ratio), pad = Math.round(d.w * 0.075), hasPhoto = !!(usePhoto && a.photo_url);
+  var d = _ffpCardDims(ratio), pad = Math.round(d.w * 0.075);
+  var photoData = (usePhoto && _ffpPhotoData && _ffpPhotoSrc === a.photo_url) ? _ffpPhotoData : ''; var hasPhoto = !!photoData;
   var hasDist = (a.distance_km != null && a.distance_km > 0);
   var heroVal = hasDist ? String(Math.round(a.distance_km * 100) / 100) : _ffpDurStr(a), heroUnit = hasDist ? 'km' : '';
   var statHtml = _ffpActBottomStats(a).map(function (s) { return '<div style="text-align:center;flex:1;"><div style="font-size:' + Math.round(d.w * 0.052) + 'px;font-weight:900;color:#fff;line-height:1;">' + esc(s[1]) + '</div><div style="font-size:' + Math.round(d.w * 0.022) + 'px;color:#9fc4e0;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-top:6px;">' + esc(s[0]) + '</div></div>'; }).join('');
-  var bg = hasPhoto ? ("#06121f url('" + esc(a.photo_url) + "') center/cover no-repeat") : 'linear-gradient(160deg,#11436c 0%,#0a2740 52%,#06121f 100%)';
+  var bg = hasPhoto ? ("#06121f url('" + photoData + "') center/cover no-repeat") : 'linear-gradient(160deg,#11436c 0%,#0a2740 52%,#06121f 100%)';
   var scrim = hasPhoto ? '<div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,12,20,0.35) 0%,rgba(5,12,20,0.5) 50%,rgba(5,12,20,0.82) 100%);"></div>' : '';
   var el = document.createElement('div'); el.style.cssText = 'position:relative;width:' + d.w + 'px;height:' + d.h + 'px;';
   el.innerHTML = '<div style="position:absolute;inset:0;box-sizing:border-box;background:' + bg + ';font-family:Montserrat,-apple-system,system-ui,sans-serif;color:#fff;display:flex;flex-direction:column;padding:' + pad + 'px;overflow:hidden;">' +
     scrim +
     '<div style="position:absolute;right:' + Math.round(-d.w * 0.1) + 'px;top:' + Math.round(d.h * 0.2) + 'px;z-index:0;line-height:1;"><span class="material-icons" style="font-size:' + Math.round(d.w * 0.66) + 'px;color:#fff;opacity:0.06;">' + icon + '</span></div>' +
-    '<div style="position:relative;z-index:1;text-align:center;"><img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-logo-white.png" alt="FFP" crossorigin="anonymous" style="width:' + Math.round(d.w * 0.32) + 'px;height:auto;display:inline-block;"></div>' +
+    '<div style="position:relative;z-index:1;text-align:center;">' + (_ffpLogoData ? '<img src="' + _ffpLogoData + '" alt="FFP" style="width:' + Math.round(d.w * 0.32) + 'px;height:auto;display:inline-block;">' : '<span style="font-style:italic;font-weight:900;font-size:' + Math.round(d.w * 0.075) + 'px;letter-spacing:-1px;color:#fff;">FFP</span>') + '</div>' +
     '<div style="position:relative;z-index:1;flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;">' +
       '<div style="font-size:' + Math.round(d.w * 0.072) + 'px;font-weight:900;letter-spacing:-1px;">' + esc(a.activity || 'Activity') + '</div>' +
       '<div style="display:flex;align-items:flex-end;gap:' + Math.round(d.w * 0.018) + 'px;margin-top:' + Math.round(d.w * 0.03) + 'px;"><div style="font-size:' + Math.round(d.w * 0.165) + 'px;font-weight:900;line-height:0.86;letter-spacing:-3px;">' + esc(heroVal) + '</div>' + (heroUnit ? '<div style="font-size:' + Math.round(d.w * 0.05) + 'px;font-weight:800;color:#9fc4e0;margin-bottom:' + Math.round(d.w * 0.022) + 'px;">' + heroUnit + '</div>' : '') + '</div>' +
@@ -11924,15 +11941,17 @@ var _ffpShareFile = null, _ffpShareKey = null, _ffpShareRendering = false;
 function _ffpCurKey() { return (_ffpShareCfg.id || '') + '|' + _ffpShareCfg.ratio + '|' + (_ffpShareCfg.usePhoto ? 1 : 0); }
 async function _ffpCaptureShareCard() {
   if (typeof html2canvas === 'undefined') return null;
-  var a = window._ffpActCard || {}; var node = _ffpBuildShareCard(a, _ffpShareCfg.ratio, _ffpShareCfg.usePhoto);
+  var a = window._ffpActCard || {};
+  await _ffpEnsureLogo(); if (_ffpShareCfg.usePhoto) await _ffpEnsurePhoto(a.photo_url);
+  var node = _ffpBuildShareCard(a, _ffpShareCfg.ratio, _ffpShareCfg.usePhoto);
   node.style.position = 'fixed'; node.style.left = '-10000px'; node.style.top = '0'; document.body.appendChild(node);
   try {
-    var canvas = await html2canvas(node.firstChild, { backgroundColor: null, scale: 2, useCORS: true, logging: false });
+    var canvas = await html2canvas(node.firstChild, { backgroundColor: null, scale: 2, useCORS: true, imageTimeout: 6000, logging: false });
     return await new Promise(function (res) { canvas.toBlob(function (b) { var nm = (a.activity || 'activity').replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '') || 'activity'; res(b ? new File([b], 'ffp-' + nm + '.png', { type: 'image/png' }) : null); }, 'image/png'); });
   } catch (e) { return null; } finally { if (node.parentNode) node.parentNode.removeChild(node); }
 }
 async function _ffpPrerenderShareFile() { if (_ffpShareRendering) return; _ffpShareRendering = true; var key = _ffpCurKey(); var f = await _ffpCaptureShareCard(); if (_ffpCurKey() === key) { _ffpShareFile = f; _ffpShareKey = key; } _ffpShareRendering = false; }
-function _ffpRenderSharePreview() {
+function _ffpDrawPreview() {
   var host = document.getElementById('ffp-sc-preview'); if (!host) return;
   var a = window._ffpActCard || {}; var d = _ffpCardDims(_ffpShareCfg.ratio);
   var maxH = Math.min((window.innerHeight || 700) * 0.5, 540), maxW = host.clientWidth || 300;
@@ -11942,6 +11961,13 @@ function _ffpRenderSharePreview() {
   node.style.position = 'absolute'; node.style.left = '50%'; node.style.top = '0'; node.style.transformOrigin = 'top center'; node.style.transform = 'translateX(-50%) scale(' + scale + ')';
   host.innerHTML = ''; host.appendChild(node);
   ['1:1', '4:5', '9:16'].forEach(function (r) { var t = document.getElementById('ffp-sc-tab-' + r.replace(':', '-')); if (t) { var on = (r === _ffpShareCfg.ratio); t.style.background = on ? '#2ba8e0' : 'transparent'; t.style.color = on ? '#fff' : '#8a99a8'; } });
+}
+async function _ffpRenderSharePreview() {
+  _ffpDrawPreview();   // show immediately (text-logo fallback until the asset is ready)
+  var a = window._ffpActCard || {}; var changed = false;
+  if (_ffpLogoData === null) { await _ffpEnsureLogo(); changed = true; }
+  if (_ffpShareCfg.usePhoto && a.photo_url && _ffpPhotoSrc !== a.photo_url) { await _ffpEnsurePhoto(a.photo_url); changed = true; }
+  if (changed) _ffpDrawPreview();
   _ffpShareFile = null; _ffpShareKey = null;
   (window.requestIdleCallback ? requestIdleCallback(function () { _ffpPrerenderShareFile(); }, { timeout: 2500 }) : setTimeout(function () { _ffpPrerenderShareFile(); }, 250));
 }
