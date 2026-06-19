@@ -5506,13 +5506,13 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         <label class="pm-form-label">Notes (optional)</label>
         <textarea id="log-notes" class="pm-form-textarea" rows="2" placeholder="How did it feel?"></textarea>
       </div>
-      <div class="pm-form-field">
+      <div class="pm-form-field" id="log-with-field">
         <label class="pm-form-label">Training partners (optional)</label>
         <div id="log-with-chips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
-        <button type="button" id="log-with-btn" onclick="toggleLogWith()" style="width:100%;text-align:left;cursor:pointer;background:rgba(43,168,224,0.06);border:1px solid rgba(43,168,224,0.25);border-radius:12px;padding:13px 14px;color:var(--muted,#8a99a8);font-family:inherit;font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;">
-          <span class="material-icons" style="font-size:20px;color:var(--blue,#2ba8e0);">group_add</span>Add a connection you trained with
-        </button>
-        <div id="log-with-list" style="display:none;margin-top:8px;border:1px solid rgba(43,168,224,0.25);border-radius:12px;max-height:230px;overflow-y:auto;-webkit-overflow-scrolling:touch;"></div>
+        <div style="position:relative;">
+          <input type="text" id="log-with-search" class="pm-form-input" autocomplete="off" placeholder="Add a connection you trained with" onfocus="openLogWith()" oninput="renderLogWithResults(this.value)" style="width:100%;box-sizing:border-box;">
+          <div id="log-with-list" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:60;margin-top:4px;background:#0b1622;border:1px solid rgba(43,168,224,0.3);border-radius:12px;max-height:280px;overflow-y:auto;-webkit-overflow-scrolling:touch;box-shadow:0 14px 34px rgba(0,0,0,0.5);"></div>
+        </div>
         <div style="font-size:11px;color:var(--muted,#8a99a8);font-weight:600;margin-top:6px;">They get a request to confirm — it shows on their journey once they accept.</div>
       </div>
       <div class="pm-form-field">
@@ -7982,7 +7982,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '365';
+  const FFP_BUILD = '366';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -11303,7 +11303,7 @@ function openLogModal() {
   var _lld = document.getElementById('log-loc-display'); if (_lld) { _lld.textContent = 'Drop a pin — where in the city?'; _lld.classList.add('pmf-pick-ph'); _lld.classList.remove('set'); }
   var _llm = document.getElementById('log-maplink'); if (_llm) _llm.style.display = 'none';
   // Fresh training-partner selection each open
-  _logPartners = []; var _wl = document.getElementById('log-with-list'); if (_wl) _wl.style.display = 'none'; if (typeof renderLogWithChips === 'function') renderLogWithChips();
+  _logPartners = []; var _wl = document.getElementById('log-with-list'); if (_wl) _wl.style.display = 'none'; var _ws = document.getElementById('log-with-search'); if (_ws) _ws.value = ''; if (typeof renderLogWithChips === 'function') renderLogWithChips();
 }
 // Fill the Log Activity pin fields from the FFPLocPick result. City stays the rollup ("Dubai"); this marks
 // WHERE in the city. Stored into activity_logs.venue + checkin_lat/lng (same columns venue check-ins use).
@@ -11373,64 +11373,66 @@ function openScanLog() {
 function closeLogModal() { document.getElementById('log-modal-backdrop').classList.remove('open'); }
 function closeLogIfBackdrop(e) { if (e.target.id === 'log-modal-backdrop') closeLogModal(); }
 
-// ── Training partners ("With") — pick from ACCEPTED connections; they confirm before it lands on their journey.
+// ── Training partners ("With") — the box IS the search. Empty = your 10 most trained-with; typing filters all accepted connections. They confirm before it lands on their journey.
 var _logPartners = [];
-var _logWithCache = null;
+var _logWithCache = null;   // full accepted connections (for typed search)
+var _logTopConns = null;    // ~10 most trained-with (default dropdown)
 async function _ensureLogWith(){
   var member = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null;
-  if (!member || !member.id || !window.supabase) { _logWithCache = []; return _logWithCache; }
-  try {
-    var r = await window.supabase.rpc('member_connections_list', { p_me: member.id });
-    var all = (r && r.data) ? r.data : [];
-    _logWithCache = all.filter(function (c) { return c && (c.mutual || c.status === 'accepted'); });
-  } catch (e) { _logWithCache = []; }
-  return _logWithCache;
+  if (!member || !member.id || !window.supabase) { _logWithCache = _logWithCache || []; _logTopConns = _logTopConns || []; return; }
+  if (!_logWithCache) {
+    try { var r = await window.supabase.rpc('member_connections_list', { p_me: member.id }); var all = (r && r.data) ? r.data : []; _logWithCache = all.filter(function (c) { return c && (c.mutual || c.status === 'accepted'); }); }
+    catch (e) { _logWithCache = []; }
+  }
+  if (!_logTopConns) {
+    try { var t = await window.supabase.rpc('member_frequent_partners', { p_me: member.id, p_limit: 10 }); _logTopConns = (t && t.data) ? t.data : []; }
+    catch (e) { _logTopConns = []; }
+  }
 }
-async function toggleLogWith(){
+function _logConnById(id){ var pools = [(_logWithCache || []), (_logTopConns || [])]; for (var p = 0; p < pools.length; p++){ for (var i = 0; i < pools[p].length; i++){ if (pools[p][i].id === id) return pools[p][i]; } } return { name: 'Member' }; }
+async function openLogWith(){
   var list = document.getElementById('log-with-list'); if (!list) return;
-  if (list.style.display === 'block') { list.style.display = 'none'; return; }
-  list.innerHTML = '<div style="padding:12px;color:var(--muted,#8a99a8);font-size:13px;">Loading…</div>';
   list.style.display = 'block';
-  await _ensureLogWith();
-  renderLogWithList();
-}
-function renderLogWithList(){
-  var list = document.getElementById('log-with-list'); if (!list) return;
-  var conns = _logWithCache || [];
-  if (!conns.length) { list.innerHTML = '<div style="padding:14px;color:var(--muted,#8a99a8);font-size:13px;">No connections yet — connect with people in Connections, then add them here.</div>'; return; }
-  // Search box (sticky) handles 100s/1000s of connections; results below filter live.
-  list.innerHTML = '<div style="position:sticky;top:0;z-index:1;background:#0b1622;padding:8px;border-bottom:1px solid rgba(255,255,255,0.06);"><input id="log-with-search" type="text" autocomplete="off" placeholder="Search connections…" oninput="renderLogWithResults(this.value)" style="width:100%;box-sizing:border-box;background:rgba(43,168,224,0.06);border:1px solid rgba(43,168,224,0.25);border-radius:8px;color:#e8eef4;padding:9px 11px;font-size:14px;font-family:inherit;outline:none;"></div><div id="log-with-results"></div>';
+  if (!_logWithCache || !_logTopConns) { list.innerHTML = '<div style="padding:12px;color:var(--muted,#8a99a8);font-size:13px;">Loading…</div>'; await _ensureLogWith(); }
   var s = document.getElementById('log-with-search');
   renderLogWithResults(s ? s.value : '');
 }
+function closeLogWith(){ var l = document.getElementById('log-with-list'); if (l) l.style.display = 'none'; }
+function _logRowHtml(c){
+  var on = _logPartners.indexOf(c.id) !== -1;
+  var ph = c.photo ? '<img src="' + escHtml(c.photo) + '" alt="" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex:0 0 auto;">' : '<span style="width:32px;height:32px;border-radius:50%;background:rgba(43,168,224,0.16);color:#2ba8e0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex:0 0 auto;">' + escHtml((c.name || '?').slice(0, 1).toUpperCase()) + '</span>';
+  return '<button type="button" onclick="toggleLogPartner(\'' + c.id + '\')" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;background:' + (on ? 'rgba(43,168,224,0.12)' : 'transparent') + ';border:none;border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer;text-align:left;font-family:inherit;">' + ph + '<span style="flex:1;min-width:0;font-size:14px;font-weight:700;color:var(--text,#e8eef4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(c.name || 'Member') + '</span><span class="material-icons" style="color:' + (on ? '#2ba8e0' : 'var(--muted,#8a99a8)') + ';font-size:22px;">' + (on ? 'check_circle' : 'radio_button_unchecked') + '</span></button>';
+}
 function renderLogWithResults(q){
-  var box = document.getElementById('log-with-results'); if (!box) return;
-  var conns = _logWithCache || [];
+  var list = document.getElementById('log-with-list'); if (!list) return;
+  if (list.style.display !== 'block') list.style.display = 'block';
   q = (q || '').trim().toLowerCase();
-  var items = q ? conns.filter(function (c) { return ((c.name || '') + ' ' + (c.city || '')).toLowerCase().indexOf(q) !== -1; }) : conns;
-  if (!items.length) { box.innerHTML = '<div style="padding:14px;color:var(--muted,#8a99a8);font-size:13px;">No matches.</div>'; return; }
-  box.innerHTML = items.map(function (c) {
-    var on = _logPartners.indexOf(c.id) !== -1;
-    var ph = c.photo ? '<img src="' + escHtml(c.photo) + '" alt="" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex:0 0 auto;">' : '<span style="width:32px;height:32px;border-radius:50%;background:rgba(43,168,224,0.16);color:#2ba8e0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex:0 0 auto;">' + escHtml((c.name || '?').slice(0, 1).toUpperCase()) + '</span>';
-    return '<button type="button" onclick="toggleLogPartner(\'' + c.id + '\')" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;background:' + (on ? 'rgba(43,168,224,0.12)' : 'transparent') + ';border:none;border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer;text-align:left;font-family:inherit;">' + ph + '<span style="flex:1;min-width:0;font-size:14px;font-weight:700;color:var(--text,#e8eef4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(c.name || 'Member') + '</span><span class="material-icons" style="color:' + (on ? '#2ba8e0' : 'var(--muted,#8a99a8)') + ';font-size:22px;">' + (on ? 'check_circle' : 'radio_button_unchecked') + '</span></button>';
-  }).join('');
+  var haveAny = ((_logWithCache || []).length || (_logTopConns || []).length);
+  if (!haveAny) { list.innerHTML = '<div style="padding:14px;color:var(--muted,#8a99a8);font-size:13px;">No connections yet — connect with people in Connections, then add them here.</div>'; return; }
+  var rows, header = '';
+  if (!q) { rows = (_logTopConns && _logTopConns.length) ? _logTopConns : (_logWithCache || []).slice(0, 10); header = '<div style="padding:8px 12px 4px;font-size:10px;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;color:#8a99a8;">Most trained with</div>'; }
+  else { rows = (_logWithCache || []).filter(function (c) { return ((c.name || '') + ' ' + (c.city || '')).toLowerCase().indexOf(q) !== -1; }); }
+  if (!rows.length) { list.innerHTML = '<div style="padding:14px;color:var(--muted,#8a99a8);font-size:13px;">No matches.</div>'; return; }
+  list.innerHTML = header + rows.map(_logRowHtml).join('');
 }
 function toggleLogPartner(id){
   var i = _logPartners.indexOf(id);
   if (i === -1) _logPartners.push(id); else _logPartners.splice(i, 1);
   var s = document.getElementById('log-with-search');
-  renderLogWithResults(s ? s.value : '');   // keep the search box + query (preserves focus)
+  renderLogWithResults(s ? s.value : '');   // keep the dropdown + query open for multi-add
   renderLogWithChips();
+  if (s) s.focus();
 }
 function renderLogWithChips(){
   var box = document.getElementById('log-with-chips'); if (!box) return;
-  var conns = _logWithCache || [];
   box.style.marginBottom = _logPartners.length ? '8px' : '0';
   box.innerHTML = _logPartners.map(function (id) {
-    var c = conns.find(function (x) { return x.id === id; }) || { name: 'Member' };
+    var c = _logConnById(id);
     return '<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(43,168,224,0.14);border:1px solid rgba(43,168,224,0.3);color:#cfeaf9;border-radius:20px;padding:5px 6px 5px 11px;font-size:12px;font-weight:700;">' + escHtml(c.name || 'Member') + '<span class="material-icons" onclick="toggleLogPartner(\'' + id + '\')" style="font-size:16px;cursor:pointer;color:#9fb0bf;">close</span></span>';
   }).join('');
 }
+// Close the suggestions when tapping outside the field.
+if (!window._logWithBound) { window._logWithBound = true; document.addEventListener('click', function (e) { var f = document.getElementById('log-with-field'); var l = document.getElementById('log-with-list'); if (l && l.style.display === 'block' && f && !f.contains(e.target)) l.style.display = 'none'; }); }
 // ── Reusable single-tap DURATION wheel picker (Hours / Minutes / Seconds) ──
 // One tap on a field opens an iOS-style 3-wheel sheet; Done returns total seconds.
 // Exposed as window.FFPDurationPicker so any duration field on the platform can reuse it.
