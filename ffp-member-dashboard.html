@@ -4402,6 +4402,11 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;">
     <button class="btn btn-block" style="padding:13px;background:#FFCC00;color:#081420;border:none;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;cursor:pointer;font-family:inherit;" onclick="openScanLog()"><span class="material-icons" style="font-size:18px;">qr_code_scanner</span> Scan QR</button>
     <button class="btn btn-block" style="padding:13px;background:#FFCC00;color:#081420;border:none;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;cursor:pointer;font-family:inherit;" onclick="openLogModal()"><span class="material-icons" style="font-size:18px;">edit</span> Log Activity</button>
+    <button id="ffp-tagged-strap" onclick="openActivityTags()" style="display:none;width:100%;margin-top:10px;padding:12px 14px;background:rgba(43,168,224,0.10);border:1px solid rgba(43,168,224,0.35);border-radius:10px;color:#cfe9f7;font-weight:800;font-size:13px;font-family:inherit;cursor:pointer;align-items:center;gap:8px;text-align:left;">
+      <span class="material-icons" style="font-size:19px;color:#2ba8e0;flex:0 0 auto;">group_add</span>
+      <span id="ffp-tagged-strap-txt" style="flex:1;min-width:0;">You've been tagged in activities</span>
+      <span class="material-icons" style="font-size:18px;color:#8a99a8;flex:0 0 auto;">chevron_right</span>
+    </button>
   </div>
 
   <!-- JOURNEY -->
@@ -7935,6 +7940,7 @@ async function loadNotifications() {
     if (total > 0) { badge.textContent = total > 9 ? '9+' : String(total); badge.style.display = ''; }
     else { badge.style.display = 'none'; }
   }
+  try { if (typeof ffpRefreshTaggedStrap === 'function') ffpRefreshTaggedStrap(); } catch (e) {}
 }
 async function markNotifsSeen() {
   var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
@@ -7976,7 +7982,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '364';
+  const FFP_BUILD = '365';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -11392,7 +11398,18 @@ function renderLogWithList(){
   var list = document.getElementById('log-with-list'); if (!list) return;
   var conns = _logWithCache || [];
   if (!conns.length) { list.innerHTML = '<div style="padding:14px;color:var(--muted,#8a99a8);font-size:13px;">No connections yet — connect with people in Connections, then add them here.</div>'; return; }
-  list.innerHTML = conns.map(function (c) {
+  // Search box (sticky) handles 100s/1000s of connections; results below filter live.
+  list.innerHTML = '<div style="position:sticky;top:0;z-index:1;background:#0b1622;padding:8px;border-bottom:1px solid rgba(255,255,255,0.06);"><input id="log-with-search" type="text" autocomplete="off" placeholder="Search connections…" oninput="renderLogWithResults(this.value)" style="width:100%;box-sizing:border-box;background:rgba(43,168,224,0.06);border:1px solid rgba(43,168,224,0.25);border-radius:8px;color:#e8eef4;padding:9px 11px;font-size:14px;font-family:inherit;outline:none;"></div><div id="log-with-results"></div>';
+  var s = document.getElementById('log-with-search');
+  renderLogWithResults(s ? s.value : '');
+}
+function renderLogWithResults(q){
+  var box = document.getElementById('log-with-results'); if (!box) return;
+  var conns = _logWithCache || [];
+  q = (q || '').trim().toLowerCase();
+  var items = q ? conns.filter(function (c) { return ((c.name || '') + ' ' + (c.city || '')).toLowerCase().indexOf(q) !== -1; }) : conns;
+  if (!items.length) { box.innerHTML = '<div style="padding:14px;color:var(--muted,#8a99a8);font-size:13px;">No matches.</div>'; return; }
+  box.innerHTML = items.map(function (c) {
     var on = _logPartners.indexOf(c.id) !== -1;
     var ph = c.photo ? '<img src="' + escHtml(c.photo) + '" alt="" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex:0 0 auto;">' : '<span style="width:32px;height:32px;border-radius:50%;background:rgba(43,168,224,0.16);color:#2ba8e0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex:0 0 auto;">' + escHtml((c.name || '?').slice(0, 1).toUpperCase()) + '</span>';
     return '<button type="button" onclick="toggleLogPartner(\'' + c.id + '\')" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;background:' + (on ? 'rgba(43,168,224,0.12)' : 'transparent') + ';border:none;border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer;text-align:left;font-family:inherit;">' + ph + '<span style="flex:1;min-width:0;font-size:14px;font-weight:700;color:var(--text,#e8eef4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(c.name || 'Member') + '</span><span class="material-icons" style="color:' + (on ? '#2ba8e0' : 'var(--muted,#8a99a8)') + ';font-size:22px;">' + (on ? 'check_circle' : 'radio_button_unchecked') + '</span></button>';
@@ -11401,7 +11418,9 @@ function renderLogWithList(){
 function toggleLogPartner(id){
   var i = _logPartners.indexOf(id);
   if (i === -1) _logPartners.push(id); else _logPartners.splice(i, 1);
-  renderLogWithList(); renderLogWithChips();
+  var s = document.getElementById('log-with-search');
+  renderLogWithResults(s ? s.value : '');   // keep the search box + query (preserves focus)
+  renderLogWithChips();
 }
 function renderLogWithChips(){
   var box = document.getElementById('log-with-chips'); if (!box) return;
@@ -11707,8 +11726,22 @@ window.respondActivityTag = async function (id, accept) {
   if (typeof showToast === 'function') showToast(accept ? 'Added to your journey' : 'Declined', 'success');
   try { if (accept && typeof loadJourneyLogs === 'function') loadJourneyLogs(); } catch (e) {}
   try { if (typeof loadNotifications === 'function') loadNotifications(); } catch (e) {}
+  try { if (typeof ffpRefreshTaggedStrap === 'function') ffpRefreshTaggedStrap(); } catch (e) {}
   await renderActivityTags();
 };
+// Persistent "you've been tagged" strap by Log Activity — lets them add tagged activities any time (not just from the bell).
+async function ffpRefreshTaggedStrap(){
+  var strap = document.getElementById('ffp-tagged-strap'); if (!strap) return;
+  var member = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null;
+  if (!member || !member.id || !window.supabase) { strap.style.display = 'none'; return; }
+  try {
+    var r = await window.supabase.rpc('activity_pending_tags', { p_me: member.id });
+    var rows = (r && r.data) ? r.data : [];
+    var t = document.getElementById('ffp-tagged-strap-txt');
+    if (rows.length) { if (t) t.textContent = (rows.length === 1 ? 'A connection added you to an activity — add it' : (rows.length + ' connections added you to activities — add them')); strap.style.display = 'flex'; }
+    else strap.style.display = 'none';
+  } catch (e) { strap.style.display = 'none'; }
+}
 
 // Activity breakdown is collapsed by default — this expands/collapses it (Fitness Stats › Activity).
 function ffpToggleBreakdown() {
@@ -11786,9 +11819,15 @@ window.ffpRenderActivityCard = function (a, isOwn) {
     tile('favorite', '#ef6a6a', a.avg_heart_rate ? (a.avg_heart_rate + num + ' bpm</span>') : '—', 'Heart') +
     '</div>';
   var lblCss = 'font-size:10px;font-weight:800;letter-spacing:0.6px;text-transform:uppercase;color:#8a99a8;margin-bottom:7px;';
-  var owner = (!isOwn && a.owner_name) ? ('<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">' +
-      (a.owner_photo ? '<img src="' + esc(a.owner_photo) + '" style="width:42px;height:42px;border-radius:50%;object-fit:cover;">' : '<div style="width:42px;height:42px;border-radius:50%;background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;">' + esc((a.owner_name || 'M').charAt(0).toUpperCase()) + '</div>') +
-      '<div><div style="font-size:14px;font-weight:800;color:#e8eef4;">' + esc(a.owner_name) + '</div><div style="font-size:11px;color:#8a99a8;">shared this activity with you</div></div></div>') : '';
+  // High five = an ICON on the RIGHT of the owner row (opposite the name, under the photo) — not a full-width button.
+  var liked = !!a.i_liked, lc = a.like_count || 0;
+  var hiFive = (!isOwn && a.id) ? ('<button id="ffp-like-btn" onclick="window.ffpToggleActivityLike&&window.ffpToggleActivityLike(\'' + a.id + '\')" aria-label="High five" title="High five" style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;font-family:inherit;padding:0;">' +
+      '<span id="ffp-like-circle" style="width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:' + (liked ? '#FFCC00' : 'rgba(43,168,224,0.12)') + ';color:' + (liked ? '#082335' : '#2ba8e0') + ';"><span class="material-icons" style="font-size:24px;">front_hand</span></span>' +
+      '<span id="ffp-like-count" style="font-size:11px;font-weight:800;color:' + (liked ? '#FFCC00' : '#8a99a8') + ';">' + (lc > 0 ? lc : '') + '</span></button>') : '';
+  var owner = (!isOwn && (a.owner_name || a.id)) ? ('<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">' +
+      (a.owner_photo ? '<img src="' + esc(a.owner_photo) + '" style="width:42px;height:42px;border-radius:50%;object-fit:cover;flex:0 0 auto;">' : '<div style="width:42px;height:42px;border-radius:50%;background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;flex:0 0 auto;">' + esc((a.owner_name || 'M').charAt(0).toUpperCase()) + '</div>') +
+      '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:800;color:#e8eef4;">' + esc(a.owner_name || 'Member') + '</div><div style="font-size:11px;color:#8a99a8;">shared this activity with you</div></div>' +
+      hiFive + '</div>') : '';
   var loc = [a.venue, a.city, a.country].filter(Boolean).join(', ');
   var locBlock = '';
   if (lat != null && lng != null) {
@@ -11804,9 +11843,8 @@ window.ffpRenderActivityCard = function (a, isOwn) {
   var socialBtn = (isOwn && a.id) ? '<button onclick="window.ffpSocialShareActivity&&window.ffpSocialShareActivity(\'' + a.id + '\')" style="width:100%;margin-top:24px;padding:14px;border-radius:12px;border:none;background:#FFCC00;color:#082335;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:middle;">ios_share</span> Share</button>' : '';
   var shareBtn = (isOwn && a.id) ? '<button onclick="window.ffpShareActivity&&window.ffpShareActivity(\'' + a.id + '\')" style="width:100%;margin-top:10px;padding:14px;border-radius:12px;border:1px solid rgba(43,168,224,0.35);background:rgba(43,168,224,0.07);color:#2ba8e0;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:middle;">' + (a.shared ? 'group' : 'group_add') + '</span> ' + (a.shared ? 'Shared with connections' : 'Share with my connections') + '</button>' : '';
   var editBtn = (isOwn && a.id) ? '<button onclick="ffpCloseActivityCard();window.ffpEditActivity&&window.ffpEditActivity(\'' + a.id + '\')" style="width:100%;margin-top:10px;padding:13px;border-radius:12px;border:1px solid rgba(43,168,224,0.35);background:rgba(43,168,224,0.07);color:#2ba8e0;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:middle;">edit</span> Edit activity</button>' : '';
-  // OTHERS' activity → High five button (FFP yellow when you've high-fived) showing the count.
-  var liked = !!a.i_liked, lc = a.like_count || 0;
-  var likeBtn = (!isOwn && a.id) ? '<button id="ffp-like-btn" onclick="window.ffpToggleActivityLike&&window.ffpToggleActivityLike(\'' + a.id + '\')" style="width:100%;margin-top:24px;padding:14px;border-radius:12px;border:none;background:' + (liked ? '#FFCC00' : '#2ba8e0') + ';color:#082335;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:middle;">front_hand</span> <span id="ffp-like-label">' + (liked ? 'High five given' : 'High five') + '</span><span id="ffp-like-count" style="opacity:.85;font-weight:700;">' + (lc > 0 ? ' · ' + lc : '') + '</span></button>' : '';
+  // High five now lives as an icon in the owner row (above) — no full-width button.
+  var likeBtn = '';
   var body = '<div style="padding:22px 20px 40px;max-width:640px;margin:0 auto;width:100%;box-sizing:border-box;">' + owner + statGrid + locBlock + notesBlock + socialBtn + shareBtn + editBtn + likeBtn + '</div>';
 
   ffpCloseActivityCard();
@@ -11881,10 +11919,9 @@ window.ffpToggleActivityLike = async function (id) {
     if (!d.ok) { if (typeof showToast === 'function') showToast('Could not like that', 'error'); if (btn) btn.disabled = false; return; }
     if (btn) {
       btn.disabled = false;
-      btn.style.background = d.liked ? '#FFCC00' : '#2ba8e0';
-      btn.style.color = '#082335';
-      var lbl = document.getElementById('ffp-like-label'); if (lbl) lbl.textContent = d.liked ? 'High five given' : 'High five';
-      var cnt = document.getElementById('ffp-like-count'); if (cnt) cnt.textContent = (d.count > 0 ? ' · ' + d.count : '');
+      var circle = document.getElementById('ffp-like-circle');
+      if (circle) { circle.style.background = d.liked ? '#FFCC00' : 'rgba(43,168,224,0.12)'; circle.style.color = d.liked ? '#082335' : '#2ba8e0'; }
+      var cnt = document.getElementById('ffp-like-count'); if (cnt) { cnt.textContent = (d.count > 0 ? d.count : ''); cnt.style.color = d.liked ? '#FFCC00' : '#8a99a8'; }
     }
     if (window._ffpActCard) { window._ffpActCard.i_liked = d.liked; window._ffpActCard.like_count = d.count; }
   } catch (e) { if (btn) btn.disabled = false; if (typeof showToast === 'function') showToast('Could not like that', 'error'); }
