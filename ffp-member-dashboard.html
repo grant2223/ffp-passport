@@ -7982,7 +7982,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '373';
+  const FFP_BUILD = '374';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -11921,9 +11921,9 @@ function _ffpBuildShareCard(a, ratio, usePhoto) {
   var statHtml = _ffpActBottomStats(a).map(function (s) { return '<div style="text-align:center;flex:1;"><div style="font-size:' + Math.round(d.w * 0.052) + 'px;font-weight:900;color:#fff;line-height:1;">' + esc(s[1]) + '</div><div style="font-size:' + Math.round(d.w * 0.022) + 'px;color:#9fc4e0;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-top:6px;">' + esc(s[0]) + '</div></div>'; }).join('');
   var bg = hasPhoto ? ("#06121f url('" + photoData + "') center/cover no-repeat") : 'linear-gradient(160deg,#11436c 0%,#0a2740 52%,#06121f 100%)';
   var scrim = hasPhoto ? '<div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,12,20,0.35) 0%,rgba(5,12,20,0.5) 50%,rgba(5,12,20,0.82) 100%);"></div>' : '';
-  var el = document.createElement('div'); el.style.cssText = 'position:relative;width:' + d.w + 'px;height:' + d.h + 'px;';
-  el.innerHTML = '<div style="position:absolute;inset:0;box-sizing:border-box;background:' + bg + ';font-family:Montserrat,-apple-system,system-ui,sans-serif;color:#fff;display:flex;flex-direction:column;padding:' + pad + 'px;overflow:hidden;">' +
-    scrim +
+  var el = document.createElement('div');
+  el.style.cssText = 'position:relative;box-sizing:border-box;width:' + d.w + 'px;height:' + d.h + 'px;background:' + bg + ';font-family:Montserrat,-apple-system,system-ui,sans-serif;color:#fff;display:flex;flex-direction:column;padding:' + pad + 'px;overflow:hidden;';
+  el.innerHTML = scrim +
     '<div style="position:absolute;right:' + Math.round(-d.w * 0.1) + 'px;top:' + Math.round(d.h * 0.2) + 'px;z-index:0;line-height:1;"><span class="material-icons" style="font-size:' + Math.round(d.w * 0.66) + 'px;color:#fff;opacity:0.06;">' + icon + '</span></div>' +
     '<div style="position:relative;z-index:1;text-align:center;">' + (_ffpLogoData ? '<img src="' + _ffpLogoData + '" alt="FFP" style="width:' + Math.round(d.w * 0.32) + 'px;height:auto;display:inline-block;">' : '<span style="font-style:italic;font-weight:900;font-size:' + Math.round(d.w * 0.075) + 'px;letter-spacing:-1px;color:#fff;">FFP</span>') + '</div>' +
     '<div style="position:relative;z-index:1;flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;">' +
@@ -11933,7 +11933,7 @@ function _ffpBuildShareCard(a, ratio, usePhoto) {
     '</div>' +
     (statHtml ? '<div style="position:relative;z-index:1;display:flex;justify-content:space-between;gap:' + Math.round(d.w * 0.02) + 'px;border-top:1px solid rgba(255,255,255,0.16);padding-top:' + Math.round(d.w * 0.04) + 'px;">' + statHtml + '</div>' : '') +
     '<div style="position:relative;z-index:1;text-align:center;font-size:' + Math.round(d.w * 0.021) + 'px;color:#9ec0db;font-weight:800;letter-spacing:1.5px;margin-top:' + Math.round(d.w * 0.035) + 'px;">TRACKED ON FFP PASSPORT</div>' +
-  '</div>';
+    '';
   return el;
 }
 var _ffpShareCfg = { ratio: '1:1', usePhoto: false, id: null };
@@ -11946,7 +11946,7 @@ async function _ffpCaptureShareCard() {
   var node = _ffpBuildShareCard(a, _ffpShareCfg.ratio, _ffpShareCfg.usePhoto);
   node.style.position = 'fixed'; node.style.left = '-10000px'; node.style.top = '0'; document.body.appendChild(node);
   try {
-    var canvas = await html2canvas(node.firstChild, { backgroundColor: null, scale: 2, useCORS: true, imageTimeout: 6000, logging: false });
+    var canvas = await html2canvas(node, { backgroundColor: null, scale: 2, useCORS: true, imageTimeout: 6000, logging: false });
     return await new Promise(function (res) { canvas.toBlob(function (b) { var nm = (a.activity || 'activity').replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '') || 'activity'; res(b ? new File([b], 'ffp-' + nm + '.png', { type: 'image/png' }) : null); }, 'image/png'); });
   } catch (e) { return null; } finally { if (node.parentNode) node.parentNode.removeChild(node); }
 }
