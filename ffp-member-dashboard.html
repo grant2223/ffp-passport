@@ -7982,7 +7982,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '370';
+  const FFP_BUILD = '372';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -11908,7 +11908,7 @@ function _ffpBuildShareCard(a, ratio, usePhoto) {
   el.innerHTML = '<div style="position:absolute;inset:0;box-sizing:border-box;background:' + bg + ';font-family:Montserrat,-apple-system,system-ui,sans-serif;color:#fff;display:flex;flex-direction:column;padding:' + pad + 'px;overflow:hidden;">' +
     scrim +
     '<div style="position:absolute;right:' + Math.round(-d.w * 0.1) + 'px;top:' + Math.round(d.h * 0.2) + 'px;z-index:0;line-height:1;"><span class="material-icons" style="font-size:' + Math.round(d.w * 0.66) + 'px;color:#fff;opacity:0.06;">' + icon + '</span></div>' +
-    '<div style="position:relative;z-index:1;text-align:center;"><img src="/assets/ffp-logo-white.png" alt="FFP" crossorigin="anonymous" style="width:' + Math.round(d.w * 0.4) + 'px;height:auto;display:inline-block;"></div>' +
+    '<div style="position:relative;z-index:1;text-align:center;"><img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-logo-white.png" alt="FFP" crossorigin="anonymous" style="width:' + Math.round(d.w * 0.32) + 'px;height:auto;display:inline-block;"></div>' +
     '<div style="position:relative;z-index:1;flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;">' +
       '<div style="font-size:' + Math.round(d.w * 0.072) + 'px;font-weight:900;letter-spacing:-1px;">' + esc(a.activity || 'Activity') + '</div>' +
       '<div style="display:flex;align-items:flex-end;gap:' + Math.round(d.w * 0.018) + 'px;margin-top:' + Math.round(d.w * 0.03) + 'px;"><div style="font-size:' + Math.round(d.w * 0.165) + 'px;font-weight:900;line-height:0.86;letter-spacing:-3px;">' + esc(heroVal) + '</div>' + (heroUnit ? '<div style="font-size:' + Math.round(d.w * 0.05) + 'px;font-weight:800;color:#9fc4e0;margin-bottom:' + Math.round(d.w * 0.022) + 'px;">' + heroUnit + '</div>' : '') + '</div>' +
@@ -11962,29 +11962,45 @@ function _ffpOpenShareSheet(id) {
     '<div style="display:flex;gap:6px;background:#111a26;border-radius:11px;padding:4px;margin-bottom:16px;">' + tab('1:1', 'Square 1:1') + tab('4:5', 'Portrait 4:5') + tab('9:16', 'Story 9:16') + '</div>' +
     '<div id="ffp-sc-preview" style="position:relative;width:100%;"></div>' +
     (hasPhoto ? '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;background:#111a26;border-radius:11px;padding:11px 14px;"><span style="font-size:13px;font-weight:700;color:#cfe0ee;">Use my photo as background</span><span onclick="ffpShareTogglePhoto(this)" style="width:40px;height:22px;border-radius:20px;background:#3a4654;position:relative;cursor:pointer;display:inline-block;flex:0 0 auto;"><span style="position:absolute;right:20px;top:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:right .15s;"></span></span></div>' : '') +
-    '<div style="display:flex;gap:10px;margin-top:16px;"><button onclick="ffpDownloadActivityCard()" style="flex:1;padding:14px;border:1px solid rgba(255,255,255,0.18);border-radius:13px;background:rgba(255,255,255,0.05);color:#cfe0ee;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:16px;vertical-align:-3px;">download</span> Download</button><button onclick="ffpDoShareCard()" style="flex:2;padding:14px;border:none;border-radius:13px;background:linear-gradient(135deg,#2ba8e0,#1d7fb0);color:#fff;font-weight:900;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:16px;vertical-align:-3px;">ios_share</span> Share</button></div>' +
+    '<div style="display:flex;gap:10px;margin-top:16px;"><button id="ffp-sc-dl-btn" onclick="ffpDownloadActivityCard()" style="position:relative;overflow:hidden;flex:1;padding:14px;border:1px solid rgba(255,255,255,0.18);border-radius:13px;background:rgba(255,255,255,0.05);color:#cfe0ee;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span id="ffp-sc-dl-fill" style="position:absolute;left:0;top:0;bottom:0;width:0%;background:rgba(43,168,224,0.32);transition:width .12s linear;z-index:0;"></span><span id="ffp-sc-dl-lbl" style="position:relative;z-index:1;"><span class="material-icons" style="font-size:16px;vertical-align:-3px;">download</span> Download</span></button><button onclick="ffpDoShareCard()" style="flex:2;padding:14px;border:none;border-radius:13px;background:linear-gradient(135deg,#2ba8e0,#1d7fb0);color:#fff;font-weight:900;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:16px;vertical-align:-3px;">ios_share</span> Share</button></div>' +
   '</div>';
   document.body.appendChild(ov);
   _ffpRenderSharePreview();
 }
 window.ffpDoShareCard = async function () {
-  var a = window._ffpActCard || {}; var id = _ffpShareCfg.id;
-  var url = 'https://ffppassport.com/ffp-member-dashboard.html?activity=' + encodeURIComponent(id || '');
+  var a = window._ffpActCard || {};
   var bits = [a.activity || 'My activity']; if (a.distance_km != null && a.distance_km > 0) bits.push((Math.round(a.distance_km * 100) / 100) + ' km'); var mins = Math.round(a.duration_min || 0); if (mins || a.duration_sec) bits.push(mins + ' min');
-  var text = bits.join(' · ') + ' — tracked on my FFP Passport';
+  var caption = bits.join(' · ') + ' — FFP Passport';
   function cancel(e) { return e && (e.name === 'AbortError' || /abort|cancel|dismiss/i.test(e.message || '')); }
+  // ALWAYS share the IMAGE (never a URL/link). Use the pre-rendered file if ready, else make it now.
+  var f = (_ffpShareFile && _ffpShareKey === _ffpCurKey()) ? _ffpShareFile : null;
+  if (!f) { f = await _ffpCaptureShareCard(); if (f) { _ffpShareFile = f; _ffpShareKey = _ffpCurKey(); } }
+  if (!f) { if (typeof showToast === 'function') showToast('Could not make the image — try Download', 'error'); return; }
   try {
-    if (_ffpShareFile && _ffpShareKey === _ffpCurKey() && navigator.canShare && navigator.canShare({ files: [_ffpShareFile] })) { await navigator.share({ files: [_ffpShareFile], text: text + '\n\n' + url }); return; }
-    if (navigator.share) { await navigator.share({ title: 'FFP Passport', text: text, url: url }); _ffpPrerenderShareFile(); return; }
-    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text + ' ' + url); if (typeof showToast === 'function') showToast('Link copied — paste it anywhere', 'success'); return; }
-    if (typeof showToast === 'function') showToast('Sharing isn’t supported here — try Download', 'error');
-  } catch (e) { if (cancel(e)) return; if (typeof showToast === 'function') showToast('Could not open share', 'error'); }
+    if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], text: caption }); return; }
+    // Device can't share images (most desktop browsers) → download it instead of sharing a link.
+    if (typeof showToast === 'function') showToast('Image sharing isn’t supported here — downloaded instead', 'info');
+    var u = URL.createObjectURL(f); var aTag = document.createElement('a'); aTag.href = u; aTag.download = f.name; document.body.appendChild(aTag); aTag.click(); setTimeout(function () { URL.revokeObjectURL(u); aTag.remove(); }, 500);
+  } catch (e) { if (cancel(e)) return; if (typeof showToast === 'function') showToast('Could not share', 'error'); }
 };
 window.ffpDownloadActivityCard = async function () {
-  var f = (_ffpShareFile && _ffpShareKey === _ffpCurKey()) ? _ffpShareFile : null;
-  if (!f) { if (typeof showToast === 'function') showToast('Preparing image…', 'info'); f = await _ffpCaptureShareCard(); }
-  if (!f) { if (typeof showToast === 'function') showToast('Could not make the image', 'error'); return; }
+  var btn = document.getElementById('ffp-sc-dl-btn'), fill = document.getElementById('ffp-sc-dl-fill'), lbl = document.getElementById('ffp-sc-dl-lbl');
+  var pct = 0, timer = null;
+  var ic = function (n) { return '<span class="material-icons" style="font-size:16px;vertical-align:-3px;">' + n + '</span> '; };
+  function paint(p) { pct = Math.max(0, Math.min(100, Math.round(p))); if (fill) fill.style.width = pct + '%'; if (lbl) lbl.innerHTML = (pct >= 100 ? ic('check_circle') + 'Saved' : ic('download') + 'Saving… ' + pct + '%'); }
+  function reset() { if (fill) fill.style.width = '0%'; if (lbl) lbl.innerHTML = ic('download') + 'Download'; }
+  if (btn) btn.disabled = true;
+  var ready = (_ffpShareFile && _ffpShareKey === _ffpCurKey());
+  paint(ready ? 65 : 8);
+  timer = setInterval(function () { if (pct < 92) paint(pct + (ready ? 14 : 6)); }, 110);   // animate while the image renders (no native progress events for a local export)
+  var f = ready ? _ffpShareFile : await _ffpCaptureShareCard();
+  if (timer) clearInterval(timer);
+  if (!f) { if (btn) btn.disabled = false; reset(); if (typeof showToast === 'function') showToast('Could not make the image', 'error'); return; }
   var u = URL.createObjectURL(f); var aTag = document.createElement('a'); aTag.href = u; aTag.download = f.name; document.body.appendChild(aTag); aTag.click(); setTimeout(function () { URL.revokeObjectURL(u); aTag.remove(); }, 500);
+  paint(100);
+  if (typeof showToast === 'function') showToast('Saved to your device', 'success');
+  if (btn) btn.disabled = false;
+  setTimeout(reset, 1800);
 };
 // Like / un-like someone else's activity (member_like_activity toggles + pings the owner's bell on a new like).
 window.ffpToggleActivityLike = async function (id) {
