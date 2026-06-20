@@ -182,7 +182,7 @@ section{padding:56px 0;}
 @media (min-width:900px){.sec-heading{font-size:42px;} .sec-sub{font-size:15px;}}
 
 /* PASSPORT CARD — hero brand signature */
-.pp-card{background:linear-gradient(160deg,#f4f6f8,#e7edf1);border-radius:16px;padding:16px 17px;color:#10212e;box-shadow:0 30px 70px rgba(0,0,0,.55);position:relative;overflow:hidden;}
+.pp-card{background:linear-gradient(160deg,#f4f6f8,#e7edf1);border-radius:16px;padding:15px 16px;color:#10212e;box-shadow:0 30px 70px rgba(0,0,0,.55);position:relative;overflow:hidden;aspect-ratio:1.55/1;width:100%;max-width:440px;margin:0 auto;display:flex;flex-direction:column;justify-content:space-between;}
 .pp-card::before{content:"";position:absolute;inset:0;background-image:radial-gradient(circle at 72% 42%,rgba(20,60,80,.05) 0 2px,transparent 2px);background-size:14px 14px;pointer-events:none;}
 .pp-top{display:flex;justify-content:space-between;align-items:flex-start;position:relative;gap:8px;}
 .pp-mini{font-size:8px;font-weight:800;letter-spacing:1px;color:#6a7d88;line-height:1.6;}
@@ -203,6 +203,14 @@ section{padding:56px 0;}
 .hero-stats{display:flex;gap:30px;margin-top:26px;}
 .hero-stats .hs-n{font-size:28px;font-weight:900;color:#fff;line-height:1;}
 .hero-stats .hs-l{font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);margin-top:6px;}
+/* THE FIVE — app screenshot + minimal text, alternating */
+.five{display:grid;gap:26px;align-items:center;grid-template-columns:1fr;}
+.five-media{border-radius:var(--radius-lg);overflow:hidden;background:#05080d;box-shadow:0 26px 60px rgba(0,0,0,.5);}
+.five-media img{width:100%;display:block;}
+@media(min-width:860px){.five{grid-template-columns:1.05fr 1fr;gap:54px;} .five.rev .five-media{order:2;}}
+/* HERO — real app screenshot */
+.hero-shot{display:flex;justify-content:center;align-items:center;}
+.hero-shot img{width:100%;max-width:560px;display:block;border-radius:var(--radius-lg);box-shadow:0 36px 70px rgba(0,0,0,.5);}
 
 /* HERO */
 .hero{padding-top:100px;padding-bottom:40px;}
@@ -274,6 +282,17 @@ section{padding:56px 0;}
 .eco-chip{background:var(--bg-elev);border:1px solid var(--accent-line);border-radius:100px;padding:11px 18px;font-size:12px;font-weight:700;color:var(--text-soft);display:inline-flex;align-items:center;gap:8px;transition:all .15s;}
 .eco-chip:hover{border-color:rgba(43,168,224,.55);color:#fff;}
 .eco-chip .material-icons{font-size:16px !important;color:var(--accent);}
+
+/* SIX WORLDS — bold visual grid */
+.worlds-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+@media (min-width:700px){.worlds-grid{grid-template-columns:repeat(3,1fr);gap:14px;}}
+@media (min-width:1000px){.worlds-grid{grid-template-columns:repeat(6,1fr);}}
+.world-card{position:relative;border:1px solid var(--accent-line);border-radius:var(--radius-lg);background:linear-gradient(180deg,rgba(43,168,224,.07),rgba(43,168,224,.01));padding:28px 14px;text-align:center;transition:transform .2s,border-color .2s,box-shadow .2s;overflow:hidden;}
+.world-card::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--yellow);transform:scaleX(0);transition:transform .25s;transform-origin:left;}
+.world-card:hover{transform:translateY(-5px);border-color:rgba(255,204,0,.45);box-shadow:0 18px 40px rgba(0,0,0,.35);}
+.world-card:hover::after{transform:scaleX(1);}
+.world-card .material-icons{font-size:36px !important;color:var(--yellow);margin-bottom:13px;display:block;}
+.world-card b{font-size:13px;font-weight:800;letter-spacing:.5px;color:#fff;display:block;}
 
 /* UNLOCKS */
 .unlock-grid{display:grid;gap:14px;grid-template-columns:1fr;}
@@ -445,22 +464,8 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
           <div><div class="hs-n" style="color:var(--accent);">&infin;</div><div class="hs-l">Your people</div></div>
         </div>
       </div>
-      <div class="pp-card">
-        <div class="pp-top">
-          <div class="pp-mini">PASSPORT<br>URUWHENUA</div>
-          <div class="pp-world">WORLDWIDE</div>
-          <div class="pp-mini" style="text-align:right;">PASSPORT NO.<br><b>FFP&#8209;2026&#8209;4607</b></div>
-        </div>
-        <div class="pp-row">
-          <div class="pp-mini">TYPE<br><b>A</b></div>
-          <div class="pp-mini">COUNTRY<br><b>United Arab Emirates</b></div>
-        </div>
-        <div class="pp-body">
-          <div class="pp-photo"></div>
-          <div class="pp-fields">SURNAME <b>GOES</b><br>GIVEN NAMES <b>GRANT HERMANUS</b><br>NATIONALITY <b>NEW ZEALANDER</b><br>GENDER <b>MALE</b></div>
-          <div class="pp-qr"></div>
-        </div>
-        <div class="pp-mrz">&gt;&gt;&gt;&gt;&gt;NZL&gt;Grant&gt;Goes&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;<br>&gt;&gt;FFP&#8209;2026&#8209;4607&gt;&gt;PNO&gt;UAE&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</div>
+      <div class="hero-shot">
+        <img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-lifestyle-hero.jpg" alt="The FFP Passport app in hand" fetchpriority="high">
       </div>
     </div>
   </div>
@@ -488,90 +493,81 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
   </div>
 </section>
 
-<!-- CATEGORIES — the six worlds the passport covers -->
+<!-- SIX WORLDS — the passport's full coverage, bold visual grid -->
 <section>
-  <div class="col">
+  <div class="col" style="text-align:center;max-width:720px;margin:0 auto 42px;">
     <span class="eyebrow">Six worlds, one passport</span>
-    <h2 class="sec-heading">Whatever active means to you.</h2>
-    <p class="sec-sub">From a sunrise run to a recovery session to a long lunch that&rsquo;s actually good for you &mdash; the passport spans the whole active life, with the people, places and progress to match.</p>
-    <div class="eco-grid">
-      <div class="eco-chip"><span class="material-icons">sports_basketball</span>Sports</div>
-      <div class="eco-chip"><span class="material-icons">fitness_center</span>Fitness</div>
-      <div class="eco-chip"><span class="material-icons">self_improvement</span>Wellness</div>
-      <div class="eco-chip"><span class="material-icons">hiking</span>Adventure</div>
-      <div class="eco-chip"><span class="material-icons">restaurant</span>Healthy Food</div>
-      <div class="eco-chip"><span class="material-icons">spa</span>Recovery</div>
+    <h2 class="sec-heading">Every way you move, in one place.</h2>
+    <p class="sec-sub" style="margin:0 auto;">One membership across the whole active life &mdash; the people, places and progress to match.</p>
+  </div>
+  <div class="col">
+    <div class="worlds-grid">
+      <div class="world-card"><span class="material-icons">sports_basketball</span><b>Sports</b></div>
+      <div class="world-card"><span class="material-icons">fitness_center</span><b>Fitness</b></div>
+      <div class="world-card"><span class="material-icons">self_improvement</span><b>Wellness</b></div>
+      <div class="world-card"><span class="material-icons">hiking</span><b>Adventure</b></div>
+      <div class="world-card"><span class="material-icons">restaurant</span><b>Healthy Food</b></div>
+      <div class="world-card"><span class="material-icons">spa</span><b>Recovery</b></div>
     </div>
   </div>
 </section>
 
 <!-- FIVE REASONS TO JOIN — all about connection with highly active people -->
-<!-- THE FIVE — each its own clear section, in order -->
-<section id="ways">
-  <div class="col" style="text-align:center;max-width:760px;margin:0 auto 4px;">
-    <span class="eyebrow">What you can do when you join</span>
-    <h2 class="sec-heading">Five things. Here&rsquo;s exactly what each one is.</h2>
+<!-- THE FIVE — real app, minimal words -->
+<section id="ways" style="padding-bottom:10px;">
+  <div class="col" style="text-align:center;max-width:680px;margin:0 auto;">
+    <span class="eyebrow">What you can do</span>
+    <h2 class="sec-heading">Five things. See them for yourself.</h2>
   </div>
 </section>
 
 <!-- 1 · CONNECT -->
-<section style="background:var(--bg-elev);padding-top:40px;">
+<section style="background:var(--bg-elev);">
   <div class="col">
-    <div class="section-img"><img src="assets/group-of-5.jpg" alt="Connect with active people"></div>
-    <div class="sec-num"><i>01</i><span>Connect</span></div>
-    <h2 class="sec-heading">Connect</h2>
-    <p class="sec-sub">Find and follow the active people near you &mdash; matched by sport, level and what you&rsquo;re into. It&rsquo;s how you build a real circle of people to train with.</p>
-    <ul class="do-list">
-      <li><span class="material-icons">check_circle</span><span><b>Get matched</b> to active members near you, by sport, level and interests.</span></li>
-      <li><span class="material-icons">check_circle</span><span><b>Follow</b> the people who inspire you and see what they&rsquo;re up to.</span></li>
-      <li><span class="material-icons">check_circle</span><span><b>Connect</b> with the ones you want to train with &mdash; always your call.</span></li>
-      <li><span class="material-icons">check_circle</span><span><b>Build your circle</b> of training partners across every sport you play.</span></li>
-    </ul>
+    <div class="five">
+      <div class="five-media"><img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-passport-connections.png" alt="FFP Passport — Connections" loading="lazy"></div>
+      <div class="five-txt">
+        <div class="sec-num"><i>01</i><span>Connect</span></div>
+        <h2 class="sec-heading">Find your people.</h2>
+        <p class="sec-sub">Matched to active people near you, by sport and level. Follow who inspires you, connect with who you want, build your circle.</p>
+      </div>
+    </div>
   </div>
 </section>
 
 <!-- 2 · MEETUP -->
 <section>
   <div class="col">
-    <div class="section-img"><img src="assets/padel-high-five.jpg" alt="Small-group meet-ups"></div>
-    <div class="sec-num"><i>02</i><span>Meetup</span></div>
-    <h2 class="sec-heading">Meetup</h2>
-    <p class="sec-sub">Small-group sessions of up to 8 people &mdash; the simplest way to actually get a session on the calendar with people in your community.</p>
-    <ul class="do-list">
-      <li><span class="material-icons">check_circle</span><span><b>Create a meet-up</b> for any activity and invite exactly who you want.</span></li>
-      <li><span class="material-icons">check_circle</span><span><b>Join meet-ups</b> other members are hosting near you.</span></li>
-      <li><span class="material-icons">check_circle</span><span><b>Keep it small</b> &mdash; up to 8 &mdash; so everyone gets a proper session.</span></li>
-      <li><span class="material-icons">check_circle</span><span><b>Manage it all</b> &mdash; time, place and who&rsquo;s coming &mdash; in a couple of taps.</span></li>
-    </ul>
+    <div class="five rev">
+      <div class="five-media"><img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-passport-meetup.png" alt="FFP Passport — Meetup" loading="lazy"></div>
+      <div class="five-txt">
+        <div class="sec-num"><i>02</i><span>Meetup</span></div>
+        <h2 class="sec-heading">Move together.</h2>
+        <p class="sec-sub">Spin up a small-group session &mdash; up to 8 &mdash; and invite your people, or join one near you. Sorted in a couple of taps.</p>
+      </div>
+    </div>
   </div>
 </section>
 
 <!-- 3 · QUEST -->
 <section class="quests" id="quests" style="background:var(--bg-elev);">
-  <div class="col">
-    <div class="section-img"><img src="assets/ocr-racer.jpg" alt="FFP Quests"></div>
-    <div class="sec-num"><i>03</i><span>Quest</span></div>
-    <h2 class="sec-heading">Quest</h2>
-    <p class="sec-sub">Gamified missions from FFP and our partners that get you out trying new activities and venues across your region &mdash; and rewarded for it.</p>
-    <ul class="do-list">
-      <li><span class="material-icons">check_circle</span><span><b>Take on quests</b> at City, Country and Global level &mdash; solo or with a friend.</span></li>
-      <li><span class="material-icons">check_circle</span><span><b>Visit new venues</b> and collect an official passport stamp for each.</span></li>
-      <li><span class="material-icons">check_circle</span><span><b>Climb the tiers</b> &mdash; Explorer &rarr; Adventurer &rarr; Navigator.</span></li>
-      <li><span class="material-icons">check_circle</span><span><b>Win real prizes</b> by finishing partner-sponsored quests.</span></li>
-    </ul>
-    <div class="q-tiers" style="margin-top:34px;">
+  <div class="col" style="text-align:center;max-width:780px;margin:0 auto;">
+    <div class="sec-num" style="justify-content:center;"><i>03</i><span>Quest</span></div>
+    <h2 class="sec-heading">Explore. Collect. Win.</h2>
+    <p class="sec-sub" style="margin-left:auto;margin-right:auto;">Quests from FFP and partners get you trying new venues across the region &mdash; collect official stamps, climb the tiers, and win real prizes.</p>
+    <div class="q-tiers" style="margin-top:30px;">
       <div class="q-tier active"><div class="q-tier-dot"><span class="material-icons">explore</span></div><div class="q-tier-lbl">Explorer</div></div>
       <div class="q-tier-line"></div>
       <div class="q-tier"><div class="q-tier-dot"><span class="material-icons">hiking</span></div><div class="q-tier-lbl">Adventurer</div></div>
       <div class="q-tier-line"></div>
       <div class="q-tier"><div class="q-tier-dot"><span class="material-icons">travel_explore</span></div><div class="q-tier-lbl">Navigator</div></div>
     </div>
-    <div class="q-prize">
+    <div class="q-prize" style="margin-top:24px;text-align:left;">
       <div class="q-prize-badge"><span class="material-icons">redeem</span></div>
       <div class="q-prize-text">
         <div class="q-prize-eyebrow">Sponsored quests</div>
         <div class="q-prize-title">Win real prizes from our partners</div>
-        <div class="q-prize-desc">Brands across the region put up the rewards &mdash; finish a sponsored quest and you could win on top of the stamp. Everyone who completes still earns it.</div>
+        <div class="q-prize-desc">Finish a sponsored quest and you could win on top of the stamp. Everyone who completes still earns it.</div>
       </div>
     </div>
   </div>
@@ -580,32 +576,28 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
 <!-- 4 · FITNESS STATS -->
 <section>
   <div class="col">
-    <div class="section-img"><img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/fitness-stats-preview.jpg" alt="FFP Fitness Stats" loading="lazy"></div>
-    <div class="sec-num"><i>04</i><span>Fitness Stats</span></div>
-    <h2 class="sec-heading">Fitness Stats</h2>
-    <p class="sec-sub">Record every activity and workout in one place &mdash; your whole active life, measured, with the numbers that actually matter.</p>
-    <ul class="do-list">
-      <li><span class="material-icons">check_circle</span><span><b>Log activities &amp; workouts</b> and build your full training history.</span></li>
-      <li><span class="material-icons">check_circle</span><span><b>Capture personal records</b> and watch your progress climb over time.</span></li>
-      <li><span class="material-icons">check_circle</span><span><b>See your numbers</b> &mdash; streaks, calories, biological age and more.</span></li>
-      <li><span class="material-icons">check_circle</span><span><b>Highlight &amp; share</b> your milestones with the people who get it.</span></li>
-    </ul>
+    <div class="five">
+      <div class="five-media"><img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-passport-fitness-stats.png" alt="FFP Passport — Fitness Stats" loading="lazy"></div>
+      <div class="five-txt">
+        <div class="sec-num"><i>04</i><span>Fitness Stats</span></div>
+        <h2 class="sec-heading">Every stat, in one place.</h2>
+        <p class="sec-sub">Log activities and workouts, capture PRs, and track your streak and biological age &mdash; your whole active life, measured.</p>
+      </div>
+    </div>
   </div>
 </section>
 
 <!-- 5 · TRACKING -->
 <section style="background:var(--bg-elev);">
   <div class="col">
-    <div class="section-img"><img src="assets/pickel-ball.jpg" alt="Real-time tracking and leaderboards"></div>
-    <div class="sec-num"><i>05</i><span>Tracking</span></div>
-    <h2 class="sec-heading">Tracking</h2>
-    <p class="sec-sub">Real-time leaderboards and progress tracking that show you exactly where your activity and fitness stand &mdash; across every variable that matters.</p>
-    <ul class="do-list">
-      <li><span class="material-icons">check_circle</span><span><b>See live leaderboards</b> across sport, activity, distance, streaks and more.</span></li>
-      <li><span class="material-icons">check_circle</span><span><b>Rank</b> within your city, your country and your age group.</span></li>
-      <li><span class="material-icons">check_circle</span><span><b>Compare</b> against the whole community &mdash; or just your people.</span></li>
-      <li><span class="material-icons">check_circle</span><span><b>Know where you stand</b> in real time &mdash; and exactly what to chase next.</span></li>
-    </ul>
+    <div class="five rev">
+      <div class="five-media"><img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-passport-calorie-tracker.png" alt="FFP Passport — Tracking" loading="lazy"></div>
+      <div class="five-txt">
+        <div class="sec-num"><i>05</i><span>Tracking</span></div>
+        <h2 class="sec-heading">Stay on track.</h2>
+        <p class="sec-sub">Track meals, weight and goals, and watch the week add up toward where you&rsquo;re headed.</p>
+      </div>
+    </div>
   </div>
 </section>
 
