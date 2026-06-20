@@ -74,7 +74,7 @@ async function openServiceModal(id){
   var pid = _svcProvId(); if (!pid) return;
   if (!_proServicesCache.length) await _loadServicesCache();
   var editing = id ? _proServicesCache.find(function (x){ return x.id === id; }) : null;
-  var s = editing || { name:'', service_type:'pt_session', description:'', duration_min:60, capacity:1, price_aed:'', location:'' };
+  var s = editing || { name:'', service_type:'pt_session', description:'', duration_min:60, capacity:1, price_aed:'', location:'', free_cancellation_hours:24 };
   var typeOpts = Object.keys(SERVICE_TYPES).map(function (k){ return '<option value="'+k+'"'+(s.service_type===k?' selected':'')+'>'+SERVICE_TYPES[k]+'</option>'; }).join('');
 
   openModalShell('lg', (editing ? 'Edit service' : 'New service'),
@@ -84,6 +84,7 @@ async function openServiceModal(id){
       '<div class="field"><div class="label">Session length (min)</div><input class="input" type="number" min="1" id="sv-duration_min" value="'+_svcEsc(String(s.duration_min||''))+'"></div>'+
       '<div class="field"><div class="label">Capacity <span style="color:var(--ffp-text-dim);">(per slot)</span></div><input class="input" type="number" min="1" id="sv-capacity" value="'+_svcEsc(String(s.capacity||1))+'"></div>'+
       '<div class="field"><div class="label">Price per session ('+_svcCcy()+')</div><input class="input" type="number" min="0" id="sv-price_aed" value="'+_svcEsc(String(s.price_aed==null?'':s.price_aed))+'" placeholder="For a single booking"></div>'+
+      '<div class="field"><div class="label">Free cancellation (hrs) <span style="color:var(--ffp-text-dim);">(full refund/credit before start)</span></div><input class="input" type="number" min="0" step="1" id="sv-free_cancellation_hours" value="'+_svcEsc(String(s.free_cancellation_hours!=null?s.free_cancellation_hours:24))+'" placeholder="24"></div>'+
       '<div class="field"><div class="label">Location</div><input class="input" id="sv-location" value="'+_svcEsc(s.location||'')+'" placeholder="Optional"></div>'+
       '<div class="field full"><div class="label">Description</div><input class="input" id="sv-description" value="'+_svcEsc(s.description||'')+'" placeholder="What this service includes (optional)"></div>'+
       '<div class="field full"><label style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;background:rgba(10,62,68,0.07);border:1px solid var(--ffp-border-mid);border-radius:10px;padding:12px 14px;"><span style="display:flex;flex-direction:column;gap:2px;"><span style="font-size:13px;font-weight:800;color:var(--ffp-text);">Offer online</span><span style="font-size:11px;color:var(--ffp-text-dim);font-weight:600;">Members can self-book slots that use this service, up to capacity.</span></span><input type="checkbox" id="sv-bookable_online" '+(s.bookable_online?'checked':'')+' style="width:20px;height:20px;accent-color:var(--ffp-purple);flex:0 0 auto;cursor:pointer;"></label></div>'+
@@ -104,6 +105,7 @@ async function saveService(id){
     name: name, service_type: g('service_type') || 'pt_session', description: g('description'),
     duration_min: g('duration_min'), capacity: g('capacity') || '1',
     price_aed: g('price_aed'), location: g('location'),
+    free_cancellation_hours: g('free_cancellation_hours'),
     bookable_online: !!(_onlineEl && _onlineEl.checked)
   };
   try {
