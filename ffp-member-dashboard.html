@@ -872,14 +872,17 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
   padding: 8px 0;
 }
 .timer-phase {
-  font-size: 11px;
+  font-size: 34px;
   font-weight: 900;
-  letter-spacing: 2.5px;
+  letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--muted);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
+  line-height: 1;
+  white-space: nowrap;
   font-family: 'Montserrat', sans-serif;
 }
+.timer-phase.phase-getready { color: var(--yellow); }
 .timer-phase.phase-work { color: var(--yellow); }
 .timer-phase.phase-rest { color: var(--blue); }
 .timer-phase.phase-done { color: #4ade80; }
@@ -966,24 +969,19 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
   justify-content: center;
 }
 .timer-preset-btn {
-  background: rgba(43,168,224,0.06);
-  border: 1px solid var(--border-mid);
-  color: var(--text);
-  border-radius: 100px;
-  padding: 7px 12px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 6px 9px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   font-family: inherit;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: color 0.15s;
   white-space: nowrap;
 }
-.timer-preset-btn:hover { border-color: var(--blue); color: var(--blue); }
-.timer-preset-btn.active {
-  background: var(--blue);
-  color: #fff;
-  border-color: var(--blue);
-}
+.timer-preset-btn:hover { color: var(--blue); }
+.timer-preset-btn.active { color: var(--blue); border-bottom: 2px solid var(--blue); }
 
 /* Small section label */
 .timer-section-label {
@@ -1009,10 +1007,9 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: rgba(43,168,224,0.04);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  padding: 4px 2px;
 }
 .timer-input-group label {
   font-size: 10px;
@@ -1066,6 +1063,23 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
   padding: 14px;
   line-height: 1.5;
 }
+
+/* v-redesign: time is the hero while running — hide setup; bigger round line */
+#panel-workout-timer.timing #timer-tabs,
+#panel-workout-timer.timing #timer-config-area { display: none; }
+#panel-workout-timer.timing .timer-display-v2 { margin-top: 7vh; }
+#panel-workout-timer.timing .timer-meta { font-size: 22px; font-weight: 900; color: var(--text); text-transform: uppercase; letter-spacing: .5px; margin-top: 14px; }
+#panel-workout-timer.timing .timer-meta b { color: var(--yellow); }
+
+/* scroll-wheel pickers (boxless): numbers float, thin centre selection lines */
+.timer-wheel-wrap { position: relative; width: 100%; }
+.timer-wheel-wrap::before, .timer-wheel-wrap::after { content:''; position:absolute; left:14%; right:14%; height:1px; background: rgba(43,168,224,0.45); z-index:1; pointer-events:none; }
+.timer-wheel-wrap::before { top: calc(50% - 22px); }
+.timer-wheel-wrap::after  { top: calc(50% + 22px); }
+.timer-wheel { height: 132px; overflow-y: scroll; scroll-snap-type: y mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
+.timer-wheel::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.timer-wheel-item { height: 44px; display: flex; align-items: center; justify-content: center; scroll-snap-align: center; font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 15px; color: #3a4d5e; font-variant-numeric: tabular-nums; transition: font-size .12s, color .12s; }
+.timer-wheel-item.sel { font-size: 27px; color: var(--text); }
 
 /* ----- CALORIE TRACKER ----- */
 .cal-today-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
@@ -4921,19 +4935,11 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         <div class="timer-custom-row">
           <div class="timer-input-group">
             <label>Minutes</label>
-            <div class="timer-input-stepper">
-              <button class="step-btn" onclick="WorkoutTimer.adj('cdMin', -1)">&minus;</button>
-              <input type="text" id="adj-cdMin" value="5" readonly>
-              <button class="step-btn" onclick="WorkoutTimer.adj('cdMin', 1)">+</button>
-            </div>
+            <div class="timer-wheel-wrap"><div class="timer-wheel" id="wheel-cdMin"></div></div>
           </div>
           <div class="timer-input-group">
             <label>Seconds</label>
-            <div class="timer-input-stepper">
-              <button class="step-btn" onclick="WorkoutTimer.adj('cdSec', -5)">&minus;</button>
-              <input type="text" id="adj-cdSec" value="0" readonly>
-              <button class="step-btn" onclick="WorkoutTimer.adj('cdSec', 5)">+</button>
-            </div>
+            <div class="timer-wheel-wrap"><div class="timer-wheel" id="wheel-cdSec"></div></div>
           </div>
         </div>
       </div>
@@ -4952,29 +4958,18 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         <div class="timer-custom-row cols-3">
           <div class="timer-input-group">
             <label>Work (s)</label>
-            <div class="timer-input-stepper">
-              <button class="step-btn" onclick="WorkoutTimer.adj('intWork', -5)">&minus;</button>
-              <input type="text" id="adj-intWork" value="45" readonly>
-              <button class="step-btn" onclick="WorkoutTimer.adj('intWork', 5)">+</button>
-            </div>
+            <div class="timer-wheel-wrap"><div class="timer-wheel" id="wheel-intWork"></div></div>
           </div>
           <div class="timer-input-group">
             <label>Rest (s)</label>
-            <div class="timer-input-stepper">
-              <button class="step-btn" onclick="WorkoutTimer.adj('intRest', -5)">&minus;</button>
-              <input type="text" id="adj-intRest" value="15" readonly>
-              <button class="step-btn" onclick="WorkoutTimer.adj('intRest', 5)">+</button>
-            </div>
+            <div class="timer-wheel-wrap"><div class="timer-wheel" id="wheel-intRest"></div></div>
           </div>
           <div class="timer-input-group">
             <label>Rounds</label>
-            <div class="timer-input-stepper">
-              <button class="step-btn" onclick="WorkoutTimer.adj('intRounds', -1)">&minus;</button>
-              <input type="text" id="adj-intRounds" value="8" readonly>
-              <button class="step-btn" onclick="WorkoutTimer.adj('intRounds', 1)">+</button>
-            </div>
+            <div class="timer-wheel-wrap"><div class="timer-wheel" id="wheel-intRounds"></div></div>
           </div>
         </div>
+        <div class="timer-help" id="int-summary" style="padding:6px 0 0;"></div>
       </div>
       
       <!-- EMOM — Every X minutes -->
@@ -4995,19 +4990,11 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         <div class="timer-custom-row">
           <div class="timer-input-group">
             <label>Rounds</label>
-            <div class="timer-input-stepper">
-              <button class="step-btn" onclick="WorkoutTimer.adj('emRounds', -1)">&minus;</button>
-              <input type="text" id="adj-emRounds" value="10" readonly>
-              <button class="step-btn" onclick="WorkoutTimer.adj('emRounds', 1)">+</button>
-            </div>
+            <div class="timer-wheel-wrap"><div class="timer-wheel" id="wheel-emRounds"></div></div>
           </div>
           <div class="timer-input-group">
             <label>Reps</label>
-            <div class="timer-input-stepper">
-              <button class="step-btn" onclick="WorkoutTimer.adj('emReps', -1)">&minus;</button>
-              <input type="text" id="adj-emReps" value="10" readonly>
-              <button class="step-btn" onclick="WorkoutTimer.adj('emReps', 1)">+</button>
-            </div>
+            <div class="timer-wheel-wrap"><div class="timer-wheel" id="wheel-emReps"></div></div>
           </div>
         </div>
       </div>
@@ -8073,7 +8060,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '392';
+  const FFP_BUILD = '393';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -9101,6 +9088,8 @@ const WorkoutTimer = {
     totalRounds: 1,
     phaseStartMs: 0,
     phaseDurMs: 0,
+    // 8-second GET READY lead-in (countdown/interval/emom)
+    getready: false, getreadyEnd: 0, getreadyRemain: 0, getreadyLast: 0,
     // configs
     cdMin: 5, cdSec: 0,
     intWork: 45, intRest: 15, intRounds: 8,
@@ -9156,11 +9145,11 @@ const WorkoutTimer = {
     });
     
     this.applyMode();
-    this.renderAdjusters();
+    this.buildWheels();
     this.renderTime();
     this.renderPips();
   },
-  
+
   _setActivePreset(scope, activeBtn) {
     document.querySelectorAll(scope + ' .timer-preset-btn').forEach(b => b.classList.remove('active'));
     activeBtn.classList.add('active');
@@ -9204,13 +9193,94 @@ const WorkoutTimer = {
     if (key === 'intRounds' || key === 'emRounds') this.renderPips();
   },
   
-  renderAdjusters() {
-    ['cdMin','cdSec','intWork','intRest','intRounds','emInterval','emRounds','emReps'].forEach(k => {
-      const el = document.getElementById('adj-' + k);
-      if (el) el.value = this.s[k];
+  // Scroll-wheel pickers — flick to set, no taps (no iOS zoom). this.s[key] stays source of truth.
+  ROW: 44,
+  _wheelDefs: {
+    cdMin:    { min: 0, max: 90,  step: 1, pad: true },
+    cdSec:    { min: 0, max: 55,  step: 5, pad: true },
+    intWork:  { min: 5, max: 600, step: 5 },
+    intRest:  { min: 0, max: 600, step: 5 },
+    intRounds:{ min: 1, max: 50,  step: 1 },
+    emRounds: { min: 1, max: 50,  step: 1 },
+    emReps:   { min: 1, max: 50,  step: 1 }
+  },
+
+  buildWheels() {
+    const self = this;
+    Object.keys(this._wheelDefs).forEach(key => {
+      const box = document.getElementById('wheel-' + key);
+      if (!box || box.dataset.built) return;
+      const d = self._wheelDefs[key];
+      const vals = [];
+      for (let v = d.min; v <= d.max; v += d.step) vals.push(v);
+      box._vals = vals;
+      box.innerHTML = vals.map(v =>
+        '<div class="timer-wheel-item">' + (d.pad ? String(v).padStart(2,'0') : String(v)) + '</div>'
+      ).join('');
+      box.dataset.built = '1';
+      let t;
+      box.addEventListener('scroll', () => {
+        self._markSel(box);
+        clearTimeout(t);
+        t = setTimeout(() => self._wheelSettle(key, box), 130);
+      });
+    });
+    this.renderAdjusters();
+  },
+
+  _markSel(box) {
+    const i = Math.round(box.scrollTop / this.ROW);
+    const items = box.children;
+    for (let j = 0; j < items.length; j++) items[j].classList.toggle('sel', j === i);
+  },
+
+  _clearPresets(scope) {
+    document.querySelectorAll(scope + ' .timer-preset-btn').forEach(b => b.classList.remove('active'));
+  },
+
+  _wheelSettle(key, box) {
+    if (this._wheelProg || this.s.running || !box._vals) return;
+    let i = Math.round(box.scrollTop / this.ROW);
+    i = Math.max(0, Math.min(box._vals.length - 1, i));
+    if (Math.abs(box.scrollTop - i * this.ROW) > 1) box.scrollTop = i * this.ROW;
+    const val = box._vals[i];
+    if (val !== this.s[key]) {
+      this.s[key] = val;
+      if (key === 'cdMin' || key === 'cdSec') this._clearPresets('#cd-presets');
+      else if (key === 'intWork' || key === 'intRest' || key === 'intRounds') this._clearPresets('#int-presets');
+      if (key === 'intRounds') { this.s.totalRounds = this.s.intRounds; this.renderPips(); }
+      if (key === 'emRounds')  { this.s.totalRounds = this.s.emRounds;  this.renderPips(); }
+      this.renderTime();
+      this._updateIntSummary();
+    }
+    this._markSel(box);
+  },
+
+  // Reposition a wheel to the current state value (after a preset pick or mode switch).
+  _wheelTo(key) {
+    const box = document.getElementById('wheel-' + key);
+    if (!box || !box._vals) return;
+    let i = box._vals.indexOf(this.s[key]);
+    if (i < 0) i = 0;
+    const self = this;
+    this._wheelProg = true;
+    requestAnimationFrame(() => {
+      box.scrollTop = i * self.ROW;
+      self._markSel(box);
+      setTimeout(() => { self._wheelProg = false; }, 80);
     });
   },
-  
+
+  _updateIntSummary() {
+    const el = document.getElementById('int-summary');
+    if (el) el.textContent = this.s.intRounds + ' rounds · ' + this.s.intWork + 's work / ' + this.s.intRest + 's rest';
+  },
+
+  renderAdjusters() {
+    ['cdMin','cdSec','intWork','intRest','intRounds','emRounds','emReps'].forEach(k => this._wheelTo(k));
+    this._updateIntSummary();
+  },
+
   setMode(mode) {
     if (this.s.mode === mode) return;
     this.s.mode = mode;
@@ -9229,10 +9299,17 @@ const WorkoutTimer = {
     document.getElementById('timer-skip').style.display = (this.s.mode === 'interval' || this.s.mode === 'emom') ? '' : 'none';
     document.getElementById('timer-pips').style.display = (this.s.mode === 'interval' || this.s.mode === 'emom') ? 'flex' : 'none';
     document.getElementById('timer-time').classList.toggle('stopwatch-mode', this.s.mode === 'stopwatch');
+    this.renderAdjusters();
     this.renderTime();
     this.renderPips();
   },
-  
+
+  _modeLabel() {
+    return this.s.mode === 'countdown' ? 'Countdown'
+         : this.s.mode === 'interval'  ? 'Interval'
+         : this.s.mode === 'emom'      ? 'EMOM' : '';
+  },
+
   ensureAudio() {
     if (!this.audio) {
       this.audio = new (window.AudioContext || window.webkitAudioContext)();
@@ -9264,20 +9341,33 @@ const WorkoutTimer = {
     if (this.s.running) return;
     this.ensureAudio();
     this.s.running = true;
-    this.s.startTime = performance.now() - this.s.elapsedMs;
+    document.getElementById('panel-workout-timer').classList.add('timing');
     document.getElementById('timer-toggle').innerHTML = '<span class="material-icons">pause</span>';
-    if (this.s.phase === 'ready') this.beginPhase();
+    if (this.s.phase === 'ready' && this.s.mode !== 'stopwatch') {
+      // 8-second GET READY lead-in (resume the remaining count if paused mid-lead-in)
+      this.s.getreadyEnd = performance.now() + (this.s.getreadyRemain > 0 ? this.s.getreadyRemain : 8000);
+      this.s.getreadyRemain = 0;
+      this.s.getreadyLast = 0;
+      this.s.getready = true;
+    } else {
+      this.s.startTime = performance.now() - this.s.elapsedMs;
+      if (this.s.phase === 'ready') this.beginPhase();
+    }
     this.tick();
   },
-  
+
   pause() {
     this.s.running = false;
+    if (this.s.getready) { this.s.getreadyRemain = Math.max(0, this.s.getreadyEnd - performance.now()); this.s.getready = false; }
     cancelAnimationFrame(this.s.rafId);
     document.getElementById('timer-toggle').innerHTML = '<span class="material-icons">play_arrow</span>';
   },
-  
+
   reset() {
     this.pause();
+    this.s.getready = false;
+    this.s.getreadyRemain = 0;
+    document.getElementById('panel-workout-timer').classList.remove('timing');
     this.s.elapsedMs = 0;
     this.s.phase = 'ready';
     this.s.round = 1;
@@ -9395,6 +9485,25 @@ const WorkoutTimer = {
   
   tick() {
     if (!this.s.running) return;
+    // 8-second GET READY lead-in: the time IS the big number; setup is hidden.
+    if (this.s.getready) {
+      const remG = this.s.getreadyEnd - performance.now();
+      if (remG <= 0) {
+        this.s.getready = false;
+        this.s.startTime = performance.now() - this.s.elapsedMs;
+        this.beginPhase();
+      } else {
+        const n = Math.ceil(remG / 1000);
+        if (n !== this.s.getreadyLast) { this.s.getreadyLast = n; if (n <= 3) this.beep(440); }
+        const ph = document.getElementById('timer-phase');
+        ph.textContent = 'GET READY';
+        ph.className = 'timer-phase phase-getready';
+        document.getElementById('timer-time').textContent = String(n);
+        document.getElementById('timer-meta').textContent = this._modeLabel() + ' starting…';
+        this.s.rafId = requestAnimationFrame(() => this.tick());
+        return;
+      }
+    }
     this.s.elapsedMs = performance.now() - this.s.startTime;
     if (this.s.mode !== 'stopwatch' && this.s.phase !== 'ready' && this.s.phase !== 'done') {
       const phaseElapsed = this.s.elapsedMs - this.s.phaseStartMs;
