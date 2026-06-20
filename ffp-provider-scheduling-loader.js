@@ -579,10 +579,57 @@ async function cancelOccurrence(id) {
     var r = await window.supabase.rpc('provider_cancel_session', { p_provider: pid, p_id: id });
     if (r && r.error) throw r.error;
     showToast('Session cancelled (this date)', 'success');
-    closeModal();
     var ro = await window.supabase.rpc('provider_list_sessions', { p_provider: pid }); _schedSessions = (ro && ro.data) ? ro.data : [];
     renderTimetable();
+    openSessionRefunds(id);
   } catch (e) { showToast('Could not cancel', 'error'); }
+}
+
+// ── Partner-discretionary return of credit / refund for the just-cancelled session ──
+async function openSessionRefunds(sessionId) {
+  var pid = _schedProvId();
+  var list = [];
+  try { var r = await window.supabase.rpc('provider_session_refund_list', { p_provider: pid, p_id: sessionId }); list = (r && r.data) ? r.data : []; } catch (e) {}
+  if (!list.length) { closeModal(); return; }
+  openModalShell('lg', 'Return credits / refunds',
+    '<div class="psub" style="margin:0 0 12px;">This session was cancelled and everyone booked was notified. Return their credit or issue a refund at your discretion — nothing is returned automatically.</div>' +
+    '<div id="rf-list">' + list.map(_rfRow).join('') + '</div>',
+    '<button class="btn btn-pri" onclick="closeModal()">Done</button>');
+}
+function _rfRow(x) {
+  var action;
+  if (x.refunded) action = '<span class="psub" style="color:#1f9d57;font-weight:700;margin:0;">Refunded</span>';
+  else if (x.credit_returned) action = '<span class="psub" style="color:#1f9d57;font-weight:700;margin:0;">Credit returned</span>';
+  else if (x.paid_with === 'credit') action = '<button class="btn btn-sec btn-sm" onclick="rfReturnCredit(\'' + x.booking_id + '\',this)"><span class="ms">redeem</span> Return credit</button>';
+  else if (x.paid_with === 'paid') action = '<button class="btn btn-sec btn-sm" onclick="rfRefund(\'' + x.booking_id + '\',this)"><span class="ms">payments</span> Refund ' + escHtml((x.currency || 'AED') + ' ' + x.total_aed) + '</button>';
+  else action = '<span class="psub" style="margin:0;">' + (x.paid_with === 'comp' ? 'Comp — nothing to return' : 'Unpaid') + '</span>';
+  return '<div data-bk="' + x.booking_id + '" style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 2px;border-bottom:1px solid var(--ffp-border,#1d3346);">' +
+    '<div style="min-width:0;"><div style="font-weight:700;color:var(--ffp-text,#eaf2f8);">' + escHtml(x.member_name) + (x.quantity > 1 ? ' ×' + x.quantity : '') + '</div><div class="psub" style="margin:0;text-transform:capitalize;">' + escHtml(x.paid_with) + '</div></div>' +
+    '<div class="rf-act">' + action + '</div></div>';
+}
+function _rfMark(bookingId, label) { var a = document.querySelector('#rf-list [data-bk="' + bookingId + '"] .rf-act'); if (a) a.innerHTML = '<span class="psub" style="color:#1f9d57;font-weight:700;margin:0;">' + label + '</span>'; }
+async function rfReturnCredit(bookingId, btn) {
+  if (!confirm('Return the session credit to this member?')) return;
+  if (btn) { btn.disabled = true; btn.style.opacity = '.6'; }
+  var pid = _schedProvId();
+  try {
+    var r = await window.supabase.rpc('provider_return_credit', { p_provider: pid, p_booking: bookingId }); if (r && r.error) throw r.error;
+    var d = r && r.data;
+    if (d && d.ok) { showToast('Credit returned', 'success'); _rfMark(bookingId, 'Credit returned'); }
+    else { showToast('Could not return credit', 'error'); if (btn) { btn.disabled = false; btn.style.opacity = '1'; } }
+  } catch (e) { showToast('Could not return credit', 'error'); if (btn) { btn.disabled = false; btn.style.opacity = '1'; } }
+}
+async function rfRefund(bookingId, btn) {
+  if (!confirm('Issue a full refund to this member?')) return;
+  if (btn) { btn.disabled = true; btn.style.opacity = '.6'; }
+  var pid = _schedProvId();
+  try {
+    var r = await window.supabase.rpc('provider_refund_booking', { p_provider: pid, p_booking: bookingId }); if (r && r.error) throw r.error;
+    var d = r && r.data;
+    if (!d || !d.ok) { showToast('Could not refund', 'error'); if (btn) { btn.disabled = false; btn.style.opacity = '1'; } return; }
+    if (d.needs_stripe) { try { await fetch('https://ffp-passport-backend.vercel.app/api/pay/refund', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ booking_id: bookingId }) }); } catch (e) {} }
+    showToast('Refund issued', 'success'); _rfMark(bookingId, 'Refunded');
+  } catch (e) { showToast('Could not refund', 'error'); if (btn) { btn.disabled = false; btn.style.opacity = '1'; } }
 }
 
 // ════════════════════════════════════════════════════════════════════════
