@@ -13,7 +13,7 @@
 var _members = [];
 var MEMBER_STATUS = { active: 'Active', trial: 'Trial', lapsed: 'Lapsed', prospect: 'Prospect' };
 var _memStatusStyle = {
-  active:   'background:rgba(43,168,224,.16);color:#6fc6ef',
+  active:   'background:rgba(25,128,173,.16);color:#6fc6ef',
   trial:    'background:rgba(255,204,0,.16);color:#FFCC00',
   lapsed:   'background:rgba(255,255,255,.08);color:#9fb0bf',
   prospect: 'background:rgba(120,200,140,.18);color:#7fd49a'
@@ -72,7 +72,7 @@ function memberRow(m) {
       }).join('') + '</div>'
     : '';
   return '<div style="background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-radius:12px;padding:11px 13px;margin-bottom:9px;display:flex;align-items:flex-start;gap:11px;">' +
-      '<div style="width:38px;height:38px;border-radius:10px;background:rgba(43,168,224,.16);color:#6fc6ef;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;">' + escHtml(initials) + '</div>' +
+      '<div style="width:38px;height:38px;border-radius:10px;background:rgba(25,128,173,.16);color:#6fc6ef;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;">' + escHtml(initials) + '</div>' +
       '<div style="min-width:0;flex:1;">' +
         '<div style="font-weight:800;color:var(--ffp-text,#eaf2f8);">' + escHtml(m.full_name || '—') + '</div>' +
         (contact.length ? '<div class="psub" style="margin:2px 0 0;">' + contact.join(' · ') + '</div>' : '') +
@@ -291,7 +291,7 @@ function rosterRow(m) {
   var inT = !!_roster[m.member_id];
   var initials = (m.full_name || '?').split(/\s+/).map(function (w) { return w[0] || ''; }).join('').slice(0, 2).toUpperCase();
   return '<div class="ros-row" data-name="' + escHtml((m.full_name || '').toLowerCase()) + '" style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--ffp-border,#1d3346);">' +
-      '<div style="width:32px;height:32px;border-radius:8px;background:rgba(43,168,224,.16);color:#6fc6ef;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0;">' + escHtml(initials) + '</div>' +
+      '<div style="width:32px;height:32px;border-radius:8px;background:rgba(25,128,173,.16);color:#6fc6ef;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0;">' + escHtml(initials) + '</div>' +
       '<div style="flex:1;min-width:0;font-weight:700;color:var(--ffp-text,#eaf2f8);">' + escHtml(m.full_name || '—') + '</div>' +
       '<button id="ros-btn-' + m.member_id + '" class="btn btn-sm ' + (inT ? 'btn-pri' : 'btn-ghost') + '" onclick="toggleRosterMember(\'' + m.member_id + '\')">' +
         '<span class="ms">' + (inT ? 'check_circle' : 'add') + '</span> ' + (inT ? 'In team' : 'Add') +
@@ -466,7 +466,7 @@ async function openMembership(memberId) {
 
 function membershipRow(a) {
   var active = a.status === 'active';
-  var stColor = active ? 'rgba(43,168,224,.16);color:#6fc6ef' : 'rgba(255,255,255,.08);color:#9fb0bf';
+  var stColor = active ? 'rgba(25,128,173,.16);color:#6fc6ef' : 'rgba(255,255,255,.08);color:#9fb0bf';
   var bits = [];
   if (a.expiry_date) bits.push('expires ' + a.expiry_date);
   if (a.credits_remaining != null) bits.push(a.credits_remaining + ' credits');
