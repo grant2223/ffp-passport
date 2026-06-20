@@ -63,9 +63,9 @@
       '*::-webkit-scrollbar{display:none !important;width:0 !important;height:0 !important;}',
       '*{-ms-overflow-style:none !important;scrollbar-width:none !important;}',
       '#panel-events{overflow-x:hidden;}',
-      '.modal select, .modal .select, .modal-body select, .modal-body .select{color-scheme:dark;}',
-      '.modal select option, .modal-body select option{background:#0f1e2e !important;color:#f5f7fa !important;}',
-      '.modal select option:checked, .modal-body select option:checked{background:#2ba8e0 !important;color:#082335 !important;}',
+      '.modal select, .modal .select, .modal-body select, .modal-body .select{color-scheme:light;}',
+      '.modal select option, .modal-body select option{background:#ffffff !important;color:#0e2531 !important;}',
+      '.modal select option:checked, .modal-body select option:checked{background:#1980AD !important;color:#082335 !important;}',
 
       // FFP thin chevron-down on all selects in dashboard panels + modals
       // (replaces native OS block arrow with brand-standard line chevron)
@@ -86,15 +86,15 @@
       // Picker button (matches experiences loader styling)
       '.ffp-picker-btn{' +
         'width:100%;display:flex;align-items:center;justify-content:space-between;' +
-        'background:#0a1825;border:1px solid #1a2f44;border-radius:10px;' +
-        'padding:11px 14px;color:#e8eef4;font-size:14px;font-family:inherit;cursor:pointer;' +
+        'background:#ffffff;border:1px solid #d8dde2;border-radius:10px;' +
+        'padding:11px 14px;color:#0e2531;font-size:14px;font-family:inherit;cursor:pointer;' +
         'text-align:left;}',
       '.ffp-picker-btn:hover{border-color:#2a4564;}',
-      '.ffp-picker-btn.placeholder{color:#6c7a8b;}',
-      '.ffp-picker-btn .caret{flex-shrink:0;margin-left:10px;color:#8a99a8;}',
+      '.ffp-picker-btn.placeholder{color:#8a96a1;}',
+      '.ffp-picker-btn .caret{flex-shrink:0;margin-left:10px;color:#566069;}',
       '.ffp-picker-btn .picked{display:flex;flex-direction:column;line-height:1.3;gap:1px;overflow:hidden;}',
-      '.ffp-picker-btn .picked .name{color:#e8eef4;font-weight:500;}',
-      '.ffp-picker-btn .picked .group{color:#8a99a8;font-size:11px;}'
+      '.ffp-picker-btn .picked .name{color:#0e2531;font-weight:500;}',
+      '.ffp-picker-btn .picked .group{color:#566069;font-size:11px;}'
     ].join('');
     document.head.appendChild(css);
   }
@@ -603,15 +603,15 @@
         body.innerHTML = '<div style="margin-bottom:8px;font-weight:700;color:#cfe0ee;">' + rows.length + ' going · ' + inCount + ' checked in</div>' + rows.map(function (p) {
           var nm = p.full_name || ((p.given_names || '') + ' ' + (p.surname || '')).trim() || 'Member';
           var av = p.photo_url
-            ? '<span style="width:36px;height:36px;border-radius:50%;flex-shrink:0;background:#0a1825 url(\'' + p.photo_url + '\') center/cover;"></span>'
+            ? '<span style="width:36px;height:36px;border-radius:50%;flex-shrink:0;background:#ffffff url(\'' + p.photo_url + '\') center/cover;"></span>'
             : '<span style="width:36px;height:36px;border-radius:50%;flex-shrink:0;background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;">' + esc(nm.charAt(0).toUpperCase()) + '</span>';
           var badge = p.checked_in
             ? '<span style="background:#16a34a;color:#fff;font-size:11px;font-weight:700;border-radius:6px;padding:3px 9px;flex-shrink:0;">Checked in</span>'
-            : '<span style="background:rgba(43,168,224,0.12);color:#2ba8e0;font-size:11px;font-weight:700;border-radius:6px;padding:3px 9px;flex-shrink:0;">Going</span>';
+            : '<span style="background:rgba(25,128,173,0.12);color:#1980AD;font-size:11px;font-weight:700;border-radius:6px;padding:3px 9px;flex-shrink:0;">Going</span>';
           var loc = [p.city, p.country].filter(Boolean).join(', ');
           return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.07);">' + av +
-            '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:600;color:#e8eef4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(nm) + '</div>' +
-            (loc ? '<div style="font-size:11px;color:#8a99a8;">' + esc(loc) + '</div>' : '') + '</div>' + badge + '</div>';
+            '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:600;color:#0e2531;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(nm) + '</div>' +
+            (loc ? '<div style="font-size:11px;color:#566069;">' + esc(loc) + '</div>' : '') + '</div>' + badge + '</div>';
         }).join('');
       } catch (e) {
         var b = document.getElementById('ffp-ev-roster-body'); if (b) b.innerHTML = 'Could not load the guest list.';
