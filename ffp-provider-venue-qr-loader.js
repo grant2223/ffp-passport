@@ -35,7 +35,7 @@
     s.id = 'ffp-venue-qr-css';
     s.textContent = [
       '#ffp-venue-qr{margin-bottom:22px;}',
-      '#ffp-venue-qr .vq-card{background:var(--ffp-bg-2,#ffffff);border:1px solid rgba(25,128,173,0.18);border-radius:14px;padding:18px;text-align:center;}',
+      '#ffp-venue-qr .vq-card{background:rgba(15,37,49,.05);border:1px solid var(--ffp-border,rgba(15,37,49,.08));border-radius:14px;padding:18px;text-align:center;}',
       '#ffp-venue-qr .vq-head{display:flex;align-items:center;justify-content:center;gap:8px;font-size:15px;font-weight:800;color:var(--ffp-text,#0e2531);margin-bottom:4px;}',
       '#ffp-venue-qr .vq-head .ms{color:var(--ffp-yellow,#2b3942);}',
       '#ffp-venue-qr .vq-sub{font-size:12px;color:var(--ffp-text-muted,#566069);margin-bottom:16px;line-height:1.5;}',
