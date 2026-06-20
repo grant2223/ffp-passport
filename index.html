@@ -102,7 +102,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons&display=block" rel="stylesheet">
 <style>
 :root {
   --bg: #081420;
@@ -172,7 +172,7 @@ section{padding:56px 0;}
 .section-img img{width:100%;height:100%;object-fit:cover;}
 @media (min-width:900px){.section-img{height:300px;margin-bottom:48px;}}
 
-.eyebrow{display:inline-block;background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:100px;padding:6px 18px;font-size:10px;font-weight:900;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:18px;}
+.eyebrow{display:inline-block;background:transparent;border:none;border-radius:0;padding:0;font-size:11px;font-weight:900;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:16px;}
 .sec-heading{font-size:30px;font-weight:900;line-height:1.05;letter-spacing:-.5px;margin-bottom:14px;}
 .sec-sub{font-size:14px;color:var(--text-soft);line-height:1.7;margin-bottom:32px;max-width:680px;}
 .do-list{list-style:none;padding:0;margin:2px 0 0;display:grid;gap:13px;max-width:680px;}
@@ -209,8 +209,10 @@ section{padding:56px 0;}
 .five-media img{width:100%;height:100%;object-fit:cover;display:block;}
 @media(min-width:860px){.five{grid-template-columns:1.05fr 1fr;gap:54px;} .five.rev .five-media{order:2;}}
 /* HERO — real app screenshot */
-.hero-shot{display:flex;justify-content:center;align-items:center;}
+.hero-shot{display:flex;flex-direction:column;align-items:center;gap:22px;}
 .hero-shot img{width:100%;max-width:560px;display:block;border-radius:var(--radius-lg);box-shadow:0 36px 70px rgba(0,0,0,.5);}
+.hero-shot .hero-cta{width:100%;max-width:560px;}
+.hero-shot .hero-fine{margin-top:0;}
 
 /* HERO */
 .hero{padding-top:100px;padding-bottom:40px;}
@@ -271,17 +273,17 @@ section{padding:56px 0;}
 .lg-grid{display:grid;gap:14px;grid-template-columns:1fr;}
 @media (min-width:700px){.lg-grid{grid-template-columns:repeat(2,1fr);}}
 @media (min-width:1000px){.lg-grid{grid-template-columns:repeat(4,1fr);}}
-.lg-card{border:1px solid var(--accent-line);border-radius:var(--radius);padding:24px 22px;background:var(--bg-elev);transition:border-color .2s,transform .2s;}
-.lg-card:hover{transform:translateY(-2px);border-color:rgba(43,168,224,.5);}
-.lg-icon{color:var(--accent);font-size:32px !important;margin-bottom:14px;display:inline-block;}
-.lg-title{font-size:16px;font-weight:900;margin-bottom:6px;}
-.lg-desc{font-size:12px;color:var(--text-soft);line-height:1.6;}
+.lg-card{border:none;background:transparent;padding:0;}
+.lg-icon{color:var(--yellow);font-size:48px !important;margin-bottom:14px;display:inline-block;}
+.lg-title{font-size:18px;font-weight:900;margin-bottom:7px;}
+.lg-desc{font-size:13px;color:var(--text-soft);line-height:1.6;}
 
 /* ECOSYSTEM CHIPS */
-.eco-grid{display:flex;flex-wrap:wrap;gap:10px;}
-.eco-chip{background:var(--bg-elev);border:1px solid var(--accent-line);border-radius:100px;padding:11px 18px;font-size:12px;font-weight:700;color:var(--text-soft);display:inline-flex;align-items:center;gap:8px;transition:all .15s;}
-.eco-chip:hover{border-color:rgba(43,168,224,.55);color:#fff;}
-.eco-chip .material-icons{font-size:16px !important;color:var(--accent);}
+.eco-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px 18px;}
+@media (min-width:700px){.eco-grid{grid-template-columns:repeat(3,1fr);}}
+@media (min-width:1000px){.eco-grid{grid-template-columns:repeat(4,1fr);}}
+.eco-chip{background:transparent;border:none;padding:0;font-size:14px;font-weight:700;color:#fff;display:flex;align-items:center;gap:12px;}
+.eco-chip .material-icons{font-size:28px !important;color:var(--yellow);}
 
 /* SIX WORLDS — bold visual grid */
 .worlds-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
@@ -297,29 +299,28 @@ section{padding:56px 0;}
 .unlock-grid{display:grid;gap:14px;grid-template-columns:1fr;}
 @media (min-width:700px){.unlock-grid{grid-template-columns:repeat(2,1fr);}}
 @media (min-width:1000px){.unlock-grid{grid-template-columns:repeat(3,1fr);}}
-.unlock-card{border:1px solid var(--accent-line);border-radius:var(--radius);padding:22px;background:var(--bg-elev);display:flex;gap:14px;align-items:flex-start;}
-.unlock-icon{flex-shrink:0;color:var(--accent);width:38px;height:38px;border-radius:10px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;}
-.unlock-icon .material-icons{font-size:20px !important;}
+.unlock-card{border:none;background:transparent;padding:20px 0;display:flex;gap:18px;align-items:flex-start;border-bottom:1px solid var(--accent-line-dim);}
+.unlock-icon{flex-shrink:0;color:var(--yellow);width:auto;height:auto;border-radius:0;background:transparent;}
+.unlock-icon .material-icons{font-size:36px !important;}
 .unlock-text{flex:1;}
-.unlock-title{font-size:14px;font-weight:900;margin-bottom:4px;line-height:1.3;}
-.unlock-desc{font-size:12px;color:var(--text-soft);line-height:1.55;}
+.unlock-title{font-size:17px;font-weight:900;margin-bottom:5px;line-height:1.3;}
+.unlock-desc{font-size:13px;color:var(--text-soft);line-height:1.55;}
 
 /* HOW IT WORKS — JOIN / MATCH / CONNECT */
 .steps-grid{display:grid;gap:16px;grid-template-columns:1fr;}
 @media (min-width:900px){.steps-grid{grid-template-columns:repeat(3,1fr);gap:18px;}}
-.step-card{border:1px solid var(--accent-line);border-radius:var(--radius-lg);padding:30px 24px;background:linear-gradient(180deg,rgba(43,168,224,.06),rgba(43,168,224,.01));position:relative;}
-.step-num{position:absolute;top:18px;right:22px;font-size:48px;font-weight:900;color:rgba(43,168,224,.15);line-height:1;}
-.step-icon{width:48px;height:48px;border-radius:12px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;margin-bottom:18px;}
-.step-icon .material-icons{font-size:24px !important;}
-.step-title{font-size:22px;font-weight:900;margin-bottom:10px;letter-spacing:-.3px;}
-.step-desc{font-size:13px;color:var(--text-soft);line-height:1.6;}
+.step-card{border:none;background:transparent;padding:0;position:relative;}
+.step-num{position:static;font-size:66px;font-weight:900;color:var(--yellow);line-height:1;margin-bottom:8px;}
+.step-icon{display:none;}
+.step-title{font-size:24px;font-weight:900;margin-bottom:10px;letter-spacing:-.3px;}
+.step-desc{font-size:14px;color:var(--text-soft);line-height:1.6;}
 
 /* STATS */
 .stats-grid{display:grid;gap:14px;grid-template-columns:1fr 1fr;}
 @media (min-width:900px){.stats-grid{grid-template-columns:repeat(4,1fr);}}
-.stat-card{border:1px solid var(--accent-line);border-radius:var(--radius);padding:22px;background:var(--bg-elev);text-align:center;}
-.stat-icon{color:var(--accent);font-size:24px !important;margin-bottom:8px;}
-.stat-num{font-size:30px;font-weight:900;color:var(--yellow);line-height:1;letter-spacing:-1px;margin-bottom:6px;}
+.stat-card{border:none;background:transparent;padding:0;text-align:center;}
+.stat-icon{display:none;}
+.stat-num{font-size:48px;font-weight:900;color:var(--yellow);line-height:1;letter-spacing:-1.5px;margin-bottom:8px;}
 .stat-label{font-size:11px;font-weight:800;color:#fff;letter-spacing:.5px;text-transform:uppercase;}
 .stat-sub{font-size:11px;color:var(--text-dim);font-weight:600;margin-top:4px;}
 
@@ -361,7 +362,7 @@ section{padding:56px 0;}
 .pricing::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at top,rgba(43,168,224,.08),transparent 60%);pointer-events:none;}
 .price-card{position:relative;max-width:620px;margin:0 auto;background:var(--bg);border:1px solid var(--accent-line);border-radius:20px;padding:32px 24px;}
 .price-card-head{text-align:center;margin-bottom:24px;}
-.price-card-eyebrow{display:inline-block;background:var(--yellow);color:#081420;font-size:10px;font-weight:900;letter-spacing:2px;text-transform:uppercase;padding:5px 14px;border-radius:100px;margin-bottom:18px;}
+.price-card-eyebrow{display:inline-block;background:transparent;color:var(--yellow);font-size:11px;font-weight:900;letter-spacing:2px;text-transform:uppercase;padding:0;border-radius:0;margin-bottom:16px;}
 .price-amount{font-size:64px;font-weight:900;color:var(--yellow);line-height:1;letter-spacing:-2px;}
 .price-sub{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);margin-top:8px;}
 .benefits{list-style:none;margin:0 0 28px;padding:0;}
@@ -453,13 +454,13 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
     <div class="hero-inner">
       <div class="hero-text">
         <div class="hero-eyebrow">The Active Lifestyle Passport</div>
-        <h1><span style="color:#fff;">Your stamp for</span> <span style="color:var(--accent);">an active life.</span></h1>
-        <p>For people serious about moving &mdash; connect with people who move like you, meet up, take on quests, and track every stat. The gold stamp for active living.</p>
-        <a href="/login#signup" class="hero-cta">Start your 7&#8209;day free trial</a>
-        <div class="hero-fine">7 days free &middot; then $20/mo or $149/yr &middot; cancel anytime &middot; secure checkout via Stripe</div>
+        <h1><span style="color:#fff;">Your passport to</span> <span style="color:var(--accent);">an active life.</span></h1>
+        <p>For people serious about moving &mdash; connect with people who move like you, meet up, take on quests, and track every stat. One membership for the whole active life.</p>
       </div>
       <div class="hero-shot">
         <img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/passport-on-stepper.png" alt="Your FFP Passport, wherever you move" fetchpriority="high">
+        <a href="/login#signup" class="hero-cta">Start your 7&#8209;day free trial</a>
+        <div class="hero-fine">7 days free &middot; then $20/mo or $149/yr &middot; cancel anytime &middot; secure checkout via Stripe</div>
       </div>
     </div>
   </div>
@@ -545,22 +546,14 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
 <section class="quests" id="quests" style="background:var(--bg-elev);">
   <div class="col" style="text-align:center;max-width:780px;margin:0 auto;">
     <div class="sec-num" style="justify-content:center;"><i>03</i><span>Quest</span></div>
-    <h2 class="sec-heading">Explore. Collect. Win.</h2>
-    <p class="sec-sub" style="margin-left:auto;margin-right:auto;">Quests from FFP and partners get you trying new venues across the region &mdash; collect official stamps, climb the tiers, and win real prizes.</p>
+    <h2 class="sec-heading">Try something new.</h2>
+    <p class="sec-sub" style="margin-left:auto;margin-right:auto;">Quests are a fun way to get out, discover new activities and venues across the region, and meet active people while you do it.</p>
     <div class="q-tiers" style="margin-top:30px;">
       <div class="q-tier active"><div class="q-tier-dot"><span class="material-icons">explore</span></div><div class="q-tier-lbl">Explorer</div></div>
       <div class="q-tier-line"></div>
       <div class="q-tier"><div class="q-tier-dot"><span class="material-icons">hiking</span></div><div class="q-tier-lbl">Adventurer</div></div>
       <div class="q-tier-line"></div>
       <div class="q-tier"><div class="q-tier-dot"><span class="material-icons">travel_explore</span></div><div class="q-tier-lbl">Navigator</div></div>
-    </div>
-    <div class="q-prize" style="margin-top:24px;text-align:left;">
-      <div class="q-prize-badge"><span class="material-icons">redeem</span></div>
-      <div class="q-prize-text">
-        <div class="q-prize-eyebrow">Sponsored quests</div>
-        <div class="q-prize-title">Win real prizes from our partners</div>
-        <div class="q-prize-desc">Finish a sponsored quest and you could win on top of the stamp. Everyone who completes still earns it.</div>
-      </div>
     </div>
   </div>
 </section>
@@ -796,7 +789,7 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
       <ul class="benefits">
         <li><span class="material-icons">check_circle</span><span>Matching with verified members in your city &mdash; <b>by sport, level, age and area</b></span></li>
         <li><span class="material-icons">check_circle</span><span><b>Unlimited Meet-ups</b> &mdash; host or join, up to 8 people</span></li>
-        <li><span class="material-icons">check_circle</span><span><b>Quests</b> &mdash; explore venues, collect passport stamps, win partner prizes</span></li>
+        <li><span class="material-icons">check_circle</span><span><b>Quests</b> &mdash; explore venues, complete missions, win partner prizes</span></li>
         <li><span class="material-icons">check_circle</span><span><b>All FFP events</b> across the UAE</span></li>
         <li><span class="material-icons">check_circle</span><span><b>Access to FFP partner venues</b> &mdash; gyms, studios, coaches, recovery</span></li>
         <li><span class="material-icons">check_circle</span><span><b>Challenges, leaderboards</b> and city rankings</span></li>
