@@ -7982,7 +7982,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '376';
+  const FFP_BUILD = '377';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -13068,12 +13068,26 @@ window.FFPLocPick = (function(){
     var r=document.getElementById('lp-results'); if(r) r.innerHTML='';
     var s=document.getElementById('lp-search'); if(s) s.value=label;
   }
-  function use(){
+  async function use(){
     if(!map){ close(); return; }
     var c=map.getCenter();
     var lat=cur?cur.lat:c.lat, lng=cur?cur.lng:c.lng;
     var name=(cur&&cur.name)?cur.name:('Pin '+lat.toFixed(4)+', '+lng.toFixed(4));
-    if(typeof cb==='function') cb({ name:name, lat:lat, lng:lng, maps_url:'https://www.google.com/maps?q='+lat+','+lng, city:(cur&&cur.city)||'', country:(cur&&cur.country)||'' });
+    var city=(cur&&cur.city)||'', country=(cur&&cur.country)||'';
+    // Guarantee Country + City even if the debounced reverse-geocode hasn't finished yet (or Nominatim
+    // hiccupped): resolve them deterministically via the keyless BigDataCloud reverse-geocode before handing back.
+    if(!city || !country){
+      var chl=document.getElementById('lp-chosen'); var prev=chl?chl.textContent:'';
+      if(chl) chl.textContent='Locating city…';
+      try {
+        var rr=await fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude='+lat+'&longitude='+lng+'&localityLanguage=en');
+        var jj=await rr.json();
+        if(!city) city = jj.city || jj.locality || jj.principalSubdivision || '';
+        if(!country) country = jj.countryName || '';
+      } catch(e){}
+      if(chl) chl.textContent=prev;
+    }
+    if(typeof cb==='function') cb({ name:name, lat:lat, lng:lng, maps_url:'https://www.google.com/maps?q='+lat+','+lng, city:city, country:country });
     close();
   }
   // One-tap GPS: centre the map (+ pin) on the member's current location, then the moveend reverse-geocode
