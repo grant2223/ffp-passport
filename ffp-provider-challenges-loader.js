@@ -65,21 +65,21 @@
         'appearance:none;-webkit-appearance:none;-moz-appearance:none;' +
         'background-image:url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%238a99a8\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'%3E%3C/polyline%3E%3C/svg%3E");' +
         'background-repeat:no-repeat;background-position:right 12px center;background-size:16px;' +
-        'padding-right:36px;color-scheme:dark;}',
-      '.modal select option{background:#0f1e2e !important;color:#f5f7fa !important;}',
-      'input.input[type="date"]{color-scheme:dark;}',
+        'padding-right:36px;color-scheme:light;}',
+      '.modal select option{background:#ffffff !important;color:#0e2531 !important;}',
+      'input.input[type="date"]{color-scheme:light;}',
       // Picker button — matches other content loaders
       '.ffp-picker-btn{' +
         'width:100%;display:flex;align-items:center;justify-content:space-between;' +
-        'background:#0a1825;border:1px solid #1a2f44;border-radius:10px;' +
-        'padding:11px 14px;color:#e8eef4;font-size:14px;font-family:inherit;cursor:pointer;' +
+        'background:#ffffff;border:1px solid #d8dde2;border-radius:10px;' +
+        'padding:11px 14px;color:#0e2531;font-size:14px;font-family:inherit;cursor:pointer;' +
         'text-align:left;}',
       '.ffp-picker-btn:hover{border-color:#2a4564;}',
-      '.ffp-picker-btn.placeholder{color:#6c7a8b;}',
-      '.ffp-picker-btn .caret{flex-shrink:0;margin-left:10px;color:#8a99a8;}',
+      '.ffp-picker-btn.placeholder{color:#8a96a1;}',
+      '.ffp-picker-btn .caret{flex-shrink:0;margin-left:10px;color:#566069;}',
       '.ffp-picker-btn .picked{display:flex;flex-direction:column;line-height:1.3;gap:1px;overflow:hidden;}',
-      '.ffp-picker-btn .picked .name{color:#e8eef4;font-weight:500;}',
-      '.ffp-picker-btn .picked .group{color:#8a99a8;font-size:11px;}'
+      '.ffp-picker-btn .picked .name{color:#0e2531;font-weight:500;}',
+      '.ffp-picker-btn .picked .group{color:#566069;font-size:11px;}'
     ].join('');
     document.head.appendChild(css);
   }
@@ -259,7 +259,7 @@
             '<input class="input" id="cm-venue" value="' + escHtml(c.venue) + '" placeholder="e.g. Forge Fitness, Al Quoz">' +
           '</div>' +
           '<div class="field">' +
-            '<a class="label-hint" style="cursor:pointer;color:#2ba8e0;display:inline-flex;align-items:center;gap:4px;" onclick="ffpOpenMap(\'cm-venue\')"><span class="ms" style="font-size:14px;">place</span> Location pin — view on Google Maps</a>' +
+            '<a class="label-hint" style="cursor:pointer;color:#1980AD;display:inline-flex;align-items:center;gap:4px;" onclick="ffpOpenMap(\'cm-venue\')"><span class="ms" style="font-size:14px;">place</span> Location pin — view on Google Maps</a>' +
           '</div>' +
         '</div>' +
       '</div>';
