@@ -71,17 +71,17 @@ function memberRow(m) {
         return '<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:var(--ffp-bg-3);color:var(--ffp-text-muted);">' + escHtml(t) + '</span>';
       }).join('') + '</div>'
     : '';
-  var avatar = m.photo_url
-    ? '<div style="width:46px;height:46px;border-radius:10px;flex:0 0 auto;background:url(\'' + escHtml(m.photo_url) + '\') center/cover no-repeat;"></div>'
-    : '<div style="width:46px;height:46px;border-radius:10px;background:rgba(25,128,173,.14);color:var(--ffp-blue);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0;">' + escHtml(initials) + '</div>';
-  return '<div style="background:rgba(15,37,49,.05);border:1px solid var(--ffp-border);border-radius:12px;padding:11px 13px;margin-bottom:9px;display:flex;align-items:flex-start;gap:11px;">' +
-      avatar +
-      '<div style="min-width:0;flex:1;">' +
+  var photoCol = m.photo_url
+    ? '<div style="width:64px;flex:0 0 auto;background:url(\'' + escHtml(m.photo_url) + '\') center/cover no-repeat;"></div>'
+    : '<div style="width:64px;flex:0 0 auto;background:rgba(25,128,173,.14);color:var(--ffp-blue);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;">' + escHtml(initials) + '</div>';
+  return '<div style="background:rgba(15,37,49,.05);border:1px solid var(--ffp-border);border-radius:12px;overflow:hidden;margin-bottom:9px;display:flex;align-items:stretch;gap:0;min-height:68px;">' +
+      photoCol +
+      '<div style="min-width:0;flex:1;padding:11px 13px;">' +
         '<div style="font-weight:800;color:var(--ffp-text);">' + escHtml(m.full_name || '—') + '</div>' +
         (contact.length ? '<div class="psub" style="margin:2px 0 0;">' + contact.join(' · ') + '</div>' : '') +
         tagHtml +
       '</div>' +
-      '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex-shrink:0;">' +
+      '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex-shrink:0;padding:11px 13px;">' +
         '<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;' + stStyle + '">' + (MEMBER_STATUS[st] || 'Active') + '</span>' +
         '<div style="display:flex;gap:6px;">' +
           '<button class="btn btn-sec btn-sm" onclick="openMembership(\'' + m.id + '\')" title="Membership"><span class="ms">card_membership</span></button>' +
@@ -92,20 +92,10 @@ function memberRow(m) {
   '</div>';
 }
 
-// ── platform-standard field helpers (phone country+number, city taxonomy, photo) ──
+// ── platform-standard field helpers (reuse shared FFPPicker + .phone-cc / .phone-num) ──
 function _memPhoneCodes() {
   var pc = (window.FFP_TAX && FFP_TAX.phoneCodes) || [];
-  return pc.length ? pc : [{ code: '+971', flag: '🇦🇪' }];
-}
-function _memCities() {
-  var C = (window.FFP_TAX && FFP_TAX.cities) || {};
-  var out = [];
-  Object.keys(C).forEach(function (country) {
-    var v = C[country];
-    var list = Array.isArray(v) ? v : (v && typeof v === 'object' ? Object.keys(v) : []);
-    list.forEach(function (city) { if (city && out.indexOf(city) === -1) out.push(city); });
-  });
-  return out.sort();
+  return pc.length ? pc : [{ code: '+971', flag: '🇦🇪', country: 'United Arab Emirates' }];
 }
 function _memSplitPhone(phone) {
   phone = (phone || '').trim();
@@ -117,24 +107,43 @@ function _memPhoneFieldHtml(cc, num) {
   var opts = _memPhoneCodes().map(function (c) {
     return '<option value="' + escHtml(c.code) + '"' + (c.code === cc ? ' selected' : '') + '>' + escHtml((c.flag ? c.flag + ' ' : '') + c.code) + '</option>';
   }).join('');
-  return '<div style="display:flex;">' +
-      '<select class="select" id="mm-phone-cc" style="width:120px;flex:0 0 auto;border-radius:8px 0 0 8px;border-right:none;">' + opts + '</select>' +
-      '<input class="input" id="mm-phone-num" inputmode="tel" value="' + escHtml(num || '') + '" placeholder="50 000 0000" style="flex:1;min-width:0;border-radius:0 8px 8px 0;">' +
+  return '<div class="phone-input">' +
+      '<select class="phone-cc" id="mm-phone-cc">' + opts + '</select>' +
+      '<input class="input phone-num" id="mm-phone-num" inputmode="tel" value="' + escHtml(num || '') + '" placeholder="50 000 0000">' +
     '</div>';
-}
-function _memCityFieldHtml(cur) {
-  var cities = _memCities();
-  var inList = cur && cities.indexOf(cur) !== -1;
-  var opts = '<option value="">Select city…</option>';
-  if (cur && !inList) opts += '<option value="' + escHtml(cur) + '" selected>' + escHtml(cur) + '</option>';
-  opts += cities.map(function (c) { return '<option value="' + escHtml(c) + '"' + (c === cur ? ' selected' : '') + '>' + escHtml(c) + '</option>'; }).join('');
-  return '<select class="select" id="mm-city">' + opts + '</select>';
 }
 function _memGetPhone() {
   var cc = document.getElementById('mm-phone-cc'), num = document.getElementById('mm-phone-num');
   var n = num ? num.value.trim() : '';
   if (!n) return '';
   return (((cc && cc.value) ? cc.value : '') + ' ' + n).trim();
+}
+function _memCountryBtnHtml(country) {
+  return '<button type="button" class="ffp-picker-btn' + (country ? '' : ' placeholder') + '" id="mm-country-btn" data-value="' + escHtml(country || '') + '" onclick="_memPickCountry()">' +
+    '<span>' + (country ? escHtml(country) : 'Choose country…') + '</span><span class="ms caret">expand_more</span></button>';
+}
+function _memCityBtnHtml(country, city) {
+  return '<button type="button" class="ffp-picker-btn' + (city ? '' : ' placeholder') + '" id="mm-city-btn" data-value="' + escHtml(city || '') + '" data-country="' + escHtml(country || '') + '" onclick="_memPickCity()">' +
+    '<span>' + (city ? escHtml(city) : 'Choose city…') + '</span><span class="ms caret">expand_more</span></button>';
+}
+function _memPickCountry() {
+  if (!window.FFPPicker) { showToast('Picker still loading — try again', 'info'); return; }
+  var btn = document.getElementById('mm-country-btn');
+  FFPPicker.openCountry(btn.dataset.value || '', function (name) {
+    btn.dataset.value = name; btn.classList.remove('placeholder'); btn.querySelector('span').textContent = name;
+    var cb = document.getElementById('mm-city-btn');
+    if (cb) { cb.dataset.value = ''; cb.dataset.country = name; cb.classList.add('placeholder'); cb.querySelector('span').textContent = 'Choose city…'; }
+  });
+}
+function _memPickCity() {
+  if (!window.FFPPicker) { showToast('Picker still loading — try again', 'info'); return; }
+  var btn = document.getElementById('mm-city-btn');
+  var co = document.getElementById('mm-country-btn');
+  var country = co ? (co.dataset.value || '') : '';
+  if (!country) { showToast('Choose a country first', 'info'); return; }
+  FFPPicker.openCity(country, btn.dataset.value || '', function (name) {
+    btn.dataset.value = name; btn.classList.remove('placeholder'); btn.querySelector('span').textContent = name;
+  });
 }
 function pickMemberPhoto() {
   if (!window.FFPUpload || !FFPUpload.pick) { showToast('Uploader still loading — try again', 'error'); return; }
@@ -151,7 +160,7 @@ function openMemberModal(id) {
   var editing = id ? _members.find(function (x) { return x.id === id; }) : null;
   var today = new Date();
   var todayStr = today.getFullYear() + '-' + ('0' + (today.getMonth() + 1)).slice(-2) + '-' + ('0' + today.getDate()).slice(-2);
-  var m = editing || { full_name: '', given_names: '', surname: '', email: '', phone: '', member_status: 'active', tags: '', join_date: todayStr, city: '', notes: '', photo_url: '' };
+  var m = editing || { full_name: '', given_names: '', surname: '', email: '', phone: '', member_status: 'active', tags: '', join_date: todayStr, country: '', city: '', notes: '', photo_url: '' };
   var gn = m.given_names || '', sn = m.surname || '';
   if (!gn && !sn && m.full_name) { var pp = m.full_name.trim().split(/\s+/); sn = pp.length > 1 ? pp.pop() : ''; gn = pp.join(' '); }
   var jd = m.join_date ? String(m.join_date).slice(0, 10) : '';
@@ -174,7 +183,8 @@ function openMemberModal(id) {
       '<div class="field"><div class="label">Joined</div><input class="input" type="date" id="mm-join_date" value="' + jd + '"></div>' +
     '</div></div>' +
     '<div class="form-section"><div class="form-section-title">Details</div><div class="form-grid">' +
-      '<div class="field"><div class="label">City</div>' + _memCityFieldHtml(m.city || '') + '</div>' +
+      '<div class="field"><div class="label">Country</div>' + _memCountryBtnHtml(m.country || '') + '</div>' +
+      '<div class="field"><div class="label">City</div>' + _memCityBtnHtml(m.country || '', m.city || '') + '</div>' +
       '<div class="field"><div class="label">Tags</div><input class="input" id="mm-tags" value="' + escHtml(m.tags || '') + '" placeholder="comma,separated, e.g. monthly, pilates"></div>' +
       '<div class="field full"><div class="label">Notes</div><textarea class="textarea" id="mm-notes" rows="2" placeholder="Anything to remember about this member (optional)">' + escHtml(m.notes || '') + '</textarea></div>' +
     '</div></div>',
@@ -191,11 +201,14 @@ async function saveMember(id) {
   if (!given) { showToast('Given name is required', 'error'); return; }
   var pid = _memProvId();
   if (!pid) { showToast('Not signed in', 'error'); return; }
+  var coBtn = document.getElementById('mm-country-btn'), ciBtn = document.getElementById('mm-city-btn');
   var payload = {
     full_name: fullName, given_names: given, surname: surname,
     email: g('email'), phone: _memGetPhone(),
     member_status: g('member_status') || 'active', tags: g('tags'),
-    join_date: g('join_date'), city: g('city'), notes: g('notes'), photo_url: g('photo_url')
+    join_date: g('join_date'),
+    country: coBtn ? (coBtn.dataset.value || '') : '', city: ciBtn ? (ciBtn.dataset.value || '') : '',
+    notes: g('notes'), photo_url: g('photo_url')
   };
   try {
     var r = await window.supabase.rpc('provider_save_member', { p_provider: pid, p_id: id || null, p: payload });
