@@ -7983,7 +7983,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '380';
+  const FFP_BUILD = '381';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -11933,7 +11933,7 @@ function init() {
   WorkoutTimer.init();
   if (window.CalorieTracker) CalorieTracker.init();  // v316: guarded — core is an external deferred file
   if (window.FitnessStats) FitnessStats.init();  // v304: guarded — if the external core file didn't load, degrade gracefully instead of halting boot.
-  Earnings.init();
+  if (window.Earnings && Earnings.init) Earnings.init();   // guarded: missing core must NOT halt boot (passport etc.)
   loadJourneyLogs();
   loadMeets();
   loadConnectionsCount();
