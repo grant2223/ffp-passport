@@ -49,7 +49,7 @@ function apMondayOf(d) {
 function _apInjectStyle() {
   if (document.getElementById('ap-cal-style')) return;
   var st = document.createElement('style'); st.id = 'ap-cal-style';
-  st.textContent = 'input.input[type="date"],input.input[type="time"],input.input[type="datetime-local"]{color-scheme:dark;}';
+  st.textContent = 'input.input[type="date"],input.input[type="time"],input.input[type="datetime-local"]{color-scheme:light;}';
   (document.head || document.body).appendChild(st);
 }
 async function renderAppointments() {
@@ -264,7 +264,7 @@ function _apBlockColor(st) {
   if (st === 'checked_in') return { bd: 'rgba(46,204,113,.45)', bg: 'rgba(46,204,113,.12)', fg: '#7ee0a8' };
   if (st === 'no_show') return { bd: 'rgba(255,107,107,.45)', bg: 'rgba(255,107,107,.12)', fg: '#ff9b9b' };
   if (st === 'cancelled') return { bd: 'var(--ffp-border,#1d3346)', bg: 'rgba(255,255,255,.04)', fg: '#9fb3c2' };
-  return { bd: 'rgba(43,168,224,.55)', bg: 'rgba(43,168,224,.16)', fg: '#6fc6ef' };
+  return { bd: 'rgba(25,128,173,.55)', bg: 'rgba(25,128,173,.16)', fg: '#6fc6ef' };
 }
 function _apGridItems(day, coachF) {
   var dateStr = _apDateStr(day);
@@ -299,7 +299,7 @@ function _apGridBlock(it, top, hgt, leftPct, wPct) {
   var base = 'position:absolute;top:' + top + 'px;height:' + hgt + 'px;left:calc(' + leftPct + '% + 2px);width:calc(' + wPct + '% - 4px);border-radius:7px;padding:3px 6px;overflow:hidden;font-size:11px;line-height:1.2;cursor:pointer;box-sizing:border-box;';
   if (it.kind === 'open') {
     var s = it.s;
-    return '<div onclick="event.stopPropagation(); apBookFromSlot(\'' + s.staff_id + '\',\'' + (s.service_id || '') + '\',\'' + s.dateStr + '\',\'' + s.time + '\',' + s.duration + ')" title="Book ' + s.time + ' · ' + apEsc(s.coach_name || '') + '" style="' + base + 'border:1px dashed var(--ffp-border,#3a5168);background:rgba(43,168,224,.05);color:#9fb3c2;display:flex;align-items:center;justify-content:center;gap:4px;"><span class="ms" style="font-size:13px;">add</span>' + s.time + (it.lanes < 2 ? (' · ' + apEsc(s.coach_name || '')) : '') + '</div>';
+    return '<div onclick="event.stopPropagation(); apBookFromSlot(\'' + s.staff_id + '\',\'' + (s.service_id || '') + '\',\'' + s.dateStr + '\',\'' + s.time + '\',' + s.duration + ')" title="Book ' + s.time + ' · ' + apEsc(s.coach_name || '') + '" style="' + base + 'border:1px dashed var(--ffp-border,#3a5168);background:rgba(25,128,173,.05);color:#9fb3c2;display:flex;align-items:center;justify-content:center;gap:4px;"><span class="ms" style="font-size:13px;">add</span>' + s.time + (it.lanes < 2 ? (' · ' + apEsc(s.coach_name || '')) : '') + '</div>';
   }
   var a = it.a, col = _apBlockColor(a.status), name = apEsc(a.member_name || a.member_email || 'Client');
   return '<div onclick="event.stopPropagation(); apApptDetail(\'' + a.id + '\')" title="' + name + '" style="' + base + 'border:1px solid ' + col.bd + ';background:' + col.bg + ';color:' + col.fg + ';">' +
@@ -336,8 +336,8 @@ function _apRenderGrid(host, days) {
   days.forEach(function (day) {
     var isT = _apDateStr(day) === todayStr;
     html += '<div style="text-align:center;padding:6px 2px;border-left:1px solid var(--ffp-border,#1d3346);">' +
-      '<div style="font-weight:800;font-size:12px;color:' + (isT ? '#2ba8e0' : 'var(--ffp-text,#eaf2f8)') + ';">' + day.toLocaleDateString([], { weekday: 'short' }) + '</div>' +
-      '<div style="font-size:15px;font-weight:800;color:' + (isT ? '#2ba8e0' : 'var(--ffp-text,#eaf2f8)') + ';">' + day.getDate() + '</div></div>';
+      '<div style="font-weight:800;font-size:12px;color:' + (isT ? '#1980AD' : 'var(--ffp-text,#eaf2f8)') + ';">' + day.toLocaleDateString([], { weekday: 'short' }) + '</div>' +
+      '<div style="font-size:15px;font-weight:800;color:' + (isT ? '#1980AD' : 'var(--ffp-text,#eaf2f8)') + ';">' + day.getDate() + '</div></div>';
   });
   html += '</div>';
   // body
@@ -348,7 +348,7 @@ function _apRenderGrid(host, days) {
   days.forEach(function (day) {
     var isT = _apDateStr(day) === todayStr;
     var items = _apGridItems(day, coachF); _apLanePack(items);
-    var col = '<div style="position:relative;border-left:1px solid var(--ffp-border,#1d3346);height:' + (rows * _AP_HH) + 'px;background:' + (isT ? 'rgba(43,168,224,.04)' : 'transparent') + ';">';
+    var col = '<div style="position:relative;border-left:1px solid var(--ffp-border,#1d3346);height:' + (rows * _AP_HH) + 'px;background:' + (isT ? 'rgba(25,128,173,.04)' : 'transparent') + ';">';
     for (var h2 = startH; h2 < endH; h2++) col += '<div style="position:absolute;left:0;right:0;top:' + ((h2 - startH) * _AP_HH) + 'px;border-top:1px solid var(--ffp-border,#1d3346);opacity:.45;"></div>';
     items.forEach(function (it) {
       var top = ((it.startMin - rangeStart) / 60) * _AP_HH;
@@ -381,8 +381,8 @@ function _apRenderMonth(host) {
     var k = _apDateStr(day);
     var list = (byDate[k] || []).sort(function (a, b) { return new Date(a.start_at) - new Date(b.start_at); });
     var isT = k === todayStr;
-    html += '<div onclick="apOpenDay(\'' + k + '\')" style="min-height:94px;cursor:pointer;border:1px solid ' + (isT ? '#2ba8e0' : 'var(--ffp-border,#1d3346)') + ';border-radius:8px;padding:5px 6px;background:' + (inMonth ? 'var(--ffp-bg-2,#0f1f2c)' : 'transparent') + ';opacity:' + (inMonth ? 1 : .45) + ';overflow:hidden;">';
-    html += '<div style="font-weight:800;font-size:12px;color:' + (isT ? '#2ba8e0' : 'var(--ffp-text,#eaf2f8)') + ';">' + day.getDate() + '</div>';
+    html += '<div onclick="apOpenDay(\'' + k + '\')" style="min-height:94px;cursor:pointer;border:1px solid ' + (isT ? '#1980AD' : 'var(--ffp-border,#1d3346)') + ';border-radius:8px;padding:5px 6px;background:' + (inMonth ? 'var(--ffp-bg-2,#0f1f2c)' : 'transparent') + ';opacity:' + (inMonth ? 1 : .45) + ';overflow:hidden;">';
+    html += '<div style="font-weight:800;font-size:12px;color:' + (isT ? '#1980AD' : 'var(--ffp-text,#eaf2f8)') + ';">' + day.getDate() + '</div>';
     list.slice(0, 3).forEach(function (a) {
       var t = _apHHMM(_apLocalParts(a.start_at).min);
       html += '<div style="font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:' + _apBlockColor(a.status).fg + ';">' + t + ' ' + apEsc(a.member_name || a.member_email || '') + '</div>';
@@ -496,7 +496,7 @@ function apApptDetail(id) {
 
 function _apStatusChip(st) {
   var map = {
-    scheduled:         ['Scheduled', '#6fc6ef', 'rgba(43,168,224,.16)'],
+    scheduled:         ['Scheduled', '#6fc6ef', 'rgba(25,128,173,.16)'],
     checked_in:        ['Checked in', '#7ee0a8', 'rgba(46,204,113,.15)'],
     completed_pending: ['Awaiting confirm', '#ffcf8f', 'rgba(243,156,18,.16)'],
     completed:         ['Completed', '#7ee0a8', 'rgba(46,204,113,.18)'],
@@ -1041,7 +1041,7 @@ async function apRenderPackages() {
           '<div style="min-width:170px;"><div style="font-weight:700;color:var(--ffp-text,#eaf2f8);">' + apEsc(cp.member_name || cp.member_email || '—') + '</div>' +
           '<div class="psub" style="margin:2px 0 0;">' + apEsc(cp.name || 'Package') + (cp.expiry_date ? ' · exp ' + cp.expiry_date : '') + statusTxt + '</div></div>' +
           '<div style="display:flex;align-items:center;gap:10px;">' +
-            '<div style="width:120px;height:7px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden;"><div style="height:100%;width:' + pct + '%;background:' + (low ? '#f39c12' : '#2ba8e0') + ';"></div></div>' +
+            '<div style="width:120px;height:7px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden;"><div style="height:100%;width:' + pct + '%;background:' + (low ? '#f39c12' : '#1980AD') + ';"></div></div>' +
             '<b style="color:' + (low ? '#ffcf8f' : 'var(--ffp-text,#eaf2f8)') + ';min-width:54px;text-align:right;">' + cp.sessions_remaining + ' / ' + cp.sessions_total + '</b>' +
           '</div></div>';
       }).join('');
