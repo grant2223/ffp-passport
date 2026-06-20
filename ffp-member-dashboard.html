@@ -1070,16 +1070,20 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
 #panel-workout-timer.timing .timer-display-v2 { margin-top: 7vh; }
 #panel-workout-timer.timing .timer-meta { font-size: 22px; font-weight: 900; color: var(--text); text-transform: uppercase; letter-spacing: .5px; margin-top: 14px; }
 #panel-workout-timer.timing .timer-meta b { color: var(--yellow); }
+/* Stopwatch has no setup below — drop the display toward centre */
+#panel-workout-timer.mode-stopwatch .timer-display-v2 { margin-top: 16vh; }
 
-/* scroll-wheel pickers (boxless): numbers float, thin centre selection lines */
+/* scroll-wheel pickers (boxless): one big white centre number, neighbours faded; thin centre lines */
 .timer-wheel-wrap { position: relative; width: 100%; }
-.timer-wheel-wrap::before, .timer-wheel-wrap::after { content:''; position:absolute; left:14%; right:14%; height:1px; background: rgba(43,168,224,0.45); z-index:1; pointer-events:none; }
+.timer-wheel-wrap::before, .timer-wheel-wrap::after { content:''; position:absolute; left:18%; right:18%; height:1px; background: rgba(43,168,224,0.45); z-index:1; pointer-events:none; }
 .timer-wheel-wrap::before { top: calc(50% - 22px); }
 .timer-wheel-wrap::after  { top: calc(50% + 22px); }
-.timer-wheel { height: 132px; overflow-y: scroll; scroll-snap-type: y mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
+.timer-wheel { box-sizing: content-box; height: 44px; padding: 44px 0; overflow-y: scroll; scroll-snap-type: y mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 34%, #000 66%, transparent 100%);
+          mask-image: linear-gradient(180deg, transparent 0%, #000 34%, #000 66%, transparent 100%); }
 .timer-wheel::-webkit-scrollbar { display: none; width: 0; height: 0; }
-.timer-wheel-item { height: 44px; display: flex; align-items: center; justify-content: center; scroll-snap-align: center; font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 15px; color: #3a4d5e; font-variant-numeric: tabular-nums; transition: font-size .12s, color .12s; }
-.timer-wheel-item.sel { font-size: 27px; color: var(--text); }
+.timer-wheel-item { height: 44px; display: flex; align-items: center; justify-content: center; scroll-snap-align: center; font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 15px; color: #33424f; font-variant-numeric: tabular-nums; transition: font-size .12s, color .12s; }
+.timer-wheel-item.sel { font-size: 30px; color: #fff; }
 
 /* ----- CALORIE TRACKER ----- */
 .cal-today-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
@@ -4926,11 +4930,6 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
           <button class="timer-preset-btn" data-cd="3,0">3 min</button>
           <button class="timer-preset-btn active" data-cd="5,0">5 min</button>
           <button class="timer-preset-btn" data-cd="10,0">10 min</button>
-          <button class="timer-preset-btn" data-cd="15,0">15 min</button>
-          <button class="timer-preset-btn" data-cd="20,0">20 min</button>
-          <button class="timer-preset-btn" data-cd="30,0">30 min</button>
-          <button class="timer-preset-btn" data-cd="45,0">45 min</button>
-          <button class="timer-preset-btn" data-cd="60,0">60 min</button>
         </div>
         <div class="timer-custom-row">
           <div class="timer-input-group">
@@ -4972,29 +4971,21 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         <div class="timer-help" id="int-summary" style="padding:6px 0 0;"></div>
       </div>
       
-      <!-- EMOM — Every X minutes -->
+      <!-- EMOM — every M:SS, for N rounds -->
       <div id="config-emom" style="display:none;">
-        <div class="timer-section-label">Beep every</div>
-        <div class="timer-presets" id="em-interval-presets">
-          <button class="timer-preset-btn active" data-em-int="1">1 min</button>
-          <button class="timer-preset-btn" data-em-int="2">2 min</button>
-          <button class="timer-preset-btn" data-em-int="3">3 min</button>
-          <button class="timer-preset-btn" data-em-int="4">4 min</button>
-          <button class="timer-preset-btn" data-em-int="5">5 min</button>
-          <button class="timer-preset-btn" data-em-int="6">6 min</button>
-          <button class="timer-preset-btn" data-em-int="7">7 min</button>
-          <button class="timer-preset-btn" data-em-int="8">8 min</button>
-          <button class="timer-preset-btn" data-em-int="9">9 min</button>
-          <button class="timer-preset-btn" data-em-int="10">10 min</button>
-        </div>
-        <div class="timer-custom-row">
+        <div class="timer-section-label">Every</div>
+        <div class="timer-custom-row cols-3">
+          <div class="timer-input-group">
+            <label>Minutes</label>
+            <div class="timer-wheel-wrap"><div class="timer-wheel" id="wheel-emMin"></div></div>
+          </div>
+          <div class="timer-input-group">
+            <label>Seconds</label>
+            <div class="timer-wheel-wrap"><div class="timer-wheel" id="wheel-emSec"></div></div>
+          </div>
           <div class="timer-input-group">
             <label>Rounds</label>
             <div class="timer-wheel-wrap"><div class="timer-wheel" id="wheel-emRounds"></div></div>
-          </div>
-          <div class="timer-input-group">
-            <label>Reps</label>
-            <div class="timer-wheel-wrap"><div class="timer-wheel" id="wheel-emReps"></div></div>
           </div>
         </div>
       </div>
@@ -8060,7 +8051,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '393';
+  const FFP_BUILD = '394';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -9093,7 +9084,7 @@ const WorkoutTimer = {
     // configs
     cdMin: 5, cdSec: 0,
     intWork: 45, intRest: 15, intRounds: 8,
-    emInterval: 1, emRounds: 10, emReps: 10   // EMOM: beep every emInterval min × emRounds
+    emMin: 1, emSec: 0, emRounds: 10   // EMOM: every emMin:emSec, for emRounds rounds
   },
   
   audio: null,
@@ -9134,16 +9125,7 @@ const WorkoutTimer = {
         this.renderPips();
       });
     });
-    // Preset chips — EMOM interval
-    document.querySelectorAll('#em-interval-presets .timer-preset-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (this.s.running) return;
-        this.s.emInterval = parseInt(btn.dataset.emInt, 10);
-        this._setActivePreset('#em-interval-presets', btn);
-        this.renderTime();
-      });
-    });
-    
+
     this.applyMode();
     this.buildWheels();
     this.renderTime();
@@ -9196,13 +9178,14 @@ const WorkoutTimer = {
   // Scroll-wheel pickers — flick to set, no taps (no iOS zoom). this.s[key] stays source of truth.
   ROW: 44,
   _wheelDefs: {
-    cdMin:    { min: 0, max: 90,  step: 1, pad: true },
-    cdSec:    { min: 0, max: 55,  step: 5, pad: true },
-    intWork:  { min: 5, max: 600, step: 5 },
-    intRest:  { min: 0, max: 600, step: 5 },
-    intRounds:{ min: 1, max: 50,  step: 1 },
-    emRounds: { min: 1, max: 50,  step: 1 },
-    emReps:   { min: 1, max: 50,  step: 1 }
+    cdMin:    { min: 0, max: 90,  step: 1 },
+    cdSec:    { min: 0, max: 55,  step: 5 },
+    intWork:  { min: 5, max: 300, step: 1 },
+    intRest:  { min: 0, max: 300, step: 1 },
+    intRounds:{ min: 1, max: 30,  step: 1 },
+    emMin:    { min: 0, max: 60,  step: 1 },
+    emSec:    { min: 0, max: 55,  step: 5 },
+    emRounds: { min: 1, max: 50,  step: 1 }
   },
 
   buildWheels() {
@@ -9277,7 +9260,7 @@ const WorkoutTimer = {
   },
 
   renderAdjusters() {
-    ['cdMin','cdSec','intWork','intRest','intRounds','emRounds','emReps'].forEach(k => this._wheelTo(k));
+    ['cdMin','cdSec','intWork','intRest','intRounds','emMin','emSec','emRounds'].forEach(k => this._wheelTo(k));
     this._updateIntSummary();
   },
 
@@ -9299,6 +9282,7 @@ const WorkoutTimer = {
     document.getElementById('timer-skip').style.display = (this.s.mode === 'interval' || this.s.mode === 'emom') ? '' : 'none';
     document.getElementById('timer-pips').style.display = (this.s.mode === 'interval' || this.s.mode === 'emom') ? 'flex' : 'none';
     document.getElementById('timer-time').classList.toggle('stopwatch-mode', this.s.mode === 'stopwatch');
+    document.getElementById('panel-workout-timer').classList.toggle('mode-stopwatch', this.s.mode === 'stopwatch');
     this.renderAdjusters();
     this.renderTime();
     this.renderPips();
@@ -9409,11 +9393,10 @@ const WorkoutTimer = {
     } else if (this.s.mode === 'emom') {
       this.s.totalRounds = this.s.emRounds;
       this.s.phase = 'go';
-      this.s.phaseDurMs = this.s.emInterval * 60 * 1000;
+      this.s.phaseDurMs = Math.max(5, this.s.emMin * 60 + this.s.emSec) * 1000;
       this.s.phaseStartMs = this.s.elapsedMs;
       this.setPhaseLabel('GO','phase-work');
-      const intLabel = this.s.emInterval === 1 ? 'every minute' : `every ${this.s.emInterval} min`;
-      document.getElementById('timer-meta').textContent = `Round ${this.s.round} of ${this.s.totalRounds} · ${this.s.emReps} reps · ${intLabel}`;
+      document.getElementById('timer-meta').textContent = `Round ${this.s.round} of ${this.s.totalRounds} · every ${this.s.emMin}:${String(this.s.emSec).padStart(2,'0')}`;
       this.beep(880);
     }
     this.renderPips();
@@ -9464,11 +9447,10 @@ const WorkoutTimer = {
       document.getElementById('timer-meta').textContent = `Round ${this.s.round} of ${this.s.totalRounds}`;
       this.beep(880);
     } else if (this.s.mode === 'emom') {
-      this.s.phaseDurMs = this.s.emInterval * 60 * 1000;
+      this.s.phaseDurMs = Math.max(5, this.s.emMin * 60 + this.s.emSec) * 1000;
       this.s.phaseStartMs = this.s.elapsedMs;
       this.setPhaseLabel('GO','phase-work');
-      const intLabel = this.s.emInterval === 1 ? 'every minute' : `every ${this.s.emInterval} min`;
-      document.getElementById('timer-meta').textContent = `Round ${this.s.round} of ${this.s.totalRounds} · ${this.s.emReps} reps · ${intLabel}`;
+      document.getElementById('timer-meta').textContent = `Round ${this.s.round} of ${this.s.totalRounds} · every ${this.s.emMin}:${String(this.s.emSec).padStart(2,'0')}`;
       this.beep(880);
     }
     this.renderPips();
@@ -9522,7 +9504,7 @@ const WorkoutTimer = {
     } else if (this.s.phase === 'ready') {
       if (this.s.mode === 'countdown')      ms = (this.s.cdMin * 60 + this.s.cdSec) * 1000;
       else if (this.s.mode === 'interval')  ms = this.s.intWork * 1000;
-      else if (this.s.mode === 'emom')      ms = this.s.emInterval * 60 * 1000;
+      else if (this.s.mode === 'emom')      ms = (this.s.emMin * 60 + this.s.emSec) * 1000;
     } else if (this.s.phase === 'done') {
       ms = 0;
     } else {
