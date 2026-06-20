@@ -7983,7 +7983,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '382';
+  const FFP_BUILD = '383';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -12049,7 +12049,7 @@ window.ffpLogSocialShare = async function (kind, platform) {
   try {
     var m = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null;
     if (!window.supabase || !m || !m.id) return;
-    await window.supabase.rpc('log_social_share', { p_kind: kind || 'app', p_platform: platform || null });
+    await window.supabase.rpc('log_social_share', { p_member: m.id, p_kind: kind || 'app', p_platform: platform || null });
     if (typeof Earnings !== 'undefined' && Earnings.loadTierStats) { try { Earnings.loadTierStats(); } catch (e) {} }
   } catch (e) { /* non-blocking */ }
 };
