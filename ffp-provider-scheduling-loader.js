@@ -82,7 +82,7 @@ function templateCard(t) {
   if (t.fitness_level) meta.push(escHtml(t.fitness_level));
   return '<div style="background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">' +
       '<div style="display:flex;gap:11px;min-width:0;align-items:flex-start;">' +
-        (t.hero_image_url ? '<div style="width:46px;height:46px;border-radius:8px;flex:0 0 auto;background:#0a1825 url(\'' + escHtml(t.hero_image_url) + '\') center/cover no-repeat;"></div>' : '') +
+        (t.hero_image_url ? '<div style="width:46px;height:46px;border-radius:8px;flex:0 0 auto;background:#ffffff url(\'' + escHtml(t.hero_image_url) + '\') center/cover no-repeat;"></div>' : '') +
         '<div style="min-width:0;">' +
           '<div style="font-weight:800;color:var(--ffp-text,#eaf2f8);">' + escHtml(t.title || 'Untitled session') + (t.activity ? ' <span class="psub" style="font-weight:600;">· ' + escHtml(t.activity) + '</span>' : '') + '</div>' +
           '<div class="psub" style="margin:3px 0 0;">' + (slots.length ? slots.join('  ·  ') : '<span style="color:#FFCC00;">No weekly times yet — edit to add</span>') + '</div>' +
@@ -136,7 +136,7 @@ function renderTimetable() {
         var present = _schedAttCounts[s.id] || 0;
         var cap = (s.capacity != null && s.capacity !== '') ? s.capacity : null;
         var badge = '<span style="float:right;font-size:11px;font-weight:800;color:' + (cap && present >= cap ? '#ff7a7a' : '#6fc6ef') + ';">' + present + (cap != null ? '/' + cap : '') + '</span>';
-        html += '<div onclick="openOccurrence(\'' + s.id + '\')" title="' + present + (cap != null ? ' of ' + cap : '') + ' attending" style="cursor:pointer;background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-left:3px solid #2ba8e0;border-radius:8px;padding:7px 8px;margin-bottom:6px;">' +
+        html += '<div onclick="openOccurrence(\'' + s.id + '\')" title="' + present + (cap != null ? ' of ' + cap : '') + ' attending" style="cursor:pointer;background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-left:3px solid #1980AD;border-radius:8px;padding:7px 8px;margin-bottom:6px;">' +
           '<div style="font-weight:700;font-size:12px;color:var(--ffp-text,#eaf2f8);">' + escHtml(t) + badge + '</div>' +
           '<div style="font-size:12px;color:#cfd6dc;line-height:1.25;">' + escHtml(s.title) + '</div>' +
           (s.recurrence === 'once' ? '<div style="margin:2px 0 0;font-size:10px;font-weight:800;color:#FFCC00;">one-off · ' + escHtml(new Date(s.start_at).toLocaleDateString([], { day: 'numeric', month: 'short' })) + '</div>' : '') +
@@ -184,9 +184,9 @@ async function openAddSession() {
           '<button type="button" class="btn btn-ghost btn-sm as-mode" data-mode="once" onclick="_asSetMode(\'once\')" style="flex:1;">One-off date</button>' +
         '</div></div>' +
       '<div class="field as-weekly"><div class="label">Day</div><select class="select" id="as-weekday">' + dayOpts + '</select></div>' +
-      '<div class="field as-weekly"><div class="label">Time</div><input class="input" type="time" id="as-time" value="18:00" style="color-scheme:dark;"></div>' +
-      '<div class="field full as-once" style="display:none;"><div class="label">Date &amp; time</div><input class="input" type="datetime-local" id="as-datetime" style="color-scheme:dark;"></div>' +
-      '<div class="field full"><div class="label">Coach <span style="color:var(--ffp-text-dim,#8a99a8);">(optional)</span></div><select class="select" id="as-coach">' + _coachOpts('') + '</select></div>' +
+      '<div class="field as-weekly"><div class="label">Time</div><input class="input" type="time" id="as-time" value="18:00" style="color-scheme:light;"></div>' +
+      '<div class="field full as-once" style="display:none;"><div class="label">Date &amp; time</div><input class="input" type="datetime-local" id="as-datetime" style="color-scheme:light;"></div>' +
+      '<div class="field full"><div class="label">Coach <span style="color:var(--ffp-text-dim,#566069);">(optional)</span></div><select class="select" id="as-coach">' + _coachOpts('') + '</select></div>' +
     '</div></div>',
     '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>' +
     '<button class="btn btn-pri" onclick="saveAddSession()">Add to timetable</button>');
@@ -236,7 +236,7 @@ function showCoachBio(enc) {
   var c = _coachBios[name] || {};
   var avatar = c.photo
     ? '<div style="width:64px;height:64px;border-radius:50%;flex:0 0 auto;background:url(\'' + escHtml(c.photo) + '\') center/cover no-repeat;border:1px solid var(--ffp-border,#1d3346);"></div>'
-    : '<div style="width:64px;height:64px;border-radius:50%;flex:0 0 auto;background:rgba(43,168,224,.16);color:#6fc6ef;display:flex;align-items:center;justify-content:center;"><span class="ms" style="font-size:30px;">person</span></div>';
+    : '<div style="width:64px;height:64px;border-radius:50%;flex:0 0 auto;background:rgba(25,128,173,.16);color:#6fc6ef;display:flex;align-items:center;justify-content:center;"><span class="ms" style="font-size:30px;">person</span></div>';
   var body = '<div style="display:flex;gap:14px;align-items:flex-start;">' + avatar +
       '<div style="min-width:0;display:flex;flex-direction:column;gap:6px;">' +
         '<div style="font-weight:800;font-size:16px;color:var(--ffp-text,#eaf2f8);">' + escHtml(name) +
@@ -319,7 +319,7 @@ function _tplAddSlotRow(dow, time, coach) {
   row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;';
   row.innerHTML =
     '<select class="select tpl-slot-day" style="flex:1.1;"><option value="">Day…</option>' + dayOpts + '</select>' +
-    '<input class="input tpl-slot-time" type="time" value="' + escHtml(time || '') + '" style="flex:1;color-scheme:dark;">' +
+    '<input class="input tpl-slot-time" type="time" value="' + escHtml(time || '') + '" style="flex:1;color-scheme:light;">' +
     '<select class="select tpl-slot-coach" style="flex:1.3;">' + _coachOpts(coach) + '</select>' +
     '<button type="button" class="btn btn-ghost btn-sm" title="Remove" onclick="this.closest(\'.tpl-slot-row\').remove()"><span class="ms">close</span></button>';
   wrap.appendChild(row);
@@ -429,7 +429,7 @@ function _occChip(text, color, bg) {
   return '<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;color:' + color + ';background:' + bg + ';">' + text + '</span>';
 }
 function occPayChip(p) {
-  if (p === 'credit') return _occChip('Credit used', '#6fc6ef', 'rgba(43,168,224,.16)');
+  if (p === 'credit') return _occChip('Credit used', '#6fc6ef', 'rgba(25,128,173,.16)');
   if (p === 'paid')   return _occChip('Paid', '#7ee0a8', 'rgba(46,204,113,.15)');
   if (p === 'comp')   return _occChip('Comp', '#cbd6df', 'rgba(255,255,255,.08)');
   return _occChip('Unpaid', '#ff9b9b', 'rgba(255,107,107,.15)');
@@ -444,7 +444,7 @@ function _occInitials(name) {
 }
 function occRosterRow(r) {
   return '<div style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--ffp-border,#1d3346);">' +
-      '<div style="width:34px;height:34px;border-radius:9px;background:rgba(43,168,224,.16);color:#6fc6ef;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0;">' + escHtml(_occInitials(r.full_name)) + '</div>' +
+      '<div style="width:34px;height:34px;border-radius:9px;background:rgba(25,128,173,.16);color:#6fc6ef;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0;">' + escHtml(_occInitials(r.full_name)) + '</div>' +
       '<div style="flex:1;min-width:0;">' +
         '<div style="font-weight:700;color:var(--ffp-text,#eaf2f8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(r.full_name || r.email || '—') + '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;">' + occPayChip(r.paid_with) + occMemChip(r.membership_status, r.credits_remaining) + '</div>' +
@@ -480,7 +480,7 @@ function occAddRow(m) {
   var hasCredit = (m.credits_remaining != null && Number(m.credits_remaining) > 0);
   return '<div class="occ-add-row" data-name="' + escHtml(((m.full_name || '') + ' ' + (m.email || '')).toLowerCase()) + '" style="padding:9px 4px;border-bottom:1px solid var(--ffp-border,#1d3346);">' +
       '<div style="display:flex;align-items:center;gap:10px;">' +
-        '<div style="width:34px;height:34px;border-radius:9px;background:rgba(43,168,224,.16);color:#6fc6ef;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0;">' + escHtml(_occInitials(m.full_name)) + '</div>' +
+        '<div style="width:34px;height:34px;border-radius:9px;background:rgba(25,128,173,.16);color:#6fc6ef;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0;">' + escHtml(_occInitials(m.full_name)) + '</div>' +
         '<div style="flex:1;min-width:0;">' +
           '<div style="font-weight:700;color:var(--ffp-text,#eaf2f8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(m.full_name || m.email || '—') + '</div>' +
           '<div style="margin-top:3px;">' + occMemChip(m.membership_status, m.credits_remaining) + '</div>' +
@@ -623,7 +623,7 @@ function attMemberRow(m) {
   var present = _register[m.member_id] === 'present';
   var initials = (m.full_name || '?').split(/\s+/).map(function (w) { return w[0] || ''; }).join('').slice(0, 2).toUpperCase();
   return '<div class="reg-row" data-name="' + escHtml((m.full_name || '').toLowerCase()) + '" style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--ffp-border,#1d3346);">' +
-      '<div style="width:32px;height:32px;border-radius:8px;background:rgba(43,168,224,.16);color:#6fc6ef;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0;">' + escHtml(initials) + '</div>' +
+      '<div style="width:32px;height:32px;border-radius:8px;background:rgba(25,128,173,.16);color:#6fc6ef;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0;">' + escHtml(initials) + '</div>' +
       '<div style="flex:1;min-width:0;font-weight:700;color:var(--ffp-text,#eaf2f8);">' + escHtml(m.full_name || '—') + '</div>' +
       '<button id="reg-btn-' + m.member_id + '" class="btn btn-sm ' + (present ? 'btn-pri' : 'btn-ghost') + '" onclick="toggleAtt(\'' + m.member_id + '\')">' +
         '<span class="ms">' + (present ? 'check_circle' : 'radio_button_unchecked') + '</span> ' + (present ? 'Present' : 'Absent') +
