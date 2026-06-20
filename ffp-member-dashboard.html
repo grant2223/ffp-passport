@@ -1201,6 +1201,28 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
 .ct-log-btn:hover { background: var(--blue-dk); }
 .ct-log-btn .material-icons { font-size: 18px; }
 
+/* v-CT-clean — two clean add actions, food-picker tabs, one-tap add, my-meals list */
+.ct-add-row { display: flex; gap: 10px; margin-bottom: 14px; }
+.ct-add-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; border: none; border-radius: 12px; padding: 14px; font-family: inherit; font-size: 13px; font-weight: 800; letter-spacing: .3px; cursor: pointer; }
+.ct-add-btn .material-icons { font-size: 18px; }
+.ct-add-btn.primary { background: var(--yellow); color: #10202b; }
+.ct-add-btn.secondary { background: rgba(43,168,224,0.10); color: var(--text); border: 1px solid var(--border-mid); }
+.ct-add-btn.secondary:hover { border-color: var(--blue); }
+.fp-tabs { display: flex; gap: 18px; padding: 12px 22px 0; }
+.fp-tab { background: none; border: none; font-family: inherit; font-size: 13px; font-weight: 800; color: var(--muted); padding: 0 0 8px; cursor: pointer; }
+.fp-tab.active { color: var(--blue); border-bottom: 2px solid var(--blue); }
+.food-row-add { flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; border: none; background: rgba(43,168,224,0.15); color: var(--blue); display: flex; align-items: center; justify-content: center; cursor: pointer; font-family: inherit; transition: all .12s; }
+.food-row-add:hover { background: var(--blue); color: #fff; }
+.food-row-add.added { background: var(--blue); color: #fff; }
+.food-row-add .material-icons { font-size: 20px; }
+.fp-mymeals { padding: 6px 22px 22px; }
+.fp-mm-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px; border-bottom: 1px solid var(--border); cursor: pointer; }
+.fp-mm-row:hover { background: rgba(43,168,224,0.04); }
+.fp-mm-name { font-size: 13px; font-weight: 700; }
+.fp-mm-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.fp-mm-kcal { font-size: 13px; font-weight: 800; color: var(--blue); flex-shrink: 0; }
+.fp-mm-empty { font-size: 12px; color: var(--muted); padding: 22px; text-align: center; line-height: 1.5; }
+
 /* v78 — Meal type chips inside food-add modal */
 .meal-type-chips {
   display: grid;
@@ -5064,11 +5086,11 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
           <div class="ct-section-title">Food today</div>
           <div class="ct-section-total" id="ct-food-total">0 kcal eaten</div>
         </div>
-        <!-- My Meals strip — populated by ffp-calorie-tracker-loader.js (window.FFPMyMeals) -->
-        <div id="ct-mymeals"></div>
-        <button class="ct-log-btn" onclick="CalorieTracker.openFoodPicker()">
-          <span class="material-icons">add</span>Log food
-        </button>
+        <!-- Two clean actions; saved meals now live inside the Add-food picker (My meals tab) -->
+        <div class="ct-add-row">
+          <button class="ct-add-btn primary" onclick="CalorieTracker.openFoodPicker()"><span class="material-icons">add</span>Add food</button>
+          <button class="ct-add-btn secondary" onclick="FFPMyMeals.openBuilder()"><span class="material-icons">add</span>Create meal</button>
+        </div>
         <div id="ct-meals">
           <div class="meal-section" data-meal="breakfast">
             <div class="meal-section-head">
@@ -5829,17 +5851,26 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
   <div class="detail-modal" role="dialog" aria-modal="true">
     <button class="dm-close" onclick="CalorieTracker.closeFoodPicker()"><span class="material-icons">close</span></button>
     <div class="dm-body">
-      <div class="dm-title">Add food to <span id="fp-meal-name">meal</span></div>
-      <div style="font-size:12px; color:var(--muted);">Pick a food. Default servings shown. Adjust grams on next step.</div>
+      <div class="dm-title">Add food</div>
+      <div style="font-size:12px; color:var(--muted);">Tap + to add to <span id="fp-meal-name">your meal</span> &middot; tap a name to set the amount</div>
     </div>
-    <div class="food-picker-search">
-      <div class="food-picker-search-wrap">
-        <span class="material-icons">search</span>
-        <input type="text" id="fp-search" placeholder="Search foods (e.g. chicken, oats, banana)">
+    <div class="fp-tabs" id="fp-tabs">
+      <button class="fp-tab active" data-fptab="foods" onclick="CalorieTracker.setPickerTab('foods')">Foods</button>
+      <button class="fp-tab" data-fptab="mymeals" onclick="CalorieTracker.setPickerTab('mymeals')">My meals</button>
+    </div>
+    <div id="fp-foods-pane">
+      <div class="food-picker-search">
+        <div class="food-picker-search-wrap">
+          <span class="material-icons">search</span>
+          <input type="text" id="fp-search" placeholder="Search foods (e.g. chicken, oats, banana)">
+        </div>
       </div>
+      <div class="food-picker-cats" id="fp-cats"></div>
+      <div class="food-list" id="fp-list"></div>
     </div>
-    <div class="food-picker-cats" id="fp-cats"></div>
-    <div class="food-list" id="fp-list"></div>
+    <div id="fp-mymeals-pane" class="fp-mymeals" style="display:none;">
+      <div id="fp-mymeals-list"></div>
+    </div>
   </div>
 </div>
 
@@ -5862,11 +5893,9 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         <div style="font-size:10px; color:var(--muted); margin-top:6px;">Tap to type a custom amount:</div>
         <input type="number" id="fa-amount-input" min="1" max="2000" value="100" style="margin-top:4px; width:100%; padding:8px 10px; background:rgba(43,168,224,0.06); border:1px solid var(--border-mid); border-radius:8px; color:var(--text); font-size:14px; font-weight:700; text-align:center; font-family:inherit;" oninput="CalorieTracker.setAmountFromInput(this.value)">
       </div>
-      <div class="food-add-macro-grid">
-        <div class="food-add-macro-cell"><div class="num kcal" id="fa-kcal">0</div><div class="lbl">kcal</div></div>
-        <div class="food-add-macro-cell"><div class="num" id="fa-p">0</div><div class="lbl">Protein</div></div>
-        <div class="food-add-macro-cell"><div class="num" id="fa-c">0</div><div class="lbl">Carbs</div></div>
-        <div class="food-add-macro-cell"><div class="num" id="fa-f">0</div><div class="lbl">Fat</div></div>
+      <div style="text-align:center; margin-top:6px;">
+        <span class="num kcal" id="fa-kcal" style="font-size:30px; font-weight:800; color:var(--text);">0</span>
+        <span style="font-size:13px; color:var(--muted); font-weight:700;"> kcal &middot; <span id="fa-p">0</span>p / <span id="fa-c">0</span>c / <span id="fa-f">0</span>f</span>
       </div>
       <!-- v78 — Meal selector -->
       <div style="margin-top:18px;">
@@ -8051,7 +8080,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '394';
+  const FFP_BUILD = '396';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -9179,12 +9208,12 @@ const WorkoutTimer = {
   ROW: 44,
   _wheelDefs: {
     cdMin:    { min: 0, max: 90,  step: 1 },
-    cdSec:    { min: 0, max: 55,  step: 5 },
+    cdSec:    { min: 0, max: 59,  step: 1 },
     intWork:  { min: 5, max: 300, step: 1 },
     intRest:  { min: 0, max: 300, step: 1 },
     intRounds:{ min: 1, max: 30,  step: 1 },
     emMin:    { min: 0, max: 60,  step: 1 },
-    emSec:    { min: 0, max: 55,  step: 5 },
+    emSec:    { min: 0, max: 59,  step: 1 },
     emRounds: { min: 1, max: 50,  step: 1 }
   },
 
@@ -9702,7 +9731,7 @@ function fmtPrDate(iso) {
 <!-- Milestone badge library — assets/ffp-milestone-badges.js (window.FFPMSBadges). DEFER: only used by the lazy
      Milestones render long after load, so it must never block boot. Bump ?v on change. -->
 <script defer src="assets/ffp-milestone-badges.js?v=6"></script>
-<script defer src="assets/ffp-calorie-tracker-core.js?v=1"></script>
+<script defer src="assets/ffp-calorie-tracker-core.js?v=2"></script>
 <script>
 
 function closePrEditIfBackdrop(e) { if (e.target.id === 'pr-edit-backdrop') FitnessStats.closePrEdit(); }
