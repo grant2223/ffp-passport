@@ -442,14 +442,41 @@ function occMemChip(m, credits) {
 function _occInitials(name) {
   return (name || '?').split(/\s+/).map(function (w) { return w[0] || ''; }).join('').slice(0, 2).toUpperCase();
 }
+// Reusable: render a booking's guest-intake answers (given/surname, gender, age + custom Qs like shirt size)
+// from booking_details = { guests:[{first_name,last_name,gender,age,answers:{}}], booking_answers:{} }.
+function _ffpBookingIntake(d) {
+  if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) { return ''; } }
+  if (!d || typeof d !== 'object') return '';
+  var pretty = function (k) { return String(k).replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); }); };
+  var rows = [];
+  var guests = Array.isArray(d.guests) ? d.guests : [];
+  guests.forEach(function (g, i) {
+    var nm = [g.first_name || g.given_names, g.last_name || g.surname].filter(Boolean).join(' ').trim();
+    var meta = [];
+    if (g.gender) meta.push(pretty(g.gender));
+    if (g.age != null && g.age !== '') meta.push('age ' + g.age);
+    var ans = (g.answers && typeof g.answers === 'object') ? Object.keys(g.answers).filter(function (k) { return g.answers[k] != null && g.answers[k] !== ''; }).map(function (k) { return pretty(k) + ': ' + g.answers[k]; }) : [];
+    var line = '<b>Guest ' + (i + 1) + '</b>' + (nm ? ' · ' + escHtml(nm) : '') + (meta.length ? ' (' + escHtml(meta.join(', ')) + ')' : '');
+    if (ans.length) line += ' — ' + escHtml(ans.join(' · '));
+    rows.push('<div>' + line + '</div>');
+  });
+  var ba = (d.booking_answers && typeof d.booking_answers === 'object') ? d.booking_answers : null;
+  if (ba) { Object.keys(ba).forEach(function (k) { if (ba[k] != null && ba[k] !== '') rows.push('<div>' + escHtml(pretty(k)) + ': ' + escHtml(String(ba[k])) + '</div>'); }); }
+  if (!rows.length) return '';
+  return '<div style="margin-top:6px;padding:7px 9px;background:var(--ffp-bg-3,#13283b);border-radius:8px;font-size:11.5px;color:var(--ffp-text-muted,#5a6b6e);line-height:1.6;">' +
+    '<div style="font-weight:800;color:var(--ffp-text,#0e2531);margin-bottom:2px;font-size:10px;letter-spacing:.4px;text-transform:uppercase;">Booking details</div>' + rows.join('') + '</div>';
+}
+try { window._ffpBookingIntake = _ffpBookingIntake; } catch (e) {}
+
 function occRosterRow(r) {
-  return '<div style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--ffp-border,#1d3346);">' +
-      '<div style="width:34px;height:34px;border-radius:9px;background:rgba(25,128,173,.16);color:#6fc6ef;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0;">' + escHtml(_occInitials(r.full_name)) + '</div>' +
+  return '<div style="display:flex;align-items:flex-start;gap:10px;padding:9px 4px;border-bottom:1px solid var(--ffp-border,#1d3346);">' +
+      '<div style="width:34px;height:34px;border-radius:9px;background:rgba(25,128,173,.16);color:#6fc6ef;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0;margin-top:2px;">' + escHtml(_occInitials(r.full_name)) + '</div>' +
       '<div style="flex:1;min-width:0;">' +
         '<div style="font-weight:700;color:var(--ffp-text,#eaf2f8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(r.full_name || r.email || '—') + '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;">' + occPayChip(r.paid_with) + occMemChip(r.membership_status, r.credits_remaining) + '</div>' +
+        _ffpBookingIntake(r.details) +
       '</div>' +
-      '<button class="btn btn-ghost btn-sm" title="Remove from session" onclick="occRemove(\'' + r.booking_id + '\')"><span class="ms">close</span></button>' +
+      '<button class="btn btn-ghost btn-sm" title="Remove from session" onclick="occRemove(\'' + r.booking_id + '\')" style="margin-top:2px;"><span class="ms">close</span></button>' +
   '</div>';
 }
 
