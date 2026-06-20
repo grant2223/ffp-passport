@@ -33,9 +33,9 @@ function _money(v) {
 }
 
 function _metric(label, val) {
-  return '<div style="flex:1;min-width:140px;background:#0c1d2b;border-radius:10px;padding:11px 13px;">' +
+  return '<div style="flex:1;min-width:140px;background:var(--ffp-bg-3);border:1px solid var(--ffp-border);border-radius:10px;padding:11px 13px;">' +
     '<div class="psub" style="margin:0 0 3px;">' + label + '</div>' +
-    '<div style="font-size:18px;font-weight:800;color:var(--ffp-text,#eaf2f8);">' + val + '</div></div>';
+    '<div style="font-size:18px;font-weight:800;color:var(--ffp-text);">' + val + '</div></div>';
 }
 
 async function renderPayments() {
