@@ -348,8 +348,9 @@ function openReschedule(slotId,date,scope){
     '<button class="btn btn-pri" onclick="doReschedule(\''+slotId+'\',\''+date+'\',\''+scope+'\')">Apply</button>');
 }
 async function doReschedule(slotId,date,scope){
-  var pid=_proProvId();
   var nd=document.getElementById('rs-date'); var nt=document.getElementById('rs-time');
+  if(!confirm('Apply this reschedule?' + (scope==='from_now' ? ' This shifts the slot from now on.' : ' This moves just this week.'))) return;
+  var pid=_proProvId();
   try{
     var r=await window.supabase.rpc('pro_reschedule_occurrence',{p_pro:pid,p_slot:slotId,p_occ_date:date,p_scope:scope,p_new_date:(nd&&nd.value)?nd.value:date,p_new_time:(nt&&nt.value)?nt.value:null});
     if(r&&r.error)throw r.error;
@@ -357,6 +358,7 @@ async function doReschedule(slotId,date,scope){
   }catch(e){ showToast('Could not reschedule','error'); }
 }
 async function cancelOcc(slotId,date){
+  if(!confirm('Block this date? It will be greyed out on your calendar and members can no longer book it.')) return;
   var pid=_proProvId();
   try{
     var r=await window.supabase.rpc('pro_cancel_occurrence',{p_pro:pid,p_slot:slotId,p_occ_date:date});
