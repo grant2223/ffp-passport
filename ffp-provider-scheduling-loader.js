@@ -250,7 +250,7 @@ function showCoachBio(enc) {
 // ── CREATE / EDIT a class (template) + its weekly schedule ──
 function openTemplateModal(id) {
   var t = (id && _schedTemplates.length) ? _schedTemplates.find(function (x) { return x.id === id; }) : null;
-  var e = t || { title: '', activity: '', description: '', capacity: '', price_aed: '', duration_min: 60, hero_image_url: '', fitness_level: '', slots: [] };
+  var e = t || { title: '', activity: '', description: '', capacity: '', price_aed: '', duration_min: 60, hero_image_url: '', fitness_level: '', free_cancellation_hours: 24, slots: [] };
   var levels = (window.FFP_TAX && window.FFP_TAX.attendeeLevels && window.FFP_TAX.attendeeLevels.length) ? window.FFP_TAX.attendeeLevels : ['All Levels', 'Not Tried', 'Social', 'Competitive', 'Representative', 'Professional'];
   var levelOpts = levels.map(function (l) { return '<option' + ((e.fitness_level || 'All Levels') === l ? ' selected' : '') + '>' + escHtml(l) + '</option>'; }).join('');
 
@@ -271,6 +271,7 @@ function openTemplateModal(id) {
         <div class="field"><div class="label">Capacity <span class="req">*</span></div><input class="input" type="number" min="1" step="1" id="tpl-capacity" value="${escHtml(String(e.capacity || ''))}" placeholder="e.g. 12"></div>
         <div class="field"><div class="label">Duration (min)</div><input class="input" type="number" min="1" id="tpl-duration" value="${escHtml(String(e.duration_min || ''))}" placeholder="60"></div>
         <div class="field"><div class="label">Price per person <span class="label-hint">— per session (${FFPCurrency.providerCode()}, 0 = free)</span></div><input class="input" type="number" min="0" id="tpl-price" value="${escHtml(String(e.price_aed || ''))}" placeholder="0 = Free"></div>
+        <div class="field"><div class="label">Free cancellation (hrs) <span class="label-hint">— full refund / credit back if cancelled at least this many hours before start</span></div><input class="input" type="number" min="0" step="1" id="tpl-cancel-hours" value="${escHtml(String(e.free_cancellation_hours != null ? e.free_cancellation_hours : 24))}" placeholder="24"></div>
       </div>
     </div>
     <div class="form-section">
@@ -349,6 +350,7 @@ async function saveTemplate(id) {
   var payload = {
     title: title, activity: activity, description: g('description') || null,
     capacity: (capacity != null ? String(capacity) : ''), price_aed: g('price'), duration_min: g('duration'),
+    free_cancellation_hours: g('cancel-hours'),
     hero_image_url: heroUrl, fitness_level: g('level') || null, slots: slots,
     gallery: (window.FFPGallery ? window.FFPGallery.get('sm-gallery') : [])
   };
