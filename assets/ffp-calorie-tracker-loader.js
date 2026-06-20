@@ -1,4 +1,6 @@
-/* FFP Calorie Tracker Loader — v7
+/* FFP Calorie Tracker Loader — v8
+   v8: GOAL date — goal timeframe is now a target DATE (profile_meta.target_date, source of truth; target_weeks
+       derived for the kcal math). De-boxed picker/meal/activity chips + result panel; bigger Foods/My-meals tabs.
    v7: DECLUTTER — Today food area = two clean buttons (Add food / Create meal). Saved meals moved OFF the
        Today screen into the Add-food picker "My meals" tab (renderMyMeals now targets #fp-mymeals-list, a clean
        list, no bucket chips). mmLog auto-buckets by time of day (mmDefaultBucket). FFPMyMeals.refresh exposed
@@ -166,7 +168,7 @@
       // 1. Goal from profile_meta
       var pm = await window.supabase
         .from('profile_meta')
-        .select('current_weight_kg, target_weight_kg, target_weeks, activity_factor')
+        .select('current_weight_kg, target_weight_kg, target_weeks, target_date, activity_factor')
         .eq('member_id', currentUserId)
         .maybeSingle();
 
@@ -175,6 +177,13 @@
         if (pm.data.target_weight_kg  != null) CalorieTracker.targetWeight  = Number(pm.data.target_weight_kg);
         if (pm.data.target_weeks      != null) CalorieTracker.targetWeeks   = Number(pm.data.target_weeks);
         if (pm.data.activity_factor   != null) CalorieTracker.activity      = factorToActivity(Number(pm.data.activity_factor));
+        // target_date is the source of truth for the UI; derive weeks from it (keeps the kcal math current)
+        if (pm.data.target_date != null) {
+          CalorieTracker.targetDate = String(pm.data.target_date).slice(0, 10);
+          if (CalorieTracker._weeksUntil) CalorieTracker.targetWeeks = CalorieTracker._weeksUntil(CalorieTracker.targetDate);
+        } else if (CalorieTracker._isoFromWeeks && CalorieTracker.targetWeeks) {
+          CalorieTracker.targetDate = CalorieTracker._isoFromWeeks(CalorieTracker.targetWeeks);
+        }
       } else if (pm.error) {
         console.error('[FFP Calorie Tracker] profile_meta read:', pm.error);
       }
@@ -355,6 +364,7 @@
         currentWeight: this.currentWeight,
         targetWeight:  this.targetWeight,
         targetWeeks:   this.targetWeeks,
+        targetDate:    this.targetDate || (this._goalIso ? this._goalIso() : null),
         activity:      this.activity
       };
       origSaveGoal();
@@ -366,6 +376,7 @@
           // The Calorie Tracker only READS it (above); it must NOT overwrite the shared value here.
           target_weight_kg:  snapshot.targetWeight,
           target_weeks:      snapshot.targetWeeks,
+          target_date:       snapshot.targetDate,
           activity_factor:   activityToFactor(snapshot.activity),
           updated_at: new Date().toISOString()
         }, { onConflict: 'member_id' });
