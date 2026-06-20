@@ -64,7 +64,7 @@ window.Earnings = {
     { key: 'connections_made',     label: 'Connections made',     icon: 'handshake',      current: 0, supporter: 2, ambassador: 8,  unit: 'connections', blurb: 'Connect with other members you meet on the platform.' },
     { key: 'meetups_hosted',       label: 'Meet-ups hosted',      icon: 'groups',         current: 0, supporter: 1, ambassador: 4,  unit: 'meet-ups',   blurb: 'Host meet-ups that other members come along to.' },
     { key: 'provider_checkins',    label: 'Providers visited',    icon: 'storefront',     current: 0, supporter: 2, ambassador: 8,  unit: 'providers',  blurb: 'Check in at partner venues — each different provider counts once.' },
-    { key: 'quests_completed',     label: 'Tasks completed',      icon: 'flag',           current: 0, supporter: 4, ambassador: 10, unit: 'tasks',      blurb: 'Complete tasks across the platform.' },
+    { key: 'quests_completed',     label: 'Quest tasks',          icon: 'flag',           current: 0, supporter: 4, ambassador: 10, unit: 'tasks',      blurb: 'Complete quest tasks — finish the proofs/check-ins inside FFP quests.' },
     { key: 'events_attended',      label: 'Events attended',      icon: 'event',          current: 0, supporter: 1, ambassador: 4,  unit: 'events',     blurb: 'Attend events you RSVP to.' },
     { key: 'activities_logged',    label: 'Activities logged',    icon: 'fitness_center', current: 0, supporter: 8, ambassador: 24, unit: 'activities', blurb: 'Log what you do — gym, sport, a walk, stretch or recovery.' },
     { key: 'social_shares',        label: 'Social media shares',  icon: 'share',          current: 0, supporter: 10, ambassador: 30, unit: 'shares',     blurb: 'Share your activity and the app on social media.' }
@@ -203,6 +203,8 @@ window.Earnings = {
     document.getElementById('si-icon').textContent = c.icon;
     document.getElementById('si-title').textContent = c.label;
     document.getElementById('si-blurb').textContent = c.blurb || '';
+    var _sicur = document.getElementById('si-current');
+    if (_sicur) { var _cc = c.current || 0; var _need = Math.max(0, (c.ambassador || 0) - _cc); _sicur.textContent = "You've completed " + _cc + " so far" + (_need > 0 ? " — " + _need + " more to reach Ambassador." : " — Ambassador level reached."); }
     var pl = function (n, u) { return (n === 1 && u && u.slice(-1) === 's') ? u.slice(0, -1) : u; };
     document.getElementById('si-sup').textContent = c.supporter;
     document.getElementById('si-amb').textContent = c.ambassador;
