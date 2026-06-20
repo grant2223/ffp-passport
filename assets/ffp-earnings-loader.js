@@ -91,9 +91,9 @@
       '*{-ms-overflow-style:none !important;scrollbar-width:none !important;}' +
       // ─── Dedicated Payouts section ───
       '#ffp-payouts-section{margin:18px 0;}' +
-      '#ffp-payouts-section .ffp-po-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}' +
-      '#ffp-payouts-section .ffp-po-title{font-size:14px;font-weight:800;color:var(--text,#e8eef4);letter-spacing:0.3px;}' +
-      '#ffp-payouts-section .ffp-po-subtitle{font-size:11px;color:var(--muted,#8a99a8);margin-top:2px;}' +
+      '#ffp-payouts-section .ffp-po-title-row,#ffp-earnings-log .ffp-po-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}' +
+      '#ffp-payouts-section .ffp-po-title,#ffp-earnings-log .ffp-po-title{font-size:14px;font-weight:800;color:var(--text,#e8eef4);letter-spacing:0.3px;}' +
+      '#ffp-payouts-section .ffp-po-subtitle,#ffp-earnings-log .ffp-po-subtitle{font-size:11px;color:var(--muted,#8a99a8);margin-top:2px;font-weight:600;}' +
       '#ffp-payouts-section .ffp-po-list{background:rgba(43,168,224,0.04);border:1px solid var(--border-mid,rgba(43,168,224,0.30));border-radius:12px;overflow:hidden;}' +
       '#ffp-payouts-section .ffp-po-empty{padding:24px 16px;text-align:center;color:var(--muted,#8a99a8);font-size:12px;}' +
       '#ffp-payouts-section .ffp-po-row{padding:14px 16px;border-bottom:1px solid rgba(43,168,224,0.10);display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start;}' +
