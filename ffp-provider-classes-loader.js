@@ -77,7 +77,7 @@
           ? window.emptyState('No matches', 'Try a different search.', '', '')
           : window.emptyState('No experiences yet', 'One-off activities members book — jet ski, bungy, canyoning, a guided experience. Add your first one (with its date).', 'New experience', 'openClassModal()');
       } else {
-        grid.innerHTML = '<div style="padding:40px;text-align:center;color:#9dbdd0;">' + (list.length ? 'No matches' : 'No experiences yet') + '</div>';
+        grid.innerHTML = '<div style="padding:40px;text-align:center;color:#13657f;">' + (list.length ? 'No matches' : 'No experiences yet') + '</div>';
       }
       return;
     }
@@ -200,8 +200,8 @@
             '<button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="cmAddTime()"><span class="ms">add</span> Add a time</button>' +
           '</div>' +
           '<div class="field"><div class="label">Capacity per departure</div><input class="input" type="number" id="cm-capacity" value="' + esc(e.capacity || '') + '" placeholder="e.g. 8"></div>' +
-          '<div class="field"><div class="label">Start date</div><input class="input" type="date" id="cm-sched-start" style="color-scheme:dark;"></div>' +
-          '<div class="field"><div class="label">End date <span class="label-hint">— optional</span></div><input class="input" type="date" id="cm-sched-end" style="color-scheme:dark;" disabled></div>' +
+          '<div class="field"><div class="label">Start date</div><input class="input" type="date" id="cm-sched-start" style="color-scheme:light;"></div>' +
+          '<div class="field"><div class="label">End date <span class="label-hint">— optional</span></div><input class="input" type="date" id="cm-sched-end" style="color-scheme:light;" disabled></div>' +
           '<div class="field full"><label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;font-size:13px;color:var(--ffp-text);"><input type="checkbox" id="cm-sched-ongoing" checked onchange="cmToggleOngoing()" style="margin-top:2px;flex:0 0 auto;"><span>Keep this running — automatically stays bookable a year ahead (recommended). Untick to set a fixed end date.</span></label></div>' +
         '</div>' +
       '</div>' +
@@ -392,7 +392,7 @@
     var wrap = document.getElementById('cm-gallery'); if (!wrap) return;
     if (!_cmGallery.length) { wrap.innerHTML = '<div class="psub">No extra photos yet. Add a few to show this experience off.</div>'; return; }
     wrap.innerHTML = _cmGallery.map(function (url, i) {
-      return '<div style="position:relative;width:128px;height:84px;border-radius:10px;overflow:hidden;border:1px solid var(--ffp-border-mid);background:#0a1825 center/cover no-repeat;background-image:url(\'' + esc(url) + '\');">' +
+      return '<div style="position:relative;width:128px;height:84px;border-radius:10px;overflow:hidden;border:1px solid var(--ffp-border-mid);background:#ffffff center/cover no-repeat;background-image:url(\'' + esc(url) + '\');">' +
         (i === 0 ? '<span style="position:absolute;top:4px;left:4px;background:var(--ffp-purple,#8b5cf6);color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:6px;">COVER</span>' : '') +
         '<div style="position:absolute;bottom:0;left:0;right:0;display:flex;background:rgba(0,8,20,.6);">' +
           '<button type="button" title="Move left" onclick="cmMoveGalleryImage(' + i + ',-1)" style="flex:1;border:none;background:transparent;color:#fff;cursor:pointer;font-size:16px;line-height:1;padding:5px 0;">‹</button>' +
@@ -421,7 +421,7 @@
   window.cmAddTime = function (t) {
     var wrap = document.getElementById('cm-sched-times'); if (!wrap) return;
     var row = document.createElement('div'); row.style.cssText = 'display:flex;align-items:center;gap:2px;';
-    row.innerHTML = '<input class="input cm-time" type="time" value="' + esc(t || '') + '" style="width:128px;color-scheme:dark;">' +
+    row.innerHTML = '<input class="input cm-time" type="time" value="' + esc(t || '') + '" style="width:128px;color-scheme:light;">' +
       '<button type="button" title="Remove" onclick="this.closest(\'div\').remove()" style="border:none;background:transparent;color:var(--ffp-text-muted);cursor:pointer;"><span class="ms" style="font-size:16px;">close</span></button>';
     wrap.appendChild(row);
   };
