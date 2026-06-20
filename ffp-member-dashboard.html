@@ -226,6 +226,14 @@ input { font-family: inherit; color: inherit; }
 .menu-title { font-size: 14px; font-weight: 900; }
 .menu-action { font-size: 12px; color: var(--muted); cursor: pointer; }
 .menu-action:hover { color: var(--blue); }
+/* #4: Notifications as a right-side drawer — ~half width, full height — over a 60% grey scrim. */
+#notif-menu { position: fixed; top: 0; right: 0; left: auto; width: 50vw; min-width: 320px; max-width: 480px; height: 100dvh; max-height: 100dvh; border: none; border-left: 1px solid var(--border-mid); border-radius: 0; box-shadow: -12px 0 44px rgba(0,0,0,0.55); transform: translateX(100%); transition: transform .28s ease; display: flex; flex-direction: column; z-index: 100050; }
+#notif-menu.show { transform: translateX(0); }
+#notif-menu .menu-header { flex: 0 0 auto; padding: 18px 18px; }
+#notif-menu .menu-title { font-size: 17px; }
+#notif-menu #notif-list { flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+#notif-scrim { position: fixed; inset: 0; background: rgba(0,0,0,0.6); opacity: 0; pointer-events: none; transition: opacity .28s ease; z-index: 100040; }
+#notif-scrim.show { opacity: 1; pointer-events: auto; }
 .menu-item { padding: 12px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; border: none; background: transparent; color: inherit; width: 100%; text-align: left; font-size: 13px; font-weight: 500; }
 .menu-item:hover { background: rgba(43,168,224,0.08); color: var(--blue); }
 .menu-user-head { padding: 16px; border-bottom: 1px solid var(--border); }
@@ -4283,6 +4291,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
           <div class="empty-state" style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">Loading…</div>
         </div>
       </div>
+      <div id="notif-scrim" onclick="var n=document.getElementById('notif-menu'); if(n)n.classList.remove('show');"></div>
     </div>
     <div class="menu-wrap">
       <button class="icon-btn" id="user-btn"><span class="material-icons">account_circle</span></button>
@@ -7758,6 +7767,8 @@ function setupTopbar() {
   const userMenu = document.getElementById('user-menu');
   
   notifBtn.addEventListener('click', e => { e.stopPropagation(); var opening = !notifMenu.classList.contains('show'); notifMenu.classList.toggle('show'); userMenu.classList.remove('show'); if (opening) markNotifsSeen(); });
+  // #4: mirror the notif drawer's open/close onto the backdrop scrim (covers every open + close path).
+  try { var _nsc = document.getElementById('notif-scrim'); if (_nsc && window.MutationObserver) { new MutationObserver(function () { _nsc.classList.toggle('show', notifMenu.classList.contains('show')); }).observe(notifMenu, { attributes: true, attributeFilter: ['class'] }); } } catch (e) {}
   userBtn.addEventListener('click', e => { e.stopPropagation(); userMenu.classList.toggle('show'); notifMenu.classList.remove('show'); });
   document.addEventListener('click', e => {
     if (!e.target.closest('.menu-wrap')) { notifMenu.classList.remove('show'); userMenu.classList.remove('show'); }
@@ -7896,6 +7907,10 @@ function ffpHandleNotifClick(link) {
     if (am && window.ffpViewSharedActivity) { window.ffpViewSharedActivity(decodeURIComponent(am[1])); return; }
     var mm = link.match(/[?&]meetup=([^&#]+)/);
     if (mm && typeof showPanel === 'function') { showPanel('panel-meetups'); var mid = decodeURIComponent(mm[1]); setTimeout(function () { try { if (window.MeetMove && MeetMove.openMeetupDetail) MeetMove.openMeetupDetail(mid); } catch (e) {} }, 300); return; }
+    // #2: connect-request notification → open Connections panel + the requester's passport card.
+    var cm = link.match(/[?&]connect=([^&#]+)/);
+    if (cm && typeof showPanel === 'function') { showPanel('panel-meet'); var cid = decodeURIComponent(cm[1]); setTimeout(function () { try { if (window.MeetMove && MeetMove.openMemberDetail) MeetMove.openMemberDetail(cid); } catch (e) {} }, 450); return; }
+    if (link.indexOf('#connections') !== -1 && typeof showPanel === 'function') { showPanel('panel-meet'); window.scrollTo(0, 0); return; }
     var hm = link.match(/#(panel-[a-zA-Z-]+)/);
     if (hm && typeof showPanel === 'function' && document.getElementById(hm[1])) { showPanel(hm[1]); window.scrollTo(0, 0); return; }
     if (/^https?:\/\//.test(link) || link.indexOf('.html') !== -1) { window.location.href = link; }
@@ -7907,7 +7922,9 @@ async function loadNotifications() {
   var listEl = document.getElementById('notif-list');
   var badge = document.getElementById('notif-badge');
   // Pending provider reviews surface as "How was your session?" notifications (tap \u2192 rating modal).
-  var reviews = (typeof ReviewPrompt !== 'undefined' && ReviewPrompt.pending) ? ReviewPrompt.pending() : [];
+  // #3: a review prompt shows ONCE — once the bell has been opened (markNotifsSeen records it), drop it.
+  var _seenRev = []; try { _seenRev = JSON.parse(localStorage.getItem('ffp_seen_reviews') || '[]'); } catch (e) {}
+  var reviews = ((typeof ReviewPrompt !== 'undefined' && ReviewPrompt.pending) ? ReviewPrompt.pending() : []).filter(function (r) { return _seenRev.indexOf(r.id) < 0; });
   var reviewHtml = reviews.map(function (r) {
     return '<div class="notif-item unread" style="cursor:pointer;" onclick="ReviewPrompt.open(\'' + r.id + '\')">' +
       '<div class="notif-icon"><span class="material-icons" style="font-size:18px;">reviews</span></div>' +
@@ -7920,6 +7937,9 @@ async function loadNotifications() {
     var res = await fetch(FFP_API_NOTIF + '/api/notifications/' + member.id);
     var json = await res.json();
     var list = (json && json.notifications) || [];
+    // #3: hide anything cleared via "Clear all" (created at/before the cleared-at marker).
+    var _clr = 0; try { _clr = parseInt(localStorage.getItem('ffp_notifs_cleared_at') || '0', 10) || 0; } catch (e) {}
+    if (_clr) list = list.filter(function (n) { return new Date(n.created_at).getTime() > _clr; });
     unread = (json && json.unread) || 0;
     backendHtml = list.map(function (n) {
       var link = n.link || '';
@@ -7957,9 +7977,22 @@ async function markNotifsSeen() {
   try { await fetch(FFP_API_NOTIF + '/api/notifications/seen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ member_id: member.id }) }); } catch (e) {}
 }
 
+// #3: Clear all — persists (so they don't come back on reload): set a cleared-at marker, dismiss the
+// current review prompts, and mark backend notifs seen server-side. New notifications still come through.
 function clearNotifs() {
-  document.getElementById('notif-list').innerHTML = '<div class="empty-state">No notifications</div>';
-  document.getElementById('notif-badge').textContent = '0';
+  try {
+    localStorage.setItem('ffp_notifs_cleared_at', String(Date.now()));
+    var _rev = (typeof ReviewPrompt !== 'undefined' && ReviewPrompt.pending) ? ReviewPrompt.pending() : [];
+    var _seen = []; try { _seen = JSON.parse(localStorage.getItem('ffp_seen_reviews') || '[]'); } catch (e) {}
+    _rev.forEach(function (r) { if (r && r.id && _seen.indexOf(r.id) < 0) _seen.push(r.id); });
+    localStorage.setItem('ffp_seen_reviews', JSON.stringify(_seen.slice(-200)));
+  } catch (e) {}
+  try {
+    var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
+    if (member && member.id) fetch(FFP_API_NOTIF + '/api/notifications/seen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ member_id: member.id }) }).catch(function () {});
+  } catch (e) {}
+  var le = document.getElementById('notif-list'); if (le) le.innerHTML = '<div class="empty-state" style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">No notifications</div>';
+  var bd = document.getElementById('notif-badge'); if (bd) { bd.textContent = '0'; bd.style.display = 'none'; }
 }
 
 // ===== PANEL NAVIGATION =====
@@ -7983,7 +8016,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '383';
+  const FFP_BUILD = '386';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -11144,6 +11177,7 @@ async function saveLog() {
     if (typeof loadJourneyLogs === 'function') loadJourneyLogs();
     if (typeof showToast === 'function') showToast('Activity updated', 'success');
     closeLogModal();
+    _ffpSaveThenShare(_editId, act, city, entry, _photoVal);
     return;
   }
   // Saved to the DB ✓ — now reflect it on the map this session
@@ -11165,6 +11199,26 @@ async function saveLog() {
   if (typeof window.ffpActivityReload === 'function') window.ffpActivityReload();   // refresh the Stats activity list (photo row)
   if (typeof showToast === 'function') showToast('Logged ' + act + (city ? ' in ' + city : '') + (_shareVal ? ' · shared with connections' : ''), 'success');
   closeLogModal();
+  _ffpSaveThenShare(_newId, act, city, entry, _photoVal);
+}
+
+// #1: after a successful Log Activity save/update, drop the member straight onto the shareable
+// activity card (preview → Share / Download). Builds _ffpActCard from the just-saved data.
+function _ffpSaveThenShare(id, act, city, entry, photoUrl) {
+  try {
+    window._ffpActCard = {
+      id: id || null,
+      activity: act || 'Activity',
+      distance_km: (entry && entry.distance_km) || null,
+      duration_min: (entry && entry.duration) || 0,
+      duration_sec: (entry && entry.durationSec) || 0,
+      calories: (entry && entry.calories) || 0,
+      avg_heart_rate: (entry && entry.avg_heart_rate) || null,
+      city: city || '',
+      photo_url: photoUrl || null
+    };
+    if (typeof _ffpOpenShareSheet === 'function') _ffpOpenShareSheet(window._ffpActCard.id);
+  } catch (e) {}
 }
 
 // Load a member's saved activity logs (with a place) into the journey/map on sign-in.
@@ -12687,63 +12741,3 @@ window.FFPLocPick = (function(){
     try {
       if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; btn.textContent = 'Taking you to checkout…'; }
       var ref = ''; try { ref = localStorage.getItem('ffp_ref') || ''; } catch (e) {}
-      var res = await fetch('https://ffp-passport-backend.vercel.app/api/billing/checkout', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: plan, member_id: m.id, email: m.email, ref: ref })
-      });
-      var data = await res.json();
-      if (data && data.url) { location.href = data.url; return; }
-      alert((data && data.error) || 'Could not start checkout. Please try again.');
-    } catch (e) {
-      alert('Could not start checkout. Please try again.');
-    }
-    if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.innerHTML = label; }
-  };
-
-  function showGate() {
-    if (document.getElementById('ffp-pass-gate')) return;
-    var d = document.createElement('div');
-    d.id = 'ffp-pass-gate';
-    d.setAttribute('style', 'position:fixed;inset:0;z-index:100000;background:#081420;color:#e8eef4;display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto;font-family:inherit;');
-    d.innerHTML =
-      '<div style="max-width:420px;width:100%;text-align:center;">' +
-        '<div style="font-weight:900;letter-spacing:1px;font-size:14px;color:#2ba8e0;margin-bottom:18px;">FFP PASSPORT</div>' +
-        '<div style="font-size:24px;font-weight:800;line-height:1.25;margin-bottom:10px;">The Active Lifestyle Community</div>' +
-        '<div style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:#FFCC00;text-transform:uppercase;margin-bottom:12px;">Start with 7 days free</div>' +
-        '<div style="font-size:14px;color:#9fb4c4;line-height:1.6;margin-bottom:20px;">Passport holders can connect, meet up and engage with highly motivated and active people — an environment for truly active people.</div>' +
-        '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">' +
-          '<button onclick="window.__ffpGateCheckout(\'annual\', this)" style="width:100%;background:#FFCC00;color:#081420;font-weight:800;border:none;cursor:pointer;padding:15px;border-radius:12px;font-size:15px;font-family:inherit;line-height:1.3;">Annual — $149 <span style="font-weight:700;color:#5c4a00;">/ year</span><div style="font-size:11px;font-weight:700;color:#5c4a00;margin-top:3px;">After your 7-day free trial · 4.5 months free vs monthly</div></button>' +
-          '<button onclick="window.__ffpGateCheckout(\'monthly\', this)" style="width:100%;background:rgba(43,168,224,0.12);color:#e8eef4;font-weight:800;border:1px solid rgba(43,168,224,0.4);cursor:pointer;padding:15px;border-radius:12px;font-size:15px;font-family:inherit;line-height:1.3;">Monthly — $20 <span style="font-weight:700;color:#9fb4c4;">/ month</span><div style="font-size:11px;font-weight:700;color:#9fb4c4;margin-top:3px;">After your 7-day free trial</div></button>' +
-        '</div>' +
-        '<div style="font-size:11px;color:#7b8b9c;margin-bottom:14px;">7 days free, then billed · cancel anytime · secure checkout by Stripe</div>' +
-        '<a href="' + BOOK_URL + '" style="display:block;color:#cfe0ee;text-decoration:none;font-size:13px;padding:10px;">Just browsing? Book on Find Fit People →</a>' +
-        '<button onclick="window.__ffpGateSignOut()" style="background:none;border:none;color:#7b8b9c;font-size:12px;margin-top:4px;cursor:pointer;font-family:inherit;">Sign out</button>' +
-      '</div>';
-    document.body.appendChild(d);
-    try { document.body.style.overflow = 'hidden'; } catch (e) {}
-  }
-
-  async function run() {
-    var tries = 0;
-    while (!member() && tries < 60) { await new Promise(function (r) { setTimeout(r, 150); }); tries++; }
-    var m = member();
-    if (!m || !m.id) return;                       // not signed in → login.html handles it
-    if ((m.role || 'member') !== 'member') return; // providers/admins never gated
-    if (!window.supabase) return;                  // no client → fail-open
-    // v340: just paid? give the Stripe webhook a few seconds to flip the row before showing the gate.
-    var justUpgraded = /[?&]upgraded=1/.test(location.search);
-    var attempts = justUpgraded ? 8 : 1;
-    try {
-      for (var i = 0; i < attempts; i++) {
-        var res = await window.supabase.rpc('member_passport_active', { p_id: m.id });
-        if (res.error) return;                      // error → fail-open (never lock out a payer)
-        if (res.data === true) return;              // active member → full app
-        if (i < attempts - 1) await new Promise(function (r) { setTimeout(r, 1500); });
-      }
-      showGate();                                   // free / lapsed → gate
-    } catch (e) { /* fail-open */ }
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
-})();
-</script>
-</body></html>
