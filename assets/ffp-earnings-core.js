@@ -32,8 +32,8 @@ window.Earnings = {
       name: 'Supporter',
       icon: 'verified',
       tierClass: 'tier-supporter',
-      reqLine: 'Reach Supporter level (2+) in 4 of 7 categories.',
-      reqHighlight: 'Supporter level (2+) in 4 of 7 categories',
+      reqLine: 'Reach Supporter level (2+) in 4 of 8 categories.',
+      reqHighlight: 'Supporter level (2+) in 4 of 8 categories',
       perks: [
         '10% per referral',
         '— per accepted content piece',
@@ -45,8 +45,8 @@ window.Earnings = {
       name: 'Ambassador',
       icon: 'workspace_premium',
       tierClass: 'tier-ambassador',
-      reqLine: 'Reach Ambassador level (8+) in 4 of 7 categories.',
-      reqHighlight: 'Ambassador level (8+) in 4 of 7 categories',
+      reqLine: 'Reach Ambassador level (8+) in 4 of 8 categories.',
+      reqHighlight: 'Ambassador level (8+) in 4 of 8 categories',
       perks: [
         '20% per referral',
         '— per accepted content piece',
@@ -173,6 +173,17 @@ window.Earnings = {
     var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
     if (!member || !member.id) return;
     try {
+      // Auto-evaluate the tier from rolling 30-day activity (promote/maintain; honours grace + manual
+      // expiry, never demotes a Founding/manual tier early). Persist so computedTier() reflects it.
+      try {
+        var ev = await window.supabase.rpc('member_evaluate_tier', { p_member: member.id, p_commit: true });
+        var nt = ev && ev.data && ev.data.now;
+        if (nt) {
+          nt = String(nt).toLowerCase();
+          try { if (typeof MemberProfile !== 'undefined' && MemberProfile.data) MemberProfile.data.tier = nt; } catch (e) {}
+          try { var cm = JSON.parse(localStorage.getItem('ffp_member') || '{}'); cm.tier = nt; localStorage.setItem('ffp_member', JSON.stringify(cm)); } catch (e) {}
+        }
+      } catch (e) {}
       var res = await window.supabase.rpc('member_tier_progress', { p_me: member.id });
       if (res.error) { console.error('[FFP Tier] rpc:', res.error); return; }
       var d = res.data || {};
@@ -184,9 +195,10 @@ window.Earnings = {
   
   // ─────────── COMPUTED ───────────
   computedTier() {
-    // v169: tier is ADMIN-CONTROLLED for now (manual grant + Founding Ambassador promo),
-    // so the source of truth is the member's stored tier — NOT a local activity calc.
-    // (The activity-based auto-evaluation is parked in assets/ffp-tiers.js for later.)
+    // Tier is auto-evaluated server-side: `member_evaluate_tier` runs on every Earnings load (above) and
+    // daily via pg_cron `ffp-member-tier-daily` — earn at 4-of-8 category levels over a rolling 30 days,
+    // maintained on that window, demoted only after the grace (tier_expires_at) passes. Manual/Founding
+    // grants (far-future expiry) are never auto-demoted. This just reads the persisted result.
     try {
       var t = (typeof MemberProfile !== 'undefined' && MemberProfile.data && MemberProfile.data.tier)
               || (JSON.parse(localStorage.getItem('ffp_member') || '{}').tier) || 'member';
