@@ -107,7 +107,7 @@ window.Quests = {
       '.q-seg{display:flex;gap:6px;background:rgba(8,20,32,.5);border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:4px;margin-bottom:14px;}',
       '.q-seg button{flex:1;font-size:13px;font-weight:800;color:#8a99a8;background:transparent;border:none;border-radius:8px;padding:9px 6px;cursor:pointer;font-family:inherit;}',
       '.q-seg button.active{background:#2ba8e0;color:#fff;}',
-      '.q-tasklist{display:flex;flex-direction:column;gap:8px;max-height:54vh;overflow:auto;-webkit-overflow-scrolling:touch;}',
+      '.q-tasklist{display:flex;flex-direction:column;gap:8px;}',
       '.q-trow{display:flex;align-items:center;gap:10px;padding:10px 11px;border-radius:11px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);}',
       '.q-trow.done{border-color:rgba(74,222,128,.4);}',
       '.q-trow-ic{font-size:19px;color:#2ba8e0;flex-shrink:0;}.q-trow-ic.done{color:#4ade80;}',
@@ -155,7 +155,7 @@ window.Quests = {
       '.q-task-chev{font-size:22px;color:#5b6b7a;flex-shrink:0;transition:transform .2s;}',
       '.q-task.open .q-task-chev{transform:rotate(180deg);}',
       '.q-task-d{max-height:0;overflow:hidden;transition:max-height .28s ease;}',
-      '.q-task.open .q-task-d{max-height:360px;}',
+      '.q-task.open .q-task-d{max-height:620px;}',
       '.q-task-how{padding:0 14px 2px 47px;}',
       '.q-task-how-h{font-size:10.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#7d8b99;}',
       '.q-task-how-t{font-size:13px;color:#cfd6dc;margin-top:3px;line-height:1.5;}',
@@ -367,10 +367,7 @@ window.Quests = {
 
   toggleTask(id) {
     var row = document.getElementById('q-task-' + id); if (!row) return;
-    var open = row.classList.contains('open');
-    var all = document.querySelectorAll('#q-pane-tasks .q-task.open');
-    for (var i = 0; i < all.length; i++) all[i].classList.remove('open');
-    if (!open) row.classList.add('open');
+    row.classList.toggle('open');   // multiple straps can be open at once; the whole list scrolls in the modal
   },
 
   questPane(which) {
