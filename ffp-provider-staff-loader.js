@@ -55,7 +55,7 @@ function staffRow(s) {
         (contact.length ? '<div class="psub" style="margin:2px 0 0;">' + contact.join(' · ') + '</div>' : '') +
       '</div>' +
       '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex-shrink:0;">' +
-        '<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;background:rgba(255,204,0,.14);color:#FFCC00;">' + accessLbl + '</span>' +
+        '<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;background:rgba(15,37,49,.14);color:var(--ffp-warn);">' + accessLbl + '</span>' +
         '<div style="display:flex;gap:6px;">' +
           '<button class="btn btn-sec btn-sm" onclick="openStaffModal(\'' + s.id + '\')"><span class="ms">edit</span></button>' +
           '<button class="btn btn-ghost btn-sm" onclick="confirmDeleteStaff(\'' + s.id + '\')"><span class="ms">delete</span></button>' +
