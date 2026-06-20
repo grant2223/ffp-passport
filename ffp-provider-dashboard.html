@@ -1082,7 +1082,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
   gap: 18px;
 }
 .listing-card {
-  background: transparent;
+  background: rgba(15, 37, 49, .05);
   border: none;
   border-radius: var(--r-lg);
   overflow: hidden;
@@ -2937,6 +2937,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
 
         <div class="kpi-grid" id="analytics-kpi-grid"></div>
 
+        <div id="analytics-sections">
         <div class="section-card" style="margin-bottom: 18px;">
           <div class="section-head">
             <div class="section-title">Engagement funnel</div>
@@ -2999,6 +3000,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
             <div class="section-head"><div class="section-title">New vs returning</div></div>
             <div id="retention"></div>
           </div>
+        </div>
         </div>
       </section>
 
@@ -3289,7 +3291,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=4', 'scheduling': 'ffp-provider-scheduling-loader.js?v=17', 'members': 'ffp-provider-members-loader.js?v=3', 'billing': 'ffp-provider-billing-loader.js?v=3', 'staff': 'ffp-provider-staff-loader.js?v=4', 'classes': 'ffp-provider-classes-loader.js?v=19', 'appointments': 'ffp-provider-appointments-loader.js?v=8' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=4', 'scheduling': 'ffp-provider-scheduling-loader.js?v=17', 'members': 'ffp-provider-members-loader.js?v=3', 'billing': 'ffp-provider-billing-loader.js?v=3', 'staff': 'ffp-provider-staff-loader.js?v=4', 'classes': 'ffp-provider-classes-loader.js?v=19', 'appointments': 'ffp-provider-appointments-loader.js?v=9' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
@@ -5158,6 +5160,8 @@ function renderAnalytics() {
   if (kg) kg.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="empty-icon"><span class="ms">insights</span></div><div class="empty-title">No analytics yet</div><div class="empty-sub">Real engagement data \u2014 profile views, RSVPs, check-ins \u2014 appears here as members start interacting with your listings.</div></div>';
   ['funnel','trend-chart-wrap','age-bars','gender-bars','tier-bars','area-bars','sport-bars','top-deals','top-events','peak-grid','retention'].forEach(function(id){ var el=document.getElementById(id); if(el) el.innerHTML=''; });
   ['funnel-summary','trend-summary'].forEach(function(id){ var el=document.getElementById(id); if(el) el.textContent=''; });
+  // Engagement tracking isn't wired yet → no data. Hide the empty scaffold so only the honest empty state shows.
+  var _as = document.getElementById('analytics-sections'); if (_as) _as.style.display = 'none';
 }
 function renderBars(targetId, items, toneClass) {
   const max = Math.max.apply(null, items.map(i => i.val)) || 1;
