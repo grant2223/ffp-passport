@@ -35,6 +35,7 @@ const CalorieTracker = {
   // Food picker / food add state
   _pickerSearch: '',
   _pickerCat: 'All',
+  _pickerTab: 'foods',   // 'foods' | 'mymeals'
   _addingFood: null,
   _addingAmount: 100,
   _addingMeal: 'breakfast',  // v78 — meal selected inside food-add modal
@@ -563,19 +564,41 @@ const CalorieTracker = {
     });
   },
 
+  // Auto meal slot from the time of day (member can still move it in the adjust modal)
+  autoBucket() {
+    const h = new Date().getHours();
+    if (h >= 5 && h < 11) return 'breakfast';
+    if (h >= 11 && h < 16) return 'lunch';
+    if (h >= 16 && h < 22) return 'dinner';
+    return 'snacks';
+  },
+
+  setPickerTab(tab) {
+    this._pickerTab = tab;
+    document.querySelectorAll('#fp-tabs .fp-tab').forEach(b => b.classList.toggle('active', b.dataset.fptab === tab));
+    var foods = document.getElementById('fp-foods-pane');
+    var mm = document.getElementById('fp-mymeals-pane');
+    if (foods) foods.style.display = tab === 'foods' ? '' : 'none';
+    if (mm) mm.style.display = tab === 'mymeals' ? '' : 'none';
+    if (tab === 'mymeals' && window.FFPMyMeals && FFPMyMeals.refresh) FFPMyMeals.refresh();
+  },
+
   openFoodPicker() {
     this._pickerSearch = '';
     this._pickerCat = 'All';
     document.getElementById('fp-search').value = '';
     this._renderFoodCats();   // rebuild chips from the live (DB-hydrated) FOOD_CATS
     this.renderFoodList();
+    this.setPickerTab('foods');
+    var mn = document.getElementById('fp-meal-name'); if (mn) mn.textContent = this.autoBucket();
+    if (window.FFPMyMeals && FFPMyMeals.refresh) FFPMyMeals.refresh();
     document.getElementById('food-picker-backdrop').classList.add('open');
   },
-  
+
   closeFoodPicker() {
     document.getElementById('food-picker-backdrop').classList.remove('open');
   },
-  
+
   renderFoodList() {
     let items = FOOD_DB.slice();
     if (this._pickerCat !== 'All') items = items.filter(f => f.cat === this._pickerCat);
@@ -585,33 +608,46 @@ const CalorieTracker = {
       return;
     }
     document.getElementById('fp-list').innerHTML = items.map(f => `
-      <div class="food-row" onclick="CalorieTracker.pickFood('${f.id}')">
-        <div class="food-row-left">
+      <div class="food-row">
+        <div class="food-row-left" onclick="CalorieTracker.pickFood('${f.id}')">
           <div class="food-row-name">${escHtml(f.name)}</div>
-          <div class="food-row-serving">${f.serving} ${f.unit} default &middot; ${f.cat}</div>
+          <div class="food-row-serving">${f.serving} ${f.unit} &middot; ${f.kcal} kcal &middot; tap to set amount</div>
         </div>
-        <div class="food-row-macros">
-          <span class="kcal">${f.kcal}</span>
-          ${f.p}p / ${f.c}c / ${f.f}f
-        </div>
+        <button class="food-row-add" id="fp-add-${f.id}" aria-label="Add ${escHtml(f.name)}" onclick="event.stopPropagation(); CalorieTracker.quickAdd('${f.id}')"><span class="material-icons">add</span></button>
       </div>
     `).join('');
   },
-  
+
+  // One-tap add: default serving → auto (time-of-day) meal. confirmAdd is overridden by the loader to persist.
+  quickAdd(foodId) {
+    const food = FOOD_DB.find(f => f.id === foodId);
+    if (!food) return;
+    this._addingFood = food;
+    this._addingAmount = food.serving;
+    this._addingMeal = this.autoBucket();
+    this.confirmAdd();
+    const btn = document.getElementById('fp-add-' + foodId);
+    if (btn) {
+      btn.classList.add('added');
+      btn.innerHTML = '<span class="material-icons">check</span>';
+      setTimeout(() => { if (btn) { btn.classList.remove('added'); btn.innerHTML = '<span class="material-icons">add</span>'; } }, 1100);
+    }
+  },
+
   pickFood(foodId) {
     const food = FOOD_DB.find(f => f.id === foodId);
     if (!food) return;
     this._addingFood = food;
     this._addingAmount = food.serving;
-    this._addingMeal = 'breakfast';  // default; user can change in modal
+    this._addingMeal = this.autoBucket();  // default to time-of-day; user can change in modal
     document.getElementById('fa-name').textContent = food.name;
     document.getElementById('fa-default').textContent = `Default serving: ${food.serving} ${food.unit}`;
     document.getElementById('fa-unit-label').textContent = `Amount (${food.unit})`;
     document.getElementById('fa-amount').textContent = food.serving;
     document.getElementById('fa-amount-input').value = food.serving;
-    document.getElementById('fa-meal-name').textContent = 'breakfast';
-    // Default selected chip
-    document.querySelectorAll('#fa-meal-chips .meal-type-chip').forEach(b => b.classList.toggle('active', b.dataset.meal === 'breakfast'));
+    document.getElementById('fa-meal-name').textContent = this._addingMeal;
+    // Default selected chip = the auto (time-of-day) meal
+    document.querySelectorAll('#fa-meal-chips .meal-type-chip').forEach(b => b.classList.toggle('active', b.dataset.meal === this._addingMeal));
     this.renderFoodAddMacros();
     this.closeFoodPicker();
     document.getElementById('food-add-backdrop').classList.add('open');
