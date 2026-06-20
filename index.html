@@ -181,6 +181,29 @@ section{padding:56px 0;}
 .do-list li b{color:#fff;font-weight:700;}
 @media (min-width:900px){.sec-heading{font-size:42px;} .sec-sub{font-size:15px;}}
 
+/* PASSPORT CARD — hero brand signature */
+.pp-card{background:linear-gradient(160deg,#f4f6f8,#e7edf1);border-radius:16px;padding:16px 17px;color:#10212e;box-shadow:0 30px 70px rgba(0,0,0,.55);position:relative;overflow:hidden;}
+.pp-card::before{content:"";position:absolute;inset:0;background-image:radial-gradient(circle at 72% 42%,rgba(20,60,80,.05) 0 2px,transparent 2px);background-size:14px 14px;pointer-events:none;}
+.pp-top{display:flex;justify-content:space-between;align-items:flex-start;position:relative;gap:8px;}
+.pp-mini{font-size:8px;font-weight:800;letter-spacing:1px;color:#6a7d88;line-height:1.6;}
+.pp-mini b{display:block;color:#10212e;font-size:10px;font-weight:800;letter-spacing:.2px;}
+.pp-world{font-size:17px;font-weight:900;letter-spacing:2px;color:#10212e;white-space:nowrap;}
+.pp-row{display:flex;gap:22px;margin-top:10px;position:relative;}
+.pp-body{display:flex;gap:12px;margin-top:11px;position:relative;align-items:flex-start;}
+.pp-photo{width:70px;height:84px;border-radius:5px;background:linear-gradient(135deg,#3a7d8c,#1980AD);flex:0 0 auto;}
+.pp-fields{flex:1;font-size:8px;font-weight:800;color:#6a7d88;line-height:2.05;min-width:0;}
+.pp-fields b{color:#10212e;font-size:10px;font-weight:800;}
+.pp-qr{width:50px;height:50px;background:repeating-conic-gradient(#10212e 0 25%,#fff 0 50%);background-size:8px 8px;border-radius:4px;flex:0 0 auto;}
+.pp-mrz{margin-top:12px;font-family:'Courier New',monospace;font-size:8px;color:#475762;letter-spacing:1.5px;border-top:1px solid #d4dde2;padding-top:9px;position:relative;line-height:1.8;white-space:nowrap;overflow:hidden;}
+
+/* SECTION NUMBER BADGE + hero stats */
+.sec-num{display:inline-flex;align-items:center;gap:12px;margin-bottom:12px;}
+.sec-num i{width:40px;height:40px;border-radius:12px;background:var(--yellow);color:#0a1726;font-weight:900;font-size:17px;display:flex;align-items:center;justify-content:center;font-style:normal;flex-shrink:0;}
+.sec-num span{font-size:12px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:var(--accent);}
+.hero-stats{display:flex;gap:30px;margin-top:26px;}
+.hero-stats .hs-n{font-size:28px;font-weight:900;color:#fff;line-height:1;}
+.hero-stats .hs-l{font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);margin-top:6px;}
+
 /* HERO */
 .hero{padding-top:100px;padding-bottom:40px;}
 .hero-inner{display:block;}
@@ -410,19 +433,34 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
 <section class="hero">
   <div class="col">
     <div class="hero-inner">
-      <div class="hero-img-wrap">
-        <img src="assets/hands-in.jpg" alt="FFP Passport community">
-      </div>
       <div class="hero-text">
-        <div class="hero-eyebrow">Find your people. Move together.</div>
-        <h1><span style="color:var(--accent);">The</span> <span style="color:#fff;">Active Lifestyle</span> <span style="color:var(--accent);">Passport.</span></h1>
-        <p>Built for those who take their active lifestyle seriously &mdash; who want to meet great people, do great things, and share the best the region has to offer. The gold stamp for active living.</p>
-        <div class="hero-price-row">
-          <div class="hero-price">$20<span style="font-size:0.4em;font-weight:700;color:#9dbdd0;letter-spacing:0;"> / month</span></div>
+        <div class="hero-eyebrow">The Active Lifestyle Passport</div>
+        <h1><span style="color:#fff;">Your stamp for</span> <span style="color:var(--accent);">an active life.</span></h1>
+        <p>For people serious about moving &mdash; connect with people who move like you, meet up, take on quests, and track every stat. The gold stamp for active living.</p>
+        <a href="/login#signup" class="hero-cta">Start your 7&#8209;day free trial</a>
+        <div class="hero-fine">7 days free &middot; then $20/mo or $149/yr &middot; cancel anytime &middot; secure checkout via Stripe</div>
+        <div class="hero-stats">
+          <div><div class="hs-n">6</div><div class="hs-l">Worlds</div></div>
+          <div><div class="hs-n">5</div><div class="hs-l">Ways to play</div></div>
+          <div><div class="hs-n" style="color:var(--accent);">&infin;</div><div class="hs-l">Your people</div></div>
         </div>
-        <div class="hero-price-sub">7 days free &middot; then $20/mo or $149/yr</div>
-        <a href="/login#signup" class="hero-cta">Start Your 7-Day Free Trial</a>
-        <div class="hero-fine">Free for 7 days, then billed &middot; cancel anytime &middot; secure checkout via Stripe</div>
+      </div>
+      <div class="pp-card">
+        <div class="pp-top">
+          <div class="pp-mini">PASSPORT<br>URUWHENUA</div>
+          <div class="pp-world">WORLDWIDE</div>
+          <div class="pp-mini" style="text-align:right;">PASSPORT NO.<br><b>FFP&#8209;2026&#8209;4607</b></div>
+        </div>
+        <div class="pp-row">
+          <div class="pp-mini">TYPE<br><b>A</b></div>
+          <div class="pp-mini">COUNTRY<br><b>United Arab Emirates</b></div>
+        </div>
+        <div class="pp-body">
+          <div class="pp-photo"></div>
+          <div class="pp-fields">SURNAME <b>GOES</b><br>GIVEN NAMES <b>GRANT HERMANUS</b><br>NATIONALITY <b>NEW ZEALANDER</b><br>GENDER <b>MALE</b></div>
+          <div class="pp-qr"></div>
+        </div>
+        <div class="pp-mrz">&gt;&gt;&gt;&gt;&gt;NZL&gt;Grant&gt;Goes&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;<br>&gt;&gt;FFP&#8209;2026&#8209;4607&gt;&gt;PNO&gt;UAE&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</div>
       </div>
     </div>
   </div>
@@ -480,7 +518,7 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
 <section style="background:var(--bg-elev);padding-top:40px;">
   <div class="col">
     <div class="section-img"><img src="assets/group-of-5.jpg" alt="Connect with active people"></div>
-    <span class="eyebrow">01 &middot; Connect</span>
+    <div class="sec-num"><i>01</i><span>Connect</span></div>
     <h2 class="sec-heading">Connect</h2>
     <p class="sec-sub">Find and follow the active people near you &mdash; matched by sport, level and what you&rsquo;re into. It&rsquo;s how you build a real circle of people to train with.</p>
     <ul class="do-list">
@@ -496,7 +534,7 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
 <section>
   <div class="col">
     <div class="section-img"><img src="assets/padel-high-five.jpg" alt="Small-group meet-ups"></div>
-    <span class="eyebrow">02 &middot; Meetup</span>
+    <div class="sec-num"><i>02</i><span>Meetup</span></div>
     <h2 class="sec-heading">Meetup</h2>
     <p class="sec-sub">Small-group sessions of up to 8 people &mdash; the simplest way to actually get a session on the calendar with people in your community.</p>
     <ul class="do-list">
@@ -512,7 +550,7 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
 <section class="quests" id="quests" style="background:var(--bg-elev);">
   <div class="col">
     <div class="section-img"><img src="assets/ocr-racer.jpg" alt="FFP Quests"></div>
-    <span class="eyebrow">03 &middot; Quest</span>
+    <div class="sec-num"><i>03</i><span>Quest</span></div>
     <h2 class="sec-heading">Quest</h2>
     <p class="sec-sub">Gamified missions from FFP and our partners that get you out trying new activities and venues across your region &mdash; and rewarded for it.</p>
     <ul class="do-list">
@@ -543,7 +581,7 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
 <section>
   <div class="col">
     <div class="section-img"><img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/fitness-stats-preview.jpg" alt="FFP Fitness Stats" loading="lazy"></div>
-    <span class="eyebrow">04 &middot; Fitness Stats</span>
+    <div class="sec-num"><i>04</i><span>Fitness Stats</span></div>
     <h2 class="sec-heading">Fitness Stats</h2>
     <p class="sec-sub">Record every activity and workout in one place &mdash; your whole active life, measured, with the numbers that actually matter.</p>
     <ul class="do-list">
@@ -559,7 +597,7 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
 <section style="background:var(--bg-elev);">
   <div class="col">
     <div class="section-img"><img src="assets/pickel-ball.jpg" alt="Real-time tracking and leaderboards"></div>
-    <span class="eyebrow">05 &middot; Tracking</span>
+    <div class="sec-num"><i>05</i><span>Tracking</span></div>
     <h2 class="sec-heading">Tracking</h2>
     <p class="sec-sub">Real-time leaderboards and progress tracking that show you exactly where your activity and fitness stand &mdash; across every variable that matters.</p>
     <ul class="do-list">
