@@ -1,1259 +1,472 @@
-/* ═══════════════════════════════════════════════════════════════
-   FFP EARNINGS LOADER · CURRENT VERSION: v17
-   File path: assets/ffp-earnings-loader.js
-   On-load log: [FFP Earnings v17] Loaded from Supabase ✓
-   ═══════════════════════════════════════════════════════════════ */
-
-/* WHAT v17 CHANGES (from v16):
-   - computeBalance() now returns cents (Math.round(bal*100)/100). v16 still did Math.round(bal) →
-     whole dollars, so a $39.60 balance rendered as $40. THIS is the fix that must ship (v16 shipped
-     the USD switch but not this). Payout-row + transaction-list amounts also cents now. */
-
-/* WHAT v16 CHANGES (from v15):
-   - USD-ONLY: removed ALL AED conversion. transactions.amount_aed / payouts.amount_aed are now read
-     as USD directly (legacy column name). Balance = sum of transactions (USD); summary, rows, payout
-     amounts all $ via fmtUsd. Payout writes the USD amount straight to amount_aed (no usdToAed). DB
-     values were converted AED→USD once. No peg, no aedToUsd/usdToAed anywhere in the wallet. */
-
-/* WHAT v15 CHANGES (from v14):
-   - Money precision: USD now shows cents via Earnings.fmtUsd (earnings summary Earned/Pending +
-     earnings-log rows). Pairs with member-dashboard aedToUsd becoming cents-precise so a $19.80
-     reward reads $19.80 (was rounded). Whole amounts still show without decimals. */
-
-/* WHAT v14 CHANGES (from v13):
-   - USD is now the single balance currency: Earnings.balance = aedToUsd(sum of transactions.amount_aed),
-     so the whole payout flow (min, validation, display) works in USD. Payout WRITES convert USD→AED
-     (Earnings.usdToAed) into amount_aed; payout records still display the local currency (AED).
-   - Payout minimum messaging: "$250" (was "AED 500"); empty-state copy updated to "$250". */
-
-/* WHAT v13 CHANGES (from v12):
-   - CURRENCY MODEL (Grant): the PLATFORM displays in USD; only PAYOUTS show local
-     currency (the currency they're paid in). So:
-       • Earnings-log summary (Earned / Pending) → USD ($)
-       • Earnings-log rows (credits/debits) → USD ($), converted via Earnings.aedToUsd
-       • Refer-a-friend "earned" stat → USD ($)
-       • Available Balance hero → USD (unchanged)
-       • Payouts list + Payouts summary (Paid / In progress / Rejected) → stay AED (local)
-     Stored values remain *_aed; USD is a display conversion (peg 3.6725). A future pass
-     should make payouts use the member's actual local currency, not always AED. */
-
-/* WHAT v11 CHANGES (from v10):
-   - Default visible rows in Payouts and Earnings log: 5 → 3.
-     Less noise on first view; full list one tap away.
-*/
-
-/* WHAT v10 CHANGED (from v9):
-   New panel order:
-     1. Available Balance
-     2. Your Tier
-     3. Refer a friend
-     4. How tiers work | Ways to earn  (two-column dropdowns)
-     5. Your progression
-     6. Your Payouts
-     7. Earnings log
-*/
-
-/* EARLIER VERSIONS (most recent first):
-   v9 — fixed v8 bugs: anchor sections to Refer-a-friend, fix tier dropdown content render, show 5 / show all toggles
-   v8 — full layout restructure: time filters, summary stats, dropdowns
-   v7 — refactored to use shared FFPRealtime helper (requires assets/ffp-realtime.js)
-   v6 — dedicated "Your Payouts" section + real-time updates
-   v5 — View receipt modal for paid payouts (image / PDF)
-   v4 — bank fields: IBAN format hint, branch city, live validation
-*/
-(function () {
-  'use strict';
-  var retries = 0;
-  var MAX_RETRIES = 30;
-  var currentUserId = null;
-  var wrapped = false;
-  var memberPayouts = [];
-  var allTransactions = [];
-  var payoutFilter = 'all';
-  var earningsFilter = 'all';
-  var payoutShowAll = false;       // v9
-  var earningsShowAll = false;     // v9
-  var DEFAULT_VISIBLE_ROWS = 3;    // v11 (was 5 in v9-v10)
-  var layoutBuilt = false;
-
-  function injectStyles() {
-    if (document.getElementById('ffp-earnings-loader-styles')) return;
-    var s = document.createElement('style');
-    s.id = 'ffp-earnings-loader-styles';
-    s.textContent =
-      '*::-webkit-scrollbar{display:none !important;width:0 !important;height:0 !important;}' +
-      '*{-ms-overflow-style:none !important;scrollbar-width:none !important;}' +
-      // ─── Dedicated Payouts section ───
-      '#ffp-payouts-section{margin:18px 0;}' +
-      '#ffp-payouts-section .ffp-po-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}' +
-      '#ffp-payouts-section .ffp-po-title{font-size:14px;font-weight:800;color:var(--text,#e8eef4);letter-spacing:0.3px;}' +
-      '#ffp-payouts-section .ffp-po-subtitle{font-size:11px;color:var(--muted,#8a99a8);margin-top:2px;}' +
-      '#ffp-payouts-section .ffp-po-list{background:rgba(43,168,224,0.04);border:1px solid var(--border-mid,rgba(43,168,224,0.30));border-radius:12px;overflow:hidden;}' +
-      '#ffp-payouts-section .ffp-po-empty{padding:24px 16px;text-align:center;color:var(--muted,#8a99a8);font-size:12px;}' +
-      '#ffp-payouts-section .ffp-po-row{padding:14px 16px;border-bottom:1px solid rgba(43,168,224,0.10);display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start;}' +
-      '#ffp-payouts-section .ffp-po-row:last-child{border-bottom:none;}' +
-      '#ffp-payouts-section .ffp-po-amount{font-size:18px;font-weight:800;color:var(--text,#e8eef4);letter-spacing:-0.3px;}' +
-      '#ffp-payouts-section .ffp-po-method{font-size:11px;color:var(--muted,#8a99a8);text-transform:uppercase;letter-spacing:1px;margin-top:3px;}' +
-      '#ffp-payouts-section .ffp-po-dates{font-size:11px;color:var(--muted,#8a99a8);margin-top:6px;line-height:1.5;}' +
-      '#ffp-payouts-section .ffp-po-dates b{color:var(--text,#e8eef4);font-weight:600;}' +
-      '#ffp-payouts-section .ffp-po-pill{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;padding:5px 10px;border-radius:6px;white-space:nowrap;}' +
-      '#ffp-payouts-section .ffp-po-pill.pending{background:rgba(255,204,0,0.12);color:#FFCC00;border:1px solid rgba(255,204,0,0.35);}' +
-      '#ffp-payouts-section .ffp-po-pill.approved{background:rgba(43,168,224,0.12);color:#7dd3fc;border:1px solid rgba(43,168,224,0.35);}' +
-      '#ffp-payouts-section .ffp-po-pill.paid{background:rgba(74,222,128,0.15);color:#4ade80;border:1px solid rgba(74,222,128,0.40);}' +
-      '#ffp-payouts-section .ffp-po-pill.rejected{background:rgba(239,68,68,0.12);color:#fca5a5;border:1px solid rgba(239,68,68,0.35);}' +
-      '#ffp-payouts-section .ffp-po-reason{margin-top:8px;padding:8px 10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px;font-size:11px;color:#fca5a5;line-height:1.5;}' +
-      '#ffp-payouts-section .ffp-po-view-btn{margin-top:8px;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.35);color:#4ade80;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:Montserrat,sans-serif;display:inline-flex;align-items:center;gap:5px;}' +
-      '#ffp-payouts-section .ffp-po-view-btn:hover{filter:brightness(1.15);}' +
-      '@media (max-width: 480px){' +
-        '#ffp-payouts-section .ffp-po-row{grid-template-columns:1fr;}' +
-        '#ffp-payouts-section .ffp-po-pill{justify-self:start;}' +
-      '}';
-    document.head.appendChild(s);
-  }
-
-  // ─── Dedicated Payouts section renderer ───
-  function renderPayoutsSection() {
-    var panel = document.getElementById('panel-earnings');
-    if (!panel) return;
-
-    var section = document.getElementById('ffp-payouts-section');
-    if (!section) {
-      section = document.createElement('div');
-      section.id = 'ffp-payouts-section';
-      // v9: anchor to Refer-a-friend CTA (insert right after it)
-      var anchor = panel.querySelector('.earn-refer-cta');
-      if (anchor && anchor.parentNode) {
-        anchor.parentNode.insertBefore(section, anchor.nextSibling);
-      } else {
-        // Fallback: try tier badge card, then panel head, then just append
-        var fallback = panel.querySelector('.tier-badge-card') || panel.querySelector('.earn-hero');
-        if (fallback && fallback.parentNode) {
-          fallback.parentNode.insertBefore(section, fallback.nextSibling);
-        } else {
-          panel.appendChild(section);
-        }
-      }
+/* ==============================================================
+   FFP EARNINGS CORE  ->  window.Earnings
+   Balance, tiers, progression categories, ways-to-earn, payout, refer modal.
+   EXTRACTED from ffp-member-dashboard.html on 2026-06-20 to de-fragile the
+   dashboard (mirrors the ffp-quests-core.js pattern). Loaded in <head> AFTER
+   ffp-constants.js (object reads window.FFP_CONST at definition time).
+   The lazy ffp-earnings-loader.js still enhances this object at runtime.
+   ============================================================== */
+window.Earnings = {
+  // v87 — Real AED, tier system (Member/Supporter/Ambassador), 7 categories, 5 live ways to earn.
+  
+  balance: 0,
+  pendingPayouts: 0,
+  tier: 'member',  // computed
+  
+  referralCode: '',
+  
+  tiers: {
+    member: {
+      name: 'Member',
+      icon: 'person',
+      tierClass: 'tier-member',
+      reqLine: 'Default tier when you sign up.',
+      reqHighlight: '',
+      perks: [
+        '5% per referral',
+        '— per accepted content piece',
+        'Access to all member perks'
+      ]
+    },
+    supporter: {
+      name: 'Supporter',
+      icon: 'verified',
+      tierClass: 'tier-supporter',
+      reqLine: 'Reach Supporter level (2+) in 4 of 7 categories.',
+      reqHighlight: 'Supporter level (2+) in 4 of 7 categories',
+      perks: [
+        '10% per referral',
+        '— per accepted content piece',
+        '— per member you bring to a provider',
+        'Priority on event hosting applications'
+      ]
+    },
+    ambassador: {
+      name: 'Ambassador',
+      icon: 'workspace_premium',
+      tierClass: 'tier-ambassador',
+      reqLine: 'Reach Ambassador level (8+) in 4 of 7 categories.',
+      reqHighlight: 'Ambassador level (8+) in 4 of 7 categories',
+      perks: [
+        '20% per referral',
+        '— per accepted content piece',
+        '— per member you bring to a provider',
+        '— for hosting an event',
+        'Top of provider partnership applications'
+      ]
     }
-
-    var titleRow =
-      '<div class="ffp-po-title-row">' +
-        '<div>' +
-          '<div class="ffp-po-title">Your Payouts</div>' +
-          '<div class="ffp-po-subtitle">Track every withdrawal request and its status</div>' +
-        '</div>' +
-      '</div>';
-
-    if (!memberPayouts.length) {
-      section.innerHTML = titleRow +
-        '<div class="ffp-po-list">' +
-          '<div class="ffp-po-empty">' +
-            'No payouts yet. When your balance reaches $250, request your first one above.' +
-          '</div>' +
-        '</div>';
-      return;
+  },
+  
+  // v175: the 8 tracked sections, each with its OWN Supporter/Ambassador target
+  // (mirrors assets/ffp-tiers.js). Counts come from the member_tier_progress() RPC.
+  categories: [
+    { key: 'members_referred',     label: 'Members referred',     icon: 'group_add',      current: 0, supporter: 2, ambassador: 8,  unit: 'referrals',  blurb: 'Refer friends who join and pay — they sign up through your personal link.' },
+    { key: 'connections_made',     label: 'Connections made',     icon: 'handshake',      current: 0, supporter: 2, ambassador: 8,  unit: 'connections', blurb: 'Connect with other members you meet on the platform.' },
+    { key: 'meetups_hosted',       label: 'Meet-ups hosted',      icon: 'groups',         current: 0, supporter: 1, ambassador: 4,  unit: 'meet-ups',   blurb: 'Host meet-ups that other members come along to.' },
+    { key: 'provider_checkins',    label: 'Providers visited',    icon: 'storefront',     current: 0, supporter: 2, ambassador: 8,  unit: 'providers',  blurb: 'Check in at partner venues — each different provider counts once.' },
+    { key: 'quests_completed',     label: 'Tasks completed',      icon: 'flag',           current: 0, supporter: 4, ambassador: 10, unit: 'tasks',      blurb: 'Complete tasks across the platform.' },
+    { key: 'events_attended',      label: 'Events attended',      icon: 'event',          current: 0, supporter: 1, ambassador: 4,  unit: 'events',     blurb: 'Attend events you RSVP to.' },
+    { key: 'activities_logged',    label: 'Activities logged',    icon: 'fitness_center', current: 0, supporter: 8, ambassador: 24, unit: 'activities', blurb: 'Log what you do — gym, sport, a walk, stretch or recovery.' },
+    { key: 'social_shares',        label: 'Social media shares',  icon: 'share',          current: 0, supporter: 10, ambassador: 30, unit: 'shares',     blurb: 'Share your activity and the app on social media.' }
+  ],
+  
+  SUPPORTER_THRESHOLD: 2,          // need 2+ in a category to count toward Supporter
+  SUPPORTER_CATEGORIES: 4,         // need 4 of 8 sections at Supporter level
+  AMBASSADOR_THRESHOLD: 8,         // need 8+ in a category to count toward Ambassador
+  AMBASSADOR_CATEGORIES: 4,        // need 4 of 8 sections at Ambassador level
+  
+  referralStats: { total: 0, earned: 0, pending: 0 },
+  
+  // v90 — 5 ways to earn. Only "refer" is active in Phase 1; the rest are coming soon.
+  ways: [
+    {
+      key: 'refer', name: 'Refer a friend', icon: 'group_add',
+      status: 'active',
+      how: 'Share your code or link. You earn your tier’s % of every payment your referrals make — recurring, for as long as they stay a member.',
+      rates: { member: '5%', supporter: '10%', ambassador: '20%' },
+      unit: 'recurring',
+      actionLabel: 'Refer now', action: 'openReferModal'
+    },
+    {
+      key: 'provider', name: 'Promote a provider', icon: 'storefront',
+      status: 'soon',
+      how: 'Bring other FFP members to a partner provider. You earn a percentage of what they spend at the venue.',
+      rates: { member: '—', supporter: '—', ambassador: '—' },
+      unit: 'of member spend',
+      ratesNote: 'Requires provider approval. Available providers will be listed once partners join the program.',
+      actionLabel: 'Coming soon', action: null
+    },
+    {
+      key: 'host', name: 'Host an event', icon: 'event',
+      status: 'soon',
+      how: 'Apply to host. Once approved by FFP, the event runs on the platform and you earn per event hosted.',
+      rates: { member: '—', supporter: '—', ambassador: '—' },
+      unit: 'per event hosted',
+      actionLabel: 'Coming soon', action: null
+    },
+    {
+      key: 'content', name: 'Create content', icon: 'edit_note',
+      status: 'soon',
+      how: 'Write reviews, post photos or videos for FFP. Every piece needs FFP team approval before payment is released.',
+      rates: { member: '—', supporter: '—', ambassador: '—' },
+      unit: 'per accepted piece',
+      ratesNote: 'Requires FFP approval.',
+      actionLabel: 'Coming soon', action: null
+    },
+    {
+      key: 'challenge', name: 'Win a challenge', icon: 'emoji_events',
+      status: 'soon',
+      how: 'Challenges are set by FFP. Top of the leaderboard wins prize money.',
+      rates: { member: '—', supporter: '—', ambassador: '—' },
+      unit: 'set per challenge',
+      ratesNote: 'Prize amounts vary per challenge.',
+      actionLabel: 'Coming soon', action: null
     }
+  ],
+  
+  transactions: [],
+  
+  _payoutAmount: 0,
+  _openWay: null,
+  _tierCardsOpen: false,    // v88 — Show/hide "How tiers work" cards
 
-    var rows = memberPayouts.map(function (p) {
-      var amt = Math.round((Number(p.amount_aed) || 0) * 100) / 100;
-      var status = p.status || 'pending';
-      var statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
-      if (status === 'pending') statusLabel = 'Under review';
+  // ─────────── v155: USD EARNINGS ───────────
+  MEMBERSHIP_USD: (window.FFP_CONST && window.FFP_CONST.membershipUsd) || 99,   // source: ffp-constants.js
+  REFERRAL_PCT: (window.FFP_CONST && window.FFP_CONST.referralPct) || { member: 5, supporter: 10, ambassador: 20 },
+  MIN_PAYOUT_USD: (window.FFP_CONST && window.FFP_CONST.minPayoutUsd) || 250,   // source: ffp-constants.js
+  AED_PER_USD: 3.6725,                                      // fixed AED↔USD peg
+  // The real balance/referral numbers are injected by the external ffp-earnings-loader.js.
+  // If that loader feeds AED (live balance reads ~3.67× too high), flip BALANCE_IS_AED to true
+  // and it is converted to USD once on first render. Default: treat the injected value as USD.
+  BALANCE_IS_AED: false,
+  _normalized: false,
+  referralUsd(tier) { return (this.REFERRAL_PCT[tier] || 5) / 100 * this.MEMBERSHIP_USD; },
+  fmtUsd(v) { return (Math.round(v * 100) % 100 === 0) ? String(Math.round(v)) : Number(v).toFixed(2); },
+  aedToUsd(aed) { return Math.round((Number(aed)||0) / this.AED_PER_USD * 100) / 100; },   // v247: cents-precise (was whole-dollar → $40 instead of $39.60)
+  usdToAed(usd) { return Math.round((Number(usd)||0) * this.AED_PER_USD * 100) / 100; },   // convert USD→AED only when writing the stored amount_aed
+  isUaeMember() {
+    var m = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || {};
+    var c = (m.country || '').trim().toLowerCase();
+    return c === 'united arab emirates' || c === 'uae' || c === 'u.a.e.' || c === 'united arab emirates (uae)';
+  },
+  // Convert injected AED figures to USD exactly once (only if BALANCE_IS_AED).
+  normalizeToUsd() {
+    if (!this.BALANCE_IS_AED || this._normalized) return;
+    this.balance = this.balance / this.AED_PER_USD;
+    if (this.referralStats && typeof this.referralStats.earned === 'number') this.referralStats.earned = this.referralStats.earned / this.AED_PER_USD;
+    if (Array.isArray(this.transactions)) this.transactions.forEach(t => { if (typeof t.amount === 'number') t.amount = Math.round(t.amount / this.AED_PER_USD * 100) / 100; });
+    this._normalized = true;
+  },
 
-      var dates =
-        '<b>Requested:</b> ' + escHtml(fmtNiceDate(p.requested_at));
-      if (p.processed_at && (status === 'paid' || status === 'rejected')) {
-        var processedLabel = status === 'paid' ? 'Transferred' : 'Reviewed';
-        dates += '<br><b>' + processedLabel + ':</b> ' + escHtml(fmtNiceDate(p.processed_at));
-      }
-      if (status === 'approved') {
-        dates += '<br><b>Expected by:</b> ' + escHtml(plus14DaysFrom(p.requested_at));
-      }
+  init() {
+    this.render();
+    this.loadTierStats();
+  },
 
-      var rejectionBlock = '';
-      if (status === 'rejected' && p.notes) {
-        rejectionBlock = '<div class="ffp-po-reason"><b>Reason:</b> ' + escHtml(p.notes) + '</div>';
-      }
+  // v243 — Wire tier progression to the member_tier_progress() RPC.
+  // The RPC returns an object whose keys EXACTLY match our category keys
+  // (members_referred, connections_made, meetups_hosted, provider_checkins,
+  //  quests_completed, events_attended, activities_logged, challenges_completed),
+  // so we map straight across. (Old /api/members/:id/stats used mismatched keys
+  // — referrals/stamps/providers/logs — which left every count at 0.)
+  async loadTierStats() {
+    var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
+    if (!member || !member.id) return;
+    try {
+      var res = await window.supabase.rpc('member_tier_progress', { p_me: member.id });
+      if (res.error) { console.error('[FFP Tier] rpc:', res.error); return; }
+      var d = res.data || {};
+      this.categories.forEach(function (c) { if (typeof d[c.key] === 'number') c.current = d[c.key]; });
+      this.tier = this.computedTier();
+      this.render();
+    } catch (e) { console.error('[FFP Tier] stats:', e); }
+  },
+  
+  // ─────────── COMPUTED ───────────
+  computedTier() {
+    // v169: tier is ADMIN-CONTROLLED for now (manual grant + Founding Ambassador promo),
+    // so the source of truth is the member's stored tier — NOT a local activity calc.
+    // (The activity-based auto-evaluation is parked in assets/ffp-tiers.js for later.)
+    try {
+      var t = (typeof MemberProfile !== 'undefined' && MemberProfile.data && MemberProfile.data.tier)
+              || (JSON.parse(localStorage.getItem('ffp_member') || '{}').tier) || 'member';
+      return String(t).toLowerCase();
+    } catch (e) { return 'member'; }
+  },
+  
+  rateForWay(way) { return way.rates[this.tier]; },
 
-      var receiptBtn = '';
-      if (status === 'paid' && (p.receipt_url || p.notes)) {
-        var poJson = encodeURIComponent(JSON.stringify({
-          notes: p.notes || '',
-          receiptUrl: p.receipt_url || ''
-        }));
-        receiptBtn =
-          '<button class="ffp-po-view-btn" onclick="ffpOpenReceiptFromAttr(this)" data-payout="' + poJson + '">' +
-            '<span class="material-icons" style="font-size:14px;">receipt_long</span>View receipt' +
-          '</button>';
-      }
+  // v177 — explain a progression discipline + its Supporter/Ambassador targets
+  openSectionInfo(key) {
+    var c = (this.categories || []).find(function (x) { return x.key === key; });
+    if (!c) return;
+    document.getElementById('si-icon').textContent = c.icon;
+    document.getElementById('si-title').textContent = c.label;
+    document.getElementById('si-blurb').textContent = c.blurb || '';
+    var pl = function (n, u) { return (n === 1 && u && u.slice(-1) === 's') ? u.slice(0, -1) : u; };
+    document.getElementById('si-sup').textContent = c.supporter;
+    document.getElementById('si-amb').textContent = c.ambassador;
+    document.getElementById('si-sup-unit').textContent = pl(c.supporter, c.unit || '');
+    document.getElementById('si-amb-unit').textContent = pl(c.ambassador, c.unit || '');
+    document.getElementById('section-info-modal').style.display = 'flex';
+  },
+  closeSectionInfo() {
+    var m = document.getElementById('section-info-modal'); if (m) m.style.display = 'none';
+  },
+  
+  // ─────────── RENDER ───────────
+  render() {
+    this.normalizeToUsd();           // v155 — convert injected AED → USD once, if needed
+    this.tier = this.computedTier();
+    const t = this.tiers[this.tier];
 
-      return '<div class="ffp-po-row">' +
-        '<div>' +
-          '<div class="ffp-po-amount">$' + Earnings.fmtUsd(amt) + '</div>' +
-          '<div class="ffp-po-method">' + escHtml(p.method || 'bank') + ' transfer</div>' +
-          '<div class="ffp-po-dates">' + dates + '</div>' +
-          rejectionBlock +
-          receiptBtn +
-        '</div>' +
-        '<div class="ffp-po-pill ' + escHtml(status) + '">' + escHtml(statusLabel) + '</div>' +
-      '</div>';
+    // Hero balance (USD). v247: balance is canonically USD; show cents when present (e.g. $39.60).
+    document.getElementById('earn-balance').textContent = this.fmtUsd(this.balance);
+    const payoutBtn = document.getElementById('earn-payout-btn');
+    const metaEl = document.getElementById('earn-balance-meta');
+    const MIN = this.MIN_PAYOUT_USD;
+    // v155 — payout is UAE-only for now; everyone still sees their balance.
+    if (!this.isUaeMember()) {
+      payoutBtn.disabled = true;
+      metaEl.textContent = 'Payouts available in the UAE only for now';
+    } else if (this.balance < MIN) {
+      payoutBtn.disabled = true;
+      metaEl.textContent = `Need $${this.fmtUsd(MIN - this.balance)} more before you can withdraw`;
+    } else {
+      payoutBtn.disabled = false;
+      metaEl.textContent = `Ready to withdraw · minimum $${MIN}`;
+    }
+    
+    // Tier badge
+    const card = document.getElementById('tier-badge-card');
+    card.classList.remove('member','supporter','ambassador');
+    card.classList.add(this.tier);
+    document.getElementById('tier-name').textContent = t.name;
+    const referWay = this.ways.find(w => w.key === 'refer');
+    const referRate = referWay.rates[this.tier];
+    document.getElementById('tier-rate').textContent = referRate;
+    document.getElementById('tier-icon-mount').innerHTML = `<span class="material-icons">${t.icon}</span>`;
+    
+    // Refer CTA — recurring tier % (reward = tier% of EVERY payment, credited per Stripe invoice, recurring)
+    document.getElementById('earn-refer-rate').textContent = referRate;
+    
+    // HOW TIERS WORK
+    document.getElementById('tier-cards').innerHTML = ['member','supporter','ambassador'].map(k => {
+      const td = this.tiers[k];
+      const isCurrent = k === this.tier;
+      let cls = 'tier-card ' + td.tierClass;
+      if (isCurrent) cls += ' current';
+      const statusPill = isCurrent
+        ? '<div class="tier-card-status you">You</div>'
+        : (k === 'ambassador' && this.tier !== 'ambassador') ? '<div class="tier-card-status locked">Locked</div>'
+        : '';
+      const refRate = this.ways.find(w => w.key === 'refer').rates[k];
+      const reqHtml = td.reqHighlight
+        ? td.reqLine.replace(td.reqHighlight, `<span class="highlight">${td.reqHighlight}</span>`)
+        : td.reqLine;
+      return `
+        <div class="${cls}">
+          <div class="tier-card-head">
+            <div class="tier-card-icon"><span class="material-icons">${td.icon}</span></div>
+            <div class="tier-card-title">
+              <div class="tier-card-name">${escHtml(td.name)}</div>
+              <div class="tier-card-rate"><span class="num">${refRate}</span> per referral</div>
+            </div>
+            ${statusPill}
+          </div>
+          <div class="tier-card-req">${reqHtml}</div>
+          <ul class="tier-card-perks">
+            ${td.perks.map(p => `<li><span class="material-icons">check_circle</span>${escHtml(p)}</li>`).join('')}
+          </ul>
+        </div>
+      `;
     }).join('');
-
-    section.innerHTML = titleRow + '<div class="ffp-po-list">' + rows + '</div>';
-  }
-
-  // ─── v8 LAYOUT BUILDER ───
-  // Restructures the existing earnings panel into the new clear hierarchy.
-  function rebuildLayout() {
-    var panel = document.getElementById('panel-earnings');
-    if (!panel) return;
-
-    injectV8Styles();
-
-    // v19: re-apply if the dropdown container is missing (survives panel re-renders),
-    // instead of a one-time flag that left "Ways to earn" stranded below progression.
-    if (!document.getElementById('ffp-bottom-dropdowns')) {
-      moveTiersAndWaysToBottomRow(panel);
-    }
-
-    renderEarningsLog();
-    refreshPayoutsSectionWithFilter();
-
-    // v10: enforce the target panel order on every rebuild
-    reorderToTargetOrder(panel);
-  }
-
-  // v10: target order
-  //   .earn-refer-cta  →  tier-badge (status)  →  Your progression  →  #ffp-bottom-dropdowns
-  //                    →  #ffp-payouts-section   →  #ffp-earnings-log
-  function reorderToTargetOrder(panel) {
-    var anchor = panel.querySelector('.earn-refer-cta');
-    if (!anchor) return;
-
-    var status = document.getElementById('tier-badge-card');   // v22: the "Your Tier" status card
-    var bottomDd = document.getElementById('ffp-bottom-dropdowns');
-    var payouts = document.getElementById('ffp-payouts-section');
-    var earnings = document.getElementById('ffp-earnings-log');
-
-    // Find the "Your progression" ct-section by its title text
-    var progression = null;
-    panel.querySelectorAll('.ct-section').forEach(function (sec) {
-      var t = (sec.querySelector('.ct-section-title') || {}).textContent || '';
-      if (/your progression/i.test(t)) progression = sec;
+    
+    // YOUR PROGRESSION — v176: clean triangular gradient straps, threshold numbers only
+    document.getElementById('progression-list').innerHTML = this.categories.map(c => {
+      const atAmb = c.current >= c.ambassador;
+      const atSup = c.current >= c.supporter;
+      const max = c.ambassador || 1;
+      const fillPct = c.current <= 0 ? 0 : Math.max(7, Math.min(100, (c.current / max) * 100));
+      const supPct  = Math.min(100, (c.supporter / max) * 100);
+      return `
+        <div class="prog-strap ${atAmb ? 'at-amb' : (atSup ? 'at-sup' : '')}">
+          <button class="prog-strap-icon" onclick="Earnings.openSectionInfo('${c.key}')" aria-label="${escHtml(c.label)} — how to progress"><span class="material-icons">${c.icon}</span></button>
+          <span class="prog-wedge">
+            <span class="prog-wedge-bg"></span>
+            <span class="prog-wedge-clip"><span class="prog-wedge-fill" style="width:${fillPct}%;"></span></span>
+          </span>
+        </div>
+      `;
+    }).join('');
+    
+    // WAYS TO EARN
+    document.getElementById('earn-ways').innerHTML = this.ways.map(w => {
+      const myRate = w.rates[this.tier];
+      const isOpen = this._openWay === w.key;
+      const isSoon = w.status === 'soon';
+      const rateDisplay = (typeof myRate === 'number') ? `<span class="num">$${this.aedToUsd(myRate)}</span>` : `<span class="num">${myRate}</span>`;
+      const soonPill = isSoon ? '<div class="way-soon-pill">Coming Soon</div>' : '';
+      const actionBtn = isSoon
+        ? `<button class="way-card-action soon" disabled><span class="material-icons">schedule</span>${escHtml(w.actionLabel)}</button>`
+        : `<button class="way-card-action" onclick="Earnings.${w.action}()"><span class="material-icons">arrow_forward</span>${escHtml(w.actionLabel)}</button>`;
+      return `
+        <div class="way-card ${isOpen ? 'open' : ''} ${isSoon ? 'soon' : ''}" data-way="${w.key}">
+          <div class="way-card-head" onclick="Earnings.toggleWay('${w.key}')">
+            <div class="way-card-icon"><span class="material-icons">${w.icon}</span></div>
+            <div class="way-card-info">
+              <div class="way-card-name">${escHtml(w.name)}</div>
+              <div class="way-card-rate">${rateDisplay} ${escHtml(w.unit)}</div>
+            </div>
+            ${soonPill}
+            <div class="way-card-chevron"><span class="material-icons">expand_more</span></div>
+          </div>
+          <div class="way-card-body">
+            <div class="way-card-section-label">How it works</div>
+            <div class="way-card-how">${escHtml(w.how)}</div>
+            <div class="way-card-section-label">Rates by tier</div>
+            <div class="way-card-rate-table">
+              ${['member','supporter','ambassador'].map(tk => {
+                const isMine = tk === this.tier;
+                const r = w.rates[tk];
+                const disp = (typeof r === 'number') ? `$${this.aedToUsd(r)}` : r;
+                return `
+                  <div class="way-rate-cell ${isMine ? 'current' : ''}">
+                    <div class="way-rate-cell-tier">${this.tiers[tk].name}${isMine ? ' · You' : ''}</div>
+                    <div class="way-rate-cell-value">${disp}</div>
+                    <div class="way-rate-cell-unit">${escHtml(w.unit)}</div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+            ${w.ratesNote ? `<div style="font-size:10px; color:var(--muted); margin-top:8px; font-style:italic;">${escHtml(w.ratesNote)}</div>` : ''}
+            ${actionBtn}
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    // Maintain section
+    document.getElementById('ambassador-maintain-section').style.display = this.tier === 'ambassador' ? '' : 'none';
+    
+    // Transactions
+    const fmtDays = (d) => d === 0 ? 'Today' : d === 1 ? 'Yesterday' : `${d} days ago`;
+    document.getElementById('earn-tx-list').innerHTML = this.transactions.map(t => `
+      <div class="earn-tx-row">
+        <div class="earn-tx-icon ${t.type}">
+          <span class="material-icons">${t.type === 'in' ? 'add' : 'remove'}</span>
+        </div>
+        <div>
+          <div class="earn-tx-name">${escHtml(t.source)}</div>
+          <div class="earn-tx-meta">${escHtml(t.category)} · ${fmtDays(t.daysAgo)}${t.status ? ' · ' + t.status : ''}</div>
+        </div>
+        <div class="earn-tx-amount ${t.type} aed">${t.type === 'in' ? '+' : '−'}${t.amount}</div>
+      </div>
+    `).join('');
+  },
+  
+  toggleWay(key) {
+    this._openWay = (this._openWay === key) ? null : key;
+    this.render();
+  },
+  
+  // v88 — Show/hide the three "How tiers work" cards
+  toggleTierCards() {
+    this._tierCardsOpen = !this._tierCardsOpen;
+    const cards   = document.getElementById('tier-cards');
+    const btn     = document.getElementById('tier-toggle-btn');
+    const txt     = document.getElementById('tier-toggle-text');
+    cards.style.display = this._tierCardsOpen ? '' : 'none';
+    btn.classList.toggle('open', this._tierCardsOpen);
+    txt.textContent = this._tierCardsOpen ? 'Show less' : 'Show more';
+  },
+  
+  // ─────────── ACTION HANDLERS ───────────
+  // v90 — Only refer is active. Others are "Coming Soon" with disabled buttons.
+  // Provider/host/content/challenge handlers removed; will be reinstated when those flows ship.
+  
+  // ─────────── REFER MODAL ───────────
+  openReferModal() {
+    document.getElementById('rm-rate').textContent = (this.REFERRAL_PCT[this.tier] || 5) + '%';
+    document.getElementById('rm-code').textContent = this.referralCode;
+    document.getElementById('rm-link').value = `https://ffppassport.com/join?ref=${this.referralCode}`;
+    document.getElementById('rm-total').textContent   = this.referralStats.total;
+    document.getElementById('rm-earned').textContent  = this.fmtUsd(this.referralStats.earned);
+    document.getElementById('rm-pending').textContent = this.referralStats.pending;
+    document.getElementById('refer-modal-backdrop').classList.add('open');
+  },
+  closeReferModal() { document.getElementById('refer-modal-backdrop').classList.remove('open'); },
+  copyReferCode() {
+    try { navigator.clipboard.writeText(this.referralCode); showToast('Referral code copied'); }
+    catch(e) { showToast('Code: ' + this.referralCode); }
+  },
+  copyReferLink() {
+    const link = `https://ffppassport.com/join?ref=${this.referralCode}`;
+    try { navigator.clipboard.writeText(link); showToast('Referral link copied'); }
+    catch(e) { showToast('Link copied'); }
+  },
+  shareVia(channel) {
+    const link = `https://ffppassport.com/join?ref=${this.referralCode}`;
+    const msg = "Join me on FFP Passport — UAE active lifestyle membership. Use my link: " + link;
+    if (channel === 'whatsapp') window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+    else if (channel === 'sms') window.open(`sms:?body=${encodeURIComponent(msg)}`, '_blank');
+    else if (channel === 'email') window.open(`mailto:?subject=Join%20FFP%20Passport&body=${encodeURIComponent(msg)}`, '_blank');
+  },
+  
+  // ─────────── PAYOUT MODAL ───────────
+  openPayout() {
+    if (!this.isUaeMember()) { showToast('Payouts are available in the UAE only for now'); return; }
+    if (this.balance < this.MIN_PAYOUT_USD) { showToast('Minimum payout is $' + this.MIN_PAYOUT_USD); return; }
+    this._payoutAmount = 0;
+    document.getElementById('po-available').textContent = this.fmtUsd(this.balance);
+    document.getElementById('po-amount').textContent = '0';
+    document.getElementById('po-amount-input').value = '';
+    document.querySelectorAll('.po-quick').forEach(b => b.classList.remove('active'));
+    document.getElementById('payout-modal-backdrop').classList.add('open');
+  },
+  closePayout() { document.getElementById('payout-modal-backdrop').classList.remove('open'); },
+  setPayoutAmount(amt) {
+    if (amt > this.balance) amt = this.balance;
+    this._payoutAmount = amt;
+    document.getElementById('po-amount').textContent = this.fmtUsd(amt);
+    document.getElementById('po-amount-input').value = amt;
+    document.querySelectorAll('.po-quick').forEach(b => {
+      b.classList.toggle('active', parseInt(b.textContent, 10) === amt);
     });
-
-    // Insert each one after the previous, starting with anchor (Refer-a-friend)
-    var prev = anchor;
-    [status, progression, bottomDd, payouts, earnings].forEach(function (el) {
-      if (!el) return;
-      if (el.parentNode) el.parentNode.removeChild(el);
-      prev.parentNode.insertBefore(el, prev.nextSibling);
-      prev = el;
+  },
+  setPayoutAmountAll() {
+    this.setPayoutAmount(this.balance);
+    document.querySelectorAll('.po-quick').forEach(b => b.classList.remove('active'));
+    document.getElementById('po-all-btn').classList.add('active');
+  },
+  setPayoutFromInput(value) {
+    const n = parseInt(value, 10);
+    if (isNaN(n)) { this._payoutAmount = 0; document.getElementById('po-amount').textContent = '0'; return; }
+    const amt = Math.min(this.balance, Math.max(0, n));
+    this._payoutAmount = amt;
+    document.getElementById('po-amount').textContent = this.fmtUsd(amt);
+    document.querySelectorAll('.po-quick').forEach(b => b.classList.remove('active'));
+  },
+  submitPayout() {
+    if (!this.isUaeMember()) { showToast('Payouts are available in the UAE only for now'); return; }
+    if (this._payoutAmount < this.MIN_PAYOUT_USD) { showToast('Minimum payout is $' + this.MIN_PAYOUT_USD); return; }
+    if (this._payoutAmount > this.balance) { showToast('Amount exceeds balance'); return; }
+    const method = document.querySelector('input[name="po-method"]:checked').value;
+    this.balance -= this._payoutAmount;
+    this.transactions.unshift({
+      type: 'out',
+      amount: this._payoutAmount,
+      source: `Payout request — ${method === 'bank' ? 'bank transfer' : 'other'}`,
+      daysAgo: 0,
+      category: 'Payout',
+      status: 'pending review'
     });
+    this.closePayout();
+    this.render();
+    showToast(`Payout request submitted — $${this._payoutAmount.toLocaleString()}`);
+    // PRODUCTION: POST /api/members/me/payouts { amount, method }
   }
+};
 
-  function injectV8Styles() {
-    if (document.getElementById('ffp-earnings-v8-styles')) return;
-    var s = document.createElement('style');
-    s.id = 'ffp-earnings-v8-styles';
-    s.textContent =
-      // Two-column row for dropdowns
-      '#ffp-bottom-dropdowns{display:grid;grid-template-columns:1fr;gap:12px;margin-top:18px;}' +
-      '@media(max-width:560px){#ffp-bottom-dropdowns{grid-template-columns:1fr;}}' +
-      '.ffp-dd{background:rgba(43,168,224,0.04);border:1px solid var(--border-mid,rgba(43,168,224,0.30));border-radius:12px;overflow:hidden;}' +
-      '.ffp-dd-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;user-select:none;}' +
-      '.ffp-dd-head:hover{background:rgba(43,168,224,0.06);}' +
-      '.ffp-dd-title{font-size:13px;font-weight:700;color:var(--text,#e8eef4);}' +
-      '.ffp-dd-chevron{transition:transform 0.2s ease;color:var(--muted,#8a99a8);}' +
-      '.ffp-dd.open .ffp-dd-chevron{transform:rotate(180deg);}' +
-      '.ffp-dd-body{display:none;padding:0 16px 16px;}' +
-      '.ffp-dd.open .ffp-dd-body{display:block;}' +
-      // Filter chips
-      '.ffp-filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}' +
-      '.ffp-chip{background:rgba(43,168,224,0.06);border:1px solid var(--border-mid,rgba(43,168,224,0.25));color:var(--muted,#8a99a8);padding:5px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:Montserrat,sans-serif;letter-spacing:0.3px;}' +
-      '.ffp-chip:hover{color:var(--text,#e8eef4);}' +
-      '.ffp-chip.active{background:rgba(43,168,224,0.16);border-color:#2ba8e0;color:#7dd3fc;}' +
-      // Summary stats row
-      '.ffp-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;padding:12px 14px;background:rgba(0,0,0,0.18);border-radius:10px;}' +
-      '.ffp-summary.two{grid-template-columns:repeat(2,1fr);}' +
-      '.ffp-summary-cell{text-align:center;}' +
-      '.ffp-summary-label{font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted,#8a99a8);margin-bottom:3px;}' +
-      '.ffp-summary-val{font-size:15px;font-weight:800;color:var(--text,#e8eef4);}' +
-      '.ffp-summary-val.green{color:#4ade80;}' +
-      '.ffp-summary-val.yellow{color:#FFCC00;}' +
-      '.ffp-summary-val.red{color:#fca5a5;}' +
-      // Earnings log row
-      '#ffp-earnings-log .ffp-earn-row{display:grid;grid-template-columns:36px 1fr auto;gap:12px;padding:12px 14px;border-bottom:1px solid rgba(43,168,224,0.10);align-items:center;}' +
-      '#ffp-earnings-log .ffp-earn-row:last-child{border-bottom:none;}' +
-      '#ffp-earnings-log .ffp-earn-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(74,222,128,0.12);color:#4ade80;}' +
-      '#ffp-earnings-log .ffp-earn-icon.out{background:rgba(239,68,68,0.12);color:#fca5a5;}' +
-      '#ffp-earnings-log .ffp-earn-name{font-size:13px;font-weight:700;color:var(--text,#e8eef4);}' +
-      '#ffp-earnings-log .ffp-earn-meta{font-size:11px;color:var(--muted,#8a99a8);margin-top:2px;}' +
-      '#ffp-earnings-log .ffp-earn-amt{font-size:14px;font-weight:800;color:#4ade80;white-space:nowrap;}' +
-      '#ffp-earnings-log .ffp-earn-amt.out{color:#fca5a5;}' +
-      '#ffp-earnings-log .ffp-earn-empty{padding:24px 16px;text-align:center;color:var(--muted,#8a99a8);font-size:12px;}' +
-      // v9: Show all / show less toggle
-      '.ffp-show-toggle{padding:12px 14px;border-top:1px solid rgba(43,168,224,0.10);text-align:center;background:rgba(43,168,224,0.02);}' +
-      '.ffp-show-toggle-btn{background:transparent;border:1px solid var(--border-mid,rgba(43,168,224,0.25));color:#7dd3fc;padding:6px 14px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:Montserrat,sans-serif;letter-spacing:0.3px;}' +
-      '.ffp-show-toggle-btn:hover{background:rgba(43,168,224,0.08);}';
-    document.head.appendChild(s);
-  }
-
-  // Move "How tiers work" and "Ways to earn" sections into a two-column dropdown row at the bottom.
-  function moveTiersAndWaysToBottomRow(panel) {
-    var sections = panel.querySelectorAll('.ct-section');
-    var tiersSection = null, waysSection = null;
-    sections.forEach(function (sec) {
-      var title = (sec.querySelector('.ct-section-title') || {}).textContent || '';
-      if (/how tiers work/i.test(title)) tiersSection = sec;
-      else if (/ways to earn/i.test(title)) waysSection = sec;
-    });
-
-    // Hide "Recent activity" — we render our own Earnings log instead
-    sections.forEach(function (sec) {
-      var title = (sec.querySelector('.ct-section-title') || {}).textContent || '';
-      if (/recent activity/i.test(title)) sec.style.display = 'none';
-    });
-
-    // v9: pre-trigger tier cards render so content is available when dropdown opens
-    if (typeof Earnings !== 'undefined' && typeof Earnings.toggleTierCards === 'function') {
-      var tierCardsEl = document.getElementById('tier-cards');
-      if (tierCardsEl && !tierCardsEl.innerHTML.trim()) {
-        try {
-          Earnings.toggleTierCards();  // renders + toggles open
-          // Force display regardless of toggle state — our dropdown controls visibility now
-          tierCardsEl.style.display = 'block';
-        } catch (e) {
-          console.warn('[FFP Earnings] tier cards pre-render:', e);
-        }
-      } else if (tierCardsEl) {
-        tierCardsEl.style.display = 'block';
-      }
-    }
-
-    // Build the two-column dropdown row
-    var bottomRow = document.createElement('div');
-    bottomRow.id = 'ffp-bottom-dropdowns';
-
-    if (tiersSection && !tiersSection.closest('.ffp-dd')) bottomRow.appendChild(wrapAsDropdown('How tiers work', tiersSection));
-    if (waysSection && !waysSection.closest('.ffp-dd')) bottomRow.appendChild(wrapAsDropdown('Ways to earn', waysSection));
-
-    // Append bottom row to end of panel
-    panel.appendChild(bottomRow);
-  }
-
-  function wrapAsDropdown(title, originalSection) {
-    var dd = document.createElement('div');
-    dd.className = 'ffp-dd';
-    var head = document.createElement('div');
-    head.className = 'ffp-dd-head';
-    head.innerHTML =
-      '<div class="ffp-dd-title">' + escHtml(title) + '</div>' +
-      '<span class="material-icons ffp-dd-chevron">expand_more</span>';
-    head.onclick = function () { dd.classList.toggle('open'); };
-    var body = document.createElement('div');
-    body.className = 'ffp-dd-body';
-
-    // v9: MOVE original section's contents into body (preserves IDs + bindings).
-    // Hide the section header (we already have title in dd head).
-    var sectionHead = originalSection.querySelector('.ct-section-head');
-    if (sectionHead) sectionHead.style.display = 'none';
-    while (originalSection.firstChild) {
-      body.appendChild(originalSection.firstChild);
-    }
-    // Hide the now-empty original wrapper
-    originalSection.style.display = 'none';
-
-    dd.appendChild(head);
-    dd.appendChild(body);
-    return dd;
-  }
-
-  // ─── Time filters ───
-  function withinFilter(dateIso, filter) {
-    if (!dateIso || filter === 'all') return true;
-    var d = new Date(dateIso);
-    if (isNaN(d.getTime())) return false;
-    var now = new Date();
-    if (filter === 'thismonth') {
-      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-    }
-    if (filter === 'lastmonth') {
-      var lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      return d.getFullYear() === lm.getFullYear() && d.getMonth() === lm.getMonth();
-    }
-    if (filter === '6mo') {
-      var c = new Date(now); c.setMonth(c.getMonth() - 6);
-      return d >= c;
-    }
-    if (filter === 'year') {
-      var y = new Date(now); y.setFullYear(y.getFullYear() - 1);
-      return d >= y;
-    }
-    return true;
-  }
-
-  function buildFilterChips(currentFilter, onChange) {
-    var opts = [
-      { k: 'thismonth', l: 'This month' },
-      { k: 'lastmonth', l: 'Last month' },
-      { k: '6mo',       l: '6 months' },
-      { k: 'year',      l: '1 year' },
-      { k: 'all',       l: 'All time' }
-    ];
-    return '<div class="ffp-filter-row">' +
-      opts.map(function (o) {
-        return '<button class="ffp-chip' + (o.k === currentFilter ? ' active' : '') + '" data-filter="' + o.k + '">' + escHtml(o.l) + '</button>';
-      }).join('') +
-    '</div>';
-  }
-
-  // ─── Refresh payouts section with current filter + summary stats ───
-  function refreshPayoutsSectionWithFilter() {
-    var section = document.getElementById('ffp-payouts-section');
-    if (!section) return;
-
-    var filtered = memberPayouts.filter(function (p) {
-      return withinFilter(p.requested_at, payoutFilter);
-    });
-
-    // Summary stats
-    var totalPaid = 0, totalPending = 0, totalRejected = 0;
-    filtered.forEach(function (p) {
-      var amt = Number(p.amount_aed) || 0;
-      if (p.status === 'paid') totalPaid += amt;
-      else if (p.status === 'pending' || p.status === 'approved') totalPending += amt;
-      else if (p.status === 'rejected') totalRejected += amt;
-    });
-
-    var titleRow =
-      '<div class="ffp-po-title-row">' +
-        '<div>' +
-          '<div class="ffp-po-title">Your Payouts</div>' +
-          '<div class="ffp-po-subtitle">Track every withdrawal request and its status</div>' +
-        '</div>' +
-      '</div>';
-
-    var filterChips = buildFilterChips(payoutFilter);
-
-    var summary =
-      '<div class="ffp-summary">' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Paid</div><div class="ffp-summary-val green">$' + Earnings.fmtUsd(totalPaid) + '</div></div>' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">In progress</div><div class="ffp-summary-val yellow">$' + Earnings.fmtUsd(totalPending) + '</div></div>' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Rejected</div><div class="ffp-summary-val red">$' + Earnings.fmtUsd(totalRejected) + '</div></div>' +
-      '</div>';
-
-    var rowsHtml;
-    if (!filtered.length) {
-      rowsHtml = '<div class="ffp-po-list"><div class="ffp-po-empty">No payouts in this period.</div></div>';
-    } else {
-      // v9: show only first DEFAULT_VISIBLE_ROWS unless "show all" is toggled
-      var visible = payoutShowAll ? filtered : filtered.slice(0, DEFAULT_VISIBLE_ROWS);
-      var hiddenCount = filtered.length - visible.length;
-
-      var rows = visible.map(function (p) {
-        var amt = Math.round((Number(p.amount_aed) || 0) * 100) / 100;
-        var status = p.status || 'pending';
-        var statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
-        if (status === 'pending') statusLabel = 'Under review';
-
-        var dates = '<b>Requested:</b> ' + escHtml(fmtNiceDate(p.requested_at));
-        if (p.processed_at && (status === 'paid' || status === 'rejected')) {
-          var processedLabel = status === 'paid' ? 'Transferred' : 'Reviewed';
-          dates += '<br><b>' + processedLabel + ':</b> ' + escHtml(fmtNiceDate(p.processed_at));
-        }
-        if (status === 'approved') {
-          dates += '<br><b>Expected by:</b> ' + escHtml(plus14DaysFrom(p.requested_at));
-        }
-
-        var rejectionBlock = '';
-        if (status === 'rejected' && p.notes) {
-          rejectionBlock = '<div class="ffp-po-reason"><b>Reason:</b> ' + escHtml(p.notes) + '</div>';
-        }
-
-        var receiptBtn = '';
-        if (status === 'paid' && (p.receipt_url || p.notes)) {
-          var poJson = encodeURIComponent(JSON.stringify({
-            notes: p.notes || '',
-            receiptUrl: p.receipt_url || ''
-          }));
-          receiptBtn =
-            '<button class="ffp-po-view-btn" onclick="ffpOpenReceiptFromAttr(this)" data-payout="' + poJson + '">' +
-              '<span class="material-icons" style="font-size:14px;">receipt_long</span>View receipt' +
-            '</button>';
-        }
-
-        return '<div class="ffp-po-row">' +
-          '<div>' +
-            '<div class="ffp-po-amount">$' + Earnings.fmtUsd(amt) + '</div>' +
-            '<div class="ffp-po-method">' + escHtml(p.method || 'bank') + ' transfer</div>' +
-            '<div class="ffp-po-dates">' + dates + '</div>' +
-            rejectionBlock +
-            receiptBtn +
-          '</div>' +
-          '<div class="ffp-po-pill ' + escHtml(status) + '">' + escHtml(statusLabel) + '</div>' +
-        '</div>';
-      }).join('');
-      rowsHtml = '<div class="ffp-po-list">' + rows + '</div>';
-      // v9: Show all / Show less toggle
-      if (filtered.length > DEFAULT_VISIBLE_ROWS) {
-        rowsHtml += '<div class="ffp-show-toggle">' +
-          '<button class="ffp-show-toggle-btn" data-target="payouts">' +
-            (payoutShowAll ? 'Show less' : 'Show all (' + filtered.length + ')') +
-          '</button>' +
-        '</div>';
-      }
-    }
-
-    section.innerHTML = titleRow + filterChips + summary + rowsHtml;
-
-    // Wire filter chips
-    section.querySelectorAll('.ffp-chip').forEach(function (btn) {
-      btn.onclick = function () {
-        payoutFilter = btn.getAttribute('data-filter');
-        payoutShowAll = false;  // reset show-all when filter changes
-        refreshPayoutsSectionWithFilter();
-      };
-    });
-    // Wire show-all toggle
-    var toggleBtn = section.querySelector('.ffp-show-toggle-btn');
-    if (toggleBtn) {
-      toggleBtn.onclick = function () {
-        payoutShowAll = !payoutShowAll;
-        refreshPayoutsSectionWithFilter();
-      };
-    }
-  }
-
-  // ─── Earnings log section (replaces Recent activity) ───
-  function renderEarningsLog() {
-    var panel = document.getElementById('panel-earnings');
-    if (!panel) return;
-
-    var section = document.getElementById('ffp-earnings-log');
-    if (!section) {
-      section = document.createElement('div');
-      section.id = 'ffp-earnings-log';
-      section.style.marginTop = '18px';
-      // Insert AFTER the payouts section
-      var payouts = document.getElementById('ffp-payouts-section');
-      if (payouts && payouts.parentNode) {
-        payouts.parentNode.insertBefore(section, payouts.nextSibling);
-      } else {
-        panel.appendChild(section);
-      }
-    }
-
-    // Filter transactions by date AND exclude payout category (those are in Your Payouts)
-    var filtered = (allTransactions || []).filter(function (r) {
-      if (r.category === 'payout') return false;
-      return withinFilter(r.created_at, earningsFilter);
-    });
-
-    // Summary stats
-    var totalEarned = 0, totalPending = 0;
-    filtered.forEach(function (r) {
-      var amt = Number(r.amount_aed) || 0;
-      if (r.type === 'in') {
-        if (r.status === 'paid') totalEarned += amt;
-        else if (r.status === 'pending') totalPending += amt;
-      }
-    });
-
-    var titleRow =
-      '<div class="ffp-po-title-row">' +
-        '<div>' +
-          '<div class="ffp-po-title">Earnings log</div>' +
-          '<div class="ffp-po-subtitle">Every referral and reward you\'ve earned</div>' +
-        '</div>' +
-      '</div>';
-
-    var filterChips = buildFilterChips(earningsFilter);
-
-    var summary =
-      '<div class="ffp-summary two">' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Earned</div><div class="ffp-summary-val green">$' + Earnings.fmtUsd(totalEarned) + '</div></div>' +
-        '<div class="ffp-summary-cell"><div class="ffp-summary-label">Pending</div><div class="ffp-summary-val yellow">$' + Earnings.fmtUsd(totalPending) + '</div></div>' +
-      '</div>';
-
-    var listHtml;
-    if (!filtered.length) {
-      listHtml = '<div class="ffp-po-list"><div class="ffp-earn-empty">No earnings in this period.</div></div>';
-    } else {
-      // v9: show only first DEFAULT_VISIBLE_ROWS unless "show all" is toggled
-      var visible = earningsShowAll ? filtered : filtered.slice(0, DEFAULT_VISIBLE_ROWS);
-      var rows = visible.map(function (r) {
-        var isIn = r.type === 'in';
-        var amt = Number(r.amount_aed) || 0;   // USD (column name is legacy)
-        var icon = isIn ? 'add' : 'remove';
-        var sign = isIn ? '+' : '\u2212';
-        var statusText = r.status === 'pending' ? 'pending review' : r.status === 'rejected' ? 'rejected' : '';
-        var src = r.source || categoryLabel(r.category);
-        var meta = categoryLabel(r.category) + ' \u00b7 ' + daysAgoLabel(r.created_at) + (statusText ? ' \u00b7 ' + statusText : '');
-        return '<div class="ffp-earn-row">' +
-          '<div class="ffp-earn-icon' + (isIn ? '' : ' out') + '"><span class="material-icons" style="font-size:18px;">' + icon + '</span></div>' +
-          '<div>' +
-            '<div class="ffp-earn-name">' + escHtml(src) + '</div>' +
-            '<div class="ffp-earn-meta">' + escHtml(meta) + '</div>' +
-          '</div>' +
-          '<div class="ffp-earn-amt' + (isIn ? '' : ' out') + '">' + sign + '$' + Earnings.fmtUsd(amt) + '</div>' +
-        '</div>';
-      }).join('');
-      listHtml = '<div class="ffp-po-list">' + rows + '</div>';
-      // v9: Show all toggle
-      if (filtered.length > DEFAULT_VISIBLE_ROWS) {
-        listHtml += '<div class="ffp-show-toggle">' +
-          '<button class="ffp-show-toggle-btn" data-target="earnings">' +
-            (earningsShowAll ? 'Show less' : 'Show all (' + filtered.length + ')') +
-          '</button>' +
-        '</div>';
-      }
-    }
-
-    section.innerHTML = titleRow + filterChips + summary + listHtml;
-
-    section.querySelectorAll('.ffp-chip').forEach(function (btn) {
-      btn.onclick = function () {
-        earningsFilter = btn.getAttribute('data-filter');
-        earningsShowAll = false;
-        renderEarningsLog();
-      };
-    });
-    var toggleBtn = section.querySelector('.ffp-show-toggle-btn');
-    if (toggleBtn) {
-      toggleBtn.onclick = function () {
-        earningsShowAll = !earningsShowAll;
-        renderEarningsLog();
-      };
-    }
-  }
-
-  function daysAgoLabel(iso) {
-    if (!iso) return '\u2014';
-    var d = new Date(iso); d.setHours(0,0,0,0);
-    var t = new Date();   t.setHours(0,0,0,0);
-    var n = Math.max(0, Math.round((t - d) / 86400000));
-    if (n === 0) return 'Today';
-    if (n === 1) return 'Yesterday';
-    if (n < 30) return n + ' days ago';
-    return fmtNiceDate(iso);
-  }
-
-  // Global handler for receipt button in Payouts section
-  window.ffpOpenReceiptFromAttr = function (btn) {
-    try {
-      var data = JSON.parse(decodeURIComponent(btn.getAttribute('data-payout') || '{}'));
-      openReceiptModal({ _ffpNotes: data.notes, _ffpReceiptUrl: data.receiptUrl });
-    } catch (e) {
-      console.error('[FFP Earnings] receipt open:', e);
-    }
-  };
-
-  function fmtNiceDate(iso) {
-    if (!iso) return '\u2014';
-    var d = new Date(iso);
-    if (isNaN(d.getTime())) return '\u2014';
-    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
-  }
-  function plus14DaysFrom(iso) {
-    var d = iso ? new Date(iso) : new Date();
-    if (isNaN(d.getTime())) d = new Date();
-    d.setDate(d.getDate() + 14);
-    return fmtNiceDate(d.toISOString());
-  }
-
-  // ─── Real-time subscription via shared FFPRealtime helper ───
-  function subscribeRealtime() {
-    if (!currentUserId) return;
-    if (!window.FFPRealtime) {
-      console.warn('[FFP Earnings] FFPRealtime helper not loaded — auto-updates disabled. Add assets/ffp-realtime.js before this script.');
-      return;
-    }
-    var ch = 'ffp-member-earnings-' + currentUserId;
-    window.FFPRealtime.subscribe(ch + '-payouts', 'payouts', 'member_id=eq.' + currentUserId, function () {
-      loadFromSupabase();
-    });
-    window.FFPRealtime.subscribe(ch + '-transactions', 'transactions', 'member_id=eq.' + currentUserId, function () {
-      loadFromSupabase();
-    });
-  }
-
-  function daysAgoFromIso(iso) {
-    if (!iso) return 0;
-    var d = new Date(iso); d.setHours(0, 0, 0, 0);
-    var t = new Date();   t.setHours(0, 0, 0, 0);
-    return Math.max(0, Math.round((t - d) / 86400000));
-  }
-
-  // DB category → display category label
-  function categoryLabel(cat) {
-    switch (cat) {
-      case 'referrals': return 'Referral reward';
-      case 'deals':     return 'Deal reward';
-      case 'events':    return 'Event reward';
-      case 'providers': return 'Provider reward';
-      case 'activities':return 'Activity reward';
-      case 'meet_move': return 'Meet & Move reward';
-      case 'challenges':return 'Challenge reward';
-      case 'content':   return 'Content reward';
-      case 'payout':    return 'Payout';
-      default:          return cat || 'Reward';
-    }
-  }
-
-  function txSourceFromRow(row) {
-    if (row.source) return row.source;
-    if (row.notes)  return row.notes;
-    return categoryLabel(row.category);
-  }
-
-  // Compute balance: sum(in.paid) − sum(out where status in paid/pending)
-  function computeBalance(rows) {
-    var bal = 0;
-    rows.forEach(function (r) {
-      var amt = Number(r.amount_aed) || 0;
-      if (r.type === 'in'  && r.status === 'paid') bal += amt;
-      else if (r.type === 'out' && (r.status === 'paid' || r.status === 'pending')) bal -= amt;
-    });
-    return Math.round(bal * 100) / 100;   // v16: cents-precise (was Math.round → $40 instead of $39.60)
-  }
-
-  // Count rows helper (head: true → just the count, no data)
-  async function countRows(table, filterFn) {
-    try {
-      var q = window.supabase.from(table).select('*', { count: 'exact', head: true });
-      q = filterFn(q);
-      var res = await q;
-      if (res.error) {
-        console.error('[FFP Earnings] count ' + table + ':', res.error);
-        return 0;
-      }
-      return res.count || 0;
-    } catch (e) {
-      console.error('[FFP Earnings] count ' + table + ':', e);
-      return 0;
-    }
-  }
-
-  async function loadFromSupabase() {
-    if (!window.supabase || typeof Earnings === 'undefined') {
-      if (retries < MAX_RETRIES) { retries++; setTimeout(loadFromSupabase, 200); }
-      return;
-    }
-    injectStyles();
-
-    try {
-      // v20: Members authenticate with a custom JWT (sub = members.id), NOT a Supabase Auth
-      // user — so supabase.auth.getUser() FAILS for them and the whole loader used to bail
-      // (no layout move, no real data). Get the id from FFPAuth/localStorage instead; the
-      // client already carries the JWT so RLS/RPC resolve auth.uid() = members.id.
-      var meRec = null;
-      try { meRec = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || JSON.parse(localStorage.getItem('ffp_member') || 'null'); } catch (e) {}
-      currentUserId = meRec && meRec.id;
-      if (!currentUserId) {
-        try { var u = await window.supabase.auth.getUser(); if (u && u.data && u.data.user) currentUserId = u.data.user.id; } catch (e) {}
-      }
-      if (!currentUserId) { console.log('[FFP Earnings] no member id — keeping sample'); return; }
-
-      // 1. Referral code from members
-      var memRes = await window.supabase
-        .from('members')
-        .select('referral_code, tier')
-        .eq('id', currentUserId)
-        .maybeSingle();
-
-      if (!memRes.error && memRes.data) {
-        if (memRes.data.referral_code) Earnings.referralCode = memRes.data.referral_code;
-        // v17: tier is admin-controlled — take it from the DB so the Earnings section shows
-        // the real tier (e.g. Ambassador / 20%). Feed it where computedTier() reads from.
-        if (memRes.data.tier) {
-          try {
-            if (typeof MemberProfile !== 'undefined' && MemberProfile.data) MemberProfile.data.tier = memRes.data.tier;
-            var cm = JSON.parse(localStorage.getItem('ffp_member') || '{}'); cm.tier = memRes.data.tier;
-            localStorage.setItem('ffp_member', JSON.stringify(cm));
-          } catch (e) {}
-        }
-      } else if (memRes.error) {
-        console.error('[FFP Earnings] members read:', memRes.error);
-      }
-
-      // 2. Transactions (balance + history)
-      var txRes = await window.supabase
-        .from('transactions')
-        .select('id, type, amount_aed, source, category, status, notes, related_id, created_at')
-        .eq('member_id', currentUserId)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (txRes.error) {
-        console.error('[FFP Earnings] transactions read:', txRes.error);
-      } else {
-        var txRows = txRes.data || [];
-        allTransactions = txRows;  // v8: keep full list for time filtering
-        Earnings.balance = computeBalance(txRows);   // v16: amounts are stored in USD — no conversion
-
-        // For paid payouts, fetch the receipt URL from payouts table
-        var paidPayoutIds = txRows
-          .filter(function (r) { return r.category === 'payout' && r.status === 'paid' && r.related_id; })
-          .map(function (r) { return r.related_id; });
-        var receiptMap = {};
-        if (paidPayoutIds.length) {
-          try {
-            var poRes = await window.supabase
-              .from('payouts')
-              .select('id, receipt_url')
-              .in('id', paidPayoutIds);
-            if (!poRes.error && poRes.data) {
-              poRes.data.forEach(function (p) {
-                if (p.receipt_url) receiptMap[p.id] = p.receipt_url;
-              });
-            }
-          } catch (e) {
-            console.warn('[FFP Earnings] receipt fetch:', e);
-          }
-        }
-
-        Earnings.transactions = txRows.map(function (r) {
-          return {
-            type: r.type,
-            amount: Math.round((Number(r.amount_aed) || 0) * 100) / 100,
-            source: txSourceFromRow(r),
-            category: categoryLabel(r.category),
-            daysAgo: daysAgoFromIso(r.created_at),
-            status: r.status === 'pending' ? 'pending review'
-                  : r.status === 'paid'    ? null
-                  : r.status === 'rejected'? 'rejected'
-                  : r.status,
-            // Carry these through for the receipt button injection
-            _ffpRawCategory: r.category,
-            _ffpRawStatus: r.status,
-            _ffpNotes: r.notes || '',
-            _ffpReceiptUrl: r.related_id ? (receiptMap[r.related_id] || '') : ''
-          };
-        });
-      }
-
-      // 3. Referral stats (total, earned, pending)
-      var refRes = await window.supabase
-        .from('referrals')
-        .select('status, reward_aed')
-        .eq('referrer_id', currentUserId);
-
-      if (refRes.error) {
-        console.error('[FFP Earnings] referrals read:', refRes.error);
-      } else {
-        var refs = refRes.data || [];
-        var total = refs.length;
-        var earned = 0, pending = 0;
-        refs.forEach(function (r) {
-          var amt = Number(r.reward_aed) || 0;
-          if (r.status === 'paid') earned += amt;
-          if (r.status === 'pending' || r.status === 'signed_up') pending++;
-        });
-        Earnings.referralStats = {
-          total: total,
-          earned: Math.round(earned * 100) / 100,   // USD
-          pending: pending
-        };
-      }
-
-      // 4. Tier progress — the 8 tracked sections, counted SERVER-SIDE over the rolling
-      //    30 days by the member_tier_progress() RPC (keys match Earnings.categories).
-      try {
-        var progRes = await window.supabase.rpc('member_tier_progress');
-        if (progRes && !progRes.error && progRes.data) {
-          var p = progRes.data;
-          Earnings.categories.forEach(function (cat) {
-            if (p[cat.key] !== undefined && p[cat.key] !== null) cat.current = Number(p[cat.key]) || 0;
-          });
-        } else if (progRes && progRes.error) {
-          console.warn('[FFP Earnings] tier progress:', progRes.error.message);
-        }
-      } catch (e) { console.warn('[FFP Earnings] tier progress threw:', e); }
-
-      // 5. Fetch dedicated payouts list for the Payouts section
-      var poRes = await window.supabase
-        .from('payouts')
-        .select('id, amount_aed, method, status, bank_details, notes, receipt_url, requested_at, processed_at')
-        .eq('member_id', currentUserId)
-        .order('requested_at', { ascending: false })
-        .limit(30);
-      if (poRes.error) {
-        console.error('[FFP Earnings] payouts read:', poRes.error);
-        memberPayouts = [];
-      } else {
-        memberPayouts = poRes.data || [];
-      }
-      renderPayoutsSection();
-      rebuildLayout();  // v8: full panel layout restructure
-
-      // 6. Wrap submitPayout
-      wrapWrites();
-
-      // 7. Re-render if Earnings panel is visible
-      var panel = document.getElementById('panel-earnings');
-      if (panel && panel.classList.contains('active') && typeof Earnings.render === 'function') {
-        Earnings.render();
-      }
-
-      // 8. Subscribe to real-time updates so the panel auto-updates
-      subscribeRealtime();
-
-      console.log('[FFP Earnings v11] Loaded from Supabase \u2713');
-    } catch (err) {
-      console.error('[FFP Earnings] Unexpected error:', err);
-    }
-  }
-
-  // ─── v2: Inject bank_details + IBAN/account name fields into the existing payout modal ───
-  function injectBankFieldsIntoModal() {
-    var modal = document.querySelector('#payout-modal-backdrop .detail-modal');
-    if (!modal) return;
-    if (modal.querySelector('#ffp-bank-details-block')) return;  // already injected
-
-    var methodBlock = modal.querySelector('.payout-method-block');
-    if (!methodBlock) return;
-
-    var inputStyle = 'width:100%;background:rgba(0,0,0,0.25);border:1px solid rgba(43,168,224,0.25);border-radius:8px;padding:10px 12px;font-size:13px;font-weight:600;color:#fff;font-family:Montserrat,sans-serif;outline:none;box-sizing:border-box;';
-    var labelStyle = 'font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted-lt,#8a99a8);margin-bottom:4px;display:block;';
-    var hintStyle = 'font-size:10px;color:var(--muted,#6a90a8);margin-top:4px;line-height:1.4;display:block;';
-
-    var bankBlock = document.createElement('div');
-    bankBlock.id = 'ffp-bank-details-block';
-    bankBlock.style.cssText = 'margin-top:14px;padding:14px;background:rgba(43,168,224,0.06);border:1px solid rgba(43,168,224,0.18);border-radius:10px;';
-    bankBlock.innerHTML =
-      '<div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted-lt,#8a99a8);margin-bottom:12px;">Bank account details (required for bank transfer)</div>' +
-
-      '<div style="margin-bottom:10px;">' +
-        '<label style="' + labelStyle + '">Exact account holder name</label>' +
-        '<input id="ffp-payout-bank-name" type="text" placeholder="As shown on bank account." style="' + inputStyle + '">' +
-        '<span style="' + hintStyle + '">Must match the name on the bank account exactly. Transfers to a different name will be rejected.</span>' +
-      '</div>' +
-
-      '<div style="margin-bottom:10px;">' +
-        '<label style="' + labelStyle + '">IBAN</label>' +
-        '<input id="ffp-payout-iban" type="text" placeholder="AE07 0331 2345 6789 0123 456" maxlength="29" autocomplete="off" autocapitalize="characters" style="' + inputStyle + 'letter-spacing:1px;font-family:monospace;">' +
-        '<span id="ffp-iban-hint" style="' + hintStyle + '">UAE IBAN: starts with AE followed by 21 digits (23 characters total).</span>' +
-      '</div>' +
-
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
-        '<div>' +
-          '<label style="' + labelStyle + '">Bank name</label>' +
-          '<input id="ffp-payout-bank" type="text" placeholder="e.g. Emirates NBD" style="' + inputStyle + '">' +
-        '</div>' +
-        '<div>' +
-          '<label style="' + labelStyle + '">Branch city</label>' +
-          '<input id="ffp-payout-city" type="text" placeholder="e.g. Dubai" style="' + inputStyle + '">' +
-        '</div>' +
-      '</div>' +
-
-      '<div style="font-size:10px;color:var(--muted,#6a90a8);margin-top:10px;line-height:1.5;">Stored only for this payout. We never store card details.</div>';
-    methodBlock.parentNode.insertBefore(bankBlock, methodBlock.nextSibling);
-
-    var otherBlock = document.createElement('div');
-    otherBlock.id = 'ffp-other-details-block';
-    otherBlock.style.cssText = 'display:none;margin-top:14px;padding:14px;background:rgba(255,204,0,0.06);border:1px solid rgba(255,204,0,0.18);border-radius:10px;';
-    otherBlock.innerHTML =
-      '<div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted-lt,#8a99a8);margin-bottom:10px;">How should we reach you?</div>' +
-      '<textarea id="ffp-payout-other" rows="3" placeholder="Tell us how you\'d like to receive your payout (e.g. crypto wallet, in-person cash pickup, etc.)" style="width:100%;background:rgba(0,0,0,0.25);border:1px solid rgba(255,204,0,0.25);border-radius:8px;padding:10px 12px;font-size:13px;font-weight:600;color:#fff;font-family:Montserrat,sans-serif;outline:none;resize:vertical;box-sizing:border-box;"></textarea>';
-    methodBlock.parentNode.insertBefore(otherBlock, bankBlock.nextSibling);
-
-    // Live IBAN formatting: auto-uppercase, group every 4 chars with spaces, validate live
-    var ibanInput = document.getElementById('ffp-payout-iban');
-    var ibanHint = document.getElementById('ffp-iban-hint');
-    if (ibanInput && ibanHint) {
-      ibanInput.addEventListener('input', function () {
-        var raw = (ibanInput.value || '').replace(/\s+/g, '').toUpperCase();
-        // Cap at 23 chars
-        if (raw.length > 23) raw = raw.slice(0, 23);
-        // Format in groups of 4
-        var formatted = raw.match(/.{1,4}/g);
-        formatted = formatted ? formatted.join(' ') : '';
-        if (ibanInput.value !== formatted) {
-          var pos = ibanInput.selectionStart;
-          ibanInput.value = formatted;
-          // Restore cursor near end-ish
-          try { ibanInput.setSelectionRange(formatted.length, formatted.length); } catch (e) {}
-        }
-        // Live validation feedback
-        if (raw.length === 0) {
-          ibanHint.style.color = 'var(--muted,#6a90a8)';
-          ibanHint.textContent = 'UAE IBAN: starts with AE followed by 21 digits (23 characters total).';
-        } else if (/^AE\d{21}$/.test(raw)) {
-          ibanHint.style.color = '#4ade80';
-          ibanHint.textContent = 'Valid UAE IBAN format \u2713';
-        } else if (raw.length < 23) {
-          ibanHint.style.color = '#FFCC00';
-          ibanHint.textContent = raw.length + '/23 characters \u2014 keep going';
-        } else {
-          ibanHint.style.color = '#ef4444';
-          ibanHint.textContent = 'Invalid: must be AE + 21 digits';
-        }
-      });
-    }
-
-    // Show/hide based on method radio
-    modal.querySelectorAll('input[name="po-method"]').forEach(function (radio) {
-      radio.addEventListener('change', function () {
-        var m = radio.value;
-        bankBlock.style.display = (m === 'bank') ? '' : 'none';
-        otherBlock.style.display = (m === 'other') ? '' : 'none';
-      });
-    });
-  }
-
-  function collectBankDetails() {
-    var methodInput = document.querySelector('input[name="po-method"]:checked');
-    var method = methodInput ? methodInput.value : 'bank';
-    if (method === 'bank') {
-      var name = (document.getElementById('ffp-payout-bank-name') || {}).value || '';
-      var iban = (document.getElementById('ffp-payout-iban') || {}).value || '';
-      var bank = (document.getElementById('ffp-payout-bank') || {}).value || '';
-      var city = (document.getElementById('ffp-payout-city') || {}).value || '';
-      name = name.trim();
-      iban = iban.trim().replace(/\s+/g, '').toUpperCase();
-      bank = bank.trim();
-      city = city.trim();
-      if (!name || !iban || !bank || !city) {
-        showToast('Please fill in all bank fields (name, IBAN, bank, city)', 'error');
-        return null;
-      }
-      if (!/^AE\d{21}$/.test(iban)) {
-        showToast('IBAN must be AE followed by 21 digits (23 characters total)', 'error');
-        return null;
-      }
-      return {
-        method: 'bank',
-        bank_details:
-          'Account holder: ' + name + '\n' +
-          'IBAN: ' + iban + '\n' +
-          'Bank: ' + bank + '\n' +
-          'Branch city: ' + city
-      };
-    } else {
-      var other = (document.getElementById('ffp-payout-other') || {}).value || '';
-      other = other.trim();
-      if (!other) {
-        showToast('Please tell us how you\'d like to receive your payout', 'error');
-        return null;
-      }
-      return { method: 'other', bank_details: other };
-    }
-  }
-
-  function showToast(msg, kind) {
-    if (typeof window.showToast === 'function') { try { window.showToast(msg, kind || 'info'); return; } catch (e) {} }
-    console.log('[FFP Earnings]', msg);
-  }
-
-  // After Earnings.render(), inject "View receipt" buttons on paid payout rows
-  function wrapRender() {
-    if (typeof Earnings === 'undefined' || typeof Earnings.render !== 'function') {
-      setTimeout(wrapRender, 200);
-      return;
-    }
-    var orig = Earnings.render.bind(Earnings);
-    Earnings.render = function () {
-      orig();
-      // Wait one tick for DOM to settle, then inject buttons
-      setTimeout(injectReceiptButtons, 30);
-    };
-  }
-
-  function injectReceiptButtons() {
-    var list = document.getElementById('earn-tx-list');
-    if (!list || !Earnings || !Earnings.transactions) return;
-    var rows = list.querySelectorAll('.earn-tx-row');
-    Earnings.transactions.forEach(function (t, i) {
-      var row = rows[i];
-      if (!row) return;
-      if (row.querySelector('.ffp-view-receipt-btn')) return;  // already injected
-      // Only inject for paid payouts that have a receipt URL OR receipt notes
-      if (t._ffpRawCategory !== 'payout' || t._ffpRawStatus !== 'paid') return;
-      if (!t._ffpReceiptUrl && !t._ffpNotes) return;
-
-      var metaEl = row.querySelector('.earn-tx-meta');
-      if (!metaEl) return;
-      var btn = document.createElement('button');
-      btn.className = 'ffp-view-receipt-btn';
-      btn.style.cssText = 'margin-left:8px;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.35);color:#4ade80;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700;cursor:pointer;font-family:Montserrat,sans-serif;display:inline-flex;align-items:center;gap:4px;';
-      btn.innerHTML = '<span class="material-icons" style="font-size:12px;">receipt_long</span>View receipt';
-      btn.onclick = function (e) {
-        e.stopPropagation();
-        openReceiptModal(t);
-      };
-      metaEl.appendChild(btn);
-    });
-  }
-
-  function openReceiptModal(t) {
-    // Close any existing
-    var existing = document.getElementById('ffp-receipt-modal');
-    if (existing) existing.remove();
-
-    var fileBlock = '';
-    if (t._ffpReceiptUrl) {
-      var url = t._ffpReceiptUrl;
-      var isPdf = /\.pdf$/i.test(url);
-      if (isPdf) {
-        fileBlock =
-          '<div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(74,222,128,0.25);">' +
-            '<a href="' + escAttr(url) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;background:rgba(74,222,128,0.15);border:1px solid rgba(74,222,128,0.35);color:#4ade80;padding:10px 16px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:700;font-family:Montserrat,sans-serif;">' +
-              '<span class="material-icons" style="font-size:18px;">picture_as_pdf</span>Open PDF receipt' +
-            '</a>' +
-          '</div>';
-      } else {
-        fileBlock =
-          '<div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(74,222,128,0.25);">' +
-            '<div style="color:#4ade80;font-size:11px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:1.2px;">Bank transfer confirmation</div>' +
-            '<a href="' + escAttr(url) + '" target="_blank" rel="noopener">' +
-              '<img src="' + escAttr(url) + '" alt="Transfer receipt" style="max-width:100%;border-radius:8px;border:1px solid rgba(74,222,128,0.25);display:block;cursor:zoom-in;">' +
-            '</a>' +
-            '<div style="margin-top:6px;font-size:10px;color:#6a90a8;">Tap to open full size</div>' +
-          '</div>';
-      }
-    }
-
-    // Strip the URL line from notes for display (it's shown as the image/PDF instead)
-    var displayNotes = (t._ffpNotes || '').replace(/\nReceipt:\s*https?:\/\/\S+/, '');
-
-    var overlay = document.createElement('div');
-    overlay.id = 'ffp-receipt-modal';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,8,20,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;font-family:Montserrat,sans-serif;';
-    overlay.innerHTML =
-      '<div style="background:#0f1e2e;border:1px solid #1a2f44;border-radius:16px;width:100%;max-width:520px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.6);overflow:hidden;">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid #1a2f44;">' +
-          '<div style="color:#e8eef4;font-size:16px;font-weight:700;">Payment receipt</div>' +
-          '<button onclick="document.getElementById(\'ffp-receipt-modal\').remove()" style="background:transparent;border:none;color:#8a99a8;cursor:pointer;font-size:24px;line-height:1;padding:0 4px;">&times;</button>' +
-        '</div>' +
-        '<div style="padding:20px;overflow-y:auto;flex:1;">' +
-          (displayNotes
-            ? '<div style="background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.28);border-radius:10px;padding:14px;">' +
-                '<div style="color:#e8eef4;font-size:13px;line-height:1.7;white-space:pre-wrap;font-family:monospace;">' + escHtml(displayNotes) + '</div>' +
-              '</div>'
-            : '<div style="color:#8a99a8;font-size:13px;">No payment details recorded.</div>'
-          ) +
-          fileBlock +
-        '</div>' +
-        '<div style="padding:14px 20px;border-top:1px solid #1a2f44;text-align:right;">' +
-          '<button onclick="document.getElementById(\'ffp-receipt-modal\').remove()" style="background:rgba(43,168,224,0.12);border:1px solid rgba(43,168,224,0.35);color:#7dd3fc;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:Montserrat,sans-serif;">Close</button>' +
-        '</div>' +
-      '</div>';
-    overlay.addEventListener('click', function (e) {
-      if (e.target === overlay) overlay.remove();
-    });
-    document.body.appendChild(overlay);
-  }
-
-  function escAttr(s) {
-    return String(s == null ? '' : s).replace(/"/g, '&quot;').replace(/</g, '&lt;');
-  }
-  function escHtml(s) {
-    return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-
-
-  // — watches for the .open class being added to the modal backdrop, then injects.
-  function startModalObserver() {
-    var backdrop = document.getElementById('payout-modal-backdrop');
-    if (!backdrop) {
-      // Retry until DOM is ready (modal HTML is inline so should be ready after DOMContentLoaded)
-      setTimeout(startModalObserver, 500);
-      return;
-    }
-    if (backdrop._ffpObserver) return; // already wired
-    backdrop._ffpObserver = true;
-
-    function check() {
-      if (backdrop.classList.contains('open')) {
-        // Slight delay so any other DOM updates settle
-        setTimeout(injectBankFieldsIntoModal, 30);
-      }
-    }
-    // Initial check
-    check();
-    // Watch for class changes
-    var obs = new MutationObserver(function (mutations) {
-      mutations.forEach(function (m) {
-        if (m.type === 'attributes' && m.attributeName === 'class') {
-          check();
-        }
-      });
-    });
-    obs.observe(backdrop, { attributes: true, attributeFilter: ['class'] });
-  }
-
-  function wrapWrites() {
-    if (wrapped) return;
-    wrapped = true;
-
-    startModalObserver();
-    wrapRender();
-
-    var origSubmitPayout = Earnings.submitPayout.bind(Earnings);
-    Earnings.submitPayout = async function () {
-      // Capture amount + method BEFORE original runs (original closes modal + clears state)
-      var amount = this._payoutAmount;   // USD (platform currency)
-      // Guard amount before collecting bank details
-      var minUsd = Earnings.MIN_PAYOUT_USD || 250;
-      if (amount < minUsd) { showToast('Minimum payout is $' + minUsd, 'error'); return; }
-      if (amount > this.balance) { showToast('Amount exceeds balance', 'error'); return; }
-
-      // Collect + validate bank/other details BEFORE the original closes the modal
-      var details = collectBankDetails();
-      if (!details) return;  // validation failed, modal stays open
-
-      // Final confirmation — this is real money
-      if (!confirm('Submit payout request for $' + amount.toLocaleString() + ' USD via ' + details.method + '?\n\nAdmin will review and contact you within 3\u20135 business days.')) {
-        return;
-      }
-      var amountAed = amount;   // USD — stored directly (column name is legacy; no conversion)
-
-      origSubmitPayout();  // closes modal + clears state
-      if (!currentUserId) return;
-      try {
-        // 1. Insert payout request (now WITH bank_details)
-        var payoutRes = await window.supabase.from('payouts').insert({
-          member_id: currentUserId,
-          amount_aed: amountAed,
-          method: details.method,
-          bank_details: details.bank_details,
-          status: 'pending',
-          requested_at: new Date().toISOString()
-        }).select('id').single();
-        if (payoutRes.error) {
-          console.error('[FFP Earnings] payout insert:', payoutRes.error);
-          showToast('Payout request failed: ' + payoutRes.error.message, 'error');
-          return;
-        }
-        // 2. Mirror to transactions so balance math reflects the reservation
-        var txRes = await window.supabase.from('transactions').insert({
-          member_id: currentUserId,
-          type: 'out',
-          amount_aed: amountAed,
-          source: 'Payout request \u2014 ' + (details.method === 'bank' ? 'bank transfer' : 'other'),
-          category: 'payout',
-          status: 'pending',
-          related_id: payoutRes.data.id,
-          created_at: new Date().toISOString()
-        });
-        if (txRes.error) {
-          // Non-fatal — payout still recorded. Admin can reconcile.
-          console.error('[FFP Earnings] payout transaction mirror:', txRes.error);
-        }
-        showToast('Payout requested. Admin will review within 3\u20135 business days.', 'success');
-      } catch (e) {
-        console.error('[FFP Earnings] payout submit:', e);
-        showToast(e.message || 'Payout request failed', 'error');
-      }
-    };
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () { setTimeout(loadFromSupabase, 400); });
-  } else {
-    setTimeout(loadFromSupabase, 400);
-  }
-  window.ffpReloadEarnings = loadFromSupabase;
-})();
+function closeReferModalIfBackdrop(e) { if (e.target.id === 'refer-modal-backdrop') Earnings.closeReferModal(); }
+function closePayoutModalIfBackdrop(e) { if (e.target.id === 'payout-modal-backdrop') Earnings.closePayout(); }
