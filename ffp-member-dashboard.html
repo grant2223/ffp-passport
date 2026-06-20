@@ -200,7 +200,7 @@
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Montserrat', sans-serif; -webkit-font-smoothing: antialiased; }
-body { overflow-x: hidden; }
+body { overflow: hidden; }   /* PTR: body locked — .content is the scroller (so iOS won't run its own pull-to-refresh and ours owns the gesture) */
 body::-webkit-scrollbar { display: none; }
 body { -ms-overflow-style: none; scrollbar-width: none; }
 button { font-family: inherit; cursor: pointer; }
@@ -254,7 +254,7 @@ html, body { overscroll-behavior-y: contain; }
 .notif-time { font-size: 10px; color: var(--muted); margin-top: 4px; }
 
 /* MAIN CONTENT */
-.content { padding: 76px 20px 80px; max-width: 880px; margin: 0 auto; }
+.content { padding: 76px 20px 80px; max-width: 880px; margin: 0 auto; height: 100vh; height: 100dvh; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; }
 h2 { font-weight: 800; font-size: 22px; margin: 0; }
 h3 { font-weight: 700; font-size: 15px; margin: 0; }
 
@@ -7913,9 +7913,9 @@ function ffpHandleNotifClick(link) {
     // #2: connect-request notification → open Connections panel + the requester's passport card.
     var cm = link.match(/[?&]connect=([^&#]+)/);
     if (cm && typeof showPanel === 'function') { showPanel('panel-meet'); var cid = decodeURIComponent(cm[1]); setTimeout(function () { try { if (window.MeetMove && MeetMove.openMemberDetail) MeetMove.openMemberDetail(cid); } catch (e) {} }, 450); return; }
-    if (link.indexOf('#connections') !== -1 && typeof showPanel === 'function') { showPanel('panel-meet'); window.scrollTo(0, 0); return; }
+    if (link.indexOf('#connections') !== -1 && typeof showPanel === 'function') { showPanel('panel-meet'); (document.querySelector('.content') || {}).scrollTop = 0; return; }
     var hm = link.match(/#(panel-[a-zA-Z-]+)/);
-    if (hm && typeof showPanel === 'function' && document.getElementById(hm[1])) { showPanel(hm[1]); window.scrollTo(0, 0); return; }
+    if (hm && typeof showPanel === 'function' && document.getElementById(hm[1])) { showPanel(hm[1]); (document.querySelector('.content') || {}).scrollTop = 0; return; }
     if (/^https?:\/\//.test(link) || link.indexOf('.html') !== -1) { window.location.href = link; }
   } catch (e) {}
 }
@@ -8020,11 +8020,11 @@ function _ffpInitPullToRefresh() {
     try { if (typeof loadNotifications === 'function') loadNotifications(); } catch (e) {}
   }
   var ind = document.createElement('div'); ind.id = 'ffp-ptr';
-  ind.style.cssText = 'position:fixed;top:0;left:50%;z-index:100030;width:38px;height:38px;border-radius:50%;background:#0f1e2e;border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;color:#2ba8e0;box-shadow:0 6px 18px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .15s;transform:translate(-50%,-48px);';
+  ind.style.cssText = 'position:fixed;top:64px;left:50%;z-index:100030;width:38px;height:38px;border-radius:50%;background:#0f1e2e;border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;color:#2ba8e0;box-shadow:0 6px 18px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .15s;transform:translate(-50%,-90px);';
   ind.innerHTML = '<span class="material-icons" style="font-size:22px;">refresh</span>';
   document.body.appendChild(ind); var icon = ind.firstChild;
   var startY = 0, pulling = false, dist = 0, busy = false; var THRESH = 72;
-  function atTop() { var se = document.scrollingElement || document.documentElement; return (se.scrollTop || window.scrollY || 0) <= 0; }
+  var _sc = document.querySelector('.content'); function atTop() { return _sc ? (_sc.scrollTop <= 0) : (((document.scrollingElement || document.documentElement).scrollTop || 0) <= 0); }
   function blocked() { return !!document.querySelector('.detail-backdrop.open, #notif-menu.show, .modal-overlay.show, #ffp-sc-ov'); }
   document.addEventListener('touchstart', function (e) {
     if (busy || e.touches.length !== 1 || !atTop() || blocked()) { pulling = false; return; }
@@ -8035,19 +8035,19 @@ function _ffpInitPullToRefresh() {
     if (!pulling || busy) return;
     dist = e.touches[0].clientY - startY;
     if (dist > 0 && atTop()) {
-      var y = Math.min(dist * 0.45, 84) - 48;
+      var y = Math.min(dist * 0.6, 90) - 90;
       ind.style.opacity = String(Math.min(dist / THRESH, 1));
       ind.style.transform = 'translate(-50%,' + y + 'px) rotate(' + Math.min(dist, 200) + 'deg)';
-    } else { pulling = false; ind.style.opacity = '0'; ind.style.transform = 'translate(-50%,-48px)'; }
+    } else { pulling = false; ind.style.opacity = '0'; ind.style.transform = 'translate(-50%,-90px)'; }
   }, { passive: true });
   document.addEventListener('touchend', function () {
     if (!pulling || busy) { pulling = false; return; }
     pulling = false;
     if (dist > THRESH) {
-      busy = true; ind.style.opacity = '1'; ind.style.transform = 'translate(-50%,18px)'; icon.style.animation = 'ffp-ptr-spin .8s linear infinite';
+      busy = true; ind.style.opacity = '1'; ind.style.transform = 'translate(-50%,0)'; icon.style.animation = 'ffp-ptr-spin .8s linear infinite';
       try { refreshActive(); } catch (e) {}
-      setTimeout(function () { icon.style.animation = ''; ind.style.opacity = '0'; ind.style.transform = 'translate(-50%,-48px)'; busy = false; }, 850);
-    } else { ind.style.opacity = '0'; ind.style.transform = 'translate(-50%,-48px)'; }
+      setTimeout(function () { icon.style.animation = ''; ind.style.opacity = '0'; ind.style.transform = 'translate(-50%,-90px)'; busy = false; }, 850);
+    } else { ind.style.opacity = '0'; ind.style.transform = 'translate(-50%,-90px)'; }
   }, { passive: true });
 }
 
@@ -8072,7 +8072,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '388';
+  const FFP_BUILD = '389';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -8135,7 +8135,7 @@ function setupPanelNav() {
     }
     
     // Scroll to top of content area
-    window.scrollTo(0, 0);
+    (document.querySelector('.content') || {}).scrollTop = 0;
     
     // If switching back to passport, re-scale the card (in case viewport changed)
     if (panelId === 'panel-passport') {
