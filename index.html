@@ -287,12 +287,11 @@ section{padding:56px 0;}
 .worlds-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
 @media (min-width:700px){.worlds-grid{grid-template-columns:repeat(3,1fr);gap:14px;}}
 @media (min-width:1000px){.worlds-grid{grid-template-columns:repeat(6,1fr);}}
-.world-card{position:relative;border:1px solid var(--accent-line);border-radius:var(--radius-lg);background:linear-gradient(180deg,rgba(43,168,224,.07),rgba(43,168,224,.01));padding:28px 14px;text-align:center;transition:transform .2s,border-color .2s,box-shadow .2s;overflow:hidden;}
-.world-card::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--yellow);transform:scaleX(0);transition:transform .25s;transform-origin:left;}
-.world-card:hover{transform:translateY(-5px);border-color:rgba(255,204,0,.45);box-shadow:0 18px 40px rgba(0,0,0,.35);}
-.world-card:hover::after{transform:scaleX(1);}
-.world-card .material-icons{font-size:36px !important;color:var(--yellow);margin-bottom:13px;display:block;}
-.world-card b{font-size:13px;font-weight:800;letter-spacing:.5px;color:#fff;display:block;}
+.world-card{position:relative;background:transparent;border:none;padding:10px 6px;text-align:center;transition:transform .2s;}
+.world-card:hover{transform:translateY(-6px);}
+.world-card .material-icons{font-size:60px !important;color:var(--yellow);margin-bottom:14px;display:block;}
+.world-card b{font-size:13px;font-weight:800;letter-spacing:.8px;color:#fff;display:block;text-transform:uppercase;}
+@media (min-width:900px){.world-card .material-icons{font-size:72px !important;}}
 
 /* UNLOCKS */
 .unlock-grid{display:grid;gap:14px;grid-template-columns:1fr;}
@@ -458,14 +457,9 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
         <p>For people serious about moving &mdash; connect with people who move like you, meet up, take on quests, and track every stat. The gold stamp for active living.</p>
         <a href="/login#signup" class="hero-cta">Start your 7&#8209;day free trial</a>
         <div class="hero-fine">7 days free &middot; then $20/mo or $149/yr &middot; cancel anytime &middot; secure checkout via Stripe</div>
-        <div class="hero-stats">
-          <div><div class="hs-n">6</div><div class="hs-l">Worlds</div></div>
-          <div><div class="hs-n">5</div><div class="hs-l">Ways to play</div></div>
-          <div><div class="hs-n" style="color:var(--accent);">&infin;</div><div class="hs-l">Your people</div></div>
-        </div>
       </div>
       <div class="hero-shot">
-        <img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-lifestyle-hero.jpg" alt="The FFP Passport app in hand" fetchpriority="high">
+        <img src="assets/padel-high-five.jpg" alt="Find fit people to move with" fetchpriority="high">
       </div>
     </div>
   </div>
@@ -478,7 +472,7 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
     <div class="banner-overlay"></div>
     <div class="banner-text">
       <div class="banner-eyebrow">Match. Connect. Do things together.</div>
-      <div class="banner-title">FIND YOUR PEOPLE</div>
+      <div class="banner-title">FIND FIT PEOPLE</div>
     </div>
   </div>
 </div>
@@ -495,10 +489,8 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
 
 <!-- SIX WORLDS — the passport's full coverage, bold visual grid -->
 <section>
-  <div class="col" style="text-align:center;max-width:720px;margin:0 auto 42px;">
+  <div class="col" style="text-align:center;margin:0 auto 40px;">
     <span class="eyebrow">Six worlds, one passport</span>
-    <h2 class="sec-heading">Every way you move, in one place.</h2>
-    <p class="sec-sub" style="margin:0 auto;">One membership across the whole active life &mdash; the people, places and progress to match.</p>
   </div>
   <div class="col">
     <div class="worlds-grid">
