@@ -8,7 +8,8 @@ const CalorieTracker = {
   // v78 — Goal: currentWeight → targetWeight over targetWeeks. activity tunes maintenance.
   currentWeight: 0,   // kg — where you are now
   targetWeight: 0,    // kg — where you want to be
-  targetWeeks: 0,     // weeks to get there
+  targetWeeks: 0,     // weeks to get there (derived from targetDate; still drives the kcal math)
+  targetDate: null,   // 'yyyy-mm-dd' — the date to hit the goal by (source of truth for the UI)
   activity: 'mod',     // 'low' / 'mod' / 'high' — for maintenance calc
   
   tab: 'today',        // 'today' | 'week'
@@ -176,7 +177,7 @@ const CalorieTracker = {
     const verb = wd > 0 ? 'lose' : wd < 0 ? 'gain' : 'maintain';
     const pillText = wd === 0
       ? `Maintain ${this.currentWeight} kg`
-      : `${this.currentWeight} kg → ${this.targetWeight} kg in ${this.targetWeeks} weeks`;
+      : `${this.currentWeight} kg → ${this.targetWeight} kg by ${this._dateLabel(this._goalIso())}`;
     document.getElementById('ct-goal-pill-text').textContent = pillText;
     
     // Macro target labels
@@ -707,42 +708,69 @@ const CalorieTracker = {
     } catch (e) {}
   },
 
+  // ── Goal date helpers (targetDate is the source of truth; targetWeeks is derived for the kcal math) ──
+  _isoToday() { var d = new Date(); d.setHours(0, 0, 0, 0); return d; },
+  _weeksUntil(iso) {
+    if (!iso) return this.targetWeeks || 1;
+    var d = new Date(iso + 'T00:00:00');
+    return Math.max(1, Math.round((d - this._isoToday()) / (7 * 86400000)));
+  },
+  _isoFromWeeks(w) {
+    var d = this._isoToday(); d.setDate(d.getDate() + (w || 1) * 7);
+    return d.toISOString().slice(0, 10);
+  },
+  _goalIso() { return this.targetDate || this._isoFromWeeks(this.targetWeeks); },
+  _dateLabel(iso) {
+    if (!iso) return '';
+    var d = new Date(iso + 'T00:00:00');
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  },
+  setTargetDate(iso) {
+    if (!iso) return;
+    this.targetDate = iso;
+    this.targetWeeks = this._weeksUntil(iso);
+    this.renderGoalConfigResult();
+  },
+
   openGoalConfig() {
     this.syncWeightFromFitness();
-    // Populate the steppers from current state
     document.getElementById('gc-current').textContent = (this.currentWeight && this.currentWeight > 0) ? this.currentWeight : '—';
     document.getElementById('gc-target').textContent  = this.targetWeight;
-    document.getElementById('gc-weeks').textContent   = this.targetWeeks;
+    var iso = this._goalIso();
+    this.targetDate = iso;
+    var gd = document.getElementById('gc-date');
+    if (gd) {
+      var tmw = this._isoToday(); tmw.setDate(tmw.getDate() + 1);
+      gd.min = tmw.toISOString().slice(0, 10);
+      gd.value = iso;
+    }
     document.querySelectorAll('#goal-config-backdrop [data-act]').forEach(b =>
       b.classList.toggle('active', b.dataset.act === this.activity));
     this.renderGoalConfigResult();
     document.getElementById('goal-config-backdrop').classList.add('open');
   },
-  
+
   closeGoalConfig() {
     document.getElementById('goal-config-backdrop').classList.remove('open');
   },
-  
+
   adjGoal(field, delta) {
-    // v156 — currentWeight removed (owned by Fitness Stats); only target + timeframe adjust here
-    const limits = {
-      targetWeight:  { min: 30,  max: 200 },
-      targetWeeks:   { min: 1,   max: 104 }
-    };
+    // Only target weight steps here (timeframe is now a date; current weight owned by Fitness Stats)
+    const limits = { targetWeight: { min: 30, max: 200 } };
     const lim = limits[field];
     if (!lim) return;
     this[field] = Math.max(lim.min, Math.min(lim.max, this[field] + delta));
-    document.getElementById('gc-target').textContent  = this.targetWeight;
-    document.getElementById('gc-weeks').textContent   = this.targetWeeks;
+    document.getElementById('gc-target').textContent = this.targetWeight;
     this.renderGoalConfigResult();
   },
-  
+
   renderGoalConfigResult() {
     const t = this.computeTargets();
     const wd = t.weightDiff;
+    const dateLbl = this._dateLabel(this._goalIso());
     let planText;
-    if (wd > 0)      planText = `Lose ${wd} kg in ${this.targetWeeks} weeks`;
-    else if (wd < 0) planText = `Gain ${Math.abs(wd)} kg in ${this.targetWeeks} weeks`;
+    if (wd > 0)      planText = `Lose ${wd} kg by ${dateLbl}`;
+    else if (wd < 0) planText = `Gain ${Math.abs(wd)} kg by ${dateLbl}`;
     else             planText = `Maintain ${this.currentWeight} kg`;
     document.getElementById('gc-r-plan').textContent = planText;
     document.getElementById('gc-r-kcal').textContent = t.kcal.toLocaleString() + ' kcal';
