@@ -193,7 +193,7 @@
     var name = fullName(member);
     var tier = member.tier ? (member.tier.charAt(0).toUpperCase() + member.tier.slice(1)) : 'Member';
     var photo = member.photo_url
-      ? '<div style="width:72px;height:72px;margin:0 auto 14px;border-radius:50%;background:#0a1825 url(' + escHtml(member.photo_url) + ') center/cover;border:2px solid rgba(74,222,128,.35);"></div>'
+      ? '<div style="width:72px;height:72px;margin:0 auto 14px;border-radius:50%;background:#ffffff url(' + escHtml(member.photo_url) + ') center/cover;border:2px solid rgba(74,222,128,.35);"></div>'
       : '<div style="width:72px;height:72px;margin:0 auto 14px;border-radius:50%;background:rgba(74,222,128,.15);color:var(--ffp-green);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;">' + escHtml(letterFor(member)) + '</div>';
 
     var body =
