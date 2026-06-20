@@ -85,7 +85,7 @@ function templateCard(t) {
         (t.hero_image_url ? '<div style="width:46px;height:46px;border-radius:8px;flex:0 0 auto;background:#ffffff url(\'' + escHtml(t.hero_image_url) + '\') center/cover no-repeat;"></div>' : '') +
         '<div style="min-width:0;">' +
           '<div style="font-weight:800;color:var(--ffp-text,#eaf2f8);">' + escHtml(t.title || 'Untitled session') + (t.activity ? ' <span class="psub" style="font-weight:600;">· ' + escHtml(t.activity) + '</span>' : '') + '</div>' +
-          '<div class="psub" style="margin:3px 0 0;">' + (slots.length ? slots.join('  ·  ') : '<span style="color:#FFCC00;">No weekly times yet — edit to add</span>') + '</div>' +
+          '<div class="psub" style="margin:3px 0 0;">' + (slots.length ? slots.join('  ·  ') : '<span style="color:var(--ffp-warn);">No weekly times yet — edit to add</span>') + '</div>' +
           (meta.length ? '<div class="psub" style="margin:3px 0 0;">' + meta.join(' · ') + '</div>' : '') +
         '</div>' +
       '</div>' +
@@ -139,7 +139,7 @@ function renderTimetable() {
         html += '<div onclick="openOccurrence(\'' + s.id + '\')" title="' + present + (cap != null ? ' of ' + cap : '') + ' attending" style="cursor:pointer;background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-left:3px solid #1980AD;border-radius:8px;padding:7px 8px;margin-bottom:6px;">' +
           '<div style="font-weight:700;font-size:12px;color:var(--ffp-text,#eaf2f8);">' + escHtml(t) + badge + '</div>' +
           '<div style="font-size:12px;color:#cfd6dc;line-height:1.25;">' + escHtml(s.title) + '</div>' +
-          (s.recurrence === 'once' ? '<div style="margin:2px 0 0;font-size:10px;font-weight:800;color:#FFCC00;">one-off · ' + escHtml(new Date(s.start_at).toLocaleDateString([], { day: 'numeric', month: 'short' })) + '</div>' : '') +
+          (s.recurrence === 'once' ? '<div style="margin:2px 0 0;font-size:10px;font-weight:800;color:var(--ffp-warn);">one-off · ' + escHtml(new Date(s.start_at).toLocaleDateString([], { day: 'numeric', month: 'short' })) + '</div>' : '') +
           (s.coach ? '<div class="psub" style="margin:2px 0 0;font-size:11px;">' + escHtml(s.coach) + '</div>' : '') +
         '</div>';
       });
