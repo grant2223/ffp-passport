@@ -425,7 +425,7 @@ function _apRenderDay(host, day) {
   // coach header
   html += '<div style="display:grid;grid-template-columns:54px ' + colW + ';"><div></div>';
   coaches.forEach(function (c) {
-    html += '<div style="text-align:center;padding:7px 4px;border-left:1px solid var(--ffp-border,#1d3346);font-weight:800;font-size:12px;color:var(--ffp-text,#eaf2f8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + apEsc(c.full_name || 'Coach') + '</div>';
+    html += '<div style="text-align:center;padding:9px 4px;border-left:2px solid var(--ffp-border-mid,#ccd9da);background:var(--ffp-bg-3,#eef1f3);font-weight:800;font-size:12px;color:var(--ffp-text,#0e2531);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + apEsc(c.full_name || 'Coach') + '</div>';
   });
   html += '</div>';
   // body
@@ -437,12 +437,12 @@ function _apRenderDay(host, day) {
   coaches.forEach(function (c) {
     var avail = _apAvailForDayCoach(c.id, day);
     var appts = (_apAppts || []).filter(function (a) { return a.staff_id === c.id && _apLocalParts(a.start_at).dateStr === dateStr && a.status !== 'cancelled'; });
-    var col = '<div onclick="apDayColClick(event,this,\'' + c.id + '\',\'' + dateStr + '\',' + startH + ')" style="position:relative;border-left:1px solid var(--ffp-border,#1d3346);height:' + (halfRows * halfH) + 'px;cursor:copy;">';
+    var col = '<div onclick="apDayColClick(event,this,\'' + c.id + '\',\'' + dateStr + '\',' + startH + ')" style="position:relative;border-left:2px solid var(--ffp-border-mid,#ccd9da);height:' + (halfRows * halfH) + 'px;cursor:copy;">';
     // availability shading (behind)
     avail.forEach(function (w) {
       var s = _apMin(w.start_time), e = _apMin(w.end_time); if (s == null || e == null) return;
       var top = ((s - rangeStart) / 60) * HH, h = ((e - s) / 60) * HH;
-      col += '<div style="position:absolute;left:0;right:0;top:' + top + 'px;height:' + h + 'px;background:rgba(46,204,113,.09);border-left:2px solid rgba(46,204,113,.4);pointer-events:none;"></div>';
+      col += '<div style="position:absolute;left:0;right:0;top:' + top + 'px;height:' + h + 'px;background:rgba(31,157,87,.16);border-left:3px solid #1f9d57;pointer-events:none;"></div>';
     });
     // 30-min gridlines
     for (var r2 = 0; r2 < halfRows; r2++) { col += '<div style="position:absolute;left:0;right:0;top:' + (r2 * halfH) + 'px;border-top:1px ' + (r2 % 2 === 0 ? 'solid' : 'dashed') + ' var(--ffp-border,#1d3346);opacity:' + (r2 % 2 === 0 ? .5 : .3) + ';pointer-events:none;"></div>'; }
