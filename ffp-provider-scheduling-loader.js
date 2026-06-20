@@ -527,6 +527,8 @@ function occAddFilter() {
   });
 }
 async function occDoAdd(memberId, payWith) {
+  var _pw = payWith === 'credit' ? 'using a credit' : payWith === 'comp' ? 'as a comp' : 'marked paid';
+  if (!confirm('Add this member to the session (' + _pw + ')?')) return;
   var pid = _schedProvId();
   try {
     var r = await window.supabase.rpc('provider_session_add_member', { p_provider: pid, p_occurrence: _occCur, p_member: memberId, p_pay_with: payWith });
@@ -543,6 +545,7 @@ async function occDoAdd(memberId, payWith) {
   } catch (e) { showToast('Could not add member', 'error'); }
 }
 async function occRemove(bookingId) {
+  if (!confirm('Remove this member from the session?')) return;
   var pid = _schedProvId();
   try {
     var r = await window.supabase.rpc('provider_session_remove_member', { p_provider: pid, p_booking: bookingId });
@@ -570,6 +573,7 @@ async function saveOccurrence(id) {
   } catch (e) { showToast('Could not update', 'error'); }
 }
 async function cancelOccurrence(id) {
+  if (!confirm('Cancel this session for this date?\n\nEveryone booked in will be cancelled and notified automatically. Their credits/refund are NOT returned automatically — you can return those separately.')) return;
   var pid = _schedProvId();
   try {
     var r = await window.supabase.rpc('provider_cancel_session', { p_provider: pid, p_id: id });
