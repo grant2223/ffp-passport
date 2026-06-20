@@ -4250,7 +4250,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 <script src="assets/ffp-analytics.js"></script>
 <!-- Quests panel module (extracted from inline) — defines window.Quests before the dashboard boot calls init -->
 <script src="assets/ffp-quests-core.js?v=9"></script>
-<script src="assets/ffp-earnings-core.js?v=1"></script>
+<script src="assets/ffp-earnings-core.js?v=2"></script>
 </head>
 <body>
 
@@ -6047,6 +6047,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     <div style="width:54px;height:54px;border-radius:14px;background:rgba(43,168,224,.15);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;"><span class="material-icons" id="si-icon" style="font-size:28px;color:#2ba8e0;">flag</span></div>
     <div id="si-title" style="font-size:18px;font-weight:900;margin-bottom:8px;">—</div>
     <div id="si-blurb" style="font-size:13px;color:#9dbdd0;line-height:1.55;margin-bottom:16px;">—</div>
+    <div id="si-current" style="font-size:13px;font-weight:800;color:#e8eef4;background:rgba(255,255,255,.06);border:1px solid var(--border-mid);border-radius:10px;padding:11px;margin-bottom:14px;">—</div>
     <div style="display:flex;gap:10px;margin-bottom:14px;">
       <div style="flex:1;background:rgba(43,168,224,.10);border:1px solid rgba(43,168,224,.35);border-radius:12px;padding:18px 8px;display:flex;align-items:center;justify-content:center;">
         <div style="font-size:20px;font-weight:900;color:#2ba8e0;line-height:1.15;text-transform:uppercase;letter-spacing:.3px;"><span id="si-sup">—</span> <span id="si-sup-unit">—</span></div>
@@ -8072,7 +8073,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '389';
+  const FFP_BUILD = '390';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
