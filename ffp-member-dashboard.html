@@ -1208,8 +1208,8 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
 .ct-add-btn.primary { background: var(--yellow); color: #10202b; }
 .ct-add-btn.secondary { background: rgba(43,168,224,0.10); color: var(--text); border: 1px solid var(--border-mid); }
 .ct-add-btn.secondary:hover { border-color: var(--blue); }
-.fp-tabs { display: flex; gap: 18px; padding: 12px 22px 0; }
-.fp-tab { background: none; border: none; font-family: inherit; font-size: 13px; font-weight: 800; color: var(--muted); padding: 0 0 8px; cursor: pointer; }
+.fp-tabs { display: flex; gap: 26px; padding: 14px 22px 2px; }
+.fp-tab { background: none; border: none; font-family: inherit; font-size: 20px; font-weight: 800; color: var(--muted); padding: 0 0 12px; cursor: pointer; }
 .fp-tab.active { color: var(--blue); border-bottom: 2px solid var(--blue); }
 .food-row-add { flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; border: none; background: rgba(43,168,224,0.15); color: var(--blue); display: flex; align-items: center; justify-content: center; cursor: pointer; font-family: inherit; transition: all .12s; }
 .food-row-add:hover { background: var(--blue); color: #fff; }
@@ -1231,22 +1231,21 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
   margin-top: 8px;
 }
 .meal-type-chip {
-  background: rgba(43,168,224,0.06);
-  border: 1px solid var(--border-mid);
-  color: var(--text);
+  background: transparent;
+  border: none;
+  color: var(--muted);
   font-family: inherit;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
-  padding: 9px 6px;
-  border-radius: 8px;
+  padding: 8px 4px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: color 0.15s;
 }
-.meal-type-chip:hover { border-color: var(--blue); color: var(--blue); }
+.meal-type-chip:hover { color: var(--blue); }
 .meal-type-chip.active {
-  background: var(--blue);
-  color: #fff;
-  border-color: var(--blue);
+  color: var(--blue);
+  font-weight: 800;
+  border-bottom: 2px solid var(--blue);
 }
 
 /* Activity / generic section card */
@@ -3255,11 +3254,13 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 .goal-config-form { padding: 18px 22px; }
 .goal-config-row { margin-bottom: 16px; }
 .goal-config-label { display: block; font-size: 10px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
-.goal-config-pill-group { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
-.goal-config-pill { padding: 9px 8px; background: rgba(43,168,224,0.06); border: 1px solid var(--border-mid); border-radius: 8px; color: var(--text); font-size: 11px; font-weight: 700; cursor: pointer; font-family: inherit; text-align: center; }
-.goal-config-pill:hover { border-color: var(--blue); }
-.goal-config-pill.active { background: var(--blue); color: #fff; border-color: var(--blue); }
-.goal-config-result { background: rgba(255,204,0,0.06); border: 1px solid rgba(255,204,0,0.25); border-radius: 8px; padding: 12px; margin-top: 14px; }
+.goal-config-pill-group { display: flex; gap: 22px; }
+.goal-config-pill { padding: 6px 2px; background: transparent; border: none; color: var(--muted); font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; text-align: center; }
+.goal-config-pill:hover { color: var(--blue); }
+.goal-config-pill.active { color: var(--blue); font-weight: 800; border-bottom: 2px solid var(--blue); }
+.goal-config-date { width: 100%; background: transparent; border: none; border-bottom: 1px solid var(--border-mid); color: var(--text); font-size: 18px; font-weight: 800; font-family: inherit; padding: 6px 2px; outline: none; }
+.goal-config-date:focus { border-bottom-color: var(--blue); }
+.goal-config-result { background: transparent; border: none; border-top: 1px solid var(--border); padding: 14px 0 0; margin-top: 14px; }
 .goal-config-result-row { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; }
 .goal-config-result-row .l { color: var(--muted); }
 .goal-config-result-row .v { font-weight: 800; color: var(--text); }
@@ -3274,9 +3275,9 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 .food-picker-cats { display: flex; gap: 5px; padding: 10px 22px 12px; overflow-x: auto; position: sticky; top: 60px; background: linear-gradient(180deg, #0f1e2e 0%, #081420 100%); z-index: 4; }
 .food-picker-cats::-webkit-scrollbar { display: none; }
 .food-picker-cats { scrollbar-width: none; }
-.food-picker-cat { flex-shrink: 0; padding: 5px 11px; border-radius: 100px; background: transparent; border: 1px solid var(--border-mid); color: var(--muted); font-size: 10px; font-weight: 700; cursor: pointer; font-family: inherit; letter-spacing: 0.3px; }
-.food-picker-cat:hover { color: var(--text); border-color: var(--blue); }
-.food-picker-cat.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+.food-picker-cat { flex-shrink: 0; padding: 5px 6px; background: transparent; border: none; color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; letter-spacing: 0.3px; }
+.food-picker-cat:hover { color: var(--text); }
+.food-picker-cat.active { color: var(--blue); font-weight: 800; border-bottom: 2px solid var(--blue); }
 
 .food-list { padding: 0 22px 22px; }
 .food-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--border); cursor: pointer; gap: 10px; transition: background 0.15s; }
@@ -6232,7 +6233,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     <button class="dm-close" onclick="CalorieTracker.closeGoalConfig()"><span class="material-icons">close</span></button>
     <div class="dm-body">
       <div class="dm-title">Your goal</div>
-      <div style="font-size:12px; color:var(--muted);">Your current weight comes from Fitness Stats. Set your target weight and timeframe &mdash; daily calories are calculated to hit it.</div>
+      <div style="font-size:12px; color:var(--muted);">Your current weight comes from Fitness Stats. Set your target weight and the date to hit it by &mdash; daily calories are calculated to get you there.</div>
     </div>
     <div class="goal-config-form">
       <!-- v156 — current weight is read-only here; owned by Fitness Stats (Bio Age body-weight tile) -->
@@ -6252,12 +6253,8 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         </div>
       </div>
       <div class="goal-config-row">
-        <label class="goal-config-label">Timeframe (weeks)</label>
-        <div class="tw-adjuster" style="justify-content:center; padding:8px 0;">
-          <button class="tw-adj-btn" onclick="CalorieTracker.adjGoal('targetWeeks', -1)">&minus;</button>
-          <div class="tw-adj-value" id="gc-weeks">12</div>
-          <button class="tw-adj-btn" onclick="CalorieTracker.adjGoal('targetWeeks', 1)">+</button>
-        </div>
+        <label class="goal-config-label">Achieve by</label>
+        <input type="date" id="gc-date" class="goal-config-date" onchange="CalorieTracker.setTargetDate(this.value)">
       </div>
       <div class="goal-config-row">
         <label class="goal-config-label">Activity level</label>
@@ -8080,7 +8077,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '396';
+  const FFP_BUILD = '397';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -9731,7 +9728,7 @@ function fmtPrDate(iso) {
 <!-- Milestone badge library — assets/ffp-milestone-badges.js (window.FFPMSBadges). DEFER: only used by the lazy
      Milestones render long after load, so it must never block boot. Bump ?v on change. -->
 <script defer src="assets/ffp-milestone-badges.js?v=6"></script>
-<script defer src="assets/ffp-calorie-tracker-core.js?v=2"></script>
+<script defer src="assets/ffp-calorie-tracker-core.js?v=3"></script>
 <script>
 
 function closePrEditIfBackdrop(e) { if (e.target.id === 'pr-edit-backdrop') FitnessStats.closePrEdit(); }
