@@ -107,7 +107,7 @@
       '</div>' +
       '<div class="lc-actions">' +
         '<button class="btn btn-sec btn-sm" title="Edit" onclick="openClassModal(\'' + c.id + '\')"><span class="ms">edit</span></button>' +
-        (st === 'pending' ? '<span class="lc-review-note" style="font-size:12px;color:#FFCC00;align-self:center;"><span class="ms" style="font-size:15px;vertical-align:-2px;">schedule</span> Pending admin review</span>' : '') +
+        (st === 'pending' ? '<span class="lc-review-note" style="font-size:12px;color:var(--ffp-warn);align-self:center;"><span class="ms" style="font-size:15px;vertical-align:-2px;">schedule</span> Pending admin review</span>' : '') +
         (typeof window.featureBtn === 'function' ? window.featureBtn('class', c.id, c.featured) : '') +
         '<button class="btn btn-ghost btn-sm" title="Duplicate" onclick="duplicateListing(\'class\',\'' + c.id + '\')"><span class="ms">content_copy</span></button>' +
         '<button class="btn btn-ghost btn-sm" title="Delete" onclick="confirmDeleteClass(\'' + c.id + '\')"><span class="ms">delete</span></button>' +
