@@ -7982,7 +7982,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '378';
+  const FFP_BUILD = '379';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -12021,7 +12021,7 @@ window.ffpDoShareCard = async function () {
   if (!f) { f = await _ffpCaptureShareCard(); if (f) { _ffpShareFile = f; _ffpShareKey = _ffpCurKey(); } }
   if (!f) { if (typeof showToast === 'function') showToast('Image failed: ' + (_ffpShareErr || 'unknown'), 'error'); return; }
   try {
-    if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], text: caption }); return; }
+    if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], text: caption }); if (window.ffpLogSocialShare) ffpLogSocialShare('activity'); return; }
     // Device can't share images (most desktop browsers) → download it instead of sharing a link.
     if (typeof showToast === 'function') showToast('Image sharing isn’t supported here — downloaded instead', 'info');
     var u = URL.createObjectURL(f); var aTag = document.createElement('a'); aTag.href = u; aTag.download = f.name; document.body.appendChild(aTag); aTag.click(); setTimeout(function () { URL.revokeObjectURL(u); aTag.remove(); }, 500);
@@ -12504,6 +12504,18 @@ async function prerenderPassportShare() {
   }
 }
 
+// Centralised social-share logger → log_social_share RPC (feeds the "Social media shares" tier metric).
+// Call ONLY on a genuine share to social (not downloads). Non-blocking; never throws into the share flow.
+// Backend dedups to one credit per kind per day, so calling it on every share tap is safe.
+window.ffpLogSocialShare = async function (kind, platform) {
+  try {
+    var m = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null;
+    if (!window.supabase || !m || !m.id) return;
+    await window.supabase.rpc('log_social_share', { p_kind: kind || 'app', p_platform: platform || null });
+    if (typeof Earnings !== 'undefined' && Earnings.loadTierStats) { try { Earnings.loadTierStats(); } catch (e) {} }
+  } catch (e) { /* non-blocking */ }
+};
+
 // Tap handler — fires the share SYNCHRONOUSLY (within user activation): no await first.
 async function sharePassportCard() {
   var refLink = _ppRefLink();
@@ -12522,12 +12534,14 @@ async function sharePassportCard() {
     // Best case: the card image is already rendered → share image + caption instantly.
     if (_ppShareFile && navigator.canShare && navigator.canShare({ files: [_ppShareFile] })) {
       await navigator.share({ files: [_ppShareFile], title: 'My Passport', text: shareBody });
+      if (window.ffpLogSocialShare) ffpLogSocialShare('passport');
       schedulePassportPrerender();   // refresh for next time (idle, non-blocking)
       return;
     }
     // Image not ready (or files unsupported): still open the share sheet with text + link.
     if (navigator.share) {
       await navigator.share({ title: 'My Passport', text: shareText, url: refLink });
+      if (window.ffpLogSocialShare) ffpLogSocialShare('passport');
       schedulePassportPrerender();   // get the image ready for the next tap (idle, non-blocking)
       return;
     }
