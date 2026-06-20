@@ -13,10 +13,10 @@
 var _members = [];
 var MEMBER_STATUS = { active: 'Active', trial: 'Trial', lapsed: 'Lapsed', prospect: 'Prospect' };
 var _memStatusStyle = {
-  active:   'background:rgba(25,128,173,.16);color:#6fc6ef',
-  trial:    'background:rgba(15,37,49,.16);color:var(--ffp-warn)',
-  lapsed:   'background:rgba(255,255,255,.08);color:#9fb0bf',
-  prospect: 'background:rgba(120,200,140,.18);color:#7fd49a'
+  active:   'background:rgba(25,128,173,.14);color:#13657f',
+  trial:    'background:rgba(201,130,15,.16);color:#8a5a08',
+  lapsed:   'background:rgba(15,37,49,.08);color:#566069',
+  prospect: 'background:rgba(31,157,87,.16);color:#176b3d'
 };
 
 function _memProvId() {
@@ -59,7 +59,7 @@ function renderMembersList() {
 }
 
 function memberRow(m) {
-  var initials = (m.full_name || '?').split(/\s+/).map(function (w) { return w[0] || ''; }).join('').slice(0, 2).toUpperCase();
+  var initials = ((m.full_name || ((m.given_names || '') + ' ' + (m.surname || ''))) || '?').trim().split(/\s+/).map(function (w) { return w[0] || ''; }).join('').slice(0, 2).toUpperCase();
   var st = m.member_status || 'active';
   var stStyle = _memStatusStyle[st] || _memStatusStyle.active;
   var contact = [];
@@ -68,13 +68,16 @@ function memberRow(m) {
   var tags = (m.tags || '').split(',').map(function (t) { return t.trim(); }).filter(Boolean);
   var tagHtml = tags.length
     ? '<div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:5px;">' + tags.map(function (t) {
-        return '<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(255,255,255,.06);color:#9fb0bf;">' + escHtml(t) + '</span>';
+        return '<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:var(--ffp-bg-3);color:var(--ffp-text-muted);">' + escHtml(t) + '</span>';
       }).join('') + '</div>'
     : '';
-  return '<div style="background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-radius:12px;padding:11px 13px;margin-bottom:9px;display:flex;align-items:flex-start;gap:11px;">' +
-      '<div style="width:38px;height:38px;border-radius:10px;background:rgba(25,128,173,.16);color:#6fc6ef;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;">' + escHtml(initials) + '</div>' +
+  var avatar = m.photo_url
+    ? '<div style="width:46px;height:46px;border-radius:10px;flex:0 0 auto;background:url(\'' + escHtml(m.photo_url) + '\') center/cover no-repeat;"></div>'
+    : '<div style="width:46px;height:46px;border-radius:10px;background:rgba(25,128,173,.14);color:var(--ffp-blue);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0;">' + escHtml(initials) + '</div>';
+  return '<div style="background:rgba(15,37,49,.05);border:1px solid var(--ffp-border);border-radius:12px;padding:11px 13px;margin-bottom:9px;display:flex;align-items:flex-start;gap:11px;">' +
+      avatar +
       '<div style="min-width:0;flex:1;">' +
-        '<div style="font-weight:800;color:var(--ffp-text,#eaf2f8);">' + escHtml(m.full_name || '—') + '</div>' +
+        '<div style="font-weight:800;color:var(--ffp-text);">' + escHtml(m.full_name || '—') + '</div>' +
         (contact.length ? '<div class="psub" style="margin:2px 0 0;">' + contact.join(' · ') + '</div>' : '') +
         tagHtml +
       '</div>' +
@@ -89,56 +92,110 @@ function memberRow(m) {
   '</div>';
 }
 
+// ── platform-standard field helpers (phone country+number, city taxonomy, photo) ──
+function _memPhoneCodes() {
+  var pc = (window.FFP_TAX && FFP_TAX.phoneCodes) || [];
+  return pc.length ? pc : [{ code: '+971', flag: '🇦🇪' }];
+}
+function _memCities() {
+  var C = (window.FFP_TAX && FFP_TAX.cities) || {};
+  var out = [];
+  Object.keys(C).forEach(function (country) {
+    var v = C[country];
+    var list = Array.isArray(v) ? v : (v && typeof v === 'object' ? Object.keys(v) : []);
+    list.forEach(function (city) { if (city && out.indexOf(city) === -1) out.push(city); });
+  });
+  return out.sort();
+}
+function _memSplitPhone(phone) {
+  phone = (phone || '').trim();
+  var codes = _memPhoneCodes().map(function (c) { return c.code; }).sort(function (a, b) { return b.length - a.length; });
+  for (var i = 0; i < codes.length; i++) { if (phone.indexOf(codes[i]) === 0) return { cc: codes[i], num: phone.slice(codes[i].length).trim() }; }
+  return { cc: (codes[0] || '+971'), num: phone };
+}
+function _memPhoneFieldHtml(cc, num) {
+  var opts = _memPhoneCodes().map(function (c) {
+    return '<option value="' + escHtml(c.code) + '"' + (c.code === cc ? ' selected' : '') + '>' + escHtml((c.flag ? c.flag + ' ' : '') + c.code) + '</option>';
+  }).join('');
+  return '<div style="display:flex;">' +
+      '<select class="select" id="mm-phone-cc" style="width:120px;flex:0 0 auto;border-radius:8px 0 0 8px;border-right:none;">' + opts + '</select>' +
+      '<input class="input" id="mm-phone-num" inputmode="tel" value="' + escHtml(num || '') + '" placeholder="50 000 0000" style="flex:1;min-width:0;border-radius:0 8px 8px 0;">' +
+    '</div>';
+}
+function _memCityFieldHtml(cur) {
+  var cities = _memCities();
+  var inList = cur && cities.indexOf(cur) !== -1;
+  var opts = '<option value="">Select city…</option>';
+  if (cur && !inList) opts += '<option value="' + escHtml(cur) + '" selected>' + escHtml(cur) + '</option>';
+  opts += cities.map(function (c) { return '<option value="' + escHtml(c) + '"' + (c === cur ? ' selected' : '') + '>' + escHtml(c) + '</option>'; }).join('');
+  return '<select class="select" id="mm-city">' + opts + '</select>';
+}
+function _memGetPhone() {
+  var cc = document.getElementById('mm-phone-cc'), num = document.getElementById('mm-phone-num');
+  var n = num ? num.value.trim() : '';
+  if (!n) return '';
+  return (((cc && cc.value) ? cc.value : '') + ' ' + n).trim();
+}
+function pickMemberPhoto() {
+  if (!window.FFPUpload || !FFPUpload.pick) { showToast('Uploader still loading — try again', 'error'); return; }
+  FFPUpload.pick({ bucket: 'quest-images', key: 'member-' + (_memProvId() || 'x') + '-' + Date.now(), aspect: 1, outW: 512, outH: 512, title: 'Member photo',
+    onDone: function (url) {
+      var h = document.getElementById('mm-photo_url'); if (h) h.value = url || '';
+      var slot = document.getElementById('mm-photo');
+      if (slot) { slot.style.background = url ? ("url('" + url + "') center/cover no-repeat") : 'var(--ffp-bg-3)'; slot.innerHTML = url ? '' : '<span class="ms" style="font-size:24px;">add_a_photo</span>'; }
+      var btn = document.getElementById('mm-photo-btn'); if (btn) btn.innerHTML = '<span class="ms">photo_camera</span> Change photo';
+    } });
+}
+
 function openMemberModal(id) {
   var editing = id ? _members.find(function (x) { return x.id === id; }) : null;
   var today = new Date();
   var todayStr = today.getFullYear() + '-' + ('0' + (today.getMonth() + 1)).slice(-2) + '-' + ('0' + today.getDate()).slice(-2);
-  var m = editing || { full_name: '', email: '', phone: '', member_status: 'active', tags: '', join_date: todayStr, city: (typeof providerProfile !== 'undefined' ? (providerProfile.city || '') : ''), notes: '' };
+  var m = editing || { full_name: '', given_names: '', surname: '', email: '', phone: '', member_status: 'active', tags: '', join_date: todayStr, city: '', notes: '', photo_url: '' };
+  var gn = m.given_names || '', sn = m.surname || '';
+  if (!gn && !sn && m.full_name) { var pp = m.full_name.trim().split(/\s+/); sn = pp.length > 1 ? pp.pop() : ''; gn = pp.join(' '); }
   var jd = m.join_date ? String(m.join_date).slice(0, 10) : '';
-  openModalShell('lg', (editing ? 'Edit member' : 'Add member'), `
-    <div class="form-section">
-      <div class="form-section-title">Member</div>
-      <div class="form-grid">
-        <div class="field full"><div class="label">Full name <span class="req">*</span></div><input class="input" id="mm-full_name" value="${escHtml(m.full_name)}" placeholder="e.g. Sam Okafor"></div>
-        <div class="field"><div class="label">Email</div><input class="input" id="mm-email" value="${escHtml(m.email || '')}" placeholder="name@email.com"></div>
-        <div class="field"><div class="label">Phone</div><input class="input" id="mm-phone" value="${escHtml(m.phone || '')}" placeholder="+971 50 000 0000"></div>
-        <div class="field">
-          <div class="label">Status</div>
-          <select class="select" id="mm-member_status">
-            <option value="active"${m.member_status === 'active' ? ' selected' : ''}>Active</option>
-            <option value="trial"${m.member_status === 'trial' ? ' selected' : ''}>Trial</option>
-            <option value="lapsed"${m.member_status === 'lapsed' ? ' selected' : ''}>Lapsed</option>
-            <option value="prospect"${m.member_status === 'prospect' ? ' selected' : ''}>Prospect</option>
-          </select>
-        </div>
-        <div class="field"><div class="label">Joined</div><input class="input" type="date" id="mm-join_date" value="${jd}"></div>
-      </div>
-    </div>
-    <div class="form-section">
-      <div class="form-section-title">Details</div>
-      <div class="form-grid">
-        <div class="field"><div class="label">City</div><input class="input" id="mm-city" value="${escHtml(m.city || '')}" placeholder="City"></div>
-        <div class="field"><div class="label">Tags</div><input class="input" id="mm-tags" value="${escHtml(m.tags || '')}" placeholder="comma,separated, e.g. monthly, pilates"></div>
-        <div class="field full"><div class="label">Notes</div><textarea class="textarea" id="mm-notes" rows="2" placeholder="Anything to remember about this member (optional)">${escHtml(m.notes || '')}</textarea></div>
-      </div>
-    </div>
-  `, `
-    ${editing ? '<button class="btn btn-ghost left" onclick="confirmDeleteMember(\'' + editing.id + '\')"><span class="ms">delete</span> Delete</button>' : ''}
-    <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-    <button class="btn btn-pri" onclick="saveMember('${editing ? editing.id : ''}')">${editing ? 'Save changes' : 'Add member'}</button>
-  `);
+  var ph = _memSplitPhone(m.phone);
+  var photo = m.photo_url || '';
+  var statusOpts = ['active', 'trial', 'lapsed', 'prospect'].map(function (s) { return '<option value="' + s + '"' + (m.member_status === s ? ' selected' : '') + '>' + MEMBER_STATUS[s] + '</option>'; }).join('');
+  openModalShell('lg', (editing ? 'Edit member' : 'Add member'),
+    '<button type="button" class="btn btn-sec" onclick="pullMemberFromPassport()" style="width:100%;justify-content:center;gap:8px;margin-bottom:14px;"><span class="ms">cloud_download</span> Pull from FFP Passport</button>' +
+    '<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">' +
+      '<input type="hidden" id="mm-photo_url" value="' + escHtml(photo) + '">' +
+      '<div id="mm-photo" onclick="pickMemberPhoto()" style="width:64px;height:64px;border-radius:12px;flex:0 0 auto;cursor:pointer;background:' + (photo ? ("url('" + escHtml(photo) + "') center/cover no-repeat") : 'var(--ffp-bg-3)') + ';border:1px solid var(--ffp-border-mid);display:flex;align-items:center;justify-content:center;color:var(--ffp-text-dim);overflow:hidden;">' + (photo ? '' : '<span class="ms" style="font-size:24px;">add_a_photo</span>') + '</div>' +
+      '<button class="btn btn-sec btn-sm" type="button" id="mm-photo-btn" onclick="pickMemberPhoto()"><span class="ms">photo_camera</span> ' + (photo ? 'Change photo' : 'Add photo') + '</button>' +
+    '</div>' +
+    '<div class="form-section"><div class="form-section-title">Member</div><div class="form-grid">' +
+      '<div class="field"><div class="label">Given names <span class="req">*</span></div><input class="input" id="mm-given_names" value="' + escHtml(gn) + '" placeholder="e.g. Sam"></div>' +
+      '<div class="field"><div class="label">Surname</div><input class="input" id="mm-surname" value="' + escHtml(sn) + '" placeholder="e.g. Okafor"></div>' +
+      '<div class="field"><div class="label">Email</div><input class="input" id="mm-email" value="' + escHtml(m.email || '') + '" placeholder="name@email.com"></div>' +
+      '<div class="field"><div class="label">Phone</div>' + _memPhoneFieldHtml(ph.cc, ph.num) + '</div>' +
+      '<div class="field"><div class="label">Status</div><select class="select" id="mm-member_status">' + statusOpts + '</select></div>' +
+      '<div class="field"><div class="label">Joined</div><input class="input" type="date" id="mm-join_date" value="' + jd + '"></div>' +
+    '</div></div>' +
+    '<div class="form-section"><div class="form-section-title">Details</div><div class="form-grid">' +
+      '<div class="field"><div class="label">City</div>' + _memCityFieldHtml(m.city || '') + '</div>' +
+      '<div class="field"><div class="label">Tags</div><input class="input" id="mm-tags" value="' + escHtml(m.tags || '') + '" placeholder="comma,separated, e.g. monthly, pilates"></div>' +
+      '<div class="field full"><div class="label">Notes</div><textarea class="textarea" id="mm-notes" rows="2" placeholder="Anything to remember about this member (optional)">' + escHtml(m.notes || '') + '</textarea></div>' +
+    '</div></div>',
+    (editing ? '<button class="btn btn-ghost left" onclick="confirmDeleteMember(\'' + editing.id + '\')"><span class="ms">delete</span> Delete</button>' : '') +
+    '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>' +
+    '<button class="btn btn-pri" onclick="saveMember(\'' + (editing ? editing.id : '') + '\')">' + (editing ? 'Save changes' : 'Add member') + '</button>'
+  );
 }
 
 async function saveMember(id) {
   var g = function (i) { var el = document.getElementById('mm-' + i); return el ? el.value.trim() : ''; };
-  var fullName = g('full_name');
-  if (!fullName) { showToast('Name is required', 'error'); return; }
+  var given = g('given_names'), surname = g('surname');
+  var fullName = (given + ' ' + surname).trim();
+  if (!given) { showToast('Given name is required', 'error'); return; }
   var pid = _memProvId();
   if (!pid) { showToast('Not signed in', 'error'); return; }
   var payload = {
-    full_name: fullName, email: g('email'), phone: g('phone'),
+    full_name: fullName, given_names: given, surname: surname,
+    email: g('email'), phone: _memGetPhone(),
     member_status: g('member_status') || 'active', tags: g('tags'),
-    join_date: g('join_date'), city: g('city'), notes: g('notes')
+    join_date: g('join_date'), city: g('city'), notes: g('notes'), photo_url: g('photo_url')
   };
   try {
     var r = await window.supabase.rpc('provider_save_member', { p_provider: pid, p_id: id || null, p: payload });
@@ -147,6 +204,27 @@ async function saveMember(id) {
     closeModal();
     renderMembers();
   } catch (e) { showToast('Could not save member', 'error'); }
+}
+
+async function pullMemberFromPassport() {
+  var pid = _memProvId();
+  var emailEl = document.getElementById('mm-email');
+  var email = emailEl ? emailEl.value.trim() : '';
+  if (!email) { showToast('Enter the member’s email first', 'error'); if (emailEl) emailEl.focus(); return; }
+  if (!pid) { showToast('Not signed in', 'error'); return; }
+  try {
+    var r = await window.supabase.rpc('provider_passport_by_email', { p_provider: pid, p_email: email });
+    if (r && r.error) throw r.error;
+    var d = (r && r.data) ? r.data : null;
+    if (!d || !d.has_account) { showToast('No FFP Passport account for that email', 'info'); return; }
+    var set = function (idf, val) { var el = document.getElementById(idf); if (el && val != null && val !== '') el.value = val; };
+    var gn = d.given_names || '', sn = d.surname || '';
+    if (!gn && !sn && d.full_name) { var pp = d.full_name.trim().split(/\s+/); sn = pp.length > 1 ? pp.pop() : ''; gn = pp.join(' '); }
+    set('mm-given_names', gn); set('mm-surname', sn);
+    if (d.phone) { var sp = _memSplitPhone(d.phone); var cc = document.getElementById('mm-phone-cc'), num = document.getElementById('mm-phone-num'); if (cc) cc.value = sp.cc; if (num) num.value = sp.num; }
+    if (d.photo_url) { var h = document.getElementById('mm-photo_url'); if (h) h.value = d.photo_url; var slot = document.getElementById('mm-photo'); if (slot) { slot.style.background = "url('" + d.photo_url + "') center/cover no-repeat"; slot.innerHTML = ''; } var pb = document.getElementById('mm-photo-btn'); if (pb) pb.innerHTML = '<span class="ms">photo_camera</span> Change photo'; }
+    showToast('Pulled from Passport', 'success');
+  } catch (e) { showToast('Could not pull from Passport', 'error'); }
 }
 
 function confirmDeleteMember(id) {
