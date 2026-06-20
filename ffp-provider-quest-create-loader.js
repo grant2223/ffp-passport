@@ -51,7 +51,7 @@
       '#ffp-pq-card .pq-actions{display:flex;align-items:center;gap:6px;}',
       '#ffp-pq-card .pq-pill{font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:4px 9px;border-radius:6px;white-space:nowrap;}',
       '#ffp-pq-card .pq-pill.live{background:rgba(74,222,128,0.15);color:#4ade80;border:1px solid rgba(74,222,128,0.4);}',
-      '#ffp-pq-card .pq-pill.draft{background:rgba(255,204,0,0.12);color:#FFCC00;border:1px solid rgba(255,204,0,0.35);}',
+      '#ffp-pq-card .pq-pill.draft{background:rgba(15,37,49,0.12);color:var(--ffp-warn);border:1px solid rgba(15,37,49,0.35);}',
       '#ffp-pq-card .pq-pill.ended{background:rgba(138,153,168,0.12);color:#566069;border:1px solid rgba(138,153,168,0.35);}',
       '#ffp-pq-card .pq-btn{background:transparent;border:1px solid #2a4564;color:#cfe3f5;padding:6px 11px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;}',
       '#ffp-pq-card .pq-btn:hover{border-color:#1980AD;}',
