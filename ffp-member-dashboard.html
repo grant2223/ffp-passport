@@ -234,6 +234,9 @@ input { font-family: inherit; color: inherit; }
 #notif-menu #notif-list { flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 #notif-scrim { position: fixed; inset: 0; background: rgba(0,0,0,0.6); opacity: 0; pointer-events: none; transition: opacity .28s ease; z-index: 100040; }
 #notif-scrim.show { opacity: 1; pointer-events: auto; }
+/* #5: pull-to-refresh — suppress the browser's native pull-to-reload so ours is the only one; spinner keyframe. */
+html, body { overscroll-behavior-y: contain; }
+@keyframes ffp-ptr-spin { to { transform: rotate(360deg); } }
 .menu-item { padding: 12px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; border: none; background: transparent; color: inherit; width: 100%; text-align: left; font-size: 13px; font-weight: 500; }
 .menu-item:hover { background: rgba(43,168,224,0.08); color: var(--blue); }
 .menu-user-head { padding: 16px; border-bottom: 1px solid var(--border); }
@@ -7995,6 +7998,59 @@ function clearNotifs() {
   var bd = document.getElementById('notif-badge'); if (bd) { bd.textContent = '0'; bd.style.display = 'none'; }
 }
 
+// #5: Pull-to-refresh — at the top of the ACTIVE panel, pull down to reload just that panel's data
+// (no full page reload). Each panel maps to its existing reload fn; everything also refreshes the bell.
+function _ffpInitPullToRefresh() {
+  if (window._ffpPtrOn) return; window._ffpPtrOn = true;
+  var RELOAD = {
+    'panel-passport':        function () { try { loadJourneyLogs(); } catch (e) {} try { if (window.ffpReloadPassport) ffpReloadPassport(); } catch (e) {} },
+    'panel-meet':            function () { try { if (window.ffpReloadMeetMove) ffpReloadMeetMove(); } catch (e) {} try { if (window.ffpReloadConnFeed) ffpReloadConnFeed(); } catch (e) {} },
+    'panel-meetups':         function () { try { if (window.ffpReloadMeetMove) ffpReloadMeetMove(); } catch (e) {} },
+    'panel-quests':          function () { try { if (window.Quests && Quests.init) Quests.init(); } catch (e) {} },
+    'panel-challenges':      function () { try { if (window.ffpReloadChallenges) ffpReloadChallenges(); } catch (e) {} },
+    'panel-earnings':        function () { try { if (window.ffpReloadEarnings) ffpReloadEarnings(); } catch (e) {} },
+    'panel-experiences':     function () { try { if (window.ffpReloadExperiences) ffpReloadExperiences(); } catch (e) {} },
+    'panel-fitness-stats':   function () { try { if (window.ffpReloadFitnessStats) ffpReloadFitnessStats(); } catch (e) {} },
+    'panel-calorie-tracker': function () { try { if (window.ffpReloadCalorieTracker) ffpReloadCalorieTracker(); } catch (e) {} },
+    'panel-profile':         function () { try { if (window.ffpReloadProfile) ffpReloadProfile(); } catch (e) {} }
+  };
+  function refreshActive() {
+    var a = document.querySelector('.panel-view.active'); var fn = a && RELOAD[a.id];
+    try { if (fn) fn(); else if (typeof loadJourneyLogs === 'function') loadJourneyLogs(); } catch (e) {}
+    try { if (typeof loadNotifications === 'function') loadNotifications(); } catch (e) {}
+  }
+  var ind = document.createElement('div'); ind.id = 'ffp-ptr';
+  ind.style.cssText = 'position:fixed;top:0;left:50%;z-index:100030;width:38px;height:38px;border-radius:50%;background:#0f1e2e;border:1px solid rgba(43,168,224,.4);display:flex;align-items:center;justify-content:center;color:#2ba8e0;box-shadow:0 6px 18px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .15s;transform:translate(-50%,-48px);';
+  ind.innerHTML = '<span class="material-icons" style="font-size:22px;">refresh</span>';
+  document.body.appendChild(ind); var icon = ind.firstChild;
+  var startY = 0, pulling = false, dist = 0, busy = false; var THRESH = 72;
+  function atTop() { var se = document.scrollingElement || document.documentElement; return (se.scrollTop || window.scrollY || 0) <= 0; }
+  function blocked() { return !!document.querySelector('.detail-backdrop.open, #notif-menu.show, .modal-overlay.show, #ffp-sc-ov'); }
+  document.addEventListener('touchstart', function (e) {
+    if (busy || e.touches.length !== 1 || !atTop() || blocked()) { pulling = false; return; }
+    if (e.target && e.target.closest && e.target.closest('.leaflet-container, .maplibregl-map, .maplibregl-canvas, [data-no-ptr]')) { pulling = false; return; }
+    startY = e.touches[0].clientY; pulling = true; dist = 0;
+  }, { passive: true });
+  document.addEventListener('touchmove', function (e) {
+    if (!pulling || busy) return;
+    dist = e.touches[0].clientY - startY;
+    if (dist > 0 && atTop()) {
+      var y = Math.min(dist * 0.45, 84) - 48;
+      ind.style.opacity = String(Math.min(dist / THRESH, 1));
+      ind.style.transform = 'translate(-50%,' + y + 'px) rotate(' + Math.min(dist, 200) + 'deg)';
+    } else { pulling = false; ind.style.opacity = '0'; ind.style.transform = 'translate(-50%,-48px)'; }
+  }, { passive: true });
+  document.addEventListener('touchend', function () {
+    if (!pulling || busy) { pulling = false; return; }
+    pulling = false;
+    if (dist > THRESH) {
+      busy = true; ind.style.opacity = '1'; ind.style.transform = 'translate(-50%,18px)'; icon.style.animation = 'ffp-ptr-spin .8s linear infinite';
+      try { refreshActive(); } catch (e) {}
+      setTimeout(function () { icon.style.animation = ''; ind.style.opacity = '0'; ind.style.transform = 'translate(-50%,-48px)'; busy = false; }, 850);
+    } else { ind.style.opacity = '0'; ind.style.transform = 'translate(-50%,-48px)'; }
+  }, { passive: true });
+}
+
 // ===== PANEL NAVIGATION =====
 // Bottom nav AND user menu both switch which .panel-view is active.
 // Bottom-nav panels keep an active tab highlight.
@@ -8016,7 +8072,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '386';
+  const FFP_BUILD = '388';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -11617,6 +11673,7 @@ window.ffpDoShareCard = async function () {
     // Device can't share images (most desktop browsers) → download it instead of sharing a link.
     if (typeof showToast === 'function') showToast('Image sharing isn’t supported here — downloaded instead', 'info');
     var u = URL.createObjectURL(f); var aTag = document.createElement('a'); aTag.href = u; aTag.download = f.name; document.body.appendChild(aTag); aTag.click(); setTimeout(function () { URL.revokeObjectURL(u); aTag.remove(); }, 500);
+    if (window.ffpLogSocialShare) ffpLogSocialShare('activity', 'download');   // desktop: no native share sheet, but the user did tap Share → count it
   } catch (e) { if (cancel(e)) return; if (typeof showToast === 'function') showToast('Could not share', 'error'); }
 };
 window.ffpDownloadActivityCard = async function () {
@@ -11992,6 +12049,7 @@ function init() {
   loadMeets();
   loadConnectionsCount();
   loadNotifications();
+  try { _ffpInitPullToRefresh(); } catch (e) {}
   if (window.Quests && window.Quests.init) window.Quests.init();   // Quests extracted → assets/ffp-quests-core.js
   try { if (typeof Events !== 'undefined' && document.getElementById('events-tabs')) Events.init(); } catch (e) {}  // Events panel removed (now on findfitpeople.com)
   Experiences.init();
@@ -12145,6 +12203,7 @@ async function sharePassportCard() {
   }
   // No Web Share API (most desktop browsers): copy the link.
   copyLink();
+  if (window.ffpLogSocialShare) ffpLogSocialShare('passport', 'link');   // desktop: no native share, but the user tapped Share → link copied to post → count it
   schedulePassportPrerender();
 }
 
