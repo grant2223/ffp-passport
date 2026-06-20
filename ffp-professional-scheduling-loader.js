@@ -109,6 +109,7 @@ async function _renderPausedStrap(host){
   host.insertAdjacentHTML('beforeend', html);
 }
 async function pauseSlot(id){
+  if(!confirm('Pause this slot? Members won\'t be able to book it until you resume.')) return;
   var pid=_proProvId(); try{ var r=await window.supabase.rpc('pro_set_slot_status',{p_pro:pid,p_id:id,p_status:'paused'}); if(r&&r.error)throw r.error; showToast('Slot paused','success'); }catch(e){ showToast('Could not pause','error'); }
   closeModal(); _loadSlotsCache().then(_schedRefresh);
 }
@@ -132,6 +133,7 @@ async function openSlotPeople(slotId){
     '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="saveSlotPeople(\''+slotId+'\')">Save</button>');
 }
 async function saveSlotPeople(slotId){
+  if(!confirm('Save changes to who\'s in this session?')) return;
   var pid=_proProvId(); var ids=[]; document.querySelectorAll('.slp-cl:checked').forEach(function(c){ids.push(c.value);});
   try{ var r=await window.supabase.rpc('pro_save_slot',{p_pro:pid,p_id:slotId,p:{client_ids:ids}}); if(r&&r.error)throw r.error; showToast('Updated','success'); closeModal(); _loadSlotsCache().then(_schedRefresh); }catch(e){ showToast('Could not update','error'); }
 }
