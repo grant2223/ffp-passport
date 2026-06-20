@@ -1,4 +1,8 @@
-/* FFP Calorie Tracker Loader — v6
+/* FFP Calorie Tracker Loader — v7
+   v7: DECLUTTER — Today food area = two clean buttons (Add food / Create meal). Saved meals moved OFF the
+       Today screen into the Add-food picker "My meals" tab (renderMyMeals now targets #fp-mymeals-list, a clean
+       list, no bucket chips). mmLog auto-buckets by time of day (mmDefaultBucket). FFPMyMeals.refresh exposed
+       (called by core openFoodPicker / setPickerTab). Pairs with core v2 (one-tap quickAdd + Foods/My-meals tabs).
    v6: MY MEALS — "New meal" is now a BUILD-FROM-CATALOG flow (name it, then add foods from the list → macros
        auto-sum; edit amounts; remove), since most people don't know raw macros. Manual totals kept as a
        secondary toggle. New-meal + Save buttons are standard YELLOW; modal is solid + larger. mmOpenBuilder
@@ -439,27 +443,30 @@
     }).catch(function (e) { console.error('[FFP CT] my_meals list:', e); });
   }
 
+  // Saved meals now render as a clean vertical list inside the Add-food picker (My meals tab).
+  // One tap logs into the auto (time-of-day) meal; small × deletes.
   function renderMyMeals() {
-    var host = document.getElementById('ct-mymeals'); if (!host) return;
+    var host = document.getElementById('fp-mymeals-list'); if (!host) return;
     mmInjectStyles();
-    var bkt = MM_BUCKETS.map(function (b) { return '<button class="' + (b[0] === _mmBucket ? 'on' : '') + '" onclick="FFPMyMeals.setBucket(\'' + b[0] + '\')">' + b[1] + '</button>'; }).join('');
-    var newBtn = '<button class="mm-new" onclick="FFPMyMeals.openBuilder()"><span class="material-icons" style="font-size:16px;">add</span>New meal</button>';
-    var cards = _myMeals.map(function (m) {
-      return '<div class="mm-card" onclick="FFPMyMeals.log(\'' + m.id + '\')">' +
-        '<button class="mm-card-x" onclick="event.stopPropagation();FFPMyMeals.del(\'' + m.id + '\')">&times;</button>' +
-        '<div class="mm-card-name">' + mmEsc(m.name) + '</div>' +
-        '<div class="mm-card-kcal">' + (m.calories || 0) + ' kcal</div></div>';
+    if (!_myMeals.length) {
+      host.innerHTML = '<div class="fp-mm-empty">No saved meals yet.<br>Tap &ldquo;Create meal&rdquo; on the tracker to build one you eat often.</div>';
+      return;
+    }
+    host.innerHTML = _myMeals.map(function (m) {
+      return '<div class="fp-mm-row" onclick="FFPMyMeals.log(\'' + m.id + '\')">' +
+        '<div style="min-width:0;"><div class="fp-mm-name">' + mmEsc(m.name) + '</div>' +
+        '<div class="fp-mm-sub">' + Math.round(m.protein_g || 0) + 'p / ' + Math.round(m.carbs_g || 0) + 'c / ' + Math.round(m.fat_g || 0) + 'f &middot; tap to add</div></div>' +
+        '<div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">' +
+        '<span class="fp-mm-kcal">' + (m.calories || 0) + '</span>' +
+        '<button class="mm-card-x" style="position:static;background:rgba(255,255,255,.08);color:var(--muted);width:24px;height:24px;line-height:22px;flex-shrink:0;" onclick="event.stopPropagation();FFPMyMeals.del(\'' + m.id + '\')">&times;</button>' +
+        '</div></div>';
     }).join('');
-    var body = _myMeals.length
-      ? '<div class="mm-strip">' + cards + newBtn + '</div>'
-      : '<div class="mm-empty">Save meals you eat often for one-tap logging.</div><div class="mm-strip">' + newBtn + '</div>';
-    host.innerHTML = '<div class="mm-wrap"><div class="mm-head"><span class="mm-title">My Meals</span><span class="mm-bkt">' + bkt + '</span></div>' + body + '</div>';
   }
 
   function mmLog(id) {
     var m = null; for (var i = 0; i < _myMeals.length; i++) { if (_myMeals[i].id === id) { m = _myMeals[i]; break; } }
     if (!m || !currentUserId) return;
-    var bucketKey = _mmBucket;
+    var bucketKey = mmDefaultBucket();
     window.supabase.rpc('member_meal_log', { p_me: currentUserId, p_id: id, p_bucket: keyToDbMeal(bucketKey) }).then(function (res) {
       var r = res && res.data;
       if (!r || r.ok === false) { if (window.showToast) showToast('Could not log meal', 'error'); return; }
@@ -587,7 +594,11 @@
     });
   }
 
-  window.FFPMyMeals = { setBucket: function (k) { _mmBucket = k; renderMyMeals(); }, log: mmLog, del: mmDel, openBuilder: mmOpenBuilder, saveSection: mmSaveSection, reload: loadMyMeals };
+  window.FFPMyMeals = {
+    setBucket: function (k) { _mmBucket = k; renderMyMeals(); },
+    log: mmLog, del: mmDel, openBuilder: mmOpenBuilder, saveSection: mmSaveSection, reload: loadMyMeals,
+    refresh: function () { if (!_myMeals.length && currentUserId) { loadMyMeals(); } else { renderMyMeals(); } }
+  };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () { setTimeout(loadFromSupabase, 400); });
