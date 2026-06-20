@@ -109,6 +109,7 @@
         '<button class="btn btn-sec btn-sm" title="Edit" onclick="openClassModal(\'' + c.id + '\')"><span class="ms">edit</span></button>' +
         (st === 'pending' ? '<span class="lc-review-note" style="font-size:12px;color:var(--ffp-warn);align-self:center;"><span class="ms" style="font-size:15px;vertical-align:-2px;">schedule</span> Pending admin review</span>' : '') +
         (typeof window.featureBtn === 'function' ? window.featureBtn('class', c.id, c.featured) : '') +
+        '<button class="btn btn-sec btn-sm" title="Bookings &amp; guest details" onclick="openClassBookings(\'' + c.id + '\')"><span class="ms">groups</span></button>' +
         '<button class="btn btn-ghost btn-sm" title="Duplicate" onclick="duplicateListing(\'class\',\'' + c.id + '\')"><span class="ms">content_copy</span></button>' +
         '<button class="btn btn-ghost btn-sm" title="Delete" onclick="confirmDeleteClass(\'' + c.id + '\')"><span class="ms">delete</span></button>' +
       '</div>' +
@@ -558,6 +559,48 @@
 
   // ── expose ──
   window.renderClasses = renderClasses;
+  // Guest-intake renderer (given/surname, gender, age + custom answers like shirt size).
+  function _cbIntake(d) {
+    if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) { return ''; } }
+    if (!d || typeof d !== 'object') return '';
+    var pretty = function (k) { return String(k).replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); }); };
+    var rows = [];
+    (Array.isArray(d.guests) ? d.guests : []).forEach(function (g, i) {
+      var nm = [g.first_name || g.given_names, g.last_name || g.surname].filter(Boolean).join(' ').trim();
+      var meta = []; if (g.gender) meta.push(pretty(g.gender)); if (g.age != null && g.age !== '') meta.push('age ' + g.age);
+      var ans = (g.answers && typeof g.answers === 'object') ? Object.keys(g.answers).filter(function (k) { return g.answers[k] != null && g.answers[k] !== ''; }).map(function (k) { return pretty(k) + ': ' + g.answers[k]; }) : [];
+      var line = '<b>Guest ' + (i + 1) + '</b>' + (nm ? ' · ' + esc(nm) : '') + (meta.length ? ' (' + esc(meta.join(', ')) + ')' : '');
+      if (ans.length) line += ' — ' + esc(ans.join(' · '));
+      rows.push('<div>' + line + '</div>');
+    });
+    var ba = (d.booking_answers && typeof d.booking_answers === 'object') ? d.booking_answers : null;
+    if (ba) { Object.keys(ba).forEach(function (k) { if (ba[k] != null && ba[k] !== '') rows.push('<div>' + esc(pretty(k)) + ': ' + esc(String(ba[k])) + '</div>'); }); }
+    if (!rows.length) return '';
+    return '<div style="margin-top:5px;padding:7px 9px;background:var(--ffp-bg-3);border-radius:8px;font-size:11.5px;color:var(--ffp-text-muted);line-height:1.6;">' +
+      '<div style="font-weight:800;color:var(--ffp-text);margin-bottom:2px;font-size:10px;letter-spacing:.4px;text-transform:uppercase;">Booking details</div>' + rows.join('') + '</div>';
+  }
+  window.openClassBookings = function (classId) {
+    openModalShell('lg', 'Bookings & guest details', '<div id="cb-body"><div class="psub" style="margin:10px 0;">Loading…</div></div>', '<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
+    sb().rpc('provider_class_bookings', { p_provider: provId(), p_class: classId }).then(function (r) {
+      var rows = (r && r.data) || [];
+      var host = document.getElementById('cb-body'); if (!host) return;
+      if (!rows.length) { host.innerHTML = '<div class="psub" style="margin:10px 0;">No bookings yet. When members book a date, they appear here with the details they entered.</div>'; return; }
+      var groups = {}, order = [];
+      rows.forEach(function (b) { var k = b.session_id || 'x'; if (!groups[k]) { groups[k] = { starts_at: b.starts_at, rows: [] }; order.push(k); } groups[k].rows.push(b); });
+      order.sort(function (a, b) { return String(groups[a].starts_at || '') < String(groups[b].starts_at || '') ? -1 : 1; });
+      host.innerHTML = order.map(function (k) {
+        var g = groups[k];
+        var when = g.starts_at ? new Date(g.starts_at).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Date TBC';
+        return '<div style="margin:0 0 16px;"><div style="font-weight:800;color:var(--ffp-text);border-bottom:1px solid var(--ffp-border-mid);padding-bottom:6px;margin-bottom:8px;">' + esc(when) + ' · ' + g.rows.length + ' booked</div>' +
+          g.rows.map(function (b) {
+            return '<div style="padding:8px 2px;border-bottom:1px solid var(--ffp-border);">' +
+              '<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;"><span style="font-weight:700;color:var(--ffp-text);">' + esc(b.member_name || 'Member') + (b.quantity > 1 ? ' ×' + b.quantity : '') + '</span>' +
+              '<span style="font-size:11px;font-weight:800;color:' + (b.payment_status === 'paid' ? '#1f9d57' : 'var(--ffp-text-dim)') + ';">' + esc(b.payment_status || '') + '</span></div>' +
+              _cbIntake(b.details) + '</div>';
+          }).join('') + '</div>';
+      }).join('');
+    }).catch(function () { var host = document.getElementById('cb-body'); if (host) host.innerHTML = '<div class="psub" style="margin:10px 0;">Could not load bookings.</div>'; });
+  };
   window.openClassModal = openClassModal;
   window.saveClass = saveClass;
   window.setClassStatus = setClassStatus;
