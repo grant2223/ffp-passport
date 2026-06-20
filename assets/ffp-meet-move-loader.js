@@ -752,6 +752,9 @@
         if (res.error || st === 'invalid' || st === 'not_in') { if (typeof showToast === 'function') showToast("Couldn't cancel — please try again", 'error'); return; }
         if (st === 'started') { if (typeof showToast === 'function') showToast('This meet-up has already started', 'error'); return; }
         m.joinedByMe = false; m.pendingByMe = false;
+        // v25: tell the HOST someone dropped out — best-effort email; the in-app host notice is written
+        // transactionally by the leave_meetup RPC (so the host is told even if this POST is missed).
+        try { fetch('https://ffp-passport-backend.vercel.app/api/meetups/notify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'leave', meetup_id: id, member_id: currentUserId, pending: wasPending }) }); } catch (e) {}
         if (typeof closeDetailModal === 'function') closeDetailModal();
         if (typeof showToast === 'function') showToast(wasPending ? 'Request cancelled' : 'Your spot was cancelled', 'success');
         if (typeof window.ffpReloadMeetMove === 'function') window.ffpReloadMeetMove();
