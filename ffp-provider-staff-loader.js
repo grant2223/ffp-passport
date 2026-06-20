@@ -49,7 +49,7 @@ function staffRow(s) {
   var inactive = s.status && s.status !== 'active';
   var accessLbl = ACCESS_LEVELS[s.access_level] || 'Classes only';
   return '<div style="background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-radius:12px;padding:11px 13px;margin-bottom:9px;display:flex;align-items:flex-start;gap:11px;' + (inactive ? 'opacity:.6;' : '') + '">' +
-      '<div style="width:38px;height:38px;border-radius:10px;background:rgba(43,168,224,.16);color:#6fc6ef;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;">' + escHtml(initials) + '</div>' +
+      '<div style="width:38px;height:38px;border-radius:10px;background:rgba(25,128,173,.16);color:#6fc6ef;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;">' + escHtml(initials) + '</div>' +
       '<div style="min-width:0;flex:1;">' +
         '<div style="font-weight:800;color:var(--ffp-text,#eaf2f8);">' + escHtml(s.full_name || '—') + (inactive ? ' <span class="psub">(inactive)</span>' : '') + '</div>' +
         (contact.length ? '<div class="psub" style="margin:2px 0 0;">' + contact.join(' · ') + '</div>' : '') +
