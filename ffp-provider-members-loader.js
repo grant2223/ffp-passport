@@ -14,7 +14,7 @@ var _members = [];
 var MEMBER_STATUS = { active: 'Active', trial: 'Trial', lapsed: 'Lapsed', prospect: 'Prospect' };
 var _memStatusStyle = {
   active:   'background:rgba(25,128,173,.16);color:#6fc6ef',
-  trial:    'background:rgba(255,204,0,.16);color:#FFCC00',
+  trial:    'background:rgba(15,37,49,.16);color:var(--ffp-warn)',
   lapsed:   'background:rgba(255,255,255,.08);color:#9fb0bf',
   prospect: 'background:rgba(120,200,140,.18);color:#7fd49a'
 };
