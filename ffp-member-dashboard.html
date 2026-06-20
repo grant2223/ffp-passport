@@ -7982,7 +7982,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '377';
+  const FFP_BUILD = '378';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -9588,10 +9588,10 @@ const Earnings = {
     { key: 'connections_made',     label: 'Connections made',     icon: 'handshake',      current: 0, supporter: 2, ambassador: 8,  unit: 'connections', blurb: 'Connect with other members you meet on the platform.' },
     { key: 'meetups_hosted',       label: 'Meet-ups hosted',      icon: 'groups',         current: 0, supporter: 1, ambassador: 4,  unit: 'meet-ups',   blurb: 'Host meet-ups that other members come along to.' },
     { key: 'provider_checkins',    label: 'Providers visited',    icon: 'storefront',     current: 0, supporter: 2, ambassador: 8,  unit: 'providers',  blurb: 'Check in at partner venues — each different provider counts once.' },
-    { key: 'quests_completed',     label: 'Quests completed',     icon: 'flag',           current: 0, supporter: 1, ambassador: 2,  unit: 'quests',     blurb: 'Finish quests across the platform.' },
+    { key: 'quests_completed',     label: 'Tasks completed',      icon: 'flag',           current: 0, supporter: 4, ambassador: 10, unit: 'tasks',      blurb: 'Complete tasks across the platform.' },
     { key: 'events_attended',      label: 'Events attended',      icon: 'event',          current: 0, supporter: 1, ambassador: 4,  unit: 'events',     blurb: 'Attend events you RSVP to.' },
     { key: 'activities_logged',    label: 'Activities logged',    icon: 'fitness_center', current: 0, supporter: 8, ambassador: 24, unit: 'activities', blurb: 'Log what you do — gym, sport, a walk, stretch or recovery.' },
-    { key: 'challenges_completed', label: 'Challenges completed', icon: 'whatshot',       current: 0, supporter: 2, ambassador: 4,  unit: 'challenges', blurb: 'Complete challenges you enter.' }
+    { key: 'social_shares',        label: 'Social media shares',  icon: 'share',          current: 0, supporter: 10, ambassador: 30, unit: 'shares',     blurb: 'Share your activity and the app on social media.' }
   ],
   
   SUPPORTER_THRESHOLD: 2,          // need 2+ in a category to count toward Supporter
