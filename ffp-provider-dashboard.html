@@ -332,8 +332,9 @@
   --ffp-text:         #0e2531;
   --ffp-text-muted:   #566069;
   --ffp-text-dim:     #8a96a1;
-  --ffp-yellow:       #FFCC00;
-  --ffp-yellow-dk:    #b8860b;
+  --ffp-yellow:       #2b3942;
+  --ffp-yellow-dk:    #1b252c;
+  --ffp-warn:         #c9820f;
   --ffp-gold:         #c79a2e;
   --ffp-green:        #1f9d57;
   --ffp-green-dk:     #18814a;
@@ -377,6 +378,17 @@ html, body {
 button, input, select, textarea { font-family: inherit; color: inherit; outline: none; }
 button { cursor: pointer; border: none; background: none; }
 a { color: var(--ffp-blue); text-decoration: none; }
+/* Light-theme overrides for the shared FFPSelect dropdown (provider portal is light; beats the injected dark #ffp-select-css) */
+.ffp-sel-btn{background:#fff !important;border-color:var(--ffp-border-mid) !important;color:var(--ffp-text) !important;}
+.ffp-sel-btn:hover{border-color:var(--ffp-blue) !important;}
+.ffp-sel-btn.placeholder{color:var(--ffp-text-muted) !important;}
+.ffp-sel-btn .ms{color:var(--ffp-text-muted) !important;}
+.ffp-sel-menu{background:#fff !important;border-color:var(--ffp-border-mid) !important;box-shadow:0 8px 24px rgba(15,37,49,.16) !important;}
+.ffp-sel-item{color:var(--ffp-text) !important;}
+.ffp-sel-item:hover{background:rgba(25,128,173,.08) !important;}
+.ffp-sel-item.active{background:rgba(25,128,173,.12) !important;color:var(--ffp-blue) !important;}
+.ffp-sel-search{background:#fff !important;border-bottom-color:var(--ffp-border) !important;}
+.ffp-sel-input{background:#fff !important;border-color:var(--ffp-border-mid) !important;color:var(--ffp-text) !important;}
 
 /* ════════════════════════════════════════════════
    APP SHELL
@@ -422,7 +434,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
 .biz-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin: 18px 0 0; border-bottom: 1px solid var(--ffp-border); }
 .biz-tab { background: none; border: none; border-bottom: 2px solid transparent; color: var(--ffp-text-muted); font-weight: 700; font-size: 13px; padding: 10px 14px; cursor: pointer; transition: all .15s; }
 .biz-tab:hover { color: var(--ffp-text); }
-.biz-tab.active { color: var(--ffp-text); border-bottom-color: var(--ffp-yellow, #FFCC00); }
+.biz-tab.active { color: var(--ffp-text); border-bottom-color: var(--ffp-yellow, #2b3942); }
 .biz-pane { display: none; }
 .biz-pane.active { display: block; }
 .ni {
@@ -447,7 +459,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
 .ni .ms { font-size: 16px; flex-shrink: 0; }
 .ni-badge {
   margin-left: auto;
-  background: var(--ffp-yellow); color: #000;
+  background: var(--ffp-bg-3); color: var(--ffp-text-muted);
   border-radius: 100px; padding: 2px 7px;
   font-size: 9px; font-weight: 800;
   min-width: 20px; text-align: center;
@@ -489,7 +501,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
   color: var(--ffp-green); text-transform: uppercase;
   margin-top: 2px;
 }
-.sb-foot-tag.pending { color: var(--ffp-yellow); }
+.sb-foot-tag.pending { color: var(--ffp-warn); }
 .sb-foot-tag.suspended { color: var(--ffp-red); }
 
 /* MAIN */
@@ -558,7 +570,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
   content: ""; position: absolute;
   top: 8px; right: 9px;
   width: 8px; height: 8px;
-  background: var(--ffp-yellow);
+  background: var(--ffp-blue);
   border-radius: 50%;
   box-shadow: 0 0 0 2px var(--ffp-bg-2);
 }
@@ -609,10 +621,10 @@ a { color: var(--ffp-blue); text-decoration: none; }
 }
 .btn .ms { font-size: 16px; }
 .btn-pri {
-  background: var(--ffp-yellow);
-  color: #000;
+  background: var(--ffp-blue);
+  color: #fff;
 }
-.btn-pri:hover { background: var(--ffp-yellow-dk); }
+.btn-pri:hover { background: var(--ffp-blue-dark); }
 .btn-sec {
   background: var(--ffp-bg-3);
   color: var(--ffp-text);
@@ -652,15 +664,17 @@ a { color: var(--ffp-blue); text-decoration: none; }
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
+  gap: 0;
   margin-bottom: 28px;
 }
 .kpi {
-  background: var(--ffp-bg-card);
-  border: 1px solid var(--ffp-border);
-  border-radius: var(--r-lg);
-  padding: 18px 18px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 4px 22px;
 }
+.kpi + .kpi { border-left: 1px solid var(--ffp-border); }
+.kpi:first-child { padding-left: 0; }
 .kpi-lbl {
   font-size: 10px; font-weight: 800;
   letter-spacing: 1.4px; text-transform: uppercase;
@@ -693,10 +707,10 @@ a { color: var(--ffp-blue); text-decoration: none; }
 }
 
 .section-card {
-  background: var(--ffp-bg-card);
-  border: 1px solid var(--ffp-border);
-  border-radius: var(--r-lg);
-  padding: 20px 22px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
 }
 .section-head {
   display: flex; align-items: center; justify-content: space-between;
@@ -720,7 +734,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
 .pr-empty { opacity:.7; font-size:14px; padding:6px 0; }
 .pr-stars { display:inline-flex; }
 .pr-star { font-size:18px; color: var(--ffp-border); }
-.pr-star.on { color:#FFCC00; }
+.pr-star.on { color:#2b3942; }
 .pr-summary { display:flex; flex-wrap:wrap; gap:24px; align-items:center; }
 .pr-overall { display:flex; align-items:center; gap:12px; }
 .pr-big { font-size:40px; font-weight:800; line-height:1; }
@@ -755,7 +769,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-.act-icon.yellow { background: rgba(255, 204, 0, .12); color: var(--ffp-yellow); }
+.act-icon.yellow { background: rgba(15, 37, 49, .12); color: var(--ffp-yellow); }
 .act-icon.green { background: rgba(74, 222, 128, .12); color: var(--ffp-green); }
 .act-icon .ms { font-size: 18px; }
 .act-body { flex: 1; min-width: 0; }
@@ -793,14 +807,14 @@ a { color: var(--ffp-blue); text-decoration: none; }
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-.qa-icon.yellow { background: var(--ffp-yellow); color: #000; }
+.qa-icon.yellow { background: var(--ffp-blue); color: #fff; }
 .qa-icon .ms { font-size: 18px; }
 .qa-body { flex: 1; min-width: 0; }
 .qa-title { font-size: 12px; font-weight: 800; color: var(--ffp-text); }
 .qa-sub { font-size: 10px; font-weight: 600; color: var(--ffp-text-muted); margin-top: 2px; }
 
 .welcome-banner {
-  background: linear-gradient(135deg, rgba(25, 128, 173, .14) 0%, rgba(255, 204, 0, .08) 100%);
+  background: linear-gradient(135deg, rgba(25, 128, 173, .14) 0%, rgba(15, 37, 49, .08) 100%);
   border: 1px solid var(--ffp-border-mid);
   border-radius: var(--r-lg);
   padding: 18px 22px;
@@ -834,7 +848,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
   letter-spacing: 0.6px; text-transform: uppercase;
   color: var(--ffp-text-muted);
 }
-.label .req { color: var(--ffp-yellow); margin-left: 3px; }
+.label .req { color: var(--ffp-red); margin-left: 3px; }
 .label-hint {
   font-size: 10px; font-weight: 600;
   color: var(--ffp-text-dim);
@@ -894,7 +908,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
   gap: 8px;
 }
 .uploader:hover { border-color: var(--ffp-blue); background: rgba(25, 128, 173, .04); }
-.uploader.dragover { border-color: var(--ffp-yellow); background: rgba(255, 204, 0, .06); }
+.uploader.dragover { border-color: var(--ffp-yellow); background: rgba(15, 37, 49, .06); }
 .uploader-icon {
   width: 44px; height: 44px;
   border-radius: 50%;
@@ -992,7 +1006,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
   color: var(--ffp-text-muted);
   display: flex; align-items: center; gap: 7px;
 }
-.save-bar-msg.dirty { color: var(--ffp-yellow); }
+.save-bar-msg.dirty { color: var(--ffp-warn); font-weight: 800; }
 .save-bar-msg .ms { font-size: 14px; }
 
 /* ════════════════════════════════════════════════
@@ -1059,7 +1073,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
   font-size: 10px; font-weight: 800;
   margin-left: 5px;
 }
-.tab.active .count { background: var(--ffp-yellow); color: #000; }
+.tab.active .count { background: var(--ffp-text); color: #fff; }
 
 /* LISTING CARD */
 .listing-grid {
@@ -1068,14 +1082,14 @@ a { color: var(--ffp-blue); text-decoration: none; }
   gap: 18px;
 }
 .listing-card {
-  background: var(--ffp-bg-card);
-  border: 1px solid var(--ffp-border);
+  background: transparent;
+  border: none;
   border-radius: var(--r-lg);
   overflow: hidden;
   display: flex; flex-direction: column;
-  transition: border-color .15s, transform .15s;
+  transition: box-shadow .15s, transform .15s;
 }
-.listing-card:hover { border-color: var(--ffp-border-mid); transform: translateY(-2px); }
+.listing-card:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(15, 37, 49, .10); }
 .lc-hero {
   position: relative;
   aspect-ratio: 16 / 10;
@@ -1100,8 +1114,8 @@ a { color: var(--ffp-blue); text-decoration: none; }
   border-radius: 4px;
   z-index: 2;
 }
-.lc-status-pill.draft { background: var(--ffp-text-muted); color: #000; }
-.lc-status-pill.pending { background: var(--ffp-yellow); color: #000; }
+.lc-status-pill.draft { background: var(--ffp-text-muted); color: #fff; }
+.lc-status-pill.pending { background: var(--ffp-warn); color: #fff; }
 .lc-status-pill.paused { background: var(--ffp-orange); color: #fff; }
 .lc-status-pill.cancelled, .lc-status-pill.rejected { background: var(--ffp-red); color: #fff; }
 .lc-status-pill.past { background: var(--ffp-text-dim); color: #fff; }
@@ -1277,7 +1291,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
   background: var(--ffp-bg-3);
 }
 .itin-day-num {
-  background: var(--ffp-yellow); color: #000;
+  background: var(--ffp-blue); color: #fff;
   font-size: 10px; font-weight: 900; letter-spacing: 1px;
   padding: 4px 9px; border-radius: 4px;
   text-transform: uppercase;
@@ -1512,7 +1526,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
   padding: 60px 30px;
   text-align: center;
 }
-.locked-panel .empty-icon { background: rgba(255, 204, 0, .12); color: var(--ffp-yellow); }
+.locked-panel .empty-icon { background: rgba(15, 37, 49, .12); color: var(--ffp-yellow); }
 
 /* SUPPORT BAR (sticky help on every panel) */
 .help-strip {
@@ -1569,9 +1583,9 @@ a { color: var(--ffp-blue); text-decoration: none; }
 }
 .period-chip:hover { color: var(--ffp-text); border-color: var(--ffp-border-str); }
 .period-chip.active {
-  background: var(--ffp-yellow);
-  color: #000;
-  border-color: var(--ffp-yellow);
+  background: var(--ffp-blue);
+  color: #fff;
+  border-color: var(--ffp-blue);
 }
 
 .analytics-3col {
@@ -1639,7 +1653,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
 }
 .rank-num {
   width: 26px; height: 26px;
-  background: var(--ffp-yellow); color: #000;
+  background: var(--ffp-text); color: #fff;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-size: 11px; font-weight: 900;
@@ -1695,7 +1709,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
   display: flex; align-items: center; justify-content: center;
   margin-bottom: 9px;
 }
-.funnel-icon-wrap.yellow { background: rgba(255, 204, 0, .14); color: var(--ffp-yellow); }
+.funnel-icon-wrap.yellow { background: rgba(15, 37, 49, .14); color: var(--ffp-yellow); }
 .funnel-icon-wrap.green { background: rgba(74, 222, 128, .14); color: var(--ffp-green); }
 .funnel-label {
   font-size: 9px; font-weight: 800;
@@ -1763,12 +1777,12 @@ a { color: var(--ffp-blue); text-decoration: none; }
   margin-top: 4px;
 }
 .peak-cell.hot {
-  background: var(--ffp-yellow);
-  color: #000;
-  border-color: var(--ffp-yellow);
+  background: var(--ffp-blue);
+  color: #fff;
+  border-color: var(--ffp-blue);
 }
-.peak-cell.hot .peak-cell-val { color: #000; }
-.peak-cell.hot .peak-cell-day { color: #000; }
+.peak-cell.hot .peak-cell-val { color: #fff; }
+.peak-cell.hot .peak-cell-day { color: #fff; }
 .peak-cell.warm {
   background: rgba(25, 128, 173, .22);
   border-color: var(--ffp-border-str);
@@ -1859,8 +1873,8 @@ a { color: var(--ffp-blue); text-decoration: none; }
    PROFILE COMPLETION CARD
    ════════════════════════════════════════════════ */
 .completion-card {
-  background: rgba(255, 204, 0, .08);
-  border: 1px solid rgba(255, 204, 0, .28);
+  background: rgba(15, 37, 49, .08);
+  border: 1px solid rgba(15, 37, 49, .28);
   border-radius: var(--r-md);
   padding: 16px 18px;
   margin-bottom: 22px;
@@ -1934,13 +1948,13 @@ a { color: var(--ffp-blue); text-decoration: none; }
    PENDING REVIEW BANNER (overview)
    ════════════════════════════════════════════════ */
 .welcome-banner.pending {
-  background: linear-gradient(135deg, rgba(255, 204, 0, .14) 0%, rgba(255, 204, 0, .04) 100%);
-  border-color: rgba(255, 204, 0, .35);
+  background: linear-gradient(135deg, rgba(15, 37, 49, .14) 0%, rgba(15, 37, 49, .04) 100%);
+  border-color: rgba(15, 37, 49, .35);
 }
 .welcome-banner-pre {
   width: 44px; height: 44px;
   border-radius: 50%;
-  background: rgba(255, 204, 0, .14);
+  background: rgba(15, 37, 49, .14);
   color: var(--ffp-yellow);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
@@ -2437,7 +2451,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
           #panel-profile .pf-tabs{display:flex;gap:8px;margin:18px 0 4px;border-bottom:1px solid var(--border-mid,rgba(25,128,173,.2));flex-wrap:wrap;}
           #panel-profile .pf-tab{appearance:none;background:none;border:none;border-bottom:2px solid transparent;color:var(--ffp-text-muted,#8a99a8);font-size:13px;font-weight:800;padding:10px 6px;margin-bottom:-1px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;}
           #panel-profile .pf-tab .ms{font-size:18px;}
-          #panel-profile .pf-tab.active{color:var(--ffp-text,#e8eef4);border-bottom-color:var(--ffp-yellow,#FFCC00);}
+          #panel-profile .pf-tab.active{color:var(--ffp-text,#e8eef4);border-bottom-color:var(--ffp-yellow,#2b3942);}
           #panel-profile .pf-pane{display:none;padding-top:16px;padding-bottom:104px;}
           #panel-profile .pf-pane.active{display:block;}
         </style>
@@ -2576,7 +2590,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
         <div class="ph">Deals</div>
         <div class="psub">Member perks at your venue — like a 2-for-1 or a member discount.</div>
         <div class="panel-placeholder" style="margin-top:18px;">
-          <span class="ms" style="font-size:46px;color:var(--ffp-yellow,#FFCC00);">local_offer</span>
+          <span class="ms" style="font-size:46px;color:var(--ffp-yellow,#2b3942);">local_offer</span>
           <h3 style="margin:14px 0 6px;">Deals are coming soon</h3>
           <p style="max-width:420px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
             Soon you'll be able to offer members perks at your venue — 2-for-1s, member discounts,
@@ -2738,7 +2752,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
         </div>
         <div class="biz-pane" id="stf-sched">
           <div class="panel-placeholder" style="margin-top:26px;">
-            <span class="ms" style="font-size:44px;color:var(--ffp-yellow,#FFCC00);">event_available</span>
+            <span class="ms" style="font-size:44px;color:var(--ffp-yellow,#2b3942);">event_available</span>
             <h3 style="margin:14px 0 6px;">Staff schedules — coming soon</h3>
             <p style="max-width:480px;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;">
               Assign staff to sessions and teams and see each person's roster at a glance — who's coaching
@@ -3193,8 +3207,8 @@ const NAV = [
   { id: 'classes',     icon: 'tour',            label: 'Experiences', section: 'engagement' },
   { id: 'events',      icon: 'event',           label: 'Events',      section: 'engagement' },
   { id: 'experiences', icon: 'flight',          label: 'Trips',       section: 'engagement' },
-  { id: 'challenges',  icon: 'emoji_events',    label: 'Challenges',  section: 'engagement' },
   { id: 'quests',      icon: 'flag',            label: 'Quests',      section: 'engagement', soon: true, locked: true },
+  { id: 'challenges',  icon: 'emoji_events',    label: 'Challenges',  section: 'engagement', soon: true, locked: true },
   { id: 'deals',       icon: 'local_offer',     label: 'Deals',       section: 'engagement' },
   // ── Account ──
   { id: 'profile',     icon: 'storefront',      label: 'Profile',     section: 'account' },
@@ -3225,7 +3239,7 @@ function renderNav() {
       const lockedClass = item.locked ? ' locked' : '';
       const onclick = item.locked ? '' : ' onclick="showPanel(\'' + item.id + '\')"';
       let badge = '';
-      if (item.id === 'deals') {
+      if (item.id === 'deals' || item.soon || item.locked) {
         badge = '<span class="ni-lock-pill">Soon</span>';
       } else if (item.id === 'events') {
         badge = '<span class="ni-badge dim">' + events.length + '</span>';
@@ -3326,7 +3340,7 @@ async function renderPaymentsCard() {
       '<div class="psub" style="margin:2px 0 0;font-size:12px;">Your Stripe account is linked — member payments go straight to your bank, FFP takes no cut.</div></div>' +
       '<a class="btn btn-ghost btn-sm" href="https://dashboard.stripe.com" target="_blank" rel="noopener"><span class="ms">open_in_new</span> Stripe</a></div>';
   } else if (status === 'onboarding') {
-    el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid rgba(255,204,0,.35);background:rgba(255,204,0,.08);border-radius:12px;">' +
+    el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid rgba(15,37,49,.35);background:rgba(15,37,49,.08);border-radius:12px;">' +
       '<span class="ms" style="color:#d9a400;">hourglass_top</span>' +
       '<div style="flex:1;"><div style="font-weight:700;font-size:13px;color:#d9a400;">Finish setting up payments</div>' +
       '<div class="psub" style="margin:2px 0 0;font-size:12px;">Your Stripe account was started but isn\'t ready to take payments yet — a few details are still needed.</div></div>' +
@@ -3760,9 +3774,9 @@ function _ensureGateCss() {
   const st = document.createElement('style');
   st.id = 'listing-gate-css';
   st.textContent =
-    '.listing-gate-banner{display:flex;align-items:center;gap:12px;background:rgba(255,204,0,.10);' +
-    'border:1px solid rgba(255,204,0,.45);border-radius:12px;padding:14px 16px;margin:0 0 18px;color:#f5f7fa;}' +
-    '.listing-gate-banner>.ms{color:#FFCC00;font-size:22px;flex-shrink:0;}' +
+    '.listing-gate-banner{display:flex;align-items:center;gap:12px;background:rgba(15,37,49,.10);' +
+    'border:1px solid rgba(15,37,49,.45);border-radius:12px;padding:14px 16px;margin:0 0 18px;color:#f5f7fa;}' +
+    '.listing-gate-banner>.ms{color:#2b3942;font-size:22px;flex-shrink:0;}' +
     '.listing-gate-banner .lgb-text{flex:1;font-size:13px;line-height:1.45;}' +
     '.listing-gate-banner .btn{flex-shrink:0;white-space:nowrap;}' +
     '@media(max-width:560px){.listing-gate-banner{flex-wrap:wrap;}.listing-gate-banner .btn{width:100%;}}';
@@ -3826,7 +3840,7 @@ function closeSidebar() {
 function showSubmittedModal(typeLabel) {
   openModalShell('sm', 'Pending admin review', `
     <div style="text-align: center; padding: 8px 0 14px;">
-      <div style="width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 50%; background: rgba(255, 204, 0, .14); color: var(--ffp-yellow); display: flex; align-items: center; justify-content: center;">
+      <div style="width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 50%; background: rgba(15, 37, 49, .14); color: var(--ffp-yellow); display: flex; align-items: center; justify-content: center;">
         <span class="ms" style="font-size: 32px;">schedule</span>
       </div>
       <div style="font-size: 16px; font-weight: 800; margin-bottom: 6px;">Your ${escHtml(typeLabel)} is in admin review</div>
@@ -5376,7 +5390,7 @@ async function loadFeatureMap() {
 // Card control: ★Featured (live), Approved·pay to activate, Feature pending, or a "Feature — $99/day" button.
 function featureBtn(kind, id, featured) {
   var st = (window.FFP_FEATURE_MAP || {})[kind + ':' + id];
-  if (featured || st === 'live') return '<button class="btn btn-ghost btn-sm" title="Featured on the FFP homepage today" style="color:#FFCC00;"><span class="ms">star</span></button>';
+  if (featured || st === 'live') return '<button class="btn btn-ghost btn-sm" title="Featured on the FFP homepage today" style="color:#2b3942;"><span class="ms">star</span></button>';
   if (st === 'approved') return '<button class="btn btn-ghost btn-sm" title="Feature approved — pay upfront to activate" style="color:#4ade80;" onclick="applyFeature(\'' + kind + '\',\'' + id + '\')"><span class="ms">task_alt</span></button>';
   if (st === 'pending') return '<button class="btn btn-ghost btn-sm" title="Feature request pending admin confirmation" style="color:#9dbdd0;"><span class="ms">hourglass_empty</span></button>';
   return '<button class="btn btn-ghost btn-sm" title="Feature on the FFP homepage — $99 USD/day" onclick="applyFeature(\'' + kind + '\',\'' + id + '\')"><span class="ms">star_border</span></button>';
