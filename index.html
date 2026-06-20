@@ -205,8 +205,8 @@ section{padding:56px 0;}
 .hero-stats .hs-l{font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);margin-top:6px;}
 /* THE FIVE — app screenshot + minimal text, alternating */
 .five{display:grid;gap:26px;align-items:center;grid-template-columns:1fr;}
-.five-media{border-radius:var(--radius-lg);overflow:hidden;background:#05080d;box-shadow:0 26px 60px rgba(0,0,0,.5);}
-.five-media img{width:100%;display:block;}
+.five-media{border-radius:var(--radius-lg);overflow:hidden;box-shadow:0 26px 60px rgba(0,0,0,.45);aspect-ratio:4/3;}
+.five-media img{width:100%;height:100%;object-fit:cover;display:block;}
 @media(min-width:860px){.five{grid-template-columns:1.05fr 1fr;gap:54px;} .five.rev .five-media{order:2;}}
 /* HERO — real app screenshot */
 .hero-shot{display:flex;justify-content:center;align-items:center;}
@@ -459,7 +459,7 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
         <div class="hero-fine">7 days free &middot; then $20/mo or $149/yr &middot; cancel anytime &middot; secure checkout via Stripe</div>
       </div>
       <div class="hero-shot">
-        <img src="assets/padel-high-five.jpg" alt="Find fit people to move with" fetchpriority="high">
+        <img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/passport-on-stepper.png" alt="Your FFP Passport, wherever you move" fetchpriority="high">
       </div>
     </div>
   </div>
@@ -517,7 +517,7 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
 <section style="background:var(--bg-elev);">
   <div class="col">
     <div class="five">
-      <div class="five-media"><img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-passport-connections.png" alt="FFP Passport — Connections" loading="lazy"></div>
+      <div class="five-media"><img src="assets/padel-high-five.jpg" alt="Find fit people to connect with" loading="lazy"></div>
       <div class="five-txt">
         <div class="sec-num"><i>01</i><span>Connect</span></div>
         <h2 class="sec-heading">Find your people.</h2>
@@ -531,7 +531,7 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
 <section>
   <div class="col">
     <div class="five rev">
-      <div class="five-media"><img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-passport-meetup.png" alt="FFP Passport — Meetup" loading="lazy"></div>
+      <div class="five-media"><img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/meetup-barbell.png" alt="Meet up and move together" loading="lazy"></div>
       <div class="five-txt">
         <div class="sec-num"><i>02</i><span>Meetup</span></div>
         <h2 class="sec-heading">Move together.</h2>
@@ -569,7 +569,7 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
 <section>
   <div class="col">
     <div class="five">
-      <div class="five-media"><img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-passport-fitness-stats.png" alt="FFP Passport — Fitness Stats" loading="lazy"></div>
+      <div class="five-media"><img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/calories-in-park.png" alt="Track your fitness stats anywhere" loading="lazy"></div>
       <div class="five-txt">
         <div class="sec-num"><i>04</i><span>Fitness Stats</span></div>
         <h2 class="sec-heading">Every stat, in one place.</h2>
@@ -583,7 +583,7 @@ footer{background:var(--bg-deep);border-top:1px solid var(--accent-line-dim);pad
 <section style="background:var(--bg-elev);">
   <div class="col">
     <div class="five rev">
-      <div class="five-media"><img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-passport-calorie-tracker.png" alt="FFP Passport — Tracking" loading="lazy"></div>
+      <div class="five-media"><img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/phone-between-set.png" alt="Track every number between sets" loading="lazy"></div>
       <div class="five-txt">
         <div class="sec-num"><i>05</i><span>Tracking</span></div>
         <h2 class="sec-heading">Stay on track.</h2>
