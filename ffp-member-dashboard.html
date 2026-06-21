@@ -8085,7 +8085,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '400';
+  const FFP_BUILD = '401';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -12507,7 +12507,8 @@ else init();
   window.FFPPassportCard = {
     ccode:function(country){ var w=String(country||"").trim().split(/\s+/); if(w.length>1) return w.map(function(x){return x[0];}).join("").slice(0,3).toUpperCase(); return String(country||"").slice(0,3).toUpperCase(); },
     meter:function(level){
-      var idx={ "not tried":1, social:2, competitive:3, representative:4, professional:5 };
+      var idx={ "just started":1, recreational:2, skilled:3, "highly skilled":4, professional:5,
+                /* legacy fallbacks */ "not tried":1, social:2, competitive:3, representative:4, beginner:1, intermediate:3, advanced:4 };
       var n=idx[String(level||"").toLowerCase()]||1; var out="";
       for(var i=0;i<5;i++){ out+="<span style='flex:1;height:7px;border-radius:2px;background:"+(i<n?"#2ba8e0":"#c4d1dc")+";'></span>"; }
       return "<div class='ffp-bk-meter'>"+out+"</div>";
