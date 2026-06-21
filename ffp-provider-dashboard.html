@@ -172,7 +172,7 @@
 <script src="assets/ffp-time.js?v=1"></script>
 <script src="assets/ffp-currency.js?v=2"></script>
 <script src="assets/ffp-select.js?v=1"></script>
-<script src="ffp-provider-auth.js?v=7"></script>
+<script src="ffp-provider-auth.js?v=8"></script>
 <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>
 <script src="assets/ffp-image-upload.js?v=7"></script>
@@ -262,8 +262,8 @@
   console.log('[FFPPicker] ready (dashboard-owned, decoupled) ✓');
 })();
 </script>
-<script src="ffp-provider-events-loader.js?v=18"></script>
-<script src="ffp-provider-experiences-loader.js?v=16"></script>
+<script src="ffp-provider-events-loader.js?v=19"></script>
+<script src="ffp-provider-experiences-loader.js?v=17"></script>
 <script src="ffp-provider-challenges-loader.js?v=2"></script>
 <!-- v29 (2026-06-03): Taxonomy audit fixes — "Provider type" (pf-type) reads the unified provider_type
      taxonomy via FFP_TAX.providerTypes (shared with admin rankings; business_structure concept dropped);
@@ -3294,7 +3294,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=4', 'scheduling': 'ffp-provider-scheduling-loader.js?v=22', 'members': 'ffp-provider-members-loader.js?v=7', 'billing': 'ffp-provider-billing-loader.js?v=4', 'staff': 'ffp-provider-staff-loader.js?v=4', 'classes': 'ffp-provider-classes-loader.js?v=21', 'appointments': 'ffp-provider-appointments-loader.js?v=10' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=4', 'scheduling': 'ffp-provider-scheduling-loader.js?v=22', 'members': 'ffp-provider-members-loader.js?v=7', 'billing': 'ffp-provider-billing-loader.js?v=4', 'staff': 'ffp-provider-staff-loader.js?v=4', 'classes': 'ffp-provider-classes-loader.js?v=22', 'appointments': 'ffp-provider-appointments-loader.js?v=10' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
