@@ -267,7 +267,10 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
   aspect-ratio: 1.586 / 1;
   position: relative;
   margin: 0 auto 24px;
+  perspective: 1400px;
 }
+/* Tap-to-flip on the member's own passport (reuses the global .ffp-pc-* face rules) */
+.pass-container.flipped .ffp-pc-flip { transform: rotateY(180deg); }
 .pass-shell {
   position: absolute;
   top: 0;
@@ -4365,7 +4368,9 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
   <div id="panel-passport" class="panel-view active">
 
   <!-- PASSPORT CARD -->
-  <div class="pass-container" id="pass-card-tap" onclick="sharePassportCard()" role="button" tabindex="0" title="Tap to share your passport" style="cursor:pointer;">
+  <div class="pass-container" id="pass-card-tap" onclick="ffpFlipSelfPassport()" role="button" tabindex="0" title="Tap to flip your passport" style="cursor:pointer;">
+    <div class="ffp-pc-flip" id="pass-self-flip">
+    <div class="ffp-pc-face ffp-pc-front">
     <div class="pass-shell">
     <div class="pass-bg-emblem"></div>
     <div class="pass-inner">
@@ -4446,10 +4451,13 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
       </div>
     </div>
     </div>
+      </div>
+      <div class="ffp-pc-face ffp-pc-back" id="pass-self-back"></div>
+    </div>
   </div>
-  
-  <div style="text-align:center;font-size:11px;font-weight:700;letter-spacing:.3px;color:var(--muted);margin:-4px 0 18px;display:flex;align-items:center;justify-content:center;gap:5px;">
-    <span class="material-icons" style="font-size:14px;">ios_share</span> Tap your passport to share &amp; invite friends
+
+  <div onclick="sharePassportCard()" role="button" tabindex="0" title="Share your passport" style="text-align:center;font-size:12px;font-weight:800;letter-spacing:.3px;color:var(--blue);margin:-4px 0 18px;display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer;text-decoration:underline;text-underline-offset:2px;">
+    <span class="material-icons" style="font-size:15px;">ios_share</span> Tap here to share your passport with friends
   </div>
 
   <!-- LOG: scan a provider QR or enter manually -->
@@ -8077,7 +8085,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '398';
+  const FFP_BUILD = '399';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -12362,15 +12370,32 @@ function addToGoogleWallet() {
 // Scales entire card to fit container width on any device
 function scalePassportCard() {
   const container = document.querySelector('.pass-container');
-  const shell = document.querySelector('.pass-shell');
-  if (!container || !shell) return;
-
+  if (!container) return;
   const containerWidth = container.offsetWidth;
   if (!containerWidth) return;   // layout not ready yet — the ResizeObserver will re-fire once it is
-  const designWidth = 540;
-  const scale = containerWidth / designWidth;
+  const scale = containerWidth / 540;
+  // Scale BOTH faces (front + flip back), not just the first shell.
+  container.querySelectorAll('.pass-shell').forEach(function (sh) { sh.style.transform = `scale(${scale})`; });
+}
 
-  shell.style.transform = `scale(${scale})`;
+// Tap the member's own passport → flip to the back (activities + level + stats), reusing the
+// canonical FFPPassportCard back. Built fresh on each flip so stats stay current.
+function ffpFlipSelfPassport() {
+  var c = document.getElementById('pass-card-tap');
+  if (!c) return;
+  var goingToBack = !c.classList.contains('flipped');
+  if (goingToBack) {
+    var back = document.getElementById('pass-self-back');
+    try {
+      var member = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null;
+      var selfM = (member && window.FFPCard && FFPCard.resolve) ? FFPCard.resolve(member.id) : null;
+      if (back && selfM && window.FFPPassportCard && FFPPassportCard.backShell) {
+        back.innerHTML = FFPPassportCard.backShell(selfM);
+        scalePassportCard();
+      }
+    } catch (e) { /* non-fatal — still flips */ }
+  }
+  c.classList.toggle('flipped');
 }
 
 // Re-scale the passport card whenever its container ACTUALLY changes size. This fixes the
