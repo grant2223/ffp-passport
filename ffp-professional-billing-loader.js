@@ -15,6 +15,18 @@ function _ccy(){ return (window.FFP_PROVIDER&&FFP_PROVIDER.currency)||'AED'; }
 function _money(v){ var n=Number(v||0); if(window.FFPCurrency)return FFPCurrency.format(isNaN(n)?0:n,_ccy()); return _ccy()+' '+(isNaN(n)?0:n).toLocaleString(); }
 function _metric(label,val){ return '<div style="flex:1;min-width:140px;background:var(--ffp-bg-card);border:1px solid var(--ffp-border);border-radius:10px;padding:11px 13px;"><div class="psub" style="margin:0 0 3px;">'+label+'</div><div style="font-size:18px;font-weight:800;color:var(--ffp-text);">'+val+'</div></div>'; }
 async function _ensureBillClients(){ if(_payClients.length) return; var pid=_billProvId(); if(!pid) return; try{ var r=await window.supabase.rpc('pro_list_clients',{p_pro:pid}); _payClients=(r&&r.data)?r.data:[]; }catch(e){ _payClients=[]; } }
+var _billServices = [];
+async function _ensureBillServices(){ if(_billServices.length) return; var pid=_billProvId(); if(!pid) return; try{ var r=await window.supabase.rpc('pro_list_services',{p_pro:pid}); _billServices=(r&&r.data)?r.data.filter(function(s){return (s.status||'active')==='active';}):[]; }catch(e){ _billServices=[]; } }
+// Description on a payment/invoice is a SERVICE (created in the Services tab) — keeps money tied to a real
+// product + auto-fills the price. "Other / one-off" reveals a free-text box for the occasional ad-hoc charge.
+function _paySvcPick(){
+  var sel=document.getElementById('pm-service'); if(!sel) return;
+  var opt=sel.options[sel.selectedIndex];
+  var desc=document.getElementById('pm-description'); var amt=document.getElementById('pm-amount_aed');
+  if(sel.value==='__custom'){ if(desc){ desc.style.display=''; if(!desc.value) desc.value=''; desc.focus(); } }
+  else if(sel.value){ if(desc){ desc.style.display='none'; desc.value=opt.getAttribute('data-name')||opt.textContent; } var pr=opt.getAttribute('data-price'); if(amt && pr && !amt.value) amt.value=pr; }
+  else { if(desc){ desc.style.display='none'; desc.value=''; } }
+}
 
 // ── Stripe Connect (online card payments) — mirrors the facility portal card ──
 var PRO_BACKEND = (typeof PRO_API!=='undefined'&&PRO_API) || 'https://ffp-passport-backend.vercel.app';
@@ -102,16 +114,31 @@ function payRow(p,mode){
 }
 async function openPaymentModal(id,mode){
   await _ensureBillClients();
+  await _ensureBillServices();
   var editing=id?(mode==='invoice'?_billInvoices:_billPayments).find(function(x){return x.id===id;}):null;
   var today=new Date(); var todayStr=today.getFullYear()+'-'+('0'+(today.getMonth()+1)).slice(-2)+'-'+('0'+today.getDate()).slice(-2);
   var p=editing||{client_id:'',description:'',amount_aed:'',method:'cash',paid_on:todayStr,due_date:''};
   var clientOpts='<option value="">— No client —</option>'+_payClients.map(function(c){return '<option value="'+c.id+'"'+(p.client_id===c.id?' selected':'')+'>'+escHtml(c.full_name||'—')+'</option>';}).join('');
+  // Service picker — Description comes from a service the pro created. Match an existing record's description to a service; else "Other".
+  var _matchSvc=_billServices.filter(function(s){return (s.name||'')===(p.description||'');})[0];
+  var _isCustom=!!(p.description && !_matchSvc);
+  var svcOpts='<option value="">Choose a service…</option>'+
+    _billServices.map(function(s){ return '<option value="'+s.id+'" data-name="'+escHtml(s.name||'')+'" data-price="'+escHtml(String(s.price_aed==null?'':s.price_aed))+'"'+(_matchSvc&&_matchSvc.id===s.id?' selected':'')+'>'+escHtml(s.name||'Service')+(s.price_aed!=null?' · '+_ccy()+' '+s.price_aed:'')+'</option>'; }).join('')+
+    '<option value="__custom"'+(_isCustom?' selected':'')+'>Other / one-off…</option>';
+  var svcField = _billServices.length
+    ? '<div class="field full"><div class="label">Service / product <span class="req">*</span></div>'+
+        '<select class="select" id="pm-service" onchange="_paySvcPick()">'+svcOpts+'</select>'+
+        '<input class="input" id="pm-description" style="margin-top:8px;display:'+(_isCustom?'':'none')+';" value="'+escHtml(p.description||'')+'" placeholder="Describe this one-off charge">'+
+      '</div>'
+    : '<div class="field full"><div class="label">Service / product <span class="req">*</span></div>'+
+        '<div class="psub" style="margin:0 0 6px;">No services yet — add one in the <b>Services</b> tab so payments link to a real product. For now, describe the charge:</div>'+
+        '<input class="input" id="pm-description" value="'+escHtml(p.description||'')+'" placeholder="e.g. PT session"></div>';
   var when=mode==='invoice'
     ? '<div class="field"><div class="label">Due date</div><input class="input" type="date" id="pm-due_date" value="'+(p.due_date?String(p.due_date).slice(0,10):'')+'"></div>'
     : '<div class="field"><div class="label">Method</div><select class="select" id="pm-method">'+Object.keys(PAY_METHODS).map(function(k){return '<option value="'+k+'"'+(p.method===k?' selected':'')+'>'+PAY_METHODS[k]+'</option>';}).join('')+'</select></div><div class="field"><div class="label">Paid on</div><input class="input" type="date" id="pm-paid_on" value="'+(p.paid_on?String(p.paid_on).slice(0,10):todayStr)+'"></div>';
   openModalShell('lg',(editing?'Edit ':'')+(mode==='invoice'?'Invoice':'Payment'),
     '<div class="form-section"><div class="form-section-title">'+(mode==='invoice'?'Invoice':'Payment')+'</div><div class="form-grid">'+
-      '<div class="field full"><div class="label">Description <span class="req">*</span></div><input class="input" id="pm-description" value="'+escHtml(p.description||'')+'" placeholder="'+(mode==='invoice'?'e.g. June block':'e.g. PT session')+'"></div>'+
+      svcField+
       '<div class="field"><div class="label">Client</div><select class="select" id="pm-client_id">'+clientOpts+'</select></div>'+
       '<div class="field"><div class="label">Amount ('+_ccy()+') <span class="req">*</span></div><input class="input" type="number" id="pm-amount_aed" value="'+escHtml(String(p.amount_aed||''))+'"></div>'+
       when+
@@ -121,8 +148,10 @@ async function openPaymentModal(id,mode){
 }
 async function savePayment(id,mode){
   var g=function(i){var el=document.getElementById('pm-'+i);return el?el.value.trim():'';};
+  var _svcSel=document.getElementById('pm-service');
+  if(_svcSel && !_svcSel.value){ showToast('Choose a service (or “Other / one-off”)','error'); return; }
   var desc=g('description'); var amount=g('amount_aed');
-  if(!desc){ showToast('Description is required','error'); return; } if(!amount){ showToast('Amount is required','error'); return; }
+  if(!desc){ showToast('Add a description for this charge','error'); return; } if(!amount){ showToast('Amount is required','error'); return; }
   var pid=_billProvId(); if(!pid) return;
   var payload={description:desc,amount_aed:amount,client_id:g('client_id'),status:mode==='invoice'?'pending':'paid'};
   if(mode==='invoice'){ payload.due_date=g('due_date'); } else { payload.method=g('method')||'cash'; payload.paid_on=g('paid_on'); }
