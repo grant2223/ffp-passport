@@ -763,6 +763,13 @@
       gallery: (window.FFPGallery ? window.FFPGallery.get('xm-gallery') : [])
     };
 
+    // Gate: a PAID Trip requires payment before confirmation → connect Stripe, or allow booking without upfront payment.
+    var _xAllowUnpaid = !!(document.getElementById('xm-allow-unpaid') && document.getElementById('xm-allow-unpaid').checked);
+    if (priceNum && priceNum > 0 && !_xAllowUnpaid && (window.FFP_PROVIDER || {}).payments_status !== 'connected') {
+      toast('Paid Trip: connect Stripe in the Payments tab to take payment — or tick “Allow booking without upfront payment”. Members can’t book a paid Trip until one of these is set.', 'error');
+      return;
+    }
+
     var reapprovalNote = '';
     try {
       if (id) {
