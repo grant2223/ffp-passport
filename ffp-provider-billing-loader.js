@@ -11,7 +11,7 @@
 var _billPayments = [];
 var _billInvoices = [];
 var _payMembers = [];
-var PAY_METHODS = { cash: 'Cash', card: 'Card', transfer: 'Bank transfer', online: 'Online', other: 'Other' };
+var PAY_METHODS = { cash: 'Cash', card: 'Card', transfer: 'Bank transfer', bank_deposit: 'Bank deposit', direct_debit: 'Direct debit', cheque: 'Cheque', online: 'Online', other: 'Other' };
 
 function _billProvId() {
   return (window.FFP_PROVIDER && window.FFP_PROVIDER.id) ||
@@ -23,6 +23,25 @@ async function _ensureBillMembers() {
   var pid = _billProvId();
   if (!pid) return;
   try { var r = await window.supabase.rpc('provider_list_members', { p_provider: pid }); _payMembers = (r && r.data) ? r.data : []; } catch (e) { _payMembers = []; }
+}
+
+// Plans (memberships / class packs) — a manual payment can record a PLAN purchase, which grants the
+// membership/credits to the member (off-system: cash, bank deposit, direct debit, etc.). Mirrors the pro side.
+var _billPlans = [];
+async function _ensureBillPlans() {
+  if (_billPlans.length) return;
+  var pid = _billProvId();
+  if (!pid) return;
+  try { var r = await window.supabase.rpc('provider_list_plans', { p_provider: pid }); _billPlans = (r && r.data) ? r.data : []; } catch (e) { _billPlans = []; }
+}
+function _payPlanPick() {
+  var sel = document.getElementById('pm-plan_id'); if (!sel) return;
+  var opt = sel.options[sel.selectedIndex];
+  if (!sel.value || !opt) return;
+  var price = opt.getAttribute('data-price'); var nm = opt.getAttribute('data-name');
+  var amtEl = document.getElementById('pm-amount_aed'); var descEl = document.getElementById('pm-description');
+  if (amtEl && price) amtEl.value = price;
+  if (descEl && nm && !descEl.value) descEl.value = nm;
 }
 
 function _ccy() { return (window.FFP_PROVIDER && FFP_PROVIDER.currency) || 'AED'; }
@@ -145,6 +164,7 @@ function payRow(p, mode) {
 
 async function openPaymentModal(id, mode) {
   await _ensureBillMembers();
+  if (mode === 'payment') await _ensureBillPlans();
   var editing = id ? (mode === 'invoice' ? _billInvoices : _billPayments).find(function (x) { return x.id === id; }) : null;
   var today = new Date();
   var todayStr = today.getFullYear() + '-' + ('0' + (today.getMonth() + 1)).slice(-2) + '-' + ('0' + today.getDate()).slice(-2);
@@ -158,10 +178,18 @@ async function openPaymentModal(id, mode) {
         Object.keys(PAY_METHODS).map(function (k) { return '<option value="' + k + '"' + (p.method === k ? ' selected' : '') + '>' + PAY_METHODS[k] + '</option>'; }).join('') +
       '</select></div>' +
       '<div class="field"><div class="label">Paid on</div><input class="input" type="date" id="pm-paid_on" value="' + (p.paid_on ? String(p.paid_on).slice(0, 10) : todayStr) + '"></div>';
+  var planField = (mode !== 'payment') ? '' : (
+    '<div class="field full"><div class="label">Plan purchased <span style="color:var(--ffp-text-dim,#6c7f90);font-weight:600;">(optional — grants the membership/credits to the member)</span></div>' +
+    '<select class="select" id="pm-plan_id" onchange="_payPlanPick()">' +
+      '<option value="">Other / one-off (no plan)</option>' +
+      _billPlans.map(function (pl) { return '<option value="' + pl.id + '" data-price="' + (pl.price_aed != null ? pl.price_aed : '') + '" data-name="' + escHtml(pl.name || 'Plan') + '"' + ((editing && editing.plan_id === pl.id) ? ' selected' : '') + '>' + escHtml(pl.name || 'Plan') + (pl.price_aed != null ? (' · ' + _money(pl.price_aed)) : '') + '</option>'; }).join('') +
+    '</select></div>'
+  );
   openModalShell('lg', (editing ? 'Edit ' : '') + (mode === 'invoice' ? 'Invoice' : 'Payment'), `
     <div class="form-section">
       <div class="form-section-title">${mode === 'invoice' ? 'Invoice' : 'Payment'}</div>
       <div class="form-grid">
+        ${planField}
         <div class="field full"><div class="label">Description <span class="req">*</span></div><input class="input" id="pm-description" value="${escHtml(p.description || '')}" placeholder="${mode === 'invoice' ? 'e.g. June monthly membership' : 'e.g. Drop-in class'}"></div>
         <div class="field"><div class="label">Member</div><select class="select" id="pm-member_id">${memberOpts}</select></div>
         <div class="field"><div class="label">Amount (${_ccy()}) <span class="req">*</span></div><input class="input" type="number" id="pm-amount_aed" value="${escHtml(String(p.amount_aed || ''))}" placeholder="e.g. 50"></div>
@@ -183,6 +211,8 @@ async function savePayment(id, mode) {
   if (!amount) { showToast('Amount is required', 'error'); return; }
   var pid = _billProvId();
   if (!pid) { showToast('Not signed in', 'error'); return; }
+  var planId = (document.getElementById('pm-plan_id') || {}).value || '';
+  if (mode === 'payment' && planId && !g('member_id')) { showToast('Choose the member who bought this plan', 'error'); return; }
   var payload = {
     description: desc, amount_aed: amount, member_id: g('member_id'),
     status: mode === 'invoice' ? 'pending' : 'paid'
@@ -192,11 +222,23 @@ async function savePayment(id, mode) {
   } else {
     payload.method = g('method') || 'cash';
     payload.paid_on = g('paid_on');
+    if (planId) payload.plan_id = planId;
   }
   try {
     var r = await window.supabase.rpc('provider_save_payment', { p_provider: pid, p_id: id || null, p: payload });
     if (r && r.error) throw r.error;
-    showToast(id ? 'Saved' : (mode === 'invoice' ? 'Invoice created' : 'Payment recorded'), 'success');
+    // A plan purchase grants the membership/credits to the member (off-system payment just recorded above).
+    var granted_ok = true;
+    if (mode === 'payment' && planId && g('member_id')) {
+      try {
+        var gr = await window.supabase.rpc('provider_assign_plan', { p_provider: pid, p_member: g('member_id'), p_plan: planId, p_start: g('paid_on') || null });
+        granted_ok = !!(gr && gr.data && !gr.error);
+      } catch (e2) { granted_ok = false; }
+    }
+    showToast(
+      granted_ok ? (id ? 'Saved' : (mode === 'invoice' ? 'Invoice created' : (planId ? 'Payment recorded · plan granted' : 'Payment recorded')))
+                 : 'Payment saved — but the plan could not be granted',
+      granted_ok ? 'success' : 'error');
     closeModal();
     if (mode === 'invoice') renderInvoices(); else renderPayments();
   } catch (e) { showToast('Could not save', 'error'); }
