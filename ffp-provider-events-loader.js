@@ -124,6 +124,7 @@
       setting: row.setting || '',
       capacity: row.capacity || 0,
       price_aed: (row.price_aed != null ? row.price_aed : ''),
+      pay_requirement: row.pay_requirement || 'required',
       cost: row.cost || '',
       parking: row.parking || '',
       facilities: row.facilities || '',
@@ -159,7 +160,7 @@
     var providerId = window.FFP_PROVIDER.id;
     var res = await window.supabase
       .from('events')
-      .select('id, provider_id, title, description, about, activity, category, fitness_level, group_filter, hero_image_url, gallery, country, city, venue, area, setting, starts_at, ends_at, capacity, price_aed, cost, parking, facilities, bring, who_for, status, featured, highlights, what_included, what_not_included, meeting_point, meeting_lat, meeting_lng, not_allowed, know_before, languages, min_age, wheelchair_accessible, accessibility_notes, free_cancellation_hours, cancellation_policy, created_at, updated_at')
+      .select('id, provider_id, title, description, about, activity, category, fitness_level, group_filter, hero_image_url, gallery, country, city, venue, area, setting, starts_at, ends_at, capacity, price_aed, cost, parking, facilities, bring, who_for, status, featured, highlights, what_included, what_not_included, meeting_point, meeting_lat, meeting_lng, not_allowed, know_before, languages, min_age, wheelchair_accessible, accessibility_notes, free_cancellation_hours, cancellation_policy, pay_requirement, created_at, updated_at')
       .eq('provider_id', providerId)
       .order('starts_at', { ascending: true });
     if (res.error) {
@@ -480,6 +481,7 @@
       venue: get('venue') || null,
       capacity: capacity,
       price_aed: priceNum,
+      pay_requirement: (document.getElementById('em-allow-unpaid') && document.getElementById('em-allow-unpaid').checked) ? 'optional' : 'required',
       parking: get('parking') || null,
       facilities: get('facilities') || null,
       bring: get('bring') || null,
