@@ -243,20 +243,15 @@ async function openPlanModal(id){
       '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="closeModal(); if(window.showPanel)showPanel(\'services\')"><span class="ms">add</span> Go to Services</button>');
     return;
   }
-  var _typeLbl={ one_to_one:'One on One', group:'Group', assessment:'Assessment' };
-  var _types={}; _memSvc.forEach(function(v){ if(v.service_type) _types[v.service_type]=_typeLbl[v.service_type]||v.service_type; });
-  var _cur = p.service_id ? p.service_id : (p.service_type ? ('type:'+p.service_type) : 'any');
-  var svcOpts='<optgroup label="A specific service">'+
-      _memSvc.map(function(v){ return '<option value="'+v.id+'"'+(_cur===v.id?' selected':'')+'>'+escHtml(v.name||'Service')+'</option>'; }).join('')+
-    '</optgroup>'+
-    (Object.keys(_types).length?('<optgroup label="Any service of a type">'+
-      Object.keys(_types).map(function(k){ return '<option value="type:'+k+'"'+(_cur===('type:'+k)?' selected':'')+'>Any '+escHtml(_types[k])+' service</option>'; }).join('')+
-    '</optgroup>'):'')+
-    '<option value="any"'+(_cur==='any'?' selected':'')+'>Any service</option>';
+  var _sel = (p.service_ids && p.service_ids.length) ? p.service_ids : (p.service_id ? [p.service_id] : []);
+  var svcOpts=_memSvc.map(function(v){
+    var on = _sel.indexOf(v.id) >= 0;
+    return '<label style="display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid var(--ffp-border-mid);border-radius:9px;cursor:pointer;background:'+(on?'rgba(124,58,237,0.07)':'transparent')+';"><input type="checkbox" class="pl-works-cb" value="'+v.id+'"'+(on?' checked':'')+' style="width:17px;height:17px;accent-color:var(--ffp-purple);flex:0 0 auto;cursor:pointer;"><span style="font-size:13px;font-weight:700;color:var(--ffp-text);">'+escHtml(v.name||'Service')+'</span></label>';
+  }).join('');
   openModalShell('lg',(editing?'Edit package':'New package'),
     '<div class="form-section"><div class="form-section-title">Package</div><div class="form-grid">'+
       '<div class="field full"><div class="label">Name <span class="req">*</span></div><input class="input" id="pl-name" value="'+escHtml(p.name)+'" placeholder="e.g. 10 PT Sessions"></div>'+
-      '<div class="field full"><div class="label">Works for <span class="req">*</span></div><select class="select" id="pl-works_for">'+svcOpts+'</select><div style="font-size:11px;color:var(--ffp-text-dim);font-weight:600;margin-top:5px;">Where these credits can be used — one specific service, any service of a type (e.g. all your One-on-One), or any service.</div></div>'+
+      '<div class="field full"><div class="label">Works for which services? <span class="req">*</span></div><div style="display:flex;flex-direction:column;gap:6px;">'+svcOpts+'</div><div style="font-size:11px;color:var(--ffp-text-dim);font-weight:600;margin-top:5px;">Tick the services these credits can book — tick as many as you like.</div></div>'+
       '<div class="field"><div class="label">Type</div><select class="select" id="pl-pkg_type"><option value="sessions"'+(p.pkg_type==='sessions'?' selected':'')+'>Session pack</option><option value="recurring"'+(p.pkg_type==='recurring'?' selected':'')+'>Recurring</option><option value="term"'+(p.pkg_type==='term'?' selected':'')+'>Term</option></select></div>'+
       '<div class="field"><div class="label">Price ('+_ccy2()+')</div><input class="input" type="number" id="pl-price_aed" value="'+escHtml(String(p.price_aed||''))+'"></div>'+
       '<div class="field"><div class="label">Sessions / credits</div><input class="input" type="number" id="pl-credits" value="'+escHtml(String(p.credits||''))+'" placeholder="e.g. 10"></div>'+
@@ -274,10 +269,10 @@ async function openPlanModal(id){
 async function savePlan(id){
   var g=function(i){var el=document.getElementById('pl-'+i);return el?el.value.trim():'';};
   var name=g('name'); if(!name){ showToast('Name is required','error'); return; }
-  var wf=g('works_for')||'any'; var svcId='', svcType='';
-  if(wf==='any'){ } else if(wf.indexOf('type:')===0){ svcType=wf.slice(5); } else { svcId=wf; }
+  var svcIds=Array.prototype.slice.call(document.querySelectorAll('.pl-works-cb')).filter(function(c){return c.checked;}).map(function(c){return c.value;});
+  if(!svcIds.length){ showToast('Tick at least one service this package works for','error'); return; }
   var pid=_memProvId();
-  var payload={name:name,service_id:svcId,service_type:svcType,pkg_type:g('pkg_type')||'sessions',price_aed:g('price_aed'),credits:g('credits'),period_days:g('period_days'),notes:g('notes'),pay_requirement:g('pay_requirement')||'optional'};
+  var payload={name:name,service_ids:svcIds,pkg_type:g('pkg_type')||'sessions',price_aed:g('price_aed'),credits:g('credits'),period_days:g('period_days'),notes:g('notes'),pay_requirement:g('pay_requirement')||'optional'};
   try{ var r=await window.supabase.rpc('pro_save_package',{p_pro:pid,p_id:id||null,p:payload}); if(r&&r.error)throw r.error; showToast(id?'Package updated':'Package created','success'); closeModal(); renderPlans(); }catch(e){ showToast('Could not save package','error'); }
 }
 function confirmDeletePlan(id){ openModalShell('','Delete package?','<div class="psub" style="margin:6px 0;">Clients already assigned keep their record.</div>','<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="doDeletePlan(\''+id+'\')">Delete</button>'); }
