@@ -156,7 +156,7 @@
 <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>
 <script src="assets/ffp-photo-upload.js"></script>
 <!-- Shared image uploader (Storage, not base64) — used by the meetup cover photo. -->
-<script src="assets/ffp-image-upload.js?v=7"></script>
+<script src="assets/ffp-image-upload.js?v=8"></script>
 <!-- v110: qrcode.js for real scannable Identity QR (verify URL). -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <!-- v167: html2canvas to render the passport card to a shareable image (tap-to-share) -->
@@ -8085,7 +8085,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '401';
+  const FFP_BUILD = '402';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -10984,7 +10984,7 @@ function ffpLogPickPhoto() {
   var mid = ((window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || {}).id || 'm';
   window.FFPUpload.pick({
     bucket: 'activity-photos', key: 'activity/' + mid + '-' + Date.now() + '.jpg',
-    aspect: 16 / 9, outW: 1280, outH: 720, title: 'Activity photo',
+    aspect: 4 / 3, pickRatio: true, outW: 1280, outH: 1280, title: 'Activity photo',
     onDone: function (url) { ffpLogSetPhoto(url); },
     onError: function (e) { if (window.showToast) showToast('Photo upload failed', 'error'); console.warn('[log photo]', e); }
   });
