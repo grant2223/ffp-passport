@@ -8077,7 +8077,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '397';
+  const FFP_BUILD = '398';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -8599,10 +8599,6 @@ const MemberProfile = {
         <!-- PREFERENCES -->
         <div class="profile-section-title">Preferences</div>
         <div class="profile-preferences">
-          <label class="pref-toggle">
-            <span>Notifications</span>
-            <input type="checkbox" ${d.preferences.notifications ? 'checked' : ''} onchange="MemberProfile.setPref('notifications', this.checked)">
-          </label>
           <label class="pref-toggle">
             <span>Weekly Newsletter</span>
             <input type="checkbox" ${d.preferences.newsletter ? 'checked' : ''} onchange="MemberProfile.setPref('newsletter', this.checked)">
