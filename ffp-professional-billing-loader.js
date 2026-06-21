@@ -121,9 +121,14 @@ async function openPaymentModal(id,mode){
   var clientOpts='<option value="">— No client —</option>'+_payClients.map(function(c){return '<option value="'+c.id+'"'+(p.client_id===c.id?' selected':'')+'>'+escHtml(c.full_name||'—')+'</option>';}).join('');
   // A payment records a PACKAGE purchase — force the catalog to exist first (no free-text fallback).
   if(!editing && !_billPackages.length){
-    openModalShell('', 'Create a package first',
-      '<div class="psub" style="margin:6px 0;line-height:1.5;">A payment records a <b>package</b> a client bought (a package pays for a service). Create at least one package first, then record the sale here.</div>',
-      '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="closeModal(); if(window.showPanel)showPanel(\'packages\')"><span class="ms">add</span> Go to Packages</button>');
+    openModalShell('', '',
+      '<div style="min-height:56vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px 22px;">'+
+        '<div style="width:84px;height:84px;border-radius:22px;background:rgba(25,128,173,.12);display:flex;align-items:center;justify-content:center;margin-bottom:20px;"><span class="ms" style="font-size:44px;color:var(--ffp-blue,#1980AD);">card_membership</span></div>'+
+        '<div style="font-size:24px;font-weight:800;color:var(--ffp-text,#0e2531);margin-bottom:12px;">Create a package first</div>'+
+        '<div style="font-size:15px;color:var(--ffp-text-muted,#566069);line-height:1.65;max-width:460px;margin-bottom:26px;">A payment is the sale of a <b>package</b> — and a package pays for a service. Build at least one package, then come back here to record the sale.</div>'+
+        '<button class="btn btn-pri" onclick="closeModal(); if(window.showPanel)showPanel(\'packages\')" style="padding:15px 30px;font-size:15px;"><span class="ms">add</span> Create a package</button>'+
+      '</div>',
+      '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>');
     return;
   }
   // A payment = a PACKAGE the client bought (a package pays for a service). Match an existing record to a package; else "Other".
