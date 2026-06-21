@@ -237,11 +237,17 @@ async function openPlanModal(id){
   var editing=id?_plans.find(function(x){return x.id===id;}):null;
   var p=editing||{name:'',pkg_type:'sessions',credits:'',price_aed:'',period_days:'',notes:'',service_id:''};
   await _ensureMemSvc();
-  var svcOpts='<option value="">— No specific service —</option>'+_memSvc.map(function(v){ return '<option value="'+v.id+'"'+(p.service_id===v.id?' selected':'')+'>'+escHtml(v.name||'Service')+'</option>'; }).join('');
+  if(!editing && (!_memSvc || !_memSvc.length)){
+    openModalShell('', 'Create a service first',
+      '<div class="psub" style="margin:6px 0;line-height:1.5;">A package is sold to pay for <b>a service</b> (a session, assessment, etc.). Add at least one service first, then build the package that pays for it.</div>',
+      '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="closeModal(); if(window.showPanel)showPanel(\'services\')"><span class="ms">add</span> Go to Services</button>');
+    return;
+  }
+  var svcOpts='<option value="">Choose a service…</option>'+_memSvc.map(function(v){ return '<option value="'+v.id+'"'+(p.service_id===v.id?' selected':'')+'>'+escHtml(v.name||'Service')+'</option>'; }).join('');
   openModalShell('lg',(editing?'Edit package':'New package'),
     '<div class="form-section"><div class="form-section-title">Package</div><div class="form-grid">'+
       '<div class="field full"><div class="label">Name <span class="req">*</span></div><input class="input" id="pl-name" value="'+escHtml(p.name)+'" placeholder="e.g. 10 PT Sessions"></div>'+
-      '<div class="field full"><div class="label">For which service</div><select class="select" id="pl-service_id">'+svcOpts+'</select></div>'+
+      '<div class="field full"><div class="label">For which service <span class="req">*</span></div><select class="select" id="pl-service_id">'+svcOpts+'</select></div>'+
       '<div class="field"><div class="label">Type</div><select class="select" id="pl-pkg_type"><option value="sessions"'+(p.pkg_type==='sessions'?' selected':'')+'>Session pack</option><option value="recurring"'+(p.pkg_type==='recurring'?' selected':'')+'>Recurring</option><option value="term"'+(p.pkg_type==='term'?' selected':'')+'>Term</option></select></div>'+
       '<div class="field"><div class="label">Price ('+_ccy2()+')</div><input class="input" type="number" id="pl-price_aed" value="'+escHtml(String(p.price_aed||''))+'"></div>'+
       '<div class="field"><div class="label">Sessions / credits</div><input class="input" type="number" id="pl-credits" value="'+escHtml(String(p.credits||''))+'" placeholder="e.g. 10"></div>'+
@@ -254,8 +260,9 @@ async function openPlanModal(id){
 async function savePlan(id){
   var g=function(i){var el=document.getElementById('pl-'+i);return el?el.value.trim():'';};
   var name=g('name'); if(!name){ showToast('Name is required','error'); return; }
+  var svc=g('service_id'); if(!svc){ showToast('Choose the service this package pays for','error'); return; }
   var pid=_memProvId();
-  var payload={name:name,service_id:g('service_id'),pkg_type:g('pkg_type')||'sessions',price_aed:g('price_aed'),credits:g('credits'),period_days:g('period_days'),notes:g('notes')};
+  var payload={name:name,service_id:svc,pkg_type:g('pkg_type')||'sessions',price_aed:g('price_aed'),credits:g('credits'),period_days:g('period_days'),notes:g('notes')};
   try{ var r=await window.supabase.rpc('pro_save_package',{p_pro:pid,p_id:id||null,p:payload}); if(r&&r.error)throw r.error; showToast(id?'Package updated':'Package created','success'); closeModal(); renderPlans(); }catch(e){ showToast('Could not save package','error'); }
 }
 function confirmDeletePlan(id){ openModalShell('','Delete package?','<div class="psub" style="margin:6px 0;">Clients already assigned keep their record.</div>','<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="doDeletePlan(\''+id+'\')">Delete</button>'); }
