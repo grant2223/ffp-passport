@@ -503,6 +503,13 @@
       gallery: (window.FFPGallery ? window.FFPGallery.get('em-gallery') : [])
     };
 
+    // Gate: a PAID Event requires payment before confirmation → the partner must connect Stripe to publish it.
+    var _evPaid = (priceNum && priceNum > 0) || Array.prototype.some.call(document.querySelectorAll('.em-tk-price'), function (i) { return parseFloat(i.value) > 0; });
+    if (_evPaid && (window.FFP_PROVIDER || {}).payments_status !== 'connected') {
+      toast('Paid Event: connect Stripe in the Payments tab before publishing — members must pay to confirm a paid booking.', 'error');
+      return;
+    }
+
     var reapprovalNote = '';
     try {
       if (id) {
