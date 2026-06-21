@@ -8085,7 +8085,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '399';
+  const FFP_BUILD = '400';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -12379,21 +12379,52 @@ function scalePassportCard() {
 }
 
 // Tap the member's own passport → flip to the back (activities + level + stats), reusing the
-// canonical FFPPassportCard back. Built fresh on each flip so stats stay current.
+// canonical FFPPassportCard back. The member's skills live in members.skills but aren't always in
+// the localStorage boot payload, so MemberProfile.data.sports can be empty → hydrate it once from
+// the DB (anon client + explicit id), then re-render so the back shows top skills + levels.
+// members.skills is NOT readable by the anon client (RLS: auth.uid() is null) and isn't always in the
+// boot payload. The SECURITY-DEFINER RPC `members_cards` (the same one the deck/connection cards use)
+// returns the row WITH skills — fetch self through it once, map it, and keep MemberProfile in sync.
+var _ffpSelfCard = null;
+async function ffpEnsureSelfSkills() {
+  if (_ffpSelfCard) return;
+  try {
+    var member = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null;
+    if (!member || !member.id || !window.supabase) return;
+    var r = await window.supabase.rpc('members_cards', { p_ids: [member.id] });
+    var row = r && r.data && r.data[0];
+    if (row) {
+      if (window.FFPCard && FFPCard.register) { try { FFPCard.register(row); } catch (e) {} }
+      _ffpSelfCard = (window.FFPCard && FFPCard.mapRow) ? FFPCard.mapRow(row) : null;
+      if (_ffpSelfCard && _ffpSelfCard.sports && _ffpSelfCard.sports.length && typeof MemberProfile !== 'undefined' && MemberProfile.data) {
+        MemberProfile.data.sports = _ffpSelfCard.sports.slice();   // keep profile + other surfaces consistent
+      }
+    }
+  } catch (e) { /* non-fatal */ }
+}
+
+function ffpRenderSelfBack() {
+  var back = document.getElementById('pass-self-back');
+  if (!back) return;
+  try {
+    var selfM = _ffpSelfCard;
+    if (!selfM) {
+      var member = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null;
+      selfM = (member && window.FFPCard && FFPCard.resolve) ? FFPCard.resolve(member.id) : null;
+    }
+    if (selfM && window.FFPPassportCard && FFPPassportCard.backShell) {
+      back.innerHTML = FFPPassportCard.backShell(selfM);
+      scalePassportCard();
+    }
+  } catch (e) { /* non-fatal — still flips */ }
+}
+
 function ffpFlipSelfPassport() {
   var c = document.getElementById('pass-card-tap');
   if (!c) return;
-  var goingToBack = !c.classList.contains('flipped');
-  if (goingToBack) {
-    var back = document.getElementById('pass-self-back');
-    try {
-      var member = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null;
-      var selfM = (member && window.FFPCard && FFPCard.resolve) ? FFPCard.resolve(member.id) : null;
-      if (back && selfM && window.FFPPassportCard && FFPPassportCard.backShell) {
-        back.innerHTML = FFPPassportCard.backShell(selfM);
-        scalePassportCard();
-      }
-    } catch (e) { /* non-fatal — still flips */ }
+  if (!c.classList.contains('flipped')) {
+    ffpRenderSelfBack();                                   // render with what we have now
+    ffpEnsureSelfSkills().then(function () { ffpRenderSelfBack(); });  // refresh once skills hydrate
   }
   c.classList.toggle('flipped');
 }
