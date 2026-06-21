@@ -467,7 +467,7 @@ function planRow(p) {
 
 function openPlanModal(id) {
   var editing = id ? _plans.find(function (x) { return x.id === id; }) : null;
-  var p = editing || { name: '', plan_type: 'recurring', price_aed: '', credits: '', period_days: '', notes: '' };
+  var p = editing || { name: '', plan_type: 'recurring', price_aed: '', credits: '', period_days: '', notes: '', pay_requirement: 'optional' };
   openModalShell('lg', (editing ? 'Edit plan' : 'New plan'), `
     <div class="form-section">
       <div class="form-section-title">Plan</div>
@@ -484,6 +484,14 @@ function openPlanModal(id) {
         <div class="field"><div class="label">Price (${FFPCurrency.providerCode()})</div><input class="input" type="number" id="pl-price_aed" value="${escHtml(String(p.price_aed || ''))}" placeholder="e.g. 300"></div>
         <div class="field"><div class="label">Credits <span style="color:var(--ffp-text-dim,#6c7f90);">(class packs)</span></div><input class="input" type="number" id="pl-credits" value="${escHtml(String(p.credits || ''))}" placeholder="e.g. 10"></div>
         <div class="field"><div class="label">Length in days <span style="color:var(--ffp-text-dim,#6c7f90);">(membership/term)</span></div><input class="input" type="number" id="pl-period_days" value="${escHtml(String(p.period_days || ''))}" placeholder="e.g. 30"></div>
+        <div class="field full"><div class="label">How is this paid?</div>
+          <select class="select" id="pl-pay_requirement">
+            <option value="optional"${(p.pay_requirement === 'optional' || !p.pay_requirement) ? ' selected' : ''}>Pay online if available — otherwise you collect it</option>
+            <option value="free"${p.pay_requirement === 'free' ? ' selected' : ''}>Free — no payment</option>
+            <option value="required"${p.pay_requirement === 'required' ? ' selected' : ''}>Online payment required (needs Stripe)</option>
+          </select>
+          <div style="font-size:11px;color:var(--ffp-text-dim,#6c7f90);font-weight:600;margin-top:5px;">“Pay online” charges the member through your connected Stripe. Without Stripe, they buy it and you collect / record the payment yourself.</div>
+        </div>
         <div class="field full"><div class="label">Notes</div><textarea class="textarea" id="pl-notes" rows="2" placeholder="Optional">${escHtml(p.notes || '')}</textarea></div>
       </div>
     </div>
@@ -500,7 +508,7 @@ async function savePlan(id) {
   if (!name) { showToast('Plan name is required', 'error'); return; }
   var pid = _memProvId();
   if (!pid) { showToast('Not signed in', 'error'); return; }
-  var payload = { name: name, plan_type: g('plan_type') || 'recurring', price_aed: g('price_aed'), credits: g('credits'), period_days: g('period_days'), notes: g('notes') };
+  var payload = { name: name, plan_type: g('plan_type') || 'recurring', price_aed: g('price_aed'), credits: g('credits'), period_days: g('period_days'), notes: g('notes'), pay_requirement: g('pay_requirement') || 'optional' };
   try {
     var r = await window.supabase.rpc('provider_save_plan', { p_provider: pid, p_id: id || null, p: payload });
     if (r && r.error) throw r.error;
