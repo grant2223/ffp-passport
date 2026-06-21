@@ -131,6 +131,16 @@
     exps.forEach(function (x)   { if (x.status === 'live') out.push({ id: 'ok_x_' + x.id, icon: 'check_circle', tone: 'yellow', text: '‘' + (x.title || 'Experience') + '’ is approved and live', ts: x.updated_at, link: 'experiences' }); });
     chs.forEach(function (x)    { if (x.status === 'live') out.push({ id: 'ok_c_' + x.id, icon: 'check_circle', tone: 'yellow', text: '‘' + (x.title || 'Challenge') + '’ is approved and live', ts: x.updated_at, link: 'challenges' }); });
 
+    // Session bookings — members who booked one of this provider's sessions (SECURITY DEFINER RPC)
+    try {
+      var sb = await window.supabase.rpc('provider_recent_session_bookings', { p_provider: pid });
+      ((sb && sb.data) || []).forEach(function (row) {
+        out.push({ id: 'sb_' + row.booking_id, icon: 'event_available', tone: 'green',
+          text: 'New booking — ' + (row.member_name || 'A member') + ' booked ‘' + (row.session_title || 'a session') + '’',
+          ts: row.created_at, link: 'scheduling' });
+      });
+    } catch (e) { console.warn('[FFP Notifs] session bookings:', e); }
+
     out.sort(function (p, q) { return new Date(q.ts) - new Date(p.ts); });
     return out.slice(0, 40);
   }
