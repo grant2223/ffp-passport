@@ -83,7 +83,7 @@
     }
     var lookup = await supabase
       .from('providers')
-      .select('id, business_name, status, owner_user_id, timezone, currency')
+      .select('id, business_name, status, owner_user_id, timezone, currency, payments_status, stripe_account_id')
       .eq('owner_user_id', member.id)
       .maybeSingle();
 
@@ -108,7 +108,9 @@
       business_name: lookup.data.business_name || member.full_name || '',
       status:        lookup.data.status || 'pending',
       timezone:      lookup.data.timezone || 'Asia/Dubai',  // facility timezone — governs all listing date/time (Tours, Events, Trips, Sessions)
-      currency:      lookup.data.currency || 'AED'           // facility currency — governs all price labels + charges
+      currency:      lookup.data.currency || 'AED',          // facility currency — governs all price labels + charges
+      payments_status:   lookup.data.payments_status || 'not_connected',  // Stripe Connect state — gates publishing PAID listings
+      stripe_account_id: lookup.data.stripe_account_id || null
     };
     console.log('[FFP Provider Auth v5] Access granted ✓ ' + member.email + ' · provider_id=' + lookup.data.id);
 
