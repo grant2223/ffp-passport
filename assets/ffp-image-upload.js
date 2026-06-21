@@ -31,7 +31,34 @@
   'use strict';
 
   var cropper = null;
-  var pending = null; // { bucket, key, outW, outH, aspect, onDone, onError }
+  var pending = null; // { bucket, key, outW, outH, aspect, pickRatio, onDone, onError }
+
+  // Crop-ratio choices (shown only when the caller opts in with pickRatio:true). Each draws a little
+  // proportional icon so the shape is obvious; tapping calls cropper.setAspectRatio.
+  var RATIOS = [
+    { label: 'Square',    r: 1,      w: 16, h: 16 },
+    { label: 'Portrait',  r: 4 / 5,  w: 14, h: 18 },
+    { label: 'Landscape', r: 4 / 3,  w: 22, h: 16 },
+    { label: 'Wide',      r: 16 / 9, w: 24, h: 13 },
+    { label: 'Free',      r: NaN,    w: 22, h: 16 }
+  ];
+  function approxEq(a, b) { if (isNaN(a) && isNaN(b)) return true; if (isNaN(a) || isNaN(b)) return false; return Math.abs(a - b) < 0.02; }
+  function renderRatios() {
+    var host = document.getElementById('ffp-imgup-ratios'); if (!host) return;
+    var want = (pending && !isNaN(pending.aspect)) ? pending.aspect : NaN;
+    host.innerHTML = RATIOS.map(function (rt, i) {
+      var on = approxEq(rt.r, want) ? ' on' : '';
+      return '<button type="button" class="iu-ratio' + on + '" data-i="' + i + '" onclick="window.FFPUpload._ratio(' + i + ')">' +
+        '<span class="ic" style="width:' + rt.w + 'px;height:' + rt.h + 'px;"></span>' + rt.label + '</button>';
+    }).join('');
+  }
+  function setRatio(i) {
+    var rt = RATIOS[i]; if (!rt || !cropper) return;
+    cropper.setAspectRatio(rt.r);
+    if (pending) pending.aspect = rt.r;
+    var host = document.getElementById('ffp-imgup-ratios');
+    if (host) host.querySelectorAll('.iu-ratio').forEach(function (b) { b.classList.toggle('on', +b.dataset.i === i); });
+  }
 
   function ownerId() {
     // The storage RLS requires the file's folder to equal auth.uid() — which is the `sub` claim of the
@@ -156,7 +183,13 @@
       '#ffp-imgup-modal .iu-btn{padding:11px 22px;border-radius:8px;border:1px solid rgba(43,168,224,0.4);background:transparent;color:#fff;font-size:14px;font-weight:600;cursor:pointer;min-width:96px;}',
       '#ffp-imgup-modal .iu-btn-primary{background:#2ba8e0;border-color:#2ba8e0;}',
       '#ffp-imgup-modal .iu-btn:disabled{opacity:0.55;cursor:not-allowed;}',
-      '@media (max-width:600px){#ffp-imgup-modal .iu-btn{flex:1;min-width:0;}#ffp-imgup-img{max-height:70vh;}}'
+      '#ffp-imgup-modal .iu-ratios{display:none;gap:8px;justify-content:center;flex-wrap:wrap;padding:12px 16px 2px;}',
+      '#ffp-imgup-modal.show-ratios .iu-ratios{display:flex;}',
+      '#ffp-imgup-modal .iu-ratio{background:transparent;border:1px solid rgba(43,168,224,0.35);color:#cfe0ee;border-radius:9px;padding:8px 10px 6px;font-size:11px;font-weight:800;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;min-width:58px;font-family:inherit;}',
+      '#ffp-imgup-modal .iu-ratio .ic{border:2px solid currentColor;border-radius:3px;display:block;}',
+      '#ffp-imgup-modal .iu-ratio.on{background:#2ba8e0;border-color:#2ba8e0;color:#fff;}',
+      '#ffp-imgup-modal .iu-hint{text-align:center;color:#8a99a8;font-size:11px;font-weight:600;padding:8px 16px 0;}',
+      '@media (max-width:600px){#ffp-imgup-modal .iu-btn{flex:1;min-width:0;}#ffp-imgup-img{max-height:58vh;}}'
     ].join('\n');
     document.head.appendChild(style);
     var modal = document.createElement('div');
@@ -165,6 +198,8 @@
       '<div class="iu-header"><div class="iu-title" id="ffp-imgup-title">Crop image</div>',
       '<button class="iu-close" aria-label="Close" onclick="window.FFPUpload._close()">&times;</button></div>',
       '<div class="iu-body"><img id="ffp-imgup-img" alt=""></div>',
+      '<div class="iu-ratios" id="ffp-imgup-ratios"></div>',
+      '<div class="iu-hint" id="ffp-imgup-hint">Drag the photo to reposition &middot; scroll or pinch to zoom</div>',
       '<div class="iu-footer"><button class="iu-btn" onclick="window.FFPUpload._close()">Cancel</button>',
       '<button id="ffp-imgup-save" class="iu-btn iu-btn-primary" onclick="window.FFPUpload._save()">Save</button></div>'
     ].join('\n');
@@ -181,13 +216,17 @@
     // button, so reset it every open — otherwise the 2nd+ crop is stuck on "Uploading…" / disabled.
     var saveBtn = document.getElementById('ffp-imgup-save');
     if (saveBtn) { saveBtn.textContent = 'Save'; saveBtn.disabled = false; }
+    var wantRatios = !!(pending && pending.pickRatio);
+    modal.classList.toggle('show-ratios', wantRatios);
+    if (wantRatios) renderRatios();
     if (window.Cropper) {
       img.onload = function () {
         if (cropper) { cropper.destroy(); cropper = null; }
         cropper = new Cropper(img, {
-          aspectRatio: (pending && pending.aspect) || NaN,
+          aspectRatio: (pending && !isNaN(pending.aspect)) ? pending.aspect : NaN,
           viewMode: 1, autoCropArea: 0.9, dragMode: 'move',
-          background: false, zoomable: true, wheelZoomRatio: 0.15, guides: false
+          background: false, zoomable: true, wheelZoomRatio: 0.15,
+          guides: true, center: true, highlight: true, modal: true   // clearer crop frame (grid + dimmed surround)
         });
       };
       img.src = dataUrl;
@@ -213,8 +252,18 @@
     if (btn) { btn.textContent = 'Uploading…'; btn.disabled = true; }
     try {
       if (!cropper) throw new Error('Crop not ready — close and try again');
+      // When the ratio picker is on, the user may have chosen any shape → size the output to the actual
+      // crop box (cap the long side to the caller's budget) so portrait/landscape aren't squashed back to a fixed box.
+      var ow = pending.outW, oh = pending.outH;
+      if (pending.pickRatio) {
+        var d = cropper.getData(true);
+        var ar = (d && d.width && d.height) ? (d.width / d.height) : 1;
+        var budget = Math.max(pending.outW || 0, pending.outH || 0) || 1280;
+        if (ar >= 1) { ow = budget; oh = Math.max(1, Math.round(budget / ar)); }
+        else { oh = budget; ow = Math.max(1, Math.round(budget * ar)); }
+      }
       var canvas = cropper.getCroppedCanvas({
-        width: pending.outW, height: pending.outH,
+        width: ow, height: oh,
         imageSmoothingEnabled: true, imageSmoothingQuality: 'high', fillColor: '#0f1e2e'
       });
       if (!canvas) throw new Error('Could not read the crop area');
@@ -261,7 +310,7 @@
     if (!ownerId()) { (opts.onError || function (e) { alert(e.message); })(new Error('Please sign in again')); return; }
     pending = {
       bucket: opts.bucket, key: String(opts.key),
-      aspect: opts.aspect || NaN,
+      aspect: opts.aspect || NaN, pickRatio: !!opts.pickRatio,
       outW: opts.outW || 800, outH: opts.outH || 800,
       title: opts.title || 'Crop image',
       onDone: opts.onDone, onError: opts.onError
@@ -284,7 +333,7 @@
     if (!ownerId()) { (opts.onError || function (e) { alert(e.message); })(new Error('Please sign in again')); return; }
     if (!file || !/^image\//.test(file.type || '')) { (opts.onError || function () {})(new Error('Please pick an image')); return; }
     pending = {
-      bucket: opts.bucket, key: String(opts.key), aspect: opts.aspect || NaN,
+      bucket: opts.bucket, key: String(opts.key), aspect: opts.aspect || NaN, pickRatio: !!opts.pickRatio,
       outW: opts.outW || 800, outH: opts.outH || 800, title: opts.title || 'Crop image',
       onDone: opts.onDone, onError: opts.onError
     };
@@ -297,6 +346,7 @@
     uploadFile: uploadFile,
     uploadBlob: uploadBlob,
     _close: closeModal,
-    _save: saveCrop
+    _save: saveCrop,
+    _ratio: setRatio
   };
 })();
