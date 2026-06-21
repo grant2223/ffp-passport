@@ -119,20 +119,23 @@ async function openPaymentModal(id,mode){
   var today=new Date(); var todayStr=today.getFullYear()+'-'+('0'+(today.getMonth()+1)).slice(-2)+'-'+('0'+today.getDate()).slice(-2);
   var p=editing||{client_id:'',description:'',amount_aed:'',method:'cash',paid_on:todayStr,due_date:''};
   var clientOpts='<option value="">— No client —</option>'+_payClients.map(function(c){return '<option value="'+c.id+'"'+(p.client_id===c.id?' selected':'')+'>'+escHtml(c.full_name||'—')+'</option>';}).join('');
+  // A payment records a PACKAGE purchase — force the catalog to exist first (no free-text fallback).
+  if(!editing && !_billPackages.length){
+    openModalShell('', 'Create a package first',
+      '<div class="psub" style="margin:6px 0;line-height:1.5;">A payment records a <b>package</b> a client bought (a package pays for a service). Create at least one package first, then record the sale here.</div>',
+      '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="closeModal(); if(window.showPanel)showPanel(\'packages\')"><span class="ms">add</span> Go to Packages</button>');
+    return;
+  }
   // A payment = a PACKAGE the client bought (a package pays for a service). Match an existing record to a package; else "Other".
   var _matchPkg=_billPackages.filter(function(s){return (s.name||'')===(p.description||'');})[0];
   var _isCustom=!!(p.description && !_matchPkg);
   var pkgOpts='<option value="">Choose a package…</option>'+
     _billPackages.map(function(s){ return '<option value="'+s.id+'" data-name="'+escHtml(s.name||'')+'" data-price="'+escHtml(String(s.price_aed==null?'':s.price_aed))+'"'+(_matchPkg&&_matchPkg.id===s.id?' selected':'')+'>'+escHtml(s.name||'Package')+(s.price_aed!=null?' · '+_ccy()+' '+s.price_aed:'')+'</option>'; }).join('')+
     '<option value="__custom"'+(_isCustom?' selected':'')+'>Other / one-off…</option>';
-  var svcField = _billPackages.length
-    ? '<div class="field full"><div class="label">Package <span class="req">*</span></div>'+
+  var svcField = '<div class="field full"><div class="label">Package <span class="req">*</span></div>'+
         '<select class="select" id="pm-service" onchange="_payPkgPick()">'+pkgOpts+'</select>'+
         '<input class="input" id="pm-description" style="margin-top:8px;display:'+(_isCustom?'':'none')+';" value="'+escHtml(p.description||'')+'" placeholder="Describe this one-off charge">'+
-      '</div>'
-    : '<div class="field full"><div class="label">Package <span class="req">*</span></div>'+
-        '<div class="psub" style="margin:0 0 6px;">No packages yet — create one (a package pays for a service) so payments link to a real product. For now, describe the charge:</div>'+
-        '<input class="input" id="pm-description" value="'+escHtml(p.description||'')+'" placeholder="e.g. 10 PT Sessions"></div>';
+      '</div>';
   var when=mode==='invoice'
     ? '<div class="field"><div class="label">Due date</div><input class="input" type="date" id="pm-due_date" value="'+(p.due_date?String(p.due_date).slice(0,10):'')+'"></div>'
     : '<div class="field"><div class="label">Method</div><select class="select" id="pm-method">'+Object.keys(PAY_METHODS).map(function(k){return '<option value="'+k+'"'+(p.method===k?' selected':'')+'>'+PAY_METHODS[k]+'</option>';}).join('')+'</select></div><div class="field"><div class="label">Paid on</div><input class="input" type="date" id="pm-paid_on" value="'+(p.paid_on?String(p.paid_on).slice(0,10):todayStr)+'"></div>';
@@ -150,12 +153,25 @@ async function savePayment(id,mode){
   var g=function(i){var el=document.getElementById('pm-'+i);return el?el.value.trim():'';};
   var _svcSel=document.getElementById('pm-service');
   if(_svcSel && !_svcSel.value){ showToast('Choose a package (or “Other / one-off”)','error'); return; }
-  var desc=g('description'); var amount=g('amount_aed');
+  var pkgId=(_svcSel && _svcSel.value && _svcSel.value!=='__custom') ? _svcSel.value : '';
+  var desc=g('description'); var amount=g('amount_aed'); var clientId=g('client_id');
   if(!desc){ showToast('Add a description for this charge','error'); return; } if(!amount){ showToast('Amount is required','error'); return; }
+  // Recording a real PACKAGE payment also GRANTS the client that package's credits → a client is required.
+  var grantPackage = (!id && mode==='payment' && pkgId);
+  if(grantPackage && !clientId){ showToast('Choose the client who bought this package — they receive its credits','error'); return; }
   var pid=_billProvId(); if(!pid) return;
-  var payload={description:desc,amount_aed:amount,client_id:g('client_id'),status:mode==='invoice'?'pending':'paid'};
+  var payload={description:desc,amount_aed:amount,client_id:clientId,status:mode==='invoice'?'pending':'paid'};
   if(mode==='invoice'){ payload.due_date=g('due_date'); } else { payload.method=g('method')||'cash'; payload.paid_on=g('paid_on'); }
-  try{ var r=await window.supabase.rpc('pro_save_payment',{p_pro:pid,p_id:id||null,p:payload}); if(r&&r.error)throw r.error; showToast(id?'Saved':(mode==='invoice'?'Invoice created':'Payment recorded'),'success'); closeModal(); if(mode==='invoice')renderInvoices(); else renderPayments(); }catch(e){ showToast('Could not save','error'); }
+  try{
+    var r=await window.supabase.rpc('pro_save_payment',{p_pro:pid,p_id:id||null,p:payload}); if(r&&r.error)throw r.error;
+    var msg=id?'Saved':(mode==='invoice'?'Invoice created':'Payment recorded'); var ok=true;
+    if(grantPackage){
+      var gr=await window.supabase.rpc('pro_assign_package',{p_pro:pid,p_client:clientId,p_package:pkgId,p_start:(g('paid_on')||null)});
+      if(gr && !gr.error && gr.data){ msg='Payment recorded — credits added to the client'; }
+      else { msg='Payment saved, but couldn’t add the package credits — assign it from the Clients tab'; ok=false; }
+    }
+    showToast(msg, ok?'success':'error'); closeModal(); if(mode==='invoice')renderInvoices(); else renderPayments();
+  }catch(e){ showToast('Could not save','error'); }
 }
 function markPaid(id){ openModalShell('','Mark as paid','<div class="form-section"><div class="form-section-title">Method</div><div class="form-grid"><div class="field full"><select class="select" id="mp-method">'+Object.keys(PAY_METHODS).map(function(k){return '<option value="'+k+'">'+PAY_METHODS[k]+'</option>';}).join('')+'</select></div></div></div>','<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="doMarkPaid(\''+id+'\')">Mark paid</button>'); }
 async function doMarkPaid(id){ var pid=_billProvId(); var m=document.getElementById('mp-method'); try{ var r=await window.supabase.rpc('pro_mark_paid',{p_pro:pid,p_id:id,p_method:m?m.value:'cash'}); if(r&&r.error)throw r.error; showToast('Marked paid','success'); }catch(e){ showToast('Could not update','error'); } closeModal(); renderInvoices(); renderPayments(); }
