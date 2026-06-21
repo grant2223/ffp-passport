@@ -317,6 +317,7 @@
       country: row.country || '',
       destination: row.destination || '',
       price_aed: row.price_aed || '',
+      pay_requirement: row.pay_requirement || 'required',
       currency: row.currency || 'AED',
       deposit: (row.deposit != null ? row.deposit : ''),
       price_includes: arrFromText(row.what_included),
@@ -354,7 +355,7 @@
     if (!window.FFP_PROVIDER || !window.FFP_PROVIDER.id) return [];
     var res = await window.supabase
       .from('experiences')
-      .select('id, provider_id, title, description, overview, exp_type, activity, category, hero_image_url, gallery, destination, country, starts_at, ends_at, duration_days, price_aed, currency, deposit, what_not_included, what_included, itinerary, accommodation, flights_info, travel_reqs, fitness_reqs, fitness_level, capacity, status, featured, highlights, not_allowed, languages, min_age, meeting_point, meeting_lat, meeting_lng, wheelchair_accessible, accessibility_notes, free_cancellation_hours, cancellation_policy, created_at, updated_at')
+      .select('id, provider_id, title, description, overview, exp_type, activity, category, hero_image_url, gallery, destination, country, starts_at, ends_at, duration_days, price_aed, currency, deposit, what_not_included, what_included, itinerary, accommodation, flights_info, travel_reqs, fitness_reqs, fitness_level, capacity, status, featured, highlights, not_allowed, languages, min_age, meeting_point, meeting_lat, meeting_lng, wheelchair_accessible, accessibility_notes, free_cancellation_hours, cancellation_policy, pay_requirement, created_at, updated_at')
       .eq('provider_id', window.FFP_PROVIDER.id)
       .order('starts_at', { ascending: true });
     if (res.error) {
@@ -434,7 +435,7 @@
       title: '', description: '', overview: '',
       activity: '', category: '',
       start_date: '', end_date: '',
-      country: '', destination: '', price_aed: '', currency: 'AED', deposit: '',
+      country: '', destination: '', price_aed: '', pay_requirement: 'required', currency: 'AED', deposit: '',
       price_includes: [], price_excludes: [],
       accommodation: '', flights: '', travel_reqs: '',
       fitness_reqs: '', fitness_level: 'All Levels',
@@ -535,6 +536,10 @@
             '<input class="input" type="number" id="xm-price" value="' + escHtml(e.price_aed) + '" placeholder="e.g. 1850"></div>' +
           '<div class="field"><div class="label">Deposit <span class="label-hint">— to secure a spot</span></div>' +
             '<input class="input" type="number" id="xm-deposit" value="' + escHtml(e.deposit || '') + '" placeholder="e.g. 500"></div>' +
+          '<div class="field full"><label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;background:rgba(10,62,68,0.05);border:1px solid var(--ffp-border-mid,#dbe3ea);border-radius:10px;padding:11px 13px;">' +
+            '<input type="checkbox" id="xm-allow-unpaid"' + (e.pay_requirement === 'optional' ? ' checked' : '') + ' style="width:18px;height:18px;margin-top:1px;flex:0 0 auto;cursor:pointer;">' +
+            '<span style="font-size:12px;color:var(--ffp-text,#0e2531);font-weight:700;">Allow booking without upfront payment <span style="display:block;font-weight:500;color:var(--ffp-text-dim,#6c7f90);margin-top:2px;">By default a paid Trip must be paid for before it’s confirmed. Tick this to let members book and settle with you directly.</span></span>' +
+          '</label></div>' +
           '<div class="field"><div class="label">Capacity</div>' +
             '<input class="input" type="number" id="xm-capacity" value="' + escHtml(e.capacity) + '" placeholder="e.g. 16"></div>' +
           '<div class="field full"><div class="label">What\'s included <span class="label-hint">— one per line</span></div>' +
@@ -724,6 +729,7 @@
       activity:        activity,
       category:        category || null,
       exp_type:        expType,
+      pay_requirement: (document.getElementById('xm-allow-unpaid') && document.getElementById('xm-allow-unpaid').checked) ? 'optional' : 'required',
       fitness_level:   get('fitness-level') || null,
       // Store local midnight of the facility timezone (shared FFPTime) as UTC, so dates round-trip correctly.
       starts_at:       (window.FFPTime ? window.FFPTime.toUTC(start) : start),
