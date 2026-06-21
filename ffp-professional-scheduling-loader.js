@@ -128,8 +128,8 @@ async function openSlotPeople(slotId){
   var clientList=_proClients.length
     ? _proClients.map(function(c){ var on=chosen.indexOf(c.id)!==-1; return '<label style="display:flex;align-items:center;gap:9px;padding:8px 2px;cursor:pointer;border-bottom:1px solid var(--ffp-border);"><input type="checkbox" class="slp-cl" value="'+c.id+'" '+(on?'checked':'')+' style="width:17px;height:17px;accent-color:var(--ffp-purple);"> <span style="font-size:14px;">'+escHtml(c.full_name)+'</span></label>'; }).join('')
     : '<div class="psub" style="margin:4px 0;">No clients yet — add them in the Clients tab first.</div>';
-  openModalShell('', 'Who\'s in this session',
-    '<div class="psub" style="margin:0 0 8px;">Tick to add, untick to remove. Add new clients in the Clients tab.</div><div id="slp-clients" style="max-height:340px;overflow-y:auto;">'+clientList+'</div>',
+  openModalShell('', 'Recurring clients',
+    '<div class="psub" style="margin:0 0 8px;"><b>Ticking adds this person to EVERY week of this slot</b> (a standing/recurring spot). Members who book a single session appear automatically — you don\'t add them here. Untick to remove someone\'s recurring spot.</div><div id="slp-clients" style="max-height:340px;overflow-y:auto;">'+clientList+'</div>',
     '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="saveSlotPeople(\''+slotId+'\')">Save</button>');
 }
 async function saveSlotPeople(slotId){
@@ -246,7 +246,8 @@ async function openSlotModal(id){
       '<div class="field full"><div class="label">Session note <span style="color:var(--ffp-text-dim);">— private to you</span></div><textarea class="textarea" id="sl-notes" rows="2" placeholder="e.g. focus on mobility; bring resistance bands">'+escHtml(s.notes||'')+'</textarea></div>'+
       '<div class="field full"><div id="sl-online-ind" style="font-size:12px;font-weight:600;color:var(--ffp-text-dim);background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:10px;padding:10px 12px;"></div></div>'+
     '</div></div>'+
-    '<div class="form-section"><div class="form-section-title">Who\'s in this slot</div>'+
+    '<div class="form-section"><div class="form-section-title">Recurring clients <span style="font-weight:600;color:var(--ffp-text-dim);">— optional</span></div>'+
+      '<div class="psub" style="margin:0 0 8px;">Only tick someone to pre-book them into this slot <b>every week</b>. Leave empty for an open slot — members book it themselves, one session at a time.</div>'+
       '<div id="sl-clients" style="max-height:200px;overflow-y:auto;border:1px solid var(--ffp-border);border-radius:10px;padding:6px 10px;">'+clientList+'</div>'+
     '</div>',
     (editing?'<button class="btn btn-ghost left" onclick="confirmEndSlot(\''+editing.id+'\')"><span class="ms">delete</span> End slot</button>':'')+
@@ -412,8 +413,16 @@ function confirmEndSlot(slotId){
 }
 async function endSlot(slotId){
   var pid=_proProvId();
-  try{ var r=await window.supabase.rpc('pro_delete_slot',{p_pro:pid,p_id:slotId}); if(r&&r.error)throw r.error; showToast('Slot ended','success'); }catch(e){ showToast('Could not end slot','error'); }
-  closeModal(); _schedRefresh();
+  try{
+    var r=await window.supabase.rpc('pro_delete_slot',{p_pro:pid,p_id:slotId});
+    if(r&&r.error)throw r.error;
+    // The RPC returns false (no error) when members are booked into upcoming sessions — never delete those.
+    if(r && r.data===false){
+      showToast('Can’t end this slot — members are booked into upcoming sessions. Open the date, “Block this date”, and return their credit/refund first.','error');
+      return;   // keep the modal open
+    }
+    showToast('Slot ended','success'); closeModal(); _schedRefresh();
+  }catch(e){ showToast('Could not end slot','error'); }
 }
 
 // First open: load slots cache then render the week.
