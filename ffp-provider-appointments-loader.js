@@ -1049,11 +1049,12 @@ async function apRenderPackages() {
   }
 }
 function apPackageModal(id) {
+  if (!id && !_apServices.length) { apToast('Add a service first — a package pays for a service (Services & Coaches tab)', 'error'); return; }
   var p = _apPackages.find(function (x) { return x.id === id; }) || { name: '', service_id: '', sessions_count: 10, price_aed: '', tax_rate: '', validity_days: '', status: 'active' };
   var body =
     '<div class="form-section"><div class="form-grid">' +
       '<div class="field" style="grid-column:1/-1;"><div class="label">Package name <span class="req">*</span></div><input class="input" id="ap-pk-name" value="' + apEsc(p.name) + '" placeholder="e.g. 10 PT Sessions"></div>' +
-      '<div class="field"><div class="label">Service <span class="label-hint">— optional</span></div><select class="select" id="ap-pk-service">' + _apServiceOpts(p.service_id, true) + '</select></div>' +
+      '<div class="field"><div class="label">Service <span class="req">*</span></div><select class="select" id="ap-pk-service">' + _apServiceOpts(p.service_id, false) + '</select></div>' +
       '<div class="field"><div class="label">Sessions <span class="req">*</span></div><input class="input" type="number" min="1" id="ap-pk-sessions" value="' + apEsc(String(p.sessions_count || 1)) + '"></div>' +
       '<div class="field"><div class="label">Price (' + apCcy() + ')</div><input class="input" type="number" min="0" id="ap-pk-price" value="' + apEsc(String(p.price_aed || '')) + '"></div>' +
       '<div class="field"><div class="label">Tax rate (%)</div><input class="input" type="number" min="0" step="0.5" id="ap-pk-tax" value="' + apEsc(String(p.tax_rate || '')) + '"></div>' +
@@ -1067,8 +1068,10 @@ function apPackageModal(id) {
 async function apSavePackage(id) {
   var name = (document.getElementById('ap-pk-name') || {}).value.trim();
   if (!name) { apToast('Package name is required', 'error'); return; }
+  var _pkSvc = (document.getElementById('ap-pk-service') || {}).value || '';
+  if (!_pkSvc) { apToast('Choose the service this package pays for', 'error'); return; }
   var p = {
-    name: name, service_id: (document.getElementById('ap-pk-service') || {}).value || '',
+    name: name, service_id: _pkSvc,
     sessions_count: (document.getElementById('ap-pk-sessions') || {}).value || '1',
     price_aed: (document.getElementById('ap-pk-price') || {}).value || '0',
     tax_rate: (document.getElementById('ap-pk-tax') || {}).value || '0',
