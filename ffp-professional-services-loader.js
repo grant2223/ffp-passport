@@ -74,7 +74,7 @@ async function openServiceModal(id){
   var pid = _svcProvId(); if (!pid) return;
   if (!_proServicesCache.length) await _loadServicesCache();
   var editing = id ? _proServicesCache.find(function (x){ return x.id === id; }) : null;
-  var s = editing || { name:'', service_type:'pt_session', description:'', duration_min:60, capacity:1, price_aed:'', location:'', free_cancellation_hours:24 };
+  var s = editing || { name:'', service_type:'pt_session', description:'', duration_min:60, capacity:1, price_aed:'', location:'', free_cancellation_hours:24, pay_requirement:'optional' };
   var typeOpts = Object.keys(SERVICE_TYPES).map(function (k){ return '<option value="'+k+'"'+(s.service_type===k?' selected':'')+'>'+SERVICE_TYPES[k]+'</option>'; }).join('');
 
   openModalShell('lg', (editing ? 'Edit service' : 'New service'),
@@ -87,6 +87,11 @@ async function openServiceModal(id){
       '<div class="field"><div class="label">Free cancellation (hrs) <span style="color:var(--ffp-text-dim);">(full refund/credit before start)</span></div><input class="input" type="number" min="0" step="1" id="sv-free_cancellation_hours" value="'+_svcEsc(String(s.free_cancellation_hours!=null?s.free_cancellation_hours:24))+'" placeholder="24"></div>'+
       '<div class="field"><div class="label">Location</div><input class="input" id="sv-location" value="'+_svcEsc(s.location||'')+'" placeholder="Optional"></div>'+
       '<div class="field full"><div class="label">Description</div><input class="input" id="sv-description" value="'+_svcEsc(s.description||'')+'" placeholder="What this service includes (optional)"></div>'+
+      '<div class="field full"><div class="label">How is this paid?</div><select class="select" id="sv-pay_requirement">'+
+        '<option value="optional"'+((s.pay_requirement==='optional'||!s.pay_requirement)?' selected':'')+'>Pay online if available — otherwise you collect it</option>'+
+        '<option value="free"'+(s.pay_requirement==='free'?' selected':'')+'>Free — no payment</option>'+
+        '<option value="required"'+(s.pay_requirement==='required'?' selected':'')+'>Online payment required (needs Stripe)</option>'+
+      '</select><div style="font-size:11px;color:var(--ffp-text-dim);font-weight:600;margin-top:5px;">“Pay online” charges the member through your connected Stripe. Without Stripe, they book and you collect / record the payment yourself.</div></div>'+
       '<div class="field full"><label style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;background:rgba(10,62,68,0.07);border:1px solid var(--ffp-border-mid);border-radius:10px;padding:12px 14px;"><span style="display:flex;flex-direction:column;gap:2px;"><span style="font-size:13px;font-weight:800;color:var(--ffp-text);">Offer online</span><span style="font-size:11px;color:var(--ffp-text-dim);font-weight:600;">Members can self-book slots that use this service, up to capacity.</span></span><input type="checkbox" id="sv-bookable_online" '+(s.bookable_online?'checked':'')+' style="width:20px;height:20px;accent-color:var(--ffp-purple);flex:0 0 auto;cursor:pointer;"></label></div>'+
     '</div>'+
       '<div class="psub" style="margin:2px 0 0;">Set the price for a single session here. To sell a multi-session bundle for this service, add a <b>Package</b> in the Packages tab and link it to this service.</div>'+
@@ -106,6 +111,7 @@ async function saveService(id){
     duration_min: g('duration_min'), capacity: g('capacity') || '1',
     price_aed: g('price_aed'), location: g('location'),
     free_cancellation_hours: g('free_cancellation_hours'),
+    pay_requirement: g('pay_requirement') || 'optional',
     bookable_online: !!(_onlineEl && _onlineEl.checked)
   };
   try {
