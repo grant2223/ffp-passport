@@ -48,7 +48,7 @@
   async function fetchClasses() {
     if (!provId()) return [];
     var res = await sb().from('classes')
-      .select('id, provider_id, title, description, category, activity, venue, city, country, duration_min, capacity, price_aed, hero_image_url, gallery, schedule_rule, booking_questions, status, booking_source, highlights, what_included, what_not_included, meeting_point, meeting_lat, meeting_lng, what_to_bring, not_allowed, know_before, languages, min_age, difficulty, fitness_level, wheelchair_accessible, accessibility_notes, free_cancellation_hours, cancellation_policy, distance_km, featured, created_at')
+      .select('id, provider_id, title, description, category, activity, venue, city, country, duration_min, capacity, price_aed, hero_image_url, gallery, schedule_rule, booking_questions, status, booking_source, highlights, what_included, what_not_included, meeting_point, meeting_lat, meeting_lng, what_to_bring, not_allowed, know_before, languages, min_age, difficulty, fitness_level, wheelchair_accessible, accessibility_notes, free_cancellation_hours, cancellation_policy, distance_km, featured, pay_requirement, created_at')
       .eq('provider_id', provId())
       .order('created_at', { ascending: false });
     if (res.error) { console.error('[FFP Classes] fetch', res.error); toast('Could not load experiences', 'error'); return []; }
@@ -152,6 +152,10 @@
         '<div class="field"><div class="label">Venue</div><input class="input" id="cm-venue" value="' + esc(e.venue || '') + '" placeholder="e.g. Kite Beach"></div>' +
         '<div class="field"><div class="label">Duration (min)</div><input class="input" type="number" id="cm-duration" value="' + esc(e.duration_min || '') + '" placeholder="e.g. 60"></div>' +
         '<div class="field"><div class="label">Price per person (' + FFPCurrency.providerCode() + ') <span class="req">*</span></div><input class="input" type="number" id="cm-price" value="' + esc(e.price_aed != null ? e.price_aed : '') + '" placeholder="e.g. 150"></div>' +
+        '<div class="field full"><label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;background:rgba(10,62,68,0.05);border:1px solid var(--ffp-border-mid,#dbe3ea);border-radius:10px;padding:11px 13px;">' +
+          '<input type="checkbox" id="cm-allow-unpaid"' + (e.pay_requirement === 'optional' ? ' checked' : '') + ' style="width:18px;height:18px;margin-top:1px;flex:0 0 auto;cursor:pointer;">' +
+          '<span style="font-size:12px;color:var(--ffp-text,#0e2531);font-weight:700;">Allow booking without upfront payment <span style="display:block;font-weight:500;color:var(--ffp-text-dim,#6c7f90);margin-top:2px;">By default a paid Experience must be paid for before it’s confirmed. Tick this to let members book and settle with you directly (cash / off-platform).</span></span>' +
+        '</label></div>' +
         '<div class="field full"><div class="label">Location pin <span class="label-hint">— paste a Google Maps link; we’ll set the pin so members get directions</span></div>' +
           '<div style="display:flex;gap:8px;align-items:center;">' +
             '<input class="input" id="cm-maps-url" placeholder="Paste your Google Maps link (any format)" style="flex:1;min-width:0;">' +
@@ -340,6 +344,7 @@
       languages: arrFromText(g('languages')), meeting_point: g('meeting-point') || null, meeting_lat: mLat, meeting_lng: mLng,
       min_age: intn(g('min-age')), distance_km: num(g('distance')), wheelchair_accessible: (wheel === '' ? null : wheel === 'true'),
       accessibility_notes: g('accessibility') || null, free_cancellation_hours: intn(g('cancel-hours')), cancellation_policy: g('cancel-policy') || null,
+      pay_requirement: (document.getElementById('cm-allow-unpaid') && document.getElementById('cm-allow-unpaid').checked) ? 'optional' : 'required',
       gallery: _cmGallery
     };
     try {
