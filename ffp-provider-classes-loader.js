@@ -347,6 +347,13 @@
       pay_requirement: (document.getElementById('cm-allow-unpaid') && document.getElementById('cm-allow-unpaid').checked) ? 'optional' : 'required',
       gallery: _cmGallery
     };
+    // Gate: a PAID Experience needs payment before confirmation → the partner must connect Stripe, or explicitly allow booking without upfront payment.
+    var _connected = (window.FFP_PROVIDER || {}).payments_status === 'connected';
+    var _allowUnpaid = !!(document.getElementById('cm-allow-unpaid') && document.getElementById('cm-allow-unpaid').checked);
+    if (num(price) > 0 && !_allowUnpaid && !_connected) {
+      toast('Paid Experience: connect Stripe in the Payments tab to take payment — or tick “Allow booking without upfront payment”. Members can’t book a paid listing until one of these is set.', 'error');
+      return;
+    }
     try {
       var res = await sb().rpc('provider_save_listing', { p_kind: 'class', p_provider: provId(), p_id: id || null, p: payload });
       if (res.error) throw res.error;
