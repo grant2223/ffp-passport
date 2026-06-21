@@ -80,7 +80,7 @@ async function openServiceModal(id){
   // Packages that can be used to book THIS service: bound to it specifically, to its type, or generic (any).
   var _pkgs = [];
   if (editing) { try { var _pr = await window.supabase.rpc('pro_list_packages', { p_pro: pid }); if (_pr && _pr.data) _pkgs = _pr.data; } catch (e) {} }
-  var _applies = _pkgs.filter(function (pk){ return pk.service_id === s.id || (!pk.service_id && pk.service_type && pk.service_type === s.service_type) || (!pk.service_id && !pk.service_type); });
+  var _applies = _pkgs.filter(function (pk){ var ids = pk.service_ids || []; return ids.length ? (ids.indexOf(s.id) >= 0) : true; });
   var _pkgHtml = !editing ? '' : (
     _applies.length
       ? '<div class="form-section-title" style="margin-top:6px;">Packages that book this service</div><div style="display:flex;flex-wrap:wrap;gap:6px;">'+_applies.map(function (pk){ return '<span style="font-size:12px;font-weight:700;background:rgba(10,62,68,0.08);border:1px solid var(--ffp-border-mid);border-radius:999px;padding:4px 11px;">'+_svcEsc(pk.name||'Package')+(pk.credits?(' · '+pk.credits+' credits'):'')+'</span>'; }).join('')+'</div>'
