@@ -235,7 +235,7 @@ async function _ensureMemSvc(){
 }
 async function openPlanModal(id){
   var editing=id?_plans.find(function(x){return x.id===id;}):null;
-  var p=editing||{name:'',pkg_type:'sessions',credits:'',price_aed:'',period_days:'',notes:'',service_id:''};
+  var p=editing||{name:'',pkg_type:'sessions',credits:'',price_aed:'',period_days:'',notes:'',service_id:'',pay_requirement:'optional'};
   await _ensureMemSvc();
   if(!editing && (!_memSvc || !_memSvc.length)){
     openModalShell('', 'Create a service first',
@@ -252,6 +252,11 @@ async function openPlanModal(id){
       '<div class="field"><div class="label">Price ('+_ccy2()+')</div><input class="input" type="number" id="pl-price_aed" value="'+escHtml(String(p.price_aed||''))+'"></div>'+
       '<div class="field"><div class="label">Sessions / credits</div><input class="input" type="number" id="pl-credits" value="'+escHtml(String(p.credits||''))+'" placeholder="e.g. 10"></div>'+
       '<div class="field"><div class="label">Valid days</div><input class="input" type="number" id="pl-period_days" value="'+escHtml(String(p.period_days||''))+'" placeholder="e.g. 60"></div>'+
+      '<div class="field full"><div class="label">How is this paid?</div><select class="select" id="pl-pay_requirement">'+
+        '<option value="optional"'+((p.pay_requirement==='optional'||!p.pay_requirement)?' selected':'')+'>Pay online if available — otherwise you collect it</option>'+
+        '<option value="free"'+(p.pay_requirement==='free'?' selected':'')+'>Free — no payment</option>'+
+        '<option value="required"'+(p.pay_requirement==='required'?' selected':'')+'>Online payment required (needs Stripe)</option>'+
+      '</select></div>'+
       '<div class="field full"><div class="label">Notes</div><textarea class="textarea" id="pl-notes" rows="2">'+escHtml(p.notes||'')+'</textarea></div>'+
     '</div></div>',
     (editing?'<button class="btn btn-ghost left" onclick="confirmDeletePlan(\''+editing.id+'\')"><span class="ms">delete</span> Delete</button>':'')+
@@ -262,7 +267,7 @@ async function savePlan(id){
   var name=g('name'); if(!name){ showToast('Name is required','error'); return; }
   var svc=g('service_id'); if(!svc){ showToast('Choose the service this package pays for','error'); return; }
   var pid=_memProvId();
-  var payload={name:name,service_id:svc,pkg_type:g('pkg_type')||'sessions',price_aed:g('price_aed'),credits:g('credits'),period_days:g('period_days'),notes:g('notes')};
+  var payload={name:name,service_id:svc,pkg_type:g('pkg_type')||'sessions',price_aed:g('price_aed'),credits:g('credits'),period_days:g('period_days'),notes:g('notes'),pay_requirement:g('pay_requirement')||'optional'};
   try{ var r=await window.supabase.rpc('pro_save_package',{p_pro:pid,p_id:id||null,p:payload}); if(r&&r.error)throw r.error; showToast(id?'Package updated':'Package created','success'); closeModal(); renderPlans(); }catch(e){ showToast('Could not save package','error'); }
 }
 function confirmDeletePlan(id){ openModalShell('','Delete package?','<div class="psub" style="margin:6px 0;">Clients already assigned keep their record.</div>','<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="doDeletePlan(\''+id+'\')">Delete</button>'); }
