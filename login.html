@@ -1,6 +1,14 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-  FFP PASSPORT — login.html v19
+  FFP PASSPORT — login.html v20
+  v20 (2026-06-21): HYBRID AUTH (member portal) — member Sign In now uses native Supabase OTP
+  (signInWithOtp/verifyOtp on the shared anon client) then POSTs the verified session to the backend
+  /api/auth/exchange, which returns the SAME app-JWT (sub=members.id) the app already uses — so the
+  whole RLS layer is unchanged. Same email+code UX; the code is now a single-use Supabase OTP (not the
+  permanent access_code). Gated to selectedPortal==='member' behind FFP_NATIVE_MEMBER_AUTH (flip to
+  false to instantly revert). Partner/Professional/Admin sign-in untouched (legacy /api/auth/signin).
+  Sign-in passes allow_create:false so an unknown email never auto-creates an account (keeps the
+  Become-A-Member funnel). Requires backend v96 (/api/auth/exchange) deployed first.
   v19 (2026-06-10): LAUNCH SPLASH — a branded "Loading" screen (emblem + spinner, navy) shows immediately
   on launch so a returning member no longer sees the login form flash before the auto-redirect into the
   dashboard. It stays up through the redirect (the dashboard shows the same splash → seamless), and is
@@ -450,6 +458,12 @@ Back
 <script>
 var selectedPortal = 'member';
 var currentFlow = 'signin';
+// ── HYBRID native auth (MEMBER portal only): native Supabase OTP → /api/auth/exchange → app-JWT (sub=members.id).
+//    Same email+code UX, but the code is now a single-use Supabase OTP (not the permanent access_code).
+//    Pros/partners/admins are untouched (legacy path). Flip FFP_NATIVE_MEMBER_AUTH=false to instantly revert members.
+var FFP_NATIVE_MEMBER_AUTH = true;
+var FFP_EXCHANGE_URL = 'https://ffp-passport-backend.vercel.app/api/auth/exchange';
+function ffpUseNative(flow){ return FFP_NATIVE_MEMBER_AUTH && flow === 'signin' && selectedPortal === 'member' && window.supabase && window.supabase.auth; }
 var portalColors = {
   member:       { btn:'#1980AD', badge:'color:#2ba8e0;', label:'Member Sign In' },
   provider:     { btn:'#22c55e', badge:'color:#22c55e;', label:'Partner Sign In' },
@@ -598,6 +612,13 @@ async function resendCode(flow) {
   if (!email || !email.includes('@')) { goTo(flow === 'signup' ? 'screen-signup' : 'screen-signin-email'); return; }
   if (timerEl) timerEl.textContent = '· sending…';
   try {
+    if (ffpUseNative(flow)) {
+      var rr = await window.supabase.auth.signInWithOtp({ email: email, options: { shouldCreateUser: true } });
+      if (rr && rr.error) { if (timerEl) timerEl.textContent = '· ' + (rr.error.message || 'could not send'); return; }
+      if (timerEl) timerEl.textContent = '· new code sent';
+      startResendCooldown(flow, 60);
+      return;
+    }
     var res = await FFPApi.requestCode(email, null, flow);
     if (res && res.error) { if (timerEl) timerEl.textContent = '· ' + res.error; return; }
     if (timerEl) timerEl.textContent = '· new code sent';
@@ -624,6 +645,15 @@ async function requestCode(flow) {
     fullName = nameEl ? nameEl.value.trim() : '';
   }
   try {
+    // HYBRID (member portal): send a native Supabase OTP instead of the legacy access_code email.
+    if (ffpUseNative(flow)) {
+      var nr = await window.supabase.auth.signInWithOtp({ email: email, options: { shouldCreateUser: true } });
+      if (nr && nr.error) { showError(errIds.signin, 'Could not send your code. Please try again.'); return; }
+      var ceN = document.getElementById('signin-code-email'); if (ceN) ceN.textContent = email;
+      goTo('screen-signin-code');
+      startResendCooldown('signin', 60);
+      return;
+    }
     var res = await FFPApi.requestCode(email, fullName, flow);
     if (res && res.error) {
       showError(errIds[flow], res.error);
@@ -682,6 +712,30 @@ async function verifyCode(flow) {
     if (window.FFPAuth && FFPAuth.setPersist) FFPAuth.setPersist(keepEl ? !!keepEl.checked : true);
   } catch (e) {}
   try {
+    // HYBRID (member portal): verify the native OTP, then exchange it for the app-JWT (sub=members.id).
+    if (ffpUseNative(flow)) {
+      var nv = await window.supabase.auth.verifyOtp({ email: email, token: code, type: 'email' });
+      if (!nv || nv.error || !(nv.data && nv.data.session)) {
+        showError(errId, 'That code didn’t work. Check it and try again — or request a new code below.');
+        digits.forEach(function (d) { d.style.borderColor = '#ef4444'; });
+        setTimeout(function () { digits.forEach(function (d) { d.style.borderColor = ''; }); }, 800);
+        var _c0 = digits[0]; if (_c0) { _c0.value = ''; _c0.focus(); }
+        return;
+      }
+      var _ex = await fetch(FFP_EXCHANGE_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ access_token: nv.data.session.access_token, allow_create: false }) });
+      var _b = await _ex.json().catch(function () { return {}; });
+      if (_ex.status === 404 || (_b && _b.error === 'no_account')) {
+        showError(errId, 'We couldn’t find a Passport account for that email. Tap “Become A Member” to get started.');
+        return;
+      }
+      if (!_ex.ok || !_b.jwt) { showError(errId, 'Sign in failed. Please try again.'); return; }
+      if (_b.member) FFPAuth.setMember(_b.member);
+      if (_b.refresh) FFPAuth.setRefresh(_b.refresh);
+      FFPAuth.setJwt(_b.jwt);
+      if (FFPAuth.applySupabaseSession) { try { await FFPAuth.applySupabaseSession(); } catch (e) {} }
+      handleAuthRedirect(_b);
+      return;
+    }
     var res = await FFPApi.verifyCode(email, code, flow);
     if (res && res.error) {
       // Friendly, action-oriented message — the typical cause is a wrong/expired code. Point them to retry
