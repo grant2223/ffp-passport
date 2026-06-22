@@ -4668,17 +4668,6 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     </button>
   </div>
 
-  <!-- TOP CONNECTIONS (people you're connected with) -->
-  <div class="card-block">
-    <div class="card-head">
-      <div class="card-head-title"><span class="material-icons card-head-icon">group</span><h3>Top Connections</h3></div>
-      <span class="card-head-sub" id="connections-list-count">0 people</span>
-    </div>
-    <div class="list-block" id="connections-list"></div>
-  </div>
-  
-  
-
   </div><!-- /panel-passport -->
 
   <!-- ═══════════════════════════════════════════════════════════════
@@ -8103,7 +8092,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '404';
+  const FFP_BUILD = '405';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -12560,7 +12549,7 @@ else init();
 .ffp-deck-flash.show{ opacity:1; }
 </style>
 <script src="assets/ffp-connections-core.js?v=357"></script>
-<script defer src="assets/ffp-connections-feed-loader.js?v=330"></script>
+<script defer src="assets/ffp-connections-feed-loader.js?v=331"></script>
 <script defer src="assets/ffp-event-results-loader.js?v=329"></script>
 <script>
 (function(){
