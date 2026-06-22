@@ -1,4 +1,10 @@
-<!-- FFP MEMBER DASHBOARD — v359 (2026-06-11)  [changelog trimmed to latest 3 updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v360 (2026-06-22)  [changelog trimmed to latest 3 updates; older history in git]
+     v360: LOG ACTIVITY MULTI-PHOTO — up to 8 images per activity (horizontal-scroll strip in the log modal;
+           x-axis scroll-snap gallery + 1/N counter on the activity card; count badge on list thumbnails).
+           DB activity_logs.photos[] (cover=photo_url); log_activity/update_activity gain p_photos; backend
+           activity-logs + member_activity_view return photos. SAVED toasts are now a wide GREEN centered strap
+           (showToast type-based). Edit prefill: Country+City persist (＿ensureSelectOption). Update = no notify.
+           FFP_BUILD 402→403 (fitness-stats loader changed). Backend index.js v101.
      v359: BOOKING CHECK-IN on the Passport — venue scan now also surfaces the member's bookings there
            ("Your booking(s) here" → tap → booking_checkin → stamp). ffp-member-checkin-loader.js v8 (?v=8).
      v358: REFERRAL = RECURRING. Pricing is a subscription ($20/mo · $149/yr · 7-day trial), not a one-time $99.
@@ -3019,9 +3025,18 @@ input[type="number"] {
 
 /* Toast */
 /* v203: notifications are a prominent TOP banner (was an easy-to-miss bottom pill) — desktop + mobile */
-.toast { position: fixed; top: 0; left: 50%; transform: translateX(-50%) translateY(-130%); background: #0f1e2e; border: 1px solid var(--border-mid); border-top: 4px solid #FFCC00; border-radius: 0 0 14px 14px; padding: 15px 24px; font-size: 15px; font-weight: 800; color: var(--text); display: flex; align-items: center; justify-content: center; gap: 10px; z-index: 100000; box-shadow: 0 12px 32px rgba(0,0,0,0.55); opacity: 0; transition: all 0.32s cubic-bezier(.2,.8,.2,1); pointer-events: none; width: 100%; max-width: 560px; }
+.toast { position: fixed; top: 0; left: 50%; transform: translateX(-50%) translateY(-130%); background: #0f1e2e; border: 1px solid var(--border-mid); border-top: 4px solid #FFCC00; border-radius: 0 0 14px 14px; padding: 15px 24px; font-size: 15px; font-weight: 800; color: var(--text); display: flex; align-items: center; justify-content: center; text-align: center; gap: 10px; z-index: 100000; box-shadow: 0 12px 32px rgba(0,0,0,0.55); opacity: 0; transition: all 0.32s cubic-bezier(.2,.8,.2,1); pointer-events: none; width: 100%; max-width: 560px; }
 .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 .toast .material-icons { font-size: 20px; color: #4ade80; }
+/* SUCCESS = wide green strap, full-width, centered text (every saved/confirmation message). */
+.toast.toast-success { background: #16a34a; border: 1px solid #15a049; border-top: 4px solid #0c8a3e; color: #ffffff; max-width: none; width: 100%; border-radius: 0; box-shadow: 0 10px 28px rgba(8,40,22,0.45); }
+.toast.toast-success .material-icons { color: #ffffff; }
+.toast.toast-error { border-top-color: #ef4444; }
+.toast.toast-error .material-icons { color: #f87171; }
+.toast.toast-info { border-top-color: #2ba8e0; }
+.toast.toast-info .material-icons { color: #2ba8e0; }
+.toast.toast-warning { border-top-color: #f59e0b; }
+.toast.toast-warning .material-icons { color: #fbbf24; }
 
 /* Native select dropdown — styled to match FFP */
 .ffp-select { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; padding: 10px 36px 10px 12px; background: rgba(43,168,224,0.06); border: 1px solid var(--border-mid); border-radius: 8px; color: var(--text); font-size: 12px; font-weight: 700; font-family: inherit; outline: none; cursor: pointer; appearance: none; -webkit-appearance: none; -moz-appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a99a8' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>"); background-repeat: no-repeat; background-position: right 10px center; }
@@ -5460,11 +5475,9 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     </div>
     <div class="pm-form">
       <div class="pm-form-field">
-        <label class="pm-form-label">Photo (optional)</label>
-        <div id="log-photo" onclick="ffpLogPickPhoto()" style="width:100%;aspect-ratio:16/10;max-height:200px;border-radius:12px;border:1.5px dashed rgba(43,168,224,0.4);background:rgba(8,20,32,0.5) center/cover no-repeat;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;color:#8a99a8;overflow:hidden;">
-          <span class="material-icons" id="log-photo-icon" style="font-size:30px;">add_a_photo</span>
-          <span id="log-photo-hint" style="font-size:12px;font-weight:700;">Add a photo</span>
-        </div>
+        <label class="pm-form-label">Photos (optional) <span id="log-photos-count" style="color:#8a99a8;font-weight:700;font-size:11px;"></span></label>
+        <div id="log-photos-strip" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;"></div>
+        <div style="font-size:10.5px;color:#8a99a8;margin-top:5px;">Add up to 8 — swipe to browse. First photo is the cover.</div>
         <input type="hidden" id="log-photo-url">
       </div>
       <div class="pm-form-field">
@@ -8085,7 +8098,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '402';
+  const FFP_BUILD = '403';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -9748,12 +9761,21 @@ function closeSleepLogIfBackdrop(e) { if (e.target.id === 'sleep-log-backdrop') 
 // =====================================================================
 // SHARED MODAL / TOAST HELPERS
 // =====================================================================
-function showToast(msg, icon) {
+// Toast / save-strap. 2nd arg is a TYPE ('success' | 'error' | 'info' | 'warning'); default = success.
+// Success = a wide GREEN strap across the top with centered text (every "saved"/confirmation message).
+function showToast(msg, type) {
   const t = document.getElementById('ffp-toast');
+  if (!t) return;
+  type = type || 'success';
+  var ICONS = { success: 'check_circle', error: 'error', info: 'info', warning: 'warning' };
+  var cls = ICONS[type] ? type : 'success';
   document.getElementById('ffp-toast-msg').textContent = msg;
-  document.getElementById('ffp-toast-icon').textContent = icon || 'check';
+  document.getElementById('ffp-toast-icon').textContent = ICONS[cls];
+  t.classList.remove('toast-success', 'toast-error', 'toast-info', 'toast-warning');
+  t.classList.add('toast-' + cls);
   t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2800);
+  clearTimeout(window._ffpToastT);
+  window._ffpToastT = setTimeout(function () { t.classList.remove('show'); }, type === 'error' ? 3600 : 2600);
 }
 function openDetailModal(htmlBody, fullscreen) {
   document.getElementById('detail-modal-body').innerHTML = htmlBody;
@@ -10978,34 +11000,45 @@ function ffpToggleNotifications() {
     });
   });
 }
-// Photo for Log Activity — uploads to the public activity-photos bucket via FFPUpload; square crop.
+// Photos for Log Activity — up to 8 images, horizontal-scroll strip. Each upload appends to
+// window._logPhotos[]; the FIRST is the cover (mirrored into the hidden #log-photo-url for back-compat
+// and saved as activity_logs.photo_url). The full ordered list saves into activity_logs.photos[].
+window._logPhotos = window._logPhotos || [];
+var FFP_LOG_PHOTO_MAX = 8;
+function ffpRenderLogPhotos() {
+  var strip = document.getElementById('log-photos-strip'); if (!strip) return;
+  var arr = window._logPhotos || (window._logPhotos = []);
+  var html = '';
+  arr.forEach(function (url, i) {
+    html += '<div style="position:relative;flex:0 0 auto;width:92px;height:92px;border-radius:12px;overflow:hidden;border:1px solid rgba(43,168,224,0.3);background:#13324a center/cover no-repeat;background-image:url(\'' + url + '\');">' +
+      (i === 0 ? '<span style="position:absolute;left:4px;bottom:4px;background:rgba(8,20,32,0.78);color:#FFCC00;font-size:9px;font-weight:800;letter-spacing:.4px;padding:2px 6px;border-radius:6px;">COVER</span>' : '') +
+      '<button type="button" onclick="ffpLogRemovePhoto(' + i + ')" aria-label="Remove photo" style="position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;border:none;background:rgba(8,20,32,0.72);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;"><span class="material-icons" style="font-size:15px;">close</span></button>' +
+      '</div>';
+  });
+  if (arr.length < FFP_LOG_PHOTO_MAX) {
+    html += '<button type="button" onclick="ffpLogPickPhoto()" aria-label="Add photo" style="flex:0 0 auto;width:92px;height:92px;border-radius:12px;border:1.5px dashed rgba(43,168,224,0.45);background:rgba(8,20,32,0.5);color:#2ba8e0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:24px;">add_a_photo</span><span style="font-size:10px;font-weight:800;">' + (arr.length ? 'Add' : 'Add photo') + '</span></button>';
+  }
+  strip.innerHTML = html;
+  var cnt = document.getElementById('log-photos-count'); if (cnt) cnt.textContent = arr.length ? (arr.length + '/' + FFP_LOG_PHOTO_MAX) : '';
+  var h = document.getElementById('log-photo-url'); if (h) h.value = arr[0] || '';   // cover (back-compat)
+}
 function ffpLogPickPhoto() {
+  var arr = window._logPhotos || (window._logPhotos = []);
+  if (arr.length >= FFP_LOG_PHOTO_MAX) { if (window.showToast) showToast('Up to ' + FFP_LOG_PHOTO_MAX + ' photos', 'info'); return; }
   if (!window.FFPUpload || !window.FFPUpload.pick) { if (window.showToast) showToast('Photo upload unavailable', 'error'); return; }
   var mid = ((window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || {}).id || 'm';
   window.FFPUpload.pick({
-    bucket: 'activity-photos', key: 'activity/' + mid + '-' + Date.now() + '.jpg',
+    bucket: 'activity-photos', key: 'activity/' + mid + '-' + Date.now() + '-' + arr.length + '.jpg',
     aspect: 4 / 3, pickRatio: true, outW: 1280, outH: 1280, title: 'Activity photo',
-    onDone: function (url) { ffpLogSetPhoto(url); },
+    onDone: function (url) { if (url) { window._logPhotos.push(url); ffpRenderLogPhotos(); } },
     onError: function (e) { if (window.showToast) showToast('Photo upload failed', 'error'); console.warn('[log photo]', e); }
   });
 }
-function ffpLogSetPhoto(url) {
-  var h = document.getElementById('log-photo-url'); if (h) h.value = url || '';
-  var box = document.getElementById('log-photo');
-  var icon = document.getElementById('log-photo-icon');
-  var hint = document.getElementById('log-photo-hint');
-  if (!box) return;
-  if (url) {
-    box.style.backgroundImage = "url('" + url + "')";
-    box.style.border = '1px solid rgba(43,168,224,0.3)';
-    if (icon) icon.style.display = 'none';
-    if (hint) { hint.textContent = 'Tap to change'; hint.style.background = 'rgba(8,20,32,0.6)'; hint.style.padding = '3px 9px'; hint.style.borderRadius = '6px'; }
-  } else {
-    box.style.backgroundImage = 'none';
-    box.style.border = '1.5px dashed rgba(43,168,224,0.4)';
-    if (icon) icon.style.display = '';
-    if (hint) { hint.textContent = 'Add a photo'; hint.style.background = 'none'; hint.style.padding = '0'; }
-  }
+function ffpLogRemovePhoto(i) { var a = window._logPhotos || []; if (i >= 0 && i < a.length) { a.splice(i, 1); ffpRenderLogPhotos(); } }
+// Set the whole list at once (reset = [], edit prefill = row.photos). Keeps cover in #log-photo-url.
+function ffpLogSetPhotos(list) {
+  window._logPhotos = (Array.isArray(list) ? list.slice(0, FFP_LOG_PHOTO_MAX) : []);
+  ffpRenderLogPhotos();
 }
 function openLogModal() {
   document.getElementById('log-modal-backdrop').classList.add('open');
@@ -11014,7 +11047,7 @@ function openLogModal() {
   window._ffpEditLogId = null;
   var _rt = document.querySelector('#log-modal-backdrop .dm-title'); if (_rt) _rt.textContent = 'Log activity';
   var _rb = document.querySelector('#log-modal-backdrop .dm-footer .btn-primary-yellow'); if (_rb) _rb.textContent = 'Save activity';
-  if (typeof ffpLogSetPhoto === 'function') ffpLogSetPhoto('');     // clear photo
+  if (typeof ffpLogSetPhotos === 'function') ffpLogSetPhotos([]);   // clear photos
   var _sh = document.getElementById('log-share'); if (_sh) _sh.checked = true;   // default Share ON
   // Default Country + City to the member's own. Prefer the live profile; fall back to the
   // signed-in member row (FFPAuth) so it still pre-fills even before MemberProfile has loaded.
@@ -11087,10 +11120,12 @@ window.openLogModalForEdit = function (row) {
   openLogModal();                       // base init (defaults + populates the country/city selects)
   window._ffpEditLogId = row.id || null;
   var a = document.getElementById('log-activity'); if (a) a.value = row.activity || '';
+  // Country + City must persist exactly as saved (even if not in the standard list) unless the
+  // member changes them — _ensureSelectOption adds the option if missing, then selects it.
   var cny = document.getElementById('log-country');
-  if (cny && row.country) { cny.value = row.country; fillLogCities(); }
+  if (cny && row.country) { _ensureSelectOption(cny, row.country); fillLogCities(); }
   var city = document.getElementById('log-city');
-  if (city && row.city) { for (var i = 0; i < city.options.length; i++) { if (city.options[i].value === row.city) { city.value = row.city; break; } } }
+  if (city && row.city) { _ensureSelectOption(city, row.city); }
   if (row.logged_at) {
     var dt = new Date(row.logged_at);
     var dEl = document.getElementById('log-date');
@@ -11103,7 +11138,7 @@ window.openLogModalForEdit = function (row) {
   var cal = document.getElementById('log-calories'); if (cal) cal.value = (row.calories ? row.calories : '');
   var hr = document.getElementById('log-hr'); if (hr) hr.value = (row.avg_heart_rate != null ? row.avg_heart_rate : '');
   var notes = document.getElementById('log-notes'); if (notes) notes.value = row.notes || '';
-  if (typeof ffpLogSetPhoto === 'function') ffpLogSetPhoto(row.photo_url || '');
+  if (typeof ffpLogSetPhotos === 'function') ffpLogSetPhotos((row.photos && row.photos.length) ? row.photos : (row.photo_url ? [row.photo_url] : []));
   var _she = document.getElementById('log-share'); if (_she) _she.checked = !!row.shared;
   // Prefill the pin (so editing a venue check-in or pinned log doesn't wipe its location on save).
   if (row.venue || row.checkin_lat != null) {
@@ -11316,7 +11351,8 @@ async function saveLog() {
   if (!window.supabase) { if (typeof showToast === 'function') showToast('Still connecting — try again in a moment', 'error'); return; }
   var _editId = window._ffpEditLogId || null;
   var _loggedAtIso = new Date(dateStr + 'T' + timeStr + ':00').toISOString();
-  var _photoVal = ((document.getElementById('log-photo-url') || {}).value || '').trim();
+  var _photosVal = (window._logPhotos || []).slice(0, 8);
+  var _photoVal = _photosVal[0] || '';
   var _shareVal = !!((document.getElementById('log-share') || {}).checked);
   var _newId = null;
   try {
@@ -11329,7 +11365,7 @@ async function saveLog() {
         p_logged_at: _loggedAtIso, p_notes: entry.notes,
         p_distance_km: entry.distance_km, p_avg_hr: entry.avg_heart_rate,
         p_venue: _venVal || null, p_lat: _latVal, p_lng: _lngVal,
-        p_photo_url: _photoVal, p_shared: _shareVal
+        p_photo_url: _photoVal, p_shared: _shareVal, p_photos: _photosVal
       });
     } else {
       res = await window.supabase.rpc('log_activity', {
@@ -11338,7 +11374,7 @@ async function saveLog() {
         p_logged_at: _loggedAtIso, p_notes: entry.notes,
         p_distance_km: entry.distance_km, p_avg_hr: entry.avg_heart_rate,
         p_venue: _venVal || null, p_lat: _latVal, p_lng: _lngVal,
-        p_photo_url: _photoVal || null, p_shared: _shareVal
+        p_photo_url: _photoVal || null, p_shared: _shareVal, p_photos: _photosVal
       });
       _newId = res && res.data ? res.data : null;
     }
@@ -11355,7 +11391,7 @@ async function saveLog() {
     if (typeof loadJourneyLogs === 'function') loadJourneyLogs();
     if (typeof showToast === 'function') showToast('Activity updated', 'success');
     closeLogModal();
-    _ffpSaveThenShare(_editId, act, city, entry, _photoVal);
+    _ffpSaveThenShare(_editId, act, city, entry, _photoVal, _photosVal);
     return;
   }
   // Saved to the DB ✓ — now reflect it on the map this session
@@ -11377,12 +11413,12 @@ async function saveLog() {
   if (typeof window.ffpActivityReload === 'function') window.ffpActivityReload();   // refresh the Stats activity list (photo row)
   if (typeof showToast === 'function') showToast('Logged ' + act + (city ? ' in ' + city : '') + (_shareVal ? ' · shared with connections' : ''), 'success');
   closeLogModal();
-  _ffpSaveThenShare(_newId, act, city, entry, _photoVal);
+  _ffpSaveThenShare(_newId, act, city, entry, _photoVal, _photosVal);
 }
 
 // #1: after a successful Log Activity save/update, drop the member straight onto the shareable
 // activity card (preview → Share / Download). Builds _ffpActCard from the just-saved data.
-function _ffpSaveThenShare(id, act, city, entry, photoUrl) {
+function _ffpSaveThenShare(id, act, city, entry, photoUrl, photos) {
   try {
     window._ffpActCard = {
       id: id || null,
@@ -11393,7 +11429,8 @@ function _ffpSaveThenShare(id, act, city, entry, photoUrl) {
       calories: (entry && entry.calories) || 0,
       avg_heart_rate: (entry && entry.avg_heart_rate) || null,
       city: city || '',
-      photo_url: photoUrl || null
+      photo_url: photoUrl || null,
+      photos: (photos && photos.length) ? photos.slice() : (photoUrl ? [photoUrl] : [])
     };
     if (typeof _ffpOpenShareSheet === 'function') _ffpOpenShareSheet(window._ffpActCard.id);
   } catch (e) {}
@@ -11580,11 +11617,23 @@ window.ffpRenderActivityCard = function (a, isOwn) {
   var eyebrow = [esc(a.activity || 'Activity'), dateStr].filter(Boolean).join(' · ');
   var subline = [startEnd, loc].filter(Boolean).join(' · ');
   // IMMERSIVE hero — photo (or rich gradient) full-bleed, big watermark glyph, scrim into the page; headline METRIC large.
-  var heroBg = a.photo_url ? ("#0a1a28 url('" + esc(a.photo_url) + "') center/cover no-repeat") : 'linear-gradient(155deg,#1f5b86 0%,#123a59 45%,#0a2236 100%)';
+  // Up to 8 photos: the hero becomes a horizontal scroll-snap gallery (swipe x-axis); the caption + scrim
+  // stay fixed on top (pointer-events:none so the swipe reaches the image strip) and a 1/N counter updates on scroll.
+  var _photos = (a.photos && a.photos.length) ? a.photos.slice(0, 8) : (a.photo_url ? [a.photo_url] : []);
+  var _multi = _photos.length > 1;
+  var heroBg = _multi ? '#081420'
+             : (_photos.length === 1 ? ("#0a1a28 url('" + esc(_photos[0]) + "') center/cover no-repeat")
+             : 'linear-gradient(155deg,#1f5b86 0%,#123a59 45%,#0a2236 100%)');
+  var _scroller = _multi ? ('<div class="ffp-act-hero-scroll" style="position:absolute;inset:0;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;z-index:0;scrollbar-width:none;">' +
+      _photos.map(function (p) { return '<div style="flex:0 0 100%;width:100%;height:100%;scroll-snap-align:start;background:#0a1a28 url(\'' + esc(p) + '\') center/cover no-repeat;"></div>'; }).join('') +
+      '</div>') : '';
+  var _counter = _multi ? ('<div style="position:absolute;top:13px;right:14px;z-index:3;background:rgba(8,20,32,0.62);color:#fff;font-size:11.5px;font-weight:800;padding:3px 10px;border-radius:20px;display:flex;align-items:center;gap:5px;"><span class="material-icons" style="font-size:13px;">photo_library</span><span id="ffp-act-hero-count">1/' + _photos.length + '</span></div>') : '';
   var hero = '<div style="position:relative;height:312px;background:' + heroBg + ';overflow:hidden;">' +
-    '<div style="position:absolute;right:-26px;top:-6px;line-height:1;z-index:0;"><span class="material-icons" style="font-size:230px;color:#fff;opacity:0.07;">' + icon + '</span></div>' +
-    '<div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,20,32,0.15) 0%,rgba(8,20,32,0.55) 60%,#081420 100%);"></div>' +
-    '<div style="position:absolute;bottom:20px;left:22px;right:22px;z-index:1;">' +
+    _scroller +
+    '<div style="position:absolute;right:-26px;top:-6px;line-height:1;z-index:0;pointer-events:none;"><span class="material-icons" style="font-size:230px;color:#fff;opacity:0.07;">' + icon + '</span></div>' +
+    '<div style="position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(180deg,rgba(8,20,32,0.15) 0%,rgba(8,20,32,0.55) 60%,#081420 100%);"></div>' +
+    _counter +
+    '<div style="position:absolute;bottom:20px;left:22px;right:22px;z-index:2;pointer-events:none;">' +
       '<div style="font-size:11px;font-weight:800;letter-spacing:2.5px;color:#7fc4ec;text-transform:uppercase;">' + eyebrow + '</div>' +
       '<div style="display:flex;align-items:flex-end;gap:9px;margin-top:8px;"><div style="font-size:56px;font-weight:900;line-height:0.88;letter-spacing:-2px;color:#fff;">' + esc(heroVal) + '</div>' + (heroUnit ? '<div style="font-size:19px;font-weight:800;color:#9fc4e0;margin-bottom:8px;">' + heroUnit + '</div>' : '') + '</div>' +
       (subline ? '<div style="font-size:12.5px;color:#cfe0ee;font-weight:600;margin-top:6px;">' + esc(subline) + '</div>' : '') +
@@ -11626,6 +11675,18 @@ window.ffpRenderActivityCard = function (a, isOwn) {
     '<div style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;">' + hero + body + '</div>';
   document.body.appendChild(ov);
   document.body.style.overflow = 'hidden';
+  // Hero gallery — update the 1/N counter as the member swipes the x-axis strip.
+  if (_multi) {
+    var _sc = ov.querySelector('.ffp-act-hero-scroll');
+    var _lbl = ov.querySelector('#ffp-act-hero-count');
+    if (_sc && _lbl) {
+      _sc.addEventListener('scroll', function () {
+        var idx = Math.round(_sc.scrollLeft / Math.max(1, _sc.clientWidth));
+        idx = Math.min(_photos.length - 1, Math.max(0, idx));
+        _lbl.textContent = (idx + 1) + '/' + _photos.length;
+      }, { passive: true });
+    }
+  }
   // Render the location mini-map (Leaflet, same basemap as the journey map) if we have coordinates.
   if (lat != null && lng != null) {
     setTimeout(function () {
