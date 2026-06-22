@@ -177,7 +177,7 @@
 <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>
 <script src="assets/ffp-image-upload.js?v=7"></script>
 <script src="assets/ffp-gallery.js?v=1"></script>
-<script src="ffp-provider-profile-loader.js?v=17"></script>
+<script src="ffp-provider-profile-loader.js?v=18"></script>
 <!-- Shared provider picker (FFPPicker) defined HERE in the dashboard so Events/Challenges/Experiences
      activity + country/city pickers never depend on a separately-uploaded loader being present. -->
 <script>
@@ -488,7 +488,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
   background: var(--ffp-blue);
   display: flex; align-items: center; justify-content: center;
   font-size: 14px; font-weight: 900; color: #fff;
-  flex-shrink: 0;
+  flex-shrink: 0; overflow: hidden;
 }
 .sb-foot-info { flex: 1; min-width: 0; }
 .sb-foot-name {
@@ -3294,7 +3294,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=4', 'scheduling': 'ffp-provider-scheduling-loader.js?v=22', 'members': 'ffp-provider-members-loader.js?v=7', 'billing': 'ffp-provider-billing-loader.js?v=4', 'staff': 'ffp-provider-staff-loader.js?v=4', 'classes': 'ffp-provider-classes-loader.js?v=22', 'appointments': 'ffp-provider-appointments-loader.js?v=11' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=4', 'scheduling': 'ffp-provider-scheduling-loader.js?v=22', 'members': 'ffp-provider-members-loader.js?v=7', 'billing': 'ffp-provider-billing-loader.js?v=4', 'staff': 'ffp-provider-staff-loader.js?v=4', 'classes': 'ffp-provider-classes-loader.js?v=22', 'appointments': 'ffp-provider-appointments-loader.js?v=12' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
@@ -3688,7 +3688,17 @@ function saveProfile() {
   providerProfile.letter_mark = (providerProfile.business_name || 'P').charAt(0).toUpperCase();
   // Update sidebar foot + topbar avatar
   document.getElementById('sb-foot-name').textContent = providerProfile.business_name || 'Your business';
-  document.getElementById('sb-foot-mark').textContent = providerProfile.letter_mark;
+  // Sidebar foot mark = the partner's LOGO when set, else the business initial.
+  (function () {
+    var mk = document.getElementById('sb-foot-mark'); if (!mk) return;
+    if (providerProfile.logo_url) {
+      mk.innerHTML = '<img src="' + providerProfile.logo_url + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:9px;display:block;">';
+      mk.style.background = 'transparent';
+    } else {
+      mk.textContent = providerProfile.letter_mark;
+      mk.style.background = '';
+    }
+  })();
   renderProfileCompletion();
   // PRODUCTION: send to Supabase here
   setSaveBar(false);
