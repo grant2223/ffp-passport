@@ -8105,7 +8105,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '408';
+  const FFP_BUILD = '409';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -11836,6 +11836,10 @@ function _ffpOpenShareSheet(id) {
   var a = window._ffpActCard || {}; _ffpShareCfg = { ratio: '1:1', usePhoto: false, id: id }; _ffpShareFile = null; _ffpShareKey = null;
   var esc = (window.escHtml ? window.escHtml : function (s) { return String(s == null ? '' : s); });
   var hasPhoto = !!a.photo_url;
+  // Member's referral code → shown at the foot of the share sheet (copyable) + appended to the share caption.
+  var _scMem = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || (function () { try { return JSON.parse(localStorage.getItem('ffp_member') || 'null'); } catch (e) { return null; } })();
+  var _scRef = (_scMem && _scMem.referral_code) ? String(_scMem.referral_code) : '';
+  window._ffpShareRef = _scRef;
   var tab = function (r, lbl) { return '<div id="ffp-sc-tab-' + r.replace(':', '-') + '" onclick="ffpShareSetRatio(\'' + r + '\')" style="flex:1;text-align:center;padding:9px;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;color:#8a99a8;">' + lbl + '</div>'; };
   var ov = document.createElement('div'); ov.id = 'ffp-sc-ov';
   ov.style.cssText = 'position:fixed;inset:0;z-index:100060;background:rgba(4,9,15,0.94);display:flex;flex-direction:column;font-family:inherit;';
@@ -11845,14 +11849,38 @@ function _ffpOpenShareSheet(id) {
     '<div id="ffp-sc-preview" style="position:relative;width:100%;"></div>' +
     (hasPhoto ? '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;background:#111a26;border-radius:11px;padding:11px 14px;"><span style="font-size:13px;font-weight:700;color:#cfe0ee;">Use my photo as background</span><span onclick="ffpShareTogglePhoto(this)" style="width:40px;height:22px;border-radius:20px;background:#3a4654;position:relative;cursor:pointer;display:inline-block;flex:0 0 auto;"><span style="position:absolute;right:20px;top:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:right .15s;"></span></span></div>' : '') +
     '<div style="display:flex;gap:10px;margin-top:16px;"><button id="ffp-sc-dl-btn" onclick="ffpDownloadActivityCard()" style="position:relative;overflow:hidden;flex:1;padding:14px;border:1px solid rgba(255,255,255,0.18);border-radius:13px;background:rgba(255,255,255,0.05);color:#cfe0ee;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span id="ffp-sc-dl-fill" style="position:absolute;left:0;top:0;bottom:0;width:0%;background:rgba(43,168,224,0.32);transition:width .12s linear;z-index:0;"></span><span id="ffp-sc-dl-lbl" style="position:relative;z-index:1;"><span class="material-icons" style="font-size:16px;vertical-align:-3px;">download</span> Download</span></button><button onclick="ffpDoShareCard()" style="flex:2;padding:14px;border:none;border-radius:13px;background:linear-gradient(135deg,#2ba8e0,#1d7fb0);color:#fff;font-weight:900;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:16px;vertical-align:-3px;">ios_share</span> Share</button></div>' +
+    (_scRef ? '<div style="margin-top:18px;background:#111a26;border:1px solid rgba(43,168,224,0.22);border-radius:12px;padding:13px 14px;">' +
+      '<div style="font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#8a99a8;margin-bottom:8px;">Your referral code</div>' +
+      '<div style="display:flex;align-items:center;gap:10px;">' +
+        '<div style="flex:1;font-size:19px;font-weight:900;letter-spacing:1.5px;color:#2ba8e0;font-family:ui-monospace,Menlo,monospace;">' + esc(_scRef) + '</div>' +
+        '<button data-code="' + esc(_scRef) + '" onclick="ffpCopyReferral(this)" style="flex:0 0 auto;padding:9px 16px;border:none;border-radius:10px;background:#FFCC00;color:#081420;font-weight:900;font-size:13px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:15px;vertical-align:-3px;">content_copy</span> Copy</button>' +
+      '</div>' +
+      '<div style="font-size:11px;color:#8a99a8;margin-top:8px;line-height:1.4;">Paste it into your post or message — friends who join with your code earn you rewards.</div>' +
+    '</div>' : '') +
   '</div>';
   document.body.appendChild(ov);
   _ffpRenderSharePreview();
 }
+// Copy the referral code to the clipboard (with a textarea fallback for older / iOS in-app webviews).
+window.ffpCopyReferral = function (btn) {
+  var code = (btn && btn.getAttribute('data-code')) || '';
+  if (!code) return;
+  var done = function () {
+    var o = btn.innerHTML;
+    btn.innerHTML = '<span class="material-icons" style="font-size:15px;vertical-align:-3px;">check</span> Copied';
+    setTimeout(function () { btn.innerHTML = o; }, 1600);
+    if (window.showToast) showToast('Referral code copied', 'success');
+  };
+  var fallback = function () { try { var t = document.createElement('textarea'); t.value = code; t.style.position = 'fixed'; t.style.opacity = '0'; document.body.appendChild(t); t.focus(); t.select(); document.execCommand('copy'); document.body.removeChild(t); } catch (e) {} };
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(code).then(done, function () { fallback(); done(); }); }
+    else { fallback(); done(); }
+  } catch (e) { fallback(); done(); }
+};
 window.ffpDoShareCard = async function () {
   var a = window._ffpActCard || {};
   var bits = [a.activity || 'My activity']; if (a.distance_km != null && a.distance_km > 0) bits.push((Math.round(a.distance_km * 100) / 100) + ' km'); var mins = Math.round(a.duration_min || 0); if (mins || a.duration_sec) bits.push(mins + ' min');
-  var caption = bits.join(' · ') + ' — FFP Passport';
+  var caption = bits.join(' · ') + ' — FFP Passport' + (window._ffpShareRef ? ('\nJoin me on FFP Passport with my code ' + window._ffpShareRef) : '');
   function cancel(e) { return e && (e.name === 'AbortError' || /abort|cancel|dismiss/i.test(e.message || '')); }
   // ALWAYS share the IMAGE (never a URL/link). Use the pre-rendered file if ready, else make it now.
   var f = (_ffpShareFile && _ffpShareKey === _ffpCurKey()) ? _ffpShareFile : null;
