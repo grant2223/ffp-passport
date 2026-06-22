@@ -4772,9 +4772,8 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     <!-- Tabs — text with underline -->
     <div class="tabs-underline" id="meet-tabs">
       <button class="tabs-underline-btn active" data-meet-tab="discover">Discover</button>
-      <button class="tabs-underline-btn" data-meet-tab="joined">Going <span class="count-pill" id="cnt-meet-joined">0</span></button>
-      <button class="tabs-underline-btn" data-meet-tab="hosting">Hosting <span class="count-pill" id="cnt-meet-hosting">0</span></button>
-      <button class="tabs-underline-btn" data-meet-tab="past">Past</button>
+      <button class="tabs-underline-btn" data-meet-tab="joined">Going</button>
+      <button class="tabs-underline-btn" data-meet-tab="hosting">Hosting</button>
     </div>
     
     <!-- v185: search always visible (left) + filter icon (right); filters drop down below -->
@@ -8105,7 +8104,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '410';
+  const FFP_BUILD = '411';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
