@@ -257,14 +257,34 @@ function apBookFromSlot(staffId, serviceId, dateStr, time, duration) {
 }
 
 // ── TIME GRID (Day / Week): time down Y, days across X ──
-var _AP_HH = 46; // px per hour row
+var _AP_HH = 44; // px per hour row
+// Calendar legend (solid, high-contrast): AVAILABLE = yellow · BOOKED = green · BLOCKED = dark grey.
+var AP_AVAIL  = { bg: '#FFE08A', bd: '#E3A700', fg: '#5a4500' };   // available / free to book
+var AP_BLOCK  = { bg: '#3b4750', bd: '#2b343b', fg: '#dfe6ea' };   // blocked off
 function _apBlockColor(st) {
-  if (st === 'completed') return { bd: 'rgba(46,204,113,.5)', bg: 'rgba(46,204,113,.16)', fg: '#7ee0a8' };
-  if (st === 'completed_pending') return { bd: 'rgba(243,156,18,.55)', bg: 'rgba(243,156,18,.16)', fg: '#ffcf8f' };
-  if (st === 'checked_in') return { bd: 'rgba(46,204,113,.45)', bg: 'rgba(46,204,113,.12)', fg: '#7ee0a8' };
-  if (st === 'no_show') return { bd: 'rgba(255,107,107,.45)', bg: 'rgba(255,107,107,.12)', fg: '#ff9b9b' };
-  if (st === 'cancelled') return { bd: 'var(--ffp-border,#1d3346)', bg: 'rgba(255,255,255,.04)', fg: '#9fb3c2' };
-  return { bd: 'rgba(25,128,173,.55)', bg: 'rgba(25,128,173,.16)', fg: '#6fc6ef' };
+  if (st === 'no_show')   return { bd: '#b23a4e', bg: '#9c2f43', fg: '#ffffff' };
+  if (st === 'cancelled') return { bd: '#ccd9da', bg: '#eef1f3', fg: '#7d8c92' };
+  // every active/booked state → SOLID green with white text
+  return { bd: '#15833f', bg: '#1f9d57', fg: '#ffffff' };
+}
+// Blocked windows for a coach on a given Date (recurring weekday + one-off date). Whole-day if no times.
+function _apBlocksForDayCoach(coachId, day) {
+  var dateStr = _apDateStr(day), wd = day.getDay();
+  return (_apBlocks || []).filter(function (b) {
+    if (coachId && b.staff_id !== coachId) return false;
+    return (b.block_type === 'recurring' && b.day_of_week === wd) || (b.block_type === 'date' && b.block_date === dateStr);
+  });
+}
+// Is [sMin,eMin) fully inside a SET availability window for this coach/date AND not blocked? (gate for booking)
+function _apWithinAvailability(coachId, dateStr, sMin, eMin) {
+  var p = dateStr.split('-'); var day = new Date(+p[0], +p[1] - 1, +p[2]);
+  var inside = _apAvailForDayCoach(coachId, day).some(function (w) {
+    var s = _apMin(w.start_time), e = _apMin(w.end_time);
+    return s != null && e != null && sMin >= s && eMin <= e;
+  });
+  if (!inside) return false;
+  if (_apBlockedAt(coachId, day.getDay(), dateStr, sMin, eMin)) return false;
+  return true;
 }
 function _apGridItems(day, coachF) {
   var dateStr = _apDateStr(day);
@@ -299,33 +319,19 @@ function _apGridBlock(it, top, hgt, leftPct, wPct) {
   var base = 'position:absolute;top:' + top + 'px;height:' + hgt + 'px;left:calc(' + leftPct + '% + 2px);width:calc(' + wPct + '% - 4px);border-radius:7px;padding:3px 6px;overflow:hidden;font-size:11px;line-height:1.2;cursor:pointer;box-sizing:border-box;';
   if (it.kind === 'open') {
     var s = it.s;
-    return '<div onclick="event.stopPropagation(); apBookFromSlot(\'' + s.staff_id + '\',\'' + (s.service_id || '') + '\',\'' + s.dateStr + '\',\'' + s.time + '\',' + s.duration + ')" title="Book ' + s.time + ' · ' + apEsc(s.coach_name || '') + '" style="' + base + 'border:1px dashed var(--ffp-border,#3a5168);background:rgba(25,128,173,.05);color:#9fb3c2;display:flex;align-items:center;justify-content:center;gap:4px;"><span class="ms" style="font-size:13px;">add</span>' + s.time + (it.lanes < 2 ? (' · ' + apEsc(s.coach_name || '')) : '') + '</div>';
+    return '<div onclick="event.stopPropagation(); apBookFromSlot(\'' + s.staff_id + '\',\'' + (s.service_id || '') + '\',\'' + s.dateStr + '\',\'' + s.time + '\',' + s.duration + ')" title="Available — book ' + s.time + ' · ' + apEsc(s.coach_name || '') + '" style="' + base + 'border:1px solid ' + AP_AVAIL.bd + ';background:' + AP_AVAIL.bg + ';color:' + AP_AVAIL.fg + ';font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px;"><span class="ms" style="font-size:13px;">add</span>' + s.time + (it.lanes < 2 ? (' · ' + apEsc(s.coach_name || '')) : '') + '</div>';
   }
   var a = it.a, col = _apBlockColor(a.status), name = apEsc(a.member_name || a.member_email || 'Client');
-  return '<div onclick="event.stopPropagation(); apApptDetail(\'' + a.id + '\')" title="' + name + '" style="' + base + 'border:1px solid ' + col.bd + ';background:' + col.bg + ';color:' + col.fg + ';">' +
+  return '<div onclick="event.stopPropagation(); apApptDetail(\'' + a.id + '\')" title="' + name + '" style="' + base + 'border:1px solid ' + col.bd + ';background:' + col.bg + ';color:' + col.fg + ';font-weight:700;">' +
     '<div style="font-weight:800;">' + _apHHMM(it.startMin) + '</div>' +
     '<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + name + '</div>' +
-    (hgt > 42 ? '<div style="opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + apEsc(a.coach_name || '') + '</div>' : '') +
+    (hgt > 42 ? '<div style="opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + apEsc(a.coach_name || '') + '</div>' : '') +
   '</div>';
 }
 function _apRenderGrid(host, days) {
-  var coachF = _apCalCoach, minM = 24 * 60, maxM = 0, has = false;
-  (_apAppts || []).forEach(function (a) {
-    if (coachF && a.staff_id !== coachF) return; if (a.status === 'cancelled') return;
-    var sM = _apLocalParts(a.start_at).min;
-    minM = Math.min(minM, sM); maxM = Math.max(maxM, sM + (a.duration_min || 60)); has = true;
-  });
-  days.forEach(function (day) {
-    (_apSlots || []).forEach(function (w) {
-      if (!_apSlotOnDate(w, day)) return; if (coachF && w.staff_id !== coachF) return;
-      var s = _apMin(w.start_time), e = _apMin(w.end_time); if (s == null || e == null) return;
-      minM = Math.min(minM, s); maxM = Math.max(maxM, e); has = true;
-    });
-  });
-  var startH, endH;
-  if (!has) { startH = 7; endH = 20; }
-  else { startH = Math.max(0, Math.floor(minM / 60)); endH = Math.min(24, Math.ceil(maxM / 60)); if (endH - startH < 6) endH = Math.min(24, startH + 8); }
-  var rangeStart = startH * 60, rows = endH - startH;
+  var coachF = _apCalCoach;
+  // Full 24-hour day is always viewable (scrolls).
+  var startH = 0, endH = 24, rangeStart = 0, rows = 24;
   var todayStr = _apDateStr(_apFacilityToday());
   var colW = days.length === 1 ? '1fr' : 'repeat(' + days.length + ',1fr)';
   var minW = days.length > 1 ? 660 : 300;
@@ -349,6 +355,12 @@ function _apRenderGrid(host, days) {
     var isT = _apDateStr(day) === todayStr;
     var items = _apGridItems(day, coachF); _apLanePack(items);
     var col = '<div style="position:relative;border-left:1px solid var(--ffp-border,#1d3346);height:' + (rows * _AP_HH) + 'px;background:' + (isT ? 'rgba(25,128,173,.04)' : 'transparent') + ';">';
+    // blocked windows — dark grey bands behind everything
+    _apBlocksForDayCoach(coachF, day).forEach(function (b) {
+      var bs = b.start_time ? _apMin(b.start_time) : rangeStart, be = b.end_time ? _apMin(b.end_time) : endH * 60;
+      if (bs == null || be == null || be <= bs) { bs = rangeStart; be = endH * 60; }
+      col += '<div title="Blocked" style="position:absolute;left:0;right:0;top:' + (((bs - rangeStart) / 60) * _AP_HH) + 'px;height:' + (((be - bs) / 60) * _AP_HH) + 'px;background:' + AP_BLOCK.bg + ';opacity:.85;pointer-events:none;"></div>';
+    });
     for (var h2 = startH; h2 < endH; h2++) col += '<div style="position:absolute;left:0;right:0;top:' + ((h2 - startH) * _AP_HH) + 'px;border-top:1px solid var(--ffp-border,#1d3346);opacity:.45;"></div>';
     items.forEach(function (it) {
       var top = ((it.startMin - rangeStart) / 60) * _AP_HH;
@@ -405,20 +417,9 @@ function _apRenderDay(host, day) {
   var coaches = _apDayCoaches();
   if (!coaches.length) { host.innerHTML = _apEmpty('No coaches', 'Add a coach in Staff, then set their availability — they’ll each get a column here.'); return; }
   var dateStr = _apDateStr(day), key = day.toDateString();
-  var minM = 24 * 60, maxM = 0, has = false;
-  coaches.forEach(function (c) {
-    _apAvailForDayCoach(c.id, day).forEach(function (w) { var s = _apMin(w.start_time), e = _apMin(w.end_time); if (s != null && e != null) { minM = Math.min(minM, s); maxM = Math.max(maxM, e); has = true; } });
-  });
-  (_apAppts || []).forEach(function (a) {
-    if (_apLocalParts(a.start_at).dateStr !== dateStr || a.status === 'cancelled') return;
-    if (_apCalCoach && a.staff_id !== _apCalCoach) return;
-    var sM = _apLocalParts(a.start_at).min;
-    minM = Math.min(minM, sM); maxM = Math.max(maxM, sM + (a.duration_min || 60)); has = true;
-  });
-  var startH, endH;
-  if (!has) { startH = 7; endH = 20; }
-  else { startH = Math.max(0, Math.floor(minM / 60)); endH = Math.min(24, Math.ceil(maxM / 60)); if (endH - startH < 6) endH = Math.min(24, startH + 8); }
-  var HH = _AP_HH, halfH = HH / 2, rangeStart = startH * 60, halfRows = (endH - startH) * 2;
+  // Full 24-hour day is always viewable (scrolls).
+  var startH = 0, endH = 24;
+  var HH = _AP_HH, halfH = HH / 2, rangeStart = 0, halfRows = 48;
   var colW = 'repeat(' + coaches.length + ',150px)';
   var minW = 56 + coaches.length * 150;
   var html = '<div style="overflow-x:auto;"><div style="min-width:' + minW + 'px;">';
@@ -438,11 +439,17 @@ function _apRenderDay(host, day) {
     var avail = _apAvailForDayCoach(c.id, day);
     var appts = (_apAppts || []).filter(function (a) { return a.staff_id === c.id && _apLocalParts(a.start_at).dateStr === dateStr && a.status !== 'cancelled'; });
     var col = '<div onclick="apDayColClick(event,this,\'' + c.id + '\',\'' + dateStr + '\',' + startH + ')" style="position:relative;border-left:2px solid var(--ffp-border-mid,#ccd9da);height:' + (halfRows * halfH) + 'px;cursor:copy;">';
-    // availability shading (behind)
+    // availability shading (behind) — YELLOW = available / free to book
     avail.forEach(function (w) {
       var s = _apMin(w.start_time), e = _apMin(w.end_time); if (s == null || e == null) return;
       var top = ((s - rangeStart) / 60) * HH, h = ((e - s) / 60) * HH;
-      col += '<div style="position:absolute;left:0;right:0;top:' + top + 'px;height:' + h + 'px;background:rgba(31,157,87,.16);border-left:3px solid #1f9d57;pointer-events:none;"></div>';
+      col += '<div style="position:absolute;left:0;right:0;top:' + top + 'px;height:' + h + 'px;background:#FFE8A3;border-left:4px solid ' + AP_AVAIL.bd + ';pointer-events:none;"></div>';
+    });
+    // blocked windows — DARK GREY, above availability
+    _apBlocksForDayCoach(c.id, day).forEach(function (b) {
+      var bs = b.start_time ? _apMin(b.start_time) : rangeStart, be = b.end_time ? _apMin(b.end_time) : endH * 60;
+      if (bs == null || be == null || be <= bs) { bs = rangeStart; be = endH * 60; }
+      col += '<div title="Blocked" style="position:absolute;left:0;right:0;top:' + (((bs - rangeStart) / 60) * HH) + 'px;height:' + (((be - bs) / 60) * HH) + 'px;background:' + AP_BLOCK.bg + ';opacity:.92;pointer-events:none;"></div>';
     });
     // 30-min gridlines
     for (var r2 = 0; r2 < halfRows; r2++) { col += '<div style="position:absolute;left:0;right:0;top:' + (r2 * halfH) + 'px;border-top:1px ' + (r2 % 2 === 0 ? 'solid' : 'dashed') + ' var(--ffp-border,#1d3346);opacity:' + (r2 % 2 === 0 ? .5 : .3) + ';pointer-events:none;"></div>'; }
@@ -454,7 +461,11 @@ function _apRenderDay(host, day) {
     html += col;
   });
   html += '</div></div></div>';
-  html += '<div class="psub" style="margin:8px 2px 0;">Shaded = available · tap any open space in a coach’s column to book at that time.</div>';
+  html += '<div class="psub" style="margin:8px 2px 0;display:flex;flex-wrap:wrap;gap:12px;align-items:center;">' +
+    '<span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:13px;height:13px;border-radius:3px;background:#FFE8A3;border:1px solid ' + AP_AVAIL.bd + ';"></span>Available</span>' +
+    '<span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:13px;height:13px;border-radius:3px;background:#1f9d57;"></span>Booked</span>' +
+    '<span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:13px;height:13px;border-radius:3px;background:' + AP_BLOCK.bg + ';"></span>Blocked</span>' +
+    '<span style="opacity:.8;">· tap an available (yellow) slot to book</span></div>';
   host.innerHTML = html;
 }
 function apDayColClick(ev, el, coachId, dateStr, startH) {
@@ -463,11 +474,16 @@ function apDayColClick(ev, el, coachId, dateStr, startH) {
   var mins = startH * 60 + Math.round(((y / _AP_HH) * 60) / 30) * 30;
   if (mins < startH * 60) mins = startH * 60;
   var p = dateStr.split('-'); var day = new Date(+p[0], +p[1] - 1, +p[2]);
-  var svc = '', dur = 60;
+  var svc = '', dur = 60, inAvail = false;
   _apAvailForDayCoach(coachId, day).forEach(function (w) {
     var s = _apMin(w.start_time), e = _apMin(w.end_time);
-    if (s != null && e != null && mins >= s && mins < e) { svc = w.service_id || svc; dur = w.duration_min || dur; }
+    if (s != null && e != null && mins >= s && mins < e) { svc = w.service_id || svc; dur = w.duration_min || dur; inAvail = true; }
   });
+  // An appointment can only be booked inside SET availability (and not in a blocked window).
+  if (!inAvail || _apBlockedAt(coachId, day.getDay(), dateStr, mins, mins + dur)) {
+    apToast('No availability set there — set the coach’s availability first, then book the yellow slot', 'error');
+    return;
+  }
   apBookModal({ start: dateStr + 'T' + _apHHMM(mins), staff_id: coachId, service_id: svc, duration: dur });
 }
 
@@ -476,14 +492,15 @@ function apApptDetail(id) {
   var a = (_apAppts || []).find(function (x) { return x.id === id; }); if (!a) return;
   var lp = _apLocalParts(a.start_at); var dp = lp.dateStr.split('-'); var dd = new Date(+dp[0], +dp[1] - 1, +dp[2]);
   var when = dd.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'short' }) + ' · ' + _apHHMM(lp.min);
+  var _nm = apEsc(a.member_name || a.member_email || 'Client');
   var body = '<div class="form-section">' +
-    '<div style="display:flex;gap:6px;margin-bottom:10px;">' + _apStatusChip(a.status) + _apPayChip(a) + '</div>' +
-    '<div class="psub" style="line-height:1.7;">' +
-      '<div><b style="color:var(--ffp-text,#eaf2f8);font-size:15px;">' + apEsc(a.member_name || a.member_email || 'Client') + '</b></div>' +
-      '<div>' + apEsc(a.service_name || 'Service') + ' · ' + apEsc(a.coach_name || 'Coach') + '</div>' +
-      '<div>' + when + ' · ' + (a.duration_min || 60) + ' min</div>' +
-      (a.status === 'completed' ? '<div style="margin-top:6px;">Value ' + apMoney(a.price_aed) + ' · tax ' + apMoney(a.tax_aed) + ' · coach ' + apMoney(a.commission_aed) + ' · facility net <b style="color:#7ee0a8;">' + apMoney(a.payout_aed) + '</b></div>' : '') +
-      (a.notes ? '<div style="margin-top:6px;">“' + apEsc(a.notes) + '”</div>' : '') +
+    '<div style="display:flex;gap:6px;margin-bottom:12px;">' + _apStatusChip(a.status) + _apPayChip(a) + '</div>' +
+    '<div style="background:var(--ffp-bg-3,#eef1f3);border:1px solid var(--ffp-border-mid,#ccd9da);border-radius:12px;padding:14px 16px;">' +
+      '<div style="font-size:17px;font-weight:800;color:var(--ffp-text,#0f2327);">' + _nm + '</div>' +
+      '<div style="font-size:13.5px;font-weight:700;color:var(--ffp-text,#0f2327);margin-top:7px;">' + apEsc(a.service_name || 'Service') + ' · ' + apEsc(a.coach_name || 'Coach') + '</div>' +
+      '<div style="font-size:13.5px;font-weight:600;color:var(--ffp-text-muted,#5a6b6e);margin-top:3px;">' + when + ' · ' + (a.duration_min || 60) + ' min</div>' +
+      (a.status === 'completed' ? '<div style="font-size:13px;font-weight:600;color:var(--ffp-text,#0f2327);margin-top:9px;">Value ' + apMoney(a.price_aed) + ' · tax ' + apMoney(a.tax_aed) + ' · coach ' + apMoney(a.commission_aed) + ' · facility net <b style="color:#15833f;">' + apMoney(a.payout_aed) + '</b></div>' : '') +
+      (a.notes ? '<div style="font-size:13px;font-style:italic;color:var(--ffp-text-muted,#5a6b6e);margin-top:9px;">“' + apEsc(a.notes) + '”</div>' : '') +
     '</div></div>';
   var B = function (fn, label, cls, icon) { return '<button class="btn ' + (cls || 'btn-ghost') + ' btn-sm" onclick="closeModal(); ' + fn + '(\'' + a.id + '\')"><span class="ms">' + icon + '</span> ' + label + '</button>'; };
   var acts = [];
@@ -495,22 +512,29 @@ function apApptDetail(id) {
 }
 
 function _apStatusChip(st) {
+  // [label, text colour, SOLID background]
   var map = {
-    scheduled:         ['Scheduled', '#6fc6ef', 'rgba(25,128,173,.16)'],
-    checked_in:        ['Checked in', '#7ee0a8', 'rgba(46,204,113,.15)'],
-    completed_pending: ['Awaiting confirm', '#ffcf8f', 'rgba(243,156,18,.16)'],
-    completed:         ['Completed', '#7ee0a8', 'rgba(46,204,113,.18)'],
-    no_show:           ['No-show', '#ff9b9b', 'rgba(255,107,107,.15)'],
-    cancelled:         ['Cancelled', '#cbd6df', 'rgba(255,255,255,.08)']
+    scheduled:         ['Scheduled', '#ffffff', '#1980AD'],
+    checked_in:        ['Checked in', '#ffffff', '#1f9d57'],
+    completed_pending: ['Awaiting confirm', '#3a2c00', '#F2B807'],
+    completed:         ['Completed', '#ffffff', '#15833f'],
+    no_show:           ['No-show', '#ffffff', '#c0392b'],
+    cancelled:         ['Cancelled', '#ffffff', '#6b7a82']
   };
-  var c = map[st] || [st, '#cbd6df', 'rgba(255,255,255,.08)'];
-  return '<span style="display:inline-flex;align-items:center;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;color:' + c[1] + ';background:' + c[2] + ';">' + c[0] + '</span>';
+  var c = map[st] || [st, '#ffffff', '#6b7a82'];
+  return '<span style="display:inline-flex;align-items:center;font-size:11.5px;font-weight:800;padding:4px 10px;border-radius:999px;color:' + c[1] + ';background:' + c[2] + ';">' + c[0] + '</span>';
 }
 function _apPayChip(a) {
   var p = a.payment_status;
-  var txt = p === 'package' ? 'Package' : p === 'paid' ? 'Paid' : p === 'comp' ? 'Comp' : 'Unpaid';
-  var col = p === 'unpaid' ? ['#ff9b9b', 'rgba(255,107,107,.15)'] : ['#cbd6df', 'rgba(255,255,255,.08)'];
-  return '<span style="display:inline-flex;align-items:center;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;color:' + col[0] + ';background:' + col[1] + ';">' + txt + '</span>';
+  // [label, text colour, SOLID background]
+  var map = {
+    package: ['Package', '#ffffff', '#1980AD'],
+    paid:    ['Paid', '#ffffff', '#15833f'],
+    comp:    ['Comp', '#ffffff', '#6b7a82'],
+    unpaid:  ['Unpaid', '#ffffff', '#c0392b']
+  };
+  var c = map[p] || ['Unpaid', '#ffffff', '#c0392b'];
+  return '<span style="display:inline-flex;align-items:center;font-size:11.5px;font-weight:800;padding:4px 10px;border-radius:999px;color:' + c[1] + ';background:' + c[2] + ';">' + c[0] + '</span>';
 }
 
 function apApptCard(a) {
@@ -734,6 +758,12 @@ async function apSaveBooking() {
   var notes = (document.getElementById('ap-bk-notes') || {}).value;
   if (!service || !coach || !client || !date || !time) { apToast('Date, time, service, coach and client are required', 'error'); return; }
   var when = date + 'T' + time;
+  // An appointment can only be booked inside the coach's SET availability (and not in a blocked window).
+  var _sMin = _apMin(time);
+  if (_sMin == null || !_apWithinAvailability(coach, date, _sMin, _sMin + dur)) {
+    apToast('That time is outside the coach’s set availability — set availability first, or pick an available (yellow) slot', 'error');
+    return;
+  }
   if (pay === 'package' && !pkg) { apToast('Pick which package to use (or change the payment method)', 'error'); return; }
   var payload = {
     staff_id: coach, service_id: service, member_id: client, start_at: _apToISO(when),
