@@ -138,7 +138,7 @@ function renderTimetable() {
         var badge = '<span style="float:right;font-size:11px;font-weight:800;color:' + (cap && present >= cap ? '#ff7a7a' : '#6fc6ef') + ';">' + present + (cap != null ? '/' + cap : '') + '</span>';
         html += '<div onclick="openOccurrence(\'' + s.id + '\')" title="' + present + (cap != null ? ' of ' + cap : '') + ' attending" style="cursor:pointer;background:var(--ffp-bg-2,#0f1f2c);border:1px solid var(--ffp-border,#1d3346);border-left:3px solid #1980AD;border-radius:8px;padding:7px 8px;margin-bottom:6px;">' +
           '<div style="font-weight:700;font-size:12px;color:var(--ffp-text,#eaf2f8);">' + escHtml(t) + badge + '</div>' +
-          '<div style="font-size:12px;color:#cfd6dc;line-height:1.25;">' + escHtml(s.title) + '</div>' +
+          '<div style="font-size:12px;font-weight:700;color:#1a1a1a;line-height:1.25;">' + escHtml(s.title) + '</div>' +
           (s.recurrence === 'once' ? '<div style="margin:2px 0 0;font-size:10px;font-weight:800;color:var(--ffp-warn);">one-off · ' + escHtml(new Date(s.start_at).toLocaleDateString([], { day: 'numeric', month: 'short' })) + '</div>' : '') +
           (s.coach ? '<div class="psub" style="margin:2px 0 0;font-size:11px;">' + escHtml(s.coach) + '</div>' : '') +
         '</div>';
@@ -250,7 +250,7 @@ function showCoachBio(enc) {
 // ── CREATE / EDIT a class (template) + its weekly schedule ──
 function openTemplateModal(id) {
   var t = (id && _schedTemplates.length) ? _schedTemplates.find(function (x) { return x.id === id; }) : null;
-  var e = t || { title: '', activity: '', description: '', capacity: '', price_aed: '', duration_min: 60, hero_image_url: '', fitness_level: '', free_cancellation_hours: 24, slots: [] };
+  var e = t || { title: '', activity: '', description: '', capacity: '', price_aed: '', duration_min: 60, hero_image_url: '', fitness_level: '', free_cancellation_hours: 24, pay_requirement: 'optional', slots: [] };
   var levels = (window.FFP_TAX && window.FFP_TAX.attendeeLevels && window.FFP_TAX.attendeeLevels.length) ? window.FFP_TAX.attendeeLevels : ['All Levels', 'Not Tried', 'Social', 'Competitive', 'Representative', 'Professional'];
   var levelOpts = levels.map(function (l) { return '<option' + ((e.fitness_level || 'All Levels') === l ? ' selected' : '') + '>' + escHtml(l) + '</option>'; }).join('');
 
@@ -272,6 +272,14 @@ function openTemplateModal(id) {
         <div class="field"><div class="label">Duration (min)</div><input class="input" type="number" min="1" id="tpl-duration" value="${escHtml(String(e.duration_min || ''))}" placeholder="60"></div>
         <div class="field"><div class="label">Price per person <span class="label-hint">— per session (${FFPCurrency.providerCode()}, 0 = free)</span></div><input class="input" type="number" min="0" id="tpl-price" value="${escHtml(String(e.price_aed || ''))}" placeholder="0 = Free"></div>
         <div class="field"><div class="label">Free cancellation (hrs) <span class="label-hint">— full refund / credit back if cancelled at least this many hours before start</span></div><input class="input" type="number" min="0" step="1" id="tpl-cancel-hours" value="${escHtml(String(e.free_cancellation_hours != null ? e.free_cancellation_hours : 24))}" placeholder="24"></div>
+        <div class="field full"><div class="label">How is this paid?</div>
+          <select class="select" id="tpl-pay_requirement">
+            <option value="optional"${(e.pay_requirement === 'optional' || !e.pay_requirement) ? ' selected' : ''}>Pay online if available — otherwise you collect it</option>
+            <option value="free"${e.pay_requirement === 'free' ? ' selected' : ''}>Free — no payment</option>
+            <option value="required"${e.pay_requirement === 'required' ? ' selected' : ''}>Online payment required (needs Stripe)</option>
+          </select>
+          <div class="label-hint" style="display:block;margin-top:5px;text-transform:none;letter-spacing:0;font-weight:600;">Drop-in payment for non-members. Members on a covering plan/membership book with their credits instead.</div>
+        </div>
       </div>
     </div>
     <div class="form-section">
@@ -351,6 +359,7 @@ async function saveTemplate(id) {
     title: title, activity: activity, description: g('description') || null,
     capacity: (capacity != null ? String(capacity) : ''), price_aed: g('price'), duration_min: g('duration'),
     free_cancellation_hours: g('cancel-hours'),
+    pay_requirement: g('pay_requirement') || 'optional',
     hero_image_url: heroUrl, fitness_level: g('level') || null, slots: slots,
     gallery: (window.FFPGallery ? window.FFPGallery.get('sm-gallery') : [])
   };
