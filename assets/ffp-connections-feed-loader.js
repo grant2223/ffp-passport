@@ -73,7 +73,7 @@
       '.cf-acard-s{font-size:11px;color:var(--muted,#8a99a8);margin-top:2px;}',
       '.cf-stats{margin:2px 0 14px;}',
       '.cf-jstreak{display:inline-flex;align-items:center;gap:6px;margin:0 0 12px;}',
-      '.cf-jstreak .material-icons{color:var(--yellow,#FFCC00);font-size:20px;}',
+      '.cf-jstreak .cf-flame{font-size:17px;line-height:1;}',
       '.cf-jstreak b{font-size:20px;font-weight:800;color:var(--yellow,#FFCC00);font-variant-numeric:tabular-nums;line-height:1;}',
       '.cf-jstreak span{font-size:11px;color:var(--muted,#8a99a8);font-weight:800;text-transform:uppercase;letter-spacing:.5px;}',
       '.cf-jlabel{font-size:13px;font-weight:700;color:var(--text,#e8eef4);margin:0 0 8px;}',
@@ -224,10 +224,8 @@
   function connStatsHtml(d, first) {
     var tile = function (n, l) { return '<div class="cf-jcell"><div class="cf-jn">' + (n != null ? n : 0) + '</div><div class="cf-jl">' + l + '</div></div>'; };
     var html = '<div class="cf-stats">';
-    if (d.streak && d.streak > 0) {
-      html += '<div class="cf-jstreak"><span class="material-icons">local_fire_department</span>' +
-        '<b>' + d.streak + '</b><span>day streak</span></div>';
-    }
+    html += '<div class="cf-jstreak"><span class="cf-flame">🔥</span>' +
+      '<b>' + (d.streak || 0) + '</b><span>day streak</span></div>';
     html += '<div class="cf-jlabel">' + first + '’s journey this week</div>';
     html += '<div class="cf-jgrid">' +
       tile(d.countries, 'Countries') + tile(d.cities, 'Cities') + tile(d.days, 'Days') + tile(d.hours, 'Hours') +
