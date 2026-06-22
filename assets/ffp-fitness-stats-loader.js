@@ -1109,8 +1109,10 @@
     var dateLbl = d ? _dayLabel(d, l.daysAgo) : (l.daysAgo + 'd ago');
     var loc = [l.venue, l.city].filter(Boolean).join(' · ') || 'No location set';
     var _icon = (window.ffpActivityIcon ? window.ffpActivityIcon(l.activity) : 'fitness_center');
+    var _np = (l.photos && l.photos.length) ? l.photos.length : (l.photo_url ? 1 : 0);
+    var _badge = _np > 1 ? '<span style="position:absolute;right:2px;bottom:2px;background:rgba(8,20,32,0.78);color:#fff;font-size:8.5px;font-weight:800;padding:1px 4px;border-radius:5px;display:flex;align-items:center;gap:2px;line-height:1;"><span class="material-icons" style="font-size:9px;">photo_library</span>' + _np + '</span>' : '';
     var photo = l.photo_url
-      ? '<div style="width:46px;height:46px;border-radius:10px;flex:0 0 auto;background:#13324a center/cover no-repeat;background-image:url(\'' + l.photo_url + '\');"></div>'
+      ? '<div style="position:relative;width:46px;height:46px;border-radius:10px;flex:0 0 auto;background:#13324a center/cover no-repeat;background-image:url(\'' + l.photo_url + '\');">' + _badge + '</div>'
       : '<div style="width:46px;height:46px;border-radius:10px;flex:0 0 auto;background:rgba(43,168,224,0.12);display:flex;align-items:center;justify-content:center;color:#2ba8e0;"><span class="material-icons" style="font-size:22px;">' + _icon + '</span></div>';
     var shareIcon = l.shared ? '<span class="material-icons" title="Shared with your connections" style="font-size:13px;color:#2ba8e0;vertical-align:-2px;">group</span> ' : '';
     var editBtn = l.id ? ('<button type="button" onclick="event.stopPropagation();window.ffpEditActivity&&window.ffpEditActivity(\'' + l.id + '\')" title="Edit activity" aria-label="Edit activity" style="background:none;border:none;color:var(--muted,#8a99a8);cursor:pointer;padding:2px;display:inline-flex;align-items:center;line-height:1;"><span class="material-icons" style="font-size:17px;">edit</span></button>') : '';
@@ -1201,7 +1203,7 @@
           distance_km: (r.distance_km != null ? Number(r.distance_km) : null),
           avg_heart_rate: (r.avg_heart_rate != null ? Number(r.avg_heart_rate) : null),
           notes: r.notes || '',
-          city: r.city || '', country: r.country || '', venue: r.venue || '', checkin_lat: (r.checkin_lat != null ? Number(r.checkin_lat) : null), checkin_lng: (r.checkin_lng != null ? Number(r.checkin_lng) : null), photo_url: r.photo_url || '', shared: !!r.shared, logged_at: r.logged_at || null, daysAgo: daysAgoFromIso(r.logged_at) };
+          city: r.city || '', country: r.country || '', venue: r.venue || '', checkin_lat: (r.checkin_lat != null ? Number(r.checkin_lat) : null), checkin_lng: (r.checkin_lng != null ? Number(r.checkin_lng) : null), photo_url: r.photo_url || '', photos: (Array.isArray(r.photos) && r.photos.length) ? r.photos : (r.photo_url ? [r.photo_url] : []), shared: !!r.shared, logged_at: r.logged_at || null, daysAgo: daysAgoFromIso(r.logged_at) };
       });
       if (window.FitnessStats && typeof FitnessStats.renderActivity === 'function') FitnessStats.renderActivity();
       else renderRecentList();
@@ -1679,7 +1681,7 @@
               distance_km: (r.distance_km != null ? Number(r.distance_km) : null),
               avg_heart_rate: (r.avg_heart_rate != null ? Number(r.avg_heart_rate) : null),
               notes: r.notes || '',
-              city: r.city || '', country: r.country || '', venue: r.venue || '', checkin_lat: (r.checkin_lat != null ? Number(r.checkin_lat) : null), checkin_lng: (r.checkin_lng != null ? Number(r.checkin_lng) : null), photo_url: r.photo_url || '', shared: !!r.shared, logged_at: r.logged_at || null, daysAgo: daysAgoFromIso(r.logged_at) };
+              city: r.city || '', country: r.country || '', venue: r.venue || '', checkin_lat: (r.checkin_lat != null ? Number(r.checkin_lat) : null), checkin_lng: (r.checkin_lng != null ? Number(r.checkin_lng) : null), photo_url: r.photo_url || '', photos: (Array.isArray(r.photos) && r.photos.length) ? r.photos : (r.photo_url ? [r.photo_url] : []), shared: !!r.shared, logged_at: r.logged_at || null, daysAgo: daysAgoFromIso(r.logged_at) };
           });
         } catch (e) { console.error('[FFP Fitness Stats] activity_logs read:', e); activityCache = []; }
       })();
