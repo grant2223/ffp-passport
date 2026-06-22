@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v360 (2026-06-22)  [changelog trimmed to latest 3 updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v361 (2026-06-22)  [changelog trimmed to latest 3 updates; older history in git]
+     v361: MULTI-PHOTO FIXES — (1) green save-strap was hidden BEHIND the share sheet (toast z-index 100000 <
+           share 100060); toast z-index → 2147483000 so the strap shows across the top over the share screen.
+           (2) Extra photos saved fine in DB but the activity card read them from the backend list (needs the
+           Vercel deploy); ffpOpenActivityCard now pulls photos via member_activity_view (DB source of truth) so
+           the x-axis gallery shows ALL photos without waiting on the backend. FFP_BUILD 403→404.
      v360: LOG ACTIVITY MULTI-PHOTO — up to 8 images per activity (horizontal-scroll strip in the log modal;
            x-axis scroll-snap gallery + 1/N counter on the activity card; count badge on list thumbnails).
            DB activity_logs.photos[] (cover=photo_url); log_activity/update_activity gain p_photos; backend
@@ -3025,7 +3030,7 @@ input[type="number"] {
 
 /* Toast */
 /* v203: notifications are a prominent TOP banner (was an easy-to-miss bottom pill) — desktop + mobile */
-.toast { position: fixed; top: 0; left: 50%; transform: translateX(-50%) translateY(-130%); background: #0f1e2e; border: 1px solid var(--border-mid); border-top: 4px solid #FFCC00; border-radius: 0 0 14px 14px; padding: 15px 24px; font-size: 15px; font-weight: 800; color: var(--text); display: flex; align-items: center; justify-content: center; text-align: center; gap: 10px; z-index: 100000; box-shadow: 0 12px 32px rgba(0,0,0,0.55); opacity: 0; transition: all 0.32s cubic-bezier(.2,.8,.2,1); pointer-events: none; width: 100%; max-width: 560px; }
+.toast { position: fixed; top: 0; left: 50%; transform: translateX(-50%) translateY(-130%); background: #0f1e2e; border: 1px solid var(--border-mid); border-top: 4px solid #FFCC00; border-radius: 0 0 14px 14px; padding: 15px 24px; font-size: 15px; font-weight: 800; color: var(--text); display: flex; align-items: center; justify-content: center; text-align: center; gap: 10px; z-index: 2147483000; box-shadow: 0 12px 32px rgba(0,0,0,0.55); opacity: 0; transition: all 0.32s cubic-bezier(.2,.8,.2,1); pointer-events: none; width: 100%; max-width: 560px; }
 .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 .toast .material-icons { font-size: 20px; color: #4ade80; }
 /* SUCCESS = wide green strap, full-width, centered text (every saved/confirmation message). */
@@ -8098,7 +8103,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '403';
+  const FFP_BUILD = '404';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -12555,7 +12560,7 @@ else init();
 .ffp-deck-flash.show{ opacity:1; }
 </style>
 <script src="assets/ffp-connections-core.js?v=357"></script>
-<script defer src="assets/ffp-connections-feed-loader.js?v=328"></script>
+<script defer src="assets/ffp-connections-feed-loader.js?v=330"></script>
 <script defer src="assets/ffp-event-results-loader.js?v=329"></script>
 <script>
 (function(){
