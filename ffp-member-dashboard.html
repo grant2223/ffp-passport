@@ -5772,7 +5772,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     <div class="dm-body" style="padding-bottom:10px;flex:0 0 auto;">
       <div class="dm-title">Pin the location</div>
       <div style="font-size:12px;color:var(--muted);margin:4px 0 12px;">Search a place, use your location, or drag the map so the pin sits exactly where you mean.</div>
-      <input type="text" id="lp-search" class="pm-form-input" placeholder="Search a place — e.g. Kite Beach, Dubai" autocomplete="off" oninput="FFPLocPick.onSearch(this.value)">
+      <input type="text" id="lp-search" class="pm-form-input" placeholder="Search a gym, studio or venue — e.g. Forge Fitness" autocomplete="off" oninput="FFPLocPick.onSearch(this.value)">
       <button type="button" id="lp-locate-btn" onclick="FFPLocPick.locate()" style="margin-top:8px;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(43,168,224,0.1);color:var(--blue,#2ba8e0);border:1px solid rgba(43,168,224,0.35);border-radius:10px;padding:10px;font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;"><span class="material-icons" style="font-size:18px;">my_location</span>Use my current location</button>
       <div id="lp-results"></div>
     </div>
@@ -8105,7 +8105,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '407';
+  const FFP_BUILD = '408';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -12909,8 +12909,10 @@ function pmfSetLocation(loc){
   var ml=document.getElementById('pmf-maplink'); if(ml && loc.maps_url){ ml.href=loc.maps_url; ml.style.display='inline-flex'; }
 }
 window.FFPLocPick = (function(){
-  var map=null, cb=null, cur=null, searchT=null, geoT=null, results=[];
+  var map=null, cb=null, cur=null, searchT=null, geoT=null, results=[], sessTok=null;
   function esc(s){ return (window.escHtml?escHtml(s):String(s==null?'':s)); }
+  // Google Places billing session: one token spans a search→details cycle (autocomplete is then free).
+  function newSess(){ try{ sessTok=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():(String(Date.now())+Math.random().toString(16).slice(2)); }catch(e){ sessTok=String(Date.now()); } }
   function init(){
     if(map || typeof L==='undefined') return;
     var el=document.getElementById('lp-map'); if(!el) return;
@@ -12919,7 +12921,7 @@ window.FFPLocPick = (function(){
     map.on('moveend', schedReverse);
   }
   function open(callback){
-    cb=callback||null; cur=null;
+    cb=callback||null; cur=null; newSess();
     var bk=document.getElementById('loc-pick-backdrop'); if(!bk) return;
     bk.classList.add('open');
     var s=document.getElementById('lp-search'); if(s) s.value='';
@@ -12946,31 +12948,39 @@ window.FFPLocPick = (function(){
     var p=[]; if(spot)p.push(spot); if(city&&city!==spot)p.push(city);
     return p.join(', ') || (j.display_name?j.display_name.split(',').slice(0,2).join(', '):'');
   }
+  // Search real venues (gyms, studios, clubs…) via Google Places — proxied by the backend so the key stays server-side.
   function onSearch(q){
     clearTimeout(searchT); q=(q||'').trim();
     var r=document.getElementById('lp-results');
-    if(q.length<3){ if(r) r.innerHTML=''; return; }
+    if(q.length<2){ if(r) r.innerHTML=''; return; }
     searchT=setTimeout(function(){
-      fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&q='+encodeURIComponent(q))
-        .then(function(res){return res.json();}).then(function(arr){
-          results=arr||[]; if(!r) return;
-          if(!results.length){ r.innerHTML='<div style="padding:9px 4px;font-size:12px;color:var(--muted);">No matches</div>'; return; }
-          r.innerHTML=results.map(function(it,i){
-            var label=(it.display_name||'').split(',').slice(0,3).join(', ');
-            return '<div onclick="FFPLocPick.pick('+i+')" style="padding:10px;border-bottom:1px solid var(--border,#1a2f44);font-size:13px;color:var(--text,#e8eef4);cursor:pointer;">'+esc(label)+'</div>';
-          }).join('');
-        }).catch(function(){});
-    }, 500);
+      var c = map?map.getCenter():{lat:25.2048,lng:55.2708};
+      var url = FFP_API_NOTIF + '/api/places/suggest?q='+encodeURIComponent(q)+'&lat='+c.lat+'&lng='+c.lng+(sessTok?('&session='+encodeURIComponent(sessTok)):'');
+      fetch(url).then(function(res){return res.json();}).then(function(j){
+        results=(j&&j.suggestions)||[]; if(!r) return;
+        if(!results.length){ r.innerHTML='<div style="padding:9px 4px;font-size:12px;color:var(--muted);">No matches</div>'; return; }
+        r.innerHTML=results.map(function(it,i){
+          var main=esc(it.main||it.text||''); var sec=esc(it.secondary||'');
+          return '<div onclick="FFPLocPick.pick('+i+')" style="padding:10px;border-bottom:1px solid var(--border,#1a2f44);cursor:pointer;">'
+            +'<div style="font-size:13px;font-weight:700;color:var(--text,#e8eef4);">'+main+'</div>'
+            +(sec?'<div style="font-size:11px;color:var(--muted,#8a99a8);margin-top:1px;">'+sec+'</div>':'')+'</div>';
+        }).join('');
+      }).catch(function(){ if(r) r.innerHTML='<div style="padding:9px 4px;font-size:12px;color:var(--muted);">Couldn’t search right now</div>'; });
+    }, 320);
   }
   function pick(i){
-    var it=results[i]; if(!it||!map) return;
-    var lat=parseFloat(it.lat), lng=parseFloat(it.lon);
-    var label=(it.display_name||'').split(',').slice(0,2).join(', ');
-    cur={lat:lat,lng:lng,name:label};
-    map.setView([lat,lng],16);
-    var ch=document.getElementById('lp-chosen'); if(ch) ch.textContent=label;
-    var r=document.getElementById('lp-results'); if(r) r.innerHTML='';
-    var s=document.getElementById('lp-search'); if(s) s.value=label;
+    var it=results[i]; if(!it||!it.place_id) return;
+    var ch=document.getElementById('lp-chosen'); if(ch) ch.textContent='Locating '+(it.main||'place')+'…';
+    var s=document.getElementById('lp-search'); if(s) s.value=(it.main||'')+(it.secondary?(', '+it.secondary):'');
+    var rr=document.getElementById('lp-results'); if(rr) rr.innerHTML='';
+    var url = FFP_API_NOTIF + '/api/places/details?place_id='+encodeURIComponent(it.place_id)+(sessTok?('&session='+encodeURIComponent(sessTok)):'');
+    fetch(url).then(function(res){return res.json();}).then(function(j){
+      if(!j || j.lat==null || j.lng==null){ if(ch) ch.textContent='Couldn’t locate that place — try another'; return; }
+      cur={ lat:Number(j.lat), lng:Number(j.lng), name:j.name||(it.main||''), maps_url:j.maps_url||'' };
+      if(map) map.setView([cur.lat,cur.lng],16);
+      if(ch) ch.textContent=cur.name;
+      newSess();   // session consumed by the details call; next search starts a fresh one
+    }).catch(function(){ if(ch) ch.textContent='Couldn’t locate that place — try again'; });
   }
   async function use(){
     if(!map){ close(); return; }
@@ -12991,7 +13001,7 @@ window.FFPLocPick = (function(){
       } catch(e){}
       if(chl) chl.textContent=prev;
     }
-    if(typeof cb==='function') cb({ name:name, lat:lat, lng:lng, maps_url:'https://www.google.com/maps?q='+lat+','+lng, city:city, country:country });
+    if(typeof cb==='function') cb({ name:name, lat:lat, lng:lng, maps_url:(cur&&cur.maps_url)?cur.maps_url:('https://www.google.com/maps?q='+lat+','+lng), city:city, country:country });
     close();
   }
   // One-tap GPS: centre the map (+ pin) on the member's current location, then the moveend reverse-geocode
