@@ -3347,6 +3347,9 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 .tabs-underline { display: flex; gap: 22px; border-bottom: 1px solid var(--border-mid); margin-bottom: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .tabs-underline::-webkit-scrollbar { display: none; }
 .tabs-underline { scrollbar-width: none; }
+/* Meetups: spread the 3 tabs evenly across the full width (not bunched left) */
+#meet-tabs { gap: 6px; }
+#meet-tabs .tabs-underline-btn { flex: 1; justify-content: center; }
 .tabs-underline-btn { background: transparent; border: none; color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; padding: 12px 0; cursor: pointer; font-family: inherit; position: relative; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; transition: color 0.15s; }
 .tabs-underline-btn:hover { color: var(--text); }
 .tabs-underline-btn.active { color: var(--text); }
@@ -8104,7 +8107,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '411';
+  const FFP_BUILD = '412';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -12591,7 +12594,7 @@ else init();
 .ffp-deck-flash{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(8,20,32,0.66); opacity:0; transition:opacity .2s; z-index:30; }
 .ffp-deck-flash.show{ opacity:1; }
 </style>
-<script src="assets/ffp-connections-core.js?v=357"></script>
+<script src="assets/ffp-connections-core.js?v=358"></script>
 <script defer src="assets/ffp-connections-feed-loader.js?v=333"></script>
 <script defer src="assets/ffp-event-results-loader.js?v=329"></script>
 <script>
