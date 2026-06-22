@@ -5390,13 +5390,21 @@ async function openClientProfile(memberId){
   try{ var r=await window.supabase.rpc('provider_member_profile',{p_provider:pid,p_member:memberId}); if(r&&r.error) throw r.error; d=r&&r.data; }
   catch(e){ var c0=document.getElementById('cp-content'); if(c0) c0.innerHTML='<div class="psub" style="padding:20px;">Couldn’t load this client.</div>'; return; }
   if(!d){ return; }
-  window._cpData=d;
+  window._cpData=d; window._cpMemberKey=memberId;
   _renderClientProfile(d);
 }
 function _cpEsc(e){ if(e.key==='Escape') closeClientProfile(); }
+async function _cpRefresh(tab){
+  var pid=(window.FFP_PROVIDER&&FFP_PROVIDER.id), mk=window._cpMemberKey; if(!pid||!mk) return;
+  try{ var r=await window.supabase.rpc('provider_member_profile',{p_provider:pid,p_member:mk}); if(r&&r.data){ window._cpData=r.data; _renderClientProfile(r.data, tab); } }catch(e){}
+}
 function closeClientProfile(){ var ov=document.getElementById('cp-overlay'); if(ov) ov.remove(); document.body.style.overflow=''; document.removeEventListener('keydown', _cpEsc); }
-function _renderClientProfile(d){
+function _renderClientProfile(d, activeTab){
   var p=d.profile||{}, st=d.stats||{}, ccy=d.currency||'AED';
+  var _forms=(d.forms||[]); var _fout=_forms.filter(function(f){return f.status!=='completed';}).length;
+  var comp = _forms.length===0 ? '' : (_fout>0
+    ? '<div style="margin-top:8px;display:inline-flex;align-items:center;gap:5px;background:#fbe2a8;color:#7a4f00;font-size:11px;font-weight:800;padding:3px 9px;border-radius:8px;"><span class="ms" style="font-size:14px;">warning</span>'+_fout+' form'+(_fout>1?'s':'')+' outstanding</div>'
+    : '<div style="margin-top:8px;display:inline-flex;align-items:center;gap:5px;background:#d6f0e0;color:#15833f;font-size:11px;font-weight:800;padding:3px 9px;border-radius:8px;"><span class="ms" style="font-size:14px;">verified</span>Forms complete</div>');
   var initials=(p.full_name||'C').trim().charAt(0).toUpperCase();
   var photo=p.photo_url ? '<img src="'+escHtml(p.photo_url)+'" alt="" style="width:62px;height:62px;border-radius:50%;object-fit:cover;flex:0 0 auto;">'
     : '<div style="width:62px;height:62px;border-radius:50%;background:var(--ffp-purple);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:24px;flex:0 0 auto;">'+escHtml(initials)+'</div>';
@@ -5407,9 +5415,9 @@ function _renderClientProfile(d){
     '<div style="display:flex;flex-direction:column;gap:11px;">'+photo+
       '<div><div style="font-size:19px;font-weight:800;color:var(--ffp-text);line-height:1.2;">'+escHtml(p.full_name||'Client')+'</div>'+
       '<div style="font-size:12px;color:var(--ffp-text-muted);margin-top:4px;line-height:1.7;">'+([p.email,p.phone,[p.city,p.country].filter(Boolean).join(', ')].filter(Boolean).map(escHtml).join('<br>')||'No contact details')+'</div>'+
-      (p.member_status?('<div style="margin-top:8px;">'+_cpPill(p.member_status)+'</div>'):'')+'</div></div>'+
+      (p.member_status?('<div style="margin-top:8px;">'+_cpPill(p.member_status)+'</div>'):'')+comp+'</div></div>'+
     '<div style="margin-top:16px;">'+statLine('Sessions',st.total_sessions||0)+statLine('Attended',st.attended||0,'#15833f')+statLine('No-shows',st.no_shows||0,(st.no_shows?'#c0392b':null))+statLine('Upcoming',st.upcoming||0,'#1980AD')+statLine('Spend',_cpMoney(st.total_spend,ccy))+'</div>'+
-    '<div style="margin-top:16px;display:flex;flex-direction:column;gap:2px;">'+navBtn('profile','Profile','person')+navBtn('sessions','Sessions','event')+navBtn('plans','Plans & packages','card_membership')+navBtn('payments','Payments','payments')+navBtn('notes','Notes','sticky_note_2')+'</div></div>';
+    '<div style="margin-top:16px;display:flex;flex-direction:column;gap:2px;">'+navBtn('profile','Profile','person')+navBtn('sessions','Sessions','event')+navBtn('plans','Plans & packages','card_membership')+navBtn('payments','Payments','payments')+navBtn('forms','Forms','assignment')+navBtn('notes','Notes','sticky_note_2')+'</div></div>';
   // ── shared row helpers (rows expand to reveal detail) ──
   function subhead(t){ return '<div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--ffp-text-dim);margin:14px 0 4px;">'+t+'</div>'; }
   function empty(t){ return '<div style="font-size:12px;color:var(--ffp-text-muted);padding:6px 0;">'+t+'</div>'; }
@@ -5436,6 +5444,7 @@ function _renderClientProfile(d){
     return expItem(left,_cpPill(it.status),(it.name||'')+' '+(it.kind||'')+' '+(it.status||''),detail); }
   var active=items.filter(function(i){return i.active;}), inactive=items.filter(function(i){return !i.active;});
   var plansPane='<div id="cp-pane-plans" style="display:none;">'+
+    '<div style="margin:2px 0 8px;"><button class="btn btn-pri btn-sm" onclick="cpAddPlan()"><span class="ms">add</span> Add membership / package</button></div>'+
     (items.length ? (active.length? subhead('Active · '+active.length)+active.map(planRow).join('') : '')+(inactive.length? subhead('Past · '+inactive.length)+inactive.map(planRow).join('') : '') : empty('No memberships or packages.'))+'</div>';
   // Payments ledger — rows expand to detail
   var payments=(d.payments||[]);
@@ -5444,6 +5453,7 @@ function _renderClientProfile(d){
     return expItem(left,'<div style="font-weight:800;font-size:13px;color:var(--ffp-text);">'+_cpMoney(pm.amount,ccy)+'</div>',(pm.descr||'')+' '+(pm.kind||'')+' '+s,detail); }
   var totalPaid=payments.reduce(function(s,pm){ return s+(Number(pm.amount)||0); },0);
   var paymentsPane='<div id="cp-pane-payments" style="display:none;">'+
+    '<div style="margin:2px 0 10px;"><button class="btn btn-sec btn-sm" onclick="cpAddPlan()"><span class="ms">add</span> Sell a package / membership</button></div>'+
     (payments.length? '<div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0 2px;"><div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--ffp-text-dim);">'+payments.length+' payment'+(payments.length>1?'s':'')+'</div><div style="font-size:13px;font-weight:800;color:var(--ffp-text);">Total '+_cpMoney(totalPaid,ccy)+'</div></div>'+payments.map(payRow).join('') : empty('No payments yet.'))+'</div>';
   // Notes — a thread of separate, timestamped entries
   var notesPane='<div id="cp-pane-notes" style="display:none;">'+
@@ -5464,15 +5474,19 @@ function _renderClientProfile(d){
     '<div class="field" style="margin-top:10px;"><div class="label">Goals</div><textarea class="textarea" id="cp-pf-goals" rows="2">'+escHtml(p.goals||'')+'</textarea></div>'+
     '<div class="field" style="margin-top:10px;"><div class="label">Health notes / injuries</div><textarea class="textarea" id="cp-pf-health" rows="2">'+escHtml(p.health_notes||'')+'</textarea></div>'+
     '<div style="margin-top:12px;"><button class="btn btn-pri btn-sm" onclick="saveClientProfile()"><span class="ms">save</span> Save profile</button></div></div>';
+  // Forms — assigned forms with status; assign / view responses / upload fallback / manage templates
+  var formsPane='<div id="cp-pane-forms" style="display:none;">'+
+    '<div style="display:flex;gap:8px;margin:2px 0 12px;flex-wrap:wrap;"><button class="btn btn-pri btn-sm" onclick="cpAssignForm()"><span class="ms">post_add</span> Assign form</button><button class="btn btn-sec btn-sm" onclick="cpManageTemplates()"><span class="ms">tune</span> Manage templates</button></div>'+
+    '<div id="cp-forms-list"></div></div>';
   var searchBox='<div id="cp-search-wrap" style="margin-bottom:12px;display:none;"><input id="cp-search" class="input" oninput="cpSearch(this.value)" placeholder="Search…" style="font-size:13px;max-width:360px;"></div>';
-  var content='<div style="flex:1 1 0;min-width:0;">'+searchBox+profilePane+sessionsPane+plansPane+paymentsPane+notesPane+'</div>';
+  var content='<div style="flex:1 1 0;min-width:0;">'+searchBox+profilePane+sessionsPane+plansPane+paymentsPane+formsPane+notesPane+'</div>';
   var body='<div style="display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap;">'+rail+content+'</div>';
   var c=document.getElementById('cp-content'); if(c) c.innerHTML=body;
-  cpTab('sessions'); _cpRenderNotes();
+  cpTab(activeTab||'sessions'); _cpRenderNotes(); _cpRenderForms();
 }
 function cpTab(name){
   window._cpActive=name;
-  ['profile','sessions','plans','payments','notes'].forEach(function(t){
+  ['profile','sessions','plans','payments','forms','notes'].forEach(function(t){
     var pane=document.getElementById('cp-pane-'+t), btn=document.getElementById('cp-tab-'+t), on=(t===name);
     if(pane) pane.style.display = on ? 'block' : 'none';
     if(btn){ btn.style.background = on ? 'rgba(10,62,68,.10)' : 'none'; btn.style.color = on ? 'var(--ffp-purple)' : 'var(--ffp-text-muted)'; }
@@ -5507,6 +5521,161 @@ async function cpDeleteNote(id){
   try{ var r=await window.supabase.rpc('provider_delete_member_note',{p_provider:pid,p_id:id}); if(r&&r.error) throw r.error;
     d.member_notes=(d.member_notes||[]).filter(function(n){ return String(n.id)!==String(id); }); _cpRenderNotes();
   }catch(e){ if(window.showToast) showToast('Could not delete','error'); }
+}
+// ── FORMS (client record) ──
+function _cpRenderForms(){
+  var d=window._cpData||{}, forms=(d.forms||[]), host=document.getElementById('cp-forms-list'); if(!host) return;
+  if(!forms.length){ host.innerHTML='<div style="font-size:12px;color:var(--ffp-text-muted);padding:4px 0;">No forms yet — assign one above (e.g. a waiver or PAR-Q).</div>'; return; }
+  function fpill(f){ if(f.status==='completed'){ var l=f.source==='upload'?'Uploaded':(f.requires_signature?'Signed':'Completed'); return '<span style="font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;color:#fff;background:#15833f;white-space:nowrap;">'+l+'</span>'; } return '<span style="font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;color:#7a4f00;background:#fbe2a8;white-space:nowrap;">Outstanding</span>'; }
+  host.innerHTML=forms.map(function(f){
+    var det='';
+    if(f.status==='completed'){
+      if(f.source==='upload'&&f.uploaded_file_url){ det+='<div style="margin-bottom:7px;"><a href="'+escHtml(f.uploaded_file_url)+'" target="_blank" rel="noopener" style="color:var(--ffp-blue);font-weight:700;font-size:12.5px;"><span class="ms" style="font-size:15px;vertical-align:-3px;">description</span> View uploaded copy</a></div>'; }
+      var resp=f.responses||{}; (f.fields||[]).forEach(function(fl){ var v=resp[fl.key]; if(fl.type==='consent') v=(v?'Accepted':'Not accepted'); if(fl.type==='yesno') v=(v===true||v==='yes'?'Yes':(v===false||v==='no'?'No':v)); det+='<div style="font-size:12px;margin-bottom:5px;line-height:1.5;"><span style="color:var(--ffp-text-dim);">'+escHtml(fl.label||fl.key)+'</span><br><span style="font-weight:700;color:var(--ffp-text);">'+escHtml(v==null||v===''?'—':String(v))+'</span></div>'; });
+      if(f.signature_name) det+='<div style="font-size:12px;margin-top:7px;color:var(--ffp-text-muted);">Signed by <b style="color:var(--ffp-text);">'+escHtml(f.signature_name)+'</b> · '+_cpWhen(f.completed_at)+'</div>';
+    } else {
+      det+='<div style="font-size:12px;color:var(--ffp-text-muted);margin-bottom:8px;">Waiting on the client to complete &amp; sign in their app — or upload a signed copy here.</div>'+
+        '<button class="btn btn-sec btn-sm" onclick="cpUploadForm(\''+f.id+'\')"><span class="ms">upload_file</span> Upload signed copy</button>';
+    }
+    det+='<div style="margin-top:10px;"><button onclick="cpDeleteForm(\''+f.id+'\')" style="background:none;border:none;color:var(--ffp-text-dim);font-size:11px;font-weight:700;cursor:pointer;">Remove form</button></div>';
+    var left='<div style="font-weight:700;color:var(--ffp-text);font-size:13px;">'+escHtml(f.title)+'</div><div style="font-size:11px;color:var(--ffp-text-muted);">Assigned '+_cpWhen(f.assigned_at)+'</div>';
+    return '<div style="border-bottom:1px solid var(--ffp-border);"><div onclick="cpToggleRow(this)" style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 2px;cursor:pointer;"><div style="min-width:0;">'+left+'</div><div style="display:flex;align-items:center;gap:10px;flex:0 0 auto;">'+fpill(f)+'<span class="ms cp-chev" style="font-size:18px;color:var(--ffp-text-dim);">expand_more</span></div></div><div style="display:none;padding:0 2px 12px;">'+det+'</div></div>';
+  }).join('');
+}
+async function cpAssignForm(){
+  var pid=(window.FFP_PROVIDER&&FFP_PROVIDER.id), d=window._cpData||{};
+  if(!d.provider_member_id){ if(window.showToast) showToast('Add this person to Members first','error'); return; }
+  _cpDialog('Assign a form','<div class="psub" style="padding:10px 0;">Loading templates…</div>','');
+  try{ var r=await window.supabase.rpc('provider_list_form_templates',{p_provider:pid}); var tpls=(r&&r.data)||[];
+    var body=tpls.length ? tpls.map(function(t){ return '<button onclick="cpDoAssign(\''+t.id+'\')" style="display:block;width:100%;text-align:left;border:1px solid var(--ffp-border-mid);background:var(--ffp-bg-2);border-radius:10px;padding:11px 13px;margin-bottom:8px;cursor:pointer;font-family:inherit;"><div style="font-weight:800;font-size:13px;color:var(--ffp-text);">'+escHtml(t.title)+'</div>'+(t.description?'<div style="font-size:11.5px;color:var(--ffp-text-muted);margin-top:2px;">'+escHtml(t.description)+'</div>':'')+'</button>'; }).join('')
+      : '<div class="psub" style="padding:6px 0;">No templates yet. Create one with “Manage templates”.</div>';
+    _cpDialogBody(body);
+  }catch(e){ _cpDialogBody('<div class="psub">Could not load templates.</div>'); }
+}
+async function cpDoAssign(tid){
+  var pid=(window.FFP_PROVIDER&&FFP_PROVIDER.id), d=window._cpData||{};
+  try{ var r=await window.supabase.rpc('provider_assign_form',{p_provider:pid,p_pmid:d.provider_member_id,p_template:tid}); if(r&&r.error) throw r.error;
+    _cpDialogClose(); if(window.showToast) showToast('Form assigned','success'); _cpRefresh('forms');
+  }catch(e){ if(window.showToast) showToast('Could not assign','error'); }
+}
+function cpUploadForm(fid){
+  var inp=document.createElement('input'); inp.type='file'; inp.accept='image/*,application/pdf';
+  inp.onchange=async function(){ var file=inp.files&&inp.files[0]; if(!file) return; var pid=(window.FFP_PROVIDER&&FFP_PROVIDER.id);
+    try{ if(window.showToast) showToast('Uploading…','info');
+      var path='forms/'+pid+'/'+fid+'-'+Date.now()+'-'+file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+      var up=await window.supabase.storage.from('form-files').upload(path,file,{upsert:true}); if(up.error) throw up.error;
+      var pub=window.supabase.storage.from('form-files').getPublicUrl(path); var url=pub&&pub.data&&pub.data.publicUrl;
+      var r=await window.supabase.rpc('provider_complete_form_upload',{p_provider:pid,p_form_id:fid,p_file_url:url}); if(r&&r.error) throw r.error;
+      if(window.showToast) showToast('Uploaded','success'); _cpRefresh('forms');
+    }catch(e){ if(window.showToast) showToast('Upload failed','error'); }
+  };
+  inp.click();
+}
+async function cpDeleteForm(fid){
+  var pid=(window.FFP_PROVIDER&&FFP_PROVIDER.id), d=window._cpData||{};
+  try{ var r=await window.supabase.rpc('provider_delete_member_form',{p_provider:pid,p_form_id:fid}); if(r&&r.error) throw r.error;
+    d.forms=(d.forms||[]).filter(function(f){return String(f.id)!==String(fid);}); _cpRenderForms();
+  }catch(e){ if(window.showToast) showToast('Could not remove','error'); }
+}
+// ── sub-dialog (stacks above the full-screen client record) ──
+function _cpDialog(title, body, foot){
+  _cpDialogClose();
+  var ov=document.createElement('div'); ov.id='cp-dialog';
+  ov.setAttribute('style','position:fixed;inset:0;z-index:100300;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;padding:48px 20px;overflow-y:auto;');
+  ov.onclick=function(e){ if(e.target===ov) _cpDialogClose(); };
+  ov.innerHTML='<div style="width:100%;max-width:580px;background:var(--ffp-bg-2);border:1px solid var(--ffp-border-mid);border-radius:16px;overflow:hidden;margin:auto;">'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--ffp-border);"><div style="font-size:15px;font-weight:800;color:var(--ffp-text);">'+title+'</div><button onclick="_cpDialogClose()" style="width:32px;height:32px;border-radius:50%;border:none;background:var(--ffp-bg-3);color:var(--ffp-text-muted);cursor:pointer;"><span class="ms">close</span></button></div>'+
+    '<div id="cp-dialog-body" style="padding:18px 20px;max-height:calc(100vh - 230px);overflow-y:auto;">'+body+'</div>'+
+    (foot?'<div style="padding:14px 20px;border-top:1px solid var(--ffp-border);display:flex;justify-content:flex-end;gap:10px;background:var(--ffp-bg-3);">'+foot+'</div>':'')+'</div>';
+  document.body.appendChild(ov);
+}
+function _cpDialogBody(html){ var b=document.getElementById('cp-dialog-body'); if(b) b.innerHTML=html; }
+function _cpDialogClose(){ var ov=document.getElementById('cp-dialog'); if(ov) ov.remove(); }
+// ── template manager + builder ──
+async function cpManageTemplates(){
+  var pid=(window.FFP_PROVIDER&&FFP_PROVIDER.id);
+  _cpDialog('Form templates','<div class="psub" style="padding:8px 0;">Loading…</div>','<button class="btn btn-pri btn-sm" onclick="cpEditTemplate()"><span class="ms">add</span> New template</button>');
+  try{ var r=await window.supabase.rpc('provider_list_form_templates',{p_provider:pid}); window._cpTpls=(r&&r.data)||[]; _cpDialogBody(_cpTemplateListHtml()); }
+  catch(e){ _cpDialogBody('<div class="psub">Could not load.</div>'); }
+}
+function _cpTemplateListHtml(){
+  var tpls=window._cpTpls||[];
+  if(!tpls.length) return '<div class="psub" style="padding:6px 0;">No templates yet. Create your first — start from a Waiver or PAR-Q and adjust it.</div>';
+  return tpls.map(function(t){ return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--ffp-border);"><div style="min-width:0;"><div style="font-weight:800;font-size:13px;color:var(--ffp-text);">'+escHtml(t.title)+'</div><div style="font-size:11px;color:var(--ffp-text-muted);">'+((t.fields&&t.fields.length)||0)+' field'+(((t.fields&&t.fields.length)===1)?'':'s')+(t.requires_signature?' · signature':'')+'</div></div><div style="display:flex;gap:6px;flex:0 0 auto;"><button class="btn btn-sec btn-sm" onclick="cpEditTemplate(\''+t.id+'\')"><span class="ms">edit</span></button><button class="btn btn-ghost btn-sm" onclick="cpDeleteTemplate(\''+t.id+'\')"><span class="ms">delete</span></button></div></div>'; }).join('');
+}
+function cpEditTemplate(tid){
+  var tpls=window._cpTpls||[], t=tid?tpls.filter(function(x){return x.id===tid;})[0]:null;
+  window._cpEditTplId=tid||null; window._cpFields=t?(t.fields||[]).slice():[];
+  var starter=!t?'<div style="margin-bottom:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;"><span style="font-size:11px;color:var(--ffp-text-dim);">Start from:</span><button class="btn btn-sec btn-sm" onclick="cpStarter(\'waiver\')">Waiver</button><button class="btn btn-sec btn-sm" onclick="cpStarter(\'parq\')">PAR-Q</button></div>':'';
+  var body=starter+
+    '<div class="field"><div class="label">Title</div><input class="input" id="cp-tpl-title" value="'+escHtml(t?t.title:'')+'" placeholder="e.g. Liability Waiver"></div>'+
+    '<div class="field" style="margin-top:8px;"><div class="label">Description</div><input class="input" id="cp-tpl-desc" value="'+escHtml(t?(t.description||''):'')+'" placeholder="Optional"></div>'+
+    '<label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;color:var(--ffp-text);"><input type="checkbox" id="cp-tpl-sig" '+((!t||t.requires_signature)?'checked':'')+'> Require signature</label>'+
+    '<div style="margin-top:13px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--ffp-text-dim);">Fields</div><div id="cp-tpl-fields"></div>'+
+    '<button class="btn btn-sec btn-sm" style="margin-top:8px;" onclick="cpAddField()"><span class="ms">add</span> Add field</button>';
+  _cpDialog(tid?'Edit template':'New template', body, '<button class="btn btn-ghost btn-sm" onclick="cpManageTemplates()">Back</button><button class="btn btn-pri btn-sm" onclick="cpSaveTemplate()"><span class="ms">save</span> Save</button>');
+  _cpRenderFields();
+}
+function cpStarter(kind){
+  if(kind==='waiver'){ var ti=document.getElementById('cp-tpl-title'); if(ti)ti.value='Liability Waiver'; window._cpFields=[{key:'injuries',label:'Any injuries or medical conditions we should know about?',type:'textarea',required:false},{key:'consent',label:'I understand the risks and agree to train at my own risk, releasing the facility from liability.',type:'consent',required:true}]; }
+  else { var ti2=document.getElementById('cp-tpl-title'); if(ti2)ti2.value='Pre-exercise questionnaire (PAR-Q)'; window._cpFields=[{key:'heart',label:'Has a doctor ever said you have a heart condition?',type:'yesno',required:true},{key:'pain',label:'Do you feel pain in your chest during physical activity?',type:'yesno',required:true},{key:'dizzy',label:'Do you ever lose balance from dizziness, or lose consciousness?',type:'yesno',required:true},{key:'meds',label:'Are you on medication for blood pressure or a heart condition?',type:'yesno',required:true},{key:'other',label:'Any other reason you should not do physical activity?',type:'textarea',required:false},{key:'consent',label:'I confirm the above is accurate to the best of my knowledge.',type:'consent',required:true}]; }
+  _cpRenderFields();
+}
+function cpAddField(){ window._cpFields=window._cpFields||[]; window._cpFields.push({key:'f'+(window._cpFields.length+1)+'_'+Date.now().toString(36).slice(-3),label:'',type:'text',required:false}); _cpRenderFields(); }
+function cpRemoveField(i){ (window._cpFields||[]).splice(i,1); _cpRenderFields(); }
+function _cpRenderFields(){
+  var host=document.getElementById('cp-tpl-fields'); if(!host) return; var fs=window._cpFields||[];
+  var types=[['text','Short text'],['textarea','Long text'],['yesno','Yes / No'],['date','Date'],['consent','Consent checkbox']];
+  host.innerHTML=fs.length? fs.map(function(f,i){ var opts=types.map(function(t){return '<option value="'+t[0]+'"'+(f.type===t[0]?' selected':'')+'>'+t[1]+'</option>';}).join('');
+    return '<div style="display:flex;gap:6px;align-items:center;margin-top:7px;"><input class="input" style="flex:1;" placeholder="Question / label" value="'+escHtml(f.label||'')+'" oninput="cpFieldSet('+i+',\'label\',this.value)"><select class="select" style="max-width:140px;" onchange="cpFieldSet('+i+',\'type\',this.value)">'+opts+'</select><label style="font-size:11px;color:var(--ffp-text-muted);display:flex;align-items:center;gap:3px;white-space:nowrap;"><input type="checkbox" '+(f.required?'checked':'')+' onchange="cpFieldSet('+i+',\'required\',this.checked)">Req</label><button onclick="cpRemoveField('+i+')" style="background:none;border:none;color:var(--ffp-text-dim);cursor:pointer;"><span class="ms">close</span></button></div>';
+  }).join('') : '<div style="font-size:11.5px;color:var(--ffp-text-muted);padding:6px 0;">No fields yet — add one, or start from Waiver/PAR-Q.</div>';
+}
+function cpFieldSet(i,k,v){ if(!window._cpFields||!window._cpFields[i]) return; window._cpFields[i][k]=v; }
+async function cpSaveTemplate(){
+  var pid=(window.FFP_PROVIDER&&FFP_PROVIDER.id);
+  var title=((document.getElementById('cp-tpl-title')||{}).value||'').trim(); if(!title){ if(window.showToast) showToast('Title required','error'); return; }
+  var fields=(window._cpFields||[]).filter(function(f){return (f.label||'').trim();}).map(function(f,i){ return {key:f.key||('f'+i),label:f.label,type:f.type||'text',required:!!f.required}; });
+  var payload={ title:title, description:(document.getElementById('cp-tpl-desc')||{}).value||'', requires_signature:!!(document.getElementById('cp-tpl-sig')||{}).checked, fields:fields };
+  try{ var r=await window.supabase.rpc('provider_save_form_template',{p_provider:pid,p_id:window._cpEditTplId||null,p:payload}); if(r&&r.error) throw r.error; if(window.showToast) showToast('Template saved','success'); cpManageTemplates(); }
+  catch(e){ if(window.showToast) showToast('Could not save','error'); }
+}
+async function cpDeleteTemplate(tid){
+  var pid=(window.FFP_PROVIDER&&FFP_PROVIDER.id);
+  try{ var r=await window.supabase.rpc('provider_delete_form_template',{p_provider:pid,p_id:tid}); if(r&&r.error) throw r.error; cpManageTemplates(); }
+  catch(e){ if(window.showToast) showToast('Could not delete','error'); }
+}
+// ── add a membership / sell a package, straight from the client record ──
+async function cpAddPlan(){
+  var pid=(window.FFP_PROVIDER&&FFP_PROVIDER.id), d=window._cpData||{};
+  if(!d.provider_member_id){ if(window.showToast) showToast('Add this person to Members first','error'); return; }
+  _cpDialog('Add membership or package','<div class="psub" style="padding:8px 0;">Loading…</div>','');
+  try{
+    var pr=await window.supabase.rpc('provider_list_plans',{p_provider:pid});
+    var pk=await window.supabase.rpc('provider_list_packages',{p_provider:pid});
+    var plans=(pr&&pr.data)||[], packs=(pk&&pk.data)||[];
+    function money(n){ return _cpMoney(n, d.currency||'AED'); }
+    function item(onclk,name,detail){ return '<button onclick="'+onclk+'" style="display:block;width:100%;text-align:left;border:1px solid var(--ffp-border-mid);background:var(--ffp-bg-2);border-radius:10px;padding:11px 13px;margin-bottom:8px;cursor:pointer;font-family:inherit;"><div style="font-weight:800;font-size:13px;color:var(--ffp-text);">'+escHtml(name)+'</div>'+(detail?'<div style="font-size:11.5px;color:var(--ffp-text-muted);margin-top:2px;">'+escHtml(detail)+'</div>':'')+'</button>'; }
+    var body='<div class="field" style="margin-bottom:14px;"><div class="label">Payment method (for packages)</div><select class="select" id="cp-add-pay"><option value="cash">Cash</option><option value="card">Card</option><option value="bank_deposit">Bank deposit</option><option value="comp">Comp (free)</option><option value="unpaid">Unpaid / bill later</option></select></div>';
+    body+='<div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--ffp-text-dim);margin-bottom:6px;">Memberships</div>';
+    body+= plans.length ? plans.map(function(p){ var det=[(p.price_aed!=null?money(p.price_aed):''),(p.plan_type==='term'?'Unlimited':(p.credits!=null?p.credits+' credits':'')),(p.period_days?p.period_days+' days':'')].filter(Boolean).join(' · '); return item('cpDoAssignPlan(\''+p.id+'\')',p.name||'Plan',det); }).join('') : '<div class="psub" style="padding:4px 0;">No membership plans yet — create them in the Memberships area.</div>';
+    body+='<div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--ffp-text-dim);margin:14px 0 6px;">Packages</div>';
+    body+= packs.length ? packs.map(function(p){ var n=(p.credits!=null?p.credits:p.sessions); var det=[(p.price_aed!=null?money(p.price_aed):''),(n!=null?n+' sessions':'')].filter(Boolean).join(' · '); return item('cpDoSellPackage(\''+p.id+'\')',p.name||'Package',det); }).join('') : '<div class="psub" style="padding:4px 0;">No packages yet.</div>';
+    _cpDialogBody(body);
+  }catch(e){ _cpDialogBody('<div class="psub">Could not load.</div>'); }
+}
+async function cpDoAssignPlan(planId){
+  var pid=(window.FFP_PROVIDER&&FFP_PROVIDER.id), d=window._cpData||{};
+  var t=new Date(), ds=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+  try{ var r=await window.supabase.rpc('provider_assign_plan',{p_provider:pid,p_member:d.provider_member_id,p_plan:planId,p_start:ds}); if(r&&r.error) throw r.error;
+    _cpDialogClose(); if(window.showToast) showToast('Membership added','success'); _cpRefresh('plans');
+  }catch(e){ if(window.showToast) showToast('Could not add membership','error'); }
+}
+async function cpDoSellPackage(pkgId){
+  var pid=(window.FFP_PROVIDER&&FFP_PROVIDER.id), d=window._cpData||{};
+  var pay=(document.getElementById('cp-add-pay')||{}).value||'cash';
+  try{ var r=await window.supabase.rpc('provider_sell_package',{p_provider:pid,p_member:d.provider_member_id,p_package:pkgId,p_pay_with:pay}); if(r&&r.error) throw r.error;
+    _cpDialogClose(); if(window.showToast) showToast('Package sold','success'); _cpRefresh('payments');
+  }catch(e){ if(window.showToast) showToast('Could not sell package','error'); }
 }
 function cpSearch(q){ q=(q||'').trim().toLowerCase(); var pane=document.getElementById('cp-pane-'+(window._cpActive||'sessions')); if(!pane) return; var rows=pane.querySelectorAll('[data-cps]'); for(var i=0;i<rows.length;i++){ var r=rows[i]; r.style.display=(!q || r.getAttribute('data-cps').indexOf(q)!==-1)?'':'none'; } }
 async function saveClientProfile(){
