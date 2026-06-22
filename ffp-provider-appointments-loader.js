@@ -175,7 +175,7 @@ async function apRenderCalendar() {
     _apAppts = (r && r.data) ? r.data : [];
   } catch (e) { _apAppts = []; }
   if (!_apServices.length && !_apStaff.length) {
-    host.innerHTML = _apEmpty('Set up your coaching first', 'Add a service and link a coach (Services &amp; Coaches tab), then book appointments here.');
+    host.innerHTML = _apEmpty('Set up your coaching first', 'Add a service and link a coach (Services tab), then book appointments here.');
     return;
   }
   if (_apView === 'month') _apRenderMonth(host);
@@ -679,7 +679,7 @@ function _apServiceCoachOpts(serviceId, sel) {
   return _apStaffOpts(sel);
 }
 function apBookModal(prefill) {
-  if (!_apServices.length) { apToast('Add a service first (Services & Coaches tab)', 'error'); return; }
+  if (!_apServices.length) { apToast('Add a service first (Services tab)', 'error'); return; }
   if (!_apStaff.length) { apToast('Add a coach in Staff first', 'error'); return; }
   prefill = (prefill && typeof prefill === 'object') ? prefill : {};
   var when = prefill.start || _apToLocalInput(new Date(Date.now() + 3600000).toISOString());
@@ -1081,7 +1081,7 @@ async function apRenderPackages() {
   }
 }
 function apPackageModal(id) {
-  if (!id && !_apServices.length) { apToast('Add a service first — a package pays for a service (Services & Coaches tab)', 'error'); return; }
+  if (!id && !_apServices.length) { apToast('Add a service first — a package pays for a service (Services tab)', 'error'); return; }
   var p = _apPackages.find(function (x) { return x.id === id; }) || { name: '', service_id: '', sessions_count: 10, price_aed: '', tax_rate: '', validity_days: '', status: 'active' };
   var body =
     '<div class="form-section"><div class="form-grid">' +
