@@ -1115,7 +1115,7 @@ async function apDoSell() {
 // ════════════════════════════════════════════════════════════════════════
 // REPORTS (completed sessions, revenue, tax, commission, net — by coach & service)
 // ════════════════════════════════════════════════════════════════════════
-function _apRangeBounds(key) {
+function _apReportRange(key) {
   var now = new Date(), from = null, to = null;
   var startOfMonth = function (y, m) { return new Date(y, m, 1, 0, 0, 0); };
   if (key === 'this_month') { from = startOfMonth(now.getFullYear(), now.getMonth()); to = startOfMonth(now.getFullYear(), now.getMonth() + 1); }
@@ -1128,7 +1128,7 @@ function _apRangeBounds(key) {
 async function apRenderReports() {
   var host = document.getElementById('ap-reports-host'); if (!host) return;
   var key = (document.getElementById('ap-rep-range') || {}).value || 'this_month';
-  var b = _apRangeBounds(key);
+  var b = _apReportRange(key);
   host.innerHTML = '<div class="psub" style="margin:10px 0;">Loading…</div>';
   var rep = null;
   try {
