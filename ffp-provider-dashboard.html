@@ -2611,9 +2611,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
         <div class="psub">Everyone who trains with you — your member &amp; client base.</div>
         <div class="biz-tabs">
           <button class="biz-tab active" onclick="bizTab(this,'mem-directory')">Directory</button>
-          <button class="biz-tab" onclick="bizTab(this,'mem-plans'); if(typeof renderPlans==='function')renderPlans();">Memberships &amp; Packages</button>
           <button class="biz-tab" onclick="bizTab(this,'mem-teams'); if(typeof renderTeams==='function')renderTeams();">Teams &amp; Rosters</button>
-          <button class="biz-tab" onclick="bizTab(this,'mem-comms'); if(typeof renderComms==='function')renderComms();">Communications</button>
         </div>
         <div class="biz-pane active" id="mem-directory">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
@@ -2629,13 +2627,6 @@ a { color: var(--ffp-blue); text-decoration: none; }
           </div>
           <div id="mem-list" style="margin-top:10px;"></div>
         </div>
-        <div class="biz-pane" id="mem-plans">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
-            <div class="psub" style="margin:0;">Memberships and class-packs. Assign them to members from the Directory.</div>
-            <button class="btn btn-pri" onclick="openPlanModal()"><span class="ms">add</span> New plan</button>
-          </div>
-          <div id="plans-list" style="margin-top:8px;"></div>
-        </div>
         <div class="biz-pane" id="mem-teams">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
             <div class="psub" style="margin:0;">Squads and training groups — build a roster from your members.</div>
@@ -2643,30 +2634,42 @@ a { color: var(--ffp-blue); text-decoration: none; }
           </div>
           <div id="teams-list" style="margin-top:8px;"></div>
         </div>
-        <div class="biz-pane" id="mem-comms">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
-            <div class="psub" style="margin:0;">Announcements and reminders to your members. Compose now; delivery switches on when channels connect.</div>
-            <button class="btn btn-pri" onclick="openComposeModal()"><span class="ms">campaign</span> Compose</button>
-          </div>
-          <div id="comms-list" style="margin-top:8px;"></div>
+      </section>
+
+      <section class="panel" id="panel-plans">
+        <div class="ph">Memberships &amp; Packages</div>
+        <div class="psub">Memberships and class-packs. Assign or sell them to a client from their record.</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:16px 0 4px;flex-wrap:wrap;">
+          <div class="psub" style="margin:0;">Create the plans &amp; packages you offer — then sell them to clients from the client record.</div>
+          <button class="btn btn-pri" onclick="openPlanModal()"><span class="ms">add</span> New plan</button>
         </div>
+        <div id="plans-list" style="margin-top:8px;"></div>
+      </section>
+
+      <section class="panel" id="panel-announcements">
+        <div class="ph">Announcements</div>
+        <div class="psub">Announcements and reminders to your members. Compose now; delivery switches on when channels connect.</div>
+        <div style="display:flex;justify-content:flex-end;align-items:center;gap:12px;margin:16px 0 4px;flex-wrap:wrap;">
+          <button class="btn btn-pri" onclick="openComposeModal()"><span class="ms">campaign</span> New announcement</button>
+        </div>
+        <div id="comms-list" style="margin-top:8px;"></div>
       </section>
 
       <section class="panel" id="panel-scheduling">
         <div class="ph">Sessions</div>
         <div class="psub">Your recurring sessions — PT slots, group classes and team sessions. Set the timetable and capacity once; members book the dates. (One-off experiences live in the Experiences tab. To check people in, use the Check-ins panel.)</div>
         <div class="biz-tabs">
-          <button class="biz-tab active" onclick="bizTab(this,'sch-calendar')">Sessions</button>
-          <button class="biz-tab" onclick="bizTab(this,'sch-timetable'); if(typeof renderTimetable==='function')renderTimetable();">Timetable</button>
+          <button class="biz-tab active" onclick="bizTab(this,'sch-timetable'); if(typeof renderTimetable==='function')renderTimetable();">Timetable</button>
+          <button class="biz-tab" onclick="bizTab(this,'sch-calendar')">Sessions</button>
         </div>
-        <div class="biz-pane active" id="sch-calendar">
+        <div class="biz-pane" id="sch-calendar">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 4px;flex-wrap:wrap;">
             <div class="psub" style="margin:0;">Each session you run — set its weekly times and coach once; members book the dates. One card per session.</div>
             <button class="btn btn-pri" onclick="openTemplateModal()"><span class="ms">add</span> Create session</button>
           </div>
           <div id="sched-list" style="margin-top:10px;"></div>
         </div>
-        <div class="biz-pane" id="sch-timetable">
+        <div class="biz-pane active" id="sch-timetable">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0 8px;flex-wrap:wrap;">
             <div class="psub" style="margin:0;">Your week at a glance — each session in its day &amp; time slot. The badge shows attendance vs capacity.</div>
             <button class="btn btn-pri" onclick="if(typeof openAddSession==='function')openAddSession()"><span class="ms">add</span> Add session</button>
@@ -3211,10 +3214,12 @@ const NAV = [
   // ── Business management system (Check-ins on top; modules built one-by-one) ──
   { id: 'checkins',    icon: 'qr_code_scanner', label: 'Check-ins',           section: 'business' },
   { id: 'members',     icon: 'groups',          label: 'Members',             section: 'business', soon: true },
+  { id: 'plans',       icon: 'card_membership',  label: 'Memberships & Packages', section: 'business' },
   { id: 'scheduling',  icon: 'calendar_month',  label: 'Sessions',            section: 'business' },
   { id: 'appointments',icon: 'event_available', label: 'Appointments',        section: 'business' },
   { id: 'staff',       icon: 'badge',           label: 'Staff',               section: 'business', soon: true },
   { id: 'billing',     icon: 'receipt_long',    label: 'Payments & Invoices', section: 'business', soon: true },
+  { id: 'announcements',icon: 'campaign',       label: 'Announcements',       section: 'business' },
   // ── Engagement (member-facing listings) ──
   { id: 'classes',     icon: 'tour',            label: 'Experiences', section: 'engagement' },
   { id: 'events',      icon: 'event',           label: 'Events',      section: 'engagement' },
@@ -3301,7 +3306,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=4', 'scheduling': 'ffp-provider-scheduling-loader.js?v=22', 'members': 'ffp-provider-members-loader.js?v=9', 'billing': 'ffp-provider-billing-loader.js?v=4', 'staff': 'ffp-provider-staff-loader.js?v=4', 'classes': 'ffp-provider-classes-loader.js?v=22', 'appointments': 'ffp-provider-appointments-loader.js?v=13' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=4', 'scheduling': 'ffp-provider-scheduling-loader.js?v=22', 'members': 'ffp-provider-members-loader.js?v=10', 'plans': 'ffp-provider-plans-loader.js?v=1', 'announcements': 'ffp-provider-announcements-loader.js?v=1', 'billing': 'ffp-provider-billing-loader.js?v=4', 'staff': 'ffp-provider-staff-loader.js?v=4', 'classes': 'ffp-provider-classes-loader.js?v=22', 'appointments': 'ffp-provider-appointments-loader.js?v=13' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
@@ -3312,6 +3317,8 @@ function ensureProviderLoader(id) {
   sc.onerror = function () { console.error('[FFP] failed to load ' + src); };
   document.body.appendChild(sc);
 }
+// Calls a global render fn once its lazy loader has defined it (retries briefly while the loader boots).
+function _callWhenReady(fn, n) { n = n || 0; if (typeof window[fn] === 'function') { try { window[fn](); } catch (e) {} } else if (n < 50) { setTimeout(function () { _callWhenReady(fn, n + 1); }, 120); } }
 
 // Duplicate any listing → fresh draft "(Copy)" (+ cloned photos) via provider_duplicate_listing,
 // then reload that listing type and open the copy in the edit modal so the partner can tweak before going live.
@@ -3447,6 +3454,9 @@ function showPanel(id) {
   if (id === 'billing') { if (typeof renderPayments === 'function') renderPayments(); renderPaymentsCard(); }
   if (id === 'staff' && typeof renderStaff === 'function') renderStaff();
   if (id === 'appointments' && typeof renderAppointments === 'function') renderAppointments();
+  if (id === 'plans') _callWhenReady('renderPlans');
+  if (id === 'announcements') _callWhenReady('renderComms');
+  if (id === 'scheduling') _callWhenReady('renderTimetable');
   renderListingGate(id);   // show/hide the "listings hidden until profile complete" banner
   window.scrollTo({ top: 0, behavior: 'smooth' });
   // Close mobile sidebar after navigation
@@ -5453,7 +5463,7 @@ function _renderClientProfile(d, activeTab){
     return expItem(left,'<div style="font-weight:800;font-size:13px;color:var(--ffp-text);">'+_cpMoney(pm.amount,ccy)+'</div>',(pm.descr||'')+' '+(pm.kind||'')+' '+s,detail); }
   var totalPaid=payments.reduce(function(s,pm){ return s+(Number(pm.amount)||0); },0);
   var paymentsPane='<div id="cp-pane-payments" style="display:none;">'+
-    '<div style="margin:2px 0 10px;"><button class="btn btn-sec btn-sm" onclick="cpAddPlan()"><span class="ms">add</span> Sell a package / membership</button></div>'+
+    '<div style="margin:2px 0 10px;"><button class="btn btn-pri btn-sm" onclick="cpAddPlan()"><span class="ms">add</span> Sell a package / membership</button></div>'+
     (payments.length? '<div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0 2px;"><div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--ffp-text-dim);">'+payments.length+' payment'+(payments.length>1?'s':'')+'</div><div style="font-size:13px;font-weight:800;color:var(--ffp-text);">Total '+_cpMoney(totalPaid,ccy)+'</div></div>'+payments.map(payRow).join('') : empty('No payments yet.'))+'</div>';
   // Notes — a thread of separate, timestamped entries
   var notesPane='<div id="cp-pane-notes" style="display:none;">'+
