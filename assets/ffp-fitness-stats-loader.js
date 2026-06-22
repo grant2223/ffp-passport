@@ -1128,10 +1128,22 @@
       '</div>';
   }
   // Tap a row → open the full detail card (rendered by the dashboard so the deep-link view reuses it).
-  window.ffpOpenActivityCard = function (id) {
+  window.ffpOpenActivityCard = async function (id) {
     var row = null;
     for (var i = 0; i < activityCache.length; i++) { if (String(activityCache[i].id) === String(id)) { row = activityCache[i]; break; } }
     if (!row) return;
+    // Pull the photo set straight from the DB (source of truth) so the x-axis gallery shows ALL photos
+    // even before the backend list endpoint returns the photos[] column. Falls back to the cached row.
+    try {
+      var me = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || {};
+      if (me.id && window.supabase && (!row.photos || row.photos.length <= 1)) {
+        var r = await window.supabase.rpc('member_activity_view', { p_viewer: me.id, p_id: id });
+        var d = r && r.data;
+        if (d && !d.error && d.photos && d.photos.length) {
+          row = Object.assign({}, row, { photos: d.photos, photo_url: d.photo_url || row.photo_url });
+        }
+      }
+    } catch (e) {}
     if (typeof window.ffpRenderActivityCard === 'function') window.ffpRenderActivityCard(row, true);
   };
   function renderRecentList() {
