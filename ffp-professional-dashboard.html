@@ -177,11 +177,14 @@ a{color:var(--ffp-blue);}
 .tb-icon .ms{font-size:19px;}
 .nt-wrap{position:relative;}
 .nt-badge{position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;border-radius:8px;background:var(--ffp-purple);color:#fff;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px;}
-.nt-menu{position:absolute;right:0;top:46px;width:300px;max-width:84vw;background:var(--ffp-bg-2);border:1px solid var(--ffp-border-mid);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.4);display:none;z-index:300;overflow:hidden;}
-.nt-menu.show{display:block;}
-.nt-head{font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-text-dim);padding:12px 14px 8px;}
-.nt-list{max-height:60vh;overflow-y:auto;}
-.nt-item{display:flex;gap:10px;align-items:flex-start;padding:11px 14px;border-top:1px solid var(--ffp-border);}
+/* Notifications = right-side drawer, ~half width, full height, over a 60% scrim (matches the member Passport). */
+.nt-scrim{position:fixed;inset:0;background:rgba(0,0,0,.6);opacity:0;pointer-events:none;transition:opacity .28s ease;z-index:340;}
+.nt-scrim.show{opacity:1;pointer-events:auto;}
+.nt-menu{position:fixed;top:0;right:0;left:auto;width:50vw;min-width:320px;max-width:480px;height:100dvh;max-height:100dvh;background:var(--ffp-bg-2);border:none;border-left:1px solid var(--ffp-border-mid);border-radius:0;box-shadow:-12px 0 44px rgba(0,0,0,.55);transform:translateX(100%);transition:transform .28s ease;display:flex;flex-direction:column;z-index:350;overflow:hidden;}
+.nt-menu.show{transform:translateX(0);}
+.nt-head{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:16px;font-weight:800;letter-spacing:.2px;color:var(--ffp-text);padding:18px 18px 14px;border-bottom:1px solid var(--ffp-border);}
+.nt-list{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.nt-item{display:flex;gap:11px;align-items:flex-start;padding:13px 16px;border-bottom:1px solid var(--ffp-border);}
 .nt-item:hover{background:rgba(10,62,68,.06);}
 
 /* Bottom tab nav (mobile, Passport-style) */
@@ -354,7 +357,11 @@ a{color:var(--ffp-blue);}
         <button class="tb-icon" id="fb-btn" title="Send feedback" aria-label="Send feedback" onclick="window.FFPFeedback&&FFPFeedback.open&&FFPFeedback.open()"><span class="ms">feedback</span></button>
         <div class="nt-wrap">
           <button class="tb-icon" id="nt-btn" title="Notifications" aria-label="Notifications" onclick="toggleNotif(event)"><span class="ms">notifications</span><span class="nt-badge" id="nt-badge" style="display:none;">0</span></button>
-          <div class="nt-menu" id="nt-menu"><div class="nt-head">Notifications</div><div class="nt-list" id="nt-list"><div class="ov-empty" style="padding:16px;">Loading…</div></div></div>
+          <div class="nt-scrim" id="nt-scrim" onclick="closeNotif()"></div>
+          <div class="nt-menu" id="nt-menu">
+            <div class="nt-head"><span>Notifications</span><div style="display:flex;align-items:center;gap:4px;"><button onclick="clearProNotifs()" style="background:none;border:none;color:var(--ffp-purple);font-family:inherit;font-size:12px;font-weight:800;cursor:pointer;padding:6px 8px;border-radius:8px;">Clear all</button><button class="tb-icon" onclick="closeNotif()" aria-label="Close" style="width:32px;height:32px;"><span class="ms">close</span></button></div></div>
+            <div class="nt-list" id="nt-list"><div class="ov-empty" style="padding:16px;">Loading…</div></div>
+          </div>
         </div>
         <div class="av-wrap">
           <button class="av-btn" id="av-btn" onclick="toggleAvMenu(event)"><span id="av-initials">P</span></button>
@@ -539,7 +546,7 @@ function bizTab(btn,paneId){ var panel=btn.closest('.panel'); if(!panel)return; 
 // ─── Deferred Business module loaders (reused, scoped to FFP_PROVIDER.id = professional id) ───
 var _provLoaderSrc = { clients:'ffp-professional-client-loader.js', packages:'ffp-professional-client-loader.js', comms:'ffp-professional-client-loader.js', scheduling:'ffp-professional-scheduling-loader.js', services:'ffp-professional-services-loader.js', payments:'ffp-professional-billing-loader.js' };
 var _provLoaded = {};
-var PRO_BUILD='54'; // ⭐ THE single version number. Bump on EVERY change (HTML or any pro loader). It (a) cache-busts the lazy loaders so edits actually reach the device, and (b) is shown live as "Build N" at the bottom of the avatar menu — that's how we both know exactly what's deployed. If the avatar menu shows the number I just bumped to, the latest IS live. CHANGELOG: v32 iOS NATIVE-CHROME FIXES (verified by rendering the exact CSS): avatar img wasn't filling because the <button> had no padding:0 (+ -webkit-appearance:none) so iOS inset the image; phone country-code <select> was too wide because it only had appearance:none, not -webkit-appearance:none, so iOS kept native select chrome and ignored the 96px — added -webkit-appearance:none + min/max-width:96px lock, and .phone-num→flex:1 1 0 so the number fills the rest. v31 PIN THE TOP BAR ON MOBILE for real — root cause was the whole DOCUMENT scrolling on iOS (carrying the topbar), not the topbar itself; fix = lock html/body (overflow:hidden + overscroll-behavior:none) so only .main-scroll scrolls, and give .gate its own overflow-y:auto + margin:auto card so the sign-in/apply forms aren't trapped by the lock; v30 single visible Build stamp in avatar menu (replaces ad-hoc ·b29) + carries v29's fixes; v29 forced fresh client-loader after v28's loader edits were stuck behind cached ?v=28, .app 100dvh so the mobile topbar stays frozen; v28 client form Given names+Surname + single-source phone; v27 pull-from-passport; v26 passport rows.
+var PRO_BUILD='56'; // ⭐ THE single version number. Bump on EVERY change (HTML or any pro loader). It (a) cache-busts the lazy loaders so edits actually reach the device, and (b) is shown live as "Build N" at the bottom of the avatar menu — that's how we both know exactly what's deployed. If the avatar menu shows the number I just bumped to, the latest IS live. CHANGELOG: v32 iOS NATIVE-CHROME FIXES (verified by rendering the exact CSS): avatar img wasn't filling because the <button> had no padding:0 (+ -webkit-appearance:none) so iOS inset the image; phone country-code <select> was too wide because it only had appearance:none, not -webkit-appearance:none, so iOS kept native select chrome and ignored the 96px — added -webkit-appearance:none + min/max-width:96px lock, and .phone-num→flex:1 1 0 so the number fills the rest. v31 PIN THE TOP BAR ON MOBILE for real — root cause was the whole DOCUMENT scrolling on iOS (carrying the topbar), not the topbar itself; fix = lock html/body (overflow:hidden + overscroll-behavior:none) so only .main-scroll scrolls, and give .gate its own overflow-y:auto + margin:auto card so the sign-in/apply forms aren't trapped by the lock; v30 single visible Build stamp in avatar menu (replaces ad-hoc ·b29) + carries v29's fixes; v29 forced fresh client-loader after v28's loader edits were stuck behind cached ?v=28, .app 100dvh so the mobile topbar stays frozen; v28 client form Given names+Surname + single-source phone; v27 pull-from-passport; v26 passport rows.
 function ensureProviderLoader(id){ var src=_provLoaderSrc[id]; if(!src||_provLoaded[src])return; _provLoaded[src]=true; var sc=document.createElement('script'); sc.src=src+'?v='+PRO_BUILD; sc.async=false; sc.onload=function(){ renderPanel(id); }; sc.onerror=function(){ console.error('[FFP Pro] failed to load '+src); }; document.body.appendChild(sc); }
 function renderPanel(id){
   if(id==='clients'    && typeof renderMembers==='function')     renderMembers();
@@ -874,29 +881,64 @@ document.addEventListener('click',function(e){ var m=document.getElementById('av
 
 // ─── Notifications (a professional is a member → reuse the member notifications endpoint) ───
 var PRO_API='https://ffp-passport-backend.vercel.app';
-function toggleNotif(e){ if(e)e.stopPropagation(); closeAvMenu(); var m=document.getElementById('nt-menu'); var show=!m.classList.contains('show'); m.classList.toggle('show',show); if(show){ loadProNotifs(); markProNotifsSeen(); } }
-function closeNotif(){ var m=document.getElementById('nt-menu'); if(m)m.classList.remove('show'); }
-document.addEventListener('click',function(e){ var m=document.getElementById('nt-menu'); if(m&&m.classList.contains('show')&&!(e.target.closest&&e.target.closest('.nt-wrap'))) closeNotif(); });
+function toggleNotif(e){ if(e)e.stopPropagation(); closeAvMenu(); var m=document.getElementById('nt-menu'); var sc=document.getElementById('nt-scrim'); var show=!m.classList.contains('show'); m.classList.toggle('show',show); if(sc)sc.classList.toggle('show',show); if(show){ loadProNotifs(); markProNotifsSeen(); } }
+function closeNotif(){ var m=document.getElementById('nt-menu'); if(m)m.classList.remove('show'); var sc=document.getElementById('nt-scrim'); if(sc)sc.classList.remove('show'); }
+document.addEventListener('click',function(e){ var m=document.getElementById('nt-menu'); if(m&&m.classList.contains('show')&&!(e.target.closest&&(e.target.closest('.nt-wrap')||e.target.closest('#nt-menu')))) closeNotif(); });
 function _notifAgo(ts){ if(!ts)return ''; var s=Math.floor((Date.now()-new Date(ts).getTime())/1000); if(s<60)return 'just now'; if(s<3600)return Math.floor(s/60)+'m ago'; if(s<86400)return Math.floor(s/3600)+'h ago'; return Math.floor(s/86400)+'d ago'; }
 function proNotifClick(link){ try{ link=decodeURIComponent(link); }catch(e){} if(link) location.href=link; }
+// A professional shares one account with their member self, so the bell feed carries BOTH. In the pro
+// dashboard we show ONLY professional-workflow items — drop the member-personal/social ones (activity
+// feed, passport adds, high-fives, connection/meet-up social, and the pro's own customer bookings).
+function _proNotifIsWorkflow(n){
+  var t=(n&&n.title||'').toLowerCase(); var l=(n&&n.link||'').toLowerCase();
+  var dropTitle=['logged an activity','added your passport','high five','wants to connect','wants to join',
+    'recommends a connection','meet-up','meetup',' congratulat','you’re confirmed','you\'re confirmed',
+    'your ffp booking','new connection','near you'];
+  for(var i=0;i<dropTitle.length;i++){ if(t.indexOf(dropTitle[i])!==-1) return false; }
+  // member-personal deep links (passport / connections / meet-ups / fitness / a specific activity)
+  if(/activity=|#connections|panel-passport|panel-meetups|panel-fitness|#fitness|meetup=|rec=/.test(l)) return false;
+  return true;
+}
+function _proNotifClearedAt(){ try{ return parseInt(localStorage.getItem('ffp_pro_notifs_cleared_at')||'0',10)||0; }catch(e){ return 0; } }
+function _proNotifVisible(list){
+  var cleared=_proNotifClearedAt();
+  return (list||[]).filter(_proNotifIsWorkflow).filter(function(n){ return !n.created_at || new Date(n.created_at).getTime()>cleared; });
+}
 async function loadProNotifs(){
   var m=_member(); if(!m||!m.id)return; var listEl=document.getElementById('nt-list'); if(!listEl)return;
   try{
-    var res=await fetch(PRO_API+'/api/notifications/'+m.id); var json=await res.json(); var list=(json&&json.notifications)||[];
+    var res=await fetch(PRO_API+'/api/notifications/'+m.id); var json=await res.json();
+    var list=_proNotifVisible((json&&json.notifications)||[]);
     if(!list.length){ listEl.innerHTML='<div class="ov-empty" style="padding:16px;">No notifications yet.</div>'; return; }
     listEl.innerHTML=list.map(function(n){
       var link=n.link||''; var tap=link?(' style="cursor:pointer;" onclick="proNotifClick(\''+String(link).replace(/'/g,'%27')+'\')"'):'';
-      return '<div class="nt-item"'+tap+'><span class="ms" style="color:var(--ffp-purple);">'+escHtml(n.icon||'campaign')+'</span><div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;line-height:1.4;">'+escHtml(n.title||'')+(n.body?' — '+escHtml(n.body):'')+'</div><div style="font-size:11px;color:var(--ffp-text-dim);margin-top:2px;">'+_notifAgo(n.created_at)+'</div></div></div>';
+      var body=n.body?('<div style="font-size:12.5px;font-weight:400;line-height:1.45;color:var(--ffp-text-muted);margin-top:2px;">'+escHtml(n.body)+'</div>'):'';
+      return '<div class="nt-item"'+tap+'><span class="ms" style="color:#0a3e44;">'+escHtml(n.icon||'campaign')+'</span><div style="flex:1;min-width:0;"><div style="font-size:13.5px;font-weight:800;line-height:1.4;color:var(--ffp-text);">'+escHtml(n.title||'')+'</div>'+body+'<div style="font-size:11px;color:var(--ffp-text-dim);margin-top:3px;">'+_notifAgo(n.created_at)+'</div></div></div>';
     }).join('');
   }catch(e){ listEl.innerHTML='<div class="ov-empty" style="padding:16px;">Couldn’t load notifications.</div>'; }
 }
+// Clear all — mirrors the member Passport: a persisted cleared-at marker hides everything created at/before
+// now (new notifications still come through), marks seen, and empties the drawer + badge.
+function clearProNotifs(){
+  try{ localStorage.setItem('ffp_pro_notifs_cleared_at', String(Date.now())); localStorage.setItem('ffp_pro_notifs_seen', String(Date.now())); }catch(e){}
+  var le=document.getElementById('nt-list'); if(le) le.innerHTML='<div class="ov-empty" style="padding:16px;">No notifications yet.</div>';
+  var b=document.getElementById('nt-badge'); if(b){ b.textContent='0'; b.style.display='none'; }
+  try{ var m=_member(); if(m&&m.id) fetch(PRO_API+'/api/notifications/seen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({member_id:m.id})}).catch(function(){}); }catch(e){}
+}
 async function markProNotifsSeen(){
   var m=_member(); if(!m||!m.id)return; var b=document.getElementById('nt-badge'); if(b)b.style.display='none';
+  try{ localStorage.setItem('ffp_pro_notifs_seen', String(Date.now())); }catch(e){}
   try{ await fetch(PRO_API+'/api/notifications/seen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({member_id:m.id})}); }catch(e){}
 }
 async function proNotifBadge(){
   var m=_member(); if(!m||!m.id)return;
-  try{ var res=await fetch(PRO_API+'/api/notifications/'+m.id); var j=await res.json(); var u=(j&&j.unread)||0; var b=document.getElementById('nt-badge'); if(b){ if(u>0){ b.textContent=u>9?'9+':String(u); b.style.display=''; } else b.style.display='none'; } }catch(e){}
+  try{
+    var res=await fetch(PRO_API+'/api/notifications/'+m.id); var j=await res.json();
+    var list=_proNotifVisible((j&&j.notifications)||[]);
+    var seen=0; try{ seen=parseInt(localStorage.getItem('ffp_pro_notifs_seen')||'0',10)||0; }catch(e){}
+    var u=list.filter(function(n){ return n.created_at && new Date(n.created_at).getTime()>seen; }).length;
+    var b=document.getElementById('nt-badge'); if(b){ if(u>0){ b.textContent=u>9?'9+':String(u); b.style.display=''; } else b.style.display='none'; }
+  }catch(e){}
 }
 
 // ─── Inline professional sign-in (PWA opens straight here; no portal picker) ───
