@@ -3294,7 +3294,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=4', 'scheduling': 'ffp-provider-scheduling-loader.js?v=22', 'members': 'ffp-provider-members-loader.js?v=7', 'billing': 'ffp-provider-billing-loader.js?v=4', 'staff': 'ffp-provider-staff-loader.js?v=4', 'classes': 'ffp-provider-classes-loader.js?v=22', 'appointments': 'ffp-provider-appointments-loader.js?v=12' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=4', 'scheduling': 'ffp-provider-scheduling-loader.js?v=22', 'members': 'ffp-provider-members-loader.js?v=8', 'billing': 'ffp-provider-billing-loader.js?v=4', 'staff': 'ffp-provider-staff-loader.js?v=4', 'classes': 'ffp-provider-classes-loader.js?v=22', 'appointments': 'ffp-provider-appointments-loader.js?v=13' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
@@ -5356,6 +5356,63 @@ function openModalShell(size, title, bodyHtml, footHtml) {
 
 function closeModal() {
   document.getElementById('modal-backdrop').classList.remove('open');
+}
+
+// ── CLIENT PROFILE (shared) — full record + notes + history. Opened from the Members list AND from an
+// appointment's client name. Accepts EITHER a provider_members.id or a platform members.id (RPC resolves both).
+function _cpWhen(iso){ try{ var tz=(window.FFP_PROVIDER&&FFP_PROVIDER.timezone)||'Asia/Dubai'; return new Intl.DateTimeFormat('en-GB',{timeZone:tz,weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(iso)); }catch(e){ return new Date(iso).toLocaleString(); } }
+function _cpMoney(n,ccy){ n=Number(n||0); ccy=ccy||'AED'; try{ return ccy+' '+n.toLocaleString(undefined,{maximumFractionDigits:2}); }catch(e){ return ccy+' '+n; } }
+function _cpPill(s){ var m={scheduled:['Scheduled','#1980AD','#fff'],checked_in:['Checked in','#1f9d57','#fff'],completed:['Completed','#15833f','#fff'],completed_pending:['Awaiting confirm','#F2B807','#3a2c00'],no_show:['No-show','#c0392b','#fff'],cancelled:['Cancelled','#6b7a82','#fff'],active:['Active','#15833f','#fff'],expired:['Expired','#6b7a82','#fff'],used_up:['Used up','#6b7a82','#fff'],paid:['Paid','#15833f','#fff'],unpaid:['Unpaid','#c0392b','#fff'],package:['Package','#1980AD','#fff'],comp:['Comp','#6b7a82','#fff']}; var c=m[s]||[String(s||''),'#6b7a82','#fff']; return '<span style="display:inline-flex;font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;color:'+c[2]+';background:'+c[1]+';white-space:nowrap;">'+c[0]+'</span>'; }
+async function openClientProfile(memberId){
+  if(!memberId) return;
+  var pid=(window.FFP_PROVIDER&&FFP_PROVIDER.id);
+  if(!pid||!window.supabase){ if(window.showToast) showToast('Not ready — try again','error'); return; }
+  openModalShell('lg','Client', '<div class="psub" style="padding:20px;">Loading…</div>', '<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
+  var d=null;
+  try{ var r=await window.supabase.rpc('provider_member_profile',{p_provider:pid,p_member:memberId}); if(r&&r.error) throw r.error; d=r&&r.data; }
+  catch(e){ var mb0=document.querySelector('#modal .modal-body'); if(mb0) mb0.innerHTML='<div class="psub" style="padding:20px;">Couldn’t load this client.</div>'; return; }
+  if(!d){ return; }
+  window._cpData=d;
+  _renderClientProfile(d);
+}
+function _renderClientProfile(d){
+  var p=d.profile||{}, st=d.stats||{}, ccy=d.currency||'AED';
+  var initials=(p.full_name||'C').trim().charAt(0).toUpperCase();
+  var photo=p.photo_url ? '<img src="'+escHtml(p.photo_url)+'" alt="" style="width:52px;height:52px;border-radius:50%;object-fit:cover;flex:0 0 auto;">'
+    : '<div style="width:52px;height:52px;border-radius:50%;background:var(--ffp-purple);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;flex:0 0 auto;">'+escHtml(initials)+'</div>';
+  var contact=[p.email,p.phone,p.city].filter(Boolean).map(escHtml).join(' · ');
+  var head='<div style="display:flex;gap:13px;align-items:center;">'+photo+'<div style="min-width:0;"><div style="font-size:18px;font-weight:800;color:var(--ffp-text);">'+escHtml(p.full_name||'Client')+'</div><div class="psub" style="margin-top:3px;">'+(contact||'No contact details')+'</div></div></div>';
+  function cell(l,v,col,sz){ return '<div style="flex:1;min-width:70px;background:var(--ffp-bg-3,#eef1f3);border:1px solid var(--ffp-border-mid,#ccd9da);border-radius:10px;padding:9px 8px;text-align:center;"><div style="font-size:'+(sz||16)+'px;font-weight:900;color:'+(col||'var(--ffp-text)')+';">'+v+'</div><div style="font-size:9px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:var(--ffp-text-dim);margin-top:3px;">'+l+'</div></div>'; }
+  var stats='<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;">'+
+    cell('Sessions',st.total_sessions||0)+cell('Attended',st.attended||0,'#15833f')+
+    cell('No-shows',st.no_shows||0,(st.no_shows?'#c0392b':null))+cell('Upcoming',st.upcoming||0,'#1980AD')+
+    cell('Spend',_cpMoney(st.total_spend,ccy),'var(--ffp-text)',12.5)+'</div>';
+  var notes='<div style="margin-top:16px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--ffp-text-dim);margin-bottom:5px;">Notes</div>'+
+    '<textarea id="cp-notes" class="textarea" rows="2" placeholder="Private notes about this client (only you see these)">'+escHtml(p.notes||'')+'</textarea>'+
+    '<div style="margin-top:6px;"><button class="btn btn-sec btn-sm" onclick="saveClientNotes()"><span class="ms">save</span> Save notes</button></div></div>';
+  function section(title,inner){ return '<div style="margin-top:16px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--ffp-text-dim);margin-bottom:6px;">'+title+'</div>'+inner+'</div>'; }
+  function rowWrap(left,right){ return '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--ffp-border);"><div style="min-width:0;">'+left+'</div><div style="flex:0 0 auto;">'+right+'</div></div>'; }
+  var plans=(d.plans||[]), packages=(d.packages||[]), appts=(d.appointments||[]);
+  var plansHtml=plans.length ? plans.map(function(pl){ return rowWrap('<div style="font-weight:700;color:var(--ffp-text);font-size:13px;">'+escHtml(pl.plan_name||'Plan')+'</div><div class="psub" style="font-size:11.5px;">'+(pl.plan_type==='term'?'Unlimited':(pl.credits_remaining!=null?(pl.credits_remaining+' credits left'):'—'))+(pl.expiry_date?(' · until '+escHtml(pl.expiry_date)):'')+'</div>', _cpPill(pl.status||'active')); }).join('') : '<div class="psub" style="font-size:12px;">No memberships.</div>';
+  var pkgHtml=packages.length ? packages.map(function(pk){ return rowWrap('<div style="font-weight:700;color:var(--ffp-text);font-size:13px;">'+escHtml(pk.name||'Package')+'</div><div class="psub" style="font-size:11.5px;">'+(pk.sessions_remaining!=null?pk.sessions_remaining:'?')+'/'+(pk.sessions_total!=null?pk.sessions_total:'?')+' sessions left'+(pk.expiry_date?(' · until '+escHtml(pk.expiry_date)):'')+'</div>', _cpPill(pk.status||'active')); }).join('') : '<div class="psub" style="font-size:12px;">No packages.</div>';
+  var now=Date.now();
+  var upcoming=appts.filter(function(a){ return new Date(a.start_at).getTime()>=now && a.status!=='cancelled' && a.status!=='no_show'; }).sort(function(a,b){ return new Date(a.start_at)-new Date(b.start_at); });
+  var upKeys={}; upcoming.forEach(function(a){ upKeys[a.id]=1; });
+  var past=appts.filter(function(a){ return !upKeys[a.id]; });
+  function apptRow(a){ return rowWrap('<div style="font-weight:700;color:var(--ffp-text);font-size:12.5px;">'+_cpWhen(a.start_at)+'</div><div class="psub" style="font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(a.service_name||'Session')+(a.coach_name?(' · '+escHtml(a.coach_name)):'')+'</div>', _cpPill(a.status)); }
+  var body=head+stats+notes+section('Memberships',plansHtml)+section('Packages',pkgHtml)+
+    (upcoming.length?section('Upcoming · '+upcoming.length, upcoming.map(apptRow).join('')):'')+
+    section('History', past.length? past.map(apptRow).join('') : '<div class="psub" style="font-size:12px;">No past sessions.</div>');
+  var mb=document.querySelector('#modal .modal-body'); if(mb) mb.innerHTML=body;
+  var mt=document.querySelector('#modal .modal-title'); if(mt) mt.textContent=p.full_name||'Client';
+}
+async function saveClientNotes(){
+  var d=window._cpData||{}, pmid=d.provider_member_id, pid=(window.FFP_PROVIDER&&FFP_PROVIDER.id);
+  var ta=document.getElementById('cp-notes'); if(!ta||!pid) return;
+  try{ var r=await window.supabase.rpc('provider_set_member_notes',{p_provider:pid,p_pmid:pmid,p_notes:ta.value}); if(r&&r.error) throw r.error;
+    if(window._cpData&&window._cpData.profile) window._cpData.profile.notes=ta.value;
+    if(window.showToast) showToast('Notes saved','success'); }
+  catch(e){ if(window.showToast) showToast('Could not save notes','error'); }
 }
 
 function openConfirm(title, body, onConfirm) {
