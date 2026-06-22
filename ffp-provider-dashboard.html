@@ -594,6 +594,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
   font-size: 28px; font-weight: 900;
   letter-spacing: -.5px; line-height: 1.1;
   margin-bottom: 8px;
+  color: #1a1a1a;
 }
 .psub {
   font-size: 14px; color: var(--ffp-text-muted);
@@ -2637,8 +2638,9 @@ a { color: var(--ffp-blue); text-decoration: none; }
       </section>
 
       <section class="panel" id="panel-plans">
-        <div class="ph">Memberships &amp; Packages</div>
-        <div class="psub">Memberships and class-packs. Assign or sell them to a client from their record.</div>
+        <div class="ph">Packages</div>
+        <div class="psub" style="margin-bottom:6px;">Memberships and class-packs for your group timetable. Assign or sell them to a client from their record.</div>
+        <div style="margin:0 0 18px;font-size:13px;"><a onclick="gotoClientPacks()" style="color:#1980AD;font-weight:700;cursor:pointer;">Selling 1-on-1 coaching bundles (e.g. 10 PT sessions)? Manage those in Appointments → Client packs →</a></div>
         <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:16px 0 4px;flex-wrap:wrap;">
           <div class="psub" style="margin:0;">Create the plans &amp; packages you offer — then sell them to clients from the client record.</div>
           <button class="btn btn-pri" onclick="openPlanModal()"><span class="ms">add</span> New plan</button>
@@ -2683,9 +2685,9 @@ a { color: var(--ffp-blue); text-decoration: none; }
         <div class="psub">1-on-1 &amp; coaching appointments — set up your services and trainers, sell session packages, book and check clients in, then confirm completed sessions to release the coach's commission.</div>
         <div class="biz-tabs">
           <button class="biz-tab active" onclick="bizTab(this,'ap-calendar'); if(typeof apRenderCalendar==='function')apRenderCalendar();">Calendar</button>
-          <button class="biz-tab" onclick="bizTab(this,'ap-services'); if(typeof apRenderServices==='function')apRenderServices();">Services &amp; Coaches</button>
+          <button class="biz-tab" onclick="bizTab(this,'ap-services'); if(typeof apRenderServices==='function')apRenderServices();">Services</button>
           <button class="biz-tab" onclick="bizTab(this,'ap-availability'); if(typeof apRenderAvailability==='function')apRenderAvailability();">Availability</button>
-          <button class="biz-tab" onclick="bizTab(this,'ap-packages'); if(typeof apRenderPackages==='function')apRenderPackages();">Packages</button>
+          <button class="biz-tab" id="ap-tab-packages" onclick="bizTab(this,'ap-packages'); if(typeof apRenderPackages==='function')apRenderPackages();">Client packs</button>
           <button class="biz-tab" onclick="bizTab(this,'ap-reports'); if(typeof apRenderReports==='function')apRenderReports();">Reports</button>
         </div>
         <div class="biz-pane active" id="ap-calendar">
@@ -3214,7 +3216,7 @@ const NAV = [
   // ── Business management system (Check-ins on top; modules built one-by-one) ──
   { id: 'checkins',    icon: 'qr_code_scanner', label: 'Check-ins',           section: 'business' },
   { id: 'members',     icon: 'groups',          label: 'Members',             section: 'business', soon: true },
-  { id: 'plans',       icon: 'card_membership',  label: 'Memberships & Packages', section: 'business' },
+  { id: 'plans',       icon: 'card_membership',  label: 'Packages',            section: 'business' },
   { id: 'scheduling',  icon: 'calendar_month',  label: 'Sessions',            section: 'business' },
   { id: 'appointments',icon: 'event_available', label: 'Appointments',        section: 'business' },
   { id: 'staff',       icon: 'badge',           label: 'Staff',               section: 'business', soon: true },
@@ -3306,7 +3308,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=4', 'scheduling': 'ffp-provider-scheduling-loader.js?v=22', 'members': 'ffp-provider-members-loader.js?v=10', 'plans': 'ffp-provider-plans-loader.js?v=1', 'announcements': 'ffp-provider-announcements-loader.js?v=1', 'billing': 'ffp-provider-billing-loader.js?v=4', 'staff': 'ffp-provider-staff-loader.js?v=4', 'classes': 'ffp-provider-classes-loader.js?v=22', 'appointments': 'ffp-provider-appointments-loader.js?v=13' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=4', 'scheduling': 'ffp-provider-scheduling-loader.js?v=23', 'members': 'ffp-provider-members-loader.js?v=10', 'plans': 'ffp-provider-plans-loader.js?v=1', 'announcements': 'ffp-provider-announcements-loader.js?v=1', 'billing': 'ffp-provider-billing-loader.js?v=4', 'staff': 'ffp-provider-staff-loader.js?v=4', 'classes': 'ffp-provider-classes-loader.js?v=22', 'appointments': 'ffp-provider-appointments-loader.js?v=14' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
@@ -3319,6 +3321,16 @@ function ensureProviderLoader(id) {
 }
 // Calls a global render fn once its lazy loader has defined it (retries briefly while the loader boots).
 function _callWhenReady(fn, n) { n = n || 0; if (typeof window[fn] === 'function') { try { window[fn](); } catch (e) {} } else if (n < 50) { setTimeout(function () { _callWhenReady(fn, n + 1); }, 120); } }
+// Jump from the Packages panel straight to Appointments → Client packs tab.
+function gotoClientPacks() {
+  showPanel('appointments');
+  var tries = 0;
+  (function go() {
+    var b = document.getElementById('ap-tab-packages');
+    if (b && typeof window.apRenderPackages === 'function') { b.click(); }
+    else if (tries++ < 50) { setTimeout(go, 100); }
+  })();
+}
 
 // Duplicate any listing → fresh draft "(Copy)" (+ cloned photos) via provider_duplicate_listing,
 // then reload that listing type and open the copy in the edit modal so the partner can tweak before going live.
