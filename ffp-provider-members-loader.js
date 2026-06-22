@@ -76,7 +76,7 @@ function memberRow(m) {
     : '<div style="width:64px;flex:0 0 auto;background:rgba(25,128,173,.14);color:var(--ffp-blue);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;">' + escHtml(initials) + '</div>';
   return '<div style="background:rgba(15,37,49,.05);border:1px solid var(--ffp-border);border-radius:12px;overflow:hidden;margin-bottom:9px;display:flex;align-items:stretch;gap:0;min-height:68px;">' +
       photoCol +
-      '<div style="min-width:0;flex:1;padding:11px 13px;">' +
+      '<div style="min-width:0;flex:1;padding:11px 13px;cursor:pointer;" onclick="openClientProfile(\'' + m.id + '\')" title="Open client profile">' +
         '<div style="font-weight:800;color:var(--ffp-text);">' + escHtml(m.full_name || '—') + '</div>' +
         (contact.length ? '<div class="psub" style="margin:2px 0 0;">' + contact.join(' · ') + '</div>' : '') +
         tagHtml +
@@ -84,6 +84,7 @@ function memberRow(m) {
       '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex-shrink:0;padding:11px 13px;">' +
         '<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;' + stStyle + '">' + (MEMBER_STATUS[st] || 'Active') + '</span>' +
         '<div style="display:flex;gap:6px;">' +
+          '<button class="btn btn-sec btn-sm" onclick="openClientProfile(\'' + m.id + '\')" title="Client profile"><span class="ms">person</span></button>' +
           '<button class="btn btn-sec btn-sm" onclick="openMembership(\'' + m.id + '\')" title="Membership"><span class="ms">card_membership</span></button>' +
           '<button class="btn btn-sec btn-sm" onclick="openMemberModal(\'' + m.id + '\')"><span class="ms">edit</span></button>' +
           '<button class="btn btn-ghost btn-sm" onclick="confirmDeleteMember(\'' + m.id + '\')"><span class="ms">delete</span></button>' +
