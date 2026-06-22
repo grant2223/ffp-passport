@@ -496,7 +496,9 @@ function apApptDetail(id) {
   var body = '<div class="form-section">' +
     '<div style="display:flex;gap:6px;margin-bottom:12px;">' + _apStatusChip(a.status) + _apPayChip(a) + '</div>' +
     '<div style="background:var(--ffp-bg-3,#eef1f3);border:1px solid var(--ffp-border-mid,#ccd9da);border-radius:12px;padding:14px 16px;">' +
-      '<div style="font-size:17px;font-weight:800;color:var(--ffp-text,#0f2327);">' + _nm + '</div>' +
+      (a.member_id && window.openClientProfile
+        ? '<div onclick="openClientProfile(\'' + a.member_id + '\')" style="font-size:17px;font-weight:800;color:#1980AD;cursor:pointer;display:inline-flex;align-items:center;gap:4px;" title="Open client profile">' + _nm + '<span class="ms" style="font-size:16px;">chevron_right</span></div>'
+        : '<div style="font-size:17px;font-weight:800;color:var(--ffp-text,#0f2327);">' + _nm + '</div>') +
       '<div style="font-size:13.5px;font-weight:700;color:var(--ffp-text,#0f2327);margin-top:7px;">' + apEsc(a.service_name || 'Service') + ' · ' + apEsc(a.coach_name || 'Coach') + '</div>' +
       '<div style="font-size:13.5px;font-weight:600;color:var(--ffp-text-muted,#5a6b6e);margin-top:3px;">' + when + ' · ' + (a.duration_min || 60) + ' min</div>' +
       (a.status === 'completed' ? '<div style="font-size:13px;font-weight:600;color:var(--ffp-text,#0f2327);margin-top:9px;">Value ' + apMoney(a.price_aed) + ' · tax ' + apMoney(a.tax_aed) + ' · coach ' + apMoney(a.commission_aed) + ' · facility net <b style="color:#15833f;">' + apMoney(a.payout_aed) + '</b></div>' : '') +
