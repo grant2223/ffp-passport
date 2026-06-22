@@ -57,6 +57,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 <script src="assets/ffp-image-upload.js?v=6"></script>
 <script src="assets/ffp-feedback-widget.js?v=5" data-source="professional" data-fab="off"></script>
+<!-- Web push: registers /sw.js + exposes window.FFPPush (a pro is a member → reuses /api/push/subscribe). -->
+<script defer src="assets/ffp-pwa.js?v=3"></script>
 <style>
 :root{
   --ffp-bg:#f4f7f8; --ffp-bg-2:#ffffff; --ffp-bg-3:#eef3f4; --ffp-bg-card:#ffffff;
@@ -360,6 +362,7 @@ a{color:var(--ffp-blue);}
           <div class="nt-scrim" id="nt-scrim" onclick="closeNotif()"></div>
           <div class="nt-menu" id="nt-menu">
             <div class="nt-head"><span>Notifications</span><div style="display:flex;align-items:center;gap:4px;"><button onclick="clearProNotifs()" style="background:none;border:none;color:var(--ffp-purple);font-family:inherit;font-size:12px;font-weight:800;cursor:pointer;padding:6px 8px;border-radius:8px;">Clear all</button><button class="tb-icon" onclick="closeNotif()" aria-label="Close" style="width:32px;height:32px;"><span class="ms">close</span></button></div></div>
+            <div id="nt-push-row"></div>
             <div class="nt-list" id="nt-list"><div class="ov-empty" style="padding:16px;">Loading…</div></div>
           </div>
         </div>
@@ -546,7 +549,7 @@ function bizTab(btn,paneId){ var panel=btn.closest('.panel'); if(!panel)return; 
 // ─── Deferred Business module loaders (reused, scoped to FFP_PROVIDER.id = professional id) ───
 var _provLoaderSrc = { clients:'ffp-professional-client-loader.js', packages:'ffp-professional-client-loader.js', comms:'ffp-professional-client-loader.js', scheduling:'ffp-professional-scheduling-loader.js', services:'ffp-professional-services-loader.js', payments:'ffp-professional-billing-loader.js' };
 var _provLoaded = {};
-var PRO_BUILD='56'; // ⭐ THE single version number. Bump on EVERY change (HTML or any pro loader). It (a) cache-busts the lazy loaders so edits actually reach the device, and (b) is shown live as "Build N" at the bottom of the avatar menu — that's how we both know exactly what's deployed. If the avatar menu shows the number I just bumped to, the latest IS live. CHANGELOG: v32 iOS NATIVE-CHROME FIXES (verified by rendering the exact CSS): avatar img wasn't filling because the <button> had no padding:0 (+ -webkit-appearance:none) so iOS inset the image; phone country-code <select> was too wide because it only had appearance:none, not -webkit-appearance:none, so iOS kept native select chrome and ignored the 96px — added -webkit-appearance:none + min/max-width:96px lock, and .phone-num→flex:1 1 0 so the number fills the rest. v31 PIN THE TOP BAR ON MOBILE for real — root cause was the whole DOCUMENT scrolling on iOS (carrying the topbar), not the topbar itself; fix = lock html/body (overflow:hidden + overscroll-behavior:none) so only .main-scroll scrolls, and give .gate its own overflow-y:auto + margin:auto card so the sign-in/apply forms aren't trapped by the lock; v30 single visible Build stamp in avatar menu (replaces ad-hoc ·b29) + carries v29's fixes; v29 forced fresh client-loader after v28's loader edits were stuck behind cached ?v=28, .app 100dvh so the mobile topbar stays frozen; v28 client form Given names+Surname + single-source phone; v27 pull-from-passport; v26 passport rows.
+var PRO_BUILD='57'; // ⭐ THE single version number. Bump on EVERY change (HTML or any pro loader). It (a) cache-busts the lazy loaders so edits actually reach the device, and (b) is shown live as "Build N" at the bottom of the avatar menu — that's how we both know exactly what's deployed. If the avatar menu shows the number I just bumped to, the latest IS live. CHANGELOG: v32 iOS NATIVE-CHROME FIXES (verified by rendering the exact CSS): avatar img wasn't filling because the <button> had no padding:0 (+ -webkit-appearance:none) so iOS inset the image; phone country-code <select> was too wide because it only had appearance:none, not -webkit-appearance:none, so iOS kept native select chrome and ignored the 96px — added -webkit-appearance:none + min/max-width:96px lock, and .phone-num→flex:1 1 0 so the number fills the rest. v31 PIN THE TOP BAR ON MOBILE for real — root cause was the whole DOCUMENT scrolling on iOS (carrying the topbar), not the topbar itself; fix = lock html/body (overflow:hidden + overscroll-behavior:none) so only .main-scroll scrolls, and give .gate its own overflow-y:auto + margin:auto card so the sign-in/apply forms aren't trapped by the lock; v30 single visible Build stamp in avatar menu (replaces ad-hoc ·b29) + carries v29's fixes; v29 forced fresh client-loader after v28's loader edits were stuck behind cached ?v=28, .app 100dvh so the mobile topbar stays frozen; v28 client form Given names+Surname + single-source phone; v27 pull-from-passport; v26 passport rows.
 function ensureProviderLoader(id){ var src=_provLoaderSrc[id]; if(!src||_provLoaded[src])return; _provLoaded[src]=true; var sc=document.createElement('script'); sc.src=src+'?v='+PRO_BUILD; sc.async=false; sc.onload=function(){ renderPanel(id); }; sc.onerror=function(){ console.error('[FFP Pro] failed to load '+src); }; document.body.appendChild(sc); }
 function renderPanel(id){
   if(id==='clients'    && typeof renderMembers==='function')     renderMembers();
@@ -904,7 +907,39 @@ function _proNotifVisible(list){
   var cleared=_proNotifClearedAt();
   return (list||[]).filter(_proNotifIsWorkflow).filter(function(n){ return !n.created_at || new Date(n.created_at).getTime()>cleared; });
 }
+// ─── Web push (a pro is a member → window.FFPPush from ffp-pwa.js subscribes their member id) ───
+function _proPushErr(e){ if(e==='denied')return 'Notifications are blocked — enable them in your browser settings'; if(e==='ios-needs-install')return 'Add this app to your home screen first, then turn on alerts'; if(e==='unsupported')return 'This browser doesn’t support alerts'; return 'Could not enable alerts — try again'; }
+function proRefreshPushRow(){
+  var row=document.getElementById('nt-push-row'); if(!row||!window.FFPPush){ if(row)row.innerHTML=''; return; }
+  FFPPush.status().then(function(st){
+    var bd='border-bottom:1px solid var(--ffp-border);', html='';
+    if(st==='subscribed'){
+      html='<div style="display:flex;align-items:center;gap:10px;padding:12px 18px;'+bd+'"><span class="ms" style="color:#1f9d57;">notifications_active</span><div style="flex:1;font-size:12.5px;font-weight:700;color:var(--ffp-text);">Alerts are on for this device</div><button onclick="proDisablePush()" style="background:none;border:none;color:var(--ffp-text-dim);font-family:inherit;font-size:12px;font-weight:800;cursor:pointer;">Turn off</button></div>';
+    } else if(st==='default'){
+      html='<div style="display:flex;align-items:center;gap:10px;padding:12px 18px;'+bd+'background:rgba(25,128,173,.06);"><span class="ms" style="color:#1980AD;">notifications</span><div style="flex:1;font-size:12.5px;font-weight:700;color:var(--ffp-text);">Get booking &amp; client alerts on this device</div><button onclick="proEnablePush()" style="background:#1980AD;color:#fff;border:none;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:12px;font-weight:800;cursor:pointer;">Turn on</button></div>';
+    } else if(st==='denied'){
+      html='<div style="padding:11px 18px;'+bd+'font-size:12px;color:var(--ffp-text-dim);line-height:1.5;">Notifications are blocked. Enable them in your browser settings to get booking &amp; client alerts.</div>';
+    } else if(st==='ios-needs-install'){
+      html='<div style="padding:11px 18px;'+bd+'font-size:12px;color:var(--ffp-text-dim);line-height:1.5;">Add this app to your home screen (Share → Add to Home Screen), then turn on alerts.</div>';
+    }
+    row.innerHTML=html;
+  }).catch(function(){ row.innerHTML=''; });
+}
+function proEnablePush(){
+  var m=_member(); if(!m||!m.id){ showToast('Sign in first','error'); return; }
+  if(!window.FFPPush){ showToast('Alerts not available','error'); return; }
+  FFPPush.enable(m.id).then(function(r){
+    if(r&&r.ok) showToast('Alerts on — you’ll get them on this device','success');
+    else showToast(_proPushErr(r&&r.error),'error');
+    proRefreshPushRow();
+  }).catch(function(){ showToast('Could not enable alerts — try again','error'); });
+}
+function proDisablePush(){
+  if(!window.FFPPush){ proRefreshPushRow(); return; }
+  FFPPush.disable().then(function(){ showToast('Alerts turned off','success'); proRefreshPushRow(); }).catch(function(){ proRefreshPushRow(); });
+}
 async function loadProNotifs(){
+  try{ proRefreshPushRow(); }catch(e){}
   var m=_member(); if(!m||!m.id)return; var listEl=document.getElementById('nt-list'); if(!listEl)return;
   try{
     var res=await fetch(PRO_API+'/api/notifications/'+m.id); var json=await res.json();
