@@ -5367,7 +5367,7 @@ async function openClientProfile(memberId){
   if(!memberId) return;
   var pid=(window.FFP_PROVIDER&&FFP_PROVIDER.id);
   if(!pid||!window.supabase){ if(window.showToast) showToast('Not ready — try again','error'); return; }
-  openModalShell('lg','Client', '<div class="psub" style="padding:20px;">Loading…</div>', '<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
+  openModalShell('lg','Client profile', '<div class="psub" style="padding:20px;">Loading…</div>', '<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
   var d=null;
   try{ var r=await window.supabase.rpc('provider_member_profile',{p_provider:pid,p_member:memberId}); if(r&&r.error) throw r.error; d=r&&r.data; }
   catch(e){ var mb0=document.querySelector('#modal .modal-body'); if(mb0) mb0.innerHTML='<div class="psub" style="padding:20px;">Couldn’t load this client.</div>'; return; }
@@ -5378,33 +5378,90 @@ async function openClientProfile(memberId){
 function _renderClientProfile(d){
   var p=d.profile||{}, st=d.stats||{}, ccy=d.currency||'AED';
   var initials=(p.full_name||'C').trim().charAt(0).toUpperCase();
-  var photo=p.photo_url ? '<img src="'+escHtml(p.photo_url)+'" alt="" style="width:52px;height:52px;border-radius:50%;object-fit:cover;flex:0 0 auto;">'
-    : '<div style="width:52px;height:52px;border-radius:50%;background:var(--ffp-purple);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;flex:0 0 auto;">'+escHtml(initials)+'</div>';
-  var contact=[p.email,p.phone,p.city].filter(Boolean).map(escHtml).join(' · ');
-  var head='<div style="display:flex;gap:13px;align-items:center;">'+photo+'<div style="min-width:0;"><div style="font-size:18px;font-weight:800;color:var(--ffp-text);">'+escHtml(p.full_name||'Client')+'</div><div class="psub" style="margin-top:3px;">'+(contact||'No contact details')+'</div></div></div>';
-  function cell(l,v,col,sz){ return '<div style="flex:1;min-width:70px;background:var(--ffp-bg-3,#eef1f3);border:1px solid var(--ffp-border-mid,#ccd9da);border-radius:10px;padding:9px 8px;text-align:center;"><div style="font-size:'+(sz||16)+'px;font-weight:900;color:'+(col||'var(--ffp-text)')+';">'+v+'</div><div style="font-size:9px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:var(--ffp-text-dim);margin-top:3px;">'+l+'</div></div>'; }
-  var stats='<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;">'+
-    cell('Sessions',st.total_sessions||0)+cell('Attended',st.attended||0,'#15833f')+
-    cell('No-shows',st.no_shows||0,(st.no_shows?'#c0392b':null))+cell('Upcoming',st.upcoming||0,'#1980AD')+
-    cell('Spend',_cpMoney(st.total_spend,ccy),'var(--ffp-text)',12.5)+'</div>';
-  var notes='<div style="margin-top:16px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--ffp-text-dim);margin-bottom:5px;">Notes</div>'+
-    '<textarea id="cp-notes" class="textarea" rows="2" placeholder="Private notes about this client (only you see these)">'+escHtml(p.notes||'')+'</textarea>'+
-    '<div style="margin-top:6px;"><button class="btn btn-sec btn-sm" onclick="saveClientNotes()"><span class="ms">save</span> Save notes</button></div></div>';
-  function section(title,inner){ return '<div style="margin-top:16px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--ffp-text-dim);margin-bottom:6px;">'+title+'</div>'+inner+'</div>'; }
-  function rowWrap(left,right){ return '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--ffp-border);"><div style="min-width:0;">'+left+'</div><div style="flex:0 0 auto;">'+right+'</div></div>'; }
-  var plans=(d.plans||[]), packages=(d.packages||[]), appts=(d.appointments||[]);
-  var plansHtml=plans.length ? plans.map(function(pl){ return rowWrap('<div style="font-weight:700;color:var(--ffp-text);font-size:13px;">'+escHtml(pl.plan_name||'Plan')+'</div><div class="psub" style="font-size:11.5px;">'+(pl.plan_type==='term'?'Unlimited':(pl.credits_remaining!=null?(pl.credits_remaining+' credits left'):'—'))+(pl.expiry_date?(' · until '+escHtml(pl.expiry_date)):'')+'</div>', _cpPill(pl.status||'active')); }).join('') : '<div class="psub" style="font-size:12px;">No memberships.</div>';
-  var pkgHtml=packages.length ? packages.map(function(pk){ return rowWrap('<div style="font-weight:700;color:var(--ffp-text);font-size:13px;">'+escHtml(pk.name||'Package')+'</div><div class="psub" style="font-size:11.5px;">'+(pk.sessions_remaining!=null?pk.sessions_remaining:'?')+'/'+(pk.sessions_total!=null?pk.sessions_total:'?')+' sessions left'+(pk.expiry_date?(' · until '+escHtml(pk.expiry_date)):'')+'</div>', _cpPill(pk.status||'active')); }).join('') : '<div class="psub" style="font-size:12px;">No packages.</div>';
-  var now=Date.now();
+  var photo=p.photo_url ? '<img src="'+escHtml(p.photo_url)+'" alt="" style="width:44px;height:44px;border-radius:50%;object-fit:cover;flex:0 0 auto;">'
+    : '<div style="width:44px;height:44px;border-radius:50%;background:var(--ffp-purple);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:17px;flex:0 0 auto;">'+escHtml(initials)+'</div>';
+  var contact=[p.email,p.phone,p.city].filter(Boolean).map(escHtml).join('  ·  ');
+  var head='<div style="display:flex;gap:11px;align-items:center;">'+photo+'<div style="min-width:0;"><div style="font-size:15px;font-weight:800;color:var(--ffp-text);line-height:1.2;">'+escHtml(p.full_name||'Client')+'</div><div style="font-size:11.5px;color:var(--ffp-text-muted);margin-top:2px;">'+(contact||'No contact details')+'</div></div></div>';
+  function cell(l,v,col,i,sz){ return '<div style="flex:1;text-align:center;padding:0 4px;'+(i?'border-left:1px solid var(--ffp-border);':'')+'"><div style="font-size:'+(sz||15)+'px;font-weight:800;color:'+(col||'var(--ffp-text)')+';line-height:1.1;">'+v+'</div><div style="font-size:8.5px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:var(--ffp-text-dim);margin-top:4px;">'+l+'</div></div>'; }
+  var stats='<div style="display:flex;align-items:flex-start;margin-top:15px;">'+
+    cell('Sessions',st.total_sessions||0,null,0)+cell('Attended',st.attended||0,'#15833f',1)+
+    cell('No-shows',st.no_shows||0,(st.no_shows?'#c0392b':null),1)+cell('Upcoming',st.upcoming||0,'#1980AD',1)+
+    cell('Spend',_cpMoney(st.total_spend,ccy),null,1,13)+'</div>';
+  // segmented tabs — each growing section gets its own pane; current items sit at the top of each.
+  function tabBtn(id,label){ return '<button id="cp-tab-'+id+'" type="button" onclick="cpTab(\''+id+'\')" style="flex:0 0 auto;border:none;background:none;border-bottom:2px solid transparent;color:var(--ffp-text-muted);font-family:inherit;font-size:12.5px;font-weight:800;padding:8px 1px;margin-right:22px;cursor:pointer;white-space:nowrap;">'+label+'</button>'; }
+  var tabs='<div style="display:flex;align-items:center;margin-top:16px;border-bottom:1px solid var(--ffp-border);overflow-x:auto;-webkit-overflow-scrolling:touch;">'+tabBtn('profile','Profile')+tabBtn('sessions','Sessions')+tabBtn('plans','Plans & packages')+tabBtn('payments','Payments')+tabBtn('notes','Notes')+'</div>';
+  function rowWrap(left,right,cps){ return '<div'+(cps?(' data-cps="'+escHtml(String(cps).toLowerCase())+'"'):'')+' style="display:flex;justify-content:space-between;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--ffp-border);"><div style="min-width:0;">'+left+'</div><div style="flex:0 0 auto;">'+right+'</div></div>'; }
+  function subhead(t){ return '<div style="font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--ffp-text-dim);margin:12px 0 3px;">'+t+'</div>'; }
+  function empty(t){ return '<div style="font-size:11.5px;color:var(--ffp-text-muted);padding:5px 0;">'+t+'</div>'; }
+  // Sessions — upcoming first, then past
+  var appts=(d.appointments||[]), now=Date.now();
   var upcoming=appts.filter(function(a){ return new Date(a.start_at).getTime()>=now && a.status!=='cancelled' && a.status!=='no_show'; }).sort(function(a,b){ return new Date(a.start_at)-new Date(b.start_at); });
   var upKeys={}; upcoming.forEach(function(a){ upKeys[a.id]=1; });
   var past=appts.filter(function(a){ return !upKeys[a.id]; });
-  function apptRow(a){ return rowWrap('<div style="font-weight:700;color:var(--ffp-text);font-size:12.5px;">'+_cpWhen(a.start_at)+'</div><div class="psub" style="font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(a.service_name||'Session')+(a.coach_name?(' · '+escHtml(a.coach_name)):'')+'</div>', _cpPill(a.status)); }
-  var body=head+stats+notes+section('Memberships',plansHtml)+section('Packages',pkgHtml)+
-    (upcoming.length?section('Upcoming · '+upcoming.length, upcoming.map(apptRow).join('')):'')+
-    section('History', past.length? past.map(apptRow).join('') : '<div class="psub" style="font-size:12px;">No past sessions.</div>');
+  function apptRow(a){ return rowWrap('<div style="font-weight:700;color:var(--ffp-text);font-size:12px;">'+_cpWhen(a.start_at)+'</div><div style="font-size:11px;color:var(--ffp-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(a.service_name||'Session')+(a.coach_name?(' · '+escHtml(a.coach_name)):'')+'</div>', _cpPill(a.status), (a.service_name||'')+' '+(a.coach_name||'')+' '+(a.status||'')+' '+_cpWhen(a.start_at)); }
+  var sessionsPane='<div id="cp-pane-sessions" style="display:none;">'+
+    (upcoming.length? subhead('Upcoming · '+upcoming.length)+upcoming.map(apptRow).join('') : '')+
+    subhead('Past'+(past.length?(' · '+past.length):''))+(past.length? past.map(apptRow).join('') : empty('No past sessions.'))+'</div>';
+  // Plans & packages — active first
+  var items=(d.plans||[]).map(function(pl){ return {kind:'Membership', name:pl.plan_name||'Plan', detail:(pl.plan_type==='term'?'Unlimited':(pl.credits_remaining!=null?(pl.credits_remaining+' credits left'):'—'))+(pl.expiry_date?(' · until '+pl.expiry_date):''), status:pl.status||'active', active:(pl.status==='active')}; })
+    .concat((d.packages||[]).map(function(pk){ return {kind:'Package', name:pk.name||'Package', detail:((pk.sessions_remaining!=null?pk.sessions_remaining:'?')+'/'+(pk.sessions_total!=null?pk.sessions_total:'?')+' sessions left')+(pk.expiry_date?(' · until '+pk.expiry_date):''), status:pk.status||'active', active:(pk.status==='active')}; }));
+  function planRow(it){ return rowWrap('<div style="font-weight:700;color:var(--ffp-text);font-size:12px;">'+escHtml(it.name)+' <span style="font-size:9.5px;font-weight:700;color:var(--ffp-text-dim);">· '+it.kind+'</span></div><div style="font-size:11px;color:var(--ffp-text-muted);">'+escHtml(it.detail)+'</div>', _cpPill(it.status), (it.name||'')+' '+(it.kind||'')+' '+(it.status||'')); }
+  var active=items.filter(function(i){return i.active;}), inactive=items.filter(function(i){return !i.active;});
+  var plansPane='<div id="cp-pane-plans" style="display:none;">'+
+    (items.length ? (active.length? subhead('Active · '+active.length)+active.map(planRow).join('') : '')+(inactive.length? subhead('Past · '+inactive.length)+inactive.map(planRow).join('') : '') : empty('No memberships or packages.'))+'</div>';
+  // Notes
+  var notesPane='<div id="cp-pane-notes" style="display:none;">'+
+    '<textarea id="cp-notes" class="textarea" rows="5" style="font-size:12px;margin-top:10px;" placeholder="Private notes about this client (only you see these)">'+escHtml(p.notes||'')+'</textarea>'+
+    '<div style="margin-top:8px;"><button class="btn btn-sec btn-sm" onclick="saveClientNotes()"><span class="ms">save</span> Save notes</button></div></div>';
+  // Profile — the partner's editable client record
+  function fld(id,label,val,type){ return '<div class="field"><div class="label">'+label+'</div><input class="input" id="'+id+'" type="'+(type||'text')+'" value="'+escHtml(val==null?'':val)+'"></div>'; }
+  var statusOpts=['active','paused','inactive','lead'].map(function(s){ return '<option value="'+s+'"'+(((p.member_status||'active'))===s?' selected':'')+'>'+s.charAt(0).toUpperCase()+s.slice(1)+'</option>'; }).join('');
+  var profilePane='<div id="cp-pane-profile" style="display:none;"><div class="form-grid" style="margin-top:12px;">'+
+    fld('cp-pf-given','Given names',p.given_names)+fld('cp-pf-surname','Surname',p.surname)+
+    fld('cp-pf-email','Email',p.email)+fld('cp-pf-phone','Phone',p.phone)+
+    fld('cp-pf-dob','Date of birth',p.date_of_birth,'date')+
+    '<div class="field"><div class="label">Status</div><select class="select" id="cp-pf-status">'+statusOpts+'</select></div>'+
+    fld('cp-pf-city','City',p.city)+fld('cp-pf-country','Country',p.country)+
+    fld('cp-pf-emname','Emergency contact',p.emergency_contact_name)+fld('cp-pf-emphone','Emergency phone',p.emergency_contact_phone)+
+    '</div>'+
+    '<div class="field" style="margin-top:10px;"><div class="label">Tags</div><input class="input" id="cp-pf-tags" value="'+escHtml(p.tags||'')+'" placeholder="e.g. VIP, PT, rehab"></div>'+
+    '<div class="field" style="margin-top:10px;"><div class="label">Goals</div><textarea class="textarea" id="cp-pf-goals" rows="2">'+escHtml(p.goals||'')+'</textarea></div>'+
+    '<div class="field" style="margin-top:10px;"><div class="label">Health notes / injuries</div><textarea class="textarea" id="cp-pf-health" rows="2">'+escHtml(p.health_notes||'')+'</textarea></div>'+
+    '<div style="margin-top:10px;"><button class="btn btn-pri btn-sm" onclick="saveClientProfile()"><span class="ms">save</span> Save profile</button></div></div>';
+  // Payments ledger
+  var payments=(d.payments||[]);
+  function payRow(pm){ var s=(pm.status||''); return rowWrap('<div style="font-weight:700;color:var(--ffp-text);font-size:12px;">'+escHtml(pm.descr||pm.kind||'Payment')+' <span style="font-size:9.5px;color:var(--ffp-text-dim);">· '+escHtml(pm.kind||'')+'</span></div><div style="font-size:11px;color:var(--ffp-text-muted);">'+_cpWhen(pm.date)+'</div>', '<div style="font-weight:800;font-size:12.5px;color:var(--ffp-text);">'+_cpMoney(pm.amount,ccy)+'</div>', (pm.descr||'')+' '+(pm.kind||'')+' '+s); }
+  var totalPaid=payments.reduce(function(s,pm){ return s+(Number(pm.amount)||0); },0);
+  var paymentsPane='<div id="cp-pane-payments" style="display:none;">'+
+    (payments.length? '<div style="display:flex;justify-content:space-between;align-items:center;margin:11px 0 2px;"><div style="font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--ffp-text-dim);">'+payments.length+' payment'+(payments.length>1?'s':'')+'</div><div style="font-size:12.5px;font-weight:800;color:var(--ffp-text);">Total '+_cpMoney(totalPaid,ccy)+'</div></div>'+payments.map(payRow).join('') : empty('No payments yet.'))+'</div>';
+  var searchBox='<div id="cp-search-wrap" style="margin-top:10px;display:none;"><input id="cp-search" class="input" oninput="cpSearch(this.value)" placeholder="Search…" style="font-size:12px;"></div>';
+  var body=head+stats+tabs+searchBox+'<div style="margin-top:6px;">'+profilePane+sessionsPane+plansPane+paymentsPane+notesPane+'</div>';
   var mb=document.querySelector('#modal .modal-body'); if(mb) mb.innerHTML=body;
-  var mt=document.querySelector('#modal .modal-title'); if(mt) mt.textContent=p.full_name||'Client';
+  cpTab('sessions');
+}
+function cpTab(name){
+  window._cpActive=name;
+  ['profile','sessions','plans','payments','notes'].forEach(function(t){
+    var pane=document.getElementById('cp-pane-'+t), btn=document.getElementById('cp-tab-'+t), on=(t===name);
+    if(pane) pane.style.display = on ? 'block' : 'none';
+    if(btn){ btn.style.color = on ? 'var(--ffp-purple)' : 'var(--ffp-text-muted)'; btn.style.borderBottomColor = on ? 'var(--ffp-purple)' : 'transparent'; }
+  });
+  var listTab=(name==='sessions'||name==='plans'||name==='payments');
+  var sw=document.getElementById('cp-search-wrap'); if(sw) sw.style.display=listTab?'block':'none';
+  var si=document.getElementById('cp-search'); if(si) si.value='';
+  var pane=document.getElementById('cp-pane-'+name); if(pane){ var rows=pane.querySelectorAll('[data-cps]'); for(var i=0;i<rows.length;i++) rows[i].style.display=''; }
+}
+function cpSearch(q){ q=(q||'').trim().toLowerCase(); var pane=document.getElementById('cp-pane-'+(window._cpActive||'sessions')); if(!pane) return; var rows=pane.querySelectorAll('[data-cps]'); for(var i=0;i<rows.length;i++){ var r=rows[i]; r.style.display=(!q || r.getAttribute('data-cps').indexOf(q)!==-1)?'':'none'; } }
+async function saveClientProfile(){
+  var d=window._cpData||{}, pmid=d.provider_member_id, pid=(window.FFP_PROVIDER&&FFP_PROVIDER.id);
+  if(!pid) return;
+  function g(id){ var e=document.getElementById(id); return e?e.value:undefined; }
+  var payload={ given_names:g('cp-pf-given'), surname:g('cp-pf-surname'), email:g('cp-pf-email'), phone:g('cp-pf-phone'), date_of_birth:g('cp-pf-dob'), member_status:g('cp-pf-status'), city:g('cp-pf-city'), country:g('cp-pf-country'), emergency_contact_name:g('cp-pf-emname'), emergency_contact_phone:g('cp-pf-emphone'), tags:g('cp-pf-tags'), goals:g('cp-pf-goals'), health_notes:g('cp-pf-health') };
+  var gn=(payload.given_names||'').trim(), sn=(payload.surname||'').trim(); if(gn||sn) payload.full_name=(gn+' '+sn).trim();
+  try{ var r=await window.supabase.rpc('provider_save_member_profile',{p_provider:pid,p_pmid:pmid,p:payload}); if(r&&r.error) throw r.error;
+    if(window._cpData&&window._cpData.profile){ Object.keys(payload).forEach(function(k){ window._cpData.profile[k]=payload[k]; }); }
+    if(window.showToast) showToast('Profile saved','success'); }
+  catch(e){ if(window.showToast) showToast('Could not save profile','error'); }
 }
 async function saveClientNotes(){
   var d=window._cpData||{}, pmid=d.provider_member_id, pid=(window.FFP_PROVIDER&&FFP_PROVIDER.id);
