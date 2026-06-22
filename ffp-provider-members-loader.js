@@ -42,12 +42,17 @@ function renderMembersList() {
   if (!host) return;
   var box = document.getElementById('mem-search');
   var q = (box ? box.value : '').trim().toLowerCase();
-  var items = _members;
+  var items = _members.slice();
   if (q) {
-    items = _members.filter(function (m) {
+    items = items.filter(function (m) {
       return ((m.full_name || '') + ' ' + (m.email || '') + ' ' + (m.phone || '') + ' ' + (m.tags || '')).toLowerCase().indexOf(q) !== -1;
     });
   }
+  var sortBox = document.getElementById('mem-sort');
+  var sort = sortBox ? sortBox.value : 'name';
+  if (sort === 'recent') { items.sort(function (a, b) { return new Date(b.created_at || b.join_date || 0) - new Date(a.created_at || a.join_date || 0); }); }
+  else if (sort === 'status') { items.sort(function (a, b) { return (a.member_status || '').localeCompare(b.member_status || '') || (a.full_name || '').localeCompare(b.full_name || ''); }); }
+  else { items.sort(function (a, b) { return (a.full_name || '').localeCompare(b.full_name || ''); }); }
   if (!items.length) {
     host.innerHTML = _members.length
       ? '<div class="psub" style="margin:10px 2px;">No matches.</div>'
@@ -58,37 +63,27 @@ function renderMembersList() {
                    items.map(memberRow).join('');
 }
 
+// Compact, dense row — scales to 100s of clients. Whole row opens the client profile.
 function memberRow(m) {
-  var initials = ((m.full_name || ((m.given_names || '') + ' ' + (m.surname || ''))) || '?').trim().split(/\s+/).map(function (w) { return w[0] || ''; }).join('').slice(0, 2).toUpperCase();
+  var nm = (m.full_name || ((m.given_names || '') + ' ' + (m.surname || '')).trim()) || '—';
+  var initials = (nm || '?').trim().split(/\s+/).map(function (w) { return w[0] || ''; }).join('').slice(0, 2).toUpperCase();
   var st = m.member_status || 'active';
   var stStyle = _memStatusStyle[st] || _memStatusStyle.active;
-  var contact = [];
-  if (m.email) contact.push(escHtml(m.email));
-  if (m.phone) contact.push(escHtml(m.phone));
-  var tags = (m.tags || '').split(',').map(function (t) { return t.trim(); }).filter(Boolean);
-  var tagHtml = tags.length
-    ? '<div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:5px;">' + tags.map(function (t) {
-        return '<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:var(--ffp-bg-3);color:var(--ffp-text-muted);">' + escHtml(t) + '</span>';
-      }).join('') + '</div>'
-    : '';
-  var photoCol = m.photo_url
-    ? '<div style="width:64px;flex:0 0 auto;background:url(\'' + escHtml(m.photo_url) + '\') center/cover no-repeat;"></div>'
-    : '<div style="width:64px;flex:0 0 auto;background:rgba(25,128,173,.14);color:var(--ffp-blue);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;">' + escHtml(initials) + '</div>';
-  return '<div style="background:rgba(15,37,49,.05);border:1px solid var(--ffp-border);border-radius:12px;overflow:hidden;margin-bottom:9px;display:flex;align-items:stretch;gap:0;min-height:68px;">' +
-      photoCol +
-      '<div style="min-width:0;flex:1;padding:11px 13px;cursor:pointer;" onclick="openClientProfile(\'' + m.id + '\')" title="Open client profile">' +
-        '<div style="font-weight:800;color:var(--ffp-text);">' + escHtml(m.full_name || '—') + '</div>' +
-        (contact.length ? '<div class="psub" style="margin:2px 0 0;">' + contact.join(' · ') + '</div>' : '') +
-        tagHtml +
+  var sub = [m.email, m.phone].filter(Boolean).map(escHtml).join('  ·  ');
+  var avatar = m.photo_url
+    ? '<div style="width:34px;height:34px;border-radius:50%;flex:0 0 auto;background:#fff url(\'' + escHtml(m.photo_url) + '\') center/cover no-repeat;"></div>'
+    : '<div style="width:34px;height:34px;border-radius:50%;flex:0 0 auto;background:rgba(25,128,173,.14);color:var(--ffp-blue);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;">' + escHtml(initials) + '</div>';
+  return '<div style="display:flex;align-items:center;gap:11px;padding:8px 10px;border-bottom:1px solid var(--ffp-border);">' +
+      avatar +
+      '<div onclick="openClientProfile(\'' + m.id + '\')" title="Open client profile" style="flex:1;min-width:0;cursor:pointer;">' +
+        '<div style="font-size:13px;font-weight:700;color:var(--ffp-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(nm) + '</div>' +
+        (sub ? '<div style="font-size:11px;color:var(--ffp-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + sub + '</div>' : '') +
       '</div>' +
-      '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex-shrink:0;padding:11px 13px;">' +
-        '<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;' + stStyle + '">' + (MEMBER_STATUS[st] || 'Active') + '</span>' +
-        '<div style="display:flex;gap:6px;">' +
-          '<button class="btn btn-sec btn-sm" onclick="openClientProfile(\'' + m.id + '\')" title="Client profile"><span class="ms">person</span></button>' +
-          '<button class="btn btn-sec btn-sm" onclick="openMembership(\'' + m.id + '\')" title="Membership"><span class="ms">card_membership</span></button>' +
-          '<button class="btn btn-sec btn-sm" onclick="openMemberModal(\'' + m.id + '\')"><span class="ms">edit</span></button>' +
-          '<button class="btn btn-ghost btn-sm" onclick="confirmDeleteMember(\'' + m.id + '\')"><span class="ms">delete</span></button>' +
-        '</div>' +
+      '<span style="font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:20px;flex:0 0 auto;' + stStyle + '">' + (MEMBER_STATUS[st] || 'Active') + '</span>' +
+      '<div style="display:flex;gap:4px;flex:0 0 auto;">' +
+        '<button class="btn btn-sec btn-sm" onclick="openClientProfile(\'' + m.id + '\')" title="Client profile"><span class="ms">person</span></button>' +
+        '<button class="btn btn-sec btn-sm" onclick="openMembership(\'' + m.id + '\')" title="Membership"><span class="ms">card_membership</span></button>' +
+        '<button class="btn btn-sec btn-sm" onclick="openMemberModal(\'' + m.id + '\')" title="Edit"><span class="ms">edit</span></button>' +
       '</div>' +
   '</div>';
 }
