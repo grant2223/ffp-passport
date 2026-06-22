@@ -71,18 +71,17 @@
       '.cf-acard-b{padding:8px 10px;}',
       '.cf-acard-t{font-size:12.5px;font-weight:800;color:var(--text,#e8eef4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
       '.cf-acard-s{font-size:11px;color:var(--muted,#8a99a8);margin-top:2px;}',
-      '.cf-stats{margin:2px 0 12px;}',
-      '.cf-streak{display:inline-flex;align-items:center;gap:6px;margin-bottom:9px;}',
-      '.cf-streak .material-icons{color:var(--yellow,#FFCC00);font-size:20px;}',
-      '.cf-streak b{font-size:20px;font-weight:800;color:var(--yellow,#FFCC00);font-variant-numeric:tabular-nums;line-height:1;}',
-      '.cf-streak span{font-size:12px;color:var(--muted,#8a99a8);font-weight:700;}',
-      '.cf-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px;}',
-      '.cf-chip{background:rgba(43,168,224,0.08);border:1px solid rgba(43,168,224,0.2);border-radius:10px;padding:6px 10px;display:flex;align-items:baseline;gap:5px;}',
-      '.cf-chip b{font-size:14px;font-weight:800;color:var(--text,#e8eef4);font-variant-numeric:tabular-nums;}',
-      '.cf-chip span{font-size:10px;color:var(--muted,#8a99a8);font-weight:700;text-transform:uppercase;letter-spacing:.3px;}',
-      '.cf-discs{display:flex;gap:7px;flex-wrap:wrap;}',
-      '.cf-disc{font-size:11px;font-weight:700;color:#cfe6f5;background:#16263a;border-radius:8px;padding:5px 9px;}',
-      '.cf-disc b{color:var(--blue,#2ba8e0);font-weight:800;}'
+      '.cf-stats{margin:2px 0 14px;}',
+      '.cf-jstreak{display:inline-flex;align-items:center;gap:6px;margin:0 0 12px;}',
+      '.cf-jstreak .material-icons{color:var(--yellow,#FFCC00);font-size:20px;}',
+      '.cf-jstreak b{font-size:20px;font-weight:800;color:var(--yellow,#FFCC00);font-variant-numeric:tabular-nums;line-height:1;}',
+      '.cf-jstreak span{font-size:11px;color:var(--muted,#8a99a8);font-weight:800;text-transform:uppercase;letter-spacing:.5px;}',
+      '.cf-jlabel{font-size:13px;font-weight:700;color:var(--text,#e8eef4);margin:0 0 8px;}',
+      '.cf-jgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.07);border-radius:12px;overflow:hidden;}',
+      '.cf-jcell{background:var(--bg,#0a1825);padding:12px 4px;text-align:center;}',
+      '.cf-jn{font-size:19px;font-weight:800;color:var(--text,#e8eef4);font-variant-numeric:tabular-nums;line-height:1.05;}',
+      '.cf-jl{font-size:8.5px;font-weight:700;letter-spacing:.4px;color:var(--muted,#8a99a8);text-transform:uppercase;margin-top:3px;}',
+      '.cf-actlbl{font-size:13px;font-weight:800;color:var(--text,#e8eef4);margin:16px 0 8px;}'
     ].join('');
     document.head.appendChild(s);
   }
@@ -222,50 +221,45 @@
       '<div class="cf-acard-s">' + esc([stat, d].filter(Boolean).join(' · ')) + '</div></div></div>';
   }
   // Stats strip — the connection's streak, journey totals and top disciplines.
-  function connStatsHtml(d) {
+  function connStatsHtml(d, first) {
+    var tile = function (n, l) { return '<div class="cf-jcell"><div class="cf-jn">' + (n != null ? n : 0) + '</div><div class="cf-jl">' + l + '</div></div>'; };
     var html = '<div class="cf-stats">';
     if (d.streak && d.streak > 0) {
-      html += '<div class="cf-streak"><span class="material-icons">local_fire_department</span>' +
+      html += '<div class="cf-jstreak"><span class="material-icons">local_fire_department</span>' +
         '<b>' + d.streak + '</b><span>day streak</span></div>';
     }
-    var chips = [];
-    if (d.total_activities) chips.push('<div class="cf-chip"><b>' + d.total_activities + '</b><span>activities</span></div>');
-    if (d.active_days) chips.push('<div class="cf-chip"><b>' + d.active_days + '</b><span>active days</span></div>');
-    if (d.this_month) chips.push('<div class="cf-chip"><b>' + d.this_month + '</b><span>this month</span></div>');
-    if (d.distance_km && d.distance_km > 0) chips.push('<div class="cf-chip"><b>' + d.distance_km + '</b><span>km</span></div>');
-    if (chips.length) html += '<div class="cf-chips">' + chips.join('') + '</div>';
-    var ds = d.disciplines || [];
-    if (ds.length) {
-      html += '<div class="cf-discs">' + ds.map(function (x) {
-        return '<span class="cf-disc">' + esc(x.label || 'Activity') + ' <b>×' + (x.count || 0) + '</b></span>';
-      }).join('') + '</div>';
-    }
-    html += '</div>';
+    html += '<div class="cf-jlabel">' + first + '’s journey this week</div>';
+    html += '<div class="cf-jgrid">' +
+      tile(d.countries, 'Countries') + tile(d.cities, 'Cities') + tile(d.days, 'Days') + tile(d.hours, 'Hours') +
+      tile(d.connections, 'Connections') + tile(d.activities, 'Activities') + tile(d.meets, 'Meets') + tile(d.providers, 'Providers') +
+    '</div></div>';
     return html;
   }
-  async function loadConnStats(id) {
+  async function loadConnStats(id, name) {
     var host = document.getElementById('cf-conn-stats'); if (!host) return;
     var me = memberId(); if (!me || !window.supabase) { host.innerHTML = ''; return; }
+    var first = esc(String(name || 'Member').split(' ')[0]);
     try {
       var r = await window.supabase.rpc('member_connection_profile', { p_me: me, p_other: id });
       var d = (r && r.data) || {};
-      host.innerHTML = (d && d.connected !== false) ? connStatsHtml(d) : '';
+      host.innerHTML = (d && d.connected !== false) ? connStatsHtml(d, first) : '';
     } catch (e) { host.innerHTML = ''; }
   }
   async function renderActivities(id, name) {
     var host = document.getElementById('cf-person-activities'); if (!host) return;
     var first = esc(String(name || 'Member').split(' ')[0]);
-    var head = '<div class="cf-sec-head" style="margin-bottom:6px;"><div class="cf-sec-t">' + first + '’s activities</div>' +
-      '<div class="cf-sec-link" onclick="FFPConnFeed.openCard(\'' + attr(id) + '\')">Passport</div></div>';
-    host.innerHTML = head + '<div id="cf-conn-stats"></div><div class="cf-empty">Loading…</div>';
+    var head = '<div class="cf-sec-head" style="margin-bottom:8px;"><div class="cf-sec-t">' + first + '’s Passport</div>' +
+      '<div class="cf-sec-link" onclick="FFPConnFeed.openCard(\'' + attr(id) + '\')">View passport</div></div>';
+    var actlbl = '<div class="cf-actlbl">Latest activities</div>';
+    host.innerHTML = head + '<div id="cf-conn-stats"></div>' + actlbl + '<div class="cf-empty">Loading…</div>';
     var me = memberId(); if (!me || !window.supabase) { host.innerHTML = ''; return; }
     try {
       var r = await window.supabase.rpc('member_connection_activities', { p_me: me, p_other: id, p_limit: 12 });
       var list = (r && r.data) || [];
-      host.innerHTML = head + '<div id="cf-conn-stats"></div>' +
+      host.innerHTML = head + '<div id="cf-conn-stats"></div>' + actlbl +
         (list.length ? '<div class="cf-acts">' + list.map(actCard).join('') + '</div>' : '<div class="cf-empty">No shared activities yet.</div>');
-    } catch (e) { host.innerHTML = head + '<div id="cf-conn-stats"></div><div class="cf-empty">Couldn’t load activities.</div>'; }
-    loadConnStats(id);
+    } catch (e) { host.innerHTML = head + '<div id="cf-conn-stats"></div>' + actlbl + '<div class="cf-empty">Couldn’t load activities.</div>'; }
+    loadConnStats(id, name);
   }
 
   window.FFPConnFeed = {
