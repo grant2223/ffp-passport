@@ -470,11 +470,14 @@
         });
       }
 
-      // Update sidebar foot + topbar
+      // Update sidebar foot + topbar — mark shows the partner LOGO when set, else the initial.
       var sbName = document.getElementById('sb-foot-name');
       var sbMark = document.getElementById('sb-foot-mark');
       if (sbName) sbName.textContent = businessName || 'Your business';
-      if (sbMark) sbMark.textContent = letterMark;
+      if (sbMark) {
+        if (logoUrl) { sbMark.innerHTML = '<img src="' + logoUrl + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:9px;display:block;">'; sbMark.style.background = 'transparent'; }
+        else { sbMark.textContent = letterMark; sbMark.style.background = ''; }
+      }
       window.FFP_PROVIDER.business_name = businessName;
       if (timezone) window.FFP_PROVIDER.timezone = timezone;   // so FFPTime immediately uses the saved zone
       if (currency) window.FFP_PROVIDER.currency = currency;   // so price labels immediately use the saved currency
@@ -675,6 +678,15 @@
       if (real) {
         Object.assign(providerProfile, real);
         populateProviderExtras(real);
+        // Sidebar foot — show the partner LOGO (or initial) as soon as the profile loads on boot.
+        (function () {
+          var sbName = document.getElementById('sb-foot-name'); var sbMark = document.getElementById('sb-foot-mark');
+          if (sbName) sbName.textContent = real.business_name || 'Your business';
+          if (sbMark) {
+            if (real.logo_url) { sbMark.innerHTML = '<img src="' + real.logo_url + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:9px;display:block;">'; sbMark.style.background = 'transparent'; }
+            else { sbMark.textContent = real.letter_mark || 'P'; sbMark.style.background = ''; }
+          }
+        })();
         // Profile data is now loaded — refresh the "listings hidden until profile complete" banner
         // in case the partner is already sitting on a listing panel (Events/Experiences/etc.).
         if (typeof window.refreshListingGate === 'function') { try { window.refreshListingGate(); } catch (e) {} }
