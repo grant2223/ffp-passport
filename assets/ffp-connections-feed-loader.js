@@ -59,7 +59,18 @@
       '.cf-rtxt{flex:1;min-width:0;}',
       '.cf-rt{font-size:13px;line-height:1.35;color:var(--text,#e8eef4);}',
       '.cf-rt b{font-weight:800;}',
-      '.cf-rs{font-size:11px;color:#7c8b9a;margin-top:1px;}'
+      '.cf-rs{font-size:11px;color:#7c8b9a;margin-top:1px;}',
+      '.cf-search{width:100%;box-sizing:border-box;padding:11px 14px;border-radius:12px;border:1px solid rgba(43,168,224,0.25);background:rgba(43,168,224,0.05);color:var(--text,#e8eef4);font-size:14px;font-family:inherit;margin:2px 0 6px;}',
+      '.cf-cbtn{flex:0 0 auto;background:var(--yellow,#FFCC00);color:#081420;border:none;border-radius:9px;padding:7px 13px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;}',
+      '.cf-cbtn.done{background:transparent;color:var(--muted,#8a99a8);border:1px solid rgba(255,255,255,0.14);cursor:default;}',
+      '.cf-cell.sel .cf-av{box-shadow:0 0 0 2px var(--yellow,#FFCC00);}',
+      '.cf-acts{display:flex;gap:10px;overflow-x:auto;padding:2px 0 6px;-webkit-overflow-scrolling:touch;}',
+      '.cf-acard{flex:0 0 auto;width:138px;background:#11283c;border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden;cursor:pointer;}',
+      '.cf-acard-img{height:84px;background:#1f5b86 center/cover no-repeat;display:flex;align-items:center;justify-content:center;}',
+      '.cf-acard-img .material-icons{font-size:30px;color:#9fc4e0;}',
+      '.cf-acard-b{padding:8px 10px;}',
+      '.cf-acard-t{font-size:12.5px;font-weight:800;color:var(--text,#e8eef4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
+      '.cf-acard-s{font-size:11px;color:var(--muted,#8a99a8);margin-top:2px;}'
     ].join('');
     document.head.appendChild(s);
   }
@@ -99,6 +110,13 @@
 
     var html = '';
 
+    // 0) Search strap → opens a modal to find members to connect with
+    html += '<div class="cf-strap" onclick="FFPConnFeed.openSearch()">' +
+      '<span class="material-icons">search</span>' +
+      '<div class="cf-strap-txt"><div class="cf-strap-t">Find a connection</div>' +
+      '<div class="cf-strap-s">Search Find Fit People members by name</div></div>' +
+      '<span class="material-icons cf-chev">chevron_right</span></div>';
+
     // 1) Discovery strap
     html += '<div class="cf-strap" onclick="FFPConnFeed.discover()">' +
       '<span class="material-icons">auto_awesome</span>' +
@@ -114,7 +132,7 @@
       html += '<div class="cf-cap">Most active right now — see what they’re up to</div><div class="cf-circles">';
       html += conns.slice(0, 12).map(function (c) {
         var first = (c.name || 'Member').split(' ')[0];
-        return '<div class="cf-cell" onclick="FFPConnFeed.openCard(\'' + attr(c.id) + '\')">' +
+        return '<div class="cf-cell" id="cf-cell-' + attr(c.id) + '" onclick="FFPConnFeed.selectPerson(\'' + attr(c.id) + '\',\'' + attr(c.name) + '\')">' +
           '<div class="cf-cwrap">' +
             (c.photo ? '<div class="cf-av" style="background-image:url(\'' + esc(c.photo) + '\');"></div>'
                      : '<div class="cf-av">' + esc((c.name || 'M').charAt(0).toUpperCase()) + '</div>') +
@@ -126,30 +144,12 @@
       html += '<div class="cf-empty">No connections yet — open <b>People you might click with</b>, tap someone and add their passport.</div>';
     }
 
-    // 3) From your people
-    html += '<div class="cf-sec-head" style="margin-bottom:2px;"><div class="cf-sec-t">From your people</div></div>';
-    if (feed.length) {
-      html += feed.map(function (it) {
-        var av;
-        if (it.actor_id) {
-          av = '<div class="cf-rav">' +
-            (it.photo ? '<div class="cf-ravc" style="background-image:url(\'' + esc(it.photo) + '\');"></div>'
-                      : '<div class="cf-ravc">' + esc((it.name || 'M').charAt(0).toUpperCase()) + '</div>') +
-            '<span class="material-icons">' + esc(iconFor(it)) + '</span></div>';
-        } else {
-          av = '<div class="cf-iconc"><span class="material-icons">' + esc(iconFor(it)) + '</span></div>';
-        }
-        return '<div class="cf-row" onclick="FFPConnFeed.tap(\'' + attr(it.type) + '\',\'' + attr(it.link) + '\', this)">' +
-          av +
-          '<div class="cf-rtxt"><div class="cf-rt">' + esc(it.title) + '</div>' +
-          (it.sub ? '<div class="cf-rs">' + esc(it.sub) + '</div>' : '') + '</div>' +
-          '<span class="material-icons cf-chev">chevron_right</span></div>';
-      }).join('');
-    } else {
-      html += '<div class="cf-empty">Nothing yet. When your connections log activities, join meet-ups or challenges, it shows up here.</div>';
-    }
+    // 3) Selected connection's activities — a horizontal slider, populated by selectPerson()
+    html += '<div id="cf-person-activities" style="margin-top:6px;"></div>';
 
     root.innerHTML = html;
+    // auto-select the most-active connection so the activities slider isn't empty
+    if (conns.length) { try { var c0 = conns[0]; window.FFPConnFeed.selectPerson(c0.id, c0.name); } catch (e) {} }
   }
 
   var loading = false, tries = 0;
@@ -170,7 +170,89 @@
 
   function goPanel(pid) { var b = document.querySelector('.nav-item[data-panel="' + pid + '"]'); if (b) b.click(); }
 
+  // ── Passport member search ──
+  function searchRow(u) {
+    var btn;
+    if (u.connection === 'connected') btn = '<button class="cf-cbtn done" disabled>✓ Connected</button>';
+    else if (u.connection === 'requested') btn = '<button class="cf-cbtn done" disabled>Requested</button>';
+    else if (u.connection === 'incoming') btn = '<button class="cf-cbtn" onclick="event.stopPropagation();FFPConnFeed.connect(\'' + attr(u.id) + '\',\'incoming\',\'' + attr(u.name) + '\',this)">Accept</button>';
+    else btn = '<button class="cf-cbtn" onclick="event.stopPropagation();FFPConnFeed.connect(\'' + attr(u.id) + '\',\'none\',\'' + attr(u.name) + '\',this)">Add</button>';
+    var av = u.photo
+      ? '<div style="width:40px;height:40px;border-radius:50%;flex-shrink:0;background:#214b6b center/cover no-repeat;background-image:url(\'' + esc(u.photo) + '\');"></div>'
+      : '<div style="width:40px;height:40px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#214b6b;color:#cfe6f5;font-weight:800;">' + esc((u.name || 'M').charAt(0).toUpperCase()) + '</div>';
+    return '<div class="cf-row" onclick="FFPConnFeed.openCard(\'' + attr(u.id) + '\')">' + av +
+      '<div class="cf-rtxt"><div class="cf-rt"><b>' + esc(u.name || 'Member') + '</b></div>' +
+      (u.city ? '<div class="cf-rs">' + esc(u.city) + '</div>' : '') + '</div>' + btn + '</div>';
+  }
+  var _searchT = null;
+  async function doSearch(q) {
+    var box = document.getElementById('cf-search-results'); if (!box) return;
+    q = (q || '').trim();
+    if (q.length < 2) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    var me = memberId(); if (!me || !window.supabase) { box.style.display = 'none'; return; }
+    box.style.display = 'block'; box.innerHTML = '<div class="cf-empty">Searching…</div>';
+    try {
+      var r = await window.supabase.rpc('member_search_passport', { p_me: me, p_q: q });
+      var list = (r && r.data) || [];
+      box.innerHTML = list.length ? list.map(searchRow).join('') : '<div class="cf-empty">No one found for “' + esc(q) + '”.</div>';
+    } catch (e) { box.innerHTML = '<div class="cf-empty">Couldn’t search right now.</div>'; }
+  }
+
+  // ── Selected connection's recent activities (horizontal slider) ──
+  function actIcon(name) { try { return (window.ffpActivityIcon ? window.ffpActivityIcon(name) : 'fitness_center'); } catch (e) { return 'fitness_center'; } }
+  function actCard(a) {
+    var bg = a.photo_url ? "background-image:url('" + esc(a.photo_url) + "');" : '';
+    var stat = (a.distance_km && a.distance_km > 0) ? (Math.round(a.distance_km * 10) / 10) + ' km' : ((a.duration_min || 0) ? (a.duration_min + ' min') : '');
+    var d = a.logged_at ? new Date(a.logged_at).toLocaleDateString([], { day: 'numeric', month: 'short' }) : '';
+    return '<div class="cf-acard" onclick="FFPConnFeed.openActivity(\'' + attr(a.id) + '\')">' +
+      '<div class="cf-acard-img" style="' + bg + '">' + (a.photo_url ? '' : '<span class="material-icons">' + esc(actIcon(a.activity)) + '</span>') + '</div>' +
+      '<div class="cf-acard-b"><div class="cf-acard-t">' + esc(a.activity || 'Activity') + '</div>' +
+      '<div class="cf-acard-s">' + esc([stat, d].filter(Boolean).join(' · ')) + '</div></div></div>';
+  }
+  async function renderActivities(id, name) {
+    var host = document.getElementById('cf-person-activities'); if (!host) return;
+    var first = esc(String(name || 'Member').split(' ')[0]);
+    var head = '<div class="cf-sec-head" style="margin-bottom:6px;"><div class="cf-sec-t">' + first + '’s activities</div>' +
+      '<div class="cf-sec-link" onclick="FFPConnFeed.openCard(\'' + attr(id) + '\')">Passport</div></div>';
+    host.innerHTML = head + '<div class="cf-empty">Loading…</div>';
+    var me = memberId(); if (!me || !window.supabase) { host.innerHTML = ''; return; }
+    try {
+      var r = await window.supabase.rpc('member_connection_activities', { p_me: me, p_other: id, p_limit: 12 });
+      var list = (r && r.data) || [];
+      host.innerHTML = head + (list.length ? '<div class="cf-acts">' + list.map(actCard).join('') + '</div>' : '<div class="cf-empty">No shared activities yet.</div>');
+    } catch (e) { host.innerHTML = head + '<div class="cf-empty">Couldn’t load activities.</div>'; }
+  }
+
   window.FFPConnFeed = {
+    search: function (v) { clearTimeout(_searchT); _searchT = setTimeout(function () { doSearch(v); }, 280); },
+    connect: async function (id, status, name, btn) {
+      var me = memberId(); if (!me || !window.supabase || !id) return;
+      try {
+        if (status === 'incoming') {
+          var up = await window.supabase.from('member_connections').update({ status: 'accepted' }).eq('requester_id', id).eq('addressee_id', me);
+          if (up.error) throw up.error;
+          if (btn) { btn.textContent = '✓ Connected'; btn.disabled = true; btn.className = 'cf-cbtn done'; }
+          if (window.showToast) showToast('You’re connected with ' + String(name || 'them').split(' ')[0], 'success');
+        } else {
+          var ins = await window.supabase.from('member_connections').insert({ requester_id: me, addressee_id: id, status: 'pending' });
+          if (ins.error) throw ins.error;
+          if (btn) { btn.textContent = 'Requested'; btn.disabled = true; btn.className = 'cf-cbtn done'; }
+          if (window.showToast) showToast('Request sent to ' + String(name || 'them').split(' ')[0], 'success');
+        }
+      } catch (e) { if (window.showToast) showToast('Could not send — try again', 'error'); }
+    },
+    openSearch: function () {
+      var body = '<div class="cv-wrap"><h3 class="q-title">Find a connection</h3>' +
+        '<input id="cf-search" class="cf-search" placeholder="Search Find Fit People members…" autocomplete="off" oninput="FFPConnFeed.search(this.value)">' +
+        '<div id="cf-search-results" style="min-height:60px;"></div></div>';
+      if (typeof openDetailModal === 'function') openDetailModal(body);
+      setTimeout(function () { var i = document.getElementById('cf-search'); if (i) { try { i.focus(); } catch (e) {} } }, 60);
+    },
+    selectPerson: function (id, name) {
+      try { var cells = document.querySelectorAll('.cf-cell'); for (var i = 0; i < cells.length; i++) cells[i].classList.remove('sel'); var sel = document.getElementById('cf-cell-' + id); if (sel) sel.classList.add('sel'); } catch (e) {}
+      renderActivities(id, name);
+    },
+    openActivity: function (id) { try { if (window.ffpViewSharedActivity) window.ffpViewSharedActivity(id); else this.openCard(id); } catch (e) {} },
     render: load,
     reload: load,
     discover: function () { try { if (window.MeetMove && MeetMove.openMatchesGrid) MeetMove.openMatchesGrid(); } catch (e) {} },
