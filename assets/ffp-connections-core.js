@@ -248,8 +248,8 @@ const MeetMove = {
     const _nowC = Date.now();
     const joinedCount = this.data.filter(m => m.joinedByMe && !m.isHostedByMe && !(m._ts && m._ts < _nowC)).length;
     const hostingCount = this.data.filter(m => m.isHostedByMe || this.hostingIds.has(m.id)).length;
-    document.getElementById('cnt-meet-joined').textContent = joinedCount;
-    document.getElementById('cnt-meet-hosting').textContent = hostingCount;
+    var _cj = document.getElementById('cnt-meet-joined'); if (_cj) _cj.textContent = joinedCount;
+    var _ch = document.getElementById('cnt-meet-hosting'); if (_ch) _ch.textContent = hostingCount;
     
     const items = this.filtered();
     const grid = document.getElementById('meet-grid');
