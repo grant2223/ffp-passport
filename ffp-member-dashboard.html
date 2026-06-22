@@ -4746,7 +4746,6 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
   <div id="panel-meet" class="panel-view">
     <div class="user-panel-head">
       <h2>Connections</h2>
-      <div class="user-panel-sub">Connect with other people who enjoy the same activities you do.</div>
     </div>
     
     <!-- v324: Connections feed — discovery strap + most-active connections + updates.
@@ -7818,6 +7817,14 @@ function setupTopbar() {
 var FFP_API_NOTIF = 'https://ffp-passport-backend.vercel.app';
 function escNotif(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function notifTime(iso){ if(!iso) return ''; var d=Date.now()-new Date(iso).getTime(); var m=Math.floor(d/60000); if(m<1)return 'just now'; if(m<60)return m+'m ago'; var h=Math.floor(m/60); if(h<24)return h+'h ago'; return Math.floor(h/24)+'d ago'; }
+// The Passport bell shows ONLY passport-activity notifications — activities logged, connection
+// requests, meet-ups and quests. Commerce/booking notifications (payments, packages, partner
+// announcements) link to the plain dashboard and are intentionally excluded here.
+function _notifIsPassport(n){
+  var l = String((n && n.link) || '');
+  return /[?&](activity|meetup|quest|connect)=/.test(l)
+      || /#(panel-passport|panel-meetups|panel-quests|connections|activity-tags)/.test(l);
+}
 async function loadMeets() {
   var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
   if (!member || !member.id || !window.supabase) return;
@@ -7960,10 +7967,15 @@ async function loadNotifications() {
     var res = await fetch(FFP_API_NOTIF + '/api/notifications/' + member.id);
     var json = await res.json();
     var list = (json && json.notifications) || [];
+    // Passport bell shows ONLY passport-activity notifications.
+    list = list.filter(_notifIsPassport);
     // #3: hide anything cleared via "Clear all" (created at/before the cleared-at marker).
     var _clr = 0; try { _clr = parseInt(localStorage.getItem('ffp_notifs_cleared_at') || '0', 10) || 0; } catch (e) {}
     if (_clr) list = list.filter(function (n) { return new Date(n.created_at).getTime() > _clr; });
-    unread = (json && json.unread) || 0;
+    // Unread recomputed from the filtered list so the badge matches what's actually shown.
+    var _seenAt = 0; try { _seenAt = parseInt(localStorage.getItem('ffp_notifs_seen_at') || '0', 10) || 0; } catch (e) {}
+    var _mark = Math.max(_seenAt, _clr);
+    unread = list.filter(function (n) { return new Date(n.created_at).getTime() > _mark; }).length;
     backendHtml = list.map(function (n) {
       var link = n.link || '';
       var tap = link ? (' style="cursor:pointer;" onclick="ffpHandleNotifClick(\'' + String(link).replace(/'/g, '%27') + '\')"') : '';
@@ -7990,6 +8002,7 @@ async function markNotifsSeen() {
   var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
   if (!member || !member.id) return;
   var badge = document.getElementById('notif-badge'); if (badge) badge.style.display = 'none';
+  try { localStorage.setItem('ffp_notifs_seen_at', String(Date.now())); } catch (e) {}
   // Mark the currently-pending review prompts as seen so they stop counting toward the "new" badge.
   try {
     var _rev = (typeof ReviewPrompt !== 'undefined' && ReviewPrompt.pending) ? ReviewPrompt.pending() : [];
@@ -8092,7 +8105,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '406';
+  const FFP_BUILD = '407';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -12549,7 +12562,7 @@ else init();
 .ffp-deck-flash.show{ opacity:1; }
 </style>
 <script src="assets/ffp-connections-core.js?v=357"></script>
-<script defer src="assets/ffp-connections-feed-loader.js?v=332"></script>
+<script defer src="assets/ffp-connections-feed-loader.js?v=333"></script>
 <script defer src="assets/ffp-event-results-loader.js?v=329"></script>
 <script>
 (function(){
