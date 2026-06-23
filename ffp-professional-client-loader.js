@@ -50,39 +50,82 @@ function memberRow(m){
   '</div>';
 }
 // Tap a client strap → their profile, with everything you do for a client in one place.
-function clientProfile(id){
-  var m=_members.find(function(x){return x.id===id;}); if(!m){ showToast('Client not found','error'); return; }
+async function clientProfile(id){
+  // Reachable from Scheduling too — the client loader/_members may not be populated yet, so self-load.
+  if(!(_members&&_members.length)){ try{ var rr=await window.supabase.rpc('pro_list_clients',{p_pro:_memProvId()}); if(rr&&rr.data) _members=rr.data; }catch(e){} }
+  var m=(_members||[]).find(function(x){return x.id===id;}); if(!m){ showToast('Client not found','error'); return; }
   var st=m.status||'active'; var stStyle=_cstStyle[st]||_cstStyle.active;
   var jd=m.join_date?String(m.join_date).slice(0,10):'';
-  // Legacy clients have only full_name — split it so Given/Surname still show.
   var gn=m.given_names||'', sn=m.surname||'';
   if(!gn && !sn && m.full_name){ var _np=String(m.full_name).trim().split(/\s+/); gn=_np.shift()||''; sn=_np.join(' '); }
+  var nm=(m.full_name||((gn+' '+sn).trim())||'Client');
   var tags=(m.tags||'').split(',').map(function(t){return t.trim();}).filter(Boolean);
   var fmtDob=function(d){ if(!d)return ''; try{ return new Date(String(d).slice(0,10)+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}); }catch(e){ return String(d).slice(0,10); } };
-  // Passport-style rows — ALWAYS shown ("—" when empty) so the profile reads like a record.
-  var prow=function(lbl,val){ return '<div style="display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid var(--ffp-border);"><span class="psub">'+lbl+'</span><span style="color:var(--ffp-text);font-weight:600;text-align:right;word-break:break-word;">'+(val?escHtml(val):'<span style="color:var(--ffp-text-dim);">—</span>')+'</span></div>'; };
-  var mkRows=function(d){ return prow('Given name',d.given_names)+prow('Surname',d.surname)+prow('Gender',d.gender)+prow('Date of birth',fmtDob(d.date_of_birth))+prow('Email',d.email)+prow('Phone',d.phone)+prow('Nationality',d.nationality); };
-  var act=function(ic,lbl,fn){ return '<button class="btn btn-sec btn-block" style="justify-content:flex-start;gap:9px;" onclick="closeModal();'+fn+'"><span class="ms">'+ic+'</span> '+lbl+'</button>'; };
-  openModalShell('lg', escHtml(m.full_name||((gn+' '+sn).trim())||'Client'),
-    '<div style="margin:-2px 0 12px;"><span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;'+stStyle+'">'+(CLIENT_STATUS[st]||'Active')+'</span></div>'+
-    '<div id="cp-src" style="display:none;font-size:11px;font-weight:700;color:var(--ffp-purple);margin:0 0 8px;"><span class="ms" style="font-size:14px;vertical-align:-2px;">verified_user</span> Pulled from their FFP Passport</div>'+
-    '<div id="cp-details">'+mkRows({given_names:gn,surname:sn,gender:m.gender,date_of_birth:m.date_of_birth,email:m.email,phone:m.phone,nationality:m.nationality})+'</div>'+
-    (jd?prow('Client since', jd):'')+(tags.length?prow('Tags', tags.join(', ')):'')+
-    (m.notes?'<div style="margin-top:12px;"><div class="psub" style="margin-bottom:5px;">Notes</div><div style="background:var(--ffp-bg-card);border:1px solid var(--ffp-border);border-radius:10px;padding:11px 13px;color:var(--ffp-text);line-height:1.6;white-space:pre-wrap;">'+escHtml(m.notes)+'</div></div>':'')+
-    '<div style="display:flex;flex-direction:column;gap:8px;margin-top:18px;">'+
-      act('health_and_safety','Connect client Passport','openClientHealth(\''+id+'\')')+
-      act('card_membership','Packages','openMembership(\''+id+'\')')+
-      act('assignment','Forms','clientAssessment(\''+id+'\')')+
-      act('edit','Edit profile','openMemberModal(\''+id+'\')')+
+  var fmtSince=function(d){ if(!d)return ''; try{ return new Date(String(d).slice(0,10)+'T00:00:00').toLocaleDateString('en-GB',{month:'short',year:'numeric'}); }catch(e){ return String(d).slice(0,10); } };
+  // Info as a tidy 2-column grid of cards (not one long row per field).
+  var cell=function(lbl,val){ return '<div style="background:var(--ffp-bg-card);border:1px solid var(--ffp-border);border-radius:12px;padding:9px 12px;min-width:0;"><div style="font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--ffp-text-dim);margin-bottom:2px;">'+lbl+'</div><div style="font-weight:700;color:var(--ffp-text);font-size:13px;word-break:break-word;line-height:1.3;">'+(val?escHtml(val):'<span style="color:var(--ffp-text-dim);font-weight:600;">—</span>')+'</div></div>'; };
+  var gridCells=function(d){ return cell('Email',d.email)+cell('Phone',d.phone)+cell('Date of birth',fmtDob(d.date_of_birth))+cell('Gender',d.gender)+cell('Nationality',d.nationality)+cell('Client since',fmtSince(jd)); };
+  // Compact square action tiles (icon over label) instead of big full-width rows.
+  var tile=function(ic,lbl,fn){ return '<button onclick="closeModal();'+fn+'" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:14px 8px;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:14px;cursor:pointer;color:var(--ffp-text);min-height:80px;font-family:inherit;"><span class="ms" style="font-size:23px;color:var(--ffp-purple);">'+ic+'</span><span style="font-size:11.5px;font-weight:700;text-align:center;line-height:1.2;">'+lbl+'</span></button>'; };
+  openModalShell('lg', escHtml(nm),
+    // Header: avatar + name + status
+    '<div style="display:flex;align-items:center;gap:13px;margin:-2px 0 14px;">'+
+      '<span style="width:52px;height:52px;border-radius:50%;background:rgba(124,58,237,0.14);color:var(--ffp-purple);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;flex:0 0 auto;">'+escHtml(nm.slice(0,1).toUpperCase())+'</span>'+
+      '<div style="min-width:0;"><div style="font-weight:800;font-size:17px;color:var(--ffp-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(nm)+'</div>'+
+        '<div style="margin-top:4px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;"><span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;'+stStyle+'">'+(CLIENT_STATUS[st]||'Active')+'</span>'+(tags.length?'<span class="psub" style="margin:0;font-size:11px;">'+escHtml(tags.join(' · '))+'</span>':'')+'</div></div></div>'+
+    '<div id="cp-src" style="display:none;font-size:11px;font-weight:700;color:var(--ffp-purple);margin:0 0 10px;"><span class="ms" style="font-size:14px;vertical-align:-2px;">verified_user</span> Pulled from their FFP Passport</div>'+
+    '<div id="cp-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">'+gridCells({email:m.email,phone:m.phone,date_of_birth:m.date_of_birth,gender:m.gender,nationality:m.nationality})+'</div>'+
+    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">'+
+      tile('health_and_safety','Connect Passport','openClientHealth(\''+id+'\')')+
+      tile('card_membership','Packages','openMembership(\''+id+'\')')+
+      tile('assignment','Forms','clientAssessment(\''+id+'\')')+
+      tile('sticky_note_2','Notes','openClientNotes(\''+id+'\')')+
+      tile('edit','Edit profile','openMemberModal(\''+id+'\')')+
     '</div>',
     '<button class="btn btn-ghost left" onclick="closeModal();confirmDeleteMember(\''+id+'\')"><span class="ms">delete</span> Delete client</button>'+
     '<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
-  // Auto-pull identity from the client's FFP Passport by email match (per Grant) — upgrades the rows in place.
+  // Auto-pull identity from the client's FFP Passport by email match — upgrades the grid in place.
   if(window.supabase){ try{ window.supabase.rpc('pro_client_passport',{p_pro:_memProvId(),p_client:id}).then(function(r){
     var d=(r&&r.data)||{}; if(!d.has_account) return;
-    var el=document.getElementById('cp-details'); if(el) el.innerHTML=mkRows(d);
+    var el=document.getElementById('cp-grid'); if(el) el.innerHTML=gridCells(d);
     var src=document.getElementById('cp-src'); if(src) src.style.display='';
   }).catch(function(){}); }catch(e){} }
+}
+// ─── COACH NOTES (threaded, per client) ───
+var _cnClient=null, _cnNotes=[];
+function cnWhen(ts){ if(!ts) return ''; try{ var d=new Date(ts); return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+' · '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); }catch(e){ return String(ts).slice(0,10); } }
+function openClientNotes(id){
+  _cnClient=id;
+  var m=(_members||[]).find(function(x){return x.id===id;})||{};
+  openModalShell('lg','Notes · '+escHtml(m.full_name||'Client'),
+    '<div style="display:flex;gap:8px;margin:0 0 14px;"><input id="cn-input" class="input" placeholder="Add a note — what they worked on, how they went…" style="flex:1;font-size:13px;" onkeydown="if(event.key===\'Enter\'){event.preventDefault();cnAdd();}"><button class="btn btn-pri btn-sm" onclick="cnAdd()"><span class="ms">add</span> Add</button></div>'+
+    '<div id="cn-list"><div class="psub" style="padding:6px 0;">Loading…</div></div>',
+    '<button class="btn btn-ghost left" onclick="clientProfile(\''+id+'\')">Back</button><button class="btn btn-ghost" onclick="closeModal()">Close</button>');
+  cnLoad();
+}
+async function cnLoad(){
+  var pid=_memProvId();
+  try{ var r=await window.supabase.rpc('pro_list_client_notes',{p_pro:pid,p_client:_cnClient}); _cnNotes=(r&&r.data)||[]; }catch(e){ _cnNotes=[]; }
+  cnRender();
+}
+function cnRender(){
+  var host=document.getElementById('cn-list'); if(!host) return;
+  host.innerHTML = _cnNotes.length ? _cnNotes.map(function(n){
+    return '<div style="border-left:3px solid var(--ffp-purple);background:var(--ffp-bg-card);border-radius:0 10px 10px 0;padding:10px 13px;margin-bottom:8px;"><div style="font-size:13px;color:var(--ffp-text);line-height:1.55;white-space:pre-wrap;">'+escHtml(n.body||'')+'</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;"><div class="psub" style="margin:0;font-size:10.5px;">'+cnWhen(n.created_at)+'</div><button onclick="cnDelete(\''+n.id+'\')" style="background:none;border:none;color:var(--ffp-text-dim);cursor:pointer;font-size:11px;font-weight:700;">Delete</button></div></div>';
+  }).join('') : '<div class="psub" style="padding:6px 0;">No notes yet — add the first one above to track what they’ve been working on.</div>';
+}
+async function cnAdd(){
+  var inp=document.getElementById('cn-input'); if(!inp) return; var body=(inp.value||'').trim(); if(!body) return;
+  var pid=_memProvId();
+  try{ var r=await window.supabase.rpc('pro_add_client_note',{p_pro:pid,p_client:_cnClient,p_body:body}); if(r&&r.error) throw r.error;
+    var d=(r&&r.data)||{}; _cnNotes.unshift({id:d.id,body:body,created_at:d.created_at||new Date().toISOString()}); inp.value=''; cnRender();
+  }catch(e){ showToast('Could not add note','error'); }
+}
+async function cnDelete(nid){
+  var pid=_memProvId();
+  try{ var r=await window.supabase.rpc('pro_delete_client_note',{p_pro:pid,p_id:nid}); if(r&&r.error) throw r.error;
+    _cnNotes=_cnNotes.filter(function(n){return String(n.id)!==String(nid);}); cnRender();
+  }catch(e){ showToast('Could not delete','error'); }
 }
 // ─── ASSESSMENT FORMS (client record) — waivers, PAR-Q+, custom templates ───
 var _afForms=[], _afClient=null, _afFields=[], _afEditTplId=null, _afTpls=[];
