@@ -186,7 +186,7 @@ function openClientNotes(id){
   openModalShell('lg','Notes · '+escHtml(m.full_name||'Client'),
     '<div style="display:flex;gap:8px;margin:0 0 14px;"><input id="cn-input" class="input" placeholder="Add a note — what they worked on, how they went…" style="flex:1;font-size:13px;" onkeydown="if(event.key===\'Enter\'){event.preventDefault();cnAdd();}"><button class="btn btn-pri btn-sm" onclick="cnAdd()"><span class="ms">add</span> Add</button></div>'+
     '<div id="cn-list"><div class="psub" style="padding:6px 0;">Loading…</div></div>',
-    '<button class="btn btn-ghost left" onclick="clientProfile(\''+id+'\')">Back</button><button class="btn btn-ghost" onclick="closeModal()">Close</button>');
+    '<button class="btn btn-ghost" onclick="clientProfile(\''+id+'\')">Close</button>');
   cnLoad();
 }
 async function cnLoad(){
@@ -222,7 +222,7 @@ function clientAssessment(id){
   openModalShell('lg','Forms · '+escHtml(m.full_name||'Client'),
     '<div style="display:flex;gap:8px;margin:0 0 14px;flex-wrap:wrap;"><button class="btn btn-pri btn-sm" onclick="afAssign()"><span class="ms">post_add</span> Assign form</button><button class="btn btn-sec btn-sm" onclick="afManageTemplates()"><span class="ms">tune</span> Manage templates</button></div>'+
     '<div id="af-list"><div class="psub" style="padding:6px 0;">Loading…</div></div>',
-    '<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
+    '<button class="btn btn-ghost" onclick="clientProfile(\''+id+'\')">Close</button>');
   afLoad();
 }
 async function afLoad(){
@@ -239,18 +239,22 @@ function afRender(){
   var host=document.getElementById('af-list'); if(!host) return;
   if(!_afForms.length){ host.innerHTML='<div class="psub" style="padding:6px 0;">No forms yet — assign one above (e.g. a waiver or PAR-Q+).</div>'; return; }
   host.innerHTML=_afForms.map(function(f){
-    var det='';
+    var content='';
     if(f.status==='completed'){
-      if(f.source==='upload'&&f.uploaded_file_url){ det+='<div style="margin-bottom:7px;"><a href="'+escHtml(f.uploaded_file_url)+'" target="_blank" rel="noopener" style="color:var(--ffp-purple);font-weight:700;font-size:12.5px;"><span class="ms" style="font-size:15px;vertical-align:-3px;">description</span> View uploaded copy</a></div>'; }
-      var resp=f.responses||{}; (f.fields||[]).forEach(function(fl){ if(fl.type==='statement'||fl.type==='info') return; var v=resp[fl.key]; if(fl.type==='consent') v=(v?'Accepted':'Not accepted'); if(fl.type==='yesno') v=(v===true||v==='yes'?'Yes':(v===false||v==='no'?'No':v)); det+='<div style="font-size:12px;margin-bottom:5px;line-height:1.5;"><span class="psub" style="margin:0;">'+escHtml(fl.label||fl.key)+'</span><br><span style="font-weight:700;color:var(--ffp-text);">'+escHtml(v==null||v===''?'—':String(v))+'</span></div>'; });
-      if(f.signature_name) det+='<div class="psub" style="font-size:12px;margin-top:7px;">Signed by <b style="color:var(--ffp-text);">'+escHtml(f.signature_name)+'</b> · '+afWhen(f.completed_at)+'</div>';
+      if(f.source==='upload'&&f.uploaded_file_url){ content+='<div style="margin-bottom:8px;"><a href="'+escHtml(f.uploaded_file_url)+'" target="_blank" rel="noopener" style="color:var(--ffp-purple);font-weight:700;font-size:12.5px;"><span class="ms" style="font-size:15px;vertical-align:-3px;">description</span> View uploaded copy</a></div>'; }
+      var resp=f.responses||{}; (f.fields||[]).forEach(function(fl){ if(fl.type==='statement'||fl.type==='info') return; var v=resp[fl.key]; if(fl.type==='consent') v=(v?'Accepted':'Not accepted'); if(fl.type==='yesno') v=(v===true||v==='yes'?'Yes':(v===false||v==='no'?'No':v)); content+='<div style="font-size:12px;margin-bottom:5px;line-height:1.5;"><span class="psub" style="margin:0;">'+escHtml(fl.label||fl.key)+'</span><br><span style="font-weight:700;color:var(--ffp-text);">'+escHtml(v==null||v===''?'—':String(v))+'</span></div>'; });
+      if(f.signature_name) content+='<div class="psub" style="font-size:12px;margin-top:7px;">Signed by <b style="color:var(--ffp-text);">'+escHtml(f.signature_name)+'</b> · '+afWhen(f.completed_at)+'</div>';
     } else {
-      det+='<div class="psub" style="margin:0 0 8px;">Waiting on the client to complete &amp; sign in their app — or upload a signed copy here.</div>'+
-        '<button class="btn btn-sec btn-sm" onclick="afUpload(\''+f.id+'\')"><span class="ms">upload_file</span> Upload signed copy</button>';
+      content+='<div class="psub" style="margin:0 0 2px;">Waiting on the client to complete &amp; sign in their app — or upload a signed copy here.</div>';
     }
-    det+='<div style="margin-top:10px;display:flex;gap:16px;"><button onclick="afPreviewForm(\''+f.id+'\')" style="background:none;border:none;color:var(--ffp-purple);font-size:11px;font-weight:700;cursor:pointer;">Preview</button><button onclick="afRemove(\''+f.id+'\')" style="background:none;border:none;color:var(--ffp-text-dim);font-size:11px;font-weight:700;cursor:pointer;">Remove form</button></div>';
-    var left='<div style="font-weight:700;color:var(--ffp-text);font-size:13px;">'+escHtml(f.title)+'</div><div class="psub" style="margin:0;">Assigned '+afWhen(f.assigned_at)+'</div>';
-    return '<div style="border-bottom:1px solid var(--ffp-border);"><div onclick="afToggle(this)" style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 2px;cursor:pointer;"><div style="min-width:0;">'+left+'</div><div style="display:flex;align-items:center;gap:10px;flex:0 0 auto;">'+afStatusPill(f)+'<span class="ms af-chev" style="font-size:18px;color:var(--ffp-text-dim);">expand_more</span></div></div><div style="display:none;padding:0 2px 12px;">'+det+'</div></div>';
+    var uploadBtn=(f.status!=='completed')?'<button class="btn btn-sec btn-sm" onclick="afUpload(\''+f.id+'\')"><span class="ms">upload_file</span> Upload signed copy</button>':'';
+    var actionRow='<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap;"><div>'+uploadBtn+'</div>'+
+      '<div style="display:flex;gap:18px;align-items:center;">'+
+        '<button onclick="afPreviewForm(\''+f.id+'\')" style="background:none;border:none;color:var(--ffp-purple);font-size:12px;font-weight:700;cursor:pointer;padding:4px 0;">Preview</button>'+
+        '<button onclick="afRemove(\''+f.id+'\')" style="background:none;border:none;color:#d9534f;font-size:12px;font-weight:700;cursor:pointer;padding:4px 0;">Remove</button>'+
+      '</div></div>';
+    var header='<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:9px;"><div style="min-width:0;"><div style="font-weight:700;color:var(--ffp-text);font-size:13.5px;">'+escHtml(f.title)+'</div><div class="psub" style="margin:1px 0 0;">Assigned '+afWhen(f.assigned_at)+'</div></div>'+afStatusPill(f)+'</div>';
+    return '<div style="border:1px solid var(--ffp-border);border-radius:12px;padding:12px 13px;margin-bottom:10px;background:var(--ffp-bg-2);">'+header+content+actionRow+'</div>';
   }).join('');
 }
 function afUpload(fid){
@@ -439,7 +443,7 @@ function openMemberModal(id){
       '<div class="field full"><div class="label">Notes</div><textarea class="textarea" id="mm-notes" rows="4">'+escHtml(m.notes||'')+'</textarea></div>'+
     '</div></div>',
     (editing?'<button class="btn btn-ghost left" onclick="confirmDeleteMember(\''+editing.id+'\')"><span class="ms">delete</span> Delete</button>':'')+
-    '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>'+
+    (editing?'<button class="btn btn-ghost" onclick="clientProfile(\''+editing.id+'\')">Cancel</button>':'<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>')+
     '<button class="btn btn-pri" onclick="saveMember(\''+(editing?editing.id:'')+'\')">'+(editing?'Save':'Add client')+'</button>');
   if(window._phoneSet) _phoneSet('mm-phone', m.phone||'');
 }
@@ -474,7 +478,10 @@ async function saveMember(id){
   if(pulled && pulled.email && String(pulled.email).toLowerCase()===String(g('email')).toLowerCase()){
     if(pulled.gender)payload.gender=pulled.gender; if(pulled.date_of_birth)payload.date_of_birth=pulled.date_of_birth; if(pulled.nationality)payload.nationality=pulled.nationality;
   }
-  try{ var r=await window.supabase.rpc('pro_save_client',{p_pro:pid,p_id:id||null,p:payload}); if(r&&r.error)throw r.error; showToast(id?'Client updated':'Client added','success'); closeModal(); renderMembers(); }catch(e){ showToast('Could not save client','error'); }
+  try{ var r=await window.supabase.rpc('pro_save_client',{p_pro:pid,p_id:id||null,p:payload}); if(r&&r.error)throw r.error; showToast(id?'Client updated':'Client added','success');
+    if(id){ try{ var rr=await window.supabase.rpc('pro_list_clients',{p_pro:pid}); if(rr&&rr.data)_members=rr.data; }catch(e2){} clientProfile(id); }
+    else { closeModal(); renderMembers(); }
+  }catch(e){ showToast('Could not save client','error'); }
 }
 function confirmDeleteMember(id){ openModalShell('','Remove client?','<div class="psub" style="margin:6px 0;">This removes them from your client list.</div>','<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="doDeleteMember(\''+id+'\')">Remove</button>'); }
 async function doDeleteMember(id){ var pid=_memProvId(); try{ var r=await window.supabase.rpc('pro_delete_client',{p_pro:pid,p_id:id}); if(r&&r.error)throw r.error; showToast('Client removed','success'); }catch(e){ showToast('Could not remove','error'); } closeModal(); renderMembers(); }
@@ -486,7 +493,7 @@ function _healthTime(s){ if(!s)return '—'; s=+s; var m=Math.floor(s/60),ss=s%6
 async function openClientHealth(clientId){
   var pid=_memProvId(); if(!pid)return;
   var cl=(_members||[]).find(function(x){return x.id===clientId;})||{};
-  openModalShell('lg','Health data · '+escHtml(cl.full_name||'Client'),'<div class="psub" style="padding:14px 0;">Checking access…</div>','<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
+  openModalShell('lg','Health data · '+escHtml(cl.full_name||'Client'),'<div class="psub" style="padding:14px 0;">Checking access…</div>','<button class="btn btn-ghost" onclick="clientProfile(\''+clientId+'\')">Close</button>');
   var st={};
   try{ var r=await window.supabase.rpc('pro_client_access_status',{p_pro:pid,p_client:clientId}); st=(r&&r.data)||{}; }catch(e){}
   var body=document.querySelector('#ffp-modal .mc-body'); if(!body)return;
@@ -648,7 +655,7 @@ async function openMembership(clientId){
       '<div class="field"><div class="label">Start</div><input class="input" type="date" id="asg-start" value="'+todayStr+'"></div>'+
       '<div class="field full"><button class="btn btn-pri" onclick="assignPlan(\''+clientId+'\')"><span class="ms">add</span> Assign</button></div></div></div>';
   } else { form='<div class="psub" style="margin:8px 0;">Create a package in the Packages tab first.</div>'; }
-  openModalShell('lg','Packages · '+escHtml(m.full_name||'Client'),'<div class="form-section"><div class="form-section-title">Current</div>'+current+'</div>'+form,'<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
+  openModalShell('lg','Packages · '+escHtml(m.full_name||'Client'),'<div class="form-section"><div class="form-section-title">Current</div>'+current+'</div>'+form,'<button class="btn btn-ghost" onclick="clientProfile(\''+clientId+'\')">Close</button>');
 }
 function membershipRow(a){
   var active=a.status==='active'; var stColor=active?'rgba(43,168,224,.16);color:#6fc6ef':'rgba(10,62,68,.08);color:#5a6b6e';
