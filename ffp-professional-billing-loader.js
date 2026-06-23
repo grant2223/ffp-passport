@@ -119,8 +119,7 @@ function payRow(p,mode){
   var sub=[]; if(p.client_name)sub.push(escHtml(p.client_name)); if(mode==='invoice')sub.push(_invNo(p)); if(mode==='payment'&&p.method)sub.push(PAY_METHODS[p.method]||p.method); if(date)sub.push(date);
   var actions='';
   if(mode==='invoice'){
-    actions+='<button class="btn btn-pri btn-sm" onclick="openInvoiceSend(\''+p.id+'\')"><span class="ms">send</span> Send</button>'+
-      '<button class="btn btn-sec btn-sm" onclick="openInvoicePreview(\''+p.id+'\')" title="Preview invoice"><span class="ms">visibility</span></button>'+
+    actions+='<button class="btn btn-pri btn-sm" onclick="openInvoicePreview(\''+p.id+'\')"><span class="ms">visibility</span> View &amp; send</button>'+
       '<button class="btn btn-sec btn-sm" onclick="markPaid(\''+p.id+'\')" title="Mark paid"><span class="ms">check</span></button>';
   } else {
     actions+='<button class="btn btn-sec btn-sm" onclick="openInvoicePreview(\''+p.id+'\')" title="View receipt"><span class="ms">visibility</span></button>';
@@ -133,7 +132,31 @@ function payRow(p,mode){
 }
 // ── Business info (the invoice FROM block) — fetched once ──
 var _billBiz=null;
-async function _ensureBillBiz(){ if(_billBiz) return _billBiz; var pid=_billProvId(); if(!pid) return {}; try{ var r=await window.supabase.from('professionals').select('display_name, work_email, phone, city, country, currency').eq('id',pid).maybeSingle(); _billBiz=(r&&r.data)||{}; }catch(e){ _billBiz={}; } return _billBiz; }
+async function _ensureBillBiz(force){ if(_billBiz && !force) return _billBiz; var pid=_billProvId(); if(!pid) return {}; try{ var r=await window.supabase.from('professionals').select('display_name, work_email, phone, city, country, currency, bank_account_name, bank_name, bank_account_number, bank_iban, bank_swift, bank_notes').eq('id',pid).maybeSingle(); _billBiz=(r&&r.data)||{}; }catch(e){ _billBiz={}; } return _billBiz; }
+// ── Bank details tab (shown on invoices) ──
+async function renderBankDetails(){
+  var host=document.getElementById('bank-details'); if(!host) return;
+  var pid=_billProvId(); if(!pid){ host.innerHTML='<div class="empty-sub" style="text-align:left;">Sign in to manage bank details.</div>'; return; }
+  host.innerHTML='<div class="psub" style="margin:10px 0;">Loading…</div>';
+  var b=await _ensureBillBiz(true);
+  var fld=function(id,lbl,val,ph){ return '<div class="field full"><div class="label">'+lbl+'</div><input class="input" id="bk-'+id+'" value="'+escHtml(val||'')+'"'+(ph?' placeholder="'+ph+'"':'')+'></div>'; };
+  host.innerHTML='<div class="form-section"><div class="form-section-title">Where clients pay you</div><div class="form-grid">'+
+    fld('bank_account_name','Account holder name',b.bank_account_name,'e.g. Forge Fitness FZ')+
+    fld('bank_name','Bank name',b.bank_name,'e.g. Emirates NBD')+
+    fld('bank_account_number','Account number',b.bank_account_number,'')+
+    fld('bank_iban','IBAN',b.bank_iban,'AE…')+
+    fld('bank_swift','SWIFT / BIC',b.bank_swift,'')+
+    '<div class="field full"><div class="label">Other payment notes</div><textarea class="textarea" id="bk-bank_notes" rows="2" placeholder="e.g. PayPal/Wise, branch, reference to quote">'+escHtml(b.bank_notes||'')+'</textarea></div>'+
+    '</div><div style="margin-top:12px;"><button class="btn btn-pri" onclick="saveBankDetails()"><span class="ms">save</span> Save bank details</button></div>'+
+    '<div class="psub" style="margin:10px 0 0;font-size:11.5px;">These appear in the "Pay to" section of every invoice you send (unpaid invoices only).</div></div>';
+}
+async function saveBankDetails(){
+  var pid=_billProvId(); if(!pid) return;
+  var g=function(id){ var el=document.getElementById('bk-'+id); return el?el.value.trim():''; };
+  var payload={ bank_account_name:g('bank_account_name'), bank_name:g('bank_name'), bank_account_number:g('bank_account_number'), bank_iban:g('bank_iban'), bank_swift:g('bank_swift'), bank_notes:g('bank_notes') };
+  try{ var r=await window.supabase.rpc('pro_save_bank_details',{p_pro:pid,p:payload}); if(r&&r.error) throw r.error; _billBiz=null; await _ensureBillBiz(true); showToast('Bank details saved','success'); }
+  catch(e){ showToast('Could not save','error'); }
+}
 function _invFind(id){ return (_billInvoices.concat(_billPayments)).find(function(x){return x.id===id;}); }
 // ── Full invoice preview (proper invoice with every field a real invoice needs) ──
 async function openInvoicePreview(id){
@@ -146,7 +169,9 @@ async function openInvoicePreview(id){
   var bizLines=[ (biz.city?[biz.city,biz.country].filter(Boolean).join(', '):''), biz.work_email||'', biz.phone||'' ].filter(Boolean).map(function(l){return '<div style="font-size:11px;color:#5a6b6e;">'+escHtml(l)+'</div>';}).join('');
   var clLines=[ clEmail, clPhone ].filter(Boolean).map(function(l){return '<div style="font-size:11px;color:#5a6b6e;">'+escHtml(l)+'</div>';}).join('');
   var statusPill=paid?'<span style="background:#15833f;color:#fff;font-size:10px;font-weight:800;padding:3px 9px;border-radius:5px;letter-spacing:.5px;">PAID</span>':'<span style="background:#fbe2a8;color:#7a4f00;font-size:10px;font-weight:800;padding:3px 9px;border-radius:5px;letter-spacing:.5px;">DUE</span>';
-  var html='<div style="background:#fff;border:1px solid #e2e8ea;border-radius:12px;padding:20px;color:#1a1a1a;">'+
+  var bankItems=[ biz.bank_account_name?'Account name: '+biz.bank_account_name:'', biz.bank_name?'Bank: '+biz.bank_name:'', biz.bank_account_number?'Account no: '+biz.bank_account_number:'', biz.bank_iban?'IBAN: '+biz.bank_iban:'', biz.bank_swift?'SWIFT/BIC: '+biz.bank_swift:'', biz.bank_notes||'' ].filter(Boolean);
+  var bankBlock=(!paid && bankItems.length)?'<div style="margin-top:14px;border-top:1px solid #e9edef;padding-top:10px;"><div style="font-size:9px;font-weight:800;color:#9aa7ad;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Pay to</div>'+bankItems.map(function(l){return '<div style="font-size:11.5px;color:#3a4a4e;line-height:1.55;">'+escHtml(l)+'</div>';}).join('')+'</div>':'';
+  var html='<div id="inv-doc" style="background:#fff;border:1px solid #e2e8ea;border-radius:12px;padding:20px;color:#1a1a1a;">'+
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px;">'+
       '<div style="min-width:0;"><div style="font-size:17px;font-weight:900;color:#0a3e44;word-break:break-word;">'+escHtml(bizName)+'</div>'+bizLines+'</div>'+
       '<div style="text-align:right;flex:0 0 auto;"><div style="font-size:22px;font-weight:900;letter-spacing:2px;color:#0a3e44;">INVOICE</div><div style="font-size:11px;color:#5a6b6e;font-family:monospace;">'+escHtml(inv)+'</div><div style="margin-top:7px;">'+statusPill+'</div></div>'+
@@ -160,31 +185,36 @@ async function openInvoicePreview(id){
       '<tr style="border-bottom:1px solid #e9edef;"><td style="padding:10px 4px;color:#1a1a1a;">'+escHtml(p.description||'Professional services')+'</td><td style="text-align:right;padding:10px 4px;font-weight:600;color:#1a1a1a;">'+amt+'</td></tr>'+
     '</table>'+
     '<div style="display:flex;justify-content:flex-end;margin-top:10px;"><div style="min-width:190px;"><div style="display:flex;justify-content:space-between;font-size:12px;padding:4px;color:#3a4a4e;"><span>Subtotal</span><span>'+amt+'</span></div><div style="display:flex;justify-content:space-between;font-size:16px;font-weight:900;padding:9px 4px;border-top:2px solid #0a3e44;color:#0a3e44;"><span>Total</span><span>'+amt+'</span></div></div></div>'+
+    bankBlock+
     '<div style="margin-top:16px;font-size:10.5px;color:#7a878c;border-top:1px solid #e9edef;padding-top:10px;line-height:1.5;">'+(paid?'Thank you — this invoice has been paid in full.':'Payment due'+(p.due_date?' by '+_invDate(p.due_date):'')+'. Thank you for your business.')+'</div>'+
   '</div>';
   var foot='<button class="btn btn-ghost" onclick="closeModal()">Close</button>'+
-    ((clEmail||clPhone)?'<button class="btn btn-pri" onclick="openInvoiceSend(\''+id+'\')"><span class="ms">send</span> Send invoice</button>':'<span class="psub" style="margin:0;align-self:center;">Add an email or phone to this client to send</span>');
+    '<button class="btn btn-pri" onclick="shareInvoice(\''+id+'\')"><span class="ms">ios_share</span> Send / Share</button>';
   openModalShell('lg','Invoice · '+escHtml(clName), html, foot);
 }
-// ── Send the invoice to the client (email via mail app, or WhatsApp) ──
-async function openInvoiceSend(id){
-  var p=_invFind(id); if(!p) return;
-  await _ensureBillClients(); var biz=await _ensureBillBiz();
-  var cl=_payClients.find(function(c){return c.id===p.client_id;})||{};
-  var clEmail=cl.email||'', clPhoneRaw=cl.phone||'', clPhone=clPhoneRaw.replace(/[^+0-9]/g,'');
-  var bizName=biz.display_name||(window.FFP_PROVIDER&&FFP_PROVIDER.name)||'Your business';
-  var inv=_invNo(p), amt=_money(p.amount_aed);
-  var lines='Invoice '+inv+'\nFrom: '+bizName+'\nFor: '+(p.description||'Professional services')+'\nAmount: '+amt+'\n'+(p.status==='paid'?'Status: PAID — thank you':'Due'+(p.due_date?' by '+_invDate(p.due_date):''));
-  var subject='Invoice '+inv+' from '+bizName;
-  var emailHref='mailto:'+encodeURIComponent(clEmail)+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(lines+'\n\nThank you,\n'+bizName);
-  var waHref='https://wa.me/'+clPhone+'?text='+encodeURIComponent(subject+'\n\n'+lines);
-  var body='<div class="psub" style="margin:0 0 12px;">Send invoice <b>'+escHtml(inv)+'</b> · '+amt+' to '+escHtml(p.client_name||cl.full_name||'the client')+'.</div>'+
-    '<div style="display:flex;flex-direction:column;gap:9px;">'+
-      (clEmail?'<a class="btn btn-sec btn-block" href="'+emailHref+'" style="justify-content:flex-start;gap:10px;"><span class="ms" style="color:var(--ffp-purple);">mail</span> Email — '+escHtml(clEmail)+'</a>':'<div class="psub" style="margin:0;opacity:.6;display:flex;gap:8px;align-items:center;"><span class="ms">mail</span> No email on file for this client</div>')+
-      (clPhone?'<a class="btn btn-sec btn-block" href="'+waHref+'" target="_blank" rel="noopener" style="justify-content:flex-start;gap:10px;"><span class="ms" style="color:#25D366;">chat</span> WhatsApp — '+escHtml(clPhoneRaw)+'</a>':'<div class="psub" style="margin:0;opacity:.6;display:flex;gap:8px;align-items:center;"><span class="ms">chat</span> No phone on file for this client</div>')+
-    '</div>'+
-    '<div class="psub" style="margin:12px 0 0;font-size:11px;">Opens your email app or WhatsApp with the invoice ready to send.</div>';
-  openModalShell('', 'Send invoice', body, '<button class="btn btn-ghost left" onclick="openInvoicePreview(\''+id+'\')">Back to preview</button><button class="btn btn-ghost" onclick="closeModal()">Close</button>');
+// ── Render the invoice to a JPEG and share it (with the pay-online link when the pro is Stripe-connected) ──
+async function shareInvoice(id){
+  var node=document.getElementById('inv-doc'); var p=_invFind(id);
+  if(!node||!p){ showToast('Open the invoice first','error'); return; }
+  showToast('Preparing invoice…','info');
+  var biz=await _ensureBillBiz(); var bizName=biz.display_name||(window.FFP_PROVIDER&&FFP_PROVIDER.name)||'Your business';
+  var inv=_invNo(p), fileName='Invoice-'+inv+'.jpg';
+  // Pay-online link — only if this pro is Stripe-connected (409 otherwise → silently omit).
+  var payUrl='';
+  try{ var rr=await fetch(PRO_BACKEND+'/api/pay/invoice-checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({payment_id:id})}); var jj=await rr.json().catch(function(){return {};}); if(jj&&jj.url) payUrl=jj.url; }catch(e){}
+  // Render the invoice node to a JPEG.
+  var dataUrl='', blob=null;
+  try{ if(typeof html2canvas==='function'){ var canvas=await html2canvas(node,{scale:2,backgroundColor:'#ffffff',useCORS:true}); dataUrl=canvas.toDataURL('image/jpeg',0.92); blob=await (await fetch(dataUrl)).blob(); } }catch(e){}
+  var shareText='Invoice '+inv+' from '+bizName+' — '+_money(p.amount_aed)+'.'+(payUrl?'\n\nPay online: '+payUrl:'');
+  // Native share with the image file (mobile → WhatsApp / email / Messages / etc.).
+  try{
+    if(blob && navigator.canShare){ var file=new File([blob],fileName,{type:'image/jpeg'}); if(navigator.canShare({files:[file]})){ await navigator.share({files:[file],title:'Invoice '+inv,text:shareText}); return; } }
+    if(navigator.share){ await navigator.share({title:'Invoice '+inv,text:shareText}); return; }
+  }catch(e){ if(e&&e.name==='AbortError') return; }
+  // Desktop fallback: download the JPEG (attach manually) + copy the pay link.
+  if(dataUrl){ try{ var a=document.createElement('a'); a.href=dataUrl; a.download=fileName; a.click(); }catch(e){} }
+  if(payUrl){ try{ navigator.clipboard && navigator.clipboard.writeText(payUrl); }catch(e){} }
+  showToast(dataUrl?('Invoice saved as '+fileName+' — attach it to your email/WhatsApp'+(payUrl?' (pay link copied)':'')):'Could not generate the invoice image','info');
 }
 async function openPaymentModal(id,mode){
   await _ensureBillClients();
