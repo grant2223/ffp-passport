@@ -1,4 +1,7 @@
-/* FFP Calorie Tracker Loader — v13
+/* FFP Calorie Tracker Loader — v14
+   v14: BUILD-A-MEAL upgrade — the meal builder is now a FULL-SCREEN modal (.mm-fullbg) and its food search also
+        queries the OpenFoodFacts database (under the local catalog). OFF foods added to a meal are amount-
+        adjustable (grams) like catalog foods — mmItemMacros/mmBRenderItems handle the new `off` item type.
    v13: BARCODE SCANNER — "Scan barcode" in the picker opens a camera overlay (html5-qrcode, lazy-loaded from
         jsdelivr; works on iOS via getUserMedia). On detect → /api/food/barcode (OpenFoodFacts) → food-add modal
         prefilled as an _off food. openBarcodeScanner / closeBarcodeScanner / _onBarcode. NEEDS on-device test
@@ -818,6 +821,10 @@
       '.mm-empty{font-size:11.5px;color:var(--muted);padding:6px 2px 8px;}' +
       '.mm-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;z-index:100040;}' +
       '.mm-modal{background:#0e1b2a;border:1px solid var(--border-mid);border-radius:18px 18px 0 0;width:100%;max-width:520px;max-height:88vh;overflow-y:auto;padding:22px 18px 26px;box-shadow:0 -8px 30px rgba(0,0,0,.5);}' +
+      '.mm-modal-bg.mm-fullbg{align-items:stretch;}' +
+      '.mm-fullbg .mm-modal{max-width:640px;width:100%;min-height:100vh;max-height:none;border-radius:0;margin:0;display:flex;flex-direction:column;padding-top:calc(env(safe-area-inset-top,0px) + 20px);}' +
+      '.mm-fullbg .mmb-results{max-height:none;}' +
+      '.mm-fullbg .mm-actions{margin-top:auto;padding-top:16px;}' +
       '.mm-modal h3{font-size:15px;font-weight:800;color:var(--text);margin:0 0 12px;}' +
       '.mm-field{margin-bottom:10px;}' +
       '.mm-field label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;}' +
@@ -904,6 +911,7 @@
 
   // ── My Meals BUILDER: build a meal from the food catalog (primary), or enter totals manually (toggle) ──
   var mmB = null;
+  var _mmbOff = [], _mmbOffTimer = null, _mmbOffSeq = 0;
   function mmFoodById(id) { if (typeof FOOD_DB === 'undefined') return null; for (var i = 0; i < FOOD_DB.length; i++) { if (FOOD_DB[i].id === id) return FOOD_DB[i]; } return null; }
   function mmBTotals() { var k = 0, p = 0, c = 0, f = 0; (mmB.items || []).forEach(function (it) { var m = mmItemMacros(it); k += m.kcal; p += m.p; c += m.c; f += m.f; }); return { k: Math.round(k), p: Math.round(p), c: Math.round(c), f: Math.round(f) }; }
   function mmBRenderTotal() { var t = mmBTotals(); var el = document.getElementById('mmb-total'); if (el) el.textContent = t.k + ' kcal · ' + t.p + 'p ' + t.c + 'c ' + t.f + 'f'; }
@@ -911,7 +919,7 @@
     var host = document.getElementById('mmb-items'); if (!host) return;
     if (!mmB.items.length) { host.innerHTML = '<div class="mmb-hint">No foods yet — search below and tap to add.</div>'; mmBRenderTotal(); return; }
     host.innerHTML = mmB.items.map(function (it, i) {
-      var m = mmItemMacros(it), unit = it.free ? '' : ((mmFoodById(it.foodId) || {}).unit || '');
+      var m = mmItemMacros(it), unit = it.free ? '' : (it.off ? (it.unit || 'g') : ((mmFoodById(it.foodId) || {}).unit || ''));
       var amt = it.free ? '' : '<input class="mmb-amt" type="number" inputmode="numeric" value="' + it.amount + '" data-i="' + i + '"><span class="mmb-unit">' + mmEsc(unit) + '</span>';
       return '<div class="mmb-item"><div class="mmb-item-name">' + mmEsc(m.name) + '</div>' + amt + '<span class="mmb-item-kcal">' + Math.round(m.kcal) + '</span><button class="mmb-rm" type="button" data-i="' + i + '">&times;</button></div>';
     }).join('');
@@ -921,17 +929,34 @@
   }
   function mmBSearch(q) {
     var host = document.getElementById('mmb-results'); if (!host) return;
-    q = (q || '').trim().toLowerCase();
-    if (typeof FOOD_DB === 'undefined') { host.innerHTML = '<div class="mmb-hint">Food list unavailable.</div>'; return; }
-    var list = q ? FOOD_DB.filter(function (f) { return (f.name || '').toLowerCase().indexOf(q) > -1; }).slice(0, 14) : FOOD_DB.slice(0, 8);
-    host.innerHTML = list.length ? list.map(function (f) { return '<button class="mmb-result" type="button" data-id="' + f.id + '">' + mmEsc(f.name) + '<span>' + f.kcal + ' kcal / ' + f.serving + mmEsc(f.unit || '') + '</span></button>'; }).join('') : '<div class="mmb-hint">No matches.</div>';
+    var raw = (q || '').trim();
+    var ql = raw.toLowerCase();
+    var local = (typeof FOOD_DB === 'undefined') ? [] : (ql ? FOOD_DB.filter(function (f) { return (f.name || '').toLowerCase().indexOf(ql) > -1; }).slice(0, 12) : FOOD_DB.slice(0, 8));
+    var localHtml = local.map(function (f) { return '<button class="mmb-result" type="button" data-id="' + f.id + '">' + mmEsc(f.name) + '<span>' + f.kcal + ' kcal / ' + f.serving + mmEsc(f.unit || '') + '</span></button>'; }).join('');
+    host.innerHTML = localHtml + '<div id="mmb-off"></div>';
     host.querySelectorAll('.mmb-result').forEach(function (b) { b.addEventListener('click', function () { var f = mmFoodById(b.dataset.id); if (!f) return; mmB.items.push({ foodId: f.id, amount: f.serving }); mmBRenderItems(); }); });
+    if (_mmbOffTimer) clearTimeout(_mmbOffTimer);
+    var offHost = document.getElementById('mmb-off');
+    if (ql.length < 2) { if (offHost) offHost.innerHTML = ''; return; }
+    if (offHost) offHost.innerHTML = '<div class="mmb-hint">Searching food database…</div>';
+    var seq = ++_mmbOffSeq;
+    _mmbOffTimer = setTimeout(function () {
+      fetch(FOOD_API + '/api/food/search?q=' + encodeURIComponent(raw)).then(function (r) { return r.json(); }).then(function (j) {
+        if (seq !== _mmbOffSeq) return;
+        var oh = document.getElementById('mmb-off'); if (!oh) return;
+        var foods = (j && j.foods) || [];
+        if (!foods.length) { oh.innerHTML = local.length ? '' : '<div class="mmb-hint">No matches in the food database.</div>'; return; }
+        _mmbOff = foods;
+        oh.innerHTML = '<div class="mmb-addhead" style="margin-top:6px;">Food database</div>' + foods.map(function (f, i) { return '<button class="mmb-result" type="button" data-off="' + i + '">' + mmEsc(f.name) + '<span>' + f.kcal + ' kcal / 100 g</span></button>'; }).join('');
+        oh.querySelectorAll('.mmb-result').forEach(function (b) { b.addEventListener('click', function () { var f = _mmbOff[+b.dataset.off]; if (!f) return; mmB.items.push({ off: true, name: f.name, serving: 100, unit: 'g', amount: 100, kcal: f.kcal, p: f.p, c: f.c, f: f.f }); mmBRenderItems(); }); });
+      }).catch(function () { if (seq !== _mmbOffSeq) return; var oh = document.getElementById('mmb-off'); if (oh) oh.innerHTML = ''; });
+    }, 350);
   }
   function mmOpenBuilder(prefill) {
     mmInjectStyles();
     prefill = prefill || {};
     mmB = { name: prefill.name || '', items: (prefill.items ? prefill.items.slice() : []), manual: false };
-    var bg = document.createElement('div'); bg.className = 'mm-modal-bg';
+    var bg = document.createElement('div'); bg.className = 'mm-modal-bg mm-fullbg';
     bg.onclick = function (e) { if (e.target === bg) document.body.removeChild(bg); };
     bg.innerHTML = '<div class="mm-modal mm-builder">' +
       '<h3>Build a meal</h3>' +
@@ -982,6 +1007,10 @@
   // Catalog-build: bundle a logged meal-section (catalog foods + free items) into a saved meal.
   function mmItemMacros(item) {
     if (item && item.free) return { kcal: item.kcal || 0, p: +(item.p || 0), c: +(item.c || 0), f: +(item.f || 0), name: item.name || 'Item' };
+    if (item && item.off) {   // OpenFoodFacts food in the builder — per-100g, scaled by amount
+      var ro = (item.serving > 0) ? item.amount / item.serving : 1;
+      return { kcal: (item.kcal || 0) * ro, p: (item.p || 0) * ro, c: (item.c || 0) * ro, f: (item.f || 0) * ro, name: item.name || 'Item' };
+    }
     var food = (typeof FOOD_DB !== 'undefined') ? FOOD_DB.filter(function (x) { return x.id === item.foodId; })[0] : null;
     if (!food) return { kcal: 0, p: 0, c: 0, f: 0, name: 'Item' };
     var r = food.serving > 0 ? item.amount / food.serving : 1;
