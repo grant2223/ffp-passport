@@ -1,4 +1,8 @@
-/* FFP Calorie Tracker Loader — v12
+/* FFP Calorie Tracker Loader — v13
+   v13: BARCODE SCANNER — "Scan barcode" in the picker opens a camera overlay (html5-qrcode, lazy-loaded from
+        jsdelivr; works on iOS via getUserMedia). On detect → /api/food/barcode (OpenFoodFacts) → food-add modal
+        prefilled as an _off food. openBarcodeScanner / closeBarcodeScanner / _onBarcode. NEEDS on-device test
+        (camera permission). Pairs with the v12 food database + barcode endpoint.
    v12: P3 WORLD-CLASS — (1) LIVE FOOD DATABASE: typing in the picker search now also queries OpenFoodFacts via
         the backend proxy (/api/food/search); results render under the local catalog (pickOffFood/quickAddOff →
         food-add modal, logged as a free item with scaled macros via core's _off path). (2) COPY A PREVIOUS DAY:
@@ -643,11 +647,75 @@
     bg.querySelector('.mm-cancel').onclick = function () { document.body.removeChild(bg); };
     bg.querySelectorAll('.cpd-row').forEach(function (b) { b.onclick = function () { var d = cands[+b.dataset.i]; document.body.removeChild(bg); doCopyDay(d.date); }; });
   };
+
+  // v13 — BARCODE SCANNER: camera → OpenFoodFacts barcode lookup → food-add modal (as an _off food).
+  CalorieTracker.openBarcodeScanner = function () {
+    var self = this;
+    var overlay = document.getElementById('barcode-scanner'); if (!overlay) return;
+    this._bcHandled = false;
+    overlay.classList.add('open');
+    var statusEl = document.getElementById('bc-status');
+    if (statusEl) statusEl.textContent = 'Starting camera…';
+    loadHtml5Qrcode().then(function () {
+      try {
+        _bcScanner = new Html5Qrcode('bc-reader', { verbose: false });
+        var config = { fps: 10, qrbox: function (w, h) { var m = Math.min(w, h); return { width: Math.round(m * 0.82), height: Math.round(m * 0.5) }; } };
+        try {
+          config.formatsToSupport = [Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.UPC_E, Html5QrcodeSupportedFormats.CODE_128];
+        } catch (e) {}
+        _bcScanner.start({ facingMode: 'environment' }, config,
+          function (text) { if (self._bcHandled) return; self._bcHandled = true; self._onBarcode(text); },
+          function () {}   // per-frame decode miss — ignore
+        ).then(function () { if (statusEl) statusEl.textContent = 'Point your camera at a barcode'; })
+         .catch(function (err) { console.error('[FFP CT] scanner start:', err); if (statusEl) statusEl.textContent = 'Camera unavailable — allow camera access and try again'; });
+      } catch (e) { console.error('[FFP CT] scanner:', e); if (statusEl) statusEl.textContent = 'Scanner could not start'; }
+    }).catch(function () { if (statusEl) statusEl.textContent = 'Could not load the scanner — check your connection'; });
+  };
+  CalorieTracker.closeBarcodeScanner = function () {
+    var overlay = document.getElementById('barcode-scanner'); if (overlay) overlay.classList.remove('open');
+    if (_bcScanner) {
+      var inst = _bcScanner; _bcScanner = null;
+      try { inst.stop().then(function () { try { inst.clear(); } catch (e) {} }).catch(function () {}); } catch (e) {}
+    }
+  };
+  CalorieTracker._onBarcode = function (code) {
+    var self = this;
+    this.closeBarcodeScanner();
+    if (window.showToast) showToast('Looking up barcode…');
+    fetch(FOOD_API + '/api/food/barcode?code=' + encodeURIComponent(code))
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }, function () { return { ok: false, j: null }; }); })
+      .then(function (res) {
+        if (!res.ok || !res.j || !res.j.food) { if (window.showToast) showToast('Product not found — try search or quick add', 'error'); return; }
+        var f = res.j.food;
+        self._editRemove = null;
+        var food = { _off: true, name: f.name, serving: 100, unit: 'g', kcal: f.kcal, p: f.p, c: f.c, f: f.f };
+        self.closeFoodPicker();
+        self._populateFoodAdd(food, 100, self._pickerMeal || self.autoBucket(), false);
+        document.getElementById('food-add-backdrop').classList.add('open');
+      })
+      .catch(function () { if (window.showToast) showToast('Lookup failed — try again', 'error'); });
+  };
   }
 
   // ============ FOOD DATABASE (OpenFoodFacts) + COPY-A-DAY (v12) ============
   var FOOD_API = 'https://ffp-passport-backend.vercel.app';
   var _offTimer = null, _offSeq = 0;
+  var _bcScanner = null, _html5QrLoading = null;
+
+  // Lazy-load the barcode scanner library (html5-qrcode) from the same CDN the app already uses (jsdelivr).
+  function loadHtml5Qrcode() {
+    if (window.Html5Qrcode) return Promise.resolve();
+    if (_html5QrLoading) return _html5QrLoading;
+    _html5QrLoading = new Promise(function (resolve, reject) {
+      var s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js';
+      s.onload = function () { resolve(); };
+      s.onerror = function () { _html5QrLoading = null; reject(new Error('html5-qrcode load failed')); };
+      document.head.appendChild(s);
+    });
+    return _html5QrLoading;
+  }
 
   function offInjectStyles() {
     if (document.getElementById('ffp-offdb-styles')) return;
