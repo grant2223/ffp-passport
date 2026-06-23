@@ -62,42 +62,101 @@ async function clientProfile(id){
   var tags=(m.tags||'').split(',').map(function(t){return t.trim();}).filter(Boolean);
   var fmtDob=function(d){ if(!d)return ''; try{ return new Date(String(d).slice(0,10)+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}); }catch(e){ return String(d).slice(0,10); } };
   var fmtSince=function(d){ if(!d)return ''; try{ return new Date(String(d).slice(0,10)+'T00:00:00').toLocaleDateString('en-GB',{month:'short',year:'numeric'}); }catch(e){ return String(d).slice(0,10); } };
-  // Info as a tidy 2-column grid of cards (not one long row per field).
-  var cell=function(lbl,val){ return '<div style="padding:7px 2px;min-width:0;border-bottom:1px solid var(--ffp-border);"><div style="font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--ffp-text-dim);margin-bottom:2px;">'+lbl+'</div><div style="font-weight:700;color:var(--ffp-text);font-size:13px;word-break:break-word;line-height:1.3;">'+(val?escHtml(val):'<span style="color:var(--ffp-text-dim);font-weight:600;">—</span>')+'</div></div>'; };
-  var gridCells=function(d){ return cell('Email',d.email)+cell('Phone',d.phone)+cell('Date of birth',fmtDob(d.date_of_birth))+cell('Gender',d.gender)+cell('Nationality',d.nationality)+cell('Client since',fmtSince(jd)); };
-  // Compact square action tiles (icon over label) instead of big full-width rows.
-  var tile=function(ic,lbl,fn){ return '<button onclick="closeModal();'+fn+'" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:14px 8px;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:14px;cursor:pointer;color:var(--ffp-text);min-height:80px;font-family:inherit;"><span class="ms" style="font-size:23px;color:var(--ffp-purple);">'+ic+'</span><span style="font-size:11.5px;font-weight:700;text-align:center;line-height:1.2;">'+lbl+'</span></button>'; };
-  openModalShell('lg', escHtml(nm),
-    // Header: avatar + name + status
-    '<div style="display:flex;align-items:center;gap:13px;margin:-2px 0 14px;">'+
+  // Pull the client's FFP Passport up-front so we can show the real card when they hold one.
+  var pp={}; try{ var pr=await window.supabase.rpc('pro_client_passport',{p_pro:_memProvId(),p_client:id}); pp=(pr&&pr.data)||{}; }catch(e){}
+  var hasPass=!!pp.has_account;
+  var email=(pp.email||m.email||''), phone=(pp.phone||m.phone||'');
+  var head;
+  if(hasPass){ head=_ppCardHtml(pp, nm, id); }
+  else {
+    var cell=function(lbl,val){ return '<div style="padding:7px 2px;min-width:0;border-bottom:1px solid var(--ffp-border);"><div style="font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--ffp-text-dim);margin-bottom:2px;">'+lbl+'</div><div style="font-weight:700;color:var(--ffp-text);font-size:13px;word-break:break-word;line-height:1.3;">'+(val?escHtml(val):'<span style="color:var(--ffp-text-dim);font-weight:600;">—</span>')+'</div></div>'; };
+    head='<div style="display:flex;align-items:center;gap:13px;margin:-2px 0 14px;">'+
       '<span style="width:52px;height:52px;border-radius:50%;background:rgba(124,58,237,0.14);color:var(--ffp-purple);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;flex:0 0 auto;">'+escHtml(nm.slice(0,1).toUpperCase())+'</span>'+
       '<div style="min-width:0;"><div style="font-weight:800;font-size:17px;color:var(--ffp-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(nm)+'</div>'+
         '<div style="margin-top:4px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;"><span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;'+stStyle+'">'+(CLIENT_STATUS[st]||'Active')+'</span>'+(tags.length?'<span class="psub" style="margin:0;font-size:11px;">'+escHtml(tags.join(' · '))+'</span>':'')+'</div></div></div>'+
-    '<div id="cp-src" style="display:none;font-size:11px;font-weight:700;color:var(--ffp-purple);margin:0 0 10px;"><span class="ms" style="font-size:14px;vertical-align:-2px;">verified_user</span> Pulled from their FFP Passport</div>'+
-    '<div id="cp-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">'+gridCells({email:m.email,phone:m.phone,date_of_birth:m.date_of_birth,gender:m.gender,nationality:m.nationality})+'</div>'+
-    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">'+
-      tile('health_and_safety','Connect Passport','openClientHealth(\''+id+'\')')+
-      tile('card_membership','Packages','openMembership(\''+id+'\')')+
-      tile('assignment','Forms','clientAssessment(\''+id+'\')')+
-      tile('sticky_note_2','Notes','openClientNotes(\''+id+'\')')+
-      tile('edit','Edit profile','openMemberModal(\''+id+'\')')+
-    '</div>'+
-    '<div id="cp-notes-prev" style="margin-top:18px;"></div>',
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">'+cell('Email',email)+cell('Phone',phone)+cell('Date of birth',fmtDob(m.date_of_birth))+cell('Gender',m.gender)+cell('Nationality',m.nationality)+cell('Client since',fmtSince(jd))+'</div>';
+  }
+  var body=head+_contactRow(email,phone)+_fiveButtons(id)+'<div id="cp-notes-prev" style="margin-top:18px;"></div>';
+  openModalShell('lg', escHtml(nm), body,
     '<button class="btn btn-ghost left" onclick="closeModal();confirmDeleteMember(\''+id+'\')"><span class="ms">delete</span> Delete client</button>'+
     '<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
-  // Latest 3 coach notes, shown under the action tiles (tap to open the full thread).
+  // Recent note (latest), with View all on the opposite side.
   if(window.supabase){ try{ window.supabase.rpc('pro_list_client_notes',{p_pro:_memProvId(),p_client:id}).then(function(r){
     var notes=(r&&r.data)||[]; var host=document.getElementById('cp-notes-prev'); if(!host) return;
-    var head='<div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 8px;"><div style="font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-text-dim);">Recent notes</div><button onclick="closeModal();openClientNotes(\''+id+'\')" style="background:none;border:none;color:var(--ffp-purple);font-size:11.5px;font-weight:800;cursor:pointer;">'+(notes.length?'View all':'Add note')+'</button></div>';
-    if(!notes.length){ host.innerHTML=head+'<div class="psub" style="margin:0;">No notes yet — tap Notes to start tracking sessions.</div>'; return; }
-    host.innerHTML=head+notes.slice(0,3).map(function(n){ return '<div style="border-left:3px solid var(--ffp-purple);padding:1px 0 1px 10px;margin-bottom:9px;"><div style="font-size:12.5px;color:var(--ffp-text);line-height:1.5;white-space:pre-wrap;">'+escHtml(n.body||'')+'</div><div class="psub" style="margin:2px 0 0;font-size:10px;">'+cnWhen(n.created_at)+'</div></div>'; }).join('');
+    var head2='<div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 8px;"><div style="font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-text-dim);">Recent note</div><button onclick="closeModal();openClientNotes(\''+id+'\')" style="background:none;border:none;color:var(--ffp-purple);font-size:11.5px;font-weight:800;cursor:pointer;">'+(notes.length?'View all →':'Add note')+'</button></div>';
+    if(!notes.length){ host.innerHTML=head2+'<div class="psub" style="margin:0;">No notes yet — tap Notes to start tracking sessions.</div>'; return; }
+    var n=notes[0];
+    host.innerHTML=head2+'<div style="border-left:3px solid var(--ffp-purple);padding:1px 0 1px 10px;"><div style="font-size:12.5px;color:var(--ffp-text);line-height:1.5;white-space:pre-wrap;">'+escHtml(n.body||'')+'</div><div class="psub" style="margin:2px 0 0;font-size:10px;">'+cnWhen(n.created_at)+'</div></div>';
   }).catch(function(){}); }catch(e){} }
-  // Auto-pull identity from the client's FFP Passport by email match — upgrades the grid in place.
-  if(window.supabase){ try{ window.supabase.rpc('pro_client_passport',{p_pro:_memProvId(),p_client:id}).then(function(r){
-    var d=(r&&r.data)||{}; if(!d.has_account) return;
-    var el=document.getElementById('cp-grid'); if(el) el.innerHTML=gridCells(d);
-    var src=document.getElementById('cp-src'); if(src) src.style.display='';
-  }).catch(function(){}); }catch(e){} }
+}
+// ─── Passport flip card (shown when the client holds an FFP Passport) ───
+function _ppEnsureCss(){
+  if(document.getElementById('ppc-css')) return;
+  var s=document.createElement('style'); s.id='ppc-css';
+  s.textContent='.ppc-wrap{perspective:1400px;margin:-2px 0 4px;}.ppc-inner{position:relative;width:100%;transition:transform .6s cubic-bezier(.2,.7,.2,1);transform-style:preserve-3d;cursor:pointer;}.ppc-inner.flipped{transform:rotateY(180deg);}.ppc-face{border-radius:15px;overflow:hidden;-webkit-backface-visibility:hidden;backface-visibility:hidden;box-shadow:0 10px 28px rgba(10,62,68,.28);}.ppc-back{position:absolute;inset:0;transform:rotateY(180deg);}';
+  document.head.appendChild(s);
+}
+function ppFlip(el){ if(el) el.classList.toggle('flipped'); }
+function _ppCardHtml(pp, nm, id){
+  _ppEnsureCss();
+  var esc=escHtml;
+  var photo = pp.photo_url ? 'background-image:url("'+String(pp.photo_url).replace(/["\\]/g,'')+'");background-size:cover;background-position:center top;' : '';
+  var initial = esc((nm||'?').slice(0,1).toUpperCase());
+  var fmtD=function(d){ if(!d)return '—'; try{return new Date(String(d).slice(0,10)+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});}catch(e){return '—';} };
+  var since = pp.member_since ? (function(){ try{return new Date(pp.member_since).toLocaleDateString('en-GB',{month:'short',year:'numeric'});}catch(e){return '—';} })() : '—';
+  var tier = pp.tier ? String(pp.tier) : 'Passport';
+  var active = !!pp.passport_active;
+  var pf=function(lbl,val){ return '<div style="margin-bottom:5px;"><div style="font-size:8px;font-weight:800;letter-spacing:.6px;color:rgba(255,255,255,.55);">'+lbl+'</div><div style="font-size:12.5px;font-weight:700;color:#fff;line-height:1.25;word-break:break-word;">'+(val?esc(val):'—')+'</div></div>'; };
+  var front='<div class="ppc-face ppc-front" style="position:relative;background:linear-gradient(135deg,#0a3e44,#0f5f72);padding:14px 15px;color:#fff;">'+
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">'+
+        '<div><div style="font-size:13px;font-weight:900;letter-spacing:1px;">FFP PASSPORT</div><div style="font-size:7.5px;letter-spacing:2px;color:rgba(255,255,255,.6);">WORLDWIDE · ACTIVE LIFESTYLE</div></div>'+
+        '<div style="text-align:right;"><div style="font-size:8px;font-weight:800;color:rgba(255,255,255,.55);">PASSPORT NO.</div><div style="font-size:11px;font-weight:800;font-family:monospace;">'+esc(pp.passport_no||'—')+'</div></div>'+
+      '</div>'+
+      '<div style="display:flex;gap:12px;">'+
+        '<div style="width:62px;height:78px;border-radius:8px;background:#0f5a7a;'+photo+'flex:0 0 auto;display:flex;align-items:center;justify-content:center;border:2px solid rgba(255,255,255,.25);">'+(pp.photo_url?'':'<span style="font-size:28px;font-weight:900;color:#fff;">'+initial+'</span>')+'</div>'+
+        '<div style="flex:1;min-width:0;">'+pf('SURNAME',pp.surname)+pf('GIVEN NAMES',pp.given_names)+
+          '<div style="display:flex;gap:12px;"><div style="flex:1;">'+pf('NATIONALITY',pp.nationality)+'</div><div style="flex:1;">'+pf('DATE OF BIRTH',fmtD(pp.date_of_birth))+'</div></div></div>'+
+      '</div>'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:9px;border-top:1px solid rgba(255,255,255,.15);">'+
+        '<span style="font-size:9px;font-weight:800;padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.16);letter-spacing:.5px;">'+esc(String(tier).toUpperCase())+'</span>'+
+        '<span style="font-size:9px;color:rgba(255,255,255,.6);">Since '+esc(since)+'</span>'+
+        '<span style="font-size:9px;font-weight:800;color:'+(active?'#7CFFB2':'#ffd27c')+';">'+(active?'● ACTIVE':'○ INACTIVE')+'</span>'+
+      '</div>'+
+      '<div style="text-align:center;font-size:8px;color:rgba(255,255,255,.42);margin-top:7px;letter-spacing:.5px;">TAP TO FLIP ⟳</div>'+
+    '</div>';
+  var back='<div class="ppc-face ppc-back" style="background:linear-gradient(135deg,#0f5f72,#0a3e44);padding:15px;color:#fff;">'+
+      '<div style="font-size:11px;font-weight:900;letter-spacing:1px;margin-bottom:12px;">IDENTITY · FFP PASSPORT</div>'+
+      '<div style="display:flex;gap:14px;align-items:center;">'+
+        '<div style="width:72px;height:72px;border-radius:10px;background:#fff;flex:0 0 auto;display:flex;align-items:center;justify-content:center;"><span class="ms" style="font-size:52px;color:#0a3e44;">qr_code_2</span></div>'+
+        '<div style="flex:1;font-size:11px;line-height:1.65;min-width:0;">'+
+          '<div><span style="color:rgba(255,255,255,.55);">No.</span> <b style="font-family:monospace;">'+esc(pp.passport_no||'—')+'</b></div>'+
+          '<div><span style="color:rgba(255,255,255,.55);">Tier</span> <b>'+esc(tier)+'</b></div>'+
+          '<div><span style="color:rgba(255,255,255,.55);">Expires</span> <b>'+fmtD(pp.passport_expires_at)+'</b></div>'+
+          '<div><span style="color:rgba(255,255,255,.55);">Status</span> <b style="color:'+(active?'#7CFFB2':'#ffd27c')+';">'+(active?'Active':'Inactive')+'</b></div>'+
+        '</div>'+
+      '</div>'+
+      '<div style="margin-top:13px;font-size:8.5px;color:rgba(255,255,255,.5);line-height:1.5;border-top:1px solid rgba(255,255,255,.15);padding-top:9px;">Verified by FFP Passport — matched to the client’s active Passport by email.</div>'+
+      '<div style="text-align:center;font-size:8px;color:rgba(255,255,255,.42);margin-top:6px;letter-spacing:.5px;">TAP TO FLIP ⟳</div>'+
+    '</div>';
+  return '<div class="ppc-wrap"><div class="ppc-inner" onclick="ppFlip(this)">'+front+back+'</div></div>'+
+    '<div style="font-size:10.5px;font-weight:700;color:var(--ffp-purple);margin:8px 0 12px;text-align:center;"><span class="ms" style="font-size:13px;vertical-align:-2px;">verified_user</span> Pulled from their FFP Passport</div>';
+}
+function _contactRow(email, phone){
+  var btns=[];
+  if(email) btns.push('<a href="mailto:'+escHtml(email)+'" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:11px;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:12px;color:var(--ffp-text);font-weight:700;font-size:13px;text-decoration:none;"><span class="ms" style="font-size:18px;color:var(--ffp-purple);">mail</span> Email</a>');
+  if(phone) btns.push('<a href="tel:'+String(phone).replace(/[^+0-9]/g,'')+'" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:11px;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:12px;color:var(--ffp-text);font-weight:700;font-size:13px;text-decoration:none;"><span class="ms" style="font-size:18px;color:var(--ffp-purple);">call</span> Call</a>');
+  if(!btns.length) return '';
+  return '<div style="display:flex;gap:8px;margin:0 0 14px;">'+btns.join('')+'</div>';
+}
+function _fiveButtons(id){
+  var sb=function(ic,lbl,fn){ return '<button onclick="closeModal();'+fn+'" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:10px 3px;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:13px;cursor:pointer;color:var(--ffp-text);font-family:inherit;min-height:64px;"><span class="ms" style="font-size:20px;color:var(--ffp-purple);">'+ic+'</span><span style="font-size:9.5px;font-weight:700;text-align:center;line-height:1.1;">'+lbl+'</span></button>'; };
+  return '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;">'+
+    sb('health_and_safety','Health','openClientHealth(\''+id+'\')')+
+    sb('card_membership','Packages','openMembership(\''+id+'\')')+
+    sb('assignment','Forms','clientAssessment(\''+id+'\')')+
+    sb('sticky_note_2','Notes','openClientNotes(\''+id+'\')')+
+    sb('edit','Edit','openMemberModal(\''+id+'\')')+
+  '</div>';
 }
 // ─── COACH NOTES (threaded, per client) ───
 var _cnClient=null, _cnNotes=[];
