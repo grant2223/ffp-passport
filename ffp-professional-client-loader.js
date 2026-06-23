@@ -164,7 +164,7 @@ function afRender(){
     var det='';
     if(f.status==='completed'){
       if(f.source==='upload'&&f.uploaded_file_url){ det+='<div style="margin-bottom:7px;"><a href="'+escHtml(f.uploaded_file_url)+'" target="_blank" rel="noopener" style="color:var(--ffp-purple);font-weight:700;font-size:12.5px;"><span class="ms" style="font-size:15px;vertical-align:-3px;">description</span> View uploaded copy</a></div>'; }
-      var resp=f.responses||{}; (f.fields||[]).forEach(function(fl){ var v=resp[fl.key]; if(fl.type==='consent') v=(v?'Accepted':'Not accepted'); if(fl.type==='yesno') v=(v===true||v==='yes'?'Yes':(v===false||v==='no'?'No':v)); det+='<div style="font-size:12px;margin-bottom:5px;line-height:1.5;"><span class="psub" style="margin:0;">'+escHtml(fl.label||fl.key)+'</span><br><span style="font-weight:700;color:var(--ffp-text);">'+escHtml(v==null||v===''?'—':String(v))+'</span></div>'; });
+      var resp=f.responses||{}; (f.fields||[]).forEach(function(fl){ if(fl.type==='statement'||fl.type==='info') return; var v=resp[fl.key]; if(fl.type==='consent') v=(v?'Accepted':'Not accepted'); if(fl.type==='yesno') v=(v===true||v==='yes'?'Yes':(v===false||v==='no'?'No':v)); det+='<div style="font-size:12px;margin-bottom:5px;line-height:1.5;"><span class="psub" style="margin:0;">'+escHtml(fl.label||fl.key)+'</span><br><span style="font-weight:700;color:var(--ffp-text);">'+escHtml(v==null||v===''?'—':String(v))+'</span></div>'; });
       if(f.signature_name) det+='<div class="psub" style="font-size:12px;margin-top:7px;">Signed by <b style="color:var(--ffp-text);">'+escHtml(f.signature_name)+'</b> · '+afWhen(f.completed_at)+'</div>';
     } else {
       det+='<div class="psub" style="margin:0 0 8px;">Waiting on the client to complete &amp; sign in their app — or upload a signed copy here.</div>'+
@@ -230,8 +230,46 @@ function afEditTemplate(tid){
     '<label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;color:var(--ffp-text);"><input type="checkbox" id="af-tpl-sig" '+((!t||t.requires_signature)?'checked':'')+'> Require signature</label>'+
     '<div style="margin-top:13px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--ffp-text-dim);">Fields</div><div id="af-tpl-fields"></div>'+
     '<button class="btn btn-sec btn-sm" style="margin-top:8px;" onclick="afAddField()"><span class="ms">add</span> Add field</button>';
-  openModalShell('lg',tid?'Edit template':'New template', body, '<button class="btn btn-ghost left" onclick="afManageTemplates()">Back</button><button class="btn btn-pri" onclick="afSaveTemplate()"><span class="ms">save</span> Save</button>');
+  openModalShell('lg',tid?'Edit template':'New template', body, '<button class="btn btn-ghost left" onclick="afManageTemplates()">Back</button><button class="btn btn-sec" onclick="afPreview()"><span class="ms">visibility</span> Preview</button><button class="btn btn-pri" onclick="afSaveTemplate()"><span class="ms">save</span> Save</button>');
   afRenderFields();
+}
+function afPreview(){
+  var title=((document.getElementById('af-tpl-title')||{}).value||'').trim()||'Untitled form';
+  var desc=((document.getElementById('af-tpl-desc')||{}).value||'').trim();
+  var sig=!!(document.getElementById('af-tpl-sig')||{}).checked;
+  var fields=(_afFields||[]).filter(function(f){return (f.label||'').trim();});
+  _ffpFormPreview(title, desc, sig, fields, 'af-preview');
+}
+// Member-eye preview of a form template — renders exactly what the client sees when completing it.
+function _ffpFormPreview(title, desc, sig, fields, ovId){
+  var esc=window.escHtml||function(s){return String(s==null?'':s);};
+  function fieldHtml(f){
+    var req=f.required?' <span style="color:#ef4444;">*</span>':'';
+    if(f.type==='statement'||f.type==='info') return '<div style="font-size:13.5px;color:#3a4a4e;line-height:1.65;margin-bottom:16px;white-space:pre-wrap;">'+esc(f.label||'')+'</div>';
+    if(f.type==='consent') return '<label style="display:flex;gap:10px;align-items:flex-start;margin-bottom:16px;"><input type="checkbox" disabled style="width:20px;height:20px;margin-top:1px;flex:0 0 auto;"><span style="font-size:13.5px;color:#3a4a4e;line-height:1.5;">'+esc(f.label||f.key)+req+'</span></label>';
+    var lbl='<div style="font-weight:600;font-size:14px;color:#0f2531;margin-bottom:7px;line-height:1.45;">'+esc(f.label||f.key)+req+'</div>';
+    var ctl;
+    if(f.type==='textarea') ctl='<textarea disabled rows="3" placeholder="Their answer…" style="width:100%;border:1px solid #d7dee2;border-radius:10px;padding:10px 12px;font-size:16px;background:#f8fafb;color:#9aa7ad;"></textarea>';
+    else if(f.type==='date') ctl='<div style="border:1px solid #d7dee2;border-radius:10px;padding:11px 12px;font-size:16px;background:#f8fafb;color:#9aa7ad;">DD / MM / YYYY</div>';
+    else if(f.type==='yesno') ctl='<div style="display:flex;gap:10px;"><div style="flex:1;text-align:center;border:1px solid #d7dee2;border-radius:10px;padding:10px;font-size:15px;font-weight:700;color:#5a6b6e;background:#f8fafb;">Yes</div><div style="flex:1;text-align:center;border:1px solid #d7dee2;border-radius:10px;padding:10px;font-size:15px;font-weight:700;color:#5a6b6e;background:#f8fafb;">No</div></div>';
+    else ctl='<div style="border:1px solid #d7dee2;border-radius:10px;padding:11px 12px;font-size:16px;background:#f8fafb;color:#9aa7ad;">Their answer…</div>';
+    return '<div style="margin-bottom:16px;">'+lbl+ctl+'</div>';
+  }
+  var body=fields.map(fieldHtml).join('');
+  if(sig) body+='<div style="margin-top:6px;border-top:1px dashed #d7dee2;padding-top:16px;"><div style="font-weight:600;font-size:14px;color:#0f2531;margin-bottom:7px;">Signature <span style="color:#ef4444;">*</span></div><div style="border:1px solid #d7dee2;border-radius:10px;height:70px;background:#f8fafb;display:flex;align-items:center;justify-content:center;color:#b8c2c6;font-size:13px;">Sign here</div><input disabled placeholder="Type full name to confirm" style="width:100%;margin-top:8px;border:1px solid #d7dee2;border-radius:10px;padding:11px 12px;font-size:16px;background:#f8fafb;color:#9aa7ad;"></div>';
+  var old=document.getElementById(ovId); if(old) old.remove();
+  var ov=document.createElement('div'); ov.id=ovId;
+  ov.setAttribute('style','position:fixed;inset:0;z-index:2000000000;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;');
+  ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+  ov.innerHTML='<div style="width:100%;max-width:440px;background:#fff;border-radius:18px;overflow:hidden;margin:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">'+
+    '<div style="background:#0f2531;color:#fff;padding:13px 18px;display:flex;align-items:center;justify-content:space-between;"><div style="font-size:11px;font-weight:800;opacity:.85;letter-spacing:.5px;">PREVIEW · WHAT THE CLIENT SEES</div><button onclick="var e=document.getElementById(\''+ovId+'\');if(e)e.remove();" style="background:rgba(255,255,255,.16);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:15px;">&#10005;</button></div>'+
+    '<div style="padding:20px 18px;max-height:calc(100vh - 170px);overflow-y:auto;">'+
+      '<div style="font-size:19px;font-weight:800;color:#0f2531;margin-bottom:4px;">'+esc(title)+'</div>'+
+      (desc?'<div style="font-size:13px;color:#5a6b6e;line-height:1.5;margin-bottom:18px;">'+esc(desc)+'</div>':'<div style="margin-bottom:14px;"></div>')+
+      (body||'<div style="color:#9aa7ad;font-size:13px;">No fields yet — add some to see the preview.</div>')+
+      '<button disabled style="width:100%;margin-top:8px;background:#2ba8e0;color:#fff;border:none;border-radius:12px;padding:14px;font-size:16px;font-weight:700;opacity:.85;">Submit &amp; sign</button>'+
+    '</div></div>';
+  document.body.appendChild(ov);
 }
 function afStarter(kind){
   var ti=document.getElementById('af-tpl-title'), de=document.getElementById('af-tpl-desc');
@@ -273,9 +311,15 @@ function afRemoveField(i){ (_afFields||[]).splice(i,1); afRenderFields(); }
 function afFieldSet(i,k,v){ if(!_afFields||!_afFields[i]) return; _afFields[i][k]=v; }
 function afRenderFields(){
   var host=document.getElementById('af-tpl-fields'); if(!host) return; var fs=_afFields||[];
-  var types=[['text','Short text'],['textarea','Long text'],['yesno','Yes / No'],['date','Date'],['consent','Consent checkbox']];
-  host.innerHTML=fs.length? fs.map(function(f,i){ var opts=types.map(function(t){return '<option value="'+t[0]+'"'+(f.type===t[0]?' selected':'')+'>'+t[1]+'</option>';}).join('');
-    return '<div style="display:flex;gap:6px;align-items:center;margin-top:7px;"><input class="input" style="flex:1;" placeholder="Question / label" value="'+escHtml(f.label||'')+'" oninput="afFieldSet('+i+',\'label\',this.value)"><select class="select" style="max-width:140px;" onchange="afFieldSet('+i+',\'type\',this.value)">'+opts+'</select><label style="font-size:11px;color:var(--ffp-text-muted);display:flex;align-items:center;gap:3px;white-space:nowrap;"><input type="checkbox" '+(f.required?'checked':'')+' onchange="afFieldSet('+i+',\'required\',this.checked)">Req</label><button onclick="afRemoveField('+i+')" style="background:none;border:none;color:var(--ffp-text-dim);cursor:pointer;"><span class="ms">close</span></button></div>';
+  var types=[['statement','Text / paragraph'],['text','Short text'],['textarea','Long text'],['yesno','Yes / No'],['date','Date'],['consent','Consent checkbox']];
+  host.innerHTML=fs.length? fs.map(function(f,i){
+    var opts=types.map(function(t){return '<option value="'+t[0]+'"'+(f.type===t[0]?' selected':'')+'>'+t[1]+'</option>';}).join('');
+    var sel='<select class="select" style="max-width:150px;" onchange="afFieldSet('+i+',\'type\',this.value)">'+opts+'</select>';
+    var rm='<button onclick="afRemoveField('+i+')" style="background:none;border:none;color:var(--ffp-text-dim);cursor:pointer;"><span class="ms">close</span></button>';
+    if(f.type==='statement'){
+      return '<div style="display:flex;gap:6px;align-items:flex-start;margin-top:7px;"><textarea class="textarea" style="flex:1;min-height:62px;" placeholder="Written text / paragraph the client reads — e.g. the waiver wording or an instruction" oninput="afFieldSet('+i+',\'label\',this.value)">'+escHtml(f.label||'')+'</textarea>'+sel+rm+'</div>';
+    }
+    return '<div style="display:flex;gap:6px;align-items:center;margin-top:7px;"><input class="input" style="flex:1;" placeholder="Question / label" value="'+escHtml(f.label||'')+'" oninput="afFieldSet('+i+',\'label\',this.value)">'+sel+'<label style="font-size:11px;color:var(--ffp-text-muted);display:flex;align-items:center;gap:3px;white-space:nowrap;"><input type="checkbox" '+(f.required?'checked':'')+' onchange="afFieldSet('+i+',\'required\',this.checked)">Req</label>'+rm+'</div>';
   }).join('') : '<div class="psub" style="padding:6px 0;">No fields yet — add one, or start from Waiver/PAR-Q+.</div>';
 }
 async function afSaveTemplate(){
