@@ -1132,15 +1132,19 @@
     var row = null;
     for (var i = 0; i < activityCache.length; i++) { if (String(activityCache[i].id) === String(id)) { row = activityCache[i]; break; } }
     if (!row) return;
-    // Pull the photo set straight from the DB (source of truth) so the x-axis gallery shows ALL photos
-    // even before the backend list endpoint returns the photos[] column. Falls back to the cached row.
+    // Pull from the DB (source of truth) so the card shows the full photo set AND the tagged Training
+    // Partners (the cached list row carries neither). Always fetch when signed in; fall back to the row.
     try {
       var me = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || {};
-      if (me.id && window.supabase && (!row.photos || row.photos.length <= 1)) {
+      if (me.id && window.supabase) {
         var r = await window.supabase.rpc('member_activity_view', { p_viewer: me.id, p_id: id });
         var d = r && r.data;
-        if (d && !d.error && d.photos && d.photos.length) {
-          row = Object.assign({}, row, { photos: d.photos, photo_url: d.photo_url || row.photo_url });
+        if (d && !d.error) {
+          row = Object.assign({}, row, {
+            partners: d.partners || row.partners || [],
+            photos: (d.photos && d.photos.length) ? d.photos : row.photos,
+            photo_url: d.photo_url || row.photo_url
+          });
         }
       }
     } catch (e) {}
