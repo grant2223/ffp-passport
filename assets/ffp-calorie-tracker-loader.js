@@ -539,7 +539,7 @@
     recentsInjectStyles();
     var recents = this.recents || [];
     if (!recents.length) { host.innerHTML = ''; return; }
-    var top = recents.slice(0, 6);
+    var top = recents.slice(0, 4);
     var rows = top.map(function (r, i) {
       var sub = r.free
         ? (Math.round(r.kcal) + ' kcal · tap to add')
@@ -652,6 +652,7 @@
   CalorieTracker.openBarcodeScanner = function () {
     var self = this;
     var overlay = document.getElementById('barcode-scanner'); if (!overlay) return;
+    this._pickerMeal = this.autoBucket();   // opened from the Today screen → default the found food to time of day
     this._bcHandled = false;
     overlay.classList.add('open');
     var statusEl = document.getElementById('bc-status');
