@@ -67,7 +67,18 @@ async function clientProfile(id){
   var hasPass=!!pp.has_account;
   var email=(pp.email||m.email||''), phone=(pp.phone||m.phone||'');
   var head;
-  if(hasPass){ head=_ppCardHtml(pp, nm, id); }
+  if(hasPass && window.FFPPassportCard){
+    // EXACT community passport card (shared canonical renderer). Both faces pre-built → flip is clean both ways.
+    var _fd=window.ffpFmtPassDate||function(d){return d?String(d).slice(0,10):'';};
+    var m2={ id:pp.id||'', name:nm, givenNames:pp.given_names||gn, surname:pp.surname||sn, photo:pp.photo_url||'',
+      country:pp.country||pp.nationality||'', nationality:pp.nationality||pp.country||'', gender:pp.gender||'',
+      dob:_fd(pp.date_of_birth), issueDate:_fd(pp.member_since), expiryDate:_fd(pp.member_since,1),
+      memberType:pp.tier||'member', memberSince:pp.member_since?(function(){try{return new Date(pp.member_since).getFullYear();}catch(e){return '';}})():'' };
+    // private back fields (sports/reliability/meetupsHosted/city) intentionally omitted — coach sees identity only.
+    head='<div class="pass-container" style="margin:-2px 0 10px;">'+window.FFPPassportCard.render(m2,{flippable:true})+'</div>'+
+      '<div style="font-size:10.5px;font-weight:700;color:var(--ffp-purple);margin:0 0 12px;text-align:center;"><span class="ms" style="font-size:13px;vertical-align:-2px;">verified_user</span> Pulled from their FFP Passport</div>';
+  }
+  else if(hasPass){ head=_ppCardHtml(pp, nm, id); }
   else {
     var cell=function(lbl,val){ return '<div style="padding:7px 2px;min-width:0;border-bottom:1px solid var(--ffp-border);"><div style="font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--ffp-text-dim);margin-bottom:2px;">'+lbl+'</div><div style="font-weight:700;color:var(--ffp-text);font-size:13px;word-break:break-word;line-height:1.3;">'+(val?escHtml(val):'<span style="color:var(--ffp-text-dim);font-weight:600;">—</span>')+'</div></div>'; };
     head='<div style="display:flex;align-items:center;gap:13px;margin:-2px 0 14px;">'+
@@ -80,6 +91,8 @@ async function clientProfile(id){
   openModalShell('lg', escHtml(nm), body,
     '<button class="btn btn-ghost left" onclick="closeModal();confirmDeleteMember(\''+id+'\')"><span class="ms">delete</span> Delete client</button>'+
     '<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
+  // Scale the passport card to the modal width (the shared card is 540px-based and transform-scales to fit).
+  if(hasPass && window.ffpScaleCards){ var _scp=function(){ try{ window.ffpScaleCards(document); }catch(e){} }; requestAnimationFrame(function(){ requestAnimationFrame(_scp); }); setTimeout(_scp,60); setTimeout(_scp,200); }
   // Recent note (latest), with View all on the opposite side.
   if(window.supabase){ try{ window.supabase.rpc('pro_list_client_notes',{p_pro:_memProvId(),p_client:id}).then(function(r){
     var notes=(r&&r.data)||[]; var host=document.getElementById('cp-notes-prev'); if(!host) return;
