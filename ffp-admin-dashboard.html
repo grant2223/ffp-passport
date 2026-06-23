@@ -111,6 +111,9 @@
 
   
 <style>
+/* iOS ZOOM GUARD (platform-wide): Safari/WebView auto-zooms when a focused input is <16px. Force all
+   form controls to 16px everywhere. !important beats any inline/compact font-size on individual inputs. */
+input, select, textarea, .input, .select, .textarea { font-size: 16px !important; }
 /* Base Material Icons rule (self-contained so icons never fall back to raw ligature
    text like "storefront"/"inbox" if the external Google CSS is slow or blocked). The
    glyphs come from the <link> above; this guarantees the class + ligature behaviour. */
