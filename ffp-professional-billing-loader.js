@@ -33,15 +33,24 @@ var PRO_BACKEND = (typeof PRO_API!=='undefined'&&PRO_API) || 'https://ffp-passpo
 function _proRefresh(){ try{ return (window.FFPAuth&&FFPAuth.getRefresh&&FFPAuth.getRefresh()) || localStorage.getItem('ffp_refresh') || sessionStorage.getItem('ffp_refresh'); }catch(e){ return null; } }
 async function _proStripeCard(){
   var pid=_billProvId(); if(!pid) return '';
-  var connected=false, status='not_connected';
-  try{ var r=await window.supabase.from('professionals').select('stripe_account_id, payments_status').eq('id',pid).maybeSingle();
-       if(r&&r.data){ connected=!!r.data.stripe_account_id; status=r.data.payments_status||(connected?'connected':'not_connected'); } }catch(e){}
+  var connected=false, status='not_connected', payouts=null, reqDue='';
+  try{ var r=await window.supabase.from('professionals').select('stripe_account_id, payments_status, payouts_enabled, requirements_due, disabled_reason').eq('id',pid).maybeSingle();
+       if(r&&r.data){ connected=!!r.data.stripe_account_id; status=r.data.payments_status||(connected?'connected':'not_connected'); payouts=r.data.payouts_enabled; reqDue=r.data.requirements_due||''; } }catch(e){}
+  var reqCount=reqDue?reqDue.split(',').filter(Boolean).length:0;
   var wrap=function(inner){ return '<div style="background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:12px;padding:13px 15px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">'+inner+'</div>'; };
   if(status==='connected'){
+    var payoutWarn=(payouts===false)
+      ? '<div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.4);border-radius:12px;padding:11px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><span class="ms" style="color:#f59e0b;font-size:20px;">account_balance_wallet</span><div style="flex:1;min-width:180px;"><div style="font-weight:700;font-size:12.5px;color:#f59e0b;">Payouts paused</div><div class="psub" style="margin:1px 0 0;font-size:11.5px;">You can take payments, but Stripe isn\'t paying out to your bank yet — finish your payout details in Stripe.</div></div><button class="btn btn-sec btn-sm" onclick="connectStripePro()">Resolve</button></div>'
+      : '';
     return wrap('<span class="ms" style="color:#22c55e;font-size:22px;">verified</span>'+
       '<div style="flex:1;min-width:180px;"><div style="font-weight:700;font-size:13px;color:#22c55e;">Online payments connected</div>'+
       '<div class="psub" style="margin:2px 0 0;font-size:12px;">Clients can pay you by card on findfitpeople — money goes straight to your Stripe account, FFP takes no cut.</div></div>'+
-      '<a class="btn btn-ghost btn-sm" href="https://dashboard.stripe.com" target="_blank" rel="noopener"><span class="ms">open_in_new</span> Stripe</a>');
+      '<a class="btn btn-ghost btn-sm" href="https://dashboard.stripe.com" target="_blank" rel="noopener"><span class="ms">open_in_new</span> Stripe</a>')+payoutWarn;
+  } else if(status==='restricted'){
+    return wrap('<span class="ms" style="color:#ef4444;font-size:22px;">error</span>'+
+      '<div style="flex:1;min-width:180px;"><div style="font-weight:700;font-size:13px;color:#ef4444;">Action needed — payments paused</div>'+
+      '<div class="psub" style="margin:2px 0 0;font-size:12px;">Stripe has paused your account'+(reqCount?' until you provide '+reqCount+' more detail'+(reqCount>1?'s':''):' and needs more information')+'. New charges will fail until it\'s resolved.</div></div>'+
+      '<button class="btn btn-pri btn-sm" onclick="connectStripePro()"><span class="ms">arrow_forward</span> Resolve in Stripe</button>');
   } else if(status==='onboarding'){
     return wrap('<span class="ms" style="color:#f59e0b;font-size:22px;">hourglass_top</span>'+
       '<div style="flex:1;min-width:180px;"><div style="font-weight:700;font-size:13px;color:#f59e0b;">Finish your Stripe setup</div>'+
