@@ -5572,7 +5572,7 @@ function _cpRenderForms(){
       det+='<div style="font-size:12px;color:var(--ffp-text-muted);margin-bottom:8px;">Waiting on the client to complete &amp; sign in their app — or upload a signed copy here.</div>'+
         '<button class="btn btn-sec btn-sm" onclick="cpUploadForm(\''+f.id+'\')"><span class="ms">upload_file</span> Upload signed copy</button>';
     }
-    det+='<div style="margin-top:10px;"><button onclick="cpDeleteForm(\''+f.id+'\')" style="background:none;border:none;color:var(--ffp-text-dim);font-size:11px;font-weight:700;cursor:pointer;">Remove form</button></div>';
+    det+='<div style="margin-top:10px;display:flex;gap:16px;"><button onclick="cpPreviewForm(\''+f.id+'\')" style="background:none;border:none;color:var(--ffp-purple);font-size:11px;font-weight:700;cursor:pointer;">Preview</button><button onclick="cpDeleteForm(\''+f.id+'\')" style="background:none;border:none;color:var(--ffp-text-dim);font-size:11px;font-weight:700;cursor:pointer;">Remove form</button></div>';
     var left='<div style="font-weight:700;color:var(--ffp-text);font-size:13px;">'+escHtml(f.title)+'</div><div style="font-size:11px;color:var(--ffp-text-muted);">Assigned '+_cpWhen(f.assigned_at)+'</div>';
     return '<div style="border-bottom:1px solid var(--ffp-border);"><div onclick="cpToggleRow(this)" style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 2px;cursor:pointer;"><div style="min-width:0;">'+left+'</div><div style="display:flex;align-items:center;gap:10px;flex:0 0 auto;">'+fpill(f)+'<span class="ms cp-chev" style="font-size:18px;color:var(--ffp-text-dim);">expand_more</span></div></div><div style="display:none;padding:0 2px 12px;">'+det+'</div></div>';
   }).join('');
@@ -5636,7 +5636,7 @@ async function cpManageTemplates(){
 function _cpTemplateListHtml(){
   var tpls=window._cpTpls||[];
   if(!tpls.length) return '<div class="psub" style="padding:6px 0;">No templates yet. Create your first — start from a Waiver or PAR-Q and adjust it.</div>';
-  return tpls.map(function(t){ return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--ffp-border);"><div style="min-width:0;"><div style="font-weight:800;font-size:13px;color:var(--ffp-text);">'+escHtml(t.title)+'</div><div style="font-size:11px;color:var(--ffp-text-muted);">'+((t.fields&&t.fields.length)||0)+' field'+(((t.fields&&t.fields.length)===1)?'':'s')+(t.requires_signature?' · signature':'')+'</div></div><div style="display:flex;gap:6px;flex:0 0 auto;"><button class="btn btn-sec btn-sm" onclick="cpEditTemplate(\''+t.id+'\')"><span class="ms">edit</span></button><button class="btn btn-ghost btn-sm" onclick="cpDeleteTemplate(\''+t.id+'\')"><span class="ms">delete</span></button></div></div>'; }).join('');
+  return tpls.map(function(t){ return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--ffp-border);"><div style="min-width:0;"><div style="font-weight:800;font-size:13px;color:var(--ffp-text);">'+escHtml(t.title)+'</div><div style="font-size:11px;color:var(--ffp-text-muted);">'+((t.fields&&t.fields.length)||0)+' field'+(((t.fields&&t.fields.length)===1)?'':'s')+(t.requires_signature?' · signature':'')+'</div></div><div style="display:flex;gap:6px;flex:0 0 auto;"><button class="btn btn-sec btn-sm" onclick="cpPreviewTpl(\''+t.id+'\')" title="Preview"><span class="ms">visibility</span></button><button class="btn btn-sec btn-sm" onclick="cpEditTemplate(\''+t.id+'\')"><span class="ms">edit</span></button><button class="btn btn-ghost btn-sm" onclick="cpDeleteTemplate(\''+t.id+'\')"><span class="ms">delete</span></button></div></div>'; }).join('');
 }
 function cpEditTemplate(tid){
   var tpls=window._cpTpls||[], t=tid?tpls.filter(function(x){return x.id===tid;})[0]:null;
@@ -5651,6 +5651,8 @@ function cpEditTemplate(tid){
   _cpDialog(tid?'Edit template':'New template', body, '<button class="btn btn-ghost btn-sm" onclick="cpManageTemplates()">Back</button><button class="btn btn-sec btn-sm" onclick="cpPreview()"><span class="ms">visibility</span> Preview</button><button class="btn btn-pri btn-sm" onclick="cpSaveTemplate()"><span class="ms">save</span> Save</button>');
   _cpRenderFields();
 }
+function cpPreviewTpl(tid){ var t=(window._cpTpls||[]).filter(function(x){return String(x.id)===String(tid);})[0]; if(t) _ffpFormPreview(t.title||'Untitled form', t.description||'', t.requires_signature!==false, t.fields||[], 'cp-preview'); }
+function cpPreviewForm(fid){ var d=window._cpData||{}; var f=(d.forms||[]).filter(function(x){return String(x.id)===String(fid);})[0]; if(f) _ffpFormPreview(f.title||'Form', '', f.requires_signature!==false, f.fields||[], 'cp-preview'); }
 function cpPreview(){
   var title=((document.getElementById('cp-tpl-title')||{}).value||'').trim()||'Untitled form';
   var desc=((document.getElementById('cp-tpl-desc')||{}).value||'').trim();
@@ -5731,12 +5733,14 @@ function _cpRenderFields(){
   var types=[['statement','Text / paragraph'],['text','Short text'],['textarea','Long text'],['yesno','Yes / No'],['date','Date'],['consent','Consent checkbox']];
   host.innerHTML=fs.length? fs.map(function(f,i){
     var opts=types.map(function(t){return '<option value="'+t[0]+'"'+(f.type===t[0]?' selected':'')+'>'+t[1]+'</option>';}).join('');
-    var sel='<select class="select" style="max-width:150px;" onchange="cpFieldSet('+i+',\'type\',this.value)">'+opts+'</select>';
-    var rm='<button onclick="cpRemoveField('+i+')" style="background:none;border:none;color:var(--ffp-text-dim);cursor:pointer;"><span class="ms">close</span></button>';
-    if(f.type==='statement'){
-      return '<div style="display:flex;gap:6px;align-items:flex-start;margin-top:7px;"><textarea class="textarea" style="flex:1;min-height:62px;" placeholder="Written text / paragraph the client reads — e.g. the waiver wording or an instruction" oninput="cpFieldSet('+i+',\'label\',this.value)">'+escHtml(f.label||'')+'</textarea>'+sel+rm+'</div>';
-    }
-    return '<div style="display:flex;gap:6px;align-items:center;margin-top:7px;"><input class="input" style="flex:1;" placeholder="Question / label" value="'+escHtml(f.label||'')+'" oninput="cpFieldSet('+i+',\'label\',this.value)">'+sel+'<label style="font-size:11px;color:var(--ffp-text-muted);display:flex;align-items:center;gap:3px;white-space:nowrap;"><input type="checkbox" '+(f.required?'checked':'')+' onchange="cpFieldSet('+i+',\'required\',this.checked)">Req</label>'+rm+'</div>';
+    var big=(f.type==='statement'||f.type==='textarea');
+    var ph=(f.type==='statement')?'Written text / paragraph the client reads — e.g. the waiver wording or an instruction':'Question / label';
+    var control = big
+      ? '<textarea class="textarea" style="width:100%;display:block;min-height:'+(f.type==='statement'?'120':'88')+'px;" placeholder="'+ph+'" oninput="cpFieldSet('+i+',\'label\',this.value)">'+escHtml(f.label||'')+'</textarea>'
+      : '<input class="input" style="width:100%;display:block;" placeholder="'+ph+'" value="'+escHtml(f.label||'')+'" oninput="cpFieldSet('+i+',\'label\',this.value)">';
+    var reqLbl=(f.type==='statement')?'':'<label style="font-size:11.5px;color:var(--ffp-text-muted);display:flex;align-items:center;gap:5px;white-space:nowrap;"><input type="checkbox" '+(f.required?'checked':'')+' onchange="cpFieldSet('+i+',\'required\',this.checked)">Required</label>';
+    return '<div style="border:1px solid var(--ffp-border);border-radius:11px;padding:10px;margin-top:9px;background:var(--ffp-bg-2);">'+control+
+      '<div style="display:flex;gap:10px;align-items:center;margin-top:9px;"><select class="select" style="max-width:170px;" onchange="cpFieldSet('+i+',\'type\',this.value)">'+opts+'</select>'+reqLbl+'<div style="flex:1;"></div><button onclick="cpRemoveField('+i+')" style="background:none;border:none;color:var(--ffp-text-dim);cursor:pointer;display:flex;align-items:center;gap:3px;font-size:11.5px;font-weight:700;"><span class="ms" style="font-size:17px;">delete</span> Remove</button></div></div>';
   }).join('') : '<div style="font-size:11.5px;color:var(--ffp-text-muted);padding:6px 0;">No fields yet — add one, or start from Waiver/PAR-Q.</div>';
 }
 function cpFieldSet(i,k,v){ if(!window._cpFields||!window._cpFields[i]) return; window._cpFields[i][k]=v; }
