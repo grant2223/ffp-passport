@@ -589,6 +589,22 @@ function planRow(p){
     '<div style="display:flex;gap:6px;flex-shrink:0;"><button class="btn btn-sec btn-sm" onclick="openPlanModal(\''+p.id+'\')"><span class="ms">edit</span></button><button class="btn btn-ghost btn-sm" onclick="confirmDeletePlan(\''+p.id+'\')"><span class="ms">delete</span></button></div></div>';
 }
 var _memSvc=[];
+// Explanation for the "How do clients book + pay?" control — opened by the info icon (stacked overlay).
+function _payHelp(){
+  var old=document.getElementById('pay-help-ov'); if(old) old.remove();
+  var ov=document.createElement('div'); ov.id='pay-help-ov';
+  ov.setAttribute('style','position:fixed;inset:0;z-index:2000000000;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px;');
+  ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+  var row=function(t,d){ return '<div style="margin-bottom:13px;"><div style="font-weight:800;font-size:13.5px;color:var(--ffp-purple);">'+t+'</div><div class="psub" style="margin:2px 0 0;line-height:1.5;">'+d+'</div></div>'; };
+  ov.innerHTML='<div style="max-width:430px;width:100%;background:var(--ffp-bg-2,#fff);border:1px solid var(--ffp-border-mid);border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3);">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--ffp-border);"><div style="font-weight:800;font-size:15px;color:var(--ffp-text);">How do clients book + pay?</div><button onclick="var e=document.getElementById(\'pay-help-ov\');if(e)e.remove();" style="background:var(--ffp-bg-3,#eef3f4);border:none;width:30px;height:30px;border-radius:50%;cursor:pointer;color:var(--ffp-text-muted);font-size:14px;">&#10005;</button></div>'+
+    '<div style="padding:16px 18px;">'+
+      row('Free to book','No payment required — the client just books, nothing is charged.')+
+      row('Pay online to book','The client pays by card online before the booking is confirmed. Requires your Stripe account to be connected.')+
+      row('Book now, pay later','The booking is confirmed straight away and you collect payment yourself — cash, card in person, bank transfer or direct debit. (If Stripe is connected, the client can also choose to pay online.)')+
+    '</div></div>';
+  document.body.appendChild(ov);
+}
 async function _ensureMemSvc(){
   var pid=_memProvId(); if(!pid) return _memSvc;
   try{ var r=await window.supabase.rpc('pro_list_services',{p_pro:pid}); _memSvc=(r&&r.data)?r.data:[]; }catch(e){ _memSvc=[]; }
@@ -617,10 +633,10 @@ async function openPlanModal(id){
       '<div class="field"><div class="label">Price ('+_ccy2()+')</div><input class="input" type="number" id="pl-price_aed" value="'+escHtml(String(p.price_aed||''))+'"></div>'+
       '<div class="field"><div class="label">Sessions / credits</div><input class="input" type="number" id="pl-credits" value="'+escHtml(String(p.credits||''))+'" placeholder="e.g. 10"></div>'+
       '<div class="field"><div class="label">Valid days</div><input class="input" type="number" id="pl-period_days" value="'+escHtml(String(p.period_days||''))+'" placeholder="e.g. 60"></div>'+
-      '<div class="field full"><div class="label">How is this paid?</div><select class="select" id="pl-pay_requirement">'+
-        '<option value="optional"'+((p.pay_requirement==='optional'||!p.pay_requirement)?' selected':'')+'>Pay online if available — otherwise you collect it</option>'+
-        '<option value="free"'+(p.pay_requirement==='free'?' selected':'')+'>Free — no payment</option>'+
-        '<option value="required"'+(p.pay_requirement==='required'?' selected':'')+'>Online payment required (needs Stripe)</option>'+
+      '<div class="field full"><div class="label">How do clients book + pay? <button type="button" onclick="_payHelp()" aria-label="What do these mean?" style="background:none;border:none;color:var(--ffp-purple);cursor:pointer;padding:0 0 0 3px;vertical-align:-3px;"><span class="ms" style="font-size:16px;">info</span></button></div><select class="select" id="pl-pay_requirement">'+
+        '<option value="free"'+(p.pay_requirement==='free'?' selected':'')+'>Free to book</option>'+
+        '<option value="required"'+(p.pay_requirement==='required'?' selected':'')+'>Pay online to book</option>'+
+        '<option value="optional"'+((p.pay_requirement==='optional'||!p.pay_requirement)?' selected':'')+'>Book now, pay later</option>'+
       '</select></div>'+
       '<div class="field full"><div class="label">Notes</div><textarea class="textarea" id="pl-notes" rows="2">'+escHtml(p.notes||'')+'</textarea></div>'+
     '</div></div>',
