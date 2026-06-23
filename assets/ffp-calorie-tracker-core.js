@@ -40,6 +40,10 @@ const CalorieTracker = {
   _addingFood: null,
   _addingAmount: 100,
   _addingMeal: 'breakfast',  // v78 — meal selected inside food-add modal
+  _pickerMeal: 'breakfast',  // v9 — the bucket the inline segmented control points at (governs quick-add + recents)
+
+  // v9 — Recents (unique foods from the last 30 days of food_logs). Populated by the loader; [] in sample mode.
+  recents: [],
   
   // Activity add state
   _activityAdding: null,
@@ -584,6 +588,19 @@ const CalorieTracker = {
     if (tab === 'mymeals' && window.FFPMyMeals && FFPMyMeals.refresh) FFPMyMeals.refresh();
   },
 
+  // v9 — inline meal segmented control inside the picker (the bucket new logs land in; visible + changeable)
+  setPickerMeal(m) {
+    this._pickerMeal = m;
+    this._reflectPickerMeal();
+  },
+  _reflectPickerMeal() {
+    var self = this;
+    document.querySelectorAll('#fp-meal-seg [data-pmeal]').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.pmeal === self._pickerMeal);
+    });
+    var mn = document.getElementById('fp-meal-name'); if (mn) mn.textContent = this._pickerMeal;
+  },
+
   openFoodPicker() {
     this._pickerSearch = '';
     this._pickerCat = 'All';
@@ -591,7 +608,9 @@ const CalorieTracker = {
     this._renderFoodCats();   // rebuild chips from the live (DB-hydrated) FOOD_CATS
     this.renderFoodList();
     this.setPickerTab('foods');
-    var mn = document.getElementById('fp-meal-name'); if (mn) mn.textContent = this.autoBucket();
+    this._pickerMeal = this.autoBucket();   // default the inline selector to time-of-day
+    this._reflectPickerMeal();
+    if (this.renderRecents) this.renderRecents();   // loader-provided; fast "log it again" list up top
     if (window.FFPMyMeals && FFPMyMeals.refresh) FFPMyMeals.refresh();
     document.getElementById('food-picker-backdrop').classList.add('open');
   },
@@ -625,7 +644,7 @@ const CalorieTracker = {
     if (!food) return;
     this._addingFood = food;
     this._addingAmount = food.serving;
-    this._addingMeal = this.autoBucket();
+    this._addingMeal = this._pickerMeal || this.autoBucket();
     this.confirmAdd();
     const btn = document.getElementById('fp-add-' + foodId);
     if (btn) {
@@ -640,7 +659,7 @@ const CalorieTracker = {
     if (!food) return;
     this._addingFood = food;
     this._addingAmount = food.serving;
-    this._addingMeal = this.autoBucket();  // default to time-of-day; user can change in modal
+    this._addingMeal = this._pickerMeal || this.autoBucket();  // default to the picker's selected meal; user can change in modal
     document.getElementById('fa-name').textContent = food.name;
     document.getElementById('fa-default').textContent = `Default serving: ${food.serving} ${food.unit}`;
     document.getElementById('fa-unit-label').textContent = `Amount (${food.unit})`;
