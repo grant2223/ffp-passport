@@ -8111,7 +8111,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '417';
+  const FFP_BUILD = '419';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -8577,6 +8577,10 @@ const MemberProfile = {
         <div class="fields-grid" style="margin-top:10px;">
           ${this.renderEmailCard()}
           ${this.renderPhoneCard()}
+        </div>
+        <div style="margin-top:8px;">
+          <button type="button" onclick="var p=document.getElementById('mp-contact-priv');if(p)p.style.display=(p.style.display==='none'||!p.style.display)?'block':'none';" style="background:none;border:none;color:#2ba8e0;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:0;"><span class="material-icons" style="font-size:16px;">info</span> Why we ask for your email &amp; phone</button>
+          <div id="mp-contact-priv" style="display:none;font-size:11.5px;line-height:1.5;color:#6b8298;background:rgba(43,168,224,.08);border:1px solid rgba(43,168,224,.22);border-radius:10px;padding:9px 11px;margin-top:6px;">Your email and phone number are used only to verify your account and send you essential notifications. They are never shown on your Passport, made public, or shared with other members or partners without your consent.</div>
         </div>
         <div class="fields-grid" style="margin-top:10px;">
           ${this.renderDOBCard()}
