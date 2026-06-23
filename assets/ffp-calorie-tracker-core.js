@@ -683,7 +683,9 @@ const CalorieTracker = {
     if (this._pickerCat !== 'All') items = items.filter(f => f.cat === this._pickerCat);
     if (this._pickerSearch) items = items.filter(f => f.name.toLowerCase().includes(this._pickerSearch));
     if (items.length === 0) {
-      document.getElementById('fp-list').innerHTML = '<div class="feed-empty">No foods match.</div>';
+      // While searching, the OpenFoodFacts "Food database" section below handles the messaging — don't
+      // show a redundant "No foods match." above it. Only show it for an empty category browse.
+      document.getElementById('fp-list').innerHTML = this._pickerSearch ? '' : '<div class="feed-empty">No foods match.</div>';
       return;
     }
     document.getElementById('fp-list').innerHTML = items.map(f => `
@@ -825,7 +827,7 @@ const CalorieTracker = {
       document.getElementById('qa-p').value = '';
       document.getElementById('qa-c').value = '';
       document.getElementById('qa-f').value = '';
-      this._quickMeal = this._pickerMeal || this.autoBucket();
+      this._quickMeal = this.autoBucket();   // opened from the Today screen → default to time of day
       this._reflectQuickMeal();
     }
     var btn = document.getElementById('qa-confirm-btn');
