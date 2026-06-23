@@ -5879,6 +5879,15 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
       <button class="fp-tab" data-fptab="mymeals" onclick="CalorieTracker.setPickerTab('mymeals')">My meals</button>
     </div>
     <div id="fp-foods-pane">
+      <!-- v9 — inline meal selector: the bucket new logs land in (visible + changeable in one tap) -->
+      <div class="fp-meal-seg" id="fp-meal-seg">
+        <button type="button" data-pmeal="breakfast" onclick="CalorieTracker.setPickerMeal('breakfast')">Breakfast</button>
+        <button type="button" data-pmeal="lunch" onclick="CalorieTracker.setPickerMeal('lunch')">Lunch</button>
+        <button type="button" data-pmeal="dinner" onclick="CalorieTracker.setPickerMeal('dinner')">Dinner</button>
+        <button type="button" data-pmeal="snacks" onclick="CalorieTracker.setPickerMeal('snacks')">Snacks</button>
+      </div>
+      <!-- v9 — Recents: one-tap "log it again" from the last 30 days (populated by the loader) -->
+      <div id="fp-recents"></div>
       <div class="food-picker-search">
         <div class="food-picker-search-wrap">
           <span class="material-icons">search</span>
@@ -8110,7 +8119,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '420';
+  const FFP_BUILD = '421';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -9761,7 +9770,7 @@ function fmtPrDate(iso) {
 <!-- Milestone badge library — assets/ffp-milestone-badges.js (window.FFPMSBadges). DEFER: only used by the lazy
      Milestones render long after load, so it must never block boot. Bump ?v on change. -->
 <script defer src="assets/ffp-milestone-badges.js?v=6"></script>
-<script defer src="assets/ffp-calorie-tracker-core.js?v=3"></script>
+<script defer src="assets/ffp-calorie-tracker-core.js?v=4"></script>
 <script>
 
 function closePrEditIfBackdrop(e) { if (e.target.id === 'pr-edit-backdrop') FitnessStats.closePrEdit(); }
