@@ -111,15 +111,80 @@ async function renderBillReports(){
     sec('Clients')+grid([_metric('Total',num(d.clients_total)),_metric('Active',num(d.clients_active)),_metric('Paused',num(d.clients_paused)),_metric('New this month',num(d.clients_new_month))])+
     sec('Packages & activity')+grid([_metric('Active packages',num(d.packages_active)),_metric('Expiring (30 days)',num(d.packages_expiring_30d)),_metric('Standing slots',num(d.standing_slots))]);
 }
+// Stable invoice number derived from the row (no separate sequence column) + tidy date.
+function _invNo(p){ var y; try{ y=new Date(p.created_at).getFullYear(); }catch(e){ y=new Date().getFullYear(); } if(!y) y=new Date().getFullYear(); return 'INV-'+y+'-'+String(p.id||'').replace(/[^a-zA-Z0-9]/g,'').slice(0,6).toUpperCase(); }
+function _invDate(d){ if(!d) return '—'; try{ var s=String(d); return new Date(s.length<=10?s+'T00:00:00':s).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }catch(e){ return String(d).slice(0,10); } }
 function payRow(p,mode){
-  var date=mode==='invoice'?(p.due_date?'due '+p.due_date:''):(p.paid_on?p.paid_on:'');
-  var sub=[]; if(p.client_name)sub.push(escHtml(p.client_name)); if(mode==='payment'&&p.method)sub.push(PAY_METHODS[p.method]||p.method); if(date)sub.push(date);
+  var date=mode==='invoice'?(p.due_date?'due '+_invDate(p.due_date):''):(p.paid_on?_invDate(p.paid_on):'');
+  var sub=[]; if(p.client_name)sub.push(escHtml(p.client_name)); if(mode==='invoice')sub.push(_invNo(p)); if(mode==='payment'&&p.method)sub.push(PAY_METHODS[p.method]||p.method); if(date)sub.push(date);
   var actions='';
-  if(mode==='invoice') actions+='<button class="btn btn-pri btn-sm" onclick="markPaid(\''+p.id+'\')"><span class="ms">check</span> Mark paid</button>';
-  actions+='<button class="btn btn-sec btn-sm" onclick="openPaymentModal(\''+p.id+'\',\''+mode+'\')"><span class="ms">edit</span></button><button class="btn btn-ghost btn-sm" onclick="confirmDeletePayment(\''+p.id+'\',\''+mode+'\')"><span class="ms">delete</span></button>';
-  return '<div style="background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:12px;padding:11px 13px;margin-bottom:9px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">'+
-    '<div style="min-width:0;"><div style="font-weight:800;color:var(--ffp-text);">'+escHtml(p.description||'Payment')+'</div>'+(sub.length?'<div class="psub" style="margin:2px 0 0;">'+sub.join(' · ')+'</div>':'')+'</div>'+
-    '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex-shrink:0;"><div style="font-weight:800;color:var(--ffp-text);">'+_money(p.amount_aed)+'</div><div style="display:flex;gap:6px;">'+actions+'</div></div></div>';
+  if(mode==='invoice'){
+    actions+='<button class="btn btn-pri btn-sm" onclick="openInvoiceSend(\''+p.id+'\')"><span class="ms">send</span> Send</button>'+
+      '<button class="btn btn-sec btn-sm" onclick="openInvoicePreview(\''+p.id+'\')" title="Preview invoice"><span class="ms">visibility</span></button>'+
+      '<button class="btn btn-sec btn-sm" onclick="markPaid(\''+p.id+'\')" title="Mark paid"><span class="ms">check</span></button>';
+  } else {
+    actions+='<button class="btn btn-sec btn-sm" onclick="openInvoicePreview(\''+p.id+'\')" title="View receipt"><span class="ms">visibility</span></button>';
+  }
+  actions+='<button class="btn btn-sec btn-sm" onclick="openPaymentModal(\''+p.id+'\',\''+mode+'\')" title="Edit"><span class="ms">edit</span></button><button class="btn btn-ghost btn-sm" onclick="confirmDeletePayment(\''+p.id+'\',\''+mode+'\')" title="Delete"><span class="ms">delete</span></button>';
+  return '<div style="background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:12px;padding:11px 13px;margin-bottom:9px;">'+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;"><div style="min-width:0;"><div style="font-weight:800;color:var(--ffp-text);">'+escHtml(p.description||'Payment')+'</div>'+(sub.length?'<div class="psub" style="margin:2px 0 0;">'+sub.join(' · ')+'</div>':'')+'</div>'+
+    '<div style="font-weight:800;color:var(--ffp-text);white-space:nowrap;font-size:15px;">'+_money(p.amount_aed)+'</div></div>'+
+    '<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap;">'+actions+'</div></div>';
+}
+// ── Business info (the invoice FROM block) — fetched once ──
+var _billBiz=null;
+async function _ensureBillBiz(){ if(_billBiz) return _billBiz; var pid=_billProvId(); if(!pid) return {}; try{ var r=await window.supabase.from('professionals').select('display_name, work_email, phone, city, country, currency').eq('id',pid).maybeSingle(); _billBiz=(r&&r.data)||{}; }catch(e){ _billBiz={}; } return _billBiz; }
+function _invFind(id){ return (_billInvoices.concat(_billPayments)).find(function(x){return x.id===id;}); }
+// ── Full invoice preview (proper invoice with every field a real invoice needs) ──
+async function openInvoicePreview(id){
+  var p=_invFind(id); if(!p){ showToast('Not found','error'); return; }
+  await _ensureBillClients(); var biz=await _ensureBillBiz();
+  var cl=_payClients.find(function(c){return c.id===p.client_id;})||{};
+  var clName=p.client_name||cl.full_name||'Client', clEmail=cl.email||'', clPhone=cl.phone||'';
+  var paid=(p.status==='paid'); var inv=_invNo(p); var amt=_money(p.amount_aed);
+  var bizName=biz.display_name||(window.FFP_PROVIDER&&FFP_PROVIDER.name)||'Your business';
+  var bizLines=[ (biz.city?[biz.city,biz.country].filter(Boolean).join(', '):''), biz.work_email||'', biz.phone||'' ].filter(Boolean).map(function(l){return '<div style="font-size:11px;color:#5a6b6e;">'+escHtml(l)+'</div>';}).join('');
+  var clLines=[ clEmail, clPhone ].filter(Boolean).map(function(l){return '<div style="font-size:11px;color:#5a6b6e;">'+escHtml(l)+'</div>';}).join('');
+  var statusPill=paid?'<span style="background:#15833f;color:#fff;font-size:10px;font-weight:800;padding:3px 9px;border-radius:5px;letter-spacing:.5px;">PAID</span>':'<span style="background:#fbe2a8;color:#7a4f00;font-size:10px;font-weight:800;padding:3px 9px;border-radius:5px;letter-spacing:.5px;">DUE</span>';
+  var html='<div style="background:#fff;border:1px solid #e2e8ea;border-radius:12px;padding:20px;color:#1a1a1a;">'+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px;">'+
+      '<div style="min-width:0;"><div style="font-size:17px;font-weight:900;color:#0a3e44;word-break:break-word;">'+escHtml(bizName)+'</div>'+bizLines+'</div>'+
+      '<div style="text-align:right;flex:0 0 auto;"><div style="font-size:22px;font-weight:900;letter-spacing:2px;color:#0a3e44;">INVOICE</div><div style="font-size:11px;color:#5a6b6e;font-family:monospace;">'+escHtml(inv)+'</div><div style="margin-top:7px;">'+statusPill+'</div></div>'+
+    '</div>'+
+    '<div style="display:flex;justify-content:space-between;gap:16px;margin-bottom:16px;flex-wrap:wrap;">'+
+      '<div style="min-width:150px;"><div style="font-size:9px;font-weight:800;color:#9aa7ad;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">Bill to</div><div style="font-weight:700;font-size:13px;color:#1a1a1a;">'+escHtml(clName)+'</div>'+clLines+'</div>'+
+      '<div style="text-align:right;font-size:11.5px;color:#3a4a4e;"><div><b>Issued:</b> '+_invDate(p.created_at)+'</div>'+(p.due_date?'<div><b>Due:</b> '+_invDate(p.due_date)+'</div>':'')+(paid&&p.paid_on?'<div><b>Paid:</b> '+_invDate(p.paid_on)+(p.method?' ('+escHtml(PAY_METHODS[p.method]||p.method)+')':'')+'</div>':'')+'</div>'+
+    '</div>'+
+    '<table style="width:100%;border-collapse:collapse;font-size:12.5px;">'+
+      '<tr style="border-bottom:2px solid #0a3e44;"><th style="text-align:left;padding:7px 4px;color:#0a3e44;font-size:9.5px;text-transform:uppercase;letter-spacing:.5px;">Description</th><th style="text-align:right;padding:7px 4px;color:#0a3e44;font-size:9.5px;text-transform:uppercase;letter-spacing:.5px;">Amount</th></tr>'+
+      '<tr style="border-bottom:1px solid #e9edef;"><td style="padding:10px 4px;color:#1a1a1a;">'+escHtml(p.description||'Professional services')+'</td><td style="text-align:right;padding:10px 4px;font-weight:600;color:#1a1a1a;">'+amt+'</td></tr>'+
+    '</table>'+
+    '<div style="display:flex;justify-content:flex-end;margin-top:10px;"><div style="min-width:190px;"><div style="display:flex;justify-content:space-between;font-size:12px;padding:4px;color:#3a4a4e;"><span>Subtotal</span><span>'+amt+'</span></div><div style="display:flex;justify-content:space-between;font-size:16px;font-weight:900;padding:9px 4px;border-top:2px solid #0a3e44;color:#0a3e44;"><span>Total</span><span>'+amt+'</span></div></div></div>'+
+    '<div style="margin-top:16px;font-size:10.5px;color:#7a878c;border-top:1px solid #e9edef;padding-top:10px;line-height:1.5;">'+(paid?'Thank you — this invoice has been paid in full.':'Payment due'+(p.due_date?' by '+_invDate(p.due_date):'')+'. Thank you for your business.')+'</div>'+
+  '</div>';
+  var foot='<button class="btn btn-ghost" onclick="closeModal()">Close</button>'+
+    ((clEmail||clPhone)?'<button class="btn btn-pri" onclick="openInvoiceSend(\''+id+'\')"><span class="ms">send</span> Send invoice</button>':'<span class="psub" style="margin:0;align-self:center;">Add an email or phone to this client to send</span>');
+  openModalShell('lg','Invoice · '+escHtml(clName), html, foot);
+}
+// ── Send the invoice to the client (email via mail app, or WhatsApp) ──
+async function openInvoiceSend(id){
+  var p=_invFind(id); if(!p) return;
+  await _ensureBillClients(); var biz=await _ensureBillBiz();
+  var cl=_payClients.find(function(c){return c.id===p.client_id;})||{};
+  var clEmail=cl.email||'', clPhoneRaw=cl.phone||'', clPhone=clPhoneRaw.replace(/[^+0-9]/g,'');
+  var bizName=biz.display_name||(window.FFP_PROVIDER&&FFP_PROVIDER.name)||'Your business';
+  var inv=_invNo(p), amt=_money(p.amount_aed);
+  var lines='Invoice '+inv+'\nFrom: '+bizName+'\nFor: '+(p.description||'Professional services')+'\nAmount: '+amt+'\n'+(p.status==='paid'?'Status: PAID — thank you':'Due'+(p.due_date?' by '+_invDate(p.due_date):''));
+  var subject='Invoice '+inv+' from '+bizName;
+  var emailHref='mailto:'+encodeURIComponent(clEmail)+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(lines+'\n\nThank you,\n'+bizName);
+  var waHref='https://wa.me/'+clPhone+'?text='+encodeURIComponent(subject+'\n\n'+lines);
+  var body='<div class="psub" style="margin:0 0 12px;">Send invoice <b>'+escHtml(inv)+'</b> · '+amt+' to '+escHtml(p.client_name||cl.full_name||'the client')+'.</div>'+
+    '<div style="display:flex;flex-direction:column;gap:9px;">'+
+      (clEmail?'<a class="btn btn-sec btn-block" href="'+emailHref+'" style="justify-content:flex-start;gap:10px;"><span class="ms" style="color:var(--ffp-purple);">mail</span> Email — '+escHtml(clEmail)+'</a>':'<div class="psub" style="margin:0;opacity:.6;display:flex;gap:8px;align-items:center;"><span class="ms">mail</span> No email on file for this client</div>')+
+      (clPhone?'<a class="btn btn-sec btn-block" href="'+waHref+'" target="_blank" rel="noopener" style="justify-content:flex-start;gap:10px;"><span class="ms" style="color:#25D366;">chat</span> WhatsApp — '+escHtml(clPhoneRaw)+'</a>':'<div class="psub" style="margin:0;opacity:.6;display:flex;gap:8px;align-items:center;"><span class="ms">chat</span> No phone on file for this client</div>')+
+    '</div>'+
+    '<div class="psub" style="margin:12px 0 0;font-size:11px;">Opens your email app or WhatsApp with the invoice ready to send.</div>';
+  openModalShell('', 'Send invoice', body, '<button class="btn btn-ghost left" onclick="openInvoicePreview(\''+id+'\')">Back to preview</button><button class="btn btn-ghost" onclick="closeModal()">Close</button>');
 }
 async function openPaymentModal(id,mode){
   await _ensureBillClients();
