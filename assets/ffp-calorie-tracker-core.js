@@ -44,6 +44,11 @@ const CalorieTracker = {
 
   // v9 — Recents (unique foods from the last 30 days of food_logs). Populated by the loader; [] in sample mode.
   recents: [],
+
+  // v10 (P2) — date browsing + edit + quick-add state
+  viewDate: null,        // the day being viewed/logged on the Today tab (local midnight Date). null → today.
+  _editRemove: null,     // { mealKey, idx } of an item being edited (we re-add the new version, then remove old)
+  _quickMeal: 'breakfast', // meal the quick-add modal logs into
   
   // Activity add state
   _activityAdding: null,
@@ -62,7 +67,8 @@ const CalorieTracker = {
         document.querySelectorAll('#fa-meal-chips .meal-type-chip').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         this._addingMeal = btn.dataset.meal;
-        document.getElementById('fa-meal-name').textContent = btn.dataset.meal;
+        var cb = document.getElementById('fa-confirm-btn');
+        if (cb && !this._editRemove) cb.innerHTML = 'Add to <span id="fa-meal-name">' + btn.dataset.meal + '</span>';
       });
     });
     // Today/Week/Month tab switching
@@ -91,7 +97,55 @@ const CalorieTracker = {
         this.renderGoalConfigResult();
       });
     });
+    this.viewDate = this._todayMidnight();   // v10 — Today tab starts on today
+    this._renderDateBar();
     this.render();
+  },
+
+  // ─────────── DATE BROWSING (Today tab) — v10 ───────────
+  _todayMidnight() { var d = new Date(); d.setHours(0, 0, 0, 0); return d; },
+  _ymd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); },
+  _isViewingToday() { return !this.viewDate || this._ymd(this.viewDate) === this._ymd(this._todayMidnight()); },
+  // ISO timestamp a new log should carry: the viewed day, stamped at the current time-of-day (so today === now)
+  _logIso() {
+    var v = this.viewDate || new Date();
+    var n = new Date();
+    return new Date(v.getFullYear(), v.getMonth(), v.getDate(), n.getHours(), n.getMinutes(), n.getSeconds()).toISOString();
+  },
+  _dateBarLabel() {
+    if (this._isViewingToday()) return 'Today';
+    var y = this._todayMidnight(); y.setDate(y.getDate() - 1);
+    if (this._ymd(this.viewDate) === this._ymd(y)) return 'Yesterday';
+    return this.viewDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  },
+  _renderDateBar() {
+    var lbl = document.getElementById('ct-date-label');
+    if (lbl) lbl.textContent = this._dateBarLabel();
+    var next = document.getElementById('ct-date-next');
+    if (next) {
+      var atToday = this._isViewingToday();
+      next.style.opacity = atToday ? '0.3' : '1';
+      next.style.pointerEvents = atToday ? 'none' : 'auto';
+    }
+  },
+  shiftDay(delta) {
+    var d = new Date((this.viewDate || this._todayMidnight()).getTime());
+    d.setDate(d.getDate() + delta);
+    d.setHours(0, 0, 0, 0);
+    if (d.getTime() > this._todayMidnight().getTime()) return;   // never go past today
+    this.viewDate = d;
+    this._renderDateBar();
+    this._loadView();
+  },
+  goToday() {
+    this.viewDate = this._todayMidnight();
+    this._renderDateBar();
+    this._loadView();
+  },
+  // Pull the viewed day's meals/activities (loader provides loadDayData; sample mode just re-renders).
+  _loadView() {
+    if (this.loadDayData) this.loadDayData(this.viewDate);
+    else this.render();
   },
   
   // ─────────── ACTIVITY ───────────
@@ -229,7 +283,7 @@ const CalorieTracker = {
         : (this.meals[mk] || []).map((item, idx) => {
             if (item && item.free) {
               return `
-              <div class="meal-item">
+              <div class="meal-item" style="cursor:pointer;" onclick="CalorieTracker.editItem('${mk}', ${idx})">
                 <div class="meal-item-left">
                   <div class="meal-item-name">${escHtml(item.name || 'Meal')}</div>
                   <div class="meal-item-info">${Math.round(item.p||0)}p / ${Math.round(item.c||0)}c / ${Math.round(item.f||0)}f</div>
@@ -242,7 +296,7 @@ const CalorieTracker = {
             if (!food) return '';
             const ratio = item.amount / food.serving;
             return `
-              <div class="meal-item">
+              <div class="meal-item" style="cursor:pointer;" onclick="CalorieTracker.editItem('${mk}', ${idx})">
                 <div class="meal-item-left">
                   <div class="meal-item-name">${escHtml(food.name)}</div>
                   <div class="meal-item-info">${item.amount} ${food.unit} &middot; ${Math.round(food.p * ratio)}p / ${Math.round(food.c * ratio)}c / ${Math.round(food.f * ratio)}f</div>
@@ -602,6 +656,7 @@ const CalorieTracker = {
   },
 
   openFoodPicker() {
+    this._editRemove = null;
     this._pickerSearch = '';
     this._pickerCat = 'All';
     document.getElementById('fp-search').value = '';
@@ -657,20 +712,26 @@ const CalorieTracker = {
   pickFood(foodId) {
     const food = FOOD_DB.find(f => f.id === foodId);
     if (!food) return;
-    this._addingFood = food;
-    this._addingAmount = food.serving;
-    this._addingMeal = this._pickerMeal || this.autoBucket();  // default to the picker's selected meal; user can change in modal
-    document.getElementById('fa-name').textContent = food.name;
-    document.getElementById('fa-default').textContent = `Default serving: ${food.serving} ${food.unit}`;
-    document.getElementById('fa-unit-label').textContent = `Amount (${food.unit})`;
-    document.getElementById('fa-amount').textContent = food.serving;
-    document.getElementById('fa-amount-input').value = food.serving;
-    document.getElementById('fa-meal-name').textContent = this._addingMeal;
-    // Default selected chip = the auto (time-of-day) meal
-    document.querySelectorAll('#fa-meal-chips .meal-type-chip').forEach(b => b.classList.toggle('active', b.dataset.meal === this._addingMeal));
-    this.renderFoodAddMacros();
+    this._editRemove = null;   // normal add (not an edit)
+    this._populateFoodAdd(food, food.serving, this._pickerMeal || this.autoBucket(), false);
     this.closeFoodPicker();
     document.getElementById('food-add-backdrop').classList.add('open');
+  },
+
+  // v10 — single source for filling the food-add modal (used by pickFood AND editItem)
+  _populateFoodAdd(food, amount, meal, isEdit) {
+    this._addingFood = food;
+    this._addingAmount = amount;
+    this._addingMeal = meal;
+    document.getElementById('fa-name').textContent = food.name;
+    document.getElementById('fa-default').textContent = isEdit ? 'Editing — adjust and save' : `Default serving: ${food.serving} ${food.unit}`;
+    document.getElementById('fa-unit-label').textContent = `Amount (${food.unit})`;
+    document.getElementById('fa-amount').textContent = amount;
+    document.getElementById('fa-amount-input').value = amount;
+    document.querySelectorAll('#fa-meal-chips .meal-type-chip').forEach(b => b.classList.toggle('active', b.dataset.meal === meal));
+    var btn = document.getElementById('fa-confirm-btn');
+    if (btn) { if (isEdit) btn.textContent = 'Save changes'; else btn.innerHTML = 'Add to <span id="fa-meal-name">' + meal + '</span>'; }
+    this.renderFoodAddMacros();
   },
   
   closeFoodAdd() {
@@ -709,7 +770,86 @@ const CalorieTracker = {
     this.closeFoodAdd();
     this.render();
     showToast(`Added ${this._addingFood.name} to ${mealKey}`);
+    this._finishEditRemoval();   // v10 — if this was an edit, drop the old version (the loader deletes its row)
     // PRODUCTION: POST /api/members/me/meals/{mealKey}
+  },
+
+  // ─────────── EDIT A LOGGED ITEM (v10) ───────────
+  // Tap a logged item → reopen the matching modal prefilled. On save we add the new version, then remove the
+  // old one (reuses the existing add + delete persistence — no special update path).
+  editItem(mealKey, idx) {
+    var item = this.meals[mealKey] && this.meals[mealKey][idx];
+    if (!item) return;
+    this._editRemove = { mealKey: mealKey, idx: idx };
+    if (item.free) {
+      this.openQuickAdd(true);
+      document.getElementById('qa-name').value = item.name || '';
+      document.getElementById('qa-kcal').value = Math.round(item.kcal || 0);
+      document.getElementById('qa-p').value = item.p ? Math.round(item.p) : '';
+      document.getElementById('qa-c').value = item.c ? Math.round(item.c) : '';
+      document.getElementById('qa-f').value = item.f ? Math.round(item.f) : '';
+      this._quickMeal = mealKey;
+      this._reflectQuickMeal();
+    } else {
+      var food = FOOD_DB.find(f => f.id === item.foodId);
+      if (!food) { this._editRemove = null; return; }
+      this._populateFoodAdd(food, item.amount, mealKey, true);
+      document.getElementById('food-add-backdrop').classList.add('open');
+    }
+  },
+  _finishEditRemoval() {
+    var er = this._editRemove;
+    if (!er) return;
+    this._editRemove = null;
+    if (this.meals[er.mealKey] && this.meals[er.mealKey][er.idx]) this.removeItem(er.mealKey, er.idx);
+  },
+
+  // ─────────── QUICK ADD CALORIES (v10) — log something not in the catalog ───────────
+  openQuickAdd(isEdit) {
+    if (!isEdit) {
+      this._editRemove = null;
+      document.getElementById('qa-name').value = '';
+      document.getElementById('qa-kcal').value = '';
+      document.getElementById('qa-p').value = '';
+      document.getElementById('qa-c').value = '';
+      document.getElementById('qa-f').value = '';
+      this._quickMeal = this._pickerMeal || this.autoBucket();
+      this._reflectQuickMeal();
+    }
+    var btn = document.getElementById('qa-confirm-btn');
+    if (btn) btn.textContent = isEdit ? 'Save changes' : 'Add';
+    this.closeFoodPicker();
+    document.getElementById('quick-add-backdrop').classList.add('open');
+  },
+  closeQuickAdd() {
+    document.getElementById('quick-add-backdrop').classList.remove('open');
+  },
+  setQuickMeal(m) {
+    this._quickMeal = m;
+    this._reflectQuickMeal();
+  },
+  _reflectQuickMeal() {
+    var self = this;
+    document.querySelectorAll('#qa-meal-chips .meal-type-chip').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.meal === self._quickMeal);
+    });
+  },
+  confirmQuickAdd() {
+    var kcal = parseInt(document.getElementById('qa-kcal').value, 10);
+    if (!kcal || kcal <= 0) { showToast('Enter calories', 'error'); return; }
+    var name = (document.getElementById('qa-name').value || '').trim() || 'Quick add';
+    var p = parseFloat(document.getElementById('qa-p').value) || 0;
+    var c = parseFloat(document.getElementById('qa-c').value) || 0;
+    var f = parseFloat(document.getElementById('qa-f').value) || 0;
+    var meal = this._quickMeal || this.autoBucket();
+    var item = { free: true, name: name, kcal: Math.round(kcal), p: +p.toFixed(1), c: +c.toFixed(1), f: +f.toFixed(1) };
+    if (!this.meals[meal]) this.meals[meal] = [];
+    this.meals[meal].push(item);
+    this._pendingQuick = { item: item, meal: meal };   // loader inserts the food_logs row
+    this.closeQuickAdd();
+    this.render();
+    showToast('Added ' + name + ' to ' + meal);
+    this._finishEditRemoval();
   },
   
   // ─────────── GOAL CONFIG ───────────
