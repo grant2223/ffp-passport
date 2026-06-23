@@ -72,7 +72,7 @@ function clientProfile(id){
     '<div style="display:flex;flex-direction:column;gap:8px;margin-top:18px;">'+
       act('health_and_safety','Connect client Passport','openClientHealth(\''+id+'\')')+
       act('card_membership','Packages','openMembership(\''+id+'\')')+
-      act('assignment','Assessment form','clientAssessment(\''+id+'\')')+
+      act('assignment','Forms','clientAssessment(\''+id+'\')')+
       act('edit','Edit profile','openMemberModal(\''+id+'\')')+
     '</div>',
     '<button class="btn btn-ghost left" onclick="closeModal();confirmDeleteMember(\''+id+'\')"><span class="ms">delete</span> Delete client</button>'+
@@ -84,8 +84,162 @@ function clientProfile(id){
     var src=document.getElementById('cp-src'); if(src) src.style.display='';
   }).catch(function(){}); }catch(e){} }
 }
-// Placeholder until Grant defines the assessment fields/storage.
-function clientAssessment(id){ showToast('Assessment form coming — tell me what it should capture','info'); }
+// ─── ASSESSMENT FORMS (client record) — waivers, PAR-Q+, custom templates ───
+var _afForms=[], _afClient=null, _afFields=[], _afEditTplId=null, _afTpls=[];
+function afWhen(ts){ if(!ts) return ''; try{ return new Date(ts).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); }catch(e){ return String(ts).slice(0,10); } }
+function clientAssessment(id){
+  _afClient=id;
+  var m=(_members||[]).find(function(x){return x.id===id;})||{};
+  openModalShell('lg','Forms · '+escHtml(m.full_name||'Client'),
+    '<div style="display:flex;gap:8px;margin:0 0 14px;flex-wrap:wrap;"><button class="btn btn-pri btn-sm" onclick="afAssign()"><span class="ms">post_add</span> Assign form</button><button class="btn btn-sec btn-sm" onclick="afManageTemplates()"><span class="ms">tune</span> Manage templates</button></div>'+
+    '<div id="af-list"><div class="psub" style="padding:6px 0;">Loading…</div></div>',
+    '<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
+  afLoad();
+}
+async function afLoad(){
+  var pid=_memProvId();
+  try{ var r=await window.supabase.rpc('pro_list_client_forms',{p_pro:pid,p_client:_afClient}); _afForms=(r&&r.data)||[]; }catch(e){ _afForms=[]; }
+  afRender();
+}
+function afStatusPill(f){
+  if(f.status==='completed'){ var l=f.source==='upload'?'Uploaded':(f.requires_signature?'Signed':'Completed'); return '<span style="font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;color:#fff;background:#15833f;white-space:nowrap;">'+l+'</span>'; }
+  return '<span style="font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;color:#7a4f00;background:#fbe2a8;white-space:nowrap;">Outstanding</span>';
+}
+function afToggle(el){ var dd=el.nextElementSibling; if(!dd) return; var hidden=(dd.style.display==='none'||dd.style.display===''); dd.style.display=hidden?'block':'none'; var ch=el.querySelector('.af-chev'); if(ch) ch.style.transform=hidden?'rotate(180deg)':'none'; }
+function afRender(){
+  var host=document.getElementById('af-list'); if(!host) return;
+  if(!_afForms.length){ host.innerHTML='<div class="psub" style="padding:6px 0;">No forms yet — assign one above (e.g. a waiver or PAR-Q+).</div>'; return; }
+  host.innerHTML=_afForms.map(function(f){
+    var det='';
+    if(f.status==='completed'){
+      if(f.source==='upload'&&f.uploaded_file_url){ det+='<div style="margin-bottom:7px;"><a href="'+escHtml(f.uploaded_file_url)+'" target="_blank" rel="noopener" style="color:var(--ffp-purple);font-weight:700;font-size:12.5px;"><span class="ms" style="font-size:15px;vertical-align:-3px;">description</span> View uploaded copy</a></div>'; }
+      var resp=f.responses||{}; (f.fields||[]).forEach(function(fl){ var v=resp[fl.key]; if(fl.type==='consent') v=(v?'Accepted':'Not accepted'); if(fl.type==='yesno') v=(v===true||v==='yes'?'Yes':(v===false||v==='no'?'No':v)); det+='<div style="font-size:12px;margin-bottom:5px;line-height:1.5;"><span class="psub" style="margin:0;">'+escHtml(fl.label||fl.key)+'</span><br><span style="font-weight:700;color:var(--ffp-text);">'+escHtml(v==null||v===''?'—':String(v))+'</span></div>'; });
+      if(f.signature_name) det+='<div class="psub" style="font-size:12px;margin-top:7px;">Signed by <b style="color:var(--ffp-text);">'+escHtml(f.signature_name)+'</b> · '+afWhen(f.completed_at)+'</div>';
+    } else {
+      det+='<div class="psub" style="margin:0 0 8px;">Waiting on the client to complete &amp; sign in their app — or upload a signed copy here.</div>'+
+        '<button class="btn btn-sec btn-sm" onclick="afUpload(\''+f.id+'\')"><span class="ms">upload_file</span> Upload signed copy</button>';
+    }
+    det+='<div style="margin-top:10px;"><button onclick="afRemove(\''+f.id+'\')" style="background:none;border:none;color:var(--ffp-text-dim);font-size:11px;font-weight:700;cursor:pointer;">Remove form</button></div>';
+    var left='<div style="font-weight:700;color:var(--ffp-text);font-size:13px;">'+escHtml(f.title)+'</div><div class="psub" style="margin:0;">Assigned '+afWhen(f.assigned_at)+'</div>';
+    return '<div style="border-bottom:1px solid var(--ffp-border);"><div onclick="afToggle(this)" style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 2px;cursor:pointer;"><div style="min-width:0;">'+left+'</div><div style="display:flex;align-items:center;gap:10px;flex:0 0 auto;">'+afStatusPill(f)+'<span class="ms af-chev" style="font-size:18px;color:var(--ffp-text-dim);">expand_more</span></div></div><div style="display:none;padding:0 2px 12px;">'+det+'</div></div>';
+  }).join('');
+}
+function afUpload(fid){
+  var inp=document.createElement('input'); inp.type='file'; inp.accept='image/*,application/pdf';
+  inp.onchange=async function(){ var file=inp.files&&inp.files[0]; if(!file) return; var pid=_memProvId();
+    try{ showToast('Uploading…','info');
+      var path='pro-forms/'+pid+'/'+fid+'-'+Date.now()+'-'+file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+      var up=await window.supabase.storage.from('form-files').upload(path,file,{upsert:true}); if(up.error) throw up.error;
+      var pub=window.supabase.storage.from('form-files').getPublicUrl(path); var url=pub&&pub.data&&pub.data.publicUrl;
+      var r=await window.supabase.rpc('pro_complete_form_upload',{p_pro:pid,p_form_id:fid,p_file_url:url}); if(r&&r.error) throw r.error;
+      showToast('Uploaded','success'); afLoad();
+    }catch(e){ showToast('Upload failed','error'); }
+  };
+  inp.click();
+}
+async function afRemove(fid){
+  var pid=_memProvId();
+  try{ var r=await window.supabase.rpc('pro_delete_client_form',{p_pro:pid,p_form_id:fid}); if(r&&r.error) throw r.error;
+    _afForms=_afForms.filter(function(f){return String(f.id)!==String(fid);}); afRender();
+  }catch(e){ showToast('Could not remove','error'); }
+}
+async function afAssign(){
+  var pid=_memProvId();
+  openModalShell('lg','Assign a form','<div class="psub" style="padding:8px 0;">Loading templates…</div>','<button class="btn btn-ghost" onclick="clientAssessment(\''+_afClient+'\')">Back</button>');
+  try{ var r=await window.supabase.rpc('pro_list_form_templates',{p_pro:pid}); var tpls=(r&&r.data)||[];
+    var body=tpls.length? tpls.map(function(t){ return '<button onclick="afDoAssign(\''+t.id+'\')" style="display:block;width:100%;text-align:left;border:1px solid var(--ffp-border-mid);background:var(--ffp-bg-card);border-radius:10px;padding:11px 13px;margin-bottom:8px;cursor:pointer;font-family:inherit;"><div style="font-weight:800;font-size:13px;color:var(--ffp-text);">'+escHtml(t.title)+'</div>'+(t.description?'<div class="psub" style="margin:2px 0 0;">'+escHtml(t.description)+'</div>':'')+'</button>'; }).join('') : '<div class="psub" style="padding:6px 0;">No templates yet. Create one with “Manage templates”.</div>';
+    var mb=document.querySelector('#ffp-modal .mc-body'); if(mb) mb.innerHTML=body;
+  }catch(e){ var mb=document.querySelector('#ffp-modal .mc-body'); if(mb) mb.innerHTML='<div class="psub">Could not load templates.</div>'; }
+}
+async function afDoAssign(tid){
+  var pid=_memProvId();
+  try{ var r=await window.supabase.rpc('pro_assign_form',{p_pro:pid,p_client:_afClient,p_template:tid}); if(r&&r.error) throw r.error;
+    showToast('Form assigned','success'); clientAssessment(_afClient);
+  }catch(e){ showToast('Could not assign','error'); }
+}
+async function afManageTemplates(){
+  var pid=_memProvId();
+  openModalShell('lg','Form templates','<div class="psub" style="padding:8px 0;">Loading…</div>','<button class="btn btn-ghost left" onclick="clientAssessment(\''+_afClient+'\')">Back</button><button class="btn btn-pri" onclick="afEditTemplate()"><span class="ms">add</span> New template</button>');
+  try{ var r=await window.supabase.rpc('pro_list_form_templates',{p_pro:pid}); _afTpls=(r&&r.data)||[];
+    var mb=document.querySelector('#ffp-modal .mc-body'); if(mb) mb.innerHTML=afTemplateListHtml();
+  }catch(e){ var mb=document.querySelector('#ffp-modal .mc-body'); if(mb) mb.innerHTML='<div class="psub">Could not load.</div>'; }
+}
+function afTemplateListHtml(){
+  var tpls=_afTpls||[];
+  if(!tpls.length) return '<div class="psub" style="padding:6px 0;">No templates yet. Create your first — start from a Waiver or PAR-Q+ and adjust it.</div>';
+  return tpls.map(function(t){ return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--ffp-border);"><div style="min-width:0;"><div style="font-weight:800;font-size:13px;color:var(--ffp-text);">'+escHtml(t.title)+'</div><div class="psub" style="margin:0;">'+((t.fields&&t.fields.length)||0)+' field'+(((t.fields&&t.fields.length)===1)?'':'s')+(t.requires_signature?' · signature':'')+'</div></div><div style="display:flex;gap:6px;flex:0 0 auto;"><button class="btn btn-sec btn-sm" onclick="afEditTemplate(\''+t.id+'\')"><span class="ms">edit</span></button><button class="btn btn-ghost btn-sm" onclick="afDeleteTemplate(\''+t.id+'\')"><span class="ms">delete</span></button></div></div>'; }).join('');
+}
+function afEditTemplate(tid){
+  var tpls=_afTpls||[], t=tid?tpls.filter(function(x){return x.id===tid;})[0]:null;
+  _afEditTplId=tid||null; _afFields=t?(t.fields||[]).slice():[];
+  var starter=!t?'<div style="margin-bottom:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;"><span class="psub" style="margin:0;">Start from:</span><button class="btn btn-sec btn-sm" onclick="afStarter(\'waiver\')">Waiver</button><button class="btn btn-sec btn-sm" onclick="afStarter(\'parq\')">PAR-Q+</button></div>':'';
+  var body=starter+
+    '<div class="field"><div class="label">Title</div><input class="input" id="af-tpl-title" value="'+escHtml(t?t.title:'')+'" placeholder="e.g. Liability Waiver"></div>'+
+    '<div class="field" style="margin-top:8px;"><div class="label">Description</div><input class="input" id="af-tpl-desc" value="'+escHtml(t?(t.description||''):'')+'" placeholder="Optional"></div>'+
+    '<label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;color:var(--ffp-text);"><input type="checkbox" id="af-tpl-sig" '+((!t||t.requires_signature)?'checked':'')+'> Require signature</label>'+
+    '<div style="margin-top:13px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--ffp-text-dim);">Fields</div><div id="af-tpl-fields"></div>'+
+    '<button class="btn btn-sec btn-sm" style="margin-top:8px;" onclick="afAddField()"><span class="ms">add</span> Add field</button>';
+  openModalShell('lg',tid?'Edit template':'New template', body, '<button class="btn btn-ghost left" onclick="afManageTemplates()">Back</button><button class="btn btn-pri" onclick="afSaveTemplate()"><span class="ms">save</span> Save</button>');
+  afRenderFields();
+}
+function afStarter(kind){
+  var ti=document.getElementById('af-tpl-title'), de=document.getElementById('af-tpl-desc');
+  if(kind==='waiver'){
+    if(ti)ti.value='Liability Waiver & Assumption of Risk';
+    if(de)de.value='Please read carefully and sign before your first session.';
+    _afFields=[
+      {key:'dob',label:'Date of birth',type:'date',required:true},
+      {key:'emergency_name',label:'Emergency contact — full name',type:'text',required:true},
+      {key:'emergency_phone',label:'Emergency contact — phone number',type:'text',required:true},
+      {key:'conditions',label:'Medical conditions, injuries, allergies or medications we should be aware of',type:'textarea',required:false},
+      {key:'ack_risk',label:'I understand that physical exercise and the use of the facilities and equipment carry inherent risks, including the risk of serious injury, and I voluntarily assume all such risks.',type:'consent',required:true},
+      {key:'ack_fit',label:'I confirm that I am in good physical condition and know of no medical reason I cannot safely participate, or I have obtained a doctor’s clearance to do so.',type:'consent',required:true},
+      {key:'release',label:'I release, waive and discharge the trainer and their agents from any and all liability for injury, loss or damage arising from my participation, to the fullest extent permitted by law.',type:'consent',required:true},
+      {key:'rules',label:'I agree to follow my trainer’s instructions and the safe-use guidelines for all equipment.',type:'consent',required:true},
+      {key:'media',label:'(Optional) I consent to photos or video taken during sessions being used for promotion.',type:'consent',required:false}
+    ];
+  } else {
+    if(ti)ti.value='Pre-exercise readiness (PAR-Q+)';
+    if(de)de.value='A quick health screen before you start. Please answer every question honestly.';
+    _afFields=[
+      {key:'emergency_name',label:'Emergency contact — full name',type:'text',required:true},
+      {key:'emergency_phone',label:'Emergency contact — phone number',type:'text',required:true},
+      {key:'q1',label:'Has your doctor ever said that you have a heart condition or high blood pressure?',type:'yesno',required:true},
+      {key:'q2',label:'Do you feel pain in your chest at rest, during your daily activities, or when you do physical activity?',type:'yesno',required:true},
+      {key:'q3',label:'Do you lose balance because of dizziness, or have you lost consciousness in the last 12 months?',type:'yesno',required:true},
+      {key:'q4',label:'Have you ever been diagnosed with another chronic medical condition (other than heart disease or high blood pressure)?',type:'yesno',required:true},
+      {key:'q5',label:'Are you currently taking prescribed medication for a chronic medical condition?',type:'yesno',required:true},
+      {key:'q6',label:'Do you have a bone, joint or soft-tissue (muscle, ligament or tendon) problem that could be made worse by becoming more physically active?',type:'yesno',required:true},
+      {key:'q7',label:'Has your doctor ever said that you should only do medically-supervised physical activity?',type:'yesno',required:true},
+      {key:'followup',label:'If you answered YES to any question above, please give brief details (the condition, medication, or what your doctor advised).',type:'textarea',required:false},
+      {key:'declare',label:'I declare that I have read, understood and answered every question honestly. If I answered YES to any question, I will seek guidance from my doctor before becoming more active, and I will tell my trainer if my health changes.',type:'consent',required:true}
+    ];
+  }
+  afRenderFields();
+}
+function afAddField(){ _afFields=_afFields||[]; _afFields.push({key:'f'+(_afFields.length+1)+'_'+Date.now().toString(36).slice(-3),label:'',type:'text',required:false}); afRenderFields(); }
+function afRemoveField(i){ (_afFields||[]).splice(i,1); afRenderFields(); }
+function afFieldSet(i,k,v){ if(!_afFields||!_afFields[i]) return; _afFields[i][k]=v; }
+function afRenderFields(){
+  var host=document.getElementById('af-tpl-fields'); if(!host) return; var fs=_afFields||[];
+  var types=[['text','Short text'],['textarea','Long text'],['yesno','Yes / No'],['date','Date'],['consent','Consent checkbox']];
+  host.innerHTML=fs.length? fs.map(function(f,i){ var opts=types.map(function(t){return '<option value="'+t[0]+'"'+(f.type===t[0]?' selected':'')+'>'+t[1]+'</option>';}).join('');
+    return '<div style="display:flex;gap:6px;align-items:center;margin-top:7px;"><input class="input" style="flex:1;" placeholder="Question / label" value="'+escHtml(f.label||'')+'" oninput="afFieldSet('+i+',\'label\',this.value)"><select class="select" style="max-width:140px;" onchange="afFieldSet('+i+',\'type\',this.value)">'+opts+'</select><label style="font-size:11px;color:var(--ffp-text-muted);display:flex;align-items:center;gap:3px;white-space:nowrap;"><input type="checkbox" '+(f.required?'checked':'')+' onchange="afFieldSet('+i+',\'required\',this.checked)">Req</label><button onclick="afRemoveField('+i+')" style="background:none;border:none;color:var(--ffp-text-dim);cursor:pointer;"><span class="ms">close</span></button></div>';
+  }).join('') : '<div class="psub" style="padding:6px 0;">No fields yet — add one, or start from Waiver/PAR-Q+.</div>';
+}
+async function afSaveTemplate(){
+  var pid=_memProvId();
+  var title=((document.getElementById('af-tpl-title')||{}).value||'').trim(); if(!title){ showToast('Title required','error'); return; }
+  var fields=(_afFields||[]).filter(function(f){return (f.label||'').trim();}).map(function(f,i){ return {key:f.key||('f'+i),label:f.label,type:f.type||'text',required:!!f.required}; });
+  var payload={ title:title, description:(document.getElementById('af-tpl-desc')||{}).value||'', requires_signature:!!(document.getElementById('af-tpl-sig')||{}).checked, fields:fields };
+  try{ var r=await window.supabase.rpc('pro_save_form_template',{p_pro:pid,p_id:_afEditTplId||null,p:payload}); if(r&&r.error) throw r.error; showToast('Template saved','success'); afManageTemplates(); }
+  catch(e){ showToast('Could not save','error'); }
+}
+async function afDeleteTemplate(tid){
+  var pid=_memProvId();
+  try{ var r=await window.supabase.rpc('pro_delete_form_template',{p_pro:pid,p_id:tid}); if(r&&r.error) throw r.error; afManageTemplates(); }
+  catch(e){ showToast('Could not delete','error'); }
+}
 function openMemberModal(id){
   var editing=id?_members.find(function(x){return x.id===id;}):null;
   var today=new Date(); var todayStr=today.getFullYear()+'-'+('0'+(today.getMonth()+1)).slice(-2)+'-'+('0'+today.getDate()).slice(-2);
