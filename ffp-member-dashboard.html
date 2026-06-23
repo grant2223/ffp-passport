@@ -5115,10 +5115,12 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
           <div class="ct-section-title">Food today</div>
           <div class="ct-section-total" id="ct-food-total">0 kcal eaten</div>
         </div>
-        <!-- Two clean actions; saved meals now live inside the Add-food picker (My meals tab) -->
-        <div class="ct-add-row">
-          <button class="ct-add-btn primary" onclick="CalorieTracker.openFoodPicker()"><span class="material-icons">add</span>Add food</button>
-          <button class="ct-add-btn secondary" onclick="FFPMyMeals.openBuilder()"><span class="material-icons">add</span>Create meal</button>
+        <!-- v14 — four quick actions: Food (picker), Scan (barcode), Meal (builder), Quick add (manual) -->
+        <div class="ct-add-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <button class="ct-add-btn primary" onclick="CalorieTracker.openFoodPicker()"><span class="material-icons">add</span>Food</button>
+          <button class="ct-add-btn secondary" onclick="CalorieTracker.openBarcodeScanner()"><span class="material-icons">qr_code_scanner</span>Scan</button>
+          <button class="ct-add-btn secondary" onclick="FFPMyMeals.openBuilder()"><span class="material-icons">add</span>Meal</button>
+          <button class="ct-add-btn secondary" onclick="CalorieTracker.openQuickAdd(false)"><span class="material-icons">bolt</span>Quick add</button>
         </div>
         <!-- v12 — clone a previous day's food into the day you're viewing -->
         <button onclick="CalorieTracker.openCopyDay()" style="width:100%;margin-top:8px;padding:10px;border-radius:10px;border:1px dashed var(--border-mid);background:transparent;color:var(--muted);font-size:12.5px;font-weight:700;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><span class="material-icons" style="font-size:16px;">content_copy</span>Copy a previous day</button>
@@ -5907,11 +5909,6 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
       <div class="food-list" id="fp-list"></div>
       <!-- v12 — live OpenFoodFacts results appear here, under the local catalog matches -->
       <div id="fp-db-results"></div>
-      <!-- v13/v10 — scan a barcode, or log a food not in the catalog -->
-      <div style="display:flex;gap:8px;margin-top:10px;">
-        <button type="button" onclick="CalorieTracker.openBarcodeScanner()" style="flex:1;padding:12px;border-radius:10px;border:1px dashed var(--border-mid);background:transparent;color:var(--blue);font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><span class="material-icons" style="font-size:18px;">qr_code_scanner</span>Scan barcode</button>
-        <button type="button" onclick="CalorieTracker.openQuickAdd(false)" style="flex:1;padding:12px;border-radius:10px;border:1px dashed var(--border-mid);background:transparent;color:var(--blue);font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><span class="material-icons" style="font-size:18px;">bolt</span>Quick add</button>
-      </div>
     </div>
     <div id="fp-mymeals-pane" class="fp-mymeals" style="display:none;">
       <div id="fp-mymeals-list"></div>
@@ -8204,7 +8201,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '425';
+  const FFP_BUILD = '427';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -9855,7 +9852,7 @@ function fmtPrDate(iso) {
 <!-- Milestone badge library — assets/ffp-milestone-badges.js (window.FFPMSBadges). DEFER: only used by the lazy
      Milestones render long after load, so it must never block boot. Bump ?v on change. -->
 <script defer src="assets/ffp-milestone-badges.js?v=6"></script>
-<script defer src="assets/ffp-calorie-tracker-core.js?v=6"></script>
+<script defer src="assets/ffp-calorie-tracker-core.js?v=8"></script>
 <script>
 
 function closePrEditIfBackdrop(e) { if (e.target.id === 'pr-edit-backdrop') FitnessStats.closePrEdit(); }
