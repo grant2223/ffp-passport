@@ -5502,7 +5502,6 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
           <span class="material-icons" style="color:var(--muted);">place</span>
         </button>
         <div style="font-size:11px;color:var(--muted);margin-top:5px;">Sets the exact spot and fills your city + country automatically.</div>
-        <a id="log-maplink" href="#" target="_blank" rel="noopener" style="display:none;font-size:12px;color:var(--blue);margin-top:6px;align-items:center;gap:4px;"><span class="material-icons" style="font-size:14px;vertical-align:-3px;">place</span> View on map</a>
         <input type="hidden" id="log-venue"><input type="hidden" id="log-lat"><input type="hidden" id="log-lng"><input type="hidden" id="log-maps">
       </div>
       <div class="pm-form-grid-2" style="display:none">
@@ -8111,7 +8110,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '419';
+  const FFP_BUILD = '420';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -11114,7 +11113,6 @@ function logSetLocation(loc) {
   var lo = document.getElementById('log-lng'); if (lo) lo.value = (loc.lng != null ? loc.lng : '');
   var mp = document.getElementById('log-maps'); if (mp) mp.value = loc.maps_url || '';
   var d = document.getElementById('log-loc-display'); if (d) { d.textContent = loc.name || 'Pin set'; d.classList.remove('pmf-pick-ph'); d.classList.add('set'); }
-  var ml = document.getElementById('log-maplink'); if (ml && loc.maps_url) { ml.href = loc.maps_url; ml.style.display = 'inline-flex'; }
   // Merged location: the pin's reverse-geocode also fills Country + City automatically (so there is
   // no separate "use my current location" step — dropping a pin tells us the city + country too).
   try {
