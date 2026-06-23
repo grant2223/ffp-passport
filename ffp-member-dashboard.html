@@ -5052,7 +5052,14 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     
     <!-- ============ TODAY VIEW ============ -->
     <div id="ct-today-view">
-      
+
+      <!-- v10 — date navigator: view + log any past day (tap the label to jump back to today) -->
+      <div id="ct-datebar" style="display:flex;align-items:center;justify-content:center;gap:12px;margin:0 0 16px;">
+        <button onclick="CalorieTracker.shiftDay(-1)" aria-label="Previous day" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--border-mid);background:transparent;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;"><span class="material-icons" style="font-size:20px;">chevron_left</span></button>
+        <button id="ct-date-label" onclick="CalorieTracker.goToday()" style="min-width:160px;text-align:center;font-size:14.5px;font-weight:800;color:var(--text);background:transparent;border:none;cursor:pointer;font-family:inherit;">Today</button>
+        <button id="ct-date-next" onclick="CalorieTracker.shiftDay(1)" aria-label="Next day" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--border-mid);background:transparent;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0.3;pointer-events:none;"><span class="material-icons" style="font-size:20px;">chevron_right</span></button>
+      </div>
+
       <!-- Hero ring: shows NET kcal (eaten - burned) -->
       <div class="cal-hero">
         <div class="cal-ring">
@@ -5896,6 +5903,8 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
       </div>
       <div class="food-picker-cats" id="fp-cats"></div>
       <div class="food-list" id="fp-list"></div>
+      <!-- v10 — log a food that isn't in the catalog (no searching) -->
+      <button type="button" onclick="CalorieTracker.openQuickAdd(false)" style="width:100%;margin-top:10px;padding:12px;border-radius:10px;border:1px dashed var(--border-mid);background:transparent;color:var(--blue);font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><span class="material-icons" style="font-size:18px;">bolt</span>Quick add calories</button>
     </div>
     <div id="fp-mymeals-pane" class="fp-mymeals" style="display:none;">
       <div id="fp-mymeals-list"></div>
@@ -5905,7 +5914,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 
 <!-- Food add (after picking — adjust grams + select meal) -->
 <div class="detail-backdrop" id="food-add-backdrop" onclick="closeFoodAddIfBackdrop(event)">
-  <div class="detail-modal" style="max-width:380px;" role="dialog" aria-modal="true">
+  <div class="detail-modal" role="dialog" aria-modal="true">
     <button class="dm-close" onclick="CalorieTracker.closeFoodAdd()"><span class="material-icons">close</span></button>
     <div class="dm-body">
       <div class="food-add-name" id="fa-name"></div>
@@ -5938,7 +5947,55 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
       </div>
     </div>
     <div class="dm-footer">
-      <button class="btn-primary-yellow" onclick="CalorieTracker.confirmAdd()">Add to <span id="fa-meal-name">meal</span></button>
+      <button class="btn-primary-yellow" id="fa-confirm-btn" onclick="CalorieTracker.confirmAdd()">Add to <span id="fa-meal-name">meal</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- v10 — Quick add calories: log a food not in the catalog (also reused for editing a free-form item) -->
+<div class="detail-backdrop" id="quick-add-backdrop" onclick="if(event.target===this)CalorieTracker.closeQuickAdd()">
+  <div class="detail-modal" role="dialog" aria-modal="true">
+    <button class="dm-close" onclick="CalorieTracker.closeQuickAdd()"><span class="material-icons">close</span></button>
+    <div class="dm-body">
+      <div class="food-add-name">Quick add</div>
+      <div class="food-add-serving">Log calories for anything not in the food list</div>
+    </div>
+    <div class="food-add-form">
+      <div style="margin-bottom:10px;">
+        <div class="tw-adj-label" style="text-align:left; margin-bottom:6px;">Name <span style="color:var(--muted); font-weight:600;">(optional)</span></div>
+        <input type="text" id="qa-name" placeholder="e.g. Mum's lasagne" style="width:100%; padding:11px 12px; background:rgba(43,168,224,0.06); border:1px solid var(--border-mid); border-radius:9px; color:var(--text); font-size:16px; font-weight:600; font-family:inherit; box-sizing:border-box;">
+      </div>
+      <div style="margin-bottom:12px;">
+        <div class="tw-adj-label" style="text-align:left; margin-bottom:6px;">Calories</div>
+        <input type="number" id="qa-kcal" inputmode="numeric" min="1" max="9000" placeholder="kcal" style="width:100%; padding:11px 12px; background:rgba(43,168,224,0.06); border:1px solid var(--border-mid); border-radius:9px; color:var(--text); font-size:16px; font-weight:800; font-family:inherit; box-sizing:border-box;">
+      </div>
+      <div style="display:flex; gap:8px; margin-bottom:4px;">
+        <div style="flex:1;">
+          <div class="tw-adj-label" style="text-align:left; margin-bottom:6px; font-size:10px;">Protein (g)</div>
+          <input type="number" id="qa-p" inputmode="numeric" min="0" placeholder="0" style="width:100%; padding:9px 10px; background:rgba(43,168,224,0.06); border:1px solid var(--border-mid); border-radius:8px; color:var(--text); font-size:16px; font-weight:700; font-family:inherit; box-sizing:border-box;">
+        </div>
+        <div style="flex:1;">
+          <div class="tw-adj-label" style="text-align:left; margin-bottom:6px; font-size:10px;">Carbs (g)</div>
+          <input type="number" id="qa-c" inputmode="numeric" min="0" placeholder="0" style="width:100%; padding:9px 10px; background:rgba(43,168,224,0.06); border:1px solid var(--border-mid); border-radius:8px; color:var(--text); font-size:16px; font-weight:700; font-family:inherit; box-sizing:border-box;">
+        </div>
+        <div style="flex:1;">
+          <div class="tw-adj-label" style="text-align:left; margin-bottom:6px; font-size:10px;">Fat (g)</div>
+          <input type="number" id="qa-f" inputmode="numeric" min="0" placeholder="0" style="width:100%; padding:9px 10px; background:rgba(43,168,224,0.06); border:1px solid var(--border-mid); border-radius:8px; color:var(--text); font-size:16px; font-weight:700; font-family:inherit; box-sizing:border-box;">
+        </div>
+      </div>
+      <div style="font-size:10px; color:var(--muted); margin-bottom:14px;">Macros are optional — calories are enough to log.</div>
+      <div>
+        <div class="tw-adj-label" style="text-align:left; margin-bottom:6px;">Meal</div>
+        <div class="meal-type-chips" id="qa-meal-chips">
+          <button class="meal-type-chip" data-meal="breakfast" onclick="CalorieTracker.setQuickMeal('breakfast')">Breakfast</button>
+          <button class="meal-type-chip" data-meal="lunch" onclick="CalorieTracker.setQuickMeal('lunch')">Lunch</button>
+          <button class="meal-type-chip" data-meal="dinner" onclick="CalorieTracker.setQuickMeal('dinner')">Dinner</button>
+          <button class="meal-type-chip" data-meal="snacks" onclick="CalorieTracker.setQuickMeal('snacks')">Snacks</button>
+        </div>
+      </div>
+    </div>
+    <div class="dm-footer">
+      <button class="btn-primary-yellow" id="qa-confirm-btn" onclick="CalorieTracker.confirmQuickAdd()">Add</button>
     </div>
   </div>
 </div>
@@ -8119,7 +8176,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '421';
+  const FFP_BUILD = '423';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -9770,7 +9827,7 @@ function fmtPrDate(iso) {
 <!-- Milestone badge library — assets/ffp-milestone-badges.js (window.FFPMSBadges). DEFER: only used by the lazy
      Milestones render long after load, so it must never block boot. Bump ?v on change. -->
 <script defer src="assets/ffp-milestone-badges.js?v=6"></script>
-<script defer src="assets/ffp-calorie-tracker-core.js?v=4"></script>
+<script defer src="assets/ffp-calorie-tracker-core.js?v=5"></script>
 <script>
 
 function closePrEditIfBackdrop(e) { if (e.target.id === 'pr-edit-backdrop') FitnessStats.closePrEdit(); }
