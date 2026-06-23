@@ -5907,8 +5907,11 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
       <div class="food-list" id="fp-list"></div>
       <!-- v12 — live OpenFoodFacts results appear here, under the local catalog matches -->
       <div id="fp-db-results"></div>
-      <!-- v10 — log a food that isn't in the catalog (no searching) -->
-      <button type="button" onclick="CalorieTracker.openQuickAdd(false)" style="width:100%;margin-top:10px;padding:12px;border-radius:10px;border:1px dashed var(--border-mid);background:transparent;color:var(--blue);font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><span class="material-icons" style="font-size:18px;">bolt</span>Quick add calories</button>
+      <!-- v13/v10 — scan a barcode, or log a food not in the catalog -->
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button type="button" onclick="CalorieTracker.openBarcodeScanner()" style="flex:1;padding:12px;border-radius:10px;border:1px dashed var(--border-mid);background:transparent;color:var(--blue);font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><span class="material-icons" style="font-size:18px;">qr_code_scanner</span>Scan barcode</button>
+        <button type="button" onclick="CalorieTracker.openQuickAdd(false)" style="flex:1;padding:12px;border-radius:10px;border:1px dashed var(--border-mid);background:transparent;color:var(--blue);font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><span class="material-icons" style="font-size:18px;">bolt</span>Quick add</button>
+      </div>
     </div>
     <div id="fp-mymeals-pane" class="fp-mymeals" style="display:none;">
       <div id="fp-mymeals-list"></div>
@@ -6002,6 +6005,27 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
       <button class="btn-primary-yellow" id="qa-confirm-btn" onclick="CalorieTracker.confirmQuickAdd()">Add</button>
     </div>
   </div>
+</div>
+
+<!-- v13 — Barcode scanner overlay (camera → OpenFoodFacts lookup → food-add modal) -->
+<style>
+  #barcode-scanner{position:fixed;inset:0;z-index:100050;background:#000;display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px;}
+  #barcode-scanner.open{display:flex;}
+  #barcode-scanner .bc-top{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:16px 18px;color:#fff;}
+  #barcode-scanner .bc-title{font-size:16px;font-weight:800;}
+  #barcode-scanner .bc-close{background:rgba(255,255,255,.15);border:none;color:#fff;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  #bc-reader{width:min(86vw,360px);border-radius:14px;overflow:hidden;background:#111;}
+  #barcode-scanner .bc-status{color:#fff;font-size:14px;font-weight:700;margin-top:18px;text-align:center;max-width:320px;line-height:1.4;}
+  #barcode-scanner .bc-cancel{margin-top:22px;background:rgba(255,255,255,.12);border:none;color:#fff;font-size:14px;font-weight:800;padding:12px 30px;border-radius:12px;cursor:pointer;font-family:inherit;}
+</style>
+<div id="barcode-scanner">
+  <div class="bc-top">
+    <span class="bc-title">Scan a barcode</span>
+    <button class="bc-close" onclick="CalorieTracker.closeBarcodeScanner()"><span class="material-icons">close</span></button>
+  </div>
+  <div id="bc-reader"></div>
+  <div class="bc-status" id="bc-status">Starting camera…</div>
+  <button class="bc-cancel" onclick="CalorieTracker.closeBarcodeScanner()">Cancel</button>
 </div>
 
 <!-- v82 — Sleep daily log modal (different from generic PR modal: log per-night hours, system averages) -->
@@ -8180,7 +8204,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '424';
+  const FFP_BUILD = '425';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
