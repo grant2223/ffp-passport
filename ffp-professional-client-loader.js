@@ -63,7 +63,7 @@ async function clientProfile(id){
   var fmtDob=function(d){ if(!d)return ''; try{ return new Date(String(d).slice(0,10)+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}); }catch(e){ return String(d).slice(0,10); } };
   var fmtSince=function(d){ if(!d)return ''; try{ return new Date(String(d).slice(0,10)+'T00:00:00').toLocaleDateString('en-GB',{month:'short',year:'numeric'}); }catch(e){ return String(d).slice(0,10); } };
   // Info as a tidy 2-column grid of cards (not one long row per field).
-  var cell=function(lbl,val){ return '<div style="background:var(--ffp-bg-card);border:1px solid var(--ffp-border);border-radius:12px;padding:9px 12px;min-width:0;"><div style="font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--ffp-text-dim);margin-bottom:2px;">'+lbl+'</div><div style="font-weight:700;color:var(--ffp-text);font-size:13px;word-break:break-word;line-height:1.3;">'+(val?escHtml(val):'<span style="color:var(--ffp-text-dim);font-weight:600;">—</span>')+'</div></div>'; };
+  var cell=function(lbl,val){ return '<div style="padding:7px 2px;min-width:0;border-bottom:1px solid var(--ffp-border);"><div style="font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--ffp-text-dim);margin-bottom:2px;">'+lbl+'</div><div style="font-weight:700;color:var(--ffp-text);font-size:13px;word-break:break-word;line-height:1.3;">'+(val?escHtml(val):'<span style="color:var(--ffp-text-dim);font-weight:600;">—</span>')+'</div></div>'; };
   var gridCells=function(d){ return cell('Email',d.email)+cell('Phone',d.phone)+cell('Date of birth',fmtDob(d.date_of_birth))+cell('Gender',d.gender)+cell('Nationality',d.nationality)+cell('Client since',fmtSince(jd)); };
   // Compact square action tiles (icon over label) instead of big full-width rows.
   var tile=function(ic,lbl,fn){ return '<button onclick="closeModal();'+fn+'" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:14px 8px;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:14px;cursor:pointer;color:var(--ffp-text);min-height:80px;font-family:inherit;"><span class="ms" style="font-size:23px;color:var(--ffp-purple);">'+ic+'</span><span style="font-size:11.5px;font-weight:700;text-align:center;line-height:1.2;">'+lbl+'</span></button>'; };
@@ -81,9 +81,17 @@ async function clientProfile(id){
       tile('assignment','Forms','clientAssessment(\''+id+'\')')+
       tile('sticky_note_2','Notes','openClientNotes(\''+id+'\')')+
       tile('edit','Edit profile','openMemberModal(\''+id+'\')')+
-    '</div>',
+    '</div>'+
+    '<div id="cp-notes-prev" style="margin-top:18px;"></div>',
     '<button class="btn btn-ghost left" onclick="closeModal();confirmDeleteMember(\''+id+'\')"><span class="ms">delete</span> Delete client</button>'+
     '<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
+  // Latest 3 coach notes, shown under the action tiles (tap to open the full thread).
+  if(window.supabase){ try{ window.supabase.rpc('pro_list_client_notes',{p_pro:_memProvId(),p_client:id}).then(function(r){
+    var notes=(r&&r.data)||[]; var host=document.getElementById('cp-notes-prev'); if(!host) return;
+    var head='<div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 8px;"><div style="font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-text-dim);">Recent notes</div><button onclick="closeModal();openClientNotes(\''+id+'\')" style="background:none;border:none;color:var(--ffp-purple);font-size:11.5px;font-weight:800;cursor:pointer;">'+(notes.length?'View all':'Add note')+'</button></div>';
+    if(!notes.length){ host.innerHTML=head+'<div class="psub" style="margin:0;">No notes yet — tap Notes to start tracking sessions.</div>'; return; }
+    host.innerHTML=head+notes.slice(0,3).map(function(n){ return '<div style="border-left:3px solid var(--ffp-purple);padding:1px 0 1px 10px;margin-bottom:9px;"><div style="font-size:12.5px;color:var(--ffp-text);line-height:1.5;white-space:pre-wrap;">'+escHtml(n.body||'')+'</div><div class="psub" style="margin:2px 0 0;font-size:10px;">'+cnWhen(n.created_at)+'</div></div>'; }).join('');
+  }).catch(function(){}); }catch(e){} }
   // Auto-pull identity from the client's FFP Passport by email match — upgrades the grid in place.
   if(window.supabase){ try{ window.supabase.rpc('pro_client_passport',{p_pro:_memProvId(),p_client:id}).then(function(r){
     var d=(r&&r.data)||{}; if(!d.has_account) return;
