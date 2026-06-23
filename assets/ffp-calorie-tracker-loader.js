@@ -1,4 +1,9 @@
-/* FFP Calorie Tracker Loader — v11
+/* FFP Calorie Tracker Loader — v12
+   v12: P3 WORLD-CLASS — (1) LIVE FOOD DATABASE: typing in the picker search now also queries OpenFoodFacts via
+        the backend proxy (/api/food/search); results render under the local catalog (pickOffFood/quickAddOff →
+        food-add modal, logged as a free item with scaled macros via core's _off path). (2) COPY A PREVIOUS DAY:
+        openCopyDay() day picker (built from monthHistory) → doCopyDay clones that day's food_logs into the viewed
+        day. Barcode endpoint (/api/food/barcode) is live on the backend; scanner UI is the next increment.
    v11: RECENTS design fix — removed the unclear ½/1/2 multiplier pills (tap a recent row, or its +, logs it at
         your last/usual amount); applied the sheet's standard 22px horizontal inset to the meal selector, recents
         rows, Frequent chips + divider so nothing sits tight against the edge. (Food-add + quick-add modals made
@@ -319,6 +324,7 @@
         CalorieTracker.render();
       }
       if (typeof CalorieTracker.renderRecents === 'function') CalorieTracker.renderRecents();
+      attachOffSearch();   // live food-database search in the picker
       loadMyMeals();  // My Meals strip (saved meals)
 
       console.log('[FFP Calorie Tracker] Loaded from Supabase ✓');
@@ -598,6 +604,122 @@
         if (CalorieTracker.render) CalorieTracker.render();
       });
   };
+
+  // v12 — OpenFoodFacts result → food-add modal (scales by grams) / one-tap add at 100 g.
+  // The result isn't in the local catalog, so confirmAdd logs it as a free item (core handles _off).
+  CalorieTracker.pickOffFood = function (i) {
+    var f = (this._offResults || [])[i]; if (!f) return;
+    this._editRemove = null;
+    var food = { _off: true, name: f.name, serving: 100, unit: 'g', kcal: f.kcal, p: f.p, c: f.c, f: f.f };
+    this._populateFoodAdd(food, 100, this._pickerMeal || this.autoBucket(), false);
+    this.closeFoodPicker();
+    document.getElementById('food-add-backdrop').classList.add('open');
+  };
+  CalorieTracker.quickAddOff = function (i) {
+    var f = (this._offResults || [])[i]; if (!f) return;
+    this._editRemove = null;
+    this._addingFood = { _off: true, name: f.name, serving: 100, unit: 'g', kcal: f.kcal, p: f.p, c: f.c, f: f.f };
+    this._addingAmount = 100;
+    this._addingMeal = this._pickerMeal || this.autoBucket();
+    this.confirmAdd();
+  };
+
+  // v12 — Copy a previous day's food into the viewed day. Builds a day picker from monthHistory.
+  CalorieTracker.openCopyDay = function () {
+    var self = this;
+    var today = this._todayMidnight();
+    var cands = (this.monthHistory || []).filter(function (d) { return d.intake > 0; })
+      .map(function (d) { var dt = new Date(today.getTime()); dt.setDate(dt.getDate() + d.idx); return { date: dt, intake: d.intake }; })
+      .filter(function (d) { return self._ymd(d.date) !== self._ymd(self.viewDate || today); })
+      .reverse().slice(0, 14);
+    offInjectStyles();
+    var bg = document.createElement('div'); bg.className = 'mm-modal-bg';
+    bg.onclick = function (e) { if (e.target === bg) document.body.removeChild(bg); };
+    var list = cands.length ? cands.map(function (d, i) {
+      return '<button class="cpd-row" type="button" data-i="' + i + '"><span class="cpd-day">' + recEsc(d.date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })) + '</span><span class="cpd-kcal">' + Math.round(d.intake).toLocaleString() + ' kcal</span></button>';
+    }).join('') : '<div class="mmb-hint">No earlier days with food logged yet.</div>';
+    bg.innerHTML = '<div class="mm-modal"><h3>Copy a day into ' + recEsc(this._dateBarLabel()) + '</h3><div class="cpd-list">' + list + '</div><div class="mm-actions"><button class="mm-cancel" type="button">Close</button></div></div>';
+    document.body.appendChild(bg);
+    bg.querySelector('.mm-cancel').onclick = function () { document.body.removeChild(bg); };
+    bg.querySelectorAll('.cpd-row').forEach(function (b) { b.onclick = function () { var d = cands[+b.dataset.i]; document.body.removeChild(bg); doCopyDay(d.date); }; });
+  };
+  }
+
+  // ============ FOOD DATABASE (OpenFoodFacts) + COPY-A-DAY (v12) ============
+  var FOOD_API = 'https://ffp-passport-backend.vercel.app';
+  var _offTimer = null, _offSeq = 0;
+
+  function offInjectStyles() {
+    if (document.getElementById('ffp-offdb-styles')) return;
+    var s = document.createElement('style'); s.id = 'ffp-offdb-styles'; s.textContent =
+      '#fp-db-results{padding:0 22px 8px;}' +
+      '.fp-db-head{font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin:14px 0 4px;display:flex;align-items:center;gap:6px;}' +
+      '.fp-db-hint{font-size:12px;color:var(--muted);padding:8px 0;}' +
+      '.cpd-list{display:flex;flex-direction:column;gap:6px;margin-bottom:6px;max-height:50vh;overflow-y:auto;}' +
+      '.cpd-row{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;background:rgba(43,168,224,0.06);border:1px solid var(--border-mid);border-radius:10px;padding:13px 14px;cursor:pointer;font-family:inherit;}' +
+      '.cpd-row:hover{border-color:var(--blue);}' +
+      '.cpd-day{font-size:13px;font-weight:700;color:var(--text);}' +
+      '.cpd-kcal{font-size:12px;font-weight:700;color:var(--blue);}';
+    document.head.appendChild(s);
+  }
+
+  function renderOffResults(foods, q) {
+    var host = document.getElementById('fp-db-results'); if (!host) return;
+    offInjectStyles();
+    var head = '<div class="fp-db-head"><span class="material-icons" style="font-size:15px;">public</span>Food database</div>';
+    if (!q || q.length < 2) { host.innerHTML = ''; return; }
+    if (foods === 'loading') { host.innerHTML = head + '<div class="fp-db-hint">Searching…</div>'; return; }
+    if (!foods.length) { host.innerHTML = head + '<div class="fp-db-hint">No matches in the food database.</div>'; return; }
+    CalorieTracker._offResults = foods;
+    host.innerHTML = head + foods.map(function (f, i) {
+      return '<div class="food-row" onclick="CalorieTracker.pickOffFood(' + i + ')">' +
+        '<div class="food-row-left"><div class="food-row-name">' + recEsc(f.name) + '</div>' +
+        '<div class="food-row-serving">' + f.kcal + ' kcal / 100 g · tap to set amount</div></div>' +
+        '<button class="food-row-add" aria-label="Add ' + recEsc(f.name) + '" onclick="event.stopPropagation();CalorieTracker.quickAddOff(' + i + ')"><span class="material-icons">add</span></button>' +
+        '</div>';
+    }).join('');
+  }
+
+  // Debounced live search against the OpenFoodFacts proxy; results render UNDER the local catalog list.
+  function attachOffSearch() {
+    var inp = document.getElementById('fp-search'); if (!inp || inp._offBound) return; inp._offBound = true;
+    inp.addEventListener('input', function () {
+      var q = inp.value.trim();
+      if (_offTimer) clearTimeout(_offTimer);
+      if (q.length < 2) { renderOffResults([], q); return; }
+      renderOffResults('loading', q);
+      var seq = ++_offSeq;
+      _offTimer = setTimeout(function () {
+        fetch(FOOD_API + '/api/food/search?q=' + encodeURIComponent(q))
+          .then(function (r) { return r.json(); })
+          .then(function (j) { if (seq !== _offSeq) return; renderOffResults((j && j.foods) || [], q); })
+          .catch(function () { if (seq !== _offSeq) return; renderOffResults([], q); });
+      }, 350);
+    });
+  }
+
+  // Clone every food_logs row from sourceDate into the viewed day (stamped via ctLoggedAt).
+  function doCopyDay(sourceDate) {
+    if (!window.supabase || !currentUserId) return;
+    var s = new Date(sourceDate.getFullYear(), sourceDate.getMonth(), sourceDate.getDate(), 0, 0, 0);
+    var sIso = s.toISOString(), eIso = new Date(s.getTime() + 86400000).toISOString();
+    window.supabase.from('food_logs').select('meal, food_name, calories, protein_g, carbs_g, fat_g')
+      .eq('member_id', currentUserId).gte('logged_at', sIso).lt('logged_at', eIso)
+      .then(function (res) {
+        if (res.error) { console.error('[FFP CT] copy day read:', res.error); return; }
+        var rows = res.data || [];
+        if (!rows.length) { if (window.showToast) showToast('Nothing to copy from that day'); return; }
+        var stamp = ctLoggedAt();
+        var inserts = rows.map(function (r) {
+          return { member_id: currentUserId, meal: r.meal, food_name: r.food_name, calories: r.calories,
+            protein_g: r.protein_g, carbs_g: r.carbs_g, fat_g: r.fat_g, logged_at: stamp };
+        });
+        window.supabase.from('food_logs').insert(inserts).then(function (ins) {
+          if (ins.error) { console.error('[FFP CT] copy day insert:', ins.error); if (window.showToast) showToast('Could not copy', 'error'); return; }
+          if (window.showToast) showToast('Copied ' + rows.length + ' item' + (rows.length === 1 ? '' : 's'));
+          if (CalorieTracker.loadDayData) CalorieTracker.loadDayData(CalorieTracker.viewDate || CalorieTracker._todayMidnight());
+        });
+      });
   }
 
   // ============ MY MEALS — saved meals, one-tap re-log (member_meals + RPCs) ============
