@@ -8107,7 +8107,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '415';
+  const FFP_BUILD = '416';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -11711,20 +11711,22 @@ window.ffpRenderActivityCard = function (a, isOwn) {
     '<button onclick="window.ffpShareActivity&&window.ffpShareActivity(\'' + a.id + '\')" style="width:100%;padding:13px;border-radius:13px;border:1px solid rgba(43,168,224,0.35);background:rgba(43,168,224,0.07);color:#2ba8e0;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:-3px;">' + (a.shared ? 'group' : 'group_add') + '</span> ' + (a.shared ? 'Shared with connections' : 'Share with my connections') + '</button>' +
     '<button onclick="ffpCloseActivityCard();window.ffpEditActivity&&window.ffpEditActivity(\'' + a.id + '\')" style="width:100%;padding:13px;border-radius:13px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:#cfe0ee;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:-3px;">edit</span> Edit activity</button>' +
   '</div>') : '<div style="height:28px;"></div>';
-  // Training partners — tagged connections. Confirmed show solid (to everyone); pending show muted (only
-  // the owner sees their own pending tags, per member_activity_view).
+  // Training partners — same avatar-with-name-under slider as "My connections". Confirmed show solid (to
+  // everyone); the owner additionally sees their own still-unconfirmed (pending) tags, dimmed.
   var partnersBlock = '';
   var _pp = (a.partners && a.partners.length) ? a.partners : [];
   if (_pp.length) {
-    partnersBlock = '<div style="margin:20px 18px 0;">' +
-      '<div style="font-size:9.5px;font-weight:800;letter-spacing:.6px;color:#8a99a8;text-transform:uppercase;margin-bottom:9px;">Trained with</div>' +
-      '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+    partnersBlock = '<div style="margin:22px 18px 0;">' +
+      '<div style="font-size:9.5px;font-weight:800;letter-spacing:.6px;color:#8a99a8;text-transform:uppercase;margin-bottom:13px;">Trained with</div>' +
+      '<div style="display:flex;gap:14px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch;">' +
       _pp.map(function (p) {
         var pend = (p.status === 'pending');
+        var first = esc(String(p.name || 'Member').split(' ')[0]);
         var av = p.photo
-          ? '<img src="' + esc(p.photo) + '" style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex:0 0 auto;' + (pend ? 'opacity:.55;' : '') + '">'
-          : '<span style="width:24px;height:24px;border-radius:50%;background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;flex:0 0 auto;' + (pend ? 'opacity:.55;' : '') + '">' + esc((p.name || 'M').charAt(0).toUpperCase()) + '</span>';
-        return '<span style="display:inline-flex;align-items:center;gap:7px;background:rgba(43,168,224,' + (pend ? '0.05' : '0.10') + ');border:1px solid rgba(43,168,224,' + (pend ? '0.16' : '0.28') + ');border-radius:20px;padding:4px 12px 4px 5px;font-size:13px;font-weight:700;color:' + (pend ? '#8a99a8' : '#cfe0ee') + ';">' + av + esc(p.name || 'Member') + (pend ? '<span style="font-size:10px;font-weight:700;opacity:.85;">· pending</span>' : '') + '</span>';
+          ? '<div style="width:48px;height:48px;border-radius:50%;margin:0 auto;background:#214b6b center/cover no-repeat;background-image:url(\'' + esc(p.photo) + '\');' + (pend ? 'opacity:.5;' : '') + '"></div>'
+          : '<div style="width:48px;height:48px;border-radius:50%;margin:0 auto;background:#214b6b;color:#cfe6f5;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;' + (pend ? 'opacity:.5;' : '') + '">' + esc((p.name || 'M').charAt(0).toUpperCase()) + '</div>';
+        return '<div style="text-align:center;width:56px;flex-shrink:0;' + (pend ? 'opacity:.75;' : '') + '">' + av +
+          '<div style="font-size:11px;color:' + (pend ? '#8a99a8' : '#cfe0ee') + ';margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + first + '</div></div>';
       }).join('') +
       '</div></div>';
   }
