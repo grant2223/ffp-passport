@@ -5120,6 +5120,8 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
           <button class="ct-add-btn primary" onclick="CalorieTracker.openFoodPicker()"><span class="material-icons">add</span>Add food</button>
           <button class="ct-add-btn secondary" onclick="FFPMyMeals.openBuilder()"><span class="material-icons">add</span>Create meal</button>
         </div>
+        <!-- v12 — clone a previous day's food into the day you're viewing -->
+        <button onclick="CalorieTracker.openCopyDay()" style="width:100%;margin-top:8px;padding:10px;border-radius:10px;border:1px dashed var(--border-mid);background:transparent;color:var(--muted);font-size:12.5px;font-weight:700;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><span class="material-icons" style="font-size:16px;">content_copy</span>Copy a previous day</button>
         <div id="ct-meals">
           <div class="meal-section" data-meal="breakfast">
             <div class="meal-section-head">
@@ -5903,6 +5905,8 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
       </div>
       <div class="food-picker-cats" id="fp-cats"></div>
       <div class="food-list" id="fp-list"></div>
+      <!-- v12 — live OpenFoodFacts results appear here, under the local catalog matches -->
+      <div id="fp-db-results"></div>
       <!-- v10 — log a food that isn't in the catalog (no searching) -->
       <button type="button" onclick="CalorieTracker.openQuickAdd(false)" style="width:100%;margin-top:10px;padding:12px;border-radius:10px;border:1px dashed var(--border-mid);background:transparent;color:var(--blue);font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><span class="material-icons" style="font-size:18px;">bolt</span>Quick add calories</button>
     </div>
@@ -8176,7 +8180,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '423';
+  const FFP_BUILD = '424';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -9827,7 +9831,7 @@ function fmtPrDate(iso) {
 <!-- Milestone badge library — assets/ffp-milestone-badges.js (window.FFPMSBadges). DEFER: only used by the lazy
      Milestones render long after load, so it must never block boot. Bump ?v on change. -->
 <script defer src="assets/ffp-milestone-badges.js?v=6"></script>
-<script defer src="assets/ffp-calorie-tracker-core.js?v=5"></script>
+<script defer src="assets/ffp-calorie-tracker-core.js?v=6"></script>
 <script>
 
 function closePrEditIfBackdrop(e) { if (e.target.id === 'pr-edit-backdrop') FitnessStats.closePrEdit(); }
