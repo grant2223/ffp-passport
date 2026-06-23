@@ -8107,7 +8107,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '413';
+  const FFP_BUILD = '414';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -11318,6 +11318,19 @@ function openLogDurationPicker() {
   window.FFPDurationPicker.open(logDurationSec, function (r) { setLogDuration(r.total); });
 }
 
+// Save activity tags (+ phone push to each) — used by BOTH the create and edit save paths so tagging
+// works whether you tag on first log or add people later by editing. activity_add_partners is additive
+// (on-conflict-do-nothing), so re-saving an edit never double-tags or re-notifies an already-tagged person.
+async function _ffpSaveTags(meId, activityId) {
+  if (!meId || !activityId || !_logPartners || !_logPartners.length || !window.supabase) return;
+  try { await window.supabase.rpc('activity_add_partners', { p_me: meId, p_activity: activityId, p_members: _logPartners }); } catch (e) {}
+  try {
+    fetch('https://ffp-passport-backend.vercel.app/api/activity/notify-tags', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ member_id: meId, activity_id: activityId })
+    }).catch(function () {});
+  } catch (e) {}
+}
 async function saveLog() {
   const act = document.getElementById('log-activity').value.trim();
   if (!act) { alert('Please pick an activity'); return; }
@@ -11396,9 +11409,11 @@ async function saveLog() {
   if (_editId) {
     // EDIT path — refresh the stats Activity list + the map (city/country may have changed). No LOGS.push.
     window._ffpEditLogId = null;
+    var _taggedNe = (_logPartners && _logPartners.length) ? _logPartners.length : 0;
+    if (_taggedNe) await _ffpSaveTags(member.id, _editId);   // tags can be added/changed when editing too
     if (typeof window.ffpActivityReload === 'function') window.ffpActivityReload();
     if (typeof loadJourneyLogs === 'function') loadJourneyLogs();
-    if (typeof showToast === 'function') showToast('Activity updated', 'success');
+    if (typeof showToast === 'function') showToast('Activity updated' + (_taggedNe ? ' · tagged ' + _taggedNe + (_taggedNe === 1 ? ' person — they’ll confirm' : ' people — they’ll confirm') : ''), 'success');
     closeLogModal();
     _ffpSaveThenShare(_editId, act, city, entry, _photoVal, _photosVal);
     return;
@@ -11406,22 +11421,14 @@ async function saveLog() {
   // Saved to the DB ✓ — now reflect it on the map this session
   if (typeof LOGS !== 'undefined') LOGS.push(entry);
   if (typeof renderAll === 'function') renderAll();
+  // Training partners FIRST (awaited) — so the share-notify below can exclude tagged people from the
+  // generic "logged an activity" notification (they get the specific "added you to an activity" one).
+  var _taggedN = (_logPartners && _logPartners.length) ? _logPartners.length : 0;
+  if (_newId && _taggedN) await _ffpSaveTags(member.id, _newId);
   // Shared → notify my connections / collectors (bell + push) via the backend. Fire-and-forget.
   if (_shareVal && _newId) {
     try {
       fetch('https://ffp-passport-backend.vercel.app/api/activity/notify', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ member_id: member.id, activity_id: _newId })
-      }).catch(function () {});
-    } catch (e) {}
-  }
-  // Training partners — tag accepted connections; they confirm before it lands on their journey.
-  var _taggedN = (_logPartners && _logPartners.length) ? _logPartners.length : 0;
-  if (_newId && _taggedN) {
-    try { await window.supabase.rpc('activity_add_partners', { p_me: member.id, p_activity: _newId, p_members: _logPartners }); } catch (e) {}
-    // Push a phone alert to each tagged connection (the in-app bell row is written by the RPC).
-    try {
-      fetch('https://ffp-passport-backend.vercel.app/api/activity/notify-tags', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ member_id: member.id, activity_id: _newId })
       }).catch(function () {});
@@ -11682,7 +11689,8 @@ window.ffpRenderActivityCard = function (a, isOwn) {
     '<button onclick="window.ffpShareActivity&&window.ffpShareActivity(\'' + a.id + '\')" style="width:100%;padding:13px;border-radius:13px;border:1px solid rgba(43,168,224,0.35);background:rgba(43,168,224,0.07);color:#2ba8e0;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:-3px;">' + (a.shared ? 'group' : 'group_add') + '</span> ' + (a.shared ? 'Shared with connections' : 'Share with my connections') + '</button>' +
     '<button onclick="ffpCloseActivityCard();window.ffpEditActivity&&window.ffpEditActivity(\'' + a.id + '\')" style="width:100%;padding:13px;border-radius:13px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:#cfe0ee;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:-3px;">edit</span> Edit activity</button>' +
   '</div>') : '<div style="height:28px;"></div>';
-  // Training partners — the connections tagged on this activity who CONFIRMED the tag.
+  // Training partners — tagged connections. Confirmed show solid (to everyone); pending show muted (only
+  // the owner sees their own pending tags, per member_activity_view).
   var partnersBlock = '';
   var _pp = (a.partners && a.partners.length) ? a.partners : [];
   if (_pp.length) {
@@ -11690,10 +11698,11 @@ window.ffpRenderActivityCard = function (a, isOwn) {
       '<div style="font-size:9.5px;font-weight:800;letter-spacing:.6px;color:#8a99a8;text-transform:uppercase;margin-bottom:9px;">Trained with</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
       _pp.map(function (p) {
+        var pend = (p.status === 'pending');
         var av = p.photo
-          ? '<img src="' + esc(p.photo) + '" style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex:0 0 auto;">'
-          : '<span style="width:24px;height:24px;border-radius:50%;background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;flex:0 0 auto;">' + esc((p.name || 'M').charAt(0).toUpperCase()) + '</span>';
-        return '<span style="display:inline-flex;align-items:center;gap:7px;background:rgba(43,168,224,0.10);border:1px solid rgba(43,168,224,0.28);border-radius:20px;padding:4px 12px 4px 5px;font-size:13px;font-weight:700;color:#cfe0ee;">' + av + esc(p.name || 'Member') + '</span>';
+          ? '<img src="' + esc(p.photo) + '" style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex:0 0 auto;' + (pend ? 'opacity:.55;' : '') + '">'
+          : '<span style="width:24px;height:24px;border-radius:50%;background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;flex:0 0 auto;' + (pend ? 'opacity:.55;' : '') + '">' + esc((p.name || 'M').charAt(0).toUpperCase()) + '</span>';
+        return '<span style="display:inline-flex;align-items:center;gap:7px;background:rgba(43,168,224,' + (pend ? '0.05' : '0.10') + ');border:1px solid rgba(43,168,224,' + (pend ? '0.16' : '0.28') + ');border-radius:20px;padding:4px 12px 4px 5px;font-size:13px;font-weight:700;color:' + (pend ? '#8a99a8' : '#cfe0ee') + ';">' + av + esc(p.name || 'Member') + (pend ? '<span style="font-size:10px;font-weight:700;opacity:.85;">· pending</span>' : '') + '</span>';
       }).join('') +
       '</div></div>';
   }
