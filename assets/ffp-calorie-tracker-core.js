@@ -147,6 +147,9 @@ const CalorieTracker = {
     if (this.loadDayData) this.loadDayData(this.viewDate);
     else this.render();
   },
+  // Copy a previous day's food into the viewed day. Real implementation lives in the loader (needs Supabase);
+  // this stub keeps the button safe before the loader has attached.
+  openCopyDay() { if (window.showToast) showToast('Connect online to copy a day'); },
   
   // ─────────── ACTIVITY ───────────
   activitiesTotal() { return this.activities.reduce((sum, a) => sum + a.kcal, 0); },
@@ -660,6 +663,7 @@ const CalorieTracker = {
     this._pickerSearch = '';
     this._pickerCat = 'All';
     document.getElementById('fp-search').value = '';
+    var _dbr = document.getElementById('fp-db-results'); if (_dbr) _dbr.innerHTML = '';   // clear stale food-database results
     this._renderFoodCats();   // rebuild chips from the live (DB-hydrated) FOOD_CATS
     this.renderFoodList();
     this.setPickerTab('foods');
@@ -765,11 +769,19 @@ const CalorieTracker = {
   
   confirmAdd() {
     if (!this._addingFood) return;
+    const food = this._addingFood;
     const mealKey = this._addingMeal;
-    this.meals[mealKey].push({ foodId: this._addingFood.id, amount: this._addingAmount });
+    if (food._off) {
+      // v11 — OpenFoodFacts result (not in the local catalog): log as a free item with scaled macros.
+      const scale = food.serving > 0 ? this._addingAmount / food.serving : 1;
+      this.meals[mealKey].push({ free: true, name: food.name, kcal: Math.round(food.kcal * scale),
+        p: +(food.p * scale).toFixed(1), c: +(food.c * scale).toFixed(1), f: +(food.f * scale).toFixed(1) });
+    } else {
+      this.meals[mealKey].push({ foodId: food.id, amount: this._addingAmount });
+    }
     this.closeFoodAdd();
     this.render();
-    showToast(`Added ${this._addingFood.name} to ${mealKey}`);
+    showToast(`Added ${food.name} to ${mealKey}`);
     this._finishEditRemoval();   // v10 — if this was an edit, drop the old version (the loader deletes its row)
     // PRODUCTION: POST /api/members/me/meals/{mealKey}
   },
