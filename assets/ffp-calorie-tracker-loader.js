@@ -1,4 +1,10 @@
-/* FFP Calorie Tracker Loader — v8
+/* FFP Calorie Tracker Loader — v9
+   v9: FASTER LOGGING (P1) — RECENTS at the top of the food picker. New step 3b queries the last 30 days of
+       food_logs, dedupes by food name (most-recent first + a frequency count) into CalorieTracker.recents.
+       renderRecents() paints a one-tap "log it again" list (½ / 1 / 2 serving presets) + a Frequent chip row;
+       logRecent(idx,mult) re-logs a catalog food via the existing confirmAdd (persists) or a free-form food via
+       a direct food_logs insert. Pairs with core v9 (inline meal segmented control → _pickerMeal governs the
+       bucket for quick-add + recents). No new tables — recents are just the member's own food_logs.
    v8: GOAL date — goal timeframe is now a target DATE (profile_meta.target_date, source of truth; target_weeks
        derived for the kcal math). De-boxed picker/meal/activity chips + result panel; bigger Foods/My-meals tabs.
    v7: DECLUTTER — Today food area = two clean buttons (Add food / Create meal). Saved meals moved OFF the
@@ -228,6 +234,32 @@
         CalorieTracker.meals = meals;
       }
 
+      // 3b. RECENTS — unique foods from the last 30 days (incl. today), most-recent first, with a
+      // frequency count. Powers the one-tap "log it again" list at the top of the food picker. No new
+      // table: this is just food_logs the member already created.
+      var recRes = await window.supabase
+        .from('food_logs')
+        .select('food_name, meal, calories, protein_g, carbs_g, fat_g, logged_at')
+        .eq('member_id', currentUserId)
+        .gte('logged_at', thirtyDays)
+        .order('logged_at', { ascending: false })
+        .limit(400);
+      if (recRes.error) {
+        console.error('[FFP Calorie Tracker] food_logs (recents) read:', recRes.error);
+      } else {
+        var seen = {}, recents = [];
+        (recRes.data || []).forEach(function (r) {
+          var key = String(r.food_name || '').toLowerCase().trim();
+          if (!key) return;
+          if (seen[key]) { seen[key].count++; return; }
+          var rec = buildRecent(r);
+          rec.count = 1;
+          seen[key] = rec;
+          recents.push(rec);
+        });
+        CalorieTracker.recents = recents;
+      }
+
       // 4. 30-day aggregation — just calories + logged_at, last 29 days BEFORE today
       var aHistRes = await window.supabase
         .from('activity_logs')
@@ -272,6 +304,7 @@
       if (panel && panel.classList.contains('active') && typeof CalorieTracker.render === 'function') {
         CalorieTracker.render();
       }
+      if (typeof CalorieTracker.renderRecents === 'function') CalorieTracker.renderRecents();
       loadMyMeals();  // My Meals strip (saved meals)
 
       console.log('[FFP Calorie Tracker] Loaded from Supabase ✓');
@@ -387,6 +420,127 @@
     // ─── My Meals strip rides along with every tracker render ───
     var origRenderMM = CalorieTracker.render.bind(CalorieTracker);
     CalorieTracker.render = function () { origRenderMM(); renderMyMeals(); mmDecorateSections(); };
+  }
+
+  // ============ RECENTS — one-tap "log it again" from the last 30 days of food_logs ============
+  function recEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (ch) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]; }); }
+
+  // food_logs row → recent entry. Catalog match carries foodId/unit/lastAmount so serving presets scale by grams;
+  // anything else is free-form and scales by its own stored macros.
+  function buildRecent(r) {
+    var name = r.food_name || 'Food';
+    if (typeof FOOD_DB !== 'undefined') {
+      for (var i = 0; i < FOOD_DB.length; i++) {
+        if (FOOD_DB[i].name === r.food_name) {
+          var f = FOOD_DB[i];
+          var amount = f.kcal > 0 ? Math.round((r.calories / f.kcal) * f.serving) : f.serving;
+          return { name: name, foodId: f.id, unit: f.unit, serving: f.serving, lastAmount: Math.max(1, amount), kcal: r.calories || 0 };
+        }
+      }
+    }
+    return { name: name, free: true, lastAmount: 1, kcal: r.calories || 0,
+             p: +(r.protein_g || 0), c: +(r.carbs_g || 0), f: +(r.fat_g || 0), meal: r.meal };
+  }
+
+  function recentsInjectStyles() {
+    if (document.getElementById('ffp-recents-styles')) return;
+    var s = document.createElement('style'); s.id = 'ffp-recents-styles'; s.textContent =
+      '.fp-meal-seg{display:flex;gap:6px;margin:0 0 12px;}' +
+      '.fp-meal-seg button{flex:1;font-size:12px;font-weight:800;padding:8px 0;border-radius:9px;border:1px solid var(--border-mid);background:transparent;color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s;}' +
+      '.fp-meal-seg button.active{background:var(--blue);border-color:var(--blue);color:#fff;}' +
+      '.fp-rec-label{font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin:2px 2px 8px;}' +
+      '.fp-rec-row{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--border);cursor:pointer;}' +
+      '.fp-rec-main{flex:1;min-width:0;}' +
+      '.fp-rec-name{font-size:13.5px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+      '.fp-rec-sub{font-size:11px;color:var(--muted);font-weight:600;margin-top:2px;}' +
+      '.fp-rec-mults{display:flex;gap:4px;flex-shrink:0;}' +
+      '.fp-rec-mult{font-size:11px;font-weight:800;min-width:26px;padding:5px 0;border-radius:999px;border:1px solid var(--border-mid);background:transparent;color:var(--muted);cursor:pointer;font-family:inherit;}' +
+      '.fp-rec-mult:active{background:var(--blue);border-color:var(--blue);color:#fff;}' +
+      '.fp-rec-add{flex-shrink:0;width:34px;height:34px;border-radius:50%;border:none;background:var(--blue);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}' +
+      '.fp-rec-add .material-icons{font-size:20px;}' +
+      '.fp-rec-add.added{background:#22c55e;}' +
+      '.fp-rec-freq-label{font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin:12px 2px 8px;}' +
+      '.fp-rec-freq{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;}' +
+      '.fp-rec-chip{font-size:12px;font-weight:700;padding:6px 11px;border-radius:999px;border:1px solid var(--border-mid);background:rgba(43,168,224,0.06);color:var(--text);cursor:pointer;font-family:inherit;white-space:nowrap;}' +
+      '.fp-rec-chip:active{border-color:var(--blue);}' +
+      '.fp-rec-divider{height:1px;background:var(--border);margin:12px 0;}';
+    document.head.appendChild(s);
+  }
+
+  function flashRecAdd(idx) {
+    var b = document.getElementById('fp-rec-add-' + idx);
+    if (!b) return;
+    b.classList.add('added');
+    b.innerHTML = '<span class="material-icons">check</span>';
+    setTimeout(function () { if (b) { b.classList.remove('added'); b.innerHTML = '<span class="material-icons">add</span>'; } }, 1100);
+  }
+
+  // free-form recent re-log: push to the in-memory meal + insert a fresh food_logs row (mirrors confirmAdd)
+  function logFreeRecent(r, mult, bucket) {
+    var item = { free: true, name: r.name,
+      kcal: Math.round((r.kcal || 0) * mult),
+      p: +(((r.p || 0) * mult).toFixed(1)), c: +(((r.c || 0) * mult).toFixed(1)), f: +(((r.f || 0) * mult).toFixed(1)) };
+    if (!CalorieTracker.meals[bucket]) CalorieTracker.meals[bucket] = [];
+    CalorieTracker.meals[bucket].push(item);
+    CalorieTracker.render();
+    if (window.showToast) showToast('Added ' + r.name + ' to ' + bucket);
+    if (!currentUserId) return;
+    window.supabase.from('food_logs').insert({
+      member_id: currentUserId, meal: keyToDbMeal(bucket), food_name: r.name,
+      calories: item.kcal, protein_g: item.p, carbs_g: item.c, fat_g: item.f,
+      logged_at: new Date().toISOString()
+    }).select('id').single().then(function (res) {
+      if (!res.error && res.data) item._supabaseId = res.data.id;
+      else if (res.error) console.error('[FFP CT] free recent insert:', res.error);
+    }).catch(function (e) { console.error('[FFP CT] free recent insert:', e); });
+  }
+
+  if (typeof CalorieTracker !== 'undefined') {
+  CalorieTracker.renderRecents = function () {
+    var host = document.getElementById('fp-recents'); if (!host) return;
+    recentsInjectStyles();
+    var recents = this.recents || [];
+    if (!recents.length) { host.innerHTML = ''; return; }
+    var top = recents.slice(0, 6);
+    var rows = top.map(function (r, i) {
+      var sub = r.free
+        ? (Math.round(r.kcal) + ' kcal')
+        : ('Last: ' + r.lastAmount + ' ' + recEsc(r.unit || '') + ' · ' + Math.round(r.kcal) + ' kcal');
+      var presets = ['0.5', '1', '2'].map(function (m) {
+        return '<button class="fp-rec-mult" onclick="event.stopPropagation();CalorieTracker.logRecent(' + i + ',' + m + ')">' + (m === '0.5' ? '½' : m) + '</button>';
+      }).join('');
+      return '<div class="fp-rec-row" onclick="CalorieTracker.logRecent(' + i + ',1)">' +
+        '<div class="fp-rec-main"><div class="fp-rec-name">' + recEsc(r.name) + '</div><div class="fp-rec-sub">' + sub + '</div></div>' +
+        '<div class="fp-rec-mults">' + presets + '</div>' +
+        '<button class="fp-rec-add" id="fp-rec-add-' + i + '" aria-label="Add ' + recEsc(r.name) + '" onclick="event.stopPropagation();CalorieTracker.logRecent(' + i + ',1)"><span class="material-icons">add</span></button>' +
+        '</div>';
+    }).join('');
+    var freq = recents.slice().sort(function (a, b) { return (b.count || 0) - (a.count || 0); }).slice(0, 4);
+    var freqHtml = (freq.length > 1 && (freq[0].count || 0) > 1)
+      ? ('<div class="fp-rec-freq-label">Frequent</div><div class="fp-rec-freq">' +
+          freq.map(function (r) { var gi = recents.indexOf(r); return '<button class="fp-rec-chip" onclick="CalorieTracker.logRecent(' + gi + ',1)">' + recEsc(r.name) + '</button>'; }).join('') +
+          '</div>')
+      : '';
+    host.innerHTML = '<div class="fp-rec-label">Recent</div>' + rows + freqHtml + '<div class="fp-rec-divider"></div>';
+  };
+
+  CalorieTracker.logRecent = function (idx, mult) {
+    var r = (this.recents || [])[idx]; if (!r) return;
+    mult = mult || 1;
+    var bucket = this._pickerMeal || (this.autoBucket ? this.autoBucket() : 'snacks');
+    if (r.foodId) {
+      var food = (typeof FOOD_DB !== 'undefined') ? FOOD_DB.filter(function (x) { return x.id === r.foodId; })[0] : null;
+      if (food) {
+        this._addingFood = food;
+        this._addingAmount = Math.max(1, Math.round((r.lastAmount || food.serving) * mult));
+        this._addingMeal = bucket;
+        this.confirmAdd();   // wrapped → persists to food_logs, re-renders, toasts; picker stays open
+      }
+    } else {
+      logFreeRecent(r, mult, bucket);
+    }
+    flashRecAdd(idx);
+  };
   }
 
   // ============ MY MEALS — saved meals, one-tap re-log (member_meals + RPCs) ============
