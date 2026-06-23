@@ -527,19 +527,42 @@ async function _renderClientData(clientId, cl){
   try{ var r=await window.supabase.rpc('pro_client_data',{p_pro:pid,p_member:memberId}); d=(r&&r.data)||{}; }catch(e){ d={error:'load'}; }
   body=document.querySelector('#ffp-modal .mc-body'); if(!body)return;
   if(d.error){ body.innerHTML='<div class="psub" style="padding:10px 0;">Couldn’t load — access may have changed.</div>'; return; }
-  var c=d.calorie_today||{}; var f=d.fitness||{};
+  var c=d.calorie_today||{}, f=d.fitness||{}, j=d.journey||{}, acts=d.activities||[], last7=d.calorie_last7||[];
+  var streak=(d.streak!=null?d.streak:(f.streak_days||0));
   var num=function(v,suf){ return (v===null||v===undefined||v==='')?'—':(v+(suf||'')); };
-  var calHtml='<div class="form-section"><div class="form-section-title">Today’s nutrition</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">'+
-    _healthTile(Math.round(c.calories||0),'kcal')+_healthTile(Math.round(c.protein_g||0)+'g','Protein')+_healthTile(Math.round(c.carbs_g||0)+'g','Carbs')+_healthTile(Math.round(c.fat_g||0)+'g','Fat')+'</div></div>';
+  var section=function(t,inner){ return '<div class="form-section"><div class="form-section-title">'+t+'</div>'+inner+'</div>'; };
+  var sub=function(t){ return '<div class="psub" style="margin:12px 0 7px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--ffp-text-dim);">'+t+'</div>'; };
+  // ── FITNESS STATS: streak + my journey + recent activity thumbnails ──
+  var streakHtml='<div style="display:flex;align-items:center;gap:12px;background:var(--ffp-bg-card);border:1px solid var(--ffp-border);border-radius:12px;padding:11px 14px;">'+
+    '<div style="font-size:28px;line-height:1;">🔥</div><div><div style="font-size:22px;font-weight:900;color:var(--ffp-text);line-height:1;">'+streak+'</div><div class="psub" style="margin:2px 0 0;">day streak</div></div></div>';
+  var jcell=function(v,l){ return '<div style="background:var(--ffp-bg-card);border:1px solid var(--ffp-border);border-radius:10px;padding:9px 6px;text-align:center;"><div style="font-size:17px;font-weight:900;color:var(--ffp-text);line-height:1;">'+v+'</div><div class="psub" style="margin:3px 0 0;font-size:9px;text-transform:uppercase;letter-spacing:.3px;">'+l+'</div></div>'; };
+  var journeyHtml='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;">'+
+    jcell(j.activities||0,'Activities')+jcell(j.days||0,'Active days')+jcell(j.hours||0,'Hours')+
+    jcell(j.distance_km||0,'KM')+jcell(j.cities||0,'Cities')+jcell(Math.round(j.calories||0),'Calories')+'</div>';
+  var thumb=function(a){
+    var ph=(a.photos&&a.photos.length)?String(a.photos[0]).replace(/["\\]/g,''):'';
+    var box=ph
+      ? '<div style="width:120px;height:88px;border-radius:10px;background:#dfe6e9 url(\''+ph+'\') center/cover;"></div>'
+      : '<div style="width:120px;height:88px;border-radius:10px;background:var(--ffp-bg-3,#eef3f4);display:flex;align-items:center;justify-content:center;"><span class="ms" style="font-size:30px;color:var(--ffp-text-dim);">exercise</span></div>';
+    return '<div style="flex:0 0 auto;width:120px;">'+box+'<div style="font-weight:700;font-size:12px;color:var(--ffp-text);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(a.activity||'Activity')+'</div><div class="psub" style="margin:0;font-size:10px;">'+_healthDate(a.logged_at)+(a.duration_min?' · '+a.duration_min+'m':'')+'</div></div>';
+  };
+  var thumbsHtml=acts.length?'<div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;">'+acts.map(thumb).join('')+'</div>':'<div class="psub" style="padding:4px 0;">No recent activity.</div>';
+  var statsSection=section('Fitness Stats', streakHtml+sub('My journey · this week')+journeyHtml+sub('Recent activities ('+(d.activity_count_30d||0)+' in 30 days)')+thumbsHtml);
+  // ── CALORIES TRACKING: today + daily breakdown ──
+  var todayTiles='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">'+
+    _healthTile(Math.round(c.calories||0),'kcal')+_healthTile(Math.round(c.protein_g||0)+'g','Protein')+_healthTile(Math.round(c.carbs_g||0)+'g','Carbs')+_healthTile(Math.round(c.fat_g||0)+'g','Fat')+'</div>';
+  var maxCal=Math.max.apply(null,last7.map(function(x){return Number(x.calories)||0;}).concat([1]));
+  var dLbl=function(dd){ try{ return new Date(String(dd)+'T00:00:00').toLocaleDateString('en-GB',{weekday:'short'}); }catch(e){ return ''; } };
+  var dailyHtml=last7.length?'<div style="display:flex;align-items:flex-end;gap:7px;height:98px;">'+last7.map(function(x){ var cal=Number(x.calories)||0; var h=Math.round(cal/maxCal*68)+2; return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;justify-content:flex-end;"><div style="font-size:8.5px;color:var(--ffp-text-dim);font-weight:700;">'+(cal||'')+'</div><div style="width:100%;max-width:30px;height:'+h+'px;background:var(--ffp-purple);border-radius:5px 5px 0 0;"></div><div class="psub" style="margin:0;font-size:9px;">'+dLbl(x.d)+'</div></div>'; }).join('')+'</div>':'<div class="psub" style="padding:4px 0;">No food logged in the last 7 days.</div>';
+  var calSection=section('Calories Tracking', sub('Today')+todayTiles+sub('Daily breakdown · 7 days')+dailyHtml);
+  // ── FITNESS RECORDS ──
   var prRows=[['Bench',num(f.pr_bench_kg,' kg')],['Squat',num(f.pr_squat_kg,' kg')],['Deadlift',num(f.pr_deadlift_kg,' kg')],
     ['5K',f.pr_5k_seconds?_healthTime(f.pr_5k_seconds):'—'],['10K',f.pr_10k_seconds?_healthTime(f.pr_10k_seconds):'—'],['Half',f.pr_21k_seconds?_healthTime(f.pr_21k_seconds):'—'],
     ['VO₂ max',num(f.vo2_max)],['Body fat',num(f.body_fat_pct,'%')],['Resting HR',num(f.resting_hr,' bpm')],['Weight',num(f.current_weight_kg,' kg')]];
-  var fitHtml='<div class="form-section"><div class="form-section-title">Fitness stats</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:0 18px;">'+
-    prRows.map(function(r){ return '<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--ffp-border);padding:7px 0;"><span class="psub" style="margin:0;">'+r[0]+'</span><span style="font-weight:800;font-size:13px;">'+r[1]+'</span></div>'; }).join('')+'</div></div>';
-  var acts=d.activities||[];
-  var actHtml='<div class="form-section"><div class="form-section-title">Recent activity ('+(d.activity_count_30d||0)+' in 30 days)</div>'+
-    (acts.length?acts.map(function(a){ return '<div style="display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--ffp-border);padding:8px 0;"><div style="min-width:0;"><div style="font-weight:700;font-size:13px;">'+escHtml(a.activity||'Activity')+'</div><div class="psub" style="margin:1px 0 0;">'+_healthDate(a.logged_at)+'</div></div><div class="psub" style="margin:0;text-align:right;white-space:nowrap;">'+[(a.duration_min?a.duration_min+' min':''),(a.distance_km?a.distance_km+' km':''),(a.calories?a.calories+' kcal':'')].filter(Boolean).join(' · ')+'</div></div>'; }).join(''):'<div class="psub" style="padding:6px 0;">No recent activity.</div>')+'</div>';
-  body.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="ms" style="color:#22c55e;">verified</span><span class="psub" style="margin:0;">Shared with permission · read-only</span></div>'+calHtml+fitHtml+actHtml;
+  var recordsHtml='<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 18px;">'+
+    prRows.map(function(r){ return '<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--ffp-border);padding:7px 0;"><span class="psub" style="margin:0;">'+r[0]+'</span><span style="font-weight:800;font-size:13px;">'+r[1]+'</span></div>'; }).join('')+'</div>';
+  var recSection=section('Fitness Records', recordsHtml);
+  body.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><span class="ms" style="color:#22c55e;">verified</span><span class="psub" style="margin:0;">Shared with permission · read-only</span></div>'+statsSection+calSection+recSection;
 }
 
 // ── PACKAGES ──
