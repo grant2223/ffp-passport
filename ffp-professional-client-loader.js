@@ -142,11 +142,17 @@ function _ppCardHtml(pp, nm, id){
     '<div style="font-size:10.5px;font-weight:700;color:var(--ffp-purple);margin:8px 0 12px;text-align:center;"><span class="ms" style="font-size:13px;vertical-align:-2px;">verified_user</span> Pulled from their FFP Passport</div>';
 }
 function _contactRow(email, phone){
-  var btns=[];
-  if(email) btns.push('<a href="mailto:'+escHtml(email)+'" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:11px;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:12px;color:var(--ffp-text);font-weight:700;font-size:13px;text-decoration:none;"><span class="ms" style="font-size:18px;color:var(--ffp-purple);">mail</span> Email</a>');
-  if(phone) btns.push('<a href="tel:'+String(phone).replace(/[^+0-9]/g,'')+'" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:11px;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:12px;color:var(--ffp-text);font-weight:700;font-size:13px;text-decoration:none;"><span class="ms" style="font-size:18px;color:var(--ffp-purple);">call</span> Call</a>');
-  if(!btns.length) return '';
-  return '<div style="display:flex;gap:8px;margin:0 0 14px;">'+btns.join('')+'</div>';
+  // Email + Phone always sit side by side. A missing one renders greyed-out/disabled (not hidden).
+  var base='flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:11px;border-radius:12px;font-weight:700;font-size:13px;text-decoration:none;';
+  var on=base+'background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);color:var(--ffp-text);';
+  var off=base+'background:var(--ffp-bg-3,#eef3f4);border:1px solid var(--ffp-border);color:var(--ffp-text-dim);opacity:.55;cursor:default;';
+  var em = email
+    ? '<a href="mailto:'+escHtml(email)+'" style="'+on+'"><span class="ms" style="font-size:18px;color:var(--ffp-purple);">mail</span> Email</a>'
+    : '<div style="'+off+'" title="No email on file"><span class="ms" style="font-size:18px;">mail</span> Email</div>';
+  var ph = phone
+    ? '<a href="tel:'+String(phone).replace(/[^+0-9]/g,'')+'" style="'+on+'"><span class="ms" style="font-size:18px;color:var(--ffp-purple);">call</span> Call</a>'
+    : '<div style="'+off+'" title="No number yet — add one via Edit"><span class="ms" style="font-size:18px;">call</span> Call</div>';
+  return '<div style="display:flex;gap:8px;margin:0 0 14px;">'+em+ph+'</div>';
 }
 function _fiveButtons(id){
   var sb=function(ic,lbl,fn){ return '<button onclick="closeModal();'+fn+'" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:10px 3px;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:13px;cursor:pointer;color:var(--ffp-text);font-family:inherit;min-height:64px;"><span class="ms" style="font-size:20px;color:var(--ffp-purple);">'+ic+'</span><span style="font-size:9.5px;font-weight:700;text-align:center;line-height:1.1;">'+lbl+'</span></button>'; };
@@ -229,7 +235,7 @@ function afRender(){
       det+='<div class="psub" style="margin:0 0 8px;">Waiting on the client to complete &amp; sign in their app — or upload a signed copy here.</div>'+
         '<button class="btn btn-sec btn-sm" onclick="afUpload(\''+f.id+'\')"><span class="ms">upload_file</span> Upload signed copy</button>';
     }
-    det+='<div style="margin-top:10px;"><button onclick="afRemove(\''+f.id+'\')" style="background:none;border:none;color:var(--ffp-text-dim);font-size:11px;font-weight:700;cursor:pointer;">Remove form</button></div>';
+    det+='<div style="margin-top:10px;display:flex;gap:16px;"><button onclick="afPreviewForm(\''+f.id+'\')" style="background:none;border:none;color:var(--ffp-purple);font-size:11px;font-weight:700;cursor:pointer;">Preview</button><button onclick="afRemove(\''+f.id+'\')" style="background:none;border:none;color:var(--ffp-text-dim);font-size:11px;font-weight:700;cursor:pointer;">Remove form</button></div>';
     var left='<div style="font-weight:700;color:var(--ffp-text);font-size:13px;">'+escHtml(f.title)+'</div><div class="psub" style="margin:0;">Assigned '+afWhen(f.assigned_at)+'</div>';
     return '<div style="border-bottom:1px solid var(--ffp-border);"><div onclick="afToggle(this)" style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 2px;cursor:pointer;"><div style="min-width:0;">'+left+'</div><div style="display:flex;align-items:center;gap:10px;flex:0 0 auto;">'+afStatusPill(f)+'<span class="ms af-chev" style="font-size:18px;color:var(--ffp-text-dim);">expand_more</span></div></div><div style="display:none;padding:0 2px 12px;">'+det+'</div></div>';
   }).join('');
@@ -277,7 +283,7 @@ async function afManageTemplates(){
 function afTemplateListHtml(){
   var tpls=_afTpls||[];
   if(!tpls.length) return '<div class="psub" style="padding:6px 0;">No templates yet. Create your first — start from a Waiver or PAR-Q+ and adjust it.</div>';
-  return tpls.map(function(t){ return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--ffp-border);"><div style="min-width:0;"><div style="font-weight:800;font-size:13px;color:var(--ffp-text);">'+escHtml(t.title)+'</div><div class="psub" style="margin:0;">'+((t.fields&&t.fields.length)||0)+' field'+(((t.fields&&t.fields.length)===1)?'':'s')+(t.requires_signature?' · signature':'')+'</div></div><div style="display:flex;gap:6px;flex:0 0 auto;"><button class="btn btn-sec btn-sm" onclick="afEditTemplate(\''+t.id+'\')"><span class="ms">edit</span></button><button class="btn btn-ghost btn-sm" onclick="afDeleteTemplate(\''+t.id+'\')"><span class="ms">delete</span></button></div></div>'; }).join('');
+  return tpls.map(function(t){ return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--ffp-border);"><div style="min-width:0;"><div style="font-weight:800;font-size:13px;color:var(--ffp-text);">'+escHtml(t.title)+'</div><div class="psub" style="margin:0;">'+((t.fields&&t.fields.length)||0)+' field'+(((t.fields&&t.fields.length)===1)?'':'s')+(t.requires_signature?' · signature':'')+'</div></div><div style="display:flex;gap:6px;flex:0 0 auto;"><button class="btn btn-sec btn-sm" onclick="afPreviewTpl(\''+t.id+'\')" title="Preview"><span class="ms">visibility</span></button><button class="btn btn-sec btn-sm" onclick="afEditTemplate(\''+t.id+'\')"><span class="ms">edit</span></button><button class="btn btn-ghost btn-sm" onclick="afDeleteTemplate(\''+t.id+'\')"><span class="ms">delete</span></button></div></div>'; }).join('');
 }
 function afEditTemplate(tid){
   var tpls=_afTpls||[], t=tid?tpls.filter(function(x){return x.id===tid;})[0]:null;
@@ -292,6 +298,8 @@ function afEditTemplate(tid){
   openModalShell('lg',tid?'Edit template':'New template', body, '<button class="btn btn-ghost left" onclick="afManageTemplates()">Back</button><button class="btn btn-sec" onclick="afPreview()"><span class="ms">visibility</span> Preview</button><button class="btn btn-pri" onclick="afSaveTemplate()"><span class="ms">save</span> Save</button>');
   afRenderFields();
 }
+function afPreviewTpl(tid){ var t=(_afTpls||[]).filter(function(x){return String(x.id)===String(tid);})[0]; if(t) _ffpFormPreview(t.title||'Untitled form', t.description||'', t.requires_signature!==false, t.fields||[], 'af-preview'); }
+function afPreviewForm(fid){ var f=(_afForms||[]).filter(function(x){return String(x.id)===String(fid);})[0]; if(f) _ffpFormPreview(f.title||'Form', '', f.requires_signature!==false, f.fields||[], 'af-preview'); }
 function afPreview(){
   var title=((document.getElementById('af-tpl-title')||{}).value||'').trim()||'Untitled form';
   var desc=((document.getElementById('af-tpl-desc')||{}).value||'').trim();
@@ -373,12 +381,14 @@ function afRenderFields(){
   var types=[['statement','Text / paragraph'],['text','Short text'],['textarea','Long text'],['yesno','Yes / No'],['date','Date'],['consent','Consent checkbox']];
   host.innerHTML=fs.length? fs.map(function(f,i){
     var opts=types.map(function(t){return '<option value="'+t[0]+'"'+(f.type===t[0]?' selected':'')+'>'+t[1]+'</option>';}).join('');
-    var sel='<select class="select" style="max-width:150px;" onchange="afFieldSet('+i+',\'type\',this.value)">'+opts+'</select>';
-    var rm='<button onclick="afRemoveField('+i+')" style="background:none;border:none;color:var(--ffp-text-dim);cursor:pointer;"><span class="ms">close</span></button>';
-    if(f.type==='statement'){
-      return '<div style="display:flex;gap:6px;align-items:flex-start;margin-top:7px;"><textarea class="textarea" style="flex:1;min-height:62px;" placeholder="Written text / paragraph the client reads — e.g. the waiver wording or an instruction" oninput="afFieldSet('+i+',\'label\',this.value)">'+escHtml(f.label||'')+'</textarea>'+sel+rm+'</div>';
-    }
-    return '<div style="display:flex;gap:6px;align-items:center;margin-top:7px;"><input class="input" style="flex:1;" placeholder="Question / label" value="'+escHtml(f.label||'')+'" oninput="afFieldSet('+i+',\'label\',this.value)">'+sel+'<label style="font-size:11px;color:var(--ffp-text-muted);display:flex;align-items:center;gap:3px;white-space:nowrap;"><input type="checkbox" '+(f.required?'checked':'')+' onchange="afFieldSet('+i+',\'required\',this.checked)">Req</label>'+rm+'</div>';
+    var big=(f.type==='statement'||f.type==='textarea');
+    var ph=(f.type==='statement')?'Written text / paragraph the client reads — e.g. the waiver wording or an instruction':'Question / label';
+    var control = big
+      ? '<textarea class="textarea" style="width:100%;display:block;min-height:'+(f.type==='statement'?'120':'88')+'px;" placeholder="'+ph+'" oninput="afFieldSet('+i+',\'label\',this.value)">'+escHtml(f.label||'')+'</textarea>'
+      : '<input class="input" style="width:100%;display:block;" placeholder="'+ph+'" value="'+escHtml(f.label||'')+'" oninput="afFieldSet('+i+',\'label\',this.value)">';
+    var reqLbl=(f.type==='statement')?'':'<label style="font-size:11.5px;color:var(--ffp-text-muted);display:flex;align-items:center;gap:5px;white-space:nowrap;"><input type="checkbox" '+(f.required?'checked':'')+' onchange="afFieldSet('+i+',\'required\',this.checked)">Required</label>';
+    return '<div style="border:1px solid var(--ffp-border);border-radius:11px;padding:10px;margin-top:9px;background:var(--ffp-bg-2);">'+control+
+      '<div style="display:flex;gap:10px;align-items:center;margin-top:9px;"><select class="select" style="max-width:170px;" onchange="afFieldSet('+i+',\'type\',this.value)">'+opts+'</select>'+reqLbl+'<div style="flex:1;"></div><button onclick="afRemoveField('+i+')" style="background:none;border:none;color:var(--ffp-text-dim);cursor:pointer;display:flex;align-items:center;gap:3px;font-size:11.5px;font-weight:700;"><span class="ms" style="font-size:17px;">delete</span> Remove</button></div></div>';
   }).join('') : '<div class="psub" style="padding:6px 0;">No fields yet — add one, or start from Waiver/PAR-Q+.</div>';
 }
 async function afSaveTemplate(){
