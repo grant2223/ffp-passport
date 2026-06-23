@@ -1,4 +1,12 @@
-/* FFP Calorie Tracker Loader — v9
+/* FFP Calorie Tracker Loader — v11
+   v11: RECENTS design fix — removed the unclear ½/1/2 multiplier pills (tap a recent row, or its +, logs it at
+        your last/usual amount); applied the sheet's standard 22px horizontal inset to the meal selector, recents
+        rows, Frequent chips + divider so nothing sits tight against the edge. (Food-add + quick-add modals made
+        full-bleed in the HTML by dropping their inline max-width.)
+   v10: P2 — (1) DATE BROWSING: loadDayData(date) loads any day's food+activity into the Today view; new logs
+        carry the viewed day's timestamp via ctLoggedAt() (core _logIso). (2) QUICK-ADD CALORIES: confirmQuickAdd
+        wrap persists a free-form food_logs row via shared insertFreeLog(). (3) EDIT: handled in core by re-adding
+        the new version then removing the old (reuses confirmAdd/confirmQuickAdd insert + removeItem delete).
    v9: FASTER LOGGING (P1) — RECENTS at the top of the food picker. New step 3b queries the last 30 days of
        food_logs, dedupes by food name (most-recent first + a frequency count) into CalorieTracker.recents.
        renderRecents() paints a one-tap "log it again" list (½ / 1 / 2 serving presets) + a Frequent chip row;
@@ -82,6 +90,12 @@
   }
   function activityToFactor(a) {
     return a === 'low' ? 1.375 : a === 'high' ? 1.725 : 1.55;
+  }
+
+  // v10 — a new log carries the VIEWED day's timestamp (so backdated days land on the right date).
+  // Core's _logIso() stamps the viewed date at the current time-of-day; falls back to now.
+  function ctLoggedAt() {
+    return (typeof CalorieTracker !== 'undefined' && CalorieTracker._logIso) ? CalorieTracker._logIso() : new Date().toISOString();
   }
 
   // Supabase activity_logs row → dashboard activities entry
@@ -330,7 +344,7 @@
           category: adding.category,
           duration_min: adding.duration,
           calories: adding.kcal,
-          logged_at: new Date().toISOString()
+          logged_at: ctLoggedAt()
         }).select('id').single();
         if (res.error) { console.error('[FFP CT] activity insert:', res.error); return; }
         var last = this.activities[this.activities.length - 1];
@@ -367,7 +381,7 @@
         protein_g: +(food.p * scale).toFixed(1),
         carbs_g:   +(food.c * scale).toFixed(1),
         fat_g:     +(food.f * scale).toFixed(1),
-        logged_at: new Date().toISOString()
+        logged_at: ctLoggedAt()
       };
       try {
         var res = await window.supabase.from('food_logs').insert(payload).select('id').single();
@@ -376,6 +390,17 @@
         if (list && list.length > 0) list[list.length - 1]._supabaseId = res.data.id;
       } catch (e) { console.error('[FFP CT] food insert:', e); }
     };
+
+    // ─── food_logs: confirmQuickAdd (quick-add calories) ───
+    if (typeof CalorieTracker.confirmQuickAdd === 'function') {
+      var origConfirmQuickAdd = CalorieTracker.confirmQuickAdd.bind(CalorieTracker);
+      CalorieTracker.confirmQuickAdd = function () {
+        origConfirmQuickAdd();
+        var pq = this._pendingQuick; this._pendingQuick = null;
+        if (!pq || !currentUserId) return;
+        insertFreeLog(pq.item, pq.meal);
+      };
+    }
 
     // ─── food_logs: removeItem ───
     var origRemoveItem = CalorieTracker.removeItem.bind(CalorieTracker);
@@ -445,25 +470,23 @@
   function recentsInjectStyles() {
     if (document.getElementById('ffp-recents-styles')) return;
     var s = document.createElement('style'); s.id = 'ffp-recents-styles'; s.textContent =
-      '.fp-meal-seg{display:flex;gap:6px;margin:0 0 12px;}' +
-      '.fp-meal-seg button{flex:1;font-size:12px;font-weight:800;padding:8px 0;border-radius:9px;border:1px solid var(--border-mid);background:transparent;color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s;}' +
+      '.fp-meal-seg{display:flex;gap:6px;margin:4px 22px 16px;}' +
+      '.fp-meal-seg button{flex:1;font-size:12px;font-weight:800;padding:9px 0;border-radius:9px;border:1px solid var(--border-mid);background:transparent;color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s;}' +
       '.fp-meal-seg button.active{background:var(--blue);border-color:var(--blue);color:#fff;}' +
-      '.fp-rec-label{font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin:2px 2px 8px;}' +
-      '.fp-rec-row{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--border);cursor:pointer;}' +
+      '.fp-rec-label{font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin:2px 22px 6px;}' +
+      '.fp-rec-row{display:flex;align-items:center;gap:12px;padding:11px 22px;border-bottom:1px solid var(--border);cursor:pointer;}' +
+      '.fp-rec-row:hover{background:rgba(43,168,224,0.04);}' +
       '.fp-rec-main{flex:1;min-width:0;}' +
-      '.fp-rec-name{font-size:13.5px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
-      '.fp-rec-sub{font-size:11px;color:var(--muted);font-weight:600;margin-top:2px;}' +
-      '.fp-rec-mults{display:flex;gap:4px;flex-shrink:0;}' +
-      '.fp-rec-mult{font-size:11px;font-weight:800;min-width:26px;padding:5px 0;border-radius:999px;border:1px solid var(--border-mid);background:transparent;color:var(--muted);cursor:pointer;font-family:inherit;}' +
-      '.fp-rec-mult:active{background:var(--blue);border-color:var(--blue);color:#fff;}' +
+      '.fp-rec-name{font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+      '.fp-rec-sub{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:2px;}' +
       '.fp-rec-add{flex-shrink:0;width:34px;height:34px;border-radius:50%;border:none;background:var(--blue);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}' +
       '.fp-rec-add .material-icons{font-size:20px;}' +
       '.fp-rec-add.added{background:#22c55e;}' +
-      '.fp-rec-freq-label{font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin:12px 2px 8px;}' +
-      '.fp-rec-freq{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;}' +
+      '.fp-rec-freq-label{font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin:14px 22px 8px;}' +
+      '.fp-rec-freq{display:flex;flex-wrap:wrap;gap:6px;margin:0 22px 6px;}' +
       '.fp-rec-chip{font-size:12px;font-weight:700;padding:6px 11px;border-radius:999px;border:1px solid var(--border-mid);background:rgba(43,168,224,0.06);color:var(--text);cursor:pointer;font-family:inherit;white-space:nowrap;}' +
       '.fp-rec-chip:active{border-color:var(--blue);}' +
-      '.fp-rec-divider{height:1px;background:var(--border);margin:12px 0;}';
+      '.fp-rec-divider{height:1px;background:var(--border);margin:14px 22px 4px;}';
     document.head.appendChild(s);
   }
 
@@ -475,6 +498,19 @@
     setTimeout(function () { if (b) { b.classList.remove('added'); b.innerHTML = '<span class="material-icons">add</span>'; } }, 1100);
   }
 
+  // shared free-form food_logs insert (recents re-log + quick-add). Stamps the viewed day via ctLoggedAt().
+  function insertFreeLog(item, bucket) {
+    if (!currentUserId) return;
+    window.supabase.from('food_logs').insert({
+      member_id: currentUserId, meal: keyToDbMeal(bucket), food_name: item.name,
+      calories: item.kcal, protein_g: item.p, carbs_g: item.c, fat_g: item.f,
+      logged_at: ctLoggedAt()
+    }).select('id').single().then(function (res) {
+      if (!res.error && res.data) item._supabaseId = res.data.id;
+      else if (res.error) console.error('[FFP CT] free log insert:', res.error);
+    }).catch(function (e) { console.error('[FFP CT] free log insert:', e); });
+  }
+
   // free-form recent re-log: push to the in-memory meal + insert a fresh food_logs row (mirrors confirmAdd)
   function logFreeRecent(r, mult, bucket) {
     var item = { free: true, name: r.name,
@@ -484,15 +520,7 @@
     CalorieTracker.meals[bucket].push(item);
     CalorieTracker.render();
     if (window.showToast) showToast('Added ' + r.name + ' to ' + bucket);
-    if (!currentUserId) return;
-    window.supabase.from('food_logs').insert({
-      member_id: currentUserId, meal: keyToDbMeal(bucket), food_name: r.name,
-      calories: item.kcal, protein_g: item.p, carbs_g: item.c, fat_g: item.f,
-      logged_at: new Date().toISOString()
-    }).select('id').single().then(function (res) {
-      if (!res.error && res.data) item._supabaseId = res.data.id;
-      else if (res.error) console.error('[FFP CT] free recent insert:', res.error);
-    }).catch(function (e) { console.error('[FFP CT] free recent insert:', e); });
+    insertFreeLog(item, bucket);
   }
 
   if (typeof CalorieTracker !== 'undefined') {
@@ -504,14 +532,10 @@
     var top = recents.slice(0, 6);
     var rows = top.map(function (r, i) {
       var sub = r.free
-        ? (Math.round(r.kcal) + ' kcal')
-        : ('Last: ' + r.lastAmount + ' ' + recEsc(r.unit || '') + ' · ' + Math.round(r.kcal) + ' kcal');
-      var presets = ['0.5', '1', '2'].map(function (m) {
-        return '<button class="fp-rec-mult" onclick="event.stopPropagation();CalorieTracker.logRecent(' + i + ',' + m + ')">' + (m === '0.5' ? '½' : m) + '</button>';
-      }).join('');
+        ? (Math.round(r.kcal) + ' kcal · tap to add')
+        : (r.lastAmount + ' ' + recEsc(r.unit || '') + ' · ' + Math.round(r.kcal) + ' kcal · tap to add');
       return '<div class="fp-rec-row" onclick="CalorieTracker.logRecent(' + i + ',1)">' +
         '<div class="fp-rec-main"><div class="fp-rec-name">' + recEsc(r.name) + '</div><div class="fp-rec-sub">' + sub + '</div></div>' +
-        '<div class="fp-rec-mults">' + presets + '</div>' +
         '<button class="fp-rec-add" id="fp-rec-add-' + i + '" aria-label="Add ' + recEsc(r.name) + '" onclick="event.stopPropagation();CalorieTracker.logRecent(' + i + ',1)"><span class="material-icons">add</span></button>' +
         '</div>';
     }).join('');
@@ -540,6 +564,39 @@
       logFreeRecent(r, mult, bucket);
     }
     flashRecAdd(idx);
+  };
+
+  // v10 — load a specific day's food + activity into the live view (date browsing on the Today tab)
+  CalorieTracker.loadDayData = function (date) {
+    if (!window.supabase || !currentUserId) { if (this.render) this.render(); return; }
+    var start = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
+    var startIso = start.toISOString();
+    var endIso = new Date(start.getTime() + 86400000).toISOString();
+    // optimistic clear so the previous day's items don't linger during the async fetch
+    this.meals = { breakfast: [], lunch: [], dinner: [], snacks: [] };
+    this.activities = [];
+    if (this.render) this.render();
+    window.supabase.from('food_logs')
+      .select('id, meal, food_name, calories, protein_g, carbs_g, fat_g, logged_at')
+      .eq('member_id', currentUserId).gte('logged_at', startIso).lt('logged_at', endIso)
+      .order('logged_at', { ascending: true })
+      .then(function (res) {
+        if (res.error) { console.error('[FFP CT] day food read:', res.error); return; }
+        var meals = { breakfast: [], lunch: [], dinner: [], snacks: [] };
+        (res.data || []).forEach(function (r) { var item = mapFoodRow(r); var k = dbMealToKey(r.meal); if (meals[k]) meals[k].push(item); });
+        CalorieTracker.meals = meals;
+        if (CalorieTracker.render) CalorieTracker.render();
+      });
+    window.supabase.from('activity_logs')
+      .select('id, activity, category, duration_min, calories, logged_at')
+      .eq('member_id', currentUserId).gte('logged_at', startIso).lt('logged_at', endIso)
+      .order('logged_at', { ascending: true })
+      .then(function (res) {
+        if (res.error) { console.error('[FFP CT] day activity read:', res.error); return; }
+        CalorieTracker.activities = (res.data || []).map(function (r, i) { return mapActivityRow(r, i + 1); });
+        CalorieTracker._nextActId = CalorieTracker.activities.length + 1;
+        if (CalorieTracker.render) CalorieTracker.render();
+      });
   };
   }
 
