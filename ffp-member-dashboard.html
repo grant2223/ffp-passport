@@ -7825,7 +7825,7 @@ function notifTime(iso){ if(!iso) return ''; var d=Date.now()-new Date(iso).getT
 function _notifIsPassport(n){
   var l = String((n && n.link) || '');
   return /[?&](activity|meetup|quest|connect)=/.test(l)
-      || /#(panel-passport|panel-meetups|panel-quests|connections|activity-tags)/.test(l);
+      || /#(panel-passport|panel-meetups|panel-quests|connections|activity-tags|journey)/.test(l);
 }
 async function loadMeets() {
   var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
@@ -8107,7 +8107,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '412';
+  const FFP_BUILD = '413';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
@@ -11416,11 +11416,19 @@ async function saveLog() {
     } catch (e) {}
   }
   // Training partners — tag accepted connections; they confirm before it lands on their journey.
-  if (_newId && _logPartners && _logPartners.length) {
+  var _taggedN = (_logPartners && _logPartners.length) ? _logPartners.length : 0;
+  if (_newId && _taggedN) {
     try { await window.supabase.rpc('activity_add_partners', { p_me: member.id, p_activity: _newId, p_members: _logPartners }); } catch (e) {}
+    // Push a phone alert to each tagged connection (the in-app bell row is written by the RPC).
+    try {
+      fetch('https://ffp-passport-backend.vercel.app/api/activity/notify-tags', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ member_id: member.id, activity_id: _newId })
+      }).catch(function () {});
+    } catch (e) {}
   }
   if (typeof window.ffpActivityReload === 'function') window.ffpActivityReload();   // refresh the Stats activity list (photo row)
-  if (typeof showToast === 'function') showToast('Logged ' + act + (city ? ' in ' + city : '') + (_shareVal ? ' · shared with connections' : ''), 'success');
+  if (typeof showToast === 'function') showToast('Logged ' + act + (city ? ' in ' + city : '') + (_shareVal ? ' · shared with connections' : '') + (_taggedN ? ' · tagged ' + _taggedN + (_taggedN === 1 ? ' person — they’ll confirm' : ' people — they’ll confirm') : ''), 'success');
   closeLogModal();
   _ffpSaveThenShare(_newId, act, city, entry, _photoVal, _photosVal);
 }
@@ -11674,7 +11682,22 @@ window.ffpRenderActivityCard = function (a, isOwn) {
     '<button onclick="window.ffpShareActivity&&window.ffpShareActivity(\'' + a.id + '\')" style="width:100%;padding:13px;border-radius:13px;border:1px solid rgba(43,168,224,0.35);background:rgba(43,168,224,0.07);color:#2ba8e0;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:-3px;">' + (a.shared ? 'group' : 'group_add') + '</span> ' + (a.shared ? 'Shared with connections' : 'Share with my connections') + '</button>' +
     '<button onclick="ffpCloseActivityCard();window.ffpEditActivity&&window.ffpEditActivity(\'' + a.id + '\')" style="width:100%;padding:13px;border-radius:13px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:#cfe0ee;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:-3px;">edit</span> Edit activity</button>' +
   '</div>') : '<div style="height:28px;"></div>';
-  var body = ownerRow + ribbon + mapBlock + notesBlock + actions;
+  // Training partners — the connections tagged on this activity who CONFIRMED the tag.
+  var partnersBlock = '';
+  var _pp = (a.partners && a.partners.length) ? a.partners : [];
+  if (_pp.length) {
+    partnersBlock = '<div style="margin:20px 18px 0;">' +
+      '<div style="font-size:9.5px;font-weight:800;letter-spacing:.6px;color:#8a99a8;text-transform:uppercase;margin-bottom:9px;">Trained with</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+      _pp.map(function (p) {
+        var av = p.photo
+          ? '<img src="' + esc(p.photo) + '" style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex:0 0 auto;">'
+          : '<span style="width:24px;height:24px;border-radius:50%;background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;flex:0 0 auto;">' + esc((p.name || 'M').charAt(0).toUpperCase()) + '</span>';
+        return '<span style="display:inline-flex;align-items:center;gap:7px;background:rgba(43,168,224,0.10);border:1px solid rgba(43,168,224,0.28);border-radius:20px;padding:4px 12px 4px 5px;font-size:13px;font-weight:700;color:#cfe0ee;">' + av + esc(p.name || 'Member') + '</span>';
+      }).join('') +
+      '</div></div>';
+  }
+  var body = ownerRow + ribbon + mapBlock + partnersBlock + notesBlock + actions;
 
   ffpCloseActivityCard();
   var ov = document.createElement('div'); ov.id = 'ffp-act-card-ov';
