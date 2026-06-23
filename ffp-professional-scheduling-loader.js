@@ -228,6 +228,13 @@ async function openSlotModal(id){
   var slots=_proSlotsCache||[];
   var editing=id?slots.find(function(s){return s.id===id;}):null;
   if(id && !editing){ showToast('Could not load that slot — please reopen it','error'); return; }
+  // A slot must book a SERVICE — require at least one service before opening slots.
+  if(!editing && (!_proSvc || !_proSvc.length)){
+    openModalShell('', 'Create a service first',
+      '<div class="psub" style="margin:6px 0 2px;line-height:1.5;">A slot is a time a member can book <b>a service</b> into. Add at least one service — with its price, length and cancellation policy — then come back and open your slots.</div>',
+      '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="closeModal(); if(window.showPanel)showPanel(\'services\')">Go to Services</button>');
+    return;
+  }
   var s=editing||{ title:'', service_id:'', weekday:1, start_time:'18:00', duration_min:'', capacity:'', location:'', clients:[] };
   var chosen=(s.clients||[]).map(function(c){return c.id;});
   var clientList=_proClients.length
@@ -237,7 +244,7 @@ async function openSlotModal(id){
   var svcOpts='<option value="">Choose a service…</option>'+_proSvc.map(function(v){ return '<option value="'+v.id+'"'+(s.service_id===v.id?' selected':'')+'>'+escHtml(v.name||'Service')+'</option>'; }).join('');
   openModalShell('lg',(editing?'Edit slot':'New slot'),
     '<div class="form-section"><div class="form-section-title">Slot</div><div class="form-grid">'+
-      '<div class="field full"><div class="label">Service</div><select class="select" id="sl-service_id" onchange="_slSvcPick()">'+svcOpts+'</select></div>'+
+      '<div class="field full"><div class="label">Service <span style="color:#e0682b;">*</span></div><select class="select" id="sl-service_id" onchange="_slSvcPick()">'+svcOpts+'</select></div>'+
       '<div class="field"><div class="label">Day</div><select class="select" id="sl-weekday">'+dayOpts+'</select></div>'+
       '<div class="field"><div class="label">Time</div><input class="input" type="time" id="sl-start_time" value="'+escHtml(String(s.start_time||'18:00').slice(0,5))+'"></div>'+
       '<div class="field"><div class="label">Duration (min)</div><input class="input" type="number" id="sl-duration_min" value="'+escHtml(String(s.duration_min||60))+'"></div>'+
@@ -276,6 +283,7 @@ async function saveSlot(id){
   var pid=_proProvId(); if(!pid) return;
   var g=function(i){var el=document.getElementById('sl-'+i);return el?el.value.trim():'';};
   var serviceId=g('service_id');
+  if(!serviceId){ showToast('Choose a service for this slot','error'); return; }
   var time=g('start_time'); if(!time){ showToast('Pick a time','error'); return; }
   var wd=g('weekday'); var dur=parseInt(g('duration_min'),10)||60;
   var _toMin=function(t){ var p=String(t).split(':'); return (parseInt(p[0],10)||0)*60+(parseInt(p[1],10)||0); };
@@ -314,7 +322,7 @@ async function openOccActions(slotId,date,blocked){
   // Booked clients → tap a strap for their full details
   var clients=slot.clients||[];
   var clientHtml=clients.length
-    ? '<div style="margin:0 0 12px;"><div style="font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-text-dim);margin:0 2px 6px;">Booked in</div>'+clients.map(function(c){ return '<div onclick="closeModal(); if(window.clientProfile)clientProfile(\''+c.id+'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:10px;margin-bottom:7px;cursor:pointer;"><span style="width:34px;height:34px;border-radius:50%;background:rgba(10,62,68,0.16);color:#0a3e44;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex:0 0 auto;">'+escHtml((c.full_name||"?").slice(0,1).toUpperCase())+'</span><div style="flex:1;min-width:0;"><div style="font-weight:700;color:var(--ffp-text);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(c.full_name||"Client")+'</div><div class="psub" style="margin:0;">Tap for details</div></div><span class="ms" style="color:var(--ffp-text-dim);flex:0 0 auto;">chevron_right</span></div>'; }).join('')+'</div>'
+    ? '<div style="margin:0 0 12px;"><div style="font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-text-dim);margin:0 2px 6px;">Booked in</div>'+clients.map(function(c){ return '<div onclick="closeModal(); openProClientProfile(\''+c.id+'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--ffp-bg-2);border:1px solid var(--ffp-border);border-radius:10px;margin-bottom:7px;cursor:pointer;"><span style="width:34px;height:34px;border-radius:50%;background:rgba(10,62,68,0.16);color:#0a3e44;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex:0 0 auto;">'+escHtml((c.full_name||"?").slice(0,1).toUpperCase())+'</span><div style="flex:1;min-width:0;"><div style="font-weight:700;color:var(--ffp-text);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(c.full_name||"Client")+'</div><div class="psub" style="margin:0;">Tap for details</div></div><span class="ms" style="color:var(--ffp-text-dim);flex:0 0 auto;">chevron_right</span></div>'; }).join('')+'</div>'
     : '';
   var blockBtn=blocked
     ? '<button class="btn btn-sec btn-block" onclick="unblockOcc(\''+slotId+'\',\''+date+'\')"><span class="ms">event_available</span> Make available again</button>'
