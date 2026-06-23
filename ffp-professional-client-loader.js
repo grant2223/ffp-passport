@@ -66,15 +66,18 @@ async function clientProfile(id){
   var pp={}; try{ var pr=await window.supabase.rpc('pro_client_passport',{p_pro:_memProvId(),p_client:id}); pp=(pr&&pr.data)||{}; }catch(e){}
   var hasPass=!!pp.has_account;
   var email=(pp.email||m.email||''), phone=(pp.phone||m.phone||'');
-  var head;
+  var head='';
+  try {
   if(hasPass && window.FFPPassportCard){
     // EXACT community passport card (shared canonical renderer). Both faces pre-built → flip is clean both ways.
     var _fd=window.ffpFmtPassDate||function(d){return d?String(d).slice(0,10):'';};
     var m2={ id:pp.id||'', name:nm, givenNames:pp.given_names||gn, surname:pp.surname||sn, photo:pp.photo_url||'',
       country:pp.country||pp.nationality||'', nationality:pp.nationality||pp.country||'', gender:pp.gender||'',
       dob:_fd(pp.date_of_birth), issueDate:_fd(pp.member_since), expiryDate:_fd(pp.member_since,1),
-      memberType:pp.tier||'member', memberSince:pp.member_since?(function(){try{return new Date(pp.member_since).getFullYear();}catch(e){return '';}})():'' };
-    // private back fields (sports/reliability/meetupsHosted/city) intentionally omitted — coach sees identity only.
+      memberType:pp.tier||'member', memberSince:pp.member_since?(function(){try{return new Date(pp.member_since).getFullYear();}catch(e){return '';}})():'',
+      city:pp.city||'',
+      sports:(function(){ var v=pp.sports; if(typeof v==='string'){try{v=JSON.parse(v);}catch(e){v=[];}} if(!Array.isArray(v)) return []; return v.map(function(s){ return (typeof s==='string')?{name:s,level:''}:{name:(s.name||s.activity||s.discipline||''),level:(s.level||s.tier||'')}; }).filter(function(s){return s.name;}); })() };
+    // back = live FFP Passport data (activities+level, based-in) — same info the community card shows connections.
     head='<div class="pass-container" style="margin:-2px 0 10px;">'+window.FFPPassportCard.render(m2,{flippable:true})+'</div>'+
       '<div style="font-size:10.5px;font-weight:700;color:var(--ffp-purple);margin:0 0 12px;text-align:center;"><span class="ms" style="font-size:13px;vertical-align:-2px;">verified_user</span> Pulled from their FFP Passport</div>';
   }
@@ -87,6 +90,7 @@ async function clientProfile(id){
         '<div style="margin-top:4px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;"><span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;'+stStyle+'">'+(CLIENT_STATUS[st]||'Active')+'</span>'+(tags.length?'<span class="psub" style="margin:0;font-size:11px;">'+escHtml(tags.join(' · '))+'</span>':'')+'</div></div></div>'+
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">'+cell('Email',email)+cell('Phone',phone)+cell('Date of birth',fmtDob(m.date_of_birth))+cell('Gender',m.gender)+cell('Nationality',m.nationality)+cell('Client since',fmtSince(jd))+'</div>';
   }
+  } catch(_e){ head='<div style="display:flex;align-items:center;gap:12px;margin:-2px 0 14px;"><span style="width:48px;height:48px;border-radius:50%;background:rgba(124,58,237,0.14);color:var(--ffp-purple);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;flex:0 0 auto;">'+escHtml(nm.slice(0,1).toUpperCase())+'</span><div style="font-weight:800;font-size:17px;color:var(--ffp-text);">'+escHtml(nm)+'</div></div>'; }
   var body=head+_contactRow(email,phone)+_fiveButtons(id)+'<div id="cp-notes-prev" style="margin-top:18px;"></div>';
   openModalShell('lg', escHtml(nm), body,
     '<button class="btn btn-ghost left" onclick="closeModal();confirmDeleteMember(\''+id+'\')"><span class="ms">delete</span> Delete client</button>'+
