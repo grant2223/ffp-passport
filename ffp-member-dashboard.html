@@ -5144,6 +5144,8 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
           <button class="ct-add-btn secondary" onclick="FFPMyMeals.openBuilder()"><span class="material-icons">add</span>Meal</button>
           <button class="ct-add-btn secondary" onclick="CalorieTracker.openQuickAdd(false)"><span class="material-icons">bolt</span>Quick add</button>
         </div>
+        <!-- v15 — describe a meal in natural language (AI parses → adds the foods) -->
+        <button onclick="CalorieTracker.openDescribe()" style="width:100%;margin-top:10px;padding:12px;border-radius:10px;border:1px solid var(--border-mid);background:rgba(43,168,224,0.06);color:var(--blue);font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><span class="material-icons" style="font-size:18px;">auto_awesome</span>Describe a meal</button>
         <!-- v12 — clone a previous day's food into the day you're viewing -->
         <button onclick="CalorieTracker.openCopyDay()" style="width:100%;margin-top:8px;padding:10px;border-radius:10px;border:1px dashed var(--border-mid);background:transparent;color:var(--muted);font-size:12.5px;font-weight:700;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><span class="material-icons" style="font-size:16px;">content_copy</span>Copy a previous day</button>
         <div id="ct-meals">
@@ -5505,6 +5507,13 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
       <div style="font-size:12px; color:var(--muted); margin-bottom:14px;">Add what you did. Optional fields are optional.</div>
     </div>
     <div class="pm-form">
+      <div class="pm-form-field">
+        <label class="pm-form-label" style="display:flex;align-items:center;gap:6px;"><span class="material-icons" style="font-size:16px;color:var(--blue);">auto_awesome</span>Describe it <span style="color:#8a99a8;font-weight:600;font-size:11px;">— or use the keyboard mic</span></label>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="log-ai-text" class="pm-form-input" placeholder="e.g. ran 5k in 28 min, easy pace" style="flex:1;" oninput="">
+          <button type="button" id="log-ai-btn" onclick="logAIParse()" style="flex:0 0 auto;background:var(--blue);color:#fff;border:none;border-radius:10px;padding:0 16px;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;">Fill</button>
+        </div>
+      </div>
       <div class="pm-form-field">
         <label class="pm-form-label">Photos (optional) <span id="log-photos-count" style="color:#8a99a8;font-weight:700;font-size:11px;"></span></label>
         <div id="log-photos-strip" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;"></div>
@@ -8224,7 +8233,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '433';
+  const FFP_BUILD = '434';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -11215,6 +11224,7 @@ function openLogModal() {
   var _la = document.getElementById('log-activity'); if (_la) _la.value = '';
   var _lc = document.getElementById('log-calories'); if (_lc) _lc.value = '';
   var _ln = document.getElementById('log-notes'); if (_ln) _ln.value = '';
+  var _ai = document.getElementById('log-ai-text'); if (_ai) _ai.value = '';
   var _ld = document.getElementById('log-distance'); if (_ld) _ld.value = '';
   var _lh = document.getElementById('log-hr'); if (_lh) _lh.value = '';
   // Clear the optional location pin each fresh open
@@ -11317,6 +11327,27 @@ function openScanLog() {
 }
 function closeLogModal() { document.getElementById('log-modal-backdrop').classList.remove('open'); }
 function closeLogIfBackdrop(e) { if (e.target.id === 'log-modal-backdrop') closeLogModal(); }
+// AI "Describe it" → parse free text into the activity fields (activity, duration, distance, calories, notes).
+function logAIParse() {
+  var inp = document.getElementById('log-ai-text'); var txt = (inp && inp.value || '').trim();
+  if (txt.length < 2) { if (window.showToast) showToast('Describe your activity first', 'error'); return; }
+  var btn = document.getElementById('log-ai-btn'); if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  fetch('https://ffp-passport-backend.vercel.app/api/ai/parse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'activity', text: txt }) })
+    .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, j: j }; }, function () { return { ok: false, status: r.status, j: null }; }); })
+    .then(function (res) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Fill'; }
+      if (res.status === 503) { if (window.showToast) showToast('AI isn’t switched on yet', 'error'); return; }
+      if (!res.ok || !res.j || !res.j.activity) { if (window.showToast) showToast('Couldn’t read that — try again', 'error'); return; }
+      var a = res.j.activity;
+      var la = document.getElementById('log-activity'); if (la && a.activity) la.value = a.activity;
+      if (a.duration_min && typeof setLogDuration === 'function') setLogDuration(Math.max(60, a.duration_min * 60));
+      var ld = document.getElementById('log-distance'); if (ld && a.distance_km) ld.value = a.distance_km;
+      var lc = document.getElementById('log-calories'); if (lc && a.calories) lc.value = a.calories;
+      var ln = document.getElementById('log-notes'); if (ln && a.notes && !ln.value) ln.value = a.notes;
+      if (window.showToast) showToast('Filled — check it and save');
+    })
+    .catch(function () { if (btn) { btn.disabled = false; btn.textContent = 'Fill'; } if (window.showToast) showToast('Network error — try again', 'error'); });
+}
 
 // ── Training partners ("With") — the box IS the search. Empty = your 10 most trained-with; typing filters all accepted connections. They confirm before it lands on their journey.
 var _logPartners = [];
