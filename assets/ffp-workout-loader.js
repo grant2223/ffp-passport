@@ -27,7 +27,7 @@
       '#wk-root{padding:6px 2px 30px;}' +
       '.wk-prompt{width:100%;box-sizing:border-box;min-height:104px;background:rgba(255,255,255,.04);border:none;border-radius:14px;color:var(--text);font-size:16px;font-weight:500;font-family:inherit;padding:15px;resize:vertical;line-height:1.45;}' +
       '.wk-prompt::placeholder{color:var(--muted);}' +
-      '.wk-cta{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;text-align:center;padding:15px;border-radius:14px;border:none;font-size:15px;font-weight:800;font-family:inherit;cursor:pointer;}' +
+      '.wk-cta{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;text-align:center;padding:19px;border-radius:14px;border:none;font-size:15px;font-weight:800;font-family:inherit;cursor:pointer;}' +
       '.wk-cta.pri{background:var(--yellow);color:#10202b;}' +
       '.wk-cta.blue{background:var(--blue);color:#fff;}' +
       '.wk-cta.soft{background:rgba(255,255,255,.07);color:var(--text);}' +
@@ -62,20 +62,20 @@
       '.wkr-prog{flex:1;height:5px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden;}' +
       '.wkr-prog > i{display:block;height:5px;background:var(--blue);border-radius:3px;transition:width .3s;}' +
       '.wkr-close{width:34px;height:34px;border-radius:50%;border:none;background:rgba(255,255,255,.08);color:#fff;cursor:pointer;flex:0 0 auto;}' +
-      '.wkr-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:18px 24px;}' +
+      '.wkr-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:18px 22px;overflow-y:auto;}' +
       '.wkr-section{font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--blue);}' +
-      '.wkr-name{font-size:28px;font-weight:800;color:#fff;margin:7px 0 4px;line-height:1.12;}' +
-      '.wkr-setline{font-size:13px;font-weight:700;color:#aeb9c4;margin-bottom:12px;}' +
-      '.wkr-target{font-size:13.5px;font-weight:700;color:var(--blue);margin-bottom:26px;}' +
-      '.wkr-note{font-size:13px;color:#8a99a8;margin-top:14px;max-width:300px;}' +
-      '.wkr-fills{display:flex;gap:40px;margin-bottom:26px;}' +
-      '.wkr-fill label{display:block;font-size:10px;font-weight:800;letter-spacing:.7px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}' +
-      '.wkr-fill input{width:104px;background:none;border:none;border-bottom:2px solid rgba(255,255,255,.16);color:#fff;font-size:42px;font-weight:800;text-align:center;font-family:inherit;padding-bottom:4px;}' +
+      '.wkr-name{font-size:50px;font-weight:800;color:#fff;margin:10px 0 6px;line-height:1.04;}' +
+      '.wkr-setline{font-size:15px;font-weight:700;color:#aeb9c4;margin-bottom:14px;}' +
+      '.wkr-target{font-size:15px;font-weight:700;color:var(--blue);margin-bottom:30px;}' +
+      '.wkr-note{font-size:13px;color:#8a99a8;margin-top:16px;max-width:300px;}' +
+      '.wkr-fills{display:flex;gap:30px;margin-bottom:30px;}' +
+      '.wkr-fill label{display:block;font-size:12px;font-weight:800;letter-spacing:.7px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;}' +
+      '.wkr-fill input{width:132px;background:none;border:none;border-bottom:2px solid rgba(255,255,255,.16);color:#fff;font-size:62px;font-weight:800;text-align:center;font-family:inherit;padding-bottom:6px;}' +
       '.wkr-fill input:focus{border-bottom-color:var(--blue);outline:none;}' +
       '.wkr-ring{width:172px;height:172px;border-radius:50%;border:6px solid rgba(43,168,224,.20);border-top-color:var(--blue);display:flex;align-items:center;justify-content:center;margin:8px auto 18px;}' +
       '.wkr-ring .t{font-size:48px;font-weight:800;color:#fff;}' +
       '.wkr-next{font-size:13px;color:#8a99a8;font-weight:600;margin-bottom:6px;}' +
-      '.wkr-foot{padding:14px 22px calc(env(safe-area-inset-bottom,0px) + 16px);display:flex;gap:12px;}' +
+      '.wkr-foot{padding:14px 22px calc(env(safe-area-inset-bottom,0px) + 36px);display:flex;gap:12px;}' +
       '.wkr-foot .wk-cta{flex:1;}' +
       '.wkr-stats{display:flex;width:100%;max-width:330px;margin:22px 0 4px;}' +
       '.wk-stat{flex:1;text-align:center;}' +
@@ -166,6 +166,18 @@
       .then(function (res) { if (!res.error && res.data) WK._planId = res.data.id; });
   }
 
+  // Persist the plan (with the user's latest edits) when a workout is STARTED, so EVERY run — manual or
+  // generated — shows in Recent. Inserts a new row, or updates the existing one.
+  function persistPlan() {
+    var mid = memberId(); if (!sb() || !mid || !WK.plan) return;
+    var row = { member_id: mid, title: WK.plan.title || 'Workout', focus: WK.plan.focus || '', duration_min: WK.plan.duration_min || 0, plan: WK.plan, source_prompt: WK.plan._prompt || '' };
+    if (WK._planId) {
+      sb().from('workout_plans').update(row).eq('id', WK._planId).then(function () {});
+    } else {
+      sb().from('workout_plans').insert(row).select('id').single().then(function (res) { if (!res.error && res.data) WK._planId = res.data.id; });
+    }
+  }
+
   // ───────────────────────── REVIEW (flat, fully editable) ─────────────────────────
   WK.review = function () {
     injectStyles();
@@ -247,6 +259,7 @@
     if (!WK.plan) return;
     var steps = buildSteps(WK.plan);
     if (!steps.length) { toast('Add at least one exercise', 'error'); return; }
+    persistPlan();   // ensure this workout is saved → appears in Recent (covers manual + edited plans)
     WK.run = { plan: WK.plan, steps: steps, i: 0, performed: [], startedAt: Date.now(), resting: false, timer: null, lastWeight: {} };
     ensureRunnerEl().classList.add('open');
     renderStep();
