@@ -700,6 +700,47 @@
       })
       .catch(function () { if (window.showToast) showToast('Lookup failed — try again', 'error'); });
   };
+
+  // v15 — Describe a meal: free text → AI parse → add each food as a log to the time-of-day meal.
+  CalorieTracker.openDescribe = function () {
+    mmInjectStyles(); offInjectStyles();
+    var bg = document.createElement('div'); bg.className = 'mm-modal-bg';
+    bg.onclick = function (e) { if (e.target === bg) document.body.removeChild(bg); };
+    bg.innerHTML = '<div class="mm-modal"><h3>Describe a meal</h3>' +
+      '<div class="mmb-hint" style="margin-bottom:8px;">Type it, or tap your keyboard mic — e.g. “2 eggs, 2 toast and a flat white”.</div>' +
+      '<textarea id="ct-ai-text" class="mmb-q" style="min-height:84px;resize:vertical;" placeholder="What did you eat?"></textarea>' +
+      '<div class="mm-actions"><button class="mm-cancel" type="button">Cancel</button><button class="mm-save" type="button" id="ct-ai-btn">Add foods</button></div></div>';
+    document.body.appendChild(bg);
+    bg.querySelector('.mm-cancel').onclick = function () { document.body.removeChild(bg); };
+    bg.querySelector('#ct-ai-btn').onclick = function () { describeMeal(bg); };
+  };
+  }
+
+  function describeMeal(bg) {
+    var ta = bg.querySelector('#ct-ai-text'); var txt = (ta && ta.value || '').trim();
+    if (txt.length < 2) { if (window.showToast) showToast('Describe your meal first', 'error'); return; }
+    var btn = bg.querySelector('#ct-ai-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Reading…'; }
+    fetch(FOOD_API + '/api/ai/parse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'food', text: txt }) })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, j: j }; }, function () { return { ok: false, status: r.status, j: null }; }); })
+      .then(function (res) {
+        if (btn) { btn.disabled = false; btn.textContent = 'Add foods'; }
+        if (res.status === 503) { if (window.showToast) showToast('AI isn’t switched on yet', 'error'); return; }
+        if (!res.ok || !res.j || !res.j.items || !res.j.items.length) { if (window.showToast) showToast('Couldn’t read that — try rephrasing', 'error'); return; }
+        var bucket = CalorieTracker.autoBucket ? CalorieTracker.autoBucket() : 'snacks';
+        var n = 0;
+        res.j.items.forEach(function (it) {
+          var item = { free: true, name: it.qty ? (it.name + ' (' + it.qty + ')') : it.name, kcal: it.kcal, p: it.protein_g, c: it.carbs_g, f: it.fat_g };
+          if (!CalorieTracker.meals[bucket]) CalorieTracker.meals[bucket] = [];
+          CalorieTracker.meals[bucket].push(item);
+          insertFreeLog(item, bucket);
+          n++;
+        });
+        if (typeof CalorieTracker.render === 'function') CalorieTracker.render();
+        if (document.body.contains(bg)) document.body.removeChild(bg);
+        if (window.showToast) showToast('Added ' + n + ' item' + (n === 1 ? '' : 's') + ' to ' + bucket);
+      })
+      .catch(function () { if (btn) { btn.disabled = false; btn.textContent = 'Add foods'; } if (window.showToast) showToast('Network error — try again', 'error'); });
   }
 
   // ============ FOOD DATABASE (OpenFoodFacts) + COPY-A-DAY (v12) ============
