@@ -120,11 +120,11 @@
       '.wkr-section{font-size:13px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--blue);}' +
       '.wkr-name{font-size:24px;font-weight:800;color:#fff;margin:6px 0 14px;line-height:1.1;}' +
       '.wkr-setline{font-size:34px;font-weight:800;color:#fff;margin-bottom:10px;line-height:1.05;}' +
-      '.wkr-target{font-size:26px;font-weight:800;color:var(--blue);margin-bottom:26px;line-height:1.1;}' +
+      '.wkr-target{font-size:14px;font-weight:800;letter-spacing:.4px;color:var(--blue);margin-bottom:30px;line-height:1.3;}' +
       '.wkr-note{font-size:13px;color:#8a99a8;margin-top:16px;max-width:300px;}' +
       '.wkr-fills{display:flex;gap:34px;margin-bottom:26px;}' +
       '.wkr-fill label{display:block;font-size:14px;font-weight:800;letter-spacing:.6px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;}' +
-      '.wkr-fill input{width:150px;background:none;border:none;border-bottom:3px solid rgba(255,255,255,.18);color:#fff;font-size:88px;font-weight:800;text-align:center;font-family:inherit;padding-bottom:6px;line-height:1;}' +
+      '.wkr-fill input{width:124px;background:none;border:none;border-bottom:3px solid rgba(255,255,255,.18);color:#fff;font-size:34px;font-weight:800;text-align:center;font-family:inherit;padding-bottom:6px;line-height:1;}' +
       '.wkr-fill input:focus{border-bottom-color:var(--blue);outline:none;}' +
       '.wkr-ring{width:190px;height:190px;border-radius:50%;border:6px solid rgba(43,168,224,.20);border-top-color:var(--blue);display:flex;align-items:center;justify-content:center;margin:8px auto 18px;}' +
       '.wkr-ring .t{font-size:62px;font-weight:800;color:#fff;}' +
@@ -324,7 +324,7 @@
       countdown(step.dur, function () { WK.next(); });
     } else if (step.kind === 'timeset') {
       body.innerHTML = '<div class="wkr-section">' + esc(step.section) + '</div><div class="wkr-name">' + esc(step.name) + '</div>' +
-        '<div class="wkr-setline">Set ' + step.setNo + ' of ' + step.setsTotal + '</div>' +
+        '<div class="wkr-setline"><span style="color:var(--yellow);">Set ' + step.setNo + '</span> of ' + step.setsTotal + '</div>' +
         '<div class="wkr-ring"><div class="t" id="wkr-count">' + fmt(step.time_sec) + '</div></div>' +
         (step.note ? '<div class="wkr-note">' + esc(step.note) + '</div>' : '');
       foot.innerHTML = '<button class="wk-cta pri" onclick="FFPWorkout.completeTime()">Complete set</button>';
@@ -334,7 +334,7 @@
       var prefReps = firstInt(step.reps, 10);
       var prefW = (r.lastWeight[step.exIndex] != null) ? r.lastWeight[step.exIndex] : '';
       body.innerHTML = '<div class="wkr-section">' + esc(step.section) + '</div><div class="wkr-name">' + esc(step.name) + '</div>' +
-        '<div class="wkr-setline">Set ' + step.setNo + ' of ' + step.setsTotal + '</div>' +
+        '<div class="wkr-setline"><span style="color:var(--yellow);">Set ' + step.setNo + '</span> of ' + step.setsTotal + '</div>' +
         '<div class="wkr-target">Target ' + esc(step.reps) + ' reps' + (bw ? '' : (' · ' + esc(step.weight))) + '</div>' +
         '<div class="wkr-fills">' +
           '<div class="wkr-fill"><label>Reps</label><input id="wkr-reps" type="number" inputmode="numeric" value="' + prefReps + '"></div>' +
@@ -412,14 +412,56 @@
     var exCount = (r.plan.exercises || []).filter(function (e) { return e.name; }).length;
     r._summary = { durSec: durSec, sets: sets, volume: Math.round(volume), exCount: exCount };
     var f = document.getElementById('wkr-prog-fill'); if (f) f.style.width = '100%';
+    var bd = buildBreakdown(r.performed);
+    var bdHtml = bd.map(function (g) {
+      return '<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.07);">' +
+        '<span style="font-size:14px;font-weight:700;color:#fff;text-align:left;min-width:0;">' + esc(g.name) + '</span>' +
+        '<span style="font-size:13px;color:#8a99a8;font-weight:600;white-space:nowrap;">' + esc(g.detail) + '</span></div>';
+    }).join('');
     document.getElementById('wkr-body').innerHTML =
-      '<div class="wkr-section">Complete</div><div class="wkr-name" style="font-size:30px;">' + esc(r.plan.title || 'Workout') + '</div>' +
+      '<div class="wkr-section">Complete</div><div class="wkr-name" style="font-size:28px;margin-bottom:10px;">' + esc(r.plan.title || 'Workout') + '</div>' +
       '<div class="wkr-stats">' +
         '<div class="wk-stat"><div class="v">' + fmt(durSec) + '</div><div class="l">Time</div></div>' +
         '<div class="wk-stat"><div class="v">' + sets + '</div><div class="l">Sets</div></div>' +
         '<div class="wk-stat"><div class="v">' + (volume >= 1000 ? (Math.round(volume / 100) / 10) + 'k' : Math.round(volume)) + '</div><div class="l">kg vol</div></div>' +
-      '</div>';
+      '</div>' +
+      (bdHtml ? ('<div style="width:100%;max-width:360px;margin:20px 0 2px;">' + bdHtml + '</div>') : '') +
+      '<div id="wkr-coach" style="width:100%;max-width:360px;margin:16px 0 4px;font-size:13.5px;line-height:1.55;color:#cdd7e0;text-align:left;"><span style="color:#8a99a8;">Analysing your session…</span></div>';
     document.getElementById('wkr-foot').innerHTML = '<button class="wk-cta soft" onclick="FFPWorkout.justSave()">Done</button><button class="wk-cta pri" onclick="FFPWorkout.saveToPassport()"><span class="material-icons">photo_camera</span>Save to Passport</button>';
+    fetchCoach(r);
+  }
+
+  // Group performed sets per exercise → a concise "6 · 6 · 5 · 5 reps @ 80kg" (or "45s · 45s") line.
+  function buildBreakdown(performed) {
+    var order = [], by = {};
+    (performed || []).forEach(function (p) {
+      var k = (p.exIndex != null ? 'e' + p.exIndex : p.name);
+      if (!by[k]) { by[k] = { name: p.name, reps: [], times: [], weights: [] }; order.push(k); }
+      if (p.time_sec) by[k].times.push(p.time_sec);
+      else by[k].reps.push(p.reps);
+      if (p.weight) by[k].weights.push(p.weight);
+    });
+    return order.map(function (k) {
+      var g = by[k], detail;
+      if (g.times.length) detail = g.times.map(function (t) { return fmt(t) + 's'; }).join(' · ');
+      else detail = g.reps.join(' · ') + ' reps';
+      if (g.weights.length) detail += ' @ ' + Math.max.apply(null, g.weights) + 'kg';
+      return { name: g.name, detail: detail };
+    });
+  }
+
+  // Short AI coaching note from what was actually performed.
+  function fetchCoach(r) {
+    var sm = r._summary || {};
+    var sets = (r.performed || []).map(function (p) { return p.time_sec ? { name: p.name, time_sec: p.time_sec } : { name: p.name, reps: p.reps, weight: p.weight }; });
+    fetch(FFP_API + '/api/workout/summary', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: r.plan.title || 'Workout', duration_sec: sm.durSec || 0, total_volume: sm.volume || 0, sets: sets }) })
+      .then(function (resp) { return resp.json().then(function (j) { return { ok: resp.ok, j: j }; }, function () { return { ok: false, j: null }; }); })
+      .then(function (res) {
+        var el = document.getElementById('wkr-coach'); if (!el) return;
+        if (!res.ok || !res.j || !res.j.summary) { el.style.display = 'none'; return; }
+        el.innerHTML = '<div style="color:var(--blue);font-weight:800;font-size:11px;letter-spacing:.7px;text-transform:uppercase;margin-bottom:4px;">Coach</div>' + esc(res.j.summary);
+      })
+      .catch(function () { var el = document.getElementById('wkr-coach'); if (el) el.style.display = 'none'; });
   }
 
   function logWorkoutSession() {
