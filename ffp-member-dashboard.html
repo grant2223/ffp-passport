@@ -8233,7 +8233,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '435';
+  const FFP_BUILD = '436';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -11332,7 +11332,7 @@ function logAIParse() {
   var inp = document.getElementById('log-ai-text'); var txt = (inp && inp.value || '').trim();
   if (txt.length < 2) { if (window.showToast) showToast('Describe your activity first', 'error'); return; }
   var btn = document.getElementById('log-ai-btn'); if (btn) { btn.disabled = true; btn.textContent = '…'; }
-  fetch('https://ffp-passport-backend.vercel.app/api/ai/parse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'activity', text: txt }) })
+  fetch('https://ffp-passport-backend.vercel.app/api/ai/parse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'activity', text: txt, now: new Date().toString() }) })
     .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, j: j }; }, function () { return { ok: false, status: r.status, j: null }; }); })
     .then(function (res) {
       if (btn) { btn.disabled = false; btn.textContent = 'Fill'; }
@@ -11341,8 +11341,12 @@ function logAIParse() {
       var a = res.j.activity;
       var la = document.getElementById('log-activity'); if (la && a.activity) la.value = a.activity;
       if (a.duration_min && typeof setLogDuration === 'function') setLogDuration(Math.max(60, a.duration_min * 60));
+      if (a.date && /^\d{4}-\d{2}-\d{2}$/.test(a.date)) { var _ldt = document.getElementById('log-date'); if (_ldt) _ldt.value = a.date; }
+      if (a.time && /^\d{2}:\d{2}$/.test(a.time)) { var _lt = document.getElementById('log-time'); if (_lt) _lt.value = a.time; }
       var ld = document.getElementById('log-distance'); if (ld && a.distance_km) ld.value = a.distance_km;
       var lc = document.getElementById('log-calories'); if (lc && a.calories) lc.value = a.calories;
+      var lh = document.getElementById('log-hr'); if (lh && a.avg_heart_rate) lh.value = a.avg_heart_rate;
+      if (a.location) { var lv = document.getElementById('log-venue'); if (lv) lv.value = a.location; var lld = document.getElementById('log-loc-display'); if (lld) { lld.textContent = a.location; lld.classList.remove('pmf-pick-ph'); lld.classList.add('set'); } }
       var ln = document.getElementById('log-notes'); if (ln && a.notes && !ln.value) ln.value = a.notes;
       if (window.showToast) showToast('Filled — check it and save');
     })
