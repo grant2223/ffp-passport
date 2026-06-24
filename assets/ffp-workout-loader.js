@@ -449,8 +449,38 @@
       if (typeof window.setLogDuration === 'function') setLogDuration(Math.max(60, durSec));
       var lc = document.getElementById('log-calories'); if (lc && !lc.value) lc.value = Math.max(1, Math.round((durSec / 60) * 6));
       var ln = document.getElementById('log-notes'); if (ln) ln.value = notes;
+      ensureLogLocation();   // the Workout panel can open before MemberProfile loads → fill home city/country so Save isn't blocked
     } catch (e) { console.error('[FFP Workout] log modal', e); }
   };
+
+  // Log Activity requires country + city. When opened from the Workout panel those selects can be empty
+  // (MemberProfile not loaded yet), which silently blocks Save. Fill them from the member's saved profile.
+  function ensureLogLocation() {
+    var cny = document.getElementById('log-country'), cty = document.getElementById('log-city');
+    if (!cny || !cty) return;
+    function apply(country, city) {
+      if (country && !cny.value) {
+        var ok = false; for (var i = 0; i < cny.options.length; i++) { if (cny.options[i].value === country) { ok = true; break; } }
+        if (!ok) cny.add(new Option(country, country));
+        cny.value = country;
+        if (typeof window.fillLogCities === 'function') fillLogCities();
+      }
+      var c = document.getElementById('log-city');
+      if (city && c && !c.value) {
+        if (typeof window._ensureSelectOption === 'function') { _ensureSelectOption(c, city); }
+        else { var ok2 = false; for (var j = 0; j < c.options.length; j++) { if (c.options[j].value === city) { ok2 = true; break; } } if (!ok2) c.add(new Option(city, city)); c.value = city; }
+      }
+    }
+    if (cny.value && cty.value) return;
+    var m = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || {};
+    apply(m.country, m.city);
+    if (cny.value && document.getElementById('log-city').value) return;
+    var mid = memberId(); if (!sb() || !mid) return;
+    sb().from('members').select('country, city').eq('id', mid).maybeSingle().then(function (res) {
+      if (!res || res.error || !res.data) return;
+      apply(res.data.country, res.data.city);
+    });
+  }
 
   // boot
   injectStyles();
