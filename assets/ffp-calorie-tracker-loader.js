@@ -704,7 +704,7 @@
   // v15 — Describe a meal: free text → AI parse → add each food as a log to the time-of-day meal.
   CalorieTracker.openDescribe = function () {
     mmInjectStyles(); offInjectStyles();
-    var bg = document.createElement('div'); bg.className = 'mm-modal-bg';
+    var bg = document.createElement('div'); bg.className = 'mm-modal-bg mm-fullbg';
     bg.onclick = function (e) { if (e.target === bg) document.body.removeChild(bg); };
     bg.innerHTML = '<div class="mm-modal"><h3>Describe a meal</h3>' +
       '<div class="mmb-hint" style="margin-bottom:8px;">Type it, or tap your keyboard mic — e.g. “2 eggs, 2 toast and a flat white”.</div>' +
