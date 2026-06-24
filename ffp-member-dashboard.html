@@ -4374,6 +4374,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
           <div class="menu-user-status">Member</div>
         </div>
         <button class="menu-item" data-panel="panel-profile"><span class="material-icons">person</span><span>Profile</span></button>
+        <button class="menu-item" data-panel="panel-workout"><span class="material-icons">fitness_center</span><span>AI Workout</span></button>
         <button class="menu-item" data-panel="panel-workout-timer"><span class="material-icons">schedule</span><span>Workout Timer</span></button>
         <button class="menu-item" data-panel="panel-calorie-tracker"><span class="material-icons">local_fire_department</span><span>Calorie Tracker</span></button>
         <button class="menu-item" data-panel="panel-earnings"><span class="material-icons">account_balance_wallet</span><span>Earnings</span></button>
@@ -4960,6 +4961,18 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     
     <!-- Config (presets first, then fine-tune steppers) -->
     <div id="timer-config-area">
+      <!-- v77 — global pre-start 8s countdown toggle (applies to every mode) -->
+      <style>
+        .tlead{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 14px;margin:0 0 16px;background:rgba(43,168,224,0.06);border:1px solid var(--border-mid);border-radius:12px;}
+        .tlead span.lbl{font-size:13px;font-weight:700;color:var(--text);}
+        .tlead .sw{position:relative;width:46px;height:26px;flex:0 0 auto;}
+        .tlead .sw input{opacity:0;width:0;height:0;position:absolute;margin:0;}
+        .tlead .sw .tk{position:absolute;inset:0;background:rgba(255,255,255,.16);border-radius:999px;transition:.2s;cursor:pointer;}
+        .tlead .sw .tk:before{content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;}
+        .tlead .sw input:checked + .tk{background:var(--blue);}
+        .tlead .sw input:checked + .tk:before{transform:translateX(20px);}
+      </style>
+      <label class="tlead"><span class="lbl">Pre-start countdown · 8s</span><span class="sw"><input type="checkbox" id="timer-leadin" checked><span class="tk"></span></span></label>
       <!-- STOPWATCH -->
       <div id="config-stopwatch">
         <div class="timer-help">Tap Start to begin counting up. No setup needed.</div>
@@ -5037,6 +5050,15 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
   </div>
 
   <!-- CALORIE TRACKER -->
+  <!-- AI WORKOUT — generate + guided runner (loader: assets/ffp-workout-loader.js) -->
+  <div id="panel-workout" class="panel-view">
+    <div class="user-panel-head">
+      <h2>AI Workout</h2>
+      <div class="user-panel-sub">Describe a session and get a guided, set-by-set workout.</div>
+    </div>
+    <div id="wk-root"></div>
+  </div>
+
   <div id="panel-calorie-tracker" class="panel-view">
     <div class="user-panel-head">
       <h2>Calorie Tracker</h2>
@@ -8141,6 +8163,7 @@ function _ffpInitPullToRefresh() {
     'panel-experiences':     function () { try { if (window.ffpReloadExperiences) ffpReloadExperiences(); } catch (e) {} },
     'panel-fitness-stats':   function () { try { if (window.ffpReloadFitnessStats) ffpReloadFitnessStats(); } catch (e) {} },
     'panel-calorie-tracker': function () { try { if (window.ffpReloadCalorieTracker) ffpReloadCalorieTracker(); } catch (e) {} },
+    'panel-workout':         function () { try { if (window.FFPWorkout && FFPWorkout.home) FFPWorkout.home(); } catch (e) {} },
     'panel-profile':         function () { try { if (window.ffpReloadProfile) ffpReloadProfile(); } catch (e) {} }
   };
   function refreshActive() {
@@ -8201,9 +8224,10 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '428';
+  const FFP_BUILD = '430';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
+    'panel-workout':         'assets/ffp-workout-loader.js',
     'panel-calorie-tracker': 'assets/ffp-calorie-tracker-loader.js',
     'panel-fitness-stats':   'assets/ffp-fitness-stats-loader.js',
     'panel-meet':            'assets/ffp-meet-move-loader.js',
@@ -9229,7 +9253,8 @@ const WorkoutTimer = {
     totalRounds: 1,
     phaseStartMs: 0,
     phaseDurMs: 0,
-    // 8-second GET READY lead-in (countdown/interval/emom)
+    // 8-second GET READY lead-in (all modes; toggle via #timer-leadin)
+    leadin: true,
     getready: false, getreadyEnd: 0, getreadyRemain: 0, getreadyLast: 0,
     // configs
     cdMin: 5, cdSec: 0,
@@ -9248,6 +9273,9 @@ const WorkoutTimer = {
     document.getElementById('timer-toggle').addEventListener('click', () => this.toggle());
     document.getElementById('timer-reset').addEventListener('click', () => this.reset());
     document.getElementById('timer-skip').addEventListener('click', () => this.skip());
+    // Pre-start countdown toggle (default on)
+    var _li = document.getElementById('timer-leadin');
+    if (_li) { this.s.leadin = _li.checked; _li.addEventListener('change', e => { this.s.leadin = e.target.checked; }); }
     
     // Preset chips — COUNTDOWN
     document.querySelectorAll('#cd-presets .timer-preset-btn').forEach(btn => {
@@ -9441,7 +9469,8 @@ const WorkoutTimer = {
   _modeLabel() {
     return this.s.mode === 'countdown' ? 'Countdown'
          : this.s.mode === 'interval'  ? 'Interval'
-         : this.s.mode === 'emom'      ? 'EMOM' : '';
+         : this.s.mode === 'emom'      ? 'EMOM'
+         : this.s.mode === 'stopwatch' ? 'Stopwatch' : '';
   },
 
   ensureAudio() {
@@ -9477,8 +9506,8 @@ const WorkoutTimer = {
     this.s.running = true;
     document.getElementById('panel-workout-timer').classList.add('timing');
     document.getElementById('timer-toggle').innerHTML = '<span class="material-icons">pause</span>';
-    if (this.s.phase === 'ready' && this.s.mode !== 'stopwatch') {
-      // 8-second GET READY lead-in (resume the remaining count if paused mid-lead-in)
+    if (this.s.phase === 'ready' && this.s.leadin) {
+      // 8-second GET READY lead-in — all modes incl. stopwatch, when the toggle is on (resume remaining count if paused mid-lead-in)
       this.s.getreadyEnd = performance.now() + (this.s.getreadyRemain > 0 ? this.s.getreadyRemain : 8000);
       this.s.getreadyRemain = 0;
       this.s.getreadyLast = 0;
