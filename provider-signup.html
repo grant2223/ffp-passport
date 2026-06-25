@@ -1,223 +1,290 @@
-<!-- FFP PARTNER SIGNUP — latest 3:
-     v3 (2026-06-08): INSTANT SIGN-IN per Grant. Copy → "Create Your Partner Account" + welcome lead;
-       Email/Phone hints reworded (sign-in email / public facility phone); button "Create Account".
-       Backend /api/provider/signup (index.js v76) now returns a full session (token+jwt+refresh+member)
-       + a WELCOME email (not a verify link) — this page persists the session via FFPAuth and redirects
-       straight to /ffp-provider-dashboard.html. Added Supabase SDK + ffp-api-integration.js for that.
-     v2 (2026-06-01): trimmed to essentials — Business name, Contact first/last, email, phone, Country, City.
-     v1: "Try for free" Phase-1 self-signup.
-     Shares apply.html styling + FFP_TAX taxonomy + FFPLocation country/city cascade. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Try FFP Passport Free — Partner Signup</title>
-<meta name="description" content="Create your FFP Passport partner account free. Build your events, experiences and challenges, and reach the UAE's most active community. No payment while we're in preview.">
-<link rel="icon" type="image/png" href="assets/ffp-emblem.png">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Find Fit People">
+<meta name="theme-color" content="#0e2f3d">
+<title>Become an FFP Partner — create your account</title>
+<meta name="description" content="Create your Find Fit People partner account. List your sessions, experiences, events and trips and reach an active, ready-to-book audience. No card required.">
+<link rel="canonical" href="https://findfitpeople.com/provider-signup.html">
+<meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block" rel="stylesheet">
-<script src="assets/ffp-constants.js"></script>
-<script src="assets/ffp-taxonomy.js?v=8"></script>
-<script src="assets/ffp-location-picker.js"></script>
-<!-- v3: auth module so we can persist the session the signup returns and drop the partner straight into the dashboard.
-     Supabase SDK must load BEFORE ffp-api-integration.js (it builds the client). -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="assets/ffp-api-integration.js?v=12"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+<script defer src="https://unpkg.com/lucide@latest"></script>
 <style>
-:root{
-  --blue:#2ba8e0; --blue-dk:#1980AD; --bg:#081420; --bg-2:#0f1e2e; --bg-3:#142a3f;
-  --yellow:#FFCC00; --green:#4ade80; --red:#ef4444;
-  --text:#e8eef4; --muted:#8a99a8; --border:rgba(43,168,224,.22); --border-str:rgba(43,168,224,.40);
-  --r:12px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{background:var(--bg);color:var(--text);font-family:'Montserrat',system-ui,sans-serif;font-weight:500;line-height:1.55;-webkit-font-smoothing:antialiased;min-height:100%}
-.ms{font-family:'Material Symbols Outlined';font-size:20px;line-height:1;vertical-align:middle;font-variation-settings:'FILL' 0,'wght' 500,'GRAD' 0,'opsz' 24}
-a{color:var(--blue);text-decoration:none}
-.wrap{max-width:880px;margin:0 auto;padding:0 20px}
-.topbar{padding:20px 0;border-bottom:1px solid var(--border);background:rgba(8,20,32,.7);position:sticky;top:0;z-index:10;backdrop-filter:blur(12px)}
-.topbar .wrap{display:flex;align-items:center;justify-content:space-between}
-.brand{font-size:16px;font-weight:900;letter-spacing:2px}
-.brand span{color:var(--blue)}
-.brand .sub{display:block;font-size:9px;font-weight:800;letter-spacing:1.6px;color:var(--yellow);text-transform:uppercase;margin-top:3px}
-.topbar .login{font-size:12px;font-weight:700;color:var(--muted)}
-.hero{padding:50px 0 28px;text-align:center;background:radial-gradient(ellipse at top,#0a1825 0%,var(--bg) 70%)}
-.hero .eyebrow{font-size:10px;font-weight:800;letter-spacing:2.5px;color:var(--blue);text-transform:uppercase}
-.hero h1{font-size:34px;font-weight:900;letter-spacing:-.6px;line-height:1.12;margin:12px 0 14px}
-.hero h1 em{color:var(--yellow);font-style:normal}
-.hero p{font-size:15px;color:var(--muted);max-width:560px;margin:0 auto;font-weight:500}
-.benefits{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:26px 0 0}
-.benefit{display:flex;align-items:center;gap:8px;background:var(--bg-2);border:1px solid var(--border);border-radius:100px;padding:9px 16px;font-size:12px;font-weight:700}
-.benefit .ms{font-size:16px;color:var(--green)}
-.card{background:var(--bg-2);border:1px solid var(--border);border-radius:18px;padding:30px 28px;margin:30px 0 60px}
-.card h2{font-size:19px;font-weight:800;margin-bottom:4px}
-.card .lead{font-size:13px;color:var(--muted);margin-bottom:24px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px 18px}
-.full{grid-column:1/-1}
-.field{display:flex;flex-direction:column;gap:6px}
-label{font-size:10px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:var(--muted)}
-label .req{color:var(--yellow);margin-left:2px}
-label .hint{font-weight:600;letter-spacing:0;text-transform:none;color:var(--muted)}
-input,select,textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;font-weight:600;padding:12px 14px;outline:none;transition:border-color .15s;min-width:0}
-input:focus,select:focus,textarea:focus{border-color:var(--blue)}
-input::placeholder,textarea::placeholder{color:var(--muted);font-weight:500}
-textarea{resize:vertical;min-height:88px;line-height:1.6;font-weight:500}
-select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a99a8' stroke-width='2.5'><polyline points='6 9 12 15 18 9'/></svg>");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px;color-scheme:dark}
-select option{background:var(--bg-2);color:var(--text)}
-.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
-.btn{width:100%;margin-top:24px;background:var(--yellow);color:#082335;border:none;border-radius:10px;padding:15px;font-size:14px;font-weight:800;letter-spacing:.4px;cursor:pointer;font-family:inherit;transition:filter .15s}
-.btn:hover:not(:disabled){filter:brightness(1.06)}
-.btn:disabled{opacity:.55;cursor:not-allowed}
-.err{color:var(--red);font-size:12px;font-weight:700;margin-top:12px;min-height:16px;text-align:center}
-.foot{font-size:11px;color:var(--muted);text-align:center;padding:0 0 40px}
-.signin-row{font-size:12px;color:var(--muted);text-align:center;margin-top:16px}
-.success{display:none;text-align:center;padding:24px 10px}
-.success.show{display:block}
-.success-icon{width:72px;height:72px;border-radius:50%;background:rgba(74,222,128,.14);color:var(--green);display:flex;align-items:center;justify-content:center;margin:0 auto 18px}
-.success-icon .ms{font-size:38px}
-.success h2{font-size:22px;font-weight:900;margin-bottom:10px}
-.success p{font-size:14px;color:var(--muted);max-width:460px;margin:0 auto 10px}
-.success .steps{text-align:left;max-width:380px;margin:18px auto 0;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:18px 20px}
-.success .steps li{font-size:13px;color:var(--text);margin:0 0 9px 0;padding-left:4px}
-.success .steps li:last-child{margin-bottom:0}
-@media (max-width:640px){.grid{grid-template-columns:1fr}.hero h1{font-size:27px}.card{padding:24px 18px}}
-/* Phone country-code picker (platform standard: flag+code button, searchable list with country names) */
-.ccpick{flex:0 0 122px;position:relative}
-.cc-btn{display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;font-weight:600;padding:12px 12px;cursor:pointer;outline:none}
-.cc-btn:focus,.cc-btn.open{border-color:var(--blue)}
-.cc-caret{color:var(--muted);font-size:11px}
-.cc-pop{position:absolute;z-index:30;top:calc(100% + 6px);left:0;width:300px;max-width:80vw;background:var(--bg-2);border:1px solid var(--border-str);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.5);padding:10px;display:flex;flex-direction:column;gap:8px}
-.cc-pop[hidden]{display:none}
-.cc-search{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;font-weight:600;padding:9px 11px;outline:none}
-.cc-search:focus{border-color:var(--blue)}
-.cc-list{max-height:240px;overflow:auto;display:flex;flex-direction:column}
-.cc-opt{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text)}
-.cc-opt:hover{background:var(--bg-3)}
-.cc-opt .cc-code{color:var(--blue);font-weight:800;white-space:nowrap}
-.cc-opt .cc-country{color:var(--muted);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cc-empty{padding:14px;color:var(--muted);font-size:12px;text-align:center}
+/* page-scoped: signup hero + success card. Everything else reuses the site's .form/.fld/.btn. */
+.ps-hero{text-align:center;max-width:620px;margin:0 auto 6px}
+.ps-eyebrow{font-size:11px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;color:var(--blue)}
+.ps-hero h1{font-size:30px;line-height:1.15;margin:10px 0 12px}
+.ps-hero p{color:var(--muted);font-size:15px;margin:0 auto;max-width:540px}
+.ps-benefits{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:20px 0 4px}
+.ps-benefit{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);border-radius:100px;padding:8px 14px;font-size:12.5px;font-weight:700}
+.ps-benefit i{width:15px;height:15px;color:var(--blue)}
+.ps-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
+.ps-grid .full{grid-column:1/-1}
+.ps-hint{font-weight:500;color:var(--muted);text-transform:none;letter-spacing:0;font-size:12px}
+.ps-hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.ps-success{display:none;text-align:center;padding:28px 10px}
+.ps-success.show{display:block}
+.ps-tick{width:68px;height:68px;border-radius:50%;background:rgba(25,128,173,.10);color:var(--blue);display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
+.ps-tick i{width:34px;height:34px}
+.ps-success h2{font-size:22px;margin-bottom:10px}
+.ps-success p{color:var(--muted);font-size:14px;max-width:460px;margin:0 auto 8px}
+@media (max-width:600px){.ps-grid{grid-template-columns:1fr}.ps-hero h1{font-size:25px}}
 </style>
-<!-- Google Analytics 4 (platform-wide) -->
-<script src="assets/ffp-analytics.js?v=2"></script>
 </head>
 <body>
-<header class="topbar">
-  <div class="wrap">
-    <div class="brand"><img src="assets/ffp-logo-white.png?v=2" alt="FFP" style="height:30px;width:auto;display:block;"><span class="sub" style="margin-top:5px;">Partnerships</span></div>
-    <a href="/login" class="login">Already a partner? Log in</a>
+<header>
+  <div class="wrap nav">
+    <a href="homepage.html"><img class="logo" id="logoMain" alt="Find Fit People"></a>
+    <div class="nav-search-d" style="cursor:pointer" onclick="location.href='search.html'"><i data-lucide="search"></i> Search Find Fit People</div>
+    <nav class="nav-links">
+      <a href="tours.html">Experiences</a>
+      <a href="classes.html">Sessions</a>
+      <a href="events.html">Events</a>
+      <a href="trips.html">Trips</a>
+      <a href="for-professionals.html">For professionals</a>
+    </nav>
+    <div class="nav-right">
+      <a href="https://www.ffppassport.com/login" class="iconbtn" title="Already a partner? Log in" style="font-size:13px;font-weight:700;width:auto;padding:0 10px;color:var(--muted)">Log in</a>
+    </div>
   </div>
 </header>
 
-<section class="hero">
-  <div class="wrap">
-    <h1>Create Your <em>Partner</em> Account</h1>
-    <p>Welcome to Find Fit People. Fill in the form below to help us set up your account — once it's done you'll go straight to your FFP Partner dashboard and can start uploading your services.</p>
-    <div class="benefits">
-      <div class="benefit"><span class="ms">check_circle</span> No card required</div>
-      <div class="benefit"><span class="ms">check_circle</span> Instant dashboard</div>
-      <div class="benefit"><span class="ms">check_circle</span> Reach active members</div>
-    </div>
-  </div>
-</section>
+<main>
+  <section class="block">
+    <div class="wrap" style="max-width:620px">
 
-<div class="wrap">
-  <div class="card" id="form-card">
-    <h2>Your details</h2>
-    <div class="lead">Just the basics to get you set up. You can add your logo, photos and listings once you're in.</div>
-    <form id="signup-form" novalidate>
-      <div class="hp"><label>Do not fill<input type="text" id="company_url_hp" tabindex="-1" autocomplete="off"></label></div>
-      <div class="grid">
-        <div class="field full">
-          <label>Business name <span class="req">*</span></label>
-          <input type="text" id="business_name" placeholder="e.g. Forge Fitness" maxlength="120" required>
-        </div>
-
-        <div class="field">
-          <label>Contact first name <span class="req">*</span></label>
-          <input type="text" id="first_name" placeholder="First name" maxlength="60" autocomplete="given-name" required>
-        </div>
-        <div class="field">
-          <label>Contact last name <span class="req">*</span></label>
-          <input type="text" id="last_name" placeholder="Last name" maxlength="60" autocomplete="family-name" required>
-        </div>
-
-        <div class="field">
-          <label>Email <span class="req">*</span> <span class="hint">— the email you'll use to sign in to your partner dashboard</span></label>
-          <input type="email" id="email" placeholder="you@yourbusiness.com" maxlength="120" autocomplete="email" required>
-        </div>
-        <div class="field">
-          <label>Phone <span class="hint">— your facility's public phone number</span></label>
-          <div style="display:flex;gap:8px;">
-            <div class="ccpick" id="ccpick">
-              <button type="button" class="cc-btn" id="cc-btn" aria-haspopup="listbox" aria-expanded="false" onclick="ccToggle(event)">
-                <span id="cc-btn-label">+971</span>
-                <span class="cc-caret">▾</span>
-              </button>
-              <input type="hidden" id="phone-cc" value="+971">
-              <div class="cc-pop" id="cc-pop" role="listbox" hidden>
-                <input type="text" id="cc-search" class="cc-search" placeholder="Search country or code" oninput="ccFilter(this.value)" autocomplete="off">
-                <div class="cc-list" id="cc-list"></div>
-              </div>
-            </div>
-            <input type="tel" id="phone-num" placeholder="56 261 7359" maxlength="30" style="flex:1;">
-          </div>
-        </div>
-
-        <div class="field">
-          <label>Country <span class="req">*</span></label>
-          <select id="country" data-ffp-loc="country" data-ffp-group="psignup" required></select>
-        </div>
-        <div class="field">
-          <label>City <span class="req">*</span></label>
-          <select id="city" data-ffp-loc="city" data-ffp-group="psignup" required></select>
+      <div class="ps-hero" id="hero">
+        <div class="ps-eyebrow">FFP Partners</div>
+        <h1>Create your partner account</h1>
+        <p>Welcome to Find Fit People. Tell us a few basics and we'll set up your account — then you'll head straight to your partner dashboard to add your services, photos and listings.</p>
+        <div class="ps-benefits">
+          <div class="ps-benefit"><i data-lucide="check-circle"></i> No card required</div>
+          <div class="ps-benefit"><i data-lucide="check-circle"></i> Instant dashboard</div>
+          <div class="ps-benefit"><i data-lucide="check-circle"></i> Reach active members</div>
         </div>
       </div>
-      <button type="submit" class="btn" id="submit-btn">Create Account</button>
-      <div class="err" id="err"></div>
-      <div class="signin-row">Already have an account? <a href="/login">Log in</a></div>
-    </form>
+
+      <div class="form" id="form-card" style="margin-top:22px">
+        <div class="sec-head" style="margin-bottom:4px"><div><h2>Your details</h2><p>Just the basics. You can add your logo, photos and listings once you're in.</p></div></div>
+        <form id="signup-form" novalidate>
+          <div class="ps-hp"><label>Do not fill<input type="text" id="company_url_hp" tabindex="-1" autocomplete="off"></label></div>
+
+          <div class="fld">
+            <label for="business_name">Business name *</label>
+            <input id="business_name" type="text" placeholder="e.g. Forge Fitness" maxlength="120" required>
+          </div>
+
+          <div class="ps-grid">
+            <div class="fld">
+              <label for="first_name">Contact first name *</label>
+              <input id="first_name" type="text" placeholder="First name" maxlength="60" autocomplete="given-name" required>
+            </div>
+            <div class="fld">
+              <label for="last_name">Contact last name *</label>
+              <input id="last_name" type="text" placeholder="Last name" maxlength="60" autocomplete="family-name" required>
+            </div>
+          </div>
+
+          <div class="fld">
+            <label for="email">Email * <span class="ps-hint">— the email you'll use to sign in to your dashboard</span></label>
+            <input id="email" type="email" placeholder="you@yourbusiness.com" maxlength="120" autocomplete="email" required>
+          </div>
+
+          <div class="fld">
+            <label for="phone">Phone <span class="ps-hint">— your facility's public phone number (optional)</span></label>
+            <div style="display:flex;gap:8px">
+              <select id="phoneCC" style="height:46px;border:1px solid var(--line);border-radius:var(--radius-sm);padding:0 8px;font-family:inherit;font-size:16px;background:#fff;max-width:130px"></select>
+              <input id="phone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="50 123 4567" maxlength="30" style="flex:1;height:46px;border:1px solid var(--line);border-radius:var(--radius-sm);padding:0 14px;font-family:inherit;font-size:16px">
+            </div>
+          </div>
+
+          <div class="ps-grid">
+            <div class="fld">
+              <label>Country *</label>
+              <div class="ffpdd" id="countryDD" data-value="" style="border:1px solid var(--line);border-radius:var(--radius-sm);padding:0 14px;height:46px;display:flex;align-items:center">
+                <button type="button" class="ffpdd-btn" style="color:var(--ink)"><span class="ffpdd-val">Select country</span><i data-lucide="chevron-down" class="ffpdd-chev"></i></button>
+                <div class="ffpdd-menu"></div>
+              </div>
+            </div>
+            <div class="fld">
+              <label>City *</label>
+              <div class="ffpdd" id="cityDD" data-value="" style="border:1px solid var(--line);border-radius:var(--radius-sm);padding:0 14px;height:46px;display:flex;align-items:center">
+                <button type="button" class="ffpdd-btn" style="color:var(--ink)"><span class="ffpdd-val">Select city</span><i data-lucide="chevron-down" class="ffpdd-chev"></i></button>
+                <div class="ffpdd-menu"></div>
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary" id="submit-btn" style="width:100%;margin-top:18px"><i data-lucide="arrow-right"></i> Create Account</button>
+          <div class="authmsg" id="err" style="text-align:center;margin-top:12px"></div>
+          <div style="font-size:13px;color:var(--muted);text-align:center;margin-top:14px">Already have an account? <a href="PARTNER_LOGIN_URL" style="color:var(--blue);font-weight:700">Log in</a></div>
+        </form>
+      </div>
+
+      <div class="form ps-success" id="success-card" style="margin-top:22px">
+        <div class="ps-tick"><i data-lucide="check"></i></div>
+        <h2>Account created</h2>
+        <p>Your partner account is live and you're signed in. Taking you to your dashboard now&hellip;</p>
+        <p style="margin-top:12px">Not redirected? <a id="dash-link" href="#" style="color:var(--blue);font-weight:700">Open your dashboard</a>. We've also emailed <strong id="success-email"></strong> a quick guide to getting started.</p>
+      </div>
+
+      <p style="text-align:center;color:var(--muted);font-size:12.5px;margin-top:18px">Questions? <a href="mailto:providers@findfitpeople.com" style="color:var(--blue)">providers@findfitpeople.com</a></p>
+
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <img class="foot-logo" id="logoFoot" alt="Find Fit People">
+        <p style="max-width:340px">Find Fit People</p>
+      </div>
+      <div><h5>Explore</h5><ul><li><a href="tours.html">Experiences</a></li><li><a href="classes.html">Sessions</a></li><li><a href="events.html">Events</a></li><li><a href="trips.html">Trips</a></li></ul></div>
+      <div><h5>Grow with FFP</h5><ul><li><a href="partner.html">For facilities</a></li><li><a href="for-professionals.html">For professionals</a></li></ul></div>
+    </div>
+    <div class="foot-bot"><span>© 2026 Find Fit People. All rights reserved.</span></div>
   </div>
+</footer>
 
-  <div class="card success" id="success-card">
-    <div class="success-icon"><span class="ms">check_circle</span></div>
-    <h2>Account created</h2>
-    <p>Your partner account is live and you're signed in. Taking you to your dashboard now&hellip;</p>
-    <p style="margin-top:16px;">Not redirected? <a href="/ffp-provider-dashboard.html">Open your dashboard</a>. We've also emailed <strong id="success-email"></strong> a quick guide to uploading your services.</p>
-  </div>
-
-  <div class="foot">FFP Passport · Questions? <a href="mailto:providers@findfitpeople.com">providers@findfitpeople.com</a></div>
-</div>
-
+<script src="js/config.js"></script>
+<script src="js/ptr.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/ffp.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/ffpui.js"></script>
 <script>
 (function () {
   'use strict';
   var API_BASE = 'https://ffp-passport-backend.vercel.app';
+  // Where the partner dashboard lives today (Passport origin). The signup contract returns a
+  // relative redirect ("/ffp-provider-dashboard.html") that must resolve to THIS origin.
+  var DASH_ORIGIN = 'https://www.ffppassport.com';
 
-  var form = document.getElementById('signup-form');
-  var btn = document.getElementById('submit-btn');
-  var errEl = document.getElementById('err');
-  function val(id){ var e = document.getElementById(id); return e ? (e.value || '').trim() : ''; }
-  function showErr(m){ errEl.textContent = m || ''; }
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' })[c]; }); };
 
-  form.addEventListener('submit', async function (e) {
+  // Reuse the booking site's phone-code list (mirrors js/account.js DIAL — Gulf first).
+  var DIAL = [
+    ["🇦🇪","+971"],["🇸🇦","+966"],["🇶🇦","+974"],["🇰🇼","+965"],["🇧🇭","+973"],["🇴🇲","+968"],
+    ["🇬🇧","+44"],["🇺🇸","+1"],["🇨🇦","+1"],["🇦🇺","+61"],["🇳🇿","+64"],["🇿🇦","+27"],
+    ["🇮🇳","+91"],["🇵🇰","+92"],["🇧🇩","+880"],["🇱🇰","+94"],["🇵🇭","+63"],["🇮🇩","+62"],
+    ["🇪🇬","+20"],["🇲🇦","+212"],["🇳🇬","+234"],["🇰🇪","+254"],["🇱🇧","+961"],["🇯🇴","+962"],
+    ["🇫🇷","+33"],["🇩🇪","+49"],["🇪🇸","+34"],["🇮🇹","+39"],["🇳🇱","+31"],["🇵🇹","+351"],
+    ["🇮🇪","+353"],["🇨🇭","+41"],["🇸🇪","+46"],["🇳🇴","+47"],["🇩🇰","+45"],["🇵🇱","+48"],
+    ["🇷🇺","+7"],["🇹🇷","+90"],["🇨🇳","+86"],["🇯🇵","+81"],["🇰🇷","+82"],["🇸🇬","+65"],
+    ["🇧🇷","+55"],["🇲🇽","+52"],["🇦🇷","+54"]
+  ];
+
+  function val(id) { var e = document.getElementById(id); return e ? (e.value || '').trim() : ''; }
+  function ddVal(id) { return (window.FFPUI && FFPUI.value) ? FFPUI.value(id) : ''; }
+  function showErr(m) { var el = document.getElementById('err'); el.className = 'authmsg' + (m ? ' err' : ''); el.textContent = m || ''; }
+
+  // ---- City cascade: rebuild city options for the chosen country, wiring clicks the FFPUI way ----
+  var CITIES = [];            // [{label, parent}]
+  function fillCities(country) {
+    var cityDD = document.getElementById('cityDD');
+    var menu = cityDD.querySelector('.ffpdd-menu');
+    var valEl = cityDD.querySelector('.ffpdd-val');
+    cityDD.setAttribute('data-value', '');
+    if (valEl) valEl.textContent = country ? 'Select city' : 'Select country first';
+    var rows = CITIES.filter(function (c) { return c.parent === country; });
+    menu.innerHTML = rows.map(function (c) { return '<div class="ffpdd-opt" data-val="' + esc(c.label) + '">' + esc(c.label) + '</div>'; }).join('');
+    menu.querySelectorAll('.ffpdd-opt').forEach(function (opt) {
+      opt.addEventListener('click', function (e) {
+        e.stopPropagation();
+        cityDD.setAttribute('data-value', opt.getAttribute('data-val'));
+        if (valEl) valEl.textContent = opt.textContent;
+        menu.querySelectorAll('.ffpdd-opt').forEach(function (o) { o.classList.remove('sel'); });
+        opt.classList.add('sel');
+        cityDD.classList.remove('open');
+      });
+    });
+  }
+
+  async function initLocation() {
+    var countryDD = document.getElementById('countryDD');
+    var cMenu = countryDD.querySelector('.ffpdd-menu');
+    var cVal = countryDD.querySelector('.ffpdd-val');
+    try {
+      var countries = await FFP.getTaxonomyList('country');
+      var cities = await FFP.getTaxonomyList('city');
+      CITIES = (cities || []).map(function (c) { return { label: c.label || c.value, parent: c.parent }; });
+      cMenu.innerHTML = (countries || []).map(function (c) {
+        var lbl = esc(c.label || c.value);
+        return '<div class="ffpdd-opt" data-val="' + lbl + '">' + lbl + '</div>';
+      }).join('');
+    } catch (e) { /* picker stays empty; required validation will catch it */ }
+
+    if (window.FFPUI) FFPUI.init();           // binds country opts + open/close on both dropdowns
+
+    // When a country is picked, rebuild the city list for it.
+    countryDD._cb = function (v) { fillCities(v); };
+
+    // Default to UAE (primary market) if present, and prime its cities.
+    var UAE = 'United Arab Emirates';
+    var hasUAE = (countries || []).some(function (c) { return (c.value || c.label) === UAE || (c.label || c.value) === UAE; });
+    if (hasUAE) {
+      countryDD.setAttribute('data-value', UAE);
+      if (cVal) cVal.textContent = UAE;
+      var sel = Array.prototype.slice.call(cMenu.querySelectorAll('.ffpdd-opt')).filter(function (o) { return o.getAttribute('data-val') === UAE; })[0];
+      if (sel) sel.classList.add('sel');
+      fillCities(UAE);
+    } else {
+      fillCities('');
+    }
+  }
+
+  function goToDashboard(data) {
+    var r = (data && data.redirect) || '/ffp-provider-dashboard.html';
+    var dashUrl = /^https?:\/\//i.test(r) ? r : (DASH_ORIGIN + (r.charAt(0) === '/' ? '' : '/') + r);
+    // CROSS-ORIGIN HAND-OFF (world-class: OAuth-style one-time code).
+    //   The dashboard lives on a DIFFERENT origin (ffppassport.com), so a session set here is not
+    //   visible there. If the backend returns a short-lived, single-use `handoff_code`, send it to the
+    //   Passport receiver in the URL #fragment (NEVER a query string). The receiver exchanges it for a
+    //   session (setSession on the ffppassport.com origin), then forwards to `next`. This is the only
+    //   way to land the partner LOGGED IN across origins.
+    var dest;
+    if (data && data.handoff_code) {
+      var next = (r.charAt(0) === '/' || /^https?:\/\//i.test(r)) ? r : ('/' + r);
+      dest = DASH_ORIGIN + '/auth-handoff.html#code=' + encodeURIComponent(data.handoff_code) +
+             '&next=' + encodeURIComponent(next);
+    } else {
+      // Fallback until the receiver + handoff_code ship: the partner is signed in on THIS origin, but
+      // the dashboard origin can't see it yet (they may need to log in there). Do NOT repoint the live
+      // "Become a partner" CTAs to this page until the hand-off is live.
+      // See PROVIDER-SIGNUP-HANDOFF-DECISION.md.
+      dest = dashUrl;
+    }
+    var link = document.getElementById('dash-link'); if (link) link.href = dest;
+    setTimeout(function () { window.location.href = dest; }, 1400);
+  }
+
+  async function onSubmit(e) {
     e.preventDefault();
     showErr('');
-    if (val('company_url_hp')) { return; } // honeypot
+    if (val('company_url_hp')) { return; }   // honeypot — silently abort
 
     var business_name = val('business_name');
     var first_name = val('first_name');
     var last_name  = val('last_name');
     var email      = val('email').toLowerCase();
-    var country    = val('country');
-    var city       = val('city');
+    var country    = ddVal('countryDD');
+    var city       = ddVal('cityDD');
     if (!business_name || !first_name || !last_name || !email || !country || !city) {
       showErr('Please fill in all required fields.'); return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showErr('Please enter a valid email address.'); return; }
 
+    var btn = document.getElementById('submit-btn');
     btn.disabled = true; btn.textContent = 'Creating your account…';
     try {
       var res = await fetch(API_BASE + '/api/provider/signup', {
@@ -227,8 +294,8 @@ select option{background:var(--bg-2);color:var(--text)}
           business_name: business_name,
           contact_name: (first_name + ' ' + last_name).trim(),
           email: email,
-          phone: val('phone-num') || null,
-          phone_country_code: val('phone-cc') || null,
+          phone: val('phone') || null,
+          phone_country_code: val('phoneCC') || null,
           country: country,
           city: city
         })
@@ -237,93 +304,38 @@ select option{background:var(--bg-2);color:var(--text)}
       try { data = await res.json(); } catch (_) {}
       if (!res.ok) { throw new Error(data.error || 'Something went wrong. Please try again.'); }
 
-      // v3: instant sign-in — persist the session the backend just issued (same keys the dashboard reads),
-      // then go straight to the partner dashboard. No email-verify click, no 6-digit code step.
+      // Instant sign-in: persist the returned session using THIS site's auth (Supabase SDK).
+      // The booking site authenticates via supabase-js, so set the session natively.
       try {
-        if (window.FFPAuth) {
-          FFPAuth.setPersist(true);                       // keep them signed in
-          if (data.token)   FFPAuth.setToken(data.token);
-          if (data.jwt)     FFPAuth.setJwt(data.jwt);
-          if (data.refresh) FFPAuth.setRefresh(data.refresh);
-          if (data.member)  FFPAuth.setMember(data.member);
+        var access = data.jwt || data.token;
+        if (FFP && FFP.sb && access && data.refresh) {
+          await FFP.sb.auth.setSession({ access_token: access, refresh_token: data.refresh });
         }
       } catch (_) {}
 
       document.getElementById('success-email').textContent = email;
+      document.getElementById('hero').style.display = 'none';
       document.getElementById('form-card').style.display = 'none';
       document.getElementById('success-card').classList.add('show');
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      var dest = data.redirect || '/ffp-provider-dashboard.html';
-      setTimeout(function () { window.location.href = dest; }, 1200);
+      goToDashboard(data);
     } catch (err) {
       console.error('[FFP Provider Signup] failed:', err);
       showErr(err.message || 'Something went wrong. Please try again, or email providers@findfitpeople.com.');
-      btn.disabled = false; btn.textContent = 'Create Account';
+      btn.disabled = false; btn.innerHTML = '<i data-lucide="arrow-right"></i> Create Account';
+      if (window.lucide) lucide.createIcons();
     }
-  });
-})();
-</script>
-<script>
-(function () {
-  var TAX = window.FFP_TAX || {};
-  // Phone country code — shared taxonomy phoneCodes, rendered as the platform-standard searchable
-  // picker (flag + code in the button; flag + code + COUNTRY NAME, searchable, in the list). A native
-  // <select> showed bare "AE +971" rows on Windows (flag emoji doesn't render there) with no country
-  // name — which read as ugly. The hidden #phone-cc input keeps the submit value (val('phone-cc')).
-  var CODES = (TAX.phoneCodes && TAX.phoneCodes.length)
-    ? TAX.phoneCodes.slice()
-    : [{ code: '+971', country: 'United Arab Emirates', flag: '🇦🇪' }];
-  // UAE first (primary market), then alphabetical by country name.
-  CODES.sort(function (a, b) {
-    if (a.code === '+971' && a.country === 'United Arab Emirates') return -1;
-    if (b.code === '+971' && b.country === 'United Arab Emirates') return 1;
-    return (a.country || '').localeCompare(b.country || '');
-  });
-  var hidden = document.getElementById('phone-cc');
-  var btn = document.getElementById('cc-btn');
-  var btnLbl = document.getElementById('cc-btn-label');
-  var pop = document.getElementById('cc-pop');
-  var listEl = document.getElementById('cc-list');
-  if (!hidden || !listEl) return;
-  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-  function labelFor(p) { return (p.flag ? p.flag + ' ' : '') + p.code; }
-  function setVal(p) { hidden.value = p.code; if (btnLbl) btnLbl.textContent = labelFor(p); }
-  function rowHtml(p) {
-    return '<div class="cc-opt" data-code="' + esc(p.code) + '" onclick="ccPick(this)">' +
-      '<span class="cc-code">' + (p.flag ? esc(p.flag) + ' ' : '') + esc(p.code) + '</span>' +
-      '<span class="cc-country">' + esc(p.country || '') + '</span></div>';
   }
-  window.ccRender = function (filter) {
-    var q = (filter || '').trim().toLowerCase();
-    var rows = CODES.filter(function (p) { return !q || ((p.country || '') + ' ' + (p.code || '')).toLowerCase().indexOf(q) !== -1; });
-    listEl.innerHTML = rows.length ? rows.map(rowHtml).join('') : '<div class="cc-empty">No matches</div>';
-  };
-  window.ccFilter = function (v) { window.ccRender(v); };
-  window.ccPick = function (el) {
-    var code = el.getAttribute('data-code');
-    var p = CODES.filter(function (x) { return x.code === code; })[0];
-    if (p) setVal(p);
-    window.ccClose();
-  };
-  window.ccOpen = function () {
-    pop.removeAttribute('hidden'); btn.classList.add('open'); btn.setAttribute('aria-expanded', 'true');
-    window.ccRender('');
-    var s = document.getElementById('cc-search'); if (s) { s.value = ''; setTimeout(function () { s.focus(); }, 10); }
-  };
-  window.ccClose = function () {
-    pop.setAttribute('hidden', ''); btn.classList.remove('open'); btn.setAttribute('aria-expanded', 'false');
-  };
-  window.ccToggle = function (ev) {
-    if (ev) ev.stopPropagation();
-    if (pop.hasAttribute('hidden')) window.ccOpen(); else window.ccClose();
-  };
-  document.addEventListener('click', function (e) {
-    var pick = document.getElementById('ccpick');
-    if (pick && !pick.contains(e.target)) window.ccClose();
-  });
-  // default UAE (or first available)
-  var def = CODES.filter(function (p) { return p.code === '+971' && p.country === 'United Arab Emirates'; })[0] || CODES[0];
-  if (def) setVal(def);
+
+  function start() {
+    try { document.getElementById('logoMain').src = window.FFP_LOGO; document.getElementById('logoFoot').src = window.FFP_LOGO; } catch (_) {}
+    document.getElementById('phoneCC').innerHTML = DIAL.map(function (d) { return '<option value="' + d[1] + '">' + d[0] + ' ' + d[1] + '</option>'; }).join('');
+    document.getElementById('phoneCC').value = '+971';
+    document.getElementById('signup-form').addEventListener('submit', onSubmit);
+    initLocation().then(function () { if (window.lucide) lucide.createIcons(); });
+    if (window.lucide) lucide.createIcons();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
 </script>
 </body>
