@@ -1,4 +1,9 @@
 <!-- FFP MEMBER DASHBOARD — v361 (2026-06-22)  [changelog trimmed to latest 3 updates; older history in git]
+     v364: MEETUP "COACH GRANT" — reworked the over-built Meetup AI. ONE search box now (the existing #meet-search IS
+           the smart "find" — removed the duplicate bar). "Describe it → fill the form" now lives INSIDE the
+           Post-a-meetup modal (pm-describe; was a separate Create-with-AI button). Removed the custom voice mic (the
+           keyboard's own mic dictates). All assistance rebranded "Coach Grant" (no "AI Assistant"). Logic in
+           ffp-meet-move-loader.js (this panel's module). FFP_BUILD 439→440.
      v363: ACTIVITY SHARE — added a TRANSPARENT STICKER toggle to the share sheet. FULLY transparent PNG (NO panel /
            NO background) — just the logo + activity + stats, with a strong dark halo-shadow EDGE on the text so it
            stays legible over ANY photo. Members save it and overlay it anywhere. Sticker overrides the photo-bg
@@ -5709,6 +5714,11 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
       <div style="font-size:12px; color:var(--muted); margin-bottom:14px;">Up to 8 members. You'll approve who's in. Be honest about level and intent.</div>
     </div>
     <div class="pm-form">
+      <div class="pm-describe-box" style="background:#111a26;border:1px solid rgba(43,168,224,0.28);border-radius:12px;padding:12px;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:800;color:#2ba8e0;display:flex;align-items:center;gap:6px;margin-bottom:8px;"><span class="material-icons" style="font-size:16px;">auto_awesome</span> Let Coach Grant set it up</div>
+        <textarea id="pm-describe" rows="2" placeholder="Describe it — e.g. 5-a-side football Saturday 6pm at Zabeel Park, 10 people, intermediate" style="width:100%;background:#0a1825;border:1px solid rgba(43,168,224,0.28);border-radius:9px;color:#e8eef4;font:inherit;font-size:14px;padding:10px;resize:vertical;box-sizing:border-box;"></textarea>
+        <button type="button" id="pm-describe-go" style="margin-top:8px;background:#2ba8e0;color:#04222f;border:none;border-radius:9px;font-weight:800;font-size:13px;padding:9px 16px;cursor:pointer;font-family:inherit;">Coach Grant, set it up</button>
+      </div>
       <!-- v285: cover photo at TOP + CENTRE — tap the photo area to add (camera/library). No text in images. -->
       <div class="pm-form-field" style="text-align:center;">
         <input type="hidden" id="pmf-cover">
@@ -8238,7 +8248,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '439';
+  const FFP_BUILD = '440';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
