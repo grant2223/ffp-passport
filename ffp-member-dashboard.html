@@ -1,4 +1,9 @@
 <!-- FFP MEMBER DASHBOARD — v361 (2026-06-22)  [changelog trimmed to latest 3 updates; older history in git]
+     v363: ACTIVITY SHARE — added a TRANSPARENT STICKER toggle to the share sheet. The card renders as a rounded
+           frosted panel with see-through corners + drop/text shadows (canvas 2D → transparent PNG) so members can
+           save it and overlay it on any photo. Sticker overrides the photo-background toggle; preview shows a
+           checkerboard so the transparency is visible. New _ffpRoundRect helper; _ffpMakeCardCanvas gains a 4th
+           `sticker` arg; _ffpCurKey/filename gain a -sticker variant. FFP_BUILD 437→438.
      v362: LOG ACTIVITY — reordered fields (Date+Time then Location; Country/City hidden, still filled by the
            location picker + read on save). Added "Delete activity" (red) in the modal footer, shown only when
            editing → delete_activity(p_me,p_log_id) RPC, then ffpActivityReload + loadJourneyLogs. FFP_BUILD 416→417.
@@ -8233,7 +8238,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '437';
+  const FFP_BUILD = '438';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -11994,16 +11999,29 @@ async function _ffpEnsurePhoto(src) { if (!src) return ''; if (_ffpPhotoSrc !== 
 // Load a data-URL into an Image (cached). data: URLs never taint the canvas → toDataURL always works.
 var _ffpImgCache = {};
 function _ffpLoadImg(dataUrl) { return new Promise(function (res) { if (!dataUrl) { res(null); return; } if (_ffpImgCache[dataUrl]) { res(_ffpImgCache[dataUrl]); return; } var im = new Image(); im.onload = function () { _ffpImgCache[dataUrl] = im; res(im); }; im.onerror = function () { res(null); }; im.src = dataUrl; }); }
+function _ffpRoundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
 // Draw the share card DIRECTLY to a <canvas> with the 2D API — no html2canvas (which hangs in the iOS webapp). Returns the canvas.
-async function _ffpMakeCardCanvas(a, ratio, usePhoto) {
+// sticker=true → TRANSPARENT overlay (see-through corners + frosted panel) so it can be saved and dropped over any photo.
+async function _ffpMakeCardCanvas(a, ratio, usePhoto, sticker) {
   var d = _ffpCardDims(ratio), W = d.w, H = d.h, S = 2, pad = Math.round(W * 0.075);
   var fam = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif';
   var cv = document.createElement('canvas'); cv.width = W * S; cv.height = H * S;
   var ctx = cv.getContext('2d'); ctx.scale(S, S);
   var logo = null, photo = null;
   try { await _ffpEnsureLogo(); if (_ffpLogoData) logo = await _ffpLoadImg(_ffpLogoData); } catch (e) {}
-  if (usePhoto && a.photo_url) { try { await _ffpEnsurePhoto(a.photo_url); if (_ffpPhotoData) photo = await _ffpLoadImg(_ffpPhotoData); } catch (e) {} }
-  if (photo && photo.width) {
+  if (usePhoto && a.photo_url && !sticker) { try { await _ffpEnsurePhoto(a.photo_url); if (_ffpPhotoData) photo = await _ffpLoadImg(_ffpPhotoData); } catch (e) {} }
+  if (sticker) {
+    // TRANSPARENT OVERLAY STICKER — rounded frosted panel with see-through corners + soft shadow, so the saved
+    // PNG layers cleanly over any photo and the white type stays legible on light OR dark backgrounds.
+    var m = Math.round(W * 0.03), pr = Math.round(W * 0.05);
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = Math.round(W * 0.045); ctx.shadowOffsetY = Math.round(W * 0.012);
+    _ffpRoundRect(ctx, m, m, W - 2 * m, H - 2 * m, pr);
+    var pg = ctx.createLinearGradient(0, 0, W, H); pg.addColorStop(0, 'rgba(17,67,108,0.60)'); pg.addColorStop(0.52, 'rgba(10,39,64,0.62)'); pg.addColorStop(1, 'rgba(6,18,31,0.66)');
+    ctx.fillStyle = pg; ctx.fill();
+    ctx.restore();
+    ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = Math.round(W * 0.018); ctx.shadowOffsetY = Math.round(W * 0.004); // legibility shadow on all type below
+  } else if (photo && photo.width) {
     var ir = photo.width / photo.height, cr = W / H, dw, dh; if (ir > cr) { dh = H; dw = H * ir; } else { dw = W; dh = W / ir; }
     ctx.drawImage(photo, (W - dw) / 2, (H - dh) / 2, dw, dh);
     var sg = ctx.createLinearGradient(0, 0, 0, H); sg.addColorStop(0, 'rgba(5,12,20,0.35)'); sg.addColorStop(0.5, 'rgba(5,12,20,0.5)'); sg.addColorStop(1, 'rgba(5,12,20,0.85)'); ctx.fillStyle = sg; ctx.fillRect(0, 0, W, H);
@@ -12034,12 +12052,13 @@ async function _ffpMakeCardCanvas(a, ratio, usePhoto) {
     for (var i = 0; i < n; i++) { var x = pad + colW * (i + 0.5); ctx.fillStyle = '#fff'; ctx.font = '900 ' + Math.round(W * 0.052) + 'px ' + fam; ctx.fillText(stats[i][1], x, rowY); ctx.fillStyle = '#9fc4e0'; ctx.font = '700 ' + Math.round(W * 0.022) + 'px ' + fam; ctx.fillText(String(stats[i][0]).toUpperCase(), x, rowY + Math.round(W * 0.04)); }
   }
   ctx.fillStyle = '#9ec0db'; ctx.font = '800 ' + Math.round(W * 0.021) + 'px ' + fam; ctx.fillText('TRACKED ON FFP PASSPORT', W / 2, H - Math.round(W * 0.045));
+  ctx.shadowColor = 'rgba(0,0,0,0)'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;   // clear any sticker legibility shadow
   cv.style.width = W + 'px'; cv.style.height = H + 'px';   // backing store is 2×; display at design size
   return cv;
 }
 var _ffpShareCfg = { ratio: '1:1', usePhoto: false, id: null };
 var _ffpShareFile = null, _ffpShareKey = null, _ffpShareRendering = false, _ffpShareErr = '';
-function _ffpCurKey() { return (_ffpShareCfg.id || '') + '|' + _ffpShareCfg.ratio + '|' + (_ffpShareCfg.usePhoto ? 1 : 0); }
+function _ffpCurKey() { return (_ffpShareCfg.id || '') + '|' + _ffpShareCfg.ratio + '|' + (_ffpShareCfg.usePhoto ? 1 : 0) + '|' + (_ffpShareCfg.sticker ? 1 : 0); }
 function _ffpDataUrlToFile(dataUrl, name) {
   var parts = dataUrl.split(','); var bin = atob(parts[1]); var len = bin.length; var arr = new Uint8Array(len);
   for (var i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);
@@ -12050,11 +12069,11 @@ async function _ffpCaptureShareCard() {
   _ffpShareErr = '';
   try {
     var a = window._ffpActCard || {};
-    var cv = await _ffpMakeCardCanvas(a, _ffpShareCfg.ratio, _ffpShareCfg.usePhoto);
+    var cv = await _ffpMakeCardCanvas(a, _ffpShareCfg.ratio, _ffpShareCfg.usePhoto, _ffpShareCfg.sticker);
     var dataUrl = cv.toDataURL('image/png');
     if (!dataUrl || dataUrl.length < 100) { _ffpShareErr = 'empty canvas'; return null; }
     var nm = (a.activity || 'activity').replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '') || 'activity';
-    return _ffpDataUrlToFile(dataUrl, 'ffp-' + nm + '.png');
+    return _ffpDataUrlToFile(dataUrl, 'ffp-' + nm + (_ffpShareCfg.sticker ? '-sticker' : '') + '.png');
   } catch (e) { _ffpShareErr = (e && (e.message || e.name)) || ('' + e); return null; }
 }
 async function _ffpRenderSharePreview() {
@@ -12064,20 +12083,23 @@ async function _ffpRenderSharePreview() {
   var maxH = Math.min((window.innerHeight || 700) * 0.5, 540), maxW = host.clientWidth || 300;
   var scale = Math.min(maxW / d.w, maxH / d.h); if (!(scale > 0)) scale = 0.5;
   host.style.height = Math.round(d.h * scale) + 'px';
-  var cv = await _ffpMakeCardCanvas(a, _ffpShareCfg.ratio, _ffpShareCfg.usePhoto);
+  host.style.background = _ffpShareCfg.sticker ? 'repeating-conic-gradient(#2a3642 0% 25%, #1c2630 0% 50%) 50% / 20px 20px' : '';
+  host.style.borderRadius = '10px';
+  var cv = await _ffpMakeCardCanvas(a, _ffpShareCfg.ratio, _ffpShareCfg.usePhoto, _ffpShareCfg.sticker);
   cv.style.position = 'absolute'; cv.style.left = '50%'; cv.style.top = '0'; cv.style.transformOrigin = 'top center'; cv.style.transform = 'translateX(-50%) scale(' + scale + ')';
   host.innerHTML = ''; host.appendChild(cv);
   // The preview canvas IS the export — cache the file now so Share/Download fire instantly (within the iOS tap).
   _ffpShareFile = null; _ffpShareKey = null;
-  try { var nm = (a.activity || 'activity').replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '') || 'activity'; _ffpShareFile = _ffpDataUrlToFile(cv.toDataURL('image/png'), 'ffp-' + nm + '.png'); _ffpShareKey = _ffpCurKey(); } catch (e) { _ffpShareErr = (e && (e.message || e.name)) || ('' + e); }
+  try { var nm = (a.activity || 'activity').replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '') || 'activity'; _ffpShareFile = _ffpDataUrlToFile(cv.toDataURL('image/png'), 'ffp-' + nm + (_ffpShareCfg.sticker ? '-sticker' : '') + '.png'); _ffpShareKey = _ffpCurKey(); } catch (e) { _ffpShareErr = (e && (e.message || e.name)) || ('' + e); }
 }
 window.ffpShareSetRatio = function (r) { _ffpShareCfg.ratio = r; _ffpRenderSharePreview(); };
 window.ffpShareTogglePhoto = function (el) { _ffpShareCfg.usePhoto = !_ffpShareCfg.usePhoto; if (el) { el.style.background = _ffpShareCfg.usePhoto ? '#2ba8e0' : '#3a4654'; var k = el.firstChild; if (k) k.style.right = _ffpShareCfg.usePhoto ? '2px' : '20px'; } _ffpRenderSharePreview(); };
+window.ffpShareToggleSticker = function (el) { _ffpShareCfg.sticker = !_ffpShareCfg.sticker; if (el) { el.style.background = _ffpShareCfg.sticker ? '#2ba8e0' : '#3a4654'; var k = el.firstChild; if (k) k.style.right = _ffpShareCfg.sticker ? '2px' : '20px'; } if (_ffpShareCfg.sticker && _ffpShareCfg.usePhoto) { _ffpShareCfg.usePhoto = false; var pt = document.querySelector('#ffp-sc-ov [onclick^="ffpShareTogglePhoto"]'); if (pt) { pt.style.background = '#3a4654'; var pk = pt.firstChild; if (pk) pk.style.right = '20px'; } } _ffpRenderSharePreview(); };
 window.ffpCloseShareSheet = function () { var o = document.getElementById('ffp-sc-ov'); if (o && o.parentNode) o.parentNode.removeChild(o); };
 // Tap "Share card" → open the PREVIEW first (pick format, then Share / Download).
 window.ffpSocialShareActivity = function (id) { _ffpOpenShareSheet(id); };
 function _ffpOpenShareSheet(id) {
-  var a = window._ffpActCard || {}; _ffpShareCfg = { ratio: '1:1', usePhoto: false, id: id }; _ffpShareFile = null; _ffpShareKey = null;
+  var a = window._ffpActCard || {}; _ffpShareCfg = { ratio: '1:1', usePhoto: false, sticker: false, id: id }; _ffpShareFile = null; _ffpShareKey = null;
   var esc = (window.escHtml ? window.escHtml : function (s) { return String(s == null ? '' : s); });
   var hasPhoto = !!a.photo_url;
   // Member's referral LINK → shown at the foot of the share sheet (copyable) + appended to the share caption.
@@ -12095,6 +12117,7 @@ function _ffpOpenShareSheet(id) {
     '<div style="display:flex;gap:6px;background:#111a26;border-radius:11px;padding:4px;margin-bottom:16px;">' + tab('1:1', 'Square 1:1') + tab('4:5', 'Portrait 4:5') + tab('9:16', 'Story 9:16') + '</div>' +
     '<div id="ffp-sc-preview" style="position:relative;width:100%;"></div>' +
     (hasPhoto ? '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;background:#111a26;border-radius:11px;padding:11px 14px;"><span style="font-size:13px;font-weight:700;color:#cfe0ee;">Use my photo as background</span><span onclick="ffpShareTogglePhoto(this)" style="width:40px;height:22px;border-radius:20px;background:#3a4654;position:relative;cursor:pointer;display:inline-block;flex:0 0 auto;"><span style="position:absolute;right:20px;top:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:right .15s;"></span></span></div>' : '') +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;background:#111a26;border-radius:11px;padding:11px 14px;"><span style="font-size:13px;font-weight:700;color:#cfe0ee;">Transparent sticker <span style="color:#8a99a8;font-weight:600;">— save &amp; overlay on any photo</span></span><span onclick="ffpShareToggleSticker(this)" style="width:40px;height:22px;border-radius:20px;background:#3a4654;position:relative;cursor:pointer;display:inline-block;flex:0 0 auto;"><span style="position:absolute;right:20px;top:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:right .15s;"></span></span></div>' +
     '<div style="display:flex;gap:10px;margin-top:16px;"><button id="ffp-sc-dl-btn" onclick="ffpDownloadActivityCard()" style="position:relative;overflow:hidden;flex:1;padding:14px;border:1px solid rgba(255,255,255,0.18);border-radius:13px;background:rgba(255,255,255,0.05);color:#cfe0ee;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span id="ffp-sc-dl-fill" style="position:absolute;left:0;top:0;bottom:0;width:0%;background:rgba(43,168,224,0.32);transition:width .12s linear;z-index:0;"></span><span id="ffp-sc-dl-lbl" style="position:relative;z-index:1;"><span class="material-icons" style="font-size:16px;vertical-align:-3px;">download</span> Download</span></button><button onclick="ffpDoShareCard()" style="flex:2;padding:14px;border:none;border-radius:13px;background:linear-gradient(135deg,#2ba8e0,#1d7fb0);color:#fff;font-weight:900;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:16px;vertical-align:-3px;">ios_share</span> Share</button></div>' +
     (_scCode ? '<div style="margin-top:18px;background:#111a26;border:1px solid rgba(43,168,224,0.22);border-radius:12px;padding:13px 14px;">' +
       '<div style="font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#8a99a8;margin-bottom:8px;">Your invite link</div>' +
