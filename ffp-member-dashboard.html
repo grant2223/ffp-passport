@@ -1,9 +1,9 @@
 <!-- FFP MEMBER DASHBOARD — v361 (2026-06-22)  [changelog trimmed to latest 3 updates; older history in git]
-     v363: ACTIVITY SHARE — added a TRANSPARENT STICKER toggle to the share sheet. The card renders as a rounded
-           frosted panel with see-through corners + drop/text shadows (canvas 2D → transparent PNG) so members can
-           save it and overlay it on any photo. Sticker overrides the photo-background toggle; preview shows a
-           checkerboard so the transparency is visible. New _ffpRoundRect helper; _ffpMakeCardCanvas gains a 4th
-           `sticker` arg; _ffpCurKey/filename gain a -sticker variant. FFP_BUILD 437→438.
+     v363: ACTIVITY SHARE — added a TRANSPARENT STICKER toggle to the share sheet. FULLY transparent PNG (NO panel /
+           NO background) — just the logo + activity + stats, with a strong dark halo-shadow EDGE on the text so it
+           stays legible over ANY photo. Members save it and overlay it anywhere. Sticker overrides the photo-bg
+           toggle; preview shows a checkerboard so the transparency is visible. _ffpMakeCardCanvas gains a 4th
+           `sticker` arg; _ffpCurKey/filename gain a -sticker variant. FFP_BUILD 438→439 (removed the frosted panel).
      v362: LOG ACTIVITY — reordered fields (Date+Time then Location; Country/City hidden, still filled by the
            location picker + read on save). Added "Delete activity" (red) in the modal footer, shown only when
            editing → delete_activity(p_me,p_log_id) RPC, then ffpActivityReload + loadJourneyLogs. FFP_BUILD 416→417.
@@ -8238,7 +8238,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '438';
+  const FFP_BUILD = '439';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -11999,7 +11999,6 @@ async function _ffpEnsurePhoto(src) { if (!src) return ''; if (_ffpPhotoSrc !== 
 // Load a data-URL into an Image (cached). data: URLs never taint the canvas → toDataURL always works.
 var _ffpImgCache = {};
 function _ffpLoadImg(dataUrl) { return new Promise(function (res) { if (!dataUrl) { res(null); return; } if (_ffpImgCache[dataUrl]) { res(_ffpImgCache[dataUrl]); return; } var im = new Image(); im.onload = function () { _ffpImgCache[dataUrl] = im; res(im); }; im.onerror = function () { res(null); }; im.src = dataUrl; }); }
-function _ffpRoundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
 // Draw the share card DIRECTLY to a <canvas> with the 2D API — no html2canvas (which hangs in the iOS webapp). Returns the canvas.
 // sticker=true → TRANSPARENT overlay (see-through corners + frosted panel) so it can be saved and dropped over any photo.
 async function _ffpMakeCardCanvas(a, ratio, usePhoto, sticker) {
@@ -12011,16 +12010,9 @@ async function _ffpMakeCardCanvas(a, ratio, usePhoto, sticker) {
   try { await _ffpEnsureLogo(); if (_ffpLogoData) logo = await _ffpLoadImg(_ffpLogoData); } catch (e) {}
   if (usePhoto && a.photo_url && !sticker) { try { await _ffpEnsurePhoto(a.photo_url); if (_ffpPhotoData) photo = await _ffpLoadImg(_ffpPhotoData); } catch (e) {} }
   if (sticker) {
-    // TRANSPARENT OVERLAY STICKER — rounded frosted panel with see-through corners + soft shadow, so the saved
-    // PNG layers cleanly over any photo and the white type stays legible on light OR dark backgrounds.
-    var m = Math.round(W * 0.03), pr = Math.round(W * 0.05);
-    ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = Math.round(W * 0.045); ctx.shadowOffsetY = Math.round(W * 0.012);
-    _ffpRoundRect(ctx, m, m, W - 2 * m, H - 2 * m, pr);
-    var pg = ctx.createLinearGradient(0, 0, W, H); pg.addColorStop(0, 'rgba(17,67,108,0.60)'); pg.addColorStop(0.52, 'rgba(10,39,64,0.62)'); pg.addColorStop(1, 'rgba(6,18,31,0.66)');
-    ctx.fillStyle = pg; ctx.fill();
-    ctx.restore();
-    ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = Math.round(W * 0.018); ctx.shadowOffsetY = Math.round(W * 0.004); // legibility shadow on all type below
+    // TRULY TRANSPARENT — NO panel/background at all (see-through everywhere). A strong dark halo-shadow on every
+    // element drawn below is the EDGE that keeps the white type legible on ANY photo, light or dark.
+    ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = Math.round(W * 0.026); ctx.shadowOffsetX = 0; ctx.shadowOffsetY = Math.round(W * 0.006);
   } else if (photo && photo.width) {
     var ir = photo.width / photo.height, cr = W / H, dw, dh; if (ir > cr) { dh = H; dw = H * ir; } else { dw = W; dh = W / ir; }
     ctx.drawImage(photo, (W - dw) / 2, (H - dh) / 2, dw, dh);
