@@ -770,11 +770,12 @@
   window.ffpReloadMeetMove = loadFromSupabase;
 })();
 
-/* ── MEETUP AI (v1, 2026-06-25) — smart NL search + AI quick-create, in this panel's own module.
-   AI only parses words → structured intent/draft (server /api/ai/parse, Haiku). ALL ranking + writes
-   stay in deterministic, unit-tested code here + the canonical host_meetup RPC (no hallucinated results,
-   model swappable by env). DECORATES window.MeetMove (.filtered) + injects its own UI — core untouched.
-   Falls back to keyword search if AI is off. Personalization ON (member's own sport/level/city). */
+/* ── MEETUP — "Coach Grant" FIND + DESCRIBE-to-create (v2, 2026-06-26), in this panel's own module.
+   Coach Grant only turns words → a structured intent/draft (server /api/ai/parse, Haiku). ALL ranking +
+   writes stay in deterministic, unit-tested code here + the canonical host_meetup RPC. DECORATES
+   window.MeetMove (.filtered) — core untouched. FIND = the existing #meet-search box (ONE box, no second
+   bar; the keyboard's own mic = voice). DESCRIBE field lives inside the Post-a-meetup modal. Falls back to
+   keyword search if Coach Grant is unavailable. Personalization ON (member's own sport/level/city). */
 (function () {
   'use strict';
   var BACKEND = 'https://ffp-passport-backend.vercel.app';
@@ -835,23 +836,21 @@
 
   function summaryChips(intent) { var b = []; if (intent.sport) b.push(intent.sport); if (intent.fitness_level) b.push(intent.fitness_level); if (intent.city) b.push(intent.city); if (intent.date_from || intent.date_to) b.push('soon'); (intent.keywords || []).slice(0, 2).forEach(function (k) { if (b.indexOf(k) < 0) b.push(k); }); return b; }
   function setSummary(intent, count) {
-    var el = $('ffp-ai-meet-summary'); if (!el) return;
+    var el = $('ffp-meet-find-summary'); if (!el) return;
     if (!intent) { el.innerHTML = ''; el.style.display = 'none'; return; }
-    el.innerHTML = '<span class="ffpai-best">Best matches' + (count != null ? ' (' + count + ')' : '') + '</span>' + summaryChips(intent).map(function (b) { return '<span class="ffpai-chip">' + esc(b) + '</span>'; }).join('') + '<button type="button" class="ffpai-clear" id="ffp-ai-meet-clear">Clear</button>';
-    el.style.display = 'flex'; var c = $('ffp-ai-meet-clear'); if (c) c.onclick = clearSearch;
+    el.innerHTML = '<span class="cg-best">Coach Grant’s best matches' + (count != null ? ' (' + count + ')' : '') + '</span>' + summaryChips(intent).map(function (b) { return '<span class="cg-chip">' + esc(b) + '</span>'; }).join('') + '<button type="button" class="cg-clear" id="ffp-meet-find-clear">Clear</button>';
+    el.style.display = 'flex'; var c = $('ffp-meet-find-clear'); if (c) c.onclick = clearFind;
   }
-  function clearSearch() { activeIntent = null; var q = $('ffp-ai-meet-q'); if (q) q.value = ''; setSummary(null); try { MeetMove.render(); } catch (e) {} }
-  function runSearch() {
-    var q = $('ffp-ai-meet-q'), text = q ? q.value.trim() : '';
-    if (text.length < 2) { toast('Type what you are looking for', 'error'); return; }
-    var btn = $('ffp-ai-meet-go'); if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  function clearFind() { activeIntent = null; var q = $('meet-search'); if (q) q.value = ''; setSummary(null); try { MeetMove.search = ''; MeetMove.render(); } catch (e) {} }
+  function runFind() {
+    var q = $('meet-search'), text = q ? q.value.trim() : '';
+    if (text.length < 2) { activeIntent = null; setSummary(null); try { MeetMove.render(); } catch (e) {} return; }
     aiParse('meetup_search', text).then(function (r) {
-      if (!r.ok || !r.j || !r.j.intent) { activeIntent = null; try { MeetMove.search = lc(text); MeetMove.render(); } catch (e) {} setSummary(null); toast(r.status === 503 ? 'AI is off — showing keyword results' : 'Showing keyword results'); return; }
+      if (!r.ok || !r.j || !r.j.intent) { activeIntent = null; try { MeetMove.search = lc(text); MeetMove.render(); } catch (e) {} setSummary(null); if (r.status === 503) toast('Coach Grant is unavailable — showing keyword results'); return; }
       activeIntent = r.j.intent; try { MeetMove.tab = 'discover'; MeetMove.search = ''; } catch (e) {}
       var rows; try { rows = MeetMove.filtered(); } catch (e) { rows = []; } try { MeetMove.render(); } catch (e) {}
       setSummary(activeIntent, rows ? rows.length : null);
-    }).catch(function () { activeIntent = null; try { MeetMove.search = lc(text); MeetMove.render(); } catch (e) {} toast('Showing keyword results'); })
-      .then(function () { if (btn) { btn.disabled = false; btn.textContent = 'Search'; } });
+    }).catch(function () { activeIntent = null; try { MeetMove.search = lc(text); MeetMove.render(); } catch (e) {} });
   }
 
   function setField(id, val) { var el = $(id); if (el && val != null && val !== '') el.value = val; }
@@ -866,94 +865,61 @@
     if (d.age_from) setField('pmf-age-from', String(d.age_from)); if (d.age_to) setField('pmf-age-to', String(d.age_to));
     setField('pmf-desc', d.description);
   }
-  function runCompose(text) {
+  function runCompose(text, btn) {
     if (!text || text.trim().length < 3) { toast('Describe your meetup in a sentence', 'error'); return; }
-    toast('Drafting your meetup…');
+    if (btn) { btn.disabled = true; btn.textContent = 'Coach Grant is setting it up…'; }
     aiParse('meetup_compose', text.trim()).then(function (r) {
-      try { MeetMove.openPostForm(); } catch (e) {}
-      if (r.ok && r.j && r.j.draft) { setTimeout(function () { prefillForm(r.j.draft); toast('Review the details, then post', 'success'); }, 60); }
-      else { toast(r.status === 503 ? 'AI is off — fill it in below' : 'Fill in the details below'); }
-    }).catch(function () { try { MeetMove.openPostForm(); } catch (e) {} toast('Fill in the details below'); });
+      if (r.ok && r.j && r.j.draft) { prefillForm(r.j.draft); toast('Coach Grant filled it in — review & post', 'success'); }
+      else { toast(r.status === 503 ? 'Coach Grant is unavailable — fill it in below' : 'Fill in the details below'); }
+    }).catch(function () { toast('Fill in the details below'); })
+      .then(function () { if (btn) { btn.disabled = false; btn.textContent = 'Coach Grant, set it up'; } });
   }
-  function openComposePrompt() { var box = $('ffp-ai-compose-wrap'); if (!box) return; box.style.display = box.style.display === 'none' ? 'block' : 'none'; if (box.style.display === 'block') { var t = $('ffp-ai-compose-q'); if (t) t.focus(); } }
 
-  function speechSupported() { return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
-  function listen(targetId, micBtn) {
-    var SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) return;
-    var rec = new SR(); rec.lang = 'en-US'; rec.interimResults = false; rec.maxAlternatives = 1;
-    if (micBtn) micBtn.classList.add('rec');
-    rec.onresult = function (e) { var t = (e.results[0][0].transcript || '').trim(); var el = $(targetId); if (el) el.value = t; };
-    rec.onerror = function () { toast('Could not hear you — type instead'); };
-    rec.onend = function () { if (micBtn) micBtn.classList.remove('rec'); };
-    try { rec.start(); } catch (e) {}
-  }
+  // (No custom voice button — the device keyboard's own mic handles dictation in the text fields.)
 
   function styles() {
-    if ($('ffp-meetup-ai-css')) return;
-    var s = document.createElement('style'); s.id = 'ffp-meetup-ai-css';
+    if ($('ffp-meet-cg-css')) return;
+    var s = document.createElement('style'); s.id = 'ffp-meet-cg-css';
     s.textContent = [
-      '.ffpai-wrap{margin:0 0 12px;}',
-      '.ffpai-bar{display:flex;gap:8px;align-items:center;background:var(--bg-2,#0f1e2e);border:1px solid var(--border,rgba(43,168,224,.28));border-radius:12px;padding:8px 10px;}',
-      '.ffpai-spark{color:var(--blue,#2ba8e0);font-size:20px;flex:0 0 auto;}',
-      '.ffpai-input{flex:1;min-width:0;background:transparent;border:none;outline:none;color:var(--text,#e8eef4);font:inherit;font-size:14px;font-weight:600;}',
-      '.ffpai-input::placeholder{color:var(--muted,#8a99a8);font-weight:500;}',
-      '.ffpai-mic,.ffpai-go{flex:0 0 auto;border:none;border-radius:9px;cursor:pointer;font:inherit;font-weight:800;}',
-      '.ffpai-mic{background:transparent;color:var(--muted,#8a99a8);font-size:20px;padding:4px 6px;display:flex;align-items:center;}',
-      '.ffpai-mic.rec{color:#ef4444;animation:ffpaiPulse 1s infinite;}',
-      '@keyframes ffpaiPulse{50%{opacity:.4;}}',
-      '.ffpai-go{background:var(--blue,#2ba8e0);color:#04222f;font-size:13px;padding:8px 14px;}',
-      '.ffpai-go:disabled{opacity:.6;cursor:default;}',
-      '.ffpai-summary{display:none;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 2px 0;}',
-      '.ffpai-best{font-size:12px;font-weight:800;color:var(--blue,#2ba8e0);}',
-      '.ffpai-chip{font-size:11px;font-weight:700;color:var(--text,#e8eef4);background:rgba(43,168,224,.16);border:1px solid var(--border,rgba(43,168,224,.28));border-radius:100px;padding:3px 10px;text-transform:capitalize;}',
-      '.ffpai-clear{margin-left:auto;background:transparent;border:none;color:var(--muted,#8a99a8);font:inherit;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline;}',
-      '.ffpai-create{display:inline-flex;align-items:center;gap:7px;background:transparent;border:1px solid var(--border,rgba(43,168,224,.34));border-radius:10px;color:var(--blue,#2ba8e0);font:inherit;font-size:13px;font-weight:800;padding:9px 14px;cursor:pointer;margin:0 0 12px;}',
-      '.ffpai-create .material-icons{font-size:18px;}',
-      '.ffpai-compose{display:none;background:var(--bg-2,#0f1e2e);border:1px solid var(--border,rgba(43,168,224,.28));border-radius:12px;padding:10px;margin:0 0 14px;}',
-      '.ffpai-compose textarea{width:100%;background:var(--bg,#081420);border:1px solid var(--border,rgba(43,168,224,.28));border-radius:9px;color:var(--text,#e8eef4);font:inherit;font-size:14px;font-weight:500;padding:10px;resize:vertical;min-height:64px;}',
-      '.ffpai-compose-row{display:flex;gap:8px;align-items:center;margin-top:8px;}'
+      '.cg-summary{display:none;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 2px 4px;}',
+      '.cg-best{font-size:12px;font-weight:800;color:var(--blue,#2ba8e0);}',
+      '.cg-chip{font-size:11px;font-weight:700;color:var(--text,#e8eef4);background:rgba(43,168,224,.16);border:1px solid var(--border,rgba(43,168,224,.28));border-radius:100px;padding:3px 10px;text-transform:capitalize;}',
+      '.cg-clear{margin-left:auto;background:transparent;border:none;color:var(--muted,#8a99a8);font:inherit;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline;}'
     ].join('');
     document.head.appendChild(s);
   }
 
-  function injectUI() {
-    var panel = $('panel-meetups'); if (!panel || $('ffp-ai-meet-bar')) return;
-    styles(); var voice = speechSupported();
-    var search = document.createElement('div'); search.className = 'ffpai-wrap'; search.id = 'ffp-ai-meet-bar';
-    search.innerHTML = '<div class="ffpai-bar"><span class="material-icons ffpai-spark">auto_awesome</span>' +
-      '<input type="text" class="ffpai-input" id="ffp-ai-meet-q" placeholder="Find your meetup — e.g. beginner padel near me this weekend">' +
-      (voice ? '<button type="button" class="ffpai-mic" id="ffp-ai-meet-mic" aria-label="Speak"><span class="material-icons">mic</span></button>' : '') +
-      '<button type="button" class="ffpai-go" id="ffp-ai-meet-go">Search</button></div>' +
-      '<div class="ffpai-summary" id="ffp-ai-meet-summary"></div>';
-    var tabs = $('meet-tabs');
-    if (tabs && tabs.parentNode) tabs.parentNode.insertBefore(search, tabs); else panel.insertBefore(search, panel.firstChild);
-    $('ffp-ai-meet-go').onclick = runSearch;
-    var qIn = $('ffp-ai-meet-q'); if (qIn) qIn.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); runSearch(); } });
-    if (voice) { var mic = $('ffp-ai-meet-mic'); if (mic) mic.onclick = function () { listen('ffp-ai-meet-q', mic); }; }
-
-    var postBtn = panel.querySelector('.post-meetup-btn');
-    if (postBtn && postBtn.parentNode) {
-      var create = document.createElement('button'); create.type = 'button'; create.className = 'ffpai-create'; create.id = 'ffp-ai-create-btn';
-      create.innerHTML = '<span class="material-icons">auto_awesome</span>Create with AI'; create.onclick = openComposePrompt;
-      postBtn.parentNode.insertBefore(create, postBtn.nextSibling);
-      var compose = document.createElement('div'); compose.className = 'ffpai-compose'; compose.id = 'ffp-ai-compose-wrap';
-      compose.innerHTML = '<textarea id="ffp-ai-compose-q" placeholder="Describe it — e.g. 5-a-side football Saturday 6pm at Zabeel Park, 10 people, intermediate"></textarea>' +
-        '<div class="ffpai-compose-row">' + (voice ? '<button type="button" class="ffpai-mic" id="ffp-ai-compose-mic" aria-label="Speak"><span class="material-icons">mic</span></button>' : '') +
-        '<button type="button" class="ffpai-go" id="ffp-ai-compose-go" style="margin-left:auto;">Draft it</button></div>';
-      create.parentNode.insertBefore(compose, create.nextSibling);
-      $('ffp-ai-compose-go').onclick = function () { var t = $('ffp-ai-compose-q'); runCompose(t ? t.value : ''); };
-      if (voice) { var cmic = $('ffp-ai-compose-mic'); if (cmic) cmic.onclick = function () { listen('ffp-ai-compose-q', cmic); }; }
+  // Single "find" = the EXISTING #meet-search box (no second bar). The keyboard's own mic covers voice.
+  function enhanceFind() {
+    var q = $('meet-search'); if (!q || q._cgWired) return;
+    styles();
+    q.setAttribute('placeholder', 'Find your meetup — e.g. beginner padel near me this weekend');
+    if (!$('ffp-meet-find-summary')) {
+      var sum = document.createElement('div'); sum.className = 'cg-summary'; sum.id = 'ffp-meet-find-summary';
+      var host = (q.closest && (q.closest('.meet-filter-row') || q.closest('.panel-search'))) || q.parentNode;
+      if (host && host.parentNode) host.parentNode.insertBefore(sum, host.nextSibling); else if (host) host.appendChild(sum);
     }
+    q.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); runFind(); } });
+    q.addEventListener('input', function () { if (activeIntent) { activeIntent = null; setSummary(null); try { MeetMove.render(); } catch (e) {} } });
+    q._cgWired = true;
   }
 
+  // The "describe → Coach Grant fills the form" field lives INSIDE the Post-a-meetup modal (markup in the HTML).
+  function wireCompose() {
+    var btn = $('pm-describe-go'); if (!btn || btn._cgWired) return;
+    btn.onclick = function () { var t = $('pm-describe'); runCompose(t ? t.value : '', btn); };
+    btn._cgWired = true;
+  }
+
+  function boot() { if (window.MeetMove) installDecorator(); enhanceFind(); wireCompose(); }
   var tries = 0;
   (function waitReady() {
-    if (window.MeetMove && $('panel-meetups')) { installDecorator(); injectUI(); }
+    if (window.MeetMove && $('panel-meetups')) { boot(); }
     else if (tries++ < 120) { setTimeout(waitReady, 150); }
   })();
   document.addEventListener('click', function (e) {
     var t = e.target.closest && e.target.closest('[data-panel="panel-meetups"],[data-target="panel-meetups"]');
-    if (t) setTimeout(function () { installDecorator(); injectUI(); }, 120);
+    if (t) setTimeout(boot, 120);
   });
-  window.FFPMeetupAI = { scoreMeetup: scoreMeetup, rankAndFilter: rankAndFilter, version: 'v1' };
+  window.FFPMeetupAI = { scoreMeetup: scoreMeetup, rankAndFilter: rankAndFilter, version: 'v2' };
 })();
