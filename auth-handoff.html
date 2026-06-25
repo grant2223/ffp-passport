@@ -1,0 +1,94 @@
+<!doctype html>
+<!-- FFP · auth-handoff.html v1 (2026-06-25)
+     Cross-origin sign-in receiver on the DASHBOARD origin (ffppassport.com). The booking site
+     (findfitpeople.com) signs a partner up, gets a one-time `handoff_code`, and redirects here:
+         https://www.ffppassport.com/auth-handoff.html#code=<code>&next=<dashboard path>
+     We read the code from the URL #fragment, exchange it once at /api/auth/exchange {code} for the
+     real {jwt, refresh, member} session, persist it via FFPAuth (the Passport dashboards' auth store —
+     NOT supabase.auth.setSession), then redirect to the dashboard signed in. The code is single-purpose
+     and 60s-lived; the fragment is cleared immediately and never hits the network or history. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Signing you in — FFP</title>
+<link rel="icon" type="image/png" href="assets/ffp-emblem.png">
+<style>
+  :root{ --blue:#2ba8e0; --ink:#0e2531; --mut:#5b6770; --line:#e3e8ec; --bg:#f4f7f9; --bad:#c0392b; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+        font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:var(--ink); background:var(--bg); }
+  .card{ background:#fff; border:1px solid var(--line); border-radius:16px; padding:30px 26px; width:100%; max-width:380px; text-align:center; margin:18px; }
+  .logo{ height:30px; margin:0 auto 18px; display:block; }
+  .spin{ width:30px; height:30px; border:3px solid var(--line); border-top-color:var(--blue); border-radius:50%; animation:sp 1s linear infinite; margin:6px auto 14px; }
+  @keyframes sp{ to{ transform:rotate(360deg); } }
+  h1{ font-size:18px; font-weight:800; margin:0 0 6px; }
+  p{ color:var(--mut); font-size:14px; line-height:1.55; margin:0; }
+  a.btn{ display:inline-block; margin-top:16px; background:var(--blue); color:#fff; text-decoration:none; font-weight:700; font-size:14px; padding:11px 18px; border-radius:10px; }
+  .err h1{ color:var(--bad); }
+  .hide{ display:none; }
+</style>
+</head>
+<body>
+  <div class="card" id="card">
+    <img src="assets/ffp-logo-white.png?v=2" alt="FFP" class="logo" onerror="this.style.display='none'">
+    <div class="spin" id="spin"></div>
+    <h1 id="title">Signing you in…</h1>
+    <p id="msg">One moment — taking you to your partner dashboard.</p>
+    <a class="btn hide" id="cta" href="/login">Go to login</a>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/ffp-api-integration.js?v=12"></script>
+<script>
+(function () {
+  'use strict';
+  var API_BASE = 'https://ffp-passport-backend.vercel.app';
+
+  function fail(message) {
+    document.getElementById('card').classList.add('err');
+    var spin = document.getElementById('spin'); if (spin) spin.style.display = 'none';
+    document.getElementById('title').textContent = 'Sign-in link expired';
+    document.getElementById('msg').textContent = message || 'This sign-in link has expired or was already used. Please log in to continue.';
+    document.getElementById('cta').classList.remove('hide');
+  }
+
+  // Same-origin path only (defend against open-redirect via the `next` param).
+  function safeNext(n) {
+    if (!n || typeof n !== 'string') return '/ffp-provider-dashboard.html';
+    if (n.charAt(0) !== '/' || n.charAt(1) === '/' || n.indexOf('\\') !== -1) return '/ffp-provider-dashboard.html';
+    return n;
+  }
+
+  var params = new URLSearchParams((location.hash || '').replace(/^#/, ''));
+  var code = params.get('code');
+  var next = safeNext(params.get('next'));
+  // Clear the fragment immediately so the code never lingers in history / on screen.
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+
+  if (!code) { fail('This sign-in link is missing its code. Please log in.'); return; }
+
+  fetch(API_BASE + '/api/auth/exchange', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: code })
+  }).then(function (r) {
+    return r.json().then(function (j) { return { ok: r.ok, j: j }; });
+  }).then(function (res) {
+    if (!res.ok || !res.j || !res.j.jwt) { fail(); return; }
+    var data = res.j;
+    try {
+      if (window.FFPAuth) {
+        FFPAuth.setPersist(true);
+        if (FFPAuth.setJwt && data.jwt) FFPAuth.setJwt(data.jwt);
+        if (FFPAuth.setRefresh && data.refresh) FFPAuth.setRefresh(data.refresh);
+        if (FFPAuth.setMember && data.member) FFPAuth.setMember(data.member);
+      } else { fail('Could not start your session. Please log in.'); return; }
+    } catch (e) { fail('Could not start your session. Please log in.'); return; }
+    location.replace(data.redirect ? safeNext(data.redirect) : next);
+  }).catch(function () {
+    fail('We could not reach the server. Please log in.');
+  });
+})();
+</script>
+</body>
+</html>
