@@ -60,14 +60,14 @@
 
   function build() {
     injectStyles();
-    var fab = document.createElement('button'); fab.id = 'ffpa-fab'; fab.setAttribute('aria-label', 'FFP Assistant');
+    var fab = document.createElement('button'); fab.id = 'ffpa-fab'; fab.setAttribute('aria-label', 'FFP Coach');
     fab.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg><span class="dot"></span>';
     fab.onclick = toggle;
     document.body.appendChild(fab);
 
     var panel = document.createElement('div'); panel.id = 'ffpa-panel';
     panel.innerHTML =
-      '<div class="ffpa-head"><div><div class="t">FFP Assistant</div><div class="sub">Setup &amp; day-to-day help</div></div><button class="ffpa-x" aria-label="Close">&times;</button></div>' +
+      '<div class="ffpa-head"><div><div class="t">FFP Coach</div><div class="sub">Setup &amp; day-to-day help</div></div><button class="ffpa-x" aria-label="Close">&times;</button></div>' +
       '<div class="ffpa-body" id="ffpa-body"></div>' +
       '<div class="ffpa-foot"><textarea class="ffpa-in" id="ffpa-in" rows="1" placeholder="Ask anything about your account…"></textarea><button class="ffpa-send" id="ffpa-send" aria-label="Send">&#10148;</button></div>';
     document.body.appendChild(panel);
@@ -90,11 +90,11 @@
   function greet() {
     var pro = role() === 'pro';
     var name = (P().business_name || P().display_name || '').split(' ')[0];
-    var hi = 'Hi' + (name ? ' ' + name : '') + ' 👋 I’m your FFP Assistant. I can help you finish setting up' + (pro ? ' your coaching profile' : ' your business') + ' and handle day-to-day tasks. What would you like to do?';
+    var hi = 'Hi' + (name ? ' ' + name : '') + ' 👋 I’m your FFP Coach. I can help you finish setting up' + (pro ? ' your coaching profile' : ' your business') + ' and handle day-to-day tasks. What would you like to do?';
     pushAssistant(hi);
     var chips = pro
       ? ['Help me finish setup', 'Connect payments (Stripe)', 'Add a service', 'How do bookings work?']
-      : ['Help me finish setup', 'Connect payments (Stripe)', 'Add a class', 'What’s left to set up?'];
+      : ['Help me finish setup', 'Connect payments (Stripe)', 'Add a session', 'What’s left to set up?'];
     renderChips(chips);
   }
 
