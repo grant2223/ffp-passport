@@ -1,4 +1,4 @@
-/* FFP Assistant — shared in-dashboard agent UI (Partner + Professional). v1
+/* Grant — shared in-dashboard assistant UI (Partner + Professional). v1
    A floating launcher + slide-in chat. Detects role from window.FFP_PROVIDER, sends the conversation +
    light account context to the backend /api/agent/chat, renders the reply, and when the agent asks, opens
    the right screen via window.showPanel(panel). v1 guides / navigates / drafts — it does not change data. */
@@ -61,14 +61,14 @@
 
   function build() {
     injectStyles();
-    var fab = document.createElement('button'); fab.id = 'ffpa-fab'; fab.setAttribute('aria-label', 'FFP Coach');
+    var fab = document.createElement('button'); fab.id = 'ffpa-fab'; fab.setAttribute('aria-label', 'Ask Grant');
     fab.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg><span class="dot"></span>';
     fab.onclick = toggle;
     document.body.appendChild(fab);
 
     var panel = document.createElement('div'); panel.id = 'ffpa-panel';
     panel.innerHTML =
-      '<div class="ffpa-head"><div><div class="t">FFP Coach</div><div class="sub">Setup &amp; day-to-day help</div></div><button class="ffpa-x" aria-label="Close">&times;</button></div>' +
+      '<div class="ffpa-head"><div><div class="t">Grant</div><div class="sub">Grow your business — setup &amp; day-to-day</div></div><button class="ffpa-x" aria-label="Close">&times;</button></div>' +
       '<div class="ffpa-body" id="ffpa-body"></div>' +
       '<div class="ffpa-foot"><textarea class="ffpa-in" id="ffpa-in" rows="1" placeholder="Ask anything about your account…"></textarea><button class="ffpa-send" id="ffpa-send" aria-label="Send">&#10148;</button></div>';
     document.body.appendChild(panel);
@@ -91,7 +91,7 @@
   function greet() {
     var pro = role() === 'pro';
     var name = (P().business_name || P().display_name || '').split(' ')[0];
-    var hi = 'Hi' + (name ? ' ' + name : '') + ' 👋 I’m your FFP Coach. I can help you finish setting up' + (pro ? ' your coaching profile' : ' your business') + ' and handle day-to-day tasks. What would you like to do?';
+    var hi = 'Hi' + (name ? ' ' + name : '') + ' 👋 I’m Grant. I’m here to help you ' + (pro ? 'grow your coaching business and finish setting up your profile' : 'grow your business and promote your services') + ', plus handle the day-to-day. What would you like to do?';
     pushAssistant(hi);
     var chips = pro
       ? ['Help me finish setup', 'Connect payments (Stripe)', 'Add a service', 'How do bookings work?']
@@ -126,7 +126,7 @@
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, j: j }; }, function () { return { ok: false, status: r.status, j: null }; }); })
       .then(function (res) {
         busy = false;
-        if (res.status === 503) { pushAssistant('The assistant isn’t switched on yet — check back shortly.'); return; }
+        if (res.status === 503) { pushAssistant('Grant isn’t available right now — check back shortly.'); return; }
         if (!res.ok || !res.j || (!res.j.reply && !res.j.proposal)) { pushAssistant('Sorry, I had trouble there. Please try again.'); return; }
         if (res.j.reply) pushAssistant(res.j.reply);
         var nav = res.j.navigate;
