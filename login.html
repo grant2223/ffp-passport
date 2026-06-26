@@ -1,6 +1,11 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-  FFP PASSPORT — login.html v28
+  FFP PASSPORT — login.html v29
+  v29 (2026-06-26): Login look — (1) background de-blued to a FLAT neutral grey #edf0f2 (page + splash; was the
+  blue #f5f9fc→#e6eff5 gradient). (2) Role cards: ALL THREE are white rounded cards now, spaced 10px apart;
+  selected = blue border + blue-tinted shadow + blue title + arrow (hover lifts the shadow). (3) Lighter text —
+  title weight 800→600, sub weight 600→400 (lighter #8295a3). (4) On-select ✓ replaced with a chevron-RIGHT arrow
+  per card — muted by default, blue + nudged right when selected. (.pc-radio repurposed.)
   v28 (2026-06-26): Role cards DE-BOXED — removed the card borders/shadows/fill + the pill radios; now a clean
   borderless list (hairline dividers; selected = blue title + a ✓). Per the no-boxes/no-pills design rule.
   v27 (2026-06-26): Logo sized down ~75% (width 470px → 120px) + tighter gap to "Sign in as" (margin-bottom 32→16).
@@ -169,23 +174,25 @@
 *{margin:0;padding:0;box-sizing:border-box;}
 *::-webkit-scrollbar{display:none;width:0;height:0;}
 *{-ms-overflow-style:none;scrollbar-width:none;}
-html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#eaf1f6 !important;color:#102230;}
-.page{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px 100px;background:linear-gradient(180deg,#f5f9fc 0%,#e6eff5 100%);}
+html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#edf0f2 !important;color:#102230;}
+.page{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px 100px;background:#edf0f2;}
 .logo{text-align:center;margin-bottom:16px;}
 .logo img{width:min(120px,42%);height:auto;display:block;margin:0 auto;}
 .wrap{width:100%;max-width:400px;}
 .screen{display:none;}
 .screen.active{display:block;}
-.portal-card{background:transparent;border:none;border-bottom:1px solid #dbe6ee;border-radius:0;padding:18px 4px;display:flex;align-items:center;gap:14px;cursor:pointer;width:100%;margin:0;box-shadow:none;}
-.portal-card:last-of-type{border-bottom:none;}
-.portal-card:hover .pc-title{color:#1980AD;}
+.portal-card{background:#fff;border:1px solid #e7ecf0;border-radius:14px;padding:17px 16px;display:flex;align-items:center;gap:14px;cursor:pointer;width:100%;margin:0;box-shadow:0 1px 3px rgba(16,34,48,.04);transition:box-shadow .15s ease,border-color .15s ease;}
+.portal-card + .portal-card{margin-top:10px;}
+.portal-card:hover{box-shadow:0 3px 12px rgba(16,34,48,.08);}
+.portal-card.selected{border-color:#1980AD;box-shadow:0 3px 14px rgba(25,128,173,.14);}
 .portal-card.selected .pc-title{color:#1980AD;}
 .pc-icon{display:none;}
 .pc-text{flex:1;}
-.pc-title{font-size:16px;font-weight:800;margin-bottom:3px;color:#102230;}
-.pc-sub{font-size:12.5px;color:#637c8d;font-weight:600;}
-.pc-radio{width:22px;height:22px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#1980AD;font-size:20px;font-weight:900;opacity:0;transition:opacity .15s;}
-.portal-card.selected .pc-radio{opacity:1;}
+.pc-title{font-size:16px;font-weight:600;margin-bottom:3px;color:#102230;letter-spacing:-.1px;}
+.pc-sub{font-size:12.5px;color:#8295a3;font-weight:400;}
+.pc-radio{width:22px;height:22px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#c2d0da;opacity:1;transition:color .15s,transform .15s;}
+.portal-card:hover .pc-radio{color:#1980AD;}
+.portal-card.selected .pc-radio{color:#1980AD;transform:translateX(2px);}
 .field{margin-bottom:16px;}
 .field-label{font-size:10px;font-weight:800;color:#7c93a3;letter-spacing:1px;text-transform:uppercase;margin-bottom:7px;}
 .field-input{width:100%;background:#fff;border:1.5px solid #dde7ee;border-radius:12px;padding:14px 16px;font-size:16px;font-weight:600;color:#102230;font-family:'Montserrat',sans-serif;outline:none;transition:border-color .15s,box-shadow .15s;}/* 16px so iOS doesn't zoom-on-focus */
@@ -229,7 +236,7 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#eaf1f6
      returning member sees a loading animation, NOT the login form flashing, while we decide whether to
      auto-redirect them into the dashboard. The dashboard shows the same splash, so loading is seamless
      from launch → app. ffpHideSplash() reveals the login UI when we're NOT redirecting. -->
-<div id="ffp-splash" style="position:fixed;inset:0;z-index:2147483600;background:linear-gradient(180deg,#f5f9fc 0%,#e6eff5 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;transition:opacity .35s ease;">
+<div id="ffp-splash" style="position:fixed;inset:0;z-index:2147483600;background:#edf0f2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;transition:opacity .35s ease;">
   <img src="assets/ffp-logo.png?v=2" alt="FFP" width="150" style="display:block;height:auto;" onerror="this.style.display='none'">
   <div style="width:30px;height:30px;border:3px solid rgba(25,128,173,0.18);border-top-color:#1980AD;border-radius:50%;animation:ffpsplinspin .8s linear infinite;"></div>
   <div style="font-size:11px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#7c93a3;">Loading</div>
@@ -257,21 +264,21 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#eaf1f6
 <svg viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="2" width="22" height="22"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
 </div>
 <div class="pc-text"><div class="pc-title">FFP Passport</div><div class="pc-sub">Access your passport, connect and track</div></div>
-<div class="pc-radio">✓</div>
+<div class="pc-radio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></div>
 </div>
 <div class="portal-card" onclick="selectPortal(this,'provider')">
 <div class="pc-icon" style="background:rgba(34,197,94,.08);">
 <svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" width="22" height="22"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
 </div>
 <div class="pc-text"><div class="pc-title">Partner</div><div class="pc-sub">Manage your facility, promote your services</div></div>
-<div class="pc-radio">✓</div>
+<div class="pc-radio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></div>
 </div>
 <div class="portal-card" onclick="selectPortal(this,'professional')">
 <div class="pc-icon" style="background:rgba(139,92,246,.1);">
 <svg viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" width="22" height="22"><path d="M20 7h-3V5.5A2.5 2.5 0 0 0 14.5 3h-5A2.5 2.5 0 0 0 7 5.5V7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM9 5.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 .5.5V7H9z"/></svg>
 </div>
 <div class="pc-text"><div class="pc-title">Professional</div><div class="pc-sub">Build networks and manage clients</div></div>
-<div class="pc-radio">✓</div>
+<div class="pc-radio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></div>
 </div>
 <div style="height:20px;"></div>
 <button class="btn-primary" onclick="goToSignIn()">Continue</button>
