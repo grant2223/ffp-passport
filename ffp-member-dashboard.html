@@ -1,4 +1,7 @@
-<!-- FFP MEMBER DASHBOARD — v371 (2026-06-26)  [changelog trimmed to latest updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v372 (2026-06-26)  [changelog trimmed to latest updates; older history in git]
+     v372: CALORIE TRACKER — gave the "daily net kcal vs target" charts a light tinted panel back (.ct-week-chart =
+           rgba(43,168,224,.06), rounded, no border) on BOTH This Week and Last 30 Days (they share the class).
+           Everything else stays flat. CSS-only. FFP_BUILD 447→448.
      v371: CALORIE TRACKER DE-BOXED (Week + Month too). Flattened .ct-week-summary (gradient box → transparent),
            .ct-week-chart (tinted box → transparent), .ct-week-day-row (boxed → hairline-divided rows; is-today =
            yellow label), .ct-month-week-box (tinted tiles → flat; is-current = yellow label). Colour-coded numbers,
@@ -1562,10 +1565,10 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
 
 /* 7-day chart */
 .ct-week-chart {
-  background: transparent;
+  background: rgba(43,168,224,0.06);
   border: none;
-  border-radius: 0;
-  padding: 4px 0 14px;
+  border-radius: 14px;
+  padding: 16px 16px 14px;
   margin-bottom: 14px;
 }
 .ct-chart-title {
@@ -8394,7 +8397,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '447';
+  const FFP_BUILD = '448';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
