@@ -1,4 +1,12 @@
-<!-- FFP MEMBER DASHBOARD — v368 (2026-06-26)  [changelog trimmed to latest updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v369 (2026-06-26)  [changelog trimmed to latest updates; older history in git]
+     v369: CALORIE TRACKER — (1) "Describe a meal" → inline "Tell me what you had" (AI Coach style: .coach-input +
+           .coach-fill-btn "Add it") placed directly under the Food today header → CalorieTracker.describeInline
+           (same /api/ai/parse food flow as the old modal, no popup). (2) The other 5 entry options (Food, Scan,
+           Meal, Quick, Copy day) are now a row of icons (.ct-icon-row). (3) NEW "Meal Planner" tab (#ct-planner-view):
+           ask Coach for a nutrition plan → CalorieTracker.generatePlan → backend POST /api/nutrition/plan (Haiku;
+           returns {title,summary,daily_kcal,protein/carbs/fat_g,meals[],tips[]}) rendered as macros + meals + tips.
+           core ?v=8→9 (planner tab switch), loader changed (FFP_BUILD bust). Backend index.js += /api/nutrition/plan.
+           FFP_BUILD 444→445.
      v368: AI COACH + PASSPORT POLISH. (1) "AI Workout" renamed to "AI Coach" (nav + panel header + sub).
            (2) Passport "Your passport · how you're using it" → a "Your Trends" TILE; the dir + sparkline now sit on
            a light blue-tinted rounded panel (bg rgba(43,168,224,.06)). (3) Top Activities + Top Places DE-BOXED
@@ -1268,6 +1276,22 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
 .ct-add-btn.primary { background: var(--yellow); color: #10202b; }
 .ct-add-btn.secondary { background: rgba(43,168,224,0.10); color: var(--text); border: 1px solid var(--border-mid); }
 .ct-add-btn.secondary:hover { border-color: var(--blue); }
+/* Row of 5 icon entry options (under the AI Coach "Tell me what you had" input) */
+.ct-icon-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 14px; }
+.ct-icon-row button { display: flex; flex-direction: column; align-items: center; gap: 5px; background: rgba(43,168,224,0.06); border: 1px solid var(--border-mid); border-radius: 12px; padding: 11px 4px; cursor: pointer; font-family: inherit; color: var(--text); transition: border-color .15s; }
+.ct-icon-row button:hover { border-color: var(--blue); }
+.ct-icon-row button .material-icons { font-size: 21px; color: var(--blue); }
+.ct-icon-row button span:last-child { font-size: 10.5px; font-weight: 700; letter-spacing: .2px; color: var(--muted); }
+/* Meal Planner tab */
+.ct-planner-meal { border: 1px solid var(--border); border-radius: 12px; padding: 13px 15px; margin-bottom: 10px; }
+.ct-planner-meal h4 { margin: 0 0 6px; font-size: 14px; font-weight: 800; color: var(--text); display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ct-planner-meal h4 .kc { font-size: 12px; font-weight: 700; color: var(--blue); }
+.ct-planner-meal ul { margin: 0; padding-left: 18px; }
+.ct-planner-meal li { font-size: 13px; color: var(--text); line-height: 1.6; }
+.ct-planner-macros { display: flex; gap: 10px; margin: 4px 0 16px; }
+.ct-planner-macros > div { flex: 1; text-align: center; background: rgba(43,168,224,0.06); border-radius: 12px; padding: 12px 6px; }
+.ct-planner-macros .v { font-size: 19px; font-weight: 800; color: var(--text); }
+.ct-planner-macros .l { font-size: 10px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; color: var(--muted); margin-top: 3px; }
 .fp-tabs { display: flex; gap: 26px; padding: 14px 22px 2px; }
 .fp-tab { background: none; border: none; font-family: inherit; font-size: 20px; font-weight: 800; color: var(--muted); padding: 0 0 12px; cursor: pointer; }
 .fp-tab.active { color: var(--blue); border-bottom: 2px solid var(--blue); }
@@ -5130,6 +5154,15 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
       <button class="tabs-underline-btn active" data-ct-tab="today">Today</button>
       <button class="tabs-underline-btn" data-ct-tab="week">This Week</button>
       <button class="tabs-underline-btn" data-ct-tab="month">Last 30 Days</button>
+      <button class="tabs-underline-btn" data-ct-tab="planner">Meal Planner</button>
+    </div>
+
+    <!-- ============ MEAL PLANNER VIEW (ask Coach for a nutrition plan) ============ -->
+    <div id="ct-planner-view" style="display:none;">
+      <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800;color:var(--text);margin:2px 0 8px;"><span class="material-icons" style="font-size:16px;color:var(--blue);">auto_awesome</span>Ask Coach for a nutrition plan<span style="color:#8a99a8;font-weight:600;font-size:11px;">— tell me your goal</span></div>
+      <textarea id="ct-plan-input" class="coach-input" placeholder="e.g. high-protein plan for fat loss at ~2,000 kcal, no pork, I train 4x a week"></textarea>
+      <button type="button" id="ct-plan-btn" class="coach-fill-btn" onclick="CalorieTracker.generatePlan&&CalorieTracker.generatePlan()"><span class="material-icons">auto_awesome</span>Build my plan</button>
+      <div id="ct-plan-result" style="margin-top:18px;"></div>
     </div>
     
     <!-- ============ TODAY VIEW ============ -->
@@ -5197,17 +5230,18 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
           <div class="ct-section-title">Food today</div>
           <div class="ct-section-total" id="ct-food-total">0 kcal eaten</div>
         </div>
-        <!-- v14 — four quick actions: Food (picker), Scan (barcode), Meal (builder), Quick add (manual) -->
-        <div class="ct-add-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-          <button class="ct-add-btn primary" onclick="CalorieTracker.openFoodPicker()"><span class="material-icons">add</span>Food</button>
-          <button class="ct-add-btn secondary" onclick="CalorieTracker.openBarcodeScanner()"><span class="material-icons">qr_code_scanner</span>Scan</button>
-          <button class="ct-add-btn secondary" onclick="FFPMyMeals.openBuilder()"><span class="material-icons">add</span>Meal</button>
-          <button class="ct-add-btn secondary" onclick="CalorieTracker.openQuickAdd(false)"><span class="material-icons">bolt</span>Quick add</button>
+        <!-- AI Coach: tell me what you had → parse → add (matches AI Coach assistant look) -->
+        <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800;color:var(--text);margin:2px 0 8px;"><span class="material-icons" style="font-size:16px;color:var(--blue);">auto_awesome</span>Tell me what you had<span style="color:#8a99a8;font-weight:600;font-size:11px;">— I’ll add it</span></div>
+        <textarea id="ct-ai-inline" class="coach-input" placeholder="e.g. 2 eggs, 2 toast and a flat white"></textarea>
+        <button type="button" id="ct-ai-inline-btn" class="coach-fill-btn" onclick="CalorieTracker.describeInline&&CalorieTracker.describeInline()"><span class="material-icons">auto_awesome</span>Add it</button>
+        <!-- the other entry options as a row of icons -->
+        <div class="ct-icon-row">
+          <button type="button" onclick="CalorieTracker.openFoodPicker()"><span class="material-icons">restaurant</span><span>Food</span></button>
+          <button type="button" onclick="CalorieTracker.openBarcodeScanner()"><span class="material-icons">qr_code_scanner</span><span>Scan</span></button>
+          <button type="button" onclick="FFPMyMeals.openBuilder()"><span class="material-icons">lunch_dining</span><span>Meal</span></button>
+          <button type="button" onclick="CalorieTracker.openQuickAdd(false)"><span class="material-icons">bolt</span><span>Quick</span></button>
+          <button type="button" onclick="CalorieTracker.openCopyDay()"><span class="material-icons">content_copy</span><span>Copy day</span></button>
         </div>
-        <!-- v15 — describe a meal in natural language (AI parses → adds the foods) -->
-        <button onclick="CalorieTracker.openDescribe()" style="width:100%;margin-top:10px;padding:12px;border-radius:10px;border:1px solid var(--border-mid);background:rgba(43,168,224,0.06);color:var(--blue);font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><span class="material-icons" style="font-size:18px;">auto_awesome</span>Describe a meal</button>
-        <!-- v12 — clone a previous day's food into the day you're viewing -->
-        <button onclick="CalorieTracker.openCopyDay()" style="width:100%;margin-top:8px;padding:10px;border-radius:10px;border:1px dashed var(--border-mid);background:transparent;color:var(--muted);font-size:12.5px;font-weight:700;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><span class="material-icons" style="font-size:16px;">content_copy</span>Copy a previous day</button>
         <div id="ct-meals">
           <div class="meal-section" data-meal="breakfast">
             <div class="meal-section-head">
@@ -8353,7 +8387,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '444';
+  const FFP_BUILD = '445';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -10014,7 +10048,7 @@ function fmtPrDate(iso) {
 <!-- Milestone badge library — assets/ffp-milestone-badges.js (window.FFPMSBadges). DEFER: only used by the lazy
      Milestones render long after load, so it must never block boot. Bump ?v on change. -->
 <script defer src="assets/ffp-milestone-badges.js?v=6"></script>
-<script defer src="assets/ffp-calorie-tracker-core.js?v=8"></script>
+<script defer src="assets/ffp-calorie-tracker-core.js?v=9"></script>
 <script>
 
 function closePrEditIfBackdrop(e) { if (e.target.id === 'pr-edit-backdrop') FitnessStats.closePrEdit(); }
