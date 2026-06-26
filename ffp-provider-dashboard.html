@@ -1,10 +1,18 @@
-<!-- FFP PROVIDER DASHBOARD — v68 (2026-06-26)
+<!-- FFP PROVIDER DASHBOARD — v69 (2026-06-26)
+     v69: CHECK-INS panel relaid out — two columns: left "check-in" column (venue QR + session check-in card),
+          right side column "Latest check-ins" (the #ci-roster, sticky). New .checkin-layout/.checkin-side CSS;
+          collapses to one column under 920px. Venue QR loader → v3 (?v=6): injects into #checkin-left top.
+     ----
+     v68 (2026-06-26)
      v68: OVERVIEW rebuilt to owner-analytics layout (matches admin display). provOverviewStats now renders:
           (1) hero KPI row — Revenue·month / Active members·7d (+new) / Check-ins·7d (+trend ▲▼) / Members at risk;
           (2) charts row — Revenue·last 12 weeks (bar) + Check-ins·last 7 days (line);
           (3) Most popular sessions·30d (horizontal bar); (4) Today card (Classes/Appointments/Bookings/No-shows
-          + appointments-by-coach) and Needs-attention card (lapsing members from at_risk_list, "View" → members).
-          Backed by provider_overview RPC v4 (added revenue_by_week[12], at_risk_list[6]). Inline JS = HTML is the bust.
+          + appointments-by-coach), Needs-attention (lapsing members from at_risk_list, "View" → members),
+          Class fill rate·30d (color-coded bars: green ≥70 / amber ≥40 / red <40, from class_fill), and
+          Expiring memberships·next 30d (from expiring_soon, red ≤7 days).
+          Backed by provider_overview RPC v5 (revenue_by_week[12], at_risk_list[6], class_fill[8], expiring_soon[6]).
+          Inline JS = HTML is the bust.
      ----
      v67 (2026-06-13)
      v67: REVIEWS — Overview "Your rating" now shows each review's session+coach context, the type-specific
@@ -316,7 +324,7 @@
 <script src="ffp-provider-quests-loader.js?v=5"></script>
 <!-- Provider quest CREATION (#quests P1): "Your quests" card + create/edit form at the top of the Quests panel -> provider_save_quest RPC. -->
 <script src="ffp-provider-quest-create-loader.js?v=2"></script>
-<script src="ffp-provider-venue-qr-loader.js?v=5"></script>
+<script src="ffp-provider-venue-qr-loader.js?v=6"></script>
 <!-- ffp-provider-quest-analytics-loader.js reference removed (v40): that file does not exist in the repo,
      so it 404'd → returned the HTML fallback → "Unexpected token '<'" console error on every load. -->
 <!-- Feedback widget (shared) -> public.feedback -> admin Feedback panel -->
@@ -1440,6 +1448,16 @@ a { color: var(--ffp-blue); text-decoration: none; }
 
 .checkin-actions {
   display: flex; gap: 10px; margin-top: 18px; justify-content: center;
+}
+
+/* Check-ins panel: check-in on the left, latest check-ins as a side column */
+.checkin-layout { display: grid; grid-template-columns: 1.7fr 1fr; gap: 18px; align-items: start; margin-top: 4px; }
+.checkin-main { min-width: 0; }
+.checkin-side .checkin-card { text-align: left; margin-bottom: 0; padding: 22px 22px; position: sticky; top: 80px; }
+.checkin-side .checkin-title { margin-bottom: 14px; }
+@media (max-width: 920px) {
+  .checkin-layout { grid-template-columns: 1fr; }
+  .checkin-side .checkin-card { position: static; }
 }
 
 .checkin-list { display: flex; flex-direction: column; gap: 10px; }
@@ -2904,17 +2922,27 @@ a { color: var(--ffp-blue); text-decoration: none; }
         <div class="ph">Check-ins</div>
         <div class="psub">Check members into a session — scan their Passport QR, enter their member code, or pick from your members.</div>
 
-        <div class="checkin-card" id="session-checkin-card">
-          <div class="checkin-title">Check in to a session</div>
-          <div class="checkin-sub">Pick the session, then scan the member's QR or type their member code. Or pick from your members.</div>
-          <select class="select" id="ci-session" style="margin:8px 0;" onchange="window.ffpSessionRoster&&ffpSessionRoster()"></select>
-          <input class="code-input" id="ci-member-code" maxlength="16" placeholder="MEMBER CODE" oninput="this.value=this.value.toUpperCase()">
-          <div class="checkin-actions">
-            <button class="btn btn-ghost" onclick="window.ffpSessionScan&&ffpSessionScan()"><span class="ms">qr_code_scanner</span> Scan QR</button>
-            <button class="btn btn-sec" onclick="window.ffpSessionPickMember&&ffpSessionPickMember()"><span class="ms">groups</span> My members</button>
-            <button class="btn btn-pri" onclick="window.ffpSessionCheckin&&ffpSessionCheckin()"><span class="ms">check</span> Check in</button>
+        <div class="checkin-layout">
+          <div class="checkin-main" id="checkin-left">
+            <!-- #ffp-venue-qr is injected here by ffp-provider-venue-qr-loader.js -->
+            <div class="checkin-card" id="session-checkin-card">
+              <div class="checkin-title">Check in to a session</div>
+              <div class="checkin-sub">Pick the session, then scan the member's QR or type their member code. Or pick from your members.</div>
+              <select class="select" id="ci-session" style="margin:8px 0;" onchange="window.ffpSessionRoster&&ffpSessionRoster()"></select>
+              <input class="code-input" id="ci-member-code" maxlength="16" placeholder="MEMBER CODE" oninput="this.value=this.value.toUpperCase()">
+              <div class="checkin-actions">
+                <button class="btn btn-ghost" onclick="window.ffpSessionScan&&ffpSessionScan()"><span class="ms">qr_code_scanner</span> Scan QR</button>
+                <button class="btn btn-sec" onclick="window.ffpSessionPickMember&&ffpSessionPickMember()"><span class="ms">groups</span> My members</button>
+                <button class="btn btn-pri" onclick="window.ffpSessionCheckin&&ffpSessionCheckin()"><span class="ms">check</span> Check in</button>
+              </div>
+            </div>
           </div>
-          <div id="ci-roster" style="margin-top:12px;"></div>
+          <aside class="checkin-side">
+            <div class="checkin-card">
+              <div class="checkin-title">Latest check-ins</div>
+              <div id="ci-roster"></div>
+            </div>
+          </aside>
         </div>
 
         <!-- "Recent check-ins" was the deals/claims feed (removed). Kept hidden so the loader has its target; repurpose to recent session check-ins later. -->
@@ -3583,9 +3611,16 @@ async function provOverviewStats() {
       card(miniHdr('Check-ins · last 7 days') + '<div style="height:180px;position:relative;"><canvas id="ovc-checkins"></canvas></div>') +
       '</div>';
 
-    // ---- 3. MOST POPULAR SESSIONS ----
+    // ---- 3. CLASS FILL RATE + MOST POPULAR SESSIONS ----
+    var fills = Array.isArray(d.class_fill) ? d.class_fill : [];
     var tops = Array.isArray(d.top_sessions) ? d.top_sessions : [];
-    var popRow = tops.length ? '<div style="margin-top:14px;">' + card(miniHdr('Most popular sessions · 30 days') + '<div style="height:' + (tops.length * 38 + 10) + 'px;position:relative;"><canvas id="ovc-sessions"></canvas></div>') + '</div>' : '';
+    var fillCard = fills.length
+      ? card(miniHdr('Class fill rate · 30 days') + '<div style="height:' + (fills.length * 38 + 10) + 'px;position:relative;"><canvas id="ovc-fill"></canvas></div>')
+      : card(miniHdr('Class fill rate · 30 days') + '<div style="font-size:12.5px;color:var(--ffp-text-muted);">Set a capacity on your sessions to see fill rates.</div>');
+    var popCard = tops.length
+      ? card(miniHdr('Most popular sessions · 30 days') + '<div style="height:' + (tops.length * 38 + 10) + 'px;position:relative;"><canvas id="ovc-sessions"></canvas></div>')
+      : '';
+    var popRow = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-top:14px;">' + fillCard + popCard + '</div>';
 
     // ---- 4. TODAY + NEEDS ATTENTION ----
     var coaches = Array.isArray(d.appts_today_by_coach) ? d.appts_today_by_coach : [];
@@ -3608,8 +3643,19 @@ async function provOverviewStats() {
           '</div>';
       }).join('') : '<div style="margin-top:8px;font-size:12.5px;color:var(--ffp-text-muted);">No members lapsing right now — nice work.</div>');
 
-    var twoCol = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-top:14px;">' +
-      card(todayInner) + card(riskInner) + '</div>';
+    var exps = Array.isArray(d.expiring_soon) ? d.expiring_soon : [];
+    var expInner = miniHdr('Expiring memberships · next 30 days') +
+      (exps.length ? exps.map(function (m) {
+        var soon = (m.days || 0) <= 7;
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--ffp-border);">' +
+          '<div><div style="font-size:13.5px;font-weight:700;color:var(--ffp-text);">' + esc(m.name) + '</div>' +
+          '<div style="font-size:11.5px;color:var(--ffp-text-muted);margin-top:1px;">' + esc(m.plan || 'Membership') + '</div></div>' +
+          '<div style="font-size:12px;font-weight:800;color:' + (soon ? '#dc2626' : '#1980AD') + ';white-space:nowrap;">' + (m.days || 0) + 'd</div>' +
+          '</div>';
+      }).join('') : '<div style="margin-top:8px;font-size:12.5px;color:var(--ffp-text-muted);">No memberships expiring in the next 30 days.</div>');
+
+    var twoCol = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:14px;">' +
+      card(todayInner) + card(riskInner) + card(expInner) + '</div>';
 
     grid.innerHTML = heroRow + chartsRow + popRow + twoCol;
 
@@ -3621,6 +3667,8 @@ async function provOverviewStats() {
       if (cr) window._ovCharts.push(new Chart(cr, { type: 'bar', data: { labels: revLabels, datasets: [{ data: rev, backgroundColor: '#1980AD', borderRadius: 5, maxBarThickness: 26 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function (x) { return 'AED ' + Number(x.raw).toLocaleString(); } } } }, scales: { y: { beginAtZero: true, ticks: { color: '#566069', callback: function (v) { return v >= 1000 ? (v / 1000) + 'k' : v; } }, grid: { color: gridCol } }, x: { ticks: { color: '#566069', maxRotation: 0, autoSkip: true, maxTicksLimit: 6 }, grid: { display: false } } } } }));
       var c1 = document.getElementById('ovc-checkins');
       if (c1) window._ovCharts.push(new Chart(c1, { type: 'line', data: { labels: dayLabels, datasets: [{ data: byDay, borderColor: '#1980AD', backgroundColor: 'rgba(25,128,173,0.12)', borderWidth: 2, tension: .35, fill: true, pointRadius: 3, pointBackgroundColor: '#1980AD' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0, color: '#566069' }, grid: { color: gridCol } }, x: { ticks: { color: '#566069' }, grid: { display: false } } } } }));
+      var cf = document.getElementById('ovc-fill');
+      if (cf) window._ovCharts.push(new Chart(cf, { type: 'bar', data: { labels: fills.map(function (f) { return f.title; }), datasets: [{ data: fills.map(function (f) { return f.fill || 0; }), backgroundColor: fills.map(function (f) { var v = f.fill || 0; return v >= 70 ? '#16a34a' : (v >= 40 ? '#d97706' : '#dc2626'); }), borderRadius: 6, maxBarThickness: 22 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function (x) { var f = fills[x.dataIndex] || {}; return (x.raw) + '% full (' + (f.present || 0) + '/' + (f.cap || 0) + ')'; } } } }, scales: { x: { beginAtZero: true, max: 100, ticks: { color: '#566069', callback: function (v) { return v + '%'; } }, grid: { color: gridCol } }, y: { ticks: { color: '#0e2531', font: { weight: '700' } }, grid: { display: false } } } } }));
       var c2 = document.getElementById('ovc-sessions');
       if (c2) window._ovCharts.push(new Chart(c2, { type: 'bar', data: { labels: tops.map(function (t) { return t.title; }), datasets: [{ data: tops.map(function (t) { return t.count || 0; }), backgroundColor: '#1980AD', borderRadius: 6, maxBarThickness: 22 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0, color: '#566069' }, grid: { color: gridCol } }, y: { ticks: { color: '#0e2531', font: { weight: '700' } }, grid: { display: false } } } } }));
     }
