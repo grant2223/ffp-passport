@@ -743,6 +743,77 @@
       .catch(function () { if (btn) { btn.disabled = false; btn.textContent = 'Add foods'; } if (window.showToast) showToast('Network error — try again', 'error'); });
   }
 
+  // Inline "Tell me what you had" (Today tab) — same parse + add as the modal, no popup.
+  CalorieTracker.describeInline = function () {
+    var ta = document.getElementById('ct-ai-inline'); var txt = (ta && ta.value || '').trim();
+    if (txt.length < 2) { if (window.showToast) showToast('Tell me what you had first', 'error'); return; }
+    var btn = document.getElementById('ct-ai-inline-btn');
+    var idle = '<span class="material-icons">auto_awesome</span>Add it';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-icons">hourglass_empty</span>Adding…'; }
+    fetch(FOOD_API + '/api/ai/parse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'food', text: txt }) })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, j: j }; }, function () { return { ok: false, status: r.status, j: null }; }); })
+      .then(function (res) {
+        if (btn) { btn.disabled = false; btn.innerHTML = idle; }
+        if (res.status === 503) { if (window.showToast) showToast('Coach isn’t switched on yet', 'error'); return; }
+        if (!res.ok || !res.j || !res.j.items || !res.j.items.length) { if (window.showToast) showToast('Couldn’t read that — try rephrasing', 'error'); return; }
+        var bucket = CalorieTracker.autoBucket ? CalorieTracker.autoBucket() : 'snacks';
+        var n = 0;
+        res.j.items.forEach(function (it) {
+          var item = { free: true, name: it.qty ? (it.name + ' (' + it.qty + ')') : it.name, kcal: it.kcal, p: it.protein_g, c: it.carbs_g, f: it.fat_g };
+          if (!CalorieTracker.meals[bucket]) CalorieTracker.meals[bucket] = [];
+          CalorieTracker.meals[bucket].push(item);
+          insertFreeLog(item, bucket);
+          n++;
+        });
+        if (typeof CalorieTracker.render === 'function') CalorieTracker.render();
+        if (ta) ta.value = '';
+        if (window.showToast) showToast('Added ' + n + ' item' + (n === 1 ? '' : 's') + ' to ' + bucket);
+      })
+      .catch(function () { if (btn) { btn.disabled = false; btn.innerHTML = idle; } if (window.showToast) showToast('Network error — try again', 'error'); });
+  };
+
+  // Meal Planner — ask Coach for a structured nutrition plan (backend /api/nutrition/plan).
+  CalorieTracker.generatePlan = function () {
+    var ta = document.getElementById('ct-plan-input'); var txt = (ta && ta.value || '').trim();
+    if (txt.length < 3) { if (window.showToast) showToast('Tell me your goal first', 'error'); return; }
+    var btn = document.getElementById('ct-plan-btn'); var out = document.getElementById('ct-plan-result');
+    var idle = '<span class="material-icons">auto_awesome</span>Build my plan';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-icons">hourglass_empty</span>Building…'; }
+    if (out) out.innerHTML = '<div style="font-size:13px;color:var(--muted);">Coach is putting your plan together…</div>';
+    fetch(FOOD_API + '/api/nutrition/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: txt }) })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, j: j }; }, function () { return { ok: false, status: r.status, j: null }; }); })
+      .then(function (res) {
+        if (btn) { btn.disabled = false; btn.innerHTML = idle; }
+        if (res.status === 503) { if (out) out.innerHTML = '<div style="font-size:13px;color:var(--muted);">Coach isn’t switched on yet.</div>'; return; }
+        if (!res.ok || !res.j || !res.j.plan) { if (out) out.innerHTML = '<div style="font-size:13px;color:var(--muted);">Couldn’t build that — try rephrasing your goal.</div>'; return; }
+        renderPlan(res.j.plan);
+      })
+      .catch(function () { if (btn) { btn.disabled = false; btn.innerHTML = idle; } if (out) out.innerHTML = '<div style="font-size:13px;color:var(--muted);">Network error — try again.</div>'; });
+  };
+  function renderPlan(p) {
+    var out = document.getElementById('ct-plan-result'); if (!out) return;
+    var esc = (window.escHtml) ? window.escHtml : function (s) { return String(s == null ? '' : s); };
+    var h = '';
+    if (p.title) h += '<div style="font-size:17px;font-weight:800;color:var(--text);margin-bottom:4px;">' + esc(p.title) + '</div>';
+    if (p.summary) h += '<div style="font-size:13.5px;color:var(--text);line-height:1.6;margin-bottom:14px;">' + esc(p.summary) + '</div>';
+    h += '<div class="ct-planner-macros">' +
+      '<div><div class="v">' + (Math.round(p.daily_kcal) || 0) + '</div><div class="l">kcal</div></div>' +
+      '<div><div class="v">' + (Math.round(p.protein_g) || 0) + 'g</div><div class="l">Protein</div></div>' +
+      '<div><div class="v">' + (Math.round(p.carbs_g) || 0) + 'g</div><div class="l">Carbs</div></div>' +
+      '<div><div class="v">' + (Math.round(p.fat_g) || 0) + 'g</div><div class="l">Fat</div></div>' +
+      '</div>';
+    (p.meals || []).forEach(function (m) {
+      h += '<div class="ct-planner-meal"><h4>' + esc(m.meal || 'Meal') + (m.kcal ? '<span class="kc">' + Math.round(m.kcal) + ' kcal</span>' : '') + '</h4>' +
+        '<ul>' + (m.items || []).map(function (it) { return '<li>' + esc(it) + '</li>'; }).join('') + '</ul></div>';
+    });
+    if (p.tips && p.tips.length) {
+      h += '<div style="margin-top:14px;font-size:13px;color:var(--text);line-height:1.65;">' +
+        '<div style="font-weight:800;color:var(--blue);font-size:11px;letter-spacing:.6px;text-transform:uppercase;margin-bottom:6px;">Coach tips</div>' +
+        p.tips.map(function (t) { return '<div style="display:flex;gap:7px;margin-bottom:5px;"><span class="material-icons" style="font-size:15px;color:var(--blue);flex:0 0 auto;">check_circle</span><span>' + esc(t) + '</span></div>'; }).join('') + '</div>';
+    }
+    out.innerHTML = h;
+  }
+
   // ============ FOOD DATABASE (OpenFoodFacts) + COPY-A-DAY (v12) ============
   var FOOD_API = 'https://ffp-passport-backend.vercel.app';
   var _offTimer = null, _offSeq = 0;
