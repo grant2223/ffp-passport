@@ -1,4 +1,8 @@
 <!-- FFP MEMBER DASHBOARD — v361 (2026-06-22)  [changelog trimmed to latest 3 updates; older history in git]
+     v365: PASSPORT TREND + EMAIL VERIFIED. (1) New "Your trend" card under the World Map — this-week vs last-week
+           activity, day-streak, an 8-week sparkline + a Coach Grant tip (renderTrend(), all-time from global LOGS).
+           (2) Profile email card shows a Verified ✓ status (members.verified; backend /api/auth/signin sets it on a
+           successful email-code sign-in). FFP_BUILD 440→441.
      v364: MEETUP "COACH GRANT" — reworked the over-built Meetup AI. ONE search box now (the existing #meet-search IS
            the smart "find" — removed the duplicate bar). "Describe it → fill the form" now lives INSIDE the
            Post-a-meetup modal (pm-describe; was a separate Create-with-AI button). Removed the custom voice mic (the
@@ -4546,6 +4550,22 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     <button class="time-chip" data-range="year">This year</button>
     <button class="time-chip active" data-range="all">All time</button>
   </div>
+
+  <!-- YOUR TREND (v365) — this week vs last + streak + sparkline + Coach Grant tip -->
+  <div class="card-block" id="trend-card" style="display:none;">
+    <div class="card-head">
+      <div class="card-head-title"><span class="material-icons card-head-icon">insights</span><h3>Your trend</h3></div>
+      <span class="card-head-sub" id="trend-streak">0-day streak</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;padding:2px 2px 0;">
+      <div style="flex:0 0 auto;text-align:left;">
+        <div id="trend-dir" style="font-size:22px;font-weight:900;line-height:1;color:var(--muted);">—</div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin-top:4px;">vs last week</div>
+      </div>
+      <div id="trend-spark" style="flex:1;min-width:0;height:38px;"></div>
+    </div>
+    <div id="trend-tip" style="font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:10px;display:flex;gap:6px;align-items:flex-start;"></div>
+  </div>
   
   <!-- ═══ YOUR JOURNEY MAP (Leaflet) — World › Country › City ═══ -->
   <style>
@@ -7250,10 +7270,43 @@ function renderAll() {
   const journeyLogs = getLocationLogs();   // location only — headline journey stats ignore the passport lens
   renderPassportPicker();
   renderStats(journeyLogs);
+  renderTrend();
   renderActivities(logs);
   renderVenues(logs);
   renderConnections();
   if (window.JourneyMap) JourneyMap.render();
+}
+
+// v365 — "Your trend" card under the map: this-week vs last-week activity, streak, 8-week sparkline + Coach Grant tip.
+// All-time from the global LOGS (independent of the time-range filter), same basis as the streak.
+function renderTrend() {
+  var card = document.getElementById('trend-card'); if (!card) return;
+  var logs = (typeof LOGS !== 'undefined') ? LOGS : [];
+  if (!logs.length) { card.style.display = 'none'; return; }
+  var weeks = [0, 0, 0, 0, 0, 0, 0, 0];
+  logs.forEach(function (l) { var w = Math.floor((l.daysAgo || 0) / 7); if (w >= 0 && w < 8) weeks[w]++; });
+  var thisW = weeks[0], lastW = weeks[1];
+  var sset = {}; logs.forEach(function (l) { sset[l.daysAgo] = 1; });
+  var streak = 0, sd = sset[0] ? 0 : (sset[1] ? 1 : -1); if (sd >= 0) { while (sset[sd]) { streak++; sd++; } }
+  var dirEl = document.getElementById('trend-dir');
+  var pct = lastW > 0 ? Math.round((thisW - lastW) / lastW * 100) : (thisW > 0 ? 100 : 0);
+  var up = thisW >= lastW;
+  dirEl.textContent = (thisW === 0 && lastW === 0) ? '—' : (up ? '▲ ' : '▼ ') + Math.abs(pct) + '%';
+  dirEl.style.color = (thisW === lastW) ? 'var(--muted)' : (up ? '#4ade80' : '#ef4444');
+  document.getElementById('trend-streak').textContent = streak + '-day streak';
+  var vals = [weeks[7], weeks[6], weeks[5], weeks[4], weeks[3], weeks[2], weeks[1], weeks[0]];
+  var max = Math.max(1, Math.max.apply(null, vals)), bw = 11, gap = 5, h = 38;
+  var bars = vals.map(function (v, i) { var bh = Math.max(2, Math.round(v / max * h)); var x = i * (bw + gap), y = h - bh; var fill = (i === vals.length - 1) ? '#2ba8e0' : 'rgba(43,168,224,.35)'; return '<rect x="' + x + '" y="' + y + '" width="' + bw + '" height="' + bh + '" rx="2" fill="' + fill + '"/>'; }).join('');
+  var w = vals.length * (bw + gap);
+  document.getElementById('trend-spark').innerHTML = '<svg width="100%" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none">' + bars + '</svg>';
+  var tip;
+  if (streak >= 3) tip = 'You’re on a ' + streak + '-day streak — log something today to keep it alive.';
+  else if (thisW === 0) tip = 'Quiet week so far — a short session today gets your momentum back.';
+  else if (thisW > lastW) tip = 'Up on last week — nice. One more this week sets a new high.';
+  else if (thisW < lastW) tip = 'A little down on last week — a quick activity today closes the gap.';
+  else tip = 'Steady week — try a different activity to mix it up.';
+  document.getElementById('trend-tip').innerHTML = '<span class="material-icons" style="font-size:15px;color:var(--blue);flex:0 0 auto;">tips_and_updates</span><span><strong style="color:var(--text);">Coach Grant:</strong> ' + tip + '</span>';
+  card.style.display = '';
 }
 
 // Top Connections — people you're connected with, scoped to the map (country/city via their location).
@@ -8248,7 +8301,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '440';
+  const FFP_BUILD = '441';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -8832,6 +8885,9 @@ const MemberProfile = {
   },
   
   renderEmailCard() {
+    var ver = this.data.verified
+      ? '<div style="display:flex;align-items:center;gap:5px;margin-top:7px;font-size:11.5px;font-weight:700;color:#4ade80;"><span class="material-icons" style="font-size:15px;">verified</span>Verified</div>'
+      : '<div style="display:flex;align-items:center;gap:5px;margin-top:7px;font-size:11.5px;font-weight:700;color:var(--muted);"><span class="material-icons" style="font-size:15px;">schedule</span>Not yet verified — sign in with an email code to verify</div>';
     return `
       <div class="field-card full-width">
         <div class="field-card-label-top">Email</div>
@@ -8844,6 +8900,7 @@ const MemberProfile = {
                oninput="MemberProfile.data.email = this.value"
                onblur="MemberProfile.commit('email', this.value)"
                onkeydown="if(event.key==='Enter'){event.preventDefault(); this.blur();}">
+        ${ver}
       </div>
     `;
   },
