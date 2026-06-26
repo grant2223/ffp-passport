@@ -2423,14 +2423,20 @@ a { color: var(--ffp-blue); text-decoration: none; }
           </div>
         </div>
 
-        <div class="section-card" style="margin-top:18px;">
-          <div class="section-head">
-            <div class="section-title">Your rating</div>
-            <div class="psub" style="margin:0;">What members say after checking in at your venue</div>
-          </div>
-          <div id="prov-rating-summary" class="pr-summary"></div>
-          <div id="prov-rating-reviews" class="pr-reviews"></div>
+      </section>
+
+      <!-- ════════ REVIEWS ════════ -->
+      <section class="panel" id="panel-reviews">
+        <div class="ph-row"><div><div class="ph">Reviews</div><div class="psub">What members say after checking in at your venue — see what's working and what needs attention.</div></div></div>
+        <div id="prov-rating-summary" class="pr-summary"></div>
+        <div class="rev-tabs" style="display:flex;gap:20px;border-bottom:1px solid var(--ffp-border);margin:20px 0 6px;">
+          <button class="rev-tab active" onclick="provReviewsTab('all',this)" style="background:none;border:none;border-bottom:2px solid var(--ffp-blue);padding:8px 0;font:inherit;font-size:13px;font-weight:700;color:var(--ffp-text);cursor:pointer;">All</button>
+          <button class="rev-tab" onclick="provReviewsTab('top',this)" style="background:none;border:none;border-bottom:2px solid transparent;padding:8px 0;font:inherit;font-size:13px;font-weight:700;color:var(--ffp-text-dim);cursor:pointer;">Top-rated</button>
+          <button class="rev-tab" onclick="provReviewsTab('low',this)" style="background:none;border:none;border-bottom:2px solid transparent;padding:8px 0;font:inherit;font-size:13px;font-weight:700;color:var(--ffp-text-dim);cursor:pointer;">Needs attention</button>
+          <button class="rev-tab" onclick="provReviewsTab('photos',this)" style="background:none;border:none;border-bottom:2px solid transparent;padding:8px 0;font:inherit;font-size:13px;font-weight:700;color:var(--ffp-text-dim);cursor:pointer;">With photos</button>
         </div>
+        <div id="rev-empty" style="display:none;font-size:13px;color:var(--ffp-text-dim);padding:14px 0;">No reviews in this view yet.</div>
+        <div id="prov-rating-reviews" class="pr-reviews"></div>
       </section>
 
       <!-- ════════ PROFILE ════════ -->
@@ -3218,6 +3224,7 @@ const NAV = [
   { id: 'analytics',   icon: 'analytics',       label: 'Analytics',   section: 'manage' },
   // ── Business management system (Check-ins on top; modules built one-by-one) ──
   { id: 'checkins',    icon: 'qr_code_scanner', label: 'Check-ins',           section: 'business' },
+  { id: 'reviews',     icon: 'star',            label: 'Reviews',             section: 'business' },
   { id: 'members',     icon: 'groups',          label: 'Members',             section: 'business', soon: true },
   { id: 'plans',       icon: 'card_membership',  label: 'Packages',            section: 'business' },
   { id: 'scheduling',  icon: 'calendar_month',  label: 'Sessions',            section: 'business' },
@@ -3466,6 +3473,7 @@ function showPanel(id) {
   if (_sb && id !== 'profile') _sb.classList.remove('show');
   // Initial render hooks
   if (id === 'overview') renderOverview();
+  if (id === 'reviews') renderReviews();
   if (id === 'profile') loadProfile();
   if (id === 'events') renderEvents();
   if (id === 'experiences') renderExperiences();
@@ -3531,7 +3539,6 @@ function renderOverview() {
   }
 
   provOverviewStats();   // business + engagement stats (provider_overview RPC) + member-activity feed
-  renderProviderRating();
 }
 
 // Overview headline numbers — engagement/retention FIRST (the #1 leading indicator for a fitness business),
@@ -3544,36 +3551,32 @@ async function provOverviewStats() {
   if (!grid) return;
   if (!pid || !window.supabase) { grid.innerHTML = ''; return; }
   var fmtAed = function (n) { return 'AED ' + (Math.round(Number(n) || 0)).toLocaleString(); };
-  var stat = function (num, label, sub, accent) {
-    return '<div style="padding:0 18px 4px 0;">' +
-      '<div style="font-size:26px;font-weight:800;line-height:1;color:' + (accent || 'var(--ffp-text)') + ';">' + num + '</div>' +
-      '<div style="font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:var(--ffp-text-dim);margin-top:6px;">' + label + '</div>' +
-      (sub ? '<div style="font-size:11px;color:var(--ffp-text-dim);margin-top:3px;font-weight:600;">' + sub + '</div>' : '') +
-      '</div>';
-  };
-  var hdr = function (t) { return '<div style="grid-column:1/-1;font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--ffp-blue);margin:6px 0 0;">' + t + '</div>'; };
-  grid.innerHTML = '<div style="grid-column:1/-1;font-size:12px;color:var(--ffp-text-dim);">Loading your numbers…</div>';
+  var hdr = function (t) { return '<div style="grid-column:1/-1;font-size:12px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--ffp-blue);margin:16px 0 2px;">' + t + '</div>'; };
+  var line = function (lbl, val) { return '<div style="grid-column:1/-1;font-size:14px;color:var(--ffp-text);margin-top:8px;"><span style="color:var(--ffp-text-muted);font-weight:600;">' + lbl + '</span> &nbsp; <strong>' + val + '</strong></div>'; };
+  grid.innerHTML = '<div style="grid-column:1/-1;font-size:13px;color:var(--ffp-text-muted);">Loading your numbers…</div>';
   try {
     var r = await window.supabase.rpc('provider_overview', { p_provider: pid });
     if (r.error) throw r.error;
     var d = r.data || {};
     var ci = d.checkins_7d || 0, cip = d.checkins_prev_7d || 0;
+    var hasCi = !(ci === 0 && cip === 0);
     var trend = cip > 0 ? Math.round((ci - cip) / cip * 100) : (ci > 0 ? 100 : 0);
-    var ciSub = (ci === 0 && cip === 0) ? 'no check-ins yet' : ((ci >= cip ? '▲ ' : '▼ ') + Math.abs(trend) + '% vs last week');
+    var atRisk = d.members_at_risk || 0, newM = d.members_new_7d || 0;
     var ts = d.top_session, tf = d.top_staff;
+    // Uses the dashboard's own styled KPI tile (kpi()) — readable label + bold value + coloured delta, like Analytics.
     grid.innerHTML =
       hdr('Engagement') +
-      stat(ci, 'Check-ins · 7 days', ciSub, ci >= cip ? '#16a34a' : 'var(--ffp-text)') +
-      stat(d.active_members_7d || 0, 'Members active · 7d', 'visited this week') +
-      stat(d.members_at_risk || 0, 'At-risk members', 'no visit 14+ days', (d.members_at_risk || 0) > 0 ? '#d97706' : 'var(--ffp-text)') +
-      stat(d.sessions_today || 0, 'Sessions today', (d.appts_today || 0) + ' appointment' + ((d.appts_today || 0) === 1 ? '' : 's')) +
+      kpi('Check-ins · last 7 days', ci, hasCi ? (Math.abs(trend) + '% vs last week') : 'no check-ins yet', hasCi ? (ci >= cip ? 'up' : 'down') : 'flat') +
+      kpi('Members active · 7d', d.active_members_7d || 0, 'visited this week', 'flat') +
+      kpi('At-risk members', atRisk, 'no visit in 14+ days', atRisk > 0 ? 'down' : 'flat', atRisk > 0 ? 'yellow' : '') +
+      kpi('Sessions today', d.sessions_today || 0, (d.appts_today || 0) + ' appointment' + ((d.appts_today || 0) === 1 ? '' : 's') + ' today', 'flat') +
       hdr('Business') +
-      stat(fmtAed(d.revenue_month_aed), 'Revenue · this month', '') +
-      stat(d.members_total || 0, 'Members', '+' + (d.members_new_7d || 0) + ' new this week') +
-      stat(d.appts_upcoming || 0, 'Upcoming appointments', '') +
-      ((ts && ts.title) ? '<div style="grid-column:1/-1;font-size:13px;color:var(--ffp-text);padding-top:6px;"><span style="color:var(--ffp-text-dim);">Most popular session:</span> <strong>' + esc(ts.title) + '</strong> · ' + (ts.count || 0) + ' check-ins (30d)</div>' : '') +
-      ((tf && tf.name) ? '<div style="grid-column:1/-1;font-size:13px;color:var(--ffp-text);"><span style="color:var(--ffp-text-dim);">Most active staff:</span> <strong>' + esc(tf.name) + '</strong> · ' + (tf.count || 0) + ' appointments (30d)</div>' : '');
-  } catch (e) { grid.innerHTML = '<div style="grid-column:1/-1;font-size:12px;color:var(--ffp-text-dim);">Couldn\'t load your numbers right now.</div>'; }
+      kpi('Revenue · this month', fmtAed(d.revenue_month_aed), 'paid so far', 'flat', 'green') +
+      kpi('Members', d.members_total || 0, '+' + newM + ' new this week', newM > 0 ? 'up' : 'flat') +
+      kpi('Upcoming appointments', d.appts_upcoming || 0, 'scheduled ahead', 'flat') +
+      ((ts && ts.title) ? line('Most popular session', esc(ts.title) + ' · ' + (ts.count || 0) + ' check-ins (30d)') : '') +
+      ((tf && tf.name) ? line('Most active staff', esc(tf.name) + ' · ' + (tf.count || 0) + ' appointments (30d)') : '');
+  } catch (e) { grid.innerHTML = '<div style="grid-column:1/-1;font-size:13px;color:var(--ffp-text-muted);">Couldn\'t load your numbers right now.</div>'; }
   if (al) {
     try {
       var rb = await window.supabase.rpc('provider_recent_session_bookings', { p_provider: pid });
@@ -3649,7 +3652,7 @@ async function renderProviderRating() {
       var subrat = (rv.ratings && typeof rv.ratings === 'object')
         ? Object.keys(rv.ratings).map(function (k) { return '<span style="font-size:11px;font-weight:800;color:#13657f;background:rgba(25,128,173,.10);border:1px solid rgba(25,128,173,.22);border-radius:10px;padding:2px 8px;">' + prEsc(PR_RLBL[k] || k) + ' ' + prEsc(rv.ratings[k]) + '★</span>'; }).join('')
         : '';
-      return '<div class="pr-rev">' +
+      return '<div class="pr-rev" data-stars="' + (Math.round(Number(rv.stars_overall) || 0)) + '" data-photo="' + (rv.photo_url ? '1' : '0') + '">' +
         '<div class="pr-rev-head">' + photo +
           '<div class="pr-rev-id"><div class="pr-rev-name">' + prEsc(rv.member_name) + '</div>' +
           '<div class="pr-rev-when">' + when + (ctx ? ' · ' + ctx : '') + '</div></div>' +
@@ -3664,6 +3667,29 @@ async function renderProviderRating() {
     sumEl.innerHTML = '<div class="pr-empty">Couldn\'t load reviews right now.</div>';
     listEl.innerHTML = '';
   }
+}
+
+// REVIEWS panel — reuses renderProviderRating (summary + full list); the tabs filter the rendered rows by stars/photo.
+async function renderReviews() {
+  await renderProviderRating();
+  var allBtn = document.querySelector('#panel-reviews .rev-tab');
+  provReviewsTab('all', allBtn);
+}
+function provReviewsTab(filter, btn) {
+  if (btn) {
+    var bar = btn.parentElement;
+    if (bar) bar.querySelectorAll('.rev-tab').forEach(function (t) { t.classList.remove('active'); t.style.color = 'var(--ffp-text-dim)'; t.style.borderBottomColor = 'transparent'; });
+    btn.classList.add('active'); btn.style.color = 'var(--ffp-text)'; btn.style.borderBottomColor = 'var(--ffp-blue)';
+  }
+  var rows = document.querySelectorAll('#prov-rating-reviews .pr-rev'), shown = 0;
+  rows.forEach(function (el) {
+    var st = parseInt(el.getAttribute('data-stars') || '0', 10);
+    var ph = el.getAttribute('data-photo') === '1';
+    var ok = filter === 'all' || (filter === 'photos' && ph) || (filter === 'top' && st >= 4) || (filter === 'low' && st > 0 && st <= 3);
+    el.style.display = ok ? '' : 'none'; if (ok) shown++;
+  });
+  var empty = document.getElementById('rev-empty');
+  if (empty) empty.style.display = (rows.length && shown === 0) ? 'block' : 'none';
 }
 
 function kpi(label, val, delta, dir, tone) {
