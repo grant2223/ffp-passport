@@ -44,7 +44,8 @@
       }
       host.innerHTML = row('whoop', 'WHOOP', 'Auto-log your workouts, heart rate & calories', true) +
         row('garmin', 'Garmin', 'Auto-log your workouts (coming soon)', false) +
-        '<div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5;">Connect a device and your workouts log to your Passport automatically — no manual entry.</div>';
+        '<div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5;">Connect a device and your workouts log to your Passport automatically — no manual entry.</div>' +
+        (connected['whoop'] ? '<div style="font-size:10.5px;color:var(--muted);margin-top:8px;">Workouts synced from WHOOP.</div>' : '');
     },
     async connect(provider) {
       var rf = refreshTok();
