@@ -1,4 +1,12 @@
-<!-- FFP MEMBER DASHBOARD — v367 (2026-06-26)  [changelog trimmed to latest updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v368 (2026-06-26)  [changelog trimmed to latest updates; older history in git]
+     v368: AI COACH + PASSPORT POLISH. (1) "AI Workout" renamed to "AI Coach" (nav + panel header + sub).
+           (2) Passport "Your passport · how you're using it" → a "Your Trends" TILE; the dir + sparkline now sit on
+           a light blue-tinted rounded panel (bg rgba(43,168,224,.06)). (3) Top Activities + Top Places DE-BOXED
+           via new .card-flat modifier (transparent, no border; head keeps a hairline, list flush). (4) Log-activity
+           "Describe it — or use the keyboard mic" → "Tell me what you did — I'll fill it for you", restyled to the
+           AI Coach assistant look (textarea .coach-input + full-width yellow .coach-fill-btn). (5) Post-a-meetup
+           "Let Coach Grant set it up" box re-styled to the SAME AI Coach pattern (de-boxed; .coach-input +
+           .coach-fill-btn "Set it up"); meet-move loader button-state text updated to match. FFP_BUILD 443→444.
      v367: LOG ACTIVITY PHOTOS — multi-select + default crop. The "Add photos" tile now opens a MULTI-file picker;
            each photo is auto-cropped to the chosen DEFAULT (Square centre, or Full = keep aspect) and uploaded with
            no per-photo modal. New "Default crop" Square|Full toggle above the strip. Each thumbnail gets a crop icon
@@ -682,6 +690,11 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
 
 /* MAP */
 .card-block { background: var(--card); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 18px; overflow: hidden; }
+/* Borderless variant — clean section, no box (Top Activities / Top Places) */
+.card-block.card-flat { background: transparent; border: none; border-radius: 0; overflow: visible; margin-bottom: 24px; }
+.card-block.card-flat > .card-head { padding-left: 0; padding-right: 0; border-bottom: 1px solid var(--border); }
+.card-block.card-flat > .list-block { padding-left: 0; padding-right: 0; padding-top: 8px; }
+.card-block.card-flat > .view-more-btn { padding-left: 0; padding-right: 0; }
 .card-head { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
 .card-head-title { display: flex; align-items: center; gap: 8px; }
 .card-head-icon { font-size: 18px; color: var(--muted); }
@@ -721,6 +734,12 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
 
 /* BY ACTIVITY / VENUES / RECENT */
 .list-block { padding: 16px; }
+/* Shared "AI Coach" assistant input — mirrors the AI Coach (workout) panel look */
+.coach-input { width: 100%; box-sizing: border-box; min-height: 88px; background: rgba(255,255,255,.04); border: none; border-radius: 14px; color: var(--text); font-size: 16px; font-weight: 500; font-family: inherit; padding: 14px; resize: vertical; line-height: 1.45; }
+.coach-input::placeholder { color: var(--muted); }
+.coach-fill-btn { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; text-align: center; padding: 15px; border-radius: 14px; border: none; font-size: 15px; font-weight: 800; font-family: inherit; cursor: pointer; background: var(--yellow); color: #10202b; margin-top: 12px; }
+.coach-fill-btn .material-icons { font-size: 19px; }
+.coach-fill-btn:disabled { opacity: .6; cursor: default; }
 .ba-row { display: grid; grid-template-columns: 36px 1fr auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
 .ba-row:last-child { border-bottom: 0; }
 .ba-icon { width: 36px; height: 36px; border-radius: 50%; background: rgba(43,168,224,0.08); display: flex; align-items: center; justify-content: center; }
@@ -4398,7 +4417,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
           <div class="menu-user-status">Member</div>
         </div>
         <button class="menu-item" data-panel="panel-profile"><span class="material-icons">person</span><span>Profile</span></button>
-        <button class="menu-item" data-panel="panel-workout"><span class="material-icons">fitness_center</span><span>AI Workout</span></button>
+        <button class="menu-item" data-panel="panel-workout"><span class="material-icons">fitness_center</span><span>AI Coach</span></button>
         <button class="menu-item" data-panel="panel-workout-timer"><span class="material-icons">schedule</span><span>Workout Timer</span></button>
         <button class="menu-item" data-panel="panel-calorie-tracker"><span class="material-icons">local_fire_department</span><span>Calorie Tracker</span></button>
         <button class="menu-item" data-panel="panel-earnings"><span class="material-icons">account_balance_wallet</span><span>Earnings</span></button>
@@ -4563,9 +4582,12 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
 
   <!-- YOUR PASSPORT REVIEW (v366) — borderless: a real review of how they use the passport + trend + Coach Grant insight -->
   <div id="trend-card" style="display:none;margin:6px 0 28px;">
-    <div style="font-size:12px;font-weight:700;letter-spacing:.4px;color:var(--muted);margin-bottom:12px;">Your passport · how you’re using it</div>
-    <div id="trend-review" style="font-size:15.5px;color:var(--text);line-height:1.6;margin-bottom:18px;"></div>
-    <div style="display:flex;align-items:flex-end;gap:14px;margin-bottom:18px;">
+    <div style="display:inline-flex;align-items:center;gap:7px;background:rgba(43,168,224,.10);border:1px solid rgba(43,168,224,.22);border-radius:10px;padding:7px 13px;margin-bottom:14px;">
+      <span class="material-icons" style="font-size:17px;color:var(--blue);">insights</span>
+      <span style="font-size:13px;font-weight:800;letter-spacing:.3px;color:var(--text);">Your Trends</span>
+    </div>
+    <div id="trend-review" style="font-size:15.5px;color:var(--text);line-height:1.6;margin-bottom:16px;"></div>
+    <div style="display:flex;align-items:flex-end;gap:16px;margin-bottom:18px;background:rgba(43,168,224,.06);border-radius:14px;padding:16px 18px;">
       <div style="flex:0 0 auto;">
         <div id="trend-dir" style="font-size:24px;font-weight:800;line-height:1;color:var(--muted);">—</div>
         <div style="font-size:11px;font-weight:600;color:var(--muted);margin-top:5px;">vs last week</div>
@@ -4688,7 +4710,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
   </div>
   
   <!-- TOP ACTIVITIES -->
-  <div class="card-block">
+  <div class="card-block card-flat">
     <div class="card-head">
       <div class="card-head-title"><span class="material-icons card-head-icon">trending_up</span><h3>Top Activities</h3></div>
       <span class="card-head-sub" id="activities-count">0 activities</span>
@@ -4701,7 +4723,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
   </div>
   
   <!-- TOP PLACES (venues) -->
-  <div class="card-block">
+  <div class="card-block card-flat">
     <div class="card-head">
       <div class="card-head-title"><span class="material-icons card-head-icon">place</span><h3>Top Places</h3></div>
       <span class="card-head-sub" id="venues-count">0 places</span>
@@ -5091,8 +5113,8 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
   <!-- AI WORKOUT — generate + guided runner (loader: assets/ffp-workout-loader.js) -->
   <div id="panel-workout" class="panel-view">
     <div class="user-panel-head">
-      <h2>AI Workout</h2>
-      <div class="user-panel-sub">Describe a session and get a guided, set-by-set workout.</div>
+      <h2>AI Coach</h2>
+      <div class="user-panel-sub">Tell me what you want and I’ll build you a guided, set-by-set workout.</div>
     </div>
     <div id="wk-root"></div>
   </div>
@@ -5546,11 +5568,9 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     </div>
     <div class="pm-form">
       <div class="pm-form-field">
-        <label class="pm-form-label" style="display:flex;align-items:center;gap:6px;"><span class="material-icons" style="font-size:16px;color:var(--blue);">auto_awesome</span>Describe it <span style="color:#8a99a8;font-weight:600;font-size:11px;">— or use the keyboard mic</span></label>
-        <div style="display:flex;gap:8px;">
-          <input type="text" id="log-ai-text" class="pm-form-input" placeholder="e.g. ran 5k in 28 min, easy pace" style="flex:1;" oninput="">
-          <button type="button" id="log-ai-btn" onclick="logAIParse()" style="flex:0 0 auto;background:var(--blue);color:#fff;border:none;border-radius:10px;padding:0 16px;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;">Fill</button>
-        </div>
+        <label class="pm-form-label" style="display:flex;align-items:center;gap:6px;"><span class="material-icons" style="font-size:16px;color:var(--blue);">auto_awesome</span>Tell me what you did<span style="color:#8a99a8;font-weight:600;font-size:11px;">— I’ll fill it for you</span></label>
+        <textarea id="log-ai-text" class="coach-input" placeholder="e.g. ran 5k in 28 min, easy pace"></textarea>
+        <button type="button" id="log-ai-btn" onclick="logAIParse()" class="coach-fill-btn"><span class="material-icons">auto_awesome</span>Fill it in</button>
       </div>
       <div class="pm-form-field">
         <label class="pm-form-label">Photos (optional) <span id="log-photos-count" style="color:#8a99a8;font-weight:700;font-size:11px;"></span></label>
@@ -5749,10 +5769,10 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
       <div style="font-size:12px; color:var(--muted); margin-bottom:14px;">Up to 8 members. You'll approve who's in. Be honest about level and intent.</div>
     </div>
     <div class="pm-form">
-      <div class="pm-describe-box" style="background:#111a26;border:1px solid rgba(43,168,224,0.28);border-radius:12px;padding:12px;margin-bottom:14px;">
-        <div style="font-size:12px;font-weight:800;color:#2ba8e0;display:flex;align-items:center;gap:6px;margin-bottom:8px;"><span class="material-icons" style="font-size:16px;">auto_awesome</span> Let Coach Grant set it up</div>
-        <textarea id="pm-describe" rows="2" placeholder="Describe it — e.g. 5-a-side football Saturday 6pm at Zabeel Park, 10 people, intermediate" style="width:100%;background:#0a1825;border:1px solid rgba(43,168,224,0.28);border-radius:9px;color:#e8eef4;font:inherit;font-size:14px;padding:10px;resize:vertical;box-sizing:border-box;"></textarea>
-        <button type="button" id="pm-describe-go" style="margin-top:8px;background:#2ba8e0;color:#04222f;border:none;border-radius:9px;font-weight:800;font-size:13px;padding:9px 16px;cursor:pointer;font-family:inherit;">Coach Grant, set it up</button>
+      <div class="pm-form-field" style="margin-bottom:14px;">
+        <label class="pm-form-label" style="display:flex;align-items:center;gap:6px;"><span class="material-icons" style="font-size:16px;color:var(--blue);">auto_awesome</span>Tell me what you’re planning<span style="color:#8a99a8;font-weight:600;font-size:11px;">— I’ll set it up</span></label>
+        <textarea id="pm-describe" class="coach-input" placeholder="e.g. 5-a-side football Saturday 6pm at Zabeel Park, 10 people, intermediate"></textarea>
+        <button type="button" id="pm-describe-go" class="coach-fill-btn"><span class="material-icons">auto_awesome</span>Set it up</button>
       </div>
       <!-- v285: cover photo at TOP + CENTRE — tap the photo area to add (camera/library). No text in images. -->
       <div class="pm-form-field" style="text-align:center;">
@@ -8333,7 +8353,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '443';
+  const FFP_BUILD = '444';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -11485,11 +11505,11 @@ function closeLogIfBackdrop(e) { if (e.target.id === 'log-modal-backdrop') close
 function logAIParse() {
   var inp = document.getElementById('log-ai-text'); var txt = (inp && inp.value || '').trim();
   if (txt.length < 2) { if (window.showToast) showToast('Describe your activity first', 'error'); return; }
-  var btn = document.getElementById('log-ai-btn'); if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  var btn = document.getElementById('log-ai-btn'); if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-icons">hourglass_empty</span>Filling…'; }
   fetch('https://ffp-passport-backend.vercel.app/api/ai/parse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'activity', text: txt, now: new Date().toString() }) })
     .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, j: j }; }, function () { return { ok: false, status: r.status, j: null }; }); })
     .then(function (res) {
-      if (btn) { btn.disabled = false; btn.textContent = 'Fill'; }
+      if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-icons">auto_awesome</span>Fill it in'; }
       if (res.status === 503) { if (window.showToast) showToast('AI isn’t switched on yet', 'error'); return; }
       if (!res.ok || !res.j || !res.j.activity) { if (window.showToast) showToast('Couldn’t read that — try again', 'error'); return; }
       var a = res.j.activity;
@@ -11504,7 +11524,7 @@ function logAIParse() {
       var ln = document.getElementById('log-notes'); if (ln && a.notes && !ln.value) ln.value = a.notes;
       if (window.showToast) showToast('Filled — check it and save');
     })
-    .catch(function () { if (btn) { btn.disabled = false; btn.textContent = 'Fill'; } if (window.showToast) showToast('Network error — try again', 'error'); });
+    .catch(function () { if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-icons">auto_awesome</span>Fill it in'; } if (window.showToast) showToast('Network error — try again', 'error'); });
 }
 
 // ── Training partners ("With") — the box IS the search. Empty = your 10 most trained-with; typing filters all accepted connections. They confirm before it lands on their journey.
