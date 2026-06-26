@@ -727,9 +727,11 @@
         if (btn) { btn.disabled = false; btn.textContent = 'Add foods'; }
         if (res.status === 503) { if (window.showToast) showToast('AI isn’t switched on yet', 'error'); return; }
         if (!res.ok || !res.j || !res.j.items || !res.j.items.length) { if (window.showToast) showToast('Couldn’t read that — try rephrasing', 'error'); return; }
-        var bucket = CalorieTracker.autoBucket ? CalorieTracker.autoBucket() : 'snacks';
+        var MEAL_OK = { breakfast: 1, lunch: 1, dinner: 1, snacks: 1 };
+        var fallback = CalorieTracker.autoBucket ? CalorieTracker.autoBucket() : 'snacks';
         var n = 0;
         res.j.items.forEach(function (it) {
+          var bucket = (it.meal && MEAL_OK[it.meal]) ? it.meal : fallback;   // use the meal the user named; else time-of-day
           var item = { free: true, name: it.qty ? (it.name + ' (' + it.qty + ')') : it.name, kcal: it.kcal, p: it.protein_g, c: it.carbs_g, f: it.fat_g };
           if (!CalorieTracker.meals[bucket]) CalorieTracker.meals[bucket] = [];
           CalorieTracker.meals[bucket].push(item);
@@ -738,7 +740,7 @@
         });
         if (typeof CalorieTracker.render === 'function') CalorieTracker.render();
         if (document.body.contains(bg)) document.body.removeChild(bg);
-        if (window.showToast) showToast('Added ' + n + ' item' + (n === 1 ? '' : 's') + ' to ' + bucket);
+        if (window.showToast) showToast('Added ' + n + ' item' + (n === 1 ? '' : 's'));
       })
       .catch(function () { if (btn) { btn.disabled = false; btn.textContent = 'Add foods'; } if (window.showToast) showToast('Network error — try again', 'error'); });
   }
@@ -756,9 +758,11 @@
         if (btn) { btn.disabled = false; btn.innerHTML = idle; }
         if (res.status === 503) { if (window.showToast) showToast('Coach isn’t switched on yet', 'error'); return; }
         if (!res.ok || !res.j || !res.j.items || !res.j.items.length) { if (window.showToast) showToast('Couldn’t read that — try rephrasing', 'error'); return; }
-        var bucket = CalorieTracker.autoBucket ? CalorieTracker.autoBucket() : 'snacks';
+        var MEAL_OK = { breakfast: 1, lunch: 1, dinner: 1, snacks: 1 };
+        var fallback = CalorieTracker.autoBucket ? CalorieTracker.autoBucket() : 'snacks';
         var n = 0;
         res.j.items.forEach(function (it) {
+          var bucket = (it.meal && MEAL_OK[it.meal]) ? it.meal : fallback;   // honour the meal the user named; else time-of-day
           var item = { free: true, name: it.qty ? (it.name + ' (' + it.qty + ')') : it.name, kcal: it.kcal, p: it.protein_g, c: it.carbs_g, f: it.fat_g };
           if (!CalorieTracker.meals[bucket]) CalorieTracker.meals[bucket] = [];
           CalorieTracker.meals[bucket].push(item);
@@ -767,7 +771,7 @@
         });
         if (typeof CalorieTracker.render === 'function') CalorieTracker.render();
         if (ta) ta.value = '';
-        if (window.showToast) showToast('Added ' + n + ' item' + (n === 1 ? '' : 's') + ' to ' + bucket);
+        if (window.showToast) showToast('Added ' + n + ' item' + (n === 1 ? '' : 's'));
       })
       .catch(function () { if (btn) { btn.disabled = false; btn.innerHTML = idle; } if (window.showToast) showToast('Network error — try again', 'error'); });
   };
