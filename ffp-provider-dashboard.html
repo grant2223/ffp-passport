@@ -1,4 +1,12 @@
-<!-- FFP PROVIDER DASHBOARD — v67 (2026-06-13)
+<!-- FFP PROVIDER DASHBOARD — v68 (2026-06-26)
+     v68: OVERVIEW rebuilt to owner-analytics layout (matches admin display). provOverviewStats now renders:
+          (1) hero KPI row — Revenue·month / Active members·7d (+new) / Check-ins·7d (+trend ▲▼) / Members at risk;
+          (2) charts row — Revenue·last 12 weeks (bar) + Check-ins·last 7 days (line);
+          (3) Most popular sessions·30d (horizontal bar); (4) Today card (Classes/Appointments/Bookings/No-shows
+          + appointments-by-coach) and Needs-attention card (lapsing members from at_risk_list, "View" → members).
+          Backed by provider_overview RPC v4 (added revenue_by_week[12], at_risk_list[6]). Inline JS = HTML is the bust.
+     ----
+     v67 (2026-06-13)
      v67: REVIEWS — Overview "Your rating" now shows each review's session+coach context, the type-specific
           sub-ratings (Coach/Value/Atmosphere etc.) as chips, and the member's review photo.
      v66 (2026-06-13)
@@ -3545,40 +3553,74 @@ async function provOverviewStats() {
     var trend = cip > 0 ? Math.round((ci - cip) / cip * 100) : (ci > 0 ? 100 : 0);
     var atRisk = d.members_at_risk || 0, noShow = d.no_shows_7d || 0;
 
-    var bizSec = sec('Overall business',
-      s(fmtAed(d.revenue_month_aed), 'Revenue · month', '#1980AD') + s(d.members_total || 0, 'Members') +
-      s('+' + (d.members_new_7d || 0), 'New · 7d') + s(d.active_members_7d || 0, 'Active · 7d'));
+    // ---- helpers (analytics card system; matches admin) ----
+    function card(inner, pad) { return '<div style="background:var(--ffp-surface);border:1px solid var(--ffp-border);border-radius:14px;padding:' + (pad || '16px 18px') + ';">' + inner + '</div>'; }
+    function hero(val, label, delta, opt) {
+      opt = opt || {};
+      var col = opt.danger ? '#dc2626' : (opt.accent || 'var(--ffp-text)');
+      var dCol = opt.danger ? '#dc2626' : (opt.down ? '#dc2626' : '#16a34a');
+      return card('<div style="font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ffp-text-muted);">' + label + '</div>' +
+        '<div style="font-size:30px;font-weight:800;color:' + col + ';margin-top:7px;line-height:1;">' + val + '</div>' +
+        (delta ? '<div style="font-size:12px;font-weight:700;margin-top:7px;color:' + dCol + ';">' + delta + '</div>' : '<div style="height:12px;margin-top:7px;"></div>'));
+    }
 
-    var tops = Array.isArray(d.top_sessions) ? d.top_sessions : [];
-    var topRows = tops.length ? '<div style="margin-top:16px;border-top:1px solid var(--ffp-border);padding-top:14px;">' + miniHdr('Most popular · 30 days') + '<div style="height:' + (tops.length * 34 + 8) + 'px;position:relative;"><canvas id="ovc-sessions"></canvas></div></div>' : '';
-    var sessSec = sec('Sessions',
-      s(d.sessions_today || 0, 'Classes today') + s(d.bookings_today || 0, 'Bookings today') + s(d.avg_attendance || 0, 'Avg attendance'),
-      topRows);
+    // ---- 1. HERO ROW ----
+    var heroRow = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;">' +
+      hero(fmtAed(d.revenue_month_aed), 'Revenue · this month', '', { accent: '#1980AD' }) +
+      hero(d.active_members_7d || 0, 'Active members · 7d', (d.members_new_7d ? '+' + d.members_new_7d + ' new this week' : ''), {}) +
+      hero(ci, 'Check-ins · 7d', hasCi ? ((ci >= cip ? '▲ +' : '▼ −') + Math.abs(trend) + '% vs last week') : '', { down: ci < cip }) +
+      hero(atRisk, 'Members at risk', atRisk > 0 ? 'inactive 14–60 days' : 'none lapsing', { danger: atRisk > 0 }) +
+      '</div>';
 
-    var coaches = Array.isArray(d.appts_today_by_coach) ? d.appts_today_by_coach : [];
-    var coachRows = coaches.length ? '<div style="margin-top:16px;border-top:1px solid var(--ffp-border);padding-top:14px;">' + miniHdr('Today · by coach') +
-      coaches.map(function (c) { return '<div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;"><span style="font-weight:600;color:var(--ffp-text);">' + esc(c.name) + '</span><span style="font-weight:700;color:var(--ffp-text-muted);">' + (c.count || 0) + '</span></div>'; }).join('') + '</div>'
-      : '<div style="margin-top:14px;font-size:12px;color:var(--ffp-text-muted);">No appointments booked today.</div>';
-    var apptSec = sec('Appointments',
-      s(d.appts_today || 0, 'Today') + s(d.appts_upcoming || 0, 'Upcoming') + s(noShow, 'No-shows · 7d', noShow > 0 ? '#dc2626' : 'var(--ffp-text)'),
-      coachRows);
-
+    // ---- 2. CHARTS ROW (revenue 12wk + check-ins 7d) ----
     var byDay = Array.isArray(d.checkins_by_day) ? d.checkins_by_day.map(Number) : [];
-    var labels = (function () { var out = [], dd = new Date(); for (var i = 6; i >= 0; i--) { var x = new Date(dd); x.setDate(dd.getDate() - i); out.push(['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][x.getDay()]); } return out; })();
-    var chartHtml = '<div style="margin-top:16px;border-top:1px solid var(--ffp-border);padding-top:14px;">' + miniHdr('Check-ins · last 7 days') + '<div style="height:150px;position:relative;"><canvas id="ovc-checkins"></canvas></div></div>';
-    var engSec = sec('Engagement',
-      s(ci, 'Check-ins · 7d', hasCi ? (ci >= cip ? '#16a34a' : '#dc2626') : 'var(--ffp-text)') +
-      s(hasCi ? ((ci >= cip ? '+' : '−') + Math.abs(trend) + '%') : '—', 'vs last week') +
-      s(atRisk, 'At-risk', atRisk > 0 ? '#dc2626' : 'var(--ffp-text)'),
-      chartHtml);
+    var dayLabels = (function () { var out = [], dd = new Date(); for (var i = 6; i >= 0; i--) { var x = new Date(dd); x.setDate(dd.getDate() - i); out.push(['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][x.getDay()]); } return out; })();
+    var rev = Array.isArray(d.revenue_by_week) ? d.revenue_by_week.map(Number) : [];
+    var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var revLabels = (function () { var out = [], dd = new Date(), m = new Date(dd); var off = (m.getDay() + 6) % 7; m.setDate(m.getDate() - off); for (var i = 11; i >= 0; i--) { var x = new Date(m); x.setDate(m.getDate() - i * 7); out.push(MON[x.getMonth()] + ' ' + x.getDate()); } return out; })();
+    var chartsRow = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-top:14px;">' +
+      card(miniHdr('Revenue · last 12 weeks') + '<div style="height:180px;position:relative;"><canvas id="ovc-revenue"></canvas></div>') +
+      card(miniHdr('Check-ins · last 7 days') + '<div style="height:180px;position:relative;"><canvas id="ovc-checkins"></canvas></div>') +
+      '</div>';
 
-    grid.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:16px;">' + bizSec + sessSec + apptSec + engSec + '</div>';
+    // ---- 3. MOST POPULAR SESSIONS ----
+    var tops = Array.isArray(d.top_sessions) ? d.top_sessions : [];
+    var popRow = tops.length ? '<div style="margin-top:14px;">' + card(miniHdr('Most popular sessions · 30 days') + '<div style="height:' + (tops.length * 38 + 10) + 'px;position:relative;"><canvas id="ovc-sessions"></canvas></div>') + '</div>' : '';
+
+    // ---- 4. TODAY + NEEDS ATTENTION ----
+    var coaches = Array.isArray(d.appts_today_by_coach) ? d.appts_today_by_coach : [];
+    var statLine = function (n, lbl, danger) { return '<div style="text-align:center;flex:1;"><div style="font-size:24px;font-weight:800;color:' + (danger ? '#dc2626' : 'var(--ffp-text)') + ';">' + n + '</div><div style="font-size:11px;font-weight:600;color:var(--ffp-text-muted);margin-top:2px;">' + lbl + '</div></div>'; };
+    var todayInner = miniHdr('Today') +
+      '<div style="display:flex;gap:8px;padding:4px 0 12px;border-bottom:1px solid var(--ffp-border);">' +
+        statLine(d.sessions_today || 0, 'Classes') + statLine(d.appts_today || 0, 'Appointments') + statLine(d.bookings_today || 0, 'Bookings') + statLine(noShow, 'No-shows · 7d', noShow > 0) +
+      '</div>' +
+      (coaches.length ? '<div style="margin-top:12px;">' + miniHdr('Appointments by coach') +
+        coaches.map(function (c) { return '<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:6px 0;"><span style="font-weight:600;color:var(--ffp-text);">' + esc(c.name) + '</span><span style="font-weight:800;color:#1980AD;">' + (c.count || 0) + '</span></div>'; }).join('') + '</div>'
+        : '<div style="margin-top:12px;font-size:12.5px;color:var(--ffp-text-muted);">No appointments booked today.</div>');
+
+    var risks = Array.isArray(d.at_risk_list) ? d.at_risk_list : [];
+    var riskInner = miniHdr('Needs attention · lapsing members') +
+      (risks.length ? risks.map(function (m) {
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--ffp-border);">' +
+          '<div><div style="font-size:13.5px;font-weight:700;color:var(--ffp-text);">' + esc(m.name) + '</div>' +
+          '<div style="font-size:11.5px;color:#dc2626;font-weight:600;margin-top:1px;">last seen ' + (m.days || 0) + ' days ago</div></div>' +
+          '<button onclick="var b=document.querySelector(\'[data-panel=members]\');b&&b.click();" style="font-size:12px;font-weight:700;color:#1980AD;background:none;border:1px solid var(--ffp-border);border-radius:8px;padding:5px 12px;cursor:pointer;">View</button>' +
+          '</div>';
+      }).join('') : '<div style="margin-top:8px;font-size:12.5px;color:var(--ffp-text-muted);">No members lapsing right now — nice work.</div>');
+
+    var twoCol = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-top:14px;">' +
+      card(todayInner) + card(riskInner) + '</div>';
+
+    grid.innerHTML = heroRow + chartsRow + popRow + twoCol;
+
     if (window.Chart) {
       try { (window._ovCharts || []).forEach(function (c) { try { c.destroy(); } catch (e) {} }); } catch (e) {}
       window._ovCharts = [];
       var gridCol = 'rgba(15,37,49,0.06)';
+      var cr = document.getElementById('ovc-revenue');
+      if (cr) window._ovCharts.push(new Chart(cr, { type: 'bar', data: { labels: revLabels, datasets: [{ data: rev, backgroundColor: '#1980AD', borderRadius: 5, maxBarThickness: 26 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function (x) { return 'AED ' + Number(x.raw).toLocaleString(); } } } }, scales: { y: { beginAtZero: true, ticks: { color: '#566069', callback: function (v) { return v >= 1000 ? (v / 1000) + 'k' : v; } }, grid: { color: gridCol } }, x: { ticks: { color: '#566069', maxRotation: 0, autoSkip: true, maxTicksLimit: 6 }, grid: { display: false } } } } }));
       var c1 = document.getElementById('ovc-checkins');
-      if (c1) window._ovCharts.push(new Chart(c1, { type: 'line', data: { labels: labels, datasets: [{ data: byDay, borderColor: '#1980AD', backgroundColor: 'rgba(25,128,173,0.12)', borderWidth: 2, tension: .35, fill: true, pointRadius: 3, pointBackgroundColor: '#1980AD' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0, color: '#566069' }, grid: { color: gridCol } }, x: { ticks: { color: '#566069' }, grid: { display: false } } } } }));
+      if (c1) window._ovCharts.push(new Chart(c1, { type: 'line', data: { labels: dayLabels, datasets: [{ data: byDay, borderColor: '#1980AD', backgroundColor: 'rgba(25,128,173,0.12)', borderWidth: 2, tension: .35, fill: true, pointRadius: 3, pointBackgroundColor: '#1980AD' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0, color: '#566069' }, grid: { color: gridCol } }, x: { ticks: { color: '#566069' }, grid: { display: false } } } } }));
       var c2 = document.getElementById('ovc-sessions');
       if (c2) window._ovCharts.push(new Chart(c2, { type: 'bar', data: { labels: tops.map(function (t) { return t.title; }), datasets: [{ data: tops.map(function (t) { return t.count || 0; }), backgroundColor: '#1980AD', borderRadius: 6, maxBarThickness: 22 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0, color: '#566069' }, grid: { color: gridCol } }, y: { ticks: { color: '#0e2531', font: { weight: '700' } }, grid: { display: false } } } } }));
     }
