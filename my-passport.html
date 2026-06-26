@@ -1,6 +1,7 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-     FFP MY PASSPORT — v4 (2026-06-26): FIXED the page (the QR target) — it called a missing endpoint and crashed
+     FFP MY PASSPORT — v5 (2026-06-26): CLEAN redesign — removed the boxes + pills, correct pricing ($20/mo · $149/yr,
+     save 40%), community-led copy ("Join the community to connect and engage with active people"). v4: FIXED the page (the QR target) — it called a missing endpoint and crashed
      ("string did not match the expected pattern" = res.json() on a 404). New backend GET /api/passport/:passportNo
      returns the member's public card fields + journey/streak stats + upcoming HOSTED meet-ups. Page now shows the
      exact static passport card (front) + a journey strip + the meet-ups they're hosting + the Get-your-Passport CTA.
@@ -326,6 +327,7 @@ html, body {
 
   function renderCard(data) {
     var m = (data && data.member) || {}, stats = (data && data.stats) || {}, meetups = (data && data.meetups) || [];
+    var firstNm = ((m.given_names || '').trim().split(/\s+/)[0]) || ((m.full_name || '').trim().split(/\s+/)[0]) || 'This member';
     // v3: hidden placeholder sections reserved for future features
     // (Add me on Meet & Move, recommended providers, public achievements,
     // bio). CSS-hidden today via display:none — wired feature-by-feature
@@ -350,48 +352,40 @@ html, body {
     // CTA — hidden if signed-in member
     var ctaHtml = '';
     if (!isSignedIn()) {
-      var firstName = ((m.given_names || '').trim().split(/\s+/)[0]) || ((m.full_name || '').trim().split(/\s+/)[0]) || 'a friend';
-      // Direct to /login#signup with ref carried through — fewer hops than
-      // routing via homepage. login.html v5 captures ?ref= → localStorage,
-      // then the Stripe checkout button there appends client_reference_id.
       var refUrl = m.referral_code
         ? '/login.html?ref=' + encodeURIComponent(m.referral_code) + '#signup'
         : '/login.html#signup';
       ctaHtml =
-        '<div class="cta">' +
-          '<div class="cta-eyebrow">Find Your People. Move Together.</div>' +
-          '<div class="cta-headline">Get your own <strong>FFP Passport</strong> &mdash; invited by ' + esc(firstName) + '</div>' +
-          '<div class="cta-sub">Match with active members, host meet-ups, join events, unlock partner venues across the UAE.</div>' +
-          '<div class="cta-price">$99</div>' +
-          '<div class="cta-price-fine">One year full access</div>' +
-          '<a class="cta-btn" href="' + refUrl + '">Secure Your 2026 Passport</a>' +
-          '<div class="cta-fine">Secure checkout via Stripe</div>' +
+        '<div style="max-width:540px;margin:38px auto 0;text-align:center;">' +
+          '<div style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#2ba8e0;">Find your people</div>' +
+          '<div style="font-size:23px;font-weight:800;color:#fff;line-height:1.3;margin:12px auto 10px;max-width:440px;">Join the community to connect and engage with active people like you</div>' +
+          '<div style="font-size:14px;color:#9dbdd0;line-height:1.6;max-width:430px;margin:0 auto 20px;">Invited by ' + esc(firstNm) + '. Match with members, host meet-ups, join events and unlock partner venues across the UAE.</div>' +
+          '<div style="font-size:16px;color:#fff;font-weight:700;">$20<span style="color:#7e98ac;font-weight:600;font-size:14px;">/month</span> &nbsp;&middot;&nbsp; $149<span style="color:#7e98ac;font-weight:600;font-size:14px;">/year</span></div>' +
+          '<div style="font-size:12.5px;color:#4ade80;font-weight:700;margin-top:4px;margin-bottom:20px;">Save 40% with the annual plan</div>' +
+          '<a href="' + refUrl + '" style="display:inline-block;background:#2ba8e0;color:#081420;text-decoration:none;font-weight:800;font-size:15px;padding:15px 38px;border-radius:12px;">Get your FFP Passport</a>' +
+          '<div style="font-size:11px;color:#6a90a8;margin-top:12px;">Secure checkout via Stripe</div>' +
         '</div>';
     }
 
-    var firstNm = ((m.given_names || '').trim().split(/\s+/)[0]) || ((m.full_name || '').trim().split(/\s+/)[0]) || 'This member';
-    var sCell = function (num, lbl) { return '<div style="flex:1;text-align:center;padding:10px 4px;"><div style="font-size:22px;font-weight:900;color:#fff;line-height:1;">' + num + '</div><div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#7e98ac;margin-top:5px;">' + lbl + '</div></div>'; };
+    var sCell = function (num, lbl) { return '<div style="flex:1;text-align:center;"><div style="font-size:30px;font-weight:800;color:#fff;line-height:1;">' + num + '</div><div style="font-size:11px;font-weight:600;color:#7e98ac;margin-top:6px;">' + lbl + '</div></div>'; };
     var statsHtml = '';
     if (stats && stats.activities > 0) {
-      var sDiv = '<div style="width:1px;background:rgba(43,168,224,.16);"></div>';
-      statsHtml = '<div style="max-width:540px;margin:22px auto 0;background:#0f2233;border:1px solid rgba(43,168,224,.2);border-radius:16px;padding:14px 12px;">'
-        + '<div style="font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#2ba8e0;text-align:center;margin-bottom:6px;">' + esc(firstNm) + '’s journey</div>'
-        + '<div style="display:flex;align-items:stretch;">' + sCell(stats.streak || 0, 'Day streak') + sDiv + sCell(stats.activities || 0, 'Activities') + sDiv + sCell(stats.cities || 0, 'Cities') + sDiv + sCell(stats.venues || 0, 'Places') + '</div></div>';
+      statsHtml = '<div style="max-width:540px;margin:30px auto 0;">'
+        + '<div style="font-size:12px;font-weight:700;letter-spacing:.4px;color:#7e98ac;text-align:center;margin-bottom:16px;">' + esc(firstNm) + '’s journey</div>'
+        + '<div style="display:flex;">' + sCell(stats.streak || 0, 'Day streak') + sCell(stats.activities || 0, 'Activities') + sCell(stats.cities || 0, 'Cities') + sCell(stats.venues || 0, 'Places') + '</div></div>';
     }
     var meetupsHtml = '';
     if (meetups && meetups.length) {
       var fmtWhen = function (iso) { try { var d = new Date(iso); return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } };
       var mkRows = meetups.map(function (mu) {
         var sub = [mu.sport, mu.venue || mu.city].filter(Boolean).join(' · ');
-        return '<div style="display:flex;align-items:center;gap:12px;padding:11px 12px;background:#0a1825;border:1px solid rgba(43,168,224,.16);border-radius:12px;margin-top:8px;">'
-          + '<div style="flex:0 0 auto;width:40px;height:40px;border-radius:10px;background:rgba(43,168,224,.14);color:#2ba8e0;display:flex;align-items:center;justify-content:center;"><span class="material-icons" style="font-size:20px;">groups</span></div>'
-          + '<div style="flex:1;min-width:0;"><div style="font-weight:800;color:#fff;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(mu.title || mu.sport || 'Meet-up') + '</div>'
-          + '<div style="font-size:12px;color:#7e98ac;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(sub) + '</div></div>'
-          + '<div style="flex:0 0 auto;text-align:right;font-size:11px;font-weight:700;color:#2ba8e0;white-space:nowrap;">' + esc(fmtWhen(mu.meets_at)) + '</div></div>';
+        return '<div style="display:flex;align-items:center;gap:14px;padding:15px 0;border-top:1px solid rgba(255,255,255,.07);">'
+          + '<div style="flex:1;min-width:0;"><div style="font-weight:700;color:#fff;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(mu.title || mu.sport || 'Meet-up') + '</div>'
+          + '<div style="font-size:13px;color:#7e98ac;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;">' + esc(sub) + '</div></div>'
+          + '<div style="flex:0 0 auto;text-align:right;font-size:12px;font-weight:600;color:#9dbdd0;white-space:nowrap;">' + esc(fmtWhen(mu.meets_at)) + '</div></div>';
       }).join('');
-      meetupsHtml = '<div style="max-width:540px;margin:22px auto 0;">'
-        + '<div style="font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#2ba8e0;margin-bottom:2px;">Upcoming meet-ups ' + esc(firstNm) + ' is hosting</div>'
-        + '<div style="font-size:12px;color:#7e98ac;margin-bottom:4px;">Get your Passport to join ' + esc(firstNm) + ' and book in.</div>' + mkRows + '</div>';
+      meetupsHtml = '<div style="max-width:540px;margin:34px auto 0;">'
+        + '<div style="font-size:12px;font-weight:700;letter-spacing:.4px;color:#7e98ac;margin-bottom:2px;">Upcoming meet-ups ' + esc(firstNm) + ' is hosting</div>' + mkRows + '</div>';
     }
 
     content.innerHTML =
@@ -447,10 +441,7 @@ html, body {
           '</div>' +
         '</div>' +
       '</div>' +
-      '<div class="badges-row">' +
-        '<div class="badge ' + statusM.cls + '"><span class="material-icons">' + statusM.icon + '</span>' + statusM.label + '</div>' +
-        verifiedBadge +
-      '</div>' +
+      (m.verified ? '<div style="text-align:center;margin-top:16px;font-size:12px;color:#7e98ac;font-weight:600;"><span class="material-icons" style="font-size:14px;color:#4ade80;vertical-align:-2px;">verified</span> Identity verified</div>' : '') +
       statsHtml +
       meetupsHtml +
       ctaHtml +
