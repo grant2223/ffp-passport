@@ -867,12 +867,12 @@
   }
   function runCompose(text, btn) {
     if (!text || text.trim().length < 3) { toast('Describe your meetup in a sentence', 'error'); return; }
-    if (btn) { btn.disabled = true; btn.textContent = 'Coach Grant is setting it up…'; }
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-icons">hourglass_empty</span>Setting it up…'; }
     aiParse('meetup_compose', text.trim()).then(function (r) {
       if (r.ok && r.j && r.j.draft) { prefillForm(r.j.draft); toast('Coach Grant filled it in — review & post', 'success'); }
       else { toast(r.status === 503 ? 'Coach Grant is unavailable — fill it in below' : 'Fill in the details below'); }
     }).catch(function () { toast('Fill in the details below'); })
-      .then(function () { if (btn) { btn.disabled = false; btn.textContent = 'Coach Grant, set it up'; } });
+      .then(function () { if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-icons">auto_awesome</span>Set it up'; } });
   }
 
   // (No custom voice button — the device keyboard's own mic handles dictation in the text fields.)
