@@ -5291,6 +5291,9 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
       <!-- 3. What's driving it — strap rows, no outer card -->
       <div class="bio-section-title">What's driving it</div>
       <div class="bio-drivers" id="bio-drivers"></div>
+
+      <!-- WHOOP recovery / strain / sleep — filled by ffp-fitness-stats-loader from /api/wearables/daily -->
+      <div id="fs-whoop-daily" style="margin-top:18px;"></div>
     </div>
     
     <!-- ============ ACTIVITY TAB (NEW) ============ -->
@@ -8276,7 +8279,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '454';
+  const FFP_BUILD = '455';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
