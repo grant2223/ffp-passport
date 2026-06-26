@@ -1,7 +1,10 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP PROVIDER VENUE QR LOADER · v2
+   FFP PROVIDER VENUE QR LOADER · v3
    File path: ffp-provider-venue-qr-loader.js (repo root)
-   On-load log: [FFP Venue QR v2] Loaded ✓
+   On-load log: [FFP Venue QR v3] Loaded ✓
+   v3: Two-column Check-ins layout — QR now injects at the top of the left
+       (#checkin-left) column, above the session check-in card. Falls back to
+       the old anchor if #checkin-left isn't present.
    Shows the venue's check-in QR + FFP Passport number in the Check-ins panel,
    with a Download (PNG) button so the provider can print it and display it at
    the counter. The QR encodes the member check-in link
@@ -63,10 +66,18 @@
     if (!el) {
       el = document.createElement('div');
       el.id = 'ffp-venue-qr';
-      var anchor = panel.querySelector('.psub') || panel.querySelector('.checkin-card');
-      if (anchor && anchor.nextSibling) anchor.parentNode.insertBefore(el, anchor.nextSibling);
-      else if (anchor) anchor.parentNode.appendChild(el);
-      else panel.appendChild(el);
+      // v3: two-column Check-ins layout — drop the QR at the TOP of the left
+      // ("check-in") column so it sits above the session check-in card.
+      var left = document.getElementById('checkin-left');
+      if (left) {
+        left.insertBefore(el, left.firstChild);
+      } else {
+        // Fallback: original behaviour (after the panel intro, before the card)
+        var anchor = panel.querySelector('.psub') || panel.querySelector('.checkin-card');
+        if (anchor && anchor.nextSibling) anchor.parentNode.insertBefore(el, anchor.nextSibling);
+        else if (anchor) anchor.parentNode.appendChild(el);
+        else panel.appendChild(el);
+      }
     }
     return el;
   }
@@ -187,7 +198,7 @@
     injectStyles();
     await fetchInfo();
     render();
-    console.log('[FFP Venue QR v2] Loaded ✓');
+    console.log('[FFP Venue QR v3] Loaded ✓');
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
