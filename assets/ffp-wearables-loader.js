@@ -33,7 +33,8 @@
         if (!live) { right = '<span style="font-size:11px;font-weight:800;color:var(--muted);">Coming soon</span>'; status = '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' + sub + '</div>'; }
         else if (c) {
           right = '<button type="button" onclick="ffpWearables.disconnect(\'' + provider + '\')" style="background:none;border:1px solid var(--border-mid);color:var(--muted);border-radius:9px;padding:7px 14px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;">Disconnect</button>';
-          status = '<div style="font-size:11px;color:#16a34a;font-weight:800;margin-top:2px;">' + syncLabel(c) + '</div>';
+          status = '<div style="font-size:11px;color:#16a34a;font-weight:800;margin-top:2px;">' + syncLabel(c) +
+            ' · <a onclick="ffpWearables.sync(\'' + provider + '\')" style="color:#1980AD;cursor:pointer;">Sync now</a></div>';
         } else {
           right = '<button type="button" onclick="ffpWearables.connect(\'' + provider + '\')" style="background:#1980AD;border:none;color:#fff;border-radius:9px;padding:8px 16px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;">Connect</button>';
           status = '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' + sub + '</div>';
@@ -54,6 +55,19 @@
         if (j && j.url) { window.location.href = j.url; return; }
         if (window.showToast) showToast(provider === 'whoop' ? 'WHOOP isn’t switched on yet' : 'Not available yet', 'error');
       } catch (e) { if (window.showToast) showToast('Could not start connect', 'error'); }
+    },
+    async sync(provider) {
+      var rf = refreshTok(); if (!rf) return;
+      if (window.showToast) showToast('Syncing from ' + provider.toUpperCase() + '…');
+      try {
+        var r = await fetch(API + '/api/wearables/' + provider + '/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh: rf }) });
+        var j = await r.json().catch(function () { return null; });
+        if (j && j.ok) {
+          if (window.showToast) showToast('Synced ' + (j.synced || 0) + ' workout' + (j.synced === 1 ? '' : 's') + (j.synced ? '' : ' (nothing new)'), 'success');
+          try { if (window.loadJourneyLogs) window.loadJourneyLogs(); } catch (e) {}
+          this.render();
+        } else { if (window.showToast) showToast('Sync failed — try again', 'error'); }
+      } catch (e) { if (window.showToast) showToast('Sync failed — try again', 'error'); }
     },
     async disconnect(provider) {
       if (!window.confirm('Disconnect ' + provider.toUpperCase() + '? Your past activities stay, but new ones won’t sync.')) return;
