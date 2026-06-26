@@ -3530,32 +3530,64 @@ function renderOverview() {
     }
   }
 
-  const liveDeals = deals.filter(d => d.status === 'live').length;
-  const totalClaims = deals.reduce((a, d) => a + (d.claims || 0), 0);
-  const totalRsvps = events.reduce((a, e) => a + (e.rsvps || 0), 0);
-  const totalApps = experiences.reduce((a, e) => a + (e.applications || 0), 0);
-  const totalListings = deals.length + events.length + experiences.length + challenges.length;
-
-  const kpiGrid = document.getElementById('kpi-grid');
-  kpiGrid.innerHTML = '' +
-    kpi('Active listings', totalListings, '', '') +
-    kpi('Deal claims', totalClaims, '', '', 'yellow') +
-    kpi('Event RSVPs', totalRsvps, '', '', 'green') +
-    kpi('Experience applications', totalApps, '', '', 'blue');
-
-  const acts = [];
-  const al = document.getElementById('activity-list');
-  al.innerHTML = acts.length ? acts.map(a =>
-    '<div class="act-row">' +
-      '<div class="act-icon ' + a.tone + '"><span class="ms">' + a.icon + '</span></div>' +
-      '<div class="act-body">' +
-        '<div class="act-text">' + a.text + '</div>' +
-        '<div class="act-time">' + fmtRelative(a.ts) + '</div>' +
-      '</div>' +
-    '</div>'
-  ).join('') : '<div class="act-row" style="opacity:.7;"><div class="act-body"><div class="act-text">No activity yet</div><div class="act-time">Member RSVPs, applications and check-ins will show here</div></div></div>';
-
+  provOverviewStats();   // business + engagement stats (provider_overview RPC) + member-activity feed
   renderProviderRating();
+}
+
+// Overview headline numbers — engagement/retention FIRST (the #1 leading indicator for a fitness business),
+// then business — rendered clean (no boxed KPI cards). One round-trip: provider_overview(). Plus the activity feed.
+async function provOverviewStats() {
+  var grid = document.getElementById('kpi-grid');
+  var al = document.getElementById('activity-list');
+  var pid = (window.FFP_PROVIDER || {}).id;
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); };
+  if (!grid) return;
+  if (!pid || !window.supabase) { grid.innerHTML = ''; return; }
+  var fmtAed = function (n) { return 'AED ' + (Math.round(Number(n) || 0)).toLocaleString(); };
+  var stat = function (num, label, sub, accent) {
+    return '<div style="padding:0 18px 4px 0;">' +
+      '<div style="font-size:26px;font-weight:800;line-height:1;color:' + (accent || 'var(--ffp-text)') + ';">' + num + '</div>' +
+      '<div style="font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:var(--ffp-text-dim);margin-top:6px;">' + label + '</div>' +
+      (sub ? '<div style="font-size:11px;color:var(--ffp-text-dim);margin-top:3px;font-weight:600;">' + sub + '</div>' : '') +
+      '</div>';
+  };
+  var hdr = function (t) { return '<div style="grid-column:1/-1;font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--ffp-blue);margin:6px 0 0;">' + t + '</div>'; };
+  grid.innerHTML = '<div style="grid-column:1/-1;font-size:12px;color:var(--ffp-text-dim);">Loading your numbers…</div>';
+  try {
+    var r = await window.supabase.rpc('provider_overview', { p_provider: pid });
+    if (r.error) throw r.error;
+    var d = r.data || {};
+    var ci = d.checkins_7d || 0, cip = d.checkins_prev_7d || 0;
+    var trend = cip > 0 ? Math.round((ci - cip) / cip * 100) : (ci > 0 ? 100 : 0);
+    var ciSub = (ci === 0 && cip === 0) ? 'no check-ins yet' : ((ci >= cip ? '▲ ' : '▼ ') + Math.abs(trend) + '% vs last week');
+    var ts = d.top_session, tf = d.top_staff;
+    grid.innerHTML =
+      hdr('Engagement') +
+      stat(ci, 'Check-ins · 7 days', ciSub, ci >= cip ? '#16a34a' : 'var(--ffp-text)') +
+      stat(d.active_members_7d || 0, 'Members active · 7d', 'visited this week') +
+      stat(d.members_at_risk || 0, 'At-risk members', 'no visit 14+ days', (d.members_at_risk || 0) > 0 ? '#d97706' : 'var(--ffp-text)') +
+      stat(d.sessions_today || 0, 'Sessions today', (d.appts_today || 0) + ' appointment' + ((d.appts_today || 0) === 1 ? '' : 's')) +
+      hdr('Business') +
+      stat(fmtAed(d.revenue_month_aed), 'Revenue · this month', '') +
+      stat(d.members_total || 0, 'Members', '+' + (d.members_new_7d || 0) + ' new this week') +
+      stat(d.appts_upcoming || 0, 'Upcoming appointments', '') +
+      ((ts && ts.title) ? '<div style="grid-column:1/-1;font-size:13px;color:var(--ffp-text);padding-top:6px;"><span style="color:var(--ffp-text-dim);">Most popular session:</span> <strong>' + esc(ts.title) + '</strong> · ' + (ts.count || 0) + ' check-ins (30d)</div>' : '') +
+      ((tf && tf.name) ? '<div style="grid-column:1/-1;font-size:13px;color:var(--ffp-text);"><span style="color:var(--ffp-text-dim);">Most active staff:</span> <strong>' + esc(tf.name) + '</strong> · ' + (tf.count || 0) + ' appointments (30d)</div>' : '');
+  } catch (e) { grid.innerHTML = '<div style="grid-column:1/-1;font-size:12px;color:var(--ffp-text-dim);">Couldn\'t load your numbers right now.</div>'; }
+  if (al) {
+    try {
+      var rb = await window.supabase.rpc('provider_recent_session_bookings', { p_provider: pid });
+      var rows = (rb && !rb.error && Array.isArray(rb.data)) ? rb.data : [];
+      al.innerHTML = rows.length ? rows.slice(0, 8).map(function (a) {
+        var who = a.member_name || a.full_name || 'A member';
+        var what = a.title || a.session_title || a.activity || 'a session';
+        var ts2 = a.marked_at || a.checked_in_at || a.start_at || a.created_at || a.when;
+        return '<div class="act-row"><div class="act-icon"><span class="ms">person</span></div>' +
+          '<div class="act-body"><div class="act-text"><strong>' + esc(who) + '</strong> — ' + esc(what) + '</div>' +
+          '<div class="act-time">' + (ts2 ? fmtRelative(ts2) : '') + '</div></div></div>';
+      }).join('') : '<div class="act-row" style="opacity:.7;"><div class="act-body"><div class="act-text">No recent activity</div><div class="act-time">Member bookings and check-ins will show here</div></div></div>';
+    } catch (e) {}
+  }
 }
 
 // ════════════════════════════════════════════════
