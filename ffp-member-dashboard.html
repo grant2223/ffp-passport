@@ -1,4 +1,12 @@
-<!-- FFP MEMBER DASHBOARD — v373 (2026-06-26)  [changelog trimmed to latest updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v374 (2026-06-26)  [changelog trimmed to latest updates; older history in git]
+     v374: WEARABLES — Profile › "Connected devices" (window.ffpWearables): Connect/Disconnect WHOOP (live) +
+           Garmin "coming soon"; status + last-synced via POST /api/wearables/status; connect → /api/wearables/connect
+           opens the WHOOP auth widget; OAuth return (?wearable=whoop_connected) shows a toast + cleans the URL.
+           Rendered on Profile open. Backend index.js v103 (WHOOP OAuth + webhook → activity_logs source='whoop').
+           Needs Vercel env WHOOP_CLIENT_ID/SECRET + deploy. FFP_BUILD 449→450.
+           Also: CALORIE "Tell me what you had" now splits foods into the meals the USER named (eggs→breakfast,
+           salad→lunch) instead of dumping all into the current-time bucket — describeInline/describeMeal honour
+           item.meal (calorie loader, FFP_BUILD bust); backend index.js v104 returns per-item meal.
      v373: MEAL PLANNER — added 4 ready-made "common plan" chips (High-protein fat loss / Lean muscle gain /
            Balanced maintenance / Low-carb) that render INSTANTLY with no AI/backend (CalorieTracker.usePreset +
            PLANNER_PRESETS in the loader; reuses renderPlan). Works even before the Vercel /api/nutrition/plan
@@ -8351,7 +8359,7 @@ function _ffpInitPullToRefresh() {
     'panel-fitness-stats':   function () { try { if (window.ffpReloadFitnessStats) ffpReloadFitnessStats(); } catch (e) {} },
     'panel-calorie-tracker': function () { try { if (window.ffpReloadCalorieTracker) ffpReloadCalorieTracker(); } catch (e) {} },
     'panel-workout':         function () { try { if (window.FFPWorkout && FFPWorkout.home) FFPWorkout.home(); } catch (e) {} },
-    'panel-profile':         function () { try { if (window.ffpReloadProfile) ffpReloadProfile(); } catch (e) {} }
+    'panel-profile':         function () { try { if (window.ffpReloadProfile) ffpReloadProfile(); } catch (e) {} try { setTimeout(function () { if (window.ffpWearables) ffpWearables.render(); }, 200); } catch (e) {} }
   };
   function refreshActive() {
     var a = document.querySelector('.panel-view.active'); var fn = a && RELOAD[a.id];
@@ -8411,7 +8419,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '449';
+  const FFP_BUILD = '450';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -8905,6 +8913,10 @@ const MemberProfile = {
         <div style="margin-top:18px;text-align:center;">
           <div id="profile-save-status" style="font-size:12px;color:#6b8298;min-height:18px;">Changes save automatically</div>
         </div>
+
+        <!-- CONNECTED DEVICES — wearables (WHOOP live; Garmin coming) -->
+        <div class="profile-section-title">Connected devices</div>
+        <div id="mp-wearables" style="font-size:13px;color:var(--muted);padding:2px;">Loading…</div>
 
         <!-- PROFESSIONAL PROFILE — member self-declares role; admin verifies separately -->
         <div class="profile-section-title">Professional Profile</div>
@@ -11559,6 +11571,69 @@ function openScanLog() {
 }
 function closeLogModal() { document.getElementById('log-modal-backdrop').classList.remove('open'); }
 function closeLogIfBackdrop(e) { if (e.target.id === 'log-modal-backdrop') closeLogModal(); }
+// ── Connected devices (wearables) — Profile section. WHOOP live; Garmin shown "coming soon". ──
+window.ffpWearables = {
+  _api: 'https://ffp-passport-backend.vercel.app',
+  _refresh: function () { try { return localStorage.getItem('ffp_refresh'); } catch (e) { return null; } },
+  async render() {
+    var host = document.getElementById('mp-wearables'); if (!host) return;
+    var connected = {};
+    var rf = this._refresh();
+    if (rf) {
+      try {
+        var r = await fetch(this._api + '/api/wearables/status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh: rf }) });
+        var j = await r.json();
+        (j && j.providers || []).forEach(function (p) { connected[p.provider] = p; });
+      } catch (e) {}
+    }
+    function syncLabel(p) { if (!p || !p.last_synced_at) return 'Connected'; try { return 'Synced ' + new Date(p.last_synced_at).toLocaleDateString(); } catch (e) { return 'Connected'; } }
+    function row(provider, name, sub, live) {
+      var c = connected[provider], right, status;
+      if (!live) { right = '<span style="font-size:11px;font-weight:800;color:var(--muted);">Coming soon</span>'; status = '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' + sub + '</div>'; }
+      else if (c) {
+        right = '<button type="button" onclick="ffpWearables.disconnect(\'' + provider + '\')" style="background:none;border:1px solid var(--border-mid);color:var(--muted);border-radius:9px;padding:7px 14px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;">Disconnect</button>';
+        status = '<div style="font-size:11px;color:#16a34a;font-weight:800;margin-top:2px;">' + syncLabel(c) + '</div>';
+      } else {
+        right = '<button type="button" onclick="ffpWearables.connect(\'' + provider + '\')" style="background:#1980AD;border:none;color:#fff;border-radius:9px;padding:8px 16px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;">Connect</button>';
+        status = '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' + sub + '</div>';
+      }
+      return '<div style="display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--border);">' +
+        '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:800;color:var(--text);">' + name + '</div>' + status + '</div>' + right + '</div>';
+    }
+    host.innerHTML = row('whoop', 'WHOOP', 'Auto-log your workouts, heart rate & calories', true) +
+      row('garmin', 'Garmin', 'Auto-log your workouts (coming soon)', false) +
+      '<div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5;">Connect a device and your workouts log to your Passport automatically — no manual entry.</div>';
+  },
+  async connect(provider) {
+    var rf = this._refresh();
+    if (!rf) { if (window.showToast) showToast('Please sign in again', 'error'); return; }
+    try {
+      var r = await fetch(this._api + '/api/wearables/connect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh: rf, provider: provider }) });
+      var j = await r.json().catch(function () { return null; });
+      if (j && j.url) { window.location.href = j.url; return; }
+      if (window.showToast) showToast(provider === 'whoop' ? 'WHOOP isn’t switched on yet' : 'Not available yet', 'error');
+    } catch (e) { if (window.showToast) showToast('Could not start connect', 'error'); }
+  },
+  async disconnect(provider) {
+    if (!window.confirm('Disconnect ' + provider.toUpperCase() + '? Your past activities stay, but new ones won’t sync.')) return;
+    var rf = this._refresh();
+    try { await fetch(this._api + '/api/wearables/disconnect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh: rf, provider: provider }) }); } catch (e) {}
+    if (window.showToast) showToast(provider.toUpperCase() + ' disconnected');
+    this.render();
+  }
+};
+// Handle the OAuth return (?wearable=...) once on load: toast + clean the URL.
+(function () {
+  try {
+    var q = new URLSearchParams(location.search);
+    var w = q.get('wearable'); if (!w) return;
+    if (w === 'whoop_connected') { if (window.showToast) showToast('WHOOP connected — your workouts will sync', 'success'); }
+    else if (w === 'whoop_error') { if (window.showToast) showToast('Couldn’t connect WHOOP — please try again', 'error'); }
+    q.delete('wearable'); q.delete('reason');
+    history.replaceState(null, '', location.pathname + (q.toString() ? ('?' + q.toString()) : '') + location.hash);
+  } catch (e) {}
+})();
+
 // AI "Describe it" → parse free text into the activity fields (activity, duration, distance, calories, notes).
 function logAIParse() {
   var inp = document.getElementById('log-ai-text'); var txt = (inp && inp.value || '').trim();
