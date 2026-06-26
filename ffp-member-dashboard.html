@@ -1,4 +1,10 @@
-<!-- FFP MEMBER DASHBOARD — v361 (2026-06-22)  [changelog trimmed to latest 3 updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v367 (2026-06-26)  [changelog trimmed to latest updates; older history in git]
+     v367: LOG ACTIVITY PHOTOS — multi-select + default crop. The "Add photos" tile now opens a MULTI-file picker;
+           each photo is auto-cropped to the chosen DEFAULT (Square centre, or Full = keep aspect) and uploaded with
+           no per-photo modal. New "Default crop" Square|Full toggle above the strip. Each thumbnail gets a crop icon
+           → ffpLogAdjustPhoto opens the cropper (ratio picker) on the ORIGINAL file (edit-mode photos re-fetched from
+           URL), replacing that slot. New FFPUpload.pickMulti + squareCropBlob (ffp-image-upload.js?v=9). Parallel
+           window._logPhotoFiles[] holds originals for re-crop. FFP_BUILD 442→443.
      v366: PASSPORT REVIEW (was "Your trend"). Removed the BOX — now a clean borderless section with real substance:
            a review of how they use the passport (total activities, cities, the activity they love most + count, streak),
            the week-vs-week direction + 8-week sparkline, and a Coach Grant insight to do MORE of what they love
@@ -188,7 +194,7 @@
 <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>
 <script src="assets/ffp-photo-upload.js"></script>
 <!-- Shared image uploader (Storage, not base64) — used by the meetup cover photo. -->
-<script src="assets/ffp-image-upload.js?v=8"></script>
+<script src="assets/ffp-image-upload.js?v=9"></script>
 <!-- v110: qrcode.js for real scannable Identity QR (verify URL). -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <!-- v167: html2canvas to render the passport card to a shareable image (tap-to-share) -->
@@ -5548,8 +5554,15 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
       </div>
       <div class="pm-form-field">
         <label class="pm-form-label">Photos (optional) <span id="log-photos-count" style="color:#8a99a8;font-weight:700;font-size:11px;"></span></label>
+        <div style="display:flex;align-items:center;gap:8px;margin:0 0 8px;">
+          <span style="font-size:11px;font-weight:800;color:#8a99a8;">Default crop</span>
+          <div id="log-crop-toggle" style="display:flex;gap:6px;">
+            <button type="button" data-mode="square" onclick="ffpLogSetCropMode('square')" style="padding:5px 12px;border-radius:7px;border:1px solid #2ba8e0;background:#2ba8e0;color:#fff;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;">Square</button>
+            <button type="button" data-mode="full" onclick="ffpLogSetCropMode('full')" style="padding:5px 12px;border-radius:7px;border:1px solid rgba(43,168,224,0.35);background:transparent;color:#9dbdd0;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;">Full</button>
+          </div>
+        </div>
         <div id="log-photos-strip" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;"></div>
-        <div style="font-size:10.5px;color:#8a99a8;margin-top:5px;">Add up to 8 — swipe to browse. First photo is the cover.</div>
+        <div style="font-size:10.5px;color:#8a99a8;margin-top:5px;">Pick several at once — they're cropped to your default. Tap a photo's crop icon to adjust. First photo is the cover.</div>
         <input type="hidden" id="log-photo-url">
       </div>
       <div class="pm-form-field">
@@ -8320,7 +8333,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '442';
+  const FFP_BUILD = '443';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -11240,7 +11253,20 @@ function ffpToggleNotifications() {
 // window._logPhotos[]; the FIRST is the cover (mirrored into the hidden #log-photo-url for back-compat
 // and saved as activity_logs.photo_url). The full ordered list saves into activity_logs.photos[].
 window._logPhotos = window._logPhotos || [];
+window._logPhotoFiles = window._logPhotoFiles || [];   // original File per photo (for "adjust"); undefined for edit-mode prefills
+window._logPhotoCropMode = window._logPhotoCropMode || 'square';   // 'square' (center) or 'full' (keep aspect)
 var FFP_LOG_PHOTO_MAX = 8;
+// Default-crop toggle: applied to NEW photos added after this point.
+function ffpLogSetCropMode(m) {
+  window._logPhotoCropMode = (m === 'full') ? 'full' : 'square';
+  var host = document.getElementById('log-crop-toggle'); if (!host) return;
+  host.querySelectorAll('[data-mode]').forEach(function (b) {
+    var on = b.getAttribute('data-mode') === window._logPhotoCropMode;
+    b.style.background = on ? '#2ba8e0' : 'transparent';
+    b.style.color = on ? '#fff' : '#9dbdd0';
+    b.style.borderColor = on ? '#2ba8e0' : 'rgba(43,168,224,0.35)';
+  });
+}
 function ffpRenderLogPhotos() {
   var strip = document.getElementById('log-photos-strip'); if (!strip) return;
   var arr = window._logPhotos || (window._logPhotos = []);
@@ -11248,33 +11274,70 @@ function ffpRenderLogPhotos() {
   arr.forEach(function (url, i) {
     html += '<div style="position:relative;flex:0 0 auto;width:92px;height:92px;border-radius:12px;overflow:hidden;border:1px solid rgba(43,168,224,0.3);background:#13324a center/cover no-repeat;background-image:url(\'' + url + '\');">' +
       (i === 0 ? '<span style="position:absolute;left:4px;bottom:4px;background:rgba(8,20,32,0.78);color:#FFCC00;font-size:9px;font-weight:800;letter-spacing:.4px;padding:2px 6px;border-radius:6px;">COVER</span>' : '') +
+      '<button type="button" onclick="ffpLogAdjustPhoto(' + i + ')" aria-label="Adjust crop" style="position:absolute;left:3px;top:3px;width:22px;height:22px;border-radius:50%;border:none;background:rgba(8,20,32,0.72);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;"><span class="material-icons" style="font-size:14px;">crop</span></button>' +
       '<button type="button" onclick="ffpLogRemovePhoto(' + i + ')" aria-label="Remove photo" style="position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;border:none;background:rgba(8,20,32,0.72);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;"><span class="material-icons" style="font-size:15px;">close</span></button>' +
       '</div>';
   });
   if (arr.length < FFP_LOG_PHOTO_MAX) {
-    html += '<button type="button" onclick="ffpLogPickPhoto()" aria-label="Add photo" style="flex:0 0 auto;width:92px;height:92px;border-radius:12px;border:1.5px dashed rgba(43,168,224,0.45);background:rgba(8,20,32,0.5);color:#2ba8e0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:24px;">add_a_photo</span><span style="font-size:10px;font-weight:800;">' + (arr.length ? 'Add' : 'Add photo') + '</span></button>';
+    html += '<button type="button" onclick="ffpLogPickPhoto()" aria-label="Add photos" style="flex:0 0 auto;width:92px;height:92px;border-radius:12px;border:1.5px dashed rgba(43,168,224,0.45);background:rgba(8,20,32,0.5);color:#2ba8e0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:24px;">add_a_photo</span><span style="font-size:10px;font-weight:800;">' + (arr.length ? 'Add' : 'Add photos') + '</span></button>';
   }
   strip.innerHTML = html;
   var cnt = document.getElementById('log-photos-count'); if (cnt) cnt.textContent = arr.length ? (arr.length + '/' + FFP_LOG_PHOTO_MAX) : '';
   var h = document.getElementById('log-photo-url'); if (h) h.value = arr[0] || '';   // cover (back-compat)
 }
+// Pick MULTIPLE photos at once. Each is auto-cropped to the current default (square-centre or full),
+// uploaded, and appended — no per-photo modal. The strip updates as each finishes.
 function ffpLogPickPhoto() {
   var arr = window._logPhotos || (window._logPhotos = []);
-  if (arr.length >= FFP_LOG_PHOTO_MAX) { if (window.showToast) showToast('Up to ' + FFP_LOG_PHOTO_MAX + ' photos', 'info'); return; }
-  if (!window.FFPUpload || !window.FFPUpload.pick) { if (window.showToast) showToast('Photo upload unavailable', 'error'); return; }
+  var remaining = FFP_LOG_PHOTO_MAX - arr.length;
+  if (remaining <= 0) { if (window.showToast) showToast('Up to ' + FFP_LOG_PHOTO_MAX + ' photos', 'info'); return; }
+  if (!window.FFPUpload || !window.FFPUpload.pickMulti) { if (window.showToast) showToast('Photo upload unavailable', 'error'); return; }
   var mid = ((window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || {}).id || 'm';
-  window.FFPUpload.pick({
-    bucket: 'activity-photos', key: 'activity/' + mid + '-' + Date.now() + '-' + arr.length + '.jpg',
-    aspect: 4 / 3, pickRatio: true, outW: 1280, outH: 1280, title: 'Activity photo',
-    onDone: function (url) { if (url) { window._logPhotos.push(url); ffpRenderLogPhotos(); } },
-    onError: function (e) { if (window.showToast) showToast('Photo upload failed', 'error'); console.warn('[log photo]', e); }
+  window.FFPUpload.pickMulti({
+    bucket: 'activity-photos', keyBase: 'activity/' + mid, limit: remaining,
+    mode: window._logPhotoCropMode, outW: 1280, outH: 1280,
+    onEach: function (url, file) {
+      if (!url) return;
+      if ((window._logPhotos || []).length >= FFP_LOG_PHOTO_MAX) return;
+      window._logPhotos.push(url);
+      window._logPhotoFiles[window._logPhotos.length - 1] = file || null;
+      ffpRenderLogPhotos();
+    },
+    onError: function (e) { if (window.showToast) showToast('A photo failed to upload', 'error'); console.warn('[log photo]', e); }
   });
 }
-function ffpLogRemovePhoto(i) { var a = window._logPhotos || []; if (i >= 0 && i < a.length) { a.splice(i, 1); ffpRenderLogPhotos(); } }
+// Adjust the crop of one photo — opens the cropper (with ratio picker) on the original file.
+// Edit-mode photos (no original file) are re-fetched from their URL first.
+async function ffpLogAdjustPhoto(i) {
+  if (!window.FFPUpload || !window.FFPUpload.cropFile) { if (window.showToast) showToast('Crop unavailable', 'error'); return; }
+  var files = window._logPhotoFiles || [];
+  var f = files[i];
+  if (!f) {
+    try {
+      var url = (window._logPhotos || [])[i]; if (!url) return;
+      var r = await fetch(url); var b = await r.blob();
+      f = new File([b], 'photo.jpg', { type: b.type || 'image/jpeg' });
+    } catch (e) { if (window.showToast) showToast('Can’t adjust this photo', 'error'); return; }
+  }
+  var mid = ((window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || {}).id || 'm';
+  window.FFPUpload.cropFile(f, {
+    bucket: 'activity-photos', key: 'activity/' + mid + '-' + Date.now() + '-adj' + i,
+    aspect: (window._logPhotoCropMode === 'square') ? 1 : NaN, pickRatio: true,
+    outW: 1280, outH: 1280, title: 'Adjust photo',
+    onDone: function (u) { if (u) { window._logPhotos[i] = u; window._logPhotoFiles[i] = f; ffpRenderLogPhotos(); } },
+    onError: function () { if (window.showToast) showToast('Couldn’t save crop', 'error'); }
+  });
+}
+function ffpLogRemovePhoto(i) {
+  var a = window._logPhotos || []; var ff = window._logPhotoFiles || [];
+  if (i >= 0 && i < a.length) { a.splice(i, 1); ff.splice(i, 1); ffpRenderLogPhotos(); }
+}
 // Set the whole list at once (reset = [], edit prefill = row.photos). Keeps cover in #log-photo-url.
 function ffpLogSetPhotos(list) {
   window._logPhotos = (Array.isArray(list) ? list.slice(0, FFP_LOG_PHOTO_MAX) : []);
+  window._logPhotoFiles = [];   // originals unknown for prefilled/edit photos
   ffpRenderLogPhotos();
+  ffpLogSetCropMode(window._logPhotoCropMode || 'square');   // keep the Square|Full toggle in sync on (re)open
 }
 function openLogModal() {
   document.getElementById('log-modal-backdrop').classList.add('open');
