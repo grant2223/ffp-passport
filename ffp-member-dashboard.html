@@ -8276,7 +8276,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '451';
+  const FFP_BUILD = '452';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -11813,7 +11813,7 @@ async function loadJourneyLogs() {
         // on the SAME day get different daysAgo (e.g. morning vs afternoon), breaking the day streak.
         daysAgo: (function () { var a = new Date(dt.getTime()); a.setHours(0, 0, 0, 0); var t = new Date(); t.setHours(0, 0, 0, 0); return Math.max(0, Math.round((t - a) / 86400000)); })(),
         duration: r.duration_min || 0, durationSec: r.duration_sec || 0, calories: r.calories || 0, notes: r.notes || '',
-        verified: !!r.verified, partner: false
+        verified: !!r.verified, partner: false, source: r.source || 'manual', metrics: r.metrics || null
       });
     });
     // Merge in activities I was tagged in and CONFIRMED — they show on MY journey too (with whose they were).
@@ -11983,7 +11983,7 @@ window.ffpRenderActivityCard = function (a, isOwn) {
     '<div style="position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(180deg,rgba(8,20,32,0.15) 0%,rgba(8,20,32,0.55) 60%,#081420 100%);"></div>' +
     _counter +
     '<div style="position:absolute;bottom:20px;left:22px;right:22px;z-index:2;pointer-events:none;">' +
-      '<div style="font-size:11px;font-weight:800;letter-spacing:2.5px;color:#7fc4ec;text-transform:uppercase;">' + eyebrow + '</div>' +
+      '<div style="font-size:11px;font-weight:800;letter-spacing:2.5px;color:#7fc4ec;text-transform:uppercase;">' + eyebrow + ((a.source && a.source !== 'manual') ? '<span style="display:inline-block;margin-left:8px;background:rgba(255,255,255,0.16);color:#fff;font-size:9px;font-weight:800;letter-spacing:.5px;padding:2px 7px;border-radius:100px;vertical-align:2px;">via ' + esc(String(a.source).toUpperCase()) + '</span>' : '') + '</div>' +
       '<div style="display:flex;align-items:flex-end;gap:9px;margin-top:8px;"><div style="font-size:56px;font-weight:900;line-height:0.88;letter-spacing:-2px;color:#fff;">' + esc(heroVal) + '</div>' + (heroUnit ? '<div style="font-size:19px;font-weight:800;color:#9fc4e0;margin-bottom:8px;">' + heroUnit + '</div>' : '') + '</div>' +
       (subline ? '<div style="font-size:12.5px;color:#cfe0ee;font-weight:600;margin-top:6px;">' + esc(subline) + '</div>' : '') +
     '</div>' +
@@ -11995,6 +11995,7 @@ window.ffpRenderActivityCard = function (a, isOwn) {
   if (hasDist) { ribItems.push(['Duration', dur(a.duration_min, a.duration_sec), '#fff']); if (pace) ribItems.push(['Pace /km', pace, '#7cc6ff']); }
   if (a.calories) ribItems.push(['kcal', String(a.calories), '#f3914e']);
   if (a.avg_heart_rate) ribItems.push(['Avg HR', String(a.avg_heart_rate), '#ef6a6a']);
+  if (a.metrics) { if (a.metrics.max_hr) ribItems.push(['Max HR', String(a.metrics.max_hr), '#ef6a6a']); if (a.metrics.strain != null) ribItems.push(['Strain', String(a.metrics.strain), '#7cc6ff']); }
   var ribbon = ribItems.length ? ('<div style="display:flex;padding:22px 6px 16px;">' + ribItems.map(function (it, i) { return '<div style="flex:1;text-align:center;' + (i ? 'border-left:1px solid rgba(255,255,255,0.09);' : '') + '"><div style="font-size:21px;font-weight:900;color:' + it[2] + ';">' + esc(it[1]) + '</div><div style="font-size:9.5px;font-weight:800;letter-spacing:.6px;color:#8a99a8;text-transform:uppercase;margin-top:5px;">' + esc(it[0]) + '</div></div>'; }).join('') + '</div>') : '';
   // Map strip — full-width, immersive (falls back to a location line).
   var mapBlock = '';
