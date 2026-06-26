@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — v370 (2026-06-26)  [changelog trimmed to latest updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v371 (2026-06-26)  [changelog trimmed to latest updates; older history in git]
+     v371: CALORIE TRACKER DE-BOXED (Week + Month too). Flattened .ct-week-summary (gradient box → transparent),
+           .ct-week-chart (tinted box → transparent), .ct-week-day-row (boxed → hairline-divided rows; is-today =
+           yellow label), .ct-month-week-box (tinted tiles → flat; is-current = yellow label). Colour-coded numbers,
+           status chips and chart bars kept. CSS-only. FFP_BUILD 446→447.
      v370: CALORIE TRACKER DE-BOXED (Today + Meal Planner) — removed the background boxes: .ct-section (was a
            tinted bordered card → transparent, flush), .cal-hero (gradient box → transparent), .cal-macro (tinted
            tiles → flat, just the bar + values), .ct-planner-meal (boxed → hairline divider rows), .ct-planner-macros
@@ -1506,17 +1510,17 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
 
 /* Big summary card */
 .ct-week-summary {
-  background: linear-gradient(135deg, rgba(43,168,224,0.10), rgba(74,222,128,0.06) 100%);
-  border: 1px solid var(--border-mid);
-  border-radius: 14px;
-  padding: 20px 18px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 8px 0 14px;
   text-align: center;
   margin-bottom: 14px;
   position: relative;
   overflow: hidden;
 }
 .ct-week-summary.over {
-  background: linear-gradient(135deg, rgba(239,68,68,0.10), rgba(255,204,0,0.06));
+  background: transparent;
 }
 .ct-week-eyebrow {
   font-size: 10px; font-weight: 800;
@@ -1558,10 +1562,10 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
 
 /* 7-day chart */
 .ct-week-chart {
-  background: rgba(43,168,224,0.04);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px 14px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 4px 0 14px;
   margin-bottom: 14px;
 }
 .ct-chart-title {
@@ -1632,21 +1636,19 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
 .ct-chart-label.today .date { color: var(--yellow); }
 
 /* Daily breakdown list */
-.ct-week-list { display: flex; flex-direction: column; gap: 6px; }
+.ct-week-list { display: flex; flex-direction: column; gap: 0; }
 .ct-week-day-row {
   display: grid;
   grid-template-columns: 56px 1fr auto;
   gap: 10px;
   align-items: center;
-  padding: 10px 12px;
-  background: rgba(43,168,224,0.04);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  padding: 11px 2px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
 }
-.ct-week-day-row.is-today {
-  border-color: rgba(255,204,0,0.30);
-  background: rgba(255,204,0,0.04);
-}
+.ct-week-day-row.is-today .ct-week-day-label { color: var(--yellow); }
 .ct-week-day-label {
   font-size: 12px; font-weight: 800;
 }
@@ -1691,13 +1693,13 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
   gap: 6px;
 }
 .ct-month-week-box {
-  background: rgba(43,168,224,0.04);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 8px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 6px 4px;
   text-align: center;
 }
-.ct-month-week-box.is-current { border-color: rgba(255,204,0,0.40); background: rgba(255,204,0,0.04); }
+.ct-month-week-box.is-current .ct-month-week-box-label { color: var(--yellow); }
 .ct-month-week-box-label {
   font-size: 9px;
   font-weight: 800;
@@ -8392,7 +8394,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '446';
+  const FFP_BUILD = '447';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
