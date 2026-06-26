@@ -166,6 +166,61 @@
     return uploadBlob(bucket, key, blob);
   }
 
+  // ── Centre-crop to a square (size×size) JPEG blob — the default for fast multi-add ──
+  function squareCropBlob(srcDataUrl, size) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      img.onload = function () {
+        var w = img.naturalWidth, h = img.naturalHeight;
+        var s = Math.min(w, h);
+        var sx = Math.round((w - s) / 2), sy = Math.round((h - s) / 2);
+        var c = document.createElement('canvas'); c.width = size; c.height = size;
+        var ctx = c.getContext('2d');
+        ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+        ctx.fillStyle = '#0f1e2e'; ctx.fillRect(0, 0, size, size);
+        ctx.drawImage(img, sx, sy, s, s, 0, 0, size, size);
+        c.toBlob(function (b) { b ? resolve(b) : reject(new Error('Could not encode image')); }, 'image/jpeg', 0.85);
+      };
+      img.onerror = function () { reject(new Error('Could not read that image')); };
+      img.src = srcDataUrl;
+    });
+  }
+
+  // ── Pick MULTIPLE images at once, apply a DEFAULT crop, upload each, no per-photo modal ──
+  //   pickMulti({ bucket, keyBase, mode:'square'|'full', outW, outH, limit, onEach(url,file), onAllDone(), onError(e) })
+  //   - mode 'square' → centre-crop to a square; 'full' → keep aspect, just resize within the budget.
+  //   - onEach fires as each upload finishes (so the caller's strip updates progressively).
+  function pickMulti(opts) {
+    opts = opts || {};
+    if (!opts.bucket || !opts.keyBase) { (opts.onError || function () {})(new Error('bucket and keyBase required')); return; }
+    if (!ownerId()) { (opts.onError || function (e) { alert(e.message); })(new Error('Please sign in again')); return; }
+    var input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*'; input.multiple = true; input.style.display = 'none';
+    input.addEventListener('change', async function (e) {
+      var files = Array.prototype.slice.call((e.target && e.target.files) || []);
+      if (e.target && e.target.parentNode) e.target.parentNode.removeChild(e.target);
+      var limit = (opts.limit == null) ? files.length : Math.max(0, opts.limit);
+      files = files.slice(0, limit);
+      var mode = (opts.mode === 'full') ? 'full' : 'square';
+      var budget = Math.max(opts.outW || 0, opts.outH || 0) || 1280;
+      for (var i = 0; i < files.length; i++) {
+        var f = files[i];
+        if (!/^image\//.test(f.type || '')) continue;
+        try {
+          var dataUrl = await fileToDataUrl(f);
+          var blob = (mode === 'square') ? await squareCropBlob(dataUrl, budget) : await resizeToBlob(dataUrl, budget, budget);
+          if (blob && blob.size > 3 * 1024 * 1024) throw new Error('Image too large after compression');
+          var key = String(opts.keyBase) + '-' + Date.now() + '-' + i;
+          var url = await uploadBlob(opts.bucket, key, blob);
+          if (opts.onEach) opts.onEach(url, f);
+        } catch (err) { if (opts.onError) opts.onError(err); }
+      }
+      if (opts.onAllDone) opts.onAllDone();
+    });
+    document.body.appendChild(input);
+    input.click();
+  }
+
   // ── Crop modal (built once, reused), parametrised by aspect ──
   function ensureModal() {
     if (document.getElementById('ffp-imgup-modal')) return;
@@ -342,9 +397,11 @@
 
   window.FFPUpload = {
     pick: pick,
+    pickMulti: pickMulti,
     cropFile: cropFile,
     uploadFile: uploadFile,
     uploadBlob: uploadBlob,
+    squareCropBlob: squareCropBlob,
     _close: closeModal,
     _save: saveCrop,
     _ratio: setRatio
