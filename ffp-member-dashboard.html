@@ -1,4 +1,8 @@
 <!-- FFP MEMBER DASHBOARD — v361 (2026-06-22)  [changelog trimmed to latest 3 updates; older history in git]
+     v366: PASSPORT REVIEW (was "Your trend"). Removed the BOX — now a clean borderless section with real substance:
+           a review of how they use the passport (total activities, cities, the activity they love most + count, streak),
+           the week-vs-week direction + 8-week sparkline, and a Coach Grant insight to do MORE of what they love
+           (host/join a meet-up). renderTrend() now reads activity + city from LOGS. FFP_BUILD 441→442.
      v365: PASSPORT TREND + EMAIL VERIFIED. (1) New "Your trend" card under the World Map — this-week vs last-week
            activity, day-streak, an 8-week sparkline + a Coach Grant tip (renderTrend(), all-time from global LOGS).
            (2) Profile email card shows a Verified ✓ status (members.verified; backend /api/auth/signin sets it on a
@@ -4551,20 +4555,18 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     <button class="time-chip active" data-range="all">All time</button>
   </div>
 
-  <!-- YOUR TREND (v365) — this week vs last + streak + sparkline + Coach Grant tip -->
-  <div class="card-block" id="trend-card" style="display:none;">
-    <div class="card-head">
-      <div class="card-head-title"><span class="material-icons card-head-icon">insights</span><h3>Your trend</h3></div>
-      <span class="card-head-sub" id="trend-streak">0-day streak</span>
-    </div>
-    <div style="display:flex;align-items:center;gap:16px;padding:2px 2px 0;">
-      <div style="flex:0 0 auto;text-align:left;">
-        <div id="trend-dir" style="font-size:22px;font-weight:900;line-height:1;color:var(--muted);">—</div>
-        <div style="font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin-top:4px;">vs last week</div>
+  <!-- YOUR PASSPORT REVIEW (v366) — borderless: a real review of how they use the passport + trend + Coach Grant insight -->
+  <div id="trend-card" style="display:none;margin:6px 0 28px;">
+    <div style="font-size:12px;font-weight:700;letter-spacing:.4px;color:var(--muted);margin-bottom:12px;">Your passport · how you’re using it</div>
+    <div id="trend-review" style="font-size:15.5px;color:var(--text);line-height:1.6;margin-bottom:18px;"></div>
+    <div style="display:flex;align-items:flex-end;gap:14px;margin-bottom:18px;">
+      <div style="flex:0 0 auto;">
+        <div id="trend-dir" style="font-size:24px;font-weight:800;line-height:1;color:var(--muted);">—</div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);margin-top:5px;">vs last week</div>
       </div>
-      <div id="trend-spark" style="flex:1;min-width:0;height:38px;"></div>
+      <div id="trend-spark" style="flex:1;min-width:0;height:40px;"></div>
     </div>
-    <div id="trend-tip" style="font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:10px;display:flex;gap:6px;align-items:flex-start;"></div>
+    <div id="trend-tip" style="font-size:14px;color:var(--text);line-height:1.65;display:flex;gap:8px;align-items:flex-start;"></div>
   </div>
   
   <!-- ═══ YOUR JOURNEY MAP (Leaflet) — World › Country › City ═══ -->
@@ -7283,29 +7285,46 @@ function renderTrend() {
   var card = document.getElementById('trend-card'); if (!card) return;
   var logs = (typeof LOGS !== 'undefined') ? LOGS : [];
   if (!logs.length) { card.style.display = 'none'; return; }
-  var weeks = [0, 0, 0, 0, 0, 0, 0, 0];
-  logs.forEach(function (l) { var w = Math.floor((l.daysAgo || 0) / 7); if (w >= 0 && w < 8) weeks[w]++; });
+  var weeks = [0, 0, 0, 0, 0, 0, 0, 0], sset = {}, actMap = {}, citySet = {};
+  logs.forEach(function (l) {
+    var w = Math.floor((l.daysAgo || 0) / 7); if (w >= 0 && w < 8) weeks[w]++;
+    sset[l.daysAgo] = 1;
+    if (l.activity) actMap[l.activity] = (actMap[l.activity] || 0) + 1;
+    if (l.city) citySet[l.city] = 1;
+  });
   var thisW = weeks[0], lastW = weeks[1];
-  var sset = {}; logs.forEach(function (l) { sset[l.daysAgo] = 1; });
   var streak = 0, sd = sset[0] ? 0 : (sset[1] ? 1 : -1); if (sd >= 0) { while (sset[sd]) { streak++; sd++; } }
+  var total = logs.length, cities = Object.keys(citySet).length;
+  var topAct = '', topN = 0; Object.keys(actMap).forEach(function (k) { if (actMap[k] > topN) { topN = actMap[k]; topAct = k; } });
+  var esc2 = (typeof escHtml === 'function') ? escHtml : function (s) { return String(s == null ? '' : s); };
+  // Review — how they're actually using the passport
+  var rv = 'You’ve logged <strong>' + total + '</strong> activit' + (total === 1 ? 'y' : 'ies');
+  if (cities > 0) rv += ' across <strong>' + cities + '</strong> cit' + (cities === 1 ? 'y' : 'ies');
+  rv += '.';
+  if (topAct) rv += ' <strong>' + esc2(topAct) + '</strong> is what you love most — ' + topN + ' time' + (topN === 1 ? '' : 's') + '.';
+  if (streak > 0) rv += ' You’re on a <strong>' + streak + '-day</strong> streak.';
+  document.getElementById('trend-review').innerHTML = rv;
+  // Direction vs last week
   var dirEl = document.getElementById('trend-dir');
   var pct = lastW > 0 ? Math.round((thisW - lastW) / lastW * 100) : (thisW > 0 ? 100 : 0);
   var up = thisW >= lastW;
   dirEl.textContent = (thisW === 0 && lastW === 0) ? '—' : (up ? '▲ ' : '▼ ') + Math.abs(pct) + '%';
   dirEl.style.color = (thisW === lastW) ? 'var(--muted)' : (up ? '#4ade80' : '#ef4444');
-  document.getElementById('trend-streak').textContent = streak + '-day streak';
+  // 8-week sparkline
   var vals = [weeks[7], weeks[6], weeks[5], weeks[4], weeks[3], weeks[2], weeks[1], weeks[0]];
-  var max = Math.max(1, Math.max.apply(null, vals)), bw = 11, gap = 5, h = 38;
+  var max = Math.max(1, Math.max.apply(null, vals)), bw = 11, gap = 5, h = 40;
   var bars = vals.map(function (v, i) { var bh = Math.max(2, Math.round(v / max * h)); var x = i * (bw + gap), y = h - bh; var fill = (i === vals.length - 1) ? '#2ba8e0' : 'rgba(43,168,224,.35)'; return '<rect x="' + x + '" y="' + y + '" width="' + bw + '" height="' + bh + '" rx="2" fill="' + fill + '"/>'; }).join('');
-  var w = vals.length * (bw + gap);
-  document.getElementById('trend-spark').innerHTML = '<svg width="100%" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none">' + bars + '</svg>';
+  var wpx = vals.length * (bw + gap);
+  document.getElementById('trend-spark').innerHTML = '<svg width="100%" height="' + h + '" viewBox="0 0 ' + wpx + ' ' + h + '" preserveAspectRatio="none">' + bars + '</svg>';
+  // Coach Grant insight — do more of what you love
+  var love = topAct || 'your activities';
   var tip;
-  if (streak >= 3) tip = 'You’re on a ' + streak + '-day streak — log something today to keep it alive.';
-  else if (thisW === 0) tip = 'Quiet week so far — a short session today gets your momentum back.';
-  else if (thisW > lastW) tip = 'Up on last week — nice. One more this week sets a new high.';
-  else if (thisW < lastW) tip = 'A little down on last week — a quick activity today closes the gap.';
-  else tip = 'Steady week — try a different activity to mix it up.';
-  document.getElementById('trend-tip').innerHTML = '<span class="material-icons" style="font-size:15px;color:var(--blue);flex:0 0 auto;">tips_and_updates</span><span><strong style="color:var(--text);">Coach Grant:</strong> ' + tip + '</span>';
+  if (streak >= 3) tip = 'You’re on a roll with ' + esc2(love) + ' — log one today to keep your ' + streak + '-day streak alive.';
+  else if (thisW === 0) tip = 'It’s been quiet this week. A quick ' + esc2(love) + ' session today rebuilds momentum — find a meet-up and do it with others.';
+  else if (thisW > lastW) tip = 'Up on last week — line up another ' + esc2(love) + ' this week, or host a meet-up so others join you.';
+  else if (thisW < lastW) tip = 'A little down on last week — one more ' + esc2(love) + ' closes the gap. Try a meet-up to make it social.';
+  else tip = 'Steady week. You clearly love ' + esc2(love) + ' — do more of it: host or join a meet-up this week.';
+  document.getElementById('trend-tip').innerHTML = '<span class="material-icons" style="font-size:16px;color:var(--blue);flex:0 0 auto;">tips_and_updates</span><span><strong style="color:var(--text);">Coach Grant:</strong> ' + tip + '</span>';
   card.style.display = '';
 }
 
@@ -8301,7 +8320,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '441';
+  const FFP_BUILD = '442';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
