@@ -26,152 +26,7 @@
            tiles → flat, just the bar + values), .ct-planner-meal (boxed → hairline divider rows), .ct-planner-macros
            tiles (tinted → flat). Buttons/bars/colour-coding untouched. CSS-only. FFP_BUILD 445→446.
            (Week/Month views still boxed — flatten on request.)
-     v369: CALORIE TRACKER — (1) "Describe a meal" → inline "Tell me what you had" (AI Coach style: .coach-input +
-           .coach-fill-btn "Add it") placed directly under the Food today header → CalorieTracker.describeInline
-           (same /api/ai/parse food flow as the old modal, no popup). (2) The other 5 entry options (Food, Scan,
-           Meal, Quick, Copy day) are now a row of icons (.ct-icon-row). (3) NEW "Meal Planner" tab (#ct-planner-view):
-           ask Coach for a nutrition plan → CalorieTracker.generatePlan → backend POST /api/nutrition/plan (Haiku;
-           returns {title,summary,daily_kcal,protein/carbs/fat_g,meals[],tips[]}) rendered as macros + meals + tips.
-           core ?v=8→9 (planner tab switch), loader changed (FFP_BUILD bust). Backend index.js += /api/nutrition/plan.
-           FFP_BUILD 444→445.
-     v368: AI COACH + PASSPORT POLISH. (1) "AI Workout" renamed to "AI Coach" (nav + panel header + sub).
-           (2) Passport "Your passport · how you're using it" → a "Your Trends" TILE; the dir + sparkline now sit on
-           a light blue-tinted rounded panel (bg rgba(43,168,224,.06)). (3) Top Activities + Top Places DE-BOXED
-           via new .card-flat modifier (transparent, no border; head keeps a hairline, list flush). (4) Log-activity
-           "Describe it — or use the keyboard mic" → "Tell me what you did — I'll fill it for you", restyled to the
-           AI Coach assistant look (textarea .coach-input + full-width yellow .coach-fill-btn). (5) Post-a-meetup
-           "Let Coach Grant set it up" box re-styled to the SAME AI Coach pattern (de-boxed; .coach-input +
-           .coach-fill-btn "Set it up"); meet-move loader button-state text updated to match. FFP_BUILD 443→444.
-     v367: LOG ACTIVITY PHOTOS — multi-select + default crop. The "Add photos" tile now opens a MULTI-file picker;
-           each photo is auto-cropped to the chosen DEFAULT (Square centre, or Full = keep aspect) and uploaded with
-           no per-photo modal. New "Default crop" Square|Full toggle above the strip. Each thumbnail gets a crop icon
-           → ffpLogAdjustPhoto opens the cropper (ratio picker) on the ORIGINAL file (edit-mode photos re-fetched from
-           URL), replacing that slot. New FFPUpload.pickMulti + squareCropBlob (ffp-image-upload.js?v=9). Parallel
-           window._logPhotoFiles[] holds originals for re-crop. FFP_BUILD 442→443.
-     v366: PASSPORT REVIEW (was "Your trend"). Removed the BOX — now a clean borderless section with real substance:
-           a review of how they use the passport (total activities, cities, the activity they love most + count, streak),
-           the week-vs-week direction + 8-week sparkline, and a Coach Grant insight to do MORE of what they love
-           (host/join a meet-up). renderTrend() now reads activity + city from LOGS. FFP_BUILD 441→442.
-     v365: PASSPORT TREND + EMAIL VERIFIED. (1) New "Your trend" card under the World Map — this-week vs last-week
-           activity, day-streak, an 8-week sparkline + a Coach Grant tip (renderTrend(), all-time from global LOGS).
-           (2) Profile email card shows a Verified ✓ status (members.verified; backend /api/auth/signin sets it on a
-           successful email-code sign-in). FFP_BUILD 440→441.
-     v364: MEETUP "COACH GRANT" — reworked the over-built Meetup AI. ONE search box now (the existing #meet-search IS
-           the smart "find" — removed the duplicate bar). "Describe it → fill the form" now lives INSIDE the
-           Post-a-meetup modal (pm-describe; was a separate Create-with-AI button). Removed the custom voice mic (the
-           keyboard's own mic dictates). All assistance rebranded "Coach Grant" (no "AI Assistant"). Logic in
-           ffp-meet-move-loader.js (this panel's module). FFP_BUILD 439→440.
-     v363: ACTIVITY SHARE — added a TRANSPARENT STICKER toggle to the share sheet. FULLY transparent PNG (NO panel /
-           NO background) — just the logo + activity + stats, with a strong dark halo-shadow EDGE on the text so it
-           stays legible over ANY photo. Members save it and overlay it anywhere. Sticker overrides the photo-bg
-           toggle; preview shows a checkerboard so the transparency is visible. _ffpMakeCardCanvas gains a 4th
-           `sticker` arg; _ffpCurKey/filename gain a -sticker variant. FFP_BUILD 438→439 (removed the frosted panel).
-     v362: LOG ACTIVITY — reordered fields (Date+Time then Location; Country/City hidden, still filled by the
-           location picker + read on save). Added "Delete activity" (red) in the modal footer, shown only when
-           editing → delete_activity(p_me,p_log_id) RPC, then ffpActivityReload + loadJourneyLogs. FFP_BUILD 416→417.
-     v361: MULTI-PHOTO FIXES — (1) green save-strap was hidden BEHIND the share sheet (toast z-index 100000 <
-           share 100060); toast z-index → 2147483000 so the strap shows across the top over the share screen.
-           (2) Extra photos saved fine in DB but the activity card read them from the backend list (needs the
-           Vercel deploy); ffpOpenActivityCard now pulls photos via member_activity_view (DB source of truth) so
-           the x-axis gallery shows ALL photos without waiting on the backend. FFP_BUILD 403→404.
-     v360: LOG ACTIVITY MULTI-PHOTO — up to 8 images per activity (horizontal-scroll strip in the log modal;
-           x-axis scroll-snap gallery + 1/N counter on the activity card; count badge on list thumbnails).
-           DB activity_logs.photos[] (cover=photo_url); log_activity/update_activity gain p_photos; backend
-           activity-logs + member_activity_view return photos. SAVED toasts are now a wide GREEN centered strap
-           (showToast type-based). Edit prefill: Country+City persist (＿ensureSelectOption). Update = no notify.
-           FFP_BUILD 402→403 (fitness-stats loader changed). Backend index.js v101.
-     v359: BOOKING CHECK-IN on the Passport — venue scan now also surfaces the member's bookings there
-           ("Your booking(s) here" → tap → booking_checkin → stamp). ffp-member-checkin-loader.js v8 (?v=8).
-     v358: REFERRAL = RECURRING. Pricing is a subscription ($20/mo · $149/yr · 7-day trial), not a one-time $99.
-           Backend already credits the referrer their tier% of EVERY paid invoice (recurring, v64/v46). Frontend
-           was still showing a one-time "% of $99" dollar — fixed: Earn % display (earn-refer-rate, rm-rate now
-           show the tier %), copy reframed to "% of every payment · recurring", unit 'recurring'. Removed the dead
-           JOIN_URL ($99 one-time Stripe link). FFP_CONST membershipUsd 99→149 (v2 constants).
-     v357: DATA SHARING (member consent) — user menu gains "Data sharing" → window.FFPProAccess.open()
-           (assets/ffp-pro-access-loader.js, deferred ?v=1; auto-opens on ?proaccess=1 from the notification).
-           Member approves/declines/revokes professional access to their Calorie Tracker + Fitness Stats
-           (read-only for the pro). DB: pro_client_access + member_pro_access_list / member_respond_pro_access.
-     v356: MEET-UP DISCOVER LIVE — meet-move loader now exposes window.ffpReloadMeetMove (re-pulls open/full
-           meet-ups + re-renders); the real-time meetups/meetup_attendees subscription calls it, so the
-           "find one to join" Discover list updates the instant a meet-up is posted, fills, or cancels — no
-           refresh. FFP_BUILD 352→356 (meet-move loader changed).
-     v355: REAL-TIME EXPANDED — live subscriptions (FFPRealtime) now cover the NOTIFICATIONS bell
-           (own + broadcasts), MEET-UPS + who's-going, and CHALLENGES + leaderboard, on top of connections.
-           Debounced reloaders coalesce bursts. All five tables already had REPLICA IDENTITY FULL +
-           member-readable RLS, so no DB change. The whole app updates itself now — no manual refresh.
-     v354: TRUE REAL-TIME CONNECTIONS — subscribes to member_connections changes (FFPRealtime → Supabase
-           postgres_changes, rows where I'm requester or addressee). Connections now auto-update the instant
-           anything changes (you add someone, someone adds you, a request is accepted) — no refresh, no
-           leave/return. DB: member_connections added to the realtime publication + REPLICA IDENTITY FULL.
-     v353: LIVE REFRESH on actions + panel switch. Adding a connection now re-pulls immediately
-           (requestConnect → ffpRefreshLive(true)), so the new name shows without leaving/returning. showPanel
-           also re-pulls on every panel switch (throttled). ffp-connections-core ?v=323→353.
-     v352: LOG ACTIVITY PIN — "Pin the spot" location picker added to Log Activity (reuses FFPLocPick map +
-           "use my location"). City stays the rollup (Dubai); the pin marks where in the city. Saved via the
-           extended log_activity/update_activity RPCs (venue + checkin_lat/lng). Activity rows now show the
-           venue as a tap-to-map chip (also surfaces venue check-in locations). FFP_BUILD 342→352
-           (fitness-stats-loader changed). The map picker title is now generic ("Pin the location").
-     v351: MEET-UP LOCATION — added a one-tap "Use my current location" GPS button to the map picker
-           (FFPLocPick.locate): centres the map + pin on the host's GPS position, reverse-geocodes the spot,
-           confirm with "Use this location". Precise pin (lat/lng/maps_url) + city rollup already in place.
-     v350: LIVE REFRESH — connections/meets/journey/notifications re-pull on app focus + visibility (and a
-           60s bell heartbeat), so panels stay current without a manual reload. window.ffpRefreshLive().
-     v349: LAUNCH SPLASH — branded navy loading screen (emblem + spinner) painted instantly at <body> top, so
-           opening the app no longer flashes a white/empty screen. Faded out by ffpHideSplash() once boot
-           renders the shell (150ms after panel setup), with a 7s safety timeout so it can never stick.
-     v348: PUSH NOTIFICATIONS — "Phone notifications" card in Profile. Opt-in via window.FFPPush
-           (ffp-pwa.js?v=3): requests permission, subscribes, POSTs to backend /api/push/subscribe. States:
-           Turn on / Turn off / Blocked / (iOS) add-to-home-screen-first. Backend v83 sends pushes (welcome
-           on subscribe, admin broadcast, /api/push/test); sw.js v2 shows them + handles taps. Needs VAPID
-           env vars in Vercel.
-     v347: PROFILE — "Add FFP Passport to your home screen" card at the top of Profile. Delegates to the PWA
-           helper (ffp-pwa.js?v=2 now exposes window.FFPInstall): Android fires the native install prompt,
-           iOS shows the Share→Add-to-Home-Screen hint, desktop shows a "open on your phone" note; the card
-           hides entirely once installed (standalone). ffpRefreshInstallRow() sets visibility/label at boot
-           and when beforeinstallprompt/appinstalled fire.
-     v346: BOOT RESILIENCE — the notification bell + profile menu went dead whenever a pre-topbar render call
-           (syncToPassport / applyPassportData / renderQR / refreshMemberFromServer) threw, because the flat
-           boot sequence halted before setupTopbar() ran. Each boot call is now wrapped in try/catch so the
-           topbar + panel nav ALWAYS wire up. (Plus _headers now serves manifest.webmanifest as
-           application/manifest+json — was octet-stream.)
-     v345: PWA — FFP Passport is now installable to the home screen. Added manifest link, theme-color,
-           apple-touch-icon + iOS web-app meta, and assets/ffp-pwa.js (registers /sw.js + shows the install
-           banner: Android native prompt / iOS Add-to-Home-Screen hint). Icons: emblem on white in
-           assets/icons/. The service worker is conservative (caches only icons, never HTML/JS → no stale
-           deploys). Installed app keeps members signed in past iOS's 7-day storage eviction.
-     v344: HOTFIX — Fitness Stats panel blank after defaulting to the Activity tab (v342). Boot calls the
-           core's BASE renderActivity (before the loader override loads); it wrote to a long-removed
-           #stats-tiles node with no guard → null.innerHTML threw → panel blanked. Guarded the node in the
-           core (fitness-stats-core ?v=307→308). Activity tab now renders on open as intended.
-     v343: LOG ACTIVITY — "Use my current location" GPS button. Browser geolocation + a free keyless
-           reverse-geocode (BigDataCloud) auto-fill Country + City (adds the option if it's not in the
-           curated list); manual selection stays as the fallback if GPS is denied/unavailable.
-     v342: FITNESS STATS — moved into the bottom nav ("Stats", far right of Challenges; removed from the
-           overflow menu). Activity is now the default tab on open (was Bio Age; HTML active + view swap +
-           core tab:'activity'). NEW: edit a logged activity — each Recent-activity row has a pencil that
-           reopens the Log Activity modal prefilled in "Edit/Update" mode; saveLog branches to the new
-           member-scoped update_activity RPC, then refreshes the Activity list + map. FFP_BUILD 335→342,
-           fitness-stats-core ?v=306→307.
-     v341: 7-DAY FREE TRIAL on the upgrade gate. Added a yellow "Start with 7 days free" badge; both plan
-           buttons now carry an "After your 7-day free trial" subline (annual also corrected to "4.5 months
-           free vs monthly"); footer note reads "7 days free, then billed · cancel anytime." (Backend v82
-           sets trial_period_days:7 — no client logic change; the ?upgraded=1 poll still flips the row.)
-     v340: PASSPORT SUBSCRIPTIONS — the gate now offers Annual $149/yr + Monthly $20/mo buttons that call
-           /api/billing/checkout (backend v80) → Stripe subscription Checkout. After return (?upgraded=1) the
-           gate polls member_passport_active for a few seconds so the webhook has time to flip the row.
-     v339: QUESTS EXTRACTED → assets/ffp-quests-core.js (the ~545-line inline `Quests` object moved out;
-           loaded as a classic <script> in <head> = window.Quests; boot calls window.Quests.init()).
-     v338: QUESTS — tabs Discover(1st)/My Quests/Completed; member Create Quest gets a photo (FFPUpload→
-           quest-images, hero_image_url) + Edit your quest; join count + Join button on Discover cards +
-           "Who's joined" avatars (member_quest_participants RPC); stamp = transparent FFP emblem (Supabase);
-           sample seed quests removed (DB).
-     v337: Removed the on-screen build stamp (client-facing); Log Activity dropdown text 13px → 16px.
-     v336: ANALYTICS — Google Analytics 4 (assets/ffp-analytics.js) + per-panel page_view via
-           window.ffpTrackView in showPanel (SPA panel switches now show in GA4 Pages report).
-     v333: LOG ACTIVITY upgrade — Date|Time, Duration|Distance(km), Calories|Avg HR(bpm) paired rows;
-           Country/City default to the member; saveLog sends p_distance_km + p_avg_hr. DB cols + backend v77.
-     v332: Removed dormant Events panel (Events now on findfitpeople.com); boot Events.init() guarded;
-           lazy 'panel-events' loader entry dropped. (+ account-role fixes & Sunday Summary cron — DB/backend.) -->
+     v369 and earlier — see git history (trimmed 2026-06-26 to keep this header lean per FFP-MASTER cleanup). -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8421,7 +8276,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '450';
+  const FFP_BUILD = '451';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -11583,7 +11438,7 @@ function closeLogIfBackdrop(e) { if (e.target.id === 'log-modal-backdrop') close
     var q = new URLSearchParams(location.search);
     var w = q.get('wearable'); if (!w) return;
     if (w === 'whoop_connected') { if (window.showToast) showToast('WHOOP connected — your workouts will sync', 'success'); }
-    else if (w === 'whoop_error') { if (window.showToast) showToast('Couldn’t connect WHOOP — please try again', 'error'); }
+    else if (w === 'whoop_error') { if (window.showToast) showToast('Couldn’t connect WHOOP [' + (q.get('reason') || '?') + '] — try again', 'error'); }
     q.delete('wearable'); q.delete('reason');
     history.replaceState(null, '', location.pathname + (q.toString() ? ('?' + q.toString()) : '') + location.hash);
   } catch (e) {}
