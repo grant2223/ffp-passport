@@ -2385,42 +2385,13 @@ a { color: var(--ffp-blue); text-decoration: none; }
 
         <div class="kpi-grid" id="kpi-grid"></div>
 
-        <div class="split-2">
-          <div class="section-card">
-            <div class="section-head">
-              <div class="section-title">Recent activity</div>
-              <button class="section-link" onclick="showToast('Full activity log coming soon', 'info')">View all</button>
-            </div>
-            <div class="activity-list" id="activity-list"></div>
+        <div id="ov-charts" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:18px;"></div>
+
+        <div class="section-card" style="margin-top:18px;">
+          <div class="section-head">
+            <div class="section-title">Recent member activity</div>
           </div>
-          <div class="section-card">
-            <div class="section-head">
-              <div class="section-title">Quick actions</div>
-            </div>
-            <div class="quick-actions">
-              <button class="qa" onclick="openEventModal()">
-                <div class="qa-icon"><span class="ms">event</span></div>
-                <div class="qa-body">
-                  <div class="qa-title">New event</div>
-                  <div class="qa-sub">Single date</div>
-                </div>
-              </button>
-              <button class="qa" onclick="openExperienceModal()">
-                <div class="qa-icon"><span class="ms">flight</span></div>
-                <div class="qa-body">
-                  <div class="qa-title">New trip</div>
-                  <div class="qa-sub">Multi-day</div>
-                </div>
-              </button>
-              <button class="qa" onclick="showPanel('checkins')">
-                <div class="qa-icon"><span class="ms">qr_code_scanner</span></div>
-                <div class="qa-body">
-                  <div class="qa-title">Check in</div>
-                  <div class="qa-sub">Verify claim</div>
-                </div>
-              </button>
-            </div>
-          </div>
+          <div class="activity-list" id="activity-list"></div>
         </div>
 
       </section>
@@ -3550,10 +3521,20 @@ async function provOverviewStats() {
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); };
   if (!grid) return;
   if (!pid || !window.supabase) { grid.innerHTML = ''; return; }
+  var charts = document.getElementById('ov-charts');
   var fmtAed = function (n) { return 'AED ' + (Math.round(Number(n) || 0)).toLocaleString(); };
-  var hdr = function (t) { return '<div style="grid-column:1/-1;font-size:12px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--ffp-blue);margin:16px 0 2px;">' + t + '</div>'; };
-  var line = function (lbl, val) { return '<div style="grid-column:1/-1;font-size:14px;color:var(--ffp-text);margin-top:8px;"><span style="color:var(--ffp-text-muted);font-weight:600;">' + lbl + '</span> &nbsp; <strong>' + val + '</strong></div>'; };
+  var hdr = function (t) { return '<div style="grid-column:1/-1;font-size:15px;font-weight:800;color:var(--ffp-text);margin:18px 0 4px;">' + t + '</div>'; };
+  var card = function (label, val, delta, dir) {
+    var dc = dir === 'up' ? '#16a34a' : dir === 'down' ? '#dc2626' : 'var(--ffp-text-muted)';
+    var arrow = dir === 'up' ? '▲ ' : dir === 'down' ? '▼ ' : '';
+    return '<div style="background:#fff;border:1px solid var(--ffp-border-mid);border-radius:14px;padding:16px 18px;">' +
+      '<div style="font-size:12px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--ffp-text-muted);">' + label + '</div>' +
+      '<div style="font-size:32px;font-weight:800;color:var(--ffp-text);line-height:1.05;margin-top:10px;">' + val + '</div>' +
+      (delta ? '<div style="font-size:12px;font-weight:700;color:' + dc + ';margin-top:8px;">' + arrow + delta + '</div>' : '') +
+      '</div>';
+  };
   grid.innerHTML = '<div style="grid-column:1/-1;font-size:13px;color:var(--ffp-text-muted);">Loading your numbers…</div>';
+  if (charts) charts.innerHTML = '';
   try {
     var r = await window.supabase.rpc('provider_overview', { p_provider: pid });
     if (r.error) throw r.error;
@@ -3562,20 +3543,40 @@ async function provOverviewStats() {
     var hasCi = !(ci === 0 && cip === 0);
     var trend = cip > 0 ? Math.round((ci - cip) / cip * 100) : (ci > 0 ? 100 : 0);
     var atRisk = d.members_at_risk || 0, newM = d.members_new_7d || 0;
-    var ts = d.top_session, tf = d.top_staff;
-    // Uses the dashboard's own styled KPI tile (kpi()) — readable label + bold value + coloured delta, like Analytics.
     grid.innerHTML =
       hdr('Engagement') +
-      kpi('Check-ins · last 7 days', ci, hasCi ? (Math.abs(trend) + '% vs last week') : 'no check-ins yet', hasCi ? (ci >= cip ? 'up' : 'down') : 'flat') +
-      kpi('Members active · 7d', d.active_members_7d || 0, 'visited this week', 'flat') +
-      kpi('At-risk members', atRisk, 'no visit in 14+ days', atRisk > 0 ? 'down' : 'flat', atRisk > 0 ? 'yellow' : '') +
-      kpi('Sessions today', d.sessions_today || 0, (d.appts_today || 0) + ' appointment' + ((d.appts_today || 0) === 1 ? '' : 's') + ' today', 'flat') +
+      card('Check-ins · last 7 days', ci, hasCi ? (Math.abs(trend) + '% vs last week') : 'no check-ins yet', hasCi ? (ci >= cip ? 'up' : 'down') : 'flat') +
+      card('Members active · 7d', d.active_members_7d || 0, 'visited this week', 'flat') +
+      card('At-risk members', atRisk, atRisk > 0 ? 'no visit in 14+ days' : 'none flagged', atRisk > 0 ? 'down' : 'flat') +
+      card('Sessions today', d.sessions_today || 0, (d.appts_today || 0) + ' appointment' + ((d.appts_today || 0) === 1 ? '' : 's') + ' today', 'flat') +
       hdr('Business') +
-      kpi('Revenue · this month', fmtAed(d.revenue_month_aed), 'paid so far', 'flat', 'green') +
-      kpi('Members', d.members_total || 0, '+' + newM + ' new this week', newM > 0 ? 'up' : 'flat') +
-      kpi('Upcoming appointments', d.appts_upcoming || 0, 'scheduled ahead', 'flat') +
-      ((ts && ts.title) ? line('Most popular session', esc(ts.title) + ' · ' + (ts.count || 0) + ' check-ins (30d)') : '') +
-      ((tf && tf.name) ? line('Most active staff', esc(tf.name) + ' · ' + (tf.count || 0) + ' appointments (30d)') : '');
+      card('Revenue · this month', fmtAed(d.revenue_month_aed), 'paid so far', 'flat') +
+      card('Members', d.members_total || 0, '+' + newM + ' new this week', newM > 0 ? 'up' : 'flat') +
+      card('Upcoming appointments', d.appts_upcoming || 0, 'scheduled ahead', 'flat');
+    if (charts) {
+      var byDay = Array.isArray(d.checkins_by_day) ? d.checkins_by_day.map(Number) : [];
+      var maxD = Math.max(1, Math.max.apply(null, byDay.length ? byDay : [0]));
+      var labels = (function () { var out = [], dd = new Date(); for (var i = 6; i >= 0; i--) { var x = new Date(dd); x.setDate(dd.getDate() - i); out.push(['S','M','T','W','T','F','S'][x.getDay()]); } return out; })();
+      var bw = 30, gap = 16, h = 130;
+      var bars = byDay.map(function (v, i) { var bh = Math.max(3, Math.round((v / maxD) * (h - 28))); var x = i * (bw + gap), y = h - bh - 18; return '<rect x="' + x + '" y="' + y + '" width="' + bw + '" height="' + bh + '" rx="4" fill="#1980AD"/><text x="' + (x + bw / 2) + '" y="' + (y - 5) + '" text-anchor="middle" font-size="11" font-weight="700" fill="#0e2531">' + v + '</text><text x="' + (x + bw / 2) + '" y="' + (h - 3) + '" text-anchor="middle" font-size="11" fill="#566069">' + (labels[i] || '') + '</text>'; }).join('');
+      var chartW = byDay.length * (bw + gap);
+      var chartCard = '<div style="background:#fff;border:1px solid var(--ffp-border-mid);border-radius:14px;padding:18px;">' +
+        '<div style="font-size:14px;font-weight:800;color:var(--ffp-text);margin-bottom:14px;">Check-ins · last 7 days</div>' +
+        (byDay.length ? '<svg width="100%" viewBox="0 0 ' + Math.max(chartW, 1) + ' ' + h + '" preserveAspectRatio="xMidYMid meet" style="max-height:150px;display:block;">' + bars + '</svg>' : '<div style="font-size:13px;color:var(--ffp-text-muted);padding:12px 0;">No check-ins yet — members scan the QR at your venue.</div>') +
+        '</div>';
+      var tops = Array.isArray(d.top_sessions) ? d.top_sessions : [];
+      var maxT = Math.max(1, tops.reduce(function (a, b) { return Math.max(a, b.count || 0); }, 0));
+      var tf = d.top_staff;
+      var topRows = tops.length ? tops.map(function (s) {
+        var pct = Math.round(((s.count || 0) / maxT) * 100);
+        return '<div style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;gap:10px;"><span style="font-weight:700;color:var(--ffp-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(s.title) + '</span><span style="font-weight:700;color:var(--ffp-text-muted);">' + (s.count || 0) + '</span></div><div style="height:8px;background:var(--ffp-border);border-radius:6px;overflow:hidden;"><div style="height:100%;width:' + pct + '%;background:#1980AD;border-radius:6px;"></div></div></div>';
+      }).join('') : '<div style="font-size:13px;color:var(--ffp-text-muted);padding:12px 0;">Your most-attended sessions will rank here.</div>';
+      var topCard = '<div style="background:#fff;border:1px solid var(--ffp-border-mid);border-radius:14px;padding:18px;">' +
+        '<div style="font-size:14px;font-weight:800;color:var(--ffp-text);margin-bottom:14px;">Most popular sessions · 30 days</div>' + topRows +
+        (tf && tf.name ? '<div style="border-top:1px solid var(--ffp-border);margin-top:6px;padding-top:12px;font-size:13px;color:var(--ffp-text);"><span style="color:var(--ffp-text-muted);font-weight:600;">Most active staff</span> &nbsp; <strong>' + esc(tf.name) + '</strong> · ' + (tf.count || 0) + ' appts</div>' : '') +
+        '</div>';
+      charts.innerHTML = chartCard + topCard;
+    }
   } catch (e) { grid.innerHTML = '<div style="grid-column:1/-1;font-size:13px;color:var(--ffp-text-muted);">Couldn\'t load your numbers right now.</div>'; }
   if (al) {
     try {
