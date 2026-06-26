@@ -165,6 +165,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="assets/ffp-api-integration.js?v=12"></script>
 <script src="assets/ffp-constants.js"></script>
 <script src="assets/ffp-taxonomy.js?v=11"></script>
@@ -3549,9 +3550,7 @@ async function provOverviewStats() {
       s('+' + (d.members_new_7d || 0), 'New · 7d') + s(d.active_members_7d || 0, 'Active · 7d'));
 
     var tops = Array.isArray(d.top_sessions) ? d.top_sessions : [];
-    var maxT = Math.max(1, tops.reduce(function (a, b) { return Math.max(a, b.count || 0); }, 0));
-    var topRows = tops.length ? '<div style="margin-top:16px;border-top:1px solid var(--ffp-border);padding-top:14px;">' + miniHdr('Most popular · 30 days') +
-      tops.map(function (t) { var pct = Math.round(((t.count || 0) / maxT) * 100); return '<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;gap:10px;font-size:13px;margin-bottom:4px;"><span style="font-weight:700;color:var(--ffp-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(t.title) + '</span><span style="font-weight:700;color:var(--ffp-text-muted);">' + (t.count || 0) + '</span></div><div style="height:7px;background:var(--ffp-border);border-radius:6px;overflow:hidden;"><div style="height:100%;width:' + pct + '%;background:#1980AD;border-radius:6px;"></div></div></div>'; }).join('') + '</div>' : '';
+    var topRows = tops.length ? '<div style="margin-top:16px;border-top:1px solid var(--ffp-border);padding-top:14px;">' + miniHdr('Most popular · 30 days') + '<div style="height:' + (tops.length * 34 + 8) + 'px;position:relative;"><canvas id="ovc-sessions"></canvas></div></div>' : '';
     var sessSec = sec('Sessions',
       s(d.sessions_today || 0, 'Classes today') + s(d.bookings_today || 0, 'Bookings today') + s(d.avg_attendance || 0, 'Avg attendance'),
       topRows);
@@ -3565,12 +3564,8 @@ async function provOverviewStats() {
       coachRows);
 
     var byDay = Array.isArray(d.checkins_by_day) ? d.checkins_by_day.map(Number) : [];
-    var maxD = Math.max(1, Math.max.apply(null, byDay.length ? byDay : [0]));
-    var labels = (function () { var out = [], dd = new Date(); for (var i = 6; i >= 0; i--) { var x = new Date(dd); x.setDate(dd.getDate() - i); out.push(['S','M','T','W','T','F','S'][x.getDay()]); } return out; })();
-    var bw = 26, gap = 14, h = 110;
-    var bars = byDay.map(function (vv, i) { var bh = Math.max(3, Math.round((vv / maxD) * (h - 26))); var x = i * (bw + gap), y = h - bh - 18; return '<rect x="' + x + '" y="' + y + '" width="' + bw + '" height="' + bh + '" rx="4" fill="#1980AD"/><text x="' + (x + bw / 2) + '" y="' + (y - 4) + '" text-anchor="middle" font-size="10" font-weight="700" fill="#0e2531">' + vv + '</text><text x="' + (x + bw / 2) + '" y="' + (h - 3) + '" text-anchor="middle" font-size="10" fill="#566069">' + (labels[i] || '') + '</text>'; }).join('');
-    var chartW = byDay.length * (bw + gap);
-    var chartHtml = byDay.length ? '<div style="margin-top:16px;border-top:1px solid var(--ffp-border);padding-top:14px;">' + miniHdr('Check-ins · last 7 days') + '<svg width="100%" viewBox="0 0 ' + Math.max(chartW, 1) + ' ' + h + '" preserveAspectRatio="xMidYMid meet" style="max-height:120px;display:block;">' + bars + '</svg></div>' : '';
+    var labels = (function () { var out = [], dd = new Date(); for (var i = 6; i >= 0; i--) { var x = new Date(dd); x.setDate(dd.getDate() - i); out.push(['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][x.getDay()]); } return out; })();
+    var chartHtml = '<div style="margin-top:16px;border-top:1px solid var(--ffp-border);padding-top:14px;">' + miniHdr('Check-ins · last 7 days') + '<div style="height:150px;position:relative;"><canvas id="ovc-checkins"></canvas></div></div>';
     var engSec = sec('Engagement',
       s(ci, 'Check-ins · 7d', hasCi ? (ci >= cip ? '#16a34a' : '#dc2626') : 'var(--ffp-text)') +
       s(hasCi ? ((ci >= cip ? '+' : '−') + Math.abs(trend) + '%') : '—', 'vs last week') +
@@ -3578,6 +3573,15 @@ async function provOverviewStats() {
       chartHtml);
 
     grid.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:16px;">' + bizSec + sessSec + apptSec + engSec + '</div>';
+    if (window.Chart) {
+      try { (window._ovCharts || []).forEach(function (c) { try { c.destroy(); } catch (e) {} }); } catch (e) {}
+      window._ovCharts = [];
+      var gridCol = 'rgba(15,37,49,0.06)';
+      var c1 = document.getElementById('ovc-checkins');
+      if (c1) window._ovCharts.push(new Chart(c1, { type: 'line', data: { labels: labels, datasets: [{ data: byDay, borderColor: '#1980AD', backgroundColor: 'rgba(25,128,173,0.12)', borderWidth: 2, tension: .35, fill: true, pointRadius: 3, pointBackgroundColor: '#1980AD' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0, color: '#566069' }, grid: { color: gridCol } }, x: { ticks: { color: '#566069' }, grid: { display: false } } } } }));
+      var c2 = document.getElementById('ovc-sessions');
+      if (c2) window._ovCharts.push(new Chart(c2, { type: 'bar', data: { labels: tops.map(function (t) { return t.title; }), datasets: [{ data: tops.map(function (t) { return t.count || 0; }), backgroundColor: '#1980AD', borderRadius: 6, maxBarThickness: 22 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0, color: '#566069' }, grid: { color: gridCol } }, y: { ticks: { color: '#0e2531', font: { weight: '700' } }, grid: { display: false } } } } }));
+    }
   } catch (e) { grid.innerHTML = '<div style="font-size:13px;color:var(--ffp-text-muted);">Couldn\'t load your numbers right now.</div>'; }
   if (al) {
     try {
