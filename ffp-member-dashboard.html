@@ -1,4 +1,9 @@
-<!-- FFP MEMBER DASHBOARD — v372 (2026-06-26)  [changelog trimmed to latest updates; older history in git]
+<!-- FFP MEMBER DASHBOARD — v373 (2026-06-26)  [changelog trimmed to latest updates; older history in git]
+     v373: MEAL PLANNER — added 4 ready-made "common plan" chips (High-protein fat loss / Lean muscle gain /
+           Balanced maintenance / Low-carb) that render INSTANTLY with no AI/backend (CalorieTracker.usePreset +
+           PLANNER_PRESETS in the loader; reuses renderPlan). Works even before the Vercel /api/nutrition/plan
+           deploy. New .ct-plan-chip style. Loader changed (FFP_BUILD bust). FFP_BUILD 448→449.
+           NOTE: the custom "Build my plan" AI still needs backend index.js v102 deployed to Vercel.
      v372: CALORIE TRACKER — gave the "daily net kcal vs target" charts a light tinted panel back (.ct-week-chart =
            rgba(43,168,224,.06), rounded, no border) on BOTH This Week and Last 30 Days (they share the class).
            Everything else stays flat. CSS-only. FFP_BUILD 447→448.
@@ -1304,6 +1309,8 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
 .ct-planner-macros > div { flex: 1; text-align: center; background: transparent; border-radius: 0; padding: 4px 2px; }
 .ct-planner-macros .v { font-size: 19px; font-weight: 800; color: var(--text); }
 .ct-planner-macros .l { font-size: 10px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; color: var(--muted); margin-top: 3px; }
+.ct-plan-chip { background: rgba(43,168,224,0.08); border: 1px solid var(--border-mid); color: var(--text); border-radius: 100px; padding: 8px 14px; font-size: 12px; font-weight: 700; font-family: inherit; cursor: pointer; transition: all .15s; }
+.ct-plan-chip:hover { border-color: var(--blue); background: rgba(43,168,224,0.15); }
 .fp-tabs { display: flex; gap: 26px; padding: 14px 22px 2px; }
 .fp-tab { background: none; border: none; font-family: inherit; font-size: 20px; font-weight: 800; color: var(--muted); padding: 0 0 12px; cursor: pointer; }
 .fp-tab.active { color: var(--blue); border-bottom: 2px solid var(--blue); }
@@ -5172,6 +5179,13 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
       <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800;color:var(--text);margin:2px 0 8px;"><span class="material-icons" style="font-size:16px;color:var(--blue);">auto_awesome</span>Ask Coach for a nutrition plan<span style="color:#8a99a8;font-weight:600;font-size:11px;">— tell me your goal</span></div>
       <textarea id="ct-plan-input" class="coach-input" placeholder="e.g. high-protein plan for fat loss at ~2,000 kcal, no pork, I train 4x a week"></textarea>
       <button type="button" id="ct-plan-btn" class="coach-fill-btn" onclick="CalorieTracker.generatePlan&&CalorieTracker.generatePlan()"><span class="material-icons">auto_awesome</span>Build my plan</button>
+      <div style="font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin:18px 0 9px;">Or start from a common plan</div>
+      <div id="ct-plan-presets" style="display:flex;flex-wrap:wrap;gap:8px;">
+        <button type="button" class="ct-plan-chip" onclick="CalorieTracker.usePreset&&CalorieTracker.usePreset('fatloss')">High-protein fat loss</button>
+        <button type="button" class="ct-plan-chip" onclick="CalorieTracker.usePreset&&CalorieTracker.usePreset('muscle')">Lean muscle gain</button>
+        <button type="button" class="ct-plan-chip" onclick="CalorieTracker.usePreset&&CalorieTracker.usePreset('maintain')">Balanced maintenance</button>
+        <button type="button" class="ct-plan-chip" onclick="CalorieTracker.usePreset&&CalorieTracker.usePreset('lowcarb')">Low-carb</button>
+      </div>
       <div id="ct-plan-result" style="margin-top:18px;"></div>
     </div>
     
@@ -8397,7 +8411,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '448';
+  const FFP_BUILD = '449';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
