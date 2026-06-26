@@ -814,6 +814,65 @@
     out.innerHTML = h;
   }
 
+  // Ready-made general plans — render instantly (no AI/backend needed). Sensible starting points the
+  // member can follow as-is or tweak. Calorie/macro targets are general; the member can adjust their goal.
+  var PLANNER_PRESETS = {
+    fatloss: {
+      title: 'High-protein fat loss', summary: 'A higher-protein day in a moderate calorie deficit — lose fat while protecting muscle.',
+      daily_kcal: 1900, protein_g: 190, carbs_g: 150, fat_g: 55,
+      meals: [
+        { meal: 'Breakfast', kcal: 430, items: ['3-egg omelette with spinach & tomato', '1 slice wholegrain toast', 'Black coffee or tea'] },
+        { meal: 'Lunch', kcal: 520, items: ['180g grilled chicken breast', 'Large mixed salad, 1 tbsp olive oil', '1/2 cup cooked quinoa'] },
+        { meal: 'Snack', kcal: 250, items: ['200g 0% Greek yoghurt', 'A handful of berries or 1 scoop whey'] },
+        { meal: 'Dinner', kcal: 520, items: ['180g white fish or lean beef', '2 cups roasted vegetables', '100g sweet potato'] },
+        { meal: 'Snack', kcal: 180, items: ['1 apple', '20g almonds'] }
+      ],
+      tips: ['Hit protein at every meal to stay full', 'Drink 2–3L of water a day', 'Aim for 8–10k steps to widen the deficit']
+    },
+    muscle: {
+      title: 'Lean muscle gain', summary: 'A modest surplus with plenty of protein and carbs to fuel training and build lean muscle.',
+      daily_kcal: 2700, protein_g: 200, carbs_g: 300, fat_g: 75,
+      meals: [
+        { meal: 'Breakfast', kcal: 600, items: ['80g oats with milk', '1 banana', '1 scoop whey', '1 tbsp peanut butter'] },
+        { meal: 'Lunch', kcal: 700, items: ['200g chicken or beef', '1.5 cups cooked rice', 'Mixed vegetables, 1 tbsp olive oil'] },
+        { meal: 'Around training', kcal: 350, items: ['1 scoop whey', '1 large banana or 2 rice cakes with honey'] },
+        { meal: 'Dinner', kcal: 700, items: ['200g salmon or lean steak', '200g potatoes', '2 cups greens'] },
+        { meal: 'Snack', kcal: 350, items: ['200g Greek yoghurt', '30g granola', 'A handful of nuts'] }
+      ],
+      tips: ['Eat ~300–400 kcal above maintenance', 'Progressively add weight or reps each week', 'Spread protein across 4–5 meals']
+    },
+    maintain: {
+      title: 'Balanced maintenance', summary: 'An even split of protein, carbs and fat to hold your weight and feel good day to day.',
+      daily_kcal: 2200, protein_g: 150, carbs_g: 230, fat_g: 70,
+      meals: [
+        { meal: 'Breakfast', kcal: 480, items: ['2 eggs + 1 slice toast', 'Greek yoghurt with berries'] },
+        { meal: 'Lunch', kcal: 620, items: ['150g chicken, tuna or tofu', '1 cup rice or a wholegrain wrap', 'Salad with olive oil'] },
+        { meal: 'Snack', kcal: 250, items: ['1 piece of fruit', '25g nuts or a protein bar'] },
+        { meal: 'Dinner', kcal: 620, items: ['150g protein of choice', '150g potato or pasta', '2 cups vegetables'] },
+        { meal: 'Snack', kcal: 230, items: ['Cottage cheese or yoghurt', 'A square of dark chocolate'] }
+      ],
+      tips: ['Keep meals consistent day to day', 'Mostly whole foods; enjoy treats in moderation', 'Stay active most days']
+    },
+    lowcarb: {
+      title: 'Low-carb', summary: 'Lower carbohydrate, higher protein and fat — handy for appetite control and steady energy.',
+      daily_kcal: 1800, protein_g: 165, carbs_g: 90, fat_g: 95,
+      meals: [
+        { meal: 'Breakfast', kcal: 420, items: ['3 eggs scrambled in butter', '1/2 avocado', 'Sautéed spinach'] },
+        { meal: 'Lunch', kcal: 520, items: ['200g grilled chicken', 'Large salad with olive oil & feta', 'A few olives'] },
+        { meal: 'Snack', kcal: 200, items: ['30g cheese', '20g almonds'] },
+        { meal: 'Dinner', kcal: 520, items: ['200g salmon or steak', '2 cups non-starchy vegetables', '1 tbsp olive oil'] },
+        { meal: 'Snack', kcal: 140, items: ['100g full-fat Greek yoghurt', 'A few berries'] }
+      ],
+      tips: ['Build meals from protein + veg + healthy fats', 'Keep carbs to vegetables & some fruit', 'Add salt and water to ease the switch']
+    }
+  };
+  CalorieTracker.usePreset = function (key) {
+    var p = PLANNER_PRESETS[key]; if (!p) return;
+    renderPlan(p);
+    var out = document.getElementById('ct-plan-result');
+    if (out && out.scrollIntoView) { try { out.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {} }
+  };
+
   // ============ FOOD DATABASE (OpenFoodFacts) + COPY-A-DAY (v12) ============
   var FOOD_API = 'https://ffp-passport-backend.vercel.app';
   var _offTimer = null, _offSeq = 0;
