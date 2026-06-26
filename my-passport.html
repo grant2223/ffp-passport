@@ -1,6 +1,9 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-     FFP MY PASSPORT — v3 (2026-05-29)
+     FFP MY PASSPORT — v4 (2026-06-26): FIXED the page (the QR target) — it called a missing endpoint and crashed
+     ("string did not match the expected pattern" = res.json() on a 404). New backend GET /api/passport/:passportNo
+     returns the member's public card fields + journey/streak stats + upcoming HOSTED meet-ups. Page now shows the
+     exact static passport card (front) + a journey strip + the meet-ups they're hosting + the Get-your-Passport CTA.
      PUBLIC MEMBER LANDING PAGE (was verify.html v2)
      URL pattern: /my-passport.html?p=FFP-2026-XXXX
        - Also resolves /verify.html?p=... via Netlify _redirects rewrite
@@ -215,6 +218,8 @@ html, body {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>
+<!-- Google Analytics 4 (platform-wide) -->
+<script src="assets/ffp-analytics.js?v=2"></script>
 </head>
 <body>
 <div class="wrap">
@@ -319,7 +324,8 @@ html, body {
       '</div>';
   }
 
-  function renderCard(m) {
+  function renderCard(data) {
+    var m = (data && data.member) || {}, stats = (data && data.stats) || {}, meetups = (data && data.meetups) || [];
     // v3: hidden placeholder sections reserved for future features
     // (Add me on Meet & Move, recommended providers, public achievements,
     // bio). CSS-hidden today via display:none — wired feature-by-feature
@@ -361,6 +367,31 @@ html, body {
           '<a class="cta-btn" href="' + refUrl + '">Secure Your 2026 Passport</a>' +
           '<div class="cta-fine">Secure checkout via Stripe</div>' +
         '</div>';
+    }
+
+    var firstNm = ((m.given_names || '').trim().split(/\s+/)[0]) || ((m.full_name || '').trim().split(/\s+/)[0]) || 'This member';
+    var sCell = function (num, lbl) { return '<div style="flex:1;text-align:center;padding:10px 4px;"><div style="font-size:22px;font-weight:900;color:#fff;line-height:1;">' + num + '</div><div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#7e98ac;margin-top:5px;">' + lbl + '</div></div>'; };
+    var statsHtml = '';
+    if (stats && stats.activities > 0) {
+      var sDiv = '<div style="width:1px;background:rgba(43,168,224,.16);"></div>';
+      statsHtml = '<div style="max-width:540px;margin:22px auto 0;background:#0f2233;border:1px solid rgba(43,168,224,.2);border-radius:16px;padding:14px 12px;">'
+        + '<div style="font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#2ba8e0;text-align:center;margin-bottom:6px;">' + esc(firstNm) + '’s journey</div>'
+        + '<div style="display:flex;align-items:stretch;">' + sCell(stats.streak || 0, 'Day streak') + sDiv + sCell(stats.activities || 0, 'Activities') + sDiv + sCell(stats.cities || 0, 'Cities') + sDiv + sCell(stats.venues || 0, 'Places') + '</div></div>';
+    }
+    var meetupsHtml = '';
+    if (meetups && meetups.length) {
+      var fmtWhen = function (iso) { try { var d = new Date(iso); return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } };
+      var mkRows = meetups.map(function (mu) {
+        var sub = [mu.sport, mu.venue || mu.city].filter(Boolean).join(' · ');
+        return '<div style="display:flex;align-items:center;gap:12px;padding:11px 12px;background:#0a1825;border:1px solid rgba(43,168,224,.16);border-radius:12px;margin-top:8px;">'
+          + '<div style="flex:0 0 auto;width:40px;height:40px;border-radius:10px;background:rgba(43,168,224,.14);color:#2ba8e0;display:flex;align-items:center;justify-content:center;"><span class="material-icons" style="font-size:20px;">groups</span></div>'
+          + '<div style="flex:1;min-width:0;"><div style="font-weight:800;color:#fff;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(mu.title || mu.sport || 'Meet-up') + '</div>'
+          + '<div style="font-size:12px;color:#7e98ac;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(sub) + '</div></div>'
+          + '<div style="flex:0 0 auto;text-align:right;font-size:11px;font-weight:700;color:#2ba8e0;white-space:nowrap;">' + esc(fmtWhen(mu.meets_at)) + '</div></div>';
+      }).join('');
+      meetupsHtml = '<div style="max-width:540px;margin:22px auto 0;">'
+        + '<div style="font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#2ba8e0;margin-bottom:2px;">Upcoming meet-ups ' + esc(firstNm) + ' is hosting</div>'
+        + '<div style="font-size:12px;color:#7e98ac;margin-bottom:4px;">Get your Passport to join ' + esc(firstNm) + ' and book in.</div>' + mkRows + '</div>';
     }
 
     content.innerHTML =
@@ -420,6 +451,8 @@ html, body {
         '<div class="badge ' + statusM.cls + '"><span class="material-icons">' + statusM.icon + '</span>' + statusM.label + '</div>' +
         verifiedBadge +
       '</div>' +
+      statsHtml +
+      meetupsHtml +
       ctaHtml +
       futureSections;
 
@@ -469,7 +502,7 @@ html, body {
         renderError('Lookup failed', (data && data.error) || ('HTTP ' + res.status), passportNo);
         return;
       }
-      renderCard(data.member);
+      renderCard(data);
     } catch (e) {
       console.error('[my-passport] error in lookup/render:', e, e && e.stack);
       renderError('Network error', (e && e.message) ? ('Error: ' + e.message) : 'Could not reach the passport service. Try again in a moment.', passportNo);
