@@ -80,6 +80,7 @@ const CalorieTracker = {
         document.getElementById('ct-today-view').style.display = this.tab === 'today' ? '' : 'none';
         document.getElementById('ct-week-view').style.display  = this.tab === 'week'  ? '' : 'none';
         document.getElementById('ct-month-view').style.display = this.tab === 'month' ? '' : 'none';
+        var _pv = document.getElementById('ct-planner-view'); if (_pv) _pv.style.display = this.tab === 'planner' ? '' : 'none';
         this.render();
       });
     });
