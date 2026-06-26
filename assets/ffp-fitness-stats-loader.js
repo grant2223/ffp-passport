@@ -1707,7 +1707,34 @@
       // PERF (v24): paint the panel as soon as profile + logs are in — don't block on the heavier, all-members
       // ranking pool. The Records leaderboard fills the moment the pool lands (a second render). The default Bio
       // tab doesn't use the pool, so the common case shows no difference — just a faster open.
-      await Promise.all([_profP, _logsP]);
+      var _dailyP = (async function () {
+        try {
+          var _rf = null; try { _rf = localStorage.getItem('ffp_refresh'); } catch (e) {}
+          if (!_rf) { FitnessStats.wearableDaily = []; return; }
+          var dr = await fetch(API + '/api/wearables/daily', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh: _rf }) });
+          var dj = await dr.json();
+          FitnessStats.wearableDaily = (dj && dj.days) || [];
+        } catch (e) { FitnessStats.wearableDaily = []; }
+      })();
+      await Promise.all([_profP, _logsP, _dailyP]);
+
+      // WHOOP: auto-fill the Sleep Tracker with synced nights (manual logs win) + render the recovery/strain card.
+      try {
+        var _wd = FitnessStats.wearableDaily || [];
+        FitnessStats.sleepLogs = FitnessStats.sleepLogs || {};
+        _wd.forEach(function (d) { if (d.sleep_hours == null) return; var da = daysAgoFromDateStr(d.day); if (da >= 1 && da <= 30 && FitnessStats.sleepLogs[da] == null) FitnessStats.sleepLogs[da] = Number(d.sleep_hours); });
+        var _wh = document.getElementById('fs-whoop-daily');
+        if (_wh) {
+          var _lt = function (k) { for (var i = 0; i < _wd.length; i++) { if (_wd[i][k] != null) return _wd[i][k]; } return null; };
+          var _rec = _lt('recovery_pct'), _str = _lt('strain'), _rhr = _lt('resting_hr'), _hrv = _lt('hrv_ms');
+          var _tiles = [];
+          if (_rec != null) _tiles.push(['Recovery', _rec + '%', _rec >= 67 ? '#16a34a' : (_rec >= 34 ? '#d9a300' : '#dc2626')]);
+          if (_str != null) _tiles.push(['Day strain', String(_str), 'var(--blue,#2ba8e0)']);
+          if (_rhr != null) _tiles.push(['Resting HR', _rhr + ' bpm', 'var(--text,#e8eef4)']);
+          if (_hrv != null) _tiles.push(['HRV', _hrv + ' ms', 'var(--text,#e8eef4)']);
+          _wh.innerHTML = _tiles.length ? ('<div class="bio-section-title">Recovery &amp; strain <span style="font-size:10px;font-weight:700;color:var(--muted,#8a99a8);">· WHOOP</span></div><div style="display:flex;gap:12px;flex-wrap:wrap;background:rgba(43,168,224,0.06);border-radius:14px;padding:16px;">' + _tiles.map(function (t) { return '<div style="flex:1;min-width:62px;text-align:center;"><div style="font-size:23px;font-weight:800;color:' + t[2] + ';line-height:1;">' + t[1] + '</div><div style="font-size:9.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:var(--muted,#8a99a8);margin-top:6px;">' + t[0] + '</div></div>'; }).join('') + '</div>') : '';
+        }
+      } catch (e) { console.error('[FFP Fitness Stats] wearable merge:', e); }
 
       // Old percentile pills no longer used (leaderboard replaces them)
       FitnessStats.ranks = {};
