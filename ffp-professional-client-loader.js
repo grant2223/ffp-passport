@@ -825,7 +825,7 @@ function wkBuilder(){
     '<button class="btn btn-sec btn-sm" style="margin-top:8px;" onclick="wkAddExercise()"><span class="ms">add</span> Add exercise</button>',
     '<button class="btn btn-ghost" onclick="openClientWorkouts(\''+_wkClient+'\')">Back</button>'+
     '<button class="btn btn-sec" onclick="wkSavePlan()"><span class="ms">event</span> Save plan</button>'+
-    '<button class="btn btn-pri" onclick="wkFinish()"><span class="ms">check</span> Log to Passport</button>');
+    '<button class="btn btn-pri" onclick="wkStartWorkout()"><span class="ms">play_arrow</span> Start workout</button>');
   wkRenderBuild(); wkRenderDays();
 }
 function wkRenderDays(){
@@ -922,20 +922,75 @@ async function wkDoAssign(exs,days){
   else if(ok){ showToast('Saved '+ok+', some failed: '+err,'error'); openClientWorkouts(_wkClient); }
   else{ showToast('Save failed: '+err,'error'); }
 }
-async function wkFinish(){
-  wkCollect();
-  var exs=(_wkDraft.exercises||[]).filter(function(ex){return ex.name&&ex.name.trim()&&ex.sets&&ex.sets.length;});
+function wkFinish(){ wkCollect(); wkLogToPassport(_wkDraft.exercises); }   // quick log from the builder (kept for safety)
+// Shared logger — turns the (already-collected) exercises into a finished session on the client's Passport.
+async function wkLogToPassport(srcExs){
+  var exs=(srcExs||[]).filter(function(ex){return ex.name&&ex.name.trim()&&ex.sets&&ex.sets.length;});
   if(!exs.length){ showToast('Add an exercise first','error'); return; }
-  var logged=exs.map(function(ex){ var done=ex.sets.filter(function(s){return s.done;}); return {name:ex.name.trim(),note:ex.note||'',sets:(done.length?done:ex.sets).map(function(s){return {reps:s.reps,weight:s.weight,effort:s.effort};})}; });
-  var nsets=logged.reduce(function(a,ex){return a+ex.sets.length;},0); var dur=Math.max(10,Math.round(nsets*2));
+  var logged=exs.map(function(ex){
+    var mode=ex.mode||'weights'; var done=ex.sets.filter(function(s){return s.done;}); var use=done.length?done:ex.sets;
+    return {name:ex.name.trim(),mode:mode,note:ex.note||'',sets:use.map(function(s){
+      if(mode==='time') return {seconds:s.seconds||0};
+      if(mode==='distance') return {distance:s.distance||0,seconds:s.seconds||0};
+      return {reps:s.reps||0,weight:s.weight||0,effort:s.effort||''};
+    })};
+  });
+  var secs=0,wsets=0; logged.forEach(function(ex){ ex.sets.forEach(function(s){ if(s.seconds)secs+=s.seconds; else wsets++; }); });
+  var dur=Math.max(5,Math.round(secs/60 + wsets*1.5));
   var pid=_memProvId(); showToast('Logging…');
   try{
     var r=await window.supabase.rpc('pro_workout_log_session',{p_professional:pid,p_client_id:_wkClient,p_title:_wkDraft.title||'Coached workout',p_notes:_wkDraft.notes||'',p_exercises:logged,p_duration_min:dur,p_assigned_id:_wkFromAssigned||null});
-    if(r&&r.error)throw r.error; var d=(r&&r.data)||{}; if(d.ok===false)throw new Error(d.error||'log_failed');
+    if(r&&r.error)throw r.error; var d=(r&&r.data)||{}; if(!(d.ok===true))throw new Error(d.error||'log_failed');
     showToast(d.pushed?'Logged to their Passport ✓':'Saved — client has no Passport yet','success');
-    openClientWorkouts(_wkClient);
+    wkCloseRunner(); openClientWorkouts(_wkClient);
   }catch(e){ console.error('[wk log]',e); showToast('Log failed: '+((e&&(e.message||e.hint||e.details))||'unknown'),'error'); }
 }
+// ─── "Start workout" RUNNER — full-screen, big inputs (AI-Coach style) to log a client through the session live. ───
+function wkStartWorkout(){ wkCollect(); var exs=(_wkDraft.exercises||[]).filter(function(e){return e.name&&e.name.trim();}); if(!exs.length){ showToast('Add an exercise first','error'); return; } _wkDraft.exercises=exs; wkRunner(); }
+function wkCloseRunner(){ var o=document.getElementById('wk-runner-ov'); if(o&&o.parentNode)o.parentNode.removeChild(o); }
+function wkRunner(){
+  wkCloseRunner();
+  var ov=document.createElement('div'); ov.id='wk-runner-ov';
+  ov.setAttribute('style','position:fixed;inset:0;z-index:100060;background:var(--ffp-bg,#0b1622);display:flex;flex-direction:column;font-family:inherit;');
+  ov.innerHTML='<div id="wk-run-body" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;"></div>'+
+    '<div style="padding:12px 14px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--ffp-border);background:var(--ffp-bg-2,#0e1c2b);"><button onclick="wkRunnerFinish()" style="width:100%;padding:16px;border:none;border-radius:14px;background:var(--ffp-purple,#9b7bf0);color:#fff;font-weight:900;font-size:16px;cursor:pointer;font-family:inherit;"><span class="ms" style="vertical-align:-4px;">check_circle</span> Finish &amp; log to Passport</button></div>';
+  document.body.appendChild(ov);
+  wkRunRender();
+}
+function wkRunRender(){
+  var host=document.getElementById('wk-run-body'); if(!host) return;
+  var exs=_wkDraft.exercises||[];
+  var tot=0,dn=0; exs.forEach(function(ex){ (ex.sets||[]).forEach(function(s){ tot++; if(s.done)dn++; }); });
+  var big='width:100%;box-sizing:border-box;padding:13px 6px;border:2px solid var(--ffp-border-mid);border-radius:12px;font-family:inherit;font-size:25px;font-weight:800;text-align:center;background:var(--ffp-bg-card);color:var(--ffp-text);';
+  var lbl='font-size:10px;color:var(--ffp-text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;';
+  var head='<div style="position:sticky;top:0;z-index:2;background:var(--ffp-bg,#0b1622);padding:14px 16px 11px;border-bottom:1px solid var(--ffp-border);display:flex;align-items:center;gap:12px;">'+
+    '<button onclick="wkCloseRunner()" style="background:none;border:none;color:var(--ffp-text);cursor:pointer;padding:0;"><span class="ms" style="font-size:26px;">arrow_back</span></button>'+
+    '<div style="flex:1;min-width:0;"><div style="font-size:16px;font-weight:900;color:var(--ffp-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(_wkDraft.title||'Workout')+'</div><div style="font-size:12px;color:var(--ffp-text-dim);">'+dn+' / '+tot+' sets done</div></div></div>';
+  var body=exs.map(function(ex,ei){
+    var mode=ex.mode||'weights';
+    var sets=(ex.sets||[]).map(function(s,si){
+      var fields='';
+      if(mode==='time'){ var u=s.unit||'sec'; var tv=(u==='min')?Math.round((s.seconds||0)/60):(s.seconds||0);
+        fields='<div style="flex:1;"><div style="'+lbl+'">Time ('+u+')</div><input type="number" inputmode="numeric" value="'+tv+'" oninput="wkRunTime('+ei+','+si+',this.value)" style="'+big+'"></div>';
+      } else if(mode==='distance'){
+        fields='<div style="flex:1.4;"><div style="'+lbl+'">Distance (km)</div><input type="number" inputmode="decimal" value="'+(s.distance||0)+'" oninput="wkRunSet('+ei+','+si+',\'distance\',this.value)" style="'+big+'"></div>'+
+          '<div style="flex:1;"><div style="'+lbl+'">Min</div><input type="number" inputmode="numeric" value="'+(s.seconds?Math.round(s.seconds/60):'')+'" oninput="wkRunDistMin('+ei+','+si+',this.value)" style="'+big+'"></div>';
+      } else {
+        fields='<div style="flex:1;"><div style="'+lbl+'">Reps</div><input type="number" inputmode="numeric" value="'+(s.reps||0)+'" oninput="wkRunSet('+ei+','+si+',\'reps\',this.value)" style="'+big+'"></div>'+
+          '<div style="flex:1;"><div style="'+lbl+'">Weight (kg)</div><input type="number" inputmode="decimal" value="'+(s.weight||0)+'" oninput="wkRunSet('+ei+','+si+',\'weight\',this.value)" style="'+big+'"></div>';
+      }
+      var donB='<button onclick="wkRunToggle('+ei+','+si+')" style="flex:0 0 60px;height:58px;align-self:flex-end;border-radius:14px;border:2px solid '+(s.done?'#16a34a':'var(--ffp-border-mid)')+';background:'+(s.done?'#16a34a':'transparent')+';color:'+(s.done?'#fff':'var(--ffp-text-dim)')+';cursor:pointer;display:flex;align-items:center;justify-content:center;"><span class="ms" style="font-size:30px;">'+(s.done?'check':'radio_button_unchecked')+'</span></button>';
+      return '<div style="display:flex;gap:9px;align-items:flex-end;margin-bottom:12px;'+(s.done?'opacity:.65;':'')+'"><div style="flex:0 0 18px;font-size:13px;font-weight:800;color:var(--ffp-purple);align-self:flex-end;padding-bottom:18px;">'+(si+1)+'</div>'+fields+donB+'</div>';
+    }).join('');
+    return '<div style="padding:18px 16px;border-bottom:1px solid var(--ffp-border);"><div style="font-size:20px;font-weight:900;color:var(--ffp-text);margin-bottom:'+(ex.note?'3px':'12px')+';">'+escHtml(ex.name||'Exercise')+'</div>'+(ex.note?'<div style="font-size:12.5px;color:var(--ffp-text-dim);margin-bottom:12px;">'+escHtml(ex.note)+'</div>':'')+sets+'</div>';
+  }).join('');
+  host.innerHTML=head+body;
+}
+function wkRunSet(ei,si,f,v){ try{ _wkDraft.exercises[ei].sets[si][f]=Number(v)||0; }catch(e){} }
+function wkRunTime(ei,si,v){ try{ var s=_wkDraft.exercises[ei].sets[si]; s.seconds=(s.unit==='min'?(Number(v)||0)*60:(Number(v)||0)); }catch(e){} }
+function wkRunDistMin(ei,si,v){ try{ _wkDraft.exercises[ei].sets[si].seconds=(Number(v)||0)*60; }catch(e){} }
+function wkRunToggle(ei,si){ try{ var s=_wkDraft.exercises[ei].sets[si]; s.done=!s.done; }catch(e){} wkRunRender(); }
+function wkRunnerFinish(){ wkLogToPassport(_wkDraft.exercises); }
 function wkDelete(id){
   openModalShell('','Delete workout?','<div class="psub" style="margin:6px 0;">This removes it from the client’s plan / history.</div>',
     '<button class="btn btn-ghost" onclick="openClientWorkouts(\''+_wkClient+'\')">Cancel</button><button class="btn btn-pri" onclick="wkDoDelete(\''+id+'\')">Delete</button>');
@@ -948,6 +1003,7 @@ async function renderWorkoutHub(){
   var pid=_memProvId();
   if(!(_members&&_members.length)){ try{ var rr=await window.supabase.rpc('pro_list_clients',{p_pro:pid}); _members=(rr&&rr.data)||[]; }catch(e){} }
   var all=[]; try{ var r=await window.supabase.rpc('pro_workout_list',{p_professional:pid,p_client_id:null}); all=(r&&r.data)||[]; }catch(e){ all=[]; }
+  window._wkHubAll=all;
   var recent=all.slice().sort(function(a,b){return new Date(b.created_at||0)-new Date(a.created_at||0);}).slice(0,3);
   var nameOf=function(cid){ var m=(_members||[]).find(function(x){return x.id===cid;}); return m?(m.full_name||'Client'):'Client'; };
   var html='<button class="btn btn-pri" style="width:100%;margin:0 0 16px;" onclick="wkHubNew()"><span class="ms">add</span> New workout</button>';
@@ -957,13 +1013,22 @@ async function renderWorkoutHub(){
     html+='<div style="display:flex;flex-direction:column;gap:7px;">'+recent.map(function(w){
       var nex=(w.exercises&&w.exercises.length)||0; var when=w.created_at?new Date(w.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
       var sub=(w.kind==='session'?'Logged':'Plan')+' · '+escHtml(w.title||'Workout')+' · '+nex+' ex · '+when;
-      return '<button onclick="openClientWorkouts(\''+w.client_id+'\')" style="display:flex;align-items:center;gap:10px;padding:11px 12px;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:12px;cursor:pointer;text-align:left;font-family:inherit;width:100%;">'+
-        '<span class="ms" style="color:var(--ffp-purple);">'+(w.kind==='session'?'fitness_center':'event')+'</span>'+
-        '<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:13.5px;color:var(--ffp-text);">'+escHtml(nameOf(w.client_id))+'</div><div style="font-size:11px;color:var(--ffp-text-dim);">'+sub+'</div></div>'+
-        '<span class="ms" style="color:var(--ffp-text-dim);">chevron_right</span></button>';
+      return '<div style="display:flex;align-items:center;gap:8px;padding:9px 10px 9px 12px;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:12px;">'+
+        '<div onclick="openClientWorkouts(\''+w.client_id+'\')" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;cursor:pointer;">'+
+          '<span class="ms" style="color:var(--ffp-purple);flex:0 0 auto;">'+(w.kind==='session'?'fitness_center':'event')+'</span>'+
+          '<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:13.5px;color:var(--ffp-text);">'+escHtml(nameOf(w.client_id))+'</div><div style="font-size:11px;color:var(--ffp-text-dim);">'+sub+'</div></div>'+
+        '</div>'+
+        '<button class="btn btn-pri btn-sm" style="flex:0 0 auto;" onclick="wkHubStart(\''+w.id+'\')"><span class="ms" style="font-size:15px;">play_arrow</span> Start</button>'+
+      '</div>';
     }).join('')+'</div>';
   }
   host.innerHTML=html;
+}
+// Start a workout straight from the hub → load it and open the big-input runner.
+function wkHubStart(id){
+  var w=((window._wkHubAll)||[]).find(function(x){return String(x.id)===String(id);}); if(!w){ showToast('Could not open','error'); return; }
+  _wkClient=w.client_id; _wkDraft=wkNorm(w); _wkSrc=w.source||'manual'; _wkFromAssigned=(w.kind==='assigned'?w.id:null);
+  wkRunner();
 }
 function wkHubNew(){
   var list=(_members||[]).slice().sort(function(a,b){return (a.full_name||'').localeCompare(b.full_name||'');});
