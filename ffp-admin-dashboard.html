@@ -2986,6 +2986,42 @@ const AdminMembers = {
       // v27: do NOT re-render here — the row already reflects the change, and a rebuild
       // would destroy the date picker the admin is using.
     } catch (e) { console.error('[AdminMembers] commitTier:', e); if (window.showToast) showToast('Could not update tier', 'error'); }
+  },
+
+  // ── GDPR: export a member's personal data as JSON (admin_export_member RPC) ──
+  async exportData(id) {
+    var admin = window.FFP_ADMIN && window.FFP_ADMIN.id;
+    if (!admin) { if (window.showToast) showToast('Admin session not ready — reload.', 'error'); return; }
+    try {
+      if (window.showToast) showToast('Preparing export…', 'info');
+      var res = await window.supabase.rpc('admin_export_member', { p_admin: admin, p_member: id });
+      if (res.error) throw res.error;
+      var blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'ffp-member-' + id + '.json';
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      if (window.showToast) showToast('Data exported', 'check');
+    } catch (e) { console.error('[GDPR export]', e); if (window.showToast) showToast(e.message || 'Export failed', 'error'); }
+  },
+
+  // ── GDPR: erasure (right to be forgotten) — deletes behavioural/health data + anonymizes the account ──
+  async eraseData(id) {
+    var m = (this.data || []).find(function (x) { return x.id === id; });
+    var name = m ? (m.full_name || m.email) : 'this member';
+    if (!confirm('GDPR ERASE ' + name + '?\n\nThis deletes their activity, food, wearable, quest and review data and anonymizes the account. Financial / booking records are kept but de-identified. This CANNOT be undone.')) return;
+    if (!confirm('Final confirmation — permanently erase ' + name + '?')) return;
+    var admin = window.FFP_ADMIN && window.FFP_ADMIN.id;
+    if (!admin) { if (window.showToast) showToast('Admin session not ready — reload.', 'error'); return; }
+    try {
+      var res = await window.supabase.rpc('admin_erase_member', { p_admin: admin, p_member: id, p_confirm: true });
+      if (res.error) throw res.error;
+      if (window.showToast) showToast('Member erased + anonymized', 'check');
+      try { if (window.Drawer && Drawer.close) Drawer.close(); } catch (e2) {}
+      if (typeof this.load === 'function') this.load();
+      else if (typeof this.refresh === 'function') this.refresh();
+      else location.reload();
+    } catch (e) { console.error('[GDPR erase]', e); if (window.showToast) showToast(e.message || 'Erase failed', 'error'); }
   }
 };
 
@@ -3659,7 +3695,14 @@ const Drawer = {
         <div class="info-row"><div class="info-row-label">Balance</div><div class="info-row-value editable" onclick="Drawer.editField('balance')" style="color:var(--yellow); font-weight:800;"><span class="aed">${m.balance.toLocaleString()}</span></div></div>
         <div class="info-row"><div class="info-row-label">Joined</div><div class="info-row-value">${fmtDays(m.daysAgo)}</div></div>
         <div class="info-row"><div class="info-row-label">Signed up via</div><div class="info-row-value" id="dm-signup">…</div></div>
-        <div class="info-row"><div class="info-row-label">Status</div><div class="info-row-value">${m.status === 'suspended' ? '<span class="pill pill-suspended">suspended</span>' : '<span class="pill pill-live">active</span>'}</div></div>
+        <div class="info-row"><div class="info-row-label">Status</div><div class="info-row-value">${m.status === 'suspended' ? '<span class="pill pill-suspended">suspended</span>' : (m.status === 'deleted' ? '<span class="pill pill-rejected">deleted</span>' : '<span class="pill pill-live">active</span>')}</div></div>
+        <div class="info-row" style="margin-top:10px;border-top:1px solid var(--border,#1d3346);padding-top:12px;">
+          <div class="info-row-label">Data (GDPR)</div>
+          <div class="info-row-value" style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-sm btn-outline" onclick="AdminMembers.exportData('${m.id}')"><span class="material-icons">download</span>Export</button>
+            <button class="btn btn-sm btn-danger" onclick="AdminMembers.eraseData('${m.id}')"><span class="material-icons">delete_forever</span>Erase</button>
+          </div>
+        </div>
       </div>
 
       <div class="drawer-pane" data-dtab="activity">
