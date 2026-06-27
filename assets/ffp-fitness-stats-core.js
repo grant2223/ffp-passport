@@ -427,9 +427,9 @@ var FitnessStats = {
       { key: 'bodyFat',     drv: 'bf',    name: 'Body Fat',      icon: 'monitor_weight' },
       { key: 'visceralFat', drv: 'vf',    name: 'Visceral Fat',  icon: 'medical_information' },
       { key: 'restingHR',   drv: 'rhr',   name: 'Resting HR',    icon: 'monitor_heart' },
-      { key: 'hrv',         drv: 'hrv',   name: 'HRV',           icon: 'vital_signs' },
+      { key: 'hrv',         drv: 'hrv',   name: 'HRV',           icon: 'graphic_eq' },
       { key: 'grip',        drv: 'grip',  name: 'Grip Strength', icon: 'pan_tool' },
-      { key: 'muscleMass',  drv: null,    name: 'Muscle Mass',   icon: 'exercise' },
+      { key: 'muscleMass',  drv: null,    name: 'Muscle Mass',   icon: 'sports_gymnastics' },
       { key: 'waist',       drv: 'waist', name: 'Waist',         icon: 'straighten' }
     ];
     document.getElementById('bio-drivers').innerHTML = HEALTH.map(h => {
