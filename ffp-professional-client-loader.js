@@ -806,9 +806,9 @@ async function wkAiGenerate(){
   try{
     var r=await fetch(WK_BACKEND+'/api/pro/workout/draft',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:p})});
     var j=await r.json().catch(function(){return null;});
-    if(!j||!j.ok||!j.exercises||!j.exercises.length){ showToast('Could not draft — try again','error'); return; }
+    if(!j||!j.ok||!j.exercises||!j.exercises.length){ showToast('Draft failed: '+((j&&(j.error||j.detail))||'try again'),'error'); return; }
     _wkDraft=wkNorm({title:j.title,notes:j.notes,exercises:j.exercises}); _wkSrc='ai'; _wkFromAssigned=null; wkBuilder();
-  }catch(e){ showToast('Could not draft — try again','error'); }
+  }catch(e){ console.error('[wk draft]',e); showToast('Draft failed: '+((e&&e.message)||'network'),'error'); }
 }
 function wkNorm(w){ return { title:w.title||'Workout', notes:w.notes||'', exercises:(w.exercises||[]).map(function(ex){ return { name:ex.name||'', note:ex.note||'', sets:(ex.sets||[]).map(function(s){ return {reps:Number(s.reps)||0,weight:Number(s.weight)||0,effort:s.effort||'moderate',done:false}; }) }; }) }; }
 function wkNewBlank(){ _wkDraft={title:'',notes:'',exercises:[{name:'',note:'',sets:[{reps:10,weight:0,effort:'moderate',done:false}]}]}; _wkSrc='manual'; _wkFromAssigned=null; wkBuilder(); }
@@ -886,8 +886,8 @@ async function wkAssignDay(dow){
   var pid=_memProvId();
   var exs=_wkDraft.exercises.filter(function(e){return e.name&&e.name.trim();});
   try{ var r=await window.supabase.rpc('pro_workout_save',{p_professional:pid,p_id:_wkFromAssigned||null,p_client_id:_wkClient,p_kind:'assigned',p_title:_wkDraft.title||'Workout',p_notes:_wkDraft.notes||'',p_exercises:exs,p_day_of_week:dow,p_source:_wkSrc});
-    if(r&&r.error)throw r.error; if(r&&r.data&&r.data.ok===false)throw new Error('save'); showToast('Saved to '+WK_DOW[dow],'success'); openClientWorkouts(_wkClient);
-  }catch(e){ showToast('Could not save','error'); }
+    if(r&&r.error)throw r.error; if(r&&r.data&&r.data.ok===false)throw new Error((r.data&&r.data.error)||'save_failed'); showToast('Saved to '+WK_DOW[dow],'success'); openClientWorkouts(_wkClient);
+  }catch(e){ console.error('[wk assign]',e); showToast('Save failed: '+((e&&(e.message||e.hint||e.details))||'unknown'),'error'); }
 }
 async function wkFinish(){
   wkCollect();
@@ -898,10 +898,10 @@ async function wkFinish(){
   var pid=_memProvId(); showToast('Logging…');
   try{
     var r=await window.supabase.rpc('pro_workout_log_session',{p_professional:pid,p_client_id:_wkClient,p_title:_wkDraft.title||'Coached workout',p_notes:_wkDraft.notes||'',p_exercises:logged,p_duration_min:dur,p_assigned_id:_wkFromAssigned||null});
-    if(r&&r.error)throw r.error; var d=(r&&r.data)||{}; if(d.ok===false)throw new Error('log');
+    if(r&&r.error)throw r.error; var d=(r&&r.data)||{}; if(d.ok===false)throw new Error(d.error||'log_failed');
     showToast(d.pushed?'Logged to their Passport ✓':'Saved — client has no Passport yet','success');
     openClientWorkouts(_wkClient);
-  }catch(e){ showToast('Could not log','error'); }
+  }catch(e){ console.error('[wk log]',e); showToast('Log failed: '+((e&&(e.message||e.hint||e.details))||'unknown'),'error'); }
 }
 function wkDelete(id){
   openModalShell('','Delete workout?','<div class="psub" style="margin:6px 0;">This removes it from the client’s plan / history.</div>',
@@ -916,8 +916,20 @@ async function renderWorkoutHub(){
   if(!(_members&&_members.length)){ try{ var rr=await window.supabase.rpc('pro_list_clients',{p_pro:pid}); _members=(rr&&rr.data)||[]; }catch(e){} }
   var all=[]; try{ var r=await window.supabase.rpc('pro_workout_list',{p_professional:pid,p_client:null}); all=(r&&r.data)||[]; }catch(e){ all=[]; }
   var sessions=all.filter(function(w){return w.kind==='session';}).sort(function(a,b){return new Date(b.finished_at||0)-new Date(a.finished_at||0);});
+  var assigned=all.filter(function(w){return w.kind==='assigned';}).sort(function(a,b){return (a.day_of_week==null?9:a.day_of_week)-(b.day_of_week==null?9:b.day_of_week);});
   var nameOf=function(cid){ var m=(_members||[]).find(function(x){return x.id===cid;}); return m?(m.full_name||'Client'):'Client'; };
+  var WKH_DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   var html='<button class="btn btn-pri" style="width:100%;margin:0 0 16px;" onclick="wkHubNew()"><span class="ms">add</span> New workout</button>';
+  if(assigned.length){
+    html+='<div style="font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-text-dim);margin:0 0 8px;">Assigned plans</div>';
+    html+='<div style="display:flex;flex-direction:column;gap:7px;margin:0 0 16px;">'+assigned.map(function(w){
+      var nex=(w.exercises&&w.exercises.length)||0;
+      return '<button onclick="openClientWorkouts(\''+w.client_id+'\')" style="display:flex;align-items:center;gap:10px;padding:11px 12px;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:12px;cursor:pointer;text-align:left;font-family:inherit;width:100%;">'+
+        '<span style="flex:0 0 34px;text-align:center;font-size:11px;font-weight:800;color:var(--ffp-purple);">'+(w.day_of_week!=null?WKH_DOW[w.day_of_week]:'—')+'</span>'+
+        '<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:13.5px;color:var(--ffp-text);">'+escHtml(nameOf(w.client_id))+'</div><div style="font-size:11px;color:var(--ffp-text-dim);">'+escHtml(w.title||'Workout')+' · '+nex+' exercise'+(nex===1?'':'s')+(w.status==='completed'?' · done':'')+'</div></div>'+
+        '<span class="ms" style="color:var(--ffp-text-dim);">chevron_right</span></button>';
+    }).join('')+'</div>';
+  }
   html+='<div style="font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-text-dim);margin:0 0 8px;">Recent sessions</div>';
   if(!sessions.length){ html+='<div class="psub" style="padding:2px 0;">No workouts logged yet. Tap “New workout”, pick a client, and the AI Coach will draft one.</div>'; }
   else{
