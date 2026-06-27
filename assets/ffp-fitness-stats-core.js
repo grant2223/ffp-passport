@@ -122,7 +122,7 @@ var FitnessStats = {
     restingHR:   { name: 'Resting HR',  icon: 'monitor_heart', type: 'kg',      unit: 'bpm', step: 1,   max: 220, group: 'health' },
     hrv:         { name: 'HRV (RMSSD)', icon: 'vital_signs',   type: 'kg',      unit: 'ms',  step: 1,   max: 250, group: 'health' },
     grip:        { name: 'Grip Strength',icon: 'pan_tool',     type: 'decimal', unit: 'kg',  step: 1,   max: 120, group: 'health' },
-    muscleMass:  { name: 'Muscle Mass', icon: 'exercise',      type: 'decimal', unit: 'kg',  step: 0.5, max: 80,  group: 'health' },
+    muscleMass:  { name: 'Muscle Mass', icon: 'fitness_center', type: 'decimal', unit: 'kg',  step: 0.5, max: 80,  group: 'health' },
     waist:       { name: 'Waist',       icon: 'straighten',    type: 'decimal', unit: 'cm',  step: 0.5, max: 200, group: 'health' },
     weight:      { name: 'Body Weight', icon: 'monitor_weight', type: 'decimal', unit: 'kg',  step: 0.5, max: 300, group: 'health' }
     // v84 — Sleep removed from PR cards. Logged via daily input on Bio Age tab (sleep-mini-card).
@@ -283,7 +283,8 @@ var FitnessStats = {
       const smi = _hm > 0 ? (r.muscleMass.value / (_hm * _hm)) : null;
       if (smi != null && isFinite(smi)) {
         const band = this.muscleMassBand(smi, p.gender);
-        drivers.push({ key: 'mm', name: 'Muscle Mass', icon: 'sports_gymnastics', detail: `${r.muscleMass.value} kg · ${smi.toFixed(1)} kg/m²`, band: band, deltaYears: 0, smi: Math.round(smi * 10) / 10 });
+        bio += band.years;
+        drivers.push({ key: 'mm', name: 'Muscle Mass', icon: 'fitness_center', detail: `${r.muscleMass.value} kg · ${smi.toFixed(1)} kg/m²`, band: band, deltaYears: band.years, smi: Math.round(smi * 10) / 10 });
       }
     }
 
@@ -294,9 +295,9 @@ var FitnessStats = {
   muscleMassBand(smi, gender) {
     const f = (gender || '').toLowerCase().charAt(0) === 'f';
     const ath = f ? 9.5 : 11.5, ok = f ? 7.5 : 9.5;
-    if (smi >= ath) return { label: 'Athletic', color: '#38bdf8', bg: 'rgba(56,189,248,0.14)', years: 0 };
+    if (smi >= ath) return { label: 'Athletic', color: '#38bdf8', bg: 'rgba(56,189,248,0.14)', years: -1 };
     if (smi >= ok)  return { label: 'Healthy',  color: '#4ade80', bg: 'rgba(74,222,128,0.14)', years: 0 };
-    return            { label: 'Low',       color: '#f59e0b', bg: 'rgba(245,158,11,0.14)', years: 0 };
+    return            { label: 'Low',       color: '#f59e0b', bg: 'rgba(245,158,11,0.14)', years: 1.5 };
   },
 
   vo2Norm(age, gender) {
@@ -448,7 +449,7 @@ var FitnessStats = {
       { key: 'restingHR',   drv: 'rhr',   name: 'Resting HR',    icon: 'monitor_heart' },
       { key: 'hrv',         drv: 'hrv',   name: 'HRV',           icon: 'graphic_eq' },
       { key: 'grip',        drv: 'grip',  name: 'Grip Strength', icon: 'pan_tool' },
-      { key: 'muscleMass',  drv: 'mm',    name: 'Muscle Mass',   icon: 'sports_gymnastics' },
+      { key: 'muscleMass',  drv: 'mm',    name: 'Muscle Mass',   icon: 'fitness_center' },
       { key: 'waist',       drv: 'waist', name: 'Waist',         icon: 'straighten' }
     ];
     document.getElementById('bio-drivers').innerHTML = HEALTH.map(h => {
