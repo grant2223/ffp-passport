@@ -7363,8 +7363,10 @@ function renderTrendCrew() {
       var esc = (typeof escHtml === 'function') ? escHtml : function (s) { return String(s == null ? '' : s); };
       function row(o, last) {
         var icon = '', text = '', click = '';
-        if (o.kind === 'quiet') { icon = 'waving_hand'; text = '<strong>' + esc(o.name) + '</strong> has gone quiet — ' + o.days + ' days. A quick message helps.'; if (o.member_id) click = "MeetMove&&MeetMove.openMemberDetail&&MeetMove.openMemberDetail('" + o.member_id + "')"; }
-        else if (o.kind === 'streak') { icon = 'celebration'; text = '<strong>' + esc(o.name) + '</strong> is on a ' + o.streak + '-day streak — high-five them.'; if (o.member_id) click = "MeetMove&&MeetMove.openMemberDetail&&MeetMove.openMemberDetail('" + o.member_id + "')"; }
+        var _openMember = o.member_id ? "MeetMove&&MeetMove.openMemberDetail&&MeetMove.openMemberDetail('" + o.member_id + "')" : '';
+        var _openAct = o.activity_id ? "window.ffpViewSharedActivity&&window.ffpViewSharedActivity('" + o.activity_id + "')" : '';
+        if (o.kind === 'quiet') { icon = 'waving_hand'; text = '<strong>' + esc(o.name) + '</strong> has gone quiet — ' + o.days + ' days. A quick message helps.'; click = _openMember; }
+        else if (o.kind === 'streak') { icon = 'celebration'; text = '<strong>' + esc(o.name) + '</strong> is on a ' + o.streak + '-day streak — open their activity to high-five.'; click = _openAct || _openMember; }
         else if (o.kind === 'meetup_fill') { icon = 'group_add'; text = '<strong>' + esc(o.title) + '</strong> has ' + o.spots + ' spot' + (o.spots > 1 ? 's' : '') + ' left — invite connections.'; }
         else return '';
         var border = last ? '' : 'border-bottom:1px solid var(--border);';
@@ -8375,7 +8377,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '464';
+  const FFP_BUILD = '466';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -10039,7 +10041,7 @@ function fmtPrDate(iso) {
 <!-- Fitness Stats CORE — assets/ffp-fitness-stats-core.js. DEFER (v313): non-blocking, but still runs before
      DOMContentLoaded, and the boot init() is registered on DOMContentLoaded (line ~14049) so window.FitnessStats
      is guaranteed defined before FitnessStats.init() is called. Was synchronous = it blocked the parser mid-page. -->
-<script defer src="assets/ffp-fitness-stats-core.js?v=310"></script>
+<script defer src="assets/ffp-fitness-stats-core.js?v=311"></script>
 <!-- Milestone badge library — assets/ffp-milestone-badges.js (window.FFPMSBadges). DEFER: only used by the lazy
      Milestones render long after load, so it must never block boot. Bump ?v on change. -->
 <script defer src="assets/ffp-milestone-badges.js?v=6"></script>
@@ -11763,6 +11765,7 @@ async function _ffpSaveTags(meId, activityId) {
   } catch (e) {}
 }
 async function saveLog() {
+  if (window._ffpLogSaving) return;   // guard: a double-tap on Save must not create duplicate rows
   const act = document.getElementById('log-activity').value.trim();
   if (!act) { alert('Please pick an activity'); return; }
   const country = document.getElementById('log-country').value;
@@ -11808,6 +11811,7 @@ async function saveLog() {
   var _photoVal = _photosVal[0] || '';
   var _shareVal = !!((document.getElementById('log-share') || {}).checked);
   var _newId = null;
+  window._ffpLogSaving = true;   // lock — released after the write completes / fails
   try {
     var res;
     if (_editId) {
@@ -11844,10 +11848,12 @@ async function saveLog() {
     [['log-z1', 'zone_one_milli'], ['log-z2', 'zone_two_milli'], ['log-z3', 'zone_three_milli'], ['log-z4', 'zone_four_milli'], ['log-z5', 'zone_five_milli']].forEach(function (p) { var el = document.getElementById(p[0]); var v = (el && el.value.trim() !== '') ? Math.max(0, parseInt(el.value, 10)) : null; if (v != null && !isNaN(v)) { _zv[p[1]] = v * 60000; _anyZ = true; } });
     if (_mhrVal != null || _anyZ) { var _mid2 = _editId || _newId; if (_mid2) { try { await window.supabase.rpc('set_activity_metrics', { p_me: member.id, p_log_id: _mid2, p_max_hr: _mhrVal, p_zones: _anyZ ? _zv : null }); } catch (e) {} } }
   } catch (e) {
+    window._ffpLogSaving = false;
     console.error('[FFP Journey] save failed:', e);
     if (typeof showToast === 'function') showToast('Couldn’t save your activity — please try again', 'error');
     return; // do NOT add to the map or claim success
   }
+  window._ffpLogSaving = false;   // write succeeded — release the lock (covers both edit + new paths below)
   if (_editId) {
     // EDIT path — refresh the stats Activity list + the map (city/country may have changed). No LOGS.push.
     window._ffpEditLogId = null;
