@@ -4504,7 +4504,10 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
     <!-- Latest wearable readiness (WHOOP) — filled by renderTrendFitness() on each passport open -->
     <div id="trend-fitness" style="margin-top:16px;"></div>
   </div>
-  
+
+  <!-- SUPPORT YOUR CREW (Coach Phase 3) — filled by renderTrendCrew() from /api/coach/profile support_ops. Activity status only. -->
+  <div id="trend-crew" style="margin:0 0 28px;"></div>
+
   <!-- ═══ YOUR JOURNEY MAP (Leaflet) — World › Country › City ═══ -->
   <style>
     #ffp-jmap{height:340px;width:100%;border-radius:12px;overflow:hidden;background:#1d2832;z-index:1;}
@@ -7234,6 +7237,7 @@ function renderAll() {
   renderPassportPicker();
   renderStats(journeyLogs);
   renderTrend();
+  try { renderTrendCrew(); } catch (e) {}
   renderActivities(logs);
   renderVenues(logs);
   renderConnections();
@@ -7316,6 +7320,40 @@ function renderTrendFitness() {
         '</div>';
     })
     .catch(function () { var h = document.getElementById('trend-fitness'); if (h) h.innerHTML = ''; });
+}
+
+// Support your crew (Coach Phase 3) — turns support_ops into gentle, tappable prompts. Activity status only, never health.
+function renderTrendCrew() {
+  var host = document.getElementById('trend-crew'); if (!host) return;
+  var rf = null; try { rf = localStorage.getItem('ffp_refresh'); } catch (e) {}
+  if (!rf) { host.innerHTML = ''; return; }
+  fetch('https://ffp-passport-backend.vercel.app/api/coach/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh: rf }) })
+    .then(function (r) { return r.json(); })
+    .then(function (j) {
+      var host2 = document.getElementById('trend-crew'); if (!host2) return;
+      var ops = (j && j.support_ops) || [];
+      if (!ops.length) { host2.innerHTML = ''; return; }
+      var esc = (typeof escHtml === 'function') ? escHtml : function (s) { return String(s == null ? '' : s); };
+      function row(o, last) {
+        var icon = '', text = '', click = '';
+        if (o.kind === 'quiet') { icon = 'waving_hand'; text = '<strong>' + esc(o.name) + '</strong> has gone quiet — ' + o.days + ' days. A quick message helps.'; if (o.member_id) click = "MeetMove&&MeetMove.openMemberDetail&&MeetMove.openMemberDetail('" + o.member_id + "')"; }
+        else if (o.kind === 'streak') { icon = 'celebration'; text = '<strong>' + esc(o.name) + '</strong> is on a ' + o.streak + '-day streak — high-five them.'; if (o.member_id) click = "MeetMove&&MeetMove.openMemberDetail&&MeetMove.openMemberDetail('" + o.member_id + "')"; }
+        else if (o.kind === 'meetup_fill') { icon = 'group_add'; text = '<strong>' + esc(o.title) + '</strong> has ' + o.spots + ' spot' + (o.spots > 1 ? 's' : '') + ' left — invite connections.'; }
+        else return '';
+        var border = last ? '' : 'border-bottom:1px solid var(--border);';
+        return '<div ' + (click ? 'onclick="' + click + '" ' : '') + 'style="display:flex;align-items:center;gap:11px;padding:12px 0;' + border + (click ? 'cursor:pointer;' : '') + '">' +
+          '<span class="material-icons" style="font-size:20px;color:var(--blue);flex:0 0 auto;">' + icon + '</span>' +
+          '<span style="flex:1;font-size:13px;color:var(--text);line-height:1.45;">' + text + '</span>' +
+          (click ? '<span class="material-icons" style="font-size:18px;color:var(--muted);flex:0 0 auto;">chevron_right</span>' : '') +
+          '</div>';
+      }
+      var rows = ops.map(function (o, i) { return row(o, i === ops.length - 1); }).join('');
+      host2.innerHTML = '<div style="display:inline-flex;align-items:center;gap:7px;background:rgba(43,168,224,.10);border:1px solid rgba(43,168,224,.22);border-radius:10px;padding:7px 13px;margin-bottom:14px;">' +
+        '<span class="material-icons" style="font-size:17px;color:var(--blue);">volunteer_activism</span>' +
+        '<span style="font-size:13px;font-weight:800;letter-spacing:.3px;color:var(--text);">Support your crew</span></div>' +
+        '<div style="background:rgba(43,168,224,.06);border-radius:14px;padding:2px 16px;">' + rows + '</div>';
+    })
+    .catch(function () { var h = document.getElementById('trend-crew'); if (h) h.innerHTML = ''; });
 }
 
 // Top Connections — people you're connected with, scoped to the map (country/city via their location).
@@ -8310,7 +8348,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '458';
+  const FFP_BUILD = '459';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
