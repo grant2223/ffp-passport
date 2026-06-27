@@ -157,9 +157,12 @@
             actBtns += '<button class="btn btn-sm btn-ghost" onclick="AdminExperiences.feature(\'' + d.id + '\')" title="' + (d.featured ? 'Unfeature' : 'Feature') + '"><span class="material-icons">' + (d.featured ? 'star' : 'star_border') + '</span></button>';
           }
           actBtns += '<button class="btn btn-sm btn-ghost" onclick="AdminExperiences.view(\'' + d.id + '\')" title="View"><span class="material-icons">visibility</span></button>';
+          var cb = (d.status === 'pending')
+            ? '<input type="checkbox" ' + ((ax._sel && ax._sel[d.id]) ? 'checked ' : '') + 'onclick="event.stopPropagation(); AdminExperiences.toggleSel(\'' + d.id + '\', this.checked)" style="margin-right:8px;vertical-align:middle;"> '
+            : '';
 
           return '<tr>' +
-            '<td><strong>' + escHtml(d.title) + '</strong>' + (d.featured ? ' <span class="pill pill-featured">Featured</span>' : '') + '</td>' +
+            '<td>' + cb + '<strong>' + escHtml(d.title) + '</strong>' + (d.featured ? ' <span class="pill pill-featured">Featured</span>' : '') + '</td>' +
             '<td>' + (d.type ? '<span class="pill pill-verified">' + escHtml(d.type) + '</span>' : '<span class="text-muted">—</span>') + '</td>' +
             '<td class="text-muted">' + escHtml(d.organizer) + '</td>' +
             '<td class="text-muted nowrap">' + escHtml(d.dates) + '</td>' +
@@ -167,6 +170,7 @@
             '<td><div class="table-actions">' + actBtns + '</div></td>' +
           '</tr>';
         }).join('');
+    renderBulkBar();
   }
 
   async function approve(id) {
@@ -197,6 +201,57 @@
       toast(newVal ? 'Featured' : 'Unfeatured', 'success');
       await refresh();
     } catch (e) { console.error(e); toast(e.message || 'Feature toggle failed', 'error'); }
+  }
+
+  // ── Bulk multi-select (pending tab) ──
+  function selIds() { var ax = getAX(); return Object.keys((ax && ax._sel) || {}); }
+  function pendingVisibleIds() {
+    var ax = getAX(); if (!ax) return [];
+    var rows = (ax.data || []).filter(function (d) { return d.status === 'pending'; });
+    if (ax.search) rows = rows.filter(function (d) {
+      return d.title.toLowerCase().indexOf(ax.search) >= 0 || d.organizer.toLowerCase().indexOf(ax.search) >= 0; });
+    return rows.map(function (d) { return d.id; });
+  }
+  function renderBulkBar() {
+    var ax = getAX(); if (!ax) return;
+    var bar = document.getElementById('experiences-bulkbar');
+    if (!bar) {
+      var tabsEl = document.querySelector('#panel-experiences .tabs'); if (!tabsEl) return;
+      bar = document.createElement('div'); bar.id = 'experiences-bulkbar';
+      bar.style.cssText = 'align-items:center;gap:10px;margin:8px 0;padding:8px 12px;background:rgba(43,168,224,0.08);border:1px solid rgba(43,168,224,0.3);border-radius:8px;';
+      tabsEl.parentNode.insertBefore(bar, tabsEl.nextSibling);
+    }
+    if ((ax.tab || 'pending') !== 'pending') { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+    var pend = pendingVisibleIds();
+    var n = selIds().filter(function (id) { return pend.indexOf(id) >= 0; }).length;
+    var allOn = pend.length > 0 && n === pend.length;
+    bar.style.display = 'flex';
+    bar.innerHTML =
+      '<label style="display:flex;align-items:center;gap:6px;color:#cfd6dc;font-size:13px;cursor:pointer;"><input type="checkbox" ' + (allOn ? 'checked' : '') + ' onclick="AdminExperiences.selAll(this.checked)"> Select all</label>' +
+      '<span style="color:#8a99a8;font-size:13px;">' + n + ' selected</span>' +
+      (n > 0 ?
+        '<button class="btn btn-sm btn-blue" onclick="AdminExperiences.bulkApprove()"><span class="material-icons">check</span>Approve selected</button>' +
+        '<button class="btn btn-sm btn-danger" onclick="AdminExperiences.bulkReject()"><span class="material-icons">close</span>Reject selected</button>' +
+        '<button class="btn btn-sm btn-ghost" onclick="AdminExperiences.clearSel()">Clear</button>' : '');
+  }
+  async function bulkApprove() {
+    var ids = selIds(); if (!ids.length) return;
+    try {
+      var res = await window.supabase.from('trips').update({ status: 'live' }).in('id', ids);
+      if (res.error) throw res.error;
+      toast(ids.length + ' approved — now live', 'success');
+      var ax = getAX(); if (ax) ax._sel = {}; await refresh();
+    } catch (e) { console.error(e); toast(e.message || 'Bulk approve failed', 'error'); }
+  }
+  async function bulkReject() {
+    var ids = selIds(); if (!ids.length) return;
+    if (!confirm('Reject ' + ids.length + ' trip(s)? They will be archived.')) return;
+    try {
+      var res = await window.supabase.from('trips').update({ status: 'archived' }).in('id', ids);
+      if (res.error) throw res.error;
+      toast(ids.length + ' rejected', 'success');
+      var ax = getAX(); if (ax) ax._sel = {}; await refresh();
+    } catch (e) { console.error(e); toast(e.message || 'Bulk reject failed', 'error'); }
   }
 
   function viewExperience(id) {
@@ -269,6 +324,12 @@
     ax.feature = feature;
     ax.view = viewExperience;
     ax.refresh = refresh;
+    ax._sel = {};
+    ax.toggleSel = function (id, on) { if (on) ax._sel[id] = true; else delete ax._sel[id]; renderBulkBar(); };
+    ax.selAll = function (on) { pendingVisibleIds().forEach(function (id) { if (on) ax._sel[id] = true; else delete ax._sel[id]; }); realRender(); };
+    ax.clearSel = function () { ax._sel = {}; realRender(); };
+    ax.bulkApprove = bulkApprove;
+    ax.bulkReject = bulkReject;
     refresh(); // render real data now (replaces inline demo — fixes "reverts to old version")
     if (window.FFPRealtime) window.FFPRealtime.subscribe('admin-experiences', 'trips', null, function () { refresh(); });
 
