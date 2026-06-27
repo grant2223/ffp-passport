@@ -810,21 +810,30 @@ async function wkAiGenerate(){
     _wkDraft=wkNorm({title:j.title,notes:j.notes,exercises:j.exercises}); _wkSrc='ai'; _wkFromAssigned=null; wkBuilder();
   }catch(e){ console.error('[wk draft]',e); showToast('Draft failed: '+((e&&e.message)||'network'),'error'); }
 }
-function wkNorm(w){ return { title:w.title||'Workout', notes:w.notes||'', exercises:(w.exercises||[]).map(function(ex){ return { name:ex.name||'', note:ex.note||'', sets:(ex.sets||[]).map(function(s){ return {reps:Number(s.reps)||0,weight:Number(s.weight)||0,effort:s.effort||'moderate',done:false}; }) }; }) }; }
-function wkNewBlank(){ _wkDraft={title:'',notes:'',exercises:[{name:'',note:'',sets:[{reps:10,weight:0,effort:'moderate',done:false}]}]}; _wkSrc='manual'; _wkFromAssigned=null; wkBuilder(); }
+function wkNorm(w){ return { title:w.title||'Workout', notes:w.notes||'', days:(w.day_of_week!=null?[w.day_of_week]:[]), exercises:(w.exercises||[]).map(function(ex){ return { name:ex.name||'', note:ex.note||'', sets:(ex.sets||[]).map(function(s){ return {reps:Number(s.reps)||0,weight:Number(s.weight)||0,effort:s.effort||'moderate',done:false}; }) }; }) }; }
+function wkNewBlank(){ _wkDraft={title:'',notes:'',days:[],exercises:[{name:'',note:'',sets:[{reps:10,weight:0,effort:'moderate',done:false}]}]}; _wkSrc='manual'; _wkFromAssigned=null; wkBuilder(); }
 function wkOpenAssigned(id){ var w=(_wkList||[]).find(function(x){return x.id===id;}); if(!w) return; _wkDraft=wkNorm(w); _wkSrc=w.source||'manual'; _wkFromAssigned=id; wkBuilder(); }
 function wkBuilder(){
   openModalShell('lg','Workout',
     '<input id="wk-title" class="input" placeholder="Workout title" value="'+escHtml(_wkDraft.title||'')+'" style="width:100%;font-size:14px;font-weight:700;margin:0 0 8px;box-sizing:border-box;">'+
     '<input id="wk-notes" class="input" placeholder="Coaching note (optional)" value="'+escHtml(_wkDraft.notes||'')+'" style="width:100%;font-size:12.5px;margin:0 0 10px;box-sizing:border-box;">'+
+    '<div style="font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-text-dim);margin:2px 0 6px;">Assign to day(s) — tap to plan; leave blank to just log now</div>'+
+    '<div id="wk-day-chips" style="display:flex;gap:5px;margin:0 0 12px;"></div>'+
     '<div style="font-size:10.5px;color:var(--ffp-text-dim);margin:0 0 8px;">Tick each set as it’s done · edit reps / weight / effort live.</div>'+
     '<div id="wk-build"></div>'+
     '<button class="btn btn-sec btn-sm" style="margin-top:8px;" onclick="wkAddExercise()"><span class="ms">add</span> Add exercise</button>',
     '<button class="btn btn-ghost" onclick="openClientWorkouts(\''+_wkClient+'\')">Back</button>'+
-    '<button class="btn btn-sec" onclick="wkSavePlan()"><span class="ms">event</span> Save as plan</button>'+
+    '<button class="btn btn-sec" onclick="wkSavePlan()"><span class="ms">event</span> Save plan</button>'+
     '<button class="btn btn-pri" onclick="wkFinish()"><span class="ms">check</span> Log to Passport</button>');
-  wkRenderBuild();
+  wkRenderBuild(); wkRenderDays();
 }
+function wkRenderDays(){
+  var h=document.getElementById('wk-day-chips'); if(!h) return; var days=_wkDraft.days||[];
+  h.innerHTML=WK_DOW.map(function(d,i){ var on=days.indexOf(i)>-1;
+    return '<button onclick="wkToggleDay('+i+')" style="flex:1;padding:8px 0;border-radius:9px;border:1px solid '+(on?'var(--ffp-purple)':'var(--ffp-border-mid)')+';background:'+(on?'var(--ffp-purple)':'transparent')+';color:'+(on?'#fff':'var(--ffp-text)')+';font-weight:800;font-size:12px;cursor:pointer;font-family:inherit;">'+d.charAt(0)+'</button>';
+  }).join('');
+}
+function wkToggleDay(i){ _wkDraft.days=_wkDraft.days||[]; var k=_wkDraft.days.indexOf(i); if(k>-1)_wkDraft.days.splice(k,1); else _wkDraft.days.push(i); wkRenderDays(); }
 function wkRenderBuild(){
   var host=document.getElementById('wk-build'); if(!host) return;
   var inp='padding:7px 4px;border:1px solid var(--ffp-border-mid);border-radius:8px;font-family:inherit;background:var(--ffp-bg);color:var(--ffp-text);';
@@ -875,19 +884,26 @@ function wkRemoveSet(ei,si){ wkCollect(); _wkDraft.exercises[ei].sets.splice(si,
 function wkRemoveEx(ei){ wkCollect(); _wkDraft.exercises.splice(ei,1); wkRenderBuild(); }
 function wkSavePlan(){
   wkCollect();
-  if(!_wkDraft.exercises.filter(function(e){return e.name&&e.name.trim();}).length){ showToast('Add an exercise first','error'); return; }
-  var nm=((_members||[]).find(function(x){return x.id===_wkClient;})||{}).full_name||'their';
-  openModalShell('','Assign to a day',
-    '<div class="psub" style="margin:0 0 10px;">Which day on '+escHtml(nm)+'’s plan?</div>'+
-    '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">'+WK_DOW.map(function(d,i){return '<button class="btn btn-sec btn-sm" onclick="wkAssignDay('+i+')">'+d+'</button>';}).join('')+'</div>',
-    '<button class="btn btn-ghost" onclick="wkBuilder()">Back</button>');
-}
-async function wkAssignDay(dow){
-  var pid=_memProvId();
   var exs=_wkDraft.exercises.filter(function(e){return e.name&&e.name.trim();});
-  try{ var r=await window.supabase.rpc('pro_workout_save',{p_professional:pid,p_id:_wkFromAssigned||null,p_client_id:_wkClient,p_kind:'assigned',p_title:_wkDraft.title||'Workout',p_notes:_wkDraft.notes||'',p_exercises:exs,p_day_of_week:dow,p_source:_wkSrc});
-    if(r&&r.error)throw r.error; if(r&&r.data&&r.data.ok===false)throw new Error((r.data&&r.data.error)||'save_failed'); showToast('Saved to '+WK_DOW[dow],'success'); openClientWorkouts(_wkClient);
-  }catch(e){ console.error('[wk assign]',e); showToast('Save failed: '+((e&&(e.message||e.hint||e.details))||'unknown'),'error'); }
+  if(!exs.length){ showToast('Add an exercise first','error'); return; }
+  var days=(_wkDraft.days||[]).slice();
+  if(!days.length){ showToast('Tap a day chip up top to assign — or use “Log to Passport”','error'); return; }
+  wkDoAssign(exs,days);
+}
+async function wkDoAssign(exs,days){
+  var pid=_memProvId(); if(!pid){ showToast('No pro account in session — re-open from the dashboard','error'); return; }
+  var ok=0, err=null;
+  for(var i=0;i<days.length;i++){
+    try{
+      var r=await window.supabase.rpc('pro_workout_save',{p_professional:pid,p_id:null,p_client_id:_wkClient,p_kind:'assigned',p_title:_wkDraft.title||'Workout',p_notes:_wkDraft.notes||'',p_exercises:exs,p_day_of_week:days[i],p_source:_wkSrc});
+      if(r&&r.error) throw r.error;
+      if(!(r&&r.data&&r.data.ok===true)) throw new Error((r&&r.data&&r.data.error)||'no confirmation from server');
+      ok++;
+    }catch(e){ console.error('[wk assign]',e); if(!err) err=(e&&(e.message||e.hint||e.details||e.code))||'unknown'; }
+  }
+  if(ok&&!err){ showToast('Saved to '+ok+' day'+(ok===1?'':'s')+' ✓','success'); openClientWorkouts(_wkClient); }
+  else if(ok){ showToast('Saved '+ok+', some failed: '+err,'error'); openClientWorkouts(_wkClient); }
+  else{ showToast('Save failed: '+err,'error'); }
 }
 async function wkFinish(){
   wkCollect();
