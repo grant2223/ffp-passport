@@ -763,7 +763,7 @@ function openClientWorkouts(id){
 }
 async function wkLoad(){
   var pid=_memProvId();
-  try{ var r=await window.supabase.rpc('pro_workout_list',{p_professional:pid,p_client:_wkClient}); _wkList=(r&&r.data)||[]; }catch(e){ _wkList=[]; }
+  try{ var r=await window.supabase.rpc('pro_workout_list',{p_professional:pid,p_client_id:_wkClient}); _wkList=(r&&r.data)||[]; }catch(e){ _wkList=[]; }
   wkRenderList();
 }
 function wkRenderList(){
@@ -930,7 +930,7 @@ async function renderWorkoutHub(){
   var host=document.getElementById('wk-hub'); if(!host) return;
   var pid=_memProvId();
   if(!(_members&&_members.length)){ try{ var rr=await window.supabase.rpc('pro_list_clients',{p_pro:pid}); _members=(rr&&rr.data)||[]; }catch(e){} }
-  var all=[]; try{ var r=await window.supabase.rpc('pro_workout_list',{p_professional:pid,p_client:null}); all=(r&&r.data)||[]; }catch(e){ all=[]; }
+  var all=[]; try{ var r=await window.supabase.rpc('pro_workout_list',{p_professional:pid,p_client_id:null}); all=(r&&r.data)||[]; }catch(e){ all=[]; }
   var sessions=all.filter(function(w){return w.kind==='session';}).sort(function(a,b){return new Date(b.finished_at||0)-new Date(a.finished_at||0);});
   var assigned=all.filter(function(w){return w.kind==='assigned';}).sort(function(a,b){return (a.day_of_week==null?9:a.day_of_week)-(b.day_of_week==null?9:b.day_of_week);});
   var nameOf=function(cid){ var m=(_members||[]).find(function(x){return x.id===cid;}); return m?(m.full_name||'Client'):'Client'; };
