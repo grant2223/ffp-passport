@@ -5577,7 +5577,20 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
           <label class="pm-form-label">Steps</label>
           <input type="number" id="log-steps" class="pm-form-input" inputmode="numeric" min="0" placeholder="e.g. 8000">
         </div>
-        <div class="pm-form-field"></div>
+        <div class="pm-form-field">
+          <label class="pm-form-label">Max heart rate (bpm)</label>
+          <input type="number" id="log-maxhr" class="pm-form-input" inputmode="numeric" min="0" max="300" placeholder="e.g. 178">
+        </div>
+      </div>
+      <div class="pm-form-field">
+        <label class="pm-form-label">Time in each HR zone (minutes, optional)</label>
+        <div style="display:flex;gap:6px;">
+          <div style="flex:1;"><div style="font-size:9px;font-weight:800;text-align:center;color:#3aa0e6;margin-bottom:3px;">Z1·50%</div><input type="number" id="log-z1" class="pm-form-input" inputmode="numeric" min="0" placeholder="min" style="text-align:center;padding-left:4px;padding-right:4px;"></div>
+          <div style="flex:1;"><div style="font-size:9px;font-weight:800;text-align:center;color:#16a34a;margin-bottom:3px;">Z2·60%</div><input type="number" id="log-z2" class="pm-form-input" inputmode="numeric" min="0" placeholder="min" style="text-align:center;padding-left:4px;padding-right:4px;"></div>
+          <div style="flex:1;"><div style="font-size:9px;font-weight:800;text-align:center;color:#eab308;margin-bottom:3px;">Z3·70%</div><input type="number" id="log-z3" class="pm-form-input" inputmode="numeric" min="0" placeholder="min" style="text-align:center;padding-left:4px;padding-right:4px;"></div>
+          <div style="flex:1;"><div style="font-size:9px;font-weight:800;text-align:center;color:#f59e0b;margin-bottom:3px;">Z4·80%</div><input type="number" id="log-z4" class="pm-form-input" inputmode="numeric" min="0" placeholder="min" style="text-align:center;padding-left:4px;padding-right:4px;"></div>
+          <div style="flex:1;"><div style="font-size:9px;font-weight:800;text-align:center;color:#dc2626;margin-bottom:3px;">Z5·90%</div><input type="number" id="log-z5" class="pm-form-input" inputmode="numeric" min="0" placeholder="min" style="text-align:center;padding-left:4px;padding-right:4px;"></div>
+        </div>
       </div>
       <div class="pm-form-field">
         <label class="pm-form-label">Notes (optional)</label>
@@ -8355,7 +8368,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '461';
+  const FFP_BUILD = '462';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -11410,6 +11423,8 @@ function openLogModal() {
   var _ai = document.getElementById('log-ai-text'); if (_ai) _ai.value = '';
   var _ld = document.getElementById('log-distance'); if (_ld) _ld.value = '';
   var _lst = document.getElementById('log-steps'); if (_lst) _lst.value = '';
+  var _lmh = document.getElementById('log-maxhr'); if (_lmh) _lmh.value = '';
+  ['log-z1', 'log-z2', 'log-z3', 'log-z4', 'log-z5'].forEach(function (zid) { var _ze = document.getElementById(zid); if (_ze) _ze.value = ''; });
   var _lh = document.getElementById('log-hr'); if (_lh) _lh.value = '';
   // Clear the optional location pin each fresh open
   ['log-venue', 'log-lat', 'log-lng', 'log-maps'].forEach(function (id) { var e = document.getElementById(id); if (e) e.value = ''; });
@@ -11467,6 +11482,10 @@ window.openLogModalForEdit = function (row) {
   var dist = document.getElementById('log-distance'); if (dist) dist.value = (row.distance_km != null ? row.distance_km : '');
   var cal = document.getElementById('log-calories'); if (cal) cal.value = (row.calories ? row.calories : '');
   var hr = document.getElementById('log-hr'); if (hr) hr.value = (row.avg_heart_rate != null ? row.avg_heart_rate : '');
+  var stp = document.getElementById('log-steps'); if (stp) stp.value = (row.steps != null ? row.steps : '');
+  var mhr = document.getElementById('log-maxhr'); if (mhr) mhr.value = ((row.metrics && row.metrics.max_hr) ? row.metrics.max_hr : '');
+  var _ez = (row.metrics && row.metrics.hr_zones_ms) || null;
+  [['log-z1', 'zone_one_milli'], ['log-z2', 'zone_two_milli'], ['log-z3', 'zone_three_milli'], ['log-z4', 'zone_four_milli'], ['log-z5', 'zone_five_milli']].forEach(function (p) { var el = document.getElementById(p[0]); if (el) el.value = (_ez && _ez[p[1]]) ? Math.round(_ez[p[1]] / 60000) : ''; });
   var notes = document.getElementById('log-notes'); if (notes) notes.value = row.notes || '';
   if (typeof ffpLogSetPhotos === 'function') ffpLogSetPhotos((row.photos && row.photos.length) ? row.photos : (row.photo_url ? [row.photo_url] : []));
   var _she = document.getElementById('log-share'); if (_she) _she.checked = !!row.shared;
@@ -11811,6 +11830,12 @@ async function saveLog() {
     var _stepsEl = document.getElementById('log-steps');
     var _stepsVal = (_stepsEl && _stepsEl.value.trim() !== '') ? Math.max(0, parseInt(_stepsEl.value, 10)) : null;
     if (_stepsVal != null && !isNaN(_stepsVal)) { var _sid = _editId || _newId; if (_sid) { try { await window.supabase.rpc('set_activity_steps', { p_me: member.id, p_log_id: _sid, p_steps: _stepsVal }); } catch (e) {} } }
+    // Max HR + heart-rate zones (minutes per zone → ms) → stored in metrics via set_activity_metrics. Only written when entered.
+    var _mhrEl = document.getElementById('log-maxhr');
+    var _mhrVal = (_mhrEl && _mhrEl.value.trim() !== '') ? Math.max(0, Math.min(300, parseInt(_mhrEl.value, 10))) : null;
+    var _zv = {}, _anyZ = false;
+    [['log-z1', 'zone_one_milli'], ['log-z2', 'zone_two_milli'], ['log-z3', 'zone_three_milli'], ['log-z4', 'zone_four_milli'], ['log-z5', 'zone_five_milli']].forEach(function (p) { var el = document.getElementById(p[0]); var v = (el && el.value.trim() !== '') ? Math.max(0, parseInt(el.value, 10)) : null; if (v != null && !isNaN(v)) { _zv[p[1]] = v * 60000; _anyZ = true; } });
+    if (_mhrVal != null || _anyZ) { var _mid2 = _editId || _newId; if (_mid2) { try { await window.supabase.rpc('set_activity_metrics', { p_me: member.id, p_log_id: _mid2, p_max_hr: _mhrVal, p_zones: _anyZ ? _zv : null }); } catch (e) {} } }
   } catch (e) {
     console.error('[FFP Journey] save failed:', e);
     if (typeof showToast === 'function') showToast('Couldn’t save your activity — please try again', 'error');
@@ -12125,7 +12150,8 @@ window.ffpRenderActivityCard = function (a, isOwn) {
   try {
     var _z = (a.metrics && a.metrics.hr_zones_ms) ? a.metrics.hr_zones_ms : null;
     if (_z) {
-      var _zones = [['Zone 1', _z.zone_one_milli || 0, '#4aa3df'], ['Zone 2', _z.zone_two_milli || 0, '#16a34a'], ['Zone 3', _z.zone_three_milli || 0, '#d9a300'], ['Zone 4', _z.zone_four_milli || 0, '#f3914e'], ['Zone 5', _z.zone_five_milli || 0, '#dc2626']];
+      var _zones = [['Zone 1 · 50–60%', _z.zone_one_milli || 0, '#3aa0e6'], ['Zone 2 · 60–70%', _z.zone_two_milli || 0, '#16a34a'], ['Zone 3 · 70–80%', _z.zone_three_milli || 0, '#eab308'], ['Zone 4 · 80–90%', _z.zone_four_milli || 0, '#f59e0b'], ['Zone 5 · 90%+', _z.zone_five_milli || 0, '#dc2626']];
+      if (_z.zone_zero_milli) _zones.unshift(['Zone 0 · <50%', _z.zone_zero_milli, '#6b7a88']);
       var _tot = _zones.reduce(function (s, z) { return s + (z[1] || 0); }, 0);
       if (_tot > 0) {
         var _fmt = function (ms) { var s = Math.round(ms / 1000); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); };
