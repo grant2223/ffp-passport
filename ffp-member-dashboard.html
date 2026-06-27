@@ -5172,10 +5172,12 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
             </div>
             <div id="meal-items-snacks"></div>
           </div>
+          <!-- Food photos (today) — snap your meals; thumbnails of what you ate today -->
+          <div id="ct-food-photos-today" style="margin-top:16px;"></div>
         </div>
       </div>
     </div>
-    
+
     <!-- ============ WEEK VIEW ============ -->
     <div id="ct-week-view" style="display:none;">
       <div class="ct-week-range" id="ct-week-range">Mon 22 &ndash; Sun 28 Mar</div>
@@ -5239,6 +5241,8 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         </div>
         <div class="ct-month-weeks" id="ct-month-weeks"></div>
       </div>
+      <!-- Food photos (past 7 days) — your week's meals -->
+      <div id="ct-food-photos-week" style="margin-top:4px;"></div>
     </div>
   </div>
 
@@ -7203,6 +7207,15 @@ function setPassport(id) {
   state.selectedPassport = (state.selectedPassport === id) ? null : (id || null);
   renderAll();
 }
+// Tap a Top Activity → filter the world map to that activity (tap again to clear).
+function ffpToggleActivityFilter(name) {
+  if (!name) return;
+  var on = state.selectedActivity === name;
+  state.selectedActivity = on ? null : name;
+  if (typeof renderAll === 'function') renderAll();
+  try { if (window.showToast) showToast(on ? 'Map: all activities' : 'Map showing ' + name + ' — tap again to clear'); } catch (e) {}
+  try { var mp = document.getElementById('ffp-jmap'); if (mp && !on) mp.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+}
 function renderPassportPicker() {
   updateMapFilterUI();
   const el = document.getElementById('jm-passports'); if (!el) return;
@@ -7521,6 +7534,8 @@ window.JourneyMap = (function () {
     else if (r==='year'){ var d=Math.floor((new Date()-new Date(new Date().getFullYear(),0,1))/86400000); logs=logs.filter(function(l){return l.daysAgo<=d;}); }
     // passport is a MAP LENS — skip it for the nav dropdowns (ignorePassport=true) so Country/City never vanish
     if (!ignorePassport && state.selectedPassport && typeof passportForLog==='function') logs = logs.filter(function(l){ return passportForLog(l)===state.selectedPassport; });
+    // activity LENS — tapping a Top Activity filters the map to that activity (dropdowns ignore it, like passport)
+    if (!ignorePassport && state.selectedActivity) logs = logs.filter(function(l){ return l.activity === state.selectedActivity; });
     return logs;
   }
   function dotIcon(color, r){
@@ -7695,16 +7710,19 @@ function renderActivities(logs) {
   
   const items = state.expandedActivities ? arr : arr.slice(0, 3);
   const max = arr[0].count;
-  list.innerHTML = items.map(a => `
-    <div class="ba-row">
+  list.innerHTML = items.map(a => {
+    const sel = state.selectedActivity === a.name;
+    const nm = String(a.name).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    return `
+    <div class="ba-row" style="cursor:pointer;${sel ? 'background:rgba(43,168,224,0.10);border-radius:10px;padding-left:6px;padding-right:6px;' : ''}" onclick="ffpToggleActivityFilter('${nm}')" title="Show only this on the map">
       <div class="ba-icon"><span class="material-icons" style="font-size:20px;color:var(--blue);">${a.icon}</span></div>
       <div>
-        <div class="ba-name-line"><span class="ba-name">${a.name}</span></div>
+        <div class="ba-name-line"><span class="ba-name">${a.name}</span>${sel ? ' <span class="material-icons" style="font-size:13px;color:var(--blue);vertical-align:-2px;">place</span>' : ''}</div>
         <div class="ba-bar-track"><div class="ba-bar-fill" style="width:${Math.round((a.count/max)*100)}%"></div></div>
       </div>
       <span class="ba-count">${a.count}x</span>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
   
   if (arr.length > 3) {
     btn.style.display = '';
@@ -8377,7 +8395,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '466';
+  const FFP_BUILD = '467';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -10045,7 +10063,7 @@ function fmtPrDate(iso) {
 <!-- Milestone badge library — assets/ffp-milestone-badges.js (window.FFPMSBadges). DEFER: only used by the lazy
      Milestones render long after load, so it must never block boot. Bump ?v on change. -->
 <script defer src="assets/ffp-milestone-badges.js?v=6"></script>
-<script defer src="assets/ffp-calorie-tracker-core.js?v=9"></script>
+<script defer src="assets/ffp-calorie-tracker-core.js?v=10"></script>
 <script>
 
 function closePrEditIfBackdrop(e) { if (e.target.id === 'pr-edit-backdrop') FitnessStats.closePrEdit(); }
