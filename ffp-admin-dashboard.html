@@ -2112,7 +2112,7 @@ input, select, textarea { font-family: inherit; }
     <section class="panel" id="panel-broadcast">
       <div class="panel-head">
         <h1>Broadcast</h1>
-        <div class="panel-head-sub">Send an in-app notification to members — it appears in their notification bell. (Audience targeting + email send come next; v1 sends to all members.)</div>
+        <div class="panel-head-sub">Send an in-app notification (+ phone push) to members — it appears in their notification bell. Target everyone or a segment.</div>
       </div>
       <div class="section">
         <div class="section-head"><div class="section-title">Compose broadcast</div></div>
@@ -2124,9 +2124,16 @@ input, select, textarea { font-family: inherit; }
             </div>
             <div class="field">
               <label class="field-label">Audience</label>
-              <select class="field-input" id="bc-audience">
+              <select class="field-input" id="bc-audience" onchange="AdminBroadcast.onAudienceChange()">
                 <option value="all">All members</option>
+                <option value="membership:passport">Passport members</option>
+                <option value="membership:free">Free members</option>
+                <option value="gender:female">Women</option>
+                <option value="gender:male">Men</option>
+                <option value="country:">By country…</option>
               </select>
+              <input class="field-input" id="bc-country" type="text" placeholder="Country (e.g. United Arab Emirates)" style="display:none;margin-top:6px;">
+              <div id="bc-audience-hint" class="field-hint" style="margin-top:4px;font-size:12px;color:var(--text-muted,#8a99a8);"></div>
             </div>
           </div>
           <div class="field-row">
@@ -3141,6 +3148,13 @@ const AdminPayouts = {
 // v40: Broadcast Center — posts an in-app notification to all members via /api/admin/broadcast
 // (admin-gated; writes a notifications row with member_id NULL = everyone). Email + audience targeting next.
 const AdminBroadcast = {
+  onAudienceChange() {
+    var aud = (document.getElementById('bc-audience') || {}).value || 'all';
+    var c = document.getElementById('bc-country');
+    var hint = document.getElementById('bc-audience-hint');
+    if (c) c.style.display = (aud === 'country:') ? '' : 'none';
+    if (hint) hint.textContent = (aud === 'all') ? 'Everyone gets this notification.' : 'Only members matching this segment get it.';
+  },
   async send() {
     var result = document.getElementById('bc-result');
     var setMsg = function (color, text) { if (result) { result.style.color = color; result.textContent = text; } };
@@ -3150,16 +3164,26 @@ const AdminBroadcast = {
     if (title.length < 2) { setMsg('#ef4444', 'Add a title first.'); return; }
     var admin = window.FFP_ADMIN && window.FFP_ADMIN.id;
     if (!admin) { setMsg('#ef4444', 'Admin session not ready — reload the page.'); return; }
+    // Build the audience segment (null = everyone).
+    var aud = (document.getElementById('bc-audience') || {}).value || 'all';
+    var segment = null;
+    if (aud && aud !== 'all') {
+      var parts = aud.split(':'); var stype = parts[0]; var sval = parts[1] || '';
+      if (stype === 'country') sval = ((document.getElementById('bc-country') || {}).value || '').trim();
+      if (!sval) { setMsg('#ef4444', 'Enter the audience value (e.g. a country).'); return; }
+      segment = { type: stype, value: sval };
+    }
+    var audLabel = segment ? (document.getElementById('bc-audience').selectedOptions[0].textContent.replace('…', '') + (segment.type === 'country' ? ': ' + segment.value : '')) : 'all members';
     var btn = document.getElementById('bc-send'); if (btn) btn.disabled = true;
     setMsg('#8196a6', 'Sending…');
     try {
       var res = await fetch('https://ffp-passport-backend.vercel.app/api/admin/broadcast', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ admin_id: admin, title: title, body: body || null, link: link || null, audience: 'all' })
+        body: JSON.stringify({ admin_id: admin, title: title, body: body || null, link: link || null, segment: segment })
       });
       var data = await res.json();
       if (data && data.success) {
-        setMsg('#22c55e', 'Sent to all members.');
+        setMsg('#22c55e', 'Sent to ' + (data.sent || 0) + ' ' + (data.sent === 1 ? 'member' : 'members') + ' (' + audLabel + ').');
         document.getElementById('bc-title').value = '';
         document.getElementById('bc-body').value = '';
         document.getElementById('bc-link').value = '';
