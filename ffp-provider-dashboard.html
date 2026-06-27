@@ -280,7 +280,7 @@
 })();
 </script>
 <script src="ffp-provider-events-loader.js?v=19"></script>
-<script src="ffp-provider-experiences-loader.js?v=17"></script>
+<script src="ffp-provider-experiences-loader.js?v=18"></script>
 <script src="ffp-provider-challenges-loader.js?v=2"></script>
 <!-- v29 (2026-06-03): Taxonomy audit fixes — "Provider type" (pf-type) reads the unified provider_type
      taxonomy via FFP_TAX.providerTypes (shared with admin rankings; business_structure concept dropped);
@@ -318,7 +318,7 @@
 <!-- v12: notifications loader restored (this branch was missing it) — wires the
      topbar bell to real data AND overrides signOut() to do a real ffpLogout()
      instead of the inline demo that showed a blank screen. -->
-<script src="ffp-provider-notifications-loader.js?v=3"></script>
+<script src="ffp-provider-notifications-loader.js?v=4"></script>
 <!-- v12: check-ins loader now loads on first open of the Check-ins panel
      (see ensureProviderLoader in showPanel) — not needed on initial load. -->
 <script src="ffp-provider-quests-loader.js?v=5"></script>
@@ -2868,7 +2868,7 @@ a { color: var(--ffp-blue); text-decoration: none; }
         <div class="ph-row">
           <div>
             <div class="ph">Experiences</div>
-            <div class="psub">One-off activities members book — jet ski hire, bungy jump, canyoning, a guided experience or cruise. Add a date so it's bookable. (Recurring classes are in the Sessions tab.)</div>
+            <div class="psub">One-off activities members book — jet ski hire, bungy jump, canyoning, a guided experience or cruise. Add a date so it's bookable. (Recurring classes are in the Sessions tab; multi-day trips in the Trips tab.)</div>
           </div>
           <button class="btn btn-pri" onclick="openCreateClass()"><span class="ms">tour</span> New experience</button>
         </div>
@@ -3245,8 +3245,7 @@ const NAV = [
   { id: 'events',      icon: 'event',           label: 'Events',      section: 'engagement' },
   { id: 'experiences', icon: 'flight',          label: 'Trips',       section: 'engagement' },
   { id: 'quests',      icon: 'flag',            label: 'Quests',      section: 'engagement' },
-  { id: 'challenges',  icon: 'emoji_events',    label: 'Challenges',  section: 'engagement', soon: true, locked: true },
-  { id: 'deals',       icon: 'local_offer',     label: 'Deals',       section: 'engagement' },
+  // Deals + Challenges parked — hidden from nav until built (panels remain in code).
   // ── Account ──
   { id: 'profile',     icon: 'storefront',      label: 'Profile',     section: 'account' },
   { id: 'settings',    icon: 'settings',        label: 'Settings',    section: 'account' }
@@ -3326,7 +3325,7 @@ function toggleNavSection(sec) {
 
 // v12: load a panel's data loader the first time that panel is opened.
 // Overview/identity loaders stay eager; only clearly panel-scoped ones defer.
-var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=4', 'scheduling': 'ffp-provider-scheduling-loader.js?v=23', 'members': 'ffp-provider-members-loader.js?v=10', 'plans': 'ffp-provider-plans-loader.js?v=2', 'announcements': 'ffp-provider-announcements-loader.js?v=1', 'billing': 'ffp-provider-billing-loader.js?v=4', 'staff': 'ffp-provider-staff-loader.js?v=4', 'classes': 'ffp-provider-classes-loader.js?v=22', 'appointments': 'ffp-provider-appointments-loader.js?v=14' };
+var _provLoaderSrc = { 'checkins': 'ffp-provider-checkins-loader.js?v=4', 'scheduling': 'ffp-provider-scheduling-loader.js?v=23', 'members': 'ffp-provider-members-loader.js?v=10', 'plans': 'ffp-provider-plans-loader.js?v=2', 'announcements': 'ffp-provider-announcements-loader.js?v=1', 'billing': 'ffp-provider-billing-loader.js?v=4', 'staff': 'ffp-provider-staff-loader.js?v=4', 'classes': 'ffp-provider-classes-loader.js?v=23', 'appointments': 'ffp-provider-appointments-loader.js?v=14' };
 var _provLoaded = {};
 function ensureProviderLoader(id) {
   var src = _provLoaderSrc[id];
