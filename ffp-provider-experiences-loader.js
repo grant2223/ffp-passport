@@ -354,7 +354,7 @@
   async function fetchExperiences() {
     if (!window.FFP_PROVIDER || !window.FFP_PROVIDER.id) return [];
     var res = await window.supabase
-      .from('experiences')
+      .from('trips')
       .select('id, provider_id, title, description, overview, exp_type, activity, category, hero_image_url, gallery, destination, country, starts_at, ends_at, duration_days, price_aed, currency, deposit, what_not_included, what_included, itinerary, accommodation, flights_info, travel_reqs, fitness_reqs, fitness_level, capacity, status, featured, highlights, not_allowed, languages, min_age, meeting_point, meeting_lat, meeting_lng, wheelchair_accessible, accessibility_notes, free_cancellation_hours, cancellation_policy, pay_requirement, created_at, updated_at')
       .eq('provider_id', window.FFP_PROVIDER.id)
       .order('starts_at', { ascending: true });
