@@ -112,7 +112,7 @@
     if (window.FFP_ADMIN) { try { await load(); console.log('[FFP Admin Overview v9] loaded ✓'); } catch (e) { console.error(e); } }
     if (window.FFPRealtime) {
       var t = null, bump = function () { clearTimeout(t); t = setTimeout(load, 800); };
-      ['events', 'experiences', 'challenges', 'provider_applications', 'payouts', 'referrals', 'members', 'providers', 'activity_logs'].forEach(function (tbl) {
+      ['events', 'trips', 'challenges', 'provider_applications', 'payouts', 'referrals', 'members', 'providers', 'activity_logs'].forEach(function (tbl) {
         window.FFPRealtime.subscribe('admin-ov-' + tbl, tbl, null, bump);
       });
     }
