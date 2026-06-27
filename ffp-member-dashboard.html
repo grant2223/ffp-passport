@@ -4501,6 +4501,8 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
       <div id="trend-spark" style="flex:1;min-width:0;height:40px;"></div>
     </div>
     <div id="trend-tip" style="font-size:14px;color:var(--text);line-height:1.65;display:flex;gap:8px;align-items:flex-start;"></div>
+    <!-- Latest wearable readiness (WHOOP) — filled by renderTrendFitness() on each passport open -->
+    <div id="trend-fitness" style="margin-top:16px;"></div>
   </div>
   
   <!-- ═══ YOUR JOURNEY MAP (Leaflet) — World › Country › City ═══ -->
@@ -7285,6 +7287,35 @@ function renderTrend() {
   else tip = 'Steady week. You clearly love ' + esc2(love) + ' — do more of it: host or join a meet-up this week.';
   document.getElementById('trend-tip').innerHTML = '<span class="material-icons" style="font-size:16px;color:var(--blue);flex:0 0 auto;">tips_and_updates</span><span><strong style="color:var(--text);">Coach Grant:</strong> ' + tip + '</span>';
   card.style.display = '';
+  try { renderTrendFitness(); } catch (e) {}
+}
+
+// Latest wearable readiness (WHOOP) appended to "Your Trends" — refreshes each time the Passport opens.
+function renderTrendFitness() {
+  var host = document.getElementById('trend-fitness'); if (!host) return;
+  var rf = null; try { rf = localStorage.getItem('ffp_refresh'); } catch (e) {}
+  if (!rf) { host.innerHTML = ''; return; }
+  fetch('https://ffp-passport-backend.vercel.app/api/wearables/daily', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh: rf }) })
+    .then(function (r) { return r.json(); })
+    .then(function (j) {
+      var days = (j && j.days) || [];
+      var host2 = document.getElementById('trend-fitness'); if (!host2) return;
+      if (!days.length) { host2.innerHTML = ''; return; }
+      var latest = function (k) { for (var i = 0; i < days.length; i++) { if (days[i][k] != null) return days[i][k]; } return null; };
+      var rec = latest('recovery_pct'), strain = latest('strain'), rhr = latest('resting_hr'), hrv = latest('hrv_ms'), sleep = latest('sleep_hours');
+      var items = [];
+      if (rec != null) items.push(['Recovery', rec + '%', rec >= 67 ? '#16a34a' : (rec >= 34 ? '#d9a300' : '#dc2626')]);
+      if (sleep != null) items.push(['Sleep', sleep + 'h', 'var(--text)']);
+      if (strain != null) items.push(['Strain', String(strain), 'var(--blue)']);
+      if (rhr != null) items.push(['Rest HR', String(rhr), 'var(--text)']);
+      if (hrv != null) items.push(['HRV', hrv + 'ms', 'var(--text)']);
+      if (!items.length) { host2.innerHTML = ''; return; }
+      host2.innerHTML = '<div style="font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Today · from WHOOP</div>' +
+        '<div style="display:flex;gap:10px;flex-wrap:wrap;background:rgba(43,168,224,.06);border-radius:14px;padding:14px 12px;">' +
+        items.map(function (it) { return '<div style="flex:1;min-width:54px;text-align:center;"><div style="font-size:19px;font-weight:800;line-height:1;color:' + it[2] + ';">' + it[1] + '</div><div style="font-size:9.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:var(--muted);margin-top:5px;">' + it[0] + '</div></div>'; }).join('') +
+        '</div>';
+    })
+    .catch(function () { var h = document.getElementById('trend-fitness'); if (h) h.innerHTML = ''; });
 }
 
 // Top Connections — people you're connected with, scoped to the map (country/city via their location).
@@ -8279,7 +8310,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '457';
+  const FFP_BUILD = '458';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
