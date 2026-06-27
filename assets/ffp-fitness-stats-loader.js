@@ -1750,7 +1750,7 @@
           if (_hrv != null) foot.push(['HRV', _hrv + 'ms']);
           _wh.innerHTML =
             '<div class="bio-section-title">Recovery &amp; strain <span style="font-size:10px;font-weight:700;color:var(--muted,#8a99a8);">· WHOOP</span></div>' +
-            '<div style="background:rgba(43,168,224,0.06);border-radius:16px;padding:18px;">' +
+            '<div style="background:rgba(43,168,224,0.06);border-radius:16px;padding:18px;margin-bottom:18px;">' +
               '<div style="display:flex;align-items:center;gap:18px;">' +
                 '<div style="position:relative;flex:0 0 auto;width:116px;height:116px;">' +
                   '<svg width="116" height="116" viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" fill="none" stroke="rgba(138,153,168,0.18)" stroke-width="11"/>' +
