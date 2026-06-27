@@ -277,7 +277,26 @@ var FitnessStats = {
       drivers.push({ key: 'waist', name: 'Waist', icon: 'straighten', detail: `Waist-to-height ${whtr.toFixed(2)} (${r.waist.value}cm)`, band: band, deltaYears: band.years });
     }
 
+    // Muscle mass → rating via Skeletal Muscle Index (SMI = mass ÷ height²). Rating only — no bio-age delta.
+    if (r.muscleMass && r.muscleMass.value != null && p.height) {
+      const _hm = p.height / 100;
+      const smi = _hm > 0 ? (r.muscleMass.value / (_hm * _hm)) : null;
+      if (smi != null && isFinite(smi)) {
+        const band = this.muscleMassBand(smi, p.gender);
+        drivers.push({ key: 'mm', name: 'Muscle Mass', icon: 'sports_gymnastics', detail: `${r.muscleMass.value} kg · ${smi.toFixed(1)} kg/m²`, band: band, deltaYears: 0, smi: Math.round(smi * 10) / 10 });
+      }
+    }
+
     return { bioAge: Math.max(18, Math.round(bio)), drivers, chronAge: p.chronAge };
+  },
+
+  // Skeletal Muscle Index rating (kg/m²), sex-banded. Total-body muscle mass ÷ height².
+  muscleMassBand(smi, gender) {
+    const f = (gender || '').toLowerCase().charAt(0) === 'f';
+    const ath = f ? 9.5 : 11.5, ok = f ? 7.5 : 9.5;
+    if (smi >= ath) return { label: 'Athletic', color: '#38bdf8', bg: 'rgba(56,189,248,0.14)', years: 0 };
+    if (smi >= ok)  return { label: 'Healthy',  color: '#4ade80', bg: 'rgba(74,222,128,0.14)', years: 0 };
+    return            { label: 'Low',       color: '#f59e0b', bg: 'rgba(245,158,11,0.14)', years: 0 };
   },
 
   vo2Norm(age, gender) {
@@ -429,7 +448,7 @@ var FitnessStats = {
       { key: 'restingHR',   drv: 'rhr',   name: 'Resting HR',    icon: 'monitor_heart' },
       { key: 'hrv',         drv: 'hrv',   name: 'HRV',           icon: 'graphic_eq' },
       { key: 'grip',        drv: 'grip',  name: 'Grip Strength', icon: 'pan_tool' },
-      { key: 'muscleMass',  drv: null,    name: 'Muscle Mass',   icon: 'sports_gymnastics' },
+      { key: 'muscleMass',  drv: 'mm',    name: 'Muscle Mass',   icon: 'sports_gymnastics' },
       { key: 'waist',       drv: 'waist', name: 'Waist',         icon: 'straighten' }
     ];
     document.getElementById('bio-drivers').innerHTML = HEALTH.map(h => {
@@ -443,7 +462,8 @@ var FitnessStats = {
       const bandChip = (drv && drv.band)
         ? `<span class="bf-band" style="background:${drv.band.bg}; color:${drv.band.color};">${escHtml(drv.band.label)}</span>`
         : '';
-      const valueText = hasVal ? `${rec.value} ${escHtml(def.unit || '')}` : 'Tap to add';
+      let valueText = hasVal ? `${rec.value} ${escHtml(def.unit || '')}` : 'Tap to add';
+      if (h.key === 'muscleMass' && hasVal && drv && drv.smi != null) valueText = `${rec.value} kg · ${drv.smi} kg/m²`;
       return `
         <div class="bio-driver ${cls}${hasVal ? '' : ' empty'}" onclick="FitnessStats.openPrEdit('${h.key}')">
           <div class="bio-driver-icon"><span class="material-icons">${h.icon}</span></div>
