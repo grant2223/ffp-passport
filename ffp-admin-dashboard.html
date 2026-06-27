@@ -2567,8 +2567,8 @@ const App = {
     'panel-members':      'ffp-admin-members-loader.js',
     'panel-quests':       'ffp-admin-quests-loader.js',
     'panel-events':       'ffp-admin-events-loader.js',
-    'panel-experiences':  'ffp-admin-experiences-loader.js?v=2',
-    'panel-tours':        'ffp-admin-classes-loader.js?v=3',
+    'panel-experiences':  'ffp-admin-experiences-loader.js?v=3',
+    'panel-tours':        'ffp-admin-classes-loader.js?v=4',
     'panel-featured':     'ffp-admin-featured-loader.js?v=2',
     'panel-challenges':   'ffp-admin-challenges-loader.js',
     'panel-meetups':      'ffp-admin-meetups-loader.js',
@@ -2940,6 +2940,7 @@ const AdminMembers = {
     document.getElementById('members-tbody').innerHTML = rows.map(m => `
       <tr>
         <td onclick="Drawer.openMember('${m.id}')" style="cursor:pointer;">
+          <input type="checkbox" ${(this._sel && this._sel[m.id]) ? 'checked' : ''} onclick="event.stopPropagation(); AdminMembers.toggleSel('${m.id}', this.checked)" style="margin-right:8px;vertical-align:middle;">
           <span class="cell-avatar">${m.initial}</span>
           <span class="cell-name">${escHtml(m.full_name)}${m.verified ? ' <span class="material-icons" title="Verified — checked as a real/safe person" style="font-size:15px;color:#22c55e;vertical-align:middle;">verified</span>' : ''}</span>
           <div class="cell-meta" style="margin-left:36px;">${escHtml(m.email)}</div>
@@ -2966,6 +2967,56 @@ const AdminMembers = {
         </td>
       </tr>
     `).join('') || '<tr><td colspan="6" class="text-muted" style="text-align:center; padding:30px;">No members match</td></tr>';
+    this.renderBulkBar();
+  },
+
+  // ── Bulk multi-select (verify / suspend) ──
+  _sel: {},
+  toggleSel(id, on) { if (on) this._sel[id] = true; else delete this._sel[id]; this.renderBulkBar(); },
+  clearSel() { this._sel = {}; this.render(); },
+  selAll(on) { this.filtered().forEach(m => { if (on) this._sel[m.id] = true; else delete this._sel[m.id]; }); this.render(); },
+  renderBulkBar() {
+    const ids = Object.keys(this._sel || {});
+    let table = document.getElementById('members-tbody'); table = table && table.closest('table');
+    let bar = document.getElementById('members-bulkbar');
+    if (!bar && table) {
+      bar = document.createElement('div'); bar.id = 'members-bulkbar';
+      bar.style.cssText = 'align-items:center;gap:10px;margin:8px 0;padding:8px 12px;background:rgba(43,168,224,0.08);border:1px solid rgba(43,168,224,0.3);border-radius:8px;';
+      table.parentNode.insertBefore(bar, table);
+    }
+    if (!bar) return;
+    const vis = this.filtered();
+    const n = ids.filter(id => vis.some(m => m.id === id)).length;
+    const allOn = vis.length > 0 && n === vis.length;
+    bar.style.display = 'flex';
+    bar.innerHTML =
+      `<label style="display:flex;align-items:center;gap:6px;color:#cfd6dc;font-size:13px;cursor:pointer;"><input type="checkbox" ${allOn ? 'checked' : ''} onclick="AdminMembers.selAll(this.checked)"> Select all</label>` +
+      `<span style="color:#8a99a8;font-size:13px;">${n} selected</span>` +
+      (n > 0 ?
+        `<button class="btn btn-sm btn-blue" onclick="AdminMembers.bulkVerify()"><span class="material-icons">verified</span>Verify</button>` +
+        `<button class="btn btn-sm btn-danger" onclick="AdminMembers.bulkSuspend()"><span class="material-icons">block</span>Suspend</button>` +
+        `<button class="btn btn-sm btn-ghost" onclick="AdminMembers.clearSel()">Clear</button>` : '');
+  },
+  async bulkVerify() {
+    const ids = Object.keys(this._sel || {}); if (!ids.length) return;
+    try {
+      const res = await window.supabase.from('members').update({ verified: true }).in('id', ids);
+      if (res.error) throw res.error;
+      if (window.showToast) showToast(ids.length + ' verified', 'success');
+      this._sel = {};
+      if (typeof this.load === 'function') this.load(); else if (typeof this.refresh === 'function') this.refresh(); else this.render();
+    } catch (e) { console.error('[bulkVerify]', e); if (window.showToast) showToast('Bulk verify failed', 'error'); }
+  },
+  async bulkSuspend() {
+    const ids = Object.keys(this._sel || {}); if (!ids.length) return;
+    if (!confirm('Suspend ' + ids.length + ' member(s)? They keep their account but are flagged suspended.')) return;
+    try {
+      const res = await window.supabase.from('members').update({ status: 'suspended' }).in('id', ids);
+      if (res.error) throw res.error;
+      if (window.showToast) showToast(ids.length + ' suspended', 'success');
+      this._sel = {};
+      if (typeof this.load === 'function') this.load(); else if (typeof this.refresh === 'function') this.refresh(); else this.render();
+    } catch (e) { console.error('[bulkSuspend]', e); if (window.showToast) showToast('Bulk suspend failed', 'error'); }
   },
 
   // v24: admin sets a member's tier + optional expiry (Supabase update allowed by is_admin RLS).
