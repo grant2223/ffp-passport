@@ -1599,10 +1599,17 @@ h3 { font-weight: 700; font-size: 15px; margin: 0; }
    v80 — FITNESS STATS REDESIGN: Bio Age + PR cards
    ============================================================ */
 
-/* v81 — Kill native spin buttons on number inputs across the platform */
+/* v81 — Kill native spin buttons on number inputs across the platform.
+   v463 — also kill the up/down spinner on date/time inputs (e.g. Date of birth); the calendar
+   picker still works (::-webkit-calendar-picker-indicator is untouched). */
 input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin-button {
+input[type="number"]::-webkit-inner-spin-button,
+input[type="date"]::-webkit-inner-spin-button,
+input[type="time"]::-webkit-inner-spin-button,
+input[type="datetime-local"]::-webkit-inner-spin-button,
+input[type="month"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
+  display: none;
   margin: 0;
 }
 input[type="number"] {
@@ -8368,7 +8375,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '463';
+  const FFP_BUILD = '464';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -10032,7 +10039,7 @@ function fmtPrDate(iso) {
 <!-- Fitness Stats CORE — assets/ffp-fitness-stats-core.js. DEFER (v313): non-blocking, but still runs before
      DOMContentLoaded, and the boot init() is registered on DOMContentLoaded (line ~14049) so window.FitnessStats
      is guaranteed defined before FitnessStats.init() is called. Was synchronous = it blocked the parser mid-page. -->
-<script defer src="assets/ffp-fitness-stats-core.js?v=309"></script>
+<script defer src="assets/ffp-fitness-stats-core.js?v=310"></script>
 <!-- Milestone badge library — assets/ffp-milestone-badges.js (window.FFPMSBadges). DEFER: only used by the lazy
      Milestones render long after load, so it must never block boot. Bump ?v on change. -->
 <script defer src="assets/ffp-milestone-badges.js?v=6"></script>
