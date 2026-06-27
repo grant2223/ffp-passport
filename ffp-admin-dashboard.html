@@ -2551,7 +2551,7 @@ const App = {
   // Each panel's loader script is fetched ONLY when the panel is first opened, so the
   // page load fires no panel queries (the Overview RPC always wins a connection -> instant).
   _panelScript: {
-    'panel-providers':    'ffp-admin-providers-loader.js',
+    'panel-providers':    'ffp-admin-providers-loader.js?v=2',
     'panel-payouts':      'ffp-admin-payouts-loader.js',
     'panel-appointments': 'ffp-admin-appointments-loader.js',
     'panel-content':      'ffp-admin-content-loader.js',
@@ -3524,6 +3524,15 @@ const Drawer = {
             <button class="btn btn-sm ${p.featured ? 'btn-primary' : 'btn-outline'}" onclick="AdminProviders.toggleFeatured('${p.id}'); Drawer.openProvider('${p.id}')">
               <span class="material-icons">${p.featured ? 'star' : 'star_border'}</span>${p.featured ? 'Featured' : 'Not featured'}
             </button>
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="info-row-label">Business section ($99/mo)</div>
+          <div class="info-row-value">
+            <button class="btn btn-sm ${p.business_access ? 'btn-primary' : 'btn-outline'}" onclick="AdminProviders.toggleBusiness('${p.id}')">
+              <span class="material-icons">${p.business_access ? 'lock_open' : 'lock'}</span>${p.business_access ? 'Access granted' : 'Locked'}
+            </button>
+            ${(p.business_access_requested_at && !p.business_access) ? '<span class="pill pill-pending" style="margin-left:6px;">requested</span>' : ''}
           </div>
         </div>
       </div>
