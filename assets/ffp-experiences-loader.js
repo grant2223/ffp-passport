@@ -136,7 +136,7 @@
 
     try {
       const expRes = await window.supabase
-        .from('experiences')
+        .from('trips')
         .select('*, provider:providers!inner(business_name, letter_mark, category, provider_type, city, area, status)')
         .eq('status', 'live')
         .eq('provider.status', 'approved')
