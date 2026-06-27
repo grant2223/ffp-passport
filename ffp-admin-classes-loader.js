@@ -45,7 +45,7 @@
 
   async function fetchTours() {
     var res = await window.supabase
-      .from('classes')
+      .from('experiences')
       .select('id, title, description, activity, category, hero_image_url, city, country, price_aed, capacity, fitness_level, status, created_at, providers!inner(business_name, letter_mark)')
       .order('created_at', { ascending: false });
     if (res.error) { console.error('[FFP Admin Tours] fetch:', res.error); toast('Could not load tours', 'error'); return []; }
@@ -132,7 +132,7 @@
 
   async function approve(id) {
     try {
-      var res = await window.supabase.from('classes').update({ status: 'live' }).eq('id', id);
+      var res = await window.supabase.from('experiences').update({ status: 'live' }).eq('id', id);
       if (res.error) throw res.error;
       toast('Experience approved — now live', 'success');
       await refresh();
@@ -141,7 +141,7 @@
   async function reject(id) {
     if (!confirm('Reject this experience? It will be archived.')) return;
     try {
-      var res = await window.supabase.from('classes').update({ status: 'archived' }).eq('id', id);
+      var res = await window.supabase.from('experiences').update({ status: 'archived' }).eq('id', id);
       if (res.error) throw res.error;
       toast('Experience rejected', 'success');
       await refresh();
@@ -188,7 +188,7 @@
     ax.view = viewTour;
     ax.refresh = refresh;
     refresh();
-    if (window.FFPRealtime) window.FFPRealtime.subscribe('admin-tours', 'classes', null, function () { refresh(); });
+    if (window.FFPRealtime) window.FFPRealtime.subscribe('admin-tours', 'experiences', null, function () { refresh(); });
     console.log('[FFP Admin Tours v1] Loaded ✓');
   }
 
