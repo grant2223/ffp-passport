@@ -98,7 +98,7 @@
     if (!pid) return out;
 
     var events = await safeSelect('events', 'id,title,status,updated_at', function (q) { return q.eq('provider_id', pid); });
-    var exps   = await safeSelect('experiences', 'id,title,status,updated_at', function (q) { return q.eq('provider_id', pid); });
+    var exps   = await safeSelect('trips', 'id,title,status,updated_at', function (q) { return q.eq('provider_id', pid); });
     var chs    = await safeSelect('challenges', 'id,title,status,updated_at', function (q) { return q.eq('provider_id', pid); });
 
     var eTitle = {}; events.forEach(function (x) { eTitle[x.id] = x.title; });
@@ -237,7 +237,7 @@
     // Real-time (self-inject the helper — provider dashboard doesn't load it — then subscribe)
     (function () {
       function go() {
-        ['rsvps','applications','events','experiences','challenges'].forEach(function (t) {
+        ['rsvps','applications','events','trips','challenges'].forEach(function (t) {
           window.FFPRealtime.subscribe('provider-notif-' + t, t, null, async function () { try { cache = await buildNotifs(); renderBadge(); } catch (e) {} });
         });
       }
