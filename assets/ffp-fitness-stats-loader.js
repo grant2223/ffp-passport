@@ -1723,17 +1723,42 @@
         var _wd = FitnessStats.wearableDaily || [];
         FitnessStats.sleepLogs = FitnessStats.sleepLogs || {};
         _wd.forEach(function (d) { if (d.sleep_hours == null) return; var da = daysAgoFromDateStr(d.day); if (da >= 1 && da <= 30 && FitnessStats.sleepLogs[da] == null) FitnessStats.sleepLogs[da] = Number(d.sleep_hours); });
+        var _lt = function (k) { for (var i = 0; i < _wd.length; i++) { if (_wd[i][k] != null) return _wd[i][k]; } return null; };
+        var _rec = _lt('recovery_pct'), _str = _lt('strain'), _rhr = _lt('resting_hr'), _hrv = _lt('hrv_ms'), _sleepLatest = _lt('sleep_hours');
+        // Auto-fill the Bio-Age HRV + Resting HR markers from WHOOP latest (manual entries win).
+        FitnessStats.records = FitnessStats.records || {};
+        if (_hrv != null && !(FitnessStats.records.hrv && FitnessStats.records.hrv.value != null)) FitnessStats.records.hrv = { value: _hrv, date: null };
+        if (_rhr != null && !(FitnessStats.records.restingHR && FitnessStats.records.restingHR.value != null)) FitnessStats.records.restingHR = { value: _rhr, date: null };
         var _wh = document.getElementById('fs-whoop-daily');
-        if (_wh) {
-          var _lt = function (k) { for (var i = 0; i < _wd.length; i++) { if (_wd[i][k] != null) return _wd[i][k]; } return null; };
-          var _rec = _lt('recovery_pct'), _str = _lt('strain'), _rhr = _lt('resting_hr'), _hrv = _lt('hrv_ms');
-          var _tiles = [];
-          if (_rec != null) _tiles.push(['Recovery', _rec + '%', _rec >= 67 ? '#16a34a' : (_rec >= 34 ? '#d9a300' : '#dc2626')]);
-          if (_str != null) _tiles.push(['Day strain', String(_str), 'var(--blue,#2ba8e0)']);
-          if (_rhr != null) _tiles.push(['Resting HR', _rhr + ' bpm', 'var(--text,#e8eef4)']);
-          if (_hrv != null) _tiles.push(['HRV', _hrv + ' ms', 'var(--text,#e8eef4)']);
-          _wh.innerHTML = _tiles.length ? ('<div class="bio-section-title">Recovery &amp; strain <span style="font-size:10px;font-weight:700;color:var(--muted,#8a99a8);">· WHOOP</span></div><div style="display:flex;gap:12px;flex-wrap:wrap;background:rgba(43,168,224,0.06);border-radius:14px;padding:16px;">' + _tiles.map(function (t) { return '<div style="flex:1;min-width:62px;text-align:center;"><div style="font-size:23px;font-weight:800;color:' + t[2] + ';line-height:1;">' + t[1] + '</div><div style="font-size:9.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:var(--muted,#8a99a8);margin-top:6px;">' + t[0] + '</div></div>'; }).join('') + '</div>') : '';
-        }
+        if (_wh && (_rec != null || _str != null || _sleepLatest != null || _rhr != null || _hrv != null)) {
+          var _recCol = _rec == null ? '#8a99a8' : (_rec >= 67 ? '#16a34a' : (_rec >= 34 ? '#d9a300' : '#dc2626'));
+          var C = 326.7, _off = _rec == null ? C : (C * (1 - Math.max(0, Math.min(100, _rec)) / 100));
+          var _strain = _str == null ? 0 : Math.max(0, Math.min(21, _str)), _strW = Math.round(_strain / 21 * 100);
+          var foot = [];
+          if (_sleepLatest != null) foot.push(['Sleep', _sleepLatest + 'h']);
+          if (_rhr != null) foot.push(['Resting HR', String(_rhr)]);
+          if (_hrv != null) foot.push(['HRV', _hrv + 'ms']);
+          _wh.innerHTML =
+            '<div class="bio-section-title">Recovery &amp; strain <span style="font-size:10px;font-weight:700;color:var(--muted,#8a99a8);">· WHOOP</span></div>' +
+            '<div style="background:rgba(43,168,224,0.06);border-radius:16px;padding:18px;">' +
+              '<div style="display:flex;align-items:center;gap:18px;">' +
+                '<div style="position:relative;flex:0 0 auto;width:116px;height:116px;">' +
+                  '<svg width="116" height="116" viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" fill="none" stroke="rgba(138,153,168,0.18)" stroke-width="11"/>' +
+                  (_rec != null ? '<circle cx="60" cy="60" r="52" fill="none" stroke="' + _recCol + '" stroke-width="11" stroke-linecap="round" stroke-dasharray="' + C + '" stroke-dashoffset="' + _off + '" transform="rotate(-90 60 60)"/>' : '') + '</svg>' +
+                  '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">' +
+                    '<div style="font-size:30px;font-weight:900;line-height:1;color:' + _recCol + ';">' + (_rec != null ? _rec + '%' : '—') + '</div>' +
+                    '<div style="font-size:9px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted,#8a99a8);margin-top:3px;">Recovery</div>' +
+                  '</div>' +
+                '</div>' +
+                '<div style="flex:1;min-width:0;">' +
+                  '<div style="font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--muted,#8a99a8);margin-bottom:4px;">Day strain</div>' +
+                  '<div style="display:flex;align-items:baseline;gap:6px;margin-bottom:9px;"><span style="font-size:30px;font-weight:900;line-height:1;color:var(--blue,#2ba8e0);">' + (_str != null ? _strain : '—') + '</span><span style="font-size:12px;font-weight:700;color:var(--muted,#8a99a8);">/ 21</span></div>' +
+                  '<div style="height:9px;border-radius:5px;background:rgba(138,153,168,0.18);overflow:hidden;"><div style="height:100%;width:' + _strW + '%;background:linear-gradient(90deg,#2ba8e0,#1d7fb0);border-radius:5px;"></div></div>' +
+                '</div>' +
+              '</div>' +
+              (foot.length ? ('<div style="display:flex;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border,rgba(43,168,224,0.18));">' + foot.map(function (f) { return '<div style="flex:1;text-align:center;"><div style="font-size:18px;font-weight:800;color:var(--text,#e8eef4);">' + f[1] + '</div><div style="font-size:9px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--muted,#8a99a8);margin-top:3px;">' + f[0] + '</div></div>'; }).join('') + '</div>') : '') +
+            '</div>';
+        } else if (_wh) { _wh.innerHTML = ''; }
       } catch (e) { console.error('[FFP Fitness Stats] wearable merge:', e); }
 
       // Old percentile pills no longer used (leaderboard replaces them)
