@@ -8368,7 +8368,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '462';
+  const FFP_BUILD = '463';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -12150,16 +12150,25 @@ window.ffpRenderActivityCard = function (a, isOwn) {
   try {
     var _z = (a.metrics && a.metrics.hr_zones_ms) ? a.metrics.hr_zones_ms : null;
     if (_z) {
-      var _zones = [['Zone 1 · 50–60%', _z.zone_one_milli || 0, '#3aa0e6'], ['Zone 2 · 60–70%', _z.zone_two_milli || 0, '#16a34a'], ['Zone 3 · 70–80%', _z.zone_three_milli || 0, '#eab308'], ['Zone 4 · 80–90%', _z.zone_four_milli || 0, '#f59e0b'], ['Zone 5 · 90%+', _z.zone_five_milli || 0, '#dc2626']];
-      if (_z.zone_zero_milli) _zones.unshift(['Zone 0 · <50%', _z.zone_zero_milli, '#6b7a88']);
+      var _zones = [['Z1', _z.zone_one_milli || 0, '#3aa0e6'], ['Z2', _z.zone_two_milli || 0, '#16a34a'], ['Z3', _z.zone_three_milli || 0, '#eab308'], ['Z4', _z.zone_four_milli || 0, '#f59e0b'], ['Z5', _z.zone_five_milli || 0, '#dc2626']];
+      if (_z.zone_zero_milli) _zones.unshift(['Z0', _z.zone_zero_milli, '#6b7a88']);
       var _tot = _zones.reduce(function (s, z) { return s + (z[1] || 0); }, 0);
       if (_tot > 0) {
         var _fmt = function (ms) { var s = Math.round(ms / 1000); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); };
+        // Total bar — the whole activity split across zones (segment width = share of time).
         var _bar = _zones.map(function (z) { return z[1] > 0 ? '<div style="width:' + (z[1] / _tot * 100) + '%;background:' + z[2] + ';"></div>' : ''; }).join('');
-        var _leg = _zones.map(function (z) { return '<div style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:#cfe0ee;"><span style="width:9px;height:9px;border-radius:2px;background:' + z[2] + ';display:inline-block;flex:0 0 auto;"></span><span style="flex:1;">' + z[0] + '</span><span style="color:#8a99a8;font-weight:700;">' + _fmt(z[1]) + '</span></div>'; }).join('');
+        // Per-zone rows — each its own bar filled to its % of the activity, over a light track.
+        var _rows = _zones.map(function (z) {
+          var pct = Math.round(z[1] / _tot * 100);
+          return '<div style="display:flex;align-items:center;gap:10px;margin:8px 0;">' +
+            '<span style="flex:0 0 44px;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:#cfe0ee;"><span style="width:10px;height:10px;border-radius:3px;background:' + z[2] + ';display:inline-block;flex:0 0 auto;"></span>' + z[0] + '</span>' +
+            '<div style="flex:1;height:10px;border-radius:5px;background:rgba(255,255,255,0.08);overflow:hidden;"><div style="width:' + pct + '%;height:100%;background:' + z[2] + ';border-radius:5px;"></div></div>' +
+            '<span style="flex:0 0 86px;text-align:right;font-size:11.5px;color:#8a99a8;font-weight:700;">' + pct + '% · ' + _fmt(z[1]) + '</span>' +
+          '</div>';
+        }).join('');
         hrZones = '<div style="margin:22px 18px 0;"><div style="font-size:9.5px;font-weight:800;letter-spacing:.6px;color:#8a99a8;text-transform:uppercase;margin-bottom:9px;">Heart-rate zones</div>' +
-          '<div style="display:flex;height:12px;border-radius:6px;overflow:hidden;background:rgba(255,255,255,0.06);margin-bottom:11px;">' + _bar + '</div>' +
-          '<div style="display:flex;flex-direction:column;gap:6px;">' + _leg + '</div></div>';
+          '<div style="display:flex;height:12px;border-radius:6px;overflow:hidden;background:rgba(255,255,255,0.06);margin-bottom:14px;">' + _bar + '</div>' +
+          _rows + '</div>';
       }
     }
   } catch (e) {}
