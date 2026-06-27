@@ -311,8 +311,35 @@ const CalorieTracker = {
             `;
           }).join('');
     });
+    this.renderFoodPhotos('today');
   },
-  
+
+  // ─── FOOD PHOTOS — visual food diary. Today: snap + thumbnails; Week: last 7 days gallery. ───
+  renderFoodPhotos(which) {
+    var host = document.getElementById(which === 'week' ? 'ct-food-photos-week' : 'ct-food-photos-today');
+    if (!host) return;
+    var photos = (which === 'week' ? this._foodPhotosWeek : this._foodPhotosToday) || [];
+    var esc = (typeof escHtml === 'function') ? escHtml : function (s) { return String(s == null ? '' : s); };
+    if (which === 'week' && !photos.length) { host.innerHTML = ''; return; }   // week strip hides when empty
+    var thumbs = photos.map(function (p) {
+      var u = esc(p.photo_url);
+      var del = (which === 'week') ? '' : '<button onclick="event.stopPropagation();CalorieTracker.deleteFoodPhoto(\'' + p.id + '\')" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:rgba(8,20,32,.85);border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;"><span class="material-icons" style="font-size:13px;">close</span></button>';
+      return '<div style="position:relative;flex:0 0 auto;"><div onclick="CalorieTracker.openFoodPhoto(\'' + u + '\')" style="width:64px;height:64px;border-radius:12px;background:#0a1a28 center/cover no-repeat;background-image:url(\'' + u + '\');cursor:pointer;"></div>' + del + '</div>';
+    }).join('');
+    var cam = (which === 'week') ? '' : '<button onclick="CalorieTracker.addFoodPhoto()" style="flex:0 0 auto;width:64px;height:64px;border-radius:12px;border:1.5px dashed var(--border-mid,rgba(43,168,224,.35));background:rgba(43,168,224,.06);color:var(--blue,#2ba8e0);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-family:inherit;"><span class="material-icons" style="font-size:22px;">photo_camera</span><span style="font-size:8.5px;font-weight:800;">Photo</span></button>';
+    host.innerHTML = '<div style="font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--muted,#8a99a8);margin-bottom:9px;">' + (which === 'week' ? 'This week’s meals' : 'Today’s meals') + '</div>' +
+      '<div style="display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;">' + cam + thumbs + '</div>';
+  },
+  openFoodPhoto(url) {
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:100070;background:rgba(4,12,20,.92);display:flex;align-items:center;justify-content:center;cursor:zoom-out;';
+    ov.onclick = function () { ov.remove(); };
+    var img = document.createElement('img'); img.src = url; img.style.cssText = 'max-width:92vw;max-height:88vh;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.5);';
+    ov.appendChild(img); document.body.appendChild(ov);
+  },
+  addFoodPhoto() { if (window.showToast) showToast('Sign in to add food photos', 'error'); },   // loader overrides with real capture + save
+  deleteFoodPhoto() {},   // loader overrides
+
   renderWeek(t) {
     const stats = this.weekStats();
     const summaryEl = document.getElementById('ct-week-summary');
@@ -387,8 +414,9 @@ const CalorieTracker = {
         </div>
       `;
     }).join('');
+    this.renderFoodPhotos('week');
   },
-  
+
   // v79 — 30-day stats: 29 historical days + today
   monthStats() {
     const target = this.computeTargets().kcal;
