@@ -47,7 +47,7 @@
   // ── data ──
   async function fetchClasses() {
     if (!provId()) return [];
-    var res = await sb().from('classes')
+    var res = await sb().from('experiences')
       .select('id, provider_id, title, description, category, activity, venue, city, country, duration_min, capacity, price_aed, hero_image_url, gallery, schedule_rule, booking_questions, status, booking_source, highlights, what_included, what_not_included, meeting_point, meeting_lat, meeting_lng, what_to_bring, not_allowed, know_before, languages, min_age, difficulty, fitness_level, wheelchair_accessible, accessibility_notes, free_cancellation_hours, cancellation_policy, distance_km, featured, pay_requirement, created_at')
       .eq('provider_id', provId())
       .order('created_at', { ascending: false });
