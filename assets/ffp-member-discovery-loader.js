@@ -205,7 +205,7 @@
 
   async function loadExperiences() {
     if (typeof Experiences === 'undefined') return;
-    var rows = await safeSelect('experiences',
+    var rows = await safeSelect('trips',
       'id,provider_id,title,description,overview,exp_type,activity,category,hero_image_url,destination,country,starts_at,ends_at,duration_days,price_aed,what_included,what_not_included,accommodation,flights_info,travel_reqs,fitness_reqs,fitness_level,capacity,status,providers(business_name,letter_mark)',
       function (q) { return q.order('starts_at', { ascending: true }); });
     Experiences.data = rows.map(mapExperience);
@@ -685,7 +685,7 @@
     if (window.FFPRealtime) {
       var _dT = null;
       var _reload = function () { clearTimeout(_dT); _dT = setTimeout(function () { window.FFPDiscovery.reload(); }, 600); };
-      ['events', 'experiences', 'challenges'].forEach(function (t) {
+      ['events', 'trips', 'challenges'].forEach(function (t) {
         window.FFPRealtime.subscribe('member-disc-' + t, t, null, _reload);
       });
       var _mid = memberId();
