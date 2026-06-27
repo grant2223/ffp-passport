@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   FFP WEARABLES LOADER · v1
+   FFP WEARABLES LOADER · v2  (v2: sync shows a clear "reconnect WHOOP" message instead of a generic fail)
    File path: assets/ffp-wearables-loader.js (repo root /assets)
    On-load log: [FFP Wearables v1] Loaded ✓
    Lazy-loaded on Profile open (member dashboard _panelLoaderSrc['panel-profile']).
@@ -69,6 +69,9 @@
           if (window.showToast) showToast('Synced ' + (j.synced || 0) + ' workout' + (j.synced === 1 ? '' : 's') + (j.synced ? '' : ' (nothing new)'), 'success');
           try { if (window.loadJourneyLogs) window.loadJourneyLogs(); } catch (e) {}
           this.render();
+        } else if (j && j.reconnect) {
+          if (window.showToast) showToast('WHOOP needs reconnecting — tap Disconnect, then Connect again', 'error');
+          this.render();
         } else { if (window.showToast) showToast('Sync failed — try again', 'error'); }
       } catch (e) { if (window.showToast) showToast('Sync failed — try again', 'error'); }
     },
@@ -88,5 +91,5 @@
     if (document.getElementById('mp-wearables')) { window.ffpWearables.render(); return; }
     if (tries++ < 40) setTimeout(tryRender, 150);
   })();
-  console.log('[FFP Wearables v1] Loaded ✓');
+  console.log('[FFP Wearables v2] Loaded ✓');
 })();
