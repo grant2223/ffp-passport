@@ -173,7 +173,8 @@ function _contactRow(email, phone){
 }
 function _fiveButtons(id){
   var sb=function(ic,lbl,fn){ return '<button onclick="closeModal();'+fn+'" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:10px 3px;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:13px;cursor:pointer;color:var(--ffp-text);font-family:inherit;min-height:64px;"><span class="ms" style="font-size:20px;color:var(--ffp-purple);">'+ic+'</span><span style="font-size:9.5px;font-weight:700;text-align:center;line-height:1.1;">'+lbl+'</span></button>'; };
-  return '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;">'+
+  return '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">'+
+    sb('fitness_center','Workouts','openClientWorkouts(\''+id+'\')')+
     sb('health_and_safety','Health','openClientHealth(\''+id+'\')')+
     sb('card_membership','Packages','openMembership(\''+id+'\')')+
     sb('assignment','Forms','clientAssessment(\''+id+'\')')+
@@ -736,6 +737,209 @@ async function sendBroadcast(){
 }
 function confirmDeleteBroadcast(id){ openModalShell('','Delete message?','<div class="psub" style="margin:6px 0;">This removes it from your history.</div>','<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-pri" onclick="doDeleteBroadcast(\''+id+'\')">Delete</button>'); }
 async function doDeleteBroadcast(id){ var pid=_memProvId(); try{ var r=await window.supabase.rpc('pro_delete_broadcast',{p_pro:pid,p_id:id}); if(r&&r.error)throw r.error; showToast('Deleted','success'); }catch(e){ showToast('Could not delete','error'); } closeModal(); renderComms(); }
+
+/* ───────────────────────────────────────────────────────────────────────────
+   COACHED WORKOUTS (per client) — AI Coach drafts → coach edits → log live to the
+   client's Passport (activity_logs via pro_workout_log_session), or save per day.
+   Backend: pro_workout_* RPCs + POST /api/pro/workout/draft. Activity status only
+   ever surfaces to others; the workout lands on the client's own Passport.
+   ─────────────────────────────────────────────────────────────────────────── */
+var _wkClient=null, _wkList=[], _wkDraft=null, _wkSrc='manual', _wkFromAssigned=null;
+var WK_BACKEND=(typeof PRO_API!=='undefined'&&PRO_API)||'https://ffp-passport-backend.vercel.app';
+var WK_DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+var WK_EFFORT=['easy','moderate','hard','max'];
+
+function openClientWorkouts(id){
+  _wkClient=id;
+  var m=(_members||[]).find(function(x){return x.id===id;})||{};
+  openModalShell('lg','Workouts · '+escHtml(m.full_name||'Client'),
+    '<div style="display:flex;gap:8px;margin:0 0 14px;">'+
+      '<button class="btn btn-pri btn-sm" style="flex:1;" onclick="wkAiStart()"><span class="ms">auto_awesome</span> AI draft</button>'+
+      '<button class="btn btn-sec btn-sm" style="flex:1;" onclick="wkNewBlank()"><span class="ms">add</span> New workout</button>'+
+    '</div>'+
+    '<div id="wk-list"><div class="psub" style="padding:6px 0;">Loading…</div></div>',
+    '<button class="btn btn-ghost" onclick="clientProfile(\''+id+'\')">Close</button>');
+  wkLoad();
+}
+async function wkLoad(){
+  var pid=_memProvId();
+  try{ var r=await window.supabase.rpc('pro_workout_list',{p_professional:pid,p_client:_wkClient}); _wkList=(r&&r.data)||[]; }catch(e){ _wkList=[]; }
+  wkRenderList();
+}
+function wkRenderList(){
+  var host=document.getElementById('wk-list'); if(!host) return;
+  var assigned=_wkList.filter(function(w){return w.kind==='assigned';});
+  var sessions=_wkList.filter(function(w){return w.kind==='session';});
+  var card='display:flex;align-items:center;gap:10px;padding:11px 12px;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:12px;';
+  var del=function(wid){ return '<button title="Delete" onclick="wkDelete(\''+wid+'\')" style="background:none;border:none;color:var(--ffp-text-dim);cursor:pointer;"><span class="ms" style="font-size:18px;">delete</span></button>'; };
+  var html='<div style="font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-text-dim);margin:4px 0 8px;">Weekly plan</div>';
+  if(!assigned.length){ html+='<div class="psub" style="padding:2px 0 12px;">No workouts assigned yet — draft one and save it to a day.</div>'; }
+  else{
+    assigned.sort(function(a,b){return (a.day_of_week==null?9:a.day_of_week)-(b.day_of_week==null?9:b.day_of_week);});
+    html+='<div style="display:flex;flex-direction:column;gap:7px;margin-bottom:14px;">'+assigned.map(function(w){
+      var nex=(w.exercises&&w.exercises.length)||0;
+      return '<div style="'+card+'"><div style="flex:0 0 36px;text-align:center;font-size:11px;font-weight:800;color:var(--ffp-purple);">'+(w.day_of_week!=null?WK_DOW[w.day_of_week]:'—')+'</div>'+
+        '<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:13.5px;color:var(--ffp-text);">'+escHtml(w.title||'Workout')+'</div><div style="font-size:11px;color:var(--ffp-text-dim);">'+nex+' exercise'+(nex===1?'':'s')+(w.status==='completed'?' · done':'')+'</div></div>'+
+        '<button class="btn btn-pri btn-sm" onclick="wkOpenAssigned(\''+w.id+'\')">Log</button>'+del(w.id)+'</div>';
+    }).join('')+'</div>';
+  }
+  html+='<div style="font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-text-dim);margin:4px 0 8px;">Recent sessions</div>';
+  if(!sessions.length){ html+='<div class="psub" style="padding:2px 0;">No logged sessions yet.</div>'; }
+  else{
+    html+='<div style="display:flex;flex-direction:column;gap:7px;">'+sessions.slice(0,10).map(function(w){
+      var nex=(w.exercises&&w.exercises.length)||0; var when=w.finished_at?new Date(w.finished_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
+      return '<div style="'+card+'"><span class="ms" style="color:var(--ffp-purple);">fitness_center</span>'+
+        '<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:13.5px;color:var(--ffp-text);">'+escHtml(w.title||'Workout')+'</div><div style="font-size:11px;color:var(--ffp-text-dim);">'+when+' · '+nex+' exercise'+(nex===1?'':'s')+(w.duration_min?(' · '+w.duration_min+' min'):'')+'</div></div>'+del(w.id)+'</div>';
+    }).join('')+'</div>';
+  }
+  host.innerHTML=html;
+}
+function wkAiStart(){
+  openModalShell('','AI draft a workout',
+    '<div class="psub" style="margin:0 0 8px;">Describe the session — goal, level, body part, equipment, length.</div>'+
+    '<textarea id="wk-ai-prompt" class="input" rows="3" placeholder="e.g. 45-min upper-body strength, intermediate, dumbbells only, focus chest & back" style="width:100%;font-size:13px;box-sizing:border-box;"></textarea>',
+    '<button class="btn btn-ghost" onclick="openClientWorkouts(\''+_wkClient+'\')">Back</button><button class="btn btn-pri" onclick="wkAiGenerate()"><span class="ms">auto_awesome</span> Generate</button>');
+}
+async function wkAiGenerate(){
+  var el=document.getElementById('wk-ai-prompt'); var p=(el?el.value:'').trim(); if(p.length<3){ showToast('Add a few details','error'); return; }
+  showToast('Drafting…');
+  try{
+    var r=await fetch(WK_BACKEND+'/api/pro/workout/draft',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:p})});
+    var j=await r.json().catch(function(){return null;});
+    if(!j||!j.ok||!j.exercises||!j.exercises.length){ showToast('Could not draft — try again','error'); return; }
+    _wkDraft=wkNorm({title:j.title,notes:j.notes,exercises:j.exercises}); _wkSrc='ai'; _wkFromAssigned=null; wkBuilder();
+  }catch(e){ showToast('Could not draft — try again','error'); }
+}
+function wkNorm(w){ return { title:w.title||'Workout', notes:w.notes||'', exercises:(w.exercises||[]).map(function(ex){ return { name:ex.name||'', note:ex.note||'', sets:(ex.sets||[]).map(function(s){ return {reps:Number(s.reps)||0,weight:Number(s.weight)||0,effort:s.effort||'moderate',done:false}; }) }; }) }; }
+function wkNewBlank(){ _wkDraft={title:'',notes:'',exercises:[{name:'',note:'',sets:[{reps:10,weight:0,effort:'moderate',done:false}]}]}; _wkSrc='manual'; _wkFromAssigned=null; wkBuilder(); }
+function wkOpenAssigned(id){ var w=(_wkList||[]).find(function(x){return x.id===id;}); if(!w) return; _wkDraft=wkNorm(w); _wkSrc=w.source||'manual'; _wkFromAssigned=id; wkBuilder(); }
+function wkBuilder(){
+  openModalShell('lg','Workout',
+    '<input id="wk-title" class="input" placeholder="Workout title" value="'+escHtml(_wkDraft.title||'')+'" style="width:100%;font-size:14px;font-weight:700;margin:0 0 8px;box-sizing:border-box;">'+
+    '<input id="wk-notes" class="input" placeholder="Coaching note (optional)" value="'+escHtml(_wkDraft.notes||'')+'" style="width:100%;font-size:12.5px;margin:0 0 10px;box-sizing:border-box;">'+
+    '<div style="font-size:10.5px;color:var(--ffp-text-dim);margin:0 0 8px;">Tick each set as it’s done · edit reps / weight / effort live.</div>'+
+    '<div id="wk-build"></div>'+
+    '<button class="btn btn-sec btn-sm" style="margin-top:8px;" onclick="wkAddExercise()"><span class="ms">add</span> Add exercise</button>',
+    '<button class="btn btn-ghost" onclick="openClientWorkouts(\''+_wkClient+'\')">Back</button>'+
+    '<button class="btn btn-sec" onclick="wkSavePlan()"><span class="ms">event</span> Save as plan</button>'+
+    '<button class="btn btn-pri" onclick="wkFinish()"><span class="ms">check</span> Log to Passport</button>');
+  wkRenderBuild();
+}
+function wkRenderBuild(){
+  var host=document.getElementById('wk-build'); if(!host) return;
+  var inp='padding:7px 4px;border:1px solid var(--ffp-border-mid);border-radius:8px;font-family:inherit;background:var(--ffp-bg);color:var(--ffp-text);';
+  host.innerHTML=(_wkDraft.exercises||[]).map(function(ex,ei){
+    var sets=(ex.sets||[]).map(function(s,si){
+      return '<div class="wk-set" style="display:flex;align-items:center;gap:6px;margin:5px 0;">'+
+        '<span style="font-size:10px;color:var(--ffp-text-dim);width:14px;flex:0 0 auto;">'+(si+1)+'</span>'+
+        '<input data-field="reps" type="number" inputmode="numeric" value="'+(s.reps||0)+'" style="width:46px;text-align:center;font-size:13px;'+inp+'" title="Reps">'+
+        '<span style="font-size:10px;color:var(--ffp-text-dim);">×</span>'+
+        '<input data-field="weight" type="number" inputmode="decimal" value="'+(s.weight||0)+'" style="width:54px;text-align:center;font-size:13px;'+inp+'" title="Weight (kg)">'+
+        '<span style="font-size:10px;color:var(--ffp-text-dim);">kg</span>'+
+        '<select data-field="effort" style="flex:1;min-width:0;font-size:12px;'+inp+'">'+WK_EFFORT.map(function(o){return '<option value="'+o+'"'+(s.effort===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select>'+
+        '<input data-field="done" type="checkbox"'+(s.done?' checked':'')+' style="width:19px;height:19px;flex:0 0 auto;accent-color:var(--ffp-purple);cursor:pointer;" title="Completed">'+
+        '<button onclick="wkRemoveSet('+ei+','+si+')" style="background:none;border:none;color:var(--ffp-text-dim);cursor:pointer;padding:0;flex:0 0 auto;"><span class="ms" style="font-size:17px;">close</span></button>'+
+      '</div>';
+    }).join('');
+    return '<div class="wk-ex" style="padding:11px 12px;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:12px;margin-bottom:9px;">'+
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+
+        '<input data-field="name" value="'+escHtml(ex.name||'')+'" placeholder="Exercise" style="flex:1;font-weight:700;font-size:13.5px;'+inp+'">'+
+        '<button onclick="wkRemoveEx('+ei+')" style="background:none;border:none;color:var(--ffp-text-dim);cursor:pointer;"><span class="ms">delete</span></button>'+
+      '</div>'+sets+
+      '<button class="btn btn-ghost btn-sm" style="margin-top:5px;" onclick="wkAddSet('+ei+')"><span class="ms" style="font-size:15px;">add</span> Set</button>'+
+      (ex.note?('<div style="font-size:11px;color:var(--ffp-text-dim);margin-top:6px;font-style:italic;">'+escHtml(ex.note)+'</div>'):'')+
+    '</div>';
+  }).join('') || '<div class="psub">No exercises yet — add one.</div>';
+}
+function wkCollect(){
+  var t=document.getElementById('wk-title'), n=document.getElementById('wk-notes');
+  if(t) _wkDraft.title=t.value; if(n) _wkDraft.notes=n.value;
+  var prev=_wkDraft.exercises||[]; var exs=[]; var i=0;
+  document.querySelectorAll('#wk-build .wk-ex').forEach(function(exEl){
+    var nameEl=exEl.querySelector('[data-field="name"]'); var sets=[];
+    exEl.querySelectorAll('.wk-set').forEach(function(setEl){
+      sets.push({
+        reps:Number((setEl.querySelector('[data-field="reps"]')||{}).value)||0,
+        weight:Number((setEl.querySelector('[data-field="weight"]')||{}).value)||0,
+        effort:((setEl.querySelector('[data-field="effort"]')||{}).value)||'moderate',
+        done:!!((setEl.querySelector('[data-field="done"]')||{}).checked)
+      });
+    });
+    exs.push({name:nameEl?nameEl.value:'', note:(prev[i]&&prev[i].note)||'', sets:sets}); i++;
+  });
+  _wkDraft.exercises=exs; return exs;
+}
+function wkAddExercise(){ wkCollect(); _wkDraft.exercises.push({name:'',note:'',sets:[{reps:10,weight:0,effort:'moderate',done:false}]}); wkRenderBuild(); }
+function wkAddSet(ei){ wkCollect(); var ex=_wkDraft.exercises[ei]; var last=(ex.sets||[]).slice(-1)[0]||{reps:10,weight:0,effort:'moderate'}; ex.sets.push({reps:last.reps,weight:last.weight,effort:last.effort,done:false}); wkRenderBuild(); }
+function wkRemoveSet(ei,si){ wkCollect(); _wkDraft.exercises[ei].sets.splice(si,1); wkRenderBuild(); }
+function wkRemoveEx(ei){ wkCollect(); _wkDraft.exercises.splice(ei,1); wkRenderBuild(); }
+function wkSavePlan(){
+  wkCollect();
+  if(!_wkDraft.exercises.filter(function(e){return e.name&&e.name.trim();}).length){ showToast('Add an exercise first','error'); return; }
+  var nm=((_members||[]).find(function(x){return x.id===_wkClient;})||{}).full_name||'their';
+  openModalShell('','Assign to a day',
+    '<div class="psub" style="margin:0 0 10px;">Which day on '+escHtml(nm)+'’s plan?</div>'+
+    '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">'+WK_DOW.map(function(d,i){return '<button class="btn btn-sec btn-sm" onclick="wkAssignDay('+i+')">'+d+'</button>';}).join('')+'</div>',
+    '<button class="btn btn-ghost" onclick="wkBuilder()">Back</button>');
+}
+async function wkAssignDay(dow){
+  var pid=_memProvId();
+  var exs=_wkDraft.exercises.filter(function(e){return e.name&&e.name.trim();});
+  try{ var r=await window.supabase.rpc('pro_workout_save',{p_professional:pid,p_id:_wkFromAssigned||null,p_client_id:_wkClient,p_kind:'assigned',p_title:_wkDraft.title||'Workout',p_notes:_wkDraft.notes||'',p_exercises:exs,p_day_of_week:dow,p_source:_wkSrc});
+    if(r&&r.error)throw r.error; if(r&&r.data&&r.data.ok===false)throw new Error('save'); showToast('Saved to '+WK_DOW[dow],'success'); openClientWorkouts(_wkClient);
+  }catch(e){ showToast('Could not save','error'); }
+}
+async function wkFinish(){
+  wkCollect();
+  var exs=(_wkDraft.exercises||[]).filter(function(ex){return ex.name&&ex.name.trim()&&ex.sets&&ex.sets.length;});
+  if(!exs.length){ showToast('Add an exercise first','error'); return; }
+  var logged=exs.map(function(ex){ var done=ex.sets.filter(function(s){return s.done;}); return {name:ex.name.trim(),note:ex.note||'',sets:(done.length?done:ex.sets).map(function(s){return {reps:s.reps,weight:s.weight,effort:s.effort};})}; });
+  var nsets=logged.reduce(function(a,ex){return a+ex.sets.length;},0); var dur=Math.max(10,Math.round(nsets*2));
+  var pid=_memProvId(); showToast('Logging…');
+  try{
+    var r=await window.supabase.rpc('pro_workout_log_session',{p_professional:pid,p_client_id:_wkClient,p_title:_wkDraft.title||'Coached workout',p_notes:_wkDraft.notes||'',p_exercises:logged,p_duration_min:dur,p_assigned_id:_wkFromAssigned||null});
+    if(r&&r.error)throw r.error; var d=(r&&r.data)||{}; if(d.ok===false)throw new Error('log');
+    showToast(d.pushed?'Logged to their Passport ✓':'Saved — client has no Passport yet','success');
+    openClientWorkouts(_wkClient);
+  }catch(e){ showToast('Could not log','error'); }
+}
+function wkDelete(id){
+  openModalShell('','Delete workout?','<div class="psub" style="margin:6px 0;">This removes it from the client’s plan / history.</div>',
+    '<button class="btn btn-ghost" onclick="openClientWorkouts(\''+_wkClient+'\')">Cancel</button><button class="btn btn-pri" onclick="wkDoDelete(\''+id+'\')">Delete</button>');
+}
+async function wkDoDelete(id){ var pid=_memProvId(); try{ var r=await window.supabase.rpc('pro_workout_delete',{p_professional:pid,p_id:id}); if(r&&r.error)throw r.error; showToast('Deleted','success'); }catch(e){ showToast('Could not delete','error'); } openClientWorkouts(_wkClient); }
+
+// ─── WORKOUTS HUB (top-level Workout tab) — recent sessions across all clients + New workout (pick a client). ───
+async function renderWorkoutHub(){
+  var host=document.getElementById('wk-hub'); if(!host) return;
+  var pid=_memProvId();
+  if(!(_members&&_members.length)){ try{ var rr=await window.supabase.rpc('pro_list_clients',{p_pro:pid}); _members=(rr&&rr.data)||[]; }catch(e){} }
+  var all=[]; try{ var r=await window.supabase.rpc('pro_workout_list',{p_professional:pid,p_client:null}); all=(r&&r.data)||[]; }catch(e){ all=[]; }
+  var sessions=all.filter(function(w){return w.kind==='session';}).sort(function(a,b){return new Date(b.finished_at||0)-new Date(a.finished_at||0);});
+  var nameOf=function(cid){ var m=(_members||[]).find(function(x){return x.id===cid;}); return m?(m.full_name||'Client'):'Client'; };
+  var html='<button class="btn btn-pri" style="width:100%;margin:0 0 16px;" onclick="wkHubNew()"><span class="ms">add</span> New workout</button>';
+  html+='<div style="font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ffp-text-dim);margin:0 0 8px;">Recent sessions</div>';
+  if(!sessions.length){ html+='<div class="psub" style="padding:2px 0;">No workouts logged yet. Tap “New workout”, pick a client, and the AI Coach will draft one.</div>'; }
+  else{
+    html+='<div style="display:flex;flex-direction:column;gap:7px;">'+sessions.slice(0,30).map(function(w){
+      var nex=(w.exercises&&w.exercises.length)||0; var when=w.finished_at?new Date(w.finished_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
+      return '<button onclick="openClientWorkouts(\''+w.client_id+'\')" style="display:flex;align-items:center;gap:10px;padding:11px 12px;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:12px;cursor:pointer;text-align:left;font-family:inherit;width:100%;">'+
+        '<span class="ms" style="color:var(--ffp-purple);">fitness_center</span>'+
+        '<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:13.5px;color:var(--ffp-text);">'+escHtml(nameOf(w.client_id))+'</div><div style="font-size:11px;color:var(--ffp-text-dim);">'+escHtml(w.title||'Workout')+' · '+when+' · '+nex+' exercise'+(nex===1?'':'s')+'</div></div>'+
+        '<span class="ms" style="color:var(--ffp-text-dim);">chevron_right</span></button>';
+    }).join('')+'</div>';
+  }
+  host.innerHTML=html;
+}
+function wkHubNew(){
+  var list=(_members||[]).slice().sort(function(a,b){return (a.full_name||'').localeCompare(b.full_name||'');});
+  if(!list.length){ openModalShell('','No clients yet','<div class="psub" style="padding:8px 0;">Add a client first (Clients tab), then you can build them a workout.</div>','<button class="btn btn-ghost" onclick="closeModal()">Close</button>'); return; }
+  openModalShell('lg','New workout — pick a client',
+    '<div style="display:flex;flex-direction:column;gap:6px;max-height:54vh;overflow:auto;">'+list.map(function(m){
+      return '<button onclick="closeModal();openClientWorkouts(\''+m.id+'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--ffp-bg-card);border:1px solid var(--ffp-border-mid);border-radius:11px;cursor:pointer;text-align:left;font-family:inherit;"><span class="ms" style="color:var(--ffp-purple);">person</span><span style="font-weight:700;font-size:13.5px;color:var(--ffp-text);">'+escHtml(m.full_name||'Client')+'</span></button>';
+    }).join('')+'</div>',
+    '<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
+}
 
 // First open
 try{ if(document.getElementById('mem-list')) renderMembers(); }catch(e){}
