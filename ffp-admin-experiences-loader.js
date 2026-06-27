@@ -67,7 +67,7 @@
 
   async function fetchExperiences() {
     var res = await window.supabase
-      .from('experiences')
+      .from('trips')
       .select('id, title, description, overview, activity, category, exp_type, hero_image_url, country, destination, starts_at, ends_at, duration_days, price_aed, capacity, fitness_level, status, featured, created_at, providers!inner(business_name, letter_mark)')
       .order('starts_at', { ascending: false });
     if (res.error) {
@@ -171,7 +171,7 @@
 
   async function approve(id) {
     try {
-      var res = await window.supabase.from('experiences').update({ status: 'live' }).eq('id', id);
+      var res = await window.supabase.from('trips').update({ status: 'live' }).eq('id', id);
       if (res.error) throw res.error;
       toast('Experience approved — now live', 'success');
       await refresh();
@@ -180,7 +180,7 @@
   async function reject(id) {
     if (!confirm('Reject this experience? It will be archived.')) return;
     try {
-      var res = await window.supabase.from('experiences').update({ status: 'archived' }).eq('id', id);
+      var res = await window.supabase.from('trips').update({ status: 'archived' }).eq('id', id);
       if (res.error) throw res.error;
       toast('Experience rejected', 'success');
       await refresh();
@@ -192,7 +192,7 @@
     if (!d) return;
     var newVal = !d.featured;
     try {
-      var res = await window.supabase.from('experiences').update({ featured: newVal }).eq('id', id);
+      var res = await window.supabase.from('trips').update({ featured: newVal }).eq('id', id);
       if (res.error) throw res.error;
       toast(newVal ? 'Featured' : 'Unfeatured', 'success');
       await refresh();
@@ -270,7 +270,7 @@
     ax.view = viewExperience;
     ax.refresh = refresh;
     refresh(); // render real data now (replaces inline demo — fixes "reverts to old version")
-    if (window.FFPRealtime) window.FFPRealtime.subscribe('admin-experiences', 'experiences', null, function () { refresh(); });
+    if (window.FFPRealtime) window.FFPRealtime.subscribe('admin-experiences', 'trips', null, function () { refresh(); });
 
     try {
       console.log('[FFP Admin Experiences v1] Loaded \u2713');
