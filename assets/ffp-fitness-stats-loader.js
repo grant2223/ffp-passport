@@ -1140,11 +1140,11 @@
         var r = await window.supabase.rpc('member_activity_view', { p_viewer: me.id, p_id: id });
         var d = r && r.data;
         if (d && !d.error) {
-          row = Object.assign({}, row, {
-            partners: d.partners || row.partners || [],
-            photos: (d.photos && d.photos.length) ? d.photos : row.photos,
-            photo_url: d.photo_url || row.photo_url
-          });
+          // Merge the FULL DB record (metrics/HR zones, max_hr, strain, steps, distance, calories, avg HR,
+          // duration, notes, …) — not just photos/partners — so the card can show everything.
+          var _photos = (d.photos && d.photos.length) ? d.photos : row.photos;
+          var _photoUrl = d.photo_url || row.photo_url;
+          row = Object.assign({}, row, d, { partners: d.partners || row.partners || [], photos: _photos, photo_url: _photoUrl });
         }
       }
     } catch (e) {}
@@ -1200,9 +1200,19 @@
     _actBrowseMonth = nx; renderRecentList();
   };
   // Edit a logged activity — find the cached row by id and hand it to the dashboard's edit-mode modal.
-  window.ffpEditActivity = function (id) {
+  window.ffpEditActivity = async function (id) {
     var row = null;
     for (var i = 0; i < activityCache.length; i++) { if (String(activityCache[i].id) === String(id)) { row = activityCache[i]; break; } }
+    // Pull the FULL record first — the cached list row lacks distance/avg HR/steps/metrics, and editing from it
+    // would save those back as blank (the "distance keeps disappearing" bug). The DB is the source of truth.
+    try {
+      var me = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || {};
+      if (me.id && window.supabase) {
+        var r = await window.supabase.rpc('member_activity_view', { p_viewer: me.id, p_id: id });
+        var d = r && r.data;
+        if (d && !d.error) row = Object.assign({}, row || {}, d);
+      }
+    } catch (e) {}
     if (!row) return;
     if (typeof window.openLogModalForEdit === 'function') window.openLogModalForEdit(row);
   };
