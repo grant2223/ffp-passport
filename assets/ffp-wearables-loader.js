@@ -32,9 +32,11 @@
         var c = connected[provider], right, status;
         if (!live) { right = '<span style="font-size:11px;font-weight:800;color:var(--muted);">Coming soon</span>'; status = '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' + sub + '</div>'; }
         else if (c) {
-          right = '<button type="button" onclick="ffpWearables.disconnect(\'' + provider + '\')" style="background:none;border:1px solid var(--border-mid);color:var(--muted);border-radius:9px;padding:7px 14px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;">Disconnect</button>';
-          status = '<div style="font-size:11px;color:#16a34a;font-weight:800;margin-top:2px;">' + syncLabel(c) +
-            ' · <a onclick="ffpWearables.sync(\'' + provider + '\')" style="color:#1980AD;cursor:pointer;">Sync now</a></div>';
+          right = '<div style="display:flex;gap:6px;flex-shrink:0;">' +
+            '<button type="button" onclick="ffpWearables.sync(\'' + provider + '\')" style="background:#1980AD;border:none;color:#fff;border-radius:9px;padding:7px 13px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;">Sync</button>' +
+            '<button type="button" onclick="ffpWearables.disconnect(\'' + provider + '\')" style="background:none;border:1px solid var(--border-mid);color:var(--muted);border-radius:9px;padding:7px 13px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;">Disconnect</button>' +
+            '</div>';
+          status = '<div style="font-size:11px;color:#16a34a;font-weight:800;margin-top:2px;">' + syncLabel(c) + '</div>';
         } else {
           right = '<button type="button" onclick="ffpWearables.connect(\'' + provider + '\')" style="background:#1980AD;border:none;color:#fff;border-radius:9px;padding:8px 16px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;">Connect</button>';
           status = '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' + sub + '</div>';
@@ -46,37 +48,6 @@
         row('garmin', 'Garmin', 'Auto-log your workouts (coming soon)', false) +
         '<div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5;">Connect a device and your workouts log to your Passport automatically — no manual entry.</div>' +
         (connected['whoop'] ? '<div style="font-size:10.5px;color:var(--muted);margin-top:8px;">Workouts synced from WHOOP.</div>' : '');
-      if (connected['whoop']) { try { this._renderDaily(); } catch (e) {} }
-    },
-    async _renderDaily() {
-      var rf = refreshTok(); if (!rf) return;
-      var days = [];
-      try {
-        var r = await fetch(API + '/api/wearables/daily', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh: rf }) });
-        var j = await r.json(); days = (j && j.days) || [];
-      } catch (e) { return; }
-      if (!days.length) return;
-      function latest(k) { for (var i = 0; i < days.length; i++) { if (days[i][k] != null) return days[i][k]; } return null; }
-      var rec = latest('recovery_pct'), strain = latest('strain'), rhr = latest('resting_hr'), hrv = latest('hrv_ms');
-      var sleeps = days.filter(function (d) { return d.sleep_hours != null; }).slice(0, 7);
-      var lastSleep = sleeps.length ? sleeps[0].sleep_hours : null;
-      var avgSleep = sleeps.length ? (Math.round(sleeps.reduce(function (a, d) { return a + Number(d.sleep_hours); }, 0) / sleeps.length * 10) / 10) : null;
-      var tiles = [];
-      if (rec != null) tiles.push(['Recovery', rec + '%']);
-      if (strain != null) tiles.push(['Strain', String(strain)]);
-      if (lastSleep != null) tiles.push(['Sleep', lastSleep + 'h']);
-      if (rhr != null) tiles.push(['Rest HR', String(rhr)]);
-      if (hrv != null) tiles.push(['HRV', hrv + 'ms']);
-      if (!tiles.length) return;
-      var host = document.getElementById('mp-wearables'); if (!host) return;
-      var card = '<div style="margin-top:14px;background:rgba(43,168,224,0.06);border-radius:14px;padding:14px 16px;">' +
-        '<div style="font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">From WHOOP · latest</div>' +
-        '<div style="display:flex;gap:16px;flex-wrap:wrap;">' +
-        tiles.map(function (t) { return '<div style="text-align:center;min-width:52px;"><div style="font-size:20px;font-weight:800;color:var(--text);">' + t[1] + '</div><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-top:2px;">' + t[0] + '</div></div>'; }).join('') +
-        '</div>' +
-        (avgSleep != null ? '<div style="font-size:11px;color:var(--muted);margin-top:10px;">7-night sleep average: ' + avgSleep + 'h</div>' : '') +
-        '</div>';
-      host.insertAdjacentHTML('beforeend', card);
     },
     async connect(provider) {
       var rf = refreshTok();
