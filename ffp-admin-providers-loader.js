@@ -605,7 +605,7 @@
   async function fetchProviders() {
     var res = await window.supabase
       .from('providers')
-      .select('id, business_name, letter_mark, category, city, status, featured, created_at, paid_until, subscription_tier, monthly_fee_aed, contact_email, contact_phone, area, address, owner_user_id, about, website, instagram, hero_photo_url, logo_url, latitude, longitude, approved_at')
+      .select('id, business_name, letter_mark, category, city, status, featured, created_at, paid_until, subscription_tier, monthly_fee_aed, contact_email, contact_phone, area, address, owner_user_id, about, website, instagram, hero_photo_url, logo_url, latitude, longitude, approved_at, business_access, business_access_requested_at')
       .order('created_at', { ascending: false });
     if (res.error) {
       console.error('[FFP Admin Providers] fetch:', res.error);
@@ -627,6 +627,8 @@
       paid_until: p.paid_until,
       subscription_tier: p.subscription_tier || (p.status === 'approved' || p.status === 'lapsed' ? 'standard' : null),
       monthly_fee_aed: p.monthly_fee_aed,
+      business_access: !!p.business_access,
+      business_access_requested_at: p.business_access_requested_at || null,
       _raw: p
     };
   }
@@ -784,6 +786,21 @@
         logAction('suspended provider ' + (p ? p.business_name : id));
         await refresh();
       } catch (e) { console.error(e); toast(e.message || 'Suspend failed', 'error'); }
+    };
+    AP.toggleBusiness = async function (id) {
+      var p = AP.data.find(function (x) { return x.id === id; });
+      var turnOn = !(p && p.business_access);
+      try {
+        var patch = turnOn
+          ? { business_access: true, business_access_at: new Date().toISOString(), business_access_by: (window.FFP_ADMIN && window.FFP_ADMIN.id) || null }
+          : { business_access: false };
+        var res = await window.supabase.from('providers').update(patch).eq('id', id);
+        if (res.error) throw res.error;
+        toast(turnOn ? 'Business access granted ($99/mo section)' : 'Business access revoked', turnOn ? 'check' : 'info');
+        logAction((turnOn ? 'granted' : 'revoked') + ' Business access · ' + (p ? p.business_name : id));
+        await refresh();
+        try { if (window.Drawer && typeof Drawer.openProvider === 'function') Drawer.openProvider(id); } catch (e) {}
+      } catch (e) { console.error(e); toast(e.message || 'Update failed', 'error'); }
     };
     AP.reinstate = async function (id) {
       var p = AP.data.find(function (x) { return x.id === id; });
