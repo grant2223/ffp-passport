@@ -5572,6 +5572,13 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
           <input type="number" id="log-hr" class="pm-form-input" inputmode="numeric" min="0" max="300" placeholder="e.g. 148">
         </div>
       </div>
+      <div class="pm-form-grid-2">
+        <div class="pm-form-field">
+          <label class="pm-form-label">Steps</label>
+          <input type="number" id="log-steps" class="pm-form-input" inputmode="numeric" min="0" placeholder="e.g. 8000">
+        </div>
+        <div class="pm-form-field"></div>
+      </div>
       <div class="pm-form-field">
         <label class="pm-form-label">Notes (optional)</label>
         <textarea id="log-notes" class="pm-form-textarea" rows="2" placeholder="How did it feel?"></textarea>
@@ -8348,7 +8355,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '460';
+  const FFP_BUILD = '461';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -11402,6 +11409,7 @@ function openLogModal() {
   var _ln = document.getElementById('log-notes'); if (_ln) _ln.value = '';
   var _ai = document.getElementById('log-ai-text'); if (_ai) _ai.value = '';
   var _ld = document.getElementById('log-distance'); if (_ld) _ld.value = '';
+  var _lst = document.getElementById('log-steps'); if (_lst) _lst.value = '';
   var _lh = document.getElementById('log-hr'); if (_lh) _lh.value = '';
   // Clear the optional location pin each fresh open
   ['log-venue', 'log-lat', 'log-lng', 'log-maps'].forEach(function (id) { var e = document.getElementById(id); if (e) e.value = ''; });
@@ -11798,6 +11806,11 @@ async function saveLog() {
       _newId = res && res.data ? res.data : null;
     }
     if (res.error) throw res.error;
+    // Steps — stored in its own column via set_activity_steps. Only written when entered, so editing
+    // an activity without touching Steps won't wipe an existing value.
+    var _stepsEl = document.getElementById('log-steps');
+    var _stepsVal = (_stepsEl && _stepsEl.value.trim() !== '') ? Math.max(0, parseInt(_stepsEl.value, 10)) : null;
+    if (_stepsVal != null && !isNaN(_stepsVal)) { var _sid = _editId || _newId; if (_sid) { try { await window.supabase.rpc('set_activity_steps', { p_me: member.id, p_log_id: _sid, p_steps: _stepsVal }); } catch (e) {} } }
   } catch (e) {
     console.error('[FFP Journey] save failed:', e);
     if (typeof showToast === 'function') showToast('Couldn’t save your activity — please try again', 'error');
@@ -12066,6 +12079,7 @@ window.ffpRenderActivityCard = function (a, isOwn) {
   var ribItems = [];
   if (hasDist) { ribItems.push(['Duration', dur(a.duration_min, a.duration_sec), '#fff']); if (pace) ribItems.push(['Pace /km', pace, '#7cc6ff']); }
   if (a.calories) ribItems.push(['kcal', String(a.calories), '#f3914e']);
+  if (a.steps) ribItems.push(['Steps', (Number(a.steps) >= 1000 ? (Math.round(a.steps / 100) / 10) + 'k' : String(a.steps)), '#7cc6ff']);
   if (a.avg_heart_rate) ribItems.push(['Avg HR', String(a.avg_heart_rate), '#ef6a6a']);
   if (a.metrics) { if (a.metrics.max_hr) ribItems.push(['Max HR', String(a.metrics.max_hr), '#ef6a6a']); if (a.metrics.strain != null) ribItems.push(['Strain', String(a.metrics.strain), '#7cc6ff']); }
   var ribbon = ribItems.length ? ('<div style="display:flex;padding:22px 6px 16px;">' + ribItems.map(function (it, i) { return '<div style="flex:1;text-align:center;' + (i ? 'border-left:1px solid rgba(255,255,255,0.09);' : '') + '"><div style="font-size:21px;font-weight:900;color:' + it[2] + ';">' + esc(it[1]) + '</div><div style="font-size:9.5px;font-weight:800;letter-spacing:.6px;color:#8a99a8;text-transform:uppercase;margin-top:5px;">' + esc(it[0]) + '</div></div>'; }).join('') + '</div>') : '';
@@ -12106,7 +12120,24 @@ window.ffpRenderActivityCard = function (a, isOwn) {
       }).join('') +
       '</div></div>';
   }
-  var body = ownerRow + ribbon + mapBlock + partnersBlock + notesBlock + actions;
+  // Heart-rate zones (WHOOP metrics.hr_zones_ms) — stacked bar + minutes per zone.
+  var hrZones = '';
+  try {
+    var _z = (a.metrics && a.metrics.hr_zones_ms) ? a.metrics.hr_zones_ms : null;
+    if (_z) {
+      var _zones = [['Zone 1', _z.zone_one_milli || 0, '#4aa3df'], ['Zone 2', _z.zone_two_milli || 0, '#16a34a'], ['Zone 3', _z.zone_three_milli || 0, '#d9a300'], ['Zone 4', _z.zone_four_milli || 0, '#f3914e'], ['Zone 5', _z.zone_five_milli || 0, '#dc2626']];
+      var _tot = _zones.reduce(function (s, z) { return s + (z[1] || 0); }, 0);
+      if (_tot > 0) {
+        var _fmt = function (ms) { var s = Math.round(ms / 1000); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); };
+        var _bar = _zones.map(function (z) { return z[1] > 0 ? '<div style="width:' + (z[1] / _tot * 100) + '%;background:' + z[2] + ';"></div>' : ''; }).join('');
+        var _leg = _zones.map(function (z) { return '<div style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:#cfe0ee;"><span style="width:9px;height:9px;border-radius:2px;background:' + z[2] + ';display:inline-block;flex:0 0 auto;"></span><span style="flex:1;">' + z[0] + '</span><span style="color:#8a99a8;font-weight:700;">' + _fmt(z[1]) + '</span></div>'; }).join('');
+        hrZones = '<div style="margin:22px 18px 0;"><div style="font-size:9.5px;font-weight:800;letter-spacing:.6px;color:#8a99a8;text-transform:uppercase;margin-bottom:9px;">Heart-rate zones</div>' +
+          '<div style="display:flex;height:12px;border-radius:6px;overflow:hidden;background:rgba(255,255,255,0.06);margin-bottom:11px;">' + _bar + '</div>' +
+          '<div style="display:flex;flex-direction:column;gap:6px;">' + _leg + '</div></div>';
+      }
+    }
+  } catch (e) {}
+  var body = ownerRow + ribbon + hrZones + mapBlock + partnersBlock + notesBlock + actions;
 
   ffpCloseActivityCard();
   var ov = document.createElement('div'); ov.id = 'ffp-act-card-ov';
