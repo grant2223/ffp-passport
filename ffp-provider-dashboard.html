@@ -3230,8 +3230,9 @@ const sampleRsvps = [];
 const NAV = [
   { id: 'overview',    icon: 'dashboard',       label: 'Overview',    section: 'manage' },
   { id: 'analytics',   icon: 'analytics',       label: 'Analytics',   section: 'manage' },
-  // ── Business management system (Check-ins on top; modules built one-by-one) ──
-  { id: 'checkins',    icon: 'qr_code_scanner', label: 'Check-ins',           section: 'business' },
+  { id: 'checkins',    icon: 'qr_code_scanner', label: 'Check-ins',   section: 'manage' },
+  { id: 'announcements',icon: 'campaign',       label: 'Announcements', section: 'manage' },
+  // ── Business section (paid $99/mo add-on; admin-granted access. Gated when !FFP_PROVIDER.business_access) ──
   { id: 'reviews',     icon: 'star',            label: 'Reviews',             section: 'business' },
   { id: 'members',     icon: 'groups',          label: 'Members',             section: 'business' },
   { id: 'plans',       icon: 'card_membership',  label: 'Packages',            section: 'business' },
@@ -3239,7 +3240,6 @@ const NAV = [
   { id: 'appointments',icon: 'event_available', label: 'Appointments',        section: 'business' },
   { id: 'staff',       icon: 'badge',           label: 'Staff',               section: 'business' },
   { id: 'billing',     icon: 'receipt_long',    label: 'Payments & Invoices', section: 'business' },
-  { id: 'announcements',icon: 'campaign',       label: 'Announcements',       section: 'business' },
   // ── Engagement (member-facing listings) ──
   { id: 'classes',     icon: 'tour',            label: 'Experiences', section: 'engagement' },
   { id: 'events',      icon: 'event',           label: 'Events',      section: 'engagement' },
@@ -3253,6 +3253,49 @@ const NAV = [
 
 var _navCollapsed = {};   // section id -> true when collapsed
 const sectionLabels = { manage: 'Manage', business: 'Business', engagement: 'Engagement', account: 'Account' };
+
+// ── Business section = paid $99/mo add-on, admin-granted (providers.business_access). Free for now: admin toggles it on. ──
+function ffpHasBusinessAccess() { return !!(window.FFP_PROVIDER && window.FFP_PROVIDER.business_access); }
+function ffpIsBusinessPanel(id) { try { var it = NAV.find(function (n) { return n.id === id; }); return !!(it && it.section === 'business'); } catch (e) { return false; } }
+var _bizAccessChecked = false;
+async function ensureBusinessAccess() {
+  if (_bizAccessChecked) return;
+  var pid = window.FFP_PROVIDER && window.FFP_PROVIDER.id;
+  if (!pid || !window.supabase) return;
+  _bizAccessChecked = true;
+  try {
+    var r = await window.supabase.from('providers').select('business_access').eq('id', pid).maybeSingle();
+    if (r && r.data && window.FFP_PROVIDER) { window.FFP_PROVIDER.business_access = !!r.data.business_access; if (typeof renderNav === 'function') renderNav(); }
+  } catch (e) { _bizAccessChecked = false; }
+}
+function showBusinessUpgrade() {
+  var body =
+    '<div style="text-align:center;padding:6px 4px 2px;">' +
+      '<span class="ms" style="font-size:46px;color:var(--ffp-yellow,#f5c542);">workspace_premium</span>' +
+      '<h3 style="margin:12px 0 6px;font-size:18px;">Business section — $99/mo</h3>' +
+      '<p style="max-width:440px;margin:0 auto;color:var(--ffp-text-muted,#8a99a8);line-height:1.6;font-size:13.5px;">' +
+        'Members, Packages, Sessions, Appointments, Staff, Reviews and Payments &amp; Invoices are part of the FFP ' +
+        'Business plan. Listing your Experiences, Trips and Events stays free. Request access and our team will switch it on.' +
+      '</p>' +
+    '</div>';
+  var foot =
+    '<button class="btn btn-outline" onclick="closeModal()">Maybe later</button>' +
+    '<button class="btn btn-primary" id="biz-req-btn" onclick="requestBusinessAccess()">Request access</button>';
+  if (typeof openModalShell === 'function') openModalShell('sm', 'Unlock the Business section', body, foot);
+  else if (typeof openModal === 'function') openModal('Unlock the Business section', body, foot);
+}
+async function requestBusinessAccess() {
+  var btn = document.getElementById('biz-req-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  try {
+    var pid = window.FFP_PROVIDER && window.FFP_PROVIDER.id;
+    if (pid && window.supabase) {
+      await window.supabase.rpc('provider_request_business_access', { p_provider: pid });
+    }
+    if (typeof toast === 'function') toast('Request sent — we\'ll be in touch shortly.', 'check');
+  } catch (e) { console.error('[business access request]', e); }
+  if (typeof closeModal === 'function') closeModal();
+}
 
 function renderNav() {
   const nav = document.getElementById('sb-nav');
@@ -3272,10 +3315,14 @@ function renderNav() {
             '<span class="ms sb-chev">expand_more</span></button>';
     html += '<div class="sb-sec-items' + (isCol ? ' collapsed' : '') + '" data-sec="' + sec + '">';
     groups[sec].forEach(item => {
-      const lockedClass = item.locked ? ' locked' : '';
-      const onclick = item.locked ? '' : ' onclick="showPanel(\'' + item.id + '\')"';
+      const gated = (item.section === 'business' && !ffpHasBusinessAccess());
+      const lockedClass = (item.locked || gated) ? ' locked' : '';
+      const onclick = item.locked ? ''
+        : (gated ? ' onclick="showBusinessUpgrade()"' : ' onclick="showPanel(\'' + item.id + '\')"');
       let badge = '';
-      if (item.id === 'deals' || item.soon || item.locked) {
+      if (gated) {
+        badge = '<span class="ni-lock-pill">$99</span>';
+      } else if (item.id === 'deals' || item.soon || item.locked) {
         badge = '<span class="ni-lock-pill">Soon</span>';
       } else if (item.id === 'events') {
         badge = '<span class="ni-badge dim">' + events.length + '</span>';
@@ -3285,8 +3332,6 @@ function renderNav() {
         badge = '<span class="ni-badge dim">' + (Array.isArray(window.classesList) ? window.classesList.length : 0) + '</span>';
       } else if (item.id === 'challenges') {
         badge = '<span class="ni-badge dim">' + challenges.length + '</span>';
-      } else if (item.soon || item.locked) {
-        badge = '<span class="ni-lock-pill">Soon</span>';
       }
       html += '<button class="ni' + lockedClass + '" data-nav="' + item.id + '"' + onclick + '>' +
               '<span class="ms">' + item.icon + '</span>' +
@@ -3296,6 +3341,7 @@ function renderNav() {
     html += '</div>';
   });
   nav.innerHTML = html;
+  ensureBusinessAccess();   // lazy-load the flag once, then re-render unlocked if granted
 }
 
 // Switch tabs inside a Business module panel.
@@ -3455,6 +3501,8 @@ async function connectStripe() {
 })();
 
 function showPanel(id) {
+  // Business section is gated behind admin-granted access ($99/mo). Block direct opens too (not just nav clicks).
+  if (ffpIsBusinessPanel(id) && !ffpHasBusinessAccess()) { showBusinessUpgrade(); return; }
   ensureProviderLoader(id);
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   const el = document.getElementById('panel-' + id);
