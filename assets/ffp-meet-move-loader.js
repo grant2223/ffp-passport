@@ -410,7 +410,10 @@
       // PERF: run connections in PARALLEL (it self-renders the match strip) instead of blocking meet-ups.
       loadConnections().catch(function () {});
 
-      var mRes = await window.supabase.from('meetups').select('*').in('status', ['open', 'full']);
+      // v13: visibility now respects the host's audience settings (city / gender / age).
+      // list_meetups_for_member returns only meetups this member is eligible for, plus
+      // their own + ones they've already joined. (Was: from('meetups').select all open.)
+      var mRes = await window.supabase.rpc('list_meetups_for_member', { p_me: currentUserId });
       if (mRes.error) { console.error('[FFP Meet & Move] meetups read:', mRes.error); return; }
       var meetups = mRes.data || [];
       if (meetups.length === 0) {
@@ -607,6 +610,11 @@
       try {
         var res = await window.supabase.rpc('join_meetup', { p_me: currentUserId, p_meetup: id });
         var st = res && res.data;
+        if (st === 'ineligible') {
+          m.pendingByMe = false; if (typeof this.render === 'function') this.render();
+          if (typeof showToast === 'function') showToast("This meet-up is set for a different group (location, gender or age)", 'error');
+          return;
+        }
         if (res.error || (st !== 'pending' && st !== 'joined')) {
           m.pendingByMe = false; if (typeof this.render === 'function') this.render();
           if (typeof showToast === 'function') showToast("Couldn't send your request — please try again", 'error');
