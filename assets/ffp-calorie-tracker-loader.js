@@ -682,7 +682,7 @@
       .filter(function (d) { return self._ymd(d.date) !== self._ymd(self.viewDate || today); })
       .reverse().slice(0, 14);
     offInjectStyles();
-    var bg = document.createElement('div'); bg.className = 'mm-modal-bg';
+    var bg = document.createElement('div'); bg.className = 'mm-modal-bg mm-fullbg';
     bg.onclick = function (e) { if (e.target === bg) document.body.removeChild(bg); };
     var list = cands.length ? cands.map(function (d, i) {
       return '<button class="cpd-row" type="button" data-i="' + i + '"><span class="cpd-day">' + recEsc(d.date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })) + '</span><span class="cpd-kcal">' + Math.round(d.intake).toLocaleString() + ' kcal</span></button>';
