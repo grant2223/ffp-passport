@@ -62,6 +62,7 @@
   var wrapped = false;
 
   var DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
   function injectStyles() {
     if (document.getElementById('ffp-calorie-tracker-loader-styles')) return;
@@ -171,7 +172,7 @@
       var intake = intakeByDay[key] || 0;
       var burned = burnedByDay[key] || 0;
       monthHistory.push({ idx: -i, intake: intake, burned: burned });
-      if (i <= 6) weekHistory.push({ day: dayLabel, date: dateNum, intake: intake, burned: burned });
+      if (i <= 6) weekHistory.push({ day: dayLabel, date: dateNum, month: MONTH_NAMES[d.getMonth()], intake: intake, burned: burned });
     }
 
     return { weekHistory: weekHistory, monthHistory: monthHistory };
@@ -316,6 +317,7 @@
         return {
           day: todayDayName,
           date: todayDateNum,
+          month: MONTH_NAMES[now.getMonth()],
           intake: this.totals().kcal,
           burned: this.activitiesTotal(),
           isToday: true
