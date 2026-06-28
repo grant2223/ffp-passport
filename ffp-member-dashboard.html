@@ -2502,9 +2502,8 @@ input[type="number"] {
 .filter-bar .panel-search { flex: 1; margin: 0; }
 .filter-icon-btn { flex-shrink: 0; width: 46px; border-radius: 10px; background: rgba(43,168,224,0.08); border: 1px solid var(--border-mid); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .filter-icon-btn:hover { border-color: var(--blue); color: var(--blue); }
-.filter-modal { position: fixed; inset: 0; background: rgba(0,0,0,.72); z-index: 9400; display: none; align-items: flex-end; justify-content: center; }
-.filter-modal-card { width: 100%; max-width: 460px; background: #0f1e2e; border: 1px solid rgba(43,168,224,0.22); border-radius: 18px 18px 0 0; padding: 20px; max-height: 86vh; overflow-y: auto; }
-@media (min-width: 560px) { .filter-modal { align-items: center; } .filter-modal-card { border-radius: 16px; } }
+.filter-modal { position: fixed; inset: 0; background: rgba(0,0,0,.72); z-index: 9400; display: none; align-items: stretch; justify-content: center; }
+.filter-modal-card { width: 100%; max-width: 100%; background: #0f1e2e; border: none; border-radius: 0; padding: calc(env(safe-area-inset-top,0px) + 20px) 20px 28px; min-height: 100dvh; max-height: none; overflow-y: auto; }
 .filter-modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .filter-modal-title { font-size: 17px; font-weight: 900; color: var(--text); }
 .filter-modal-x { background: #142a3f; border: none; color: var(--muted); width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 20px; line-height: 1; }
@@ -8395,7 +8394,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '471';
+  const FFP_BUILD = '473';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -11578,8 +11577,8 @@ function ffpOpenSettings() {
   if (!document.getElementById('ffp-settings-css')) {
     var st = document.createElement('style'); st.id = 'ffp-settings-css';
     st.textContent =
-      '#ffp-settings-overlay{position:fixed;inset:0;z-index:100040;background:rgba(2,10,20,.72);display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;animation:ffpSetFade .2s ease;}' +
-      '.ffp-set-card{background:var(--bg-2,#0f1e2e);border:1px solid var(--border,#1d3346);border-radius:18px;max-width:440px;width:100%;padding:18px 18px 20px;box-shadow:0 24px 70px rgba(0,0,0,.55);}' +
+      '#ffp-settings-overlay{position:fixed;inset:0;z-index:100040;background:#050d16;display:flex;align-items:stretch;justify-content:center;padding:0;overflow:auto;animation:ffpSetFade .2s ease;}' +
+      '.ffp-set-card{background:var(--bg-2,#0f1e2e);border:none;border-radius:0;max-width:560px;width:100%;min-height:100dvh;padding:calc(env(safe-area-inset-top,0px) + 22px) 20px 32px;box-shadow:none;}' +
       '.ffp-set-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}' +
       '.ffp-set-title{font-size:18px;font-weight:900;color:var(--text,#eaf2f8);}' +
       '.ffp-set-x{background:none;border:none;color:var(--muted,#8a99a8);font-size:26px;line-height:1;cursor:pointer;padding:0 4px;font-family:inherit;}' +
@@ -11968,8 +11967,8 @@ function ffpShowMilestones(list) {
   if (!list || !list.length || document.getElementById('ffp-ms-overlay')) return;
   if (!document.getElementById('ffp-ms-css')) {
     var st = document.createElement('style'); st.id = 'ffp-ms-css';
-    st.textContent = '#ffp-ms-overlay{position:fixed;inset:0;z-index:100050;background:rgba(2,10,20,.72);display:flex;align-items:center;justify-content:center;padding:20px;animation:ffpMsFade .2s ease;}' +
-      '.ffp-ms-card{background:#0f1e2e;border:1px solid #25405a;border-radius:18px;max-width:380px;width:100%;padding:22px 20px;box-shadow:0 24px 70px rgba(0,0,0,.55);text-align:center;}' +
+    st.textContent = '#ffp-ms-overlay{position:fixed;inset:0;z-index:100050;background:#050d16;display:flex;align-items:center;justify-content:center;padding:0;animation:ffpMsFade .2s ease;}' +
+      '.ffp-ms-card{background:#0f1e2e;border:none;border-radius:0;max-width:none;width:100%;min-height:100dvh;display:flex;flex-direction:column;justify-content:center;padding:32px 22px;box-shadow:none;text-align:center;}' +
       '.ffp-ms-head{display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:14px;}' +
       '.ffp-ms-title{font-size:19px;font-weight:900;color:#eaf2f8;}' +
       '.ffp-ms-list{display:flex;flex-direction:column;gap:10px;text-align:left;margin-bottom:16px;}' +
@@ -13497,7 +13496,7 @@ else init();
       var acts=document.getElementById("ffp-deck-actions");
       var cbtn=document.getElementById("ffp-act-connect");
       var instr=document.querySelector(".ffp-deck-instr");
-      if(!d.length){
+      if(!d.length || i>=d.length){
         stack.innerHTML="<div class='ffp-deck-empty'><span class='material-icons' style='font-size:42px;color:#2ba8e0;'>flight_takeoff</span><div style='margin-top:10px;font-size:15px;color:#e8eef4;font-weight:700;'>You're all caught up</div><div style='margin-top:4px;font-size:12px;'>New faces land tomorrow.</div></div>";
         if(cnt)cnt.textContent="0 to view";
         if(meta)meta.innerHTML="";
@@ -13533,7 +13532,7 @@ else init();
       else { btn.textContent="Add passport"; btn.disabled=false; }
     },
     _fly: function(card,dir){ if(!card)return; card.style.transition="transform .3s ease, opacity .3s ease"; card.style.transform="translateY(-50%) translateX("+(dir*640)+"px) rotate("+(dir*26)+"deg)"; card.style.opacity="0"; },
-    deckGo: function(dir){ var self=this; var n=(this.deck||[]).length; if(!n)return; var c=document.getElementById("ffp-top"); if(c)this._fly(c,dir); this.deckIndex=((((this.deckIndex||0)+dir)%n)+n)%n; setTimeout(function(){ self.renderDeck(); },260); },
+    deckGo: function(dir){ var self=this; var n=(this.deck||[]).length; if(!n)return; var cur=(this.deckIndex||0); var ni=cur+dir; if(ni<0)ni=0; if(ni>n)ni=n; if(ni===cur)return; /* no wrap: stop at the ends; reaching n shows the caught-up state */ var c=document.getElementById("ffp-top"); if(c)this._fly(c,dir); this.deckIndex=ni; setTimeout(function(){ self.renderDeck(); },260); },
     deckFlip: function(){ var pc=document.querySelector("#ffp-top .ffp-pc"); if(pc)pc.classList.toggle("flipped"); },
     deckShare: function(){ var self=this; var m=(this.deck||[])[this.deckIndex||0]; if(!m)return; if(m.connection==="requested"||m.connection==="connected")return; var p=this.connectViaRpc(m.id); var drop=function(ok){ if(ok===false){ self._updateConnectBtn(); return; } self.deck=(self.deck||[]).filter(function(x){return x.id!==m.id;}); if(self.deckIndex>=self.deck.length) self.deckIndex=Math.max(0,self.deck.length-1); self.renderDeck(); }; if(p&&p.then){ p.then(drop); } else { drop(true); } },
     _bindTop: function(){
@@ -13564,8 +13563,9 @@ else init();
       try{
         var ov=document.getElementById("ffp-deck-overlay");
         if(ov && ov.classList.contains("open")){
-          this.deck=(this.matches||[]).slice();
-          if((this.deckIndex||0) > this.deck.length) this.deckIndex=0;
+          /* same filter openDeck uses — never re-add connected/requested people on a refresh */
+          this.deck=(this.matches||[]).filter(function(m){ var c=m&&m.connection; return c==null||c==="none"||c==="incoming"; });
+          if((this.deckIndex||0) > this.deck.length) this.deckIndex=this.deck.length;
           this.renderDeck();
         }
       }catch(e){}
