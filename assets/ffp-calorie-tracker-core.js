@@ -351,7 +351,7 @@ const CalorieTracker = {
     document.getElementById('ct-week-fat-num').textContent = `\u2248 ${Math.abs(fatG).toLocaleString()} g`;
     document.getElementById('ct-week-fat-label').textContent = fatG >= 0 ? 'estimated fat loss' : 'estimated fat gain';
     document.getElementById('ct-week-fat-icon').textContent = fatG >= 0 ? 'trending_down' : 'trending_up';
-    document.getElementById('ct-week-meta').textContent = `${stats.daysLogged} of 7 days logged this week`;
+    document.getElementById('ct-week-meta').textContent = `${stats.daysLogged} of 7 days logged (last 7 days)`;
     
     // 7-day chart (chronological Mon-Sun)
     const barsEl = document.getElementById('ct-chart-bars');
@@ -406,7 +406,7 @@ const CalorieTracker = {
       const dayLabel = d.isToday ? 'Today' : d.day;
       return `
         <div class="ct-week-day-row ${d.isToday ? 'is-today' : ''}">
-          <div class="ct-week-day-label">${dayLabel}<span class="date">${d.day} ${d.date} Mar</span></div>
+          <div class="ct-week-day-label">${dayLabel}<span class="date">${d.day} ${d.date} ${d.month||''}</span></div>
           <div class="ct-week-day-info">
             ${intake === 0 ? '—' : `<span class="b">${intake.toLocaleString()}</span> eaten &middot; <span class="b">${burned.toLocaleString()}</span> burned`}
           </div>
