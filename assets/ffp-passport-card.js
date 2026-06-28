@@ -241,6 +241,14 @@
 .ffp-pc.flipped .ffp-pc-flip{ transform:rotateY(180deg); }
 .ffp-pc-face{ position:absolute; inset:0; -webkit-backface-visibility:hidden; backface-visibility:hidden; border-radius:14px; overflow:hidden; }
 .ffp-pc-back{ transform:rotateY(180deg); }
+/* Hard face-swap at the geometric halfway point (card edge-on, ~.26s of the .55s spin): the rich FRONT
+   is set to opacity:0 BEFORE it rotates past 90deg, so a lagging backface-cull can never show it
+   mirrored. Clean in BOTH directions on every browser. Covers both flip triggers (.ffp-pc.flipped and
+   the member's own .pass-container.flipped). */
+.ffp-pc-front{ opacity:1; transition:opacity 0s linear .26s; }
+.ffp-pc-back{ opacity:0; transition:opacity 0s linear .26s; }
+.ffp-pc.flipped .ffp-pc-front, .pass-container.flipped .ffp-pc-front{ opacity:0; }
+.ffp-pc.flipped .ffp-pc-back, .pass-container.flipped .ffp-pc-back{ opacity:1; }
 /* The scaled .pass-shell (its own transform) must also hide its backface, or the FRONT face bleeds
    through the BACK on flip (Chrome bug: a transformed child inside a backface-hidden face). */
 .ffp-pc-face .pass-shell{ position:absolute; top:0; left:0; box-shadow:none; -webkit-backface-visibility:hidden; backface-visibility:hidden; }
