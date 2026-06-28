@@ -8257,6 +8257,9 @@ async function loadNotifications() {
     var list = (json && json.notifications) || [];
     // Passport bell shows ONLY passport-activity notifications.
     list = list.filter(_notifIsPassport);
+    // Capture the newest notification's SERVER timestamp so "Clear all" can mark against it (avoids
+    // client/server clock skew leaving the most-recent notifs above a Date.now() marker → reappearing).
+    try { var _mx = 0; list.forEach(function (n) { var _t = new Date(n.created_at).getTime(); if (_t && _t > _mx) _mx = _t; }); window.__ffpNotifMaxTs = _mx; } catch (e) {}
     // #3: hide anything cleared via "Clear all" (created at/before the cleared-at marker).
     var _clr = 0; try { _clr = parseInt(localStorage.getItem('ffp_notifs_cleared_at') || '0', 10) || 0; } catch (e) {}
     if (_clr) list = list.filter(function (n) { return new Date(n.created_at).getTime() > _clr; });
@@ -8305,7 +8308,9 @@ async function markNotifsSeen() {
 // current review prompts, and mark backend notifs seen server-side. New notifications still come through.
 function clearNotifs() {
   try {
-    localStorage.setItem('ffp_notifs_cleared_at', String(Date.now()));
+    // Mark against the newest notification's SERVER timestamp (fallback to now) so clock skew can't
+    // leave the most-recent notifs above the marker and make them reappear after "Clear all".
+    localStorage.setItem('ffp_notifs_cleared_at', String(Math.max((window.__ffpNotifMaxTs || 0), Date.now())));
     var _rev = (typeof ReviewPrompt !== 'undefined' && ReviewPrompt.pending) ? ReviewPrompt.pending() : [];
     var _seen = []; try { _seen = JSON.parse(localStorage.getItem('ffp_seen_reviews') || '[]'); } catch (e) {}
     _rev.forEach(function (r) { if (r && r.id && _seen.indexOf(r.id) < 0) _seen.push(r.id); });
@@ -8394,7 +8399,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '475';
+  const FFP_BUILD = '476';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -11631,6 +11636,9 @@ function logAIParse() {
       var ld = document.getElementById('log-distance'); if (ld && a.distance_km) ld.value = a.distance_km;
       var lc = document.getElementById('log-calories'); if (lc && a.calories) lc.value = a.calories;
       var lh = document.getElementById('log-hr'); if (lh && a.avg_heart_rate) lh.value = a.avg_heart_rate;
+      var lst = document.getElementById('log-steps'); if (lst && a.steps) lst.value = a.steps;
+      var lmh = document.getElementById('log-maxhr'); if (lmh && a.max_heart_rate) lmh.value = a.max_heart_rate;
+      if (a.hr_zones_min) { [['log-z1','z1'],['log-z2','z2'],['log-z3','z3'],['log-z4','z4'],['log-z5','z5']].forEach(function(p){ var el=document.getElementById(p[0]); var v=a.hr_zones_min[p[1]]; if (el && v) el.value = v; }); }
       if (a.location) { var lv = document.getElementById('log-venue'); if (lv) lv.value = a.location; var lld = document.getElementById('log-loc-display'); if (lld) { lld.textContent = a.location; lld.classList.remove('pmf-pick-ph'); lld.classList.add('set'); } }
       var ln = document.getElementById('log-notes'); if (ln && a.notes && !ln.value) ln.value = a.notes;
       if (window.showToast) showToast('Filled — check it and save');
