@@ -27,6 +27,20 @@
           (j && j.providers || []).forEach(function (p) { connected[p.provider] = p; });
         } catch (e) {}
       }
+      // Google Calendar status (separate endpoint from wearables)
+      var cal = { connected: false, email: null };
+      if (rf) { try { var cr = await fetch(API + '/api/calendar/google/status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh: rf }) }); var cj = await cr.json(); if (cj) cal = cj; } catch (e) {} }
+      function calRow() {
+        var right, status;
+        if (cal && cal.connected) {
+          right = '<button type="button" onclick="ffpWearables.gcalDisconnect()" style="background:none;border:1px solid var(--border-mid);color:var(--muted);border-radius:9px;padding:7px 13px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;">Disconnect</button>';
+          status = '<div style="font-size:11px;color:#16a34a;font-weight:800;margin-top:2px;">Connected' + (cal.email ? ' · ' + cal.email : '') + '</div>';
+        } else {
+          right = '<button type="button" onclick="ffpWearables.gcalConnect()" style="background:#1980AD;border:none;color:#fff;border-radius:9px;padding:8px 16px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;">Connect</button>';
+          status = '<div style="font-size:11px;color:var(--muted);margin-top:2px;">Add your bookings &amp; sessions to your calendar</div>';
+        }
+        return '<div style="display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--border);"><div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:800;color:var(--text);">Google Calendar</div>' + status + '</div>' + right + '</div>';
+      }
       function syncLabel(p) { if (!p || !p.last_synced_at) return 'Connected'; try { return 'Synced ' + new Date(p.last_synced_at).toLocaleDateString(); } catch (e) { return 'Connected'; } }
       function row(provider, name, sub, live) {
         var c = connected[provider], right, status;
@@ -46,6 +60,7 @@
       }
       host.innerHTML = row('whoop', 'WHOOP', 'Auto-log your workouts, heart rate & calories', true) +
         row('garmin', 'Garmin', 'Auto-log your workouts (coming soon)', false) +
+        calRow() +
         '<div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5;">Connect a device and your workouts log to your Passport automatically — no manual entry.</div>' +
         (connected['whoop'] ? '<div style="font-size:10.5px;color:var(--muted);margin-top:8px;">Workouts synced from WHOOP.</div>' : '');
     },
@@ -80,6 +95,23 @@
       var rf = refreshTok();
       try { await fetch(API + '/api/wearables/disconnect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh: rf, provider: provider }) }); } catch (e) {}
       if (window.showToast) showToast(provider.toUpperCase() + ' disconnected');
+      this.render();
+    },
+    async gcalConnect() {
+      var rf = refreshTok();
+      if (!rf) { if (window.showToast) showToast('Please sign in again', 'error'); return; }
+      try {
+        var r = await fetch(API + '/api/calendar/google/connect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh: rf, return_to: location.href.split('?')[0] }) });
+        var j = await r.json().catch(function () { return null; });
+        if (j && j.url) { window.location.href = j.url; return; }
+        if (window.showToast) showToast(j && j.error === 'google_not_configured' ? 'Google Calendar isn’t switched on yet' : 'Could not start connect', 'error');
+      } catch (e) { if (window.showToast) showToast('Could not start connect', 'error'); }
+    },
+    async gcalDisconnect() {
+      if (!window.confirm('Disconnect Google Calendar? New bookings won’t be added to it.')) return;
+      var rf = refreshTok();
+      try { await fetch(API + '/api/calendar/google/disconnect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh: rf }) }); } catch (e) {}
+      if (window.showToast) showToast('Google Calendar disconnected');
       this.render();
     }
   };
