@@ -79,8 +79,7 @@ const MeetMove = {
           <div class="match-card-v2-meta">${escHtml(m.age)} &middot; ${escHtml(m.city)}</div>
           <div class="match-card-v2-sports">${sportsText}</div>
           <div class="match-card-v2-rel">
-            <span class="dot"></span>
-            <span class="num">${m.trust.toFixed(1)}</span> reliability
+            ${m.recent ? '<span class="dot"></span>Active recently' : (m.meetupsHosted ? (m.meetupsHosted + ' meet-up' + (m.meetupsHosted === 1 ? '' : 's') + ' hosted') : (m.memberSince ? ('Member since ' + m.memberSince) : 'Member'))}
           </div>
         </div>
       `;
@@ -170,8 +169,7 @@ const MeetMove = {
           issueDate: (window.ffpFmtPassDate ? window.ffpFmtPassDate(r.joined_at) : ''),
           expiryDate: (window.ffpFmtPassDate ? window.ffpFmtPassDate(r.joined_at, 1) : ''),
           recent: recent,
-          match: score, trust: 5.0, verified: false, joined: Date.now(), bio: '',
-          meetups: 0, hosted: 0, profession: '',
+          match: score, bio: '', profession: '',
           matchSports: matchSports, matchOther: matchOther, connection: conn
         };
       }).sort(function (a, b) { return b.match - a.match; });
@@ -459,7 +457,7 @@ const MeetMove = {
   openMemberDetail(uid) {
     const u = this.matches.find(x => x.id === uid);
     if (!u) return;
-    const joinedTxt = `Joined ${new Date(u.joined).toLocaleDateString('en-GB', { month:'short', year:'numeric' })}`;
+    const joinedTxt = u.memberSince ? `Member since ${u.memberSince}` : '';
     const sportsMatchHtml = u.matchSports.map(ms => `
       <div class="pm-match-block">
         <div class="pm-match-row-head">
@@ -513,10 +511,10 @@ const MeetMove = {
       <div class="dm-section">
         <div class="dm-section-label">Activity on passport</div>
         <div class="pm-stats-grid">
-          <div class="pm-stat-cell"><div class="pm-stat-n">${u.meetups}</div><div class="pm-stat-l">Meetups</div></div>
-          <div class="pm-stat-cell"><div class="pm-stat-n">${u.hosted}</div><div class="pm-stat-l">Hosted</div></div>
-          <div class="pm-stat-cell"><div class="pm-stat-n">${u.trust.toFixed(1)}</div><div class="pm-stat-l">Trust</div></div>
-          <div class="pm-stat-cell"><div class="pm-stat-n">${u.verified ? 'Yes' : 'Pending'}</div><div class="pm-stat-l">Verified</div></div>
+          <div class="pm-stat-cell"><div class="pm-stat-n">${u.meetupsHosted != null ? u.meetupsHosted : 0}</div><div class="pm-stat-l">Hosted</div></div>
+          <div class="pm-stat-cell"><div class="pm-stat-n">${u.sports.length}</div><div class="pm-stat-l">Sports</div></div>
+          <div class="pm-stat-cell"><div class="pm-stat-n">${u.memberSince || '—'}</div><div class="pm-stat-l">Member since</div></div>
+          <div class="pm-stat-cell"><div class="pm-stat-n">${u.recent ? 'Yes' : '—'}</div><div class="pm-stat-l">Active recently</div></div>
         </div>
       </div>
       <div class="dm-footer">
