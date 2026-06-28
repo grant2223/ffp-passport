@@ -11904,7 +11904,70 @@ async function saveLog() {
   if (typeof showToast === 'function') showToast('Logged ' + act + (city ? ' in ' + city : '') + (_shareVal ? ' · shared with connections' : '') + (_taggedN ? ' · tagged ' + _taggedN + (_taggedN === 1 ? ' person — they’ll confirm' : ' people — they’ll confirm') : ''), 'success');
   closeLogModal();
   _ffpSaveThenShare(_newId, act, city, entry, _photoVal, _photosVal);
+  setTimeout(ffpCheckMilestones, 1200);   // celebrate any new PB / streak / new-place after this log
 }
+
+// ── Milestones / PBs celebration — detect on load + after a log; in-app popup (+ backend phone-push). ──
+async function ffpCheckMilestones() {
+  try {
+    if (!window.member || !member.id) return;
+    var r = await fetch('https://ffp-passport-backend.vercel.app/api/milestones/check', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ member_id: member.id })
+    });
+    var j = await r.json().catch(function () { return {}; });
+    var list = (j && j.milestones) || [];
+    if (!list.length) return;
+    ffpShowMilestones(list);
+    try { await window.supabase.rpc('member_mark_milestones_seen', { p_member: member.id }); } catch (e) {}
+  } catch (e) {}
+}
+function ffpShowMilestones(list) {
+  if (!list || !list.length || document.getElementById('ffp-ms-overlay')) return;
+  if (!document.getElementById('ffp-ms-css')) {
+    var st = document.createElement('style'); st.id = 'ffp-ms-css';
+    st.textContent = '#ffp-ms-overlay{position:fixed;inset:0;z-index:100050;background:rgba(2,10,20,.72);display:flex;align-items:center;justify-content:center;padding:20px;animation:ffpMsFade .2s ease;}' +
+      '.ffp-ms-card{background:#0f1e2e;border:1px solid #25405a;border-radius:18px;max-width:380px;width:100%;padding:22px 20px;box-shadow:0 24px 70px rgba(0,0,0,.55);text-align:center;}' +
+      '.ffp-ms-head{display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:14px;}' +
+      '.ffp-ms-title{font-size:19px;font-weight:900;color:#eaf2f8;}' +
+      '.ffp-ms-list{display:flex;flex-direction:column;gap:10px;text-align:left;margin-bottom:16px;}' +
+      '.ffp-ms-row{display:flex;gap:10px;align-items:flex-start;background:rgba(43,168,224,.08);border:1px solid rgba(43,168,224,.25);border-radius:12px;padding:10px 12px;}' +
+      '.ffp-ms-ic{color:#2ba8e0;font-size:22px;}' +
+      '.ffp-ms-t{font-weight:800;color:#eaf2f8;font-size:14px;}' +
+      '.ffp-ms-b{color:#9fb0bf;font-size:12.5px;line-height:1.4;margin-top:1px;}' +
+      '.ffp-ms-more{color:#8a99a8;font-size:12px;text-align:center;}' +
+      '.ffp-ms-btn{width:100%;background:#2ba8e0;color:#04121d;border:none;border-radius:12px;padding:12px;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit;margin-top:2px;}' +
+      '@keyframes ffpMsFade{from{opacity:0}to{opacity:1}}';
+    document.head.appendChild(st);
+  }
+  var esc = function (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+  var top = list.slice(0, 3);
+  var more = list.length - top.length;
+  var rowsHtml = top.map(function (m) {
+    return '<div class="ffp-ms-row"><span class="material-icons ffp-ms-ic">' + esc(m.icon || 'emoji_events') + '</span>' +
+           '<div><div class="ffp-ms-t">' + esc(m.title || 'Milestone!') + '</div>' +
+           (m.body ? '<div class="ffp-ms-b">' + esc(m.body) + '</div>' : '') + '</div></div>';
+  }).join('');
+  if (more > 0) rowsHtml += '<div class="ffp-ms-more">+ ' + more + ' more milestone' + (more === 1 ? '' : 's') + '</div>';
+  var ov = document.createElement('div');
+  ov.id = 'ffp-ms-overlay';
+  ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+  ov.innerHTML =
+    '<div class="ffp-ms-card">' +
+      '<div class="ffp-ms-head"><span class="material-icons" style="font-size:40px;color:#f5c542;">celebration</span>' +
+      '<div class="ffp-ms-title">' + (list.length > 1 ? 'You hit ' + list.length + ' milestones!' : 'Milestone unlocked!') + '</div></div>' +
+      '<div class="ffp-ms-list">' + rowsHtml + '</div>' +
+      '<button class="ffp-ms-btn" onclick="var o=document.getElementById(\'ffp-ms-overlay\'); if(o)o.remove();">Nice!</button>' +
+    '</div>';
+  document.body.appendChild(ov);
+}
+(function ffpMilestonesBoot() {
+  var t = 0;
+  var iv = setInterval(function () {
+    t++;
+    if (window.member && member.id) { clearInterval(iv); setTimeout(ffpCheckMilestones, 2500); }
+    else if (t > 40) { clearInterval(iv); }
+  }, 500);
+})();
 
 // #1: after a successful Log Activity save/update, drop the member straight onto the shareable
 // activity card (preview → Share / Download). Builds _ffpActCard from the just-saved data.
