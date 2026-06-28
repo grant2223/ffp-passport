@@ -134,20 +134,21 @@ const MeetMove = {
           var mine = mySkills[String(sp.name).toLowerCase()], theirs = LV[String(sp.level || '').toLowerCase()], lvlPct = 70;
           if (typeof mine === 'number' && typeof theirs === 'number') {
             var d = Math.abs(mine - theirs);
-            if (d === 0) { pts += 10; lvlPct = 100; } else if (d === 1) { pts += 5; lvlPct = 85; }
+            if (d === 0) { pts += 12; lvlPct = 100; } else if (d === 1) { pts += 6; lvlPct = 85; }
           }
           matchSports.push({ icon: 'fitness_center', sport: sp.name, pct: lvlPct, points: [{ l: 'Level', v: sp.level }] });
         });
         var cityMatch = !!(myCity && r.city && myCity === String(r.city).toLowerCase());
         var countryMatch = !cityMatch && !!(myCountry && r.country && myCountry === String(r.country).toLowerCase());
-        if (cityMatch) pts += 20; else if (countryMatch) pts += 8;
+        if (cityMatch) pts += 24; else if (countryMatch) pts += 8;
         var genderMatch = !!(myGender && r.gender && myGender === String(r.gender).toLowerCase());
-        if (genderMatch) pts += 8;
+        if (genderMatch) pts += 16;  // Grant: same gender is more valuable
         var ageClose = false, ad = (myAge && r.age) ? Math.abs(myAge - r.age) : null;
-        if (ad !== null) { if (ad <= 5) { pts += 15; ageClose = true; } else if (ad <= 10) { pts += 8; } }
+        if (ad !== null) { if (ad <= 5) { pts += 12; ageClose = true; } else if (ad <= 10) { pts += 6; } }
         var recent = false;
-        if (r.last_active) { var days = (now - new Date(r.last_active).getTime()) / 86400000; if (days <= 30) { pts += 10; recent = true; } else if (days <= 90) { pts += 4; } }
-        var score = Math.max(35, Math.min(99, pts + 35));
+        if (r.last_active) { var days = (now - new Date(r.last_active).getTime()) / 86400000; if (days <= 30) { pts += 8; recent = true; } else if (days <= 90) { pts += 3; } }
+        // Honest score: no artificial +35 base/floor. Pool is already filtered to real overlap (shared sport OR same city).
+        var score = Math.min(99, Math.round(pts));
         var nm = r.name || 'Member';
         var conn = r.incoming ? 'incoming' : (r.conn_status === 'accepted' ? 'connected' : (r.conn_status === 'pending' ? 'requested' : 'none'));
         var matchOther = [];
