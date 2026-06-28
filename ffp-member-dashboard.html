@@ -4334,7 +4334,7 @@ input.pm-form-input[type="time"], input.pm-form-input[type="date"] { -webkit-app
         <button class="menu-item" data-panel="panel-workout-timer"><span class="material-icons">schedule</span><span>Workout Timer</span></button>
         <button class="menu-item" data-panel="panel-calorie-tracker"><span class="material-icons">local_fire_department</span><span>Calorie Tracker</span></button>
         <button class="menu-item" data-panel="panel-earnings"><span class="material-icons">account_balance_wallet</span><span>Earnings</span></button>
-        <button class="menu-item" onclick="window.FFPProAccess&&FFPProAccess.open()"><span class="material-icons">health_and_safety</span><span>Data sharing</span></button>
+        <button class="menu-item" onclick="ffpOpenSettings()"><span class="material-icons">settings</span><span>Settings</span></button>
         <div class="menu-divider"></div>
         <button class="menu-item menu-item-danger" id="user-menu-logout"><span class="material-icons">logout</span><span>Logout</span></button>
       </div>
@@ -8395,7 +8395,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '470';
+  const FFP_BUILD = '471';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -8405,7 +8405,7 @@ function setupPanelNav() {
     'panel-meetups':         'assets/ffp-meet-move-loader.js',
     'panel-experiences':     'assets/ffp-member-discovery-loader.js',
     'panel-challenges':      'assets/ffp-member-discovery-loader.js',
-    'panel-profile':         'assets/ffp-wearables-loader.js'
+    'panel-settings':        'assets/ffp-wearables-loader.js'
   };
   const _loadedLoaderSrc = {};
   function ensurePanelLoader(panelId) {
@@ -8893,9 +8893,7 @@ const MemberProfile = {
           <div id="profile-save-status" style="font-size:12px;color:#6b8298;min-height:18px;">Changes save automatically</div>
         </div>
 
-        <!-- CONNECTED DEVICES — wearables (WHOOP live; Garmin coming) -->
-        <div class="profile-section-title">Connected devices</div>
-        <div id="mp-wearables" style="font-size:13px;color:var(--muted);padding:2px;">Loading…</div>
+        <!-- Connected devices + Google Calendar moved to avatar menu › Settings › Connected apps -->
 
         <!-- PROFESSIONAL PROFILE — member self-declares role; admin verifies separately -->
         <div class="profile-section-title">Professional Profile</div>
@@ -11571,6 +11569,49 @@ function closeLogIfBackdrop(e) { if (e.target.id === 'log-modal-backdrop') close
     history.replaceState(null, '', location.pathname + (q.toString() ? ('?' + q.toString()) : '') + location.hash);
   } catch (e) {}
 })();
+
+// ── Settings (avatar menu) — Connected apps (wearables + Google Calendar) + Data sharing ──
+function ffpCloseSettings() { var o = document.getElementById('ffp-settings-overlay'); if (o) o.remove(); }
+function ffpOpenSettings() {
+  try { var um = document.getElementById('user-menu'); if (um) um.classList.remove('open', 'show', 'active'); } catch (e) {}
+  if (document.getElementById('ffp-settings-overlay')) return;
+  if (!document.getElementById('ffp-settings-css')) {
+    var st = document.createElement('style'); st.id = 'ffp-settings-css';
+    st.textContent =
+      '#ffp-settings-overlay{position:fixed;inset:0;z-index:100040;background:rgba(2,10,20,.72);display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;animation:ffpSetFade .2s ease;}' +
+      '.ffp-set-card{background:var(--bg-2,#0f1e2e);border:1px solid var(--border,#1d3346);border-radius:18px;max-width:440px;width:100%;padding:18px 18px 20px;box-shadow:0 24px 70px rgba(0,0,0,.55);}' +
+      '.ffp-set-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}' +
+      '.ffp-set-title{font-size:18px;font-weight:900;color:var(--text,#eaf2f8);}' +
+      '.ffp-set-x{background:none;border:none;color:var(--muted,#8a99a8);font-size:26px;line-height:1;cursor:pointer;padding:0 4px;font-family:inherit;}' +
+      '.ffp-set-sec{margin-top:14px;}' +
+      '.ffp-set-lbl{font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--muted,#8a99a8);margin-bottom:2px;}' +
+      '.ffp-set-row{display:flex;align-items:center;gap:12px;padding:12px 0;cursor:pointer;}' +
+      '.ffp-set-row-t{font-size:14px;font-weight:800;color:var(--text,#eaf2f8);}' +
+      '.ffp-set-row-b{font-size:11.5px;color:var(--muted,#8a99a8);margin-top:2px;line-height:1.4;}' +
+      '@keyframes ffpSetFade{from{opacity:0}to{opacity:1}}';
+    document.head.appendChild(st);
+  }
+  var ov = document.createElement('div'); ov.id = 'ffp-settings-overlay';
+  ov.onclick = function (e) { if (e.target === ov) ffpCloseSettings(); };
+  ov.innerHTML =
+    '<div class="ffp-set-card">' +
+      '<div class="ffp-set-head"><div class="ffp-set-title">Settings</div><button class="ffp-set-x" onclick="ffpCloseSettings()">&times;</button></div>' +
+      '<div class="ffp-set-sec"><div class="ffp-set-lbl">Connected apps</div>' +
+        '<div id="mp-wearables" style="font-size:13px;color:var(--muted);">Loading…</div></div>' +
+      '<div class="ffp-set-sec"><div class="ffp-set-lbl">Data sharing</div>' +
+        '<div class="ffp-set-row" onclick="ffpCloseSettings(); if(window.FFPProAccess&&FFPProAccess.open)FFPProAccess.open();">' +
+          '<div style="flex:1;"><div class="ffp-set-row-t">Pro data access</div><div class="ffp-set-row-b">Choose which professionals can see your Calorie Tracker &amp; Fitness Stats</div></div>' +
+          '<span class="material-icons" style="color:var(--muted);">chevron_right</span></div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(ov);
+  if (window.ffpWearables) { try { ffpWearables.render(); } catch (e) {} }
+  else {
+    var v = (typeof FFP_BUILD !== 'undefined') ? FFP_BUILD : Date.now();
+    var s = document.createElement('script'); s.src = 'assets/ffp-wearables-loader.js?v=' + v;
+    document.body.appendChild(s);   // its IIFE polls for #mp-wearables and renders
+  }
+}
 
 // AI "Describe it" → parse free text into the activity fields (activity, duration, distance, calories, notes).
 function logAIParse() {
