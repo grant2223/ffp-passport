@@ -232,9 +232,9 @@
       '.ffp-picker-field.disabled{opacity:0.5;cursor:not-allowed;}',
 
       // Picker modal (bottom sheet)
-      '.ffp-picker-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:none;align-items:flex-end;justify-content:center;}',
+      '.ffp-picker-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:none;align-items:stretch;justify-content:center;}',
       '.ffp-picker-backdrop.open{display:flex;}',
-      '.ffp-picker-sheet{background:var(--bg-2);border-top-left-radius:18px;border-top-right-radius:18px;width:100%;max-width:560px;max-height:80vh;display:flex;flex-direction:column;animation:ffpPickerSlideUp 0.18s ease-out;}',
+      '.ffp-picker-sheet{background:var(--bg-2);border-radius:0;width:100%;max-width:100%;min-height:100dvh;max-height:none;display:flex;flex-direction:column;animation:ffpPickerSlideUp 0.18s ease-out;}',
       '@keyframes ffpPickerSlideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}',
       '.ffp-picker-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px 8px;border-bottom:1px solid var(--border-mid);}',
       '.ffp-picker-title{font-size:14px;font-weight:800;color:var(--text);}',
