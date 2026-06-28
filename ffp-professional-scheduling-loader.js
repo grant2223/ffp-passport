@@ -333,12 +333,37 @@ async function openOccActions(slotId,date,blocked){
     clientHtml +
     '<div style="display:flex;flex-direction:column;gap:8px;">'+
       '<button class="btn btn-pri btn-block" style="padding:14px;font-size:14px;" onclick="closeModal(); openSlotPeople(\''+slotId+'\')"><span class="ms">group_add</span> Add or remove people</button>'+
+      '<button class="btn btn-sec btn-block" onclick="proAddOccToCal(\''+slotId+'\',\''+date+'\')"><span class="ms">event</span> Add to my Google Calendar</button>'+
       '<button class="btn btn-sec btn-block" onclick="openReschedule(\''+slotId+'\',\''+date+'\',\'this_week\')"><span class="ms">event_repeat</span> Reschedule just this week</button>'+
       '<button class="btn btn-sec btn-block" onclick="openReschedule(\''+slotId+'\',\''+date+'\',\'from_now\')"><span class="ms">update</span> Shift this slot from now on</button>'+
       blockBtn +
       '<button class="btn btn-ghost btn-block" onclick="closeModal(); _loadSlotsCache().then(function(){openSlotModal(\''+slotId+'\');})"><span class="ms">edit</span> Edit standing slot</button>'+
     '</div>',
     '<button class="btn btn-ghost" onclick="closeModal()">Close</button>');
+}
+// Add this occurrence to the pro's connected Google Calendar (avatar → Settings → Connect first).
+async function proAddOccToCal(slotId,date){
+  var slot=(_proSlotsCache||[]).find(function(s){return s.id===slotId;})||{};
+  var st=String(slot.start_time||'').slice(0,5);
+  if(!st){ if(window.showToast)showToast('No time on this session','error'); return; }
+  var dur=parseInt(slot.duration_min,10)||60;
+  var mins=_toMin(st)+dur; var eh=Math.floor(mins/60)%24, em=mins%60;
+  var pad=function(n){return ('0'+n).slice(-2);};
+  var startISO=date+'T'+st+':00', endISO=date+'T'+pad(eh)+':'+pad(em)+':00';
+  var tz=(window.FFP_PROVIDER&&FFP_PROVIDER.timezone)||'Asia/Dubai';
+  var who=(slot.clients&&slot.clients.length)?slot.clients.map(function(c){return c.full_name;}).join(', '):'';
+  var title=(slot.title||slot.service_name||'Session')+(who?(' — '+who):'');
+  var rf=(window._proCalRefresh&&_proCalRefresh())||null;
+  if(!rf){ if(window.showToast)showToast('Please sign in again','error'); return; }
+  if(window.showToast)showToast('Adding to calendar…');
+  try{
+    var base=(window.PRO_CAL_API||'https://ffp-passport-backend.vercel.app');
+    var r=await fetch(base+'/api/calendar/add-event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refresh:rf,event:{summary:title,location:slot.location||'',start:startISO,end:endISO,tz:tz,description:'FFP appointment'}})});
+    var j=await r.json().catch(function(){return null;});
+    if(j&&j.ok){ if(window.showToast)showToast('Added to your Google Calendar','success'); closeModal(); }
+    else if(r.status===409||(j&&j.error==='not_connected')){ if(window.showToast)showToast('Connect Google Calendar first — avatar menu › Settings','error'); }
+    else { if(window.showToast)showToast('Could not add — try again','error'); }
+  }catch(e){ if(window.showToast)showToast('Could not add — try again','error'); }
 }
 function unblockOcc(slotId,date){
   var pid=_proProvId();
