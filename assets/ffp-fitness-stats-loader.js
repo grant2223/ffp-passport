@@ -961,13 +961,19 @@
     // Community benchmark: group average for the current filter + your percentile (needs >=3 people).
     var benchLine = '';
     if (sortedFiltered.length >= 3) {
-      var bvals = sortedFiltered.map(function (r) { return metricVal(r, metric); }).filter(function (v) { return v != null && !isNaN(v); });
-      if (bvals.length) {
+      // Average over OTHERS \u2014 exclude the member's own value so it's a true peer benchmark.
+      var others = sortedFiltered.filter(function (r, i) { return i !== myIdx; });
+      var bvals = others.map(function (r) { return metricVal(r, metric); }).filter(function (v) { return v != null && !isNaN(v); });
+      if (bvals.length >= 2) {
         var bavg = bvals.reduce(function (a, b) { return a + b; }, 0) / bvals.length;
         var bavgStr = metric.derive ? bavg.toFixed(metric.lbDecimals != null ? metric.lbDecimals : 1) : formatMetricValue(bavg, metric);
         var bavgU = metric.unit === 'time' ? '' : (metric.derive ? (metric.lbUnit || '') : metric.unit);
-        benchLine = 'Group avg ' + bavgStr + (bavgU ? (' ' + bavgU) : '');
-        if (myIdx >= 0) { var bpct = Math.max(1, Math.round(((myIdx + 1) / sortedFiltered.length) * 100)); benchLine += ' \u00b7 you\u2019re top ' + bpct + '%'; }
+        benchLine = 'Group avg ' + bavgStr + (bavgU ? (' ' + bavgU) : '') + (myIdx >= 0 ? ' (excl. you)' : '');
+        // Honest percentile: % of the group you're ahead of (best=high, worst=0). Omit when 0 to avoid "top 100%".
+        if (myIdx >= 0 && sortedFiltered.length > 1) {
+          var ahead = Math.round(((sortedFiltered.length - 1 - myIdx) / (sortedFiltered.length - 1)) * 100);
+          if (ahead > 0) benchLine += ' \u00b7 you\u2019re ahead of ' + ahead + '% of the group';
+        }
       }
     }
 
