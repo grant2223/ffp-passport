@@ -8395,7 +8395,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '469';
+  const FFP_BUILD = '470';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -11562,10 +11562,12 @@ function closeLogIfBackdrop(e) { if (e.target.id === 'log-modal-backdrop') close
 (function () {
   try {
     var q = new URLSearchParams(location.search);
-    var w = q.get('wearable'); if (!w) return;
+    var w = q.get('wearable'); var g = q.get('gcal'); if (!w && !g) return;
     if (w === 'whoop_connected') { if (window.showToast) showToast('WHOOP connected — your workouts will sync', 'success'); }
     else if (w === 'whoop_error') { if (window.showToast) showToast('Couldn’t connect WHOOP [' + (q.get('reason') || '?') + '] — try again', 'error'); }
-    q.delete('wearable'); q.delete('reason');
+    if (g === 'connected') { if (window.showToast) showToast('Google Calendar connected — your bookings will be added', 'success'); }
+    else if (g === 'error') { if (window.showToast) showToast('Couldn’t connect Google Calendar [' + (q.get('reason') || '?') + '] — try again', 'error'); }
+    q.delete('wearable'); q.delete('reason'); q.delete('gcal');
     history.replaceState(null, '', location.pathname + (q.toString() ? ('?' + q.toString()) : '') + location.hash);
   } catch (e) {}
 })();
