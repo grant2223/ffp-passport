@@ -3151,7 +3151,10 @@ function renderPassportPicker() {
       + '</button>';
   }
   var html = card(null, '#2ba8e0', 'All', 'assets/ffp-passport-cover.png', !cur);
-  html += getPassports().map(function (p) {
+  // Only show passports the member has ACTUALLY logged activities in — scope the lens to their own activity.
+  var have = {};
+  (typeof LOGS !== 'undefined' ? LOGS : []).forEach(function (l) { try { var pid = (typeof passportForLog === 'function') ? passportForLog(l) : null; if (pid) have[pid] = true; } catch (e) {} });
+  html += getPassports().filter(function (p) { return have[p.id]; }).map(function (p) {
     return card(p.id, p.color, p.label, p.img, cur === p.id);
   }).join('');
   el.innerHTML = html;
@@ -3480,6 +3483,11 @@ window.JourneyMap = (function () {
     pinLayer = L.layerGroup().addTo(map);
     loadPartners(function(){ try { renderPins(); } catch(e){} });
     setTimeout(function(){ if (map){ map.invalidateSize(); render(); } }, 250);
+    // The #ffp-jmap container is often NOT final-sized at 250ms (splash overlay + mobile layout settle), so Leaflet's
+    // pixel origin is stale → pins render OFFSET until a manual pan re-projects them. Re-fix the size + re-render once
+    // layout has definitely settled (window 'load' + a longer safety retry). invalidateSize+render is idempotent.
+    window.addEventListener('load', function(){ try { if (map){ map.invalidateSize(); render(); } } catch(e){} });
+    setTimeout(function(){ try { if (map){ map.invalidateSize(); render(); } } catch(e){} }, 1200);
   }
   function fit(bounds, maxZoom){
     if (bounds.length>1) map.flyToBounds(bounds, { padding:[45,45], maxZoom:maxZoom, duration:0.6 });
@@ -4356,7 +4364,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '495';
+  const FFP_BUILD = '496';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
