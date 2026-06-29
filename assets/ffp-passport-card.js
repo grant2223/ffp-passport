@@ -328,7 +328,7 @@
       var given=m.givenNames||(String(m.name||"").split(" ")[0])||"";
       var surname=m.surname||(String(m.name||"").split(" ").slice(1).join(" "))||"";
       var skills=(m.sports||[]).slice(0,4); var self=this;
-      var rows=skills.map(function(sp){ return "<div style='margin-bottom:10px;'><div style='display:flex;justify-content:space-between;align-items:baseline;'><span class='pf-val' style='font-size:11px;'>"+esc(sp.name)+"</span><span class='pf-lbl' style='margin:0;'>"+cap(sp.level)+"</span></div>"+self.meter(sp.level)+"</div>"; }).join("");
+      var rows=skills.map(function(sp){ var g=(sp.grade!=null?String(sp.grade).trim():""); return "<div style='margin-bottom:10px;'><div style='display:flex;justify-content:space-between;align-items:baseline;'><span class='pf-val' style='font-size:11px;'>"+esc(sp.name)+(g?" <span style='color:var(--pass-blue);font-weight:800;'>"+esc(g)+"</span>":"")+"</span><span class='pf-lbl' style='margin:0;'>"+cap(sp.level)+"</span></div>"+self.meter(sp.level)+"</div>"; }).join("");
       var cells=[];
       cells.push(this.cell("TYPE", cap(m.memberType||"Member")));
       if(m.meetupsHosted!=null) cells.push(this.cell("MEET-UPS HOSTED", m.meetupsHosted));
