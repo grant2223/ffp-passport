@@ -7273,14 +7273,16 @@ function timeAgo(days) {
 function renderAll() {
   const logs = getFilteredLogs();          // location + passport lens (map + Top Activities/Places)
   const journeyLogs = getLocationLogs();   // location only — headline journey stats ignore the passport lens
-  renderPassportPicker();
-  renderStats(journeyLogs);
-  renderTrend();
-  try { renderTrendCrew(); } catch (e) {}
-  renderActivities(logs);
-  renderVenues(logs);
-  renderConnections();
-  if (window.JourneyMap) JourneyMap.render();
+  // v481: each panel renders independently — a throw in one (e.g. the passport card) must NOT blank the
+  // rest of the passport (this is what hid the activities list). Errors are logged, never swallowed silently.
+  try { renderPassportPicker(); }            catch (e) { console.error('[renderAll] passportPicker', e); }
+  try { renderStats(journeyLogs); }          catch (e) { console.error('[renderAll] stats', e); }
+  try { renderTrend(); }                      catch (e) { console.error('[renderAll] trend', e); }
+  try { renderTrendCrew(); }                  catch (e) {}
+  try { renderActivities(logs); }            catch (e) { console.error('[renderAll] activities', e); }
+  try { renderVenues(logs); }                 catch (e) { console.error('[renderAll] venues', e); }
+  try { renderConnections(); }                catch (e) { console.error('[renderAll] connections', e); }
+  try { if (window.JourneyMap) JourneyMap.render(); } catch (e) { console.error('[renderAll] map', e); }
 }
 
 // v365 — "Your trend" card under the map: this-week vs last-week activity, streak, 8-week sparkline + Coach Grant tip.
@@ -8406,7 +8408,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '479';
+  const FFP_BUILD = '481';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -8892,8 +8894,7 @@ const MemberProfile = {
         <!-- LOCATION — Country + City on one row (2-col), Nationality on its own row -->
         <div class="profile-section-title">Location</div>
         <div class="fields-grid">
-          ${this.renderPickerCard('country', 'Country', d.country)}
-          ${this.renderPickerCard('city',    'City',    d.city)}
+          ${this.renderLocationCard(d)}
         </div>
         <div class="fields-grid" style="margin-top:10px;">
           ${this.renderPickerCard('nationality', 'Nationality', d.nationality, true)}
@@ -9081,6 +9082,23 @@ const MemberProfile = {
       </div>
     `;
   },
+
+  // v480: WORLD-CLASS LOCATION — one card, the shared Places picker (FFPLocPick). Stores the full
+  // structured geocode (country/region/city/area/lat-lng/place_id) so existing members get the same
+  // accurate, suburb-level location as new signups. Replaces the old country + city dropdowns.
+  renderLocationCard(d) {
+    var display = [d.area, d.city, d.region, d.country].filter(Boolean).filter(function (v, i, a) { return a.indexOf(v) === i; }).join(', ') || (d.location_label || '');
+    var isEmpty = !display;
+    return `
+      <div class="field-card field-card-picker full-width" onclick="MemberProfile.openLocationPicker()">
+        <div class="field-card-label-top">Where you're based</div>
+        <div class="field-card-row">
+          <span class="field-card-display ${isEmpty ? 'muted' : ''}">${this.escape(display || 'Tap to set your location')}</span>
+          <span class="material-icons pt-chevron">place</span>
+        </div>
+      </div>
+    `;
+  },
   
   // ===== v101: SAVE PROFILE — PUTs all editable fields to backend /api/members/:id =====
   autoSave() {
@@ -9119,6 +9137,13 @@ const MemberProfile = {
         nationality:        d.nationality || null,
         country:            d.country || null,
         city:               d.city || null,
+        region:             d.region || null,
+        area:               d.area || null,
+        country_code:       d.country_code || null,
+        lat:                (d.lat != null && d.lat !== '') ? Number(d.lat) : null,
+        lng:                (d.lng != null && d.lng !== '') ? Number(d.lng) : null,
+        place_id:           d.place_id || null,
+        location_label:     d.location_label || null,
         skills:             Array.isArray(d.sports) ? d.sports : [],
         // Mirror professional into preferences — the backend PUT persists `preferences` (jsonb) but
         // drops a top-level `professional`, so without this the profession is lost on refresh.
@@ -9278,6 +9303,25 @@ const MemberProfile = {
     });
   },
   
+  openLocationPicker() {
+    var self = this;
+    if (!window.FFPLocPick || !FFPLocPick.open) return;
+    FFPLocPick.open(function (loc) {
+      if (!loc) return;
+      self.data.country      = loc.country || self.data.country || '';
+      self.data.city         = loc.city || '';
+      self.data.region       = loc.region || '';
+      self.data.area         = loc.area || '';
+      self.data.country_code = loc.country_code || '';
+      self.data.lat          = (loc.lat != null ? loc.lat : '');
+      self.data.lng          = (loc.lng != null ? loc.lng : '');
+      self.data.place_id     = loc.place_id || '';
+      self.data.location_label = [loc.area, loc.city, loc.region, loc.country].filter(Boolean).filter(function (v, i, a) { return a.indexOf(v) === i; }).join(', ');
+      self.render();
+      self.autoSave();
+    });
+  },
+
   pickerConfigFor(field) {
     if (field === 'height') {
       const heights = [];
@@ -13673,7 +13717,9 @@ window.FFPLocPick = (function(){
     var url = FFP_API_NOTIF + '/api/places/details?place_id='+encodeURIComponent(it.place_id)+(sessTok?('&session='+encodeURIComponent(sessTok)):'');
     fetch(url).then(function(res){return res.json();}).then(function(j){
       if(!j || j.lat==null || j.lng==null){ if(ch) ch.textContent='Couldn’t locate that place — try another'; return; }
-      cur={ lat:Number(j.lat), lng:Number(j.lng), name:j.name||(it.main||''), maps_url:j.maps_url||'' };
+      var cmp=(j && j.components) || {};   // world-class: keep the STRUCTURED geocode (city/region/area/country)
+      cur={ lat:Number(j.lat), lng:Number(j.lng), name:j.name||(it.main||''), maps_url:j.maps_url||'', place_id:j.place_id||it.place_id||'',
+            city:cmp.city||'', region:cmp.region||'', area:cmp.area||'', country:cmp.country||'', country_code:cmp.country_code||'' };
       if(map) map.setView([cur.lat,cur.lng],16);
       if(ch) ch.textContent=cur.name;
       newSess();   // session consumed by the details call; next search starts a fresh one
@@ -13684,9 +13730,9 @@ window.FFPLocPick = (function(){
     var c=map.getCenter();
     var lat=cur?cur.lat:c.lat, lng=cur?cur.lng:c.lng;
     var name=(cur&&cur.name)?cur.name:('Pin '+lat.toFixed(4)+', '+lng.toFixed(4));
-    var city=(cur&&cur.city)||'', country=(cur&&cur.country)||'';
-    // Guarantee Country + City even if the debounced reverse-geocode hasn't finished yet (or Nominatim
-    // hiccupped): resolve them deterministically via the keyless BigDataCloud reverse-geocode before handing back.
+    var city=(cur&&cur.city)||'', country=(cur&&cur.country)||'', region=(cur&&cur.region)||'', area=(cur&&cur.area)||'', cc=(cur&&cur.country_code)||'';
+    // Guarantee Country + City + Region even if the structured details aren't present (e.g. the member just
+    // dragged the map without picking a result): resolve via the keyless BigDataCloud reverse-geocode.
     if(!city || !country){
       var chl=document.getElementById('lp-chosen'); var prev=chl?chl.textContent:'';
       if(chl) chl.textContent='Locating city…';
@@ -13695,10 +13741,12 @@ window.FFPLocPick = (function(){
         var jj=await rr.json();
         if(!city) city = jj.city || jj.locality || jj.principalSubdivision || '';
         if(!country) country = jj.countryName || '';
+        if(!region) region = jj.principalSubdivision || '';
+        if(!cc) cc = jj.countryCode || '';
       } catch(e){}
       if(chl) chl.textContent=prev;
     }
-    if(typeof cb==='function') cb({ name:name, lat:lat, lng:lng, maps_url:(cur&&cur.maps_url)?cur.maps_url:('https://www.google.com/maps?q='+lat+','+lng), city:city, country:country });
+    if(typeof cb==='function') cb({ name:name, lat:lat, lng:lng, maps_url:(cur&&cur.maps_url)?cur.maps_url:('https://www.google.com/maps?q='+lat+','+lng), city:city, country:country, region:region, area:area, country_code:cc, place_id:(cur&&cur.place_id)||'' });
     close();
   }
   // One-tap GPS: centre the map (+ pin) on the member's current location, then the moveend reverse-geocode
