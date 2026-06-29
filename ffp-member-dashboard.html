@@ -103,6 +103,7 @@
      auto-refresh when underlying DB rows change. -->
 <script src="assets/ffp-constants.js"></script>
 <script src="assets/ffp-taxonomy.js?v=9"></script>
+<script src="assets/ffp-passport-card.js?v=488"></script>
 <script src="assets/ffp-realtime.js"></script>
 <!-- Feedback widget (shared) -> public.feedback -> admin Feedback panel -->
 <script src="assets/ffp-feedback-widget.js?v=5" data-source="member" data-fab="off"></script>
@@ -4339,7 +4340,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '487';
+  const FFP_BUILD = '488';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -8014,97 +8015,7 @@ else init();
   function rep(x,n){ return new Array(n+1).join(x); }
   window.ffpFmtPassDate=function(d,addYears){ if(!d)return ""; var x=new Date(d); if(isNaN(x.getTime()))return ""; if(addYears)x.setFullYear(x.getFullYear()+addYears); var MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]; return x.getDate()+" "+MON[x.getMonth()]+" "+x.getFullYear(); };
 
-  window.FFPPassportCard = {
-    ccode:function(country){ var w=String(country||"").trim().split(/\s+/); if(w.length>1) return w.map(function(x){return x[0];}).join("").slice(0,3).toUpperCase(); return String(country||"").slice(0,3).toUpperCase(); },
-    meter:function(level){
-      var idx={ "just started":1, recreational:2, skilled:3, "highly skilled":4, professional:5,
-                /* legacy fallbacks */ "not tried":1, social:2, competitive:3, representative:4, beginner:1, intermediate:3, advanced:4 };
-      var n=idx[String(level||"").toLowerCase()]||1; var out="";
-      for(var i=0;i<5;i++){ out+="<span style='flex:1;height:7px;border-radius:2px;background:"+(i<n?"#2ba8e0":"#c4d1dc")+";'></span>"; }
-      return "<div class='ffp-bk-meter'>"+out+"</div>";
-    },
-    cell:function(lbl,val,color){ return "<div class='ffp-bk-cell'><div class='pf-lbl'>"+lbl+"</div><div class='pf-val'"+(color?" style='color:"+color+"'":"")+">"+val+"</div></div>"; },
-    frontShell:function(m,opts){
-      opts=opts||{};
-      var given=m.givenNames||(String(m.name||"").split(" ")[0])||"";
-      var surname=m.surname||(String(m.name||"").split(" ").slice(1).join(" "))||"";
-      var initials=((given[0]||"")+(surname[0]||"")).toUpperCase()||(m.letter||"?");
-      var photoStyle=m.photo? "background-image:url('"+m.photo+"');background-size:cover;background-position:center top;" : "";
-      var ccode=this.ccode(m.country);
-      var memno=ccode+"·"+String(m.id||"").replace(/[^a-z0-9]/gi,"").slice(0,4).toUpperCase();
-      var _ty=String(m.memberType||"member").toLowerCase(); var tyAbbr=(_ty==="supporter")?"S":((_ty==="ambassador")?"A":"M");
-      var thirdCol="", mainCols="95px 1fr";
-      if(opts.context==="attendee"){ mainCols="95px 1fr 100px"; thirdCol="<div class='pass-qr-side'><div class='ffp-pc-badge'>"+(opts.role||"GOING")+"</div><div class='pass-qr-label'>STATUS</div></div>"; }
-      var mrz1="P&lt;"+ccode+esc(surname.toUpperCase())+"&lt;&lt;"+esc(given.toUpperCase())+rep("&lt;",30);
-      var mrz2=(m.sports||[]).map(function(sp){return String(sp.name).slice(0,3).toUpperCase();}).join("&lt;&lt;")+"&lt;&lt;"+ccode+rep("&lt;",12);
-      return "<div class='pass-shell'>"+
-        "<div class='pass-bg-emblem'></div>"+
-        "<div class='pass-inner'>"+
-          "<div class='pass-top'>"+
-            "<div><div class='pass-top-label'>PASSPORT</div><div class='pass-top-sub'>URUWHENUA</div></div>"+
-            "<div class='pass-worldwide'>WORLDWIDE</div>"+
-            "<div class='pass-top-right'><div class='pass-top-label'>MEMBER NO.</div><div class='pass-passnum'>"+memno+"</div></div>"+
-          "</div>"+
-          "<div class='pass-type-row'>"+
-            "<div><div class='pass-mini-label'>TYPE</div><div class='pass-mini-val'>"+tyAbbr+"</div></div>"+
-            "<div><div class='pass-mini-label'>COUNTRY</div><div class='pass-mini-val'>"+esc(m.country||"—")+"</div></div>"+
-          "</div>"+
-          "<div class='pass-main' style='grid-template-columns:"+mainCols+";gap:24px;'>"+
-            "<div class='pass-photo-new' style=\""+photoStyle+"\">"+(m.photo?"":esc(initials))+"</div>"+
-            "<div class='pass-fields-new'>"+
-              "<div class='pf-field'><div class='pf-lbl'>SURNAME</div><div class='pf-val'>"+esc(surname||"—")+"</div></div>"+
-              "<div class='pf-field'><div class='pf-lbl'>GIVEN NAMES</div><div class='pf-val'>"+esc(given||"—")+"</div></div>"+
-              "<div class='pf-field'><div class='pf-lbl'>NATIONALITY</div><div class='pf-val'>"+esc(m.nationality||m.country||"—")+"</div></div>"+
-              "<div class='pf-grid-2'>"+
-                "<div class='pf-field'><div class='pf-lbl'>GENDER</div><div class='pf-val'>"+(cap(m.gender)||"—")+"</div></div>"+
-                "<div class='pf-field'><div class='pf-lbl'>DATE OF BIRTH</div><div class='pf-val'>"+(m.dob||"—")+"</div></div>"+
-              "</div>"+
-              "<div class='pf-grid-2'>"+
-                "<div class='pf-field'><div class='pf-lbl'>ISSUE DATE</div><div class='pf-val'>"+(m.issueDate||"—")+"</div></div>"+
-                "<div class='pf-field'><div class='pf-lbl'>EXPIRY DATE</div><div class='pf-val'>"+(m.expiryDate||"—")+"</div></div>"+
-              "</div>"+
-            "</div>"+
-            thirdCol+
-          "</div>"+
-          "<div class='pass-mrz'><span class='pass-mrz-line'>"+mrz1+"</span><span class='pass-mrz-line'>"+mrz2+"</span></div>"+
-        "</div>"+
-      "</div>";
-    },
-    backShell:function(m){
-      var given=m.givenNames||(String(m.name||"").split(" ")[0])||"";
-      var surname=m.surname||(String(m.name||"").split(" ").slice(1).join(" "))||"";
-      var skills=(m.sports||[]).slice(0,4); var self=this;
-      var rows=skills.map(function(sp){ var g=(sp.grade!=null?String(sp.grade).trim():""); return "<div style='margin-bottom:10px;'><div style='display:flex;justify-content:space-between;align-items:baseline;'><span class='pf-val' style='font-size:11px;'>"+esc(sp.name)+(g?" <span style='color:var(--pass-blue);font-weight:800;'>"+esc(g)+"</span>":"")+"</span><span class='pf-lbl' style='margin:0;'>"+cap(sp.level)+"</span></div>"+self.meter(sp.level)+"</div>"; }).join("");
-      var cells=[];
-      cells.push(this.cell("TYPE", cap(m.memberType||"Member")));
-      if(m.meetupsHosted!=null) cells.push(this.cell("MEET-UPS HOSTED", m.meetupsHosted));
-      if(m.reliability!=null) cells.push(this.cell("RELIABILITY", Number(m.reliability).toFixed(1), "var(--pass-blue)"));
-      if(m.area||m.city) cells.push(this.cell("BASED IN", esc([m.area,m.city].filter(Boolean).join(', ')||m.city)));
-      var visa="VISA&lt;"+(skills[0]?String(skills[0].name).slice(0,5).toUpperCase():"")+"&lt;&lt;"+rep("&lt;",34);
-      return "<div class='pass-shell'>"+
-        "<div class='pass-bg-emblem'></div>"+
-        "<div class='pass-inner'>"+
-          "<div class='pass-top' style='grid-template-columns:1fr auto;'>"+
-            "<div><div class='pass-top-label'>ACTIVITIES + LEVEL</div><div class='pass-top-sub'>"+esc((given+" "+surname).trim()||m.name||"")+"</div></div>"+
-            "<div class='pass-top-right'><div class='pass-top-label'>MEMBER SINCE</div><div class='pass-passnum'>"+(m.memberSince||"—")+"</div></div>"+
-          "</div>"+
-          "<div style='display:grid;grid-template-columns:1.25fr 1fr;gap:18px;flex:1;padding-top:6px;'>"+
-            "<div><div class='pf-lbl' style='margin-bottom:8px;'>ACTIVITIES + LEVEL</div>"+(rows||"<div class='pf-val' style='font-size:11px;'>No activities logged yet</div>")+"</div>"+
-            "<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start;'>"+cells.join("")+"</div>"+
-          "</div>"+
-          "<div class='pass-mrz'><span class='pass-mrz-line'>"+visa+"</span></div>"+
-        "</div>"+
-      "</div>";
-    },
-    render:function(m,opts){
-      opts=opts||{};
-      var clickAttr = opts.flippable ? " onclick=\"this.classList.toggle('flipped')\" style='cursor:pointer;'" : "";
-      return "<div class='ffp-pc'"+clickAttr+"><div class='ffp-pc-flip'>"+
-        "<div class='ffp-pc-face ffp-pc-front'>"+this.frontShell(m,opts)+"</div>"+
-        "<div class='ffp-pc-face ffp-pc-back'>"+this.backShell(m)+"</div>"+
-      "</div></div>";
-    }
-  };
+  /* FFPPassportCard renderer is now ONE source: assets/ffp-passport-card.js (loaded in <head>, line ~106). Inline duplicate removed 2026-06-29 — fixes apply everywhere. */
 
   window.ffpScaleCards = function(scope){
     var root=scope||document;
