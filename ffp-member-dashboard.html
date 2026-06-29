@@ -1449,6 +1449,10 @@
         <label class="pm-form-label" style="display:flex;align-items:center;gap:6px;"><span class="material-icons" style="font-size:16px;color:var(--blue);">auto_awesome</span>Tell me what you did<span style="color:#8a99a8;font-weight:600;font-size:11px;">— I’ll fill it for you</span></label>
         <textarea id="log-ai-text" class="coach-input" placeholder="e.g. ran 5k in 28 min, easy pace"></textarea>
         <button type="button" id="log-ai-btn" onclick="logAIParse()" class="coach-fill-btn"><span class="material-icons">auto_awesome</span>Fill it in</button>
+        <div style="font-size:11px;color:#8a99a8;text-align:center;margin:10px 0 6px;letter-spacing:.5px;">— or —</div>
+        <button type="button" id="log-scan-btn" onclick="document.getElementById('log-scan-file').click()" class="coach-fill-btn" style="background:rgba(43,168,224,0.14);color:var(--blue);"><span class="material-icons">photo_camera</span>Scan a screenshot</button>
+        <input type="file" id="log-scan-file" accept="image/*" style="display:none;" onchange="logAIParsePhoto(this)">
+        <div style="font-size:11px;color:#8a99a8;text-align:center;margin-top:6px;line-height:1.4;">A screenshot from Strava, Garmin, Apple Fitness, WHOOP, a treadmill display…</div>
       </div>
       <div class="pm-form-field">
         <label class="pm-form-label">Photos (optional) <span id="log-photos-count" style="color:#8a99a8;font-weight:700;font-size:11px;"></span></label>
@@ -4344,7 +4348,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '489';
+  const FFP_BUILD = '490';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -6377,22 +6381,49 @@ function logAIParse() {
       if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-icons">auto_awesome</span>Fill it in'; }
       if (res.status === 503) { if (window.showToast) showToast('AI isn’t switched on yet', 'error'); return; }
       if (!res.ok || !res.j || !res.j.activity) { if (window.showToast) showToast('Couldn’t read that — try again', 'error'); return; }
-      var a = res.j.activity;
-      var la = document.getElementById('log-activity'); if (la && a.activity) la.value = a.activity;
-      if (a.duration_min && typeof setLogDuration === 'function') setLogDuration(Math.max(60, a.duration_min * 60));
-      if (a.date && /^\d{4}-\d{2}-\d{2}$/.test(a.date)) { var _ldt = document.getElementById('log-date'); if (_ldt) _ldt.value = a.date; }
-      if (a.time && /^\d{2}:\d{2}$/.test(a.time)) { var _lt = document.getElementById('log-time'); if (_lt) _lt.value = a.time; }
-      var ld = document.getElementById('log-distance'); if (ld && a.distance_km) ld.value = a.distance_km;
-      var lc = document.getElementById('log-calories'); if (lc && a.calories) lc.value = a.calories;
-      var lh = document.getElementById('log-hr'); if (lh && a.avg_heart_rate) lh.value = a.avg_heart_rate;
-      var lst = document.getElementById('log-steps'); if (lst && a.steps) lst.value = a.steps;
-      var lmh = document.getElementById('log-maxhr'); if (lmh && a.max_heart_rate) lmh.value = a.max_heart_rate;
-      if (a.hr_zones_min) { [['log-z1','z1'],['log-z2','z2'],['log-z3','z3'],['log-z4','z4'],['log-z5','z5']].forEach(function(p){ var el=document.getElementById(p[0]); var v=a.hr_zones_min[p[1]]; if (el && v) el.value = v; }); }
-      if (a.location) { var lv = document.getElementById('log-venue'); if (lv) lv.value = a.location; var lld = document.getElementById('log-loc-display'); if (lld) { lld.textContent = a.location; lld.classList.remove('pmf-pick-ph'); lld.classList.add('set'); } }
-      var ln = document.getElementById('log-notes'); if (ln && a.notes && !ln.value) ln.value = a.notes;
+      _logFillFromAI(res.j.activity);
       if (window.showToast) showToast('Filled — check it and save');
     })
     .catch(function () { if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-icons">auto_awesome</span>Fill it in'; } if (window.showToast) showToast('Network error — try again', 'error'); });
+}
+
+// Shared: fill the Log Activity form fields from a parsed activity object (used by both "Describe it" and "Scan a screenshot").
+function _logFillFromAI(a) {
+  if (!a) return;
+  var la = document.getElementById('log-activity'); if (la && a.activity) la.value = a.activity;
+  if (a.duration_min && typeof setLogDuration === 'function') setLogDuration(Math.max(60, a.duration_min * 60));
+  if (a.date && /^\d{4}-\d{2}-\d{2}$/.test(a.date)) { var _ldt = document.getElementById('log-date'); if (_ldt) _ldt.value = a.date; }
+  if (a.time && /^\d{2}:\d{2}$/.test(a.time)) { var _lt = document.getElementById('log-time'); if (_lt) _lt.value = a.time; }
+  var ld = document.getElementById('log-distance'); if (ld && a.distance_km) ld.value = a.distance_km;
+  var lc = document.getElementById('log-calories'); if (lc && a.calories) lc.value = a.calories;
+  var lh = document.getElementById('log-hr'); if (lh && a.avg_heart_rate) lh.value = a.avg_heart_rate;
+  var lst = document.getElementById('log-steps'); if (lst && a.steps) lst.value = a.steps;
+  var lmh = document.getElementById('log-maxhr'); if (lmh && a.max_heart_rate) lmh.value = a.max_heart_rate;
+  if (a.hr_zones_min) { [['log-z1','z1'],['log-z2','z2'],['log-z3','z3'],['log-z4','z4'],['log-z5','z5']].forEach(function(p){ var el=document.getElementById(p[0]); var v=a.hr_zones_min[p[1]]; if (el && v) el.value = v; }); }
+  if (a.location) { var lv = document.getElementById('log-venue'); if (lv) lv.value = a.location; var lld = document.getElementById('log-loc-display'); if (lld) { lld.textContent = a.location; lld.classList.remove('pmf-pick-ph'); lld.classList.add('set'); } }
+  var ln = document.getElementById('log-notes'); if (ln && a.notes && !ln.value) ln.value = a.notes;
+}
+
+// "Scan a screenshot/photo" → read an activity off an image (Strava/Garmin/Apple/WHOOP/treadmill/gym board) via Claude vision.
+function logAIParsePhoto(input) {
+  var file = input && input.files && input.files[0]; if (!file) return;
+  try { input.value = ''; } catch (e) {}
+  var btn = document.getElementById('log-scan-btn');
+  var reset = function () { if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-icons">photo_camera</span>Scan a screenshot'; } };
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-icons">hourglass_empty</span>Reading…'; }
+  ffpDownscaleImage(file, function (durl) {
+    fetch('https://ffp-passport-backend.vercel.app/api/ai/parse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'activity', image: durl, now: new Date().toString() }) })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, j: j }; }, function () { return { ok: false, status: r.status, j: null }; }); })
+      .then(function (res) {
+        reset();
+        if (res.status === 503) { if (window.showToast) showToast('AI isn’t switched on yet', 'error'); return; }
+        if (res.status === 413) { if (window.showToast) showToast('That image is too large — try a screenshot', 'error'); return; }
+        if (!res.ok || !res.j || !res.j.activity) { if (window.showToast) showToast('Couldn’t read that screenshot — try a clearer one', 'error'); return; }
+        _logFillFromAI(res.j.activity);
+        if (window.showToast) showToast('Filled from your screenshot — check it and save');
+      })
+      .catch(function () { reset(); if (window.showToast) showToast('Network error — try again', 'error'); });
+  });
 }
 
 // ── Training partners ("With") — the box IS the search. Empty = your 10 most trained-with; typing filters all accepted connections. They confirm before it lands on their journey.
