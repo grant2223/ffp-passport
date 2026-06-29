@@ -139,28 +139,29 @@
     // 2) My connections (most active first)
     html += '<div class="cf-sec-head"><div class="cf-sec-t">My connections</div>' +
       '<div class="cf-sec-link" onclick="FFPConnFeed.seeAll()">See all</div></div>';
-    if (conns.length) {
-      html += '<div class="cf-cap">Most active right now — see what they’re up to</div><div class="cf-circles">';
-      html += conns.slice(0, 12).map(function (c) {
-        var first = (c.name || 'Member').split(' ')[0];
-        return '<div class="cf-cell" id="cf-cell-' + attr(c.id) + '" onclick="FFPConnFeed.selectPerson(\'' + attr(c.id) + '\',\'' + attr(c.name) + '\')">' +
-          '<div class="cf-cwrap">' +
-            (c.photo ? '<div class="cf-av" style="background-image:url(\'' + esc(c.photo) + '\');"></div>'
-                     : '<div class="cf-av">' + esc((c.name || 'M').charAt(0).toUpperCase()) + '</div>') +
-            '<span class="cf-dot ' + (c.active ? 'on' : 'off') + '"></span>' +
-          '</div><div class="cf-cname">' + esc(first) + '</div></div>';
-      }).join('');
-      html += '</div>';
-    } else {
-      html += '<div class="cf-empty">No connections yet — open <b>People you might click with</b>, tap someone and add their passport.</div>';
-    }
+    html += '<div class="cf-cap">Your connections’ latest — or tap one</div><div class="cf-circles">';
+    // "All" — everyone's latest activity (first cell, default-selected). No per-person header/journey in this mode.
+    html += '<div class="cf-cell sel" id="cf-cell-all" onclick="FFPConnFeed.selectPerson(\'all\',\'All\')">' +
+      '<div class="cf-cwrap"><div class="cf-av" style="display:flex;align-items:center;justify-content:center;background:#1d5d8a;"><span class="material-icons" style="color:#dff1ff;">groups</span></div></div>' +
+      '<div class="cf-cname">All</div></div>';
+    html += conns.slice(0, 12).map(function (c) {
+      var first = (c.name || 'Member').split(' ')[0];
+      return '<div class="cf-cell" id="cf-cell-' + attr(c.id) + '" onclick="FFPConnFeed.selectPerson(\'' + attr(c.id) + '\',\'' + attr(c.name) + '\')">' +
+        '<div class="cf-cwrap">' +
+          (c.photo ? '<div class="cf-av" style="background-image:url(\'' + esc(c.photo) + '\');"></div>'
+                   : '<div class="cf-av">' + esc((c.name || 'M').charAt(0).toUpperCase()) + '</div>') +
+          '<span class="cf-dot ' + (c.active ? 'on' : 'off') + '"></span>' +
+        '</div><div class="cf-cname">' + esc(first) + '</div></div>';
+    }).join('');
+    html += '</div>';
+    if (!conns.length) html += '<div class="cf-empty" style="margin-top:8px;">No connections yet — open <b>People you might click with</b> to add some, and their activity will show here.</div>';
 
     // 3) Selected connection's activities — a horizontal slider, populated by selectPerson()
     html += '<div id="cf-person-activities" style="margin-top:6px;"></div>';
 
     root.innerHTML = html;
-    // auto-select the most-active connection so the activities slider isn't empty
-    if (conns.length) { try { var c0 = conns[0]; window.FFPConnFeed.selectPerson(c0.id, c0.name); } catch (e) {} }
+    // default to "All" → everyone's latest activity grid (works even with zero connections)
+    try { window.FFPConnFeed.selectPerson('all', 'All'); } catch (e) {}
   }
 
   var loading = false, tries = 0;
@@ -260,6 +261,36 @@
     loadConnStats(id, name);
   }
 
+  // ── "All" mode: everyone's latest shared activity as a 3-wide Instagram-style grid (no per-person header/journey) ──
+  function gridTile(a) {
+    var photo = a.photo_url || (a.photos && a.photos.length ? a.photos[0] : '');
+    var multi = !!(a.photos && a.photos.length > 1);
+    var nm = String(a.member_name || 'Member').split(' ')[0];
+    var inner = photo
+      ? '<div style="position:absolute;inset:0;background:#0a1825 center/cover no-repeat;background-image:url(\'' + esc(photo) + '\');"></div>'
+      : '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#16324a;"><span class="material-icons" style="font-size:34px;color:rgba(255,255,255,0.4);">' + esc(actIcon(a.activity)) + '</span></div>';
+    return '<div onclick="FFPConnFeed.openActivity(\'' + attr(a.id) + '\')" style="position:relative;aspect-ratio:1/1;border-radius:3px;overflow:hidden;cursor:pointer;">' +
+      inner +
+      (multi ? '<span class="material-icons" style="position:absolute;top:5px;right:5px;font-size:16px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);">filter_none</span>' : '') +
+      '<div style="position:absolute;left:0;right:0;bottom:0;padding:14px 6px 5px;background:linear-gradient(to top,rgba(0,0,0,0.66),rgba(0,0,0,0));">' +
+        '<div style="font-size:11px;font-weight:700;color:#fff;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(nm) + '</div>' +
+        '<div style="font-size:10px;color:rgba(255,255,255,0.82);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(a.activity || 'Activity') + '</div>' +
+      '</div></div>';
+  }
+  async function renderGlobalGrid() {
+    var host = document.getElementById('cf-person-activities'); if (!host) return;
+    var lbl = '<div class="cf-actlbl" style="margin-top:4px;">Latest activity</div>';
+    host.innerHTML = lbl + '<div class="cf-empty">Loading…</div>';
+    var me = memberId(); if (!me || !window.supabase) { host.innerHTML = ''; return; }
+    try {
+      var r = await window.supabase.rpc('member_latest_activities', { p_me: me, p_limit: 60 });
+      var list = (r && r.data) || [];
+      host.innerHTML = lbl + (list.length
+        ? '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;">' + list.map(gridTile).join('') + '</div>'
+        : '<div class="cf-empty">No activity shared yet.</div>');
+    } catch (e) { host.innerHTML = lbl + '<div class="cf-empty">Couldn’t load activity.</div>'; }
+  }
+
   window.FFPConnFeed = {
     search: function (v) { clearTimeout(_searchT); _searchT = setTimeout(function () { doSearch(v); }, 280); },
     connect: async function (id, status, name, btn) {
@@ -287,7 +318,7 @@
     },
     selectPerson: function (id, name) {
       try { var cells = document.querySelectorAll('.cf-cell'); for (var i = 0; i < cells.length; i++) cells[i].classList.remove('sel'); var sel = document.getElementById('cf-cell-' + id); if (sel) sel.classList.add('sel'); } catch (e) {}
-      renderActivities(id, name);
+      if (id === 'all') { renderGlobalGrid(); } else { renderActivities(id, name); }
     },
     openActivity: function (id) { try { if (window.ffpViewSharedActivity) window.ffpViewSharedActivity(id); else this.openCard(id); } catch (e) {} },
     render: load,
