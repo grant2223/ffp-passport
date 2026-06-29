@@ -334,7 +334,7 @@
       if(m.meetupsHosted!=null) cells.push(this.cell("MEET-UPS HOSTED", m.meetupsHosted));
       // RELIABILITY cell removed — reliability_score is a uniform seed (10) for all members, not yet a
       // real computed metric. Re-add once attendance-based reliability is actually calculated.
-      if(m.city) cells.push(this.cell("BASED IN", esc(m.city)));
+      if(m.area||m.city) cells.push(this.cell("BASED IN", esc([m.area,m.city].filter(Boolean).join(', ')||m.city)));
       var visa="VISA&lt;"+(skills[0]?String(skills[0].name).slice(0,5).toUpperCase():"")+"&lt;&lt;"+rep("&lt;",34);
       return "<div class='pass-shell'>"+
         "<div class='pass-bg-emblem'></div>"+
