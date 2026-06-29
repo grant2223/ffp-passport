@@ -813,18 +813,40 @@ const CollectionView = {
         card = (window.FFPCard && FFPCard.resolve) ? FFPCard.resolve(id) : ((row && window.FFPCard && FFPCard.mapRow) ? FFPCard.mapRow(row) : null);
       }
     } catch (e) {}
-    var cardHtml = (card && window.FFPPassportCard && FFPPassportCard.render)
-      ? '<div style="display:flex;justify-content:center;padding:6px 0 2px;">' + FFPPassportCard.render(card, { flippable: true }) + '</div>' +
-        '<div style="text-align:center;font-size:11px;color:var(--muted,#8a99a8);margin:6px 0 14px;">Tap the card to flip</div>'
-      : '<div class="cv-empty">Couldn’t load this passport right now.</div>';
-    var body = '<div class="cv-wrap"><h3 class="q-title">' + escHtml(person.name || (card && card.name) || 'Passport') + '</h3>' +
-      cardHtml +
-      '<div style="display:flex;gap:10px;">' +
-        '<button class="btn-primary-blue" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;" onclick="CollectionView.openShare(\'' + id + '\')"><span class="material-icons" style="font-size:18px;">share</span> Recommend</button>' +
-        '<button style="flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;background:rgba(214,90,90,0.12);color:#d65a5a;border:1px solid rgba(214,90,90,0.4);border-radius:10px;padding:12px 16px;font-weight:700;cursor:pointer;font-family:inherit;" onclick="CollectionView.remove(\'' + id + '\')"><span class="material-icons" style="font-size:18px;">delete</span></button>' +
-      '</div></div>';
+    var c = card || {};
+    var nm = c.name || person.name || 'Member';
+    var initials = (((c.givenNames || nm).charAt(0) || '') + ((c.surname || '').charAt(0) || '')).toUpperCase() || 'M';
+    var bioTxt = (row && row.bio) || '';
+    var isVerified = !!(row && row.verified);
+    var nat = (row && row.nationality) || c.nationality || '';
+    var hosted = (row && row.meetups_hosted != null) ? row.meetups_hosted : (c.meetupsHosted != null ? c.meetupsHosted : 0);
+    var sportsArr = c.sports || [];
+    var metaBits = [c.city, (c.gender === 'female' ? 'Female' : c.gender === 'male' ? 'Male' : ''), nat].filter(Boolean).join(' · ');
+    var sportsListHtml = sportsArr.length
+      ? sportsArr.map(function (s) {
+          var g = s.grade ? ' · ' + escHtml(String(s.grade)) : '';
+          return '<div style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--border);"><div style="flex:1;"><strong style="font-size:13px;">' + escHtml(s.name) + '</strong></div><div style="font-size:11px;color:var(--muted);font-weight:700;">' + escHtml(s.level || '') + g + '</div></div>';
+        }).join('')
+      : '<div class="pm-meta" style="padding:6px 2px;">No sports added yet.</div>';
+    var body = ''
+      + '<div class="pm-head">'
+      +   '<div class="pm-avatar"' + (c.photo ? ' style="background:#0a1825 url(\'' + c.photo + '\') center/cover;"' : '') + '>' + (c.photo ? '' : escHtml(initials)) + '</div>'
+      +   '<div class="pm-name">' + escHtml(nm) + (isVerified ? ' <span class="material-icons" style="font-size:18px;color:var(--blue);">verified</span>' : '') + '</div>'
+      +   (metaBits ? '<div class="pm-meta">' + escHtml(metaBits) + '</div>' : '')
+      +   (c.memberSince ? '<div class="pm-meta" style="margin-top:4px;font-size:11px;">Member since ' + escHtml(String(c.memberSince)) + '</div>' : '')
+      + '</div>'
+      + (bioTxt ? '<div class="pm-bio">' + escHtml(bioTxt) + '</div>' : '')
+      + '<div class="dm-section"><div class="dm-section-label">Sports &amp; level</div>' + sportsListHtml + '</div>'
+      + '<div class="dm-section"><div class="dm-section-label">Activity on passport</div><div class="pm-stats-grid">'
+      +   '<div class="pm-stat-cell"><div class="pm-stat-n">' + hosted + '</div><div class="pm-stat-l">Hosted</div></div>'
+      +   '<div class="pm-stat-cell"><div class="pm-stat-n">' + sportsArr.length + '</div><div class="pm-stat-l">Sports</div></div>'
+      +   '<div class="pm-stat-cell"><div class="pm-stat-n">' + (c.memberSince ? String(c.memberSince).slice(0, 4) : '—') + '</div><div class="pm-stat-l">Member since</div></div>'
+      + '</div></div>'
+      + '<div style="display:flex;gap:10px;padding:4px 2px 2px;">'
+      +   '<button class="btn-primary-blue" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;" onclick="CollectionView.openShare(\'' + id + '\')"><span class="material-icons" style="font-size:18px;">share</span> Recommend</button>'
+      +   '<button style="flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;background:rgba(214,90,90,0.12);color:#d65a5a;border:1px solid rgba(214,90,90,0.4);border-radius:10px;padding:12px 16px;font-weight:700;cursor:pointer;font-family:inherit;" onclick="CollectionView.remove(\'' + id + '\')"><span class="material-icons" style="font-size:18px;">delete</span></button>'
+      + '</div>';
     if (typeof openDetailModal === 'function') openDetailModal(body);
-    setTimeout(function () { try { window.ffpScaleCards && window.ffpScaleCards(); } catch (e) {} }, 30);
   },
   openShare: function (subjectId) {
     var recips = this._people().filter(function (p) { return p.id !== subjectId; });
