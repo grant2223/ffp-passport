@@ -284,7 +284,7 @@
 
       let sports = [];
       if (Array.isArray(meta.skills)) {
-        sports = meta.skills.map(function (s) { return { name: s.name, level: s.level }; });
+        sports = meta.skills.map(function (s) { return { name: s.name, level: s.level, grade: s.grade || '' }; });
       } else if (meta.skills && typeof meta.skills === 'object') {
         sports = Object.keys(meta.skills).map(function (name) {
           return { name: name, level: meta.skills[name] };
@@ -390,7 +390,7 @@
       }
 
       const sportsArr = (MemberProfile.data.sports || []).map(function (s) {
-        return { name: s.name, level: s.level, shared: false };
+        return { name: s.name, level: s.level, grade: s.grade || '', shared: false };
       });
       const metaUpdate = await window.supabase
         .from('profile_meta')
