@@ -49,8 +49,12 @@
             init = init || {};
             var headers;
             try { headers = new Headers(init.headers || {}); } catch (e) { headers = new Headers(); }
+            var _url = (typeof input === 'string') ? input : ((input && input.url) || '');
             var jwt = FFPAuth.getJwt();
-            if (jwt) headers.set('Authorization', 'Bearer ' + jwt);   // member identity for RLS
+            // Inject the member JWT for DATA (RLS) calls ONLY. Supabase AUTH endpoints (/auth/v1/*) MUST keep the
+            // anon key — sending a member JWT there makes GoTrue reject it (403 on verify/login). This is why
+            // re-login failed once a token was stored: the stored JWT was being sent on /auth/v1/verify.
+            if (jwt && _url.indexOf('/auth/v1/') === -1) headers.set('Authorization', 'Bearer ' + jwt);   // member identity for RLS (data only)
             init.headers = headers;
             return fetch(input, init);
           }
