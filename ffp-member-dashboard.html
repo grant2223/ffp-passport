@@ -4356,7 +4356,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '494';
+  const FFP_BUILD = '495';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -6884,7 +6884,8 @@ async function loadJourneyLogs() {
         // on the SAME day get different daysAgo (e.g. morning vs afternoon), breaking the day streak.
         daysAgo: (function () { var a = new Date(dt.getTime()); a.setHours(0, 0, 0, 0); var t = new Date(); t.setHours(0, 0, 0, 0); return Math.max(0, Math.round((t - a) / 86400000)); })(),
         duration: r.duration_min || 0, durationSec: r.duration_sec || 0, calories: r.calories || 0, notes: r.notes || '',
-        verified: !!r.verified, partner: false, source: r.source || 'manual', metrics: r.metrics || null
+        verified: !!r.verified, partner: false, source: r.source || 'manual', metrics: r.metrics || null,
+        distance_km: r.distance_km || 0, photo_url: r.photo_url || '', photos: r.photos || [], logged_at: r.logged_at || null
       });
     });
     // Merge in activities I was tagged in and CONFIRMED — they show on MY journey too (with whose they were).
@@ -6903,7 +6904,8 @@ async function loadJourneyLogs() {
             date: dt.toISOString().substring(0, 10),
             daysAgo: (function () { var a = new Date(dt.getTime()); a.setHours(0, 0, 0, 0); var t = new Date(); t.setHours(0, 0, 0, 0); return Math.max(0, Math.round((t - a) / 86400000)); })(),
             duration: r.duration_min || 0, durationSec: r.duration_sec || 0, calories: r.calories || 0,
-            notes: r.notes || '', verified: false, partner: true, with_name: r.with_name || ''
+            notes: r.notes || '', verified: false, partner: true, with_name: r.with_name || '',
+            distance_km: r.distance_km || 0, photo_url: r.photo_url || '', photos: r.photos || [], logged_at: r.logged_at || null
           });
         });
       }
