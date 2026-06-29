@@ -4348,7 +4348,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '490';
+  const FFP_BUILD = '491';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -6404,6 +6404,31 @@ function _logFillFromAI(a) {
   var ln = document.getElementById('log-notes'); if (ln && a.notes && !ln.value) ln.value = a.notes;
 }
 
+// Screenshot downscaler: fit the WHOLE image inside maxDim (aspect kept, NO crop) so the text stays legible for the
+// vision parse. (ffpDownscaleImage center-crops to a 480² square — right for avatars, useless for a tall screenshot.)
+function ffpScanDownscale(file, cb) {
+  try {
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var maxDim = 1536, w = img.width, h = img.height;
+          var s = Math.min(1, maxDim / Math.max(w, h));
+          var cw = Math.max(1, Math.round(w * s)), ch = Math.max(1, Math.round(h * s));
+          var c = document.createElement('canvas'); c.width = cw; c.height = ch;
+          c.getContext('2d').drawImage(img, 0, 0, cw, ch);
+          cb(c.toDataURL('image/jpeg', 0.85));
+        } catch (err) { cb(null); }
+      };
+      img.onerror = function () { cb(null); };
+      img.src = e.target.result;
+    };
+    reader.onerror = function () { cb(null); };
+    reader.readAsDataURL(file);
+  } catch (e) { cb(null); }
+}
+
 // "Scan a screenshot/photo" → read an activity off an image (Strava/Garmin/Apple/WHOOP/treadmill/gym board) via Claude vision.
 function logAIParsePhoto(input) {
   var file = input && input.files && input.files[0]; if (!file) return;
@@ -6411,14 +6436,17 @@ function logAIParsePhoto(input) {
   var btn = document.getElementById('log-scan-btn');
   var reset = function () { if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-icons">photo_camera</span>Scan a screenshot'; } };
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-icons">hourglass_empty</span>Reading…'; }
-  ffpDownscaleImage(file, function (durl) {
+  ffpScanDownscale(file, function (durl) {
+    if (!durl) { reset(); if (window.showToast) showToast('Couldn’t read that image — try another', 'error'); return; }
+    try { console.log('[scan] image ready — chars:', durl.length, '(' + Math.round(durl.length / 1365) + ' KB)'); } catch (e) {}
     fetch('https://ffp-passport-backend.vercel.app/api/ai/parse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'activity', image: durl, now: new Date().toString() }) })
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, j: j }; }, function () { return { ok: false, status: r.status, j: null }; }); })
       .then(function (res) {
         reset();
         if (res.status === 503) { if (window.showToast) showToast('AI isn’t switched on yet', 'error'); return; }
         if (res.status === 413) { if (window.showToast) showToast('That image is too large — try a screenshot', 'error'); return; }
-        if (!res.ok || !res.j || !res.j.activity) { if (window.showToast) showToast('Couldn’t read that screenshot — try a clearer one', 'error'); return; }
+        if (!res.ok) { console.warn('[scan] backend error', res.status, res.j); if (window.showToast) showToast('Scan error ' + res.status + ((res.j && (res.j.detail || res.j.error)) ? ' — ' + (res.j.detail || res.j.error) : ''), 'error'); return; }
+        if (!res.j || !res.j.activity) { console.warn('[scan] no activity in response', res.j); if (window.showToast) showToast('Couldn’t read that screenshot — try a clearer one', 'error'); return; }
         _logFillFromAI(res.j.activity);
         if (window.showToast) showToast('Filled from your screenshot — check it and save');
       })
