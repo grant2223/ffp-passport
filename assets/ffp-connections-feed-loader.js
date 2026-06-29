@@ -256,16 +256,25 @@
       var r = await window.supabase.rpc('member_connection_activities', { p_me: me, p_other: id, p_limit: 12 });
       var list = (r && r.data) || [];
       host.innerHTML = head + '<div id="cf-conn-stats"></div>' + actlbl +
-        (list.length ? '<div class="cf-acts">' + list.map(actCard).join('') + '</div>' : '<div class="cf-empty">No shared activities yet.</div>');
+        (list.length ? '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;">' + list.map(function (a) { return gridTile(a, false); }).join('') + '</div>' : '<div class="cf-empty">No shared activities yet.</div>');
     } catch (e) { host.innerHTML = head + '<div id="cf-conn-stats"></div>' + actlbl + '<div class="cf-empty">Couldn’t load activities.</div>'; }
     loadConnStats(id, name);
   }
 
-  // ── "All" mode: everyone's latest shared activity as a 3-wide Instagram-style grid (no per-person header/journey) ──
-  function gridTile(a) {
+  // One tile, two modes — showName=true (All view: person's name + activity); false (a person's own grid: activity + stat).
+  function gridTile(a, showName) {
     var photo = a.photo_url || (a.photos && a.photos.length ? a.photos[0] : '');
     var multi = !!(a.photos && a.photos.length > 1);
-    var nm = String(a.member_name || 'Member').split(' ')[0];
+    var line1, line2;
+    if (showName) {
+      line1 = String(a.member_name || 'Member').split(' ')[0];
+      line2 = a.activity || 'Activity';
+    } else {
+      line1 = a.activity || 'Activity';
+      var stat = (a.distance_km && a.distance_km > 0) ? (Math.round(a.distance_km * 10) / 10) + ' km' : ((a.duration_min || 0) ? (a.duration_min + ' min') : '');
+      var dt = a.logged_at ? new Date(a.logged_at).toLocaleDateString([], { day: 'numeric', month: 'short' }) : '';
+      line2 = [stat, dt].filter(Boolean).join(' · ');
+    }
     var inner = photo
       ? '<div style="position:absolute;inset:0;background:#0a1825 center/cover no-repeat;background-image:url(\'' + esc(photo) + '\');"></div>'
       : '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#16324a;"><span class="material-icons" style="font-size:34px;color:rgba(255,255,255,0.4);">' + esc(actIcon(a.activity)) + '</span></div>';
@@ -273,8 +282,8 @@
       inner +
       (multi ? '<span class="material-icons" style="position:absolute;top:5px;right:5px;font-size:16px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);">filter_none</span>' : '') +
       '<div style="position:absolute;left:0;right:0;bottom:0;padding:14px 6px 5px;background:linear-gradient(to top,rgba(0,0,0,0.66),rgba(0,0,0,0));">' +
-        '<div style="font-size:11px;font-weight:700;color:#fff;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(nm) + '</div>' +
-        '<div style="font-size:10px;color:rgba(255,255,255,0.82);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(a.activity || 'Activity') + '</div>' +
+        '<div style="font-size:11px;font-weight:700;color:#fff;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(line1) + '</div>' +
+        (line2 ? '<div style="font-size:10px;color:rgba(255,255,255,0.82);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(line2) + '</div>' : '') +
       '</div></div>';
   }
   async function renderGlobalGrid() {
@@ -286,7 +295,7 @@
       var r = await window.supabase.rpc('member_latest_activities', { p_me: me, p_limit: 60 });
       var list = (r && r.data) || [];
       host.innerHTML = lbl + (list.length
-        ? '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;">' + list.map(gridTile).join('') + '</div>'
+        ? '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;">' + list.map(function (a) { return gridTile(a, true); }).join('') + '</div>'
         : '<div class="cf-empty">No activity shared yet.</div>');
     } catch (e) { host.innerHTML = lbl + '<div class="cf-empty">Couldn’t load activity.</div>'; }
   }
