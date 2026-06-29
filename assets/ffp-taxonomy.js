@@ -206,7 +206,7 @@
     { n: 'Hyrox', c: 'Multi-sport' },
     { n: 'Spartan', c: 'Multi-sport' }
   ],
-    fitnessLevels: ['Not Tried','Social','Competitive','Representative','Professional'],
+    fitnessLevels: ['Just started','Recreational','Skilled','Highly skilled','Professional'],
     // ^ ONE connected vocabulary: a MEMBER's own ability AND a LISTING's required level use these same
     //   5 words, so a person's level connects to the listings they can attend. Listings add "All Levels"
     //   on top — see window.FFP_TAX.attendeeLevels below, derived from this so the two never drift apart.
