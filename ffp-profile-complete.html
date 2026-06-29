@@ -394,19 +394,18 @@ button,input,.activity-row,.level-card,.btn-back{touch-action:manipulation;}
   </div>
 </div>
 
-<div class="field-grid">
-  <div>
-    <div class="field-label">Country</div>
-    <select class="field-select" id="f-country">
-      <option value="">Select</option>
-    </select>
+<div style="margin-bottom:18px;">
+  <div class="field-label">Where are you based?</div>
+  <div style="position:relative;">
+    <input type="text" id="f-loc-search" class="field-select" autocomplete="off" placeholder="Search your city, town or area" oninput="locSearch(this.value)" style="width:100%;box-sizing:border-box;">
+    <div id="f-loc-results" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:60;background:#0f2438;border:1px solid rgba(43,168,224,.28);border-radius:12px;overflow-y:auto;max-height:260px;box-shadow:0 14px 40px rgba(0,0,0,.5);"></div>
   </div>
-  <div>
-    <div class="field-label">City</div>
-    <select class="field-select" id="f-city">
-      <option value="">Select country first</option>
-    </select>
+  <div id="f-loc-selected" style="display:none;margin-top:10px;padding:12px 14px;background:rgba(43,168,224,.08);border:1px solid rgba(43,168,224,.22);border-radius:12px;font-size:14px;color:#cfe0ee;font-weight:600;align-items:center;gap:8px;">
+    <span class="material-icons-outlined" style="font-size:18px;color:#2ba8e0;">place</span>
+    <span id="f-loc-label" style="flex:1;"></span>
+    <button type="button" onclick="locClear()" style="background:none;border:none;color:#8a99a8;cursor:pointer;font-size:13px;font-family:inherit;text-decoration:underline;">Change</button>
   </div>
+  <input type="hidden" id="f-place-id"><input type="hidden" id="f-country"><input type="hidden" id="f-country-code"><input type="hidden" id="f-region"><input type="hidden" id="f-city"><input type="hidden" id="f-area"><input type="hidden" id="f-lat"><input type="hidden" id="f-lng"><input type="hidden" id="f-loc-label-val">
 </div>
 
 <button class="btn-primary" onclick="goToStep2()">
@@ -606,7 +605,6 @@ async function initialise() {
   }
 
   populateNationalities();
-  populateCountries();
   /* v18: category chips removed — search only */
   buildLevelList();
   renderActivities();
@@ -625,29 +623,65 @@ function populateNationalities() {
   });
 }
 
-function populateCountries() {
-  var sel = document.getElementById('f-country');
-  Object.keys(COUNTRIES).forEach(function (c) {
-    var opt = document.createElement('option');
-    opt.value = c; opt.textContent = c;
-    sel.appendChild(opt);
-  });
-  sel.addEventListener('change', onCountryChange);
+// v32: WORLD-CLASS LOCATION — a single Places search; the geocode is the source of truth.
+// Replaces the country/city dropdowns. On select we store the structured components on hidden inputs.
+var _locT = null, _locSess = null;
+function _locSession(){ if(!_locSess){ try{ _locSess = (window.crypto&&crypto.randomUUID)?crypto.randomUUID():String(Date.now()); }catch(e){ _locSess=String(Date.now()); } } return _locSess; }
+function locSearch(q){
+  q = (q||'').trim();
+  var box = document.getElementById('f-loc-results');
+  clearTimeout(_locT);
+  if (q.length < 2){ if(box){ box.style.display='none'; box.innerHTML=''; } return; }
+  _locT = setTimeout(function(){
+    fetch(BACKEND_URL + '/api/places/suggest?session=' + encodeURIComponent(_locSession()) + '&q=' + encodeURIComponent(q))
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        var s = (j && j.suggestions) || [];
+        if (!s.length){ box.style.display='none'; box.innerHTML=''; return; }
+        box.innerHTML = s.map(function(p){
+          var label = (p.main || p.text || '') + (p.secondary ? ' — ' + p.secondary : '');
+          return '<div class="loc-opt" data-pid="'+ p.place_id +'" data-label="'+ String(label).replace(/"/g,'&quot;') +'" style="padding:12px 14px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);font-size:14px;color:#e8eef4;"><strong style="font-weight:700;">'+ (p.main||p.text||'') +'</strong>'+ (p.secondary ? '<span style="color:#9dbdd0;"> — '+ p.secondary +'</span>' : '') +'</div>';
+        }).join('');
+        box.style.display='block';
+        Array.prototype.forEach.call(box.querySelectorAll('.loc-opt'), function(el){
+          el.onclick = function(){ locSelect(el.getAttribute('data-pid'), el.getAttribute('data-label')); };
+        });
+      })
+      .catch(function(){ box.style.display='none'; });
+  }, 240);
 }
-
-function onCountryChange() {
-  var country = document.getElementById('f-country').value;
-  var citySel = document.getElementById('f-city');
-  citySel.innerHTML = '<option value="">Select your city</option>';
-  if (!country || !COUNTRIES[country]) {
-    citySel.querySelector('option').textContent = 'Select country first';
-    return;
-  }
-  COUNTRIES[country].forEach(function (city) {
-    var opt = document.createElement('option');
-    opt.value = city; opt.textContent = city;
-    citySel.appendChild(opt);
-  });
+function locSelect(placeId, label){
+  var box = document.getElementById('f-loc-results'); if(box){ box.style.display='none'; box.innerHTML=''; }
+  var inp = document.getElementById('f-loc-search'); if(inp) inp.value = '';
+  fetch(BACKEND_URL + '/api/places/details?session=' + encodeURIComponent(_locSession()) + '&place_id=' + encodeURIComponent(placeId))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var c = (d && d.components) || {};
+      var parts = [c.area, c.city, c.region, c.country].filter(function(x){ return x && String(x).trim(); });
+      var seen = {}, label2 = parts.filter(function(v){ var k=v.toLowerCase(); if(seen[k]) return false; seen[k]=1; return true; }).join(', ') || label || (d && d.address) || '';
+      _setLoc({ place_id: d.place_id || placeId, country: c.country||'', country_code: c.country_code||'', region: c.region||'', city: c.city||'', area: c.area||'', lat: (d&&d.lat!=null)?d.lat:'', lng: (d&&d.lng!=null)?d.lng:'', label: label2 });
+      _locSess = null;
+    })
+    .catch(function(){});
+}
+function _setLoc(o){
+  o = o || {};
+  document.getElementById('f-place-id').value = o.place_id||'';
+  document.getElementById('f-country').value = o.country||'';
+  document.getElementById('f-country-code').value = o.country_code||'';
+  document.getElementById('f-region').value = o.region||'';
+  document.getElementById('f-city').value = o.city||'';
+  document.getElementById('f-area').value = o.area||'';
+  document.getElementById('f-lat').value = (o.lat!=null?o.lat:'');
+  document.getElementById('f-lng').value = (o.lng!=null?o.lng:'');
+  document.getElementById('f-loc-label-val').value = o.label||'';
+  var sel = document.getElementById('f-loc-selected');
+  document.getElementById('f-loc-label').textContent = o.label||'';
+  if(sel){ sel.style.display = o.label ? 'flex' : 'none'; }
+}
+function locClear(){
+  _setLoc({}); _locSess = null;
+  var inp = document.getElementById('f-loc-search'); if(inp){ inp.value=''; inp.focus(); }
 }
 
 
@@ -664,7 +698,7 @@ function goToStep2() {
   var ge = document.getElementById('f-gender').value;
   var n = document.getElementById('f-nationality').value;
   var co = document.getElementById('f-country').value;
-  var ci = document.getElementById('f-city').value;
+  var placeId = document.getElementById('f-place-id').value;
 
   if (!g) return showError('step1-err', 'Enter your given names');
   if (!s) return showError('step1-err', 'Enter your surname');
@@ -672,8 +706,7 @@ function goToStep2() {
   if (!dobDay || !dobMonth || !dobYear) return showError('step1-err', 'Select your date of birth');
   if (!ge) return showError('step1-err', 'Select your gender');
   if (!n) return showError('step1-err', 'Select your nationality');
-  if (!co) return showError('step1-err', 'Select your country');
-  if (!ci) return showError('step1-err', 'Select your city');
+  if (!placeId || !co) return showError('step1-err', 'Search and select where you are based');
 
   document.getElementById('step-1').classList.remove('active');
   document.getElementById('step-2').classList.add('active');
@@ -1017,6 +1050,13 @@ async function submitProfile() {
       nationality: document.getElementById('f-nationality').value,
       country: document.getElementById('f-country').value,
       city: document.getElementById('f-city').value,
+      region: document.getElementById('f-region').value,
+      area: document.getElementById('f-area').value,
+      country_code: document.getElementById('f-country-code').value,
+      lat: document.getElementById('f-lat').value || null,
+      lng: document.getElementById('f-lng').value || null,
+      place_id: document.getElementById('f-place-id').value,
+      location_label: document.getElementById('f-loc-label-val').value,
       photo_url: null,   // avatar is uploaded to Supabase Storage AFTER onboard (needs member.id + JWT) — see below
       skills: selectedSports.map(function (sp) {
         return { name: sp.name, category: sp.category, level: sp.level, grade: sp.grade || '', shared: false };
