@@ -260,6 +260,11 @@ window.MemberProfile = {
                 </button>
                 <div class="sport-card-name">${this.escape(s.name)}</div>
                 <div class="sport-card-level">${this.escape(s.level)}</div>
+                <input class="field-card-input-flat sport-card-grade" type="text"
+                       value="${this.escape(s.grade || '')}"
+                       placeholder="Grade — e.g. 5:30 pace, 17, B grade"
+                       onclick="event.stopPropagation()"
+                       onchange="MemberProfile.setSportGrade(${i}, this.value)">
               </div>
             `).join('')}
         </div>
@@ -751,7 +756,7 @@ window.MemberProfile = {
             options: FFP_FITNESS_LEVELS,
             fullBleed: true,
             onPick: (level) => {
-              this.data.sports.push({ name: sportName, level });
+              this.data.sports.push({ name: sportName, level, grade: '' });
               this.render();
               this.autoSave();
             }
@@ -768,6 +773,15 @@ window.MemberProfile = {
     this.data.sports.splice(index, 1);
     this.render();
     this.autoSave();
+  },
+
+  // Per-sport GRADE (free text, sport-specific: pace / handicap / padel grade). Edited inline on the sport card.
+  setSportGrade(index, val) {
+    const sp = this.data.sports[index];
+    if (!sp) return;
+    sp.grade = String(val == null ? '' : val).trim();
+    this.autoSave();
+    this.syncToPassport();   // passport card back shows name · level · grade
   },
   
   // ===== PREFERENCES =====
