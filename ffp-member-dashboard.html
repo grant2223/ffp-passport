@@ -4339,7 +4339,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '486';
+  const FFP_BUILD = '487';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -7960,6 +7960,14 @@ else init();
 .ffp-pc.flipped .ffp-pc-flip{ transform:rotateY(180deg); }
 .ffp-pc-face{ position:absolute; inset:0; -webkit-backface-visibility:hidden; backface-visibility:hidden; border-radius:14px; overflow:hidden; }
 .ffp-pc-back{ transform:rotateY(180deg); }
+/* FLIP MIRROR-FLASH FIX (was missing from this inline block — present in ffp-passport-card.js but the self
+   card uses this CSS): iOS/Safari backface-cull LAGS the spin, briefly showing the rich FRONT mirrored.
+   Hard-swap face opacity at the 90deg midpoint (.26s into the .55s spin) so the front is gone before it
+   can show mirrored. Covers both triggers: .ffp-pc.flipped AND the member's own .pass-container.flipped. */
+.ffp-pc-front{ opacity:1; transition:opacity 0s linear .26s; }
+.ffp-pc-back{ opacity:0; transition:opacity 0s linear .26s; }
+.ffp-pc.flipped .ffp-pc-front, .pass-container.flipped .ffp-pc-front{ opacity:0; }
+.ffp-pc.flipped .ffp-pc-back, .pass-container.flipped .ffp-pc-back{ opacity:1; }
 /* The scaled .pass-shell (its own transform) must also hide its backface, or the FRONT face bleeds
    through the BACK on flip (Chrome bug: a transformed child inside a backface-hidden face). */
 .ffp-pc-face .pass-shell{ position:absolute; top:0; left:0; box-shadow:none; -webkit-backface-visibility:hidden; backface-visibility:hidden; }
