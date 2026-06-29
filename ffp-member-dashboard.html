@@ -7909,6 +7909,11 @@ function ffpRenderSelfBack() {
       var member = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null;
       selfM = (member && window.FFPCard && FFPCard.resolve) ? FFPCard.resolve(member.id) : null;
     }
+    // The member's OWN profile skills (incl. per-sport grade) are the live source of truth — override the
+    // cached RPC copy so an edit (add sport / set grade) shows on the card immediately, not just after reload.
+    if (selfM && typeof MemberProfile !== 'undefined' && MemberProfile.data && Array.isArray(MemberProfile.data.sports) && MemberProfile.data.sports.length) {
+      selfM = Object.assign({}, selfM, { sports: MemberProfile.data.sports });
+    }
     if (selfM && window.FFPPassportCard && FFPPassportCard.backShell) {
       back.innerHTML = FFPPassportCard.backShell(selfM);
       scalePassportCard();
