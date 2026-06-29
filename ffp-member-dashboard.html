@@ -4340,7 +4340,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '488';
+  const FFP_BUILD = '489';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -5274,7 +5274,7 @@ function fmtPrDate(iso) {
      Milestones render long after load, so it must never block boot. Bump ?v on change. -->
 <script defer src="assets/ffp-milestone-badges.js?v=6"></script>
 <script defer src="assets/ffp-calorie-tracker-core.js?v=10"></script>
-<script defer src="assets/ffp-member-profile.js?v=486"></script>
+<script defer src="assets/ffp-member-profile.js?v=489"></script>
 <script>
 
 function closePrEditIfBackdrop(e) { if (e.target.id === 'pr-edit-backdrop') FitnessStats.closePrEdit(); }
@@ -7622,6 +7622,7 @@ function init() {
           area:             m.area || '',
           region:           m.region || '',
           nationality:      m.nationality || '',
+          bio:              m.bio || '',
           tier:             m.tier || '',
           memberSince:      m.created_at ? String(m.created_at).slice(0, 10) : '',
           passportNumber:   m.passport_no || '',
@@ -8004,7 +8005,7 @@ else init();
 .ffp-deck-flash{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(8,20,32,0.66); opacity:0; transition:opacity .2s; z-index:30; }
 .ffp-deck-flash.show{ opacity:1; }
 </style>
-<script src="assets/ffp-connections-core.js?v=358"></script>
+<script src="assets/ffp-connections-core.js?v=359"></script>
 <script defer src="assets/ffp-connections-feed-loader.js?v=333"></script>
 <script defer src="assets/ffp-event-results-loader.js?v=329"></script>
 <script>
