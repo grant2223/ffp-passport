@@ -12,7 +12,7 @@
 (function () {
   'use strict';
   var CATS = ['fitness', 'sports', 'wellness', 'recovery', 'adventure', 'food'];
-  var PROOFS = [['auto', 'Auto (tracked)'], ['qr', 'Scan QR'], ['photo', 'Photo'], ['gps', 'GPS check-in'], ['photo_gps', 'Photo + GPS'], ['partner', 'Partner confirms'], ['referral', 'Bring a friend']];
+  var PROOFS = [['auto', 'Auto (tracked)'], ['qr', 'Scan QR'], ['photo', 'Photo'], ['gps', 'GPS check-in'], ['photo_gps', 'Photo + GPS'], ['qr_gps', 'Scan QR + GPS'], ['partner', 'Partner confirms'], ['referral', 'Bring a friend']];
   var VERIFIERS = [['auto', 'Auto'], ['partner', 'Partner'], ['admin', 'Admin']];
 
   function toast(m, k) { if (typeof window.showToast === 'function') { try { window.showToast(m, k || 'info'); return; } catch (e) {} } console.log('[FFP Admin Quests]', m); }
@@ -21,7 +21,9 @@
   function val(id) { var e = document.getElementById(id); return e ? e.value.trim() : ''; }
   function waitFor(check, ms) { return new Promise(function (resolve) { var t = 0, lim = Math.ceil((ms || 30000) / 150); var iv = setInterval(function () { if (check() || t++ >= lim) { clearInterval(iv); resolve(check()); } }, 150); }); }
 
-  var S = { quests: [], providers: [], tab: 'live', editing: null, curQuest: null, taskEdit: null, reviews: [] };
+  var S = { quests: [], providers: [], catalog: [], tab: 'live', editing: null, curQuest: null, taskEdit: null, reviews: [] };
+  function currentMode() { var e = document.getElementById('q-mode'); return (e && e.value) || (S.editing && S.editing.mode) || 'checklist'; }
+  function catByCode(code) { return S.catalog.find(function (c) { return c.code === code; }) || null; }
 
   function injectStyles() {
     if (document.getElementById('ffp-admin-quests-css')) return;
@@ -63,6 +65,9 @@
     S.quests = q.data || [];
     var pr = await window.supabase.from('providers').select('id, business_name, status').order('business_name');
     S.providers = (pr.data || []).filter(function (p) { return p.status !== 'archived'; });
+    var cat = await window.supabase.from('quest_task_catalog').select('*').eq('active', true).order('sort_order');
+    if (cat.error) { console.error('[Admin Quests] catalog:', cat.error); }
+    S.catalog = cat.data || [];
   }
 
   function renderTabs() {
@@ -89,7 +94,7 @@
       if (q.status !== 'ended') foot += '<button class="btn btn-sm btn-ghost" onclick="AdminQuests.setStatus(\'' + q.id + '\',\'ended\')"><span class="material-icons">flag</span>End</button>';
       return '<div class="aq-card"><div class="aq-top"><div>' +
           '<div class="aq-title">' + esc(q.title) + '</div>' +
-          '<div class="aq-meta">' + kind + ' · ' + esc(q.scope || '') + ' · ' + nTasks + ' task' + (nTasks === 1 ? '' : 's') + '</div>' +
+          '<div class="aq-meta">' + kind + ' · ' + (q.mode === 'points_race' ? 'Points race' : 'Checklist') + ' · ' + esc(q.scope || '') + ' · ' + nTasks + ' task' + (nTasks === 1 ? '' : 's') + '</div>' +
         '</div><span class="aq-pill ' + q.status + '">' + q.status + '</span></div>' +
         '<div class="aq-reward"><span class="material-icons">military_tech</span> ' + (q.points_total || 0) + ' pts · ' + cap(q.leaderboard || 'none') + ' board</div>' +
         '<div class="aq-foot">' + foot + '</div></div>';
@@ -134,6 +139,8 @@
     var catOpts = cats.map(function (c) { return '<option value="' + esc(c) + '"' + (q && q.category === c ? ' selected' : '') + '>' + cap(c) + '</option>'; }).join('');
     var scopeOpts = ['city', 'country', 'global'].map(function (c) { return '<option value="' + c + '"' + (q && q.scope === c ? ' selected' : '') + '>' + cap(c) + '</option>'; }).join('');
     var lbOpts = [['global', 'Global + city/country'], ['quest', 'This quest only'], ['none', 'No leaderboard']].map(function (o) { return '<option value="' + o[0] + '"' + (q && q.leaderboard === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('');
+    var curMode = q ? (q.mode || 'checklist') : 'checklist';
+    var modeOpts = [['checklist', 'Checklist — hit a target on each task to complete'], ['points_race', 'Points race — collect as many points as you can (leaderboard)']].map(function (o) { return '<option value="' + o[0] + '"' + (curMode === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('');
     var countries = taxCountries();
     var curCountry = q ? (q.country || '') : '';
     var countryOpts = '<option value="">— select —</option>' + countries.map(function (c) { return '<option value="' + esc(c) + '"' + (curCountry === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('');
@@ -142,6 +149,7 @@
     var body =
       '<div class="qf-row"><label>Title</label><input class="qf-input" id="q-title" value="' + esc(q ? q.title : '') + '" placeholder="e.g. FFP World Streak"></div>' +
       '<div class="qf-row"><label>Description</label><textarea class="qf-area" id="q-desc" placeholder="What the member does">' + esc(q ? (q.description || '') : '') + '</textarea></div>' +
+      '<div class="qf-row"><label>Quest type</label><select class="qf-sel" id="q-mode" onchange="AdminQuests.modeChange()">' + modeOpts + '</select><div id="q-mode-hint" style="font-size:11px;color:#8a99a8;margin-top:5px;"></div></div>' +
       '<div class="qf-row qf-two"><div><label>Category</label><select class="qf-sel" id="q-category">' + catOpts + '</select></div><div><label>Scope</label><select class="qf-sel" id="q-scope" onchange="AdminQuests.scopeChange()">' + scopeOpts + '</select></div></div>' +
       '<div class="qf-row qf-two" id="q-loc-row">' +
         '<div id="q-country-wrap"><label>Country</label><select class="qf-sel" id="q-country" onchange="AdminQuests.countryChange()">' + countryOpts + '</select></div>' +
@@ -162,7 +170,19 @@
       '<button class="btn btn-primary" onclick="AdminQuests.save()"><span class="material-icons">save</span>' + (q ? 'Save details' : 'Save & add tasks') + '</button>';
     openSheet(q ? 'Edit FFP quest' : 'New FFP quest', body, foot);
     scopeChange();
+    modeChange();
     if (q) renderTasks();
+  }
+  function modeChange() {
+    var m = currentMode();
+    var hint = document.getElementById('q-mode-hint');
+    if (hint) hint.textContent = (m === 'points_race')
+      ? 'Members rack up points all through the quest window. Per-day caps apply to some tasks (set in the task library). Ranked on a leaderboard — no "complete".'
+      : 'Each task has a target (e.g. host ×1, log ×10). The member completes the quest when every task target is met.';
+    var tr = document.getElementById('qt-target-row');
+    if (tr) { var code = val('qt-cat'); tr.style.display = (m === 'checklist' && code && code !== '__custom__') ? '' : 'none'; }
+    var pl = document.getElementById('qt-points-lbl');
+    if (pl) pl.textContent = (m === 'points_race') ? 'Points (per action)' : 'Points (on completion)';
   }
   function scopeChange() {
     var s = val('q-scope');
@@ -181,20 +201,57 @@
     var proofOpts = PROOFS.map(function (p) { return '<option value="' + p[0] + '">' + p[1] + '</option>'; }).join('');
     var verOpts = VERIFIERS.map(function (p) { return '<option value="' + p[0] + '">' + p[1] + '</option>'; }).join('');
     var provOpts = '<option value="">— no specific venue —</option>' + S.providers.map(function (p) { return '<option value="' + p.id + '">' + esc(p.business_name) + '</option>'; }).join('');
+    var catOpts = '<option value="">— pick a task from the library —</option>' +
+      S.catalog.map(function (c) {
+        var cap = (c.daily_cap != null) ? ' · cap ' + c.daily_cap + '/day' : '';
+        return '<option value="' + esc(c.code) + '">' + esc(c.label) + ' (' + (c.points || 0) + ' pts · ' + esc(c.source) + cap + ')</option>';
+      }).join('') +
+      '<option value="__custom__">— Custom (venue check-in / QR / photo) —</option>';
     return '<div style="background:#0b1623;border:1px dashed #2a4a66;border-radius:10px;padding:12px;margin-top:10px;">' +
       '<div style="font-size:12px;font-weight:700;color:#cfd6dc;margin-bottom:8px;" id="qt-form-title">Add a task</div>' +
-      '<div class="qf-row"><input class="qf-input" id="qt-title" placeholder="Task title — e.g. Scan our QR"></div>' +
+      '<div class="qf-row"><label>Task</label><select class="qf-sel" id="qt-cat" onchange="AdminQuests.qtCatChange()">' + catOpts + '</select></div>' +
+      '<div class="qf-row"><input class="qf-input" id="qt-title" placeholder="Label shown to members"></div>' +
       '<div class="qf-row"><input class="qf-input" id="qt-instr" placeholder="Instruction (optional)"></div>' +
-      '<div class="qf-row qf-two"><div><label>Points</label><input class="qf-input" id="qt-points" type="number" min="0" value="5"></div>' +
-        '<div><label>Proof</label><select class="qf-sel" id="qt-proof" onchange="AdminQuests.qtProofChange()">' + proofOpts + '</select></div></div>' +
-      '<div class="qf-row qf-two"><div><label>Verified by</label><select class="qf-sel" id="qt-verifier">' + verOpts + '</select></div>' +
-        '<div><label>Venue (optional)</label><select class="qf-sel" id="qt-provider">' + provOpts + '</select></div></div>' +
-      '<div class="qf-row" id="qt-gps-row" style="display:none;"><label>GPS lat / lng / radius (m)</label><div class="qf-two" style="gap:8px;"><div><input class="qf-input" id="qt-lat" placeholder="lat"></div><div><input class="qf-input" id="qt-lng" placeholder="lng"></div><div><input class="qf-input" id="qt-radius" type="number" value="50"></div></div></div>' +
+      '<div class="qf-row qf-two"><div><label id="qt-points-lbl">Points</label><input class="qf-input" id="qt-points" type="number" min="0" step="0.5" value="5"></div>' +
+        '<div id="qt-target-row" style="display:none;"><label>Target (times)</label><input class="qf-input" id="qt-target" type="number" min="1" value="1"></div></div>' +
+      '<div id="qt-custom-rows" style="display:none;">' +
+        '<div class="qf-row qf-two"><div><label>Proof</label><select class="qf-sel" id="qt-proof" onchange="AdminQuests.qtProofChange()">' + proofOpts + '</select></div>' +
+          '<div><label>Verified by</label><select class="qf-sel" id="qt-verifier">' + verOpts + '</select></div></div>' +
+        '<div class="qf-row"><label>Venue (optional)</label><select class="qf-sel" id="qt-provider">' + provOpts + '</select></div>' +
+        '<div class="qf-row" id="qt-gps-row" style="display:none;"><label>GPS lat / lng / radius (m)</label><div class="qf-two" style="gap:8px;"><div><input class="qf-input" id="qt-lat" placeholder="lat"></div><div><input class="qf-input" id="qt-lng" placeholder="lng"></div><div><input class="qf-input" id="qt-radius" type="number" value="50"></div></div></div>' +
+      '</div>' +
       '<div style="display:flex;gap:8px;"><button class="btn btn-sm btn-blue" id="qt-add-btn" onclick="AdminQuests.saveTask()"><span class="material-icons">add</span>Add task</button>' +
         '<button class="btn btn-sm btn-ghost" id="qt-cancel-btn" style="display:none;" onclick="AdminQuests.cancelTaskEdit()">Cancel edit</button></div>' +
       '</div>';
   }
-  function qtProofChange() { var p = val('qt-proof'); var r = document.getElementById('qt-gps-row'); if (r) r.style.display = (p === 'gps' || p === 'photo_gps') ? 'block' : 'none'; }
+  function qtCatChange() {
+    var code = val('qt-cat');
+    var custom = document.getElementById('qt-custom-rows');
+    var tr = document.getElementById('qt-target-row');
+    var titleEl = document.getElementById('qt-title');
+    var ptsEl = document.getElementById('qt-points');
+    if (code === '__custom__') {
+      if (custom) custom.style.display = '';
+      if (tr) tr.style.display = 'none';
+      qtProofChange();
+    } else if (code) {
+      if (custom) custom.style.display = 'none';
+      var c = catByCode(code);
+      if (c) { if (ptsEl) ptsEl.value = (c.points != null ? c.points : 0); if (titleEl && !titleEl.value.trim()) titleEl.value = c.label; }
+      if (tr) tr.style.display = (currentMode() === 'checklist') ? '' : 'none';
+    } else {
+      if (custom) custom.style.display = 'none';
+      if (tr) tr.style.display = 'none';
+    }
+  }
+  function qtProofChange() {
+    var p = val('qt-proof'); var r = document.getElementById('qt-gps-row');
+    var needsGps = (p === 'gps' || p === 'photo_gps' || p === 'qr_gps');
+    if (r) r.style.display = needsGps ? 'block' : 'none';
+    // QR+GPS defaults to a 250m radius (per spec); other GPS proofs keep 50m.
+    var rad = document.getElementById('qt-radius');
+    if (rad && p === 'qr_gps' && (rad.value === '' || rad.value === '50')) rad.value = '250';
+  }
 
   async function renderTasks() {
     var host = document.getElementById('q-task-list'); if (!host || !S.curQuest) return;
@@ -202,10 +259,21 @@
     try { var r = await window.supabase.rpc('quest_list_tasks', { p_quest: S.curQuest }); list = (r && r.data) ? r.data : []; } catch (e) {}
     if (!list.length) { host.innerHTML = '<div style="color:#8a99a8;font-size:13px;margin-bottom:8px;">No tasks yet — add the first below.</div>'; return; }
     var pmap = {}; PROOFS.forEach(function (p) { pmap[p[0]] = p[1]; });
+    var cmap = {}; S.catalog.forEach(function (c) { cmap[c.code] = c; });
     host.innerHTML = list.map(function (t) {
+      var rule = t.rule; if (typeof rule === 'string') { try { rule = JSON.parse(rule); } catch (e) { rule = null; } }
+      var meta;
+      if (t.proof_type === 'auto' && rule && rule.activity_type) {
+        var c = cmap[rule.activity_type];
+        meta = '<span class="qt-qr" style="color:#4ade80;background:rgba(74,222,128,.1);">library</span> ' + esc(c ? c.label : rule.activity_type) +
+          (rule.target != null ? ' · target ×' + rule.target : '') +
+          (c && c.daily_cap != null ? ' · cap ' + c.daily_cap + '/day' : '');
+      } else {
+        meta = esc(pmap[t.proof_type] || t.proof_type) + ' · ' + esc(t.verifier) + (t.qr_token ? ' · <span class="qt-qr">' + esc(t.qr_token) + '</span>' : '');
+      }
       return '<div class="qt-card"><div style="flex:1;min-width:0;">' +
           '<div style="font-weight:700;color:#e8eef4;">' + esc(t.title) + '</div>' +
-          '<div style="font-size:11px;color:#8a99a8;margin-top:2px;">' + esc(pmap[t.proof_type] || t.proof_type) + ' · ' + esc(t.verifier) + (t.qr_token ? ' · <span class="qt-qr">' + esc(t.qr_token) + '</span>' : '') + '</div>' +
+          '<div style="font-size:11px;color:#8a99a8;margin-top:2px;">' + meta + '</div>' +
         '</div><div class="qt-pts">+' + (t.points || 0) + '</div>' +
         '<div style="display:flex;flex-direction:column;gap:4px;">' +
           '<button class="btn btn-sm btn-ghost" onclick="AdminQuests.editTask(\'' + t.id + '\')" style="padding:3px 7px;"><span class="material-icons" style="font-size:15px;">edit</span></button>' +
@@ -216,14 +284,28 @@
 
   async function saveTask() {
     if (!S.curQuest) { toast('Save the quest first', 'error'); return; }
-    var title = val('qt-title'); if (!title) { toast('Task needs a title', 'error'); return; }
-    var p = {
-      title: title, instruction: val('qt-instr') || null, points: parseInt(val('qt-points'), 10) || 0,
-      proof_type: val('qt-proof') || 'auto', verifier: val('qt-verifier') || 'auto',
-      provider_id: val('qt-provider') || null
-    };
-    var pt = p.proof_type;
-    if (pt === 'gps' || pt === 'photo_gps') { p.lat = val('qt-lat') || null; p.lng = val('qt-lng') || null; p.radius_m = parseInt(val('qt-radius'), 10) || 50; }
+    var code = val('qt-cat');
+    if (!code) { toast('Pick a task', 'error'); return; }
+    var p;
+    if (code === '__custom__') {
+      var title = val('qt-title'); if (!title) { toast('Task needs a title', 'error'); return; }
+      p = {
+        title: title, instruction: val('qt-instr') || null, points: parseFloat(val('qt-points')) || 0,
+        proof_type: val('qt-proof') || 'auto', verifier: val('qt-verifier') || 'auto',
+        provider_id: val('qt-provider') || null
+      };
+      var pt = p.proof_type;
+      if (pt === 'gps' || pt === 'photo_gps' || pt === 'qr_gps') { p.lat = val('qt-lat') || null; p.lng = val('qt-lng') || null; p.radius_m = parseInt(val('qt-radius'), 10) || (pt === 'qr_gps' ? 250 : 50); }
+    } else {
+      var c = catByCode(code);
+      var rule = { activity_type: code };
+      if (currentMode() === 'checklist') rule.target = parseInt(val('qt-target'), 10) || 1;
+      p = {
+        title: val('qt-title') || (c ? c.label : code), instruction: val('qt-instr') || null,
+        points: (val('qt-points') !== '' ? parseFloat(val('qt-points')) : (c ? Number(c.points) : 0)) || 0,
+        proof_type: 'auto', verifier: 'auto', rule: rule
+      };
+    }
     try {
       var r = await window.supabase.rpc('quest_save_task', { p_quest: S.curQuest, p_id: S.taskEdit, p: p });
       if (r && r.error) throw r.error;
@@ -239,10 +321,14 @@
     var t = ((r && r.data) || []).find(function (x) { return x.id === id; }); if (!t) return;
     S.taskEdit = id;
     var set = function (i, v) { var e = document.getElementById(i); if (e) e.value = (v == null ? '' : v); };
+    var rule = t.rule; if (typeof rule === 'string') { try { rule = JSON.parse(rule); } catch (e) { rule = null; } }
+    var isLib = (t.proof_type === 'auto' && rule && rule.activity_type);
+    set('qt-cat', isLib ? rule.activity_type : '__custom__');
     set('qt-title', t.title); set('qt-instr', t.instruction); set('qt-points', t.points);
     set('qt-proof', t.proof_type); set('qt-verifier', t.verifier); set('qt-provider', t.provider_id || '');
     set('qt-lat', t.lat); set('qt-lng', t.lng); set('qt-radius', t.radius_m || 50);
-    qtProofChange();
+    set('qt-target', (rule && rule.target != null) ? rule.target : 1);
+    qtCatChange(); qtProofChange();
     var ft = document.getElementById('qt-form-title'); if (ft) ft.textContent = 'Edit task';
     var ab = document.getElementById('qt-add-btn'); if (ab) ab.innerHTML = '<span class="material-icons">save</span>Update task';
     var cb = document.getElementById('qt-cancel-btn'); if (cb) cb.style.display = '';
@@ -250,11 +336,13 @@
   function cancelTaskEdit() {
     S.taskEdit = null;
     ['qt-title', 'qt-instr', 'qt-lat', 'qt-lng'].forEach(function (i) { var e = document.getElementById(i); if (e) e.value = ''; });
+    var cat = document.getElementById('qt-cat'); if (cat) cat.value = '';
+    var tgt = document.getElementById('qt-target'); if (tgt) tgt.value = '1';
     var pts = document.getElementById('qt-points'); if (pts) pts.value = '5';
     var pr = document.getElementById('qt-proof'); if (pr) pr.value = 'auto';
     var vr = document.getElementById('qt-verifier'); if (vr) vr.value = 'auto';
     var pv = document.getElementById('qt-provider'); if (pv) pv.value = '';
-    qtProofChange();
+    qtCatChange(); qtProofChange();
     var ft = document.getElementById('qt-form-title'); if (ft) ft.textContent = 'Add a task';
     var ab = document.getElementById('qt-add-btn'); if (ab) ab.innerHTML = '<span class="material-icons">add</span>Add task';
     var cb = document.getElementById('qt-cancel-btn'); if (cb) cb.style.display = 'none';
@@ -274,6 +362,7 @@
         city: scope === 'city' ? (city || null) : null,
         country: (scope === 'city' || scope === 'country') ? (country || null) : null,
         leaderboard: val('q-leaderboard') || 'global', hero_image_url: val('q-hero') || null,
+        mode: val('q-mode') || 'checklist',
         is_headline: !!(document.getElementById('q-headline') && document.getElementById('q-headline').checked),
         updated_at: new Date().toISOString()
       };
@@ -396,7 +485,8 @@
   window.AdminQuests = {
     openForm: openForm, save: save, setStatus: setStatus, refresh: refresh,
     setTab: function (t) { S.tab = t; renderList(); },
-    uploadHero: uploadHero, qtProofChange: qtProofChange, scopeChange: scopeChange, countryChange: countryChange,
+    uploadHero: uploadHero, qtProofChange: qtProofChange, qtCatChange: qtCatChange, modeChange: modeChange,
+    scopeChange: scopeChange, countryChange: countryChange,
     saveTask: saveTask, editTask: editTask, cancelTaskEdit: cancelTaskEdit, deleteTask: deleteTask, review: review
   };
 
