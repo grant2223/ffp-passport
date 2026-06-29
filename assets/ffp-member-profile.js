@@ -46,7 +46,8 @@ window.MemberProfile = {
     },
     
     sports: [],
-    
+    bio: '',
+
     preferences: {
       notifications: false,
       newsletter: false,
@@ -240,6 +241,9 @@ window.MemberProfile = {
         <!-- PROFESSIONAL PROFILE — member self-declares role; admin verifies separately -->
         <div class="profile-section-title">Professional Profile</div>
         ${this.renderProfessionalCard()}
+
+        <div class="profile-section-title">About me</div>
+        <textarea class="field-card-input-flat" rows="3" maxlength="280" placeholder="A short intro — what you play, what you're into, what you're looking for." oninput="MemberProfile.data.bio = this.value" onblur="MemberProfile.autoSave()" style="width:100%;box-sizing:border-box;resize:vertical;min-height:64px;font-family:inherit;">${this.escape(d.bio || '')}</textarea>
 
         <!-- SKILLS & LEVELS — used by Meet & Move for matching -->
         <div class="profile-section-title">
@@ -480,6 +484,7 @@ window.MemberProfile = {
         place_id:           d.place_id || null,
         location_label:     d.location_label || null,
         skills:             Array.isArray(d.sports) ? d.sports : [],
+        bio:                d.bio || null,
         // Mirror professional into preferences — the backend PUT persists `preferences` (jsonb) but
         // drops a top-level `professional`, so without this the profession is lost on refresh.
         preferences:        Object.assign({}, d.preferences || {}, { professional: (this.data.professional || null) }),
