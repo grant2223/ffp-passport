@@ -170,6 +170,8 @@ window.MemberProfile = {
     
     if (typeof applyPassportData === 'function') applyPassportData();
     if (typeof renderQR === 'function')          renderQR();
+    // Refresh the passport card BACK so skill/level/grade edits show immediately (it reads live profile skills).
+    if (typeof ffpRenderSelfBack === 'function') ffpRenderSelfBack();
   },
   
   // ===== RENDER =====
@@ -259,7 +261,7 @@ window.MemberProfile = {
                   <span class="material-icons">close</span>
                 </button>
                 <div class="sport-card-name">${this.escape(s.name)}</div>
-                <div class="sport-card-level">${this.escape(s.level)}</div>
+                <div class="sport-card-level" onclick="MemberProfile.editSportLevel(${i})" style="cursor:pointer;" title="Tap to change level">${this.escape(s.level)} <span class="material-icons" style="font-size:13px;vertical-align:-2px;opacity:.55;">edit</span></div>
                 <input class="field-card-input-flat sport-card-grade" type="text"
                        value="${this.escape(s.grade || '')}"
                        placeholder="Grade — e.g. 5:30 pace, 17, B grade"
@@ -782,6 +784,24 @@ window.MemberProfile = {
     sp.grade = String(val == null ? '' : val).trim();
     this.autoSave();
     this.syncToPassport();   // passport card back shows name · level · grade
+  },
+
+  // Edit an existing skill's LEVEL in place (re-pick from the FFP fitness levels) — no delete + re-add.
+  editSportLevel(index) {
+    const sp = this.data.sports[index];
+    if (!sp) return;
+    openPicker({
+      title: `Skill Level — ${sp.name}`,
+      subtitle: 'Change the FFP fitness level',
+      searchPlaceholder: 'Search levels...',
+      options: FFP_FITNESS_LEVELS,
+      fullBleed: true,
+      onPick: (level) => {
+        this.data.sports[index].level = level;
+        this.render();        // re-renders cards + syncToPassport (card back updates)
+        this.autoSave();
+      }
+    });
   },
   
   // ===== PREFERENCES =====
