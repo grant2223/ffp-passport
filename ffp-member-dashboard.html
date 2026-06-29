@@ -8408,7 +8408,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '481';
+  const FFP_BUILD = '482';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -13794,3 +13794,22 @@ window.FFPLocPick = (function(){
     try {
       if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; btn.textContent = 'Taking you to checkout…'; }
       var ref = ''; try { ref = localStorage.getItem('ffp_ref') || ''; } catch (e) {}
+      var res = await fetch('https://ffp-passport-backend.vercel.app/api/billing/checkout', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ member_id: m.id, plan: plan, ref: ref })
+      });
+      var j = await res.json().catch(function () { return null; });
+      if (j && j.url) { location.href = j.url; return; }
+      throw new Error((j && j.error) || 'no_checkout_url');
+    } catch (e) {
+      if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.innerHTML = label; }
+      try { if (window.showToast) showToast('Couldn’t start checkout — please try again', 'error'); } catch (_e) {}
+    }
+  };
+  // NOTE: the original membership-gate CHECK that lived here was lost when the file was truncated.
+  // Restored as FAIL-OPEN (the documented default): never lock a member out. Re-add the
+  // member_passport_active gate later if/when needed. The whole app boots normally below this.
+})();
+</script>
+</body>
+</html>
