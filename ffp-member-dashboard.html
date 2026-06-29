@@ -8318,7 +8318,14 @@ function clearNotifs() {
   } catch (e) {}
   try {
     var member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
-    if (member && member.id) fetch(FFP_API_NOTIF + '/api/notifications/seen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ member_id: member.id }) }).catch(function () {});
+    if (member && member.id) {
+      // v476→: AUTHORITATIVE server-side clear (localStorage above is just a belt-and-suspenders fallback).
+      // Sets members.notifs_cleared_at so the bell + review prompts hide everything from before, even if
+      // localStorage doesn't persist. Then re-sync the bell from the server.
+      fetch(FFP_API_NOTIF + '/api/notifications/clear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ member_id: member.id }) })
+        .then(function () { try { if (typeof ReviewPrompt !== 'undefined' && ReviewPrompt.load) ReviewPrompt.load(); else if (typeof loadNotifications === 'function') loadNotifications(); } catch (e) {} })
+        .catch(function () {});
+    }
   } catch (e) {}
   var le = document.getElementById('notif-list'); if (le) le.innerHTML = '<div class="empty-state" style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">No notifications</div>';
   var bd = document.getElementById('notif-badge'); if (bd) { bd.textContent = '0'; bd.style.display = 'none'; }
@@ -8399,7 +8406,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '476';
+  const FFP_BUILD = '477';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
