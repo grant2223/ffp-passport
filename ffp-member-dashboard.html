@@ -8406,7 +8406,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '477';
+  const FFP_BUILD = '478';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -12262,7 +12262,7 @@ window.ffpRenderActivityCard = function (a, isOwn) {
   // Map strip — full-width, immersive (falls back to a location line).
   var mapBlock = '';
   if (lat != null && lng != null) {
-    mapBlock = '<div style="margin:6px 18px 0;height:160px;border-radius:16px;overflow:hidden;position:relative;background:#0e2c44;"><div id="ffp-act-map" style="position:absolute;inset:0;"></div><div style="position:absolute;left:0;right:0;bottom:0;padding:11px 14px;background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,0.55));font-size:12.5px;font-weight:700;color:#cfe0ee;z-index:500;pointer-events:none;"><span class="material-icons" style="font-size:15px;vertical-align:-2px;color:#2ba8e0;">place</span> ' + (loc ? esc(loc) + ' · ' : '') + '<a href="https://www.google.com/maps?q=' + lat + ',' + lng + '" target="_blank" rel="noopener" style="color:#2ba8e0;font-weight:800;pointer-events:auto;">Open in Maps</a></div></div>';
+    mapBlock = '<div style="margin:6px 18px 0;height:160px;border-radius:16px;overflow:hidden;position:relative;background:#0e2c44;"><div id="ffp-act-map" style="position:absolute;inset:0;"></div><div style="position:absolute;left:0;right:0;bottom:0;padding:11px 14px;background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,0.55));font-size:12.5px;font-weight:700;color:#cfe0ee;z-index:500;pointer-events:none;"><span class="material-icons" style="font-size:15px;vertical-align:-2px;color:#2ba8e0;">place</span> ' + esc(loc || 'Pinned location') + '</div></div>';
   } else if (loc) {
     mapBlock = '<div style="margin:18px 18px 0;font-size:14px;color:#e8eef4;display:flex;align-items:center;gap:8px;"><span class="material-icons" style="font-size:19px;color:#2ba8e0;">place</span>' + esc(loc) + '</div>';
   }
@@ -12893,7 +12893,7 @@ function init() {
         if (Array.isArray(m.skills)) {
           MemberProfile.data.sports = m.skills.map(function (s) {
             return (s && typeof s === 'object')
-              ? { name: s.name || s.skill || s.sport || '', level: s.level || 'All levels' }
+              ? { name: s.name || s.skill || s.sport || '', level: s.level || 'All levels', grade: s.grade || '' }
               : { name: String(s), level: 'All levels' };
           }).filter(function (s) { return s.name; });
         }
@@ -13324,7 +13324,7 @@ else init();
       var given=m.givenNames||(String(m.name||"").split(" ")[0])||"";
       var surname=m.surname||(String(m.name||"").split(" ").slice(1).join(" "))||"";
       var skills=(m.sports||[]).slice(0,4); var self=this;
-      var rows=skills.map(function(sp){ return "<div style='margin-bottom:10px;'><div style='display:flex;justify-content:space-between;align-items:baseline;'><span class='pf-val' style='font-size:11px;'>"+esc(sp.name)+"</span><span class='pf-lbl' style='margin:0;'>"+cap(sp.level)+"</span></div>"+self.meter(sp.level)+"</div>"; }).join("");
+      var rows=skills.map(function(sp){ var g=(sp.grade!=null?String(sp.grade).trim():""); return "<div style='margin-bottom:10px;'><div style='display:flex;justify-content:space-between;align-items:baseline;'><span class='pf-val' style='font-size:11px;'>"+esc(sp.name)+(g?" <span style='color:var(--pass-blue);font-weight:800;'>"+esc(g)+"</span>":"")+"</span><span class='pf-lbl' style='margin:0;'>"+cap(sp.level)+"</span></div>"+self.meter(sp.level)+"</div>"; }).join("");
       var cells=[];
       cells.push(this.cell("TYPE", cap(m.memberType||"Member")));
       if(m.meetupsHosted!=null) cells.push(this.cell("MEET-UPS HOSTED", m.meetupsHosted));
@@ -13375,7 +13375,7 @@ else init();
     _sports: function(v){
       if(typeof v==="string"){ try{ v=JSON.parse(v); }catch(e){ v=[]; } }
       if(!Array.isArray(v)) return [];
-      return v.map(function(s){ return (typeof s==="string")?{name:s,level:""}:{name:(s.name||s.activity||""),level:(s.level||"")}; });
+      return v.map(function(s){ return (typeof s==="string")?{name:s,level:"",grade:""}:{name:(s.name||s.activity||""),level:(s.level||""),grade:(s.grade||"")}; });
     },
     mapRow: function(row){
       if(!row) return null;
