@@ -8406,7 +8406,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '478';
+  const FFP_BUILD = '479';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -12881,6 +12881,8 @@ function init() {
           height:           (m.height_cm != null ? String(m.height_cm) : ''),
           country:          m.country || '',
           city:             m.city || '',
+          area:             m.area || '',
+          region:           m.region || '',
           nationality:      m.nationality || '',
           tier:             m.tier || '',
           memberSince:      m.created_at ? String(m.created_at).slice(0, 10) : '',
@@ -13329,7 +13331,7 @@ else init();
       cells.push(this.cell("TYPE", cap(m.memberType||"Member")));
       if(m.meetupsHosted!=null) cells.push(this.cell("MEET-UPS HOSTED", m.meetupsHosted));
       if(m.reliability!=null) cells.push(this.cell("RELIABILITY", Number(m.reliability).toFixed(1), "var(--pass-blue)"));
-      if(m.city) cells.push(this.cell("BASED IN", esc(m.city)));
+      if(m.area||m.city) cells.push(this.cell("BASED IN", esc([m.area,m.city].filter(Boolean).join(', ')||m.city)));
       var visa="VISA&lt;"+(skills[0]?String(skills[0].name).slice(0,5).toUpperCase():"")+"&lt;&lt;"+rep("&lt;",34);
       return "<div class='pass-shell'>"+
         "<div class='pass-bg-emblem'></div>"+
@@ -13403,7 +13405,9 @@ else init();
         sports: this._sports(P(row,"sports","skills")),
         meetupsHosted: P(row,"meetupsHosted","meetups_hosted"),
         reliability: P(row,"reliability","reliability_score"),
-        city: P(row,"city")||""
+        city: P(row,"city")||"",
+        area: P(row,"area")||"",
+        region: P(row,"region")||""
       };
     },
     register: function(row){ var c=this.mapRow(row); if(c&&c.id){ this._cache[c.id]=Object.assign(this._cache[c.id]||{},c); } return c; },
