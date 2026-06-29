@@ -124,7 +124,7 @@ const MeetMove = {
         var skills = Array.isArray(r.skills) ? r.skills : [];
         var sports = skills.map(function (sk) {
           var nm = sk.name || sk.skill || sk.sport || '';
-          return { name: nm, level: sk.level || 'All levels', shared: mySkills.hasOwnProperty(String(nm).toLowerCase()) };
+          return { name: nm, level: sk.level || 'All levels', grade: sk.grade || '', shared: mySkills.hasOwnProperty(String(nm).toLowerCase()) };
         }).filter(function (sp) { return sp.name; });
         var pts = 0, matchSports = [];
         sports.forEach(function (sp) {
