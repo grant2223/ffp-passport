@@ -102,7 +102,7 @@
      postgres_changes subscriptions via FFPRealtime.subscribe so panels
      auto-refresh when underlying DB rows change. -->
 <script src="assets/ffp-constants.js"></script>
-<script src="assets/ffp-taxonomy.js?v=8"></script>
+<script src="assets/ffp-taxonomy.js?v=9"></script>
 <script src="assets/ffp-realtime.js"></script>
 <!-- Feedback widget (shared) -> public.feedback -> admin Feedback panel -->
 <script src="assets/ffp-feedback-widget.js?v=5" data-source="member" data-fab="off"></script>
@@ -736,10 +736,10 @@
       </select>
       <select class="ffp-select" id="meet-filter-level">
         <option value="all">All levels</option>
-        <option value="Not Tried">Not Tried</option>
-        <option value="Social">Social</option>
-        <option value="Competitive">Competitive</option>
-        <option value="Representative">Representative</option>
+        <option value="Just started">Just started</option>
+        <option value="Recreational">Recreational</option>
+        <option value="Skilled">Skilled</option>
+        <option value="Highly skilled">Highly skilled</option>
         <option value="Professional">Professional</option>
       </select>
       <div id="meet-pro-chip-row" style="display:none;grid-column:1 / -1;">
@@ -1817,7 +1817,7 @@
 </div>
 <script>
 (function(){
-  var LD={ 'Not Tried':'Keen to give it a go — not started yet.', 'Social':'Just for fun and the social side, no pressure.', 'Competitive':'Train and compete — club, league or amateur events.', 'Representative':'Represent a team, region or country.', 'Professional':'Your career — sponsored or earning from this sport.' };
+  var LD={ 'Just started':'New to it — just getting going.', 'Recreational':'Just for fun and the social side, no pressure.', 'Skilled':'Solid skills — train regularly and hold your own.', 'Highly skilled':'Advanced — compete or represent at a high level.', 'Professional':'Your career — sponsored or earning from this sport.' };
   var CATICON={ 'Running & walking':'directions_run','Cycling':'directions_bike','Swimming':'pool','Watersports':'surfing','Racquet sports':'sports_tennis','Team sports':'groups','Combat sports':'sports_mma','Strength & fitness':'fitness_center','Mind-body':'self_improvement','Recovery & wellness':'spa' };
   var CAT='All', SPORT='';
   function acts(){ return (window.FFP_TAX&&FFP_TAX.activities)||[]; }
@@ -4339,7 +4339,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '485';
+  const FFP_BUILD = '486';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -5273,7 +5273,7 @@ function fmtPrDate(iso) {
      Milestones render long after load, so it must never block boot. Bump ?v on change. -->
 <script defer src="assets/ffp-milestone-badges.js?v=6"></script>
 <script defer src="assets/ffp-calorie-tracker-core.js?v=10"></script>
-<script defer src="assets/ffp-member-profile.js?v=485"></script>
+<script defer src="assets/ffp-member-profile.js?v=486"></script>
 <script>
 
 function closePrEditIfBackdrop(e) { if (e.target.id === 'pr-edit-backdrop') FitnessStats.closePrEdit(); }
