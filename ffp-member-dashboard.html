@@ -497,9 +497,6 @@
     <div id="trend-fitness" style="margin-top:16px;"></div>
   </div>
 
-  <!-- Live platform pulse — STANDALONE (outside trend-card) so it shows for everyone, incl. brand-new members
-       with no personal logs. renderTrendPulse() → platform_pulse RPC, refreshes every passport open. -->
-  <div id="trend-pulse" style="margin:6px 0 28px;"></div>
 
   <!-- SUPPORT YOUR CREW (Coach Phase 3) — filled by renderTrendCrew() from /api/coach/profile support_ops. Activity status only. -->
   <div id="trend-crew" style="margin:0 0 28px;"></div>
@@ -3209,7 +3206,6 @@ function renderAll() {
   try { renderPassportPicker(); }            catch (e) { console.error('[renderAll] passportPicker', e); }
   try { renderStats(journeyLogs); }          catch (e) { console.error('[renderAll] stats', e); }
   try { renderTrend(); }                      catch (e) { console.error('[renderAll] trend', e); }
-  try { renderTrendPulse(); }                 catch (e) {}   // standalone — shows for everyone, incl. new members
   try { renderTrendCrew(); }                  catch (e) {}
   try { renderMyGrid(logs); }                catch (e) { console.error('[renderAll] myGrid', e); }
   try { renderConnections(); }                catch (e) { console.error('[renderAll] connections', e); }
@@ -3253,41 +3249,24 @@ function renderTrend() {
   var bars = vals.map(function (v, i) { var bh = Math.max(2, Math.round(v / max * h)); var x = i * (bw + gap), y = h - bh; var fill = (i === vals.length - 1) ? '#2ba8e0' : 'rgba(43,168,224,.35)'; return '<rect x="' + x + '" y="' + y + '" width="' + bw + '" height="' + bh + '" rx="2" fill="' + fill + '"/>'; }).join('');
   var wpx = vals.length * (bw + gap);
   document.getElementById('trend-spark').innerHTML = '<svg width="100%" height="' + h + '" viewBox="0 0 ' + wpx + ' ' + h + '" preserveAspectRatio="none">' + bars + '</svg>';
-  // Coach Grant insight — do more of what you love
+  // Coach Grant insight — a ROTATING set so it changes (cycled every 5 min by the refresh interval), built from
+  // this member's real activity. window._ffpCoachIdx advances on each refresh.
   var love = topAct || 'your activities';
-  var tip;
-  if (streak >= 3) tip = 'You’re on a roll with ' + esc2(love) + ' — log one today to keep your ' + streak + '-day streak alive.';
-  else if (thisW === 0) tip = 'It’s been quiet this week. A quick ' + esc2(love) + ' session today rebuilds momentum — find a meet-up and do it with others.';
-  else if (thisW > lastW) tip = 'Up on last week — line up another ' + esc2(love) + ' this week, or host a meet-up so others join you.';
-  else if (thisW < lastW) tip = 'A little down on last week — one more ' + esc2(love) + ' closes the gap. Try a meet-up to make it social.';
-  else tip = 'Steady week. You clearly love ' + esc2(love) + ' — do more of it: host or join a meet-up this week.';
+  var tips = [];
+  if (streak >= 3) tips.push('You’re on a roll with ' + esc2(love) + ' — log one today to keep your ' + streak + '-day streak alive.');
+  if (thisW === 0) tips.push('Quiet week so far. A quick ' + esc2(love) + ' session rebuilds momentum — find a meet-up and do it with others.');
+  if (thisW > lastW) tips.push('Up on last week — line up another ' + esc2(love) + ' this week, or host a meet-up so others join you.');
+  if (thisW < lastW && lastW > 0) tips.push('A little down on last week — one more ' + esc2(love) + ' closes the gap. Make it social with a meet-up.');
+  tips.push('Do more of what you love: ' + esc2(love) + '. Host or join a meet-up this week and bring someone with you.');
+  tips.push('Consistency beats intensity — even a short ' + esc2(love) + ' session today keeps the habit going.');
+  tips.push('Who could you invite to your next ' + esc2(love) + '? Everything’s better with your crew.');
+  tips.push('Log today’s session while it’s fresh — your streak and your Trends both thank you.');
+  if (total > 0) tips.push('You’ve logged ' + total + ' activit' + (total === 1 ? 'y' : 'ies') + ' so far — keep the story going with one more this week.');
+  if (cities > 1) tips.push('You’ve trained across ' + cities + ' cities — wherever you are, it all counts. Log it.');
+  var tip = tips[((window._ffpCoachIdx || 0) % tips.length + tips.length) % tips.length];
   document.getElementById('trend-tip').innerHTML = '<span class="material-icons" style="font-size:16px;color:var(--blue);flex:0 0 auto;">tips_and_updates</span><span><strong style="color:var(--text);">Coach Grant:</strong> ' + tip + '</span>';
   card.style.display = '';
   try { renderTrendFitness(); } catch (e) {}
-}
-
-// Live community pulse on the Trends card — pulls real platform-wide activity each passport open, so it
-// stays current (gives a reason to come back). RPC: platform_pulse() (this week + today, trending, meetups).
-async function renderTrendPulse() {
-  var el = document.getElementById('trend-pulse'); if (!el || !window.supabase) return;
-  var p = null;
-  try { var r = await window.supabase.rpc('platform_pulse'); p = (r && r.data) ? r.data : null; } catch (e) {}
-  if (!p) { el.innerHTML = ''; return; }
-  var esc2 = (typeof escHtml === 'function') ? escHtml : function (s) { return String(s == null ? '' : s); };
-  var chip = function (ic, txt) {
-    return '<span style="display:inline-flex;align-items:center;gap:5px;background:rgba(43,168,224,.08);border:1px solid rgba(43,168,224,.18);border-radius:9px;padding:6px 10px;font-size:12.5px;color:var(--text);"><span class="material-icons" style="font-size:14px;color:var(--blue);">' + ic + '</span>' + txt + '</span>';
-  };
-  var chips = [];
-  if (p.activities_week)      chips.push(chip('bolt', '<strong>' + p.activities_week + '</strong> activities this week'));
-  if (p.active_members_week)  chips.push(chip('group', '<strong>' + p.active_members_week + '</strong> members active'));
-  if (p.top_activity)         chips.push(chip('local_fire_department', '<strong>' + esc2(p.top_activity) + '</strong> trending'));
-  if (p.meetups_week)         chips.push(chip('groups', '<strong>' + p.meetups_week + '</strong> meet-up' + (p.meetups_week === 1 ? '' : 's') + ' coming up'));
-  if (p.new_members_week)     chips.push(chip('person_add', '<strong>' + p.new_members_week + '</strong> new this week'));
-  if (!chips.length) { el.innerHTML = ''; return; }
-  el.innerHTML =
-    '<div style="font-size:11px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:var(--muted);margin-bottom:9px;">On FFP this week</div>' +
-    '<div style="display:flex;flex-wrap:wrap;gap:7px;">' + chips.join('') + '</div>' +
-    (p.activities_today ? '<div style="font-size:12px;color:var(--muted);margin-top:9px;"><span class="material-icons" style="font-size:13px;vertical-align:-2px;color:#4ade80;">trending_up</span> ' + p.activities_today + ' logged today — and counting.</div>' : '');
 }
 
 // Latest wearable readiness (WHOOP) appended to "Your Trends" — refreshes each time the Passport opens.
@@ -3345,7 +3324,13 @@ function renderTrendCrew() {
           (click ? '<span class="material-icons" style="font-size:18px;color:var(--muted);flex:0 0 auto;">chevron_right</span>' : '') +
           '</div>';
       }
-      var rows = ops.map(function (o, i) { return row(o, i === ops.length - 1); }).join('');
+      // Rotate which prompts show (cycled every 5 min by the refresh interval) so the crew section stays fresh.
+      var WIN = 3, shown = ops;
+      if (ops.length > WIN) {
+        var st = ((window._ffpCrewIdx || 0) % ops.length + ops.length) % ops.length;
+        shown = []; for (var z = 0; z < WIN; z++) shown.push(ops[(st + z) % ops.length]);
+      }
+      var rows = shown.map(function (o, i) { return row(o, i === shown.length - 1); }).join('');
       host2.innerHTML = '<div style="display:inline-flex;align-items:center;gap:7px;background:rgba(43,168,224,.10);border:1px solid rgba(43,168,224,.22);border-radius:10px;padding:7px 13px;margin-bottom:14px;">' +
         '<span class="material-icons" style="font-size:17px;color:var(--blue);">volunteer_activism</span>' +
         '<span style="font-size:13px;font-weight:800;letter-spacing:.3px;color:var(--text);">Support your crew</span></div>' +
@@ -4159,6 +4144,16 @@ async function loadConnectionsCount() {
   window.addEventListener('focus', function () { ffpRefreshLive(); });
   // Light heartbeat: keep the notifications bell current while the app is open, without disrupting scrolling.
   setInterval(function () { if (document.visibilityState === 'visible') { try { if (typeof loadNotifications === 'function') loadNotifications(); } catch (e) {} } }, 60000);
+  // Coach Grant tip + Support your crew rotate/refresh every 5 min so they don't sit static all day.
+  setInterval(function () {
+    if (document.visibilityState !== 'visible') return;
+    try {
+      window._ffpCoachIdx = (window._ffpCoachIdx || 0) + 1;
+      window._ffpCrewIdx = (window._ffpCrewIdx || 0) + 1;
+      if (typeof renderTrend === 'function') renderTrend();
+      if (typeof renderTrendCrew === 'function') renderTrendCrew();
+    } catch (e) {}
+  }, 300000);
 })();
 
 // ── REAL-TIME CONNECTIONS ──────────────────────────────────────────────────────────────────────
@@ -4393,7 +4388,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '506';
+  const FFP_BUILD = '507';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
