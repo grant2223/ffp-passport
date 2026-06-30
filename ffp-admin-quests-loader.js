@@ -238,7 +238,8 @@
       '<div class="qf-row"><input class="qf-input" id="qt-title" placeholder="Label shown to members"></div>' +
       '<div class="qf-row"><input class="qf-input" id="qt-instr" placeholder="Instruction (optional)"></div>' +
       '<div class="qf-row qf-two"><div><label id="qt-points-lbl">Points</label><input class="qf-input" id="qt-points" type="number" min="0" step="0.5" value="5"></div>' +
-        '<div id="qt-target-row" style="display:none;"><label>Target (times)</label><input class="qf-input" id="qt-target" type="number" min="1" value="1"></div></div>' +
+        '<div><label>Cap / day <span style="font-weight:600;color:#6d8090;">(blank = no cap)</span></label><input class="qf-input" id="qt-cap" type="number" min="1" placeholder="No cap"></div></div>' +
+      '<div class="qf-row" id="qt-target-row" style="display:none;"><label>Target (times)</label><input class="qf-input" id="qt-target" type="number" min="1" value="1"></div>' +
       '<div id="qt-custom-rows" style="display:none;">' +
         '<div class="qf-row qf-two"><div><label>Proof</label><select class="qf-sel" id="qt-proof" onchange="AdminQuests.qtProofChange()">' + proofOpts + '</select></div>' +
           '<div><label>Verified by</label><select class="qf-sel" id="qt-verifier">' + verOpts + '</select></div></div>' +
@@ -262,7 +263,11 @@
     } else if (code) {
       if (custom) custom.style.display = 'none';
       var c = catByCode(code);
-      if (c) { if (ptsEl) ptsEl.value = (c.points != null ? c.points : 0); if (titleEl && !titleEl.value.trim()) titleEl.value = c.label; }
+      if (c) {
+        if (ptsEl) ptsEl.value = (c.points != null ? c.points : 0);
+        if (titleEl && !titleEl.value.trim()) titleEl.value = c.label;
+        var capEl = document.getElementById('qt-cap'); if (capEl && !S.taskEdit) capEl.value = (c.daily_cap != null ? c.daily_cap : '');
+      }
       if (tr) tr.style.display = (currentMode() === 'checklist') ? '' : 'none';
     } else {
       if (custom) custom.style.display = 'none';
@@ -289,10 +294,7 @@
       var rule = t.rule; if (typeof rule === 'string') { try { rule = JSON.parse(rule); } catch (e) { rule = null; } }
       var meta;
       if (t.proof_type === 'auto' && rule && rule.activity_type) {
-        var c = cmap[rule.activity_type];
-        meta = '<span class="qt-qr" style="color:#4ade80;background:rgba(74,222,128,.1);">library</span> ' + esc(c ? c.label : rule.activity_type) +
-          (rule.target != null ? ' · target ×' + rule.target : '') +
-          (c && c.daily_cap != null ? ' · cap ' + c.daily_cap + '/day' : '');
+        meta = '<span class="qt-qr" style="color:#4ade80;background:rgba(74,222,128,.1);">library</span>';
       } else {
         meta = esc(pmap[t.proof_type] || t.proof_type) + ' · ' + esc(t.verifier) + (t.qr_token ? ' · <span class="qt-qr">' + esc(t.qr_token) + '</span>' : '');
       }
@@ -325,6 +327,7 @@
       var c = catByCode(code);
       var rule = { activity_type: code };
       if (currentMode() === 'checklist') rule.target = parseInt(val('qt-target'), 10) || 1;
+      var capV = val('qt-cap'); rule.cap = (capV === '' ? null : (parseInt(capV, 10) || null));   // per-task cap override; null = no cap
       p = {
         title: val('qt-title') || (c ? c.label : code), instruction: val('qt-instr') || null,
         points: (val('qt-points') !== '' ? parseFloat(val('qt-points')) : (c ? Number(c.points) : 0)) || 0,
@@ -354,6 +357,14 @@
     set('qt-lat', t.lat); set('qt-lng', t.lng); set('qt-radius', t.radius_m || 50);
     set('qt-target', (rule && rule.target != null) ? rule.target : 1);
     qtCatChange(); qtProofChange();
+    // cap: task's own override if it has one, else the catalog default for this library task (set AFTER qtCatChange so it isn't overwritten)
+    var capEl2 = document.getElementById('qt-cap');
+    if (capEl2) {
+      var capVal;
+      if (rule && Object.prototype.hasOwnProperty.call(rule, 'cap')) capVal = rule.cap;
+      else { var cc = isLib ? catByCode(rule.activity_type) : null; capVal = cc ? cc.daily_cap : ''; }
+      capEl2.value = (capVal == null ? '' : capVal);
+    }
     var ft = document.getElementById('qt-form-title'); if (ft) ft.textContent = 'Edit task';
     var ab = document.getElementById('qt-add-btn'); if (ab) ab.innerHTML = '<span class="material-icons">save</span>Update task';
     var cb = document.getElementById('qt-cancel-btn'); if (cb) cb.style.display = '';
@@ -363,6 +374,7 @@
     ['qt-title', 'qt-instr', 'qt-lat', 'qt-lng'].forEach(function (i) { var e = document.getElementById(i); if (e) e.value = ''; });
     var cat = document.getElementById('qt-cat'); if (cat) cat.value = '';
     var tgt = document.getElementById('qt-target'); if (tgt) tgt.value = '1';
+    var capf = document.getElementById('qt-cap'); if (capf) capf.value = '';
     var pts = document.getElementById('qt-points'); if (pts) pts.value = '5';
     var pr = document.getElementById('qt-proof'); if (pr) pr.value = 'auto';
     var vr = document.getElementById('qt-verifier'); if (vr) vr.value = 'auto';
