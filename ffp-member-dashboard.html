@@ -495,9 +495,11 @@
     <div id="trend-tip" style="font-size:14px;color:var(--text);line-height:1.65;display:flex;gap:8px;align-items:flex-start;"></div>
     <!-- Latest wearable readiness (WHOOP) — filled by renderTrendFitness() on each passport open -->
     <div id="trend-fitness" style="margin-top:16px;"></div>
-    <!-- Live platform pulse — community activity, refreshes every passport open (renderTrendPulse → platform_pulse RPC) -->
-    <div id="trend-pulse" style="margin-top:18px;"></div>
   </div>
+
+  <!-- Live platform pulse — STANDALONE (outside trend-card) so it shows for everyone, incl. brand-new members
+       with no personal logs. renderTrendPulse() → platform_pulse RPC, refreshes every passport open. -->
+  <div id="trend-pulse" style="margin:6px 0 28px;"></div>
 
   <!-- SUPPORT YOUR CREW (Coach Phase 3) — filled by renderTrendCrew() from /api/coach/profile support_ops. Activity status only. -->
   <div id="trend-crew" style="margin:0 0 28px;"></div>
@@ -3207,6 +3209,7 @@ function renderAll() {
   try { renderPassportPicker(); }            catch (e) { console.error('[renderAll] passportPicker', e); }
   try { renderStats(journeyLogs); }          catch (e) { console.error('[renderAll] stats', e); }
   try { renderTrend(); }                      catch (e) { console.error('[renderAll] trend', e); }
+  try { renderTrendPulse(); }                 catch (e) {}   // standalone — shows for everyone, incl. new members
   try { renderTrendCrew(); }                  catch (e) {}
   try { renderMyGrid(logs); }                catch (e) { console.error('[renderAll] myGrid', e); }
   try { renderConnections(); }                catch (e) { console.error('[renderAll] connections', e); }
@@ -3261,7 +3264,6 @@ function renderTrend() {
   document.getElementById('trend-tip').innerHTML = '<span class="material-icons" style="font-size:16px;color:var(--blue);flex:0 0 auto;">tips_and_updates</span><span><strong style="color:var(--text);">Coach Grant:</strong> ' + tip + '</span>';
   card.style.display = '';
   try { renderTrendFitness(); } catch (e) {}
-  try { renderTrendPulse(); } catch (e) {}
 }
 
 // Live community pulse on the Trends card — pulls real platform-wide activity each passport open, so it
@@ -4391,7 +4393,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '505';
+  const FFP_BUILD = '506';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
