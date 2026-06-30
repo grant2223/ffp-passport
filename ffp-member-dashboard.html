@@ -4388,7 +4388,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '507';
+  const FFP_BUILD = '508';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -6322,6 +6322,15 @@ window.openLogModalForEdit = function (row) {
   var btn = document.querySelector('#log-modal-backdrop .dm-footer .btn-primary-yellow'); if (btn) btn.textContent = 'Update activity';
   var _delBtn = document.getElementById('log-delete-btn'); if (_delBtn) _delBtn.style.display = '';   // editing → allow delete
 };
+// "Edit activity" on the activity card → open Log Activity in edit mode, prefilled. Reads the open card's full
+// row (window._ffpActCard) BEFORE closing the card (so the data is still available), then opens the editor.
+window.ffpEditActivity = function (id) {
+  var row = (window._ffpActCard && (!id || window._ffpActCard.id === id)) ? window._ffpActCard : null;
+  if (!row && typeof LOGS !== 'undefined' && Array.isArray(LOGS)) { row = LOGS.filter(function (l) { return l && l.id === id; })[0] || null; }
+  if (typeof ffpCloseActivityCard === 'function') ffpCloseActivityCard();
+  if (row && typeof openLogModalForEdit === 'function') { openLogModalForEdit(row); }
+  else if (typeof showToast === 'function') { showToast('Couldn’t open that activity to edit — try again', 'error'); }
+};
 // Delete the activity currently being edited (member-scoped delete_activity RPC — self-guarded).
 // Only reachable from the Delete button, which is shown solely in edit mode (window._ffpEditLogId set).
 async function deleteLogActivity() {
@@ -7119,7 +7128,7 @@ window.ffpRenderActivityCard = function (a, isOwn) {
   var actions = (isOwn && a.id) ? ('<div style="padding:24px 18px 40px;display:flex;flex-direction:column;gap:10px;">' +
     '<button onclick="window.ffpSocialShareActivity&&window.ffpSocialShareActivity(\'' + a.id + '\')" style="width:100%;padding:15px;border:none;border-radius:14px;background:linear-gradient(135deg,#2ba8e0,#1d7fb0);color:#fff;font-weight:900;font-size:15px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;"><span class="material-icons" style="font-size:18px;">ios_share</span> Share card</button>' +
     '<button onclick="window.ffpShareActivity&&window.ffpShareActivity(\'' + a.id + '\')" style="width:100%;padding:13px;border-radius:13px;border:1px solid rgba(43,168,224,0.35);background:rgba(43,168,224,0.07);color:#2ba8e0;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:-3px;">' + (a.shared ? 'group' : 'group_add') + '</span> ' + (a.shared ? 'Shared with connections' : 'Share with my connections') + '</button>' +
-    '<button onclick="ffpCloseActivityCard();window.ffpEditActivity&&window.ffpEditActivity(\'' + a.id + '\')" style="width:100%;padding:13px;border-radius:13px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:#cfe0ee;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:-3px;">edit</span> Edit activity</button>' +
+    '<button onclick="window.ffpEditActivity&&window.ffpEditActivity(\'' + a.id + '\')" style="width:100%;padding:13px;border-radius:13px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:#cfe0ee;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:17px;vertical-align:-3px;">edit</span> Edit activity</button>' +
   '</div>') : '<div style="height:28px;"></div>';
   // Training partners — same avatar-with-name-under slider as "My connections". Confirmed show solid (to
   // everyone); the owner additionally sees their own still-unconfirmed (pending) tags, dimmed.
