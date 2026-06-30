@@ -156,6 +156,8 @@
     var lbOpts = [['global', 'Global + city/country'], ['quest', 'This quest only'], ['none', 'No leaderboard']].map(function (o) { return '<option value="' + o[0] + '"' + (q && q.leaderboard === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('');
     var curMode = q ? (q.mode || 'checklist') : 'checklist';
     var modeOpts = [['checklist', 'Checklist — hit a target on each task to complete'], ['points_race', 'Points race — collect as many points as you can (leaderboard)']].map(function (o) { return '<option value="' + o[0] + '"' + (curMode === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('');
+    var curJoin = q ? (q.join_mode || 'auto') : 'auto';
+    var joinOpts = [['auto', 'Everyone — scores automatically'], ['opt_in', 'Members tap “Join” to enter']].map(function (o) { return '<option value="' + o[0] + '"' + (curJoin === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('');
     var countries = taxCountries();
     var curCountry = q ? (q.country || '') : '';
     var countryOpts = '<option value="">— select —</option>' + countries.map(function (c) { return '<option value="' + esc(c) + '"' + (curCountry === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('');
@@ -170,6 +172,7 @@
       '<div class="qf-row"><label>Title</label><input class="qf-input" id="q-title" value="' + esc(q ? q.title : '') + '" placeholder="e.g. FFP World Streak"></div>' +
       '<div class="qf-row"><label>Description</label><textarea class="qf-area" id="q-desc" placeholder="What the member does">' + esc(q ? (q.description || '') : '') + '</textarea></div>' +
       '<div class="qf-row"><label>Quest type</label><select class="qf-sel" id="q-mode" onchange="AdminQuests.modeChange()">' + modeOpts + '</select><div id="q-mode-hint" style="font-size:11px;color:#8a99a8;margin-top:5px;"></div></div>' +
+      '<div class="qf-row"><label>Who takes part</label><select class="qf-sel" id="q-join">' + joinOpts + '</select></div>' +
       '<div class="qf-row qf-two"><div><label>Start date</label><input class="qf-input" type="date" id="q-start" value="' + (q && q.active_from ? String(q.active_from).slice(0, 10) : '') + '"></div>' +
         '<div><label>End date</label><input class="qf-input" type="date" id="q-end" value="' + (q && q.active_to ? String(q.active_to).slice(0, 10) : '') + '"></div></div>' +
       '<div class="qf-row qf-two"><div><label>Category</label><select class="qf-sel" id="q-category">' + catOpts + '</select></div><div><label>Scope</label><select class="qf-sel" id="q-scope" onchange="AdminQuests.scopeChange()">' + scopeOpts + '</select></div></div>' +
@@ -404,6 +407,7 @@
         country: (scope === 'city' || scope === 'country') ? (country || null) : null,
         leaderboard: val('q-leaderboard') || 'global', hero_image_url: val('q-hero') || null,
         mode: val('q-mode') || 'checklist',
+        join_mode: val('q-join') || 'auto',
         active_to: endISO,
         is_headline: !!(document.getElementById('q-headline') && document.getElementById('q-headline').checked),
         updated_at: new Date().toISOString()
@@ -435,6 +439,8 @@
       // active_from/active_to are set explicitly via the Start/End date fields — publishing must NOT overwrite them.
       var res = await window.supabase.from('quests').update(patch).eq('id', id);
       if (res.error) throw res.error;
+      // On publish, recompute standings from the scoreboard so a back-dated quest fills in its history.
+      if (status === 'live') { try { await window.supabase.rpc('quest_recompute_all', { p_quest: id }); } catch (e) { console.warn('[Admin Quests] recompute', e); } }
       toast(status === 'live' ? 'Quest is live' : status === 'draft' ? 'Unpublished' : 'Ended', 'success');
       await refresh();
     } catch (e) { toast(e.message || 'Update failed', 'error'); }
