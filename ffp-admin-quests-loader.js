@@ -150,6 +150,8 @@
       '<div class="qf-row"><label>Title</label><input class="qf-input" id="q-title" value="' + esc(q ? q.title : '') + '" placeholder="e.g. FFP World Streak"></div>' +
       '<div class="qf-row"><label>Description</label><textarea class="qf-area" id="q-desc" placeholder="What the member does">' + esc(q ? (q.description || '') : '') + '</textarea></div>' +
       '<div class="qf-row"><label>Quest type</label><select class="qf-sel" id="q-mode" onchange="AdminQuests.modeChange()">' + modeOpts + '</select><div id="q-mode-hint" style="font-size:11px;color:#8a99a8;margin-top:5px;"></div></div>' +
+      '<div class="qf-row qf-two"><div><label>Start date</label><input class="qf-input" type="date" id="q-start" value="' + (q && q.active_from ? String(q.active_from).slice(0, 10) : '') + '"></div>' +
+        '<div><label>End date</label><input class="qf-input" type="date" id="q-end" value="' + (q && q.active_to ? String(q.active_to).slice(0, 10) : '') + '"></div></div>' +
       '<div class="qf-row qf-two"><div><label>Category</label><select class="qf-sel" id="q-category">' + catOpts + '</select></div><div><label>Scope</label><select class="qf-sel" id="q-scope" onchange="AdminQuests.scopeChange()">' + scopeOpts + '</select></div></div>' +
       '<div class="qf-row qf-two" id="q-loc-row">' +
         '<div id="q-country-wrap"><label>Country</label><select class="qf-sel" id="q-country" onchange="AdminQuests.countryChange()">' + countryOpts + '</select></div>' +
@@ -357,15 +359,21 @@
     try {
       var title = val('q-title'); if (!title) { toast('Title is required', 'error'); return; }
       var scope = val('q-scope'), country = val('q-country'), city = val('q-city');
+      var startV = val('q-start'), endV = val('q-end');
+      if (startV && endV && endV < startV) { toast('End date must be on or after the start date', 'error'); return; }
+      var startISO = startV ? new Date(startV + 'T00:00:00').toISOString() : null;
+      var endISO = endV ? new Date(endV + 'T23:59:59').toISOString() : null;
       var payload = {
         title: title, description: val('q-desc') || null, category: val('q-category'), scope: scope,
         city: scope === 'city' ? (city || null) : null,
         country: (scope === 'city' || scope === 'country') ? (country || null) : null,
         leaderboard: val('q-leaderboard') || 'global', hero_image_url: val('q-hero') || null,
         mode: val('q-mode') || 'checklist',
+        active_to: endISO,
         is_headline: !!(document.getElementById('q-headline') && document.getElementById('q-headline').checked),
         updated_at: new Date().toISOString()
       };
+      if (startISO) payload.active_from = startISO;   // only overwrite start when the admin set one
       if (S.editing) {
         var up = await window.supabase.from('quests').update(payload).eq('id', S.editing.id);
         if (up.error) throw up.error;
@@ -374,7 +382,7 @@
       } else {
         payload.owner_type = 'ffp'; payload.visibility = 'public'; payload.reward_type = 'points';
         payload.eligibility = 'all'; payload.require_distinct_venues = false;
-        payload.status = 'draft'; payload.active_from = new Date().toISOString(); payload.target_count = 1;
+        payload.status = 'draft'; if (!payload.active_from) payload.active_from = new Date().toISOString(); payload.target_count = 1;
         var cr = await window.supabase.from('quests').insert(payload).select('*').single();
         if (cr.error) throw cr.error;
         S.editing = cr.data; S.curQuest = cr.data.id;
@@ -388,7 +396,7 @@
   async function setStatus(id, status) {
     try {
       var patch = { status: status, updated_at: new Date().toISOString() };
-      if (status === 'live') patch.active_from = new Date().toISOString();
+      // active_from/active_to are set explicitly via the Start/End date fields — publishing must NOT overwrite them.
       var res = await window.supabase.from('quests').update(patch).eq('id', id);
       if (res.error) throw res.error;
       toast(status === 'live' ? 'Quest is live' : status === 'draft' ? 'Unpublished' : 'Ended', 'success');
