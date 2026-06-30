@@ -564,6 +564,12 @@
             rq.innerHTML = '<div class="dm-section-label">Requests to join (' + m.pendingRequests.length + ')</div>' + rows;
             footer.parentNode.insertBefore(rq, footer);
           }
+          // HOST-only: "Show check-in QR" — attendees scan it (QR + GPS) to confirm they came.
+          if (m.isHostedByMe && footer && !document.getElementById('ffp-host-qr-btn')) {
+            var qb = document.createElement('div'); qb.id = 'ffp-host-qr-btn'; qb.className = 'dm-section';
+            qb.innerHTML = '<button onclick="MeetMove.showCheckinQR(\'' + m.id + '\')" style="width:100%;padding:13px;border:1px solid rgba(43,168,224,0.4);background:rgba(43,168,224,0.08);color:#2ba8e0;border-radius:11px;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:7px;"><span class="material-icons" style="font-size:18px;">qr_code_2</span> Show check-in QR</button>';
+            footer.parentNode.insertBefore(qb, footer);
+          }
         } catch (e) {}
         // (Host "Cancel this meet-up" footer is now built canonically in the dashboard's
         // openMeetupDetail — no DOM surgery needed here.)
@@ -589,6 +595,30 @@
         if (typeof closeDetailModal === 'function') closeDetailModal();
         if (typeof window.ffpReloadMeetMove === 'function') window.ffpReloadMeetMove();
       } catch (e) { if (typeof showToast === 'function') showToast('Couldn’t cancel — please try again', 'error'); }
+    };
+
+    // Host-only: show the meetup's check-in QR (attendees scan it + GPS to confirm attendance).
+    MeetMove.showCheckinQR = async function (id) {
+      var token = '';
+      try {
+        var r = await window.supabase.from('meetups').select('checkin_token').eq('id', id).maybeSingle();
+        if (r && r.data) token = r.data.checkin_token || '';
+      } catch (e) {}
+      if (!token) { if (typeof showToast === 'function') showToast('No check-in code yet — try again in a moment', 'error'); return; }
+      var url = 'https://ffppassport.com/ffp-member-dashboard.html?meetup=' + id + '&mc=' + encodeURIComponent(token);
+      var body = '<div class="dm-body" style="text-align:center;">' +
+        '<div class="dm-title">Check-in QR</div>' +
+        '<div style="font-size:13px;color:var(--muted);margin:4px 0 16px;line-height:1.5;">Your group scans this to confirm they came. Opens 30 min before the start, closes 3 h after.</div>' +
+        '<div id="ffp-meetup-qr" style="width:200px;height:200px;margin:0 auto;background:#fff;border-radius:14px;padding:10px;box-sizing:border-box;"></div>' +
+        '<div style="font-family:monospace;font-size:18px;letter-spacing:3px;color:#e8eef4;margin-top:16px;">' + esc(token) + '</div>' +
+        '<div style="font-size:11px;color:var(--muted);margin-top:5px;">Code, if they can’t scan</div>' +
+      '</div>';
+      if (typeof openDetailModal === 'function') openDetailModal(body);
+      setTimeout(function () {
+        var el = document.getElementById('ffp-meetup-qr'); if (!el || typeof QRCode === 'undefined') return;
+        el.innerHTML = '';
+        try { new QRCode(el, { text: url, width: 180, height: 180, colorDark: '#0a1722', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M }); } catch (e) {}
+      }, 60);
     };
   }
 
