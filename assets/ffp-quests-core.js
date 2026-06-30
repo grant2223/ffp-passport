@@ -191,6 +191,7 @@ window.Quests = {
       '.q-prog-race .q-prog-row{align-items:baseline;}.q-race-pts b{font-size:34px;}.q-race-pts span{font-size:14px;color:#8a99a8;font-weight:700;margin-left:3px;}',
       '.q-race-hint{font-size:11.5px;color:#8a99a8;margin-top:8px;display:flex;align-items:center;gap:5px;}.q-race-hint .material-icons{font-size:14px;color:#2ba8e0;}',
       '.q-ways-btn{width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:7px;padding:12px;border-radius:11px;border:1px solid rgba(43,168,224,.35);background:rgba(43,168,224,.08);color:#2ba8e0;font-weight:800;font-size:13.5px;cursor:pointer;font-family:inherit;}.q-ways-btn .material-icons{font-size:18px;}',
+      '.q-join-cta{width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:7px;padding:14px;border-radius:12px;border:none;background:var(--q-yellow,#FFCC00);color:#082335;font-weight:900;font-size:15px;cursor:pointer;font-family:inherit;margin-bottom:14px;}.q-join-cta .material-icons{font-size:19px;}',
       '.q-bd-head{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#8a99a8;margin:18px 0 9px;}',
       '.q-bd-row{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:10px;margin-bottom:6px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);}',
       '.q-bd-ic{font-size:19px;color:#2ba8e0;flex-shrink:0;}.q-bd-meta{flex:1;min-width:0;}.q-bd-name{font-weight:700;color:#e8eef4;font-size:13px;}.q-bd-sub{font-size:11px;color:#8a99a8;margin-top:1px;}',
@@ -210,17 +211,19 @@ window.Quests = {
     this._ensureCss();
     this.renderMajor();
     var host = document.getElementById('quest-sections'); if (!host) return;
+    var self = this;
+    // My quests = FFP quests the member has joined + any partner quests (those appear only when joined/unlocked).
+    var joined = this.minor.filter(function (q) { return q.joined; }).concat(this.partner || []);
+    var browse = this.minor.filter(function (q) { return !q.joined; });
     var html = '';
-    // Minor — more FFP quests
-    html += '<div class="q-sec-h">More quests</div>';
-    html += this.minor.length
-      ? '<div class="q-list">' + this.minor.map(this.rowMinor.bind(this)).join('') + '</div>'
-      : '<div class="q-sec-empty">New quests are on the way — check back soon.</div>';
-    // Partner (only if any unlocked)
-    if (this.partner.length) {
-      html += '<div class="q-sec-h" style="margin-top:22px;">Partner quests <span class="q-sec-h-sub">unlocked for you</span></div>';
-      html += '<div class="q-list">' + this.partner.map(this.rowPartner.bind(this)).join('') + '</div>';
+    if (joined.length) {
+      html += '<div class="q-sec-h">My quests</div>';
+      html += '<div class="q-list">' + joined.map(function (q) { return q.kind === 'partner' ? self.rowPartner(q) : self.rowMinor(q); }).join('') + '</div>';
     }
+    html += '<div class="q-sec-h"' + (joined.length ? ' style="margin-top:22px;"' : '') + '>More quests</div>';
+    html += browse.length
+      ? '<div class="q-list">' + browse.map(this.rowMinor.bind(this)).join('') + '</div>'
+      : '<div class="q-sec-empty">' + (joined.length ? 'You’re in all the open quests — more on the way.' : 'New quests are on the way — check back soon.') + '</div>';
     host.innerHTML = html;
   },
 
@@ -345,11 +348,16 @@ window.Quests = {
         '</div>' +
         '<div class="q-prog-bar"><i style="width:' + pct + '%;"></i></div>' +
       '</div>';
+    // Points race → Leaderboard is the default tab on the LEFT, "My points" on the right.
     var toggle = hasBoard
-      ? '<div class="q-seg"><button id="q-seg-tasks" class="active" onclick="Quests.questPane(\'tasks\')">' + (isRace ? 'My points' : 'Tasks') + '</button>' +
-        '<button id="q-seg-board" onclick="Quests.questPane(\'board\')">Leaderboard</button></div>' : '';
+      ? (isRace
+          ? '<div class="q-seg"><button id="q-seg-board" class="active" onclick="Quests.questPane(\'board\')">Leaderboard</button>' +
+            '<button id="q-seg-tasks" onclick="Quests.questPane(\'tasks\')">My points</button></div>'
+          : '<div class="q-seg"><button id="q-seg-tasks" class="active" onclick="Quests.questPane(\'tasks\')">Tasks</button>' +
+            '<button id="q-seg-board" onclick="Quests.questPane(\'board\')">Leaderboard</button></div>')
+      : '';
     var boardPane = hasBoard
-      ? '<div id="q-pane-board" style="display:none;">' +
+      ? '<div id="q-pane-board" style="display:' + (isRace ? '' : 'none') + ';">' +
           '<div class="q-board-top">' +
             '<input id="q-board-search" placeholder="Search name…" oninput="Quests.boardSearchInput(this.value)">' +
             '<button id="q-filter-btn" class="q-filter-btn" onclick="Quests.toggleBoardFilters()"><span class="material-icons">tune</span> Filters<span id="q-filter-badge" class="q-filter-badge" style="display:none;"></span></button>' +
@@ -381,8 +389,10 @@ window.Quests = {
         '</div>' +
         '<div class="q-d2-body">' +
           (d.description ? '<p class="q-d2-desc">' + escHtml(d.description) + '</p>' : '') +
-          prog + toggle +
-          '<div id="q-pane-tasks">' + (isRace
+          prog +
+          ((d.join_mode === 'opt_in' && !d.joined) ? '<button class="q-join-cta" onclick="Quests.joinQuest(\'' + d.id + '\')"><span class="material-icons">flag</span> Join this quest</button>' : '') +
+          toggle +
+          '<div id="q-pane-tasks" style="display:' + (isRace ? 'none' : '') + ';">' + (isRace
             ? '<button class="q-ways-btn" onclick="Quests.openWaysToEarn()"><span class="material-icons">workspace_premium</span> Ways to earn points</button>' +
               '<div class="q-bd-head">Where your points came from</div>' +
               '<div id="q-points-breakdown" class="q-breakdown"><div class="q-board-loading">Loading…</div></div>'
@@ -393,6 +403,16 @@ window.Quests = {
     openDetailModal(html);
     var bar = document.querySelector('.q-prog-bar i'); if (bar) { bar.style.width = '0%'; setTimeout(function () { bar.style.width = pct + '%'; }, 60); }
     if (isRace) this.loadBreakdown();
+    if (isRace && hasBoard) { this._boardLoaded = true; this.loadQuestBoard(); }   // leaderboard is the default pane for a race
+  },
+  async joinQuest(id) {
+    var mid = this.memberId(); if (!mid) { showToast('Please sign in again', 'error'); return; }
+    try {
+      var r = await window.supabase.rpc('member_quest_join', { p_me: mid, p_quest: id });
+      if (r && r.error) throw r.error;
+      showToast('Joined — you’re in!', 'success');
+      this.openTaskDetail(id);
+    } catch (e) { showToast('Could not join', 'error'); }
   },
 
   toggleTask(id) {
