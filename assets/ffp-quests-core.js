@@ -14,7 +14,7 @@ window.Quests = {
   major: null,
   minor: [],
   partner: [],
-  boardScope: 'global',
+  boardCountry: '', boardRegion: '', boardCity: '', _locs: [],
   boardSearch: '',
   boardGender: '',
   _openQuest: null,
@@ -167,6 +167,7 @@ window.Quests = {
       // leaderboard
       '.q-board-filters{display:flex;flex-direction:column;gap:9px;margin-bottom:12px;}',
       '.q-board-chips{display:flex;gap:6px;}',
+      '.q-flt-sel{width:100%;box-sizing:border-box;margin-top:6px;padding:9px 11px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:rgba(8,20,32,.5);color:#e8eef4;font-size:13px;font-family:inherit;color-scheme:dark;}',
       '.q-board-top{display:flex;gap:8px;align-items:center;margin-bottom:12px;}',
       '.q-board-top #q-board-search{flex:1;}',
       '.q-filter-btn{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-size:13px;font-weight:700;color:#cfe0ee;background:rgba(8,20,32,.5);border:1px solid rgba(255,255,255,.12);border-radius:9px;padding:9px 13px;cursor:pointer;font-family:inherit;}',
@@ -315,7 +316,7 @@ window.Quests = {
   async openTaskDetail(id) {
     var mid = this.memberId();
     this._ensureCss();
-    this._openQuest = id; this._boardLoaded = false; this.boardScope = 'global'; this.boardSearch = ''; this.boardGender = '';
+    this._openQuest = id; this._boardLoaded = false; this._locsLoaded = false; this.boardCountry = ''; this.boardRegion = ''; this.boardCity = ''; this.boardSearch = ''; this.boardGender = '';
     var d = null;
     try { var r = await window.supabase.rpc('member_quest_detail', { p_me: mid, p_quest: id }); d = (r && r.data) ? r.data : null; } catch (e) {}
     if (!d) { showToast('Could not open quest', 'error'); return; }
@@ -366,12 +367,9 @@ window.Quests = {
           '</div>' +
           '<div id="q-board-panel" class="q-board-panel" style="display:none;">' +
             '<div><div class="q-flt-label">Location</div>' +
-              '<div class="q-board-chips">' +
-                '<button class="q-chip active" data-scope="global" onclick="Quests.boardFilter(\'global\')">Global</button>' +
-                '<button class="q-chip" data-scope="country" onclick="Quests.boardFilter(\'country\')">My country</button>' +
-                '<button class="q-chip" data-scope="region" onclick="Quests.boardFilter(\'region\')">My region</button>' +
-                '<button class="q-chip" data-scope="city" onclick="Quests.boardFilter(\'city\')">My city</button>' +
-              '</div>' +
+              '<select class="q-flt-sel" id="q-flt-country" onchange="Quests.boardLocChange(\'country\')"><option value="">All countries</option></select>' +
+              '<select class="q-flt-sel" id="q-flt-region" onchange="Quests.boardLocChange(\'region\')" style="display:none;"><option value="">All regions</option></select>' +
+              '<select class="q-flt-sel" id="q-flt-city" onchange="Quests.boardLocChange(\'city\')"><option value="">All cities</option></select>' +
             '</div>' +
             '<div><div class="q-flt-label">Gender</div>' +
               '<div class="q-board-chips">' +
@@ -439,10 +437,42 @@ window.Quests = {
       if (sb) sb.classList.remove('active'); if (st) st.classList.add('active');
     }
   },
-  boardFilter(scope) {
-    this.boardScope = scope;
-    var chips = document.querySelectorAll('#q-board-panel .q-chip[data-scope]');
-    for (var i = 0; i < chips.length; i++) chips[i].classList.toggle('active', chips[i].getAttribute('data-scope') === scope);
+  boardLoadLocations() {
+    var self = this;
+    window.supabase.rpc('quest_leaderboard_locations', { p_quest: this._openQuest }).then(function (r) {
+      self._locs = (r && r.data) ? r.data : [];
+      self._fillLocSelect('q-flt-country', self._distinctLoc('country', '', ''), 'All countries');
+      self._fillLocSelect('q-flt-city', self._distinctLoc('city', '', ''), 'All cities');
+    }, function () {});
+  },
+  _distinctLoc(field, country, region) {
+    var seen = {}, out = [];
+    (this._locs || []).forEach(function (l) {
+      if (country && l.country !== country) return;
+      if (region && l.region !== region) return;
+      var v = l[field]; if (v && !seen[v]) { seen[v] = 1; out.push(v); }
+    });
+    out.sort(); return out;
+  },
+  _fillLocSelect(id, vals, allLabel) {
+    var sel = document.getElementById(id); if (!sel) return;
+    var cur = sel.value;
+    sel.innerHTML = '<option value="">' + allLabel + '</option>' + vals.map(function (v) { return '<option value="' + escHtml(v) + '"' + (v === cur ? ' selected' : '') + '>' + escHtml(v) + '</option>'; }).join('');
+  },
+  boardLocChange(which) {
+    var cEl = document.getElementById('q-flt-country'), rEl = document.getElementById('q-flt-region'), tEl = document.getElementById('q-flt-city');
+    if (which === 'country') {
+      this.boardCountry = cEl ? cEl.value : ''; this.boardRegion = ''; this.boardCity = '';
+      var regions = this._distinctLoc('region', this.boardCountry, '');
+      if (rEl) rEl.style.display = (this.boardCountry && regions.length) ? '' : 'none';
+      this._fillLocSelect('q-flt-region', regions, 'All regions');
+      this._fillLocSelect('q-flt-city', this._distinctLoc('city', this.boardCountry, ''), 'All cities');
+    } else if (which === 'region') {
+      this.boardRegion = rEl ? rEl.value : ''; this.boardCity = '';
+      this._fillLocSelect('q-flt-city', this._distinctLoc('city', this.boardCountry, this.boardRegion), 'All cities');
+    } else {
+      this.boardCity = tEl ? tEl.value : '';
+    }
     this._updateFilterBadge();
     this.loadQuestBoard();
   },
@@ -461,7 +491,7 @@ window.Quests = {
     if (b) b.classList.toggle('on', show);
   },
   _updateFilterBadge() {
-    var n = (this.boardScope && this.boardScope !== 'global' ? 1 : 0) + (this.boardGender ? 1 : 0);
+    var n = ((this.boardCountry || this.boardRegion || this.boardCity) ? 1 : 0) + (this.boardGender ? 1 : 0);
     var badge = document.getElementById('q-filter-badge'); if (!badge) return;
     if (n) { badge.textContent = n; badge.style.display = ''; } else { badge.style.display = 'none'; }
   },
@@ -473,12 +503,12 @@ window.Quests = {
 
   async loadQuestBoard() {
     var host = document.getElementById('q-board-list'); if (!host || !this._openQuest) return;
+    if (!this._locsLoaded) { this._locsLoaded = true; this.boardLoadLocations(); }
     host.innerHTML = '<div class="q-board-loading">Loading…</div>';
-    var p = this.meProfile();
     var args = { p_quest: this._openQuest, p_limit: 50, p_search: this.boardSearch || null };
-    if (this.boardScope === 'city') args.p_city = p.city || null;
-    if (this.boardScope === 'region') args.p_region = p.region || null;
-    if (this.boardScope === 'country') args.p_country = p.country || null;
+    if (this.boardCity) args.p_city = this.boardCity;
+    if (this.boardRegion) args.p_region = this.boardRegion;
+    if (this.boardCountry) args.p_country = this.boardCountry;
     if (this.boardGender) args.p_gender = this.boardGender;
     var rows = [];
     try { var r = await window.supabase.rpc('quest_leaderboard', args); rows = (r && r.data) ? r.data : []; } catch (e) {}
