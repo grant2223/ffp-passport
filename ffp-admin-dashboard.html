@@ -1531,7 +1531,7 @@ input, select, textarea { font-family: inherit; }
       </div>
     </div>
     <div class="sidebar-footer">
-      build v52 &middot; FFP Admin
+      build v53 &middot; FFP Admin
     </div>
   </aside>
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.toggleSidebar()"></div>
@@ -2119,11 +2119,24 @@ input, select, textarea { font-family: inherit; }
         <div class="section-body padded">
           <div class="field-row">
             <div class="field">
+              <label class="field-label">Send to</label>
+              <select class="field-input" id="bc-app" onchange="AdminBroadcast.onAppChange()">
+                <option value="member">Members (Passport)</option>
+                <option value="professional">Professionals (FFP Pro)</option>
+                <option value="provider">Providers (Partners)</option>
+                <option value="booking">FFP Booking app</option>
+                <option value="all">Everyone (all apps)</option>
+              </select>
+              <div class="field-hint" style="margin-top:4px;font-size:12px;color:var(--text-muted,#8a99a8);">Which app's notification bell this lands in.</div>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
               <label class="field-label">Title</label>
               <input class="field-input" id="bc-title" type="text" maxlength="120" placeholder="e.g. New challenge this week">
             </div>
-            <div class="field">
-              <label class="field-label">Audience</label>
+            <div class="field" id="bc-seg-field">
+              <label class="field-label">Member segment</label>
               <select class="field-input" id="bc-audience" onchange="AdminBroadcast.onAudienceChange()">
                 <option value="all">All members</option>
                 <option value="membership:passport">Passport members</option>
@@ -3235,6 +3248,12 @@ const AdminPayouts = {
 // v40: Broadcast Center — posts an in-app notification to all members via /api/admin/broadcast
 // (admin-gated; writes a notifications row with member_id NULL = everyone). Email + audience targeting next.
 const AdminBroadcast = {
+  onAppChange() {
+    var app = (document.getElementById('bc-app') || {}).value || 'member';
+    var seg = document.getElementById('bc-seg-field');
+    // Member segment (tier/country/gender) only applies when sending to the member app.
+    if (seg) seg.style.display = (app === 'member') ? '' : 'none';
+  },
   onAudienceChange() {
     var aud = (document.getElementById('bc-audience') || {}).value || 'all';
     var c = document.getElementById('bc-country');
@@ -3251,26 +3270,27 @@ const AdminBroadcast = {
     if (title.length < 2) { setMsg('#ef4444', 'Add a title first.'); return; }
     var admin = window.FFP_ADMIN && window.FFP_ADMIN.id;
     if (!admin) { setMsg('#ef4444', 'Admin session not ready — reload the page.'); return; }
-    // Build the audience segment (null = everyone).
+    // App audience (which app's bell). Member segment only applies to the member app.
+    var app = (document.getElementById('bc-app') || {}).value || 'member';
     var aud = (document.getElementById('bc-audience') || {}).value || 'all';
     var segment = null;
-    if (aud && aud !== 'all') {
+    if (app === 'member' && aud && aud !== 'all') {
       var parts = aud.split(':'); var stype = parts[0]; var sval = parts[1] || '';
       if (stype === 'country') sval = ((document.getElementById('bc-country') || {}).value || '').trim();
       if (!sval) { setMsg('#ef4444', 'Enter the audience value (e.g. a country).'); return; }
       segment = { type: stype, value: sval };
     }
-    var audLabel = segment ? (document.getElementById('bc-audience').selectedOptions[0].textContent.replace('…', '') + (segment.type === 'country' ? ': ' + segment.value : '')) : 'all members';
+    var appLabel = (document.getElementById('bc-app') && document.getElementById('bc-app').selectedOptions[0]) ? document.getElementById('bc-app').selectedOptions[0].textContent : 'Members';
     var btn = document.getElementById('bc-send'); if (btn) btn.disabled = true;
     setMsg('#8196a6', 'Sending…');
     try {
       var res = await fetch('https://ffp-passport-backend.vercel.app/api/admin/broadcast', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ admin_id: admin, title: title, body: body || null, link: link || null, segment: segment })
+        body: JSON.stringify({ admin_id: admin, title: title, body: body || null, link: link || null, segment: segment, app: app })
       });
       var data = await res.json();
       if (data && data.success) {
-        setMsg('#22c55e', 'Sent to ' + (data.sent || 0) + ' ' + (data.sent === 1 ? 'member' : 'members') + ' (' + audLabel + ').');
+        setMsg('#22c55e', 'Sent ' + (data.sent || 0) + ' notification' + (data.sent === 1 ? '' : 's') + ' → ' + appLabel + '.');
         document.getElementById('bc-title').value = '';
         document.getElementById('bc-body').value = '';
         document.getElementById('bc-link').value = '';
