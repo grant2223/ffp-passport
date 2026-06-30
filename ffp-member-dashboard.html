@@ -4364,7 +4364,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '502';
+  const FFP_BUILD = '503';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -8467,7 +8467,7 @@ window.FFPLocPick = (function(){
   return { open:open, close:close, onSearch:onSearch, pick:pick, use:use, locate:locate };
 })();
 </script>
-<script src="ffp-member-checkin-loader.js?v=10"></script>
+<script src="ffp-member-checkin-loader.js?v=11"></script>
 <!-- v294: PASSPORT MEMBERSHIP GATE — free/lapsed members get a Join/Renew screen instead of the member app.
      Self-contained + FAIL-OPEN: providers/admins, not-signed-in, or any error → NO gate (never lock out a
      payer). Uses the canonical member_passport_active RPC (shared with Find Fit People). -->
