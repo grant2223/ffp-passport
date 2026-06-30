@@ -195,11 +195,11 @@ window.Quests = {
       '.q-bd-row{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:10px;margin-bottom:6px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);}',
       '.q-bd-ic{font-size:19px;color:#2ba8e0;flex-shrink:0;}.q-bd-meta{flex:1;min-width:0;}.q-bd-name{font-weight:700;color:#e8eef4;font-size:13px;}.q-bd-sub{font-size:11px;color:#8a99a8;margin-top:1px;}',
       '.q-bd-pts{font-weight:900;color:#FFCC00;font-size:15px;flex-shrink:0;}',
-      '.q-ways-ov{position:fixed;inset:0;z-index:100070;background:rgba(4,12,20,.72);display:flex;align-items:flex-end;justify-content:center;}',
-      '.q-we-wrap{width:100%;max-width:520px;background:#0f1e2e;border-top-left-radius:18px;border-top-right-radius:18px;max-height:80vh;display:flex;flex-direction:column;}',
-      '.q-we-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid #1a2f44;font-size:16px;font-weight:800;color:#e8eef4;}',
-      '.q-we-x{background:none;border:none;color:#8a99a8;cursor:pointer;display:flex;}.q-we-x .material-icons{font-size:24px;}',
-      '.q-we-list{padding:12px 18px 26px;overflow:auto;-webkit-overflow-scrolling:touch;}',
+      '.q-ways-ov{position:fixed;inset:0;z-index:100070;background:#0a1722;display:flex;flex-direction:column;}',
+      '.q-we-wrap{width:100%;height:100%;background:#0a1722;display:flex;flex-direction:column;}',
+      '.q-we-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid #1a2f44;font-size:17px;font-weight:800;color:#e8eef4;flex-shrink:0;}',
+      '.q-we-x{background:none;border:none;color:#8a99a8;cursor:pointer;display:flex;}.q-we-x .material-icons{font-size:26px;}',
+      '.q-we-list{padding:14px 18px 40px;overflow:auto;-webkit-overflow-scrolling:touch;flex:1;max-width:620px;width:100%;margin:0 auto;box-sizing:border-box;}',
       '.q-we-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.06);}.q-we-meta{flex:1;min-width:0;}.q-we-name{font-weight:700;color:#e8eef4;font-size:14px;}.q-we-sub{font-size:11.5px;color:#8a99a8;margin-top:2px;}',
       '.q-we-pts{font-weight:900;color:#FFCC00;font-size:15px;flex-shrink:0;}'
     ].join('');
@@ -493,10 +493,10 @@ window.Quests = {
   // "Ways to earn points" modal — the tasks list for a points-race quest
   openWaysToEarn() {
     var d = this._openData; if (!d) return;
-    var self = this;
+    var self = this; var isRace = (this._openMode === 'points_race');
     var rows = (d.tasks || []).map(function (t) {
       var cap = (t.cap != null) ? ' · max ' + t.cap + '/day' : '';
-      var tgt = (t.target != null) ? ' · target ×' + t.target : '';
+      var tgt = (!isRace && t.target != null) ? ' · target ×' + t.target : '';   // points race = no targets, only the daily cap
       var kind = t.activity_type ? 'Tracked automatically' : ((self.PROOF[t.proof_type] && self.PROOF[t.proof_type].label) || 'Proof');
       return '<div class="q-we-row"><div class="q-we-meta"><div class="q-we-name">' + escHtml(t.title) + '</div>' +
         '<div class="q-we-sub">' + escHtml(kind + cap + tgt) + '</div></div>' +
