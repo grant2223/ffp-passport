@@ -24,6 +24,15 @@
   var S = { quests: [], providers: [], catalog: [], tab: 'live', editing: null, curQuest: null, taskEdit: null, reviews: [] };
   function currentMode() { var e = document.getElementById('q-mode'); return (e && e.value) || (S.editing && S.editing.mode) || 'checklist'; }
   function catByCode(code) { return S.catalog.find(function (c) { return c.code === code; }) || null; }
+  function formTab(which) {
+    var tasks = (which === 'tasks');
+    var d = document.getElementById('qf-pane-details'), t = document.getElementById('qf-pane-tasks');
+    var td = document.getElementById('qf-tab-details'), tt = document.getElementById('qf-tab-tasks');
+    if (d) d.style.display = tasks ? 'none' : '';
+    if (t) t.style.display = tasks ? '' : 'none';
+    if (td) td.classList.toggle('active', !tasks);
+    if (tt) tt.classList.toggle('active', tasks);
+  }
 
   function injectStyles() {
     if (document.getElementById('ffp-admin-quests-css')) return;
@@ -38,9 +47,15 @@
       '#panel-quests .aq-pill.live{background:#4ade80;color:#04210f;}#panel-quests .aq-pill.draft{background:rgba(255,204,0,.18);color:#FFCC00;}#panel-quests .aq-pill.ended{background:rgba(138,153,168,.18);color:#8a99a8;}',
       '#panel-quests .aq-reward{font-size:12px;color:#cfd6dc;margin:12px 0;display:flex;align-items:center;gap:6px;}#panel-quests .aq-reward .material-icons{font-size:16px;color:#b8965a;}',
       '#panel-quests .aq-foot{display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid #1a2f44;padding-top:12px;}',
-      '.qf-row{margin-bottom:14px;}.qf-row label{display:block;font-size:11px;font-weight:700;color:#8a99a8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}',
-      '.qf-input,.qf-sel,.qf-area{width:100%;background:#08131f;border:1px solid #1a2f44;border-radius:9px;padding:11px 12px;color:#e8eef4;font-size:14px;font-family:inherit;box-sizing:border-box;}',
-      '.qf-area{min-height:70px;resize:vertical;}.qf-two{display:flex;gap:12px;}.qf-two>div{flex:1;}',
+      '.qf-row{margin-bottom:17px;}.qf-row label{display:block;font-size:12.5px;font-weight:700;color:#c3d0db;letter-spacing:.2px;margin-bottom:7px;}',
+      '.qf-input,.qf-sel,.qf-area{width:100%;background:#0c1a28;border:1px solid #2c4459;border-radius:10px;padding:12px 13px;color:#f1f6fa;font-size:15px;font-family:inherit;box-sizing:border-box;}',
+      '.qf-input::placeholder,.qf-area::placeholder{color:#6d8090;}',
+      '.qf-input:focus,.qf-sel:focus,.qf-area:focus{outline:none;border-color:#2ba8e0;background:#0e2030;}',
+      '.qf-input[type=date],.qf-sel{color-scheme:dark;}',
+      '.qf-area{min-height:74px;resize:vertical;line-height:1.5;}.qf-two{display:flex;gap:12px;}.qf-two>div{flex:1;min-width:0;}',
+      '.qf-tabs{display:flex;gap:4px;border-bottom:1px solid #1a2f44;margin-bottom:20px;position:sticky;top:0;background:#0a1722;z-index:2;}',
+      '.qf-tab{flex:1;background:none;border:none;border-bottom:2px solid transparent;color:#8a99a8;font-size:14.5px;font-weight:800;padding:12px 8px;cursor:pointer;font-family:inherit;}',
+      '.qf-tab.active{color:#2ba8e0;border-bottom-color:#2ba8e0;}',
       '.qt-card{display:flex;align-items:flex-start;gap:10px;background:#08131f;border:1px solid #1a2f44;border-radius:10px;padding:10px 12px;margin-bottom:8px;}',
       '.qt-card .qt-pts{font-weight:800;color:#FFCC00;font-size:13px;white-space:nowrap;}',
       '.qt-qr{font-family:monospace;font-size:11px;color:#2ba8e0;background:rgba(43,168,224,.1);padding:2px 6px;border-radius:5px;}'
@@ -147,6 +162,11 @@
     var cityList = taxCities(curCountry);
     var cityOpts = '<option value="">— select —</option>' + cityList.map(function (c) { return '<option value="' + esc(c) + '"' + (q && q.city === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('');
     var body =
+      '<div class="qf-tabs">' +
+        '<button type="button" class="qf-tab active" id="qf-tab-details" onclick="AdminQuests.formTab(\'details\')">Details</button>' +
+        '<button type="button" class="qf-tab" id="qf-tab-tasks" onclick="AdminQuests.formTab(\'tasks\')">Tasks</button>' +
+      '</div>' +
+      '<div class="qf-pane" id="qf-pane-details">' +
       '<div class="qf-row"><label>Title</label><input class="qf-input" id="q-title" value="' + esc(q ? q.title : '') + '" placeholder="e.g. FFP World Streak"></div>' +
       '<div class="qf-row"><label>Description</label><textarea class="qf-area" id="q-desc" placeholder="What the member does">' + esc(q ? (q.description || '') : '') + '</textarea></div>' +
       '<div class="qf-row"><label>Quest type</label><select class="qf-sel" id="q-mode" onchange="AdminQuests.modeChange()">' + modeOpts + '</select><div id="q-mode-hint" style="font-size:11px;color:#8a99a8;margin-top:5px;"></div></div>' +
@@ -164,9 +184,12 @@
         '<input type="file" id="q-hero-file" accept="image/*" style="display:none" onchange="AdminQuests.uploadHero(this)">' +
         '<button type="button" class="btn btn-ghost" onclick="document.getElementById(\'q-hero-file\').click()"><span class="material-icons">upload</span> Upload image</button>' +
         '<input type="hidden" id="q-hero" value="' + esc(q ? (q.hero_image_url || '') : '') + '"></div>' +
-      '<div id="q-missions-wrap" style="border-top:1px solid #1a2f44;padding-top:16px;margin-top:4px;">' +
+      '</div>' +
+      '<div class="qf-pane" id="qf-pane-tasks" style="display:none;">' +
+      '<div id="q-missions-wrap">' +
         (q ? '<div style="font-size:14px;font-weight:800;color:#e8eef4;margin-bottom:10px;">Tasks <span style="font-weight:600;color:#8a99a8;font-size:12px;">· passport holders complete these for points</span></div><div id="q-task-list"></div>' + taskBuilderHtml()
-           : '<div style="color:#8a99a8;font-size:13px;">Save the quest first, then add the tasks members complete.</div>') +
+           : '<div style="color:#8a99a8;font-size:14px;line-height:1.6;text-align:center;padding:30px 16px;border:1px dashed #294257;border-radius:12px;"><span class="material-icons" style="font-size:30px;color:#2ba8e0;display:block;margin-bottom:8px;">checklist</span>Save the quest details first, then come back to this tab to add the tasks members complete for points.</div>') +
+      '</div>' +
       '</div>';
     var foot = '<button class="btn btn-ghost" onclick="closeQuestModal()">Close</button>' +
       '<button class="btn btn-primary" onclick="AdminQuests.save()"><span class="material-icons">save</span>' + (q ? 'Save details' : 'Save & add tasks') + '</button>';
@@ -389,6 +412,7 @@
         toast('Quest created — now add its tasks', 'success');
         await fetchAll();
         openForm(cr.data.id); // reopen in edit mode → missions builder visible
+        formTab('tasks');     // land straight on the Tasks tab after creating
       }
     } catch (e) { console.error('[Admin Quests] save:', e); toast(e.message || 'Save failed', 'error'); }
   }
@@ -493,7 +517,7 @@
   window.AdminQuests = {
     openForm: openForm, save: save, setStatus: setStatus, refresh: refresh,
     setTab: function (t) { S.tab = t; renderList(); },
-    uploadHero: uploadHero, qtProofChange: qtProofChange, qtCatChange: qtCatChange, modeChange: modeChange,
+    uploadHero: uploadHero, qtProofChange: qtProofChange, qtCatChange: qtCatChange, modeChange: modeChange, formTab: formTab,
     scopeChange: scopeChange, countryChange: countryChange,
     saveTask: saveTask, editTask: editTask, cancelTaskEdit: cancelTaskEdit, deleteTask: deleteTask, review: review
   };
