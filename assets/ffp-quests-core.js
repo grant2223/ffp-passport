@@ -186,7 +186,22 @@ window.Quests = {
       '.q-lb-meta{flex:1;min-width:0;}',
       '.q-lb-name{font-weight:700;color:#e8eef4;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
       '.q-lb-loc{font-size:11px;color:#8a99a8;}',
-      '.q-lb-pts{font-weight:900;color:#e8eef4;font-size:14px;flex-shrink:0;}.q-lb-pts span{font-size:10px;color:#8a99a8;font-weight:700;margin-left:2px;}'
+      '.q-lb-pts{font-weight:900;color:#e8eef4;font-size:14px;flex-shrink:0;}.q-lb-pts span{font-size:10px;color:#8a99a8;font-weight:700;margin-left:2px;}',
+      // points-race hero + breakdown + ways-to-earn
+      '.q-prog-race .q-prog-row{align-items:baseline;}.q-race-pts b{font-size:34px;}.q-race-pts span{font-size:14px;color:#8a99a8;font-weight:700;margin-left:3px;}',
+      '.q-race-hint{font-size:11.5px;color:#8a99a8;margin-top:8px;display:flex;align-items:center;gap:5px;}.q-race-hint .material-icons{font-size:14px;color:#2ba8e0;}',
+      '.q-ways-btn{width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:7px;padding:12px;border-radius:11px;border:1px solid rgba(43,168,224,.35);background:rgba(43,168,224,.08);color:#2ba8e0;font-weight:800;font-size:13.5px;cursor:pointer;font-family:inherit;}.q-ways-btn .material-icons{font-size:18px;}',
+      '.q-bd-head{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#8a99a8;margin:18px 0 9px;}',
+      '.q-bd-row{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:10px;margin-bottom:6px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);}',
+      '.q-bd-ic{font-size:19px;color:#2ba8e0;flex-shrink:0;}.q-bd-meta{flex:1;min-width:0;}.q-bd-name{font-weight:700;color:#e8eef4;font-size:13px;}.q-bd-sub{font-size:11px;color:#8a99a8;margin-top:1px;}',
+      '.q-bd-pts{font-weight:900;color:#FFCC00;font-size:15px;flex-shrink:0;}',
+      '.q-ways-ov{position:fixed;inset:0;z-index:100070;background:rgba(4,12,20,.72);display:flex;align-items:flex-end;justify-content:center;}',
+      '.q-we-wrap{width:100%;max-width:520px;background:#0f1e2e;border-top-left-radius:18px;border-top-right-radius:18px;max-height:80vh;display:flex;flex-direction:column;}',
+      '.q-we-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid #1a2f44;font-size:16px;font-weight:800;color:#e8eef4;}',
+      '.q-we-x{background:none;border:none;color:#8a99a8;cursor:pointer;display:flex;}.q-we-x .material-icons{font-size:24px;}',
+      '.q-we-list{padding:12px 18px 26px;overflow:auto;-webkit-overflow-scrolling:touch;}',
+      '.q-we-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.06);}.q-we-meta{flex:1;min-width:0;}.q-we-name{font-weight:700;color:#e8eef4;font-size:14px;}.q-we-sub{font-size:11.5px;color:#8a99a8;margin-top:2px;}',
+      '.q-we-pts{font-weight:900;color:#FFCC00;font-size:15px;flex-shrink:0;}'
     ].join('');
     document.head.appendChild(s);
   },
@@ -309,10 +324,19 @@ window.Quests = {
     var done = tasks.filter(function (t) { return (t.my_state || '') === 'verified'; }).length;
     var pct = total ? Math.round(done / total * 100) : 0;
     var complete = total > 0 && done >= total;
+    var isRace = (d.mode === 'points_race'); this._openMode = d.mode || 'checklist';
     var pill = (d.kind === 'ffp') ? 'Open to all' : ('Members · ' + escHtml(d.provider_name || 'Partner'));
     var tasksHtml = tasks.map(this.taskAccordion.bind(this)).join('') || '<div class="q-board-empty">Tasks announced soon.</div>';
     // Gamified progress hero — the dopamine loop: a big bar that fills, points climbing, rank to chase.
-    var prog = '<div class="q-prog' + (complete ? ' complete' : '') + '">' +
+    var prog = isRace
+      ? '<div class="q-prog q-prog-race">' +
+          '<div class="q-prog-row">' +
+            '<span class="q-prog-count q-race-pts"><b class="gold">' + (d.my_points || 0) + '</b> <span>pts</span></span>' +
+            (hasBoard ? '<span class="q-prog-stats"><b class="blue">' + (d.my_rank ? '#' + d.my_rank : '—') + '</b> rank</span>' : '') +
+          '</div>' +
+          '<div class="q-race-hint"><span class="material-icons">bolt</span> Tracked automatically — just keep moving</div>' +
+        '</div>'
+      : '<div class="q-prog' + (complete ? ' complete' : '') + '">' +
         (complete ? '<div class="q-prog-win"><span class="material-icons">emoji_events</span> Quest complete!</div>' : '') +
         '<div class="q-prog-row">' +
           '<span class="q-prog-count"><b>' + done + '</b> <span>/ ' + total + ' done</span></span>' +
@@ -322,7 +346,7 @@ window.Quests = {
         '<div class="q-prog-bar"><i style="width:' + pct + '%;"></i></div>' +
       '</div>';
     var toggle = hasBoard
-      ? '<div class="q-seg"><button id="q-seg-tasks" class="active" onclick="Quests.questPane(\'tasks\')">Tasks</button>' +
+      ? '<div class="q-seg"><button id="q-seg-tasks" class="active" onclick="Quests.questPane(\'tasks\')">' + (isRace ? 'My points' : 'Tasks') + '</button>' +
         '<button id="q-seg-board" onclick="Quests.questPane(\'board\')">Leaderboard</button></div>' : '';
     var boardPane = hasBoard
       ? '<div id="q-pane-board" style="display:none;">' +
@@ -335,6 +359,7 @@ window.Quests = {
               '<div class="q-board-chips">' +
                 '<button class="q-chip active" data-scope="global" onclick="Quests.boardFilter(\'global\')">Global</button>' +
                 '<button class="q-chip" data-scope="country" onclick="Quests.boardFilter(\'country\')">My country</button>' +
+                '<button class="q-chip" data-scope="region" onclick="Quests.boardFilter(\'region\')">My region</button>' +
                 '<button class="q-chip" data-scope="city" onclick="Quests.boardFilter(\'city\')">My city</button>' +
               '</div>' +
             '</div>' +
@@ -357,12 +382,17 @@ window.Quests = {
         '<div class="q-d2-body">' +
           (d.description ? '<p class="q-d2-desc">' + escHtml(d.description) + '</p>' : '') +
           prog + toggle +
-          '<div id="q-pane-tasks"><div class="q-tasklist">' + tasksHtml + '</div></div>' +
+          '<div id="q-pane-tasks">' + (isRace
+            ? '<button class="q-ways-btn" onclick="Quests.openWaysToEarn()"><span class="material-icons">workspace_premium</span> Ways to earn points</button>' +
+              '<div class="q-bd-head">Where your points came from</div>' +
+              '<div id="q-points-breakdown" class="q-breakdown"><div class="q-board-loading">Loading…</div></div>'
+            : '<div class="q-tasklist">' + tasksHtml + '</div>') + '</div>' +
           boardPane +
         '</div>' +
       '</div>';
     openDetailModal(html);
     var bar = document.querySelector('.q-prog-bar i'); if (bar) { bar.style.width = '0%'; setTimeout(function () { bar.style.width = pct + '%'; }, 60); }
+    if (isRace) this.loadBreakdown();
   },
 
   toggleTask(id) {
@@ -420,6 +450,7 @@ window.Quests = {
     var p = this.meProfile();
     var args = { p_quest: this._openQuest, p_limit: 50, p_search: this.boardSearch || null };
     if (this.boardScope === 'city') args.p_city = p.city || null;
+    if (this.boardScope === 'region') args.p_region = p.region || null;
     if (this.boardScope === 'country') args.p_country = p.country || null;
     if (this.boardGender) args.p_gender = this.boardGender;
     var rows = [];
@@ -442,6 +473,43 @@ window.Quests = {
       '</div>';
     }).join('');
   },
+
+  // points_race: "where your points came from" — per action-type count × points (from member_quest_points_breakdown)
+  async loadBreakdown() {
+    var host = document.getElementById('q-points-breakdown'); if (!host || !this._openQuest) return;
+    var mid = this.memberId(); var rows = [];
+    try { var r = await window.supabase.rpc('member_quest_points_breakdown', { p_me: mid, p_quest: this._openQuest }); rows = (r && r.data) ? r.data : []; } catch (e) {}
+    var earned = rows.filter(function (x) { return (Number(x.points) || 0) > 0; });
+    if (!earned.length) { host.innerHTML = '<div class="q-board-empty">No points yet — tap “Ways to earn points” and get moving.</div>'; return; }
+    host.innerHTML = earned.map(function (x) {
+      return '<div class="q-bd-row">' +
+        '<span class="material-icons q-bd-ic">' + escHtml(x.icon || 'bolt') + '</span>' +
+        '<div class="q-bd-meta"><div class="q-bd-name">' + escHtml(x.label) + '</div>' +
+          '<div class="q-bd-sub">' + (Number(x.count) || 0) + ' × ' + x.points_each + ' pts</div></div>' +
+        '<div class="q-bd-pts">' + x.points + '</div>' +
+      '</div>';
+    }).join('');
+  },
+  // "Ways to earn points" modal — the tasks list for a points-race quest
+  openWaysToEarn() {
+    var d = this._openData; if (!d) return;
+    var self = this;
+    var rows = (d.tasks || []).map(function (t) {
+      var cap = (t.cap != null) ? ' · max ' + t.cap + '/day' : '';
+      var tgt = (t.target != null) ? ' · target ×' + t.target : '';
+      var kind = t.activity_type ? 'Tracked automatically' : ((self.PROOF[t.proof_type] && self.PROOF[t.proof_type].label) || 'Proof');
+      return '<div class="q-we-row"><div class="q-we-meta"><div class="q-we-name">' + escHtml(t.title) + '</div>' +
+        '<div class="q-we-sub">' + escHtml(kind + cap + tgt) + '</div></div>' +
+        '<div class="q-we-pts">+' + (t.points || 0) + '</div></div>';
+    }).join('') || '<div class="q-board-empty">No tasks yet.</div>';
+    var ov = document.createElement('div'); ov.id = 'q-ways-ov'; ov.className = 'q-ways-ov';
+    ov.innerHTML = '<div class="q-we-wrap"><div class="q-we-head"><span>Ways to earn points</span>' +
+      '<button class="q-we-x" onclick="Quests.closeWays()" aria-label="Close"><span class="material-icons">close</span></button></div>' +
+      '<div class="q-we-list">' + rows + '</div></div>';
+    ov.addEventListener('click', function (e) { if (e.target === ov) Quests.closeWays(); });
+    document.body.appendChild(ov);
+  },
+  closeWays() { var o = document.getElementById('q-ways-ov'); if (o) o.remove(); },
 
   // Accordion task: tap the head → expands to show how-to + the action. Completion = filled green check + row tint.
   taskAccordion(t) {
