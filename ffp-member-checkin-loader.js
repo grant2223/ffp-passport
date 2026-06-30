@@ -108,6 +108,16 @@
     m = String(t).match(/ffppro:([0-9a-fA-F-]{36})/); if (m) return m[1];
     return null;
   }
+  // A meetup host's check-in QR encodes ?meetup=<id>&mc=<token> (or ffpmeetup:<id>:<token>).
+  function parseMeetup(t) {
+    if (!t) return null;
+    var s = String(t);
+    var id = s.match(/[?&]meetup=([0-9a-fA-F-]{36})/);
+    if (id) { var c = s.match(/[?&]mc=([A-Za-z0-9]+)/); return { id: id[1], code: c ? c[1] : '' }; }
+    var m = s.match(/ffpmeetup:([0-9a-fA-F-]{36}):([A-Za-z0-9]+)/);
+    if (m) return { id: m[1], code: m[2] };
+    return null;
+  }
 
   function injectCss() {
     if (document.getElementById('ffp-ci-css')) return;
@@ -194,7 +204,11 @@
       try {
         _h5 = new window.Html5Qrcode('ci-reader');
         _h5.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 240, height: 240 } },
-          function (decoded) { var v = parseVenue(decoded); if (v) { stopScanner(); openContext(v); } },
+          function (decoded) {
+            var mk = parseMeetup(decoded); if (mk) { stopScanner(); meetupCheckin(mk.id, mk.code); return; }
+            var pr = parsePro(decoded); if (pr) { stopScanner(); openProContext(pr); return; }
+            var v = parseVenue(decoded); if (v) { stopScanner(); openContext(v); }
+          },
           function () {}).catch(function () {});
       } catch (e) {}
     });
@@ -595,21 +609,55 @@
       .catch(function (e) { console.error('[FFP Check-in] pro:', e); resultMsg('error', 'Couldn’t check in', 'Please try again.'); });
   }
 
+  // Meetup attendee check-in: scanned the host's QR (meetup id + token) → GPS → meetup_check_in RPC.
+  function meetupCheckin(meetupId, code) {
+    var mid = memberId(); if (!mid) { resultMsg('error', 'Not signed in', 'Sign in on this phone, then scan again.'); return; }
+    injectCss();
+    openSheet('<div class="ci-title">Checking you in…</div><div class="ci-sub">Confirming you’re at the meetup.</div><div class="ci-spin"></div>');
+    getPosition(function (coords) {
+      sb().rpc('meetup_check_in', { p_me: mid, p_meetup: meetupId, p_code: code || '', p_lat: coords ? coords.lat : null, p_lng: coords ? coords.lng : null })
+        .then(function (res) {
+          var d = res && res.data;
+          if (res.error || !d || d.ok === false) {
+            var err = d && d.error;
+            var msg = err === 'bad_code' ? 'That code doesn’t match this meetup.'
+                    : err === 'window_closed' ? 'Check-in isn’t open right now — it opens 30 min before and closes 3 h after the start.'
+                    : err === 'too_far' ? 'You look too far from the meetup spot. Get a little closer and try again.'
+                    : err === 'need_location' ? 'Turn on location so we can confirm you’re there.'
+                    : err === 'not_found' ? 'That meetup no longer exists.'
+                    : 'Please try again.';
+            resultMsg('error', 'Couldn’t check in', msg); return;
+          }
+          resultMsg('ok', 'Checked in ✓', 'Attendance confirmed — your points are on the way.');
+          try { document.dispatchEvent(new CustomEvent('ffp-activity-logged')); } catch (e) {}
+        })
+        .catch(function (e) { console.error('[FFP Check-in] meetup:', e); resultMsg('error', 'Couldn’t check in', 'Please try again.'); });
+    });
+  }
+
   // ── public + boot ──
   window.FFPCheckin = {
     scan: startScan, close: closeSheet, _manual: manual, _save: save, _context: openContext, _pick: pickAct,
     _pickType: pickType, _program: program, _questSubmit: questSubmit, _challengeSubmit: challengeSubmit,
     _eventCheckin: eventCheckin, _bookingCheckin: bookingCheckin, _sessionCheckin: sessionCheckin,
-    _proContext: openProContext, _proCheckin: proServiceCheckin
+    _proContext: openProContext, _proCheckin: proServiceCheckin, _meetup: meetupCheckin
   };
 
   function pendingVenue() { try { return localStorage.getItem('ffp_pending_venue') || ''; } catch (e) { return ''; } }
   function clearPendingVenue() { try { localStorage.removeItem('ffp_pending_venue'); } catch (e) {} }
   function pendingPro() { try { return localStorage.getItem('ffp_pending_pro') || ''; } catch (e) { return ''; } }
   function clearPendingPro() { try { localStorage.removeItem('ffp_pending_pro'); } catch (e) {} }
+  function pendingMeetup() { try { return JSON.parse(localStorage.getItem('ffp_pending_meetup') || 'null'); } catch (e) { return null; } }
+  function clearPendingMeetup() { try { localStorage.removeItem('ffp_pending_meetup'); } catch (e) {} }
 
   function boot() {
     injectCss();
+    // A phone-camera scan of a meetup host's QR lands as ?meetup=<id>&mc=<token> (resume-after-login like venues/pros).
+    var mk = parseMeetup(window.location.search) || pendingMeetup();
+    if (mk && mk.id) {
+      if (memberId()) { clearPendingMeetup(); setTimeout(function () { meetupCheckin(mk.id, mk.code); }, 600); return; }
+      try { localStorage.setItem('ffp_pending_meetup', JSON.stringify(mk)); } catch (e) {}
+    }
     // A scanned PROFESSIONAL QR lands as ?pro=<id> (resume-after-login like venues).
     var pq = parsePro(window.location.search) || pendingPro();
     if (pq) {
