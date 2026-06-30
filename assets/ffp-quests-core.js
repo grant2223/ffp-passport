@@ -101,7 +101,9 @@ window.Quests = {
       '.q-d2-pill{position:absolute;top:12px;left:12px;font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#fff;background:rgba(0,0,0,.45);border-radius:20px;padding:3px 9px;}',
       '.q-d2-title{font-size:20px;font-weight:900;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.5);}',
       '.q-d2-body{padding:14px 4px 4px;}',
-      '.q-d2-desc{font-size:13px;color:#9fb4c4;margin:0 0 12px;line-height:1.5;}',
+      '.q-d2-desc{font-size:16px;color:#9fb4c4;margin:0 0 4px;line-height:1.5;}',
+      '.q-d2-desc.clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}',
+      '.q-d2-more{background:none;border:none;color:#2ba8e0;font-weight:800;font-size:13px;padding:0 0 12px;cursor:pointer;font-family:inherit;}',
       '.q-statbar{display:flex;gap:18px;padding:10px 14px;background:rgba(8,20,32,.5);border:1px solid rgba(255,255,255,.07);border-radius:11px;margin-bottom:12px;}',
       '.q-statbar span{font-size:12px;color:#8a99a8;font-weight:700;}.q-statbar b{font-size:16px;color:#e8eef4;font-weight:900;}.q-statbar b.gold{color:#f4d77a;}.q-statbar b.blue{color:#2ba8e0;}',
       '.q-seg{display:flex;gap:6px;background:rgba(8,20,32,.5);border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:4px;margin-bottom:14px;}',
@@ -388,7 +390,7 @@ window.Quests = {
           '<div class="q-d2-title">' + escHtml(d.title) + '</div>' +
         '</div>' +
         '<div class="q-d2-body">' +
-          (d.description ? '<p class="q-d2-desc">' + escHtml(d.description) + '</p>' : '') +
+          (d.description ? '<p class="q-d2-desc clamp" id="q-d2-desc">' + escHtml(d.description) + '</p><button class="q-d2-more" id="q-d2-more" style="display:none;" onclick="Quests.descMore()">Show more</button>' : '') +
           prog +
           ((d.join_mode === 'opt_in' && !d.joined) ? '<button class="q-join-cta" onclick="Quests.joinQuest(\'' + d.id + '\')"><span class="material-icons">flag</span> Join this quest</button>' : '') +
           toggle +
@@ -404,6 +406,11 @@ window.Quests = {
     var bar = document.querySelector('.q-prog-bar i'); if (bar) { bar.style.width = '0%'; setTimeout(function () { bar.style.width = pct + '%'; }, 60); }
     if (isRace) this.loadBreakdown();
     if (isRace && hasBoard) { this._boardLoaded = true; this.loadQuestBoard(); }   // leaderboard is the default pane for a race
+    setTimeout(function () { var de = document.getElementById('q-d2-desc'), mb = document.getElementById('q-d2-more'); if (de && mb && de.scrollHeight > de.clientHeight + 2) mb.style.display = ''; }, 30);
+  },
+  descMore() {
+    var de = document.getElementById('q-d2-desc'); if (de) de.classList.remove('clamp');
+    var mb = document.getElementById('q-d2-more'); if (mb) mb.style.display = 'none';
   },
   async joinQuest(id) {
     var mid = this.memberId(); if (!mid) { showToast('Please sign in again', 'error'); return; }
