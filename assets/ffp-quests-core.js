@@ -14,6 +14,7 @@ window.Quests = {
   major: null,
   minor: [],
   partner: [],
+  upcoming: [],
   boardCountry: '', boardRegion: '', boardCity: '', _locs: [],
   boardSearch: '',
   boardGender: '',
@@ -61,7 +62,8 @@ window.Quests = {
       this.major = d.major || d.headline || null;
       this.minor = d.minor || d.explore || [];
       this.partner = d.partner || [];
-    } catch (e) { this.major = null; this.minor = []; this.partner = []; }
+      this.upcoming = d.upcoming || [];
+    } catch (e) { this.major = null; this.minor = []; this.partner = []; this.upcoming = []; }
     this.renderAll();
   },
 
@@ -205,7 +207,16 @@ window.Quests = {
       '.q-we-x{background:none;border:none;color:#8a99a8;cursor:pointer;display:flex;}.q-we-x .material-icons{font-size:26px;}',
       '.q-we-list{padding:14px 18px 40px;overflow:auto;-webkit-overflow-scrolling:touch;flex:1;max-width:620px;width:100%;margin:0 auto;box-sizing:border-box;}',
       '.q-we-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.06);}.q-we-meta{flex:1;min-width:0;}.q-we-name{font-weight:700;color:#e8eef4;font-size:14px;}.q-we-sub{font-size:11.5px;color:#8a99a8;margin-top:2px;}',
-      '.q-we-pts{font-weight:900;color:#FFCC00;font-size:15px;flex-shrink:0;}'
+      '.q-we-pts{font-weight:900;color:#FFCC00;font-size:15px;flex-shrink:0;}',
+      // upcoming / coming-soon teaser
+      '.q-up{position:relative;border-radius:16px;overflow:hidden;min-height:206px;display:flex;flex-direction:column;justify-content:flex-end;padding:16px;margin-bottom:12px;cursor:pointer;background-size:cover;background-position:center;border:1px solid var(--q-border-mid);}',
+      '.q-up.cov-fitness{background:linear-gradient(135deg,#ff6b4a,#b23a1c);}.q-up.cov-sports{background:linear-gradient(135deg,#2ba8e0,#155e85);}.q-up.cov-wellness{background:linear-gradient(135deg,#36c5b0,#0d6b5f);}.q-up.cov-recovery{background:linear-gradient(135deg,#8b7cf0,#4c2c9c);}.q-up.cov-adventure{background:linear-gradient(135deg,#f5a623,#a85e08);}.q-up.cov-food{background:linear-gradient(135deg,#4ade80,#15803d);}',
+      '.q-up-pill{position:absolute;top:12px;left:12px;display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#082335;background:var(--q-yellow,#FFCC00);border-radius:20px;padding:5px 10px;}.q-up-pill .material-icons{font-size:13px;}',
+      '.q-up-cd{position:absolute;top:11px;right:12px;text-align:center;background:rgba(8,20,32,.45);border-radius:12px;padding:6px 10px;}.q-up-cd b{display:block;font-size:20px;font-weight:900;color:#fff;line-height:1;}.q-up-cd span{font-size:9px;color:#cfe0ee;letter-spacing:.5px;}',
+      '.q-up-title{font-size:19px;font-weight:900;color:#fff;line-height:1.15;}',
+      '.q-up-desc{font-size:12.5px;color:#dceaf5;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}',
+      '.q-up-foot{display:inline-flex;align-self:flex-start;align-items:center;gap:6px;margin-top:12px;font-size:12px;font-weight:700;color:#fff;background:rgba(8,20,32,.35);border-radius:10px;padding:8px 12px;}.q-up-foot .material-icons{font-size:15px;}',
+      '.q-up-banner{display:flex;align-items:center;gap:12px;}.q-up-banner .material-icons{font-size:26px;color:var(--q-yellow,#FFCC00);}.q-up-banner-t{font-size:15px;font-weight:800;color:var(--q-text,#e8eef4);}.q-up-banner-s{font-size:12px;color:var(--q-muted,#8a99a8);margin-top:2px;}'
     ].join('');
     document.head.appendChild(s);
   },
@@ -219,6 +230,11 @@ window.Quests = {
     var joined = this.minor.filter(function (q) { return q.joined; }).concat(this.partner || []);
     var browse = this.minor.filter(function (q) { return !q.joined; });
     var html = '';
+    // Coming soon — upcoming quests (published with a future start) teased at the top.
+    if ((this.upcoming || []).length) {
+      html += '<div class="q-sec-h">Coming soon</div>';
+      html += (this.upcoming || []).map(this.upcomingCard.bind(this)).join('');
+    }
     if (joined.length) {
       html += '<div class="q-sec-h">My quests</div>';
       html += '<div class="q-list">' + joined.map(function (q) { return q.kind === 'partner' ? self.rowPartner(q) : self.rowMinor(q); }).join('') + '</div>';
@@ -228,6 +244,21 @@ window.Quests = {
       ? '<div class="q-list">' + browse.map(this.rowMinor.bind(this)).join('') + '</div>'
       : '<div class="q-sec-empty">' + (joined.length ? 'You’re in all the open quests — more on the way.' : 'New quests are on the way — check back soon.') + '</div>';
     host.innerHTML = html;
+  },
+
+  upcomingCard: function (q) {
+    var cover = (this.CAT[q.category] && this.CAT[q.category].cover) || 'cov-fitness';
+    var bg = q.hero_image_url ? "linear-gradient(180deg,rgba(8,20,32,0.12),rgba(8,20,32,0.82)),url('" + q.hero_image_url + "')" : '';
+    var d = q.starts_at ? new Date(q.starts_at) : null;
+    var startsTxt = d ? d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
+    var days = d ? Math.max(0, Math.ceil((d.getTime() - Date.now()) / 86400000)) : null;
+    var cd = (days != null) ? ('<div class="q-up-cd"><b>' + days + '</b><span>' + (days === 1 ? 'DAY' : 'DAYS') + '</span></div>') : '';
+    return '<div class="q-up ' + (bg ? '' : cover) + '" onclick="Quests.open(\'' + q.id + '\',\'ffp\')"' + (bg ? ' style="background-image:' + bg + ';"' : '') + '>' +
+      '<span class="q-up-pill"><span class="material-icons">hourglass_top</span> Starts ' + escHtml(startsTxt) + '</span>' + cd +
+      '<div class="q-up-title">' + escHtml(q.title) + '</div>' +
+      (q.description ? '<div class="q-up-desc">' + escHtml(q.description) + '</div>' : '') +
+      '<div class="q-up-foot"><span class="material-icons">visibility</span> Tap to preview the ways to earn</div>' +
+    '</div>';
   },
 
   renderMajor() {
@@ -331,10 +362,16 @@ window.Quests = {
     var pct = total ? Math.round(done / total * 100) : 0;
     var complete = total > 0 && done >= total;
     var isRace = (d.mode === 'points_race'); this._openMode = d.mode || 'checklist';
+    var startsD = d.starts_at ? new Date(d.starts_at) : null;
+    var isUpcoming = !!(startsD && startsD.getTime() > Date.now());
+    var upDays = startsD ? Math.max(0, Math.ceil((startsD.getTime() - Date.now()) / 86400000)) : 0;
+    var upTxt = startsD ? startsD.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
     var pill = (d.kind === 'ffp') ? 'Open to all' : ('Members · ' + escHtml(d.provider_name || 'Partner'));
     var tasksHtml = tasks.map(this.taskAccordion.bind(this)).join('') || '<div class="q-board-empty">Tasks announced soon.</div>';
     // Gamified progress hero — the dopamine loop: a big bar that fills, points climbing, rank to chase.
-    var prog = isRace
+    var prog = isUpcoming
+      ? '<div class="q-prog q-up-banner"><span class="material-icons">hourglass_top</span><div><div class="q-up-banner-t">Starts ' + escHtml(upTxt) + '</div><div class="q-up-banner-s">' + (upDays === 0 ? 'Launching today — get ready!' : upDays + ' day' + (upDays === 1 ? '' : 's') + ' to go · here’s how you’ll earn') + '</div></div></div>'
+      : isRace
       ? '<div class="q-prog q-prog-race">' +
           '<div class="q-prog-row">' +
             '<span class="q-prog-count q-race-pts"><b class="gold">' + (d.my_points || 0) + '</b> <span>pts</span></span>' +
@@ -352,14 +389,14 @@ window.Quests = {
         '<div class="q-prog-bar"><i style="width:' + pct + '%;"></i></div>' +
       '</div>';
     // Points race → Leaderboard is the default tab on the LEFT, "My points" on the right.
-    var toggle = hasBoard
+    var toggle = (hasBoard && !isUpcoming)
       ? (isRace
           ? '<div class="q-seg"><button id="q-seg-board" class="active" onclick="Quests.questPane(\'board\')">Leaderboard</button>' +
             '<button id="q-seg-tasks" onclick="Quests.questPane(\'tasks\')">My points</button></div>'
           : '<div class="q-seg"><button id="q-seg-tasks" class="active" onclick="Quests.questPane(\'tasks\')">Tasks</button>' +
             '<button id="q-seg-board" onclick="Quests.questPane(\'board\')">Leaderboard</button></div>')
       : '';
-    var boardPane = hasBoard
+    var boardPane = (hasBoard && !isUpcoming)
       ? '<div id="q-pane-board" style="display:' + (isRace ? '' : 'none') + ';">' +
           '<div class="q-board-top">' +
             '<input id="q-board-search" placeholder="Search name…" oninput="Quests.boardSearchInput(this.value)">' +
@@ -390,20 +427,19 @@ window.Quests = {
         '<div class="q-d2-body">' +
           (d.description ? '<p class="q-d2-desc clamp" id="q-d2-desc">' + escHtml(d.description) + '</p><button class="q-d2-more" id="q-d2-more" style="display:none;" onclick="Quests.descMore()">Show more</button>' : '') +
           prog +
-          ((d.join_mode === 'opt_in' && !d.joined) ? '<button class="q-join-cta" onclick="Quests.joinQuest(\'' + d.id + '\')"><span class="material-icons">flag</span> Join this quest</button>' : '') +
+          ((d.join_mode === 'opt_in' && !d.joined && !isUpcoming) ? '<button class="q-join-cta" onclick="Quests.joinQuest(\'' + d.id + '\')"><span class="material-icons">flag</span> Join this quest</button>' : '') +
           toggle +
-          '<div id="q-pane-tasks" style="display:' + (isRace ? 'none' : '') + ';">' + (isRace
+          '<div id="q-pane-tasks" style="display:' + ((isRace && !isUpcoming) ? 'none' : '') + ';">' + (isRace
             ? '<button class="q-ways-btn" onclick="Quests.openWaysToEarn()"><span class="material-icons">workspace_premium</span> Ways to earn points</button>' +
-              '<div class="q-bd-head">Where your points came from</div>' +
-              '<div id="q-points-breakdown" class="q-breakdown"><div class="q-board-loading">Loading…</div></div>'
+              (isUpcoming ? '' : '<div class="q-bd-head">Where your points came from</div><div id="q-points-breakdown" class="q-breakdown"><div class="q-board-loading">Loading…</div></div>')
             : '<div class="q-tasklist">' + tasksHtml + '</div>') + '</div>' +
           boardPane +
         '</div>' +
       '</div>';
     openDetailModal(html);
     var bar = document.querySelector('.q-prog-bar i'); if (bar) { bar.style.width = '0%'; setTimeout(function () { bar.style.width = pct + '%'; }, 60); }
-    if (isRace) this.loadBreakdown();
-    if (isRace && hasBoard) { this._boardLoaded = true; this.loadQuestBoard(); }   // leaderboard is the default pane for a race
+    if (isRace && !isUpcoming) this.loadBreakdown();
+    if (isRace && hasBoard && !isUpcoming) { this._boardLoaded = true; this.loadQuestBoard(); }   // leaderboard is the default pane for a race
     setTimeout(function () { var de = document.getElementById('q-d2-desc'), mb = document.getElementById('q-d2-more'); if (de && mb && de.scrollHeight > de.clientHeight + 2) mb.style.display = ''; }, 30);
   },
   descMore() {
