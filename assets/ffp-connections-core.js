@@ -176,7 +176,72 @@ const MeetMove = {
       this.renderMatchStrip();
     } catch (e) { console.warn('[FFP Matches] load threw:', e); }
   },
-  
+
+  // Build a match object (match %, shared sports, etc.) from one raw get_match_pool/get_match_one row.
+  // Used by the matches strip AND by openMemberDetail's fallback for members not in the pool (e.g. connections).
+  _buildMatchObj: function (r) {
+    var md = (typeof MemberProfile !== 'undefined' && MemberProfile.data) ? MemberProfile.data : {};
+    var LV = { 'not tried': 0, social: 1, competitive: 2, representative: 3, professional: 4 };
+    var myCity = String(md.city || '').toLowerCase();
+    var myCountry = String(md.country || '').toLowerCase();
+    var myGender = String(md.gender || '').toLowerCase();
+    var myAge = md.dobYear ? (new Date().getFullYear() - parseInt(md.dobYear, 10)) : null;
+    var mySkills = {};
+    ((md.sports) || []).forEach(function (sp) { if (sp.name) mySkills[String(sp.name).toLowerCase()] = LV[String(sp.level || '').toLowerCase()]; });
+    var now = Date.now();
+    if (window.FFPCard) window.FFPCard.register(r);
+    var skills = Array.isArray(r.skills) ? r.skills : [];
+    var sports = skills.map(function (sk) {
+      var nm = sk.name || sk.skill || sk.sport || '';
+      return { name: nm, level: sk.level || 'All levels', grade: sk.grade || '', shared: mySkills.hasOwnProperty(String(nm).toLowerCase()) };
+    }).filter(function (sp) { return sp.name; });
+    var pts = 0, matchSports = [];
+    sports.forEach(function (sp) {
+      if (!sp.shared) return;
+      pts += 16;
+      var mine = mySkills[String(sp.name).toLowerCase()], theirs = LV[String(sp.level || '').toLowerCase()], lvlPct = 70;
+      if (typeof mine === 'number' && typeof theirs === 'number') {
+        var d = Math.abs(mine - theirs);
+        if (d === 0) { pts += 12; lvlPct = 100; } else if (d === 1) { pts += 6; lvlPct = 85; }
+      }
+      matchSports.push({ icon: 'fitness_center', sport: sp.name, pct: lvlPct, points: [{ l: 'Level', v: sp.level }] });
+    });
+    var cityMatch = !!(myCity && r.city && myCity === String(r.city).toLowerCase());
+    var countryMatch = !cityMatch && !!(myCountry && r.country && myCountry === String(r.country).toLowerCase());
+    if (cityMatch) pts += 24; else if (countryMatch) pts += 8;
+    var genderMatch = !!(myGender && r.gender && myGender === String(r.gender).toLowerCase());
+    if (genderMatch) pts += 16;
+    var ageClose = false, ad = (myAge && r.age) ? Math.abs(myAge - r.age) : null;
+    if (ad !== null) { if (ad <= 5) { pts += 12; ageClose = true; } else if (ad <= 10) { pts += 6; } }
+    var recent = false;
+    if (r.last_active) { var days = (now - new Date(r.last_active).getTime()) / 86400000; if (days <= 30) { pts += 8; recent = true; } else if (days <= 90) { pts += 3; } }
+    var score = Math.min(99, Math.round(pts));
+    var nm = r.name || 'Member';
+    var conn = r.incoming ? 'incoming' : (r.conn_status === 'accepted' ? 'connected' : (r.conn_status === 'pending' ? 'requested' : 'none'));
+    var matchOther = [];
+    if (cityMatch) matchOther.push({ l: 'Same city', v: r.city }); else if (countryMatch) matchOther.push({ l: 'Same country', v: r.country });
+    if (genderMatch) matchOther.push({ l: 'Same gender', v: (r.gender || '') });
+    if (ageClose) matchOther.push({ l: 'Similar age', v: 'within 5 years' });
+    if (recent) matchOther.push({ l: 'Recently active', v: 'last 30 days' });
+    return {
+      id: r.id, name: nm, letter: (nm[0] || '?').toUpperCase(), photo: r.photo_url || '',
+      givenNames: r.given_names || (nm.split(' ')[0] || ''),
+      surname: r.surname || (nm.split(' ').slice(1).join(' ') || ''),
+      age: r.age || '', city: r.city || '', country: r.country || '',
+      gender: String(r.gender || '').toLowerCase(), sports: sports,
+      memberType: r.tier || 'member',
+      memberSince: (r.member_since != null ? r.member_since : null),
+      meetupsHosted: (r.meetups_hosted != null ? Number(r.meetups_hosted) : null),
+      reliability: (r.reliability != null ? Number(r.reliability) : null),
+      dob: (window.ffpFmtPassDate ? window.ffpFmtPassDate(r.dob) : ''),
+      issueDate: (window.ffpFmtPassDate ? window.ffpFmtPassDate(r.joined_at) : ''),
+      expiryDate: (window.ffpFmtPassDate ? window.ffpFmtPassDate(r.joined_at, 1) : ''),
+      recent: recent,
+      match: score, bio: r.bio || '', verified: !!r.verified, profession: '',
+      matchSports: matchSports, matchOther: matchOther, connection: conn
+    };
+  },
+
   filtered() {
     let items = this.data.slice();
     // Clean split: Going/Hosting = UPCOMING; Past = your meetups (joined or hosted) that have happened.
@@ -454,8 +519,20 @@ const MeetMove = {
     // PRODUCTION: POST /api/meet/{id}/request
   },
   
-  openMemberDetail(uid) {
-    const u = this.matches.find(x => x.id === uid);
+  async openMemberDetail(uid) {
+    var u = this.matches.find(function (x) { return x.id === uid; });
+    if (!u) {
+      // Not in the match pool (e.g. an existing connection) → fetch this one pair and build the match.
+      try {
+        var meId = (window.FFPAuth && FFPAuth.getMember && (FFPAuth.getMember() || {}).id) || null;
+        if (!meId) { try { meId = (JSON.parse(localStorage.getItem('ffp_member') || '{}') || {}).id || null; } catch (e) {} }
+        if (meId && window.supabase) {
+          var res = await window.supabase.rpc('get_match_one', { p_me: meId, p_other: uid });
+          var rows = (res && res.data) || [];
+          if (rows[0]) u = this._buildMatchObj(rows[0]);
+        }
+      } catch (e) {}
+    }
     if (!u) return;
     const joinedTxt = u.memberSince ? `Member since ${u.memberSince}` : '';
     const sportsMatchHtml = u.matchSports.map(ms => `
@@ -803,6 +880,8 @@ const CollectionView = {
     }).join('') + '</div>';
   },
   openPerson: async function (id) {
+    // "View Passport" → the rich match-detail page (% match + why you match), incl. for existing connections.
+    if (window.MeetMove && typeof MeetMove.openMemberDetail === 'function') { return MeetMove.openMemberDetail(id); }
     var person = this._people().find(function (x) { return x.id === id; }) || {};
     var card = null;
     try {
