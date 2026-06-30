@@ -15,7 +15,21 @@
   var PROOFS = [['auto', 'Auto (tracked)'], ['qr', 'Scan QR'], ['photo', 'Photo'], ['gps', 'GPS check-in'], ['photo_gps', 'Photo + GPS'], ['qr_gps', 'Scan QR + GPS'], ['partner', 'Partner confirms'], ['referral', 'Bring a friend']];
   var VERIFIERS = [['auto', 'Auto'], ['partner', 'Partner'], ['admin', 'Admin']];
 
-  function toast(m, k) { if (typeof window.showToast === 'function') { try { window.showToast(m, k || 'info'); return; } catch (e) {} } console.log('[FFP Admin Quests]', m); }
+  // Own top banner — the shared #toast sits at z-index 200, BELOW the full-screen quest modal (z-index 100000),
+  // so it was invisible on save. This renders a green/red/blue banner at the TOP, above the modal.
+  function toast(m, k) {
+    try {
+      var kind = k || 'info';
+      var bg = kind === 'success' ? '#16a34a' : kind === 'error' ? '#dc2626' : '#2ba8e0';
+      var ic = kind === 'success' ? 'check_circle' : kind === 'error' ? 'error' : 'info';
+      var old = document.getElementById('aq-flash'); if (old) old.remove();
+      var b = document.createElement('div'); b.id = 'aq-flash';
+      b.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:100010;background:' + bg + ';color:#fff;font-weight:800;font-size:14px;padding:12px 20px;border-radius:12px;box-shadow:0 8px 26px rgba(0,0,0,.45);display:flex;align-items:center;gap:8px;max-width:92vw;animation:aqFlashIn .2s ease;';
+      b.innerHTML = '<span class="material-icons" style="font-size:18px;">' + ic + '</span><span>' + esc(m) + '</span>';
+      document.body.appendChild(b);
+      setTimeout(function () { try { b.remove(); } catch (e) {} }, 2800);
+    } catch (e) { console.log('[FFP Admin Quests]', m); }
+  }
   function esc(s) { if (typeof window.escHtml === 'function') return window.escHtml(s); return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function cap(s) { s = s || ''; return s.charAt(0).toUpperCase() + s.slice(1); }
   function val(id) { var e = document.getElementById(id); return e ? e.value.trim() : ''; }
@@ -58,7 +72,8 @@
       '.qf-tab.active{color:#2ba8e0;border-bottom-color:#2ba8e0;}',
       '.qt-card{display:flex;align-items:flex-start;gap:10px;background:#08131f;border:1px solid #1a2f44;border-radius:10px;padding:10px 12px;margin-bottom:8px;}',
       '.qt-card .qt-pts{font-weight:800;color:#FFCC00;font-size:13px;white-space:nowrap;}',
-      '.qt-qr{font-family:monospace;font-size:11px;color:#2ba8e0;background:rgba(43,168,224,.1);padding:2px 6px;border-radius:5px;}'
+      '.qt-qr{font-family:monospace;font-size:11px;color:#2ba8e0;background:rgba(43,168,224,.1);padding:2px 6px;border-radius:5px;}',
+      '@keyframes aqFlashIn{from{opacity:0;transform:translateX(-50%) translateY(-8px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}'
     ].join('');
     document.head.appendChild(css);
   }
