@@ -1534,7 +1534,7 @@ input, select, textarea { font-family: inherit; }
       </div>
     </div>
     <div class="sidebar-footer">
-      build v54 &middot; FFP Admin
+      build v55 &middot; FFP Admin
     </div>
   </aside>
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.toggleSidebar()"></div>
@@ -2182,7 +2182,7 @@ input, select, textarea { font-family: inherit; }
         <div class="section-head"><div class="section-title">Monthly wrap-up</div></div>
         <div class="section-body padded">
           <div style="font-size:13px;color:var(--text-muted,#8a99a8);margin-bottom:12px;">Each member's last-month recap — Coach Grant note, activity mix, connections, top matches. Auto-sends on the 1st; use this to test or re-send.</div>
-          <button class="btn" onclick="AdminEmails.run('monthly-wrapup','test',this)" style="margin-right:8px;border:1px solid var(--border,#26384a);background:transparent;">Send test to me</button>
+          <button class="btn" onclick="AdminEmails.run('monthly-wrapup','test',this)" style="margin-right:8px;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.55);color:#cfe6f6;font-weight:800;">Send test to me</button>
           <button class="btn btn-blue" onclick="AdminEmails.run('monthly-wrapup','all',this)"><span class="material-icons">send</span>Send to everyone</button>
         </div>
       </div>
@@ -2191,7 +2191,7 @@ input, select, textarea { font-family: inherit; }
         <div class="section-head"><div class="section-title">Weekly summary</div></div>
         <div class="section-body padded">
           <div style="font-size:13px;color:var(--text-muted,#8a99a8);margin-bottom:12px;">The Sunday digest of each member's past week. Skips members with no activity that week.</div>
-          <button class="btn" onclick="AdminEmails.run('sunday-summary','test',this)" style="margin-right:8px;border:1px solid var(--border,#26384a);background:transparent;">Send test to me</button>
+          <button class="btn" onclick="AdminEmails.run('sunday-summary','test',this)" style="margin-right:8px;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.55);color:#cfe6f6;font-weight:800;">Send test to me</button>
           <button class="btn btn-blue" onclick="AdminEmails.run('sunday-summary','all',this)"><span class="material-icons">send</span>Send to everyone</button>
         </div>
       </div>
@@ -2201,15 +2201,6 @@ input, select, textarea { font-family: inherit; }
         <div class="section-body padded">
           <div style="font-size:13px;color:var(--text-muted,#8a99a8);margin-bottom:12px;">Emails + notifies attendees of meet-ups happening in the next 24 hours. Normally runs automatically each hour — this just fires it now for anything due.</div>
           <button class="btn btn-blue" onclick="AdminEmails.run('meetup-reminders','all',this)"><span class="material-icons">bolt</span>Run now</button>
-        </div>
-      </div>
-
-      <div class="section">
-        <div class="section-head"><div class="section-title">Coach nudges <span style="font-weight:500;color:var(--text-muted,#8a99a8);font-size:12px;">· in-app + push, not email</span></div></div>
-        <div class="section-body padded">
-          <div style="font-size:13px;color:var(--text-muted,#8a99a8);margin-bottom:12px;">One proactive Coach message per member (bell + phone push) based on today's recovery/activity. Delivered in-app, not by email.</div>
-          <button class="btn" onclick="AdminEmails.run('coach-nudges','test',this)" style="margin-right:8px;border:1px solid var(--border,#26384a);background:transparent;">Send test to me</button>
-          <button class="btn btn-blue" onclick="AdminEmails.run('coach-nudges','all',this)"><span class="material-icons">send</span>Run for everyone</button>
         </div>
       </div>
 
