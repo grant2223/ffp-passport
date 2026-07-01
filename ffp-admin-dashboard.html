@@ -1465,6 +1465,9 @@ input, select, textarea { font-family: inherit; }
       <a class="sidebar-link" data-panel="panel-broadcast" onclick="App.go('panel-broadcast')">
         <span class="material-icons">campaign</span>Broadcast
       </a>
+      <a class="sidebar-link" data-panel="panel-emails" onclick="App.go('panel-emails')">
+        <span class="material-icons">mail</span>Emails
+      </a>
 
       <div class="sidebar-section-label">Marketplace</div>
       <a class="sidebar-link" data-panel="panel-quests" onclick="App.go('panel-quests')"><span class="material-icons">flag</span>Quests</a>
@@ -1531,7 +1534,7 @@ input, select, textarea { font-family: inherit; }
       </div>
     </div>
     <div class="sidebar-footer">
-      build v53 &middot; FFP Admin
+      build v54 &middot; FFP Admin
     </div>
   </aside>
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.toggleSidebar()"></div>
@@ -2169,6 +2172,50 @@ input, select, textarea { font-family: inherit; }
       </div>
     </section>
 
+    <section class="panel" id="panel-emails">
+      <div class="panel-head">
+        <h1>Emails</h1>
+        <div class="panel-head-sub">Send the batch emails manually — off your admin login (no secret, no URL). "Send test to me" delivers only to your address; "Send to everyone" emails all eligible members.</div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><div class="section-title">Monthly wrap-up</div></div>
+        <div class="section-body padded">
+          <div style="font-size:13px;color:var(--text-muted,#8a99a8);margin-bottom:12px;">Each member's last-month recap — Coach Grant note, activity mix, connections, top matches. Auto-sends on the 1st; use this to test or re-send.</div>
+          <button class="btn" onclick="AdminEmails.run('monthly-wrapup','test',this)" style="margin-right:8px;border:1px solid var(--border,#26384a);background:transparent;">Send test to me</button>
+          <button class="btn btn-blue" onclick="AdminEmails.run('monthly-wrapup','all',this)"><span class="material-icons">send</span>Send to everyone</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><div class="section-title">Weekly summary</div></div>
+        <div class="section-body padded">
+          <div style="font-size:13px;color:var(--text-muted,#8a99a8);margin-bottom:12px;">The Sunday digest of each member's past week. Skips members with no activity that week.</div>
+          <button class="btn" onclick="AdminEmails.run('sunday-summary','test',this)" style="margin-right:8px;border:1px solid var(--border,#26384a);background:transparent;">Send test to me</button>
+          <button class="btn btn-blue" onclick="AdminEmails.run('sunday-summary','all',this)"><span class="material-icons">send</span>Send to everyone</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><div class="section-title">Meet-up reminders</div></div>
+        <div class="section-body padded">
+          <div style="font-size:13px;color:var(--text-muted,#8a99a8);margin-bottom:12px;">Emails + notifies attendees of meet-ups happening in the next 24 hours. Normally runs automatically each hour — this just fires it now for anything due.</div>
+          <button class="btn btn-blue" onclick="AdminEmails.run('meetup-reminders','all',this)"><span class="material-icons">bolt</span>Run now</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><div class="section-title">Coach nudges <span style="font-weight:500;color:var(--text-muted,#8a99a8);font-size:12px;">· in-app + push, not email</span></div></div>
+        <div class="section-body padded">
+          <div style="font-size:13px;color:var(--text-muted,#8a99a8);margin-bottom:12px;">One proactive Coach message per member (bell + phone push) based on today's recovery/activity. Delivered in-app, not by email.</div>
+          <button class="btn" onclick="AdminEmails.run('coach-nudges','test',this)" style="margin-right:8px;border:1px solid var(--border,#26384a);background:transparent;">Send test to me</button>
+          <button class="btn btn-blue" onclick="AdminEmails.run('coach-nudges','all',this)"><span class="material-icons">send</span>Run for everyone</button>
+        </div>
+      </div>
+
+      <div id="em-result" style="margin:4px 0 0 4px;font-size:13.5px;font-weight:600;"></div>
+    </section>
+
     <!-- ========== PROFESSIONALS (public-listing verification queue) ========== -->
     <section class="panel" id="panel-professionals">
       <div class="panel-head"><h1>Professionals</h1></div>
@@ -2550,6 +2597,7 @@ const App = {
     'panel-referrals':   'Referrals',
     'panel-feedback':    'Feedback',
     'panel-broadcast':   'Broadcast',
+    'panel-emails':      'Emails',
     'panel-quests':      'Quests',
     'panel-events':      'Events',
     'panel-experiences': 'Trips',
@@ -3296,6 +3344,39 @@ const AdminBroadcast = {
         document.getElementById('bc-link').value = '';
       } else {
         setMsg('#ef4444', 'Failed: ' + ((data && data.error) || 'please try again'));
+      }
+    } catch (e) { setMsg('#ef4444', 'Network error — please try again.'); }
+    finally { if (btn) btn.disabled = false; }
+  }
+};
+
+// v54: Emails panel — fires the batch send crons via admin login (?admin_id=), no CRON_SECRET.
+// test = only=<my email>&force=1 ; all = force=1 (meetup-reminders just runs due items; coach-nudges is bell/push).
+const AdminEmails = {
+  async run(job, mode, btn) {
+    var result = document.getElementById('em-result');
+    var setMsg = function (color, text) { if (result) { result.style.color = color; result.textContent = text; } };
+    var admin = window.FFP_ADMIN && window.FFP_ADMIN.id;
+    var email = window.FFP_ADMIN && window.FFP_ADMIN.email;
+    if (!admin) { setMsg('#ef4444', 'Admin session not ready — reload the page.'); return; }
+    if (mode === 'test' && !email) { setMsg('#ef4444', 'No admin email on file to test to.'); return; }
+    if (mode === 'all' && !confirm('Send this to EVERYONE now? This cannot be undone.')) return;
+    var qs = 'admin_id=' + encodeURIComponent(admin);
+    if (mode === 'test') { qs += '&only=' + encodeURIComponent(email); if (job !== 'coach-nudges') qs += '&force=1'; }
+    else { if (job !== 'meetup-reminders') qs += '&force=1'; }
+    if (btn) btn.disabled = true;
+    setMsg('#8196a6', mode === 'test' ? 'Sending test…' : 'Sending…');
+    try {
+      var res = await fetch('https://ffp-passport-backend.vercel.app/api/cron/' + job + '?' + qs);
+      var data = await res.json();
+      if (res.ok && data && (data.success !== false) && !data.error) {
+        var msg;
+        if (mode === 'test') msg = 'Test sent to ' + email + '.';
+        else if (data.sent != null) msg = 'Sent to ' + data.sent + ' member' + (data.sent === 1 ? '' : 's') + '.';
+        else msg = 'Done — processed.';
+        setMsg('#22c55e', msg);
+      } else {
+        setMsg('#ef4444', 'Failed: ' + ((data && data.error) || ('HTTP ' + res.status)));
       }
     } catch (e) { setMsg('#ef4444', 'Network error — please try again.'); }
     finally { if (btn) btn.disabled = false; }
