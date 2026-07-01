@@ -260,7 +260,7 @@
 <!-- Google Analytics 4 (platform-wide) -->
 <script src="assets/ffp-analytics.js?v=2"></script>
 <!-- Quests panel module (extracted from inline) — defines window.Quests before the dashboard boot calls init -->
-<script src="assets/ffp-quests-core.js?v=16"></script>
+<script src="assets/ffp-quests-core.js?v=17"></script>
 <script src="assets/ffp-earnings-core.js?v=3"></script>
 </head>
 <body>
@@ -3307,6 +3307,9 @@ function renderTrendCrew() {
     .then(function (j) {
       var host2 = document.getElementById('trend-crew'); if (!host2) return;
       var ops = (j && j.support_ops) || [];
+      // Support your crew is ONLY about other people — never the member themselves.
+      var _me = ''; try { _me = (JSON.parse(localStorage.getItem('ffp_member') || '{}') || {}).id || ''; } catch (e) {}
+      ops = ops.filter(function (o) { return o && (!o.member_id || o.member_id !== _me); });
       if (!ops.length) { host2.innerHTML = ''; return; }
       var esc = (typeof escHtml === 'function') ? escHtml : function (s) { return String(s == null ? '' : s); };
       function row(o, last) {
@@ -4388,7 +4391,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '508';
+  const FFP_BUILD = '509';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -6735,6 +6738,11 @@ async function saveLog() {
   var _loggedAtIso = new Date(dateStr + 'T' + timeStr + ':00').toISOString();
   var _photosVal = (window._logPhotos || []).slice(0, 8);
   var _photoVal = _photosVal[0] || '';
+  // A photo is mandatory on a NEW activity (editing an older photo-less entry is not blocked).
+  if (!_editId && !_photosVal.length) {
+    if (typeof showToast === 'function') showToast('Add at least one photo of your activity', 'error'); else alert('Please add at least one photo of your activity.');
+    return;
+  }
   var _shareVal = !!((document.getElementById('log-share') || {}).checked);
   var _newId = null;
   window._ffpLogSaving = true;   // lock — released after the write completes / fails
