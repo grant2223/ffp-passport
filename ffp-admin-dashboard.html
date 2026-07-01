@@ -1534,7 +1534,7 @@ input, select, textarea { font-family: inherit; }
       </div>
     </div>
     <div class="sidebar-footer">
-      build v57 &middot; FFP Admin
+      build v58 &middot; FFP Admin
     </div>
   </aside>
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.toggleSidebar()"></div>
@@ -2215,9 +2215,10 @@ input, select, textarea { font-family: inherit; }
       <div class="section">
         <div class="section-head"><div class="section-title">Onboarding &amp; reminders</div></div>
         <div class="section-body padded">
-          <div style="font-size:13px;color:var(--text-muted,#8a99a8);margin-bottom:12px;">Runs daily: a complete-profile reminder (3+ days in, profile still incomplete) and a "we miss you" (7+ days inactive). "Run now" processes everyone due; the previews send that exact email to the "Send test to" address so you can see it.</div>
+          <div style="font-size:13px;color:var(--text-muted,#8a99a8);margin-bottom:12px;">Runs daily: a complete-profile reminder (3+ days in, profile still incomplete) and a "we miss you" (7+ days inactive). "Run now" processes everyone due. The previews + "Send welcome" send that exact email to the address in "Send test to" above (comma-separate for multiple) — use "Send welcome" to (re)send the updated welcome email to a specific member.</div>
           <button class="btn" onclick="AdminEmails.lifecycle('profile',this)" style="margin-right:8px;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.55);color:#cfe6f6;font-weight:800;">Preview: profile reminder</button>
           <button class="btn" onclick="AdminEmails.lifecycle('winback',this)" style="margin-right:8px;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.55);color:#cfe6f6;font-weight:800;">Preview: we miss you</button>
+          <button class="btn" onclick="AdminEmails.lifecycle('welcome',this)" style="margin-right:8px;background:rgba(255,204,0,.14);border:1px solid rgba(255,204,0,.55);color:#ffe08a;font-weight:800;">Send welcome</button>
           <button class="btn btn-blue" onclick="AdminEmails.lifecycle('run',this)"><span class="material-icons">bolt</span>Run now</button>
         </div>
       </div>
@@ -3403,10 +3404,10 @@ const AdminEmails = {
     var email = window.FFP_ADMIN && window.FFP_ADMIN.email;
     if (!admin) { setMsg('#ef4444', 'Admin session not ready — reload the page.'); return; }
     var qs = 'admin_id=' + encodeURIComponent(admin);
-    if (kind === 'profile' || kind === 'winback') {
+    if (kind !== 'run') {
       var raw = ((document.getElementById('em-test-to') || {}).value || '').trim();
       var to = (raw || email || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean).join(',');
-      if (!to) { setMsg('#ef4444', 'Enter an email in "Send test to" first.'); return; }
+      if (!to) { setMsg('#ef4444', 'Enter the recipient email in "Send test to" first.'); return; }
       qs += '&only=' + encodeURIComponent(to) + '&preview=' + kind;
     } else if (!confirm('Run the daily onboarding/reminder pass now for everyone due?')) { return; }
     if (btn) btn.disabled = true;
@@ -3416,7 +3417,7 @@ const AdminEmails = {
       var data = await res.json();
       if (res.ok && data && data.success) {
         if (kind === 'run') setMsg('#22c55e', 'Done — ' + (data.profile_reminder || 0) + ' profile reminder(s), ' + (data.winback || 0) + ' we-miss-you sent.');
-        else setMsg('#22c55e', 'Preview sent to ' + to + '.');
+        else setMsg('#22c55e', 'Sent to ' + to + '.');
       } else { setMsg('#ef4444', 'Failed: ' + ((data && data.error) || ('HTTP ' + res.status))); }
     } catch (e) { setMsg('#ef4444', 'Network error — please try again.'); }
     finally { if (btn) btn.disabled = false; }
