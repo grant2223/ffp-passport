@@ -1534,7 +1534,7 @@ input, select, textarea { font-family: inherit; }
       </div>
     </div>
     <div class="sidebar-footer">
-      build v55 &middot; FFP Admin
+      build v56 &middot; FFP Admin
     </div>
   </aside>
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.toggleSidebar()"></div>
@@ -2175,14 +2175,22 @@ input, select, textarea { font-family: inherit; }
     <section class="panel" id="panel-emails">
       <div class="panel-head">
         <h1>Emails</h1>
-        <div class="panel-head-sub">Send the batch emails manually — off your admin login (no secret, no URL). "Send test to me" delivers only to your address; "Send to everyone" emails all eligible members.</div>
+        <div class="panel-head-sub">Send the batch emails manually — off your admin login (no secret, no URL). "Send test" goes only to the address(es) below; "Send to everyone" emails all eligible members.</div>
+      </div>
+
+      <div class="section">
+        <div class="section-body padded">
+          <label class="field-label" for="em-test-to">Send test to</label>
+          <input class="field-input" id="em-test-to" type="text" placeholder="you@ffp.com, teammate@ffp.com — blank uses your own">
+          <div class="field-hint" style="margin-top:4px;font-size:12px;color:var(--text-muted,#8a99a8);">Comma-separate multiple addresses. Applies to every "Send test" button below.</div>
+        </div>
       </div>
 
       <div class="section">
         <div class="section-head"><div class="section-title">Monthly wrap-up</div></div>
         <div class="section-body padded">
           <div style="font-size:13px;color:var(--text-muted,#8a99a8);margin-bottom:12px;">Each member's last-month recap — Coach Grant note, activity mix, connections, top matches. Auto-sends on the 1st; use this to test or re-send.</div>
-          <button class="btn" onclick="AdminEmails.run('monthly-wrapup','test',this)" style="margin-right:8px;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.55);color:#cfe6f6;font-weight:800;">Send test to me</button>
+          <button class="btn" onclick="AdminEmails.run('monthly-wrapup','test',this)" style="margin-right:8px;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.55);color:#cfe6f6;font-weight:800;">Send test</button>
           <button class="btn btn-blue" onclick="AdminEmails.run('monthly-wrapup','all',this)"><span class="material-icons">send</span>Send to everyone</button>
         </div>
       </div>
@@ -2191,7 +2199,7 @@ input, select, textarea { font-family: inherit; }
         <div class="section-head"><div class="section-title">Weekly summary</div></div>
         <div class="section-body padded">
           <div style="font-size:13px;color:var(--text-muted,#8a99a8);margin-bottom:12px;">The Sunday digest of each member's past week. Skips members with no activity that week.</div>
-          <button class="btn" onclick="AdminEmails.run('sunday-summary','test',this)" style="margin-right:8px;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.55);color:#cfe6f6;font-weight:800;">Send test to me</button>
+          <button class="btn" onclick="AdminEmails.run('sunday-summary','test',this)" style="margin-right:8px;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.55);color:#cfe6f6;font-weight:800;">Send test</button>
           <button class="btn btn-blue" onclick="AdminEmails.run('sunday-summary','all',this)"><span class="material-icons">send</span>Send to everyone</button>
         </div>
       </div>
@@ -3350,10 +3358,15 @@ const AdminEmails = {
     var admin = window.FFP_ADMIN && window.FFP_ADMIN.id;
     var email = window.FFP_ADMIN && window.FFP_ADMIN.email;
     if (!admin) { setMsg('#ef4444', 'Admin session not ready — reload the page.'); return; }
-    if (mode === 'test' && !email) { setMsg('#ef4444', 'No admin email on file to test to.'); return; }
+    var testTo = '';
+    if (mode === 'test') {
+      var raw = ((document.getElementById('em-test-to') || {}).value || '').trim();
+      testTo = (raw || email || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean).join(',');
+      if (!testTo) { setMsg('#ef4444', 'Enter at least one email to test to (or set your admin email).'); return; }
+    }
     if (mode === 'all' && !confirm('Send this to EVERYONE now? This cannot be undone.')) return;
     var qs = 'admin_id=' + encodeURIComponent(admin);
-    if (mode === 'test') { qs += '&only=' + encodeURIComponent(email); if (job !== 'coach-nudges') qs += '&force=1'; }
+    if (mode === 'test') { qs += '&only=' + encodeURIComponent(testTo) + '&force=1'; }
     else { if (job !== 'meetup-reminders') qs += '&force=1'; }
     if (btn) btn.disabled = true;
     setMsg('#8196a6', mode === 'test' ? 'Sending test…' : 'Sending…');
@@ -3362,7 +3375,7 @@ const AdminEmails = {
       var data = await res.json();
       if (res.ok && data && (data.success !== false) && !data.error) {
         var msg;
-        if (mode === 'test') msg = 'Test sent to ' + email + '.';
+        if (mode === 'test') msg = 'Test sent to ' + testTo + '.';
         else if (data.sent != null) msg = 'Sent to ' + data.sent + ' member' + (data.sent === 1 ? '' : 's') + '.';
         else msg = 'Done — processed.';
         setMsg('#22c55e', msg);
