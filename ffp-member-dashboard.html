@@ -4416,7 +4416,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '511';
+  const FFP_BUILD = '512';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -7267,7 +7267,55 @@ window.ffpShareActivity = async function (id) {
 // it as an image via the native share sheet — or downloads it. Mirrors the Passport share pipeline.
 function _ffpCardDims(r) { var w = 540; return { w: w, h: r === '1:1' ? w : r === '4:5' ? Math.round(w * 5 / 4) : Math.round(w * 16 / 9) }; }
 function _ffpDurStr(a) { var min = Math.max(0, Math.round(a.duration_min || 0)); var h = Math.floor(min / 60), m = min % 60; return (h ? h + 'h ' : '') + m + 'm' + (a.duration_sec ? (' ' + a.duration_sec + 's') : ''); }
-function _ffpActBottomStats(a) { var row = []; if (a.distance_km != null && a.distance_km > 0) row.push(['Time', _ffpDurStr(a)]); if (a.calories) row.push(['Calories', a.calories + ' kcal']); if (a.avg_heart_rate) row.push(['Avg HR', a.avg_heart_rate + ' bpm']); return row.slice(0, 3); }
+// Ordered catalog of shareable fields for one activity. Each: {key,label,val,unit,avail,kind}.
+// kind: 'sub' = date/location line · 'stat' = grid cell · 'zones' = HR-zone bar.
+// Values/format REUSE the activity-detail ribbon logic (pace, steps k, metrics.max_hr/strain/hr_zones_ms).
+function _ffpShareFields(a) {
+  a = a || {};
+  var m = a.metrics || {};
+  var hasDist = (a.distance_km != null && a.distance_km > 0);
+  var tm = (a.duration_min || 0) + (a.duration_sec || 0) / 60;   // minutes (float)
+  var hasTime = tm > 0;
+  var pace = '';
+  if (hasDist && hasTime) { var pm = tm / a.distance_km, pmi = Math.floor(pm), ps = Math.round((pm - pmi) * 60); if (ps === 60) { pmi++; ps = 0; } pace = pmi + ':' + ('0' + ps).slice(-2); }
+  var spd = (hasDist && hasTime) ? (Math.round(a.distance_km / (tm / 60) * 10) / 10) : null;   // km/h
+  var dateStr = a.logged_at ? new Date(a.logged_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  var locStr = [a.city, a.country].filter(Boolean).join(', ') || a.venue || a.area || '';
+  var stepStr = a.steps ? (Number(a.steps) >= 1000 ? (Math.round(a.steps / 100) / 10) + 'k' : String(a.steps)) : '';
+  var z = m.hr_zones_ms || null;
+  var zt = z ? ((z.zone_zero_milli || 0) + (z.zone_one_milli || 0) + (z.zone_two_milli || 0) + (z.zone_three_milli || 0) + (z.zone_four_milli || 0) + (z.zone_five_milli || 0)) : 0;
+  return [
+    { key: 'date', label: 'Date', kind: 'sub', avail: !!dateStr, val: dateStr },
+    { key: 'location', label: 'Location', kind: 'sub', avail: !!locStr, val: locStr },
+    { key: 'time', label: 'Time', kind: 'stat', avail: hasTime, val: _ffpDurStr(a) },
+    { key: 'pace', label: 'Pace', unit: '/km', kind: 'stat', avail: !!pace, val: pace },
+    { key: 'speed', label: 'Speed', unit: 'km/h', kind: 'stat', avail: spd != null, val: (spd != null ? String(spd) : '') },
+    { key: 'avghr', label: 'Avg HR', unit: 'bpm', kind: 'stat', avail: !!a.avg_heart_rate, val: String(a.avg_heart_rate || '') },
+    { key: 'maxhr', label: 'Max HR', unit: 'bpm', kind: 'stat', avail: !!m.max_hr, val: String(m.max_hr || '') },
+    { key: 'calories', label: 'Calories', unit: 'kcal', kind: 'stat', avail: !!a.calories, val: String(a.calories || '') },
+    { key: 'steps', label: 'Steps', kind: 'stat', avail: !!a.steps, val: stepStr },
+    { key: 'strain', label: 'Strain', kind: 'stat', avail: m.strain != null, val: (m.strain != null ? String(m.strain) : '') },
+    { key: 'hrzones', label: 'HR zones', kind: 'zones', avail: zt > 0, val: '' }
+  ];
+}
+function _ffpRoundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+// HR-zone stacked bar on the card — same zone keys/colours as the activity-detail view (Rule 5). Height ~ W*0.12.
+function _ffpDrawZones(ctx, a, pad, y, W, U, fam) {
+  U = U || W;
+  var z = (a.metrics && a.metrics.hr_zones_ms) || null; if (!z) return;
+  var zs = [['Z1', z.zone_one_milli || 0, '#3aa0e6'], ['Z2', z.zone_two_milli || 0, '#16a34a'], ['Z3', z.zone_three_milli || 0, '#eab308'], ['Z4', z.zone_four_milli || 0, '#f59e0b'], ['Z5', z.zone_five_milli || 0, '#dc2626']];
+  if (z.zone_zero_milli) zs.unshift(['Z0', z.zone_zero_milli, '#6b7a88']);
+  var tot = zs.reduce(function (s, q) { return s + (q[1] || 0); }, 0); if (tot <= 0) return;
+  ctx.textAlign = 'left'; ctx.fillStyle = '#9fc4e0'; ctx.font = '800 ' + Math.round(U * 0.021) + 'px ' + fam;
+  ctx.fillText('HEART-RATE ZONES', pad, y + U * 0.018);
+  var barY = y + U * 0.032, barH = U * 0.044, bx = pad, bw = W - 2 * pad, r = barH / 2;
+  ctx.save(); _ffpRoundRect(ctx, bx, barY, bw, barH, r); ctx.clip();
+  var cx = bx; zs.forEach(function (q) { var w = bw * (q[1] / tot); if (w > 0) { ctx.fillStyle = q[2]; ctx.fillRect(cx, barY, w + 0.6, barH); cx += w; } });
+  ctx.restore();
+  ctx.textAlign = 'center'; ctx.fillStyle = '#9fc4e0'; ctx.font = '800 ' + Math.round(U * 0.019) + 'px ' + fam;
+  var lx = bx, ly = barY + barH + U * 0.027;
+  zs.forEach(function (q) { var w = bw * (q[1] / tot); if (w > W * 0.032) ctx.fillText(q[0], lx + w / 2, ly); lx += w; });
+}
 // Preload remote images to DATA URLs so html2canvas never has a cross-origin image to hang/taint on.
 var _ffpLogoUrl = 'https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-logo-white.png';
 var _ffpLogoData = null;            // null = not tried, '' = failed (use text fallback), else dataURL
@@ -7309,36 +7357,93 @@ async function _ffpMakeCardCanvas(a, ratio, usePhoto, sticker) {
     var bg = ctx.createLinearGradient(0, 0, W, H); bg.addColorStop(0, '#11436c'); bg.addColorStop(0.52, '#0a2740'); bg.addColorStop(1, '#06121f'); ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
   }
   ctx.textAlign = 'center';
-  if (logo && logo.width) { var lw = Math.round(W * 0.32), lh = Math.round(lw * (logo.height / logo.width)); ctx.drawImage(logo, (W - lw) / 2, pad, lw, lh); }
-  else { ctx.fillStyle = '#fff'; ctx.font = '900 italic ' + Math.round(W * 0.07) + 'px ' + fam; ctx.fillText('FFP', W / 2, pad + Math.round(W * 0.075)); }
-  var cy = Math.round(H * 0.44);
-  ctx.fillStyle = '#fff'; ctx.font = '900 ' + Math.round(W * 0.072) + 'px ' + fam; ctx.fillText(a.activity || 'Activity', W / 2, cy - Math.round(W * 0.085));
+  var loH;
+  if (logo && logo.width) { var lw = Math.round(W * 0.30), lh = Math.round(lw * (logo.height / logo.width)); ctx.drawImage(logo, (W - lw) / 2, pad, lw, lh); loH = lh; }
+  else { ctx.fillStyle = '#fff'; ctx.font = '900 italic ' + Math.round(W * 0.07) + 'px ' + fam; ctx.fillText('FFP', W / 2, pad + Math.round(W * 0.075)); loH = Math.round(W * 0.09); }
+  // Which fields to render — driven by the Options checklist (_ffpShareCfg.show). No cfg → all-available.
+  var show = _ffpShareCfg.show || null;
+  var on = function (k) { return !show || !!show[k]; };
+  var flds = _ffpShareFields(a), F = {}; flds.forEach(function (f) { F[f.key] = f; });
   var hasDist = (a.distance_km != null && a.distance_km > 0);
-  var heroVal = hasDist ? String(Math.round(a.distance_km * 100) / 100) : _ffpDurStr(a), heroUnit = hasDist ? ' km' : '';
-  var hs = Math.round(W * 0.165), us = Math.round(W * 0.05), heroY = cy + Math.round(W * 0.04);
-  ctx.font = '900 ' + hs + 'px ' + fam; var hwid = ctx.measureText(heroVal).width;
-  ctx.font = '800 ' + us + 'px ' + fam; var uwid = heroUnit ? ctx.measureText(heroUnit).width : 0;
-  var startX = W / 2 - (hwid + uwid) / 2; ctx.textAlign = 'left';
-  ctx.font = '900 ' + hs + 'px ' + fam; ctx.fillStyle = '#fff'; ctx.fillText(heroVal, startX, heroY);
-  if (heroUnit) { ctx.font = '800 ' + us + 'px ' + fam; ctx.fillStyle = '#9fc4e0'; ctx.fillText(heroUnit, startX + hwid, heroY); }
-  ctx.textAlign = 'center';
-  var sub = [(a.logged_at ? new Date(a.logged_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : ''), [a.city, a.country].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
-  if (sub) { ctx.fillStyle = '#bcd5e8'; ctx.font = '700 ' + Math.round(W * 0.027) + 'px ' + fam; ctx.fillText(sub, W / 2, cy + Math.round(W * 0.115)); }
-  var stats = _ffpActBottomStats(a);
-  if (stats.length) {
-    var rowY = H - Math.round(W * 0.155), divY = rowY - Math.round(W * 0.055);
-    ctx.strokeStyle = 'rgba(255,255,255,0.16)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(pad, divY); ctx.lineTo(W - pad, divY); ctx.stroke();
-    var n = stats.length, colW = (W - 2 * pad) / n;
-    for (var i = 0; i < n; i++) { var x = pad + colW * (i + 0.5); ctx.fillStyle = '#fff'; ctx.font = '900 ' + Math.round(W * 0.052) + 'px ' + fam; ctx.fillText(stats[i][1], x, rowY); ctx.fillStyle = '#9fc4e0'; ctx.font = '700 ' + Math.round(W * 0.022) + 'px ' + fam; ctx.fillText(String(stats[i][0]).toUpperCase(), x, rowY + Math.round(W * 0.04)); }
-  }
-  ctx.fillStyle = '#9ec0db'; ctx.font = '800 ' + Math.round(W * 0.021) + 'px ' + fam; ctx.fillText('TRACKED ON FFP PASSPORT', W / 2, H - Math.round(W * 0.045));
+  var heroKey = hasDist ? 'distance' : 'time';
+  var cells = flds.filter(function (f) { return f.kind === 'stat' && f.avail && on(f.key) && f.key !== heroKey; });
+  var showZones = !!(F.hrzones && F.hrzones.avail && on('hrzones'));
+  var subParts = [];
+  if (F.date && F.date.avail && on('date')) subParts.push(F.date.val);
+  if (F.location && F.location.avail && on('location')) subParts.push(F.location.val);
+  var subStr = subParts.join('   ·   ');
+  // Block heights → flow the stack (any count of fields) and centre it between the logo and the footer.
+  var G = W * 0.030;
+  var ncol = Math.min(3, Math.max(1, cells.length));
+  var statRows = cells.length ? Math.ceil(cells.length / ncol) : 0;
+  var rowH = W * 0.098;
+  var hMap = { title: W * 0.075, hero: W * 0.175, sub: subStr ? W * 0.042 : 0, zones: showZones ? W * 0.12 : 0, stats: statRows ? (statRows * rowH + W * 0.028) : 0 };
+  var order = ['title', 'hero']; if (hMap.sub) order.push('sub'); if (hMap.zones) order.push('zones'); if (hMap.stats) order.push('stats');
+  var top = pad + loH + W * 0.05, footTop = H - W * 0.085, region = footTop - top;
+  var rawH = order.reduce(function (s, k) { return s + hMap[k]; }, 0) + G * (order.length - 1);
+  var q = Math.min(1, region / rawH);   // squeeze to fit when many fields are ticked (never overflow the footer)
+  var U = W * q;                        // scaled unit for every font + inner offset; horizontal positions stay on W
+  G *= q; rowH *= q; order.forEach(function (k) { hMap[k] *= q; });
+  var totalH = rawH * q;
+  var y = top + Math.max(0, (region - totalH) / 2);
+  order.forEach(function (blk) {
+    if (blk === 'title') {
+      ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.font = '900 ' + Math.round(U * 0.068) + 'px ' + fam;
+      ctx.fillText(a.activity || 'Activity', W / 2, y + U * 0.055);
+    } else if (blk === 'hero') {
+      var heroVal = hasDist ? String(Math.round(a.distance_km * 100) / 100) : _ffpDurStr(a), heroUnit = hasDist ? ' km' : '';
+      var hs = Math.round(U * 0.155), us = Math.round(U * 0.048), baseY = y + U * 0.14;
+      ctx.textAlign = 'left';
+      ctx.font = '900 ' + hs + 'px ' + fam; var hwid = ctx.measureText(heroVal).width;
+      ctx.font = '800 ' + us + 'px ' + fam; var uwid = heroUnit ? ctx.measureText(heroUnit).width : 0;
+      var startX = W / 2 - (hwid + uwid) / 2;
+      ctx.font = '900 ' + hs + 'px ' + fam; ctx.fillStyle = '#fff'; ctx.fillText(heroVal, startX, baseY);
+      if (heroUnit) { ctx.font = '800 ' + us + 'px ' + fam; ctx.fillStyle = '#FFCC00'; ctx.fillText(heroUnit, startX + hwid, baseY); }
+      ctx.textAlign = 'center';
+    } else if (blk === 'sub') {
+      ctx.textAlign = 'center'; ctx.fillStyle = '#bcd5e8'; ctx.font = '700 ' + Math.round(U * 0.028) + 'px ' + fam;
+      ctx.fillText(subStr, W / 2, y + U * 0.03);
+    } else if (blk === 'zones') {
+      _ffpDrawZones(ctx, a, pad, y, W, U, fam);
+    } else if (blk === 'stats') {
+      ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(W - pad, y); ctx.stroke();
+      var gy = y + U * 0.028, colW = (W - 2 * pad) / ncol;
+      cells.forEach(function (c, i) {
+        var col = i % ncol, rw = Math.floor(i / ncol), cx = pad + colW * (col + 0.5), ry = gy + rw * rowH + U * 0.045;
+        ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.font = '900 ' + Math.round(U * 0.05) + 'px ' + fam;
+        ctx.fillText(c.val, cx, ry);
+        ctx.fillStyle = '#9fc4e0'; ctx.font = '700 ' + Math.round(U * 0.021) + 'px ' + fam;
+        ctx.fillText((c.label + (c.unit ? ' ' + c.unit : '')).toUpperCase(), cx, ry + U * 0.032);
+      });
+    }
+    y += hMap[blk] + G;
+  });
+  ctx.textAlign = 'center'; ctx.fillStyle = '#9ec0db'; ctx.font = '800 ' + Math.round(W * 0.021) + 'px ' + fam; ctx.fillText('TRACKED ON FFP PASSPORT', W / 2, H - Math.round(W * 0.04));
   ctx.shadowColor = 'rgba(0,0,0,0)'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;   // clear any sticker legibility shadow
   cv.style.width = W + 'px'; cv.style.height = H + 'px';   // backing store is 2×; display at design size
   return cv;
 }
 var _ffpShareCfg = { ratio: '1:1', usePhoto: false, id: null };
 var _ffpShareFile = null, _ffpShareKey = null, _ffpShareRendering = false, _ffpShareErr = '';
-function _ffpCurKey() { return (_ffpShareCfg.id || '') + '|' + _ffpShareCfg.ratio + '|' + (_ffpShareCfg.usePhoto ? 1 : 0) + '|' + (_ffpShareCfg.sticker ? 1 : 0); }
+function _ffpCurKey() { var s = _ffpShareCfg.show ? Object.keys(_ffpShareCfg.show).filter(function (k) { return _ffpShareCfg.show[k]; }).sort().join(',') : ''; return (_ffpShareCfg.id || '') + '|' + _ffpShareCfg.ratio + '|' + (_ffpShareCfg.usePhoto ? 1 : 0) + '|' + (_ffpShareCfg.sticker ? 1 : 0) + '|' + s; }
+// Default the Options checklist to every field the activity actually has (Grant: "tick anything you logged — it all goes on").
+function _ffpDefaultShow(a) { var s = {}; _ffpShareFields(a).forEach(function (f) { s[f.key] = !!f.avail; }); return s; }
+// Toggle a field on the share card from the Options checklist, then re-render the preview.
+window.ffpShareToggleField = function (key, el) {
+  if (!_ffpShareCfg.show) _ffpShareCfg.show = {};
+  var nv = !_ffpShareCfg.show[key]; _ffpShareCfg.show[key] = nv;
+  var cb = el && el.querySelector('.ffp-sc-cb');
+  if (cb) { cb.style.background = nv ? '#2ba8e0' : 'transparent'; cb.style.border = nv ? 'none' : '2px solid #3a4654'; cb.textContent = nv ? '✓' : ''; }
+  _ffpRenderSharePreview();
+};
+// Show/hide the Options checklist panel.
+window.ffpShareToggleOptions = function (btn) {
+  var p = document.getElementById('ffp-sc-opts'); if (!p) return;
+  var openNow = (p.style.display === 'none' || !p.style.display);
+  p.style.display = openNow ? 'block' : 'none';
+  if (btn) btn.style.background = openNow ? 'rgba(43,168,224,0.12)' : '#111a26';
+  if (openNow) { try { p.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {} }
+};
 function _ffpDataUrlToFile(dataUrl, name) {
   var parts = dataUrl.split(','); var bin = atob(parts[1]); var len = bin.length; var arr = new Uint8Array(len);
   for (var i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);
@@ -7379,9 +7484,26 @@ window.ffpCloseShareSheet = function () { var o = document.getElementById('ffp-s
 // Tap "Share card" → open the PREVIEW first (pick format, then Share / Download).
 window.ffpSocialShareActivity = function (id) { _ffpOpenShareSheet(id); };
 function _ffpOpenShareSheet(id) {
-  var a = window._ffpActCard || {}; _ffpShareCfg = { ratio: '1:1', usePhoto: false, sticker: false, id: id }; _ffpShareFile = null; _ffpShareKey = null;
+  var a = window._ffpActCard || {}; _ffpShareCfg = { ratio: '1:1', usePhoto: false, sticker: false, id: id, show: _ffpDefaultShow(a) }; _ffpShareFile = null; _ffpShareKey = null;
   var esc = (window.escHtml ? window.escHtml : function (s) { return String(s == null ? '' : s); });
   var hasPhoto = !!a.photo_url;
+  // Options checklist rows — one per field the activity actually has (Rule 0: availability from _ffpShareFields).
+  var _optFlds = _ffpShareFields(a).filter(function (f) { return f.avail; });
+  var _cbRow = function (f) {
+    var onNow = !!_ffpShareCfg.show[f.key];
+    return '<label onclick="ffpShareToggleField(\'' + f.key + '\',this)" style="display:flex;align-items:center;justify-content:space-between;padding:12px 2px;border-bottom:1px solid rgba(255,255,255,0.06);cursor:pointer;">' +
+      '<span style="font-size:14px;color:#e6edf3;font-weight:700;">' + esc(f.label) + (f.unit ? ' <span style="color:#8a99a8;font-weight:600;">' + esc(f.unit) + '</span>' : '') + '</span>' +
+      '<span class="ffp-sc-cb" style="width:24px;height:24px;border-radius:7px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#fff;' + (onNow ? 'background:#2ba8e0;' : 'background:transparent;border:2px solid #3a4654;') + '">' + (onNow ? '✓' : '') + '</span></label>';
+  };
+  var _optsPanel = '<div id="ffp-sc-opts" style="display:none;margin-top:10px;background:#0c1521;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:6px 14px 12px;">' +
+    '<div style="font-size:10px;font-weight:900;letter-spacing:1px;color:#6a8398;text-transform:uppercase;margin:12px 0 2px;">Main</div>' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 2px;border-bottom:1px solid rgba(255,255,255,0.06);">' +
+      '<span style="font-size:14px;color:#fff;font-weight:800;">Activity + headline</span>' +
+      '<span class="material-icons" style="font-size:18px;color:#5a7186;">lock</span></div>' +
+    '<div style="font-size:10px;font-weight:900;letter-spacing:1px;color:#6a8398;text-transform:uppercase;margin:14px 0 2px;">Details</div>' +
+    _optFlds.map(_cbRow).join('') +
+    '<div style="font-size:11px;color:#6a8398;margin-top:10px;line-height:1.4;">Only fields you logged appear here. Everything ticked shows on the card.</div>' +
+  '</div>';
   // Member's referral LINK → shown at the foot of the share sheet (copyable) + appended to the share caption.
   // Reuses _ppRefLink() (https://ffppassport.com/join?ref=CODE) so a new signup is auto-credited — the
   // recipient just clicks the link, there's no code to type anywhere.
@@ -7398,6 +7520,8 @@ function _ffpOpenShareSheet(id) {
     '<div id="ffp-sc-preview" style="position:relative;width:100%;"></div>' +
     (hasPhoto ? '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;background:#111a26;border-radius:11px;padding:11px 14px;"><span style="font-size:13px;font-weight:700;color:#cfe0ee;">Use my photo as background</span><span onclick="ffpShareTogglePhoto(this)" style="width:40px;height:22px;border-radius:20px;background:#3a4654;position:relative;cursor:pointer;display:inline-block;flex:0 0 auto;"><span style="position:absolute;right:20px;top:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:right .15s;"></span></span></div>' : '') +
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;background:#111a26;border-radius:11px;padding:11px 14px;"><span style="font-size:13px;font-weight:700;color:#cfe0ee;">Transparent sticker <span style="color:#8a99a8;font-weight:600;">— save &amp; overlay on any photo</span></span><span onclick="ffpShareToggleSticker(this)" style="width:40px;height:22px;border-radius:20px;background:#3a4654;position:relative;cursor:pointer;display:inline-block;flex:0 0 auto;"><span style="position:absolute;right:20px;top:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:right .15s;"></span></span></div>' +
+    '<button onclick="ffpShareToggleOptions(this)" style="width:100%;margin-top:10px;padding:12px;border:1px solid rgba(255,255,255,0.14);border-radius:11px;background:#111a26;color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:7px;"><span class="material-icons" style="font-size:17px;">tune</span> Options &mdash; choose what shows</button>' +
+    _optsPanel +
     '<div style="display:flex;gap:10px;margin-top:16px;"><button id="ffp-sc-dl-btn" onclick="ffpDownloadActivityCard()" style="position:relative;overflow:hidden;flex:1;padding:14px;border:1px solid rgba(255,255,255,0.18);border-radius:13px;background:rgba(255,255,255,0.05);color:#cfe0ee;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><span id="ffp-sc-dl-fill" style="position:absolute;left:0;top:0;bottom:0;width:0%;background:rgba(43,168,224,0.32);transition:width .12s linear;z-index:0;"></span><span id="ffp-sc-dl-lbl" style="position:relative;z-index:1;"><span class="material-icons" style="font-size:16px;vertical-align:-3px;">download</span> Download</span></button><button onclick="ffpDoShareCard()" style="flex:2;padding:14px;border:none;border-radius:13px;background:linear-gradient(135deg,#2ba8e0,#1d7fb0);color:#fff;font-weight:900;font-size:14px;cursor:pointer;font-family:inherit;"><span class="material-icons" style="font-size:16px;vertical-align:-3px;">ios_share</span> Share</button></div>' +
     (_scCode ? '<div style="margin-top:18px;background:#111a26;border:1px solid rgba(43,168,224,0.22);border-radius:12px;padding:13px 14px;">' +
       '<div style="font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#8a99a8;margin-bottom:8px;">Your invite link</div>' +
