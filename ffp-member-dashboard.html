@@ -481,7 +481,10 @@
   <!-- COACH GRANT — the single coaching surface on the Passport (assets/ffp-coach-loader.js).
        Replaced the old "Your Trends" card + "Support Your Crew" card (2026-07-01, Grant): Coach now owns
        coaching, trends and crew support. State-aware line + actions + Talk-to-Coach chat. -->
-  <div id="ffp-coach-mount" style="margin:6px 0 28px;"></div>
+  <div id="ffp-coach-mount" style="margin:6px 0 16px;"></div>
+  <!-- WHOOP daily readiness (recovery / sleep / strain / rest HR / HRV) — sits under Coach Grant.
+       Filled by renderTrendFitness(); hides itself for members with no wearable. -->
+  <div id="trend-fitness" style="margin:0 0 28px;"></div>
 
   <!-- ═══ YOUR JOURNEY MAP (Leaflet) — World › Country › City ═══ -->
   <style>
@@ -3216,13 +3219,13 @@ function renderAll() {
   try { if (window.JourneyMap) JourneyMap.render(); } catch (e) { console.error('[renderAll] map', e); }
 }
 
-// Coach Grant is now the SINGLE coaching surface on the Passport (assets/ffp-coach-loader.js).
-// The old "Your Trends" review/vs-last-week/sparkline + WHOOP-readiness cards were REMOVED (2026-07-01, Grant) —
-// Coach owns coaching, trends and crew support now. renderTrend keeps its name so existing callers
-// (renderAll + the 5-min refresh) simply (re)paint the Coach card. renderTrendFitness/renderTrendCrew are
-// now no-ops (their mounts were removed) and are left defined only to keep old call sites safe.
+// Coach Grant is the primary coaching surface on the Passport (assets/ffp-coach-loader.js); the WHOOP daily
+// readiness strip sits UNDER it (renderTrendFitness → #trend-fitness). The old "Your Trends" review/sparkline +
+// "Support Your Crew" cards were REMOVED (2026-07-01, Grant). renderTrend keeps its name so existing callers
+// (renderAll + the 5-min refresh) repaint the Coach card + readiness. renderTrendCrew is a safe no-op (mount gone).
 function renderTrend() {
   try { if (window.ffpCoach && ffpCoach.render) ffpCoach.render(); } catch (e) {}
+  try { renderTrendFitness(); } catch (e) {}
 }
 
 // Latest wearable readiness (WHOOP) appended to "Your Trends" — refreshes each time the Passport opens.
@@ -4350,7 +4353,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '514';
+  const FFP_BUILD = '515';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
