@@ -554,6 +554,8 @@
     .jm-filter-btn:hover{border-color:var(--blue);}
     .jm-filter-btn .material-icons{font-size:17px;color:var(--blue);}
     .jm-filter-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--yellow);color:#082335;font-size:11px;font-weight:900;}
+    /* Map filter modal must sit above the fixed top header (z-index:100) — moved to <body> on open too */
+    #map-filter-backdrop{z-index:100060;}
     /* Passport picker as image cards (inside the filter modal) */
     #map-filter-backdrop .jm-passports{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:0;}
     .jm-pcard{position:relative;border-radius:12px;overflow:hidden;cursor:pointer;border:2.5px solid transparent;background:#0f1e2e;aspect-ratio:3/4;display:block;font-family:inherit;padding:0;transition:border-color .15s, transform .1s, opacity .15s;}
@@ -570,6 +572,8 @@
     .jm-modal-label{font-size:10px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin:0 0 9px;}
     .jm-modal-sec{margin-bottom:22px;}
   </style>
+  <!-- Daily streak card (lazy: assets/ffp-streak-loader.js → member_streak_status) -->
+  <div id="ffp-streak-mount"></div>
   <div class="jm-section">
     <div class="card-head" style="padding-left:0;padding-right:0;border-bottom:none;">
       <div class="card-head-title"><span class="material-icons card-head-icon">public</span><h3>World Map</h3></div>
@@ -596,6 +600,10 @@
             <div class="activity-add-name">Map filters</div>
             <div class="activity-add-sub">Scope your map by location and passport</div>
           </div>
+        </div>
+        <div class="jm-modal-sec">
+          <div class="jm-modal-label">Activity</div>
+          <select class="jm-sel" id="jm-activity" onchange="setMapActivity(this.value)"></select>
         </div>
         <div class="jm-modal-sec">
           <div class="jm-modal-label">Location</div>
@@ -3160,11 +3168,23 @@ function renderPassportPicker() {
   }).join('');
   el.innerHTML = html;
   el.classList.toggle('has-sel', !!cur);
+  // Activity filter options (map lens) — distinct logged activities, most-used first
+  var actSel = document.getElementById('jm-activity');
+  if (actSel) {
+    var acts = {};
+    (typeof LOGS !== 'undefined' ? LOGS : []).forEach(function (l) { if (l.activity) acts[l.activity] = (acts[l.activity] || 0) + 1; });
+    var names = Object.keys(acts).sort(function (a, b) { return acts[b] - acts[a] || a.localeCompare(b); });
+    actSel.innerHTML = '<option value="">All activities</option>' + names.map(function (n) { return '<option value="' + escHtml(n) + '"' + (n === state.selectedActivity ? ' selected' : '') + '>' + escHtml(n) + ' (' + acts[n] + ')</option>'; }).join('');
+  }
 }
 // ===== Map filters modal (Filters button → full-screen sheet) =====
 function openMapFilters() {
   var bd = document.getElementById('map-filter-backdrop');
-  if (bd) bd.classList.add('open');
+  if (bd) { document.body.appendChild(bd); bd.classList.add('open'); }   // move to <body> so it escapes any ancestor stacking context and sits above the fixed header
+}
+function setMapActivity(v) {
+  state.selectedActivity = v || null;
+  if (typeof renderAll === 'function') renderAll();
 }
 function closeMapFilters() {
   var bd = document.getElementById('map-filter-backdrop');
@@ -3174,6 +3194,7 @@ function clearMapFilters() {
   state.selectedPassport = null;
   state.selectedCountry = null;
   state.selectedCity = null;
+  state.selectedActivity = null;
   if (typeof renderAll === 'function') renderAll();
 }
 // Filters button badge — count of active filters (passport + country + city).
@@ -3182,6 +3203,7 @@ function updateMapFilterUI() {
   if (state.selectedPassport) active++;
   if (state.selectedCountry) active++;
   if (state.selectedCity) active++;
+  if (state.selectedActivity) active++;
   var badge = document.getElementById('jm-filter-badge');
   if (badge) { badge.textContent = active; badge.style.display = active ? 'inline-flex' : 'none'; }
 }
@@ -3527,8 +3549,11 @@ window.JourneyMap = (function () {
     var logs = logsInRange();
     var pcol = (state.selectedPassport && typeof passportColor==='function') ? passportColor(state.selectedPassport) : null;
     var cityMap = {};
-    logs.forEach(function(l){ if(!l.city) return; if(!cityMap[l.city]) cityMap[l.city]={city:l.city,country:l.country||'',count:0}; cityMap[l.city].count++; });
+    logs.forEach(function(l){ if(!l.city) return; if(!cityMap[l.city]) cityMap[l.city]={city:l.city,country:l.country||'',count:0,latSum:0,lngSum:0,gc:0}; var e=cityMap[l.city]; e.count++; if(l.lat!=null&&l.lng!=null){ e.latSum+=l.lat; e.lngSum+=l.lng; e.gc++; } });
     var cities = Object.keys(cityMap).map(function(k){return cityMap[k];});
+    // #35: place a city's cluster on the CENTROID of its real logged GPS coords; fall back to the city-coord
+    // dictionary only when no activity in that city is geo-tagged (so a city is never silently dropped).
+    function cityCoord(c){ return (c && c.gc>0) ? {lat:c.latSum/c.gc, lng:c.lngSum/c.gc} : coordsForCity(c.city,c.country); }
     var bounds = [], countEl = document.getElementById('jm-count');
 
     if (state.selectedCity){
@@ -3543,11 +3568,11 @@ window.JourneyMap = (function () {
       fit(bounds, 14);
     } else if (state.selectedCountry){
       var inC = cities.filter(function(c){return c.country===state.selectedCountry;});
-      inC.forEach(function(c){ var cc=coordsForCity(c.city,c.country); if(!cc) return; var r=Math.min(13,6+Math.round(Math.sqrt(c.count))); var mk=L.marker([cc.lat,cc.lng],{icon:dotIcon(pcol||'#2ba8e0',r)}).addTo(layer); mk.bindPopup('<div class="jm-pop-t">'+esc(c.city)+'</div><div class="jm-pop-s">'+c.count+' '+(c.count===1?'activity':'activities')+' · tap to open</div>'); mk.on('click',function(){selectCity(c.city,c.country);}); bounds.push([cc.lat,cc.lng]); });
+      inC.forEach(function(c){ var cc=cityCoord(c); if(!cc) return; var r=Math.min(13,6+Math.round(Math.sqrt(c.count))); var mk=L.marker([cc.lat,cc.lng],{icon:dotIcon(pcol||'#2ba8e0',r)}).addTo(layer); mk.bindPopup('<div class="jm-pop-t">'+esc(c.city)+'</div><div class="jm-pop-s">'+c.count+' '+(c.count===1?'activity':'activities')+' · tap to open</div>'); mk.on('click',function(){selectCity(c.city,c.country);}); bounds.push([cc.lat,cc.lng]); });
       if (countEl) countEl.textContent = inC.length+(inC.length===1?' city':' cities');
       fit(bounds, 9);
     } else {
-      cities.forEach(function(c){ var cc=coordsForCity(c.city,c.country); if(!cc) return; var r=Math.min(13,6+Math.round(Math.sqrt(c.count))); var mk=L.marker([cc.lat,cc.lng],{icon:dotIcon(pcol||'#2ba8e0',r)}).addTo(layer); mk.bindPopup('<div class="jm-pop-t">'+esc(c.city)+(c.country?(', '+esc(c.country)):'')+'</div><div class="jm-pop-s">'+c.count+' '+(c.count===1?'activity':'activities')+' · tap to open</div>'); mk.on('click',function(){selectCity(c.city,c.country);}); bounds.push([cc.lat,cc.lng]); });
+      cities.forEach(function(c){ var cc=cityCoord(c); if(!cc) return; var r=Math.min(13,6+Math.round(Math.sqrt(c.count))); var mk=L.marker([cc.lat,cc.lng],{icon:dotIcon(pcol||'#2ba8e0',r)}).addTo(layer); mk.bindPopup('<div class="jm-pop-t">'+esc(c.city)+(c.country?(', '+esc(c.country)):'')+'</div><div class="jm-pop-s">'+c.count+' '+(c.count===1?'activity':'activities')+' · tap to open</div>'); mk.on('click',function(){selectCity(c.city,c.country);}); bounds.push([cc.lat,cc.lng]); });
       if (countEl) countEl.textContent = cities.length+(cities.length===1?' city':' cities');
       if (bounds.length) fit(bounds, 6); else map.setView([20,10],2);
     }
@@ -4322,7 +4347,7 @@ function clearNotifs() {
 function _ffpInitPullToRefresh() {
   if (window._ffpPtrOn) return; window._ffpPtrOn = true;
   var RELOAD = {
-    'panel-passport':        function () { try { loadJourneyLogs(); } catch (e) {} try { if (window.ffpReloadPassport) ffpReloadPassport(); } catch (e) {} },
+    'panel-passport':        function () { try { loadJourneyLogs(); } catch (e) {} try { if (window.ffpReloadPassport) ffpReloadPassport(); } catch (e) {} try { if (window.ffpStreak) ffpStreak.refresh(); } catch (e) {} },
     'panel-meet':            function () { try { if (window.ffpReloadMeetMove) ffpReloadMeetMove(); } catch (e) {} try { if (window.ffpReloadConnFeed) ffpReloadConnFeed(); } catch (e) {} },
     'panel-meetups':         function () { try { if (window.ffpReloadMeetMove) ffpReloadMeetMove(); } catch (e) {} },
     'panel-quests':          function () { try { if (window.Quests && Quests.init) Quests.init(); } catch (e) {} },
@@ -4391,7 +4416,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '509';
+  const FFP_BUILD = '511';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -8129,6 +8154,7 @@ else init();
 .ffp-deck-flash.show{ opacity:1; }
 </style>
 <script src="assets/ffp-connections-core.js?v=360"></script>
+<script src="assets/ffp-streak-loader.js?v=1"></script>
 <script defer src="assets/ffp-connections-feed-loader.js?v=335"></script>
 <script defer src="assets/ffp-event-results-loader.js?v=329"></script>
 <script>
