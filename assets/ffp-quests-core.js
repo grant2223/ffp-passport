@@ -441,6 +441,17 @@ window.Quests = {
     if (isRace && !isUpcoming) this.loadBreakdown();
     if (isRace && hasBoard && !isUpcoming) { this._boardLoaded = true; this.loadQuestBoard(); }   // leaderboard is the default pane for a race
     setTimeout(function () { var de = document.getElementById('q-d2-desc'), mb = document.getElementById('q-d2-more'); if (de && mb && de.scrollHeight > de.clientHeight + 2) mb.style.display = ''; }, 30);
+    // Auto-refresh the leaderboard while it's on screen (self-cleans when the modal closes). Numbers tick up live.
+    if (this._boardTimer) { clearInterval(this._boardTimer); this._boardTimer = null; }
+    if (hasBoard && !isUpcoming) {
+      var self = this;
+      this._boardTimer = setInterval(function () {
+        var host = document.getElementById('q-board-list');
+        if (!host) { clearInterval(self._boardTimer); self._boardTimer = null; return; }   // modal closed
+        var pane = document.getElementById('q-pane-board');
+        if (self._boardLoaded && pane && pane.style.display !== 'none' && document.visibilityState === 'visible') self.loadQuestBoard();
+      }, 45000);
+    }
   },
   descMore() {
     var de = document.getElementById('q-d2-desc'); if (de) de.classList.remove('clamp');
