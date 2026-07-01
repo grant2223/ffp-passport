@@ -478,29 +478,10 @@
     <button class="time-chip active" data-range="all">All time</button>
   </div>
 
-  <!-- YOUR PASSPORT REVIEW (v366) — borderless: a real review of how they use the passport + trend + Coach Grant insight -->
-  <div id="trend-card" style="display:none;margin:6px 0 28px;">
-    <div style="display:inline-flex;align-items:center;gap:7px;background:rgba(43,168,224,.10);border:1px solid rgba(43,168,224,.22);border-radius:10px;padding:7px 13px;margin-bottom:14px;">
-      <span class="material-icons" style="font-size:17px;color:var(--blue);">insights</span>
-      <span style="font-size:13px;font-weight:800;letter-spacing:.3px;color:var(--text);">Your Trends</span>
-    </div>
-    <div id="trend-review" style="font-size:15.5px;color:var(--text);line-height:1.6;margin-bottom:16px;"></div>
-    <div style="display:flex;align-items:flex-end;gap:16px;margin-bottom:18px;background:rgba(43,168,224,.06);border-radius:14px;padding:16px 18px;">
-      <div style="flex:0 0 auto;">
-        <div id="trend-dir" style="font-size:24px;font-weight:800;line-height:1;color:var(--muted);">—</div>
-        <div style="font-size:11px;font-weight:600;color:var(--muted);margin-top:5px;">vs last week</div>
-      </div>
-      <div id="trend-spark" style="flex:1;min-width:0;height:40px;"></div>
-    </div>
-    <!-- Coach Grant — active-lifestyle coach card (assets/ffp-coach-loader.js). Replaces the old canned tip line. -->
-    <div id="ffp-coach-mount" style="margin-top:4px;"></div>
-    <!-- Latest wearable readiness (WHOOP) — filled by renderTrendFitness() on each passport open -->
-    <div id="trend-fitness" style="margin-top:16px;"></div>
-  </div>
-
-
-  <!-- SUPPORT YOUR CREW (Coach Phase 3) — filled by renderTrendCrew() from /api/coach/profile support_ops. Activity status only. -->
-  <div id="trend-crew" style="margin:0 0 28px;"></div>
+  <!-- COACH GRANT — the single coaching surface on the Passport (assets/ffp-coach-loader.js).
+       Replaced the old "Your Trends" card + "Support Your Crew" card (2026-07-01, Grant): Coach now owns
+       coaching, trends and crew support. State-aware line + actions + Talk-to-Coach chat. -->
+  <div id="ffp-coach-mount" style="margin:6px 0 28px;"></div>
 
   <!-- ═══ YOUR JOURNEY MAP (Leaflet) — World › Country › City ═══ -->
   <style>
@@ -3235,48 +3216,13 @@ function renderAll() {
   try { if (window.JourneyMap) JourneyMap.render(); } catch (e) { console.error('[renderAll] map', e); }
 }
 
-// v365 — "Your trend" card under the map: this-week vs last-week activity, streak, 8-week sparkline + Coach Grant tip.
-// All-time from the global LOGS (independent of the time-range filter), same basis as the streak.
+// Coach Grant is now the SINGLE coaching surface on the Passport (assets/ffp-coach-loader.js).
+// The old "Your Trends" review/vs-last-week/sparkline + WHOOP-readiness cards were REMOVED (2026-07-01, Grant) —
+// Coach owns coaching, trends and crew support now. renderTrend keeps its name so existing callers
+// (renderAll + the 5-min refresh) simply (re)paint the Coach card. renderTrendFitness/renderTrendCrew are
+// now no-ops (their mounts were removed) and are left defined only to keep old call sites safe.
 function renderTrend() {
-  var card = document.getElementById('trend-card'); if (!card) return;
-  var logs = (typeof LOGS !== 'undefined') ? LOGS : [];
-  if (!logs.length) { card.style.display = 'none'; return; }
-  var weeks = [0, 0, 0, 0, 0, 0, 0, 0], sset = {}, actMap = {}, citySet = {};
-  logs.forEach(function (l) {
-    var w = Math.floor((l.daysAgo || 0) / 7); if (w >= 0 && w < 8) weeks[w]++;
-    sset[l.daysAgo] = 1;
-    if (l.activity) actMap[l.activity] = (actMap[l.activity] || 0) + 1;
-    if (l.city) citySet[l.city] = 1;
-  });
-  var thisW = weeks[0], lastW = weeks[1];
-  var streak = 0, sd = sset[0] ? 0 : (sset[1] ? 1 : -1); if (sd >= 0) { while (sset[sd]) { streak++; sd++; } }
-  var total = logs.length, cities = Object.keys(citySet).length;
-  var topAct = '', topN = 0; Object.keys(actMap).forEach(function (k) { if (actMap[k] > topN) { topN = actMap[k]; topAct = k; } });
-  var esc2 = (typeof escHtml === 'function') ? escHtml : function (s) { return String(s == null ? '' : s); };
-  // Review — how they're actually using the passport
-  var rv = 'You’ve logged <strong>' + total + '</strong> activit' + (total === 1 ? 'y' : 'ies');
-  if (cities > 0) rv += ' across <strong>' + cities + '</strong> cit' + (cities === 1 ? 'y' : 'ies');
-  rv += '.';
-  if (topAct) rv += ' <strong>' + esc2(topAct) + '</strong> is what you love most — ' + topN + ' time' + (topN === 1 ? '' : 's') + '.';
-  if (streak > 0) rv += ' You’re on a <strong>' + streak + '-day</strong> streak.';
-  document.getElementById('trend-review').innerHTML = rv;
-  // Direction vs last week
-  var dirEl = document.getElementById('trend-dir');
-  var pct = lastW > 0 ? Math.round((thisW - lastW) / lastW * 100) : (thisW > 0 ? 100 : 0);
-  var up = thisW >= lastW;
-  dirEl.textContent = (thisW === 0 && lastW === 0) ? '—' : (up ? '▲ ' : '▼ ') + Math.abs(pct) + '%';
-  dirEl.style.color = (thisW === lastW) ? 'var(--muted)' : (up ? '#4ade80' : '#ef4444');
-  // 8-week sparkline
-  var vals = [weeks[7], weeks[6], weeks[5], weeks[4], weeks[3], weeks[2], weeks[1], weeks[0]];
-  var max = Math.max(1, Math.max.apply(null, vals)), bw = 11, gap = 5, h = 40;
-  var bars = vals.map(function (v, i) { var bh = Math.max(2, Math.round(v / max * h)); var x = i * (bw + gap), y = h - bh; var fill = (i === vals.length - 1) ? '#2ba8e0' : 'rgba(43,168,224,.35)'; return '<rect x="' + x + '" y="' + y + '" width="' + bw + '" height="' + bh + '" rx="2" fill="' + fill + '"/>'; }).join('');
-  var wpx = vals.length * (bw + gap);
-  document.getElementById('trend-spark').innerHTML = '<svg width="100%" height="' + h + '" viewBox="0 0 ' + wpx + ' ' + h + '" preserveAspectRatio="none">' + bars + '</svg>';
-  // Coach Grant — now a real active-lifestyle coach card (state-aware line + actions + Talk to Coach),
-  // fed by /api/coach/profile via assets/ffp-coach-loader.js. Replaces the old 9 canned rotating tips.
   try { if (window.ffpCoach && ffpCoach.render) ffpCoach.render(); } catch (e) {}
-  card.style.display = '';
-  try { renderTrendFitness(); } catch (e) {}
 }
 
 // Latest wearable readiness (WHOOP) appended to "Your Trends" — refreshes each time the Passport opens.
@@ -4404,7 +4350,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '513';
+  const FFP_BUILD = '514';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
