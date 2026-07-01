@@ -492,7 +492,8 @@
       </div>
       <div id="trend-spark" style="flex:1;min-width:0;height:40px;"></div>
     </div>
-    <div id="trend-tip" style="font-size:14px;color:var(--text);line-height:1.65;display:flex;gap:8px;align-items:flex-start;"></div>
+    <!-- Coach Grant — active-lifestyle coach card (assets/ffp-coach-loader.js). Replaces the old canned tip line. -->
+    <div id="ffp-coach-mount" style="margin-top:4px;"></div>
     <!-- Latest wearable readiness (WHOOP) — filled by renderTrendFitness() on each passport open -->
     <div id="trend-fitness" style="margin-top:16px;"></div>
   </div>
@@ -3271,22 +3272,9 @@ function renderTrend() {
   var bars = vals.map(function (v, i) { var bh = Math.max(2, Math.round(v / max * h)); var x = i * (bw + gap), y = h - bh; var fill = (i === vals.length - 1) ? '#2ba8e0' : 'rgba(43,168,224,.35)'; return '<rect x="' + x + '" y="' + y + '" width="' + bw + '" height="' + bh + '" rx="2" fill="' + fill + '"/>'; }).join('');
   var wpx = vals.length * (bw + gap);
   document.getElementById('trend-spark').innerHTML = '<svg width="100%" height="' + h + '" viewBox="0 0 ' + wpx + ' ' + h + '" preserveAspectRatio="none">' + bars + '</svg>';
-  // Coach Grant insight — a ROTATING set so it changes (cycled every 5 min by the refresh interval), built from
-  // this member's real activity. window._ffpCoachIdx advances on each refresh.
-  var love = topAct || 'your activities';
-  var tips = [];
-  if (streak >= 3) tips.push('You’re on a roll with ' + esc2(love) + ' — log one today to keep your ' + streak + '-day streak alive.');
-  if (thisW === 0) tips.push('Quiet week so far. A quick ' + esc2(love) + ' session rebuilds momentum — find a meet-up and do it with others.');
-  if (thisW > lastW) tips.push('Up on last week — line up another ' + esc2(love) + ' this week, or host a meet-up so others join you.');
-  if (thisW < lastW && lastW > 0) tips.push('A little down on last week — one more ' + esc2(love) + ' closes the gap. Make it social with a meet-up.');
-  tips.push('Do more of what you love: ' + esc2(love) + '. Host or join a meet-up this week and bring someone with you.');
-  tips.push('Consistency beats intensity — even a short ' + esc2(love) + ' session today keeps the habit going.');
-  tips.push('Who could you invite to your next ' + esc2(love) + '? Everything’s better with your crew.');
-  tips.push('Log today’s session while it’s fresh — your streak and your Trends both thank you.');
-  if (total > 0) tips.push('You’ve logged ' + total + ' activit' + (total === 1 ? 'y' : 'ies') + ' so far — keep the story going with one more this week.');
-  if (cities > 1) tips.push('You’ve trained across ' + cities + ' cities — wherever you are, it all counts. Log it.');
-  var tip = tips[((window._ffpCoachIdx || 0) % tips.length + tips.length) % tips.length];
-  document.getElementById('trend-tip').innerHTML = '<span class="material-icons" style="font-size:16px;color:var(--blue);flex:0 0 auto;">tips_and_updates</span><span><strong style="color:var(--text);">Coach Grant:</strong> ' + tip + '</span>';
+  // Coach Grant — now a real active-lifestyle coach card (state-aware line + actions + Talk to Coach),
+  // fed by /api/coach/profile via assets/ffp-coach-loader.js. Replaces the old 9 canned rotating tips.
+  try { if (window.ffpCoach && ffpCoach.render) ffpCoach.render(); } catch (e) {}
   card.style.display = '';
   try { renderTrendFitness(); } catch (e) {}
 }
@@ -4416,7 +4404,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '512';
+  const FFP_BUILD = '513';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -8279,6 +8267,7 @@ else init();
 </style>
 <script src="assets/ffp-connections-core.js?v=360"></script>
 <script src="assets/ffp-streak-loader.js?v=1"></script>
+<script defer src="assets/ffp-coach-loader.js?v=513"></script>
 <script defer src="assets/ffp-connections-feed-loader.js?v=335"></script>
 <script defer src="assets/ffp-event-results-loader.js?v=329"></script>
 <script>
