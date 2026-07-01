@@ -163,7 +163,7 @@
         }).then(function (sub) {
           return fetch(PUSH_API + '/api/push/subscribe', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ member_id: memberId, subscription: sub.toJSON(), user_agent: navigator.userAgent })
+            body: JSON.stringify({ member_id: memberId, subscription: sub.toJSON(), user_agent: navigator.userAgent, app: (/professional/i.test(location.pathname) ? 'professional' : (/provider|partner/i.test(location.pathname) ? 'provider' : (/booking/i.test(location.pathname) ? 'booking' : 'member'))) })
           }).then(function (r) { return r.json(); }).then(function (j) { return { ok: !!(j && j.success), data: j }; });
         });
       }).catch(function (e) { return { ok: false, error: e.message }; });
