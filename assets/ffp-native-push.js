@@ -24,9 +24,9 @@
       var res = await FM.getToken();                 // { token }
       var token = res && (res.token || res);
       var rf = refreshTok();
-      if (token && rf) await post('/api/push/register-device', { refresh: rf, token: token, platform: platform() });
+      if (token && rf) await post('/api/push/register-device', { refresh: rf, token: token, platform: platform(), app: (/professional/i.test(location.pathname) ? 'professional' : (/provider|partner/i.test(location.pathname) ? 'provider' : (/booking/i.test(location.pathname) ? 'booking' : 'member'))) });
       // keep the token current if the OS rotates it
-      try { FM.addListener && FM.addListener('tokenReceived', function (ev) { var t = ev && (ev.token || ev); var r = refreshTok(); if (t && r) post('/api/push/register-device', { refresh: r, token: t, platform: platform() }); }); } catch (e) {}
+      try { FM.addListener && FM.addListener('tokenReceived', function (ev) { var t = ev && (ev.token || ev); var r = refreshTok(); if (t && r) post('/api/push/register-device', { refresh: r, token: t, platform: platform(), app: (/professional/i.test(location.pathname) ? 'professional' : (/provider|partner/i.test(location.pathname) ? 'provider' : (/booking/i.test(location.pathname) ? 'booking' : 'member'))) }); }); } catch (e) {}
       // tap a push → open the deep-linked screen inside the app
       try { FM.addListener && FM.addListener('notificationActionPerformed', function (ev) { var url = ev && ev.notification && ev.notification.data && ev.notification.data.url; if (url) { try { location.assign(url); } catch (e) {} } }); } catch (e) {}
     } catch (e) { console.warn('[ffp-native-push] register failed', e && e.message); }
