@@ -1534,7 +1534,7 @@ input, select, textarea { font-family: inherit; }
       </div>
     </div>
     <div class="sidebar-footer">
-      build v56 &middot; FFP Admin
+      build v57 &middot; FFP Admin
     </div>
   </aside>
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.toggleSidebar()"></div>
@@ -2209,6 +2209,16 @@ input, select, textarea { font-family: inherit; }
         <div class="section-body padded">
           <div style="font-size:13px;color:var(--text-muted,#8a99a8);margin-bottom:12px;">Emails + notifies attendees of meet-ups happening in the next 24 hours. Normally runs automatically each hour — this just fires it now for anything due.</div>
           <button class="btn btn-blue" onclick="AdminEmails.run('meetup-reminders','all',this)"><span class="material-icons">bolt</span>Run now</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><div class="section-title">Onboarding &amp; reminders</div></div>
+        <div class="section-body padded">
+          <div style="font-size:13px;color:var(--text-muted,#8a99a8);margin-bottom:12px;">Runs daily: a complete-profile reminder (3+ days in, profile still incomplete) and a "we miss you" (7+ days inactive). "Run now" processes everyone due; the previews send that exact email to the "Send test to" address so you can see it.</div>
+          <button class="btn" onclick="AdminEmails.lifecycle('profile',this)" style="margin-right:8px;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.55);color:#cfe6f6;font-weight:800;">Preview: profile reminder</button>
+          <button class="btn" onclick="AdminEmails.lifecycle('winback',this)" style="margin-right:8px;background:rgba(43,168,224,.12);border:1px solid rgba(43,168,224,.55);color:#cfe6f6;font-weight:800;">Preview: we miss you</button>
+          <button class="btn btn-blue" onclick="AdminEmails.lifecycle('run',this)"><span class="material-icons">bolt</span>Run now</button>
         </div>
       </div>
 
@@ -3382,6 +3392,32 @@ const AdminEmails = {
       } else {
         setMsg('#ef4444', 'Failed: ' + ((data && data.error) || ('HTTP ' + res.status)));
       }
+    } catch (e) { setMsg('#ef4444', 'Network error — please try again.'); }
+    finally { if (btn) btn.disabled = false; }
+  },
+  // Onboarding/lifecycle: run = process everyone due; profile/winback = preview that email to "Send test to".
+  async lifecycle(kind, btn) {
+    var result = document.getElementById('em-result');
+    var setMsg = function (color, text) { if (result) { result.style.color = color; result.textContent = text; } };
+    var admin = window.FFP_ADMIN && window.FFP_ADMIN.id;
+    var email = window.FFP_ADMIN && window.FFP_ADMIN.email;
+    if (!admin) { setMsg('#ef4444', 'Admin session not ready — reload the page.'); return; }
+    var qs = 'admin_id=' + encodeURIComponent(admin);
+    if (kind === 'profile' || kind === 'winback') {
+      var raw = ((document.getElementById('em-test-to') || {}).value || '').trim();
+      var to = (raw || email || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean).join(',');
+      if (!to) { setMsg('#ef4444', 'Enter an email in "Send test to" first.'); return; }
+      qs += '&only=' + encodeURIComponent(to) + '&preview=' + kind;
+    } else if (!confirm('Run the daily onboarding/reminder pass now for everyone due?')) { return; }
+    if (btn) btn.disabled = true;
+    setMsg('#8196a6', (kind === 'run') ? 'Running…' : 'Sending preview…');
+    try {
+      var res = await fetch('https://ffp-passport-backend.vercel.app/api/cron/lifecycle?' + qs);
+      var data = await res.json();
+      if (res.ok && data && data.success) {
+        if (kind === 'run') setMsg('#22c55e', 'Done — ' + (data.profile_reminder || 0) + ' profile reminder(s), ' + (data.winback || 0) + ' we-miss-you sent.');
+        else setMsg('#22c55e', 'Preview sent to ' + to + '.');
+      } else { setMsg('#ef4444', 'Failed: ' + ((data && data.error) || ('HTTP ' + res.status))); }
     } catch (e) { setMsg('#ef4444', 'Network error — please try again.'); }
     finally { if (btn) btn.disabled = false; }
   }
