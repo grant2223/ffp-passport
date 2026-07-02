@@ -27,7 +27,8 @@ input { font-family: inherit; color: inherit; }
 
 /* TOPBAR */
 .topbar { position: fixed; top: 0; left: 0; right: 0; height: 60px; background: rgba(11,28,40,0.95); border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; align-items: center; justify-content: space-between; z-index: 100; }
-.topbar-logo { font-size: 16px; font-weight: 900; }
+.topbar-logo { font-size: 16px; font-weight: 900; line-height: 1.05; }
+.topbar-logo .topbar-tag { display: block; font-size: 9px; font-weight: 700; letter-spacing: .3px; color: var(--muted, #8a99a8); margin-top: 2px; text-transform: none; }
 .topbar-icons { display: flex; gap: 12px; }
 #user-btn { border-color: var(--yellow); background: rgba(255,204,0,0.12); }
 #user-btn .material-icons { color: var(--yellow); }
