@@ -40,40 +40,77 @@
     return '<button type="button" onclick="' + handler + '" style="flex:1 1 0;min-width:0;background:' + bg + ';color:' + col + ';border:none;font-size:12px;font-weight:800;padding:9px 8px;border-radius:11px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:5px;"><span class="material-icons" style="font-size:15px;flex:0 0 auto;">' + icon + '</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(label) + '</span></button>';
   }
 
-  // ── the coach CARD ─────────────────────────────────────────────────────────
+  // ── the coach CARD (snapshot-driven active-life summary, in Coach Grant's voice) ──
+  var PILLARS = [['fitness', 'Fitness', '#2ba8e0'], ['sports', 'Sports', '#e5883a'], ['wellness', 'Wellness', '#7d59d0'], ['adventure', 'Adventure', '#4ecb8f'], ['recovery', 'Recovery', '#e0a94a']];
+  function hookAction(a) { return (a === 'meetups' || a === 'host' || a === 'discover') ? "ffpCoach.goMeetups()" : "ffpCoach.logActivity()"; }
+  function pillarStrip(counts) {
+    counts = counts || {};
+    return PILLARS.map(function (p) {
+      var n = counts[p[0]] || 0, on = n > 0;
+      return '<div style="flex:1;text-align:center;background:' + (on ? 'rgba(43,168,224,.10)' : 'rgba(255,255,255,.03)') + ';border-radius:9px;padding:8px 2px;">'
+        + '<div style="font-size:15px;font-weight:900;color:' + (on ? p[2] : '#4a6579') + ';">' + n + '</div>'
+        + '<div style="font-size:8.5px;font-weight:800;color:' + (on ? '#9fc0d6' : '#4a6579') + ';text-transform:uppercase;margin-top:1px;">' + p[1] + '</div></div>';
+    }).join('');
+  }
+  function renderCard(mount, s, h) {
+    var streak = s.streak || 0;
+    var streakPill = streak >= 1 ? '<span style="background:rgba(255,138,42,.15);border:1px solid rgba(255,138,42,.5);color:#ffc08a;font-size:10px;font-weight:900;letter-spacing:1px;padding:3px 9px;border-radius:100px;flex:0 0 auto;">' + streak + '-DAY STREAK</span>' : '';
+    var race = (s.race && s.race.rank) ? '<div style="font-size:11px;font-weight:700;color:#8fc7e8;margin-top:10px;">' + esc(s.race.quest || 'July race') + ': #' + s.race.rank + ' · ' + s.race.points + ' pts' + (s.race.gap_to_above > 0 ? ' · ' + s.race.gap_to_above + ' off ' + esc(s.race.above_name || 'the spot above') : '') + '</div>' : '';
+    // Fixed 3-CTA row (Grant): Chat is the primary blue button — talking to Coach gets the best out of an active life.
+    var acts = chip('Chat', 'chat', "ffpCoach.openChat()", true) + chip('Log activity', 'add', "ffpCoach.logActivity()") + chip('Meetups', 'groups', "ffpCoach.goMeetups()");
+    mount.innerHTML =
+      '<div style="background:#0e2032;border:1px solid rgba(43,168,224,.22);border-radius:18px;padding:16px;">'
+      + '<div style="display:flex;align-items:center;gap:11px;margin-bottom:12px;">'
+      +   '<div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#2ba8e0,#0d2b45);display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span style="color:#fff;font-weight:900;font-style:italic;font-size:14px;">G</span></div>'
+      +   '<div style="flex:1;min-width:0;"><div style="font-size:12.5px;font-weight:900;color:#fff;letter-spacing:.5px;">COACH GRANT</div></div>' + streakPill
+      + '</div>'
+      + '<div style="font-size:16px;font-weight:900;color:#fff;line-height:1.2;">' + esc(h.headline || '') + '</div>'
+      + '<div style="font-size:13.5px;line-height:1.5;color:#cfe1ef;margin-top:6px;">' + esc(h.line || '') + '</div>'
+      + '<div style="display:flex;gap:5px;margin-top:13px;">' + pillarStrip(s.pillars && s.pillars.counts) + '</div>'
+      + race
+      + '<div style="display:flex;gap:8px;flex-wrap:nowrap;margin-top:13px;">' + acts + '</div>'
+      + '</div>';
+  }
+  // First-run onboarding — Coach Grant intro + motivations quick-pick + one goal.
+  C._selMot = C._selMot || {};
+  C.toggleMot = function (key, el) {
+    C._selMot[key] = !C._selMot[key];
+    if (el) { var on = C._selMot[key]; el.style.background = on ? '#2ba8e0' : 'rgba(43,168,224,.10)'; el.style.color = on ? '#fff' : '#cfe1ef'; el.style.borderColor = on ? '#2ba8e0' : 'rgba(43,168,224,.22)'; }
+  };
+  function renderOnboard(mount) {
+    var name = (C._snap && C._snap.first_name) || 'there';
+    var grid = (C._catalog || []).map(function (m) {
+      return '<button type="button" onclick="ffpCoach.toggleMot(\'' + m.key + '\',this)" style="border:1px solid rgba(43,168,224,.22);background:rgba(43,168,224,.10);color:#cfe1ef;border-radius:12px;padding:11px 6px;font-family:inherit;font-size:11.5px;font-weight:800;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;line-height:1.15;text-align:center;"><span class="material-icons" style="font-size:19px;">' + esc(m.icon) + '</span>' + esc(m.label) + '</button>';
+    }).join('');
+    mount.innerHTML =
+      '<div style="background:#0e2032;border:1px solid rgba(43,168,224,.22);border-radius:18px;padding:18px;">'
+      + '<div style="display:flex;align-items:center;gap:11px;margin-bottom:12px;"><div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#2ba8e0,#0d2b45);display:flex;align-items:center;justify-content:center;"><span style="color:#fff;font-weight:900;font-style:italic;font-size:15px;">G</span></div><div style="font-size:12.5px;font-weight:900;color:#fff;letter-spacing:.5px;">COACH GRANT</div></div>'
+      + '<div style="font-size:17px;font-weight:900;color:#fff;line-height:1.25;">Hey ' + esc(name) + ', I’m Coach Grant.</div>'
+      + '<div style="font-size:13.5px;color:#cfe1ef;line-height:1.5;margin-top:6px;">I’ll help you build an active life your way — fitness, sport, wellness, adventure, and the people to share it with. First: <b style="color:#fff;">what brings you here?</b> Pick a few.</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px;">' + grid + '</div>'
+      + '<div style="font-size:12.5px;font-weight:800;color:#9fc0d6;margin:16px 0 7px;">One goal to start? (optional)</div>'
+      + '<input id="ffp-onb-goal" type="text" placeholder="e.g. Move 4x a week, try 2 new sports" style="width:100%;box-sizing:border-box;background:#0a1826;border:1px solid rgba(43,168,224,.28);border-radius:11px;color:#e8eef4;font-family:inherit;font-size:14px;padding:11px 13px;outline:none;">'
+      + '<button type="button" id="ffp-onb-go" onclick="ffpCoach.saveOnboard()" style="width:100%;margin-top:14px;background:#FFCC00;color:#082335;border:none;border-radius:12px;padding:14px;font-family:inherit;font-size:15px;font-weight:900;cursor:pointer;">Start my active life</button>'
+      + '</div>';
+  }
+  C.saveOnboard = function () {
+    var rf = refresh(); if (!rf) return;
+    var mot = Object.keys(C._selMot || {}).filter(function (k) { return C._selMot[k]; });
+    var goalEl = document.getElementById('ffp-onb-goal'); var goal = goalEl ? goalEl.value.trim() : '';
+    var b = document.getElementById('ffp-onb-go'); if (b) { b.disabled = true; b.textContent = 'Setting up…'; }
+    post('/api/coach/onboard', { refresh: rf, motivations: mot, goals: goal ? [{ label: goal }] : [] }).then(function () {
+      C._selMot = {}; if (C._snap) C._snap.onboarded = true; C.render(); toast("You’re all set — let’s move.", 'success');
+    }).catch(function () { var b2 = document.getElementById('ffp-onb-go'); if (b2) { b2.disabled = false; b2.textContent = 'Start my active life'; } });
+  };
   C.render = function () {
     var mount = document.getElementById('ffp-coach-mount'); if (!mount) return;
     var rf = refresh(); if (!rf) { mount.innerHTML = ''; return; }
-    post('/api/coach/profile', { refresh: rf }).then(function (j) {
-      var mount2 = document.getElementById('ffp-coach-mount'); if (!mount2) return;
-      if (!j || j.error) { mount2.innerHTML = ''; return; }
-      C._prof = j;
-      var f = j.facts || {};
-      var line = j.coach_line || 'Log an activity today to keep your Trends moving — and tap below any time you want a hand.';
-      var sub = subtitle(f);
-      // Adaptive actions: low recovery → light session; quiet/at-risk → meet-up first; else log first.
-      var low = (f.latest_recovery != null && f.latest_recovery < 34);
-      var quiet = (f.at_risk || (f.last_active_days != null && f.last_active_days > 10));
-      var acts = '';
-      if (quiet) {
-        acts += chip('Meet-ups', 'groups', "ffpCoach.goMeetups()", true);
-        acts += chip('Log', 'add', "ffpCoach.logActivity()");
-      } else if (low) {
-        acts += chip('Light session', 'directions_walk', "ffpCoach.logActivity()", true);
-      } else {
-        acts += chip('Log activity', 'add', "ffpCoach.logActivity()", true);
-        acts += chip('Meet-ups', 'groups', "ffpCoach.goMeetups()");
-      }
-      acts += chip('Coach', 'auto_awesome', "ffpCoach.openChat()");
-      mount2.innerHTML =
-        '<div style="background:#0e2032;border:1px solid rgba(43,168,224,.22);border-radius:18px;padding:16px;">' +
-          '<div style="display:flex;align-items:center;gap:11px;margin-bottom:12px;">' +
-            '<div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#2ba8e0,#0d2b45);display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span style="color:#fff;font-weight:900;font-style:italic;font-size:15px;">G</span></div>' +
-            '<div style="min-width:0;"><div style="font-size:14px;font-weight:900;color:#fff;">Coach Grant</div><div style="font-size:11px;font-weight:700;color:' + sub.col + ';">' + esc(sub.txt) + '</div></div>' +
-          '</div>' +
-          '<div style="font-size:14.5px;line-height:1.55;color:#dfeaf3;">' + nl2br(line) + '</div>' +
-          '<div style="display:flex;gap:8px;flex-wrap:nowrap;margin-top:14px;">' + acts + '</div>' +
-        '</div>';
+    post('/api/coach/snapshot', { refresh: rf }).then(function (j) {
+      var m2 = document.getElementById('ffp-coach-mount'); if (!m2) return;
+      if (!j || j.error) { m2.innerHTML = ''; return; }
+      C._snap = j.snapshot || {}; C._hook = j.hook || {}; C._catalog = j.motivations_catalog || [];
+      if (C._snap.onboarded === false) { renderOnboard(m2); return; }
+      renderCard(m2, C._snap, C._hook);
     }).catch(function () { var m = document.getElementById('ffp-coach-mount'); if (m) m.innerHTML = ''; });
   };
 
@@ -121,7 +158,7 @@
       var t2 = document.getElementById('ffp-coach-thread'); if (!t2) return;
       var msgs = (j && j.messages) || [];
       if (!msgs.length) {
-        var opener = (C._prof && C._prof.coach_line) ? C._prof.coach_line : 'Hey — I\'m Coach Grant. I\'m here for your training, motivation and finding people to move with. What\'s on your mind?';
+        var opener = (C._hook && C._hook.line) ? (C._hook.headline + ' ' + C._hook.line) : 'Hey — I\'m Coach Grant. I\'m here for your training, motivation and finding people to move with. What\'s on your mind?';
         t2.innerHTML = bubble('coach', nl2br(opener));
       } else {
         t2.innerHTML = msgs.map(function (m) { return bubble(m.role === 'coach' ? 'coach' : 'user', nl2br(m.content)); }).join('');
