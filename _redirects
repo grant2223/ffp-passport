@@ -5,4 +5,8 @@
 /my-passport      /my-passport.html              200
 /join             /login.html#signup             301!
 
+# FFP Professional moved to its own origin (2026-07-01). Send old Passport-origin pro links/installs there.
+/ffp-professional-dashboard.html   https://ffpprofessional.com/   301!
+/professional                      https://ffpprofessional.com/   301!
+
 /*                /index.html                    200
