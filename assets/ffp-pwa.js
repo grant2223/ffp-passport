@@ -41,7 +41,7 @@
       'padding:14px 14px 14px 14px;color:#e8eef4;font-family:Montserrat,system-ui,sans-serif;' +
       'display:flex;gap:12px;align-items:center;animation:ffppwaIn .25s ease;';
     el.innerHTML =
-      '<img src="/assets/icons/ffp-icon-192.png" alt="" width="46" height="46" style="border-radius:11px;flex:0 0 auto;background:#fff;">' +
+      '<img src="/assets/icons/ffp-icon-192.png?v=3" alt="" width="46" height="46" style="border-radius:11px;flex:0 0 auto;background:#081420;">' +
       '<div style="flex:1;min-width:0;">' + innerHTML + '</div>' +
       '<button id="ffp-pwa-x" aria-label="Dismiss" style="flex:0 0 auto;background:none;border:none;color:#7b8b9c;font-size:22px;line-height:1;cursor:pointer;padding:2px 4px;align-self:flex-start;">&times;</button>';
     document.body.appendChild(el);
