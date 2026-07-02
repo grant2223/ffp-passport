@@ -34,9 +34,10 @@
     return { txt: 'Your active-lifestyle coach', col: '#8a99a8' };
   }
 
+  // Equal-width chip so all CTAs sit on ONE row (flex:1, centred, label truncates if tight).
   function chip(label, icon, handler, primary) {
     var bg = primary ? '#2ba8e0' : 'rgba(43,168,224,.12)', col = primary ? '#fff' : '#8fd0f0';
-    return '<button type="button" onclick="' + handler + '" style="background:' + bg + ';color:' + col + ';border:none;font-size:12.5px;font-weight:800;padding:9px 14px;border-radius:11px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;"><span class="material-icons" style="font-size:15px;">' + icon + '</span>' + esc(label) + '</button>';
+    return '<button type="button" onclick="' + handler + '" style="flex:1 1 0;min-width:0;background:' + bg + ';color:' + col + ';border:none;font-size:12px;font-weight:800;padding:9px 8px;border-radius:11px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:5px;"><span class="material-icons" style="font-size:15px;flex:0 0 auto;">' + icon + '</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(label) + '</span></button>';
   }
 
   // ── the coach CARD ─────────────────────────────────────────────────────────
@@ -55,15 +56,15 @@
       var quiet = (f.at_risk || (f.last_active_days != null && f.last_active_days > 10));
       var acts = '';
       if (quiet) {
-        acts += chip('See meet-ups', 'groups', "ffpCoach.goMeetups()", true);
-        acts += chip('Log activity', 'add', "ffpCoach.logActivity()");
+        acts += chip('Meet-ups', 'groups', "ffpCoach.goMeetups()", true);
+        acts += chip('Log', 'add', "ffpCoach.logActivity()");
       } else if (low) {
-        acts += chip('Log a light session', 'directions_walk', "ffpCoach.logActivity()", true);
+        acts += chip('Light session', 'directions_walk', "ffpCoach.logActivity()", true);
       } else {
         acts += chip('Log activity', 'add', "ffpCoach.logActivity()", true);
-        acts += chip('Find a meet-up', 'groups', "ffpCoach.goMeetups()");
+        acts += chip('Meet-ups', 'groups', "ffpCoach.goMeetups()");
       }
-      acts += chip('Talk to Coach', 'auto_awesome', "ffpCoach.openChat()");
+      acts += chip('Coach', 'auto_awesome', "ffpCoach.openChat()");
       mount2.innerHTML =
         '<div style="background:#0e2032;border:1px solid rgba(43,168,224,.22);border-radius:18px;padding:16px;">' +
           '<div style="display:flex;align-items:center;gap:11px;margin-bottom:12px;">' +
@@ -71,7 +72,7 @@
             '<div style="min-width:0;"><div style="font-size:14px;font-weight:900;color:#fff;">Coach Grant</div><div style="font-size:11px;font-weight:700;color:' + sub.col + ';">' + esc(sub.txt) + '</div></div>' +
           '</div>' +
           '<div style="font-size:14.5px;line-height:1.55;color:#dfeaf3;">' + nl2br(line) + '</div>' +
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">' + acts + '</div>' +
+          '<div style="display:flex;gap:8px;flex-wrap:nowrap;margin-top:14px;">' + acts + '</div>' +
         '</div>';
     }).catch(function () { var m = document.getElementById('ffp-coach-mount'); if (m) m.innerHTML = ''; });
   };
@@ -151,6 +152,22 @@
     }).then(function () { C._busy = false; var b = document.getElementById('ffp-coach-send'); if (b) b.style.opacity = '1'; });
   };
 
-  // Self-boot: paint the card if its mount is already on the page.
-  try { if (document.getElementById('ffp-coach-mount')) C.render(); } catch (e) {}
+  // v2: keep Coach Grant CURRENT — poll every 5 min while the card is on-screen, and refresh whenever the app
+  // regains focus, so the line + state stay in step with the member through the day. Pauses while the chat is open.
+  C._startPolling = function () {
+    if (C._pollTimer) return;
+    C._pollTimer = setInterval(function () {
+      try { if (document.getElementById('ffp-coach-mount') && !document.getElementById('ffp-coach-ov')) C.render(); } catch (e) {}
+    }, 5 * 60 * 1000);
+  };
+  try {
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden && document.getElementById('ffp-coach-mount') && !document.getElementById('ffp-coach-ov')) { try { C.render(); } catch (e) {} }
+    });
+  } catch (e) {}
+  // Capture the member's REAL timezone (browser Intl) once on load, so Coach Grant's 5pm reminder fires at THEIR
+  // actual local 5pm — not a default. Fire-and-forget; backend only writes if it's a valid IANA zone.
+  try { var _tz = (Intl.DateTimeFormat().resolvedOptions() || {}).timeZone; var _rf = refresh(); if (_tz && _rf) post('/api/member/timezone', { refresh: _rf, tz: _tz }); } catch (e) {}
+  // Self-boot: paint the card if its mount is already on the page + start the 5-min refresh.
+  try { if (document.getElementById('ffp-coach-mount')) { C.render(); C._startPolling(); } } catch (e) {}
 })();
