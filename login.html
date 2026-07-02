@@ -554,6 +554,9 @@ function setBadge(elId, portal) {
     '<span class="screen-badge-label" style="' + p.badge + '">' + p.label + '</span>';
 }
 function goToSignIn() {
+  // FFP Professional is its own app on its own origin — a pro must sign in THERE so the session lands on
+  // ffpprofessional.com (signing in here on ffppassport.com would strand them: per-origin storage). (2026-07-01)
+  if (selectedPortal === 'professional') { window.location.href = 'https://ffpprofessional.com/'; return; }
   setBadge('signin-badge', selectedPortal);
   setBadge('signin-code-badge', selectedPortal);
   var btn = document.getElementById('signin-email-btn');
