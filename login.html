@@ -514,7 +514,7 @@ function handleAuthRedirect(response) {
   // the portal they picked. The professional dashboard's gate handles onboarding /
   // lapsed-Passport states.
   if (selectedPortal === 'professional') {
-    window.location.href = 'ffp-professional-dashboard.html';
+    window.location.href = 'https://ffpprofessional.com/';   // FFP Professional now its own app/origin (2026-07-01)
     return;
   }
   var role = response.member.role;
