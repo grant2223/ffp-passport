@@ -1,6 +1,18 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-  FFP PASSPORT — login.html v29
+  FFP PASSPORT — login.html v32
+  v32 (2026-07-02): DARK PASSPORT THEME — reverted the light redesign back to the navy #081420 brand (matches
+  the member app + splash). Palette: bg #081420, surface #0f1e2e, blue #1980AD, accent #2ba8e0, text #e8eef4,
+  muted #8a99a8. Re-themed every field/code/button/link + the "Become A Member" screen's inline ink (#102230 →
+  light) + splash + theme-color meta. Emblem + "FFP PASSPORT" wordmark kept from v31.
+  v31 (2026-07-02): PASSPORT BRANDING — the login now carries the Passport identity (FFP emblem medallion +
+  "FFP PASSPORT" wordmark) in both the header and the launch splash, instead of the generic shared FFP
+  wordmark (ffp-logo.png). Matches the member app's own lockup (ffp-emblem.png + "FFP Passport"). This is the
+  point of the product split — Passport's login looks like Passport.
+  v30 (2026-07-02): PASSPORT-ONLY. Partner + Professional portals removed from the picker (they sign in on
+  partner.findfitpeople.com / ffpprofessional.com now). Only the FFP Passport (member) card remains, and the
+  login auto-advances straight to the member sign-in screen on load (skips the now-single-option picker).
+  Admin sign-in unchanged — internal-only via /login#admin. The dead provider ?verified landing was removed.
   v29 (2026-06-26): Login look — (1) background de-blued to a FLAT neutral grey #edf0f2 (page + splash; was the
   blue #f5f9fc→#e6eff5 gradient). (2) Role cards: ALL THREE are white rounded cards now, spaced 10px apart;
   selected = blue border + blue-tinted shadow + blue title + arrow (hover lifts the shadow). (3) Lighter text —
@@ -143,7 +155,7 @@
 <!-- PWA: installable app (manifest + home-screen icons + iOS meta). assets/ffp-pwa.js registers the
      service worker and shows the install banner (Android prompt / iOS Add-to-Home-Screen hint). -->
 <link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#f5f9fc">
+<meta name="theme-color" content="#081420">
 <link rel="icon" href="/assets/icons/ffp-favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="/assets/icons/ffp-apple-touch-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -174,56 +186,60 @@
 *{margin:0;padding:0;box-sizing:border-box;}
 *::-webkit-scrollbar{display:none;width:0;height:0;}
 *{-ms-overflow-style:none;scrollbar-width:none;}
-html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#edf0f2 !important;color:#102230;}
-.page{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px 100px;background:#edf0f2;}
-.logo{text-align:center;margin-bottom:16px;}
-.logo img{width:min(120px,42%);height:auto;display:block;margin:0 auto;}
+/* v32 (2026-07-02): DARK Passport theme — navy #081420 brand background (matches the member app + splash).
+   Palette: bg #081420, surface #0f1e2e, blue #1980AD, accent #2ba8e0, text #e8eef4, muted #8a99a8. */
+html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420 !important;color:#e8eef4;}
+.page{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px 100px;background:#081420;}
+.logo{text-align:center;margin-bottom:22px;}
+.logo img{width:84px;height:auto;display:block;margin:0 auto 10px;}
+.logo-word{font-size:15px;font-weight:900;letter-spacing:3px;color:#fff;line-height:1;}
+.logo-word span{color:#2ba8e0;}
 .wrap{width:100%;max-width:400px;}
 .screen{display:none;}
 .screen.active{display:block;}
-.portal-card{background:#fff;border:1px solid #e7ecf0;border-radius:14px;padding:17px 16px;display:flex;align-items:center;gap:14px;cursor:pointer;width:100%;margin:0;box-shadow:0 1px 3px rgba(16,34,48,.04);transition:box-shadow .15s ease,border-color .15s ease;}
+.portal-card{background:#0f1e2e;border:1px solid rgba(43,168,224,.22);border-radius:14px;padding:17px 16px;display:flex;align-items:center;gap:14px;cursor:pointer;width:100%;margin:0;box-shadow:0 1px 3px rgba(0,0,0,.35);transition:box-shadow .15s ease,border-color .15s ease;}
 .portal-card + .portal-card{margin-top:10px;}
-.portal-card:hover{box-shadow:0 3px 12px rgba(16,34,48,.08);}
-.portal-card.selected{border-color:#1980AD;box-shadow:0 3px 14px rgba(25,128,173,.14);}
-.portal-card.selected .pc-title{color:#1980AD;}
+.portal-card:hover{box-shadow:0 3px 12px rgba(0,0,0,.45);}
+.portal-card.selected{border-color:#2ba8e0;box-shadow:0 3px 14px rgba(43,168,224,.25);}
+.portal-card.selected .pc-title{color:#2ba8e0;}
 .pc-icon{display:none;}
 .pc-text{flex:1;}
-.pc-title{font-size:16px;font-weight:600;margin-bottom:3px;color:#102230;letter-spacing:-.1px;}
-.pc-sub{font-size:12.5px;color:#8295a3;font-weight:400;}
-.pc-radio{width:22px;height:22px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#c2d0da;opacity:1;transition:color .15s,transform .15s;}
-.portal-card:hover .pc-radio{color:#1980AD;}
-.portal-card.selected .pc-radio{color:#1980AD;transform:translateX(2px);}
+.pc-title{font-size:16px;font-weight:700;margin-bottom:3px;color:#e8eef4;letter-spacing:-.1px;}
+.pc-sub{font-size:12.5px;color:#8a99a8;font-weight:400;}
+.pc-radio{width:22px;height:22px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#3f6076;opacity:1;transition:color .15s,transform .15s;}
+.portal-card:hover .pc-radio{color:#2ba8e0;}
+.portal-card.selected .pc-radio{color:#2ba8e0;transform:translateX(2px);}
 .field{margin-bottom:16px;}
-.field-label{font-size:10px;font-weight:800;color:#7c93a3;letter-spacing:1px;text-transform:uppercase;margin-bottom:7px;}
-.field-input{width:100%;background:#fff;border:1.5px solid #dde7ee;border-radius:12px;padding:14px 16px;font-size:16px;font-weight:600;color:#102230;font-family:'Montserrat',sans-serif;outline:none;transition:border-color .15s,box-shadow .15s;}/* 16px so iOS doesn't zoom-on-focus */
-.field-input:focus{border-color:#1980AD;box-shadow:0 0 0 3px rgba(25,128,173,.12);}
-.field-input::placeholder{color:#9fb3c0;font-weight:600;}
+.field-label{font-size:10px;font-weight:800;color:#8a99a8;letter-spacing:1px;text-transform:uppercase;margin-bottom:7px;}
+.field-input{width:100%;background:#0f1e2e;border:1.5px solid rgba(43,168,224,.28);border-radius:12px;padding:14px 16px;font-size:16px;font-weight:600;color:#e8eef4;font-family:'Montserrat',sans-serif;outline:none;transition:border-color .15s,box-shadow .15s;}/* 16px so iOS doesn't zoom-on-focus */
+.field-input:focus{border-color:#2ba8e0;box-shadow:0 0 0 3px rgba(43,168,224,.16);}
+.field-input::placeholder{color:#5b7186;font-weight:600;}
 .code-wrap{display:block;margin:0 auto 8px;max-width:320px;width:100%;}
-.code-digit{width:100%;height:62px;min-width:0;padding:0 0 0 14px;background:#fff;border:1.5px solid #dde7ee;border-radius:12px;font-size:30px;font-weight:900;letter-spacing:14px;color:#102230;text-align:center;font-family:'Montserrat',sans-serif;outline:none;transition:border-color .15s,box-shadow .15s;}
-.code-digit::placeholder{color:#c2d2dd;letter-spacing:14px;}
-.code-digit:focus{border-color:#1980AD;box-shadow:0 0 0 3px rgba(25,128,173,.12);}
-.btn-primary{display:block;width:100%;padding:16px;border-radius:14px;font-size:15px;font-weight:800;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;color:#fff;background:#1980AD;transition:background .15s,transform .05s;text-align:center;box-shadow:0 6px 16px rgba(25,128,173,.25);}
-.btn-primary:hover{background:#156a8f;}
+.code-digit{width:100%;height:62px;min-width:0;padding:0 0 0 14px;background:#0f1e2e;border:1.5px solid rgba(43,168,224,.28);border-radius:12px;font-size:30px;font-weight:900;letter-spacing:14px;color:#e8eef4;text-align:center;font-family:'Montserrat',sans-serif;outline:none;transition:border-color .15s,box-shadow .15s;}
+.code-digit::placeholder{color:#3f6076;letter-spacing:14px;}
+.code-digit:focus{border-color:#2ba8e0;box-shadow:0 0 0 3px rgba(43,168,224,.16);}
+.btn-primary{display:block;width:100%;padding:16px;border-radius:14px;font-size:15px;font-weight:800;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;color:#fff;background:#1980AD;transition:background .15s,transform .05s;text-align:center;box-shadow:0 6px 16px rgba(25,128,173,.32);}
+.btn-primary:hover{background:#2091c2;}
 .btn-primary:active{transform:translateY(1px);}
 .btn-primary:disabled{opacity:.55;cursor:not-allowed;box-shadow:none;}
 .btn-primary.green{background:#22c55e;box-shadow:0 6px 16px rgba(34,197,94,.25);}
 .btn-primary.amber{background:#facc15;color:#102230;box-shadow:0 6px 16px rgba(250,204,21,.3);}
-.btn-back{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#7c93a3;background:none;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;padding:0;margin-bottom:24px;}
-.btn-back:hover{color:#1980AD;}
-.screen-title{font-size:26px;font-weight:900;margin-bottom:6px;color:#102230;}
-.screen-sub{font-size:13px;color:#637c8d;margin-bottom:24px;line-height:1.6;}
+.btn-back{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#8a99a8;background:none;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;padding:0;margin-bottom:24px;}
+.btn-back:hover{color:#2ba8e0;}
+.screen-title{font-size:26px;font-weight:900;margin-bottom:6px;color:#fff;}
+.screen-sub{font-size:13px;color:#8a99a8;margin-bottom:24px;line-height:1.6;}
 .screen-badge{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
 .screen-badge svg{flex-shrink:0;}
 .screen-badge-label{font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;}
-.divider{border:none;border-top:1px solid #e3ebf1;margin:24px 0;}
-.link-row{text-align:center;font-size:13px;color:#637c8d;font-weight:600;}
-.link-row a{color:#1980AD;text-decoration:none;font-weight:800;cursor:pointer;}
-.info-box{background:#f1f7fb;border:1px solid #dbe9f1;border-radius:12px;padding:12px 14px;font-size:12px;color:#637c8d;line-height:1.6;margin-bottom:20px;}
-.info-box strong{color:#102230;}
-.success-icon{width:64px;height:64px;border-radius:50%;background:rgba(34,197,94,.1);border:2px solid rgba(34,197,94,.3);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;}
-.resend-row{text-align:center;margin-top:16px;font-size:12px;color:#7c93a3;}
-.resend-row a{color:#1980AD;text-decoration:none;font-weight:700;cursor:pointer;}
-.resend-timer{color:#9fb3c0;font-weight:600;margin-left:6px;}
+.divider{border:none;border-top:1px solid rgba(43,168,224,.15);margin:24px 0;}
+.link-row{text-align:center;font-size:13px;color:#8a99a8;font-weight:600;}
+.link-row a{color:#2ba8e0;text-decoration:none;font-weight:800;cursor:pointer;}
+.info-box{background:#0f1e2e;border:1px solid rgba(43,168,224,.22);border-radius:12px;padding:12px 14px;font-size:12px;color:#8a99a8;line-height:1.6;margin-bottom:20px;}
+.info-box strong{color:#e8eef4;}
+.success-icon{width:64px;height:64px;border-radius:50%;background:rgba(34,197,94,.12);border:2px solid rgba(34,197,94,.3);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;}
+.resend-row{text-align:center;margin-top:16px;font-size:12px;color:#8a99a8;}
+.resend-row a{color:#2ba8e0;text-decoration:none;font-weight:700;cursor:pointer;}
+.resend-timer{color:#5b7186;font-weight:600;margin-left:6px;}
 .resend-link.is-disabled{opacity:.45;pointer-events:none;cursor:default;}
 .error-msg{color:#ef4444;font-size:12px;font-weight:700;margin-top:8px;text-align:center;min-height:18px;}
 @media (max-width:360px){.code-wrap{gap:6px;max-width:280px;} .code-digit{height:52px;}}
@@ -236,10 +252,11 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#edf0f2
      returning member sees a loading animation, NOT the login form flashing, while we decide whether to
      auto-redirect them into the dashboard. The dashboard shows the same splash, so loading is seamless
      from launch → app. ffpHideSplash() reveals the login UI when we're NOT redirecting. -->
-<div id="ffp-splash" style="position:fixed;inset:0;z-index:2147483600;background:#edf0f2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;transition:opacity .35s ease;">
-  <img src="assets/ffp-logo.png?v=2" alt="FFP" width="150" style="display:block;height:auto;" onerror="this.style.display='none'">
-  <div style="width:30px;height:30px;border:3px solid rgba(25,128,173,0.18);border-top-color:#1980AD;border-radius:50%;animation:ffpsplinspin .8s linear infinite;"></div>
-  <div style="font-size:11px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#7c93a3;">Loading</div>
+<div id="ffp-splash" style="position:fixed;inset:0;z-index:2147483600;background:#081420;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;transition:opacity .35s ease;">
+  <img src="assets/ffp-emblem.png?v=2" alt="FFP Passport" width="96" style="display:block;height:auto;" onerror="this.style.display='none'">
+  <div style="font-size:13px;font-weight:900;letter-spacing:3px;color:#fff;line-height:1;">FFP <span style="color:#2ba8e0;">PASSPORT</span></div>
+  <div style="width:30px;height:30px;border:3px solid rgba(43,168,224,0.22);border-top-color:#2ba8e0;border-radius:50%;animation:ffpsplinspin .8s linear infinite;"></div>
+  <div style="font-size:11px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#3f6076;">Loading</div>
 </div>
 <style>@keyframes ffpsplinspin{to{transform:rotate(360deg)}}</style>
 <script>
@@ -253,31 +270,22 @@ html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#edf0f2
 </script>
 <div class="page">
 <div class="logo">
-<img src="assets/ffp-logo.png?v=2" alt="FFP">
+<img src="assets/ffp-emblem.png?v=2" alt="FFP Passport" onerror="this.style.display='none'">
+<div class="logo-word">FFP <span>PASSPORT</span></div>
 </div>
 <div class="wrap">
 <!-- SCREEN 1: PORTAL SELECT -->
 <div class="screen active" id="screen-portal">
 <div style="font-size:11px;font-weight:800;color:#6a90a8;letter-spacing:2px;text-transform:uppercase;text-align:center;margin-bottom:20px;">Sign in as</div>
+<!-- v30 (2026-07-02): PASSPORT-ONLY login. Partner + Professional portals moved to their own domains
+     (partner.findfitpeople.com / ffpprofessional.com), so this login is now MEMBERS ONLY. The single
+     Passport card + Continue remain as a safe fallback, but on load we auto-advance straight to the member
+     sign-in screen (see DOMContentLoaded). Admin sign-in is still reachable internally via /login#admin. -->
 <div class="portal-card selected" onclick="selectPortal(this,'member')">
 <div class="pc-icon" style="background:rgba(43,168,224,.1);">
 <svg viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="2" width="22" height="22"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
 </div>
 <div class="pc-text"><div class="pc-title">FFP Passport</div><div class="pc-sub">Access your passport, connect and track</div></div>
-<div class="pc-radio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></div>
-</div>
-<div class="portal-card" onclick="selectPortal(this,'provider')">
-<div class="pc-icon" style="background:rgba(34,197,94,.08);">
-<svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" width="22" height="22"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-</div>
-<div class="pc-text"><div class="pc-title">Partner</div><div class="pc-sub">Manage your facility, promote your services</div></div>
-<div class="pc-radio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></div>
-</div>
-<div class="portal-card" onclick="selectPortal(this,'professional')">
-<div class="pc-icon" style="background:rgba(139,92,246,.1);">
-<svg viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" width="22" height="22"><path d="M20 7h-3V5.5A2.5 2.5 0 0 0 14.5 3h-5A2.5 2.5 0 0 0 7 5.5V7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM9 5.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 .5.5V7H9z"/></svg>
-</div>
-<div class="pc-text"><div class="pc-title">Professional</div><div class="pc-sub">Build networks and manage clients</div></div>
 <div class="pc-radio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></div>
 </div>
 <div style="height:20px;"></div>
@@ -347,7 +355,7 @@ Back
 </div>
 <div style="text-align:center;margin-bottom:14px;">
   <div style="font-size:10px;font-weight:800;letter-spacing:1.8px;color:#FFCC00;text-transform:uppercase;margin-bottom:5px;">7 days free &middot; then</div>
-  <div id="plan-price" style="font-size:32px;font-weight:900;color:#102230;line-height:1;">$149<span style="font-size:15px;font-weight:700;color:#637c8d;"> / year</span></div>
+  <div id="plan-price" style="font-size:32px;font-weight:900;color:#fff;line-height:1;">$149<span style="font-size:15px;font-weight:700;color:#8a99a8;"> / year</span></div>
   <div id="plan-note" style="font-size:11px;color:#2ba8e0;font-weight:700;margin-top:6px;">Best value &mdash; 4.5 months free vs monthly</div>
 </div>
 <button type="button" class="btn-primary" id="signup-pay-btn" onclick="ffpStartSignupCheckout()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;">
@@ -364,7 +372,7 @@ Free for 7 days, then billed via Stripe &middot; cancel anytime.
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
     </div>
     <div style="flex:1;">
-      <div style="font-size:14px;font-weight:700;color:#102230;line-height:1.3;letter-spacing:.1px;">Meet Like-minded People</div>
+      <div style="font-size:14px;font-weight:700;color:#e8eef4;line-height:1.3;letter-spacing:.1px;">Meet Like-minded People</div>
       <div style="font-size:12px;color:#637c8d;line-height:1.5;margin-top:3px;">Active people who share your sports and lifestyle</div>
     </div>
   </div>
@@ -373,7 +381,7 @@ Free for 7 days, then billed via Stripe &middot; cancel anytime.
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
     </div>
     <div style="flex:1;">
-      <div style="font-size:14px;font-weight:700;color:#102230;line-height:1.3;letter-spacing:.1px;">Quests &amp; Stamps</div>
+      <div style="font-size:14px;font-weight:700;color:#e8eef4;line-height:1.3;letter-spacing:.1px;">Quests &amp; Stamps</div>
       <div style="font-size:12px;color:#637c8d;line-height:1.5;margin-top:3px;">Explore venues, collect passport stamps, win partner prizes</div>
     </div>
   </div>
@@ -382,7 +390,7 @@ Free for 7 days, then billed via Stripe &middot; cancel anytime.
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
     </div>
     <div style="flex:1;">
-      <div style="font-size:14px;font-weight:700;color:#102230;line-height:1.3;letter-spacing:.1px;">Join Communities</div>
+      <div style="font-size:14px;font-weight:700;color:#e8eef4;line-height:1.3;letter-spacing:.1px;">Join Communities</div>
       <div style="font-size:12px;color:#637c8d;line-height:1.5;margin-top:3px;">Meet &amp; Move matching, local groups, member meet-ups</div>
     </div>
   </div>
@@ -391,7 +399,7 @@ Free for 7 days, then billed via Stripe &middot; cancel anytime.
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
     </div>
     <div style="flex:1;">
-      <div style="font-size:14px;font-weight:700;color:#102230;line-height:1.3;letter-spacing:.1px;">Events &amp; Community Days</div>
+      <div style="font-size:14px;font-weight:700;color:#e8eef4;line-height:1.3;letter-spacing:.1px;">Events &amp; Community Days</div>
       <div style="font-size:12px;color:#637c8d;line-height:1.5;margin-top:3px;">Regular FFP events and gatherings across the UAE</div>
     </div>
   </div>
@@ -400,7 +408,7 @@ Free for 7 days, then billed via Stripe &middot; cancel anytime.
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
     </div>
     <div style="flex:1;">
-      <div style="font-size:14px;font-weight:700;color:#102230;line-height:1.3;letter-spacing:.1px;">Challenges &amp; Leaderboards</div>
+      <div style="font-size:14px;font-weight:700;color:#e8eef4;line-height:1.3;letter-spacing:.1px;">Challenges &amp; Leaderboards</div>
       <div style="font-size:12px;color:#637c8d;line-height:1.5;margin-top:3px;">Compete, win prizes, climb the city rankings</div>
     </div>
   </div>
@@ -409,7 +417,7 @@ Free for 7 days, then billed via Stripe &middot; cancel anytime.
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
     </div>
     <div style="flex:1;">
-      <div style="font-size:14px;font-weight:700;color:#102230;line-height:1.3;letter-spacing:.1px;">Ambassador Programme</div>
+      <div style="font-size:14px;font-weight:700;color:#e8eef4;line-height:1.3;letter-spacing:.1px;">Ambassador Programme</div>
       <div style="font-size:12px;color:#637c8d;line-height:1.5;margin-top:3px;">Earn status by supporting the community</div>
     </div>
   </div>
@@ -418,7 +426,7 @@ Free for 7 days, then billed via Stripe &middot; cancel anytime.
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
     </div>
     <div style="flex:1;">
-      <div style="font-size:14px;font-weight:700;color:#102230;line-height:1.3;letter-spacing:.1px;">Fitness Tools</div>
+      <div style="font-size:14px;font-weight:700;color:#e8eef4;line-height:1.3;letter-spacing:.1px;">Fitness Tools</div>
       <div style="font-size:12px;color:#637c8d;line-height:1.5;margin-top:3px;">Workout timer, calorie tracker and personal stats</div>
     </div>
   </div>
@@ -427,14 +435,14 @@ Free for 7 days, then billed via Stripe &middot; cancel anytime.
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2ba8e0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
     </div>
     <div style="flex:1;">
-      <div style="font-size:14px;font-weight:700;color:#102230;line-height:1.3;letter-spacing:.1px;">Member Perks at Partner Venues</div>
+      <div style="font-size:14px;font-weight:700;color:#e8eef4;line-height:1.3;letter-spacing:.1px;">Member Perks at Partner Venues</div>
       <div style="font-size:12px;color:#637c8d;line-height:1.5;margin-top:3px;">Deals at FFP partner fitness, wellness &amp; food venues</div>
     </div>
   </div>
 </div>
 <!-- PRICE -->
 <div style="text-align:center;padding:18px 0;border-top:1px solid rgba(43,168,224,.15);border-bottom:1px solid rgba(43,168,224,.15);margin-bottom:20px;">
-  <div style="font-size:34px;font-weight:900;color:#102230;line-height:1;letter-spacing:-.5px;">$20<span style="font-size:0.45em;font-weight:700;color:#637c8d;"> / month</span></div>
+  <div style="font-size:34px;font-weight:900;color:#fff;line-height:1;letter-spacing:-.5px;">$20<span style="font-size:0.45em;font-weight:700;color:#8a99a8;"> / month</span></div>
   <div style="font-size:11px;color:#637c8d;margin-top:8px;font-weight:600;letter-spacing:.3px;">or $149 / year &middot; cancel anytime</div>
 </div>
 <hr class="divider">
@@ -557,6 +565,8 @@ function goToSignIn() {
   // FFP Professional is its own app on its own origin — a pro must sign in THERE so the session lands on
   // ffpprofessional.com (signing in here on ffppassport.com would strand them: per-origin storage). (2026-07-01)
   if (selectedPortal === 'professional') { window.location.href = 'https://ffpprofessional.com/app'; return; }
+  // NOTE: Partner login moves to findfitpeople.com (marketplace) — not routed from here. Picker goes members-only
+  // (Member + Admin stay) once that's live. Admin STAYS on ffppassport.com.
   setBadge('signin-badge', selectedPortal);
   setBadge('signin-code-badge', selectedPortal);
   var btn = document.getElementById('signin-email-btn');
@@ -577,11 +587,11 @@ function ffpSetPlan(p) {
   var annual = ffpSelectedPlan === 'annual';
   var a = document.getElementById('plan-annual-btn'), m = document.getElementById('plan-monthly-btn');
   var price = document.getElementById('plan-price'), note = document.getElementById('plan-note');
-  if (a) { a.style.background = annual ? '#2ba8e0' : 'transparent'; a.style.color = annual ? '#081420' : '#637c8d'; }
-  if (m) { m.style.background = annual ? 'transparent' : '#2ba8e0'; m.style.color = annual ? '#637c8d' : '#081420'; }
+  if (a) { a.style.background = annual ? '#2ba8e0' : 'transparent'; a.style.color = annual ? '#081420' : '#8a99a8'; }
+  if (m) { m.style.background = annual ? 'transparent' : '#2ba8e0'; m.style.color = annual ? '#8a99a8' : '#081420'; }
   if (price) price.innerHTML = annual
-    ? '$149<span style="font-size:15px;font-weight:700;color:#637c8d;"> / year</span>'
-    : '$20<span style="font-size:15px;font-weight:700;color:#637c8d;"> / month</span>';
+    ? '$149<span style="font-size:15px;font-weight:700;color:#8a99a8;"> / year</span>'
+    : '$20<span style="font-size:15px;font-weight:700;color:#8a99a8;"> / month</span>';
   if (note) note.textContent = annual ? 'Best value — 4.5 months free vs monthly' : 'Billed monthly · cancel anytime';
 }
 async function ffpStartSignupCheckout() {
@@ -847,29 +857,14 @@ document.addEventListener('DOMContentLoaded', function () {
     // ffppassport.com/login#admin — this drops straight onto the admin email/code sign-in.
     selectedPortal = 'admin';
     goToSignIn();
+  } else {
+    // v30: PASSPORT-ONLY login. Partner + Professional now sign in on their own domains
+    // (partner.findfitpeople.com / ffpprofessional.com), so there's no portal to choose — go
+    // straight to the member sign-in screen. (The provider ?verified landing that used to live
+    // here is gone; partner email-verify now happens on partner.findfitpeople.com.)
+    selectedPortal = 'member';
+    goToSignIn();
   }
-  // Provider self-signup: after confirming their email, the verify link sends
-  // them here as ?verified=1&email=… — drop them on the Partner sign-in screen
-  // with their email prefilled so they just tap "Get My Code".
-  try {
-    var qs = new URLSearchParams(window.location.search);
-    if (qs.get('verified') === '1') {
-      var pc = document.querySelector('.portal-card[onclick*="provider"]');
-      if (pc) selectPortal(pc, 'provider');
-      var em = (qs.get('email') || '').trim();
-      goToSignIn();
-      var inp = document.getElementById('signin-email');
-      if (inp && em) inp.value = em;
-      var sub = document.querySelector('#screen-signin-email .screen-sub');
-      if (sub) sub.innerHTML = '<span style="color:#22c55e;font-weight:700;">Email confirmed.</span> Tap below and we&rsquo;ll send your 6-digit code.';
-    } else if (qs.get('verify') === 'expired' || qs.get('verify') === 'error') {
-      var pc2 = document.querySelector('.portal-card[onclick*="provider"]');
-      if (pc2) selectPortal(pc2, 'provider');
-      goToSignIn();
-      var sub2 = document.querySelector('#screen-signin-email .screen-sub');
-      if (sub2) sub2.innerHTML = 'That confirmation link has expired. Enter your email and we&rsquo;ll send you a fresh 6-digit code.';
-    }
-  } catch (e) {}
   // We reach here only when NOT auto-redirecting (no signed-in session, or a switch/verify flow),
   // so reveal the login UI. The signed-in branch above returns early, leaving the splash up through
   // the redirect into the dashboard.
