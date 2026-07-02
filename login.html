@@ -644,7 +644,7 @@ async function resendCode(flow) {
   if (timerEl) timerEl.textContent = '· sending…';
   try {
     if (ffpUseNative(flow)) {
-      var rr = await window.supabase.auth.signInWithOtp({ email: email, options: { shouldCreateUser: true } });
+      var rr = await window.supabase.auth.signInWithOtp({ email: email, options: { shouldCreateUser: false } });
       if (rr && rr.error) { if (timerEl) timerEl.textContent = '· ' + (rr.error.message || 'could not send'); return; }
       if (timerEl) timerEl.textContent = '· new code sent';
       startResendCooldown(flow, 60);
@@ -678,7 +678,12 @@ async function requestCode(flow) {
   try {
     // HYBRID (member portal): send a native Supabase OTP instead of the legacy access_code email.
     if (ffpUseNative(flow)) {
-      var nr = await window.supabase.auth.signInWithOtp({ email: email, options: { shouldCreateUser: true } });
+      // Preflight: only a KNOWN member gets a code, and the backend ensures their (pre-confirmed) auth user exists.
+      // Never create an account on sign-in → no orphan auth users, no dead Supabase "confirm signup" email.
+      var prep = await fetch('https://ffp-passport-backend.vercel.app/api/auth/prepare-signin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email }) }).then(function (r) { return r.json(); }).catch(function () { return null; });
+      if (!prep) { showError(errIds.signin, 'Network error — please try again.'); return; }
+      if (!prep.exists) { showError(errIds.signin, 'No account found for that email — create one to get started.'); var _se = document.getElementById('signup-email'); if (_se) _se.value = email; goTo('screen-signup'); return; }
+      var nr = await window.supabase.auth.signInWithOtp({ email: email, options: { shouldCreateUser: false } });
       if (nr && nr.error) { showError(errIds.signin, 'Could not send your code. Please try again.'); return; }
       var ceN = document.getElementById('signin-code-email'); if (ceN) ceN.textContent = email;
       goTo('screen-signin-code');
