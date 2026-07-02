@@ -133,7 +133,7 @@
     html += '<div class="cf-strap" onclick="FFPConnFeed.openSearch()">' +
       '<span class="material-icons">search</span>' +
       '<div class="cf-strap-txt"><div class="cf-strap-t">Find a connection</div>' +
-      '<div class="cf-strap-s">Search Find Fit People members by name</div></div>' +
+      '<div class="cf-strap-s">Search FFP Passport members by name</div></div>' +
       '<span class="material-icons cf-chev">chevron_right</span></div>';
 
     // 2) My connections (most active first)
