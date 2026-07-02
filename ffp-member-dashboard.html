@@ -61,7 +61,7 @@
 <link rel="apple-touch-startup-image" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="/assets/startup/startup-1290x2796.png">
 <link rel="apple-touch-startup-image" media="screen and (device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="/assets/startup/startup-1206x2622.png">
 <link rel="apple-touch-startup-image" media="screen and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="/assets/startup/startup-1320x2868.png">
-<script defer src="assets/ffp-pwa.js?v=4"></script>
+<script defer src="assets/ffp-pwa.js?v=5"></script>
 <script>
 /* QR deep-link capture — MUST run before the auth gate. A phone-camera scan of a venue QR
    lands here as ?venue=<id>; if the visitor isn't signed in, the auth module redirects to
@@ -119,7 +119,7 @@
      deterministic. Realtime subscriptions also start lazily, per panel.
      (member-discovery loader added here too — it was missing from this branch.) -->
 
-<link rel="stylesheet" href="assets/ffp-member.css?v=483">
+<link rel="stylesheet" href="assets/ffp-member.css?v=516">
 <style id="ffp-quests-css">
 /* FFP Quests panel — self-contained, prefixed --q- vars (no clobber of existing CSS) */
 :root{
@@ -286,7 +286,7 @@
 
 <!-- TOPBAR -->
 <div class="topbar">
-  <div class="topbar-logo">FFP Passport</div>
+  <div class="topbar-logo">FFP Passport<span class="topbar-tag">Your Active Lifestyle Community</span></div>
   <div class="topbar-icons">
     <button class="icon-btn" id="ffp-feedback-btn" title="Send feedback" aria-label="Send feedback" onclick="window.FFPFeedback && window.FFPFeedback.open()" style="background:rgba(43,168,224,0.16);border-color:var(--blue);">
       <span class="material-icons" style="color:var(--blue);">feedback</span>
@@ -800,7 +800,7 @@
          desktop. State + behaviour handled by window.FFPInstall (assets/ffp-pwa.js); ffpRefreshInstallRow()
          sets visibility + label. -->
     <div id="profile-install-card" style="display:none;align-items:center;gap:12px;background:var(--bg-2,#0f1e2e);border:1px solid rgba(43,168,224,0.25);border-radius:14px;padding:13px 14px;margin-bottom:18px;">
-      <img src="/assets/icons/ffp-icon-192.png" alt="" width="44" height="44" style="border-radius:11px;flex:0 0 auto;background:#fff;">
+      <img src="/assets/icons/ffp-icon-192.png?v=3" alt="" width="44" height="44" style="border-radius:11px;flex:0 0 auto;background:#081420;">
       <div style="flex:1;min-width:0;">
         <div style="font-size:13px;font-weight:800;color:var(--text,#e8eef4);">Add FFP Passport to your home screen</div>
         <div id="profile-install-sub" style="font-size:11px;color:var(--muted,#9fb4c4);margin-top:2px;line-height:1.4;">Opens full-screen &middot; stay signed in</div>
@@ -4353,7 +4353,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '515';
+  const FFP_BUILD = '516';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
