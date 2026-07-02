@@ -2,7 +2,7 @@
   "id": "/ffp-member-dashboard.html",
   "name": "FFP Passport",
   "short_name": "FFP Passport",
-  "description": "Find your people. Move together. Your FFP Passport — connections, meet-ups, quests, challenges and fitness stats.",
+  "description": "FFP Passport — Your Active Lifestyle Community.",
   "start_url": "/login.html",
   "scope": "/",
   "display": "standalone",
