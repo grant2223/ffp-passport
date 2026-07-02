@@ -102,16 +102,25 @@
       C._selMot = {}; if (C._snap) C._snap.onboarded = true; C.render(); toast("You’re all set — let’s move.", 'success');
     }).catch(function () { var b2 = document.getElementById('ffp-onb-go'); if (b2) { b2.disabled = false; b2.textContent = 'Start my active life'; } });
   };
+  // Basic Coach Grant card — the ALWAYS-shows fallback if the snapshot endpoint isn't there yet (old backend) or errors.
+  function renderBasic(mount) {
+    var acts = chip('Chat', 'chat', "ffpCoach.openChat()", true) + chip('Log activity', 'add', "ffpCoach.logActivity()") + chip('Meetups', 'groups', "ffpCoach.goMeetups()");
+    mount.innerHTML = '<div style="background:#0e2032;border:1px solid rgba(43,168,224,.22);border-radius:18px;padding:16px;">'
+      + '<div style="display:flex;align-items:center;gap:11px;margin-bottom:12px;"><div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#2ba8e0,#0d2b45);display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span style="color:#fff;font-weight:900;font-style:italic;font-size:14px;">G</span></div><div style="font-size:12.5px;font-weight:900;color:#fff;letter-spacing:.5px;">COACH GRANT</div></div>'
+      + '<div style="font-size:15px;font-weight:900;color:#fff;line-height:1.25;">Ready when you are.</div>'
+      + '<div style="font-size:13.5px;color:#cfe1ef;margin-top:6px;line-height:1.5;">Log a session, find people to move with, or chat with me about your active life.</div>'
+      + '<div style="display:flex;gap:8px;flex-wrap:nowrap;margin-top:13px;">' + acts + '</div></div>';
+  }
   C.render = function () {
     var mount = document.getElementById('ffp-coach-mount'); if (!mount) return;
     var rf = refresh(); if (!rf) { mount.innerHTML = ''; return; }
     post('/api/coach/snapshot', { refresh: rf }).then(function (j) {
       var m2 = document.getElementById('ffp-coach-mount'); if (!m2) return;
-      if (!j || j.error) { m2.innerHTML = ''; return; }
+      if (!j || j.error || !j.snapshot) { return renderBasic(m2); }   // old backend / no snapshot endpoint → never blank
       C._snap = j.snapshot || {}; C._hook = j.hook || {}; C._catalog = j.motivations_catalog || [];
       if (C._snap.onboarded === false) { renderOnboard(m2); return; }
       renderCard(m2, C._snap, C._hook);
-    }).catch(function () { var m = document.getElementById('ffp-coach-mount'); if (m) m.innerHTML = ''; });
+    }).catch(function () { var m = document.getElementById('ffp-coach-mount'); if (m) renderBasic(m); });
   };
 
   // Action handlers — reuse the app's existing wiring (Rule 5).
