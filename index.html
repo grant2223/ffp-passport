@@ -79,13 +79,16 @@
   /* ---------- PILLARS: 5 colour columns, block band ---------- */
   .pillband{position:relative;margin-top:70px;}
   .pillband h2{font-size:38px;font-weight:900;letter-spacing:-.8px;margin-bottom:26px;}
-  .pillcols{display:grid;grid-template-columns:repeat(5,1fr);border-radius:22px;overflow:hidden;}
-  .pcol{padding:34px 20px 30px;color:#fff;min-height:210px;display:flex;flex-direction:column;justify-content:flex-end;position:relative;}
-  .pcol .ico{width:30px;height:30px;position:absolute;top:26px;left:20px;opacity:.9;}
+  .pillcols{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;}
+  .pcol{position:relative;overflow:hidden;min-height:320px;color:#fff;border-radius:16px;border-bottom:4px solid var(--pc);}
+  .pcol>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+  .pcol .scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,20,32,.12) 22%,rgba(8,20,32,.92));}
+  .pcol .pcbody{position:absolute;left:0;right:0;bottom:0;padding:20px;}
+  .pcol .pcbody .ico{width:28px;height:28px;color:var(--pc);margin-bottom:9px;}
   .pcol h3{font-size:19px;font-weight:900;}
-  .pcol p{font-size:12px;font-weight:600;opacity:.9;margin-top:6px;line-height:1.45;}
-  @media(max-width:760px){.pillcols{grid-template-columns:1fr 1fr;}.pcol{min-height:150px;}}
-  @media(max-width:440px){.pillcols{grid-template-columns:1fr;}}
+  .pcol p{font-size:12px;font-weight:600;opacity:.92;margin-top:5px;line-height:1.4;}
+  @media(max-width:760px){.pillcols{grid-template-columns:1fr 1fr;}.pcol{min-height:240px;}}
+  @media(max-width:440px){.pillcols{grid-template-columns:1fr;}.pcol{min-height:210px;}}
 
   section{padding:84px 0;}
   .divide{border-top:1px solid var(--hair);}
@@ -191,7 +194,7 @@
 <!-- HERO -->
 <header class="hero">
   <div class="hero-media">
-    <img alt="Touch rugby with the crew" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/activity-photos/5a914aa4-bc6b-4e51-8a1d-9e68f8967d47/activity_5a914aa4-bc6b-4e51-8a1d-9e68f8967d47-1783010350530-0.jpg?v=1783010353995" onerror="this.onerror=null;this.src='https://picsum.photos/seed/ffphero/1600/900'">
+    <img alt="Active with your Passport" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/passport-on-stepper.png" onerror="this.onerror=null;this.src='https://picsum.photos/seed/ffphero/1600/900'">
   </div>
   <div class="blob" style="width:120px;height:120px;background:var(--sports);top:120px;left:44%;"></div>
   <div class="hero-copy"><div class="wrap">
@@ -220,9 +223,9 @@
   <div class="wrap">
     <div>
       <div class="k">Why we exist</div>
-      <h2>FFP is dedicated to helping people establish <em>real-world connections.</em></h2>
+      <h2>FFP is dedicated to helping people <em>live an active lifestyle.</em></h2>
     </div>
-    <img class="mission-photo" alt="Playing football together" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/activity-photos/9d550bd3-247b-4e6d-adbe-13e2320b15ed/activity_9d550bd3-247b-4e6d-adbe-13e2320b15ed-1782576910299-0.jpg" onerror="this.onerror=null;this.src='https://picsum.photos/seed/ffpmission/900/900'">
+    <img class="mission-photo" alt="Training together" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/passport-gym-dumbell.png" onerror="this.onerror=null;this.src='https://picsum.photos/seed/ffpmission/900/900'">
   </div>
 </section>
 
@@ -232,11 +235,11 @@
     <div class="eyebrow eyebrow2">What an active life looks like</div>
     <h2>Five ways to move.</h2>
     <div class="pillcols">
-      <div class="pcol" style="background:linear-gradient(180deg,#1e7fb0,#155f86)"><svg class="ico" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11"/><path d="M4 8l-1.5-1.5M4 8l4 4M4 8l4-4M20 16l1.5 1.5M20 16l-4-4M20 16l-4 4"/></svg><h3>Fitness</h3><p>Strength, HIIT, martial arts.</p></div>
-      <div class="pcol" style="background:linear-gradient(180deg,#c8712f,#8a4a1c)"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18M3.5 9h17M3.5 15h17"/></svg><h3>Sports</h3><p>Running, padel, rugby, cycling.</p></div>
-      <div class="pcol" style="background:linear-gradient(180deg,#6b49bd,#3f2c78)"><svg class="ico" viewBox="0 0 24 24"><path d="M12 21c5-3 8-6.5 8-11a4 4 0 0 0-8-1 4 4 0 0 0-8 1c0 4.5 3 8 8 11z"/></svg><h3>Wellness</h3><p>Yoga, pilates, breathwork.</p></div>
-      <div class="pcol" style="background:linear-gradient(180deg,#3aae7c,#1f6e4d)"><svg class="ico" viewBox="0 0 24 24"><path d="M3 19h18L14 6l-3.5 6-2-3z"/></svg><h3>Adventure</h3><p>Hiking, climbing, surfing.</p></div>
-      <div class="pcol" style="background:linear-gradient(180deg,#c99a3f,#8a6820)"><svg class="ico" viewBox="0 0 24 24"><path d="M20 13a8 8 0 1 1-8-9 6 6 0 0 0 8 9z"/></svg><h3>Recovery</h3><p>Sauna, ice, massage, sleep.</p></div>
+      <div class="pcol" style="--pc:var(--fitness)"><img loading="lazy" alt="Fitness" style="background:linear-gradient(180deg,#1e7fb0,#155f86)" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/activity-photos/cdac13e1-039b-4991-9b9b-d5e43e0ff233/activity_cdac13e1-039b-4991-9b9b-d5e43e0ff233-1783010669533-0.jpg?v=1783010672047" onerror="this.removeAttribute('src')"><div class="scrim"></div><div class="pcbody"><svg class="ico" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11"/><path d="M4 8l-1.5-1.5M4 8l4 4M4 8l4-4M20 16l1.5 1.5M20 16l-4-4M20 16l-4 4"/></svg><h3>Fitness</h3><p>Strength, HIIT, martial arts.</p></div></div>
+      <div class="pcol" style="--pc:var(--sports)"><img loading="lazy" alt="Sports" style="background:linear-gradient(180deg,#c8712f,#8a4a1c)" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/activity-photos/5a914aa4-bc6b-4e51-8a1d-9e68f8967d47/activity_5a914aa4-bc6b-4e51-8a1d-9e68f8967d47-1783010350530-0.jpg?v=1783010353995" onerror="this.removeAttribute('src')"><div class="scrim"></div><div class="pcbody"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18M3.5 9h17M3.5 15h17"/></svg><h3>Sports</h3><p>Running, padel, rugby, cycling.</p></div></div>
+      <div class="pcol" style="--pc:var(--wellness)"><img loading="lazy" alt="Wellness" style="background:linear-gradient(180deg,#6b49bd,#3f2c78)" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/activity-photos/86f6018b-b1f4-4326-8916-94bce85d49de/activity_86f6018b-b1f4-4326-8916-94bce85d49de-1782038264209.jpg.jpg?v=1782038289980" onerror="this.removeAttribute('src')"><div class="scrim"></div><div class="pcbody"><svg class="ico" viewBox="0 0 24 24"><path d="M12 21c5-3 8-6.5 8-11a4 4 0 0 0-8-1 4 4 0 0 0-8 1c0 4.5 3 8 8 11z"/></svg><h3>Wellness</h3><p>Yoga, pilates, breathwork.</p></div></div>
+      <div class="pcol" style="--pc:var(--adventure)"><img loading="lazy" alt="Adventure" style="background:linear-gradient(180deg,#3aae7c,#1f6e4d)" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/activity-photos/9d550bd3-247b-4e6d-adbe-13e2320b15ed/activity_9d550bd3-247b-4e6d-adbe-13e2320b15ed-1781459925280.jpg.jpg?v=1781459957257" onerror="this.removeAttribute('src')"><div class="scrim"></div><div class="pcbody"><svg class="ico" viewBox="0 0 24 24"><path d="M3 19h18L14 6l-3.5 6-2-3z"/></svg><h3>Adventure</h3><p>Hiking, climbing, surfing.</p></div></div>
+      <div class="pcol" style="--pc:var(--recovery)"><img loading="lazy" alt="Recovery" style="background:linear-gradient(180deg,#c99a3f,#8a6820)" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/activity-photos/d8e607d9-4f6f-481c-b4b4-9eeef670eb46/activity_d8e607d9-4f6f-481c-b4b4-9eeef670eb46-1782837970278-0.jpg?v=1782837974008" onerror="this.removeAttribute('src')"><div class="scrim"></div><div class="pcbody"><svg class="ico" viewBox="0 0 24 24"><path d="M20 13a8 8 0 1 1-8-9 6 6 0 0 0 8 9z"/></svg><h3>Recovery</h3><p>Sauna, ice, massage, sleep.</p></div></div>
     </div>
   </div>
 </div></section>
@@ -245,7 +248,7 @@
 <section id="connect" class="divide"><div class="wrap">
   <div class="comm">
     <div class="comm-photo">
-      <img alt="An FFP meet-up" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/meetup-covers/9d550bd3-247b-4e6d-adbe-13e2320b15ed/meetup-9d550bd3-247b-4e6d-adbe-13e2320b15ed-1782577166989.jpg" onerror="this.onerror=null;this.src='https://picsum.photos/seed/ffpmeet/1100/880'">
+      <img alt="An FFP meet-up" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/meetup-barbell.png" onerror="this.onerror=null;this.src='https://picsum.photos/seed/ffpmeet/1100/880'">
       <div class="float-chip">
         <div class="fl">MEET-UP · TONIGHT</div>
         <div class="row"><div class="cc"><svg class="ico" viewBox="0 0 24 24" style="width:18px;height:18px;"><circle cx="12" cy="12" r="8"/><path d="M12 4v16M4.5 9h15"/></svg></div><div><div class="t">Touch rugby · The pitch</div><div class="s">5:30pm · 14 going</div></div></div>
