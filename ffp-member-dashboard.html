@@ -1,32 +1,13 @@
-<!-- FFP MEMBER DASHBOARD — v374 (2026-06-26)  [changelog trimmed to latest updates; older history in git]
-     v374: WEARABLES — Profile › "Connected devices": Connect/Disconnect WHOOP (live) + Garmin "coming soon";
-           status + last-synced via POST /api/wearables/status; connect → /api/wearables/connect opens the WHOOP
-           auth widget; OAuth return (?wearable=whoop_connected) shows a toast + cleans the URL. The ffpWearables
-           LOGIC lives in its own module assets/ffp-wearables-loader.js (lazy-loaded via _panelLoaderSrc['panel-profile'],
-           FFP_BUILD-busted) — NOT inline in this HTML, per the loader-module pattern. Only the tiny OAuth-return
-           handler stays inline (must run on load). Backend index.js v103 (WHOOP OAuth + webhook → activity_logs
-           source='whoop'). Needs Vercel env WHOOP_CLIENT_ID/SECRET + deploy. FFP_BUILD 449→450.
-           Also: CALORIE "Tell me what you had" now splits foods into the meals the USER named (eggs→breakfast,
-           salad→lunch) instead of dumping all into the current-time bucket — describeInline/describeMeal honour
-           item.meal (calorie loader, FFP_BUILD bust); backend index.js v104 returns per-item meal.
-     v373: MEAL PLANNER — added 4 ready-made "common plan" chips (High-protein fat loss / Lean muscle gain /
-           Balanced maintenance / Low-carb) that render INSTANTLY with no AI/backend (CalorieTracker.usePreset +
-           PLANNER_PRESETS in the loader; reuses renderPlan). Works even before the Vercel /api/nutrition/plan
-           deploy. New .ct-plan-chip style. Loader changed (FFP_BUILD bust). FFP_BUILD 448→449.
-           NOTE: the custom "Build my plan" AI still needs backend index.js v102 deployed to Vercel.
-     v372: CALORIE TRACKER — gave the "daily net kcal vs target" charts a light tinted panel back (.ct-week-chart =
-           rgba(43,168,224,.06), rounded, no border) on BOTH This Week and Last 30 Days (they share the class).
-           Everything else stays flat. CSS-only. FFP_BUILD 447→448.
-     v371: CALORIE TRACKER DE-BOXED (Week + Month too). Flattened .ct-week-summary (gradient box → transparent),
-           .ct-week-chart (tinted box → transparent), .ct-week-day-row (boxed → hairline-divided rows; is-today =
-           yellow label), .ct-month-week-box (tinted tiles → flat; is-current = yellow label). Colour-coded numbers,
-           status chips and chart bars kept. CSS-only. FFP_BUILD 446→447.
-     v370: CALORIE TRACKER DE-BOXED (Today + Meal Planner) — removed the background boxes: .ct-section (was a
-           tinted bordered card → transparent, flush), .cal-hero (gradient box → transparent), .cal-macro (tinted
-           tiles → flat, just the bar + values), .ct-planner-meal (boxed → hairline divider rows), .ct-planner-macros
-           tiles (tinted → flat). Buttons/bars/colour-coding untouched. CSS-only. FFP_BUILD 445→446.
-           (Week/Month views still boxed — flatten on request.)
-     v369 and earlier — see git history (trimmed 2026-06-26 to keep this header lean per FFP-MASTER cleanup). -->
+<!-- FFP MEMBER DASHBOARD — Build 520 · 2026-07-02
+     ── VERSIONING (Grant, 2026-07-02): there is ONE version number for this file — FFP_BUILD (the "Build N" stamp in the
+        avatar menu = the device truth). This header's Build number ALWAYS equals FFP_BUILD. Bump BOTH together on every
+        change, no exceptions. The old "vNNN" changelog scheme below is HISTORICAL — do NOT add new "vNNN" lines; tag new
+        entries "Build N" so the header, the constant, and the commit message are the same number. ──
+     Build 520 (2026-07-02): "Connections" panel → "Community" (nav label + title + 2p/3p icon swap); Coach Grant card is now
+        snapshot-driven (streak, 5 active-life pillars, July race, one hook) with a fixed 3-CTA row Chat / Log activity / Meetups,
+        first-run onboarding (motivations quick-pick + a goal), and a never-blank fallback. Loader assets/ffp-coach-loader.js?v=521.
+     (Full history is in git. Do not paste the old changelog back — keep this header to the current Build only.)
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -4353,7 +4334,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '519';
+  const FFP_BUILD = '520';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -8216,7 +8197,7 @@ else init();
 </style>
 <script src="assets/ffp-connections-core.js?v=360"></script>
 <script src="assets/ffp-streak-loader.js?v=1"></script>
-<script defer src="assets/ffp-coach-loader.js?v=520"></script>
+<script defer src="assets/ffp-coach-loader.js?v=521"></script>
 <script defer src="assets/ffp-connections-feed-loader.js?v=336"></script>
 <script defer src="assets/ffp-event-results-loader.js?v=329"></script>
 <script>
