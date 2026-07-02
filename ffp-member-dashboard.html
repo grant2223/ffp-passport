@@ -643,7 +643,7 @@
        ═══════════════════════════════════════════════════════════════ -->
   <div id="panel-meet" class="panel-view">
     <div class="user-panel-head">
-      <h2>Connections</h2>
+      <h2>Community</h2>
     </div>
     
     <!-- v324: Connections feed — discovery strap + most-active connections + updates.
@@ -1386,8 +1386,8 @@
 <!-- BOTTOM NAV -->
 <div class="bottom-nav">
   <button class="nav-item active" data-panel="panel-passport"><span class="material-icons">card_membership</span><span>Passport</span></button>
-  <button class="nav-item" data-panel="panel-meet"><span class="material-icons">group</span><span>Connections</span></button>
-  <button class="nav-item" data-panel="panel-meetups"><span class="material-icons">groups</span><span>Meetups</span></button>
+  <button class="nav-item" data-panel="panel-meet"><span class="material-icons">groups</span><span>Community</span></button>
+  <button class="nav-item" data-panel="panel-meetups"><span class="material-icons">group</span><span>Meetups</span></button>
   <!-- Quests hidden for now (re-enable when we have more users) -->
   <button class="nav-item" data-panel="panel-quests"><span class="material-icons">flag</span><span>Quests</span></button>
   <!-- Challenges parked for a future feature — hidden from members for now (un-hide to restore). -->
@@ -4353,7 +4353,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '516';
+  const FFP_BUILD = '517';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -8217,7 +8217,7 @@ else init();
 <script src="assets/ffp-connections-core.js?v=360"></script>
 <script src="assets/ffp-streak-loader.js?v=1"></script>
 <script defer src="assets/ffp-coach-loader.js?v=513"></script>
-<script defer src="assets/ffp-connections-feed-loader.js?v=335"></script>
+<script defer src="assets/ffp-connections-feed-loader.js?v=336"></script>
 <script defer src="assets/ffp-event-results-loader.js?v=329"></script>
 <script>
 (function(){
