@@ -1,8 +1,15 @@
-<!-- FFP MEMBER DASHBOARD — Build 523 · 2026-07-03
+<!-- FFP MEMBER DASHBOARD — Build 524 · 2026-07-03
      ── VERSIONING (Grant, 2026-07-02): there is ONE version number for this file — FFP_BUILD (the "Build N" stamp in the
         avatar menu = the device truth). This header's Build number ALWAYS equals FFP_BUILD. Bump BOTH together on every
         change, no exceptions. The old "vNNN" changelog scheme below is HISTORICAL — do NOT add new "vNNN" lines; tag new
         entries "Build N" so the header, the constant, and the commit message are the same number. ──
+     Build 524 (2026-07-03): PASSPORT LOAD SPEED (2 levers). (a) Activity grid tiles now LAZY-LOAD their background photo —
+        `myActivityTile` emits `data-lazybg` (no inline background-image); new `ffpLazyBg()` sets each tile's photo via an
+        IntersectionObserver (300px pre-margin) as it nears the viewport, through `ffpImg()`, so a long feed fires image
+        requests on scroll not all at once. `renderMyGrid` calls `ffpLazyBg(host)`. (b) DEFAULT time-range → '7d' (was
+        'all'); active chip moved to "7 days". NOTE: the range is GLOBAL (grid + map + stats) so the whole Passport now
+        defaults to a week view — fewer tiles up front, but returning/less-active members see less by default; flip
+        `state.timeRange` back to 'all' (+ active chip) to revert. FFP_BUILD 523→524.
      Build 523 (2026-07-03): IMAGE OPTIMIZER v2 (re-enabled, fixed). assets/ffp-img.js now serves Supabase photos as WebP
         via the resize CDN with a HARD 640px FLOOR — it only ever DOWN-scales the stored original, never requests below the
         display size, so the picture can't get blurry/upscaled (the 521 bug) — only the FILE shrinks. width-only transform
@@ -464,11 +471,11 @@
   
   <!-- TIME CHIPS -->
   <div class="time-chips">
-    <button class="time-chip" data-range="7d">7 days</button>
+    <button class="time-chip active" data-range="7d">7 days</button>
     <button class="time-chip" data-range="30d">30 days</button>
     <button class="time-chip" data-range="90d">90 days</button>
     <button class="time-chip" data-range="year">This year</button>
-    <button class="time-chip active" data-range="all">All time</button>
+    <button class="time-chip" data-range="all">All time</button>
   </div>
 
   <!-- COACH GRANT — the single coaching surface on the Passport (assets/ffp-coach-loader.js).
@@ -3044,7 +3051,7 @@ function applyPassportData() {
 }
 
 const state = {
-  timeRange: 'all',
+  timeRange: '7d',   // default view = last 7 days (fewer tiles/images up front + fresher). Members can tap 30d/90d/year/all.
   selectedCity: null,
   selectedCountry: null,
   selectedPassport: null,   // 'sports' | 'fitness' | 'wellness' | 'adventure' | 'food' | null (All)
@@ -3602,7 +3609,7 @@ function myActivityTile(a) {
   var line2 = [stat, dt].filter(Boolean).join(' · ');
   var icon = (window.ffpActivityIcon ? window.ffpActivityIcon(a.activity) : 'fitness_center');
   var inner = photo
-    ? '<div style="position:absolute;inset:0;background:#0a1825 center/cover no-repeat;background-image:url(\'' + escHtml(photo) + '\');"></div>'
+    ? '<div data-lazybg="' + escHtml(photo) + '" style="position:absolute;inset:0;background:#0a1825 center/cover no-repeat;"></div>'
     : '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#16324a;"><span class="material-icons" style="font-size:34px;color:rgba(255,255,255,0.4);">' + escHtml(icon) + '</span></div>';
   return '<div onclick="window.ffpViewSharedActivity && window.ffpViewSharedActivity(\'' + a.id + '\')" style="position:relative;aspect-ratio:1/1;border-radius:3px;overflow:hidden;cursor:pointer;">' +
     inner +
@@ -3612,12 +3619,33 @@ function myActivityTile(a) {
       (line2 ? '<div style="font-size:10px;color:rgba(255,255,255,0.82);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(line2) + '</div>' : '') +
     '</div></div>';
 }
+// Lazy-load activity-tile background photos: set each tile's photo only as it nears the viewport (IntersectionObserver,
+// 300px pre-margin) so a long feed fires image requests as you scroll — not all at once on first paint. URLs still pass
+// through ffpImg() so they stay right-sized/WebP. Falls back to loading everything if IntersectionObserver is missing.
+var _ffpLazyIO = null;
+function ffpLazyBg(root) {
+  root = root || document;
+  var els = root.querySelectorAll ? root.querySelectorAll('[data-lazybg]') : [];
+  function load(e) {
+    var u = e.getAttribute('data-lazybg'); if (!u) return;
+    e.style.backgroundImage = "url('" + (window.ffpImg ? window.ffpImg(u, e.clientWidth || 240) : u) + "')";
+    e.removeAttribute('data-lazybg');
+  }
+  if (!('IntersectionObserver' in window)) { for (var i = 0; i < els.length; i++) load(els[i]); return; }
+  if (!_ffpLazyIO) {
+    _ffpLazyIO = new IntersectionObserver(function (ents) {
+      ents.forEach(function (en) { if (en.isIntersecting) { load(en.target); _ffpLazyIO.unobserve(en.target); } });
+    }, { rootMargin: '300px 0px' });
+  }
+  for (var j = 0; j < els.length; j++) _ffpLazyIO.observe(els[j]);
+}
 function renderMyGrid(logs) {
   var host = document.getElementById('my-activity-grid'); if (!host) return;
   var list = (logs || []).slice().sort(function (a, b) { return new Date(b.logged_at || 0) - new Date(a.logged_at || 0); });
   var cnt = document.getElementById('mygrid-count'); if (cnt) cnt.textContent = list.length + ' ' + (list.length === 1 ? 'activity' : 'activities');
   if (!list.length) { host.innerHTML = '<div style="padding:18px;text-align:center;color:var(--muted);font-size:13px;">No activities yet — tap <b>Log activity</b> to add your first.</div>'; return; }
   host.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;">' + list.map(myActivityTile).join('') + '</div>';
+  try { ffpLazyBg(host); } catch (e) {}
 }
 function renderActivities(logs) {
   const map = {};
@@ -4346,7 +4374,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '523';
+  const FFP_BUILD = '524';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
