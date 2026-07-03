@@ -1,8 +1,14 @@
-<!-- FFP MEMBER DASHBOARD — Build 524 · 2026-07-03
+<!-- FFP MEMBER DASHBOARD — Build 525 · 2026-07-03
      ── VERSIONING (Grant, 2026-07-02): there is ONE version number for this file — FFP_BUILD (the "Build N" stamp in the
         avatar menu = the device truth). This header's Build number ALWAYS equals FFP_BUILD. Bump BOTH together on every
         change, no exceptions. The old "vNNN" changelog scheme below is HISTORICAL — do NOT add new "vNNN" lines; tag new
         entries "Build N" so the header, the constant, and the commit message are the same number. ──
+     Build 525 (2026-07-03): PHOTO SPEED (3 more). (a) SERVICE-WORKER PHOTO CACHE — sw.js v3 caches Supabase Storage
+        images CACHE-FIRST (new 'ffp-img-v1' cache, capped ~260, preserved across deploys); re-scrolls / app re-opens /
+        profile revisits load photos instantly from device, no network. Safe because URLs are content-versioned. (b)
+        PRECONNECT to the storage host added to this <head> — shaves the first photo's DNS/TLS on cold open. (c) new
+        uploads get a 1-yr cacheControl (assets/ffp-image-upload.js) instead of 1hr (safe: ?v= changes the URL on
+        re-upload). FFP_BUILD 524→525. (sw.js is versioned separately: SW header v3.)
      Build 524 (2026-07-03): PASSPORT LOAD SPEED (2 levers). (a) Activity grid tiles now LAZY-LOAD their background photo —
         `myActivityTile` emits `data-lazybg` (no inline background-image); new `ffpLazyBg()` sets each tile's photo via an
         IntersectionObserver (300px pre-margin) as it nears the viewport, through `ffpImg()`, so a long feed fires image
@@ -30,6 +36,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FFP Passport — Member Dashboard</title>
+<link rel="preconnect" href="https://kxzyuofecmtymablnmak.supabase.co" crossorigin>
 <!-- IMAGE OPTIMIZER v2 (Build 523): serves Supabase photos as WebP via the resize CDN, DOWN-scaled only (hard 640px
      floor → never upscales/blurs, only shrinks the file). Self-installing, no markup changes. assets/ffp-img.js. -->
 <script src="assets/ffp-img.js?v=523"></script>
@@ -4374,7 +4381,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '524';
+  const FFP_BUILD = '525';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
