@@ -1,8 +1,15 @@
-<!-- FFP MEMBER DASHBOARD — Build 526 · 2026-07-03
+<!-- FFP MEMBER DASHBOARD — Build 527 · 2026-07-03
      ── VERSIONING (Grant, 2026-07-02): there is ONE version number for this file — FFP_BUILD (the "Build N" stamp in the
         avatar menu = the device truth). This header's Build number ALWAYS equals FFP_BUILD. Bump BOTH together on every
         change, no exceptions. The old "vNNN" changelog scheme below is HISTORICAL — do NOT add new "vNNN" lines; tag new
         entries "Build N" so the header, the constant, and the commit message are the same number. ──
+     Build 527 (2026-07-03): CONNECTIONS BUG FIX + optimizer gradient fix. (a) BUG: tapping an individual person in
+        Community left their activity photos BLANK (never loaded) — the person-view render (assets/ffp-connections-feed-loader.js
+        line ~259) emitted data-lazybg tiles but never triggered the loader. Added a robust `cfLazy(host)` (uses window.ffpLazyBg
+        if present, else loads immediately — so photos ALWAYS appear even if the dashboard export isn't live) and called it in
+        BOTH the person view AND the ALL feed. Loader ?v 337→338. (b) assets/ffp-img.js: fixBg now swaps ONLY the image url()
+        and KEEPS gradient/overlay layers (was dropping `linear-gradient(),url()` overlays on quest covers). ffp-img.js ?v
+        523→527 (dashboard + landing). FFP_BUILD 526→527.
      Build 526 (2026-07-03): CONNECTIONS FEED lazy-load. `ffpLazyBg` exposed as `window.ffpLazyBg`; the connections
         "Latest activity" grid (assets/ffp-connections-feed-loader.js `gridTile` → `data-lazybg`, `renderGlobalGrid`
         calls `window.ffpLazyBg(host)`) now lazy-loads its up-to-60 photos on scroll, same as the my-activity grid.
@@ -43,7 +50,7 @@
 <link rel="preconnect" href="https://kxzyuofecmtymablnmak.supabase.co" crossorigin>
 <!-- IMAGE OPTIMIZER v2 (Build 523): serves Supabase photos as WebP via the resize CDN, DOWN-scaled only (hard 640px
      floor → never upscales/blurs, only shrinks the file). Self-installing, no markup changes. assets/ffp-img.js. -->
-<script src="assets/ffp-img.js?v=523"></script>
+<script src="assets/ffp-img.js?v=527"></script>
 <!-- PWA: installable app (manifest + home-screen icons + iOS meta). assets/ffp-pwa.js registers the
      service worker and shows the install banner (Android prompt / iOS Add-to-Home-Screen hint). -->
 <link rel="manifest" href="/manifest.webmanifest">
@@ -4386,7 +4393,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '526';
+  const FFP_BUILD = '527';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -8250,7 +8257,7 @@ else init();
 <script src="assets/ffp-connections-core.js?v=360"></script>
 <script src="assets/ffp-streak-loader.js?v=1"></script>
 <script defer src="assets/ffp-coach-loader.js?v=521"></script>
-<script defer src="assets/ffp-connections-feed-loader.js?v=337"></script>
+<script defer src="assets/ffp-connections-feed-loader.js?v=338"></script>
 <script defer src="assets/ffp-event-results-loader.js?v=329"></script>
 <script>
 (function(){
