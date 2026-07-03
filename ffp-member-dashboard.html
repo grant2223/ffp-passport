@@ -1,4 +1,13 @@
-<!-- FFP MEMBER DASHBOARD — Build 528 · 2026-07-03
+<!-- FFP MEMBER DASHBOARD — Build 530 · 2026-07-03
+     Build 530 (2026-07-03): LOCATION LABEL = WHAT THE MEMBER PICKS. The activity card showed a rebuilt
+        "venue, city, country" string; now it shows the chosen LABEL verbatim (e.g. "SALT, Kite Beach"), falling
+        back to city/country only when no venue was captured (ffpRenderActivityCard L7101). Capture upgraded: the
+        Places picker (`pick`) now stores name + landmark ("SALT" + leading address token "Kite Beach" → "SALT,
+        Kite Beach"; street-first addresses fall back to the neighbourhood/area) — so input == card. FFP_BUILD 529→530.
+     Build 529 (2026-07-03): EDIT-PATH COORDINATE FIX. `openLogModalForEdit` restored the pin only from
+        `row.checkin_lat/lng`, but rows sourced from the activity list (LOGS) and the card remap coords to
+        `lat/lng` — so editing one of those activities dropped its coordinates and SAVING wiped them. Now reads
+        BOTH namings (checkin_lat ?? lat), matching the card's own tolerance. FFP_BUILD 528→529.
      Build 528 (2026-07-03): LOCATION ACCURACY — all three capture paths now use GOOGLE. The map picker's drag-pin
         + one-tap GPS previously reverse-geocoded via OpenStreetMap/Nominatim (venue = a street, city = a SUBURB
         like "Al Quoz Industrial 3") and BigDataCloud, fragmenting the world map. Now `reverseCenter` + the `use()`
@@ -4399,7 +4408,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '528';
+  const FFP_BUILD = '530';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -6323,10 +6332,15 @@ window.openLogModalForEdit = function (row) {
   var notes = document.getElementById('log-notes'); if (notes) notes.value = row.notes || '';
   if (typeof ffpLogSetPhotos === 'function') ffpLogSetPhotos((row.photos && row.photos.length) ? row.photos : (row.photo_url ? [row.photo_url] : []));
   var _she = document.getElementById('log-share'); if (_she) _she.checked = !!row.shared;
-  // Prefill the pin (so editing a venue check-in or pinned log doesn't wipe its location on save).
-  if (row.venue || row.checkin_lat != null) {
-    logSetLocation({ name: row.venue || '', lat: (row.checkin_lat != null ? row.checkin_lat : null), lng: (row.checkin_lng != null ? row.checkin_lng : null),
-      maps_url: (row.checkin_lat != null && row.checkin_lng != null) ? ('https://www.google.com/maps?q=' + row.checkin_lat + ',' + row.checkin_lng) : '' });
+  // Prefill the pin (so editing a venue check-in or pinned log doesn't wipe its location on save). Build 529:
+  // accept BOTH coord namings — the DB row uses checkin_lat/lng, but a LOGS-sourced row (and the card) remap to
+  // lat/lng (same tolerance as the card at ffpRenderActivityCard). Reading only checkin_lat previously dropped
+  // the coordinates when editing from the activity list → save then wiped them.
+  var _elat = (row.checkin_lat != null ? row.checkin_lat : (row.lat != null ? row.lat : null));
+  var _elng = (row.checkin_lng != null ? row.checkin_lng : (row.lng != null ? row.lng : null));
+  if (row.venue || _elat != null) {
+    logSetLocation({ name: row.venue || '', lat: _elat, lng: _elng,
+      maps_url: (_elat != null && _elng != null) ? ('https://www.google.com/maps?q=' + _elat + ',' + _elng) : '' });
   }
   _ffpPrefillTags(row.id);   // show the people already tagged (pending or confirmed) under Training Partners
   var t = document.querySelector('#log-modal-backdrop .dm-title'); if (t) t.textContent = 'Edit activity';
@@ -7089,7 +7103,9 @@ window.ffpRenderActivityCard = function (a, isOwn) {
   var icon = (window.ffpActivityIcon ? window.ffpActivityIcon(a.activity) : 'fitness_center');
   var startEnd = '';
   try { if (a.logged_at) { var _sd = new Date(a.logged_at), _ed = new Date(_sd.getTime() + (Math.round(a.duration_min || 0)) * 60000 + (a.duration_sec || 0) * 1000); var _hm = function (d) { return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }; startEnd = _hm(_sd) + ' → ' + _hm(_ed); } } catch (e) {}
-  var loc = [a.venue, a.city, a.country].filter(Boolean).join(', ');
+  // Build 530: show the LOCATION LABEL the member chose, verbatim (e.g. "SALT, Kite Beach") — do NOT rebuild it
+  // into "venue, city, country". Only fall back to city/country when no venue label was captured.
+  var loc = (a.venue && String(a.venue).trim()) ? a.venue : [a.city, a.country].filter(Boolean).join(', ');
   var hasDist = (a.distance_km != null && a.distance_km > 0);
   var heroVal = hasDist ? String(Math.round(a.distance_km * 100) / 100) : dur(a.duration_min, a.duration_sec);
   var heroUnit = hasDist ? 'km' : '';
@@ -8597,7 +8613,15 @@ window.FFPLocPick = (function(){
     fetch(url).then(function(res){return res.json();}).then(function(j){
       if(!j || j.lat==null || j.lng==null){ if(ch) ch.textContent='Couldn’t locate that place — try another'; return; }
       var cmp=(j && j.components) || {};   // world-class: keep the STRUCTURED geocode (city/region/area/country)
-      cur={ lat:Number(j.lat), lng:Number(j.lng), name:j.name||(it.main||''), maps_url:j.maps_url||'', place_id:j.place_id||it.place_id||'',
+      // Build 530: store the LABEL the member recognises — place name + its landmark (e.g. "SALT, Kite Beach").
+      // Landmark = the leading token of Google's formatted address when it's a real place (not a street/number);
+      // else the neighbourhood/area. This exact label is what shows on the activity card.
+      var _nm=j.name||it.main||'', _addr=j.address||'', _mark='';
+      if(_addr){ var _seg=_addr.split(',')[0].trim();
+        if(_seg && _seg.toLowerCase()!==_nm.toLowerCase() && !/^\d/.test(_seg) && !/\b(street|st|road|rd|ave|avenue|blvd)\b/i.test(_seg)) _mark=_seg; }
+      if(!_mark) _mark=cmp.area||'';
+      var _label=_nm+((_mark && _mark.toLowerCase()!==_nm.toLowerCase())?(', '+_mark):'');
+      cur={ lat:Number(j.lat), lng:Number(j.lng), name:_label||_nm, maps_url:j.maps_url||'', place_id:j.place_id||it.place_id||'',
             city:cmp.city||'', region:cmp.region||'', area:cmp.area||'', country:cmp.country||'', country_code:cmp.country_code||'' };
       if(map) map.setView([cur.lat,cur.lng],16);
       if(ch) ch.textContent=cur.name;
