@@ -65,7 +65,7 @@
     var w = widthOf(el); if (!w) return;
     var cdn = toCdn(m[2], w); if (!cdn) { el.__ffpb = 1; return; }
     el.__ffpb = 1;
-    el.style.backgroundImage = "url('" + cdn + "')";
+    el.style.backgroundImage = bi.replace(m[0], "url('" + cdn + "')");   // swap ONLY the image url — keep any gradient/overlay layers
   }
 
   function sweep(root) {
