@@ -1,8 +1,12 @@
-<!-- FFP MEMBER DASHBOARD — Build 525 · 2026-07-03
+<!-- FFP MEMBER DASHBOARD — Build 526 · 2026-07-03
      ── VERSIONING (Grant, 2026-07-02): there is ONE version number for this file — FFP_BUILD (the "Build N" stamp in the
         avatar menu = the device truth). This header's Build number ALWAYS equals FFP_BUILD. Bump BOTH together on every
         change, no exceptions. The old "vNNN" changelog scheme below is HISTORICAL — do NOT add new "vNNN" lines; tag new
         entries "Build N" so the header, the constant, and the commit message are the same number. ──
+     Build 526 (2026-07-03): CONNECTIONS FEED lazy-load. `ffpLazyBg` exposed as `window.ffpLazyBg`; the connections
+        "Latest activity" grid (assets/ffp-connections-feed-loader.js `gridTile` → `data-lazybg`, `renderGlobalGrid`
+        calls `window.ffpLazyBg(host)`) now lazy-loads its up-to-60 photos on scroll, same as the my-activity grid.
+        Loader cache-bust ?v=336→337. FFP_BUILD 525→526.
      Build 525 (2026-07-03): PHOTO SPEED (3 more). (a) SERVICE-WORKER PHOTO CACHE — sw.js v3 caches Supabase Storage
         images CACHE-FIRST (new 'ffp-img-v1' cache, capped ~260, preserved across deploys); re-scrolls / app re-opens /
         profile revisits load photos instantly from device, no network. Safe because URLs are content-versioned. (b)
@@ -3646,6 +3650,7 @@ function ffpLazyBg(root) {
   }
   for (var j = 0; j < els.length; j++) _ffpLazyIO.observe(els[j]);
 }
+window.ffpLazyBg = ffpLazyBg;   // shared with the connections-feed loader (and any grid that emits data-lazybg)
 function renderMyGrid(logs) {
   var host = document.getElementById('my-activity-grid'); if (!host) return;
   var list = (logs || []).slice().sort(function (a, b) { return new Date(b.logged_at || 0) - new Date(a.logged_at || 0); });
@@ -4381,7 +4386,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '525';
+  const FFP_BUILD = '526';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -8245,7 +8250,7 @@ else init();
 <script src="assets/ffp-connections-core.js?v=360"></script>
 <script src="assets/ffp-streak-loader.js?v=1"></script>
 <script defer src="assets/ffp-coach-loader.js?v=521"></script>
-<script defer src="assets/ffp-connections-feed-loader.js?v=336"></script>
+<script defer src="assets/ffp-connections-feed-loader.js?v=337"></script>
 <script defer src="assets/ffp-event-results-loader.js?v=329"></script>
 <script>
 (function(){
