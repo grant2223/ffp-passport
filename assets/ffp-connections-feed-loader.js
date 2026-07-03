@@ -276,7 +276,7 @@
       line2 = [stat, dt].filter(Boolean).join(' · ');
     }
     var inner = photo
-      ? '<div style="position:absolute;inset:0;background:#0a1825 center/cover no-repeat;background-image:url(\'' + esc(photo) + '\');"></div>'
+      ? '<div data-lazybg="' + esc(photo) + '" style="position:absolute;inset:0;background:#0a1825 center/cover no-repeat;"></div>'
       : '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#16324a;"><span class="material-icons" style="font-size:34px;color:rgba(255,255,255,0.4);">' + esc(actIcon(a.activity)) + '</span></div>';
     return '<div onclick="FFPConnFeed.openActivity(\'' + attr(a.id) + '\')" style="position:relative;aspect-ratio:1/1;border-radius:3px;overflow:hidden;cursor:pointer;">' +
       inner +
@@ -297,6 +297,7 @@
       host.innerHTML = lbl + (list.length
         ? '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;">' + list.map(function (a) { return gridTile(a, true); }).join('') + '</div>'
         : '<div class="cf-empty">No activity shared yet.</div>');
+      try { if (window.ffpLazyBg) window.ffpLazyBg(host); } catch (e) {}   // lazy-load the feed photos on scroll
     } catch (e) { host.innerHTML = lbl + '<div class="cf-empty">Couldn’t load activity.</div>'; }
   }
 
