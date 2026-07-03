@@ -1,8 +1,12 @@
-<!-- FFP MEMBER DASHBOARD — Build 522 · 2026-07-03
+<!-- FFP MEMBER DASHBOARD — Build 523 · 2026-07-03
      ── VERSIONING (Grant, 2026-07-02): there is ONE version number for this file — FFP_BUILD (the "Build N" stamp in the
         avatar menu = the device truth). This header's Build number ALWAYS equals FFP_BUILD. Bump BOTH together on every
         change, no exceptions. The old "vNNN" changelog scheme below is HISTORICAL — do NOT add new "vNNN" lines; tag new
         entries "Build N" so the header, the constant, and the commit message are the same number. ──
+     Build 523 (2026-07-03): IMAGE OPTIMIZER v2 (re-enabled, fixed). assets/ffp-img.js now serves Supabase photos as WebP
+        via the resize CDN with a HARD 640px FLOOR — it only ever DOWN-scales the stored original, never requests below the
+        display size, so the picture can't get blurry/upscaled (the 521 bug) — only the FILE shrinks. width-only transform
+        = proportional, never crops. <script> re-added to <head> here + on the landing. FFP_BUILD 522→523.
      Build 522 (2026-07-03): REVERTED the Build 521 image optimizer. The global auto-rewrite (assets/ffp-img.js) degraded
         how images displayed (undersized / mis-cropped across surfaces). Removed the <script> include from THIS file and
         from the landing — nothing loads it now; images render exactly as at Build 520. ffp-img.js left on disk but
@@ -19,6 +23,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FFP Passport — Member Dashboard</title>
+<!-- IMAGE OPTIMIZER v2 (Build 523): serves Supabase photos as WebP via the resize CDN, DOWN-scaled only (hard 640px
+     floor → never upscales/blurs, only shrinks the file). Self-installing, no markup changes. assets/ffp-img.js. -->
+<script src="assets/ffp-img.js?v=523"></script>
 <!-- PWA: installable app (manifest + home-screen icons + iOS meta). assets/ffp-pwa.js registers the
      service worker and shows the install banner (Android prompt / iOS Add-to-Home-Screen hint). -->
 <link rel="manifest" href="/manifest.webmanifest">
@@ -4339,7 +4346,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '522';
+  const FFP_BUILD = '523';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
