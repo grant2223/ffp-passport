@@ -17,20 +17,26 @@
   var OBJ  = '/storage/v1/object/public/';
   var REN  = '/storage/v1/render/image/public/';
   var DPR  = Math.min(window.devicePixelRatio || 1, 2);
-  var BUCKETS = [64, 96, 160, 240, 320, 480, 640, 800, 1080, 1600];
+  // FLOOR = 640: we NEVER request below this. The CDN only ever DOWN-scales the original, so the on-screen image
+  // can only get sharper-or-equal, never upscaled/blurry. This is what makes the swap visually invisible while
+  // still shrinking the file (WebP + smaller dimensions). Undersizing was the bug that made images look cropped.
+  var FLOOR = 640;
+  var BUCKETS = [640, 800, 1080, 1440, 1600];
 
   function bucket(w) { for (var i = 0; i < BUCKETS.length; i++) { if (w <= BUCKETS[i]) return BUCKETS[i]; } return 1600; }
 
   // Rewrite a public-object URL → render/image URL sized for cssW. Returns null if not applicable.
+  // width-only transform = proportional downscale (NEVER crops); the CDN also serves WebP when supported.
   function toCdn(url, cssW) {
     if (!url) return null;
     if (url.indexOf(HOST) === -1) return null;      // not our storage
     if (url.indexOf(REN) > -1) return null;          // already transformed
     if (url.indexOf(OBJ) === -1) return null;        // not a public object
-    var w = bucket(Math.round((cssW || 0) * DPR) || 480);
+    var target = Math.round((cssW || 0) * DPR);
+    var w = bucket(Math.max(FLOOR, target));         // hard floor — only shrink files, never shrink the picture
     var base = url.replace(OBJ, REN);
     var sep = base.indexOf('?') > -1 ? '&' : '?';    // preserve any existing ?v= cache-bust
-    return base + sep + 'width=' + w + '&quality=70';
+    return base + sep + 'width=' + w + '&quality=72';
   }
 
   function widthOf(el) {
