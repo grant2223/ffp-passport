@@ -1,4 +1,11 @@
-<!-- FFP MEMBER DASHBOARD — Build 530 · 2026-07-03
+<!-- FFP MEMBER DASHBOARD — Build 531 · 2026-07-03
+     Build 531 (2026-07-03): SHARE CARD — "Use my photo as background" FIX. With the toggle ON the photo didn't
+        show (card fell back to the gradient). Root cause = CORS-cache taint: the activity card first draws that
+        same photo as a plain (non-CORS) background, so the later crossOrigin canvas export was served the cached
+        non-CORS copy → tainted canvas → toDataURL() threw → photo silently dropped. `_ffpImgToDataUrl` now does
+        fetch→blob→dataURL (blob dataURLs never taint; `cache:'reload'` bypasses the poisoned cache), Image/canvas
+        kept as fallback. Also: background source + toggle visibility now fall back to photos[0] when photo_url is
+        empty (multi-photo logs). FFP_BUILD 530→531.
      Build 530 (2026-07-03): LOCATION LABEL = WHAT THE MEMBER PICKS. The activity card showed a rebuilt
         "venue, city, country" string; now it shows the chosen LABEL verbatim (e.g. "SALT, Kite Beach"), falling
         back to city/country only when no venue was captured (ffpRenderActivityCard L7101). Capture upgraded: the
@@ -4408,7 +4415,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '530';
+  const FFP_BUILD = '531';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -7321,11 +7328,29 @@ var _ffpLogoData = null;            // null = not tried, '' = failed (use text f
 var _ffpPhotoData = '', _ffpPhotoSrc = null;
 function _ffpImgToDataUrl(url) {
   return new Promise(function (res) {
-    var done = false; function fin(v) { if (!done) { done = true; res(v); } }
-    try { var img = new Image(); img.crossOrigin = 'anonymous';
-      img.onload = function () { try { var c = document.createElement('canvas'); c.width = img.naturalWidth || 600; c.height = img.naturalHeight || 600; c.getContext('2d').drawImage(img, 0, 0); fin(c.toDataURL('image/png')); } catch (e) { fin(''); } };
-      img.onerror = function () { fin(''); };
-      img.src = url; setTimeout(function () { fin(''); }, 5000);
+    var done = false, to = null; function fin(v) { if (!done) { done = true; if (to) clearTimeout(to); res(v); } }
+    if (!url) { fin(''); return; }
+    to = setTimeout(function () { fin(''); }, 8000);
+    // Build 531: fetch → blob → dataURL FIRST. The old path (crossOrigin Image → canvas → toDataURL) silently
+    // failed for activity photos: the card draws the SAME photo as a plain background beforehand, caching it
+    // WITHOUT CORS headers; the later crossOrigin request is served that cached non-CORS copy → the canvas is
+    // TAINTED → toDataURL throws → the "Use my photo" background dropped to the gradient. A blob dataURL never
+    // taints. `cache:'reload'` forces a fresh CORS response (bypassing the poisoned cache). Image path kept as fallback.
+    try {
+      fetch(url, { mode: 'cors', cache: 'reload' }).then(function (r) {
+        if (!r || !r.ok) throw new Error('http'); return r.blob();
+      }).then(function (b) {
+        var fr = new FileReader();
+        fr.onload = function () { fin(fr.result || ''); };
+        fr.onerror = function () { throw new Error('read'); };
+        fr.readAsDataURL(b);
+      }).catch(function () {
+        try { var img = new Image(); img.crossOrigin = 'anonymous';
+          img.onload = function () { try { var c = document.createElement('canvas'); c.width = img.naturalWidth || 600; c.height = img.naturalHeight || 600; c.getContext('2d').drawImage(img, 0, 0); fin(c.toDataURL('image/png')); } catch (e) { fin(''); } };
+          img.onerror = function () { fin(''); };
+          img.src = url + (url.indexOf('?') > -1 ? '&' : '?') + '_ffpc=1';   // unique-ish param → skip the poisoned cache entry
+        } catch (e) { fin(''); }
+      });
     } catch (e) { fin(''); }
   });
 }
@@ -7343,7 +7368,8 @@ async function _ffpMakeCardCanvas(a, ratio, usePhoto, sticker) {
   var ctx = cv.getContext('2d'); ctx.scale(S, S);
   var logo = null, photo = null;
   try { await _ffpEnsureLogo(); if (_ffpLogoData) logo = await _ffpLoadImg(_ffpLogoData); } catch (e) {}
-  if (usePhoto && a.photo_url && !sticker) { try { await _ffpEnsurePhoto(a.photo_url); if (_ffpPhotoData) photo = await _ffpLoadImg(_ffpPhotoData); } catch (e) {} }
+  var _bgSrc = a.photo_url || (a.photos && a.photos.length ? a.photos[0] : '');   // primary photo may live in photos[]
+  if (usePhoto && _bgSrc && !sticker) { try { await _ffpEnsurePhoto(_bgSrc); if (_ffpPhotoData) photo = await _ffpLoadImg(_ffpPhotoData); } catch (e) {} }
   if (sticker) {
     // TRULY TRANSPARENT — NO panel/background at all (see-through everywhere). A strong dark halo-shadow on every
     // element drawn below is the EDGE that keeps the white type legible on ANY photo, light or dark.
@@ -7485,7 +7511,7 @@ window.ffpSocialShareActivity = function (id) { _ffpOpenShareSheet(id); };
 function _ffpOpenShareSheet(id) {
   var a = window._ffpActCard || {}; _ffpShareCfg = { ratio: '1:1', usePhoto: false, sticker: false, id: id, show: _ffpDefaultShow(a) }; _ffpShareFile = null; _ffpShareKey = null;
   var esc = (window.escHtml ? window.escHtml : function (s) { return String(s == null ? '' : s); });
-  var hasPhoto = !!a.photo_url;
+  var hasPhoto = !!(a.photo_url || (a.photos && a.photos.length));   // primary photo may live in photos[]
   // Options checklist rows — one per field the activity actually has (Rule 0: availability from _ffpShareFields).
   var _optFlds = _ffpShareFields(a).filter(function (f) { return f.avail; });
   var _cbRow = function (f) {
