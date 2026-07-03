@@ -257,11 +257,22 @@
       var list = (r && r.data) || [];
       host.innerHTML = head + '<div id="cf-conn-stats"></div>' + actlbl +
         (list.length ? '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;">' + list.map(function (a) { return gridTile(a, false); }).join('') + '</div>' : '<div class="cf-empty">No shared activities yet.</div>');
+      cfLazy(host);   // individual person's activities — load their photos (was missing → blank tiles)
     } catch (e) { host.innerHTML = head + '<div id="cf-conn-stats"></div>' + actlbl + '<div class="cf-empty">Couldn’t load activities.</div>'; }
     loadConnStats(id, name);
   }
 
   // One tile, two modes — showName=true (All view: person's name + activity); false (a person's own grid: activity + stat).
+  // Load tile photos: use the shared scroll-lazy helper if present, else load immediately — so images ALWAYS appear
+  // even if window.ffpLazyBg isn't available (deploy ordering). Called by EVERY grid render (person view + ALL feed).
+  function cfLazy(host) {
+    try {
+      if (!host) return;
+      if (window.ffpLazyBg) { window.ffpLazyBg(host); return; }
+      var els = host.querySelectorAll ? host.querySelectorAll('[data-lazybg]') : [];
+      for (var i = 0; i < els.length; i++) { var e = els[i], u = e.getAttribute('data-lazybg'); if (u) { e.style.backgroundImage = "url('" + u + "')"; e.removeAttribute('data-lazybg'); } }
+    } catch (e) {}
+  }
   function gridTile(a, showName) {
     var photo = a.photo_url || (a.photos && a.photos.length ? a.photos[0] : '');
     var multi = !!(a.photos && a.photos.length > 1);
@@ -297,7 +308,7 @@
       host.innerHTML = lbl + (list.length
         ? '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;">' + list.map(function (a) { return gridTile(a, true); }).join('') + '</div>'
         : '<div class="cf-empty">No activity shared yet.</div>');
-      try { if (window.ffpLazyBg) window.ffpLazyBg(host); } catch (e) {}   // lazy-load the feed photos on scroll
+      cfLazy(host);   // ALL feed — lazy-load (or immediate fallback) the feed photos
     } catch (e) { host.innerHTML = lbl + '<div class="cf-empty">Couldn’t load activity.</div>'; }
   }
 
