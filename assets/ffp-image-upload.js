@@ -95,7 +95,7 @@
     if (window.supabase && oid) {
       try {
         var path = oid + '/' + safeKey + '.jpg';
-        var up = await window.supabase.storage.from(bucket).upload(path, blob, { contentType: 'image/jpeg', upsert: true, cacheControl: '3600' });
+        var up = await window.supabase.storage.from(bucket).upload(path, blob, { contentType: 'image/jpeg', upsert: true, cacheControl: '31536000' });  // 1yr — safe: the ?v= cache-bust changes the URL on re-upload
         if (!up.error) {
           var pub = window.supabase.storage.from(bucket).getPublicUrl(path);
           return withV((pub && pub.data && pub.data.publicUrl) || null);
