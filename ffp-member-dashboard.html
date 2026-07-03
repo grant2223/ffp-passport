@@ -1,8 +1,13 @@
-<!-- FFP MEMBER DASHBOARD — Build 520 · 2026-07-02
+<!-- FFP MEMBER DASHBOARD — Build 521 · 2026-07-03
      ── VERSIONING (Grant, 2026-07-02): there is ONE version number for this file — FFP_BUILD (the "Build N" stamp in the
         avatar menu = the device truth). This header's Build number ALWAYS equals FFP_BUILD. Bump BOTH together on every
         change, no exceptions. The old "vNNN" changelog scheme below is HISTORICAL — do NOT add new "vNNN" lines; tag new
         entries "Build N" so the header, the constant, and the commit message are the same number. ──
+     Build 521 (2026-07-03): IMAGE OPTIMIZER — added assets/ffp-img.js (loaded first in <head>). Rewrites every
+        Supabase public-storage photo to the resize CDN (/render/image/public/…?width=W&quality=70), sized per
+        element, for <img> AND inline background-image, via an initial sweep + a scoped MutationObserver. Grids/feeds
+        now pull ~15-30KB thumbnails instead of full ~350KB originals; full-res only when a photo is opened. NO markup
+        changes elsewhere. FFP_BUILD 520→521.
      Build 520 (2026-07-02): "Connections" panel → "Community" (nav label + title + 2p/3p icon swap); Coach Grant card is now
         snapshot-driven (streak, 5 active-life pillars, July race, one hook) with a fixed 3-CTA row Chat / Log activity / Meetups,
         first-run onboarding (motivations quick-pick + a goal), and a never-blank fallback. Loader assets/ffp-coach-loader.js?v=521.
@@ -14,6 +19,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FFP Passport — Member Dashboard</title>
+<!-- IMAGE OPTIMIZER: serves every Supabase photo through the resize CDN, sized per element (thumbnails in
+     grids/feeds, full only when opened). Self-installing, no markup changes. Loaded first so it optimises
+     from the first paint. Buckets 'FFP_BUILD' below. -->
+<script src="assets/ffp-img.js?v=521"></script>
 <!-- PWA: installable app (manifest + home-screen icons + iOS meta). assets/ffp-pwa.js registers the
      service worker and shows the install banner (Android prompt / iOS Add-to-Home-Screen hint). -->
 <link rel="manifest" href="/manifest.webmanifest">
@@ -4334,7 +4343,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '520';
+  const FFP_BUILD = '521';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
