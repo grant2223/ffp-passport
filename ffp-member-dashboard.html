@@ -1,4 +1,10 @@
-<!-- FFP MEMBER DASHBOARD — Build 527 · 2026-07-03
+<!-- FFP MEMBER DASHBOARD — Build 528 · 2026-07-03
+     Build 528 (2026-07-03): LOCATION ACCURACY — all three capture paths now use GOOGLE. The map picker's drag-pin
+        + one-tap GPS previously reverse-geocoded via OpenStreetMap/Nominatim (venue = a street, city = a SUBURB
+        like "Al Quoz Industrial 3") and BigDataCloud, fragmenting the world map. Now `reverseCenter` + the `use()`
+        city fallback both call the new backend `GET /api/places/reverse` (Google classic Geocoding, same key as
+        Places/Timezone) → clean venue name + the TRUE city everywhere; the world map clusters by real cities and
+        the Log Activity location matches the activity card. Backend v157→v158 (new /api/places/reverse). FFP_BUILD 527→528.
      ── VERSIONING (Grant, 2026-07-02): there is ONE version number for this file — FFP_BUILD (the "Build N" stamp in the
         avatar menu = the device truth). This header's Build number ALWAYS equals FFP_BUILD. Bump BOTH together on every
         change, no exceptions. The old "vNNN" changelog scheme below is HISTORICAL — do NOT add new "vNNN" lines; tag new
@@ -4393,7 +4399,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '527';
+  const FFP_BUILD = '528';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -8541,13 +8547,19 @@ window.FFPLocPick = (function(){
   function reverseCenter(){
     if(!map) return; var c=map.getCenter(); cur={lat:c.lat,lng:c.lng,name:null};
     var ch=document.getElementById('lp-chosen'); if(ch) ch.textContent='Naming this spot…';
-    fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=16&addressdetails=1&lat='+c.lat+'&lon='+c.lng)
+    // Build 528: resolve the dropped pin (and one-tap GPS) through Google via the backend — the SAME source as
+    // the search box, so venue name + city match everywhere and the world map clusters by the REAL city
+    // (not an OpenStreetMap suburb like "Al Quoz Industrial 3"). Stale-guarded against rapid re-drags.
+    var rlat=c.lat, rlng=c.lng;
+    fetch(FFP_API_NOTIF + '/api/places/reverse?lat='+rlat+'&lng='+rlng)
       .then(function(r){return r.json();}).then(function(j){
-        var nm=shortName(j); if(cur) cur.name=nm;
-        // also capture the city + country so the caller can auto-fill them (merged location control)
-        if(cur){ var a=j.address||{}; cur.city=a.city||a.town||a.village||a.suburb||a.county||''; cur.country=a.country||''; }
-        if(ch) ch.textContent = nm || ('Pin: '+c.lat.toFixed(4)+', '+c.lng.toFixed(4));
-      }).catch(function(){ if(ch) ch.textContent='Pin: '+c.lat.toFixed(4)+', '+c.lng.toFixed(4); });
+        if(!cur || cur.lat!==rlat || cur.lng!==rlng) return;   // the map moved on before this resolved — ignore
+        var cmp=(j&&j.components)||{};
+        cur.name=(j&&j.name) || ('Pin '+rlat.toFixed(4)+', '+rlng.toFixed(4));
+        cur.city=cmp.city||''; cur.country=cmp.country||''; cur.region=cmp.region||''; cur.area=cmp.area||''; cur.country_code=cmp.country_code||'';
+        cur.maps_url=(j&&j.maps_url)||'';
+        if(ch) ch.textContent = cur.name;
+      }).catch(function(){ if(ch) ch.textContent='Pin: '+rlat.toFixed(4)+', '+rlng.toFixed(4); });
   }
   function shortName(j){
     if(!j) return ''; var a=j.address||{};
@@ -8598,18 +8610,21 @@ window.FFPLocPick = (function(){
     var lat=cur?cur.lat:c.lat, lng=cur?cur.lng:c.lng;
     var name=(cur&&cur.name)?cur.name:('Pin '+lat.toFixed(4)+', '+lng.toFixed(4));
     var city=(cur&&cur.city)||'', country=(cur&&cur.country)||'', region=(cur&&cur.region)||'', area=(cur&&cur.area)||'', cc=(cur&&cur.country_code)||'';
-    // Guarantee Country + City + Region even if the structured details aren't present (e.g. the member just
-    // dragged the map without picking a result): resolve via the keyless BigDataCloud reverse-geocode.
+    // Guarantee Country + City + Region even if the structured details aren't present (e.g. the member hit
+    // "Use this location" before the drag reverse-geocode resolved): Build 528 resolves via the SAME Google
+    // endpoint as the pin/search paths, so the city stays consistent (no more BigDataCloud third provider).
     if(!city || !country){
       var chl=document.getElementById('lp-chosen'); var prev=chl?chl.textContent:'';
       if(chl) chl.textContent='Locating city…';
       try {
-        var rr=await fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude='+lat+'&longitude='+lng+'&localityLanguage=en');
-        var jj=await rr.json();
-        if(!city) city = jj.city || jj.locality || jj.principalSubdivision || '';
-        if(!country) country = jj.countryName || '';
-        if(!region) region = jj.principalSubdivision || '';
-        if(!cc) cc = jj.countryCode || '';
+        var rr=await fetch(FFP_API_NOTIF + '/api/places/reverse?lat='+lat+'&lng='+lng);
+        var jj=await rr.json(); var cmp=(jj&&jj.components)||{};
+        if(!city) city = cmp.city||'';
+        if(!country) country = cmp.country||'';
+        if(!region) region = cmp.region||'';
+        if(!area) area = cmp.area||'';
+        if(!cc) cc = cmp.country_code||'';
+        if((!name || /^Pin /.test(name)) && jj && jj.name) name = jj.name;
       } catch(e){}
       if(chl) chl.textContent=prev;
     }
