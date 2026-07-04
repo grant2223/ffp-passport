@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — Build 535 · 2026-07-04
+<!-- FFP MEMBER DASHBOARD — Build 536 · 2026-07-04
+     Build 536 (2026-07-04): QUEST LEADERBOARD — tap any person's strap to see WHERE THEIR POINTS CAME FROM.
+     assets/ffp-quests-core.js?v=17→18: leaderboard rows now clickable → `Quests.openMemberBreakdown(member_id,name)`
+     modal (reuses member_quest_points_breakdown RPC + the existing q-bd-row markup + q-ways-ov overlay), with a Total
+     row. No DB/backend change (RPC already existed + is SECURITY DEFINER). FFP_BUILD 535→536.
      Build 535 (2026-07-04): GARMIN-STYLE HR ZONES + Max HR profile marker + always-on zones share option.
      (a) NEW editable "Max HR" marker on Fitness Stats › Bio Age (next to Resting HR/HRV) — defaults to 220 − age
          ("· est." until set), stored via the same member_profile_meta jsonb save (NO DB/backend change).
@@ -329,7 +333,7 @@
 <!-- Google Analytics 4 (platform-wide) -->
 <script src="assets/ffp-analytics.js?v=2"></script>
 <!-- Quests panel module (extracted from inline) — defines window.Quests before the dashboard boot calls init -->
-<script src="assets/ffp-quests-core.js?v=17"></script>
+<script src="assets/ffp-quests-core.js?v=18"></script>
 <script src="assets/ffp-earnings-core.js?v=3"></script>
 </head>
 <body>
@@ -4447,7 +4451,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '535';
+  const FFP_BUILD = '536';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
