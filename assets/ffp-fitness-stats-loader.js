@@ -366,6 +366,7 @@
     bodyFat:     { col: 'body_fat_pct',    cast: 'float', dir: 'lower'  },
     visceralFat: { col: 'visceral_fat',    cast: 'float', dir: 'lower'  },
     restingHR:   { col: 'resting_hr',      cast: 'int',   dir: 'lower'  },
+    maxHR:       { col: 'max_hr',          cast: 'int',   dir: 'higher' },
     hrv:         { col: 'hrv_ms',          cast: 'int',   dir: 'higher' },
     grip:        { col: 'grip_strength_kg',cast: 'float', dir: 'higher' },
     muscleMass:  { col: 'muscle_mass_kg',  cast: 'float', dir: 'higher' },
@@ -1211,18 +1212,25 @@
   };
   // Edit a logged activity — find the cached row by id and hand it to the dashboard's edit-mode modal.
   window.ffpEditActivity = async function (id) {
-    var row = null;
-    for (var i = 0; i < activityCache.length; i++) { if (String(activityCache[i].id) === String(id)) { row = activityCache[i]; break; } }
-    // Pull the FULL record first — the cached list row lacks distance/avg HR/steps/metrics, and editing from it
-    // would save those back as blank (the "distance keeps disappearing" bug). The DB is the source of truth.
-    try {
-      var me = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || {};
-      if (me.id && window.supabase) {
-        var r = await window.supabase.rpc('member_activity_view', { p_viewer: me.id, p_id: id });
-        var d = r && r.data;
-        if (d && !d.error) row = Object.assign({}, row || {}, d);
-      }
-    } catch (e) {}
+    // Build 534: when invoked from the full-screen activity card, CLOSE the card first and reuse its already-full
+    // row (instant — no RPC round-trip). This loader override previously left the card open and waited on an RPC,
+    // so tapping "Edit activity" on a card didn't go STRAIGHT to the edit modal (it opened behind the card, delayed).
+    var carded = (window._ffpActCard && (!id || String(window._ffpActCard.id) === String(id))) ? window._ffpActCard : null;
+    if (typeof window.ffpCloseActivityCard === 'function') window.ffpCloseActivityCard();
+    var row = carded;
+    if (!row) { for (var i = 0; i < activityCache.length; i++) { if (String(activityCache[i].id) === String(id)) { row = activityCache[i]; break; } } }
+    // Pull the FULL record ONLY when we don't already have the card's full row (list rows lack distance/HR/metrics,
+    // and editing from a thin row would save those back blank — the "distance keeps disappearing" bug).
+    if (!carded) {
+      try {
+        var me = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || {};
+        if (me.id && window.supabase) {
+          var r = await window.supabase.rpc('member_activity_view', { p_viewer: me.id, p_id: id });
+          var d = r && r.data;
+          if (d && !d.error) row = Object.assign({}, row || {}, d);
+        }
+      } catch (e) {}
+    }
     if (!row) return;
     if (typeof window.openLogModalForEdit === 'function') window.openLogModalForEdit(row);
   };
@@ -1702,6 +1710,12 @@
               if (p[col] == null) { rec[key] = null; return; }
               rec[key] = { value: Number(p[col]), date: prDates[key] || null };
             });
+            // Max HR: when the member hasn't set their own, DEFAULT it to 220 − age (flagged as an estimate so the
+            // marker shows "· est."). Editable — saving a real value clears the flag. Drives all HR-zone bpm ranges.
+            if (rec.maxHR == null) {
+              var _age = (FitnessStats.profile && FitnessStats.profile.chronAge) || 0;
+              if (_age > 0) rec.maxHR = { value: 220 - _age, date: null, estimated: true };
+            }
             FitnessStats.records = rec;
             FitnessStats.sleepLogs = sleepFromDb(p.sleep_logs);
           }
