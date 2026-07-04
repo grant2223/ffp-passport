@@ -1,4 +1,11 @@
-<!-- FFP MEMBER DASHBOARD — Build 532 · 2026-07-03
+<!-- FFP MEMBER DASHBOARD — Build 533 · 2026-07-03
+     Build 533 (2026-07-03): FITNESS STATS · PANEL-OPEN SPEED (structural). The panel used to `await Promise.all(
+     [profile, activity-logs, wearables])` before painting — blocking on the slowest, incl. a REDUNDANT
+     activity-logs re-fetch (the dashboard already has those rows) + an external wearables/daily call. Now: (a) the
+     dashboard exposes `window.LOGS` (this file), (b) the Fitness Stats loader SEEDS its activity cache from
+     window.LOGS (own logs only) so Recent Activity shows instantly, (c) the panel PAINTS after just the fast
+     profile RPC; the activity re-fetch + wearables refresh their own sections when they land (like the ranking
+     pool). Wearables no longer block the open. FFP_BUILD 532→533. (assets/ffp-fitness-stats-loader.js updated too.)
      Build 532 (2026-07-03): FITNESS STATS · RECENT ACTIVITY SPEED. The recent-list thumbnails (fixed 46px box)
         were loading the FULL-SIZE original photo (raw photo_url, multi-MB each × up to 10 rows → the >1s load).
         Now routed through the image optimizer (assets/ffp-fitness-stats-loader.js `_activityRow`: window.ffpImg
@@ -2422,6 +2429,9 @@
 
 // ===== DATA =====
 const LOGS = [];
+window.LOGS = LOGS;   // Build 533: expose the already-loaded journey logs so lazy panels (Fitness Stats) can seed
+                      // their activity list INSTANTLY instead of re-fetching /activity-logs. Mutated in place (LOGS.length=0
+                      // + push), never reassigned, so this single reference stays live.
 var MEETS = [];
 var MEMBER_CONN_COUNT = 0;   // accepted connections (Your-journey Connections tile)
 var CONNECTIONS = [];        // accepted connections WITH people (id/name/photo/city/country)
@@ -4421,7 +4431,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '532';
+  const FFP_BUILD = '533';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
