@@ -1,4 +1,10 @@
-<!-- FFP MEMBER DASHBOARD — Build 531 · 2026-07-03
+<!-- FFP MEMBER DASHBOARD — Build 532 · 2026-07-03
+     Build 532 (2026-07-03): FITNESS STATS · RECENT ACTIVITY SPEED. The recent-list thumbnails (fixed 46px box)
+        were loading the FULL-SIZE original photo (raw photo_url, multi-MB each × up to 10 rows → the >1s load).
+        Now routed through the image optimizer (assets/ffp-fitness-stats-loader.js `_activityRow`: window.ffpImg
+        → resized WebP, downscale-only, + service-worker photo cache for instant repeat opens). Loader is
+        cache-busted by FFP_BUILD. FFP_BUILD 531→532. (Further lever available: the panel awaits Promise.all of
+        profile+logs+wearables before painting — decoupling the wearables call would speed the initial open.)
      Build 531 (2026-07-03): SHARE CARD — "Use my photo as background" FIX. With the toggle ON the photo didn't
         show (card fell back to the gradient). Root cause = CORS-cache taint: the activity card first draws that
         same photo as a plain (non-CORS) background, so the later crossOrigin canvas export was served the cached
@@ -4415,7 +4421,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '531';
+  const FFP_BUILD = '532';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
