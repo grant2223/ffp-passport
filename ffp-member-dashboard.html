@@ -1,4 +1,20 @@
-<!-- FFP MEMBER DASHBOARD — Build 533 · 2026-07-03
+<!-- FFP MEMBER DASHBOARD — Build 535 · 2026-07-04
+     Build 535 (2026-07-04): GARMIN-STYLE HR ZONES + Max HR profile marker + always-on zones share option.
+     (a) NEW editable "Max HR" marker on Fitness Stats › Bio Age (next to Resting HR/HRV) — defaults to 220 − age
+         ("· est." until set), stored via the same member_profile_meta jsonb save (NO DB/backend change).
+         [assets/ffp-fitness-stats-core.js?v=312 + assets/ffp-fitness-stats-loader.js]
+     (b) Global window.ffpMemberMaxHR() + window.ffpHrZones() (% Max HR = Garmin's 5-zone model) in the core.
+     (c) Activity card HR-zone rows now show each zone's bpm RANGE (e.g. "Z3  140–153 bpm") from the member's Max HR.
+     (d) Share Options: "HR zones" is ALWAYS listed now — disabled with a hint when the activity has no zone data
+         (previously it only appeared when data existed). Zones still auto-show on the card when data is present.
+     FFP_BUILD 534→535. Core cache-bust ?v=311→312.
+     Build 534 (2026-07-03): TWO FIXES. (1) EDIT-FROM-CARD: the Fitness Stats loader's window.ffpEditActivity
+     override left the activity card open + waited on an RPC, so "Edit activity" didn't go straight to the edit
+     modal — now it closes the card first and reuses the card's already-full row (instant). (2) PIN LOCATION
+     MISMATCH: picking a search result recentred the map, whose moveend reverse-geocoded the coords and OVERWROTE
+     the picked place with a different nearby business (picked "Rose Park Hotel" → saved "InsuranceMarket"). Added
+     a pickLock so the recenter's auto-rename is skipped after a deliberate pick (cleared on the next real drag) —
+     the searched place is what's saved. (assets/ffp-fitness-stats-loader.js also updated for #1.) FFP_BUILD 533→534.
      Build 533 (2026-07-03): FITNESS STATS · PANEL-OPEN SPEED (structural). The panel used to `await Promise.all(
      [profile, activity-logs, wearables])` before painting — blocking on the slowest, incl. a REDUNDANT
      activity-logs re-fetch (the dashboard already has those rows) + an external wearables/daily call. Now: (a) the
@@ -4431,7 +4447,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '533';
+  const FFP_BUILD = '535';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -5360,7 +5376,7 @@ function fmtPrDate(iso) {
 <!-- Fitness Stats CORE — assets/ffp-fitness-stats-core.js. DEFER (v313): non-blocking, but still runs before
      DOMContentLoaded, and the boot init() is registered on DOMContentLoaded (line ~14049) so window.FitnessStats
      is guaranteed defined before FitnessStats.init() is called. Was synchronous = it blocked the parser mid-page. -->
-<script defer src="assets/ffp-fitness-stats-core.js?v=311"></script>
+<script defer src="assets/ffp-fitness-stats-core.js?v=312"></script>
 <!-- Milestone badge library — assets/ffp-milestone-badges.js (window.FFPMSBadges). DEFER: only used by the lazy
      Milestones render long after load, so it must never block boot. Bump ?v on change. -->
 <script defer src="assets/ffp-milestone-badges.js?v=6"></script>
@@ -7216,11 +7232,20 @@ window.ffpRenderActivityCard = function (a, isOwn) {
         var _fmt = function (ms) { var s = Math.round(ms / 1000); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); };
         // Total bar — the whole activity split across zones (segment width = share of time).
         var _bar = _zones.map(function (z) { return z[1] > 0 ? '<div style="width:' + (z[1] / _tot * 100) + '%;background:' + z[2] + ';"></div>' : ''; }).join('');
+        // Build 535: Garmin-style bpm ranges per zone from the member's Max HR (% Max HR model). Z0 = below Z1.
+        var _zr = (window.ffpHrZones ? window.ffpHrZones() : null);
+        var _rangeFor = function (lbl) {
+          if (!_zr) return '';
+          if (lbl === 'Z0') return '< ' + _zr[0].lo + ' bpm';
+          var zi = parseInt(lbl.slice(1), 10); var z = _zr[zi - 1];
+          return z ? (z.lo + '–' + z.hi + ' bpm') : '';
+        };
         // Per-zone rows — each its own bar filled to its % of the activity, over a light track.
         var _rows = _zones.map(function (z) {
           var pct = Math.round(z[1] / _tot * 100);
+          var _rng = _rangeFor(z[0]);
           return '<div style="display:flex;align-items:center;gap:10px;margin:8px 0;">' +
-            '<span style="flex:0 0 44px;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:#cfe0ee;"><span style="width:10px;height:10px;border-radius:3px;background:' + z[2] + ';display:inline-block;flex:0 0 auto;"></span>' + z[0] + '</span>' +
+            '<span style="flex:0 0 96px;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:#cfe0ee;"><span style="width:10px;height:10px;border-radius:3px;background:' + z[2] + ';display:inline-block;flex:0 0 auto;"></span>' + z[0] + (_rng ? '<span style="font-size:10px;font-weight:700;color:#8a99a8;">' + _rng + '</span>' : '') + '</span>' +
             '<div style="flex:1;height:10px;border-radius:5px;background:rgba(255,255,255,0.08);overflow:hidden;"><div style="width:' + pct + '%;height:100%;background:' + z[2] + ';border-radius:5px;"></div></div>' +
             '<span style="flex:0 0 86px;text-align:right;font-size:11.5px;color:#8a99a8;font-weight:700;">' + pct + '% · ' + _fmt(z[1]) + '</span>' +
           '</div>';
@@ -7529,8 +7554,15 @@ function _ffpOpenShareSheet(id) {
   var esc = (window.escHtml ? window.escHtml : function (s) { return String(s == null ? '' : s); });
   var hasPhoto = !!(a.photo_url || (a.photos && a.photos.length));   // primary photo may live in photos[]
   // Options checklist rows — one per field the activity actually has (Rule 0: availability from _ffpShareFields).
-  var _optFlds = _ffpShareFields(a).filter(function (f) { return f.avail; });
+  // Build 535: always offer "HR zones" as a share option even when this activity has none (shown disabled with a
+  // hint), so it's never invisible/confusing. All other fields still appear only when the activity has the data.
+  var _optFlds = _ffpShareFields(a).filter(function (f) { return f.avail || f.key === 'hrzones'; });
   var _cbRow = function (f) {
+    if (!f.avail) {
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 2px;border-bottom:1px solid rgba(255,255,255,0.06);opacity:0.5;">' +
+        '<span style="font-size:14px;color:#e6edf3;font-weight:700;">' + esc(f.label) + '<span style="color:#8a99a8;font-weight:600;font-size:11px;"> · no heart-rate zone data on this activity</span></span>' +
+        '<span class="material-icons" style="font-size:18px;color:#5a7186;">block</span></div>';
+    }
     var onNow = !!_ffpShareCfg.show[f.key];
     return '<label onclick="ffpShareToggleField(\'' + f.key + '\',this)" style="display:flex;align-items:center;justify-content:space-between;padding:12px 2px;border-bottom:1px solid rgba(255,255,255,0.06);cursor:pointer;">' +
       '<span style="font-size:14px;color:#e6edf3;font-weight:700;">' + esc(f.label) + (f.unit ? ' <span style="color:#8a99a8;font-weight:600;">' + esc(f.unit) + '</span>' : '') + '</span>' +
@@ -8581,7 +8613,7 @@ function pmfSetLocation(loc){
   var ml=document.getElementById('pmf-maplink'); if(ml && loc.maps_url){ ml.href=loc.maps_url; ml.style.display='inline-flex'; }
 }
 window.FFPLocPick = (function(){
-  var map=null, cb=null, cur=null, searchT=null, geoT=null, results=[], sessTok=null;
+  var map=null, cb=null, cur=null, searchT=null, geoT=null, results=[], sessTok=null, pickLock=false;
   function esc(s){ return (window.escHtml?escHtml(s):String(s==null?'':s)); }
   // Google Places billing session: one token spans a search→details cycle (autocomplete is then free).
   function newSess(){ try{ sessTok=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():(String(Date.now())+Math.random().toString(16).slice(2)); }catch(e){ sessTok=String(Date.now()); } }
@@ -8591,6 +8623,8 @@ window.FFPLocPick = (function(){
     map=L.map(el,{zoomControl:true,attributionControl:false}).setView([25.2048,55.2708],11);
     (window.ffpVectorBasemap?ffpVectorBasemap:function(m){L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19}).addTo(m);})(map);
     map.on('moveend', schedReverse);
+    // A deliberate DRAG by the member is a real re-pick → allow the reverse-geocode to rename the spot again.
+    map.on('dragstart', function(){ pickLock=false; });
   }
   function open(callback){
     cb=callback||null; cur=null; newSess();
@@ -8603,7 +8637,12 @@ window.FFPLocPick = (function(){
   function close(){ var bk=document.getElementById('loc-pick-backdrop'); if(bk) bk.classList.remove('open'); }
   function schedReverse(){ clearTimeout(geoT); geoT=setTimeout(reverseCenter, 450); }
   function reverseCenter(){
-    if(!map) return; var c=map.getCenter(); cur={lat:c.lat,lng:c.lng,name:null};
+    if(!map) return;
+    // Build 534: if the member just PICKED a search result, don't let the recenter's moveend reverse-geocode
+    // overwrite it (the reverse of a POI's exact coords often returns a different nearby business — e.g. picked
+    // "Rose Park Hotel" got renamed "InsuranceMarket…"). Keep the picked place; clears on the next real drag.
+    if(pickLock){ pickLock=false; return; }
+    var c=map.getCenter(); cur={lat:c.lat,lng:c.lng,name:null};
     var ch=document.getElementById('lp-chosen'); if(ch) ch.textContent='Naming this spot…';
     // Build 528: resolve the dropped pin (and one-tap GPS) through Google via the backend — the SAME source as
     // the search box, so venue name + city match everywhere and the world map clusters by the REAL city
@@ -8665,6 +8704,7 @@ window.FFPLocPick = (function(){
       var _label=_nm+((_mark && _mark.toLowerCase()!==_nm.toLowerCase())?(', '+_mark):'');
       cur={ lat:Number(j.lat), lng:Number(j.lng), name:_label||_nm, maps_url:j.maps_url||'', place_id:j.place_id||it.place_id||'',
             city:cmp.city||'', region:cmp.region||'', area:cmp.area||'', country:cmp.country||'', country_code:cmp.country_code||'' };
+      pickLock=true;   // Build 534: hold this picked place — the recenter's moveend must NOT reverse-geocode over it
       if(map) map.setView([cur.lat,cur.lng],16);
       if(ch) ch.textContent=cur.name;
       newSess();   // session consumed by the details call; next search starts a fresh one
