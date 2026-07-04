@@ -1117,8 +1117,12 @@
     var _icon = (window.ffpActivityIcon ? window.ffpActivityIcon(l.activity) : 'fitness_center');
     var _np = (l.photos && l.photos.length) ? l.photos.length : (l.photo_url ? 1 : 0);
     var _badge = _np > 1 ? '<span style="position:absolute;right:2px;bottom:2px;background:rgba(8,20,32,0.78);color:#fff;font-size:8.5px;font-weight:800;padding:1px 4px;border-radius:5px;display:flex;align-items:center;gap:2px;line-height:1;"><span class="material-icons" style="font-size:9px;">photo_library</span>' + _np + '</span>' : '';
+    // Recent-list thumbnails are a fixed 46px box — pull a small resized WebP via the image optimizer instead of
+    // the full-size original (was multi-MB each → the >1s "Recent Activity" load). Optimizer floors at 640 (never
+    // upscales, so no blur) and the service-worker photo cache makes repeat opens instant. No-op for non-Supabase URLs.
+    var _thumb = l.photo_url ? ((window.ffpImg ? window.ffpImg(l.photo_url, 96) : l.photo_url)) : '';
     var photo = l.photo_url
-      ? '<div style="position:relative;width:46px;height:46px;border-radius:10px;flex:0 0 auto;background:#13324a center/cover no-repeat;background-image:url(\'' + l.photo_url + '\');">' + _badge + '</div>'
+      ? '<div style="position:relative;width:46px;height:46px;border-radius:10px;flex:0 0 auto;background:#13324a center/cover no-repeat;background-image:url(\'' + _thumb + '\');">' + _badge + '</div>'
       : '<div style="width:46px;height:46px;border-radius:10px;flex:0 0 auto;background:rgba(43,168,224,0.12);display:flex;align-items:center;justify-content:center;color:#2ba8e0;"><span class="material-icons" style="font-size:22px;">' + _icon + '</span></div>';
     var shareIcon = l.shared ? '<span class="material-icons" title="Shared with your connections" style="font-size:13px;color:#2ba8e0;vertical-align:-2px;">group</span> ' : '';
     var editBtn = l.id ? ('<button type="button" onclick="event.stopPropagation();window.ffpEditActivity&&window.ffpEditActivity(\'' + l.id + '\')" title="Edit activity" aria-label="Edit activity" style="background:none;border:none;color:var(--muted,#8a99a8);cursor:pointer;padding:2px;display:inline-flex;align-items:center;line-height:1;"><span class="material-icons" style="font-size:17px;">edit</span></button>') : '';
