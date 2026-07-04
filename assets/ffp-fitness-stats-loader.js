@@ -1736,8 +1736,35 @@
           FitnessStats.wearableDaily = (dj && dj.days) || [];
         } catch (e) { FitnessStats.wearableDaily = []; }
       })();
-      await Promise.all([_profP, _logsP, _dailyP]);
+      // PERF (Build 533): seed the Recent list from the dashboard's already-loaded window.LOGS (OWN logs only —
+      // partner-tagged rows aren't in the /activity-logs cache, so filtering them keeps the seed == fetch set, no
+      // flash) so it shows INSTANTLY, then PAINT after only the fast profile RPC. The activity-logs re-fetch
+      // (_logsP) and the wearables/daily call (_dailyP, external API) no longer BLOCK the first paint — each
+      // refreshes its own section when it lands, exactly like the ranking pool already does.
+      try {
+        if (!activityCache.length && Array.isArray(window.LOGS) && window.LOGS.length) {
+          activityCache = window.LOGS.filter(function (l) { return l && !l.partner; }).map(function (l) {
+            return { id: l.id, activity: l.activity || '', duration_min: l.duration || 0, duration_sec: l.durationSec || 0,
+              calories: l.calories || 0, distance_km: (l.distance_km != null ? Number(l.distance_km) : null),
+              avg_heart_rate: (l.metrics && l.metrics.avg_hr != null ? Number(l.metrics.avg_hr) : null), notes: l.notes || '',
+              city: l.city || '', country: l.country || '', venue: l.venue || '',
+              checkin_lat: (l.lat != null ? Number(l.lat) : null), checkin_lng: (l.lng != null ? Number(l.lng) : null),
+              photo_url: l.photo_url || '', photos: (l.photos && l.photos.length) ? l.photos : (l.photo_url ? [l.photo_url] : []),
+              shared: !!l.shared, logged_at: l.logged_at || null,
+              daysAgo: (l.daysAgo != null ? l.daysAgo : daysAgoFromIso(l.logged_at)) };
+          });
+        }
+      } catch (e) {}
 
+      await _profP;              // records for the default Bio tab — a fast SECURITY DEFINER RPC
+      FitnessStats.ranks = {};   // old percentile pills no longer used (leaderboard replaces them)
+      var panel = document.getElementById('panel-fitness-stats');
+      function _fsRender() { if (panel && panel.classList.contains('active') && typeof FitnessStats.render === 'function') FitnessStats.render(); }
+      _fsRender();               // FIRST PAINT — records + activity (seeded from window.LOGS) show immediately
+      _poolP.then(_fsRender);    // ranking pool → Records leaderboard fills when it lands
+      _logsP.then(_fsRender);    // authoritative activity_logs landed → refresh (fills any HR/metrics fields)
+
+      await _dailyP;             // the panel is already visible; NOW fold in wearables when the external call returns
       // WHOOP: auto-fill the Sleep Tracker with synced nights (manual logs win) + render the recovery/strain card.
       try {
         var _wd = FitnessStats.wearableDaily || [];
@@ -1781,13 +1808,7 @@
         } else if (_wh) { _wh.innerHTML = ''; }
       } catch (e) { console.error('[FFP Fitness Stats] wearable merge:', e); }
 
-      // Old percentile pills no longer used (leaderboard replaces them)
-      FitnessStats.ranks = {};
-
-      var panel = document.getElementById('panel-fitness-stats');
-      function _fsRender() { if (panel && panel.classList.contains('active') && typeof FitnessStats.render === 'function') FitnessStats.render(); }
-      _fsRender();
-      _poolP.then(_fsRender);   // ranking pool arrived → refresh so the Records leaderboard populates
+      _fsRender();   // wearables merged → reflect WHOOP recovery / HRV / RestingHR (panel already painted above)
 
       console.log('[FFP Fitness Stats v15.1] Loaded \u2713 (writes wrapped: ' + wrapped + ', ' + activityCache.length + ' activities, ' + rankingPool.length + ' members in pool)');
     } catch (err) {
