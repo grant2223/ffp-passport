@@ -120,6 +120,7 @@ var FitnessStats = {
     bodyFat:     { name: 'Body Fat',    icon: 'monitor_weight', type: 'decimal', unit: '%',      step: 0.5, max: 60,  group: 'health' },
     visceralFat: { name: 'Visceral Fat',icon: 'medical_information', type: 'kg', unit: 'rating', step: 1,   max: 30,  group: 'health' },
     restingHR:   { name: 'Resting HR',  icon: 'monitor_heart', type: 'kg',      unit: 'bpm', step: 1,   max: 220, group: 'health' },
+    maxHR:       { name: 'Max HR',      icon: 'cardiology',    type: 'kg',      unit: 'bpm', step: 1,   max: 230, group: 'health' },
     hrv:         { name: 'HRV (RMSSD)', icon: 'vital_signs',   type: 'kg',      unit: 'ms',  step: 1,   max: 250, group: 'health' },
     grip:        { name: 'Grip Strength',icon: 'pan_tool',     type: 'decimal', unit: 'kg',  step: 1,   max: 120, group: 'health' },
     muscleMass:  { name: 'Muscle Mass', icon: 'fitness_center', type: 'decimal', unit: 'kg',  step: 0.5, max: 80,  group: 'health' },
@@ -447,6 +448,7 @@ var FitnessStats = {
       { key: 'bodyFat',     drv: 'bf',    name: 'Body Fat',      icon: 'monitor_weight' },
       { key: 'visceralFat', drv: 'vf',    name: 'Visceral Fat',  icon: 'medical_information' },
       { key: 'restingHR',   drv: 'rhr',   name: 'Resting HR',    icon: 'monitor_heart' },
+      { key: 'maxHR',       drv: null,    name: 'Max HR',        icon: 'cardiology' },
       { key: 'hrv',         drv: 'hrv',   name: 'HRV',           icon: 'graphic_eq' },
       { key: 'grip',        drv: 'grip',  name: 'Grip Strength', icon: 'pan_tool' },
       { key: 'muscleMass',  drv: 'mm',    name: 'Muscle Mass',   icon: 'fitness_center' },
@@ -465,6 +467,8 @@ var FitnessStats = {
         : '';
       let valueText = hasVal ? `${rec.value} ${escHtml(def.unit || '')}` : 'Tap to add';
       if (h.key === 'muscleMass' && hasVal && drv && drv.smi != null) valueText = `${rec.value} kg · ${drv.smi} kg/m²`;
+      // Max HR: never "Tap to add" — it defaults to 220 − age (editable). Flag the estimate until the member sets their own.
+      if (h.key === 'maxHR' && hasVal && rec.estimated) valueText = `${rec.value} bpm · est. (220 − age)`;
       return `
         <div class="bio-driver ${cls}${hasVal ? '' : ' empty'}" onclick="FitnessStats.openPrEdit('${h.key}')">
           <div class="bio-driver-icon"><span class="material-icons">${h.icon}</span></div>
@@ -473,7 +477,7 @@ var FitnessStats = {
             <div class="bio-driver-detail">${valueText}</div>
           </div>
           ${deltaTxt ? `<div class="bio-driver-delta ${cls}">${deltaTxt}</div>` : ''}
-          <button class="bio-driver-lb" onclick="event.stopPropagation(); if(window.ffpShowLeaderboard) window.ffpShowLeaderboard('${h.key}');" aria-label="Leaderboard"><span class="material-icons">leaderboard</span></button>
+          ${h.key === 'maxHR' ? '' : `<button class="bio-driver-lb" onclick="event.stopPropagation(); if(window.ffpShowLeaderboard) window.ffpShowLeaderboard('${h.key}');" aria-label="Leaderboard"><span class="material-icons">leaderboard</span></button>`}
         </div>
       `;
     }).join('');
@@ -755,10 +759,18 @@ var FitnessStats = {
     bench1RM:'pr_bench_kg', squat1RM:'pr_squat_kg', deadlift1RM:'pr_deadlift_kg',
     run5K:'pr_5k_seconds', run10K:'pr_10k_seconds', run21K:'pr_21k_seconds', runMara:'pr_marathon_sec', swim1K:'pr_swim1k_sec',
     bronco:'pr_bronco_sec', beepTest:'beep_test_level',
-    vo2max:'vo2_max', bodyFat:'body_fat_pct', visceralFat:'visceral_fat', restingHR:'resting_hr', hrv:'hrv_ms',
+    vo2max:'vo2_max', bodyFat:'body_fat_pct', visceralFat:'visceral_fat', restingHR:'resting_hr', maxHR:'max_hr', hrv:'hrv_ms',
     grip:'grip_strength_kg', muscleMass:'muscle_mass_kg', waist:'waist_cm', weight:'current_weight_kg'
   },
-  _prInt: { run5K:1, run10K:1, run21K:1, runMara:1, swim1K:1, bronco:1, restingHR:1, hrv:1, visceralFat:1 },
+  _prInt: { run5K:1, run10K:1, run21K:1, runMara:1, swim1K:1, bronco:1, restingHR:1, maxHR:1, hrv:1, visceralFat:1 },
+  // Member Max HR: their SET value if any, else the 220 − age estimate. Single source for all HR-zone maths.
+  getMaxHR() {
+    var r = this.records && this.records.maxHR;
+    if (r && r.value != null && Number(r.value) > 0 && !r.estimated) return Number(r.value);
+    if (r && r.value != null && Number(r.value) > 0) return Number(r.value);   // estimate stored as a record
+    var age = (this.profile && this.profile.chronAge) || 0;
+    return age > 0 ? (220 - age) : 190;
+  },
   _saveMeta(patch, prKey, prDate) {
     try {
       var m = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null;
@@ -888,3 +900,31 @@ var FitnessStats = {
   }
 };
 window.FitnessStats = FitnessStats;
+
+// ── Global HR-zone helpers ─────────────────────────────────────────────────────────────────────
+// Used by the activity card + share card (which live in the dashboard, outside this module) so zone
+// bpm ranges are computed ONE way everywhere. Model = % of Max HR (Garmin's default 5-zone scheme).
+// Max HR = the member's SET value (Fitness Stats › Bio Age) if any, else 220 − age from their DOB.
+window.ffpMemberMaxHR = function () {
+  try {
+    var fs = window.FitnessStats;
+    if (fs && fs.records && fs.records.maxHR && Number(fs.records.maxHR.value) > 0 && !fs.records.maxHR.estimated) return Number(fs.records.maxHR.value);
+    var m = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null;
+    var age = 0;
+    if (m && m.date_of_birth) { var d = new Date(m.date_of_birth); if (!isNaN(d)) { var t = new Date(); age = t.getFullYear() - d.getFullYear(); var mo = t.getMonth() - d.getMonth(); if (mo < 0 || (mo === 0 && t.getDate() < d.getDate())) age--; } }
+    if (!age && fs && fs.profile && fs.profile.chronAge) age = fs.profile.chronAge;
+    return age > 0 ? (220 - age) : 190;
+  } catch (e) { return 190; }
+};
+window.ffpHrZones = function (maxHR) {
+  var mx = Number(maxHR != null ? maxHR : (window.ffpMemberMaxHR ? window.ffpMemberMaxHR() : 0));
+  if (!mx || mx <= 0) return null;
+  function b(p) { return Math.round(mx * p); }
+  return [
+    { z: 1, name: 'Warm Up',   lo: b(0.50), hi: b(0.60), color: '#3aa0e6' },
+    { z: 2, name: 'Easy',      lo: b(0.60), hi: b(0.70), color: '#16a34a' },
+    { z: 3, name: 'Aerobic',   lo: b(0.70), hi: b(0.80), color: '#eab308' },
+    { z: 4, name: 'Threshold', lo: b(0.80), hi: b(0.90), color: '#f59e0b' },
+    { z: 5, name: 'Maximum',   lo: b(0.90), hi: mx,      color: '#dc2626' }
+  ];
+};
