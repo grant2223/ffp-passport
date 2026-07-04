@@ -569,7 +569,8 @@ window.Quests = {
       var medal = i === 0 ? '#f4d77a' : i === 1 ? '#c8d2dc' : i === 2 ? '#d8a06a' : '#7d8b99';
       var av = b.photo ? '<img src="' + b.photo + '" alt="" class="q-lb-av">' : '<div class="q-lb-av q-lb-ph">' + escHtml((b.name || 'M').charAt(0).toUpperCase()) + '</div>';
       var loc = [b.city, b.country].filter(Boolean).join(' · ');
-      return '<div class="q-lb-row' + (me ? ' me' : '') + '">' +
+      var nmEsc = String(b.name || 'Member').replace(/['"\\<>]/g, '');
+      return '<div class="q-lb-row' + (me ? ' me' : '') + '" style="cursor:pointer;" onclick="Quests.openMemberBreakdown(\'' + b.member_id + '\',\'' + nmEsc + '\')">' +
         '<div class="q-lb-rank" style="color:' + medal + ';">' + (i + 1) + '</div>' + av +
         '<div class="q-lb-meta"><div class="q-lb-name">' + escHtml(b.name || 'Member') + (me ? ' • you' : '') + '</div>' +
         (loc ? '<div class="q-lb-loc">' + escHtml(loc) + '</div>' : '') + '</div>' +
@@ -594,6 +595,37 @@ window.Quests = {
       '</div>';
     }).join('');
   },
+
+  // Tap a leaderboard strap → modal showing where THAT member's quest points came from (same RPC + rows as your own
+  // breakdown; member_quest_points_breakdown is SECURITY DEFINER so it computes for any member for this quest).
+  async openMemberBreakdown(memberId, name) {
+    if (!memberId || !this._openQuest) return;
+    var ov = document.createElement('div'); ov.id = 'q-bd-ov'; ov.className = 'q-ways-ov';
+    ov.innerHTML = '<div class="q-we-wrap"><div class="q-we-head"><span>' + escHtml(name || 'Member') + ' · where points came from</span>' +
+      '<button class="q-we-x" onclick="Quests.closeMemberBreakdown()" aria-label="Close"><span class="material-icons">close</span></button></div>' +
+      '<div class="q-we-list" id="q-bd-modal-list"><div class="q-board-empty">Loading…</div></div></div>';
+    ov.addEventListener('click', function (e) { if (e.target === ov) Quests.closeMemberBreakdown(); });
+    document.body.appendChild(ov);
+    var rows = [];
+    try { var r = await window.supabase.rpc('member_quest_points_breakdown', { p_me: memberId, p_quest: this._openQuest }); rows = (r && r.data) ? r.data : []; } catch (e) {}
+    var list = document.getElementById('q-bd-modal-list'); if (!list) return;
+    var earned = rows.filter(function (x) { return (Number(x.points) || 0) > 0; });
+    if (!earned.length) { list.innerHTML = '<div class="q-board-empty">No points yet.</div>'; return; }
+    var total = earned.reduce(function (s, x) { return s + (Number(x.points) || 0); }, 0);
+    list.innerHTML = earned.map(function (x) {
+      return '<div class="q-bd-row">' +
+        '<span class="material-icons q-bd-ic">' + escHtml(x.icon || 'bolt') + '</span>' +
+        '<div class="q-bd-meta"><div class="q-bd-name">' + escHtml(x.label) + '</div>' +
+          '<div class="q-bd-sub">' + (Number(x.count) || 0) + ' × ' + x.points_each + ' pts</div></div>' +
+        '<div class="q-bd-pts">' + x.points + '</div>' +
+      '</div>';
+    }).join('') + '<div class="q-bd-row" style="background:rgba(43,168,224,.12);border-color:#2ba8e0;">' +
+      '<span class="material-icons q-bd-ic">emoji_events</span>' +
+      '<div class="q-bd-meta"><div class="q-bd-name">Total</div></div>' +
+      '<div class="q-bd-pts">' + total + '</div></div>';
+  },
+  closeMemberBreakdown() { var o = document.getElementById('q-bd-ov'); if (o) o.remove(); },
+
   // "Ways to earn points" modal — the tasks list for a points-race quest
   openWaysToEarn() {
     var d = this._openData; if (!d) return;
