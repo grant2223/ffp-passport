@@ -595,7 +595,7 @@ const MeetMove = {
         </div>
       </div>
       <div class="dm-footer">
-        ${u.connection === 'connected' ? '<button class="btn-primary-blue" disabled style="opacity:.7;">\u2713 Connected</button>' : (u.connection === 'requested' ? '<button class="btn-primary-yellow" disabled style="opacity:.6;">Added ✓</button>' : `<button class="btn-primary-yellow" onclick="MeetMove.requestConnect('${u.id}')">Add passport</button>`)}
+        ${u.connection === 'connected' ? '<button class="btn-primary-blue" disabled style="opacity:.7;">\u2713 Connected</button><button onclick="MeetMove.removeConnection(\'' + u.id + '\')" style="margin-left:8px;background:rgba(214,90,90,0.12);color:#d65a5a;border:1px solid rgba(214,90,90,0.4);border-radius:10px;padding:12px 16px;font-weight:700;cursor:pointer;font-family:inherit;">Remove</button>' : (u.connection === 'requested' ? '<button class="btn-primary-yellow" disabled style="opacity:.6;">Added ✓</button>' : `<button class="btn-primary-yellow" onclick="MeetMove.requestConnect('${u.id}')">Add passport</button>`)}
         <div class="dm-footer-note">Connecting adds them to your circle — your meet-ups will reach them.</div>
       </div>
     `;
@@ -628,7 +628,26 @@ const MeetMove = {
     } catch (e) { showToast('Could not send request — try again'); }
     closeDetailModal();
   },
-  
+
+  // Remove / unfollow an existing connection (from the View Passport modal). Confirms first, then the same
+  // member_connection_remove RPC used by the collection, then refreshes the strip + dashboard connections.
+  async removeConnection(uid) {
+    const u = this.matches.find(x => x.id === uid);
+    const member = (window.FFPAuth && window.FFPAuth.getMember && window.FFPAuth.getMember()) || null;
+    if (!member || !window.supabase) { closeDetailModal(); return; }
+    var nm = (u && u.name) ? u.name.split(' ')[0] : 'this person';
+    if (!window.confirm('Remove ' + nm + ' from your connections? Your meet-ups will no longer reach them.')) return;
+    try {
+      var res = await window.supabase.rpc('member_connection_remove', { p_me: member.id, p_other: uid });
+      if (res && res.error) throw res.error;
+      if (u) u.connection = 'none';
+      if (window.showToast) showToast('Removed ' + nm);
+      closeDetailModal();
+      try { this.renderMatchStrip(); } catch (e) {}
+      try { if (window.ffpRefreshLive) window.ffpRefreshLive(true); } catch (e) {}
+    } catch (e) { if (window.showToast) showToast('Couldn’t remove — try again', 'error'); }
+  },
+
   openMatchesGrid() {
     var mk = function (m) {
       return `<div class="match-card" style="flex:auto;" onclick="closeDetailModal(); setTimeout(() => MeetMove.openMemberDetail('${m.id}'), 100);">
