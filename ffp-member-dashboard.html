@@ -1,4 +1,8 @@
-<!-- FFP MEMBER DASHBOARD — Build 537 · 2026-07-04
+<!-- FFP MEMBER DASHBOARD — Build 538 · 2026-07-04
+     Build 538 (2026-07-04): COMMUNITY · View Passport modal now has a REMOVE / unfollow option for existing
+     connections (assets/ffp-connections-core.js?v=360→361: MeetMove.removeConnection → confirm() → existing
+     member_connection_remove RPC → refresh strip + ffpRefreshLive). Built in the connections MODULE, not inline.
+     FFP_BUILD 537→538.
      Build 537 (2026-07-04): ACTIVITY CARD → TWO TABS (Stats | Comments) + COMMENTS with likeable comments.
      Card body split into #ffp-panel-stats (default: ribbon/zones/map/partners/notes/actions) and #ffp-panel-comments
      (thread + input), toggled by ffpActTab. Comments = new DB (activity_comments, comment_likes) + RPCs
@@ -4457,7 +4461,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '537';
+  const FFP_BUILD = '538';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -8456,7 +8460,7 @@ else init();
 .ffp-deck-flash{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(8,20,32,0.66); opacity:0; transition:opacity .2s; z-index:30; }
 .ffp-deck-flash.show{ opacity:1; }
 </style>
-<script src="assets/ffp-connections-core.js?v=360"></script>
+<script src="assets/ffp-connections-core.js?v=361"></script>
 <script src="assets/ffp-streak-loader.js?v=1"></script>
 <script defer src="assets/ffp-coach-loader.js?v=521"></script>
 <script defer src="assets/ffp-connections-feed-loader.js?v=338"></script>
