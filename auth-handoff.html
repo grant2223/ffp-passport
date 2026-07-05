@@ -55,8 +55,8 @@
 
   // Same-origin path only (defend against open-redirect via the `next` param).
   function safeNext(n) {
-    if (!n || typeof n !== 'string') return '/ffp-provider-dashboard.html';
-    if (n.charAt(0) !== '/' || n.charAt(1) === '/' || n.indexOf('\\') !== -1) return '/ffp-provider-dashboard.html';
+    if (!n || typeof n !== 'string') return 'https://partner.findfitpeople.com/';
+    if (n.charAt(0) !== '/' || n.charAt(1) === '/' || n.indexOf('\\') !== -1) return 'https://partner.findfitpeople.com/';
     return n;
   }
 
