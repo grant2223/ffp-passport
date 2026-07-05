@@ -1,4 +1,10 @@
-<!-- FFP MEMBER DASHBOARD — Build 536 · 2026-07-04
+<!-- FFP MEMBER DASHBOARD — Build 537 · 2026-07-04
+     Build 537 (2026-07-04): ACTIVITY CARD → TWO TABS (Stats | Comments) + COMMENTS with likeable comments.
+     Card body split into #ffp-panel-stats (default: ribbon/zones/map/partners/notes/actions) and #ffp-panel-comments
+     (thread + input), toggled by ffpActTab. Comments = new DB (activity_comments, comment_likes) + RPCs
+     member_activity_comments / _comment_activity / _delete_comment / _like_comment (LIVE on Supabase, no backend
+     deploy needed). Owner gets a bell on new comments; comment authors get a bell on likes. Permission mirrors the
+     high-five: owner OR a connection on a SHARED activity. FFP_BUILD 536→537.
      Build 536 (2026-07-04): QUEST LEADERBOARD — tap any person's strap to see WHERE THEIR POINTS CAME FROM.
      assets/ffp-quests-core.js?v=17→18: leaderboard rows now clickable → `Quests.openMemberBreakdown(member_id,name)`
      modal (reuses member_quest_points_breakdown RPC + the existing q-bd-row markup + q-ways-ov overlay), with a Total
@@ -4451,7 +4457,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '536';
+  const FFP_BUILD = '537';
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
     'panel-workout':         'assets/ffp-workout-loader.js',
@@ -7260,7 +7266,27 @@ window.ffpRenderActivityCard = function (a, isOwn) {
       }
     }
   } catch (e) {}
-  var body = ownerRow + ribbon + hrZones + mapBlock + partnersBlock + notesBlock + actions;
+  // Build 537: activity card = two TABS (Stats | Comments). Stats (default) = all the activity info + actions;
+  // Comments = the thread + input (loads async; post/like guarded by RPCs; owner + comment authors get bells).
+  var statsInner = ribbon + hrZones + mapBlock + partnersBlock + notesBlock + actions;
+  var commentsInner = a.id ? ('<div style="padding:18px 18px 0;">' +
+    '<div id="ffp-act-comments" style="display:flex;flex-direction:column;gap:16px;"><div style="font-size:12.5px;color:#8a99a8;">Loading…</div></div>' +
+    '<div style="display:flex;gap:8px;margin-top:16px;align-items:flex-end;padding-bottom:8px;">' +
+      '<textarea id="ffp-act-comment-input" rows="1" placeholder="Add a comment…" style="flex:1;resize:none;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:11px 13px;color:#e8eef4;font-size:15px;font-family:inherit;outline:none;max-height:120px;"></textarea>' +
+      '<button onclick="window.ffpPostActivityComment&&window.ffpPostActivityComment(\'' + a.id + '\')" aria-label="Post comment" style="flex:0 0 auto;width:44px;height:44px;border-radius:12px;border:none;background:#2ba8e0;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;"><span class="material-icons" style="font-size:20px;">send</span></button>' +
+    '</div></div>') : '';
+  var body;
+  if (a.id) {
+    var tabBar = '<div style="display:flex;margin:0 18px;border-bottom:1px solid rgba(255,255,255,0.10);">' +
+      '<div id="ffp-tab-stats" onclick="window.ffpActTab&&ffpActTab(\'stats\')" style="flex:1;text-align:center;padding:13px 0;font-size:13px;font-weight:800;color:#2ba8e0;border-bottom:2px solid #2ba8e0;margin-bottom:-1px;cursor:pointer;">Stats</div>' +
+      '<div id="ffp-tab-comments" onclick="window.ffpActTab&&ffpActTab(\'comments\')" style="flex:1;text-align:center;padding:13px 0;font-size:13px;font-weight:800;color:#8a99a8;cursor:pointer;">Comments <span id="ffp-tab-comments-ct" style="font-size:11px;color:#8a99a8;font-weight:700;"></span></div>' +
+      '</div>';
+    body = ownerRow + tabBar +
+      '<div id="ffp-panel-stats">' + statsInner + '</div>' +
+      '<div id="ffp-panel-comments" style="display:none;">' + commentsInner + '</div>';
+  } else {
+    body = ownerRow + statsInner;
+  }
 
   ffpCloseActivityCard();
   var ov = document.createElement('div'); ov.id = 'ffp-act-card-ov';
@@ -7270,6 +7296,7 @@ window.ffpRenderActivityCard = function (a, isOwn) {
     '<div style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;">' + hero + body + '</div>';
   document.body.appendChild(ov);
   document.body.style.overflow = 'hidden';
+  if (a.id && window.ffpLoadActivityComments) { try { ffpLoadActivityComments(a.id); } catch (e) {} }   // Build 537
   // Hero gallery — update the 1/N counter as the member swipes the x-axis strip.
   if (_multi) {
     var _sc = ov.querySelector('.ffp-act-hero-scroll');
@@ -7689,6 +7716,81 @@ window.ffpToggleActivityLike = async function (id) {
     }
     if (window._ffpActCard) { window._ffpActCard.i_liked = d.liked; window._ffpActCard.like_count = d.count; }
   } catch (e) { if (btn) btn.disabled = false; if (typeof showToast === 'function') showToast('Could not like that', 'error'); }
+};
+// ── Build 537: ACTIVITY COMMENTS (member_activity_comments / _comment_activity / _delete_comment) ──
+function _ffpCommentRow(c) {
+  var esc = window.escHtml || function (s) { return String(s == null ? '' : s); };
+  var when = ''; try { when = c.created_at ? new Date(c.created_at).toLocaleDateString([], { day: 'numeric', month: 'short' }) : ''; } catch (e) {}
+  var av = c.photo
+    ? '<div style="width:34px;height:34px;border-radius:50%;flex:0 0 auto;background:#13324a center/cover no-repeat;background-image:url(\'' + esc(c.photo) + '\');"></div>'
+    : '<div style="width:34px;height:34px;border-radius:50%;flex:0 0 auto;background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;">' + esc((c.name || 'M').charAt(0).toUpperCase()) + '</div>';
+  var del = c.can_delete ? ('<button onclick="window.ffpDeleteActivityComment&&window.ffpDeleteActivityComment(\'' + c.id + '\')" aria-label="Delete comment" style="flex:0 0 auto;background:none;border:none;color:#5a7186;cursor:pointer;padding:2px;"><span class="material-icons" style="font-size:16px;">close</span></button>') : '';
+  var _lc = c.like_count || 0, _il = !!c.i_liked;
+  var heart = '<button onclick="window.ffpToggleCommentLike&&window.ffpToggleCommentLike(\'' + c.id + '\')" aria-label="Like comment" data-cid="' + c.id + '" style="flex:0 0 auto;background:none;border:none;cursor:pointer;padding:2px 0 2px 4px;display:flex;flex-direction:column;align-items:center;color:' + (_il ? '#e24b6a' : '#5a7186') + ';"><span class="material-icons ffp-cl-ic" style="font-size:16px;">' + (_il ? 'favorite' : 'favorite_border') + '</span><span class="ffp-cl-ct" style="font-size:10px;font-weight:800;min-height:11px;line-height:11px;">' + (_lc > 0 ? _lc : '') + '</span></button>';
+  return '<div style="display:flex;gap:10px;align-items:flex-start;">' + av +
+    '<div style="flex:1;min-width:0;"><div style="display:flex;align-items:baseline;gap:8px;"><span style="font-size:13px;font-weight:800;color:#e8eef4;">' + esc(c.name || 'Member') + '</span>' + (when ? '<span style="font-size:10.5px;color:#8a99a8;">' + esc(when) + '</span>' : '') + '</div>' +
+    '<div style="font-size:13.5px;color:#dfeaf3;line-height:1.5;margin-top:2px;white-space:pre-wrap;word-break:break-word;">' + esc(c.body || '') + '</div></div>' + heart + del + '</div>';
+}
+window.ffpLoadActivityComments = async function (id) {
+  var host = document.getElementById('ffp-act-comments'); if (!host || !window.supabase) return;
+  try {
+    var me = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || {};
+    var r = await window.supabase.rpc('member_activity_comments', { p_viewer: me.id || null, p_id: id });
+    var rows = (r && r.data && !r.data.error) ? r.data : [];
+    host.innerHTML = rows.length ? rows.map(_ffpCommentRow).join('') : '<div style="font-size:12.5px;color:#8a99a8;">No comments yet — be the first.</div>';
+    var _ct = document.getElementById('ffp-tab-comments-ct'); if (_ct) _ct.textContent = rows.length ? rows.length : '';
+  } catch (e) {}
+};
+// Switch the activity-card tabs (Stats is the default; Comments on demand).
+window.ffpActTab = function (which) {
+  var isC = (which === 'comments');
+  var sp = document.getElementById('ffp-panel-stats'), cp = document.getElementById('ffp-panel-comments');
+  var ts = document.getElementById('ffp-tab-stats'), tc = document.getElementById('ffp-tab-comments');
+  if (sp) sp.style.display = isC ? 'none' : '';
+  if (cp) cp.style.display = isC ? '' : 'none';
+  if (ts) { ts.style.color = isC ? '#8a99a8' : '#2ba8e0'; ts.style.borderBottom = isC ? 'none' : '2px solid #2ba8e0'; ts.style.marginBottom = isC ? '0' : '-1px'; }
+  if (tc) { tc.style.color = isC ? '#2ba8e0' : '#8a99a8'; tc.style.borderBottom = isC ? '2px solid #2ba8e0' : 'none'; tc.style.marginBottom = isC ? '-1px' : '0'; }
+};
+// Toggle a like on a comment — updates the heart inline; the RPC pings the comment author.
+window.ffpToggleCommentLike = async function (cid) {
+  if (!cid || !window.supabase) return;
+  var btn = document.querySelector('#ffp-act-comments button[data-cid="' + cid + '"]');
+  try {
+    var me = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || {}; if (!me.id) { if (window.showToast) showToast('Sign in to like', 'error'); return; }
+    var r = await window.supabase.rpc('member_like_comment', { p_me: me.id, p_comment: cid });
+    var d = r && r.data;
+    if (!d || d.error) { if (window.showToast) showToast('Couldn’t like that', 'error'); return; }
+    if (btn) {
+      btn.style.color = d.liked ? '#e24b6a' : '#5a7186';
+      var ic = btn.querySelector('.ffp-cl-ic'); if (ic) ic.textContent = d.liked ? 'favorite' : 'favorite_border';
+      var ct = btn.querySelector('.ffp-cl-ct'); if (ct) ct.textContent = (d.count > 0 ? d.count : '');
+    }
+  } catch (e) {}
+};
+window.ffpPostActivityComment = async function (id) {
+  var inp = document.getElementById('ffp-act-comment-input'); if (!inp) return;
+  var body = (inp.value || '').trim(); if (!body) return;
+  try {
+    var me = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || {};
+    if (!me.id) { if (window.showToast) showToast('Sign in to comment', 'error'); return; }
+    inp.disabled = true;
+    var r = await window.supabase.rpc('member_comment_activity', { p_me: me.id, p_id: id, p_body: body });
+    var d = r && r.data; inp.disabled = false;
+    if (!d || d.error) { if (window.showToast) showToast(d && d.error === 'not_allowed' ? 'Only connections can comment' : 'Couldn’t post comment', 'error'); return; }
+    inp.value = '';
+    await window.ffpLoadActivityComments(id);
+    var host = document.getElementById('ffp-act-comments'); if (host && host.lastElementChild && host.lastElementChild.scrollIntoView) host.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } catch (e) { inp.disabled = false; }
+};
+window.ffpDeleteActivityComment = async function (cid) {
+  if (!cid || !window.supabase) return;
+  try {
+    var me = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || {}; if (!me.id) return;
+    var r = await window.supabase.rpc('member_delete_comment', { p_me: me.id, p_comment: cid });
+    var d = r && r.data;
+    if (d && d.error) { if (window.showToast) showToast('Couldn’t remove comment', 'error'); return; }
+    var a = window._ffpActCard || {}; if (a.id) await window.ffpLoadActivityComments(a.id);
+  } catch (e) {}
 };
 // Deep-linked shared activity (notification tap → ?activity=<id>) → fetch via RPC, then render the card.
 window.ffpViewSharedActivity = async function (id) {
