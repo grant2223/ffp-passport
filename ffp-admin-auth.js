@@ -62,7 +62,7 @@
     var role = String(m.role || '').toLowerCase();
     if (role !== 'admin' && role !== 'super_admin' && role !== 'super') {
       console.warn('[FFP Admin Auth v7] role="' + m.role + '" is not admin — redirecting');
-      location.href = (role === 'provider') ? '/ffp-provider-dashboard.html' : '/ffp-member-dashboard.html';
+      location.href = (role === 'provider') ? 'https://partner.findfitpeople.com/' : '/ffp-member-dashboard.html';
       return;
     }
 
