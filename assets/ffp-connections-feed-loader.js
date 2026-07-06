@@ -36,6 +36,10 @@
       '.cf-strap-txt{flex:1;min-width:0;}',
       '.cf-strap-t{font-size:14px;font-weight:800;color:var(--text,#e8eef4);}',
       '.cf-strap-s{font-size:11px;color:var(--muted,#8a99a8);margin-top:1px;}',
+      '.cf-btnrow{display:flex;gap:11px;margin:6px 0 4px;}',
+      '.cf-ybtn{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--yellow,#FFCC00);color:#081420;border:none;border-radius:12px;padding:13px;font-size:14px;font-weight:800;letter-spacing:0.3px;font-family:inherit;cursor:pointer;box-shadow:0 6px 18px rgba(255,204,0,0.22);}',
+      '.cf-ybtn .material-icons{font-size:19px;color:#081420;}',
+      '.cf-ybadge{background:#081420;color:var(--yellow,#FFCC00);font-size:10px;font-weight:800;padding:1px 7px;border-radius:10px;}',
       '.cf-badge{background:var(--yellow,#FFCC00);color:#081420;font-size:11px;font-weight:800;padding:1px 7px;border-radius:10px;flex-shrink:0;}',
       '.cf-chev{color:#5f7185;flex-shrink:0;}',
       '.cf-sec-head{display:flex;align-items:center;justify-content:space-between;margin:18px 0 3px;}',
@@ -121,20 +125,14 @@
 
     var html = '';
 
-    // 0) Discovery strap
-    html += '<div class="cf-strap" onclick="FFPConnFeed.discover()">' +
-      '<span class="material-icons">auto_awesome</span>' +
-      '<div class="cf-strap-txt"><div class="cf-strap-t">People you might click with</div>' +
-      '<div class="cf-strap-s">' + (n > 0 ? 'Discover athletes who match you' : 'No new connections to view') + '</div></div>' +
-      (n > 0 ? '<span class="cf-badge">' + n + ' new</span>' : '') +
-      '<span class="material-icons cf-chev">chevron_right</span></div>';
+    // 0) Your teams carousel — rendered by FFPMemberTeams into #cf-teams (renders nothing if not on a team)
+    html += '<div id="cf-teams"></div>';
 
-    // 1) Search strap → opens a modal to find members to connect with (sits under discovery)
-    html += '<div class="cf-strap" onclick="FFPConnFeed.openSearch()">' +
-      '<span class="material-icons">search</span>' +
-      '<div class="cf-strap-txt"><div class="cf-strap-t">Find a connection</div>' +
-      '<div class="cf-strap-s">Search FFP Passport members by name</div></div>' +
-      '<span class="material-icons cf-chev">chevron_right</span></div>';
+    // 1) Matches + Search — two yellow buttons (replaced the old discovery/search straps)
+    html += '<div class="cf-btnrow">' +
+      '<button class="cf-ybtn" onclick="FFPConnFeed.discover()"><span class="material-icons">auto_awesome</span>Matches' + (n > 0 ? '<span class="cf-ybadge">' + n + '</span>' : '') + '</button>' +
+      '<button class="cf-ybtn" onclick="FFPConnFeed.openSearch()"><span class="material-icons">search</span>Search</button>' +
+      '</div>';
 
     // 2) My connections (most active first)
     html += '<div class="cf-sec-head"><div class="cf-sec-t">My connections</div>' +
@@ -160,8 +158,22 @@
     html += '<div id="cf-person-activities" style="margin-top:6px;"></div>';
 
     root.innerHTML = html;
+    ensureTeamsCarousel();
     // default to "All" → everyone's latest activity grid (works even with zero connections)
     try { window.FFPConnFeed.selectPerson('all', 'All'); } catch (e) {}
+  }
+
+  // Your teams carousel lives in the Community panel above Matches/Search. It's rendered by a
+  // separate loader (ffp-member-teams-loader.js → window.FFPMemberTeams) injected on demand.
+  function ensureTeamsCarousel() {
+    var host = document.getElementById('cf-teams'); if (!host) return;
+    if (window.FFPMemberTeams) { try { FFPMemberTeams.renderCarousel(host); } catch (e) {} return; }
+    if (window.__ffpTeamsLoad) return; window.__ffpTeamsLoad = true;
+    var sc = document.createElement('script'); var v = (window.FFP_BUILD || '');
+    sc.src = 'assets/ffp-member-teams-loader.js' + (v ? ('?v=' + v) : '');
+    sc.onload = function () { try { FFPMemberTeams.renderCarousel(document.getElementById('cf-teams')); } catch (e) {} };
+    sc.onerror = function () { window.__ffpTeamsLoad = false; };
+    document.body.appendChild(sc);
   }
 
   var loading = false, tries = 0;
