@@ -196,8 +196,14 @@
     else html += '<div style="color:var(--muted,#8a99a8);font-size:12px;margin-bottom:16px;">No sessions logged this week yet.</div>';
     var sk = d.skills || [];
     if (sk.length) {
-      if (W._mtOvSkill == null || W._mtOvSkill >= sk.length) W._mtOvSkill = 0; var cur = sk[W._mtOvSkill];
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;margin:6px 0 12px;"><div style="font-size:14px;font-weight:800;color:var(--text,#e8eef4);">Skills</div>' + (sk.length > 1 ? '<span style="font-size:12px;font-weight:800;color:var(--yellow,#FFCC00);cursor:pointer;" onclick="FFPMemberTeams.ovSkill()">' + esc(cur.name) + ' ▾</span>' : '<span style="font-size:12px;font-weight:800;color:var(--muted,#8a99a8);">' + esc(cur.name) + '</span>') + '</div>' + _ovSkillCols(cur);
+      W._mtSkills = sk;
+      html += '<div style="font-size:14px;font-weight:800;color:var(--text,#e8eef4);margin:6px 0 12px;">Skills</div>';
+      html += sk.map(function (s, i) {
+        return '<div style="' + (i ? 'margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,.06);' : '') + '">' +
+          '<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;"><span style="font-size:13px;font-weight:800;color:var(--text,#e8eef4);">' + esc(s.name) + '</span>' +
+          '<span onclick="FFPMemberTeams.skillInfo(' + i + ')" style="cursor:pointer;color:var(--muted,#8a99a8);display:inline-flex;align-items:center;" title="Level guide"><span class="material-icons" style="font-size:17px;">info_outline</span></span></div>' +
+          _ovSkillCols(s) + '</div>';
+      }).join('');
     }
     var tr = d.training || [];
     if (tr.length) {
@@ -325,5 +331,17 @@
 
   W.FFPMemberTeams = { renderCarousel: renderCarousel, openTeam: openTeam, close: close, seeAll: seeAll, openFind: openFind, closeFind: closeFind, findInput: findInput, request: requestJoin,
     ovMark: function (i) { W._mtOvMark = i; renderOverview(); },
-    ovSkill: function () { var n = ((W._mtOv || {}).skills || []).length; if (n) { W._mtOvSkill = ((W._mtOvSkill || 0) + 1) % n; renderOverview(); } } };
+    ovSkill: function () { var n = ((W._mtOv || {}).skills || []).length; if (n) { W._mtOvSkill = ((W._mtOvSkill || 0) + 1) % n; renderOverview(); } },
+    skillInfo: function (i) {
+      var s = (W._mtSkills || [])[i]; if (!s) return;
+      var levels = (s.levels || []).slice().sort(function (a, b) { return a.level_no - b.level_no; });
+      var body = '<div class="cv-wrap" style="padding:2px;"><h3 class="q-title">' + esc(s.name) + ' — level guide</h3>' +
+        (levels.length ? levels.map(function (l) {
+          var c = SPECTRUM[Math.min(l.level_no, SPECTRUM.length) - 1] || '#8a99a8', isT = s.target_level === l.level_no;
+          return '<div style="display:flex;gap:11px;margin-bottom:14px;"><div style="width:11px;height:11px;border-radius:50%;background:' + c + ';margin-top:4px;flex:0 0 auto;"></div>' +
+            '<div style="flex:1;min-width:0;"><div style="font-size:13.5px;font-weight:800;color:' + c + ';">' + esc(l.name) + (isT ? ' <span style="color:var(--yellow,#FFCC00);">★ target</span>' : '') + '</div>' +
+            '<div style="font-size:12.5px;color:var(--text,#e8eef4);line-height:1.5;margin-top:2px;">' + esc(l.description || '—') + '</div></div></div>';
+        }).join('') : '<div style="color:var(--muted,#8a99a8);">No level guide yet.</div>') + '</div>';
+      if (typeof openDetailModal === 'function') openDetailModal(body); else if (W.openDetailModal) W.openDetailModal(body);
+    } };
 })();
