@@ -310,9 +310,9 @@
     { key: 'visceralFat', label: 'Visceral',  icon: 'medical_information',col: 'visceral_fat',    unit: 'rating',    dir: 'lower',  kind: 'num',  group: 'Health' },
     { key: 'sleepAvgHrs', label: 'Sleep',     icon: 'bedtime',            col: 'sleep_avg_hours', unit: 'hrs',       dir: 'higher', kind: 'num',  group: 'Health' },
     { key: 'restingHR',   label: 'Resting HR',icon: 'monitor_heart',      col: 'resting_hr',      unit: 'bpm',       dir: 'lower',  kind: 'num',  group: 'Health' },
-    { key: 'hrv',         label: 'HRV',       icon: 'vital_signs',        col: 'hrv_ms',          unit: 'ms',        dir: 'higher', kind: 'num',  group: 'Health' },
+    { key: 'hrv',         label: 'HRV',       icon: 'monitor_heart',      col: 'hrv_ms',          unit: 'ms',        dir: 'higher', kind: 'num',  group: 'Health' },
     { key: 'grip',        label: 'Grip',      icon: 'pan_tool',           col: 'grip_strength_kg',unit: 'kg',        dir: 'higher', kind: 'num',  group: 'Health' },
-    { key: 'muscleMass',  label: 'Muscle',    icon: 'exercise',           col: 'muscle_mass_kg',  unit: 'kg',        dir: 'higher', kind: 'num',  group: 'Health',
+    { key: 'muscleMass',  label: 'Muscle',    icon: 'fitness_center',     col: 'muscle_mass_kg',  unit: 'kg',        dir: 'higher', kind: 'num',  group: 'Health',
       derive: function (r) { var h = r.height_cm; if (r.muscle_mass_kg == null || !h) return null; return r.muscle_mass_kg / Math.pow(h / 100, 2); }, lbUnit: 'kg/m\u00b2', lbDecimals: 1 },
     { key: 'waist',       label: 'Waist',     icon: 'straighten',         col: 'waist_cm',        unit: 'cm',        dir: 'lower',  kind: 'num',  group: 'Health',
       derive: function (r) { var h = r.height_cm; if (r.waist_cm == null || !h) return null; return r.waist_cm / h; }, lbUnit: 'WHtR', lbDecimals: 2 }
@@ -445,8 +445,8 @@
       try {
         var r = await window.supabase.rpc('member_my_benchmarks', { p_member: me.id });
         ((r && r.data) || []).forEach(function (t) {
+          // Only MEASURED team benchmarks belong here — skills are a separate concept (assessed by the coach), not on the Benchmarks list.
           (t.measured || []).forEach(function (m) { opts.push({ type: 'team', kind: 'measured', id: m.id, name: m.name, unit: m.unit, target: m.target, current: m.current, sub: t.team, team: t.team, icon: 'timer' }); });
-          (t.skills || []).forEach(function (s) { opts.push({ type: 'team', kind: 'skill', id: s.id, name: s.name, level_no: s.level_no, level_name: s.level_name, sub: t.team, team: t.team, icon: 'my_location' }); });
         });
       } catch (e) {}
     }
