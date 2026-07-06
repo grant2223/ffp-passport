@@ -4458,7 +4458,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '553';
+  const FFP_BUILD = '554';
   try { window.FFP_BUILD = FFP_BUILD; } catch (e) {}
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
@@ -8461,7 +8461,7 @@ else init();
 <script src="assets/ffp-connections-core.js?v=361"></script>
 <script src="assets/ffp-streak-loader.js?v=1"></script>
 <script defer src="assets/ffp-coach-loader.js?v=521"></script>
-<script defer src="assets/ffp-connections-feed-loader.js?v=553"></script>
+<script defer src="assets/ffp-connections-feed-loader.js?v=554"></script>
 <script defer src="assets/ffp-event-results-loader.js?v=329"></script>
 <script>
 (function(){
