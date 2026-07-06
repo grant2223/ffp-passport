@@ -439,7 +439,7 @@
   var _benchOpts = null;
   async function buildBenchOptions() {
     var opts = [];
-    METRICS.filter(function (m) { return m.group !== 'Health'; }).forEach(function (m) { opts.push({ type: 'metric', key: m.key, name: m.label, sub: m.group, icon: m.icon }); });
+    METRICS.forEach(function (m) { opts.push({ type: 'metric', key: m.key, name: m.label, sub: m.group, icon: m.icon }); });
     var me = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || {};
     if (me.id && window.supabase) {
       try {
@@ -582,7 +582,7 @@
         '<input id="fs-bench-search" placeholder="Search a benchmark…" autocomplete="off" style="width:100%;box-sizing:border-box;padding:13px 40px 13px 40px;border-radius:12px;border:1px solid var(--border-mid);background:rgba(255,255,255,0.05);color:var(--text);font-size:15px;font-family:inherit;">' +
         '<span class="material-icons" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:20px;pointer-events:none;">search</span>' +
         '<span class="material-icons" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:22px;pointer-events:none;">expand_more</span>' +
-        '<div id="fs-bench-list" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:30;background:var(--card,#11283c);border:1px solid var(--border-mid);border-radius:12px;max-height:320px;overflow-y:auto;box-shadow:0 12px 32px rgba(0,0,0,.45);"></div>' +
+        '<div id="fs-bench-list" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:60;background:#0e2233;border:1px solid rgba(255,255,255,.14);border-radius:12px;max-height:340px;overflow-y:auto;box-shadow:0 14px 36px rgba(0,0,0,.6);"></div>' +
       '</div>' +
 
       // Selected team-benchmark card (for measured/skill team benchmarks)
