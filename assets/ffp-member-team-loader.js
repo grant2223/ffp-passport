@@ -66,11 +66,14 @@
   // ── carousel ──
   async function renderCarousel(host) {
     if (!host) return;
-    var mid = memberId(); if (!mid) { host.innerHTML = ''; return; }
-    var teams = [];
-    try { var r = await sb().rpc('member_my_teams', { p_member: mid }); teams = (r && r.data) || []; }
-    catch (e) { console.error('[FFP MyTeams] list', e); teams = []; }  // fall through to the "Join your team" card, never blank
     injectStyles();
+    var mid = memberId();
+    var teams = [];
+    if (mid && sb()) {
+      try { var r = await sb().rpc('member_my_teams', { p_member: mid }); teams = (r && r.data) || []; }
+      catch (e) { console.error('[FFP MyTeams] list', e); teams = []; }  // fall through to the "Join your team" card, never blank
+    }
+    // NEVER blank — with no member/session or no teams we still show the "Join your team" card so the section is always visible.
     W._ffpMyTeams = teams;
     if (!teams.length) {
       host.innerHTML = '<div class="mt-head"><div class="mt-h">Your teams</div></div>' +
