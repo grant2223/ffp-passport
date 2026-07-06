@@ -542,8 +542,6 @@
       try { await buildBenchOptions(); if (window._benchSel) selectBench(window._benchSel); } catch (e) {}
     } catch (e) { console.error('[FFP Bench] save', e); if (window.showToast) showToast('Could not save', 'error'); }
   };
-  window.ffpRenderTeamBenchmarks = renderTeamBenchmarks;
-
   function buildRecordsTabUI() {
     var view = document.getElementById('fs-records-view');
     if (!view) return;
