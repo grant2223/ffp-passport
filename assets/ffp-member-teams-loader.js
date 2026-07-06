@@ -77,14 +77,16 @@
     W._ffpMyTeams = teams;
     if (!teams.length) {
       host.innerHTML = '<div class="mt-head"><div class="mt-h">Your teams</div></div>' +
-        '<div onclick="FFPMemberTeams.openFind()" style="display:flex;align-items:center;gap:14px;background:#11283c;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:13px 15px;cursor:pointer;margin-bottom:2px;">' +
-          '<div style="position:relative;width:50px;height:50px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;">' +
-            '<span class="material-icons" style="position:absolute;font-size:40px;color:rgba(43,168,224,.13);">shield</span>' +
-            '<div style="position:relative;width:42px;height:42px;border-radius:50%;border:2px dashed rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;">' +
-              '<span class="material-icons" style="color:var(--yellow,#FFCC00);font-size:24px;">add</span></div>' +
+        '<div class="mt-car">' +
+          '<div onclick="FFPMemberTeams.openFind()" style="flex:0 0 auto;width:150px;box-sizing:border-box;background:#11283c;border:1.5px dashed rgba(255,255,255,.2);border-radius:13px;padding:16px 12px 15px;text-align:center;cursor:pointer;">' +
+            '<div style="position:relative;width:52px;height:52px;margin:0 auto 11px;display:flex;align-items:center;justify-content:center;">' +
+              '<span class="material-icons" style="position:absolute;font-size:44px;color:rgba(43,168,224,.13);">shield</span>' +
+              '<div style="position:relative;width:44px;height:44px;border-radius:50%;border:2px dashed rgba(255,255,255,.32);display:flex;align-items:center;justify-content:center;">' +
+                '<span class="material-icons" style="color:var(--yellow,#FFCC00);font-size:26px;">add</span></div>' +
+            '</div>' +
+            '<div style="font-size:12.5px;font-weight:800;color:var(--text,#e8eef4);">Join your team</div>' +
+            '<div style="font-size:10.5px;color:var(--muted,#8a99a8);margin-top:3px;line-height:1.3;">Tap to find your team</div>' +
           '</div>' +
-          '<div style="min-width:0;"><div style="font-size:14px;font-weight:800;color:var(--text,#e8eef4);">Join your team</div>' +
-          '<div style="font-size:12px;color:var(--muted,#8a99a8);margin-top:2px;">Tap to find your team</div></div>' +
         '</div>';
       return;
     }
@@ -210,12 +212,12 @@
   }
   async function openFind() {
     injectStyles(); if (document.getElementById('ffp-mt-ov')) document.getElementById('ffp-mt-ov').classList.remove('on');
-    var ov = _ensureFindOv(); ov.classList.add('on');
+    var ov = _ensureFindOv(); ov.style.display = 'flex';  // inline display:none in cssText means the .on class rule can't win — set display directly
     document.getElementById('mtf-body').innerHTML = '<div style="color:var(--muted,#8a99a8);padding:12px 0;">Type a team name to search.</div>';
     try { var r = await sb().rpc('member_my_join_requests', { p_member: memberId() }); W._mtReqs = {}; ((r && r.data) || []).forEach(function (x) { W._mtReqs[x.team_id] = 1; }); } catch (e) { W._mtReqs = {}; }
     var inp = document.getElementById('mtf-input'); if (inp) { inp.value = ''; try { inp.focus(); } catch (e) {} }
   }
-  function closeFind() { var ov = document.getElementById('ffp-mtf-ov'); if (ov) ov.classList.remove('on'); }
+  function closeFind() { var ov = document.getElementById('ffp-mtf-ov'); if (ov) ov.style.display = 'none'; }
   var _findT = null;
   function findInput(v) { clearTimeout(_findT); _findT = setTimeout(function () { _doFind(v); }, 300); }
   async function _doFind(q) {
