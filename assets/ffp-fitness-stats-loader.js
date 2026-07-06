@@ -426,6 +426,67 @@
     return Object.keys(seen).sort();
   }
 
+  // ── Team Benchmarks (coach-defined tests the athlete logs their OWN result for; teams pull from here) ──
+  function _fmtBench(v, unit) { if (v == null) return '—'; v = Number(v); if (unit && /^s/i.test(unit)) { var s = Math.round(v), m = Math.floor(s / 60), ss = s % 60; return m + ':' + (ss < 10 ? '0' : '') + ss; } return (Math.round(v * 10) / 10) + (unit ? ' ' + unit : ''); }
+  async function renderTeamBenchmarks() {
+    var host = document.getElementById('fs-team-benchmarks'); if (!host) return;
+    var me = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || {};
+    if (!me.id || !window.supabase) { host.innerHTML = ''; return; }
+    var teams = [];
+    try { var r = await window.supabase.rpc('member_my_benchmarks', { p_member: me.id }); teams = (r && r.data) || []; } catch (e) { host.innerHTML = ''; return; }
+    teams = teams.filter(function (t) { return (t.measured && t.measured.length) || (t.skills && t.skills.length); });
+    if (!teams.length) { host.innerHTML = ''; return; }
+    window._ffpBench = {};
+    var html = '<div style="margin:2px 0 18px;"><div style="font-size:15px;font-weight:800;color:var(--text,#e8eef4);margin-bottom:3px;">Team Benchmarks</div>' +
+      '<div style="font-size:12px;color:var(--muted,#8a99a8);margin-bottom:12px;">Your coach’s tests — log your own result and it flows to your team.</div>';
+    html += teams.map(function (t) {
+      var rows = '';
+      (t.measured || []).forEach(function (m) {
+        window._ffpBench[m.id] = { name: m.name, unit: m.unit, team: t.team };
+        var cur = (m.current != null) ? _fmtBench(m.current, m.unit) : null;
+        var tgt = (m.target != null) ? ('target ' + _fmtBench(m.target, m.unit)) : '';
+        rows += '<div style="display:flex;align-items:center;gap:11px;padding:11px 0;border-top:1px solid rgba(255,255,255,.06);">' +
+          '<div style="width:34px;height:34px;border-radius:9px;background:rgba(43,168,224,.14);display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="material-icons" style="color:var(--blue,#2ba8e0);font-size:19px;">timer</span></div>' +
+          '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:800;color:var(--text,#e8eef4);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escText(m.name) + '</div><div style="font-size:11px;color:var(--muted,#8a99a8);">' + escText([cur ? ('Best ' + cur) : 'No result yet', tgt].filter(Boolean).join('  ·  ')) + '</div></div>' +
+          '<button onclick="ffpBenchLogOpen(\'' + m.id + '\')" style="background:var(--yellow,#FFCC00);color:#081420;border:none;border-radius:9px;padding:8px 15px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;">Log</button></div>';
+      });
+      (t.skills || []).forEach(function (s) {
+        var lvl = s.level_no || 0, ln = s.level_name || (lvl ? 'Level ' + lvl : 'Not assessed');
+        rows += '<div style="display:flex;align-items:center;gap:11px;padding:11px 0;border-top:1px solid rgba(255,255,255,.06);">' +
+          '<div style="width:34px;height:34px;border-radius:9px;background:rgba(139,92,246,.16);display:flex;align-items:center;justify-content:center;flex:0 0 auto;"><span class="material-icons" style="color:#8b5cf6;font-size:19px;">my_location</span></div>' +
+          '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:800;color:var(--text,#e8eef4);">' + escText(s.name) + '</div><div style="font-size:11px;color:var(--muted,#8a99a8);">Skill · coach-assessed</div></div>' +
+          '<div style="font-size:12px;font-weight:800;color:' + (lvl ? '#8b5cf6' : 'var(--muted,#8a99a8)') + ';">' + escText(ln) + '</div></div>';
+      });
+      return '<div style="background:var(--card,#11283c);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:12px 14px 6px;margin-bottom:12px;"><div style="font-size:12px;font-weight:800;color:var(--yellow,#FFCC00);margin-bottom:2px;">' + escText(t.team) + '</div>' + rows + '</div>';
+    }).join('') + '</div>';
+    host.innerHTML = html;
+  }
+  window.ffpBenchLogOpen = function (id) {
+    var b = (window._ffpBench || {})[id] || {}, isTime = b.unit && /^s/i.test(b.unit);
+    var body = '<div class="cv-wrap" style="padding:4px 2px;"><h3 class="q-title">Log ' + escText(b.name || 'benchmark') + '</h3>' +
+      '<div style="font-size:12px;color:var(--muted,#8a99a8);margin:-6px 0 14px;">' + escText(b.team || '') + (isTime ? ' · enter as m:ss' : (b.unit ? ' · ' + escText(b.unit) : '')) + '</div>' +
+      '<input id="ffp-bench-val" inputmode="' + (isTime ? 'text' : 'decimal') + '" placeholder="' + (isTime ? '15:00' : 'Your result') + '" style="width:100%;box-sizing:border-box;padding:13px 14px;border-radius:12px;border:1px solid rgba(43,168,224,.25);background:rgba(43,168,224,.05);color:var(--text,#e8eef4);font-size:16px;font-family:inherit;margin-bottom:8px;">' +
+      '<input id="ffp-bench-date" type="date" value="' + new Date().toISOString().slice(0, 10) + '" style="width:100%;box-sizing:border-box;padding:12px 14px;border-radius:12px;border:1px solid rgba(43,168,224,.25);background:rgba(43,168,224,.05);color:var(--text,#e8eef4);font-size:15px;font-family:inherit;margin-bottom:14px;">' +
+      '<button onclick="ffpBenchLogSave(\'' + id + '\',' + (isTime ? 'true' : 'false') + ')" style="width:100%;background:var(--yellow,#FFCC00);color:#081420;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;">Save result</button></div>';
+    if (typeof openDetailModal === 'function') openDetailModal(body);
+  };
+  window.ffpBenchLogSave = async function (id, isTime) {
+    var vEl = document.getElementById('ffp-bench-val'), dEl = document.getElementById('ffp-bench-date');
+    var raw = ((vEl && vEl.value) || '').trim(); if (!raw) { if (window.showToast) showToast('Enter a result', 'error'); return; }
+    var val;
+    if (isTime && /^\d+:\d{1,2}$/.test(raw)) { var p = raw.split(':'); val = Number(p[0]) * 60 + Number(p[1]); }
+    else { val = Number(raw); if (isNaN(val)) { if (window.showToast) showToast('Enter a number' + (isTime ? ' as m:ss' : ''), 'error'); return; } }
+    var me = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || {};
+    try {
+      var r = await window.supabase.rpc('member_record_benchmark', { p_member: me.id, p_benchmark: id, p_value: val, p_recorded_on: (dEl && dEl.value) || null });
+      if (r.error) throw r.error;
+      if (window.showToast) showToast('Result logged', 'success');
+      try { if (typeof closeDetailModal === 'function') closeDetailModal(); else if (typeof ffpCloseDetailModal === 'function') ffpCloseDetailModal(); } catch (e) {}
+      renderTeamBenchmarks();
+    } catch (e) { console.error('[FFP Bench] save', e); if (window.showToast) showToast('Could not save', 'error'); }
+  };
+  window.ffpRenderTeamBenchmarks = renderTeamBenchmarks;
+
   function buildRecordsTabUI() {
     var view = document.getElementById('fs-records-view');
     if (!view) return;
@@ -461,6 +522,8 @@
     var customHidden = filters.ageMode === 'custom' ? '' : ' hidden';
 
     view.innerHTML =
+      // Team benchmarks (coach tests the athlete logs) — rendered async into this container
+      '<div id="fs-team-benchmarks"></div>' +
       // Metric switcher
       '<div class="ffp-metric-strip" id="ffp-metric-strip">' + metricChips + '</div>' +
 
@@ -524,6 +587,7 @@
     ensurePickerModal();
     bindRecordsHandlers();
     recordsBuilt = true;
+    try { renderTeamBenchmarks(); } catch (e) {}
   }
 
   // ─────────── PICKER MODAL (custom dark-themed dropdown) ───────────
