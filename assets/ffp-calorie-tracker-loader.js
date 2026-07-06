@@ -1,4 +1,8 @@
-/* FFP Calorie Tracker Loader — v14
+/* FFP Calorie Tracker Loader — v16
+   v16 (2026-07-06): HYDRATION — water card in the Today view (#ct-hydration). +250/500/750 ml buttons log to
+        member_water_logs (RLS member_id=auth.uid()); goal from members.water_goal_ml (default 3000). Per viewed
+        day (loadWater on load + in loadDayData); progress bar + L totals. Feeds the coach's Pro-team nutrition view.
+   v14
    v14: BUILD-A-MEAL upgrade — the meal builder is now a FULL-SCREEN modal (.mm-fullbg) and its food search also
         queries the OpenFoodFacts database (under the local catalog). OFF foods added to a meal are amount-
         adjustable (grams) like catalog foods — mmItemMacros/mmBRenderItems handle the new `off` item type.
@@ -60,6 +64,7 @@
   var MAX_RETRIES = 30;
   var currentUserId = null;
   var wrapped = false;
+  var waterMl = 0, waterGoal = 3000, waterGoalLoaded = false;   // v16 hydration
 
   var DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   var MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -330,6 +335,9 @@
       // 6b. Food photos (today + last 7 days)
       try { if (CalorieTracker.loadFoodPhotos) await CalorieTracker.loadFoodPhotos(); } catch (e) {}
 
+      // 6c. Hydration — goal + the viewed day's water total
+      try { await loadWaterGoal(); await loadWater(CalorieTracker.viewDate || new Date()); } catch (e) {}
+
       // 7. Re-render if Calorie Tracker panel is visible
       var panel = document.getElementById('panel-calorie-tracker');
       if (panel && panel.classList.contains('active') && typeof CalorieTracker.render === 'function') {
@@ -499,7 +507,66 @@
 
     // ─── My Meals strip rides along with every tracker render ───
     var origRenderMM = CalorieTracker.render.bind(CalorieTracker);
-    CalorieTracker.render = function () { origRenderMM(); renderMyMeals(); mmDecorateSections(); };
+    CalorieTracker.render = function () { origRenderMM(); renderMyMeals(); mmDecorateSections(); renderHydration(); };
+  }
+
+  // ============ HYDRATION (v16) — log water → member_water_logs; card mounts into #ct-today-view ============
+  async function loadWaterGoal() {
+    if (!currentUserId || waterGoalLoaded) return;
+    try {
+      var r = await window.supabase.from('members').select('water_goal_ml').eq('id', currentUserId).maybeSingle();
+      if (r && r.data && r.data.water_goal_ml) waterGoal = Number(r.data.water_goal_ml);
+      waterGoalLoaded = true;
+    } catch (e) {}
+  }
+  function _waterBounds(date) {
+    var d = date || new Date(); var s = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
+    return { s: s.toISOString(), e: new Date(s.getTime() + 86400000).toISOString() };
+  }
+  async function loadWater(date) {
+    if (!currentUserId) { waterMl = 0; renderHydration(); return; }
+    try {
+      var b = _waterBounds(date);
+      var r = await window.supabase.from('member_water_logs').select('ml').eq('member_id', currentUserId).gte('logged_at', b.s).lt('logged_at', b.e);
+      var rows = (r && r.data) || []; waterMl = rows.reduce(function (t, x) { return t + (x.ml || 0); }, 0);
+    } catch (e) {}
+    renderHydration();
+  }
+  function waterInjectStyles() {
+    if (document.getElementById('ffp-hydration-styles')) return;
+    var s = document.createElement('style'); s.id = 'ffp-hydration-styles';
+    s.textContent = '#ct-hydration{background:var(--card,rgba(15,30,46,0.5));border:1px solid var(--border-mid,rgba(43,168,224,0.2));border-radius:16px;padding:16px;margin:16px 0;}'
+      + '#ct-hydration .hyd-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;}'
+      + '#ct-hydration .hyd-t{font-size:14px;font-weight:800;color:var(--text,#e8eef4);display:flex;align-items:center;gap:7px;}'
+      + '#ct-hydration .hyd-v{font-size:13px;font-weight:800;color:#2ba8e0;}'
+      + '#ct-hydration .hyd-bar{height:10px;border-radius:6px;background:rgba(43,168,224,0.12);overflow:hidden;margin-bottom:13px;}'
+      + '#ct-hydration .hyd-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,#2ba8e0,#5fc7ec);}'
+      + '#ct-hydration .hyd-btns{display:flex;gap:8px;}'
+      + '#ct-hydration .hyd-b{flex:1;background:rgba(43,168,224,0.10);border:1px solid rgba(43,168,224,0.25);color:#2ba8e0;border-radius:10px;padding:10px 0;font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;}';
+    document.head.appendChild(s);
+  }
+  function renderHydration() {
+    var host = document.getElementById('ct-today-view'); if (!host) return;
+    waterInjectStyles();
+    var card = document.getElementById('ct-hydration');
+    if (!card) { card = document.createElement('div'); card.id = 'ct-hydration'; host.appendChild(card); }
+    var pct = waterGoal > 0 ? Math.min(100, Math.round(waterMl * 100 / waterGoal)) : 0;
+    card.innerHTML =
+      '<div class="hyd-top"><div class="hyd-t"><span class="material-icons" style="font-size:19px;color:#2ba8e0;">local_drink</span>Hydration</div>'
+      + '<div class="hyd-v">' + (waterMl / 1000).toFixed(1) + ' / ' + (waterGoal / 1000).toFixed(1) + ' L</div></div>'
+      + '<div class="hyd-bar"><div class="hyd-fill" style="width:' + pct + '%;"></div></div>'
+      + '<div class="hyd-btns"><button class="hyd-b" onclick="CalorieTracker.addWater(250)">+250 ml</button>'
+      + '<button class="hyd-b" onclick="CalorieTracker.addWater(500)">+500 ml</button>'
+      + '<button class="hyd-b" onclick="CalorieTracker.addWater(750)">+750 ml</button></div>';
+  }
+  if (typeof CalorieTracker !== 'undefined') {
+    CalorieTracker.addWater = function (ml) {
+      if (!currentUserId) { if (window.showToast) showToast('Sign in to log water', 'error'); return; }
+      ml = ml || 0; waterMl = Math.max(0, waterMl + ml); renderHydration();
+      window.supabase.from('member_water_logs').insert({ member_id: currentUserId, ml: ml, logged_at: ctLoggedAt() })
+        .then(function (res) { if (res.error) console.error('[FFP CT] water insert:', res.error); })
+        .catch(function (e) { console.error('[FFP CT] water insert:', e); });
+    };
   }
 
   // ============ RECENTS — one-tap "log it again" from the last 30 days of food_logs ============
@@ -631,6 +698,7 @@
     this.meals = { breakfast: [], lunch: [], dinner: [], snacks: [] };
     this.activities = [];
     if (this.render) this.render();
+    loadWater(date);
     window.supabase.from('food_logs')
       .select('id, meal, food_name, calories, protein_g, carbs_g, fat_g, logged_at')
       .eq('member_id', currentUserId).gte('logged_at', startIso).lt('logged_at', endIso)
