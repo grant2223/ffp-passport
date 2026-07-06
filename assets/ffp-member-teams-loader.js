@@ -25,21 +25,21 @@
       '.mt-head{display:flex;align-items:center;justify-content:space-between;margin:2px 0 11px;}',
       '.mt-h{font-size:16px;font-weight:800;color:var(--text,#e8eef4);}',
       '.mt-link{font-size:13px;font-weight:800;color:var(--yellow,#FFCC00);cursor:pointer;}',
-      '.mt-car{display:flex;gap:12px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;padding-bottom:4px;margin:0 -2px 6px;}.mt-car::-webkit-scrollbar{display:none;}',
-      '.mt-card{flex:0 0 auto;width:270px;border-radius:16px;overflow:hidden;background:#11283c;border:1px solid rgba(255,255,255,.07);cursor:pointer;}',
-      '.mt-cover{height:92px;position:relative;display:flex;align-items:flex-end;padding:12px;}',
+      '.mt-car{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;padding-bottom:4px;margin:0 -2px 6px;}.mt-car::-webkit-scrollbar{display:none;}',
+      '.mt-card{flex:0 0 auto;width:135px;border-radius:12px;overflow:hidden;background:#11283c;border:1px solid rgba(255,255,255,.07);cursor:pointer;}',
+      '.mt-cover{height:46px;position:relative;display:flex;align-items:flex-end;padding:7px;}',
       '.mt-cover:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,18,26,0) 30%,rgba(6,18,26,.72) 100%);}',
-      '.mt-cov-in{position:relative;z-index:2;display:flex;align-items:center;gap:10px;}',
-      '.mt-crest{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:12px;flex:0 0 auto;border:1.5px solid rgba(255,255,255,.35);background-size:cover;background-position:center;}',
-      '.mt-tn{font-size:15px;font-weight:800;color:#fff;}',
-      '.mt-ts{font-size:10.5px;color:rgba(255,255,255,.7);}',
-      '.mt-mv{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.35);font-size:11px;font-weight:800;padding:3px 9px;border-radius:100px;z-index:2;}',
-      '.mt-foot{display:flex;align-items:center;gap:8px;padding:10px 13px;}',
-      '.mt-av{width:25px;height:25px;border-radius:50%;background:#214b6b;color:#cfe6f5;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;border:2px solid #11283c;background-size:cover;background-position:center;flex:0 0 auto;}',
-      '.mt-active{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--muted,#8a99a8);}',
+      '.mt-cov-in{position:relative;z-index:2;display:flex;align-items:center;gap:6px;}',
+      '.mt-crest{width:20px;height:20px;border-radius:6px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:8px;flex:0 0 auto;border:1px solid rgba(255,255,255,.35);background-size:cover;background-position:center;}',
+      '.mt-tn{font-size:11px;font-weight:800;color:#fff;line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:88px;}',
+      '.mt-ts{font-size:8.5px;color:rgba(255,255,255,.7);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:88px;}',
+      '.mt-mv{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.35);font-size:8.5px;font-weight:800;padding:2px 6px;border-radius:100px;z-index:2;}',
+      '.mt-foot{display:flex;align-items:center;gap:6px;padding:7px 8px;}',
+      '.mt-av{width:18px;height:18px;border-radius:50%;background:#214b6b;color:#cfe6f5;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:800;border:1.5px solid #11283c;background-size:cover;background-position:center;flex:0 0 auto;}',
+      '.mt-active{display:flex;align-items:center;gap:4px;font-size:9px;font-weight:700;color:var(--muted,#8a99a8);white-space:nowrap;}',
       '.mt-dot{width:7px;height:7px;border-radius:50%;background:#36c97f;}',
       // overlay
-      '#ffp-mt-ov{position:fixed;inset:0;z-index:6000;background:#0a1825;display:none;flex-direction:column;font-family:inherit;}',
+      '#ffp-mt-ov{position:fixed;inset:0;z-index:100050;background:#0a1825;display:none;flex-direction:column;font-family:inherit;}',
       '#ffp-mt-ov.on{display:flex;}',
       '.mt-ovhead{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.07);flex:0 0 auto;}',
       '.mt-ovhead .x{color:var(--muted,#8a99a8);font-size:24px;cursor:pointer;}',
@@ -93,7 +93,7 @@
     var mk = t.mark || {}, traj = mk.trajectory || 'flat';
     var mvCol = traj === 'up' ? '#36c97f' : (traj === 'down' ? '#e24b4a' : '#FFCC00');
     var mvTxt = mk.rank ? ((traj === 'up' ? '↑ improving' : (traj === 'down' ? '↓ slipping' : '— holding'))) : '';
-    var avs = (t.avatars || []).slice(0, 4);
+    var avs = (t.avatars || []).slice(0, 3);
     var faces = avs.map(function (a, i) { return '<div class="mt-av" style="margin-left:' + (i ? -8 : 0) + 'px;' + faceStyle(a) + '">' + (a && a.photo ? '' : esc(initials(a && a.name))) + '</div>'; }).join('');
     var more = (t.member_count > avs.length) ? '<div class="mt-av" style="margin-left:-8px;background:#16324a;color:#8a99a8;">+' + (t.member_count - avs.length) + '</div>' : '';
     var coach = t.coach ? ('Coach ' + String(t.coach).split(' ')[0]) : '';
@@ -197,7 +197,7 @@
     var ov = document.getElementById('ffp-mtf-ov');
     if (!ov) {
       ov = document.createElement('div'); ov.id = 'ffp-mtf-ov';
-      ov.style.cssText = 'position:fixed;inset:0;z-index:6001;background:#0a1825;display:none;flex-direction:column;font-family:inherit;';
+      ov.style.cssText = 'position:fixed;inset:0;z-index:100051;background:#0a1825;display:none;flex-direction:column;font-family:inherit;';
       ov.innerHTML = '<div class="mt-ovhead"><span class="x" onclick="FFPMemberTeams.closeFind()">&#8249;</span><div style="flex:1;font-size:15px;font-weight:800;color:var(--text,#e8eef4);">Find a team</div></div>' +
         '<div style="padding:14px 16px 8px;"><div style="display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:11px 13px;"><span class="material-icons" style="color:var(--muted,#8a99a8);font-size:20px;">search</span><input id="mtf-input" oninput="FFPMemberTeams.findInput(this.value)" placeholder="Search team name…" style="border:none;outline:none;background:transparent;flex:1;font-size:16px;color:var(--text,#e8eef4);font-family:inherit;"></div><div style="font-size:11px;color:var(--muted,#8a99a8);margin-top:8px;">Ask your coach for the team name. They approve your request.</div></div>' +
         '<div class="mt-ovbody" id="mtf-body"></div>';
