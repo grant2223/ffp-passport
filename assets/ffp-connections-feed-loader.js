@@ -172,7 +172,7 @@
     var sc = document.createElement('script'); var v = (window.FFP_BUILD || '');
     sc.src = 'assets/ffp-member-teams-loader.js' + (v ? ('?v=' + v) : '');
     sc.onload = function () { try { FFPMemberTeams.renderCarousel(document.getElementById('cf-teams')); } catch (e) {} };
-    sc.onerror = function () { window.__ffpTeamsLoad = false; };
+    sc.onerror = function () { window.__ffpTeamsLoad = false; console.error('[FFP Teams] assets/ffp-member-teams-loader.js failed to load (404?) — confirm this NEW file is committed & deployed to the Passport repo.'); };
     document.body.appendChild(sc);
   }
 
