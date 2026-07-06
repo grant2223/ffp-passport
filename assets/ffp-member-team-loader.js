@@ -70,11 +70,10 @@
     var teams = [];
     try { var r = await sb().rpc('member_my_teams', { p_member: mid }); teams = (r && r.data) || []; }
     catch (e) { console.error('[FFP MyTeams] list', e); host.innerHTML = ''; return; }
-    if (!teams.length) { host.innerHTML = ''; return; }
     injectStyles();
     W._ffpMyTeams = teams;
-    host.innerHTML = '<div class="mt-head"><div class="mt-h">Your teams</div>' +
-      (teams.length > 2 ? '<div class="mt-link" onclick="FFPMemberTeams.seeAll()">See all</div>' : '') + '</div>' +
+    if (!teams.length) { host.innerHTML = '<div style="text-align:center;padding:0 0 12px;"><span onclick="FFPMemberTeams.openFind()" style="font-size:12.5px;font-weight:700;color:var(--muted,#8a99a8);cursor:pointer;">In a coach\'s squad? <span style="color:var(--yellow,#FFCC00);">Find your team →</span></span></div>'; return; }
+    host.innerHTML = '<div class="mt-head"><div class="mt-h">Your teams</div><div class="mt-link" onclick="FFPMemberTeams.openFind()">Find a team</div></div>' +
       '<div class="mt-car">' + teams.map(card).join('') + '</div>';
   }
 
@@ -181,5 +180,54 @@
     return '<svg viewBox="0 0 300 58" style="width:100%;height:auto;display:block;margin:8px 0 12px;" xmlns="http://www.w3.org/2000/svg">' + tgt + '<polyline points="' + line + '" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="1.5"/>' + dots + '</svg>';
   }
 
-  W.FFPMemberTeams = { renderCarousel: renderCarousel, openTeam: openTeam, close: close, seeAll: seeAll };
+  // ── Find a team + request to join ──
+  function _ensureFindOv() {
+    var ov = document.getElementById('ffp-mtf-ov');
+    if (!ov) {
+      ov = document.createElement('div'); ov.id = 'ffp-mtf-ov';
+      ov.style.cssText = 'position:fixed;inset:0;z-index:6001;background:#0a1825;display:none;flex-direction:column;font-family:inherit;';
+      ov.innerHTML = '<div class="mt-ovhead"><span class="x" onclick="FFPMemberTeams.closeFind()">&#8249;</span><div style="flex:1;font-size:15px;font-weight:800;color:var(--text,#e8eef4);">Find a team</div></div>' +
+        '<div style="padding:14px 16px 8px;"><div style="display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:11px 13px;"><span class="material-icons" style="color:var(--muted,#8a99a8);font-size:20px;">search</span><input id="mtf-input" oninput="FFPMemberTeams.findInput(this.value)" placeholder="Search team name…" style="border:none;outline:none;background:transparent;flex:1;font-size:16px;color:var(--text,#e8eef4);font-family:inherit;"></div><div style="font-size:11px;color:var(--muted,#8a99a8);margin-top:8px;">Ask your coach for the team name. They approve your request.</div></div>' +
+        '<div class="mt-ovbody" id="mtf-body"></div>';
+      document.body.appendChild(ov);
+    }
+    return ov;
+  }
+  async function openFind() {
+    injectStyles(); if (document.getElementById('ffp-mt-ov')) document.getElementById('ffp-mt-ov').classList.remove('on');
+    var ov = _ensureFindOv(); ov.classList.add('on');
+    document.getElementById('mtf-body').innerHTML = '<div style="color:var(--muted,#8a99a8);padding:12px 0;">Type a team name to search.</div>';
+    try { var r = await sb().rpc('member_my_join_requests', { p_member: memberId() }); W._mtReqs = {}; ((r && r.data) || []).forEach(function (x) { W._mtReqs[x.team_id] = 1; }); } catch (e) { W._mtReqs = {}; }
+    var inp = document.getElementById('mtf-input'); if (inp) { inp.value = ''; try { inp.focus(); } catch (e) {} }
+  }
+  function closeFind() { var ov = document.getElementById('ffp-mtf-ov'); if (ov) ov.classList.remove('on'); }
+  var _findT = null;
+  function findInput(v) { clearTimeout(_findT); _findT = setTimeout(function () { _doFind(v); }, 300); }
+  async function _doFind(q) {
+    var host = document.getElementById('mtf-body'); if (!host) return;
+    q = (q || '').trim();
+    if (q.length < 2) { host.innerHTML = '<div style="color:var(--muted,#8a99a8);padding:12px 0;">Type a team name to search.</div>'; return; }
+    host.innerHTML = '<div style="color:var(--muted,#8a99a8);padding:12px 0;">Searching…</div>';
+    var teams = []; try { var r = await sb().rpc('member_find_teams', { p_q: q }); teams = (r && r.data) || []; } catch (e) {}
+    if (!teams.length) { host.innerHTML = '<div style="color:var(--muted,#8a99a8);padding:12px 0;">No teams match “' + esc(q) + '”.</div>'; return; }
+    host.innerHTML = teams.map(function (t) {
+      var req = W._mtReqs && W._mtReqs[t.team_id];
+      var logo = t.logo_url ? ('background-size:cover;background-position:center;background-image:url(\'' + esc(t.logo_url) + '\');') : '';
+      return '<div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid rgba(255,255,255,.06);">' +
+        '<div style="width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,#2ba8e0,#0a3e44);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px;' + logo + '">' + (t.logo_url ? '' : esc(initials(t.name))) + '</div>' +
+        '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:800;color:var(--text,#e8eef4);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(t.name) + '</div><div style="font-size:11px;color:var(--muted,#8a99a8);">' + esc([t.sport, (t.coach ? 'Coach ' + String(t.coach).split(' ')[0] : '')].filter(Boolean).join(' · ')) + '</div></div>' +
+        '<button id="mtf-b-' + t.team_id + '" ' + (req ? 'disabled' : '') + ' onclick="FFPMemberTeams.request(\'' + t.team_id + '\')" style="border:none;border-radius:9px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;' + (req ? 'background:rgba(255,255,255,.08);color:var(--muted,#8a99a8);' : 'background:var(--yellow,#FFCC00);color:#0a1a24;') + '">' + (req ? 'Requested' : 'Request') + '</button></div>';
+    }).join('');
+  }
+  async function requestJoin(teamId) {
+    var btn = document.getElementById('mtf-b-' + teamId);
+    try {
+      var r = await sb().rpc('member_request_join', { p_member: memberId(), p_team: teamId });
+      if ((r && r.data) === 'already_member') { if (btn) { btn.textContent = 'On team'; btn.disabled = true; } return; }
+      if (!W._mtReqs) W._mtReqs = {}; W._mtReqs[teamId] = 1;
+      if (btn) { btn.textContent = 'Requested'; btn.disabled = true; btn.style.background = 'rgba(255,255,255,.08)'; btn.style.color = 'var(--muted,#8a99a8)'; }
+    } catch (e) { console.error('[FFP MyTeams] request', e); }
+  }
+
+  W.FFPMemberTeams = { renderCarousel: renderCarousel, openTeam: openTeam, close: close, seeAll: seeAll, openFind: openFind, closeFind: closeFind, findInput: findInput, request: requestJoin };
 })();
