@@ -77,11 +77,14 @@
     W._ffpMyTeams = teams;
     if (!teams.length) {
       host.innerHTML = '<div class="mt-head"><div class="mt-h">Your teams</div></div>' +
-        '<div onclick="FFPMemberTeams.openFind()" style="background:#11283c;border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:22px 16px;text-align:center;cursor:pointer;margin-bottom:2px;">' +
-          '<div style="width:46px;height:46px;border-radius:13px;background:rgba(43,168,224,.14);display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;"><span class="material-icons" style="color:var(--blue,#2ba8e0);font-size:25px;">shield</span></div>' +
-          '<div style="font-size:15px;font-weight:800;color:var(--text,#e8eef4);">Join your team</div>' +
-          '<div style="font-size:12px;color:var(--muted,#8a99a8);margin:6px auto 15px;max-width:270px;line-height:1.55;">Your coach can add you — or find your team and request to join. Everything you log to your Passport flows to them.</div>' +
-          '<span style="display:inline-flex;align-items:center;gap:7px;background:var(--yellow,#FFCC00);color:#0a1a24;border-radius:11px;padding:10px 18px;font-size:13.5px;font-weight:800;">Find your team <span class="material-icons" style="font-size:17px;">arrow_forward</span></span>' +
+        '<div onclick="FFPMemberTeams.openFind()" style="display:flex;align-items:center;gap:14px;background:#11283c;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:13px 15px;cursor:pointer;margin-bottom:2px;">' +
+          '<div style="position:relative;width:50px;height:50px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;">' +
+            '<span class="material-icons" style="position:absolute;font-size:40px;color:rgba(43,168,224,.13);">shield</span>' +
+            '<div style="position:relative;width:42px;height:42px;border-radius:50%;border:2px dashed rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;">' +
+              '<span class="material-icons" style="color:var(--yellow,#FFCC00);font-size:24px;">add</span></div>' +
+          '</div>' +
+          '<div style="min-width:0;"><div style="font-size:14px;font-weight:800;color:var(--text,#e8eef4);">Join your team</div>' +
+          '<div style="font-size:12px;color:var(--muted,#8a99a8);margin-top:2px;">Tap to find your team</div></div>' +
         '</div>';
       return;
     }
