@@ -26,17 +26,17 @@
       '.mt-h{font-size:16px;font-weight:800;color:var(--text,#e8eef4);}',
       '.mt-link{font-size:13px;font-weight:800;color:var(--yellow,#FFCC00);cursor:pointer;}',
       '.mt-car{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;padding-bottom:4px;margin:0 -2px 6px;}.mt-car::-webkit-scrollbar{display:none;}',
-      '.mt-card{flex:0 0 auto;width:135px;border-radius:12px;overflow:hidden;background:#11283c;border:1px solid rgba(255,255,255,.07);cursor:pointer;}',
-      '.mt-cover{height:46px;position:relative;display:flex;align-items:flex-end;padding:7px;}',
+      '.mt-card{flex:0 0 auto;width:270px;border-radius:16px;overflow:hidden;background:#11283c;border:1px solid rgba(255,255,255,.07);cursor:pointer;}',
+      '.mt-cover{height:92px;position:relative;display:flex;align-items:flex-end;padding:12px;}',
       '.mt-cover:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,18,26,0) 30%,rgba(6,18,26,.72) 100%);}',
-      '.mt-cov-in{position:relative;z-index:2;display:flex;align-items:center;gap:6px;}',
-      '.mt-crest{width:20px;height:20px;border-radius:6px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:8px;flex:0 0 auto;border:1px solid rgba(255,255,255,.35);background-size:cover;background-position:center;}',
-      '.mt-tn{font-size:11px;font-weight:800;color:#fff;line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:88px;}',
-      '.mt-ts{font-size:8.5px;color:rgba(255,255,255,.7);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:88px;}',
-      '.mt-mv{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.35);font-size:8.5px;font-weight:800;padding:2px 6px;border-radius:100px;z-index:2;}',
-      '.mt-foot{display:flex;align-items:center;gap:6px;padding:7px 8px;}',
-      '.mt-av{width:18px;height:18px;border-radius:50%;background:#214b6b;color:#cfe6f5;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:800;border:1.5px solid #11283c;background-size:cover;background-position:center;flex:0 0 auto;}',
-      '.mt-active{display:flex;align-items:center;gap:4px;font-size:9px;font-weight:700;color:var(--muted,#8a99a8);white-space:nowrap;}',
+      '.mt-cov-in{position:relative;z-index:2;display:flex;align-items:center;gap:10px;}',
+      '.mt-crest{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:12px;flex:0 0 auto;border:1.5px solid rgba(255,255,255,.35);background-size:cover;background-position:center;}',
+      '.mt-tn{font-size:15px;font-weight:800;color:#fff;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:190px;}',
+      '.mt-ts{font-size:10.5px;color:rgba(255,255,255,.7);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:190px;}',
+      '.mt-mv{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.35);font-size:11px;font-weight:800;padding:3px 9px;border-radius:100px;z-index:2;}',
+      '.mt-foot{display:flex;align-items:center;gap:8px;padding:10px 13px;}',
+      '.mt-av{width:25px;height:25px;border-radius:50%;background:#214b6b;color:#cfe6f5;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;border:2px solid #11283c;background-size:cover;background-position:center;flex:0 0 auto;}',
+      '.mt-active{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--muted,#8a99a8);white-space:nowrap;}',
       '.mt-dot{width:7px;height:7px;border-radius:50%;background:#36c97f;}',
       // overlay
       '#ffp-mt-ov{position:fixed;inset:0;z-index:100050;background:#0a1825;display:none;flex-direction:column;font-family:inherit;}',
@@ -103,10 +103,13 @@
     var more = (t.member_count > avs.length) ? '<div class="mt-av" style="margin-left:-8px;background:#16324a;color:#8a99a8;">+' + (t.member_count - avs.length) + '</div>' : '';
     var coach = t.coach ? ('Coach ' + String(t.coach).split(' ')[0]) : '';
     var grad = 'linear-gradient(135deg,#1d6a8f,#0a3e44)';
-    var cover = t.logo_url ? ('background:#0a3e44 center/cover no-repeat;background-image:url(\'' + esc(t.logo_url) + '\');') : ('background:' + grad + ';');
+    // COVER = the team's HEADER photo (cover_url); fall back to the logo, then a gradient. The crest shows the logo.
+    var coverImg = t.cover_url || t.logo_url;
+    var cover = coverImg ? ('background:#0a3e44 center/cover no-repeat;background-image:url(\'' + esc(coverImg) + '\');') : ('background:' + grad + ';');
+    var crestBg = t.logo_url ? ('background-size:cover;background-position:center;background-image:url(\'' + esc(t.logo_url) + '\');') : '';
     return '<div class="mt-card" onclick="FFPMemberTeams.openTeam(\'' + t.team_id + '\')">' +
       '<div class="mt-cover" style="' + cover + '">' + (mvTxt ? '<div class="mt-mv" style="color:' + mvCol + ';">' + mvTxt + '</div>' : '') +
-      '<div class="mt-cov-in"><div class="mt-crest">' + esc(initials(t.name)) + '</div><div><div class="mt-tn">' + esc(t.name) + '</div><div class="mt-ts">' + esc([t.sport, coach].filter(Boolean).join(' · ')) + '</div></div></div></div>' +
+      '<div class="mt-cov-in"><div class="mt-crest" style="' + crestBg + '">' + (t.logo_url ? '' : esc(initials(t.name))) + '</div><div><div class="mt-tn">' + esc(t.name) + '</div><div class="mt-ts">' + esc([t.sport, coach].filter(Boolean).join(' · ')) + '</div></div></div></div>' +
       '<div class="mt-foot"><div style="display:flex;">' + faces + more + '</div><div style="flex:1;"></div>' +
       (t.active_today > 0 ? '<div class="mt-active"><span class="mt-dot"></span>' + t.active_today + ' active</div>' : '<div class="mt-active" style="color:#5f7185;">' + t.member_count + ' players</div>') + '</div></div>';
   }
