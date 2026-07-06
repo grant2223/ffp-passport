@@ -124,17 +124,91 @@
   }
   function close() { var ov = document.getElementById('ffp-mt-ov'); if (ov) ov.classList.remove('on'); }
 
-  async function openTeam(teamId, benchId) {
+  async function openTeam(teamId) {
     injectStyles();
     var mid = memberId(); if (!mid) return;
     var ov = ensureOverlay(); ov.classList.add('on');
-    document.getElementById('mt-ovbody').innerHTML = '<div style="color:var(--muted,#8a99a8);font-weight:700;padding:16px 0;">Loading your standing…</div>';
-    W._ffpMtTeam = teamId;
+    document.getElementById('mt-ovbody').innerHTML = '<div style="color:var(--muted,#8a99a8);font-weight:700;padding:16px 0;">Loading team…</div>';
+    W._ffpMtTeam = teamId; W._mtOvMark = 0; W._mtOvSkill = 0;
     var d = {};
-    try { var r = await sb().rpc('member_team_detail', { p_member: mid, p_team: teamId, p_bench: benchId || null }); d = (r && r.data) || {}; }
-    catch (e) { console.error('[FFP MyTeams] detail', e); document.getElementById('mt-ovbody').innerHTML = '<div style="color:var(--muted,#8a99a8);padding:16px 0;">Couldn\'t load this team.</div>'; return; }
-    W._ffpMtDetail = d;
-    renderDetail(d);
+    try { var r = await sb().rpc('member_team_overview', { p_member: mid, p_team: teamId }); d = (r && r.data) || {}; }
+    catch (e) { console.error('[FFP MyTeams] overview', e); document.getElementById('mt-ovbody').innerHTML = '<div style="color:var(--muted,#8a99a8);padding:16px 0;">Couldn\'t load this team.</div>'; return; }
+    W._mtOv = d; renderOverview();
+  }
+  function _face(p, size, ring) {
+    size = size || 44;
+    var st = 'width:' + size + 'px;height:' + size + 'px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:' + Math.round(size * 0.32) + 'px;background:#214b6b;color:#cfe6f5;overflow:hidden;background-size:cover;background-position:center;flex:0 0 auto;';
+    if (ring) st += 'box-shadow:0 0 0 2.5px ' + ring + ';';
+    if (p && p.photo) return '<span style="' + st + 'background-image:url(\'' + esc(p.photo) + '\');"></span>';
+    return '<span style="' + st + '">' + esc(initials(p && p.name)) + '</span>';
+  }
+  function _ovBar(f) {
+    var bars = f.bars || [];
+    var vals = bars.map(function (b) { return b.value; }).filter(function (v) { return v != null; });
+    var lb = lowerBetter(f.direction);
+    if (!vals.length) {
+      var n0 = bars.length || 5, slot0 = 284 / n0, bw0 = Math.min(16, slot0 - 4), base0 = 96, deco = [46, 64, 38, 72, 54, 60, 42, 58];
+      var r0 = '', l0 = '';
+      for (var j = 0; j < n0; j++) { var h0 = deco[j % deco.length] * 0.7, x0 = 8 + j * slot0 + (slot0 - bw0) / 2; r0 += '<rect x="' + x0.toFixed(1) + '" y="' + (base0 - h0).toFixed(0) + '" width="' + bw0.toFixed(1) + '" height="' + h0.toFixed(0) + '" rx="2" fill="rgba(255,255,255,.08)"/>'; if (bars.length) l0 += '<text x="' + (8 + j * slot0 + slot0 / 2).toFixed(1) + '" y="' + (base0 + 10) + '" text-anchor="middle" font-size="7" font-weight="700" fill="rgba(255,255,255,.35)" font-family="Montserrat">' + esc(initials(bars[j].name)) + '</text>'; }
+      return '<svg viewBox="0 0 300 ' + (base0 + 16) + '" style="width:100%;height:auto;display:block;margin-bottom:8px;" xmlns="http://www.w3.org/2000/svg"><line x1="6" y1="' + (base0 - 52) + '" x2="272" y2="' + (base0 - 52) + '" stroke="rgba(255,255,255,.25)" stroke-width="1.2" stroke-dasharray="4 3"/>' + r0 + l0 + '</svg><div style="text-align:center;color:var(--muted,#8a99a8);font-size:11px;margin-bottom:10px;">No results logged yet.</div>';
+    }
+    function sc(v) { return lb ? -Number(v) : Number(v); }
+    var scr = vals.map(sc), mn = Math.min.apply(null, scr), mx = Math.max.apply(null, scr), span = (mx - mn) || 1;
+    var n = bars.length, slot = 284 / n, bw = Math.min(16, slot - 4), base = 84, top = 12;
+    function hg(v) { return v == null ? 0 : Math.round(14 + (base - top - 14) * (sc(v) - mn) / span); }
+    var avgH = (f.avg != null) ? hg(f.avg) : null;
+    var rects = bars.map(function (b, i) {
+      var x = 8 + i * slot + (slot - bw) / 2, hh = hg(b.value), y = base - hh;
+      var better = (b.value == null) ? null : (lb ? Number(b.value) < Number(f.avg) : Number(b.value) > Number(f.avg));
+      var col = b.value == null ? '#40525a' : (better ? '#37E0C6' : '#FF7A66');
+      return '<rect x="' + x.toFixed(1) + '" y="' + y + '" width="' + bw.toFixed(1) + '" height="' + Math.max(hh, 3) + '" rx="2" fill="' + col + '"/>';
+    }).join('');
+    var labs = bars.map(function (b, i) { var x = 8 + i * slot + slot / 2; return '<text x="' + x.toFixed(1) + '" y="94" text-anchor="middle" font-size="7" font-weight="700" fill="rgba(255,255,255,.5)" font-family="Montserrat">' + esc(initials(b.name)) + '</text>'; }).join('');
+    var avg = (avgH != null) ? '<line x1="6" y1="' + (base - avgH) + '" x2="272" y2="' + (base - avgH) + '" stroke="rgba(255,255,255,.45)" stroke-width="1.3" stroke-dasharray="4 3"/><text x="297" y="' + (base - avgH + 3) + '" text-anchor="end" font-size="8" font-weight="800" fill="rgba(255,255,255,.6)" font-family="Montserrat">avg</text>' : '';
+    return '<svg viewBox="0 0 300 100" style="width:100%;height:auto;display:block;margin-bottom:10px;" xmlns="http://www.w3.org/2000/svg">' + avg + rects + labs + '</svg>';
+  }
+  function _ovSkillCols(sk) {
+    var levels = (sk.levels || []).slice().sort(function (a, b) { return a.level_no - b.level_no; });
+    if (!levels.length) return '<div style="font-size:12px;color:var(--muted,#8a99a8);margin-bottom:8px;">No levels defined.</div>';
+    var players = sk.players || [], byL = {}; levels.forEach(function (l) { byL[l.level_no] = []; });
+    players.forEach(function (p) { if (p.level_no != null && byL[p.level_no]) byL[p.level_no].push(p); });
+    return '<div style="display:grid;grid-template-columns:repeat(' + levels.length + ',1fr);gap:6px;text-align:center;margin-bottom:4px;">' + levels.map(function (l) {
+      var isT = sk.target_level === l.level_no;
+      var faces = byL[l.level_no].map(function (p, i) { return '<span style="margin-left:' + (i ? -8 : 0) + 'px;">' + _face(p, 28) + '</span>'; }).join('') || '<span style="font-size:11px;color:#3a4a57;">—</span>';
+      return '<div><div style="font-size:8.5px;font-weight:800;text-transform:uppercase;color:' + (isT ? 'var(--yellow,#FFCC00)' : 'var(--muted,#8a99a8)') + ';margin-bottom:8px;">' + esc((l.name || '').slice(0, 7)) + (isT ? '★' : '') + '</div><div style="display:flex;justify-content:center;">' + faces + '</div></div>';
+    }).join('') + '</div>';
+  }
+  function renderOverview() {
+    var d = W._mtOv || {}, team = d.team || {}, host = document.getElementById('mt-ovbody'); if (!host) return;
+    document.getElementById('mt-ovtitle').innerHTML = '<div style="font-size:15px;font-weight:800;color:var(--text,#e8eef4);">' + esc(team.name || 'Team') + '</div><div style="font-size:11px;color:var(--muted,#8a99a8);">' + esc([team.sport, (d.member_count || 0) + ' athlete' + (d.member_count === 1 ? '' : 's')].filter(Boolean).join(' · ')) + '</div>';
+    var html = '';
+    var fits = d.fitness || []; if (W._mtOvMark >= fits.length) W._mtOvMark = 0; var f = fits[W._mtOvMark], c = d.member_count || 0;
+    var hit = (f && f.hit != null) ? (f.hit + ' of ' + c + ' hit') : '';
+    html += '<div class="mt-dcard" style="padding:15px;margin-bottom:16px;">';
+    html += '<div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:10px;"><div><div style="font-size:9px;font-weight:800;letter-spacing:1.4px;color:#5f8aa3;">TEAM AVG</div><div style="font-size:32px;font-weight:900;color:var(--text,#e8eef4);line-height:1;margin-top:3px;">' + (f ? fmtVal(f.avg, f.unit) : '—') + '</div></div><div style="text-align:right;">' + (f && f.target != null ? '<div style="font-size:13px;font-weight:800;color:#36c97f;">target ' + fmtVal(f.target, f.unit) + '</div>' : '') + (hit ? '<div style="font-size:11px;color:var(--muted,#8a99a8);">' + hit + '</div>' : '') + '</div></div>';
+    html += (f ? _ovBar(f) : _ovBar({ bars: [] }));
+    if (fits.length) html += '<div style="display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;">' + fits.map(function (x, i) { return '<button class="mt-pill' + (i === W._mtOvMark ? ' on' : '') + '" onclick="FFPMemberTeams.ovMark(' + i + ')">' + esc(x.name) + '</button>'; }).join('') + '</div>';
+    else html += '<div style="color:var(--muted,#8a99a8);font-size:12px;">No benchmarks set yet.</div>';
+    html += '</div>';
+    var work = d.work || [], didW = work.filter(function (w) { return (w.week_n || 0) > 0; }).sort(function (a, b) { return b.week_n - a.week_n; });
+    html += '<div style="font-size:14px;font-weight:800;color:var(--text,#e8eef4);margin:2px 0 10px;">Doing the work · 7 days</div>';
+    if (didW.length) html += '<div style="display:flex;gap:12px;overflow-x:auto;scrollbar-width:none;margin-bottom:16px;padding:2px 0;">' + didW.map(function (w) { return '<div style="text-align:center;flex:0 0 auto;"><div style="position:relative;display:inline-block;">' + _face(w, 44, '#36c97f') + '<span style="position:absolute;bottom:-2px;right:-2px;background:#36c97f;color:#08210f;font-size:9px;font-weight:900;border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;border:2px solid var(--bg,#0a1825);">' + w.week_n + '</span></div><div style="font-size:9.5px;font-weight:700;color:var(--muted,#8a99a8);margin-top:5px;">' + esc((w.name || '').split(' ')[0]) + '</div></div>'; }).join('') + '</div>';
+    else html += '<div style="color:var(--muted,#8a99a8);font-size:12px;margin-bottom:16px;">No sessions logged this week yet.</div>';
+    var sk = d.skills || [];
+    if (sk.length) {
+      if (W._mtOvSkill == null || W._mtOvSkill >= sk.length) W._mtOvSkill = 0; var cur = sk[W._mtOvSkill];
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;margin:6px 0 12px;"><div style="font-size:14px;font-weight:800;color:var(--text,#e8eef4);">Skills</div>' + (sk.length > 1 ? '<span style="font-size:12px;font-weight:800;color:var(--yellow,#FFCC00);cursor:pointer;" onclick="FFPMemberTeams.ovSkill()">' + esc(cur.name) + ' ▾</span>' : '<span style="font-size:12px;font-weight:800;color:var(--muted,#8a99a8);">' + esc(cur.name) + '</span>') + '</div>' + _ovSkillCols(cur);
+    }
+    var tr = d.training || [];
+    if (tr.length) {
+      var mxt = Math.max.apply(null, tr.map(function (x) { return x.sessions; }).concat([1]));
+      html += '<div style="font-size:14px;font-weight:800;color:var(--text,#e8eef4);margin:18px 0 4px;">Training Focus</div><div style="font-size:11px;color:var(--muted,#8a99a8);margin-bottom:12px;">Activities the squad is logging — sessions &amp; share.</div>';
+      html += tr.slice(0, 6).map(function (x) {
+        var wpct = Math.max(16, Math.round(x.sessions * 100 / mxt));
+        return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;"><span style="width:78px;font-size:12px;font-weight:700;color:var(--muted,#8a99a8);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(x.category) + '</span><div style="flex:1;height:22px;border-radius:6px;background:rgba(255,255,255,.06);overflow:hidden;position:relative;"><div style="width:' + wpct + '%;height:100%;background:linear-gradient(90deg,#2ba8e0,#1d6a8f);"></div><span style="position:absolute;left:9px;top:0;bottom:0;display:flex;align-items:center;font-size:11px;font-weight:800;color:#fff;">' + x.sessions + '</span></div><span style="width:30px;text-align:right;font-size:11px;font-weight:800;color:var(--text,#e8eef4);">' + x.pct + '%</span></div>';
+      }).join('');
+    }
+    host.innerHTML = html; host.scrollTop = 0;
   }
 
   function renderDetail(d) {
@@ -249,5 +323,7 @@
     } catch (e) { console.error('[FFP MyTeams] request', e); }
   }
 
-  W.FFPMemberTeams = { renderCarousel: renderCarousel, openTeam: openTeam, close: close, seeAll: seeAll, openFind: openFind, closeFind: closeFind, findInput: findInput, request: requestJoin };
+  W.FFPMemberTeams = { renderCarousel: renderCarousel, openTeam: openTeam, close: close, seeAll: seeAll, openFind: openFind, closeFind: closeFind, findInput: findInput, request: requestJoin,
+    ovMark: function (i) { W._mtOvMark = i; renderOverview(); },
+    ovSkill: function () { var n = ((W._mtOv || {}).skills || []).length; if (n) { W._mtOvSkill = ((W._mtOvSkill || 0) + 1) % n; renderOverview(); } } };
 })();
