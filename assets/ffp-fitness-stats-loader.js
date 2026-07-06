@@ -445,8 +445,8 @@
       try {
         var r = await window.supabase.rpc('member_my_benchmarks', { p_member: me.id });
         ((r && r.data) || []).forEach(function (t) {
-          // Only MEASURED team benchmarks belong here — skills are a separate concept (assessed by the coach), not on the Benchmarks list.
-          (t.measured || []).forEach(function (m) { opts.push({ type: 'team', kind: 'measured', id: m.id, name: m.name, unit: m.unit, target: m.target, current: m.current, sub: t.team, team: t.team, icon: 'timer' }); });
+          // A benchmark is NOT team-owned — it's a shared test a team chose. Show its single-word CATEGORY, not the team.
+          (t.measured || []).forEach(function (m) { opts.push({ type: 'team', kind: 'measured', id: m.id, name: m.name, unit: m.unit, target: m.target, current: m.current, sub: m.category || 'Fitness', team: t.team, icon: 'timer' }); });
         });
       } catch (e) {}
     }
@@ -456,12 +456,13 @@
     var list = document.getElementById('fs-bench-list'); if (!list) return;
     var opts = _benchOpts || []; q = (q || '').toLowerCase().trim();
     var f = opts.filter(function (o) { return !q || o.name.toLowerCase().indexOf(q) >= 0 || (o.sub || '').toLowerCase().indexOf(q) >= 0; });
+    f.sort(function (a, b) { return String(a.name).toLowerCase().localeCompare(String(b.name).toLowerCase()); });   // alphabetical
     if (!f.length) { list.innerHTML = '<div style="padding:12px 14px;color:var(--muted,#8a99a8);font-size:13px;">No benchmark matches.</div>'; return; }
     list.innerHTML = f.map(function (o, i) {
       var oid = o.type === 'team' ? ('t:' + o.id) : ('m:' + o.key);
       return '<div class="fs-bench-opt" data-oid="' + oid + '" style="display:flex;align-items:center;gap:11px;padding:11px 14px;cursor:pointer;' + (i ? 'border-top:1px solid rgba(255,255,255,.05);' : '') + '">' +
-        '<span class="material-icons" style="color:' + (o.type === 'team' && o.kind === 'skill' ? '#8b5cf6' : 'var(--blue,#2ba8e0)') + ';font-size:19px;">' + o.icon + '</span>' +
-        '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:700;color:var(--text,#e8eef4);">' + escText(o.name) + '</div><div style="font-size:11px;color:var(--muted,#8a99a8);">' + escText(o.sub || '') + (o.type === 'team' ? ' · Team benchmark' : '') + '</div></div></div>';
+        '<span class="material-icons" style="color:var(--blue,#2ba8e0);font-size:19px;">' + o.icon + '</span>' +
+        '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:700;color:var(--text,#e8eef4);">' + escText(o.name) + '</div><div style="font-size:11px;color:var(--muted,#8a99a8);">' + escText(o.sub || '') + '</div></div></div>';
     }).join('');
   }
   function _findBenchOpt(oid) {
