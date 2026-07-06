@@ -72,7 +72,16 @@
     catch (e) { console.error('[FFP MyTeams] list', e); host.innerHTML = ''; return; }
     injectStyles();
     W._ffpMyTeams = teams;
-    if (!teams.length) { host.innerHTML = '<div style="text-align:center;padding:0 0 12px;"><span onclick="FFPMemberTeams.openFind()" style="font-size:12.5px;font-weight:700;color:var(--muted,#8a99a8);cursor:pointer;">In a coach\'s squad? <span style="color:var(--yellow,#FFCC00);">Find your team →</span></span></div>'; return; }
+    if (!teams.length) {
+      host.innerHTML = '<div class="mt-head"><div class="mt-h">Your teams</div></div>' +
+        '<div onclick="FFPMemberTeams.openFind()" style="background:#11283c;border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:22px 16px;text-align:center;cursor:pointer;margin-bottom:2px;">' +
+          '<div style="width:46px;height:46px;border-radius:13px;background:rgba(43,168,224,.14);display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;"><span class="material-icons" style="color:var(--blue,#2ba8e0);font-size:25px;">shield</span></div>' +
+          '<div style="font-size:15px;font-weight:800;color:var(--text,#e8eef4);">Join your team</div>' +
+          '<div style="font-size:12px;color:var(--muted,#8a99a8);margin:6px auto 15px;max-width:270px;line-height:1.55;">Your coach can add you — or find your team and request to join. Everything you log to your Passport flows to them.</div>' +
+          '<span style="display:inline-flex;align-items:center;gap:7px;background:var(--yellow,#FFCC00);color:#0a1a24;border-radius:11px;padding:10px 18px;font-size:13.5px;font-weight:800;">Find your team <span class="material-icons" style="font-size:17px;">arrow_forward</span></span>' +
+        '</div>';
+      return;
+    }
     host.innerHTML = '<div class="mt-head"><div class="mt-h">Your teams</div><div class="mt-link" onclick="FFPMemberTeams.openFind()">Find a team</div></div>' +
       '<div class="mt-car">' + teams.map(card).join('') + '</div>';
   }
