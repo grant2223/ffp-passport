@@ -128,15 +128,14 @@
     // 0) Your teams carousel — rendered by FFPMemberTeams into #cf-teams (renders nothing if not on a team)
     html += '<div id="cf-teams"></div>';
 
-    // 1) Matches + Search — two yellow buttons (replaced the old discovery/search straps)
+    // 1) My connections — the header comes FIRST, then the Matches + Search buttons sit UNDER it
+    //    (they're connection actions — find people / search members — NOT part of the Teams section above).
+    html += '<div class="cf-sec-head"><div class="cf-sec-t">My connections</div>' +
+      '<div class="cf-sec-link" onclick="FFPConnFeed.seeAll()">See all</div></div>';
     html += '<div class="cf-btnrow">' +
       '<button class="cf-ybtn" onclick="FFPConnFeed.discover()"><span class="material-icons">auto_awesome</span>Matches' + (n > 0 ? '<span class="cf-ybadge">' + n + '</span>' : '') + '</button>' +
       '<button class="cf-ybtn" onclick="FFPConnFeed.openSearch()"><span class="material-icons">search</span>Search</button>' +
       '</div>';
-
-    // 2) My connections (most active first)
-    html += '<div class="cf-sec-head"><div class="cf-sec-t">My connections</div>' +
-      '<div class="cf-sec-link" onclick="FFPConnFeed.seeAll()">See all</div></div>';
     html += '<div class="cf-cap">Your connections’ latest — or tap one</div><div class="cf-circles">';
     // "All" — everyone's latest activity (first cell, default-selected). No per-person header/journey in this mode.
     html += '<div class="cf-cell sel" id="cf-cell-all" onclick="FFPConnFeed.selectPerson(\'all\',\'All\')">' +
