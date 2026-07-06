@@ -69,7 +69,7 @@
     var mid = memberId(); if (!mid) { host.innerHTML = ''; return; }
     var teams = [];
     try { var r = await sb().rpc('member_my_teams', { p_member: mid }); teams = (r && r.data) || []; }
-    catch (e) { console.error('[FFP MyTeams] list', e); host.innerHTML = ''; return; }
+    catch (e) { console.error('[FFP MyTeams] list', e); teams = []; }  // fall through to the "Join your team" card, never blank
     injectStyles();
     W._ffpMyTeams = teams;
     if (!teams.length) {
