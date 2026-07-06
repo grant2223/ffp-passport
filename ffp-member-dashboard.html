@@ -1250,7 +1250,7 @@
     <div class="tabs-underline fs-tabs" id="fs-tabs">
       <button class="tabs-underline-btn active" data-fs-tab="activity">Activity</button>
       <button class="tabs-underline-btn" data-fs-tab="bio">Bio Age</button>
-      <button class="tabs-underline-btn" data-fs-tab="records">Records</button>
+      <button class="tabs-underline-btn" data-fs-tab="records">Benchmarks</button>
       <button class="tabs-underline-btn" data-fs-tab="milestones">Milestones</button>
     </div>
     
@@ -4458,7 +4458,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '550';
+  const FFP_BUILD = '551';
   try { window.FFP_BUILD = FFP_BUILD; } catch (e) {}
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
@@ -8461,7 +8461,7 @@ else init();
 <script src="assets/ffp-connections-core.js?v=361"></script>
 <script src="assets/ffp-streak-loader.js?v=1"></script>
 <script defer src="assets/ffp-coach-loader.js?v=521"></script>
-<script defer src="assets/ffp-connections-feed-loader.js?v=550"></script>
+<script defer src="assets/ffp-connections-feed-loader.js?v=551"></script>
 <script defer src="assets/ffp-event-results-loader.js?v=329"></script>
 <script>
 (function(){
