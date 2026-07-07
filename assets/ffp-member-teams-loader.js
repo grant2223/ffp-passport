@@ -53,7 +53,16 @@
       '.mt-tl{font-size:8.5px;font-weight:800;text-transform:uppercase;letter-spacing:.3px;color:var(--muted,#8a99a8);margin-top:4px;}',
       '.mt-lb{display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;}',
       '.mt-lbav{width:32px;height:32px;border-radius:50%;background:#214b6b;color:#cfe6f5;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex:0 0 auto;background-size:cover;background-position:center;}',
-      '.mt-rk{width:20px;text-align:center;font-size:12px;font-weight:800;color:var(--muted,#8a99a8);flex:0 0 auto;}'
+      '.mt-rk{width:20px;text-align:center;font-size:12px;font-weight:800;color:var(--muted,#8a99a8);flex:0 0 auto;}',
+      // streak flame (profile inside a living flame; colour by streak length)
+      '@keyframes ffpFlick{0%,100%{transform:scaleY(1) scaleX(1)}50%{transform:scaleY(1.09) scaleX(.94)}}',
+      '@keyframes ffpSway{0%,100%{transform:rotate(-2.5deg)}50%{transform:rotate(2.5deg)}}',
+      '.ffp-stwrap{position:relative;width:58px;height:80px;flex:0 0 auto;}',
+      '.ffp-flame{position:absolute;left:0;bottom:0;width:58px;height:80px;transform-origin:50% 90%;animation:ffpSway 2.6s ease-in-out infinite;}',
+      '.ffp-flame .fo{animation:ffpFlick .9s ease-in-out infinite;transform-origin:50% 90%;}',
+      '.ffp-flame .fi{animation:ffpFlick .7s ease-in-out infinite reverse;transform-origin:50% 90%;}',
+      '.ffp-stav{position:absolute;left:11px;bottom:5px;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;z-index:2;background:#0a1825;background-size:cover;background-position:center;color:#dbeafe;}',
+      '.ffp-stday{position:absolute;bottom:-3px;left:50%;transform:translateX(-50%);z-index:3;font-size:10px;font-weight:800;color:#fff;background:rgba(0,0,0,.5);border-radius:20px;padding:1px 8px;}'
     ].join('');
     document.head.appendChild(s);
   }
@@ -178,44 +187,145 @@
       return '<div><div style="font-size:8.5px;font-weight:800;text-transform:uppercase;color:' + (isT ? 'var(--yellow,#FFCC00)' : 'var(--muted,#8a99a8)') + ';margin-bottom:8px;">' + esc((l.name || '').slice(0, 7)) + (isT ? '★' : '') + '</div><div style="display:flex;justify-content:center;">' + faces + '</div></div>';
     }).join('') + '</div>';
   }
+  var _catGrads = ['linear-gradient(160deg,#1d5d8a,#0a2e44)', 'linear-gradient(160deg,#0e5a63,#0a1a24)', 'linear-gradient(160deg,#243b1f,#0a1a24)', 'linear-gradient(160deg,#3a2352,#12112a)', 'linear-gradient(160deg,#5a2d2d,#1a0f0f)'];
+  function _catGrad(k) { var s = String(k || ''), h = 0, i; for (i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return _catGrads[h % _catGrads.length]; }
+
+  // Team progress: draw a trend line when ≥2 team-avg points exist, else fall back to the per-athlete bars.
+  function _trendSVG(f, trend) {
+    var vals = trend.map(function (p) { return Number(p.avg); }), all = vals.concat(f.target != null ? [Number(f.target)] : []);
+    var mn = Math.min.apply(null, all), mx = Math.max.apply(null, all), span = (mx - mn) || 1, n = vals.length;
+    function Y(v) { return 12 + 34 * (1 - (Number(v) - mn) / span); }
+    function X(i) { return 8 + i * (198 / (n - 1)); }
+    var pts = vals.map(function (v, i) { return X(i).toFixed(0) + ',' + Y(v).toFixed(0); }).join(' ');
+    var area = 'M' + X(0).toFixed(0) + ',' + Y(vals[0]).toFixed(0) + ' ' + vals.map(function (v, i) { return 'L' + X(i).toFixed(0) + ',' + Y(v).toFixed(0); }).join(' ') + ' L' + X(n - 1).toFixed(0) + ',58 L' + X(0).toFixed(0) + ',58 Z';
+    var gid = 'ta' + String(f.id || Math.random()).replace(/[^a-z0-9]/gi, '');
+    var tgt = (f.target != null) ? '<line x1="6" y1="' + Y(f.target).toFixed(0) + '" x2="200" y2="' + Y(f.target).toFixed(0) + '" stroke="rgba(255,255,255,.35)" stroke-width="1" stroke-dasharray="4 3"/><text x="211" y="' + (Y(f.target) + 3).toFixed(0) + '" text-anchor="end" font-size="7.5" fill="rgba(255,255,255,.5)" font-family="Montserrat">tgt</text>' : '';
+    return '<svg viewBox="0 0 214 62" style="width:100%;height:auto;display:block;margin-top:6px;" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#37E0C6" stop-opacity=".33"/><stop offset="1" stop-color="#37E0C6" stop-opacity="0"/></linearGradient></defs>' + tgt + '<path d="' + area + '" fill="url(#' + gid + ')"/><polyline points="' + pts + '" fill="none" stroke="#37E0C6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="' + X(n - 1).toFixed(0) + '" cy="' + Y(vals[n - 1]).toFixed(0) + '" r="4" fill="#37E0C6" stroke="#081420" stroke-width="2"/></svg>';
+  }
+  function _progCard(f) {
+    var trend = (f.trend || []).filter(function (p) { return p.avg != null; }), hasTrend = trend.length >= 2, right = '';
+    if (hasTrend) {
+      var vals = trend.map(function (p) { return Number(p.avg); }), first = vals[0], last = vals[vals.length - 1], lb = lowerBetter(f.direction), improved = lb ? last < first : last > first;
+      var col = improved ? '#37E0C6' : '#FF7A66', arrow = (last < first) ? '▼' : (last > first ? '▲' : '—');
+      right = '<span style="font-size:11px;font-weight:800;color:' + col + ';background:' + (improved ? 'rgba(55,224,198,.14)' : 'rgba(255,122,102,.14)') + ';border-radius:7px;padding:2px 7px;">' + arrow + ' ' + fmtGap(last, first, f.unit) + '</span>';
+    } else if (f.target != null) {
+      right = '<span style="font-size:11px;font-weight:800;color:#36c97f;background:rgba(54,201,127,.14);border-radius:7px;padding:2px 7px;">target ' + fmtVal(f.target, f.unit) + '</span>';
+    }
+    return '<div style="flex:0 0 auto;width:244px;background:radial-gradient(120% 90% at 50% 0,#0f3b4a,#081420);border-radius:16px;padding:15px;box-sizing:border-box;">' +
+      '<div style="font-size:9.5px;font-weight:800;letter-spacing:1px;color:#5f8aa3;margin-bottom:3px;">' + esc((f.name || '').toUpperCase()) + ' · TEAM AVG</div>' +
+      '<div style="display:flex;align-items:baseline;gap:9px;margin-bottom:4px;"><div style="font-size:26px;font-weight:900;color:var(--text,#e8eef4);line-height:1;">' + fmtVal(f.avg, f.unit) + '</div>' + right + '</div>' +
+      (hasTrend ? _trendSVG(f, trend) : _ovBar(f)) + '</div>';
+  }
+
+  // 24h/recent activity — "people being active" photo strip
+  function _actStrip(acts) {
+    if (!acts.length) return '<div style="color:var(--muted,#8a99a8);font-size:12px;margin-bottom:4px;">No recent activity yet.</div>';
+    return '<div class="mt-car" style="margin:0 0 4px;">' + acts.map(function (a) {
+      var bg = a.img ? ('background:#0a2e44 center/cover no-repeat;background-image:url(\'' + esc(a.img) + '\');') : ('background:' + _catGrad(a.category || a.activity) + ';');
+      var sub = a.km ? (a.km + 'km') : (a.mins ? (a.mins + 'm') : '');
+      return '<div style="flex:0 0 auto;width:98px;height:116px;border-radius:12px;position:relative;overflow:hidden;' + bg + '"><div style="position:absolute;left:0;right:0;bottom:0;padding:16px 9px 8px;background:linear-gradient(transparent,rgba(0,0,0,.74));"><div style="font-size:11.5px;font-weight:800;color:#fff;">' + esc((a.name || '').split(' ')[0]) + '</div><div style="font-size:9.5px;color:#cfe0ee;">' + esc([a.activity, sub].filter(Boolean).join(' ')) + '</div></div></div>';
+    }).join('') + '</div>';
+  }
+  function _standoutCard(s) {
+    if (!s) return '';
+    var bg = s.photo ? ('background:#0a2233 center/cover no-repeat;background-image:url(\'' + esc(s.photo) + '\');') : 'background:linear-gradient(120deg,#0e4a44,#0a2233);';
+    var lbl = (s.window === 'today') ? 'Standout today' : 'Standout · 7 days';
+    var chips = [(s.mins ? s.mins + 'm active' : ''), (s.cals ? s.cals + ' cal' : ''), (s.sessions ? s.sessions + ' session' + (s.sessions === 1 ? '' : 's') : '')].filter(Boolean);
+    return '<div style="position:relative;height:126px;border-radius:14px;overflow:hidden;margin-bottom:20px;' + bg + '">' +
+      '<div style="position:absolute;inset:0;background:linear-gradient(120deg,rgba(10,34,51,.4),rgba(10,34,51,.12));"></div>' +
+      '<div style="position:absolute;top:11px;left:12px;display:flex;align-items:center;gap:5px;background:rgba(0,0,0,.42);padding:4px 9px;border-radius:20px;"><span class="material-icons" style="font-size:13px;color:var(--yellow,#FFCC00);">emoji_events</span><span style="font-size:10px;color:var(--yellow,#FFCC00);letter-spacing:.4px;text-transform:uppercase;font-weight:800;">' + lbl + '</span></div>' +
+      '<div style="position:absolute;left:0;right:0;bottom:0;padding:20px 13px 12px;background:linear-gradient(transparent,rgba(0,0,0,.8));"><div style="font-size:17px;font-weight:800;color:#fff;margin-bottom:7px;">' + esc(s.name) + '</div><div style="display:flex;gap:7px;flex-wrap:wrap;">' + chips.map(function (c) { return '<span style="background:rgba(255,255,255,.16);border-radius:8px;padding:4px 8px;font-size:11px;font-weight:700;color:#fff;">' + esc(c) + '</span>'; }).join('') + '</div></div></div>';
+  }
+  // Profile inside a living flame; colour runs cool→hot with streak length.
+  function _flame(s, idx) {
+    var days = s.days || 0;
+    var tier = days >= 14 ? { g: ['#bfdbfe', '#3b82f6', '#4338ca'], glow: 'rgba(59,130,246,.7)', inner: '#dbeafe', ring: '#93c5fd', txt: '#dbeafe' }
+      : days >= 7 ? { g: ['#fff7cc', '#FFCC00', '#c2410c'], glow: 'rgba(255,122,102,.6)', inner: '#fff7cc', ring: '#FFCC00', txt: '#ffe9a3' }
+        : { g: ['#ffe4c4', '#FF7A66', '#7a2f14'], glow: 'rgba(255,122,102,.5)', inner: '#ffe4d6', ring: '#FF7A66', txt: '#ffd9cf' };
+    var id = 'ffpfl' + idx, av = s.photo ? ('background-image:url(\'' + esc(s.photo) + '\');') : '';
+    return '<div style="text-align:center;flex:0 0 auto;">' +
+      '<div class="ffp-stwrap">' +
+      '<svg class="ffp-flame" viewBox="0 0 60 82" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="' + id + '" cx="50%" cy="80%" r="70%"><stop offset="0" stop-color="' + tier.g[0] + '"/><stop offset="45%" stop-color="' + tier.g[1] + '"/><stop offset="100%" stop-color="' + tier.g[2] + '"/></radialGradient></defs>' +
+      '<g class="fo" filter="drop-shadow(0 0 6px ' + tier.glow + ')"><path d="M30 4 C38 22 54 30 47 52 C43 66 37 74 30 74 C23 74 17 66 13 52 C6 30 22 22 30 4 Z" fill="url(#' + id + ')"/></g>' +
+      '<g class="fi"><path d="M30 22 C35 33 44 38 40 52 C37 61 34 66 30 66 C26 66 23 61 20 52 C16 38 25 33 30 22 Z" fill="' + tier.inner + '" opacity=".85"/></g></svg>' +
+      '<div class="ffp-stav" style="box-shadow:0 0 0 2px ' + tier.ring + ';color:' + tier.txt + ';' + av + '">' + (s.photo ? '' : esc(initials(s.name))) + '</div>' +
+      '<span class="ffp-stday">' + days + '</span>' +
+      '</div><div style="font-size:11px;font-weight:700;color:var(--muted,#8a99a8);margin-top:8px;">' + esc((s.name || '').split(' ')[0]) + '</div></div>';
+  }
+
   function renderOverview() {
     var d = W._mtOv || {}, team = d.team || {}, host = document.getElementById('mt-ovbody'); if (!host) return;
-    document.getElementById('mt-ovtitle').innerHTML = '<div style="font-size:15px;font-weight:800;color:var(--text,#e8eef4);">' + esc(team.name || 'Team') + '</div><div style="font-size:11px;color:var(--muted,#8a99a8);">' + esc([team.sport, (d.member_count || 0) + ' athlete' + (d.member_count === 1 ? '' : 's')].filter(Boolean).join(' · ')) + '</div>';
+    var c = d.member_count || 0, so = d.standout;
+    document.getElementById('mt-ovtitle').innerHTML = '<div style="font-size:15px;font-weight:800;color:var(--text,#e8eef4);">' + esc(team.name || 'Team') + '</div>';
     var html = '';
-    var fits = d.fitness || []; if (W._mtOvMark >= fits.length) W._mtOvMark = 0; var f = fits[W._mtOvMark], c = d.member_count || 0;
-    var hit = (f && f.hit != null) ? (f.hit + ' of ' + c + ' hit') : '';
-    html += '<div class="mt-dcard" style="padding:15px;margin-bottom:16px;">';
-    html += '<div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:10px;"><div><div style="font-size:9px;font-weight:800;letter-spacing:1.4px;color:#5f8aa3;">TEAM AVG</div><div style="font-size:32px;font-weight:900;color:var(--text,#e8eef4);line-height:1;margin-top:3px;">' + (f ? fmtVal(f.avg, f.unit) : '—') + '</div></div><div style="text-align:right;">' + (f && f.target != null ? '<div style="font-size:13px;font-weight:800;color:#36c97f;">target ' + fmtVal(f.target, f.unit) + '</div>' : '') + (hit ? '<div style="font-size:11px;color:var(--muted,#8a99a8);">' + hit + '</div>' : '') + '</div></div>';
-    html += (f ? _ovBar(f) : _ovBar({ bars: [] }));
-    if (fits.length) html += '<div style="display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;">' + fits.map(function (x, i) { return '<button class="mt-pill' + (i === W._mtOvMark ? ' on' : '') + '" onclick="FFPMemberTeams.ovMark(' + i + ')">' + esc(x.name) + '</button>'; }).join('') + '</div>';
-    else html += '<div style="color:var(--muted,#8a99a8);font-size:12px;">No benchmarks set yet.</div>';
-    html += '</div>';
-    var work = d.work || [], didW = work.filter(function (w) { return (w.week_n || 0) > 0; }).sort(function (a, b) { return b.week_n - a.week_n; });
-    html += '<div style="font-size:14px;font-weight:800;color:var(--text,#e8eef4);margin:2px 0 10px;">Doing the work · 7 days</div>';
-    if (didW.length) html += '<div style="display:flex;gap:12px;overflow-x:auto;scrollbar-width:none;margin-bottom:16px;padding:2px 0;">' + didW.map(function (w) { return '<div style="text-align:center;flex:0 0 auto;"><div style="position:relative;display:inline-block;">' + _face(w, 44, '#36c97f') + '<span style="position:absolute;bottom:-2px;right:-2px;background:#36c97f;color:#08210f;font-size:9px;font-weight:900;border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;border:2px solid var(--bg,#0a1825);">' + w.week_n + '</span></div><div style="font-size:9.5px;font-weight:700;color:var(--muted,#8a99a8);margin-top:5px;">' + esc((w.name || '').split(' ')[0]) + '</div></div>'; }).join('') + '</div>';
-    else html += '<div style="color:var(--muted,#8a99a8);font-size:12px;margin-bottom:16px;">No sessions logged this week yet.</div>';
-    var sk = d.skills || [];
-    if (sk.length) {
-      W._mtSkills = sk;
-      html += '<div style="font-size:14px;font-weight:800;color:var(--text,#e8eef4);margin:6px 0 12px;">Skills</div>';
-      html += sk.map(function (s, i) {
-        return '<div style="' + (i ? 'margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,.06);' : '') + '">' +
-          '<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;"><span style="font-size:13px;font-weight:800;color:var(--text,#e8eef4);">' + esc(s.name) + '</span>' +
-          '<span onclick="FFPMemberTeams.skillInfo(' + i + ')" style="cursor:pointer;color:var(--muted,#8a99a8);display:inline-flex;align-items:center;" title="Level guide"><span class="material-icons" style="font-size:17px;">info_outline</span></span></div>' +
-          _ovSkillCols(s) + '</div>';
-      }).join('');
-    }
+    // header cover
+    var cov = team.cover_url || team.logo_url;
+    var covBg = cov ? ('background:#0e2033 center/cover no-repeat;background-image:url(\'' + esc(cov) + '\');') : 'background:linear-gradient(120deg,#123a52,#0a2233);';
+    var crest = team.logo_url ? ('background-size:cover;background-position:center;background-image:url(\'' + esc(team.logo_url) + '\');') : '';
+    html += '<div style="position:relative;height:140px;border-radius:16px;overflow:hidden;margin:-2px 0 22px;' + covBg + '">' +
+      '<div style="position:absolute;inset:0;background:linear-gradient(transparent 40%,rgba(10,24,37,.94));"></div>' +
+      '<div style="position:absolute;left:14px;bottom:13px;display:flex;align-items:center;gap:11px;"><div style="width:50px;height:50px;border-radius:14px;background:#0a1825;box-shadow:0 0 0 2px var(--yellow,#FFCC00);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:var(--yellow,#FFCC00);' + crest + '">' + (team.logo_url ? '' : esc(initials(team.name))) + '</div><div><div style="font-size:18px;font-weight:800;color:#fff;line-height:1.1;">' + esc(team.name || 'Team') + '</div><div style="font-size:11px;color:#bfd0dd;">' + c + ' athlete' + (c === 1 ? '' : 's') + (so && so.window === 'today' ? ' · active today' : '') + '</div></div></div></div>';
+    // team progress
+    var fits = d.fitness || [];
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><div style="font-size:15px;font-weight:800;color:var(--text,#e8eef4);">Team progress</div>' + (fits.length ? '<span class="mt-link" onclick="FFPMemberTeams.openLeaderboard()">Benchmarks &rsaquo;</span>' : '') + '</div>';
+    if (fits.length) html += '<div class="mt-car" style="margin:0 -2px 30px;">' + fits.map(_progCard).join('') + '</div>';
+    else html += '<div style="color:var(--muted,#8a99a8);font-size:12px;margin-bottom:24px;">No benchmarks set yet.</div>';
+    // training focus
     var tr = d.training || [];
     if (tr.length) {
       var mxt = Math.max.apply(null, tr.map(function (x) { return x.sessions; }).concat([1]));
-      html += '<div style="font-size:14px;font-weight:800;color:var(--text,#e8eef4);margin:18px 0 4px;">Training Focus</div><div style="font-size:11px;color:var(--muted,#8a99a8);margin-bottom:12px;">Activities the squad is logging — sessions &amp; share.</div>';
-      html += tr.slice(0, 6).map(function (x) {
+      html += '<div style="font-size:15px;font-weight:800;color:var(--text,#e8eef4);margin-bottom:12px;">Training focus</div><div style="margin-bottom:30px;">' + tr.slice(0, 6).map(function (x) {
         var wpct = Math.max(16, Math.round(x.sessions * 100 / mxt));
-        return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;"><span style="width:78px;font-size:12px;font-weight:700;color:var(--muted,#8a99a8);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(x.category) + '</span><div style="flex:1;height:22px;border-radius:6px;background:rgba(255,255,255,.06);overflow:hidden;position:relative;"><div style="width:' + wpct + '%;height:100%;background:linear-gradient(90deg,#2ba8e0,#1d6a8f);"></div><span style="position:absolute;left:9px;top:0;bottom:0;display:flex;align-items:center;font-size:11px;font-weight:800;color:#fff;">' + x.sessions + '</span></div><span style="width:30px;text-align:right;font-size:11px;font-weight:800;color:var(--text,#e8eef4);">' + x.pct + '%</span></div>';
-      }).join('');
+        return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;"><span style="width:78px;font-size:12px;font-weight:700;color:var(--muted,#8a99a8);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(x.category) + '</span><div style="flex:1;height:20px;border-radius:6px;background:rgba(255,255,255,.06);overflow:hidden;"><div style="width:' + wpct + '%;height:100%;background:linear-gradient(90deg,#2ba8e0,#1d6a8f);"></div></div><span style="width:30px;text-align:right;font-size:11px;font-weight:800;color:var(--text,#e8eef4);">' + x.pct + '%</span></div>';
+      }).join('') + '</div>';
     }
+    // the squad — activity, standout, streaks grouped
+    html += '<div style="background:#0d2032;border-radius:18px;padding:16px 15px 18px;margin-bottom:26px;">';
+    html += '<div style="font-size:12px;letter-spacing:.6px;color:#6f8496;text-transform:uppercase;font-weight:800;margin-bottom:13px;">The squad</div>';
+    html += _actStrip(d.activity || []);
+    if (so) html += '<div style="height:14px;"></div>' + _standoutCard(so);
+    var st = d.streaks || [];
+    if (st.length) {
+      html += '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;"><div style="font-size:11px;color:var(--muted,#8a99a8);">On a streak</div><div style="font-size:9.5px;color:#5f7285;">longer streak · hotter flame</div></div>';
+      html += '<div style="display:flex;gap:20px;align-items:flex-end;padding-left:4px;overflow-x:auto;scrollbar-width:none;">' + st.map(_flame).join('') + '</div>';
+    }
+    html += '</div>';
+    // explore
+    var sk = d.skills || []; W._mtSkills = sk;
+    html += '<div style="font-size:12px;letter-spacing:.6px;color:#6f8496;text-transform:uppercase;font-weight:800;margin-bottom:13px;">Explore</div>';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;">' +
+      '<div onclick="FFPMemberTeams.openSkillsView()" style="background:#11283c;border-radius:14px;padding:14px;cursor:pointer;"><span class="material-icons" style="font-size:20px;color:#2ba8e0;">insights</span><div style="font-size:13.5px;font-weight:800;color:var(--text,#e8eef4);margin-top:8px;">Skills analysis</div><div style="font-size:10.5px;color:var(--muted,#8a99a8);">' + (sk.length ? sk.length + ' tracked' : 'team spread') + '</div></div>' +
+      '<div onclick="FFPMemberTeams.openLeaderboard()" style="background:#11283c;border-radius:14px;padding:14px;cursor:pointer;"><span class="material-icons" style="font-size:20px;color:var(--yellow,#FFCC00);">leaderboard</span><div style="font-size:13.5px;font-weight:800;color:var(--text,#e8eef4);margin-top:8px;">Leaderboard</div><div style="font-size:10.5px;color:var(--muted,#8a99a8);">all benchmarks</div></div>' +
+      '</div>';
     host.innerHTML = html; host.scrollTop = 0;
   }
+
+  function _backChip() { return '<div onclick="FFPMemberTeams.backOverview()" style="display:inline-flex;align-items:center;gap:4px;color:var(--muted,#8a99a8);font-size:13px;font-weight:800;cursor:pointer;margin-bottom:14px;"><span class="material-icons" style="font-size:18px;">chevron_left</span>Overview</div>'; }
+  function openSkillsView() {
+    var d = W._mtOv || {}, sk = d.skills || [], host = document.getElementById('mt-ovbody'); if (!host) return; W._mtSkills = sk;
+    var html = _backChip() + '<div style="font-size:17px;font-weight:800;color:var(--text,#e8eef4);margin-bottom:6px;">Skills analysis</div><div style="font-size:11.5px;color:var(--muted,#8a99a8);margin-bottom:16px;">Where the squad sits on each skill.</div>';
+    if (!sk.length) html += '<div style="color:var(--muted,#8a99a8);font-size:13px;">No skills tracked yet.</div>';
+    else html += sk.map(function (s, i) {
+      return '<div style="' + (i ? 'margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,.06);' : '') + '"><div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;"><span style="font-size:14px;font-weight:800;color:var(--text,#e8eef4);">' + esc(s.name) + '</span><span onclick="FFPMemberTeams.skillInfo(' + i + ')" style="cursor:pointer;color:var(--muted,#8a99a8);display:inline-flex;align-items:center;" title="Level guide"><span class="material-icons" style="font-size:17px;">info_outline</span></span></div>' + _ovSkillCols(s) + '</div>';
+    }).join('');
+    host.innerHTML = html; host.scrollTop = 0;
+  }
+  function openLeaderboard(bIdx) {
+    var d = W._mtOv || {}, fits = d.fitness || [], host = document.getElementById('mt-ovbody'); if (!host) return;
+    if (!fits.length) { host.innerHTML = _backChip() + '<div style="color:var(--muted,#8a99a8);font-size:13px;">No benchmarks set yet.</div>'; return; }
+    bIdx = bIdx || 0; if (bIdx >= fits.length) bIdx = 0;
+    var f = fits[bIdx], lb = lowerBetter(f.direction), me = memberId();
+    var rows = (f.bars || []).filter(function (b) { return b.value != null; }).slice().sort(function (a, b) { return lb ? (a.value - b.value) : (b.value - a.value); });
+    var html = _backChip() + '<div style="font-size:17px;font-weight:800;color:var(--text,#e8eef4);margin-bottom:12px;">Leaderboard</div>';
+    if (fits.length > 1) html += '<div style="display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin-bottom:14px;">' + fits.map(function (x, i) { return '<button class="mt-pill' + (i === bIdx ? ' on' : '') + '" onclick="FFPMemberTeams.openLeaderboard(' + i + ')">' + esc(x.name) + '</button>'; }).join('') + '</div>';
+    if (!rows.length) html += '<div style="color:var(--muted,#8a99a8);font-size:13px;">No results logged for ' + esc(f.name) + ' yet.</div>';
+    else html += '<div class="mt-dcard" style="padding:6px 8px;">' + rows.map(function (row, i) {
+      var you = row.member_id === me;
+      return '<div class="mt-lb"' + (you ? ' style="background:rgba(255,204,0,.10);border:1px solid rgba(255,204,0,.35);"' : '') + '><div class="mt-rk"' + (you ? ' style="color:var(--yellow,#FFCC00);"' : '') + '>' + (i + 1) + '</div>' + _face(row, 32, you ? '#FFCC00' : null) + '<div style="flex:1;font-size:13px;font-weight:' + (you ? '800' : '700') + ';color:' + (you ? 'var(--yellow,#FFCC00)' : 'var(--text,#e8eef4)') + ';">' + (you ? 'You' : esc(row.name)) + '</div><div style="font-size:13px;font-weight:800;color:var(--text,#e8eef4);">' + fmtVal(row.value, f.unit) + '</div></div>';
+    }).join('') + '</div>';
+    host.innerHTML = html; host.scrollTop = 0;
+  }
+  function backOverview() { renderOverview(); }
 
   function renderDetail(d) {
     var team = d.team || {}, marks = d.marks || [], active = d.active_mark;
@@ -330,18 +440,22 @@
   }
 
   W.FFPMemberTeams = { renderCarousel: renderCarousel, openTeam: openTeam, close: close, seeAll: seeAll, openFind: openFind, closeFind: closeFind, findInput: findInput, request: requestJoin,
+    openSkillsView: openSkillsView, openLeaderboard: openLeaderboard, backOverview: backOverview,
     ovMark: function (i) { W._mtOvMark = i; renderOverview(); },
     ovSkill: function () { var n = ((W._mtOv || {}).skills || []).length; if (n) { W._mtOvSkill = ((W._mtOvSkill || 0) + 1) % n; renderOverview(); } },
     skillInfo: function (i) {
       var s = (W._mtSkills || [])[i]; if (!s) return;
       var levels = (s.levels || []).slice().sort(function (a, b) { return a.level_no - b.level_no; });
+      var anyDesc = levels.some(function (l) { return l.description && String(l.description).trim(); });
       var body = '<div class="cv-wrap" style="padding:2px;"><h3 class="q-title">' + esc(s.name) + ' — level guide</h3>' +
+        (anyDesc ? '' : '<div style="font-size:12.5px;color:var(--muted,#8a99a8);margin:-4px 0 14px;line-height:1.5;">Your coach hasn’t described these levels yet.</div>') +
         (levels.length ? levels.map(function (l) {
           var c = SPECTRUM[Math.min(l.level_no, SPECTRUM.length) - 1] || '#8a99a8', isT = s.target_level === l.level_no;
+          var desc = (l.description && String(l.description).trim()) ? esc(l.description) : '<span style="color:var(--muted,#8a99a8);">Not described yet.</span>';
           return '<div style="display:flex;gap:11px;margin-bottom:14px;"><div style="width:11px;height:11px;border-radius:50%;background:' + c + ';margin-top:4px;flex:0 0 auto;"></div>' +
             '<div style="flex:1;min-width:0;"><div style="font-size:13.5px;font-weight:800;color:' + c + ';">' + esc(l.name) + (isT ? ' <span style="color:var(--yellow,#FFCC00);">★ target</span>' : '') + '</div>' +
-            '<div style="font-size:12.5px;color:var(--text,#e8eef4);line-height:1.5;margin-top:2px;">' + esc(l.description || '—') + '</div></div></div>';
-        }).join('') : '<div style="color:var(--muted,#8a99a8);">No level guide yet.</div>') + '</div>';
+            '<div style="font-size:12.5px;color:var(--text,#e8eef4);line-height:1.5;margin-top:2px;">' + desc + '</div></div></div>';
+        }).join('') : '<div style="color:var(--muted,#8a99a8);">No levels defined.</div>') + '</div>';
       if (typeof openDetailModal === 'function') openDetailModal(body); else if (W.openDetailModal) W.openDetailModal(body);
     } };
 })();
