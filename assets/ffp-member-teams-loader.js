@@ -203,19 +203,28 @@
     return '<svg viewBox="0 0 214 62" style="width:100%;height:auto;display:block;margin-top:6px;" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#37E0C6" stop-opacity=".33"/><stop offset="1" stop-color="#37E0C6" stop-opacity="0"/></linearGradient></defs>' + tgt + '<path d="' + area + '" fill="url(#' + gid + ')"/><polyline points="' + pts + '" fill="none" stroke="#37E0C6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="' + X(n - 1).toFixed(0) + '" cy="' + Y(vals[n - 1]).toFixed(0) + '" r="4" fill="#37E0C6" stroke="#081420" stroke-width="2"/></svg>';
   }
   function _progCard(f) {
-    var trend = (f.trend || []).filter(function (p) { return p.avg != null; }), hasTrend = trend.length >= 2, right = '';
-    if (hasTrend) {
+    var trend = (f.trend || []).filter(function (p) { return p.avg != null; }), hasTrend = trend.length >= 2;
+    // per-benchmark view mode: tap the card to flip team-avg trend ↔ individual athlete bars
+    var mode = (W._mtProgMode && W._mtProgMode[f.id]) || (hasTrend ? 'trend' : 'bars');
+    var showBars = (mode === 'bars') || !hasTrend, c = (W._mtOv || {}).member_count || 0, right = '';
+    if (!showBars && hasTrend) {
       var vals = trend.map(function (p) { return Number(p.avg); }), first = vals[0], last = vals[vals.length - 1], lb = lowerBetter(f.direction), improved = lb ? last < first : last > first;
       var col = improved ? '#37E0C6' : '#FF7A66', arrow = (last < first) ? '▼' : (last > first ? '▲' : '—');
       right = '<span style="font-size:11px;font-weight:800;color:' + col + ';background:' + (improved ? 'rgba(55,224,198,.14)' : 'rgba(255,122,102,.14)') + ';border-radius:7px;padding:2px 7px;">' + arrow + ' ' + fmtGap(last, first, f.unit) + '</span>';
+    } else if (f.hit != null) {
+      right = '<span style="font-size:11px;font-weight:800;color:#36c97f;background:rgba(54,201,127,.14);border-radius:7px;padding:2px 7px;">' + f.hit + ' of ' + c + ' hit</span>';
     } else if (f.target != null) {
       right = '<span style="font-size:11px;font-weight:800;color:#36c97f;background:rgba(54,201,127,.14);border-radius:7px;padding:2px 7px;">target ' + fmtVal(f.target, f.unit) + '</span>';
     }
-    return '<div style="flex:0 0 auto;width:244px;background:radial-gradient(120% 90% at 50% 0,#0f3b4a,#081420);border-radius:16px;padding:15px;box-sizing:border-box;">' +
-      '<div style="font-size:9.5px;font-weight:800;letter-spacing:1px;color:#5f8aa3;margin-bottom:3px;">' + esc((f.name || '').toUpperCase()) + ' · TEAM AVG</div>' +
+    var body = showBars ? _ovBar(f) : _trendSVG(f, trend);
+    var foot = hasTrend ? ('<div style="display:flex;align-items:center;justify-content:center;gap:5px;margin-top:8px;color:#5f8aa3;font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;"><span class="material-icons" style="font-size:13px;">swap_horiz</span>' + (showBars ? 'Tap · team trend' : 'Tap · individuals') + '</div>') : '';
+    var tap = hasTrend ? (' onclick="FFPMemberTeams.progToggle(\'' + f.id + '\')"') : '';
+    return '<div' + tap + ' style="flex:0 0 auto;width:244px;background:radial-gradient(120% 90% at 50% 0,#0f3b4a,#081420);border-radius:16px;padding:15px;box-sizing:border-box;' + (hasTrend ? 'cursor:pointer;' : '') + '">' +
+      '<div style="font-size:9.5px;font-weight:800;letter-spacing:1px;color:#5f8aa3;margin-bottom:3px;">' + esc((f.name || '').toUpperCase()) + ' · ' + (showBars ? 'INDIVIDUALS' : 'TEAM AVG') + '</div>' +
       '<div style="display:flex;align-items:baseline;gap:9px;margin-bottom:4px;"><div style="font-size:26px;font-weight:900;color:var(--text,#e8eef4);line-height:1;">' + fmtVal(f.avg, f.unit) + '</div>' + right + '</div>' +
-      (hasTrend ? _trendSVG(f, trend) : _ovBar(f)) + '</div>';
+      body + foot + '</div>';
   }
+  function _paintProg() { var el = document.getElementById('mt-progrow'); if (el) el.innerHTML = ((W._mtOv || {}).fitness || []).map(_progCard).join(''); }
 
   // 24h/recent activity — "people being active" photo strip
   function _actStrip(acts) {
@@ -268,7 +277,7 @@
     // team progress
     var fits = d.fitness || [];
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><div style="font-size:15px;font-weight:800;color:var(--text,#e8eef4);">Team progress</div>' + (fits.length ? '<span class="mt-link" onclick="FFPMemberTeams.openLeaderboard()">Benchmarks &rsaquo;</span>' : '') + '</div>';
-    if (fits.length) html += '<div class="mt-car" style="margin:0 -2px 30px;">' + fits.map(_progCard).join('') + '</div>';
+    if (fits.length) html += '<div class="mt-car" id="mt-progrow" style="margin:0 -2px 30px;">' + fits.map(_progCard).join('') + '</div>';
     else html += '<div style="color:var(--muted,#8a99a8);font-size:12px;margin-bottom:24px;">No benchmarks set yet.</div>';
     // training focus
     var tr = d.training || [];
@@ -441,6 +450,14 @@
 
   W.FFPMemberTeams = { renderCarousel: renderCarousel, openTeam: openTeam, close: close, seeAll: seeAll, openFind: openFind, closeFind: closeFind, findInput: findInput, request: requestJoin,
     openSkillsView: openSkillsView, openLeaderboard: openLeaderboard, backOverview: backOverview,
+    progToggle: function (id) {
+      if (!W._mtProgMode) W._mtProgMode = {};
+      var fits = (W._mtOv || {}).fitness || [], f = null;
+      for (var i = 0; i < fits.length; i++) if (String(fits[i].id) === String(id)) f = fits[i];
+      if (!f || (f.trend || []).filter(function (p) { return p.avg != null; }).length < 2) return;
+      W._mtProgMode[id] = ((W._mtProgMode[id] || 'trend') === 'bars') ? 'trend' : 'bars';
+      _paintProg();
+    },
     ovMark: function (i) { W._mtOvMark = i; renderOverview(); },
     ovSkill: function () { var n = ((W._mtOv || {}).skills || []).length; if (n) { W._mtOvSkill = ((W._mtOvSkill || 0) + 1) % n; renderOverview(); } },
     skillInfo: function (i) {
