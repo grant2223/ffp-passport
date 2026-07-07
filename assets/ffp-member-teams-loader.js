@@ -43,7 +43,8 @@
       '#ffp-mt-ov.on{display:flex;}',
       '.mt-ovhead{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.07);flex:0 0 auto;}',
       '.mt-ovhead .x{color:var(--muted,#8a99a8);font-size:24px;cursor:pointer;}',
-      '.mt-ovbody{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 16px 96px;max-width:620px;width:100%;margin:0 auto;box-sizing:border-box;}',
+      '.mt-ovbody{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 96px;max-width:620px;width:100%;margin:0 auto;box-sizing:border-box;}',
+      '#ffp-mt-ov .mt-ovhead{display:none;}',
       '.mt-dcard{background:#11283c;border:1px solid rgba(255,255,255,.06);border-radius:14px;}',
       '.mt-pill{border-radius:16px;padding:5px 13px;font-size:11px;font-weight:700;background:rgba(255,255,255,.08);color:var(--muted,#8a99a8);flex:0 0 auto;cursor:pointer;border:none;font-family:inherit;}',
       '.mt-pill.on{background:var(--yellow,#FFCC00);color:#0a1a24;font-weight:800;}',
@@ -54,15 +55,14 @@
       '.mt-lb{display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;}',
       '.mt-lbav{width:32px;height:32px;border-radius:50%;background:#214b6b;color:#cfe6f5;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex:0 0 auto;background-size:cover;background-position:center;}',
       '.mt-rk{width:20px;text-align:center;font-size:12px;font-weight:800;color:var(--muted,#8a99a8);flex:0 0 auto;}',
-      // streak flame (profile inside a living flame; colour by streak length)
-      '@keyframes ffpFlick{0%,100%{transform:scaleY(1) scaleX(1)}50%{transform:scaleY(1.09) scaleX(.94)}}',
-      '@keyframes ffpSway{0%,100%{transform:rotate(-2.5deg)}50%{transform:rotate(2.5deg)}}',
-      '.ffp-stwrap{position:relative;width:58px;height:80px;flex:0 0 auto;}',
-      '.ffp-flame{position:absolute;left:0;bottom:0;width:58px;height:80px;transform-origin:50% 90%;animation:ffpSway 2.6s ease-in-out infinite;}',
-      '.ffp-flame .fo{animation:ffpFlick .9s ease-in-out infinite;transform-origin:50% 90%;}',
-      '.ffp-flame .fi{animation:ffpFlick .7s ease-in-out infinite reverse;transform-origin:50% 90%;}',
-      '.ffp-stav{position:absolute;left:11px;bottom:5px;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;z-index:2;background:#0a1825;background-size:cover;background-position:center;color:#dbeafe;}',
-      '.ffp-stday{position:absolute;bottom:-3px;left:50%;transform:translateX(-50%);z-index:3;font-size:10px;font-weight:800;color:#fff;background:rgba(0,0,0,.5);border-radius:20px;padding:1px 8px;}'
+      // streak flame — a living RING of fire hugging the avatar; colour by streak length
+      '@keyframes ffpSpin{to{transform:rotate(360deg)}}',
+      '@keyframes ffpFlameP{0%,100%{opacity:.5}50%{opacity:.95}}',
+      '.ffp-stwrap{position:relative;width:56px;height:56px;flex:0 0 auto;}',
+      '.ffp-ring{position:absolute;inset:0;border-radius:50%;animation:ffpSpin 7s linear infinite;-webkit-mask:radial-gradient(farthest-side,#0000 70%,#000 74%);mask:radial-gradient(farthest-side,#0000 70%,#000 74%);}',
+      '.ffp-ring.g{inset:-3px;filter:blur(3.5px);animation:ffpSpin 4.5s linear infinite reverse,ffpFlameP 1.15s ease-in-out infinite;-webkit-mask:radial-gradient(farthest-side,#0000 64%,#000 82%);mask:radial-gradient(farthest-side,#0000 64%,#000 82%);}',
+      '.ffp-stav{position:absolute;inset:8px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;z-index:2;background:#0a1825;background-size:cover;background-position:center;color:#dbeafe;}',
+      '.ffp-stday{position:absolute;bottom:-3px;left:50%;transform:translateX(-50%);z-index:3;font-size:10px;font-weight:800;color:#fff;background:rgba(0,0,0,.55);border-radius:20px;padding:1px 8px;}'
     ].join('');
     document.head.appendChild(s);
   }
@@ -245,19 +245,21 @@
       '<div style="position:absolute;top:11px;left:12px;display:flex;align-items:center;gap:5px;background:rgba(0,0,0,.42);padding:4px 9px;border-radius:20px;"><span class="material-icons" style="font-size:13px;color:var(--yellow,#FFCC00);">emoji_events</span><span style="font-size:10px;color:var(--yellow,#FFCC00);letter-spacing:.4px;text-transform:uppercase;font-weight:800;">' + lbl + '</span></div>' +
       '<div style="position:absolute;left:0;right:0;bottom:0;padding:20px 13px 12px;background:linear-gradient(transparent,rgba(0,0,0,.8));"><div style="font-size:17px;font-weight:800;color:#fff;margin-bottom:7px;">' + esc(s.name) + '</div><div style="display:flex;gap:7px;flex-wrap:wrap;">' + chips.map(function (c) { return '<span style="background:rgba(255,255,255,.16);border-radius:8px;padding:4px 8px;font-size:11px;font-weight:700;color:#fff;">' + esc(c) + '</span>'; }).join('') + '</div></div></div>';
   }
-  // Profile inside a living flame; colour runs cool→hot with streak length.
+  // A living RING of fire hugging the avatar; colour runs cool→hot with streak length.
   function _flame(s, idx) {
     var days = s.days || 0;
-    var tier = days >= 14 ? { g: ['#bfdbfe', '#3b82f6', '#4338ca'], glow: 'rgba(59,130,246,.7)', inner: '#dbeafe', ring: '#93c5fd', txt: '#dbeafe' }
-      : days >= 7 ? { g: ['#fff7cc', '#FFCC00', '#c2410c'], glow: 'rgba(255,122,102,.6)', inner: '#fff7cc', ring: '#FFCC00', txt: '#ffe9a3' }
-        : { g: ['#ffe4c4', '#FF7A66', '#7a2f14'], glow: 'rgba(255,122,102,.5)', inner: '#ffe4d6', ring: '#FF7A66', txt: '#ffd9cf' };
-    var id = 'ffpfl' + idx, av = s.photo ? ('background-image:url(\'' + esc(s.photo) + '\');') : '';
+    // streak tiers: blue (starting) → yellow → orange → red (best streak)
+    var t = days >= 30 ? { c1: '#7a0e0e', c2: '#ef2b2b', c3: '#ff9a7a', glow: 'rgba(239,43,43,.75)', ring: '#ef4444', txt: '#ffd3c8' }
+      : days >= 14 ? { c1: '#9a3412', c2: '#f97316', c3: '#ffd08a', glow: 'rgba(249,115,22,.72)', ring: '#fb923c', txt: '#ffe0b8' }
+        : days >= 7 ? { c1: '#a16207', c2: '#FFD400', c3: '#fff7cc', glow: 'rgba(255,204,0,.7)', ring: '#FFCC00', txt: '#fff2b0' }
+          : { c1: '#1e3a8a', c2: '#3b82f6', c3: '#dbeafe', glow: 'rgba(59,130,246,.75)', ring: '#93c5fd', txt: '#dbeafe' };
+    var grad = 'repeating-conic-gradient(' + t.c1 + ' 0deg,' + t.c2 + ' 9deg,' + t.c3 + ' 18deg,' + t.c2 + ' 27deg,' + t.c1 + ' 36deg)';
+    var av = s.photo ? ('background-image:url(\'' + esc(s.photo) + '\');') : '';
     return '<div style="text-align:center;flex:0 0 auto;">' +
-      '<div class="ffp-stwrap">' +
-      '<svg class="ffp-flame" viewBox="0 0 60 82" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="' + id + '" cx="50%" cy="80%" r="70%"><stop offset="0" stop-color="' + tier.g[0] + '"/><stop offset="45%" stop-color="' + tier.g[1] + '"/><stop offset="100%" stop-color="' + tier.g[2] + '"/></radialGradient></defs>' +
-      '<g class="fo" filter="drop-shadow(0 0 6px ' + tier.glow + ')"><path d="M30 4 C38 22 54 30 47 52 C43 66 37 74 30 74 C23 74 17 66 13 52 C6 30 22 22 30 4 Z" fill="url(#' + id + ')"/></g>' +
-      '<g class="fi"><path d="M30 22 C35 33 44 38 40 52 C37 61 34 66 30 66 C26 66 23 61 20 52 C16 38 25 33 30 22 Z" fill="' + tier.inner + '" opacity=".85"/></g></svg>' +
-      '<div class="ffp-stav" style="box-shadow:0 0 0 2px ' + tier.ring + ';color:' + tier.txt + ';' + av + '">' + (s.photo ? '' : esc(initials(s.name))) + '</div>' +
+      '<div class="ffp-stwrap" style="filter:drop-shadow(0 0 5px ' + t.glow + ');">' +
+      '<div class="ffp-ring g" style="background:' + grad + ';"></div>' +
+      '<div class="ffp-ring" style="background:' + grad + ';"></div>' +
+      '<div class="ffp-stav" style="box-shadow:0 0 0 1.5px ' + t.ring + ';color:' + t.txt + ';' + av + '">' + (s.photo ? '' : esc(initials(s.name))) + '</div>' +
       '<span class="ffp-stday">' + days + '</span>' +
       '</div><div style="font-size:11px;font-weight:700;color:var(--muted,#8a99a8);margin-top:8px;">' + esc((s.name || '').split(' ')[0]) + '</div></div>';
   }
@@ -271,9 +273,10 @@
     var cov = team.cover_url || team.logo_url;
     var covBg = cov ? ('background:#0e2033 center/cover no-repeat;background-image:url(\'' + esc(cov) + '\');') : 'background:linear-gradient(120deg,#123a52,#0a2233);';
     var crest = team.logo_url ? ('background-size:cover;background-position:center;background-image:url(\'' + esc(team.logo_url) + '\');') : '';
-    html += '<div style="position:relative;height:140px;border-radius:16px;overflow:hidden;margin:-2px 0 22px;' + covBg + '">' +
-      '<div style="position:absolute;inset:0;background:linear-gradient(transparent 40%,rgba(10,24,37,.94));"></div>' +
-      '<div style="position:absolute;left:14px;bottom:13px;display:flex;align-items:center;gap:11px;"><div style="width:50px;height:50px;border-radius:14px;background:#0a1825;box-shadow:0 0 0 2px var(--yellow,#FFCC00);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:var(--yellow,#FFCC00);' + crest + '">' + (team.logo_url ? '' : esc(initials(team.name))) + '</div><div><div style="font-size:18px;font-weight:800;color:#fff;line-height:1.1;">' + esc(team.name || 'Team') + '</div><div style="font-size:11px;color:#bfd0dd;">' + c + ' athlete' + (c === 1 ? '' : 's') + (so && so.window === 'today' ? ' · active today' : '') + '</div></div></div></div>';
+    html += '<div style="position:relative;height:210px;overflow:hidden;border-radius:0 0 20px 20px;margin:calc(-1 * (env(safe-area-inset-top,0px) + 14px)) -16px 22px;' + covBg + '">' +
+      '<div style="position:absolute;inset:0;background:linear-gradient(transparent 42%,rgba(10,24,37,.96));"></div>' +
+      '<div onclick="FFPMemberTeams.close()" style="position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);left:12px;width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,.42);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:3;"><span class="material-icons" style="color:#fff;font-size:26px;">chevron_left</span></div>' +
+      '<div style="position:absolute;left:16px;right:16px;bottom:15px;display:flex;align-items:center;gap:12px;"><div style="width:52px;height:52px;border-radius:14px;background:#0a1825;box-shadow:0 0 0 2px var(--yellow,#FFCC00);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:var(--yellow,#FFCC00);flex:0 0 auto;' + crest + '">' + (team.logo_url ? '' : esc(initials(team.name))) + '</div><div style="min-width:0;"><div style="font-size:20px;font-weight:800;color:#fff;line-height:1.1;">' + esc(team.name || 'Team') + '</div><div style="font-size:11.5px;color:#bfd0dd;margin-top:2px;">' + c + ' athlete' + (c === 1 ? '' : 's') + (so && so.window === 'today' ? ' · active today' : '') + '</div></div></div></div>';
     // team progress
     var fits = d.fitness || [];
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><div style="font-size:15px;font-weight:800;color:var(--text,#e8eef4);">Team progress</div>' + (fits.length ? '<span class="mt-link" onclick="FFPMemberTeams.openLeaderboard()">Benchmarks &rsaquo;</span>' : '') + '</div>';
@@ -461,18 +464,20 @@
     ovMark: function (i) { W._mtOvMark = i; renderOverview(); },
     ovSkill: function () { var n = ((W._mtOv || {}).skills || []).length; if (n) { W._mtOvSkill = ((W._mtOvSkill || 0) + 1) % n; renderOverview(); } },
     skillInfo: function (i) {
-      var s = (W._mtSkills || [])[i]; if (!s) return;
+      // full-bleed sub-view (an openDetailModal popup renders BEHIND the z-100050 team overlay → invisible)
+      var s = (W._mtSkills || [])[i], host = document.getElementById('mt-ovbody'); if (!s || !host) return;
       var levels = (s.levels || []).slice().sort(function (a, b) { return a.level_no - b.level_no; });
       var anyDesc = levels.some(function (l) { return l.description && String(l.description).trim(); });
-      var body = '<div class="cv-wrap" style="padding:2px;"><h3 class="q-title">' + esc(s.name) + ' — level guide</h3>' +
-        (anyDesc ? '' : '<div style="font-size:12.5px;color:var(--muted,#8a99a8);margin:-4px 0 14px;line-height:1.5;">Your coach hasn’t described these levels yet.</div>') +
+      var html = '<div onclick="FFPMemberTeams.openSkillsView()" style="display:inline-flex;align-items:center;gap:4px;color:var(--muted,#8a99a8);font-size:13px;font-weight:800;cursor:pointer;margin-bottom:14px;"><span class="material-icons" style="font-size:18px;">chevron_left</span>Skills</div>' +
+        '<div style="font-size:18px;font-weight:800;color:var(--text,#e8eef4);margin-bottom:4px;">' + esc(s.name) + '</div>' +
+        '<div style="font-size:12px;color:var(--muted,#8a99a8);margin-bottom:18px;">Level guide' + (anyDesc ? '' : ' — your coach hasn’t described these levels yet') + '</div>' +
         (levels.length ? levels.map(function (l) {
-          var c = SPECTRUM[Math.min(l.level_no, SPECTRUM.length) - 1] || '#8a99a8', isT = s.target_level === l.level_no;
+          var col = SPECTRUM[Math.min(l.level_no, SPECTRUM.length) - 1] || '#8a99a8', isT = s.target_level === l.level_no;
           var desc = (l.description && String(l.description).trim()) ? esc(l.description) : '<span style="color:var(--muted,#8a99a8);">Not described yet.</span>';
-          return '<div style="display:flex;gap:11px;margin-bottom:14px;"><div style="width:11px;height:11px;border-radius:50%;background:' + c + ';margin-top:4px;flex:0 0 auto;"></div>' +
-            '<div style="flex:1;min-width:0;"><div style="font-size:13.5px;font-weight:800;color:' + c + ';">' + esc(l.name) + (isT ? ' <span style="color:var(--yellow,#FFCC00);">★ target</span>' : '') + '</div>' +
+          return '<div style="display:flex;gap:11px;margin-bottom:16px;"><div style="width:11px;height:11px;border-radius:50%;background:' + col + ';margin-top:5px;flex:0 0 auto;"></div>' +
+            '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:800;color:' + col + ';">' + esc(l.name) + (isT ? ' <span style="color:var(--yellow,#FFCC00);">★ target</span>' : '') + '</div>' +
             '<div style="font-size:12.5px;color:var(--text,#e8eef4);line-height:1.5;margin-top:2px;">' + desc + '</div></div></div>';
-        }).join('') : '<div style="color:var(--muted,#8a99a8);">No levels defined.</div>') + '</div>';
-      if (typeof openDetailModal === 'function') openDetailModal(body); else if (W.openDetailModal) W.openDetailModal(body);
+        }).join('') : '<div style="color:var(--muted,#8a99a8);">No levels defined.</div>');
+      host.innerHTML = html; host.scrollTop = 0;
     } };
 })();
