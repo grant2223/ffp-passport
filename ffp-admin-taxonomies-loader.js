@@ -100,7 +100,7 @@
 
   async function fetchAll() {
     var res = await sb().from('taxonomy_items')
-      .select('id, list_key, value, label, sort_order, active, parent')
+      .select('id, list_key, value, label, sort_order, active, parent, code')
       .order('list_key', { ascending: true })
       .order('sort_order', { ascending: true });
     if (res.error) { console.error('[Taxonomies] fetch', res.error); toast('Could not load taxonomy', 'error'); return; }
@@ -151,6 +151,7 @@
 
     var isCat = state.current === 'category';
     var isProf = state.current === 'professional_role';
+    var isNat = state.current === 'nationality';  // passport ISO3 code column, DB-driven (taxonomy_items.code)
     var rowsHtml = rows.length ? rows.map(function (r, i) {
       var passCell = '';
       if (isCat) {
@@ -166,6 +167,7 @@
       return '<tr class="' + (r.active ? '' : 'inactive') + '" data-id="' + r.id + '">' +
         '<td style="width:34px;color:#6a90a8;">' + (i + 1) + '</td>' +
         '<td><input class="tx-name" value="' + esc(r.label || r.value) + '" data-id="' + r.id + '"></td>' +
+        (isNat ? '<td style="width:84px;"><input class="tx-code" value="' + esc(r.code || '') + '" data-id="' + r.id + '" maxlength="3" placeholder="ISO" style="text-transform:uppercase;width:64px;"></td>' : '') +
         passCell +
         '<td style="width:90px;"><span class="tx-pill ' + (r.active ? 'on' : 'off') + '">' + (r.active ? 'Live' : 'Hidden') + '</span></td>' +
         '<td style="width:150px;"><div class="tx-act">' +
@@ -174,13 +176,13 @@
           '<button class="tx-ic" data-act="toggle" title="' + (r.active ? 'Hide' : 'Show') + '"><span class="material-icons">' + (r.active ? 'visibility_off' : 'visibility') + '</span></button>' +
           '<button class="tx-ic danger" data-act="del" title="Delete"><span class="material-icons">delete</span></button>' +
         '</div></td></tr>';
-    }).join('') : '<tr><td colspan="' + (isCat || isProf ? 5 : 4) + '" class="text-muted" style="text-align:center;padding:26px;">No items yet — add one above.</td></tr>';
+    }).join('') : '<tr><td colspan="' + (isCat || isProf || isNat ? 5 : 4) + '" class="text-muted" style="text-align:center;padding:26px;">No items yet — add one above.</td></tr>';
 
     host.innerHTML =
       '<div class="tx-wrap">' +
         '<div class="tx-lists">' + listsHtml + '</div>' +
         '<div class="tx-panel">' + bar +
-          '<table><thead><tr><th>#</th><th>Name</th>' + (isCat ? '<th>Passport</th>' : '') + (isProf ? '<th>Category</th>' : '') + '<th>Status</th><th style="text-align:right;">Actions</th></tr></thead>' +
+          '<table><thead><tr><th>#</th><th>Name</th>' + (isNat ? '<th>Code</th>' : '') + (isCat ? '<th>Passport</th>' : '') + (isProf ? '<th>Category</th>' : '') + '<th>Status</th><th style="text-align:right;">Actions</th></tr></thead>' +
           '<tbody>' + rowsHtml + '</tbody></table>' +
         '</div>' +
       '</div>';
@@ -222,6 +224,10 @@
       inp.onblur = function () { renameItem(inp.dataset.id, inp.value); };
       inp.onkeydown = function (e) { if (e.key === 'Enter') inp.blur(); };
     });
+    host.querySelectorAll('.tx-code').forEach(function (inp) {
+      inp.onblur = function () { setCode(inp.dataset.id, inp.value); };
+      inp.onkeydown = function (e) { if (e.key === 'Enter') inp.blur(); };
+    });
     host.querySelectorAll('.tx-pass').forEach(function (sel) {
       sel.onchange = function () { setCatPassport(sel.dataset.id, sel.value); };
     });
@@ -234,6 +240,17 @@
     if (res.error) { toast('Could not set passport', 'error'); return; }
     r.parent = passport || null;
     toast('Passport updated', 'success');
+  }
+
+  // Passport ISO3 code for a nationality — DB-driven (taxonomy_items.code); FFP_TAX hydrates it platform-wide.
+  async function setCode(id, code) {
+    var r = findRow(id); if (!r) return;
+    code = (code || '').trim().toUpperCase() || null;
+    if (code === (r.code || null)) return;
+    var res = await sb().from('taxonomy_items').update({ code: code }).eq('id', id);
+    if (res.error) { toast('Could not save code', 'error'); return; }
+    r.code = code;
+    toast('Code saved', 'success');
   }
 
   async function addItem(val) {
