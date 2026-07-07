@@ -189,7 +189,7 @@
      postgres_changes subscriptions via FFPRealtime.subscribe so panels
      auto-refresh when underlying DB rows change. -->
 <script src="assets/ffp-constants.js"></script>
-<script src="assets/ffp-taxonomy.js?v=9"></script>
+<script src="assets/ffp-taxonomy.js?v=10"></script>
 <script src="assets/ffp-passport-card.js?v=488"></script>
 <script src="assets/ffp-realtime.js"></script>
 <!-- Feedback widget (shared) -> public.feedback -> admin Feedback panel -->
@@ -4458,7 +4458,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '565';
+  const FFP_BUILD = '566';
   try { window.FFP_BUILD = FFP_BUILD; } catch (e) {}
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
@@ -4614,6 +4614,8 @@ const NATIONALITY_ISO = {
   'Swedish':'SWE','Swiss':'CHE','Thai':'THA','Turkish':'TUR','Ukrainian':'UKR',
   'American':'USA','Vietnamese':'VNM'
 };
+// Link the ISO map onto FFP_TAX so the DB (taxonomy_items.code) hydrates it in place — Admin edits auto-propagate to the passport code.
+try { if (window.FFP_TAX) window.FFP_TAX.nationalityISO = NATIONALITY_ISO; } catch (e) {}
 
 const GENDERS = window.FFP_TAX.genders;
 
