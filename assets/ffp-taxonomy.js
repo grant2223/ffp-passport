@@ -211,10 +211,10 @@
     //   5 words, so a person's level connects to the listings they can attend. Listings add "All Levels"
     //   on top — see window.FFP_TAX.attendeeLevels below, derived from this so the two never drift apart.
     nationalities: [
-      'Argentinian','Australian','Austrian','Belgian','Brazilian','British','Bulgarian',
+      'Argentinian','Australian','Austrian','Azerbaijani','Bahrainian','Belgian','Brazilian','British','Bulgarian',
       'Canadian','Chilean','Chinese','Colombian','Croatian','Czech','Danish','Dutch',
       'Egyptian','Emirati','Filipino','Finnish','French','German','Greek','Hungarian',
-      'Indian','Indonesian','Irish','Israeli','Italian','Japanese','Jordanian','Kenyan',
+      'Indian','Indonesian','Iranian','Irish','Israeli','Italian','Japanese','Jordanian','Kenyan',
       'Kuwaiti','Lebanese','Malaysian','Mexican','Moroccan','New Zealander','Nigerian',
       'Norwegian','Omani','Pakistani','Peruvian','Polish','Portuguese','Qatari','Romanian',
       'Russian','Saudi Arabian','Singaporean','South African','South Korean','Spanish',
