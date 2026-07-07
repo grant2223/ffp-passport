@@ -43,7 +43,7 @@
       '#ffp-mt-ov.on{display:flex;}',
       '.mt-ovhead{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.07);flex:0 0 auto;}',
       '.mt-ovhead .x{color:var(--muted,#8a99a8);font-size:24px;cursor:pointer;}',
-      '.mt-ovbody{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;max-width:620px;width:100%;margin:0 auto;box-sizing:border-box;}',
+      '.mt-ovbody{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 16px 96px;max-width:620px;width:100%;margin:0 auto;box-sizing:border-box;}',
       '.mt-dcard{background:#11283c;border:1px solid rgba(255,255,255,.06);border-radius:14px;}',
       '.mt-pill{border-radius:16px;padding:5px 13px;font-size:11px;font-weight:700;background:rgba(255,255,255,.08);color:var(--muted,#8a99a8);flex:0 0 auto;cursor:pointer;border:none;font-family:inherit;}',
       '.mt-pill.on{background:var(--yellow,#FFCC00);color:#0a1a24;font-weight:800;}',
