@@ -55,14 +55,12 @@
       '.mt-lb{display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;}',
       '.mt-lbav{width:32px;height:32px;border-radius:50%;background:#214b6b;color:#cfe6f5;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex:0 0 auto;background-size:cover;background-position:center;}',
       '.mt-rk{width:20px;text-align:center;font-size:12px;font-weight:800;color:var(--muted,#8a99a8);flex:0 0 auto;}',
-      // streak flame — a living RING of fire hugging the avatar; colour by streak length
+      // streak AURA RING — slim brand gradient ring + glow + flame-number pill; colour by streak length
       '@keyframes ffpSpin{to{transform:rotate(360deg)}}',
-      '@keyframes ffpFlameP{0%,100%{opacity:.5}50%{opacity:.95}}',
-      '.ffp-stwrap{position:relative;width:56px;height:56px;flex:0 0 auto;}',
-      '.ffp-ring{position:absolute;inset:0;border-radius:50%;animation:ffpSpin 7s linear infinite;-webkit-mask:radial-gradient(farthest-side,#0000 70%,#000 74%);mask:radial-gradient(farthest-side,#0000 70%,#000 74%);}',
-      '.ffp-ring.g{inset:-3px;filter:blur(3.5px);animation:ffpSpin 4.5s linear infinite reverse,ffpFlameP 1.15s ease-in-out infinite;-webkit-mask:radial-gradient(farthest-side,#0000 64%,#000 82%);mask:radial-gradient(farthest-side,#0000 64%,#000 82%);}',
-      '.ffp-stav{position:absolute;inset:8px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;z-index:2;background:#0a1825;background-size:cover;background-position:center;color:#dbeafe;}',
-      '.ffp-stday{position:absolute;bottom:-3px;left:50%;transform:translateX(-50%);z-index:3;font-size:10px;font-weight:800;color:#fff;background:rgba(0,0,0,.55);border-radius:20px;padding:1px 8px;}'
+      '.ffp-stwrap{position:relative;width:54px;height:54px;flex:0 0 auto;}',
+      '.ffp-aura{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from -90deg,var(--cl),var(--c),var(--cl));-webkit-mask:radial-gradient(farthest-side,#0000 80%,#000 82%);mask:radial-gradient(farthest-side,#0000 80%,#000 82%);animation:ffpSpin 9s linear infinite;filter:drop-shadow(0 0 5px var(--g));}',
+      '.ffp-stav{position:absolute;inset:7px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;z-index:2;background:#14293b;background-size:cover;background-position:center;color:#cfe0ee;}',
+      '.ffp-stpill{position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);z-index:3;background:var(--c);color:#06121c;border-radius:20px;padding:2px 7px 2px 5px;font-size:10px;font-weight:800;display:flex;align-items:center;gap:1px;border:2px solid #0d2032;}'
     ].join('');
     document.head.appendChild(s);
   }
@@ -226,6 +224,26 @@
   }
   function _paintProg() { var el = document.getElementById('mt-progrow'); if (el) el.innerHTML = ((W._mtOv || {}).fitness || []).map(_progCard).join(''); }
 
+  function _fmtMin(m) { m = Math.round(m || 0); if (m < 60) return m + 'm'; var h = Math.floor(m / 60), r = m % 60; return h + 'h' + (r ? (' ' + r + 'm') : ''); }
+  // Team pulse — a horizontal scroll of today's team stats (24h basis)
+  function _pulseCards(p) {
+    if (!p) return '';
+    var am = p.active_min || 0, ap = p.active_min_prev || 0, cals = p.cals || 0, sess = p.sessions || 0, su = p.showed_up || 0, mem = p.members || 0, c7 = p.cals7 || [];
+    var vs, vsCol, vsArr;
+    if (ap > 0) { var dd = Math.round((am - ap) / ap * 100); vs = (dd > 0 ? '+' : '') + dd + '%'; vsCol = dd >= 0 ? '#36c97f' : '#FF7A66'; vsArr = dd >= 0 ? '▲' : '▼'; }
+    else if (am > 0) { vs = 'new'; vsCol = '#36c97f'; vsArr = '▲'; }
+    else { vs = '—'; vsCol = '#7c8b9a'; vsArr = ''; }
+    var mx = Math.max.apply(null, c7.concat([1]));
+    var bars = c7.map(function (val, i) { var h = Math.max(8, Math.round((val / mx) * 100)), last = i === c7.length - 1; return '<div style="flex:1;background:' + (last ? '#FF7A66' : 'rgba(255,122,102,.28)') + ';border-radius:2px;height:' + h + '%;"></div>'; }).join('');
+    function card(inner) { return '<div style="flex:0 0 auto;width:138px;background:#0e2033;border-radius:16px;padding:13px 14px;box-sizing:border-box;">' + inner + '</div>'; }
+    return '<div class="mt-car" style="margin:0 -2px 28px;">' +
+      card('<div style="font-size:10.5px;color:#7c8b9a;margin-bottom:9px;">Active time · 24h</div><div style="font-size:22px;font-weight:900;color:#37E0C6;line-height:1;">' + _fmtMin(am) + '</div><div style="font-size:10px;color:#7c8b9a;margin-top:8px;">' + sess + ' session' + (sess === 1 ? '' : 's') + '</div>') +
+      card('<div style="font-size:10.5px;color:#7c8b9a;margin-bottom:9px;">Calories · 7d</div><div style="display:flex;align-items:flex-end;gap:3px;height:30px;">' + bars + '</div><div style="font-size:18px;font-weight:900;color:var(--text,#e8eef4);margin-top:7px;">' + cals + '</div>') +
+      card('<div style="font-size:10.5px;color:#7c8b9a;margin-bottom:9px;">Vs yesterday</div><div style="font-size:22px;font-weight:900;color:' + vsCol + ';line-height:1;">' + vsArr + ' ' + vs + '</div><div style="font-size:10px;color:#7c8b9a;margin-top:8px;">active time</div>') +
+      card('<div style="font-size:10.5px;color:#7c8b9a;margin-bottom:9px;">Showed up</div><div style="display:flex;align-items:baseline;gap:3px;"><span style="font-size:26px;font-weight:900;color:var(--yellow,#FFCC00);line-height:1;">' + su + '</span><span style="font-size:13px;color:#7c8b9a;">/' + mem + '</span></div><div style="font-size:10px;color:#7c8b9a;margin-top:8px;">active today</div>') +
+      '</div>';
+  }
+
   // 24h/recent activity — "people being active" photo strip
   function _actStrip(acts) {
     if (!acts.length) return '<div style="color:var(--muted,#8a99a8);font-size:12px;margin-bottom:4px;">No recent activity yet.</div>';
@@ -245,23 +263,57 @@
       '<div style="position:absolute;top:11px;left:12px;display:flex;align-items:center;gap:5px;background:rgba(0,0,0,.42);padding:4px 9px;border-radius:20px;"><span class="material-icons" style="font-size:13px;color:var(--yellow,#FFCC00);">emoji_events</span><span style="font-size:10px;color:var(--yellow,#FFCC00);letter-spacing:.4px;text-transform:uppercase;font-weight:800;">' + lbl + '</span></div>' +
       '<div style="position:absolute;left:0;right:0;bottom:0;padding:20px 13px 12px;background:linear-gradient(transparent,rgba(0,0,0,.8));"><div style="font-size:17px;font-weight:800;color:#fff;margin-bottom:7px;">' + esc(s.name) + '</div><div style="display:flex;gap:7px;flex-wrap:wrap;">' + chips.map(function (c) { return '<span style="background:rgba(255,255,255,.16);border-radius:8px;padding:4px 8px;font-size:11px;font-weight:700;color:#fff;">' + esc(c) + '</span>'; }).join('') + '</div></div></div>';
   }
-  // A living RING of fire hugging the avatar; colour runs cool→hot with streak length.
-  function _flame(s, idx) {
+  // Performance of Day — effort = minutes × HR zone (Z1×1 … Z5×5). Winner card, tap → effort leaderboard.
+  var _ZC = ['#2ba8e0', '#37E0C6', '#36c97f', '#FFCC00', '#FF7A66']; // Z1..Z5
+  function _zoneBar(z, h) {
+    z = z || {}; var zt = (z.z1 || 0) + (z.z2 || 0) + (z.z3 || 0) + (z.z4 || 0) + (z.z5 || 0);
+    var seg = function (v, c) { var w = zt > 0 ? (v / zt * 100) : 0; return w > 0 ? '<div style="width:' + w.toFixed(1) + '%;background:' + c + ';"></div>' : ''; };
+    return '<div style="display:flex;height:' + (h || 14) + 'px;border-radius:4px;overflow:hidden;gap:1.5px;">' + seg(z.z1, _ZC[0]) + seg(z.z2, _ZC[1]) + seg(z.z3, _ZC[2]) + seg(z.z4, _ZC[3]) + seg(z.z5, _ZC[4]) + '</div>';
+  }
+  function _perfCard(p) {
+    if (!p) return '';
+    var z = p.zones || {}, av = p.photo ? ('background:#0a2233 center/cover no-repeat;background-image:url(\'' + esc(p.photo) + '\');') : 'background:#37E0C6;color:#08210f;';
+    var leg = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5'].map(function (l, i) { return '<span style="font-size:10px;color:#8a99a8;display:inline-flex;align-items:center;gap:3px;"><span style="width:8px;height:8px;border-radius:2px;background:' + _ZC[i] + ';display:inline-block;"></span>' + l + ' ' + (z['z' + (i + 1)] || 0) + 'm</span>'; }).join('');
+    return '<div onclick="FFPMemberTeams.openPerfBoard()" style="cursor:pointer;background:radial-gradient(130% 100% at 0% 0,#123f43,#0a2233);border-radius:16px;padding:15px;">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;"><div style="display:flex;align-items:center;gap:6px;"><span class="material-icons" style="font-size:15px;color:#37E0C6;">bolt</span><span style="font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:#37E0C6;font-weight:800;">Performance of day</span></div><span class="material-icons" style="font-size:18px;color:#5f8aa3;">chevron_right</span></div>' +
+      '<div style="display:flex;align-items:center;gap:14px;">' +
+        '<div style="width:56px;height:56px;border-radius:14px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;' + av + '">' + (p.photo ? '' : esc(initials(p.name))) + '</div>' +
+        '<div style="flex:1;min-width:0;"><div style="font-size:16px;font-weight:800;">' + esc((p.name || '').split(' ')[0]) + '</div><div style="font-size:11px;color:#9fb2c2;">' + (p.trained || 0) + ' min trained' + (p.max_hr ? ' · max ' + p.max_hr + ' bpm' : '') + '</div></div>' +
+        '<div style="text-align:right;flex:0 0 auto;"><div style="font-size:28px;font-weight:900;color:#37E0C6;line-height:1;">' + (p.effort || 0) + '</div><div style="font-size:9px;color:#8a99a8;text-transform:uppercase;letter-spacing:.4px;">effort</div></div>' +
+      '</div>' +
+      '<div style="margin:12px 0 8px;">' + _zoneBar(z, 14) + '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:9px;">' + leg + '</div></div>';
+  }
+  function openPerfBoard() {
+    var d = W._mtOv || {}, board = d.performance_board || [], host = document.getElementById('mt-ovbody'); if (!host) return;
+    var me = memberId();
+    var html = _backChip() + '<div style="font-size:18px;font-weight:800;margin-bottom:3px;">Performance of day</div><div style="font-size:12px;color:var(--muted,#8a99a8);margin-bottom:16px;">Effort = minutes × heart-rate zone (Z1×1 … Z5×5)</div>';
+    if (!board.length) html += '<div style="color:var(--muted,#8a99a8);font-size:13px;">No heart-rate sessions logged today yet.</div>';
+    else html += board.map(function (r, i) {
+      var you = r.member_id === me, av = r.photo ? ('background:#0a2233 center/cover no-repeat;background-image:url(\'' + esc(r.photo) + '\');') : 'background:#214b6b;color:#cfe6f5;';
+      return '<div style="display:flex;align-items:center;gap:11px;padding:9px 8px;border-radius:12px;margin-bottom:8px;' + (you ? 'background:rgba(255,204,0,.10);border:1px solid rgba(255,204,0,.35);' : '') + '">' +
+        '<span style="width:16px;text-align:center;font-size:13px;font-weight:800;color:' + (i === 0 || you ? '#FFCC00' : '#7c8b9a') + ';">' + (i + 1) + '</span>' +
+        '<div style="width:34px;height:34px;border-radius:10px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;' + av + '">' + (r.photo ? '' : esc(initials(r.name))) + '</div>' +
+        '<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:' + (you ? '800' : '700') + ';color:' + (you ? '#FFCC00' : 'var(--text,#e8eef4)') + ';margin-bottom:4px;">' + (you ? 'You' : esc((r.name || '').split(' ')[0])) + '</div>' + _zoneBar(r.zones, 7) + '</div>' +
+        '<div style="text-align:right;flex:0 0 auto;"><div style="font-size:16px;font-weight:900;color:#37E0C6;line-height:1;">' + (r.effort || 0) + '</div><div style="font-size:8.5px;color:#8a99a8;">' + (r.trained || 0) + 'm</div></div></div>';
+    }).join('');
+    host.innerHTML = html; host.scrollTop = 0;
+  }
+
+  // Streak AURA RING — brand gradient ring; tier colour by streak length: blue → aqua → yellow → coral (best).
+  function _flame(s) {
     var days = s.days || 0;
-    // streak tiers: blue (starting) → yellow → orange → red (best streak)
-    var t = days >= 30 ? { c1: '#7a0e0e', c2: '#ef2b2b', c3: '#ff9a7a', glow: 'rgba(239,43,43,.75)', ring: '#ef4444', txt: '#ffd3c8' }
-      : days >= 14 ? { c1: '#9a3412', c2: '#f97316', c3: '#ffd08a', glow: 'rgba(249,115,22,.72)', ring: '#fb923c', txt: '#ffe0b8' }
-        : days >= 7 ? { c1: '#a16207', c2: '#FFD400', c3: '#fff7cc', glow: 'rgba(255,204,0,.7)', ring: '#FFCC00', txt: '#fff2b0' }
-          : { c1: '#1e3a8a', c2: '#3b82f6', c3: '#dbeafe', glow: 'rgba(59,130,246,.75)', ring: '#93c5fd', txt: '#dbeafe' };
-    var grad = 'repeating-conic-gradient(' + t.c1 + ' 0deg,' + t.c2 + ' 9deg,' + t.c3 + ' 18deg,' + t.c2 + ' 27deg,' + t.c1 + ' 36deg)';
+    var t = days >= 30 ? { c: '#FF7A66', cl: '#ffb3a6', g: 'rgba(255,122,102,.6)' }
+      : days >= 14 ? { c: '#FFCC00', cl: '#ffe680', g: 'rgba(255,204,0,.5)' }
+        : days >= 7 ? { c: '#37E0C6', cl: '#a3f2e8', g: 'rgba(55,224,198,.5)' }
+          : { c: '#2ba8e0', cl: '#8fd6f2', g: 'rgba(43,168,224,.55)' };
     var av = s.photo ? ('background-image:url(\'' + esc(s.photo) + '\');') : '';
     return '<div style="text-align:center;flex:0 0 auto;">' +
-      '<div class="ffp-stwrap" style="filter:drop-shadow(0 0 5px ' + t.glow + ');">' +
-      '<div class="ffp-ring g" style="background:' + grad + ';"></div>' +
-      '<div class="ffp-ring" style="background:' + grad + ';"></div>' +
-      '<div class="ffp-stav" style="box-shadow:0 0 0 1.5px ' + t.ring + ';color:' + t.txt + ';' + av + '">' + (s.photo ? '' : esc(initials(s.name))) + '</div>' +
-      '<span class="ffp-stday">' + days + '</span>' +
-      '</div><div style="font-size:11px;font-weight:700;color:var(--muted,#8a99a8);margin-top:8px;">' + esc((s.name || '').split(' ')[0]) + '</div></div>';
+      '<div class="ffp-stwrap" style="--c:' + t.c + ';--cl:' + t.cl + ';--g:' + t.g + ';">' +
+      '<div class="ffp-aura"></div>' +
+      '<div class="ffp-stav" style="' + av + '">' + (s.photo ? '' : esc(initials(s.name))) + '</div>' +
+      '<div class="ffp-stpill"><span class="material-icons" style="font-size:11px;">local_fire_department</span>' + days + '</div>' +
+      '</div><div style="font-size:11px;font-weight:700;color:var(--muted,#8a99a8);margin-top:9px;">' + esc((s.name || '').split(' ')[0]) + '</div></div>';
   }
 
   function renderOverview() {
@@ -277,6 +329,8 @@
       '<div style="position:absolute;inset:0;background:linear-gradient(transparent 42%,rgba(10,24,37,.96));"></div>' +
       '<div onclick="FFPMemberTeams.close()" style="position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);left:12px;width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,.42);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:3;"><span class="material-icons" style="color:#fff;font-size:26px;">chevron_left</span></div>' +
       '<div style="position:absolute;left:16px;right:16px;bottom:15px;display:flex;align-items:center;gap:12px;"><div style="width:52px;height:52px;border-radius:14px;background:#0a1825;box-shadow:0 0 0 2px var(--yellow,#FFCC00);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:var(--yellow,#FFCC00);flex:0 0 auto;' + crest + '">' + (team.logo_url ? '' : esc(initials(team.name))) + '</div><div style="min-width:0;"><div style="font-size:20px;font-weight:800;color:#fff;line-height:1.1;">' + esc(team.name || 'Team') + '</div><div style="font-size:11.5px;color:#bfd0dd;margin-top:2px;">' + c + ' athlete' + (c === 1 ? '' : 's') + (so && so.window === 'today' ? ' · active today' : '') + '</div></div></div></div>';
+    // team pulse (24h) — active time / calories / vs yesterday / showed up
+    if (d.pulse) html += _pulseCards(d.pulse);
     // team progress
     var fits = d.fitness || [];
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><div style="font-size:15px;font-weight:800;color:var(--text,#e8eef4);">Team progress</div>' + (fits.length ? '<span class="mt-link" onclick="FFPMemberTeams.openLeaderboard()">Benchmarks &rsaquo;</span>' : '') + '</div>';
@@ -288,17 +342,18 @@
       var mxt = Math.max.apply(null, tr.map(function (x) { return x.sessions; }).concat([1]));
       html += '<div style="font-size:15px;font-weight:800;color:var(--text,#e8eef4);margin-bottom:12px;">Training focus</div><div style="margin-bottom:30px;">' + tr.slice(0, 6).map(function (x) {
         var wpct = Math.max(16, Math.round(x.sessions * 100 / mxt));
-        return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;"><span style="width:78px;font-size:12px;font-weight:700;color:var(--muted,#8a99a8);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(x.category) + '</span><div style="flex:1;height:20px;border-radius:6px;background:rgba(255,255,255,.06);overflow:hidden;"><div style="width:' + wpct + '%;height:100%;background:linear-gradient(90deg,#2ba8e0,#1d6a8f);"></div></div><span style="width:30px;text-align:right;font-size:11px;font-weight:800;color:var(--text,#e8eef4);">' + x.pct + '%</span></div>';
+        return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;"><span style="width:78px;font-size:12px;font-weight:700;color:var(--muted,#8a99a8);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(x.category) + '</span><div style="flex:1;height:22px;border-radius:6px;background:rgba(255,255,255,.06);overflow:hidden;position:relative;"><div style="width:' + wpct + '%;height:100%;background:linear-gradient(90deg,#2ba8e0,#1d6a8f);"></div><span style="position:absolute;left:9px;top:0;bottom:0;display:flex;align-items:center;font-size:10.5px;font-weight:800;color:#fff;">' + x.sessions + ' session' + (x.sessions === 1 ? '' : 's') + '</span></div><span style="width:30px;text-align:right;font-size:11px;font-weight:800;color:var(--text,#e8eef4);">' + x.pct + '%</span></div>';
       }).join('') + '</div>';
     }
     // the squad — activity, standout, streaks grouped
     html += '<div style="background:#0d2032;border-radius:18px;padding:16px 15px 18px;margin-bottom:26px;">';
     html += '<div style="font-size:12px;letter-spacing:.6px;color:#6f8496;text-transform:uppercase;font-weight:800;margin-bottom:13px;">The squad</div>';
     html += _actStrip(d.activity || []);
-    if (so) html += '<div style="height:14px;"></div>' + _standoutCard(so);
+    if (d.performance) html += '<div style="height:14px;"></div>' + _perfCard(d.performance);
+    else if (so) html += '<div style="height:14px;"></div>' + _standoutCard(so);
     var st = d.streaks || [];
     if (st.length) {
-      html += '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;"><div style="font-size:11px;color:var(--muted,#8a99a8);">On a streak</div><div style="font-size:9.5px;color:#5f7285;">longer streak · hotter flame</div></div>';
+      html += '<div style="display:flex;align-items:baseline;justify-content:space-between;margin:16px 0 14px;"><div style="font-size:11px;color:var(--muted,#8a99a8);">On a streak</div><div style="font-size:9.5px;color:#5f7285;">longer streak · warmer colour</div></div>';
       html += '<div style="display:flex;gap:20px;align-items:flex-end;padding-left:4px;overflow-x:auto;scrollbar-width:none;">' + st.map(_flame).join('') + '</div>';
     }
     html += '</div>';
@@ -452,7 +507,7 @@
   }
 
   W.FFPMemberTeams = { renderCarousel: renderCarousel, openTeam: openTeam, close: close, seeAll: seeAll, openFind: openFind, closeFind: closeFind, findInput: findInput, request: requestJoin,
-    openSkillsView: openSkillsView, openLeaderboard: openLeaderboard, backOverview: backOverview,
+    openSkillsView: openSkillsView, openLeaderboard: openLeaderboard, backOverview: backOverview, openPerfBoard: openPerfBoard,
     progToggle: function (id) {
       if (!W._mtProgMode) W._mtProgMode = {};
       var fits = (W._mtOv || {}).fitness || [], f = null;
