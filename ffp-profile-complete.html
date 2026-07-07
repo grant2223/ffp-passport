@@ -31,7 +31,7 @@ v29: referral capture passes ffp_ref to onboard.
      at the dashboard JWT-less and every loader hits RLS errors). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/ffp-api-integration.js?v=12"></script>
-<script src="assets/ffp-taxonomy.js?v=9"></script>
+<script src="assets/ffp-taxonomy.js?v=10"></script>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
 <style>
@@ -615,13 +615,20 @@ async function initialise() {
 }
 
 function populateNationalities() {
-  var sel = document.getElementById('f-nationality');
-  NATIONALITIES.slice().sort().forEach(function (n) {
+  var sel = document.getElementById('f-nationality'); if (!sel) return;
+  var cur = sel.value;                                   // preserve any current pick
+  while (sel.options.length > 1) sel.remove(1);          // keep the "Select" placeholder, rebuild the rest
+  var list = (window.FFP_TAX && FFP_TAX.nationalities && FFP_TAX.nationalities.length) ? FFP_TAX.nationalities : NATIONALITIES;
+  list.slice().sort().forEach(function (n) {
     var opt = document.createElement('option');
     opt.value = n; opt.textContent = n;
     sel.appendChild(opt);
   });
+  if (cur) sel.value = cur;
 }
+// Re-fill from the LIVE DB taxonomy so Admin edits (add/rename a nationality) show here without a code change.
+if (window.FFP_TAX_READY && typeof window.FFP_TAX_READY.then === 'function') { window.FFP_TAX_READY.then(populateNationalities); }
+document.addEventListener('ffp-tax-ready', populateNationalities);
 
 // v32: WORLD-CLASS LOCATION — a single Places search; the geocode is the source of truth.
 // Replaces the country/city dropdowns. On select we store the structured components on hidden inputs.
