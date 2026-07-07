@@ -4,6 +4,29 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FFP Passport — Real people. Real connections.</title>
+<!-- PWA / iOS home-screen icon. This landing page is where members "Add to Home Screen"; it was MISSING these,
+     so iOS had no apple-touch-icon and screenshotted the black page. Root /apple-touch-icon.png = the FFP emblem. -->
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#081420">
+<link rel="icon" href="/assets/icons/ffp-favicon-32.png?v=3" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="apple-touch-icon-precomposed" href="/apple-touch-icon-precomposed.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="FFP Passport">
+<!-- Social share preview (Open Graph + Twitter). Image lives in Supabase site-images. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="FFP Passport">
+<meta property="og:title" content="FFP Passport">
+<meta property="og:description" content="The Active Lifestyle Community">
+<meta property="og:url" content="https://ffppassport.com/">
+<meta property="og:image" content="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/passport-on-stepper.png">
+<meta property="og:image:alt" content="FFP Passport — The Active Lifestyle Community">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="FFP Passport">
+<meta name="twitter:description" content="The Active Lifestyle Community">
+<meta name="twitter:image" content="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/passport-on-stepper.png">
 <link rel="preconnect" href="https://kxzyuofecmtymablnmak.supabase.co" crossorigin>
 <script src="assets/ffp-img.js?v=527"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -320,31 +343,4 @@
       <li><span class="tick"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span> Log unlimited activity across all five pillars</li>
       <li><span class="tick"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span> Coach Grant &mdash; your personal AI coach &amp; daily nudges</li>
       <li><span class="tick"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span> Connect with active people near you</li>
-      <li><span class="tick"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span> Join &amp; host real-world meet-ups</li>
-      <li><span class="tick"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span> Monthly quests, streaks &amp; city leaderboards</li>
-      <li><span class="tick"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span> Fitness stats &amp; weekly readiness at a glance</li>
-      <li><span class="tick"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span> Calorie &amp; nutrition tracker with ready-made plans</li>
-      <li><span class="tick"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span> Connect your wearables &mdash; WHOOP &amp; more</li>
-      <li><span class="tick"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span> Earn from every friend you refer</li>
-      <li><span class="tick"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span> Your world activity map of everywhere you&rsquo;ve moved</li>
-      <li><span class="tick"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span> Shareable Passport cards worth posting</li>
-    </ul>
-    <a href="/login#signup" class="btn" style="width:100%;">Start your free trial</a>
-    <div style="font-size:12px;color:var(--mut2);margin-top:16px;">Then $149/year or $20/month.</div>
-  </div>
-</div></section>
-
-<!-- CTA -->
-<section class="cta-band divide"><div class="wrap">
-  <h2>Find Fit People already moving.</h2>
-  <p>Join FFP Passport and find them.</p>
-  <a href="/login#signup" class="btn">Start your 7-day free trial</a>
-</div></section>
-
-<footer><div class="wrap">
-  <div class="fl">FFP <span>Passport</span></div>
-  <div class="fs">Find Fit People &middot; ffppassport.com</div>
-</div></footer>
-
-</body>
-</html>
+      <li><span class="tick"><svg viewBox="0 0 24 24"
