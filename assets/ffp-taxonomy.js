@@ -337,7 +337,12 @@
       names.forEach(function (n) { T.activities.push({ n: n, c: (actParent[n] || actCat[n] || '') }); });
     }
     if (by.fitness_level) { fill(T.fitnessLevels, vals('fitness_level')); T.attendeeLevels = ['All Levels'].concat(T.fitnessLevels); }
-    if (by.nationality)   fill(T.nationalities, vals('nationality'));
+    if (by.nationality) {
+      fill(T.nationalities, vals('nationality'));
+      // DB-driven passport ISO codes: taxonomy_items.code → FFP_TAX.nationalityISO (Admin edits auto-propagate)
+      T.nationalityISO = T.nationalityISO || {};
+      by.nationality.forEach(function (r) { if (r.code) T.nationalityISO[r.label || r.value] = r.code; });
+    }
     if (by.gender)        fill(T.genders, vals('gender'));
     if (by.age_group)     fill(T.ageGroups, vals('age_group'));
     if (by.category && window.FFP_CONST && window.FFP_CONST.providerCategories) {
@@ -389,7 +394,7 @@
     try {
       var c = getClient(); if (!c) return false;
       var res = await c.from('taxonomy_items')
-        .select('list_key, value, label, sort_order, active, parent').eq('active', true);
+        .select('list_key, value, label, sort_order, active, parent, code').eq('active', true);
       if (res.error || !res.data || !res.data.length) return false;
       apply(res.data);
       return true;
