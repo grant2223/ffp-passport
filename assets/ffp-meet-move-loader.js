@@ -863,7 +863,11 @@
   function installDecorator() {
     if (!window.MeetMove || MeetMove._aiDecorated) return;
     var orig = MeetMove.filtered.bind(MeetMove);
-    MeetMove.filtered = function () { var a = orig(); if (activeIntent) { try { a = rankAndFilter(a, activeIntent, myProfile()); } catch (e) {} } return a; };
+    // DEFAULT DISCOVERY = prioritise by the member's own location + listed activities (Grant 2026-07-08),
+    // while STILL showing all. rankAndFilter with an empty intent scores each meetup by profile relevance
+    // (member's sports +25, same city +15, same country +5, level fit) then soonest-first; an active FIND
+    // search layers its stronger intent boosts on top. Never hides meetups — it only re-orders them.
+    MeetMove.filtered = function () { var a = orig(); try { a = rankAndFilter(a, activeIntent || {}, myProfile()); } catch (e) {} return a; };
     MeetMove._aiDecorated = true;
   }
 
