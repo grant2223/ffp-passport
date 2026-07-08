@@ -203,21 +203,24 @@
     var av = u.photo
       ? '<div style="width:40px;height:40px;border-radius:50%;flex-shrink:0;background:#214b6b center/cover no-repeat;background-image:url(\'' + esc(u.photo) + '\');"></div>'
       : '<div style="width:40px;height:40px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#214b6b;color:#cfe6f5;font-weight:800;">' + esc((u.name || 'M').charAt(0).toUpperCase()) + '</div>';
+    var _sub = u.sport ? (esc(u.sport) + (u.level ? ' · ' + esc(u.level) : '') + (u.city ? ' · ' + esc(u.city) : '')) : (u.city ? esc(u.city) : '');
     return '<div class="cf-row" onclick="FFPConnFeed.openCard(\'' + attr(u.id) + '\')">' + av +
       '<div class="cf-rtxt"><div class="cf-rt"><b>' + esc(u.name || 'Member') + '</b></div>' +
-      (u.city ? '<div class="cf-rs">' + esc(u.city) + '</div>' : '') + '</div>' + btn + '</div>';
+      (_sub ? '<div class="cf-rs">' + _sub + '</div>' : '') + '</div>' + btn + '</div>';
   }
   var _searchT = null;
-  async function doSearch(q) {
+  async function doSearch() {
     var box = document.getElementById('cf-search-results'); if (!box) return;
-    q = (q || '').trim();
-    if (q.length < 2) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    var qEl = document.getElementById('cf-search'), spEl = document.getElementById('cf-sport'), lvEl = document.getElementById('cf-level');
+    var q = ((qEl && qEl.value) || '').trim(), sport = ((spEl && spEl.value) || '').trim(), level = ((lvEl && lvEl.value) || '').trim();
+    var hasName = q.length >= 2;
+    if (!hasName && !sport && !level) { box.style.display = 'none'; box.innerHTML = ''; return; }
     var me = memberId(); if (!me || !window.supabase) { box.style.display = 'none'; return; }
     box.style.display = 'block'; box.innerHTML = '<div class="cf-empty">Searching…</div>';
     try {
-      var r = await window.supabase.rpc('member_search_passport', { p_me: me, p_q: q });
+      var r = await window.supabase.rpc('member_search_people', { p_me: me, p_q: hasName ? q : null, p_sport: sport || null, p_level: level || null });
       var list = (r && r.data) || [];
-      box.innerHTML = list.length ? list.map(searchRow).join('') : '<div class="cf-empty">No one found for “' + esc(q) + '”.</div>';
+      box.innerHTML = list.length ? list.map(searchRow).join('') : '<div class="cf-empty">No one found — try a different sport, level or name.</div>';
     } catch (e) { box.innerHTML = '<div class="cf-empty">Couldn’t search right now.</div>'; }
   }
 
@@ -324,7 +327,7 @@
   }
 
   window.FFPConnFeed = {
-    search: function (v) { clearTimeout(_searchT); _searchT = setTimeout(function () { doSearch(v); }, 280); },
+    search: function () { clearTimeout(_searchT); _searchT = setTimeout(function () { doSearch(); }, 280); },
     connect: async function (id, status, name, btn) {
       var me = memberId(); if (!me || !window.supabase || !id) return;
       try {
@@ -342,8 +345,17 @@
       } catch (e) { if (window.showToast) showToast('Could not send — try again', 'error'); }
     },
     openSearch: function () {
+      var T = window.FFP_TAX || {};
+      var acts = (T.activities || []).map(function (a) { return (a && a.n) ? a.n : a; }).filter(Boolean);
+      var levels = (T.fitnessLevels && T.fitnessLevels.length) ? T.fitnessLevels : ['Just started', 'Recreational', 'Skilled', 'Highly skilled', 'Professional'];
+      var dl = '<datalist id="cf-sport-list">' + acts.map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>';
+      var lvOpts = '<option value="">Any level</option>' + levels.map(function (l) { return '<option value="' + esc(l) + '">' + esc(l) + '</option>'; }).join('');
       var body = '<div class="cv-wrap"><h3 class="q-title">Find a connection</h3>' +
-        '<input id="cf-search" class="cf-search" placeholder="Search Find Fit People members…" autocomplete="off" oninput="FFPConnFeed.search(this.value)">' +
+        '<input id="cf-search" class="cf-search" placeholder="Search by name…" autocomplete="off" oninput="FFPConnFeed.search()">' +
+        '<div style="display:flex;gap:8px;margin:0 0 6px;">' +
+          '<input id="cf-sport" class="cf-search" style="margin:0;flex:1;min-width:0;" list="cf-sport-list" placeholder="Any sport…" autocomplete="off" oninput="FFPConnFeed.search()">' + dl +
+          '<select id="cf-level" class="cf-search" style="margin:0;flex:0 0 44%;" onchange="FFPConnFeed.search()">' + lvOpts + '</select>' +
+        '</div>' +
         '<div id="cf-search-results" style="min-height:60px;"></div></div>';
       if (typeof openDetailModal === 'function') openDetailModal(body);
       setTimeout(function () { var i = document.getElementById('cf-search'); if (i) { try { i.focus(); } catch (e) {} } }, 60);
