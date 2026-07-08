@@ -1522,7 +1522,7 @@
           </div>
         </div>
         <div id="log-photos-strip" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;"></div>
-        <div style="font-size:10.5px;color:#8a99a8;margin-top:5px;">Pick several at once — they're cropped to your default. Tap a photo's crop icon to adjust. First photo is the cover.</div>
+        <div style="font-size:10.5px;color:#8a99a8;margin-top:5px;">Pick several at once — they're cropped to your default. Tap a photo's crop icon to adjust. First photo is the cover. <b style="color:#9dbdd0;">No photo? Your profile photo is used as the cover.</b></div>
         <input type="hidden" id="log-photo-url">
       </div>
       <div class="pm-form-field">
@@ -4459,7 +4459,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '566';
+  const FFP_BUILD = '567';
   try { window.FFP_BUILD = FFP_BUILD; } catch (e) {}
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
@@ -6815,11 +6815,8 @@ async function saveLog() {
   var _loggedAtIso = new Date(dateStr + 'T' + timeStr + ':00').toISOString();
   var _photosVal = (window._logPhotos || []).slice(0, 8);
   var _photoVal = _photosVal[0] || '';
-  // A photo is mandatory on a NEW activity (editing an older photo-less entry is not blocked).
-  if (!_editId && !_photosVal.length) {
-    if (typeof showToast === 'function') showToast('Add at least one photo of your activity', 'error'); else alert('Please add at least one photo of your activity.');
-    return;
-  }
+  // Photos are OPTIONAL: if none is added, activity_logs defaults photo_url to the member's PROFILE PHOTO
+  // (DB trigger activity_default_photo — covers manual logs AND WHOOP/Garmin/other syncs). No hard block.
   var _shareVal = !!((document.getElementById('log-share') || {}).checked);
   var _newId = null;
   window._ffpLogSaving = true;   // lock — released after the write completes / fails
@@ -8465,7 +8462,7 @@ else init();
 <script src="assets/ffp-connections-core.js?v=361"></script>
 <script src="assets/ffp-streak-loader.js?v=1"></script>
 <script defer src="assets/ffp-coach-loader.js?v=521"></script>
-<script defer src="assets/ffp-connections-feed-loader.js?v=558"></script>
+<script defer src="assets/ffp-connections-feed-loader.js?v=567"></script>
 <script defer src="assets/ffp-event-results-loader.js?v=329"></script>
 <script>
 (function(){
