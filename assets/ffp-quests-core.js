@@ -186,6 +186,21 @@ window.Quests = {
       '.q-board-list{max-height:50vh;overflow:auto;-webkit-overflow-scrolling:touch;}',
       '.q-board-loading,.q-board-empty{font-size:12.5px;color:#8a99a8;padding:14px 4px;text-align:center;}',
       '.q-board-more{margin:2px 0 6px;padding:12px;text-align:center;color:#2ba8e0;font-weight:600;font-size:14px;cursor:pointer;border-top:1px solid rgba(255,255,255,.07);}',
+      // Header filter icon (bottom-left of the cover) + full-bleed Country/City filter modal
+      '.q-d2-cover{position:relative;}',
+      '.q-cover-flt{position:absolute;left:12px;bottom:12px;width:38px;height:38px;border-radius:11px;border:none;background:rgba(8,20,32,.62);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2;}',
+      '.q-cover-flt .material-icons{font-size:20px;}',
+      '.q-cover-flt.on{background:#2ba8e0;}',
+      '.q-fltmodal{position:fixed;inset:0;z-index:7000;background:#081420;display:flex;flex-direction:column;font-family:inherit;}',
+      '.q-fltm-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid rgba(255,255,255,.08);}',
+      '.q-fltm-head span{font-size:18px;font-weight:800;color:#e8eef4;}',
+      '.q-fltm-x{background:none;border:none;color:#8a99a8;cursor:pointer;padding:4px;display:flex;}',
+      '.q-fltm-body{flex:1;overflow-y:auto;padding:22px 20px;max-width:620px;width:100%;margin:0 auto;box-sizing:border-box;}',
+      '.q-fltm-lab{font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#7d8b99;margin:0 0 8px;}',
+      '.q-fltm-sel{width:100%;box-sizing:border-box;margin-bottom:22px;padding:14px 15px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:rgba(8,20,32,.6);color:#e8eef4;font-size:15px;font-family:inherit;color-scheme:dark;}',
+      '.q-fltm-foot{display:flex;gap:12px;padding:16px 20px;border-top:1px solid rgba(255,255,255,.08);max-width:620px;width:100%;margin:0 auto;box-sizing:border-box;}',
+      '.q-fltm-clear{flex:0 0 auto;padding:14px 22px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:transparent;color:#cfe0ee;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;}',
+      '.q-fltm-apply{flex:1;padding:14px;border-radius:12px;border:none;background:#2ba8e0;color:#fff;font-size:15px;font-weight:800;font-family:inherit;cursor:pointer;}',
       '.q-lb-row{display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:10px;margin-bottom:6px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);}',
       '.q-lb-row.me{background:rgba(43,168,224,.12);border-color:#2ba8e0;}',
       '.q-lb-rank{width:22px;text-align:center;font-weight:900;font-size:13px;flex-shrink:0;}',
@@ -490,21 +505,6 @@ window.Quests = {
       ? '<div id="q-pane-board" style="display:' + (isRace ? '' : 'none') + ';">' +
           '<div class="q-board-top">' +
             '<input id="q-board-search" placeholder="Search name…" oninput="Quests.boardSearchInput(this.value)">' +
-            '<button id="q-filter-btn" class="q-filter-btn" onclick="Quests.toggleBoardFilters()"><span class="material-icons">tune</span> Filters<span id="q-filter-badge" class="q-filter-badge" style="display:none;"></span></button>' +
-          '</div>' +
-          '<div id="q-board-panel" class="q-board-panel" style="display:none;">' +
-            '<div><div class="q-flt-label">Location</div>' +
-              '<select class="q-flt-sel" id="q-flt-country" onchange="Quests.boardLocChange(\'country\')"><option value="">All countries</option></select>' +
-              '<select class="q-flt-sel" id="q-flt-region" onchange="Quests.boardLocChange(\'region\')" style="display:none;"><option value="">All regions</option></select>' +
-              '<select class="q-flt-sel" id="q-flt-city" onchange="Quests.boardLocChange(\'city\')"><option value="">All cities</option></select>' +
-            '</div>' +
-            '<div><div class="q-flt-label">Gender</div>' +
-              '<div class="q-board-chips">' +
-                '<button class="q-chip gchip active" data-gender="" onclick="Quests.boardGenderFilter(\'\')">All</button>' +
-                '<button class="q-chip gchip" data-gender="Male" onclick="Quests.boardGenderFilter(\'Male\')">Men</button>' +
-                '<button class="q-chip gchip" data-gender="Female" onclick="Quests.boardGenderFilter(\'Female\')">Women</button>' +
-              '</div>' +
-            '</div>' +
           '</div>' +
           '<div id="q-board-list" class="q-board-list"><div class="q-board-loading">Loading…</div></div>' +
         '</div>' : '';
@@ -512,6 +512,7 @@ window.Quests = {
       '<div class="q-detail2">' +
         '<div class="q-d2-cover ' + (coverBg ? '' : catCover) + '"' + (coverBg ? ' style="background-image:' + coverBg + ';"' : '') + '>' +
           '<span class="q-d2-pill">' + pill + '</span>' +
+          ((hasBoard && !isUpcoming) ? '<button class="q-cover-flt' + ((this.boardCountry || this.boardCity) ? ' on' : '') + '" onclick="Quests.openBoardFilters()" aria-label="Filter"><span class="material-icons">tune</span></button>' : '') +
           '<div class="q-d2-title">' + escHtml(d.title) + '</div>' +
         '</div>' +
         '<div class="q-d2-body">' +
@@ -634,6 +635,42 @@ window.Quests = {
     var badge = document.getElementById('q-filter-badge'); if (!badge) return;
     if (n) { badge.textContent = n; badge.style.display = ''; } else { badge.style.display = 'none'; }
   },
+  // Full-bleed Country/City filter modal (opened by the header filter icon). Options come from the quest's own
+  // leaderboard locations (_locs, loaded by boardLoadLocations); Apply sets boardCountry/boardCity → loadQuestBoard.
+  openBoardFilters() {
+    var countries = this._distinctLoc('country', '', '');
+    var cities = this._distinctLoc('city', this.boardCountry || '', '');
+    function optlist(vals, cur, all) { return '<option value="">' + all + '</option>' + vals.map(function (v) { return '<option value="' + escHtml(v) + '"' + (v === cur ? ' selected' : '') + '>' + escHtml(v) + '</option>'; }).join(''); }
+    this.closeBoardFilters();
+    var ov = document.createElement('div'); ov.id = 'q-fltmodal'; ov.className = 'q-fltmodal';
+    ov.innerHTML =
+      '<div class="q-fltm-head"><span>Filter</span><button class="q-fltm-x" onclick="Quests.closeBoardFilters()"><span class="material-icons">close</span></button></div>' +
+      '<div class="q-fltm-body">' +
+        '<div class="q-fltm-lab">Country</div>' +
+        '<select id="q-mflt-country" class="q-fltm-sel" onchange="Quests.boardModalCountry()">' + optlist(countries, this.boardCountry || '', 'All countries') + '</select>' +
+        '<div class="q-fltm-lab">City</div>' +
+        '<select id="q-mflt-city" class="q-fltm-sel">' + optlist(cities, this.boardCity || '', 'All cities') + '</select>' +
+      '</div>' +
+      '<div class="q-fltm-foot"><button class="q-fltm-clear" onclick="Quests.clearBoardFilters()">Clear</button><button class="q-fltm-apply" onclick="Quests.applyBoardFilters()">Show results</button></div>';
+    document.body.appendChild(ov);
+  },
+  boardModalCountry() {
+    var c = document.getElementById('q-mflt-country'); var country = c ? c.value : '';
+    var cities = this._distinctLoc('city', country, '');
+    var t = document.getElementById('q-mflt-city');
+    if (t) t.innerHTML = '<option value="">All cities</option>' + cities.map(function (v) { return '<option value="' + escHtml(v) + '">' + escHtml(v) + '</option>'; }).join('');
+  },
+  applyBoardFilters() {
+    var c = document.getElementById('q-mflt-country'), t = document.getElementById('q-mflt-city');
+    this.boardCountry = c ? c.value : ''; this.boardCity = t ? t.value : ''; this.boardRegion = '';
+    this.closeBoardFilters(); this._updateFilterBadge(); this.loadQuestBoard();
+    var fb = document.querySelector('.q-cover-flt'); if (fb) fb.classList.toggle('on', !!(this.boardCountry || this.boardCity));
+  },
+  clearBoardFilters() {
+    var c = document.getElementById('q-mflt-country'), t = document.getElementById('q-mflt-city');
+    if (c) c.value = ''; if (t) t.value = '';
+  },
+  closeBoardFilters() { var ov = document.getElementById('q-fltmodal'); if (ov && ov.parentNode) ov.parentNode.removeChild(ov); },
   boardSearchInput(v) {
     this.boardSearch = v || '';
     var self = this; clearTimeout(this._boardT);
