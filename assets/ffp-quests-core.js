@@ -341,7 +341,7 @@ window.Quests = {
   },
   openSquad: function (id) {
     var q = (this.squads || []).filter(function (x) { return x.id === id; })[0] || {};
-    var go = function () { if (window.FFPPairQuest) window.FFPPairQuest.open(id, { title: q.title, max: q.squad_max || 2 }); };
+    var go = function () { if (window.FFPPairQuest) window.FFPPairQuest.open(id, { title: q.title, max: q.squad_max || 2, image: q.hero_image_url, desc: q.description }); };
     if (window.FFPPairQuest) { go(); return; }
     if (this._squadLoading) return; this._squadLoading = true;
     var sc = document.createElement('script'); sc.src = 'assets/ffp-pair-quest-loader.js?v=' + (window.FFP_BUILD || '1');
