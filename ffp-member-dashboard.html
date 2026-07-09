@@ -343,6 +343,9 @@
 </style>
 <!-- Google Analytics 4 (platform-wide) -->
 <script src="assets/ffp-analytics.js?v=2"></script>
+<!-- BUILD STAMP — single source of truth for the version; bump assets/ffp-build.js, NOT this shell.
+     No ?v= on purpose: _headers sets /assets/*.js to no-store, so this always fetches fresh. -->
+<script src="assets/ffp-build.js"></script>
 <!-- Quests panel module (extracted from inline) — defines window.Quests before the dashboard boot calls init -->
 <script src="assets/ffp-quests-core.js?v=23"></script>
 <script src="assets/ffp-earnings-core.js?v=3"></script>
@@ -4462,7 +4465,8 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '580';
+  // Version now lives in assets/ffp-build.js (window.FFP_BUILD). This shell only falls back if that file didn't load.
+  const FFP_BUILD = (typeof window !== 'undefined' && window.FFP_BUILD) ? window.FFP_BUILD : '580';
   try { window.FFP_BUILD = FFP_BUILD; } catch (e) {}
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
@@ -7750,12 +7754,14 @@ window.ffpDoShareCard = async function () {
   var f = (_ffpShareFile && _ffpShareKey === _ffpCurKey()) ? _ffpShareFile : null;
   if (!f) { f = await _ffpCaptureShareCard(); if (f) { _ffpShareFile = f; _ffpShareKey = _ffpCurKey(); } }
   if (!f) { if (typeof showToast === 'function') showToast('Image failed: ' + (_ffpShareErr || 'unknown'), 'error'); return; }
+  // Count the share the moment they commit — most people SAVE the image and post to Stories manually, which the OS
+  // never reports back, so waiting for navigator.share() to resolve loses the credit. Server caps it at 2/day.
+  if (window.ffpLogSocialShare) ffpLogSocialShare('activity');
   try {
-    if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], text: caption }); if (window.ffpLogSocialShare) ffpLogSocialShare('activity'); return; }
+    if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], text: caption }); return; }
     // Device can't share images (most desktop browsers) → download it instead of sharing a link.
     if (typeof showToast === 'function') showToast('Image sharing isn’t supported here — downloaded instead', 'info');
     var u = URL.createObjectURL(f); var aTag = document.createElement('a'); aTag.href = u; aTag.download = f.name; document.body.appendChild(aTag); aTag.click(); setTimeout(function () { URL.revokeObjectURL(u); aTag.remove(); }, 500);
-    if (window.ffpLogSocialShare) ffpLogSocialShare('activity', 'download');   // desktop: no native share sheet, but the user did tap Share → count it
   } catch (e) { if (cancel(e)) return; if (typeof showToast === 'function') showToast('Could not share', 'error'); }
 };
 window.ffpDownloadActivityCard = async function () {
@@ -8338,18 +8344,19 @@ async function sharePassportCard() {
     if (typeof showToast === 'function') showToast(msg || 'Invite link copied — paste it to share', 'success');
   }
 
+  // Count on tap — many people save the card / copy the link and post manually, which the OS never reports back.
+  // Server caps at 2/day. (Same fire-on-tap rule as the activity Share Card.)
+  if (window.ffpLogSocialShare) ffpLogSocialShare('passport');
   try {
     // Best case: the card image is already rendered → share image + caption instantly.
     if (_ppShareFile && navigator.canShare && navigator.canShare({ files: [_ppShareFile] })) {
       await navigator.share({ files: [_ppShareFile], title: 'My Passport', text: shareBody });
-      if (window.ffpLogSocialShare) ffpLogSocialShare('passport');
       schedulePassportPrerender();   // refresh for next time (idle, non-blocking)
       return;
     }
     // Image not ready (or files unsupported): still open the share sheet with text + link.
     if (navigator.share) {
       await navigator.share({ title: 'My Passport', text: shareText, url: refLink });
-      if (window.ffpLogSocialShare) ffpLogSocialShare('passport');
       schedulePassportPrerender();   // get the image ready for the next tap (idle, non-blocking)
       return;
     }
@@ -8361,7 +8368,6 @@ async function sharePassportCard() {
   }
   // No Web Share API (most desktop browsers): copy the link.
   copyLink();
-  if (window.ffpLogSocialShare) ffpLogSocialShare('passport', 'link');   // desktop: no native share, but the user tapped Share → link copied to post → count it
   schedulePassportPrerender();
 }
 
