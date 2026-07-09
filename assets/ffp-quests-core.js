@@ -221,6 +221,7 @@ window.Quests = {
       '#panel-quests .q-featrow{display:flex;gap:12px;overflow-x:auto;scrollbar-width:none;padding:2px 0 4px;}#panel-quests .q-featrow::-webkit-scrollbar{display:none;height:0;}',
       '#panel-quests .q-feat{position:relative;flex:0 0 86%;border-radius:16px;overflow:hidden;min-height:198px;display:flex;flex-direction:column;justify-content:flex-end;padding:16px;cursor:pointer;background-size:cover;background-position:center;}',
       '#panel-quests .q-feat.cov-sports{background:linear-gradient(135deg,#123a52,#0a1c2b);}#panel-quests .q-feat.cov-fitness{background:linear-gradient(135deg,#ff6b4a,#b23a1c);}#panel-quests .q-feat.cov-wellness{background:linear-gradient(135deg,#36c5b0,#0d6b5f);}',
+      '#panel-quests .q-teamlist{display:flex;flex-direction:column;gap:14px;}#panel-quests .q-teamlist .q-feat{flex:0 0 auto;width:100%;min-height:210px;}',
       '#panel-quests .q-maintabs{display:flex;gap:26px;border-bottom:1px solid rgba(255,255,255,.09);margin:0 0 18px;}',
       '#panel-quests .q-mtab{background:none;border:0;font-family:inherit;font-size:16px;font-weight:400;color:var(--q-muted,#7fa0b8);padding:0 0 12px;cursor:pointer;position:relative;letter-spacing:-.2px;}',
       '#panel-quests .q-mtab.on{color:var(--q-text,#f2f7fb);font-weight:600;}',
@@ -251,8 +252,8 @@ window.Quests = {
     var html = '';
 
     if (tab === 'team') {
-      // Team tab = just the team quest card(s). Tap a card → the club-competition experience.
-      html += '<div class="q-featrow">' + this.featured.map(this.featuredCard.bind(this)).join('') + '</div>';
+      // Team tab = the team quest card(s), FULL-WIDTH (same size as individual quest cards). Tap → club competition.
+      html += '<div class="q-teamlist">' + this.featured.map(this.featuredCard.bind(this)).join('') + '</div>';
     } else {
       // Individual tab = the member's own quests.
       var joined = this.minor.filter(function (q) { return q.joined; }).concat(this.partner || []);
@@ -298,9 +299,9 @@ window.Quests = {
     var days = d ? Math.max(0, Math.ceil((d.getTime() - Date.now()) / 86400000)) : null;
     var cd = (days != null) ? ('<div class="q-up-cd"><b>' + days + '</b><span>' + (days === 1 ? 'DAY' : 'DAYS') + '</span></div>') : '';
     return '<div class="q-feat ' + (bg ? '' : cover) + '" onclick="Quests.openClub(\'' + q.id + '\')"' + (bg ? ' style="background-image:' + bg + ';"' : '') + '>' +
-      '<span class="q-up-pill"><span class="material-icons">groups</span> Club challenge</span>' + cd +
+      '<span class="q-up-pill"><span class="material-icons">groups</span> Team Quest</span>' + cd +
       '<div class="q-up-title">' + escHtml(q.title) + '</div>' +
-      (q.description ? '<div class="q-up-desc">' + escHtml(q.description) + '</div>' : '') +
+      '<div class="q-up-desc">Team up — every member’s activity lifts your whole club up the leaderboard. Win it together.</div>' +
       '<div class="q-up-foot"><span class="material-icons">leaderboard</span> See where your club ranks</div>' +
     '</div>';
   },
