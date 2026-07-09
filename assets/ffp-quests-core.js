@@ -64,7 +64,8 @@ window.Quests = {
       this.partner = d.partner || [];
       this.upcoming = d.upcoming || [];
       this.featured = d.featured || [];
-    } catch (e) { this.major = null; this.minor = []; this.partner = []; this.upcoming = []; this.featured = []; }
+      this.squads = d.squads || [];
+    } catch (e) { this.major = null; this.minor = []; this.partner = []; this.upcoming = []; this.featured = []; this.squads = []; }
     this.renderAll();
   },
 
@@ -233,19 +234,24 @@ window.Quests = {
   renderAll() {
     this._ensureCss();
     var self = this;
-    // Team quests (club competitions) get their own tab; only show the tab bar when at least one exists.
+    // Team (club competitions) + Squad (member 2-4 crews) each get a tab; the bar shows when either exists.
     var hasTeam = (this.featured || []).length > 0;
-    var tab = hasTeam ? (this.qtab || 'individual') : 'individual';
+    var hasSquad = (this.squads || []).length > 0;
+    var tab = (hasTeam || hasSquad) ? (this.qtab || 'individual') : 'individual';
+    if (tab === 'team' && !hasTeam) tab = 'individual';
+    if (tab === 'squad' && !hasSquad) tab = 'individual';
     // Tab bar lives in its OWN container ABOVE the hero (Grant: tabs are the first thing you see; the quest sits under them).
     var tabsEl = document.getElementById('quest-tabs');
     if (tabsEl) {
-      tabsEl.innerHTML = hasTeam ? ('<div class="q-maintabs">' +
+      tabsEl.innerHTML = (hasTeam || hasSquad) ? ('<div class="q-maintabs">' +
         '<button class="q-mtab' + (tab === 'individual' ? ' on' : '') + '" onclick="Quests.setTab(\'individual\')">Individual</button>' +
-        '<button class="q-mtab' + (tab === 'team' ? ' on' : '') + '" onclick="Quests.setTab(\'team\')">Team</button></div>') : '';
+        (hasTeam ? '<button class="q-mtab' + (tab === 'team' ? ' on' : '') + '" onclick="Quests.setTab(\'team\')">Team</button>' : '') +
+        (hasSquad ? '<button class="q-mtab' + (tab === 'squad' ? ' on' : '') + '" onclick="Quests.setTab(\'squad\')">Squad</button>' : '') +
+        '</div>') : '';
     }
     // The headline hero (#quest-hero) is the individual side — only on the Individual tab.
     var heroEl = document.getElementById('quest-hero');
-    if (tab === 'team') { if (heroEl) { heroEl.style.display = 'none'; heroEl.innerHTML = ''; } }
+    if (tab === 'team' || tab === 'squad') { if (heroEl) { heroEl.style.display = 'none'; heroEl.innerHTML = ''; } }
     else { this.renderMajor(); }
 
     var host = document.getElementById('quest-sections'); if (!host) return;
@@ -254,6 +260,9 @@ window.Quests = {
     if (tab === 'team') {
       // Team tab = the team quest card(s), FULL-WIDTH (same size as individual quest cards). Tap → club competition.
       html += '<div class="q-teamlist">' + this.featured.map(this.featuredCard.bind(this)).join('') + '</div>';
+    } else if (tab === 'squad') {
+      // Squad tab = the squad quest card(s), full-width. Tap → the squad experience (standings + create/join).
+      html += '<div class="q-teamlist">' + this.squads.map(this.squadCard.bind(this)).join('') + '</div>';
     } else {
       // Individual tab = the member's own quests.
       var joined = this.minor.filter(function (q) { return q.joined; }).concat(this.partner || []);
@@ -313,6 +322,30 @@ window.Quests = {
     var sc = document.createElement('script'); sc.src = 'assets/ffp-club-quest-loader.js?v=' + (window.FFP_BUILD || '1');
     sc.onload = function () { try { go(); } catch (e) {} };
     sc.onerror = function () { try { if (window.showToast) showToast('Could not open the challenge', 'error'); } catch (e) {} };
+    document.body.appendChild(sc);
+  },
+
+  squadCard: function (q) {
+    var cover = (this.CAT && this.CAT[q.category] && this.CAT[q.category].cover) || 'cov-sports';
+    var bg = q.hero_image_url ? "linear-gradient(180deg,rgba(8,20,32,0.10),rgba(8,20,32,0.86)),url('" + q.hero_image_url + "')" : '';
+    var d = q.active_to ? new Date(q.active_to) : null;
+    var days = d ? Math.max(0, Math.ceil((d.getTime() - Date.now()) / 86400000)) : null;
+    var cd = (days != null) ? ('<div class="q-up-cd"><b>' + days + '</b><span>' + (days === 1 ? 'DAY' : 'DAYS') + '</span></div>') : '';
+    return '<div class="q-feat ' + (bg ? '' : cover) + '" onclick="Quests.openSquad(\'' + q.id + '\')"' + (bg ? ' style="background-image:' + bg + ';"' : '') + '>' +
+      '<span class="q-up-pill"><span class="material-icons">group</span> Squad Quest</span>' + cd +
+      '<div class="q-up-title">' + escHtml(q.title) + '</div>' +
+      '<div class="q-up-desc">Grab 2–' + (q.squad_max || 4) + ' of your people and take it on together.</div>' +
+      '<div class="q-up-foot"><span class="material-icons">leaderboard</span> Create or join a squad</div>' +
+    '</div>';
+  },
+  openSquad: function (id) {
+    var q = (this.squads || []).filter(function (x) { return x.id === id; })[0] || {};
+    var go = function () { if (window.FFPSquadQuest) window.FFPSquadQuest.open(id, { title: q.title, squadMax: q.squad_max || 4 }); };
+    if (window.FFPSquadQuest) { go(); return; }
+    if (this._squadLoading) return; this._squadLoading = true;
+    var sc = document.createElement('script'); sc.src = 'assets/ffp-squad-quest-loader.js?v=' + (window.FFP_BUILD || '1');
+    sc.onload = function () { try { go(); } catch (e) {} };
+    sc.onerror = function () { try { if (window.showToast) showToast('Could not open the squad quest', 'error'); } catch (e) {} };
     document.body.appendChild(sc);
   },
 
