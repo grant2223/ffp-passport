@@ -1,1208 +1,325 @@
-/* FFP Quests — core module — v3 (2026-06-17) — REBUILD
-   New model: quests are POINT-scored MISSION CHECKLISTS with PROOF, on city/country/global leaderboards.
-   - Explore = public FFP quests (the global focus). My quests = joined. Leaderboard = city/country/global ambassadors.
-   - Quest detail = task checklist; each task completed with proof: QR code, photo, GPS (within radius), or
-     partner/admin confirmation. RPCs: member_quests_feed, member_quest_detail, member_quest_join,
-     member_quest_unlock, member_quest_complete_task, quest_leaderboard, ffp_global_leaderboard.
-   - Partner quests are members-only, reached via a QR/link code (promptUnlock) — never shown in Explore.
-   - Member-created exploration quests (owner_type='member') are PRESERVED: create/edit/invite + the old
-     venue-detail rendering still work (openMemberDetail), and they appear under My quests once joined.
-   Depends on globals the dashboard defines: showToast, openDetailModal, closeDetailModal, escHtml,
-   window.supabase, FFP_TAX, MemberProfile, FFPUpload. Boot calls window.Quests.init() when the panel shows. */
-window.Quests = {
-  base: 'https://ffp-passport-backend.vercel.app',
-  major: null,
-  minor: [],
-  partner: [],
-  upcoming: [],
-  boardCountry: '', boardRegion: '', boardCity: '', _locs: [],
-  boardSearch: '',
-  boardGender: '',
-  _openQuest: null,
+/* FFP Team Competition — member Passport experience (window.FFPTeamQuest) — v2 (2026-07-09)
+   A quest flagged is_club_competition ranks TEAMS (= pro_teams) by their ACTIVE members' average points.
+   Full-bleed overlay (NO modal box), Apple/WHOOP standard: hairlines + big numerals, NO pills, NO scrollbars.
+   Flow: feature card (Quest panel) → open(questId,opts) → leaderboard (standing-led) → openTeam(teamId) → team home.
+   Data: team_leaderboard(p_quest,p_metric,p_min_members) + team_detail(p_quest,p_team,p_min) + member_my_teams (to mark "you").
+   API: FFPTeamQuest.open(questId, { title, metric:'avg'|'total'|'division', minMembers:10 }). */
+(function () {
+  'use strict';
+  var W = window;
+  function sb() { return W.supabase; }
+  function memberId() { try { if (W.FFPAuth && FFPAuth.getMember) { var m = FFPAuth.getMember(); if (m && m.id) return m.id; } } catch (e) {} try { return (JSON.parse(localStorage.getItem('ffp_member') || '{}')).id || ''; } catch (e) { return ''; } }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
+  function initials(n) { n = String(n || '').trim(); if (!n) return 'M'; var p = n.split(/\s+/); return ((p[0][0] || '') + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase(); }
+  var S = (W._ffpTQ = W._ffpTQ || {});
 
-  memberId() {
-    try { return (JSON.parse(localStorage.getItem('ffp_member') || '{}')).id || ''; }
-    catch (e) { return ''; }
-  },
-  meProfile() {
-    try { if (typeof MemberProfile !== 'undefined' && MemberProfile.data) return MemberProfile.data; } catch (e) {}
-    try { return JSON.parse(localStorage.getItem('ffp_member') || '{}'); } catch (e) { return {}; }
-  },
-
-  CAT: {
-    fitness:   { cover: 'cov-fitness' }, sports: { cover: 'cov-sports' }, wellness: { cover: 'cov-wellness' },
-    recovery:  { cover: 'cov-recovery' }, adventure: { cover: 'cov-adventure' }, food: { cover: 'cov-food' }
-  },
-  PROOF: {
-    auto:      { icon: 'bolt', label: 'Tracked automatically' },
-    qr:        { icon: 'qr_code_scanner', label: 'Scan the QR' },
-    photo:     { icon: 'photo_camera', label: 'Add a photo' },
-    gps:       { icon: 'my_location', label: 'Check in here' },
-    photo_gps: { icon: 'add_a_photo', label: 'Photo + check in' },
-    qr_gps:    { icon: 'qr_code_scanner', label: 'Scan QR + check in' },
-    partner:   { icon: 'verified_user', label: 'Confirmed by venue' },
-    referral:  { icon: 'group_add', label: 'Bring a friend' }
-  },
-
-  async init() {
-    await this.load();
-    try {
-      var qp = new URLSearchParams(window.location.search).get('quest');
-      if (qp && !this._deepLinked) { this._deepLinked = true; this.open(qp, 'ffp'); }
-    } catch (e) {}
-  },
-
-  async load() {
-    var host = document.getElementById('quest-sections');
-    if (host) host.innerHTML = '<div style="text-align:center;color:var(--q-muted);padding:30px;">Loading quests…</div>';
-    var mid = this.memberId();
-    try {
-      var r = await window.supabase.rpc('member_quests_feed', { p_me: mid });
-      var d = (r && r.data) ? r.data : {};
-      this.major = d.major || d.headline || null;
-      this.minor = d.minor || d.explore || [];
-      this.partner = d.partner || [];
-      this.upcoming = d.upcoming || [];
-      this.featured = d.featured || [];
-      this.squads = d.squads || [];
-    } catch (e) { this.major = null; this.minor = []; this.partner = []; this.upcoming = []; this.featured = []; this.squads = []; }
-    this.renderAll();
-  },
-
-  _ensureCss() {
-    if (document.getElementById('ffp-quests-v8-css')) return;
-    var s = document.createElement('style'); s.id = 'ffp-quests-v8-css';
-    s.textContent = [
-      // major
-      '#panel-quests .q-major{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--q-border-mid);padding:16px;min-height:276px;display:flex;flex-direction:column;justify-content:flex-end;cursor:pointer;}',
-      '#panel-quests .q-major-pill{position:absolute;top:12px;left:12px;display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#082335;background:var(--q-yellow);border-radius:20px;padding:4px 9px;}',
-      '#panel-quests .q-major-pill .material-icons{font-size:12px;}',
-      '#panel-quests .q-major-title{font-size:19px;font-weight:900;color:#fff;line-height:1.15;}',
-      '#panel-quests .q-major-desc{font-size:12.5px;color:#cfe0ee;margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}',
-      '#panel-quests .q-major-foot{display:flex;align-items:center;gap:10px;margin-top:13px;}',
-      '#panel-quests .q-major-meta{font-size:11.5px;font-weight:700;color:#fff;flex:1;min-width:0;}',
-      '#panel-quests .q-major-btn{font-size:12.5px;font-weight:800;border-radius:9px;padding:8px 15px;white-space:nowrap;}',
-      '#panel-quests .q-major-btn.join{color:#082335;background:var(--q-yellow);}',
-      '#panel-quests .q-major-btn.cont{color:#082335;background:#fff;}',
-      // sections + rows
-      '#panel-quests .q-sec-h{font-size:12px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--q-muted);margin:20px 0 10px;}',
-      '#panel-quests .q-sec-h-sub{font-weight:700;text-transform:none;letter-spacing:0;color:#7d8b99;font-size:11px;margin-left:4px;}',
-      '#panel-quests .q-sec-empty{font-size:13px;color:var(--q-muted);padding:6px 2px 2px;}',
-      '#panel-quests .q-list{display:flex;flex-direction:column;gap:8px;}',
-      '#panel-quests .q-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:13px;background:var(--q-card);border:1px solid var(--q-border);cursor:pointer;transition:border-color .15s;}',
-      '#panel-quests .q-row:hover{border-color:var(--q-border-mid);}',
-      '#panel-quests .q-row-thumb{width:46px;height:46px;border-radius:11px;flex-shrink:0;background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;color:#fff;}',
-      '#panel-quests .q-row-thumb .material-icons{font-size:20px;opacity:.85;}',
-      '#panel-quests .q-row-body{flex:1;min-width:0;}',
-      '#panel-quests .q-row-title{font-size:14.5px;font-weight:800;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
-      '#panel-quests .q-row-meta{font-size:11.5px;color:var(--q-muted);font-weight:700;margin-top:2px;}',
-      '#panel-quests .q-row-join{font-size:12px;font-weight:800;color:#082335;background:#2ba8e0;border:none;border-radius:8px;padding:7px 14px;cursor:pointer;font-family:inherit;flex-shrink:0;}',
-      '#panel-quests .q-row-state{font-size:12.5px;font-weight:800;color:#9fb4c4;flex-shrink:0;}',
-      // detail modal
-      '.q-detail2{display:flex;flex-direction:column;}',
-      '.q-d2-cover{position:relative;height:120px;background-size:cover;background-position:center;background-color:#155e85;display:flex;align-items:flex-end;padding:14px;border-radius:14px 14px 0 0;}',
-      '.q-d2-cover.cov-fitness{background-image:linear-gradient(135deg,#ff6b4a,#b23a1c);}.q-d2-cover.cov-sports{background-image:linear-gradient(135deg,#2ba8e0,#155e85);}.q-d2-cover.cov-wellness{background-image:linear-gradient(135deg,#36c5b0,#0d6b5f);}.q-d2-cover.cov-recovery{background-image:linear-gradient(135deg,#8b7cf0,#4c2c9c);}.q-d2-cover.cov-adventure{background-image:linear-gradient(135deg,#f5a623,#a85e08);}.q-d2-cover.cov-food{background-image:linear-gradient(135deg,#4ade80,#15803d);}',
-      '.q-d2-pill{position:absolute;top:12px;left:12px;font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#fff;background:rgba(0,0,0,.45);border-radius:20px;padding:3px 9px;}',
-      '.q-d2-title{font-size:20px;font-weight:900;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.5);}',
-      '.q-d2-body{padding:14px 4px 4px;}',
-      '.q-d2-desc{font-size:16px;color:#9fb4c4;margin:0 0 4px;line-height:1.5;}',
-      '.q-d2-desc.clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}',
-      '.q-d2-more{background:none;border:none;color:#2ba8e0;font-weight:800;font-size:13px;padding:0 0 12px;cursor:pointer;font-family:inherit;}',
-      '.q-statbar{display:flex;gap:18px;padding:10px 14px;background:rgba(8,20,32,.5);border:1px solid rgba(255,255,255,.07);border-radius:11px;margin-bottom:12px;}',
-      '.q-statbar span{font-size:12px;color:#8a99a8;font-weight:700;}.q-statbar b{font-size:16px;color:#e8eef4;font-weight:900;}.q-statbar b.gold{color:#f4d77a;}.q-statbar b.blue{color:#2ba8e0;}',
-      '.q-seg{display:flex;gap:6px;background:rgba(8,20,32,.5);border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:4px;margin-bottom:14px;}',
-      '.q-seg button{flex:1;font-size:13px;font-weight:800;color:#8a99a8;background:transparent;border:none;border-radius:8px;padding:9px 6px;cursor:pointer;font-family:inherit;}',
-      '.q-seg button.active{background:#2ba8e0;color:#fff;}',
-      '.q-tasklist{display:flex;flex-direction:column;gap:8px;}',
-      '.q-trow{display:flex;align-items:center;gap:10px;padding:10px 11px;border-radius:11px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);}',
-      '.q-trow.done{border-color:rgba(74,222,128,.4);}',
-      '.q-trow-ic{font-size:19px;color:#2ba8e0;flex-shrink:0;}.q-trow-ic.done{color:#4ade80;}',
-      '.q-trow-body{flex:1;min-width:0;}',
-      '.q-trow-title{font-size:13.5px;font-weight:700;color:#e8eef4;}',
-      '.q-trow-sub{font-size:11.5px;color:#8a99a8;margin-top:1px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}',
-      '.q-trow-pts{font-size:12px;font-weight:800;color:#9fb4c4;flex-shrink:0;}',
-      '.q-trow-btn{font-size:12px;font-weight:800;color:#082335;background:#2ba8e0;border:none;border-radius:8px;padding:7px 12px;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;}',
-      '.q-trow-done{color:#4ade80;flex-shrink:0;display:flex;}.q-trow-done .material-icons{font-size:18px;}',
-      '.q-trow-pend{font-size:11px;font-weight:800;color:#f3b14e;flex-shrink:0;white-space:nowrap;}',
-      '.q-trow-auto{font-size:11px;font-weight:700;color:#7d8b99;flex-shrink:0;}',
-      // major progress / cta
-      '#panel-quests .q-major-prog{display:flex;align-items:center;gap:12px;margin-top:13px;}',
-      '#panel-quests .q-major-bar{flex:1;height:8px;border-radius:6px;background:rgba(255,255,255,.25);overflow:hidden;}',
-      '#panel-quests .q-major-bar i{display:block;height:100%;border-radius:6px;background:var(--q-yellow);transition:width .6s cubic-bezier(.2,.8,.2,1);}',
-      '#panel-quests .q-major-go{font-size:13px;font-weight:800;color:#fff;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;}',
-      '#panel-quests .q-major-go .material-icons{font-size:16px;}',
-      '#panel-quests .q-major-cta{display:inline-flex;align-self:flex-start;align-items:center;gap:6px;margin-top:13px;font-size:13.5px;font-weight:800;color:#082335;background:var(--q-yellow);border-radius:10px;padding:9px 16px;}',
-      '#panel-quests .q-major-cta .material-icons{font-size:17px;}',
-      '#panel-quests .q-major-cta.done{background:#4ade80;}',
-      // row progress
-      '#panel-quests .q-row-prog{margin-top:7px;}',
-      '#panel-quests .q-row-bar{height:6px;border-radius:5px;background:rgba(255,255,255,.08);overflow:hidden;}',
-      '#panel-quests .q-row-bar i{display:block;height:100%;border-radius:5px;background:#2ba8e0;transition:width .5s ease;}',
-      '#panel-quests .q-row-go{color:#5b6b7a;font-size:24px;flex-shrink:0;}',
-      '#panel-quests .q-row-state.done{color:#4ade80;}#panel-quests .q-row-state.done .material-icons{font-size:22px;}',
-      // detail progress hero
-      '.q-prog{background:rgba(8,20,32,.55);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px;margin-bottom:14px;}',
-      '.q-prog.complete{border-color:rgba(74,222,128,.5);background:linear-gradient(135deg,rgba(74,222,128,.12),rgba(8,20,32,.55));}',
-      '.q-prog-win{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:900;color:#4ade80;margin-bottom:10px;}.q-prog-win .material-icons{font-size:20px;}',
-      '.q-prog-row{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:9px;gap:10px;}',
-      '.q-prog-count{font-size:13px;color:#9fb4c4;font-weight:700;}.q-prog-count b{font-size:24px;color:#fff;font-weight:900;}',
-      '.q-prog-stats{font-size:12.5px;color:#8a99a8;font-weight:700;white-space:nowrap;}.q-prog-stats b{font-size:15px;}.q-prog-stats b.gold{color:#f4d77a;}.q-prog-stats b.blue{color:#2ba8e0;}',
-      '.q-prog-bar{height:10px;border-radius:7px;background:rgba(255,255,255,.08);overflow:hidden;}',
-      '.q-prog-bar i{display:block;height:100%;border-radius:7px;background:linear-gradient(90deg,#2ba8e0,#4ade80);transition:width .7s cubic-bezier(.2,.8,.2,1);}',
-      // accordion task
-      '.q-task{border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(255,255,255,.03);overflow:hidden;transition:border-color .15s;}',
-      '.q-task.done{border-color:rgba(74,222,128,.35);background:rgba(74,222,128,.06);}',
-      '.q-task-head{display:flex;align-items:center;gap:11px;padding:12px;cursor:pointer;}',
-      '.q-task-ck{font-size:22px;color:#3f5161;flex-shrink:0;}.q-task-ck.done{color:#4ade80;}.q-task-ck.pend{color:#f3b14e;}',
-      '.q-task-ti{flex:1;min-width:0;font-size:14px;font-weight:700;color:#e8eef4;}',
-      '.q-task.done .q-task-ti{color:#9fb4c4;}',
-      '.q-task-tag{font-size:11.5px;font-weight:800;color:#f4d77a;background:rgba(244,215,122,.12);border-radius:7px;padding:3px 8px;flex-shrink:0;}',
-      '.q-task-tag.done{color:#4ade80;background:rgba(74,222,128,.14);}.q-task-tag.pend{color:#f3b14e;background:rgba(243,177,78,.14);}',
-      '.q-task-chev{font-size:22px;color:#5b6b7a;flex-shrink:0;transition:transform .2s;}',
-      '.q-task.open .q-task-chev{transform:rotate(180deg);}',
-      '.q-task-d{max-height:0;overflow:hidden;transition:max-height .28s ease;}',
-      '.q-task.open .q-task-d{max-height:620px;}',
-      '.q-task-how{padding:0 14px 2px 47px;}',
-      '.q-task-how-h{font-size:10.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#7d8b99;}',
-      '.q-task-how-t{font-size:13px;color:#cfd6dc;margin-top:3px;line-height:1.5;}',
-      '.q-task-btn{display:flex;align-items:center;justify-content:center;gap:7px;width:auto;margin:11px 14px 14px;padding:12px;border:none;border-radius:11px;background:#2ba8e0;color:#082335;font-size:14px;font-weight:800;font-family:inherit;cursor:pointer;}.q-task-btn .material-icons{font-size:18px;}',
-      '.q-task-status{display:flex;align-items:center;gap:7px;margin:9px 14px 14px;padding:10px 12px;border-radius:10px;font-size:13px;font-weight:700;}.q-task-status .material-icons{font-size:18px;}',
-      '.q-task-status.ok{color:#4ade80;background:rgba(74,222,128,.1);}.q-task-status.wait{color:#f3b14e;background:rgba(243,177,78,.1);}.q-task-status.auto{color:#9fb4c4;background:rgba(255,255,255,.04);}',
-      // leaderboard
-      '.q-board-filters{display:flex;flex-direction:column;gap:9px;margin-bottom:12px;}',
-      '.q-board-chips{display:flex;gap:6px;}',
-      '.q-flt-sel{width:100%;box-sizing:border-box;margin-top:6px;padding:9px 11px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:rgba(8,20,32,.5);color:#e8eef4;font-size:13px;font-family:inherit;color-scheme:dark;}',
-      '.q-board-top{display:flex;gap:8px;align-items:center;margin-bottom:12px;}',
-      '.q-board-top #q-board-search{flex:1;}',
-      '.q-filter-btn{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-size:13px;font-weight:700;color:#cfe0ee;background:rgba(8,20,32,.5);border:1px solid rgba(255,255,255,.12);border-radius:9px;padding:9px 13px;cursor:pointer;font-family:inherit;}',
-      '.q-filter-btn .material-icons{font-size:17px;}',
-      '.q-filter-btn.on{background:#2ba8e0;color:#fff;border-color:#2ba8e0;}',
-      '.q-filter-badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:var(--q-yellow);color:#082335;font-size:10px;font-weight:900;margin-left:2px;}',
-      '.q-board-panel{background:rgba(8,20,32,.5);border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:12px;margin-bottom:12px;display:flex;flex-direction:column;gap:11px;}',
-      '.q-flt-label{font-size:10.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#7d8b99;margin-bottom:7px;}',
-      '.q-chip{flex:1;font-size:12px;font-weight:700;color:#8a99a8;background:rgba(8,20,32,.5);border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:8px 6px;cursor:pointer;font-family:inherit;}',
-      '.q-chip.active{background:#2ba8e0;color:#fff;border-color:#2ba8e0;}',
-      '#q-board-search{width:100%;box-sizing:border-box;padding:10px 13px;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:rgba(8,20,32,.4);color:#e8eef4;font-size:13px;font-family:inherit;}',
-      '.q-board-list{max-height:50vh;overflow:auto;-webkit-overflow-scrolling:touch;}',
-      '.q-board-loading,.q-board-empty{font-size:12.5px;color:#8a99a8;padding:14px 4px;text-align:center;}',
-      '.q-board-more{margin:2px 0 6px;padding:12px;text-align:center;color:#2ba8e0;font-weight:600;font-size:14px;cursor:pointer;border-top:1px solid rgba(255,255,255,.07);}',
-      '.q-lb-row{display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:10px;margin-bottom:6px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);}',
-      '.q-lb-row.me{background:rgba(43,168,224,.12);border-color:#2ba8e0;}',
-      '.q-lb-rank{width:22px;text-align:center;font-weight:900;font-size:13px;flex-shrink:0;}',
-      '.q-lb-av{width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;}',
-      '.q-lb-ph{background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;}',
-      '.q-lb-meta{flex:1;min-width:0;}',
-      '.q-lb-name{font-weight:700;color:#e8eef4;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
-      '.q-lb-loc{font-size:11px;color:#8a99a8;}',
-      '.q-lb-pts{font-weight:900;color:#e8eef4;font-size:14px;flex-shrink:0;}.q-lb-pts span{font-size:10px;color:#8a99a8;font-weight:700;margin-left:2px;}',
-      // points-race hero + breakdown + ways-to-earn
-      '.q-prog-race .q-prog-row{align-items:baseline;}.q-race-pts b{font-size:34px;}.q-race-pts span{font-size:14px;color:#8a99a8;font-weight:700;margin-left:3px;}',
-      '.q-race-hint{font-size:11.5px;color:#8a99a8;margin-top:8px;display:flex;align-items:center;gap:5px;}.q-race-hint .material-icons{font-size:14px;color:#2ba8e0;}',
-      '.q-ways-btn{width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:7px;padding:12px;border-radius:11px;border:1px solid rgba(43,168,224,.35);background:rgba(43,168,224,.08);color:#2ba8e0;font-weight:800;font-size:13.5px;cursor:pointer;font-family:inherit;}.q-ways-btn .material-icons{font-size:18px;}',
-      '.q-join-cta{width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:7px;padding:14px;border-radius:12px;border:none;background:var(--q-yellow,#FFCC00);color:#082335;font-weight:900;font-size:15px;cursor:pointer;font-family:inherit;margin-bottom:14px;}.q-join-cta .material-icons{font-size:19px;}',
-      '.q-bd-head{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#8a99a8;margin:18px 0 9px;}',
-      '.q-bd-row{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:10px;margin-bottom:6px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);}',
-      '.q-bd-ic{font-size:19px;color:#2ba8e0;flex-shrink:0;}.q-bd-meta{flex:1;min-width:0;}.q-bd-name{font-weight:700;color:#e8eef4;font-size:13px;}.q-bd-sub{font-size:11px;color:#8a99a8;margin-top:1px;}',
-      '.q-bd-pts{font-weight:900;color:#FFCC00;font-size:15px;flex-shrink:0;}',
-      '.q-ways-ov{position:fixed;inset:0;z-index:100070;background:#0a1722;display:flex;flex-direction:column;}',
-      '.q-we-wrap{width:100%;height:100%;background:#0a1722;display:flex;flex-direction:column;}',
-      '.q-we-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid #1a2f44;font-size:17px;font-weight:800;color:#e8eef4;flex-shrink:0;}',
-      '.q-we-x{background:none;border:none;color:#8a99a8;cursor:pointer;display:flex;}.q-we-x .material-icons{font-size:26px;}',
-      '.q-we-list{padding:14px 18px 40px;overflow:auto;-webkit-overflow-scrolling:touch;flex:1;max-width:620px;width:100%;margin:0 auto;box-sizing:border-box;}',
-      '.q-we-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.06);}.q-we-meta{flex:1;min-width:0;}.q-we-name{font-weight:700;color:#e8eef4;font-size:14px;}.q-we-sub{font-size:11.5px;color:#8a99a8;margin-top:2px;}',
-      '.q-we-pts{font-weight:900;color:#FFCC00;font-size:15px;flex-shrink:0;}',
-      // upcoming / coming-soon teaser
-      '.q-up{position:relative;border-radius:16px;overflow:hidden;min-height:206px;display:flex;flex-direction:column;justify-content:flex-end;padding:16px;margin-bottom:12px;cursor:pointer;background-size:cover;background-position:center;border:1px solid var(--q-border-mid);}',
-      '.q-up.cov-fitness{background:linear-gradient(135deg,#ff6b4a,#b23a1c);}.q-up.cov-sports{background:linear-gradient(135deg,#2ba8e0,#155e85);}.q-up.cov-wellness{background:linear-gradient(135deg,#36c5b0,#0d6b5f);}.q-up.cov-recovery{background:linear-gradient(135deg,#8b7cf0,#4c2c9c);}.q-up.cov-adventure{background:linear-gradient(135deg,#f5a623,#a85e08);}.q-up.cov-food{background:linear-gradient(135deg,#4ade80,#15803d);}',
-      '.q-up-pill{position:absolute;top:12px;left:12px;display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#082335;background:var(--q-yellow,#FFCC00);border-radius:20px;padding:5px 10px;}.q-up-pill .material-icons{font-size:13px;}',
-      '.q-up-cd{position:absolute;top:11px;right:12px;text-align:center;background:rgba(8,20,32,.45);border-radius:12px;padding:6px 10px;}.q-up-cd b{display:block;font-size:20px;font-weight:900;color:#fff;line-height:1;}.q-up-cd span{font-size:9px;color:#cfe0ee;letter-spacing:.5px;}',
-      '.q-up-title{font-size:19px;font-weight:900;color:#fff;line-height:1.15;}',
-      '.q-up-desc{font-size:12.5px;color:#dceaf5;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}',
-      '.q-up-foot{display:inline-flex;align-self:flex-start;align-items:center;gap:6px;margin-top:12px;font-size:12px;font-weight:700;color:#fff;background:rgba(8,20,32,.35);border-radius:10px;padding:8px 12px;}.q-up-foot .material-icons{font-size:15px;}',
-      '.q-up-banner{display:flex;align-items:center;gap:12px;}.q-up-banner .material-icons{font-size:26px;color:var(--q-yellow,#FFCC00);}.q-up-banner-t{font-size:15px;font-weight:800;color:var(--q-text,#e8eef4);}.q-up-banner-s{font-size:12px;color:var(--q-muted,#8a99a8);margin-top:2px;}',
-      '#panel-quests .q-featrow{display:flex;gap:12px;overflow-x:auto;scrollbar-width:none;padding:2px 0 4px;}#panel-quests .q-featrow::-webkit-scrollbar{display:none;height:0;}',
-      '#panel-quests .q-feat{position:relative;flex:0 0 86%;border-radius:16px;overflow:hidden;min-height:198px;display:flex;flex-direction:column;justify-content:flex-end;padding:16px;cursor:pointer;background-size:cover;background-position:center;}',
-      '#panel-quests .q-feat.cov-sports{background:linear-gradient(135deg,#123a52,#0a1c2b);}#panel-quests .q-feat.cov-fitness{background:linear-gradient(135deg,#ff6b4a,#b23a1c);}#panel-quests .q-feat.cov-wellness{background:linear-gradient(135deg,#36c5b0,#0d6b5f);}',
-      '#panel-quests .q-teamlist{display:flex;flex-direction:column;gap:14px;}#panel-quests .q-teamlist .q-feat{flex:0 0 auto;width:100%;min-height:210px;}',
-      '#panel-quests .q-maintabs{display:flex;gap:26px;border-bottom:1px solid rgba(255,255,255,.09);margin:0 0 18px;}',
-      '#panel-quests .q-mtab{background:none;border:0;font-family:inherit;font-size:16px;font-weight:400;color:var(--q-muted,#7fa0b8);padding:0 0 12px;cursor:pointer;position:relative;letter-spacing:-.2px;}',
-      '#panel-quests .q-mtab.on{color:var(--q-text,#f2f7fb);font-weight:600;}',
-      '#panel-quests .q-mtab.on:after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--q-yellow,#FFCC00);border-radius:2px;}'
-    ].join('');
-    document.head.appendChild(s);
-  },
-
-  renderAll() {
-    this._ensureCss();
-    var self = this;
-    // Team (club competitions) + Squad (member 2-4 crews) each get a tab; the bar shows when either exists.
-    var hasTeam = (this.featured || []).length > 0;
-    var hasSquad = (this.squads || []).length > 0;
-    var tab = (hasTeam || hasSquad) ? (this.qtab || 'individual') : 'individual';
-    if (tab === 'team' && !hasTeam) tab = 'individual';
-    if (tab === 'squad' && !hasSquad) tab = 'individual';
-    // Tab bar lives in its OWN container ABOVE the hero (Grant: tabs are the first thing you see; the quest sits under them).
-    var tabsEl = document.getElementById('quest-tabs');
-    if (tabsEl) {
-      tabsEl.innerHTML = (hasTeam || hasSquad) ? ('<div class="q-maintabs">' +
-        '<button class="q-mtab' + (tab === 'individual' ? ' on' : '') + '" onclick="Quests.setTab(\'individual\')">Solo</button>' +
-        (hasSquad ? '<button class="q-mtab' + (tab === 'squad' ? ' on' : '') + '" onclick="Quests.setTab(\'squad\')">Pair</button>' : '') +
-        (hasTeam ? '<button class="q-mtab' + (tab === 'team' ? ' on' : '') + '" onclick="Quests.setTab(\'team\')">Team</button>' : '') +
-        '</div>') : '';
+  function injectStyles() {
+    if (document.getElementById('ffp-tq-css')) return;
+    var st = document.createElement('style'); st.id = 'ffp-tq-css';
+    st.textContent =
+      '#ffp-tq-ov{position:fixed;inset:0;z-index:6000;background:#0a1825;display:none;flex-direction:column;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;}' +
+      '#ffp-tq-ov.on{display:flex;}' +
+      '#ffp-tq-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}' +
+      '#ffp-tq-body::-webkit-scrollbar{display:none;width:0;height:0;}' +
+      '.tq-scroll{overflow-x:auto;scrollbar-width:none;}.tq-scroll::-webkit-scrollbar{display:none;height:0;}' +
+      '.tq-wrap{max-width:620px;margin:0 auto;width:100%;box-sizing:border-box;}' +
+      '.tq-row{display:flex;align-items:center;gap:16px;padding:15px 0;border-bottom:1px solid rgba(255,255,255,.07);cursor:pointer;}' +
+      '.tq-tap{color:#5f7688;font-size:11.5px;}';
+    document.head.appendChild(st);
+  }
+  function ensureOverlay() {
+    var ov = document.getElementById('ffp-tq-ov');
+    if (!ov) {
+      ov = document.createElement('div'); ov.id = 'ffp-tq-ov';
+      ov.innerHTML = '<div id="ffp-tq-body"></div>';
+      document.body.appendChild(ov);
     }
-    // The headline hero (#quest-hero) is the individual side — only on the Individual tab.
-    var heroEl = document.getElementById('quest-hero');
-    if (tab === 'team' || tab === 'squad') { if (heroEl) { heroEl.style.display = 'none'; heroEl.innerHTML = ''; } }
-    else { this.renderMajor(); }
+    return ov;
+  }
+  function paint(html) { var b = document.getElementById('ffp-tq-body'); if (b) { b.innerHTML = '<div class="tq-wrap">' + html + '</div>'; b.scrollTop = 0; } }
+  function metricLine(m) { return m === 'total' ? 'Ranked by total points' : (m === 'division' ? 'Ranked within size divisions' : 'Average points per active member — members count once they’ve logged'); }
+  function scoreOf(row, m) { return m === 'total' ? Number(row.total_points || 0) : Number(row.avg_per_member || 0); }
+  function scoreLabel(m) { return m === 'total' ? 'points' : 'avg / member'; }
 
-    var host = document.getElementById('quest-sections'); if (!host) return;
-    var html = '';
-
-    if (tab === 'team') {
-      // Team tab = the team quest card(s), FULL-WIDTH (same size as individual quest cards). Tap → club competition.
-      html += '<div class="q-teamlist">' + this.featured.map(this.featuredCard.bind(this)).join('') + '</div>';
-    } else if (tab === 'squad') {
-      // Squad tab = the squad quest card(s), full-width. Tap → the squad experience (standings + create/join).
-      html += '<div class="q-teamlist">' + this.squads.map(this.squadCard.bind(this)).join('') + '</div>';
-    } else {
-      // Individual tab = the member's own quests.
-      var joined = this.minor.filter(function (q) { return q.joined; }).concat(this.partner || []);
-      var browse = this.minor.filter(function (q) { return !q.joined; });
-      // Coming soon — upcoming quests (published with a future start) teased at the top.
-      if ((this.upcoming || []).length) {
-        html += '<div class="q-sec-h">Coming soon</div>';
-        html += (this.upcoming || []).map(this.upcomingCard.bind(this)).join('');
-      }
-      if (joined.length) {
-        html += '<div class="q-sec-h">My quests</div>';
-        html += '<div class="q-list">' + joined.map(function (q) { return q.kind === 'partner' ? self.rowPartner(q) : self.rowMinor(q); }).join('') + '</div>';
-      }
-      html += '<div class="q-sec-h"' + (joined.length ? ' style="margin-top:22px;"' : '') + '>More quests</div>';
-      html += browse.length
-        ? '<div class="q-list">' + browse.map(this.rowMinor.bind(this)).join('') + '</div>'
-        : '<div class="q-sec-empty">' + (joined.length ? 'You’re in all the open quests — more on the way.' : 'New quests are on the way — check back soon.') + '</div>';
+  // ── World-class place badges (SVG): gold TROPHY for 1st, silver/bronze MEDAL for 2nd/3rd ──
+  function medalDefs() {
+    return '<svg width="0" height="0" style="position:absolute;" aria-hidden="true"><defs>' +
+      '<radialGradient id="tqmg-gold" cx="38%" cy="30%" r="80%"><stop offset="0%" stop-color="#FFF1B8"/><stop offset="45%" stop-color="#F6C63C"/><stop offset="100%" stop-color="#B77E09"/></radialGradient>' +
+      '<radialGradient id="tqmg-silver" cx="38%" cy="32%" r="75%"><stop offset="0%" stop-color="#FFFFFF"/><stop offset="45%" stop-color="#D6DCE2"/><stop offset="100%" stop-color="#8B96A1"/></radialGradient>' +
+      '<radialGradient id="tqmg-bronze" cx="38%" cy="32%" r="75%"><stop offset="0%" stop-color="#F6D0A6"/><stop offset="45%" stop-color="#D28A4C"/><stop offset="100%" stop-color="#8E5220"/></radialGradient>' +
+      '<linearGradient id="tqrim-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FFE58A"/><stop offset="100%" stop-color="#9A6800"/></linearGradient>' +
+      '<linearGradient id="tqrim-silver" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#F2F5F8"/><stop offset="100%" stop-color="#79838E"/></linearGradient>' +
+      '<linearGradient id="tqrim-bronze" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#EEBB86"/><stop offset="100%" stop-color="#7C4718"/></linearGradient>' +
+      '</defs></svg>';
+  }
+  function medalSvg(rank, size) {
+    var s = 'width="' + (size || 30) + '" height="' + (size || 30) + '" viewBox="0 0 64 64"';
+    if (rank === 1) {
+      return '<svg ' + s + ' style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.4));" aria-hidden="true">' +
+        '<path d="M14 15 C6 15 6 29 19 31" fill="none" stroke="url(#tqrim-gold)" stroke-width="3.6"/>' +
+        '<path d="M50 15 C58 15 58 29 45 31" fill="none" stroke="url(#tqrim-gold)" stroke-width="3.6"/>' +
+        '<path d="M17 12 H47 V21 C47 32 40.5 39 32 39 C23.5 39 17 32 17 21 Z" fill="url(#tqmg-gold)" stroke="url(#tqrim-gold)" stroke-width="1.4"/>' +
+        '<rect x="29.3" y="39" width="5.4" height="8" fill="url(#tqrim-gold)"/>' +
+        '<rect x="22" y="47" width="20" height="4" rx="1.5" fill="url(#tqmg-gold)"/>' +
+        '<rect x="18.5" y="51.5" width="27" height="5.5" rx="2.4" fill="url(#tqrim-gold)"/>' +
+        '<path d="M23 16 C22 24 24.5 32 30 35.5" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2" stroke-linecap="round"/></svg>';
     }
-    host.innerHTML = html;
-  },
+    var mg = rank === 2 ? 'silver' : 'bronze', num = rank === 2 ? '#5A646E' : '#5E3413';
+    return '<svg ' + s + ' aria-hidden="true">' +
+      '<circle cx="32" cy="32" r="26" fill="#0a1825"/>' +
+      '<circle cx="32" cy="32" r="26" fill="url(#tqrim-' + mg + ')"/>' +
+      '<circle cx="32" cy="32" r="21.5" fill="url(#tqmg-' + mg + ')"/>' +
+      '<path d="M32 12.5 A19.5 19.5 0 0 1 51.5 32" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="2" stroke-linecap="round"/>' +
+      '<text x="32" y="41" text-anchor="middle" font-size="26" font-weight="800" fill="' + num + '" font-family="system-ui">' + rank + '</text></svg>';
+  }
+  // Podium for the top 3 (2nd | 1st | 3rd), each tappable → its team. Only when 3+ qualified teams (non-division metric).
+  function podiumHtml(rows) {
+    var top = rows.filter(function (x) { return x.qualified !== false; }).slice(0, 3);
+    if (top.length < 3) return '';
+    var order = [top[1], top[0], top[2]], H = [46, 66, 34], SZ = [52, 60, 52], BZ = [30, 40, 30], RK = [2, 1, 3];
+    var cells = order.map(function (x, i) {
+      var lg = x.logo
+        ? '<div style="width:' + SZ[i] + 'px;height:' + SZ[i] + 'px;border-radius:' + (i === 1 ? 17 : 15) + 'px;background:#12314a center/cover no-repeat;background-image:url(\'' + esc(x.logo) + '\');margin:0 auto;"></div>'
+        : '<div style="width:' + SZ[i] + 'px;height:' + SZ[i] + 'px;border-radius:' + (i === 1 ? 17 : 15) + 'px;background:#12314a;display:flex;align-items:center;justify-content:center;color:#2ba8e0;font-weight:700;margin:0 auto;">' + esc(initials(x.name)) + '</div>';
+      var val = Math.round(scoreOf(x, S.metric) * 10) / 10;
+      return '<div style="flex:1;text-align:center;cursor:pointer;min-width:0;" onclick="FFPTeamQuest.openTeam(\'' + x.team_id + '\')">' +
+        '<div style="position:relative;width:' + SZ[i] + 'px;margin:0 auto;">' + lg +
+          '<div style="position:absolute;bottom:-' + (BZ[i] / 2 - 4) + 'px;left:50%;transform:translateX(-50%);">' + medalSvg(RK[i], BZ[i]) + '</div></div>' +
+        '<div style="font-size:' + (i === 1 ? 13 : 12.5) + 'px;font-weight:600;color:#f2f7fb;margin-top:' + (i === 1 ? 22 : 16) + 'px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(x.name) + '</div>' +
+        '<div style="font-size:' + (i === 1 ? 17 : 15) + 'px;font-weight:' + (i === 1 ? 800 : 700) + ';color:' + (i === 1 ? '#FFCC00' : '#fff') + ';">' + val + '</div>' +
+        '<div style="height:' + H[i] + 'px;margin-top:8px;border-radius:8px 8px 0 0;background:linear-gradient(180deg,' + (i === 1 ? '#2f3d2a' : '#26333f') + ',#151d26);"></div>' +
+      '</div>';
+    }).join('');
+    return medalDefs() + '<div style="padding:16px 20px 0;"><div style="display:flex;align-items:flex-end;justify-content:center;gap:14px;">' + cells + '</div></div>';
+  }
 
-  setTab: function (t) { this.qtab = t; this.renderAll(); },
+  // ── LEADERBOARD (standing-led) ──
+  W.FFPTeamQuest = W.FFPTeamQuest || {};
+  W.FFPTeamQuest.open = function (questId, opts) {
+    injectStyles(); var ov = ensureOverlay(); ov.classList.add('on');
+    opts = opts || {};
+    S.q = questId; S.metric = opts.metric || 'avg'; S.min = opts.minMembers || 10; S.title = opts.title || 'Most active team'; S.image = opts.image || ''; S.desc = opts.desc || '';
+    paint('<div style="padding:40px 20px;color:#7fa0b8;font-weight:600;">Loading the leaderboard…</div>');
+    renderLeaderboard();
+  };
+  W.FFPTeamQuest.close = function () { var ov = document.getElementById('ffp-tq-ov'); if (ov) ov.classList.remove('on'); };
 
-  upcomingCard: function (q) {
-    var cover = (this.CAT[q.category] && this.CAT[q.category].cover) || 'cov-fitness';
-    var bg = q.hero_image_url ? "linear-gradient(180deg,rgba(8,20,32,0.12),rgba(8,20,32,0.82)),url('" + q.hero_image_url + "')" : '';
-    var d = q.starts_at ? new Date(q.starts_at) : null;
-    var startsTxt = d ? d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
-    var days = d ? Math.max(0, Math.ceil((d.getTime() - Date.now()) / 86400000)) : null;
-    var cd = (days != null) ? ('<div class="q-up-cd"><b>' + days + '</b><span>' + (days === 1 ? 'DAY' : 'DAYS') + '</span></div>') : '';
-    return '<div class="q-up ' + (bg ? '' : cover) + '" onclick="Quests.open(\'' + q.id + '\',\'ffp\')"' + (bg ? ' style="background-image:' + bg + ';"' : '') + '>' +
-      '<span class="q-up-pill"><span class="material-icons">hourglass_top</span> Starts ' + escHtml(startsTxt) + '</span>' + cd +
-      '<div class="q-up-title">' + escHtml(q.title) + '</div>' +
-      (q.description ? '<div class="q-up-desc">' + escHtml(q.description) + '</div>' : '') +
-      '<div class="q-up-foot"><span class="material-icons">visibility</span> Tap to preview the ways to earn</div>' +
-    '</div>';
-  },
+  async function renderLeaderboard() {
+    var me = memberId(); if (!me || !sb()) { paint(bar('') + '<div style="padding:24px 20px;color:#9fc0d4;">Sign in to see the team competition.</div>'); return; }
+    var rows = [], mine = {};
+    try {
+      var r = await sb().rpc('team_leaderboard', { p_quest: S.q, p_metric: S.metric, p_min_members: S.min });
+      rows = (r && r.data) || [];
+    } catch (e) { console.error('[FFP TeamQuest] leaderboard', e); }
+    try { var rt = await sb().rpc('member_my_teams', { p_member: me }); ((rt && rt.data) || []).forEach(function (t) { mine[t.id] = 1; }); } catch (e) {}
+    S.rows = rows; S.mineMap = mine; S.shown = 50; S.filter = '';
+    paintBoard();
+  }
+  // Search + Load-More are client-side updates that touch ONLY the list container, so the search box keeps focus.
+  W.FFPTeamQuest.filter = function (v) { S.filter = String(v || ''); S.shown = 50; var el = document.getElementById('tq-list-wrap'); if (el) el.innerHTML = listHtml(); };
+  W.FFPTeamQuest.more = function () { S.shown = (S.shown || 50) + 50; var el = document.getElementById('tq-list-wrap'); if (el) el.innerHTML = listHtml(); };
 
-  featuredCard: function (q) {
-    var cover = (this.CAT && this.CAT[q.category] && this.CAT[q.category].cover) || 'cov-sports';
-    var bg = q.hero_image_url ? "linear-gradient(180deg,rgba(8,20,32,0.10),rgba(8,20,32,0.86)),url('" + q.hero_image_url + "')" : '';
-    var d = q.active_to ? new Date(q.active_to) : null;
-    var days = d ? Math.max(0, Math.ceil((d.getTime() - Date.now()) / 86400000)) : null;
-    var cd = (days != null) ? ('<div class="q-up-cd"><b>' + days + '</b><span>' + (days === 1 ? 'DAY' : 'DAYS') + '</span></div>') : '';
-    return '<div class="q-feat ' + (bg ? '' : cover) + '" onclick="Quests.openTeam(\'' + q.id + '\')"' + (bg ? ' style="background-image:' + bg + ';"' : '') + '>' +
-      '<span class="q-up-pill"><span class="material-icons">groups</span> Team Quest</span>' + cd +
-      '<div class="q-up-title">' + escHtml(q.title) + '</div>' +
-      '<div class="q-up-desc">Team up — every member’s activity lifts your whole club up the leaderboard. Win it together.</div>' +
-      '<div class="q-up-foot"><span class="material-icons">leaderboard</span> See where your club ranks</div>' +
-    '</div>';
-  },
-  openTeam: function (id) {
-    var q = (this.featured || []).filter(function (x) { return x.id === id; })[0] || {};
-    var go = function () { if (window.FFPTeamQuest) window.FFPTeamQuest.open(id, { title: q.title, metric: q.club_metric || 'avg', minMembers: q.club_min_members || 10, image: q.hero_image_url, desc: q.description }); };
-    if (window.FFPTeamQuest) { go(); return; }
-    if (this._teamLoading) return; this._teamLoading = true;
-    var sc = document.createElement('script'); sc.src = 'assets/ffp-team-quest-loader.js?v=' + (window.FFP_BUILD || '1');
-    sc.onload = function () { try { go(); } catch (e) {} };
-    sc.onerror = function () { try { if (window.showToast) showToast('Could not open the challenge', 'error'); } catch (e) {} };
-    document.body.appendChild(sc);
-  },
+  function listHtml() {
+    var rows = S.rows || [], mine = S.mineMap || {};
+    // Podium owns the top 3 (when not searching); the list below is everyone else and is fully searchable.
+    var searching = !!(S.filter && S.filter.trim());
+    var pod = (S.metric !== 'division' && !searching) ? podiumHtml(rows) : '';
+    var base = pod ? rows.filter(function (x) { return x.qualified === false || x.rank > 3; }) : rows;
+    var f = (S.filter || '').trim().toLowerCase();
+    var filtered = f ? base.filter(function (x) { return String(x.name || '').toLowerCase().indexOf(f) >= 0; }) : base;
+    var total = filtered.length, shown = Math.min(S.shown || 50, total);
+    var page = filtered.slice(0, shown);
+    var list = page.map(function (x) {
+      var you = !!mine[x.team_id];
+      var val = Math.round(scoreOf(x, S.metric) * 10) / 10;
+      var q = (x.qualified === false);
+      var _lg = x.logo
+        ? '<div style="width:40px;height:40px;border-radius:12px;flex:0 0 auto;background:#12314a center/cover no-repeat;background-image:url(\'' + esc(x.logo) + '\');"></div>'
+        : '<div style="width:40px;height:40px;border-radius:12px;flex:0 0 auto;background:#12314a;display:flex;align-items:center;justify-content:center;color:#2ba8e0;font-weight:700;font-size:14px;">' + esc(String(x.name || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase()) + '</div>';
+      return '<div class="tq-row" onclick="FFPTeamQuest.openTeam(\'' + x.team_id + '\')"' + (you ? ' style="border-left:2px solid #FFCC00;margin-left:-16px;padding-left:14px;"' : '') + '>' +
+        '<div style="width:22px;text-align:center;font-size:18px;font-weight:' + (you ? '600' : '400') + ';color:' + (you ? '#FFCC00' : (q ? '#54697a' : '#8aa0b2')) + ';">' + (q ? '—' : x.rank) + '</div>' +
+        _lg +
+        '<div style="flex:1;min-width:0;"><div style="font-size:15.5px;font-weight:600;color:' + (you ? '#FFCC00' : '#f2f7fb') + ';">' + esc(x.name) + '</div>' +
+        '<div style="font-size:12px;color:' + (you ? '#b79a4a' : '#6f8ba1') + ';margin-top:1px;">' + (you ? 'your team · ' : '') + (x.active_members || 0) + ' of ' + x.roster + ' active' + (q ? ' · needs ' + S.min + ' to qualify' : '') + '</div></div>' +
+        '<div style="font-size:21px;font-weight:600;color:' + (you ? '#FFCC00' : (q ? '#54697a' : '#f2f7fb')) + ';">' + (q ? '—' : val) + '</div></div>';
+    }).join('') || '<div style="padding:24px 20px;color:#9fc0d4;">' + (f ? 'No teams match “' + esc(S.filter) + '”.' : 'No teams yet. The first team to add members takes the lead.') + '</div>';
+    var more = total > shown
+      ? '<div onclick="FFPTeamQuest.more()" style="margin:6px 0 2px;padding:13px;text-align:center;color:#2ba8e0;font-weight:600;font-size:14px;cursor:pointer;border-top:1px solid rgba(255,255,255,.07);">Show more (' + (total - shown) + ')</div>'
+      : '';
+    return '<div style="padding:14px 20px 2px;font-size:11.5px;color:#6f8ba1;">' + metricLine(S.metric) + (total > 50 ? ' · ' + total + ' teams' : '') + '</div>' +
+      '<div style="padding:0 20px 8px;">' + list + more + '</div>' +
+      '<div style="padding:2px 20px 24px;" class="tq-tap">Tap a team to see who\'s driving it →</div>';
+  }
 
-  squadCard: function (q) {
-    var cover = (this.CAT && this.CAT[q.category] && this.CAT[q.category].cover) || 'cov-sports';
-    var bg = q.hero_image_url ? "linear-gradient(180deg,rgba(8,20,32,0.10),rgba(8,20,32,0.86)),url('" + q.hero_image_url + "')" : '';
-    var d = q.active_to ? new Date(q.active_to) : null;
-    var days = d ? Math.max(0, Math.ceil((d.getTime() - Date.now()) / 86400000)) : null;
-    var cd = (days != null) ? ('<div class="q-up-cd"><b>' + days + '</b><span>' + (days === 1 ? 'DAY' : 'DAYS') + '</span></div>') : '';
-    var isPair = (q.squad_max || 2) <= 2;
-    return '<div class="q-feat ' + (bg ? '' : cover) + '" onclick="Quests.openSquad(\'' + q.id + '\')"' + (bg ? ' style="background-image:' + bg + ';"' : '') + '>' +
-      '<span class="q-up-pill"><span class="material-icons">group</span> ' + (isPair ? 'Pair' : 'Squad') + ' Quest</span>' + cd +
-      '<div class="q-up-title">' + escHtml(q.title) + '</div>' +
-      '<div class="q-up-desc">' + (isPair ? 'Pair up with a mate and take it on together.' : ('Grab 2–' + (q.squad_max || 4) + ' of your people and take it on together.')) + '</div>' +
-      '<div class="q-up-foot"><span class="material-icons">leaderboard</span> ' + (isPair ? 'Pair up + see the standings' : 'Create or join a squad') + '</div>' +
-    '</div>';
-  },
-  openSquad: function (id) {
-    var q = (this.squads || []).filter(function (x) { return x.id === id; })[0] || {};
-    var go = function () { if (window.FFPPairQuest) window.FFPPairQuest.open(id, { title: q.title, max: q.squad_max || 2, image: q.hero_image_url, desc: q.description }); };
-    if (window.FFPPairQuest) { go(); return; }
-    if (this._squadLoading) return; this._squadLoading = true;
-    var sc = document.createElement('script'); sc.src = 'assets/ffp-pair-quest-loader.js?v=' + (window.FFP_BUILD || '1');
-    sc.onload = function () { try { go(); } catch (e) {} };
-    sc.onerror = function () { try { if (window.showToast) showToast('Could not open the pair quest', 'error'); } catch (e) {} };
-    document.body.appendChild(sc);
-  },
-
-  renderMajor() {
-    var el = document.getElementById('quest-hero'); if (!el) return;
-    var h = this.major;
-    if (!h) { el.style.display = 'none'; el.innerHTML = ''; return; }
-    el.style.display = '';
-    var done = h.my_completed || 0, total = h.task_count || 0;
-    var pct = total ? Math.round(done / total * 100) : 0;
-    var complete = total > 0 && done >= total;
-    var bg = h.hero_image_url
-      ? "linear-gradient(180deg,rgba(8,20,32,0.10),rgba(8,20,32,0.88)),url('" + h.hero_image_url + "')"
-      : 'linear-gradient(135deg,rgba(43,168,224,0.5),rgba(8,30,46,0.92))';
-    var foot;
-    if (complete) {
-      foot = '<div class="q-major-cta done"><span class="material-icons">emoji_events</span> Quest complete</div>';
-    } else if (h.joined) {
-      foot = '<div class="q-major-prog">' +
-          '<div class="q-major-bar"><i style="width:' + pct + '%;"></i></div>' +
-          '<span class="q-major-go">Continue <span class="material-icons">arrow_forward</span></span>' +
+  function paintBoard() {
+    var rows = S.rows || [], mine = S.mineMap || {};
+    var myRow = rows.filter(function (x) { return mine[x.team_id]; })[0] || null;
+    // Header = quest hero image under a dark scrim (falls back to brand gradient) + the quest description, so
+    // it reads consistently with the Solo detail and the Pair header.
+    var _bg = S.image ? ("linear-gradient(160deg,rgba(8,20,32,0.58),rgba(9,22,34,0.93)),url('" + esc(S.image) + "')") : 'linear-gradient(160deg,#123a52 0%,#0b2233 60%,#0a1825 100%)';
+    var descHtml = S.desc ? '<div style="font-size:12.5px;color:#dbe8f0;margin-top:10px;line-height:1.45;">' + esc(S.desc) + '</div>' : '';
+    var hero;
+    if (myRow) {
+      var beh = null; if (myRow.rank > 1) { var above = rows.filter(function (x) { return x.rank === myRow.rank - 1; })[0]; if (above) beh = Math.round((scoreOf(above, S.metric) - scoreOf(myRow, S.metric)) * 10) / 10; }
+      hero = '<div style="position:relative;padding:18px 20px 20px;background:' + _bg + ';background-size:cover;background-position:center;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+        '<div style="font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:#7fbfe0;font-weight:600;">' + esc(S.title) + '</div>' +
+        '<span onclick="FFPTeamQuest.close()" style="cursor:pointer;color:#9fc0d4;font-size:22px;line-height:1;">&times;</span></div>' + descHtml +
+        '<div style="display:flex;align-items:flex-end;gap:12px;margin-top:16px;">' +
+        '<div style="font-size:52px;font-weight:600;color:#FFCC00;line-height:.9;letter-spacing:-2px;">' + (myRow.rank || '–') + '<span style="font-size:20px;">' + ord(myRow.rank) + '</span></div>' +
+        '<div style="padding-bottom:5px;"><div style="font-size:16px;font-weight:600;color:#f2f7fb;">' + esc(myRow.name) + '</div>' +
+        '<div style="font-size:12.5px;color:#9fc0d4;margin-top:2px;">of ' + rows.length + ' teams</div></div></div>' +
+        (beh != null && beh > 0 ? '<div style="font-size:13px;color:#dbe8f0;margin-top:14px;">' + beh + ' behind ' + (myRow.rank - 1) + (myRow.rank - 1 === 1 ? 'st' : (myRow.rank - 1 === 2 ? 'nd' : (myRow.rank - 1 === 3 ? 'rd' : 'th'))) + ' — one active day closes it.</div>' : (myRow.rank === 1 ? '<div style="font-size:13px;color:#37E0C6;margin-top:14px;">Leading the pack. Keep it up.</div>' : '')) +
         '</div>';
     } else {
-      foot = '<div class="q-major-cta"><span class="material-icons">bolt</span> Start the quest</div>';
+      hero = '<div style="position:relative;padding:18px 20px 20px;background:' + _bg + ';background-size:cover;background-position:center;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:#7fbfe0;font-weight:600;">' + esc(S.title) + '</div><span onclick="FFPTeamQuest.close()" style="cursor:pointer;color:#9fc0d4;font-size:22px;">&times;</span></div>' +
+        '<div style="font-size:22px;font-weight:600;color:#f2f7fb;margin-top:14px;">Join a team to get involved</div>' + descHtml +
+        '<div style="font-size:13px;color:#9fc0d4;margin-top:8px;">Join a team, or create one in the FFP Pro app — then your activity counts for the team.</div></div>';
     }
-    el.innerHTML =
-      '<div class="q-major" onclick="Quests.open(\'' + h.id + '\',\'ffp\')" style="background:' + bg + ';background-size:cover;background-position:center;">' +
-        '<span class="q-major-pill"><span class="material-icons">stars</span> Featured quest</span>' +
-        '<div class="q-major-title">' + escHtml(h.title) + '</div>' +
-        (h.description ? '<div class="q-major-desc">' + escHtml(h.description) + '</div>' : '') +
-        foot +
-      '</div>';
-  },
-
-  _empty(t, s) {
-    return '<div style="text-align:center;color:var(--q-muted);padding:34px 16px;">' +
-      '<div style="font-weight:800;color:var(--q-text);">' + t + '</div><div style="margin-top:6px;font-size:13px;">' + s + '</div></div>';
-  },
-  _thumb(q) {
-    var c = (this.CAT[q.category] || {}).cover || 'cov-fitness';
-    return q.hero_image_url
-      ? '<div class="q-row-thumb" style="background-image:url(\'' + q.hero_image_url + '\');"></div>'
-      : '<div class="q-row-thumb ' + c + '"><span class="material-icons">flag</span></div>';
-  },
-  // Compact full-width list rows (scale to any count — no giant squares)
-  _rowProgress(done, total) {
-    var pct = total ? Math.round(done / total * 100) : 0;
-    return '<div class="q-row-prog"><div class="q-row-bar"><i style="width:' + pct + '%;"></i></div></div>';
-  },
-  rowMinor(q) {
-    var joined = !!q.joined, done = q.my_completed || 0, total = q.task_count || 0;
-    var complete = total > 0 && done >= total;
-    var body, right;
-    if (joined) {
-      body = '<div class="q-row-title">' + escHtml(q.title) + '</div>' + this._rowProgress(done, total);
-      right = complete
-        ? '<span class="q-row-state done"><span class="material-icons">emoji_events</span></span>'
-        : '<span class="material-icons q-row-go">chevron_right</span>';
-    } else {
-      var social = (q.joined_count || 0) > 0 ? (q.joined_count + ' playing') : 'Be the first to join';
-      body = '<div class="q-row-title">' + escHtml(q.title) + '</div><div class="q-row-meta">' + social + '</div>';
-      right = '<button class="q-row-join" onclick="event.stopPropagation();Quests.join(\'' + q.id + '\')">Join</button>';
-    }
-    return '<div class="q-row" onclick="Quests.open(\'' + q.id + '\',\'ffp\')">' +
-      this._thumb(q) + '<div class="q-row-body">' + body + '</div>' + right + '</div>';
-  },
-  rowPartner(q) {
-    var done = q.my_completed || 0, total = q.task_count || 0;
-    var complete = total > 0 && done >= total;
-    var right = complete
-      ? '<span class="q-row-state done"><span class="material-icons">emoji_events</span></span>'
-      : '<span class="material-icons q-row-go">chevron_right</span>';
-    return '<div class="q-row" onclick="Quests.open(\'' + q.id + '\',\'partner\')">' +
-      this._thumb(q) +
-      '<div class="q-row-body"><div class="q-row-title">' + escHtml(q.title) + '</div>' +
-        '<div class="q-row-meta"><span class="material-icons" style="font-size:12px;vertical-align:-2px;">lock</span> ' + escHtml(q.provider_name || 'Partner') + '</div>' +
-        this._rowProgress(done, total) + '</div>' +
-      right + '</div>';
-  },
-
-  open(id, kind) {
-    if (kind === 'member') return this.openMemberDetail(id);
-    return this.openTaskDetail(id);
-  },
-
-  // ── FFP / partner quest detail = compact task checklist + filterable leaderboard ──
-  async openTaskDetail(id) {
-    var mid = this.memberId();
-    this._ensureCss();
-    this._openQuest = id; this._boardLoaded = false; this._locsLoaded = false; this.boardCountry = ''; this.boardRegion = ''; this.boardCity = ''; this.boardSearch = ''; this.boardGender = '';
-    var d = null;
-    try { var r = await window.supabase.rpc('member_quest_detail', { p_me: mid, p_quest: id }); d = (r && r.data) ? r.data : null; } catch (e) {}
-    if (!d) { showToast('Could not open quest', 'error'); return; }
-    this._openData = d;
-    var hasBoard = (d.leaderboard && d.leaderboard !== 'none');
-    var catCover = (this.CAT[d.category] && this.CAT[d.category].cover) || 'cov-fitness';
-    var coverBg = d.hero_image_url
-      ? "linear-gradient(180deg,rgba(8,20,32,0.12),rgba(8,20,32,0.80)),url('" + d.hero_image_url + "')" : '';
-    var tasks = d.tasks || [];
-    var total = tasks.length;
-    var done = tasks.filter(function (t) { return (t.my_state || '') === 'verified'; }).length;
-    var pct = total ? Math.round(done / total * 100) : 0;
-    var complete = total > 0 && done >= total;
-    var isRace = (d.mode === 'points_race'); this._openMode = d.mode || 'checklist';
-    var startsD = d.starts_at ? new Date(d.starts_at) : null;
-    var isUpcoming = !!(startsD && startsD.getTime() > Date.now());
-    var upDays = startsD ? Math.max(0, Math.ceil((startsD.getTime() - Date.now()) / 86400000)) : 0;
-    var upTxt = startsD ? startsD.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
-    var pill = (d.kind === 'ffp') ? 'Open to all' : ('Members · ' + escHtml(d.provider_name || 'Partner'));
-    var tasksHtml = tasks.map(this.taskAccordion.bind(this)).join('') || '<div class="q-board-empty">Tasks announced soon.</div>';
-    // Gamified progress hero — the dopamine loop: a big bar that fills, points climbing, rank to chase.
-    var prog = isUpcoming
-      ? '<div class="q-prog q-up-banner"><span class="material-icons">hourglass_top</span><div><div class="q-up-banner-t">Starts ' + escHtml(upTxt) + '</div><div class="q-up-banner-s">' + (upDays === 0 ? 'Launching today — get ready!' : upDays + ' day' + (upDays === 1 ? '' : 's') + ' to go · here’s how you’ll earn') + '</div></div></div>'
-      : isRace
-      ? '<div class="q-prog q-prog-race">' +
-          '<div class="q-prog-row">' +
-            '<span class="q-prog-count q-race-pts"><b class="gold">' + (d.my_points || 0) + '</b> <span>pts</span></span>' +
-            (hasBoard ? '<span class="q-prog-stats"><b class="blue">' + (d.my_rank ? '#' + d.my_rank : '—') + '</b> rank</span>' : '') +
-          '</div>' +
-          '<div class="q-race-hint"><span class="material-icons">bolt</span> Tracked automatically — just keep moving</div>' +
-        '</div>'
-      : '<div class="q-prog' + (complete ? ' complete' : '') + '">' +
-        (complete ? '<div class="q-prog-win"><span class="material-icons">emoji_events</span> Quest complete!</div>' : '') +
-        '<div class="q-prog-row">' +
-          '<span class="q-prog-count"><b>' + done + '</b> <span>/ ' + total + ' done</span></span>' +
-          '<span class="q-prog-stats"><b class="gold">' + (d.my_points || 0) + '</b> pts' +
-            (hasBoard ? ' &nbsp;·&nbsp; <b class="blue">' + (d.my_rank ? '#' + d.my_rank : '—') + '</b> rank' : '') + '</span>' +
-        '</div>' +
-        '<div class="q-prog-bar"><i style="width:' + pct + '%;"></i></div>' +
-      '</div>';
-    // Points race → Leaderboard is the default tab on the LEFT, "My points" on the right.
-    var toggle = (hasBoard && !isUpcoming)
-      ? (isRace
-          ? '<div class="q-seg"><button id="q-seg-board" class="active" onclick="Quests.questPane(\'board\')">Leaderboard</button>' +
-            '<button id="q-seg-tasks" onclick="Quests.questPane(\'tasks\')">My points</button></div>'
-          : '<div class="q-seg"><button id="q-seg-tasks" class="active" onclick="Quests.questPane(\'tasks\')">Tasks</button>' +
-            '<button id="q-seg-board" onclick="Quests.questPane(\'board\')">Leaderboard</button></div>')
+    // Search box lives OUTSIDE #tq-list-wrap so it survives filter re-renders (keeps focus).
+    var search = (rows.length > 8)
+      ? '<div style="padding:12px 20px 2px;"><input id="tq-search" type="search" autocomplete="off" oninput="FFPTeamQuest.filter(this.value)" value="' + esc(S.filter || '') + '" placeholder="Search teams" style="width:100%;box-sizing:border-box;background:#0f2536;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:11px 14px;color:#eaf2f8;font-size:14px;outline:none;"></div>'
       : '';
-    var boardPane = (hasBoard && !isUpcoming)
-      ? '<div id="q-pane-board" style="display:' + (isRace ? '' : 'none') + ';">' +
-          '<div class="q-board-top">' +
-            '<input id="q-board-search" placeholder="Search name…" oninput="Quests.boardSearchInput(this.value)">' +
-            '<button id="q-filter-btn" class="q-filter-btn" onclick="Quests.toggleBoardFilters()"><span class="material-icons">tune</span> Filters<span id="q-filter-badge" class="q-filter-badge" style="display:none;"></span></button>' +
-          '</div>' +
-          '<div id="q-board-panel" class="q-board-panel" style="display:none;">' +
-            '<div><div class="q-flt-label">Location</div>' +
-              '<select class="q-flt-sel" id="q-flt-country" onchange="Quests.boardLocChange(\'country\')"><option value="">All countries</option></select>' +
-              '<select class="q-flt-sel" id="q-flt-region" onchange="Quests.boardLocChange(\'region\')" style="display:none;"><option value="">All regions</option></select>' +
-              '<select class="q-flt-sel" id="q-flt-city" onchange="Quests.boardLocChange(\'city\')"><option value="">All cities</option></select>' +
-            '</div>' +
-            '<div><div class="q-flt-label">Gender</div>' +
-              '<div class="q-board-chips">' +
-                '<button class="q-chip gchip active" data-gender="" onclick="Quests.boardGenderFilter(\'\')">All</button>' +
-                '<button class="q-chip gchip" data-gender="Male" onclick="Quests.boardGenderFilter(\'Male\')">Men</button>' +
-                '<button class="q-chip gchip" data-gender="Female" onclick="Quests.boardGenderFilter(\'Female\')">Women</button>' +
-              '</div>' +
-            '</div>' +
-          '</div>' +
-          '<div id="q-board-list" class="q-board-list"><div class="q-board-loading">Loading…</div></div>' +
-        '</div>' : '';
-    var html =
-      '<div class="q-detail2">' +
-        '<div class="q-d2-cover ' + (coverBg ? '' : catCover) + '"' + (coverBg ? ' style="background-image:' + coverBg + ';"' : '') + '>' +
-          '<span class="q-d2-pill">' + pill + '</span>' +
-          '<div class="q-d2-title">' + escHtml(d.title) + '</div>' +
-        '</div>' +
-        '<div class="q-d2-body">' +
-          (d.description ? '<p class="q-d2-desc clamp" id="q-d2-desc">' + escHtml(d.description) + '</p><button class="q-d2-more" id="q-d2-more" style="display:none;" onclick="Quests.descMore()">Show more</button>' : '') +
-          prog +
-          ((d.join_mode === 'opt_in' && !d.joined && !isUpcoming) ? '<button class="q-join-cta" onclick="Quests.joinQuest(\'' + d.id + '\')"><span class="material-icons">flag</span> Join this quest</button>' : '') +
-          toggle +
-          '<div id="q-pane-tasks" style="display:' + ((isRace && !isUpcoming) ? 'none' : '') + ';">' + (isRace
-            ? '<button class="q-ways-btn" onclick="Quests.openWaysToEarn()"><span class="material-icons">workspace_premium</span> Ways to earn points</button>' +
-              (isUpcoming ? '' : '<div class="q-bd-head">Where your points came from</div><div id="q-points-breakdown" class="q-breakdown"><div class="q-board-loading">Loading…</div></div>')
-            : '<div class="q-tasklist">' + tasksHtml + '</div>') + '</div>' +
-          boardPane +
-        '</div>' +
-      '</div>';
-    openDetailModal(html);
-    var bar = document.querySelector('.q-prog-bar i'); if (bar) { bar.style.width = '0%'; setTimeout(function () { bar.style.width = pct + '%'; }, 60); }
-    if (isRace && !isUpcoming) this.loadBreakdown();
-    if (isRace && hasBoard && !isUpcoming) { this._boardLoaded = true; this.loadQuestBoard(); }   // leaderboard is the default pane for a race
-    setTimeout(function () { var de = document.getElementById('q-d2-desc'), mb = document.getElementById('q-d2-more'); if (de && mb && de.scrollHeight > de.clientHeight + 2) mb.style.display = ''; }, 30);
-    // Auto-refresh the leaderboard while it's on screen (self-cleans when the modal closes). Numbers tick up live.
-    if (this._boardTimer) { clearInterval(this._boardTimer); this._boardTimer = null; }
-    if (hasBoard && !isUpcoming) {
-      var self = this;
-      this._boardTimer = setInterval(function () {
-        var host = document.getElementById('q-board-list');
-        if (!host) { clearInterval(self._boardTimer); self._boardTimer = null; return; }   // modal closed
-        var pane = document.getElementById('q-pane-board');
-        // Don't yank the user back to page 1 if they've paged past the first 50 or are searching.
-        if (self._boardLoaded && pane && pane.style.display !== 'none' && document.visibilityState === 'visible'
-            && (self._boardOffset || 0) <= 50 && !(self.boardSearch && self.boardSearch.trim())) self.loadQuestBoard();
-      }, 45000);
-    }
-  },
-  descMore() {
-    var de = document.getElementById('q-d2-desc'); if (de) de.classList.remove('clamp');
-    var mb = document.getElementById('q-d2-more'); if (mb) mb.style.display = 'none';
-  },
-  async joinQuest(id) {
-    var mid = this.memberId(); if (!mid) { showToast('Please sign in again', 'error'); return; }
-    try {
-      var r = await window.supabase.rpc('member_quest_join', { p_me: mid, p_quest: id });
-      if (r && r.error) throw r.error;
-      showToast('Joined — you’re in!', 'success');
-      this.openTaskDetail(id);
-    } catch (e) { showToast('Could not join', 'error'); }
-  },
-
-  toggleTask(id) {
-    var row = document.getElementById('q-task-' + id); if (!row) return;
-    row.classList.toggle('open');   // multiple straps can be open at once; the whole list scrolls in the modal
-  },
-
-  questPane(which) {
-    var t = document.getElementById('q-pane-tasks'), b = document.getElementById('q-pane-board');
-    var st = document.getElementById('q-seg-tasks'), sb = document.getElementById('q-seg-board');
-    if (which === 'board') {
-      if (t) t.style.display = 'none'; if (b) b.style.display = '';
-      if (st) st.classList.remove('active'); if (sb) sb.classList.add('active');
-      if (!this._boardLoaded) { this._boardLoaded = true; this.loadQuestBoard(); }
-    } else {
-      if (b) b.style.display = 'none'; if (t) t.style.display = '';
-      if (sb) sb.classList.remove('active'); if (st) st.classList.add('active');
-    }
-  },
-  boardLoadLocations() {
-    var self = this;
-    window.supabase.rpc('quest_leaderboard_locations', { p_quest: this._openQuest }).then(function (r) {
-      self._locs = (r && r.data) ? r.data : [];
-      self._fillLocSelect('q-flt-country', self._distinctLoc('country', '', ''), 'All countries');
-      self._fillLocSelect('q-flt-city', self._distinctLoc('city', '', ''), 'All cities');
-    }, function () {});
-  },
-  _distinctLoc(field, country, region) {
-    var seen = {}, out = [];
-    (this._locs || []).forEach(function (l) {
-      if (country && l.country !== country) return;
-      if (region && l.region !== region) return;
-      var v = l[field]; if (v && !seen[v]) { seen[v] = 1; out.push(v); }
-    });
-    out.sort(); return out;
-  },
-  _fillLocSelect(id, vals, allLabel) {
-    var sel = document.getElementById(id); if (!sel) return;
-    var cur = sel.value;
-    sel.innerHTML = '<option value="">' + allLabel + '</option>' + vals.map(function (v) { return '<option value="' + escHtml(v) + '"' + (v === cur ? ' selected' : '') + '>' + escHtml(v) + '</option>'; }).join('');
-  },
-  boardLocChange(which) {
-    var cEl = document.getElementById('q-flt-country'), rEl = document.getElementById('q-flt-region'), tEl = document.getElementById('q-flt-city');
-    if (which === 'country') {
-      this.boardCountry = cEl ? cEl.value : ''; this.boardRegion = ''; this.boardCity = '';
-      var regions = this._distinctLoc('region', this.boardCountry, '');
-      if (rEl) rEl.style.display = (this.boardCountry && regions.length) ? '' : 'none';
-      this._fillLocSelect('q-flt-region', regions, 'All regions');
-      this._fillLocSelect('q-flt-city', this._distinctLoc('city', this.boardCountry, ''), 'All cities');
-    } else if (which === 'region') {
-      this.boardRegion = rEl ? rEl.value : ''; this.boardCity = '';
-      this._fillLocSelect('q-flt-city', this._distinctLoc('city', this.boardCountry, this.boardRegion), 'All cities');
-    } else {
-      this.boardCity = tEl ? tEl.value : '';
-    }
-    this._updateFilterBadge();
-    this.loadQuestBoard();
-  },
-  boardGenderFilter(g) {
-    this.boardGender = g || '';
-    var chips = document.querySelectorAll('#q-board-panel .q-chip[data-gender]');
-    for (var i = 0; i < chips.length; i++) chips[i].classList.toggle('active', chips[i].getAttribute('data-gender') === this.boardGender);
-    this._updateFilterBadge();
-    this.loadQuestBoard();
-  },
-  toggleBoardFilters() {
-    var p = document.getElementById('q-board-panel'), b = document.getElementById('q-filter-btn');
-    if (!p) return;
-    var show = p.style.display === 'none';
-    p.style.display = show ? '' : 'none';
-    if (b) b.classList.toggle('on', show);
-  },
-  _updateFilterBadge() {
-    var n = ((this.boardCountry || this.boardRegion || this.boardCity) ? 1 : 0) + (this.boardGender ? 1 : 0);
-    var badge = document.getElementById('q-filter-badge'); if (!badge) return;
-    if (n) { badge.textContent = n; badge.style.display = ''; } else { badge.style.display = 'none'; }
-  },
-  boardSearchInput(v) {
-    this.boardSearch = v || '';
-    var self = this; clearTimeout(this._boardT);
-    this._boardT = setTimeout(function () { self.loadQuestBoard(); }, 250);
-  },
-
-  // Paged 50 at a time via the RPC's p_offset — never pulls thousands at once. Search/filter reset to page 0.
-  async loadQuestBoard(more) {
-    var host = document.getElementById('q-board-list'); if (!host || !this._openQuest) return;
-    if (!this._locsLoaded) { this._locsLoaded = true; this.boardLoadLocations(); }
-    if (!more) { this._boardOffset = 0; host.innerHTML = '<div class="q-board-loading">Loading…</div>'; }
-    var PAGE = 50;
-    var args = { p_quest: this._openQuest, p_limit: PAGE, p_offset: this._boardOffset || 0, p_search: this.boardSearch || null };
-    if (this.boardCity) args.p_city = this.boardCity;
-    if (this.boardRegion) args.p_region = this.boardRegion;
-    if (this.boardCountry) args.p_country = this.boardCountry;
-    if (this.boardGender) args.p_gender = this.boardGender;
-    var rows = [];
-    try { var r = await window.supabase.rpc('quest_leaderboard', args); rows = (r && r.data) ? r.data : []; } catch (e) {}
-    var oldBtn = document.getElementById('q-board-more'); if (oldBtn) oldBtn.parentNode.removeChild(oldBtn);
-    if (!more && !rows.length) {
-      host.innerHTML = '<div class="q-board-empty">' + (this.boardSearch ? 'No one matches “' + escHtml(this.boardSearch) + '”.' : 'No one here yet — be the first to climb.') + '</div>';
-      return;
-    }
-    var mid = this.memberId();
-    var start = this._boardOffset || 0;
-    var rowsHtml = rows.map(function (b, i) {
-      var rank = start + i;
-      var me = b.member_id === mid;
-      var medal = rank === 0 ? '#f4d77a' : rank === 1 ? '#c8d2dc' : rank === 2 ? '#d8a06a' : '#7d8b99';
-      var av = b.photo ? '<img src="' + b.photo + '" alt="" class="q-lb-av">' : '<div class="q-lb-av q-lb-ph">' + escHtml((b.name || 'M').charAt(0).toUpperCase()) + '</div>';
-      var loc = [b.city, b.country].filter(Boolean).join(' · ');
-      var nmEsc = String(b.name || 'Member').replace(/['"\\<>]/g, '');
-      return '<div class="q-lb-row' + (me ? ' me' : '') + '" style="cursor:pointer;" onclick="Quests.openMemberBreakdown(\'' + b.member_id + '\',\'' + nmEsc + '\')">' +
-        '<div class="q-lb-rank" style="color:' + medal + ';">' + (rank + 1) + '</div>' + av +
-        '<div class="q-lb-meta"><div class="q-lb-name">' + escHtml(b.name || 'Member') + (me ? ' • you' : '') + '</div>' +
-        (loc ? '<div class="q-lb-loc">' + escHtml(loc) + '</div>' : '') + '</div>' +
-        '<div class="q-lb-pts">' + b.points + '<span>pts</span></div>' +
-      '</div>';
-    }).join('');
-    if (more) { host.insertAdjacentHTML('beforeend', rowsHtml); } else { host.innerHTML = rowsHtml; }
-    this._boardOffset = start + rows.length;
-    if (rows.length === PAGE) {
-      host.insertAdjacentHTML('afterend', '<div id="q-board-more" class="q-board-more" onclick="Quests.loadQuestBoard(true)">Show more</div>');
-    }
-  },
-
-  // points_race: "where your points came from" — per action-type count × points (from member_quest_points_breakdown)
-  async loadBreakdown() {
-    var host = document.getElementById('q-points-breakdown'); if (!host || !this._openQuest) return;
-    var mid = this.memberId(); var rows = [];
-    try { var r = await window.supabase.rpc('member_quest_points_breakdown', { p_me: mid, p_quest: this._openQuest }); rows = (r && r.data) ? r.data : []; } catch (e) {}
-    var earned = rows.filter(function (x) { return (Number(x.points) || 0) > 0; });
-    if (!earned.length) { host.innerHTML = '<div class="q-board-empty">No points yet — tap “Ways to earn points” and get moving.</div>'; return; }
-    host.innerHTML = earned.map(function (x) {
-      return '<div class="q-bd-row">' +
-        '<span class="material-icons q-bd-ic">' + escHtml(x.icon || 'bolt') + '</span>' +
-        '<div class="q-bd-meta"><div class="q-bd-name">' + escHtml(x.label) + '</div>' +
-          '<div class="q-bd-sub">' + (Number(x.count) || 0) + ' × ' + x.points_each + ' pts</div></div>' +
-        '<div class="q-bd-pts">' + x.points + '</div>' +
-      '</div>';
-    }).join('');
-  },
-
-  // Tap a leaderboard strap → modal showing where THAT member's quest points came from (same RPC + rows as your own
-  // breakdown; member_quest_points_breakdown is SECURITY DEFINER so it computes for any member for this quest).
-  async openMemberBreakdown(memberId, name) {
-    if (!memberId || !this._openQuest) return;
-    var ov = document.createElement('div'); ov.id = 'q-bd-ov'; ov.className = 'q-ways-ov';
-    ov.innerHTML = '<div class="q-we-wrap"><div class="q-we-head"><span>' + escHtml(name || 'Member') + ' · where points came from</span>' +
-      '<button class="q-we-x" onclick="Quests.closeMemberBreakdown()" aria-label="Close"><span class="material-icons">close</span></button></div>' +
-      '<div class="q-we-list" id="q-bd-modal-list"><div class="q-board-empty">Loading…</div></div></div>';
-    ov.addEventListener('click', function (e) { if (e.target === ov) Quests.closeMemberBreakdown(); });
-    document.body.appendChild(ov);
-    var rows = [];
-    try { var r = await window.supabase.rpc('member_quest_points_breakdown', { p_me: memberId, p_quest: this._openQuest }); rows = (r && r.data) ? r.data : []; } catch (e) {}
-    var list = document.getElementById('q-bd-modal-list'); if (!list) return;
-    var earned = rows.filter(function (x) { return (Number(x.points) || 0) > 0; });
-    if (!earned.length) { list.innerHTML = '<div class="q-board-empty">No points yet.</div>'; return; }
-    var total = earned.reduce(function (s, x) { return s + (Number(x.points) || 0); }, 0);
-    list.innerHTML = earned.map(function (x) {
-      return '<div class="q-bd-row">' +
-        '<span class="material-icons q-bd-ic">' + escHtml(x.icon || 'bolt') + '</span>' +
-        '<div class="q-bd-meta"><div class="q-bd-name">' + escHtml(x.label) + '</div>' +
-          '<div class="q-bd-sub">' + (Number(x.count) || 0) + ' × ' + x.points_each + ' pts</div></div>' +
-        '<div class="q-bd-pts">' + x.points + '</div>' +
-      '</div>';
-    }).join('') + '<div class="q-bd-row" style="background:rgba(43,168,224,.12);border-color:#2ba8e0;">' +
-      '<span class="material-icons q-bd-ic">emoji_events</span>' +
-      '<div class="q-bd-meta"><div class="q-bd-name">Total</div></div>' +
-      '<div class="q-bd-pts">' + total + '</div></div>';
-  },
-  closeMemberBreakdown() { var o = document.getElementById('q-bd-ov'); if (o) o.remove(); },
-
-  // "Ways to earn points" modal — the tasks list for a points-race quest
-  openWaysToEarn() {
-    var d = this._openData; if (!d) return;
-    var self = this; var isRace = (this._openMode === 'points_race');
-    var rows = (d.tasks || []).map(function (t) {
-      var cap = (t.cap != null) ? ' · max ' + t.cap + '/day' : '';
-      var tgt = (!isRace && t.target != null) ? ' · target ×' + t.target : '';   // points race = no targets, only the daily cap
-      var kind = t.activity_type ? 'Tracked automatically' : ((self.PROOF[t.proof_type] && self.PROOF[t.proof_type].label) || 'Proof');
-      return '<div class="q-we-row"><div class="q-we-meta"><div class="q-we-name">' + escHtml(t.title) + '</div>' +
-        '<div class="q-we-sub">' + escHtml(kind + cap + tgt) + '</div></div>' +
-        '<div class="q-we-pts">+' + (t.points || 0) + '</div></div>';
-    }).join('') || '<div class="q-board-empty">No tasks yet.</div>';
-    var ov = document.createElement('div'); ov.id = 'q-ways-ov'; ov.className = 'q-ways-ov';
-    ov.innerHTML = '<div class="q-we-wrap"><div class="q-we-head"><span>Ways to earn points</span>' +
-      '<button class="q-we-x" onclick="Quests.closeWays()" aria-label="Close"><span class="material-icons">close</span></button></div>' +
-      '<div class="q-we-list">' + rows + '</div></div>';
-    ov.addEventListener('click', function (e) { if (e.target === ov) Quests.closeWays(); });
-    document.body.appendChild(ov);
-  },
-  closeWays() { var o = document.getElementById('q-ways-ov'); if (o) o.remove(); },
-
-  // Accordion task: tap the head → expands to show how-to + the action. Completion = filled green check + row tint.
-  taskAccordion(t) {
-    var pm = this.PROOF[t.proof_type] || this.PROOF.photo;
-    var st = t.my_state || 'open';
-    var done = st === 'verified', pending = st === 'pending';
-    // head: status circle, title, points (hidden once done), chevron
-    var ck = done ? 'check_circle' : (pending ? 'hourglass_top' : 'radio_button_unchecked');
-    var head = '<div class="q-task-head" onclick="Quests.toggleTask(\'' + t.id + '\')">' +
-        '<span class="material-icons q-task-ck' + (done ? ' done' : (pending ? ' pend' : '')) + '">' + ck + '</span>' +
-        '<div class="q-task-ti">' + escHtml(t.title) + '</div>' +
-        (done ? '<span class="q-task-tag done">+' + (t.points || 0) + '</span>'
-              : pending ? '<span class="q-task-tag pend">Pending</span>'
-              : '<span class="q-task-tag">+' + (t.points || 0) + '</span>') +
-        '<span class="material-icons q-task-chev">expand_more</span>' +
-      '</div>';
-    // expanded body: how to complete + action
-    var act;
-    if (done) act = '<div class="q-task-status ok"><span class="material-icons">check_circle</span> Completed</div>';
-    else if (pending) act = '<div class="q-task-status wait"><span class="material-icons">hourglass_top</span> Awaiting confirmation</div>';
-    else if (t.proof_type === 'auto') act = '<div class="q-task-status auto"><span class="material-icons">bolt</span> Tracked automatically — just do it</div>';
-    else act = '<button class="q-task-btn" onclick="Quests.doTask(\'' + t.id + '\',\'' + t.proof_type + '\',' + (t.has_geo ? 'true' : 'false') + ')"><span class="material-icons">' + pm.icon + '</span> ' + pm.label + '</button>';
-    var how = '<div class="q-task-how"><span class="q-task-how-h">How to complete</span>' +
-        (t.instruction ? '<div class="q-task-how-t">' + escHtml(t.instruction) + '</div>' : '<div class="q-task-how-t">' + escHtml(pm.label) + (t.provider_name ? ' at ' + escHtml(t.provider_name) : '') + '.</div>') +
-      '</div>';
-    return '<div class="q-task' + (done ? ' done' : '') + '" id="q-task-' + t.id + '">' + head +
-      '<div class="q-task-d">' + how + act + '</div></div>';
-  },
-
-  getGeo() {
-    return new Promise(function (resolve, reject) {
-      if (!navigator.geolocation) return reject(new Error('no_geo'));
-      navigator.geolocation.getCurrentPosition(
-        function (p) { resolve({ lat: p.coords.latitude, lng: p.coords.longitude }); },
-        function () { reject(new Error('denied')); },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
-    });
-  },
-
-  async doTask(taskId, proofType, hasGeo) {
-    var self = this;
-    if (proofType === 'qr') {
-      var code = window.prompt('Enter the code shown at this spot (or scan the QR):');
-      if (!code) return;
-      return this._complete(taskId, { scanned_code: code.trim() });
-    }
-    if (proofType === 'qr_gps') {
-      var codeg = window.prompt('Enter the code shown at this spot (or scan the QR):');
-      if (!codeg) return;
-      showToast('Getting your location…', 'info');
-      try { var gg = await this.getGeo(); return this._complete(taskId, { scanned_code: codeg.trim(), lat: gg.lat, lng: gg.lng }); }
-      catch (e) { showToast('Turn on location to check in here', 'error'); return; }
-    }
-    if (proofType === 'gps') {
-      showToast('Getting your location…', 'info');
-      try { var g = await this.getGeo(); return this._complete(taskId, g); }
-      catch (e) { showToast('Turn on location to check in here', 'error'); return; }
-    }
-    if (proofType === 'photo' || proofType === 'photo_gps') {
-      if (!window.FFPUpload || !window.FFPUpload.pick) { showToast('Photo upload unavailable', 'error'); return; }
-      window.FFPUpload.pick({
-        bucket: 'quest-images', key: 'quest-proof/' + (this.memberId() || 'm') + '-' + taskId + '-' + Date.now() + '.jpg',
-        aspect: 1, outW: 1000, outH: 1000, title: 'Proof photo',
-        onDone: async function (url) {
-          if (!url) return;
-          var payload = { photo_url: url };
-          if (proofType === 'photo_gps' || hasGeo) {
-            try { var g = await self.getGeo(); payload.lat = g.lat; payload.lng = g.lng; }
-            catch (e) { if (proofType === 'photo_gps') { showToast('Turn on location for this task', 'error'); return; } }
-          }
-          self._complete(taskId, payload);
-        },
-        onError: function () { showToast('Photo upload failed', 'error'); }
-      });
-      return;
-    }
-    // partner / referral — submit for confirmation
-    return this._complete(taskId, {});
-  },
-
-  async _complete(taskId, payload) {
-    var mid = this.memberId(); if (!mid) { showToast('Please sign in again', 'error'); return; }
-    try {
-      var r = await window.supabase.rpc('member_quest_complete_task', { p_me: mid, p_task: taskId, p: payload });
-      var d = (r && r.data) ? r.data : null;
-      if (r && r.error) throw r.error;
-      if (!d || !d.ok) {
-        var em = { bad_code: 'That code isn’t right', too_far: 'You’re too far from this spot' + (d && d.distance_m ? ' (' + d.distance_m + 'm)' : ''),
-                   need_location: 'Turn on location for this task', need_photo: 'Add a photo first', needs_unlock: 'Unlock this quest first',
-                   no_sessions_left: 'No sessions left', already_booked: 'Already done' };
-        showToast((d && em[d.error]) || 'Could not complete that', 'error'); return;
-      }
-      if (d.status === 'verified') showToast('Nice! +' + (d.points_awarded || 0) + ' pts' + (d.completed >= d.total ? ' — quest complete!' : ''), 'success');
-      else showToast('Submitted — awaiting confirmation', 'success');
-      await this.load();
-      if (this._openQuest) this.openTaskDetail(this._openQuest);
-    } catch (e) { showToast('Something went wrong', 'error'); }
-  },
-
-  async join(id) {
-    var mid = this.memberId(); if (!mid || !window.supabase) { showToast('Please sign in again', 'error'); return; }
-    try {
-      var r = await window.supabase.rpc('member_quest_join', { p_me: mid, p_quest: id });
-      var d = (r && r.data) || {};
-      if (r && r.error) throw r.error;
-      if (!d.ok) { showToast(d.error === 'needs_unlock' ? 'This quest needs a partner code' : 'Couldn’t join', 'error'); return; }
-      showToast('You’re on this quest!', 'success');
-      await this.load();
-      this.openTaskDetail(id);
-    } catch (e) { showToast('Could not join', 'error'); }
-  },
-
-  async promptUnlock() {
-    var code = window.prompt('Enter your partner quest code (or scan their QR):');
-    if (!code) return;
-    var mid = this.memberId(); if (!mid) { showToast('Please sign in again', 'error'); return; }
-    try {
-      var r = await window.supabase.rpc('member_quest_unlock', { p_me: mid, p_code: code.trim() });
-      var d = (r && r.data) || {};
-      if (!d.ok) { showToast('That code didn’t match a quest', 'error'); return; }
-      showToast('Unlocked: ' + (d.title || 'partner quest'), 'success');
-      await this.load();
-      this.openTaskDetail(d.quest_id);
-    } catch (e) { showToast('Could not unlock', 'error'); }
-  },
-
-  dots(done, target) {
-    var h = '', t = target || 0, complete = t > 0 && done >= t;
-    for (var i = 0; i < t; i++) h += i < done ? '<span class="qc-dot emblem' + (complete ? ' lit' : '') + '"></span>' : '<span class="qc-dot todo"></span>';
-    return h;
-  },
-
-  // ════════════════════════════════════════════════════════════════════
-  // PRESERVED: member-created exploration quests (detail + create + invite)
-  // ════════════════════════════════════════════════════════════════════
-  async openMemberDetail(id) {
-    var mid = this.memberId();
-    var detail = null;
-    try { var res = await fetch(this.base + '/api/quests/' + id + (mid ? ('?member_id=' + encodeURIComponent(mid)) : '')); detail = await res.json(); } catch (e) {}
-    var q = (detail && detail.quest) ? detail.quest : null;
-    if (!q) { showToast('Could not open quest', 'error'); return; }
-    var pc = (detail && detail.progress) ? (detail.progress.completed_count || 0) : 0;
-    var catCover = (this.CAT[q.category] && this.CAT[q.category].cover) || '';
-    var coverPill = '<span class="q-cover-pill">' + ((q.scope || '').charAt(0).toUpperCase() + (q.scope || '').slice(1)) + ' · ' + escHtml(q.category || '') + '</span>';
-    var coverDiv = q.hero_image_url
-      ? '<div class="q-cover" style="background-image:linear-gradient(180deg,rgba(8,20,32,0.20),rgba(8,20,32,0.55)),url(\'' + q.hero_image_url + '\');">' + coverPill + '</div>'
-      : '<div class="q-cover ' + catCover + '">' + coverPill + '</div>';
-    var html =
-      '<div class="q-detail">' + coverDiv +
-        '<div class="q-detail-body">' +
-          '<h3 class="q-title">' + escHtml(q.title) + '</h3>' +
-          '<p class="q-desc">' + escHtml(q.description || '') + '</p>' +
-          '<div class="q-join-box"><div class="q-join-count"><span class="material-icons">group</span>' + (((detail && detail.joined_count) || 1)) + ' on this quest</div>' +
-            ((detail && detail.progress) ? '<div class="q-join-state">You’re on this quest ✓</div>' : '<button class="btn-primary-blue" onclick="Quests.join(\'' + q.id + '\')">Join this quest</button>') +
-          '</div>' +
-          (q.created_by && q.created_by === mid ? '<button style="width:100%;margin:0 0 10px;padding:11px;border-radius:11px;border:1px solid rgba(43,168,224,0.35);background:rgba(43,168,224,0.06);color:#2ba8e0;font-weight:700;cursor:pointer;font-family:inherit;" onclick="Quests.openEdit(\'' + q.id + '\')"><span class="material-icons" style="font-size:16px;vertical-align:middle;">edit</span> Edit quest</button>' : '') +
-          '<button style="width:100%;margin:0 0 14px;padding:11px;border-radius:11px;border:none;background:#2ba8e0;color:#082335;font-weight:800;cursor:pointer;font-family:inherit;" onclick="Quests.openInvite(\'' + q.id + '\')"><span class="material-icons" style="font-size:16px;vertical-align:middle;">person_add</span> Invite friends to join me</button>' +
-          '<div class="q-joiners" id="q-detail-joiners"></div>' +
-          '<div class="q-progress">' + pc + ' of ' + q.target_count + ' stamped</div>' +
-          '<div class="qc-stamps big">' + this.dots(pc, q.target_count) + '</div>' +
-          '<div class="q-venues-title">Where to go</div><div id="q-detail-venues"><div class="q-venue muted">Loading venues…</div></div>' +
-        '</div>' +
-      '</div>';
-    openDetailModal(html);
-    if (window.supabase) {
-      window.supabase.rpc('member_quest_participants', { p_quest: q.id }).then(function (res) {
-        var arr = (res && res.data) || []; var host = document.getElementById('q-detail-joiners'); if (!host || !arr.length) return;
-        var av = arr.map(function (p) {
-          var img = p.photo_url ? '<img src="' + p.photo_url + '" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid #0f1e2e;">'
-            : '<div style="width:34px;height:34px;border-radius:50%;background:#13324a;color:#cfe0ee;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;border:2px solid #0f1e2e;">' + escHtml((p.name || 'M').charAt(0).toUpperCase()) + '</div>';
-          return '<div title="' + escHtml(p.name || '') + '" style="margin-left:-8px;">' + img + '</div>';
-        }).join('');
-        host.innerHTML = '<div style="font-size:12px;color:#9fb4c4;margin:2px 0 8px;font-weight:700;">Who’s joined (' + arr.length + ')</div><div style="display:flex;align-items:center;padding-left:8px;flex-wrap:wrap;">' + av + '</div>';
-      }).catch(function () {});
-      this.qcInjectCss();
-      window.supabase.rpc('member_quest_venues', { p_quest: q.id }).then(function (res) {
-        var d = (res && res.data) || null; var host = document.getElementById('q-detail-venues'); if (!host || !d) return;
-        if (!d.venues || !d.venues.length) { host.innerHTML = '<div class="q-venue muted">No FFP venues yet — check back soon.</div>'; return; }
-        window._ffpQdv = d.venues;
-        host.innerHTML = '<div style="font-size:12px;color:#9fb4c4;margin-bottom:8px;">' + (d.fixed ? 'The member picked these venues — only these count:' : 'Any of these FFP venues count toward the goal:') + '</div>' +
-          (d.venues.length > 6 ? '<input id="q-detail-venue-search" placeholder="Search places…" oninput="Quests.qdvFilter(this.value)" style="width:100%;box-sizing:border-box;padding:10px 13px;border-radius:10px;border:1px solid rgba(43,168,224,0.25);background:rgba(43,168,224,0.05);color:#e8eef4;font-size:13px;font-family:inherit;margin-bottom:10px;">' : '') +
-          '<div id="q-detail-venue-list" style="display:flex;flex-direction:column;gap:8px;">' + Quests.qdvCardsHtml(d.venues) + '</div>';
-      }).catch(function () {});
-    }
-  },
-
-  qcInjectCss() {
-    if (document.getElementById('qc-venue-css')) return;
-    var s = document.createElement('style'); s.id = 'qc-venue-css';
-    s.textContent =
-      '.qc-mode-btn{flex:1;padding:9px 8px;border-radius:10px;border:1px solid rgba(43,168,224,0.3);background:rgba(43,168,224,0.06);color:#9fb4c4;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;}' +
-      '.qc-mode-btn.active{background:#2ba8e0;color:#082335;border-color:#2ba8e0;}' +
-      '.qc-venue-card{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);}' +
-      '.qc-venue-card.pickable{cursor:pointer;}' +
-      '.qc-venue-card.picked{background:rgba(43,168,224,0.12);border-color:#2ba8e0;}' +
-      '.qc-venue-av{width:40px;height:40px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;background:#13324a;color:#cfe0ee;}' +
-      '.qc-venue-meta{flex:1;min-width:0;}' +
-      '.qc-venue-nm{font-size:14px;font-weight:600;color:#e8eef4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
-      '.qc-venue-area{font-size:11px;color:#8a99a8;}' +
-      '.qc-venue-check{flex-shrink:0;font-size:22px;color:#2ba8e0;}' +
-      '.qc-choose-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:11px;border:1px dashed rgba(43,168,224,0.5);background:rgba(43,168,224,0.06);color:#2ba8e0;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;}' +
-      '.qc-choose-btn .material-icons{font-size:19px;}' +
-      '.qc-pick-summary{font-size:12px;color:#cfe0ee;margin-top:9px;line-height:1.5;}';
-    document.head.appendChild(s);
-  },
-  qcSetMode(m) {
-    var st = window._ffpQc || {}; st.mode = m; window._ffpQc = st;
-    var bo = document.getElementById('qc-mode-open'), bp = document.getElementById('qc-mode-pick');
-    if (bo) bo.classList.toggle('active', m === 'open'); if (bp) bp.classList.toggle('active', m === 'pick');
-    this.qcRenderVenues();
-  },
-  qcTogglePick(id) { var st = window._ffpQc || {}; if (!st.picked) st.picked = {}; st.picked[id] = !st.picked[id]; window._ffpQc = st; this.qcRenderVenues(); },
-  qcRenderVenues() {
-    var st = window._ffpQc || {}; var box = document.getElementById('qc-venues'); if (!box) return;
-    var pick = st.mode === 'pick';
-    var note = document.getElementById('qc-pool-note'), tgtWrap = document.getElementById('qc-target-wrap');
-    if (pick) {
-      var picked = (st.venues || []).filter(function (v) { return st.picked && st.picked[v.id]; });
-      var names = picked.map(function (v) { return v.name; });
-      box.innerHTML = '<button type="button" class="qc-choose-btn" onclick="Quests.qcOpenVenuePicker()"><span class="material-icons">storefront</span> Choose venues</button>' +
-        (picked.length ? '<div class="qc-pick-summary"><strong style="color:#2ba8e0;">' + picked.length + ' selected:</strong> ' + escHtml(names.slice(0, 5).join(', ')) + (names.length > 5 ? ' +' + (names.length - 5) + ' more' : '') + '</div>'
-          : '<div class="qc-pick-summary" style="color:#8a99a8;">None picked yet — tap “Choose venues” to select the places this quest counts.</div>');
-      if (note) note.innerHTML = 'Pick the specific places this quest counts — <strong>' + (st.count || 0) + '</strong> available in this area.';
-      if (tgtWrap) tgtWrap.style.display = 'none';
-    } else {
-      box.innerHTML = '';
-      if (note) note.innerHTML = '<strong style="color:#2ba8e0;">' + (st.count || 0) + ' FFP venue' + ((st.count || 0) === 1 ? '' : 's') + '</strong> count toward this quest — visit any of them, and new FFP partners join automatically.';
-      if (tgtWrap) tgtWrap.style.display = '';
-    }
-  },
-  qcOpenVenuePicker() {
-    if (document.getElementById('qcvp-overlay')) return;
-    var ov = document.createElement('div'); ov.id = 'qcvp-overlay';
-    ov.setAttribute('style', 'position:fixed;inset:0;z-index:100001;background:#0b1c28;display:flex;flex-direction:column;font-family:inherit;');
-    ov.innerHTML =
-      '<div style="padding:16px 18px;border-bottom:1px solid rgba(43,168,224,0.2);display:flex;align-items:center;gap:10px;flex-shrink:0;">' +
-        '<button onclick="Quests.qcvpDone()" style="background:none;border:none;color:#cfe0ee;cursor:pointer;display:flex;padding:0;"><span class="material-icons">arrow_back</span></button>' +
-        '<div style="font-size:16px;font-weight:800;color:#e8eef4;">Choose venues</div></div>' +
-      '<div style="padding:14px 18px 0;flex-shrink:0;"><input id="qcvp-search" placeholder="Search venues…" oninput="Quests.qcvpFilter(this.value)" style="width:100%;box-sizing:border-box;padding:11px 14px;border-radius:10px;border:1px solid rgba(43,168,224,0.25);background:rgba(43,168,224,0.05);color:#e8eef4;font-size:14px;font-family:inherit;"></div>' +
-      '<div id="qcvp-list" style="flex:1;overflow:auto;padding:12px 18px;display:flex;flex-direction:column;gap:8px;">' + this.qcvpListHtml('') + '</div>' +
-      '<div style="padding:14px 18px;border-top:1px solid rgba(43,168,224,0.2);flex-shrink:0;"><button class="btn-primary-blue" style="width:100%;" onclick="Quests.qcvpDone()">Done</button></div>';
-    document.body.appendChild(ov);
-  },
-  qcvpListHtml(q) {
-    var st = window._ffpQc || {}; var venues = st.venues || []; q = (q || '').trim().toLowerCase();
-    if (q) venues = venues.filter(function (v) { return ((v.name || '') + ' ' + (v.area || '') + ' ' + (v.city || '')).toLowerCase().indexOf(q) !== -1; });
-    if (!venues.length) return '<div class="cv-empty">No venues match.</div>';
-    return venues.map(function (v) {
-      var picked = !!(st.picked && st.picked[v.id]);
-      var av = escHtml(String(v.letter_mark || (v.name || '?').charAt(0) || '?').toUpperCase());
-      var area = [v.area, v.city].filter(Boolean).join(' · ');
-      return '<div class="qc-venue-card pickable' + (picked ? ' picked' : '') + '" onclick="Quests.qcvpToggle(\'' + v.id + '\')">' +
-        '<div class="qc-venue-av">' + av + '</div><div class="qc-venue-meta"><div class="qc-venue-nm">' + escHtml(v.name || 'Venue') + '</div>' +
-        (area ? '<div class="qc-venue-area">' + escHtml(area) + '</div>' : '') + '</div>' +
-        '<span class="material-icons qc-venue-check">' + (picked ? 'check_circle' : 'radio_button_unchecked') + '</span></div>';
-    }).join('');
-  },
-  qcvpFilter(q) { var h = document.getElementById('qcvp-list'); if (h) h.innerHTML = this.qcvpListHtml(q || ''); },
-  qcvpToggle(id) { var st = window._ffpQc || {}; if (!st.picked) st.picked = {}; st.picked[id] = !st.picked[id]; window._ffpQc = st; var s = document.getElementById('qcvp-search'); this.qcvpFilter(s ? s.value : ''); },
-  qcvpDone() { var ov = document.getElementById('qcvp-overlay'); if (ov) ov.remove(); this.qcRenderVenues(); },
-  qdvCardsHtml(venues) {
-    var html = (venues || []).map(function (v) {
-      var av = escHtml(String(v.letter_mark || (v.name || '?').charAt(0) || '?').toUpperCase());
-      var area = [v.area, v.city].filter(Boolean).join(' · ');
-      return '<div class="qc-venue-card"><div class="qc-venue-av">' + av + '</div><div class="qc-venue-meta"><div class="qc-venue-nm">' + escHtml(v.name || 'Venue') + '</div>' +
-        (area ? '<div class="qc-venue-area">' + escHtml(area) + '</div>' : '') + '</div></div>';
-    }).join('');
-    return html || '<div class="cv-empty">No places match.</div>';
-  },
-  qdvFilter(q) {
-    var venues = window._ffpQdv || []; q = (q || '').trim().toLowerCase();
-    if (q) venues = venues.filter(function (v) { return ((v.name || '') + ' ' + (v.area || '') + ' ' + (v.city || '')).toLowerCase().indexOf(q) !== -1; });
-    var list = document.getElementById('q-detail-venue-list'); if (list) list.innerHTML = this.qdvCardsHtml(venues);
-  },
-
-  openCreate() {
-    this.qcInjectCss();
-    this._createHero = ''; this._editId = null;
-    var prof = {}; try { prof = (typeof MemberProfile !== 'undefined' && MemberProfile.data) || {}; } catch (e) {}
-    var TAX = window.FFP_TAX || {};
-    var countries = (TAX.cities ? Object.keys(TAX.cities).sort() : ['United Arab Emirates']);
-    var defCountry = prof.country || 'United Arab Emirates';
-    if (countries.indexOf(defCountry) === -1) defCountry = countries[0] || 'United Arab Emirates';
-    var defCity = prof.city || '';
-    var actObjs = (TAX.activities || []).filter(function (a) { return a && a.n; }).map(function (a) { return { n: a.n, c: (a.c || '') }; });
-    var cats = ['fitness', 'sports', 'wellness', 'recovery', 'adventure', 'food'];
-    function qcActOptions(cat) {
-      var inCat = actObjs.filter(function (a) { return a.c === cat; }).map(function (a) { return a.n; }).sort();
-      return '<option value="">Any activity</option>' + inCat.map(function (n) { return '<option value="' + escHtml(n) + '">' + escHtml(n) + '</option>'; }).join('');
-    }
-    var html =
-      '<div class="qcreate">' +
-        '<h3 class="q-title" id="qc-modal-title">Create your own quest</h3>' +
-        '<p class="q-desc">Set a goal — like visiting a few different venues — and others can join you.</p>' +
-        '<div id="qc-photo" onclick="Quests.pickHero()" style="width:100%;max-width:220px;aspect-ratio:1/1;margin:0 auto 16px;border-radius:16px;border:2px dashed rgba(43,168,224,0.35);background:rgba(8,20,32,0.4) center/cover no-repeat;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#8a99a8;"><span class="material-icons" style="font-size:34px;">add_a_photo</span></div>' +
-        '<div class="qc-field"><label>Title</label><input id="qc-title" class="ffp-select" placeholder="e.g. Try 5 new gyms in Dubai" maxlength="80"></div>' +
-        '<div class="qc-field"><label>Category</label><select id="qc-cat" class="ffp-select">' + cats.map(function (c) { return '<option value="' + c + '">' + c.charAt(0).toUpperCase() + c.slice(1) + '</option>'; }).join('') + '</select></div>' +
-        '<div class="qc-field"><label>Activity — filtered by category</label><select id="qc-act" class="ffp-select">' + qcActOptions(cats[0]) + '</select></div>' +
-        '<div class="qc-row">' +
-          '<div class="qc-field"><label>Country</label><select id="qc-country" class="ffp-select">' + countries.map(function (c) { return '<option' + (c === defCountry ? ' selected' : '') + '>' + escHtml(c) + '</option>'; }).join('') + '</select></div>' +
-          '<div class="qc-field"><label>City</label><select id="qc-city" class="ffp-select"></select></div>' +
-        '</div>' +
-        '<div class="qc-field" id="qc-pool-wrap" style="display:none;"><label>FFP venues for this quest</label>' +
-          '<div id="qc-pool-note" style="font-size:12px;color:#9fb4c4;margin-bottom:9px;line-height:1.5;"></div>' +
-          '<div id="qc-mode" style="display:none;gap:8px;margin-bottom:11px;">' +
-            '<button type="button" id="qc-mode-open" class="qc-mode-btn active" onclick="Quests.qcSetMode(\'open\')">Any of them</button>' +
-            '<button type="button" id="qc-mode-pick" class="qc-mode-btn" onclick="Quests.qcSetMode(\'pick\')">Pick specific</button>' +
-          '</div>' +
-          '<div id="qc-venues" style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow:auto;"></div>' +
-        '</div>' +
-        '<div class="qc-field" id="qc-target-wrap"><label>How many different venues to visit</label><input id="qc-target" type="number" min="2" max="50" value="5" class="ffp-select"></div>' +
-        '<button class="btn-primary-yellow" id="qc-save-btn" onclick="Quests.saveCreate()">Create quest</button>' +
-      '</div>';
-    openDetailModal(html);
-    setTimeout(function () {
-      var cny = document.getElementById('qc-country'), cty = document.getElementById('qc-city');
-      function fill(country, keep) {
-        var list = (TAX.cities && TAX.cities[country]) || [];
-        cty.innerHTML = '<option value="">Select city…</option>' + list.map(function (x) { return '<option' + (x === keep ? ' selected' : '') + '>' + escHtml(x) + '</option>'; }).join('');
-      }
-      if (cny && cty) { fill(cny.value, defCity); cny.addEventListener('change', function () { fill(cny.value, ''); }); }
-      var catSel = document.getElementById('qc-cat'), actSel = document.getElementById('qc-act');
-      async function qcUpdatePool() {
-        var gv = function (id) { var e = document.getElementById(id); return e ? e.value : ''; };
-        var city = gv('qc-city'), country = gv('qc-country'), act = gv('qc-act');
-        var wrap = document.getElementById('qc-pool-wrap'), note = document.getElementById('qc-pool-note');
-        var modeRow = document.getElementById('qc-mode'), box = document.getElementById('qc-venues'), tgtWrap = document.getElementById('qc-target-wrap');
-        if (!city) { if (wrap) wrap.style.display = 'none'; window._ffpQcPool = null; window._ffpQc = null; return; }
-        if (wrap) wrap.style.display = ''; if (note) note.textContent = 'Checking FFP venues…';
-        if (box) box.innerHTML = ''; if (modeRow) modeRow.style.display = 'none';
-        try {
-          var res = await window.supabase.rpc('member_quest_venue_pool', { p_city: city, p_country: country || null, p_activity: act || null });
-          var d = (res && res.data) || { count: 0, venues: [] }; var n = d.count || 0; window._ffpQcPool = n;
-          var prevMode = (window._ffpQc && window._ffpQc.mode) || 'open';
-          window._ffpQc = { venues: d.venues || [], mode: prevMode, picked: {}, count: n };
-          if (n === 0) { if (note) note.innerHTML = '<strong style="color:#f3b14e;">No FFP venues for ' + escHtml(act || 'this') + ' in ' + escHtml(city) + ' yet.</strong>'; if (tgtWrap) tgtWrap.style.display = 'none'; return; }
-          if (modeRow) modeRow.style.display = 'flex';
-          var tgt = document.getElementById('qc-target'); if (tgt) { tgt.max = n; if (parseInt(tgt.value, 10) > n) tgt.value = n; }
-          Quests.qcSetMode(prevMode);
-        } catch (e) { if (note) note.textContent = 'Couldn’t check venues — you can still create.'; window._ffpQcPool = null; window._ffpQc = null; }
-      }
-      if (catSel && actSel) catSel.addEventListener('change', function () { actSel.innerHTML = qcActOptions(catSel.value); qcUpdatePool(); });
-      if (actSel) actSel.addEventListener('change', qcUpdatePool);
-      if (cty) cty.addEventListener('change', qcUpdatePool);
-      if (cny) cny.addEventListener('change', function () { setTimeout(qcUpdatePool, 0); });
-      qcUpdatePool();
-    }, 30);
-  },
-  pickHero() {
-    var self = this;
-    if (!window.FFPUpload || !window.FFPUpload.pick) { showToast('Photo upload unavailable', 'error'); return; }
-    window.FFPUpload.pick({
-      bucket: 'quest-images', key: 'quest-hero/' + (this.memberId() || 'm') + '-' + Date.now() + '.jpg',
-      aspect: 1, outW: 900, outH: 900, title: 'Quest photo',
-      onDone: function (url) { self._createHero = url || ''; var el = document.getElementById('qc-photo'); if (el && url) { el.style.backgroundImage = "url('" + url + "')"; el.innerHTML = ''; } },
-      onError: function (e) { showToast('Photo upload failed', 'error'); }
-    });
-  },
-  openEdit(id) {
-    var q = (this.mine || []).find(function (x) { return x.id === id; });
-    if (!q) { showToast('Quest not found', 'error'); return; }
-    this.openCreate(); this._editId = id; this._createHero = q.hero_image_url || '';
-    setTimeout(function () {
-      var t = document.getElementById('qc-title'); if (t) t.value = q.title || '';
-      var ph = document.getElementById('qc-photo'); if (ph && q.hero_image_url) { ph.style.backgroundImage = "url('" + q.hero_image_url + "')"; ph.innerHTML = ''; }
-      var h = document.getElementById('qc-modal-title'); if (h) h.textContent = 'Edit your quest';
-      var b = document.getElementById('qc-save-btn'); if (b) b.textContent = 'Save changes';
-    }, 80);
-  },
-  async saveCreate() {
-    var g = function (id) { var e = document.getElementById(id); return e ? (e.value || '').trim() : ''; };
-    var title = g('qc-title'); if (!title) { showToast('Give your quest a title', 'error'); return; }
-    var mid = this.memberId(); if (!mid || !window.supabase) { showToast('Please sign in again', 'error'); return; }
-    if (this._editId) {
-      var pe = { title: title, hero_image_url: this._createHero || '' };
-      var teE = parseInt(g('qc-target'), 10); if (teE >= 2) pe.target_count = String(teE);
-      try {
-        var reE = await window.supabase.rpc('member_save_quest', { p_me: mid, p_id: this._editId, p: pe });
-        if (reE.error) throw reE.error;
-        if (typeof closeDetailModal === 'function') closeDetailModal();
-        showToast('Quest updated', 'success'); await this.load();
-      } catch (e) { showToast(e.message || 'Could not update quest', 'error'); }
-      return;
-    }
-    var city = g('qc-city'); if (!city) { showToast('Pick a city', 'error'); return; }
-    if (window._ffpQcPool === 0) { showToast('No FFP venues for that activity/city yet', 'error'); return; }
-    var st = window._ffpQc || {}; var mode = st.mode || 'open';
-    var payload = { title: title, category: g('qc-cat') || 'fitness', rule_activity: g('qc-act') || null, city: city, country: g('qc-country') || null, hero_image_url: this._createHero || '' };
-    if (mode === 'pick') {
-      var pids = Object.keys(st.picked || {}).filter(function (k) { return st.picked[k]; });
-      if (pids.length < 2) { showToast('Tap at least 2 venues — or switch to “Any of them”', 'error'); return; }
-      payload.target_provider_ids = pids;
-    } else {
-      var pool = window._ffpQcPool || 0; var target = parseInt(g('qc-target'), 10) || 0;
-      if (target < 2) { showToast('Choose at least 2 venues', 'error'); return; }
-      if (pool && target > pool) target = pool; payload.target_count = String(target);
-    }
-    try {
-      var res = await window.supabase.rpc('member_save_quest', { p_me: mid, p_id: null, p: payload });
-      if (res.error) throw res.error; if (!res.data) throw new Error('Could not create quest');
-      if (typeof closeDetailModal === 'function') closeDetailModal();
-      showToast('Quest created — invite friends to join you!', 'success'); await this.load();
-    } catch (e) { showToast(e.message || 'Could not create quest', 'error'); }
-  },
-
-  async openInvite(questId) {
-    if (document.getElementById('qinv-overlay')) return;
-    var mid = this.memberId(); if (!mid || !window.supabase) { showToast('Please sign in again', 'error'); return; }
-    this.qcInjectCss(); window._ffpInv = { quest: questId, picked: {}, people: [] };
-    var ov = document.createElement('div'); ov.id = 'qinv-overlay';
-    ov.setAttribute('style', 'position:fixed;inset:0;z-index:100002;background:#0b1c28;display:flex;flex-direction:column;font-family:inherit;');
-    ov.innerHTML =
-      '<div style="padding:16px 18px;border-bottom:1px solid rgba(43,168,224,0.2);display:flex;align-items:center;gap:10px;flex-shrink:0;">' +
-        '<button onclick="Quests.closeInvite()" style="background:none;border:none;color:#cfe0ee;cursor:pointer;display:flex;padding:0;"><span class="material-icons">arrow_back</span></button>' +
-        '<div style="font-size:16px;font-weight:800;color:#e8eef4;">Invite friends to join</div></div>' +
-      '<div style="padding:14px 18px 0;flex-shrink:0;"><input id="qinv-search" placeholder="Search your connections…" oninput="Quests.inviteFilter(this.value)" style="width:100%;box-sizing:border-box;padding:11px 14px;border-radius:10px;border:1px solid rgba(43,168,224,0.25);background:rgba(43,168,224,0.05);color:#e8eef4;font-size:14px;font-family:inherit;"></div>' +
-      '<div id="qinv-list" style="flex:1;overflow:auto;padding:12px 18px;display:flex;flex-direction:column;gap:8px;"><div style="text-align:center;color:#8a99a8;padding:30px;">Loading connections…</div></div>' +
-      '<div style="padding:14px 18px;border-top:1px solid rgba(43,168,224,0.2);flex-shrink:0;"><button class="btn-primary-blue" style="width:100%;" id="qinv-send" onclick="Quests.sendInvites()">Send invites</button></div>';
-    document.body.appendChild(ov);
-    try {
-      var res = await window.supabase.rpc('member_connections_list', { p_me: mid });
-      var arr = ((res && res.data) || []).filter(function (p) { return p && p.mutual; });
-      window._ffpInv.people = arr; this.renderInviteList('');
-    } catch (e) { var h = document.getElementById('qinv-list'); if (h) h.innerHTML = '<div style="text-align:center;color:#8a99a8;padding:30px;">Couldn’t load your connections.</div>'; }
-  },
-  renderInviteList(q) {
-    var st = window._ffpInv || {}; var people = st.people || []; q = (q || '').trim().toLowerCase();
-    if (q) people = people.filter(function (p) { return ((p.name || '') + ' ' + (p.city || '') + ' ' + (p.country || '')).toLowerCase().indexOf(q) !== -1; });
-    var host = document.getElementById('qinv-list'); if (!host) return;
-    if (!people.length) { host.innerHTML = '<div style="text-align:center;color:#8a99a8;padding:30px;line-height:1.6;">' + ((st.people && st.people.length) ? 'No connections match.' : 'You have no connections yet.') + '</div>'; return; }
-    var nPicked = Object.keys(st.picked || {}).filter(function (k) { return st.picked[k]; }).length;
-    host.innerHTML = people.map(function (p) {
-      var picked = !!(st.picked && st.picked[p.id]);
-      var av = p.photo ? '<img src="' + p.photo + '" alt="" style="width:42px;height:42px;border-radius:50%;object-fit:cover;flex-shrink:0;">' : '<div class="qc-venue-av" style="border-radius:50%;">' + escHtml((p.name || 'M').charAt(0).toUpperCase()) + '</div>';
-      var area = [p.city, p.country].filter(Boolean).join(' · ');
-      return '<div class="qc-venue-card pickable' + (picked ? ' picked' : '') + '" onclick="Quests.toggleInvite(\'' + p.id + '\')">' + av +
-        '<div class="qc-venue-meta"><div class="qc-venue-nm">' + escHtml(p.name || 'Member') + '</div>' + (area ? '<div class="qc-venue-area">' + escHtml(area) + '</div>' : '') + '</div>' +
-        '<span class="material-icons qc-venue-check">' + (picked ? 'check_circle' : 'radio_button_unchecked') + '</span></div>';
-    }).join('');
-    var btn = document.getElementById('qinv-send'); if (btn) btn.textContent = nPicked ? ('Send ' + nPicked + ' invite' + (nPicked === 1 ? '' : 's')) : 'Send invites';
-  },
-  inviteFilter(q) { this.renderInviteList(q || ''); },
-  toggleInvite(id) { var st = window._ffpInv || {}; if (!st.picked) st.picked = {}; st.picked[id] = !st.picked[id]; window._ffpInv = st; var s = document.getElementById('qinv-search'); this.renderInviteList(s ? s.value : ''); },
-  closeInvite() { var ov = document.getElementById('qinv-overlay'); if (ov) ov.remove(); },
-  async sendInvites() {
-    var st = window._ffpInv || {}; var mid = this.memberId();
-    var ids = Object.keys(st.picked || {}).filter(function (k) { return st.picked[k]; });
-    if (!ids.length) { showToast('Pick at least one friend', 'error'); return; }
-    if (!mid) { showToast('Please sign in again', 'error'); return; }
-    var btn = document.getElementById('qinv-send'); if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
-    try {
-      var res = await fetch(this.base + '/api/quests/' + st.quest + '/invite', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from_member_id: mid, to_member_ids: ids }) });
-      var json = await res.json(); if (!res.ok || !json.success) throw new Error(json.error || 'Invite failed');
-      var n = (json.sent != null ? json.sent : ids.length); this.closeInvite();
-      showToast(n + ' invite' + (n === 1 ? '' : 's') + ' sent 🎉', 'success');
-    } catch (e) { showToast(e.message || 'Could not send invites', 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Send invites'; } }
+    paint(hero + search + '<div id="tq-list-wrap">' + listHtml() + '</div>');
   }
-};
+  function ord(n) { return n === 1 ? 'st' : (n === 2 ? 'nd' : (n === 3 ? 'rd' : 'th')); }
+  function bar(t) { return '<div style="padding:16px 20px;"><span onclick="FFPTeamQuest.close()" style="cursor:pointer;color:#9fc0d4;font-size:22px;">&times;</span> ' + esc(t) + '</div>'; }
+
+  // ── TEAM HOME (tap a team) ──
+  W.FFPTeamQuest.openTeam = async function (teamId) {
+    paint('<div style="padding:40px 20px;color:#7fa0b8;font-weight:600;">Loading the team…</div>');
+    var d = {};
+    try { var r = await sb().rpc('team_detail', { p_quest: S.q, p_team: teamId, p_min_members: S.min }); d = (r && r.data) || {}; }
+    catch (e) { console.error('[FFP TeamQuest] detail', e); }
+    S.detail = d; S.statMode = 'week';
+    renderTeamHome();
+  };
+  W.FFPTeamQuest.statMode = function (m) { S.statMode = m; var el = document.getElementById('tq-stats'); if (el) el.innerHTML = statsHtml(); var t = document.getElementById('tq-stat-tabs'); if (t) t.innerHTML = statTabs(); };
+
+  function statTabs() {
+    var m = S.statMode || 'week';
+    return '<span onclick="FFPTeamQuest.statMode(\'today\')" style="font-size:13px;font-weight:600;color:' + (m === 'today' ? '#f2f7fb' : '#6f8ba1') + ';padding-bottom:6px;' + (m === 'today' ? 'border-bottom:2px solid #FFCC00;' : '') + '">Today</span>' +
+      '<span onclick="FFPTeamQuest.statMode(\'week\')" style="font-size:13px;font-weight:' + (m === 'week' ? '600' : '400') + ';color:' + (m === 'week' ? '#f2f7fb' : '#6f8ba1') + ';padding-bottom:6px;' + (m === 'week' ? 'border-bottom:2px solid #FFCC00;' : '') + ';margin-left:20px;">This week</span>';
+  }
+  function statCell(n, l, first, accent) {
+    return '<div style="flex:1;' + (first ? '' : 'padding-left:16px;border-left:1px solid rgba(255,255,255,.08);') + '"><div style="font-size:23px;font-weight:600;color:' + (accent || '#f2f7fb') + ';">' + n + '</div><div style="font-size:11px;color:#6f8ba1;margin-top:2px;">' + l + '</div></div>';
+  }
+  function statsHtml() {
+    var d = S.detail || {}, m = S.statMode || 'week';
+    if (m === 'today') {
+      var t = d.today || {};
+      return '<div style="display:flex;">' + statCell((t.active || 0) + '<span style="font-size:14px;color:#6f8ba1;">/' + (d.roster || 0) + '</span>', 'active today', true) + statCell(t.activities || 0, 'activities', false) + statCell('<span style="color:#37E0C6;">live</span>', 'right now', false) + '</div>';
+    }
+    var w = d.week || {};
+    return '<div style="display:flex;">' + statCell((w.active || 0) + '<span style="font-size:14px;color:#6f8ba1;">/' + (d.roster || 0) + '</span>', 'active', true) + statCell(w.activities || 0, 'activities', false) + statCell((w.hours || 0) + '<span style="font-size:13px;color:#6f8ba1;">h</span>', 'moving', false) + '</div>' +
+      '<div style="display:flex;margin-top:12px;">' + statCell((w.distance_km || 0) + '<span style="font-size:13px;color:#6f8ba1;">km</span>', 'distance', true) + statCell(Math.round((w.calories || 0) / 1000) + '<span style="font-size:13px;color:#6f8ba1;">k</span>', 'calories', false) + statCell(d.rank || '–', 'team rank', false, '#FFCC00') + '</div>';
+  }
+  function momentumSvg(series) {
+    series = series || []; if (series.length < 2) return '<div style="padding:0 4px;font-size:12px;color:#6f8ba1;">Not enough history yet.</div>';
+    var max = Math.max.apply(null, series.map(function (p) { return Number(p.cum || 0); }).concat([1]));
+    var n = series.length, x0 = 34, x1 = 294, y0 = 120, y1 = 14;
+    var pts = series.map(function (p, i) { var x = x0 + (x1 - x0) * (n === 1 ? 0 : i / (n - 1)); var y = y0 - (y0 - y1) * (Number(p.cum || 0) / max); return x.toFixed(1) + ',' + y.toFixed(1); }).join(' ');
+    var last = series[n - 1], lx = x1, ly = y0 - (y0 - y1) * (Number(last.cum || 0) / max);
+    function lbl(v) { return v >= 1000 ? (Math.round(v / 100) / 10) + 'k' : Math.round(v); }
+    var d0 = series[0].d, dl = series[n - 1].d;
+    return '<svg viewBox="0 0 300 150" style="width:100%;height:auto;display:block;" xmlns="http://www.w3.org/2000/svg">' +
+      '<line x1="34" y1="14" x2="34" y2="120" stroke="rgba(255,255,255,.12)" stroke-width="1"/>' +
+      '<line x1="34" y1="120" x2="294" y2="120" stroke="rgba(255,255,255,.12)" stroke-width="1"/>' +
+      '<line x1="34" y1="67" x2="294" y2="67" stroke="rgba(255,255,255,.06)" stroke-width="1"/>' +
+      '<text x="28" y="123" text-anchor="end" font-size="9" fill="#5f7688" font-family="system-ui">0</text>' +
+      '<text x="28" y="70" text-anchor="end" font-size="9" fill="#5f7688" font-family="system-ui">' + lbl(max / 2) + '</text>' +
+      '<text x="28" y="18" text-anchor="end" font-size="9" fill="#5f7688" font-family="system-ui">' + lbl(max) + '</text>' +
+      '<polyline points="' + pts + '" fill="none" stroke="#37E0C6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<circle cx="' + lx.toFixed(1) + '" cy="' + ly.toFixed(1) + '" r="3.5" fill="#37E0C6"/>' +
+      '<text x="34" y="134" text-anchor="middle" font-size="9" fill="#5f7688" font-family="system-ui">' + esc(fmtD(d0)) + '</text>' +
+      '<text x="294" y="134" text-anchor="end" font-size="9" fill="#5f7688" font-family="system-ui">today</text></svg>';
+  }
+  function fmtD(s) { try { var d = new Date(s); return d.toLocaleDateString([], { day: 'numeric', month: 'short' }); } catch (e) { return ''; } }
+  function sectionHead(t, right) { return '<div style="padding:18px 20px 6px;display:flex;justify-content:space-between;align-items:baseline;"><span style="font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:#6f8ba1;font-weight:600;">' + t + '</span>' + (right ? '<span style="font-size:12px;color:#37E0C6;">' + right + '</span>' : '') + '</div>'; }
+
+  function sourceBars(src) {
+    src = (src || []).filter(function (s) { return s.source !== 'Other'; });
+    if (!src.length) return '';
+    var max = Math.max.apply(null, src.map(function (s) { return Number(s.points || 0); }).concat([1]));
+    return sectionHead('Where the points come from') + '<div style="padding:2px 20px 4px;">' + src.slice(0, 6).map(function (s) {
+      var w = Math.max(4, Math.round(Number(s.points || 0) * 100 / max));
+      return '<div style="display:flex;align-items:center;gap:12px;margin-bottom:11px;"><span style="width:76px;font-size:12.5px;color:#cfe2ee;">' + esc(s.source) + '</span>' +
+        '<div style="flex:1;height:20px;border-radius:5px;background:rgba(255,255,255,.06);overflow:hidden;"><div style="width:' + w + '%;height:100%;background:linear-gradient(90deg,#2ba8e0,#1d6a8f);"></div></div>' +
+        '<span style="width:38px;text-align:right;font-size:13px;font-weight:600;color:#f2f7fb;">' + Math.round(s.points) + '</span></div>';
+    }).join('') + '<div style="font-size:11px;color:#5f7688;margin-top:4px;">Meet-ups and referrals are worth the most per action.</div></div>';
+  }
+  function contributors(members) {
+    var top = (members || []).slice(0, 3);
+    if (!top.length) return '';
+    return sectionHead('Carrying the team') + '<div style="padding:0 20px 2px;">' + top.map(function (p, i) {
+      return '<div style="display:flex;align-items:center;gap:13px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.07);">' +
+        '<span style="font-size:13px;color:#8aa0b2;width:12px;">' + (i + 1) + '</span>' + avatar(p, 34) +
+        '<div style="flex:1;font-size:14px;font-weight:500;color:#f2f7fb;">' + esc(p.name || 'Member') + '</div>' +
+        '<div style="font-size:15px;font-weight:600;color:#f2f7fb;">' + Math.round(p.points || 0) + '</div></div>';
+    }).join('') + '</div>';
+  }
+  function avatar(p, sz) {
+    var st = 'width:' + sz + 'px;height:' + sz + 'px;border-radius:50%;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;font-size:' + Math.round(sz * 0.38) + 'px;font-weight:600;background:#214b6b;color:#cfe6f5;overflow:hidden;background-size:cover;background-position:center;';
+    if (p && p.photo) return '<span style="' + st + 'background-image:url(\'' + esc(p.photo) + '\');"></span>';
+    return '<span style="' + st + '">' + esc(initials(p && p.name)) + '</span>';
+  }
+  function memberBars(members, avg) {
+    var ms = (members || []).slice().sort(function (a, b) { return (b.points || 0) - (a.points || 0); });
+    if (!ms.length) return '';
+    var me = memberId();
+    var max = Math.max.apply(null, ms.map(function (m) { return Number(m.points || 0); }).concat([1]));
+    var baseY = 125, topY = 15, span = baseY - topY;
+    var avgY = baseY - span * (Math.min(avg || 0, max) / max);
+    var bw = 10, gap = 5.5, startX = 8;
+    var width = Math.max(300, startX + ms.length * (bw + gap));
+    var bars = ms.map(function (m, i) {
+      var h = Math.max(3, Math.round(span * (Number(m.points || 0) / max)));
+      var x = startX + i * (bw + gap), y = baseY - h;
+      var you = m.member_id === me;
+      return '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw + '" height="' + h + '" rx="2" fill="' + (you ? '#FFCC00' : (y < avgY ? '#2ba8e0' : '#3f7ea0')) + '"/>' +
+        (you ? '<text x="' + (x + bw / 2).toFixed(1) + '" y="' + (y - 4).toFixed(1) + '" text-anchor="middle" font-size="9" font-weight="600" fill="#FFCC00" font-family="system-ui">You</text>' : '');
+    }).join('');
+    return sectionHead('Every member · points') + '<div style="padding:0 16px 4px;"><div class="tq-scroll"><svg viewBox="0 0 ' + width + ' 150" style="width:100%;min-width:' + (ms.length > 20 ? width : 0) + 'px;height:auto;display:block;" xmlns="http://www.w3.org/2000/svg">' +
+      '<line x1="4" y1="' + avgY.toFixed(1) + '" x2="' + (width - 8) + '" y2="' + avgY.toFixed(1) + '" stroke="#37E0C6" stroke-width="1.2" stroke-dasharray="4 3" opacity=".8"/>' +
+      '<text x="' + (width - 6) + '" y="' + (avgY - 3).toFixed(1) + '" text-anchor="end" font-size="9" fill="#37E0C6" font-family="system-ui">avg ' + (Math.round((avg || 0) * 10) / 10) + '</text>' +
+      bars + '<line x1="4" y1="125" x2="' + (width - 8) + '" y2="125" stroke="rgba(255,255,255,.12)" stroke-width="1"/></svg></div>' +
+      '<div style="font-size:11px;color:#5f7688;margin-top:8px;padding:0 4px;">Bars above the line beat the team average.</div></div>';
+  }
+
+  function renderTeamHome() {
+    var d = S.detail || {};
+    // Header banner = the team's cover photo (if set) under a dark scrim, else the brand gradient.
+    var _coverBg = d.cover
+      ? "linear-gradient(180deg,rgba(8,20,32,0.28),rgba(10,24,37,0.88)),url('" + esc(d.cover) + "')"
+      : "linear-gradient(160deg,#123a52 0%,#0b2233 62%,#0a1825 100%)";
+    var hero = '<div style="position:relative;padding:16px 20px 18px;background:' + _coverBg + ';background-size:cover;background-position:center;">' +
+      '<div style="position:relative;"><div style="display:flex;align-items:center;gap:6px;color:#9fc0d4;font-size:13px;margin-bottom:14px;"><span onclick="renderTQBack()" style="cursor:pointer;font-size:18px;">&lsaquo;</span> <span onclick="renderTQBack()" style="cursor:pointer;">Leaderboard</span></div>' +
+      '<div style="display:flex;align-items:center;gap:14px;">' + avatarSquare(d) +
+      '<div style="flex:1;min-width:0;"><div style="font-size:19px;font-weight:600;color:#f2f7fb;">' + esc(d.name || 'Team') + '</div>' +
+      '<div style="font-size:12.5px;color:#9fc0d4;margin-top:2px;">' + esc(d.sport || 'Team') + ' · ' + (d.active_members || 0) + ' of ' + (d.roster || 0) + ' active</div></div></div>' +
+      '<div style="display:flex;align-items:flex-end;gap:11px;margin-top:16px;">' +
+      '<div style="font-size:40px;font-weight:600;color:#FFCC00;line-height:.9;letter-spacing:-1px;">' + (d.rank || '–') + '<span style="font-size:16px;">' + ord(d.rank) + '</span></div>' +
+      '<div style="padding-bottom:4px;font-size:12.5px;color:#cfe2ee;">' + (d.avg_per_member != null ? d.avg_per_member + ' avg / active member' : '') + (d.behind_next != null && d.behind_next > 0 ? '<br>' + d.behind_next + ' behind the team above' : '') + '</div></div>' +
+      '</div></div>';
+
+    paint(hero +
+      '<div style="padding:16px 20px 0;"><div id="tq-stat-tabs" style="display:flex;margin-bottom:16px;">' + statTabs() + '</div><div id="tq-stats">' + statsHtml() + '</div></div>' +
+      '<div style="height:1px;background:rgba(255,255,255,.08);margin:16px 20px 0;"></div>' +
+      sectionHead('Momentum') + '<div style="padding:0 16px;">' + momentumSvg(d.momentum) + '</div>' +
+      '<div style="height:1px;background:rgba(255,255,255,.08);margin:14px 20px 0;"></div>' +
+      sourceBars(d.source) +
+      '<div style="height:1px;background:rgba(255,255,255,.08);margin:8px 20px 0;"></div>' +
+      contributors(d.members) +
+      memberBars(d.members, d.avg_per_member) +
+      '<div style="height:24px;"></div>');
+  }
+  W.renderTQBack = function () { renderLeaderboard(); };
+  function avatarSquare(d) {
+    var st = 'width:52px;height:52px;border-radius:15px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:16px;background:#12314a;color:#2ba8e0;overflow:hidden;background-size:cover;background-position:center;';
+    if (d && d.logo) return '<div style="' + st + 'background-image:url(\'' + esc(d.logo) + '\');"></div>';
+    return '<div style="' + st + '">' + esc(initials(d && d.name)) + '</div>';
+  }
+  // One global covers both call paths (new Quests.openTeam and any older Quests.openClub still live on a device).
+  W.FFPClubQuest = W.FFPTeamQuest;
+})();
