@@ -63,7 +63,8 @@ window.Quests = {
       this.minor = d.minor || d.explore || [];
       this.partner = d.partner || [];
       this.upcoming = d.upcoming || [];
-    } catch (e) { this.major = null; this.minor = []; this.partner = []; this.upcoming = []; }
+      this.featured = d.featured || [];
+    } catch (e) { this.major = null; this.minor = []; this.partner = []; this.upcoming = []; this.featured = []; }
     this.renderAll();
   },
 
@@ -216,7 +217,10 @@ window.Quests = {
       '.q-up-title{font-size:19px;font-weight:900;color:#fff;line-height:1.15;}',
       '.q-up-desc{font-size:12.5px;color:#dceaf5;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}',
       '.q-up-foot{display:inline-flex;align-self:flex-start;align-items:center;gap:6px;margin-top:12px;font-size:12px;font-weight:700;color:#fff;background:rgba(8,20,32,.35);border-radius:10px;padding:8px 12px;}.q-up-foot .material-icons{font-size:15px;}',
-      '.q-up-banner{display:flex;align-items:center;gap:12px;}.q-up-banner .material-icons{font-size:26px;color:var(--q-yellow,#FFCC00);}.q-up-banner-t{font-size:15px;font-weight:800;color:var(--q-text,#e8eef4);}.q-up-banner-s{font-size:12px;color:var(--q-muted,#8a99a8);margin-top:2px;}'
+      '.q-up-banner{display:flex;align-items:center;gap:12px;}.q-up-banner .material-icons{font-size:26px;color:var(--q-yellow,#FFCC00);}.q-up-banner-t{font-size:15px;font-weight:800;color:var(--q-text,#e8eef4);}.q-up-banner-s{font-size:12px;color:var(--q-muted,#8a99a8);margin-top:2px;}',
+      '#panel-quests .q-featrow{display:flex;gap:12px;overflow-x:auto;scrollbar-width:none;padding:2px 0 4px;}#panel-quests .q-featrow::-webkit-scrollbar{display:none;height:0;}',
+      '#panel-quests .q-feat{position:relative;flex:0 0 86%;border-radius:16px;overflow:hidden;min-height:198px;display:flex;flex-direction:column;justify-content:flex-end;padding:16px;cursor:pointer;background-size:cover;background-position:center;}',
+      '#panel-quests .q-feat.cov-sports{background:linear-gradient(135deg,#123a52,#0a1c2b);}#panel-quests .q-feat.cov-fitness{background:linear-gradient(135deg,#ff6b4a,#b23a1c);}#panel-quests .q-feat.cov-wellness{background:linear-gradient(135deg,#36c5b0,#0d6b5f);}'
     ].join('');
     document.head.appendChild(s);
   },
@@ -230,6 +234,10 @@ window.Quests = {
     var joined = this.minor.filter(function (q) { return q.joined; }).concat(this.partner || []);
     var browse = this.minor.filter(function (q) { return !q.joined; });
     var html = '';
+    // Club challenge feature quests — tap to open the full club-competition experience.
+    if ((this.featured || []).length) {
+      html += '<div class="q-featrow">' + this.featured.map(this.featuredCard.bind(this)).join('') + '</div>';
+    }
     // Coming soon — upcoming quests (published with a future start) teased at the top.
     if ((this.upcoming || []).length) {
       html += '<div class="q-sec-h">Coming soon</div>';
@@ -259,6 +267,30 @@ window.Quests = {
       (q.description ? '<div class="q-up-desc">' + escHtml(q.description) + '</div>' : '') +
       '<div class="q-up-foot"><span class="material-icons">visibility</span> Tap to preview the ways to earn</div>' +
     '</div>';
+  },
+
+  featuredCard: function (q) {
+    var cover = (this.CAT && this.CAT[q.category] && this.CAT[q.category].cover) || 'cov-sports';
+    var bg = q.hero_image_url ? "linear-gradient(180deg,rgba(8,20,32,0.10),rgba(8,20,32,0.86)),url('" + q.hero_image_url + "')" : '';
+    var d = q.active_to ? new Date(q.active_to) : null;
+    var days = d ? Math.max(0, Math.ceil((d.getTime() - Date.now()) / 86400000)) : null;
+    var cd = (days != null) ? ('<div class="q-up-cd"><b>' + days + '</b><span>' + (days === 1 ? 'DAY' : 'DAYS') + '</span></div>') : '';
+    return '<div class="q-feat ' + (bg ? '' : cover) + '" onclick="Quests.openClub(\'' + q.id + '\')"' + (bg ? ' style="background-image:' + bg + ';"' : '') + '>' +
+      '<span class="q-up-pill"><span class="material-icons">groups</span> Club challenge</span>' + cd +
+      '<div class="q-up-title">' + escHtml(q.title) + '</div>' +
+      (q.description ? '<div class="q-up-desc">' + escHtml(q.description) + '</div>' : '') +
+      '<div class="q-up-foot"><span class="material-icons">leaderboard</span> See where your club ranks</div>' +
+    '</div>';
+  },
+  openClub: function (id) {
+    var q = (this.featured || []).filter(function (x) { return x.id === id; })[0] || {};
+    var go = function () { if (window.FFPClubQuest) window.FFPClubQuest.open(id, { title: q.title, metric: q.club_metric || 'avg', minMembers: q.club_min_members || 10 }); };
+    if (window.FFPClubQuest) { go(); return; }
+    if (this._clubLoading) return; this._clubLoading = true;
+    var sc = document.createElement('script'); sc.src = 'assets/ffp-club-quest-loader.js?v=' + (window.FFP_BUILD || '1');
+    sc.onload = function () { try { go(); } catch (e) {} };
+    sc.onerror = function () { try { if (window.showToast) showToast('Could not open the challenge', 'error'); } catch (e) {} };
+    document.body.appendChild(sc);
   },
 
   renderMajor() {
