@@ -185,6 +185,7 @@ window.Quests = {
       '#q-board-search{width:100%;box-sizing:border-box;padding:10px 13px;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:rgba(8,20,32,.4);color:#e8eef4;font-size:13px;font-family:inherit;}',
       '.q-board-list{max-height:50vh;overflow:auto;-webkit-overflow-scrolling:touch;}',
       '.q-board-loading,.q-board-empty{font-size:12.5px;color:#8a99a8;padding:14px 4px;text-align:center;}',
+      '.q-board-more{margin:2px 0 6px;padding:12px;text-align:center;color:#2ba8e0;font-weight:600;font-size:14px;cursor:pointer;border-top:1px solid rgba(255,255,255,.07);}',
       '.q-lb-row{display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:10px;margin-bottom:6px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);}',
       '.q-lb-row.me{background:rgba(43,168,224,.12);border-color:#2ba8e0;}',
       '.q-lb-rank{width:22px;text-align:center;font-weight:900;font-size:13px;flex-shrink:0;}',
@@ -538,7 +539,9 @@ window.Quests = {
         var host = document.getElementById('q-board-list');
         if (!host) { clearInterval(self._boardTimer); self._boardTimer = null; return; }   // modal closed
         var pane = document.getElementById('q-pane-board');
-        if (self._boardLoaded && pane && pane.style.display !== 'none' && document.visibilityState === 'visible') self.loadQuestBoard();
+        // Don't yank the user back to page 1 if they've paged past the first 50 or are searching.
+        if (self._boardLoaded && pane && pane.style.display !== 'none' && document.visibilityState === 'visible'
+            && (self._boardOffset || 0) <= 50 && !(self.boardSearch && self.boardSearch.trim())) self.loadQuestBoard();
       }, 45000);
     }
   },
@@ -637,35 +640,45 @@ window.Quests = {
     this._boardT = setTimeout(function () { self.loadQuestBoard(); }, 250);
   },
 
-  async loadQuestBoard() {
+  // Paged 50 at a time via the RPC's p_offset — never pulls thousands at once. Search/filter reset to page 0.
+  async loadQuestBoard(more) {
     var host = document.getElementById('q-board-list'); if (!host || !this._openQuest) return;
     if (!this._locsLoaded) { this._locsLoaded = true; this.boardLoadLocations(); }
-    host.innerHTML = '<div class="q-board-loading">Loading…</div>';
-    var args = { p_quest: this._openQuest, p_limit: 50, p_search: this.boardSearch || null };
+    if (!more) { this._boardOffset = 0; host.innerHTML = '<div class="q-board-loading">Loading…</div>'; }
+    var PAGE = 50;
+    var args = { p_quest: this._openQuest, p_limit: PAGE, p_offset: this._boardOffset || 0, p_search: this.boardSearch || null };
     if (this.boardCity) args.p_city = this.boardCity;
     if (this.boardRegion) args.p_region = this.boardRegion;
     if (this.boardCountry) args.p_country = this.boardCountry;
     if (this.boardGender) args.p_gender = this.boardGender;
     var rows = [];
     try { var r = await window.supabase.rpc('quest_leaderboard', args); rows = (r && r.data) ? r.data : []; } catch (e) {}
-    if (!rows.length) {
+    var oldBtn = document.getElementById('q-board-more'); if (oldBtn) oldBtn.parentNode.removeChild(oldBtn);
+    if (!more && !rows.length) {
       host.innerHTML = '<div class="q-board-empty">' + (this.boardSearch ? 'No one matches “' + escHtml(this.boardSearch) + '”.' : 'No one here yet — be the first to climb.') + '</div>';
       return;
     }
     var mid = this.memberId();
-    host.innerHTML = rows.map(function (b, i) {
+    var start = this._boardOffset || 0;
+    var rowsHtml = rows.map(function (b, i) {
+      var rank = start + i;
       var me = b.member_id === mid;
-      var medal = i === 0 ? '#f4d77a' : i === 1 ? '#c8d2dc' : i === 2 ? '#d8a06a' : '#7d8b99';
+      var medal = rank === 0 ? '#f4d77a' : rank === 1 ? '#c8d2dc' : rank === 2 ? '#d8a06a' : '#7d8b99';
       var av = b.photo ? '<img src="' + b.photo + '" alt="" class="q-lb-av">' : '<div class="q-lb-av q-lb-ph">' + escHtml((b.name || 'M').charAt(0).toUpperCase()) + '</div>';
       var loc = [b.city, b.country].filter(Boolean).join(' · ');
       var nmEsc = String(b.name || 'Member').replace(/['"\\<>]/g, '');
       return '<div class="q-lb-row' + (me ? ' me' : '') + '" style="cursor:pointer;" onclick="Quests.openMemberBreakdown(\'' + b.member_id + '\',\'' + nmEsc + '\')">' +
-        '<div class="q-lb-rank" style="color:' + medal + ';">' + (i + 1) + '</div>' + av +
+        '<div class="q-lb-rank" style="color:' + medal + ';">' + (rank + 1) + '</div>' + av +
         '<div class="q-lb-meta"><div class="q-lb-name">' + escHtml(b.name || 'Member') + (me ? ' • you' : '') + '</div>' +
         (loc ? '<div class="q-lb-loc">' + escHtml(loc) + '</div>' : '') + '</div>' +
         '<div class="q-lb-pts">' + b.points + '<span>pts</span></div>' +
       '</div>';
     }).join('');
+    if (more) { host.insertAdjacentHTML('beforeend', rowsHtml); } else { host.innerHTML = rowsHtml; }
+    this._boardOffset = start + rows.length;
+    if (rows.length === PAGE) {
+      host.insertAdjacentHTML('afterend', '<div id="q-board-more" class="q-board-more" onclick="Quests.loadQuestBoard(true)">Show more</div>');
+    }
   },
 
   // points_race: "where your points came from" — per action-type count × points (from member_quest_points_breakdown)
