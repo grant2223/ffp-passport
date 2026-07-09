@@ -514,18 +514,30 @@
   function _mtSessionsSection(teamId) {
     var list = (W._mtSessions || []).filter(function (s) { return s.team_id === teamId; });
     if (!list.length) return '';
-    return '<div style="font-size:15px;font-weight:800;color:var(--text,#e8eef4);margin-bottom:12px;">Upcoming training</div><div style="margin-bottom:28px;">' + list.slice(0, 5).map(_mtSessionRow).join('') + '</div>';
+    return '<div style="font-size:15px;font-weight:800;color:var(--text,#e8eef4);margin-bottom:14px;">Upcoming training</div>' +
+      '<div style="margin-bottom:30px;">' + list.slice(0, 6).map(_mtSessionRow).join('') + '</div>';
   }
+  // World-class row (Apple/WHOOP): calendar date block · title + time/venue · quiet status · one premium "Going" toggle.
   function _mtSessionRow(s) {
-    var loc = [s.location, s.city].filter(Boolean).join(', ');
-    var st = s.my_status || 'pending', goOn = st === 'going', noOn = st === 'not_going';
-    var goBtn = '<button onclick="FFPMemberTeams.ackSession(\'' + s.id + '\',\'' + (goOn ? 'pending' : 'going') + '\')" style="flex:1;border:none;border-radius:10px;padding:9px;font-size:12.5px;font-weight:800;font-family:inherit;cursor:pointer;' + (goOn ? 'background:var(--yellow,#FFCC00);color:#3a2e00;' : 'background:rgba(255,255,255,.06);color:#a9c2d4;') + '">' + (goOn ? '✓ Going' : 'Going') + '</button>';
-    var noBtn = '<button onclick="FFPMemberTeams.ackSession(\'' + s.id + '\',\'' + (noOn ? 'pending' : 'not_going') + '\')" style="flex:1;border-radius:10px;padding:9px;font-size:12.5px;font-weight:800;font-family:inherit;cursor:pointer;background:transparent;border:1px solid ' + (noOn ? '#a34' : 'rgba(255,255,255,.14)') + ';color:' + (noOn ? '#ef9a9a' : '#a9c2d4') + ';">' + (noOn ? '✓ Not going' : 'Not going') + '</button>';
-    return '<div style="border-top:1px solid rgba(255,255,255,.07);padding:14px 0;">' +
-      '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;"><span style="font-size:14.5px;font-weight:800;color:var(--text,#e8eef4);">' + esc(s.title || 'Training') + '</span><span style="font-size:11.5px;font-weight:700;color:#2ba8e0;flex:0 0 auto;">' + (s.going || 0) + ' going</span></div>' +
-      '<div style="font-size:12px;color:var(--muted,#8a99a8);margin-top:5px;"><span class="material-icons" style="font-size:14px;vertical-align:-2px;">event</span> ' + esc(_mtSessWhen(s.starts_at)) + (loc ? ('  ·  <span class="material-icons" style="font-size:14px;vertical-align:-2px;">place</span> ' + esc(loc)) : '') + '</div>' +
-      (s.notes ? ('<div style="font-size:11.5px;color:#7c8b9a;margin-top:5px;">' + esc(s.notes) + '</div>') : '') +
-      '<div style="display:flex;gap:8px;margin-top:11px;">' + goBtn + noBtn + '</div></div>';
+    var d = s.starts_at ? new Date(s.starts_at) : null;
+    var wd = d ? d.toLocaleDateString([], { weekday: 'short' }).toUpperCase() : '';
+    var day = d ? d.getDate() : '—';
+    var time = d ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+    var loc = [s.location, s.city].filter(Boolean).join(' · ');
+    var meta = [time, loc].filter(Boolean).join('   ·   ');
+    var st = s.my_status || 'pending', going = st === 'going', notgoing = st === 'not_going', gn = s.going || 0;
+    var status;
+    if (going) status = '<span style="color:var(--yellow,#FFCC00);font-weight:700;">You’re going</span>' + (gn ? ' <span style="color:#5f7285;">· ' + gn + ' going</span>' : '');
+    else if (notgoing) status = '<span style="color:#8a99a8;">Not going</span> &nbsp;·&nbsp; <span style="color:#2ba8e0;cursor:pointer;" onclick="FFPMemberTeams.ackSession(\'' + s.id + '\',\'going\')">I can make it</span>';
+    else status = (gn ? gn + ' going &nbsp;·&nbsp; ' : '') + '<span style="color:#7f93a4;cursor:pointer;" onclick="FFPMemberTeams.ackSession(\'' + s.id + '\',\'not_going\')">Can’t make it</span>';
+    var check = '<button onclick="FFPMemberTeams.ackSession(\'' + s.id + '\',\'' + (going ? 'pending' : 'going') + '\')" aria-label="' + (going ? 'Going' : 'Mark going') + '" style="flex:0 0 auto;width:32px;height:32px;border-radius:50%;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;' + (going ? 'background:var(--yellow,#FFCC00);border:none;' : 'background:transparent;border:1.6px solid rgba(255,255,255,.20);') + '"><span class="material-icons" style="font-size:' + (going ? 20 : 18) + 'px;color:' + (going ? '#3a2e00' : '#5f7285') + ';">' + (going ? 'check' : 'add') + '</span></button>';
+    return '<div style="display:flex;align-items:center;gap:15px;padding:14px 0;border-top:1px solid rgba(255,255,255,.06);">' +
+      '<div style="flex:0 0 auto;width:40px;text-align:center;"><div style="font-size:10px;font-weight:800;letter-spacing:.6px;color:#6f8496;">' + wd + '</div><div style="font-size:23px;font-weight:800;color:var(--text,#e8eef4);line-height:1;margin-top:1px;">' + day + '</div></div>' +
+      '<div style="flex:1;min-width:0;"><div style="font-size:15.5px;font-weight:700;color:var(--text,#e8eef4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(s.title || 'Training') + '</div>' +
+        (meta ? '<div style="font-size:12.5px;color:var(--muted,#8a99a8);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(meta) + '</div>' : '') +
+        '<div style="font-size:11.5px;margin-top:5px;">' + status + '</div></div>' +
+      check +
+    '</div>';
   }
   async function ackSession(id, status) {
     var mid = memberId(); if (!mid || !sb()) return;
