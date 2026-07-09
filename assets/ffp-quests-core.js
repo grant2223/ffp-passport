@@ -246,7 +246,7 @@ window.Quests = {
       tabsEl.innerHTML = (hasTeam || hasSquad) ? ('<div class="q-maintabs">' +
         '<button class="q-mtab' + (tab === 'individual' ? ' on' : '') + '" onclick="Quests.setTab(\'individual\')">Individual</button>' +
         (hasTeam ? '<button class="q-mtab' + (tab === 'team' ? ' on' : '') + '" onclick="Quests.setTab(\'team\')">Team</button>' : '') +
-        (hasSquad ? '<button class="q-mtab' + (tab === 'squad' ? ' on' : '') + '" onclick="Quests.setTab(\'squad\')">Squad</button>' : '') +
+        (hasSquad ? '<button class="q-mtab' + (tab === 'squad' ? ' on' : '') + '" onclick="Quests.setTab(\'squad\')">Pair</button>' : '') +
         '</div>') : '';
     }
     // The headline hero (#quest-hero) is the individual side — only on the Individual tab.
@@ -331,21 +331,22 @@ window.Quests = {
     var d = q.active_to ? new Date(q.active_to) : null;
     var days = d ? Math.max(0, Math.ceil((d.getTime() - Date.now()) / 86400000)) : null;
     var cd = (days != null) ? ('<div class="q-up-cd"><b>' + days + '</b><span>' + (days === 1 ? 'DAY' : 'DAYS') + '</span></div>') : '';
+    var isPair = (q.squad_max || 2) <= 2;
     return '<div class="q-feat ' + (bg ? '' : cover) + '" onclick="Quests.openSquad(\'' + q.id + '\')"' + (bg ? ' style="background-image:' + bg + ';"' : '') + '>' +
-      '<span class="q-up-pill"><span class="material-icons">group</span> Squad Quest</span>' + cd +
+      '<span class="q-up-pill"><span class="material-icons">group</span> ' + (isPair ? 'Pair' : 'Squad') + ' Quest</span>' + cd +
       '<div class="q-up-title">' + escHtml(q.title) + '</div>' +
-      '<div class="q-up-desc">Grab 2–' + (q.squad_max || 4) + ' of your people and take it on together.</div>' +
-      '<div class="q-up-foot"><span class="material-icons">leaderboard</span> Create or join a squad</div>' +
+      '<div class="q-up-desc">' + (isPair ? 'Pair up with a mate and take it on together.' : ('Grab 2–' + (q.squad_max || 4) + ' of your people and take it on together.')) + '</div>' +
+      '<div class="q-up-foot"><span class="material-icons">leaderboard</span> ' + (isPair ? 'Pair up + see the standings' : 'Create or join a squad') + '</div>' +
     '</div>';
   },
   openSquad: function (id) {
     var q = (this.squads || []).filter(function (x) { return x.id === id; })[0] || {};
-    var go = function () { if (window.FFPSquadQuest) window.FFPSquadQuest.open(id, { title: q.title, squadMax: q.squad_max || 4 }); };
-    if (window.FFPSquadQuest) { go(); return; }
+    var go = function () { if (window.FFPPairQuest) window.FFPPairQuest.open(id, { title: q.title, max: q.squad_max || 2 }); };
+    if (window.FFPPairQuest) { go(); return; }
     if (this._squadLoading) return; this._squadLoading = true;
-    var sc = document.createElement('script'); sc.src = 'assets/ffp-squad-quest-loader.js?v=' + (window.FFP_BUILD || '1');
+    var sc = document.createElement('script'); sc.src = 'assets/ffp-pair-quest-loader.js?v=' + (window.FFP_BUILD || '1');
     sc.onload = function () { try { go(); } catch (e) {} };
-    sc.onerror = function () { try { if (window.showToast) showToast('Could not open the squad quest', 'error'); } catch (e) {} };
+    sc.onerror = function () { try { if (window.showToast) showToast('Could not open the pair quest', 'error'); } catch (e) {} };
     document.body.appendChild(sc);
   },
 
