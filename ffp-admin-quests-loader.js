@@ -203,6 +203,10 @@
           '<div style="flex:1;"><div style="font-size:11px;color:#8a99a8;margin-bottom:4px;">Ranked by</div><select class="qf-sel" id="q-club-metric">' + clubMetricOpts + '</select></div>' +
           '<div style="flex:0 0 42%;"><div style="font-size:11px;color:#8a99a8;margin-bottom:4px;">Min members to qualify</div><input class="qf-sel" id="q-club-min" type="number" min="1" value="' + (q && q.club_min_members != null ? q.club_min_members : 10) + '"></div>' +
         '</div></div>' +
+      '<div class="qf-row"><label style="display:flex;align-items:center;gap:9px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13px;color:#cfd6dc;"><input type="checkbox" id="q-squad"' + (q && q.is_squad_quest ? ' checked' : '') + ' onchange="AdminQuests.squadToggle()"> <span><b>Squad quest</b> — members form their own 2–' + '4 crews for this quest; shows as a Squad card in the Quest panel</span></label>' +
+        '<div id="q-squad-opts" style="display:' + (q && q.is_squad_quest ? 'flex' : 'none') + ';gap:10px;margin-top:10px;">' +
+          '<div style="flex:0 0 50%;"><div style="font-size:11px;color:#8a99a8;margin-bottom:4px;">Max squad size</div><input class="qf-sel" id="q-squad-max" type="number" min="2" max="8" value="' + (q && q.squad_max != null ? q.squad_max : 4) + '"></div>' +
+        '</div></div>' +
       '<div class="qf-row"><label>Hero image</label>' +
         '<div id="q-hero-preview" onclick="document.getElementById(\'q-hero-file\').click()" style="height:300px;border-radius:12px;background-color:#0f2335;background-size:cover;background-position:center;background-repeat:no-repeat;border:2px dashed rgba(43,168,224,0.35);margin-bottom:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#8a99a8;font-size:13px;' + (q && q.hero_image_url ? "background-image:url('" + esc(q.hero_image_url) + "');border-style:solid;" : '') + '">' + (q && q.hero_image_url ? '' : '<span><span class="material-icons" style="vertical-align:-5px;">add_photo_alternate</span> Click to upload</span>') + '</div>' +
         '<input type="file" id="q-hero-file" accept="image/*" style="display:none" onchange="AdminQuests.uploadHero(this)">' +
@@ -223,6 +227,7 @@
     if (q) renderTasks();
   }
   function clubToggle() { var c = document.getElementById('q-club'), o = document.getElementById('q-club-opts'); if (o) o.style.display = (c && c.checked) ? 'flex' : 'none'; }
+  function squadToggle() { var c = document.getElementById('q-squad'), o = document.getElementById('q-squad-opts'); if (o) o.style.display = (c && c.checked) ? 'flex' : 'none'; }
   function modeChange() {
     var m = currentMode();
     var hint = document.getElementById('q-mode-hint');
@@ -435,6 +440,8 @@
         is_club_competition: !!(document.getElementById('q-club') && document.getElementById('q-club').checked),
         club_metric: val('q-club-metric') || 'avg',
         club_min_members: parseInt(val('q-club-min'), 10) || 10,
+        is_squad_quest: !!(document.getElementById('q-squad') && document.getElementById('q-squad').checked),
+        squad_max: parseInt(val('q-squad-max'), 10) || 4,
         updated_at: new Date().toISOString()
       };
       if (startISO) payload.active_from = startISO;   // only overwrite start when the admin set one
@@ -560,7 +567,7 @@
   window.AdminQuests = {
     openForm: openForm, save: save, setStatus: setStatus, refresh: refresh,
     setTab: function (t) { S.tab = t; renderList(); },
-    uploadHero: uploadHero, qtProofChange: qtProofChange, qtCatChange: qtCatChange, modeChange: modeChange, clubToggle: clubToggle, formTab: formTab,
+    uploadHero: uploadHero, qtProofChange: qtProofChange, qtCatChange: qtCatChange, modeChange: modeChange, clubToggle: clubToggle, squadToggle: squadToggle, formTab: formTab,
     scopeChange: scopeChange, countryChange: countryChange,
     saveTask: saveTask, editTask: editTask, cancelTaskEdit: cancelTaskEdit, deleteTask: deleteTask, review: review
   };
