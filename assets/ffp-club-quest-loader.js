@@ -41,6 +41,58 @@
   function scoreOf(row, m) { return m === 'total' ? Number(row.total_points || 0) : Number(row.avg_per_member || 0); }
   function scoreLabel(m) { return m === 'total' ? 'points' : 'avg / member'; }
 
+  // ── World-class place badges (SVG): gold TROPHY for 1st, silver/bronze MEDAL for 2nd/3rd ──
+  function medalDefs() {
+    return '<svg width="0" height="0" style="position:absolute;" aria-hidden="true"><defs>' +
+      '<radialGradient id="cqmg-gold" cx="38%" cy="30%" r="80%"><stop offset="0%" stop-color="#FFF1B8"/><stop offset="45%" stop-color="#F6C63C"/><stop offset="100%" stop-color="#B77E09"/></radialGradient>' +
+      '<radialGradient id="cqmg-silver" cx="38%" cy="32%" r="75%"><stop offset="0%" stop-color="#FFFFFF"/><stop offset="45%" stop-color="#D6DCE2"/><stop offset="100%" stop-color="#8B96A1"/></radialGradient>' +
+      '<radialGradient id="cqmg-bronze" cx="38%" cy="32%" r="75%"><stop offset="0%" stop-color="#F6D0A6"/><stop offset="45%" stop-color="#D28A4C"/><stop offset="100%" stop-color="#8E5220"/></radialGradient>' +
+      '<linearGradient id="cqrim-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FFE58A"/><stop offset="100%" stop-color="#9A6800"/></linearGradient>' +
+      '<linearGradient id="cqrim-silver" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#F2F5F8"/><stop offset="100%" stop-color="#79838E"/></linearGradient>' +
+      '<linearGradient id="cqrim-bronze" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#EEBB86"/><stop offset="100%" stop-color="#7C4718"/></linearGradient>' +
+      '</defs></svg>';
+  }
+  function medalSvg(rank, size) {
+    var s = 'width="' + (size || 30) + '" height="' + (size || 30) + '" viewBox="0 0 64 64"';
+    if (rank === 1) {
+      return '<svg ' + s + ' style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.4));" aria-hidden="true">' +
+        '<path d="M14 15 C6 15 6 29 19 31" fill="none" stroke="url(#cqrim-gold)" stroke-width="3.6"/>' +
+        '<path d="M50 15 C58 15 58 29 45 31" fill="none" stroke="url(#cqrim-gold)" stroke-width="3.6"/>' +
+        '<path d="M17 12 H47 V21 C47 32 40.5 39 32 39 C23.5 39 17 32 17 21 Z" fill="url(#cqmg-gold)" stroke="url(#cqrim-gold)" stroke-width="1.4"/>' +
+        '<rect x="29.3" y="39" width="5.4" height="8" fill="url(#cqrim-gold)"/>' +
+        '<rect x="22" y="47" width="20" height="4" rx="1.5" fill="url(#cqmg-gold)"/>' +
+        '<rect x="18.5" y="51.5" width="27" height="5.5" rx="2.4" fill="url(#cqrim-gold)"/>' +
+        '<path d="M23 16 C22 24 24.5 32 30 35.5" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2" stroke-linecap="round"/></svg>';
+    }
+    var mg = rank === 2 ? 'silver' : 'bronze', num = rank === 2 ? '#5A646E' : '#5E3413';
+    return '<svg ' + s + ' aria-hidden="true">' +
+      '<circle cx="32" cy="32" r="26" fill="#0a1825"/>' +
+      '<circle cx="32" cy="32" r="26" fill="url(#cqrim-' + mg + ')"/>' +
+      '<circle cx="32" cy="32" r="21.5" fill="url(#cqmg-' + mg + ')"/>' +
+      '<path d="M32 12.5 A19.5 19.5 0 0 1 51.5 32" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="2" stroke-linecap="round"/>' +
+      '<text x="32" y="41" text-anchor="middle" font-size="26" font-weight="800" fill="' + num + '" font-family="system-ui">' + rank + '</text></svg>';
+  }
+  // Podium for the top 3 (2nd | 1st | 3rd), each tappable → its club. Only when 3+ qualified clubs (non-division metric).
+  function podiumHtml(rows) {
+    var top = rows.filter(function (x) { return x.qualified !== false; }).slice(0, 3);
+    if (top.length < 3) return '';
+    var order = [top[1], top[0], top[2]], H = [46, 66, 34], SZ = [52, 60, 52], BZ = [30, 40, 30], RK = [2, 1, 3];
+    var cells = order.map(function (x, i) {
+      var lg = x.logo
+        ? '<div style="width:' + SZ[i] + 'px;height:' + SZ[i] + 'px;border-radius:' + (i === 1 ? 17 : 15) + 'px;background:#12314a center/cover no-repeat;background-image:url(\'' + esc(x.logo) + '\');margin:0 auto;"></div>'
+        : '<div style="width:' + SZ[i] + 'px;height:' + SZ[i] + 'px;border-radius:' + (i === 1 ? 17 : 15) + 'px;background:#12314a;display:flex;align-items:center;justify-content:center;color:#2ba8e0;font-weight:700;margin:0 auto;">' + esc(initials(x.name)) + '</div>';
+      var val = Math.round(scoreOf(x, S.metric) * 10) / 10;
+      return '<div style="flex:1;text-align:center;cursor:pointer;min-width:0;" onclick="FFPClubQuest.openClub(\'' + x.team_id + '\')">' +
+        '<div style="position:relative;width:' + SZ[i] + 'px;margin:0 auto;">' + lg +
+          '<div style="position:absolute;bottom:-' + (BZ[i] / 2 - 4) + 'px;left:50%;transform:translateX(-50%);">' + medalSvg(RK[i], BZ[i]) + '</div></div>' +
+        '<div style="font-size:' + (i === 1 ? 13 : 12.5) + 'px;font-weight:600;color:#f2f7fb;margin-top:' + (i === 1 ? 22 : 16) + 'px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(x.name) + '</div>' +
+        '<div style="font-size:' + (i === 1 ? 17 : 15) + 'px;font-weight:' + (i === 1 ? 800 : 700) + ';color:' + (i === 1 ? '#FFCC00' : '#fff') + ';">' + val + '</div>' +
+        '<div style="height:' + H[i] + 'px;margin-top:8px;border-radius:8px 8px 0 0;background:linear-gradient(180deg,' + (i === 1 ? '#2f3d2a' : '#26333f') + ',#151d26);"></div>' +
+      '</div>';
+    }).join('');
+    return medalDefs() + '<div style="padding:16px 20px 0;"><div style="display:flex;align-items:flex-end;justify-content:center;gap:14px;">' + cells + '</div></div>';
+  }
+
   // ── LEADERBOARD (standing-led) ──
   W.FFPClubQuest = W.FFPClubQuest || {};
   W.FFPClubQuest.open = function (questId, opts) {
@@ -83,7 +135,11 @@
         '<div style="font-size:13px;color:#9fc0d4;margin-top:6px;">Join a team, or create one in the FFP Pro app — then your activity counts for the club.</div></div>';
     }
 
-    var list = rows.map(function (x) {
+    // Podium for the top 3 (non-division metric, 3+ qualified clubs). When shown, the list starts at rank 4.
+    var pod = (S.metric !== 'division') ? podiumHtml(rows) : '';
+    var listRows = pod ? rows.filter(function (x) { return x.qualified === false || x.rank > 3; }) : rows;
+
+    var list = listRows.map(function (x) {
       var you = !!mine[x.team_id];
       var val = Math.round(scoreOf(x, S.metric) * 10) / 10;
       var q = (x.qualified === false);
@@ -98,7 +154,7 @@
         '<div style="font-size:21px;font-weight:600;color:' + (you ? '#FFCC00' : (q ? '#54697a' : '#f2f7fb')) + ';">' + (q ? '—' : val) + '</div></div>';
     }).join('') || '<div style="padding:24px 20px;color:#9fc0d4;">No clubs yet. The first team to add members takes the lead.</div>';
 
-    paint(hero +
+    paint(hero + pod +
       '<div style="padding:14px 20px 2px;font-size:11.5px;color:#6f8ba1;">' + metricLine(S.metric) + '</div>' +
       '<div style="padding:0 20px 8px;">' + list + '</div>' +
       '<div style="padding:2px 20px 24px;" class="cq-tap">Tap a club to see who\'s driving it →</div>');
@@ -209,7 +265,11 @@
 
   function renderClubHome() {
     var d = S.detail || {};
-    var hero = '<div style="position:relative;padding:16px 20px 18px;background:linear-gradient(160deg,#123a52 0%,#0b2233 62%,#0a1825 100%);">' +
+    // Header banner = the team's cover photo (if set) under a dark scrim, else the brand gradient.
+    var _coverBg = d.cover
+      ? "linear-gradient(180deg,rgba(8,20,32,0.28),rgba(10,24,37,0.88)),url('" + esc(d.cover) + "')"
+      : "linear-gradient(160deg,#123a52 0%,#0b2233 62%,#0a1825 100%)";
+    var hero = '<div style="position:relative;padding:16px 20px 18px;background:' + _coverBg + ';background-size:cover;background-position:center;">' +
       '<div style="position:relative;"><div style="display:flex;align-items:center;gap:6px;color:#9fc0d4;font-size:13px;margin-bottom:14px;"><span onclick="renderCQBack()" style="cursor:pointer;font-size:18px;">&lsaquo;</span> <span onclick="renderCQBack()" style="cursor:pointer;">Leaderboard</span></div>' +
       '<div style="display:flex;align-items:center;gap:14px;">' + avatarSquare(d) +
       '<div style="flex:1;min-width:0;"><div style="font-size:19px;font-weight:600;color:#f2f7fb;">' + esc(d.name || 'Club') + '</div>' +
