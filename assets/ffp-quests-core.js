@@ -191,7 +191,7 @@ window.Quests = {
       '.q-cover-flt{position:absolute;left:12px;bottom:12px;width:38px;height:38px;border-radius:11px;border:none;background:rgba(8,20,32,.62);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2;}',
       '.q-cover-flt .material-icons{font-size:20px;}',
       '.q-cover-flt.on{background:#2ba8e0;}',
-      '.q-fltmodal{position:fixed;inset:0;z-index:7000;background:#081420;display:flex;flex-direction:column;font-family:inherit;}',
+      '.q-fltmodal{position:fixed;inset:0;z-index:100080;background:#081420;display:flex;flex-direction:column;font-family:inherit;}',
       '.q-fltm-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid rgba(255,255,255,.08);}',
       '.q-fltm-head span{font-size:18px;font-weight:800;color:#e8eef4;}',
       '.q-fltm-x{background:none;border:none;color:#8a99a8;cursor:pointer;padding:4px;display:flex;}',
