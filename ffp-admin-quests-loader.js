@@ -169,6 +169,7 @@
     var catOpts = cats.map(function (c) { return '<option value="' + esc(c) + '"' + (q && q.category === c ? ' selected' : '') + '>' + cap(c) + '</option>'; }).join('');
     var scopeOpts = ['city', 'country', 'global'].map(function (c) { return '<option value="' + c + '"' + (q && q.scope === c ? ' selected' : '') + '>' + cap(c) + '</option>'; }).join('');
     var lbOpts = [['global', 'Global + city/country'], ['quest', 'This quest only'], ['none', 'No leaderboard']].map(function (o) { return '<option value="' + o[0] + '"' + (q && q.leaderboard === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('');
+    var clubMetricOpts = [['avg', 'Average per member (fairest)'], ['total', 'Total points'], ['division', 'Size divisions']].map(function (o) { return '<option value="' + o[0] + '"' + (((q && q.club_metric) || 'avg') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('');
     var curMode = q ? (q.mode || 'checklist') : 'checklist';
     var modeOpts = [['checklist', 'Checklist — hit a target on each task to complete'], ['points_race', 'Points race — collect as many points as you can (leaderboard)']].map(function (o) { return '<option value="' + o[0] + '"' + (curMode === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('');
     var curJoin = q ? (q.join_mode || 'auto') : 'auto';
@@ -197,6 +198,11 @@
       '</div>' +
       '<div class="qf-row"><label>Leaderboard</label><select class="qf-sel" id="q-leaderboard">' + lbOpts + '</select></div>' +
       '<div class="qf-row"><label style="display:flex;align-items:center;gap:9px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13px;color:#cfd6dc;"><input type="checkbox" id="q-headline"' + (q && q.is_headline ? ' checked' : '') + '> <span><b>Headline quest</b> — featured big at the top of the member Passport (one at a time)</span></label></div>' +
+      '<div class="qf-row"><label style="display:flex;align-items:center;gap:9px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13px;color:#cfd6dc;"><input type="checkbox" id="q-club"' + (q && q.is_club_competition ? ' checked' : '') + ' onchange="AdminQuests.clubToggle()"> <span><b>Club competition</b> — also rank CLUBS (teams) by their members’ activity; shows as a feature card in the Quest panel</span></label>' +
+        '<div id="q-club-opts" style="display:' + (q && q.is_club_competition ? 'flex' : 'none') + ';gap:10px;margin-top:10px;">' +
+          '<div style="flex:1;"><div style="font-size:11px;color:#8a99a8;margin-bottom:4px;">Ranked by</div><select class="qf-sel" id="q-club-metric">' + clubMetricOpts + '</select></div>' +
+          '<div style="flex:0 0 42%;"><div style="font-size:11px;color:#8a99a8;margin-bottom:4px;">Min members to qualify</div><input class="qf-sel" id="q-club-min" type="number" min="1" value="' + (q && q.club_min_members != null ? q.club_min_members : 10) + '"></div>' +
+        '</div></div>' +
       '<div class="qf-row"><label>Hero image</label>' +
         '<div id="q-hero-preview" onclick="document.getElementById(\'q-hero-file\').click()" style="height:300px;border-radius:12px;background-color:#0f2335;background-size:cover;background-position:center;background-repeat:no-repeat;border:2px dashed rgba(43,168,224,0.35);margin-bottom:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#8a99a8;font-size:13px;' + (q && q.hero_image_url ? "background-image:url('" + esc(q.hero_image_url) + "');border-style:solid;" : '') + '">' + (q && q.hero_image_url ? '' : '<span><span class="material-icons" style="vertical-align:-5px;">add_photo_alternate</span> Click to upload</span>') + '</div>' +
         '<input type="file" id="q-hero-file" accept="image/*" style="display:none" onchange="AdminQuests.uploadHero(this)">' +
@@ -216,6 +222,7 @@
     modeChange();
     if (q) renderTasks();
   }
+  function clubToggle() { var c = document.getElementById('q-club'), o = document.getElementById('q-club-opts'); if (o) o.style.display = (c && c.checked) ? 'flex' : 'none'; }
   function modeChange() {
     var m = currentMode();
     var hint = document.getElementById('q-mode-hint');
@@ -425,6 +432,9 @@
         join_mode: val('q-join') || 'auto',
         active_to: endISO,
         is_headline: !!(document.getElementById('q-headline') && document.getElementById('q-headline').checked),
+        is_club_competition: !!(document.getElementById('q-club') && document.getElementById('q-club').checked),
+        club_metric: val('q-club-metric') || 'avg',
+        club_min_members: parseInt(val('q-club-min'), 10) || 10,
         updated_at: new Date().toISOString()
       };
       if (startISO) payload.active_from = startISO;   // only overwrite start when the admin set one
@@ -550,7 +560,7 @@
   window.AdminQuests = {
     openForm: openForm, save: save, setStatus: setStatus, refresh: refresh,
     setTab: function (t) { S.tab = t; renderList(); },
-    uploadHero: uploadHero, qtProofChange: qtProofChange, qtCatChange: qtCatChange, modeChange: modeChange, formTab: formTab,
+    uploadHero: uploadHero, qtProofChange: qtProofChange, qtCatChange: qtCatChange, modeChange: modeChange, clubToggle: clubToggle, formTab: formTab,
     scopeChange: scopeChange, countryChange: countryChange,
     saveTask: saveTask, editTask: editTask, cancelTaskEdit: cancelTaskEdit, deleteTask: deleteTask, review: review
   };
