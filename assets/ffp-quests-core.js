@@ -308,19 +308,19 @@ window.Quests = {
     var d = q.active_to ? new Date(q.active_to) : null;
     var days = d ? Math.max(0, Math.ceil((d.getTime() - Date.now()) / 86400000)) : null;
     var cd = (days != null) ? ('<div class="q-up-cd"><b>' + days + '</b><span>' + (days === 1 ? 'DAY' : 'DAYS') + '</span></div>') : '';
-    return '<div class="q-feat ' + (bg ? '' : cover) + '" onclick="Quests.openClub(\'' + q.id + '\')"' + (bg ? ' style="background-image:' + bg + ';"' : '') + '>' +
+    return '<div class="q-feat ' + (bg ? '' : cover) + '" onclick="Quests.openTeam(\'' + q.id + '\')"' + (bg ? ' style="background-image:' + bg + ';"' : '') + '>' +
       '<span class="q-up-pill"><span class="material-icons">groups</span> Team Quest</span>' + cd +
       '<div class="q-up-title">' + escHtml(q.title) + '</div>' +
       '<div class="q-up-desc">Team up — every member’s activity lifts your whole club up the leaderboard. Win it together.</div>' +
       '<div class="q-up-foot"><span class="material-icons">leaderboard</span> See where your club ranks</div>' +
     '</div>';
   },
-  openClub: function (id) {
+  openTeam: function (id) {
     var q = (this.featured || []).filter(function (x) { return x.id === id; })[0] || {};
-    var go = function () { if (window.FFPClubQuest) window.FFPClubQuest.open(id, { title: q.title, metric: q.club_metric || 'avg', minMembers: q.club_min_members || 10 }); };
-    if (window.FFPClubQuest) { go(); return; }
-    if (this._clubLoading) return; this._clubLoading = true;
-    var sc = document.createElement('script'); sc.src = 'assets/ffp-club-quest-loader.js?v=' + (window.FFP_BUILD || '1');
+    var go = function () { if (window.FFPTeamQuest) window.FFPTeamQuest.open(id, { title: q.title, metric: q.club_metric || 'avg', minMembers: q.club_min_members || 10 }); };
+    if (window.FFPTeamQuest) { go(); return; }
+    if (this._teamLoading) return; this._teamLoading = true;
+    var sc = document.createElement('script'); sc.src = 'assets/ffp-team-quest-loader.js?v=' + (window.FFP_BUILD || '1');
     sc.onload = function () { try { go(); } catch (e) {} };
     sc.onerror = function () { try { if (window.showToast) showToast('Could not open the challenge', 'error'); } catch (e) {} };
     document.body.appendChild(sc);
