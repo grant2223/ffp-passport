@@ -1,5 +1,5 @@
-/* FFP Cancel Membership flow (window.FFPCancel) — v1 (2026-07-09)
-   Self-serve cancellation: 14-DAY save offer → feedback → cancel AT PERIOD END (keeps access).
+/* FFP Cancel Membership flow (window.FFPCancel) — v2 (2026-07-09)
+   Self-serve cancellation: REASON → last-chance 14-DAY save offer → cancel AT PERIOD END (keeps access).
    Full-bleed overlay (NO modal box), Apple/WHOOP standard: hairlines + type, NO pills, NO scrollbars.
    Backend: POST /api/billing/extend {member_id} · POST /api/billing/cancel {member_id, reason, feedback}. */
 (function () {
@@ -40,32 +40,34 @@
   function paint(html) { var b = document.getElementById('ffp-cx-body'); if (b) { b.innerHTML = '<div class="cx-wrap">' + html + '</div>'; b.scrollTop = 0; } }
 
   W.FFPCancel = {
-    open: function () { styles(); ensure().classList.add('on'); S.reason = null; S.note = ''; renderOffer(); },
+    open: function () { styles(); ensure().classList.add('on'); S.reason = null; S.note = ''; renderReason(); },
     close: function () { var ov = document.getElementById('ffp-cx-ov'); if (ov) ov.classList.remove('on'); },
     keep14: async function () { await doExtend(); },
-    toFeedback: function () { renderFeedback(); },
-    pick: function (r) { S.reason = r; renderFeedback(); },
-    doCancel: async function () { var ta = document.getElementById('cx-note'); S.note = ta ? ta.value : ''; await doCancel(); }
+    toOffer: function () { var ta = document.getElementById('cx-note'); S.note = ta ? ta.value : ''; renderOffer(); },
+    pick: function (r) { S.reason = r; renderReason(); },
+    doCancel: async function () { await doCancel(); }
   };
 
-  function renderOffer() {
-    paint(head('Wait — 14 more days, on us?', 'Before you cancel, take another two weeks free. No charge, nothing to do — your Passport just keeps working.') +
-      '<div style="margin-top:26px;">' +
-        '<button class="cx-btn cx-pri" onclick="FFPCancel.keep14()">Keep my 14 free days</button>' +
-        '<button class="cx-btn cx-ghost" onclick="FFPCancel.toFeedback()">No thanks, continue to cancel</button>' +
-      '</div>');
-  }
-
+  // Step 1 — reason (why are you leaving). Continue → last-chance offer.
   var REASONS = ['Too expensive', 'Not using it enough', 'Missing something I need', 'Just taking a break', 'Something else'];
-  function renderFeedback() {
+  function renderReason() {
     var rows = REASONS.map(function (r) {
       return '<div class="cx-reason' + (S.reason === r ? ' on' : '') + '" onclick="FFPCancel.pick(\'' + esc(r).replace(/'/g, '') + '\')"><span class="rk"></span><span>' + esc(r) + '</span></div>';
     }).join('');
-    paint(head('Help us get better', 'What made you decide to leave? It genuinely helps us improve.') +
+    paint(head('Sorry to see you go', 'Before you cancel — what made you decide to leave? It genuinely helps us improve.') +
       '<div style="margin-top:20px;">' + rows + '</div>' +
       '<textarea class="cx-ta" id="cx-note" rows="3" placeholder="Anything else you\'d tell us? (optional)">' + esc(S.note || '') + '</textarea>' +
-      '<button class="cx-btn cx-pri" style="margin-top:22px;" onclick="FFPCancel.doCancel()">Cancel my membership</button>' +
+      '<button class="cx-btn cx-pri" style="margin-top:22px;" onclick="FFPCancel.toOffer()">Continue</button>' +
       '<button class="cx-btn cx-ghost" onclick="FFPCancel.close()">Never mind, keep my membership</button>');
+  }
+
+  // Step 2 — last-chance save offer (14 more days). Decline → cancel at period end.
+  function renderOffer() {
+    paint(head('Wait — 14 more days, on us?', 'We know life gets busy. Take another two weeks free before anything is charged — nothing to do, your Passport just keeps working.') +
+      '<div style="margin-top:26px;">' +
+        '<button class="cx-btn cx-pri" onclick="FFPCancel.keep14()">Keep my 14 free days</button>' +
+        '<button class="cx-btn cx-ghost" onclick="FFPCancel.doCancel()">No thanks, cancel my membership</button>' +
+      '</div>');
   }
 
   function busy(msg) { paint('<div style="padding:60px 0;text-align:center;color:#9fc0d4;font-weight:600;">' + esc(msg) + '</div>'); }
