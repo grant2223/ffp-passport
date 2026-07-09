@@ -79,16 +79,20 @@
     } else {
       hero = '<div style="position:relative;padding:18px 20px 20px;background:linear-gradient(160deg,#123a52,#0a1825);">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:#7fbfe0;font-weight:600;">' + esc(S.title) + '</div><span onclick="FFPClubQuest.close()" style="cursor:pointer;color:#9fc0d4;font-size:22px;">&times;</span></div>' +
-        '<div style="font-size:22px;font-weight:600;color:#f2f7fb;margin-top:14px;">Join a club to compete</div>' +
-        '<div style="font-size:13px;color:#9fc0d4;margin-top:6px;">Ask your coach to add you to their team, then your activity counts for the club.</div></div>';
+        '<div style="font-size:22px;font-weight:600;color:#f2f7fb;margin-top:14px;">Join a team to get involved</div>' +
+        '<div style="font-size:13px;color:#9fc0d4;margin-top:6px;">Join a team, or create one in the FFP Pro app — then your activity counts for the club.</div></div>';
     }
 
     var list = rows.map(function (x) {
       var you = !!mine[x.team_id];
       var val = Math.round(scoreOf(x, S.metric) * 10) / 10;
       var q = (x.qualified === false);
+      var _lg = x.logo
+        ? '<div style="width:40px;height:40px;border-radius:12px;flex:0 0 auto;background:#12314a center/cover no-repeat;background-image:url(\'' + esc(x.logo) + '\');"></div>'
+        : '<div style="width:40px;height:40px;border-radius:12px;flex:0 0 auto;background:#12314a;display:flex;align-items:center;justify-content:center;color:#2ba8e0;font-weight:700;font-size:14px;">' + esc(String(x.name || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase()) + '</div>';
       return '<div class="cq-row" onclick="FFPClubQuest.openClub(\'' + x.team_id + '\')"' + (you ? ' style="border-left:2px solid #FFCC00;margin-left:-16px;padding-left:14px;"' : '') + '>' +
-        '<div style="width:22px;text-align:center;font-size:18px;font-weight:' + (you ? '600' : '400') + ';color:' + (you ? '#FFCC00' : (q ? '#54697a' : '#8aa0b2')) + ';">' + (q ? '—' : x.rank) + '</div>' +
+        '<div style="width:18px;text-align:center;font-size:18px;font-weight:' + (you ? '600' : '400') + ';color:' + (you ? '#FFCC00' : (q ? '#54697a' : '#8aa0b2')) + ';">' + (q ? '—' : x.rank) + '</div>' +
+        _lg +
         '<div style="flex:1;min-width:0;"><div style="font-size:15.5px;font-weight:600;color:' + (you ? '#FFCC00' : '#f2f7fb') + ';">' + esc(x.name) + '</div>' +
         '<div style="font-size:12px;color:' + (you ? '#b79a4a' : '#6f8ba1') + ';margin-top:1px;">' + (you ? 'your club · ' : '') + x.roster + ' member' + (x.roster === 1 ? '' : 's') + (q ? ' · needs ' + S.min + ' to qualify' : '') + '</div></div>' +
         '<div style="font-size:21px;font-weight:600;color:' + (you ? '#FFCC00' : (q ? '#54697a' : '#f2f7fb')) + ';">' + (q ? '—' : val) + '</div></div>';
@@ -106,7 +110,7 @@
   W.FFPClubQuest.openClub = async function (teamId) {
     paint('<div style="padding:40px 20px;color:#7fa0b8;font-weight:600;">Loading the club…</div>');
     var d = {};
-    try { var r = await sb().rpc('club_detail', { p_quest: S.q, p_team: teamId, p_min: S.min }); d = (r && r.data) || {}; }
+    try { var r = await sb().rpc('club_detail', { p_quest: S.q, p_team: teamId, p_min_members: S.min }); d = (r && r.data) || {}; }
     catch (e) { console.error('[FFP ClubQuest] detail', e); }
     S.detail = d; S.statMode = 'week';
     renderClubHome();
