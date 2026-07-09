@@ -244,9 +244,9 @@ window.Quests = {
     var tabsEl = document.getElementById('quest-tabs');
     if (tabsEl) {
       tabsEl.innerHTML = (hasTeam || hasSquad) ? ('<div class="q-maintabs">' +
-        '<button class="q-mtab' + (tab === 'individual' ? ' on' : '') + '" onclick="Quests.setTab(\'individual\')">Individual</button>' +
-        (hasTeam ? '<button class="q-mtab' + (tab === 'team' ? ' on' : '') + '" onclick="Quests.setTab(\'team\')">Team</button>' : '') +
+        '<button class="q-mtab' + (tab === 'individual' ? ' on' : '') + '" onclick="Quests.setTab(\'individual\')">Solo</button>' +
         (hasSquad ? '<button class="q-mtab' + (tab === 'squad' ? ' on' : '') + '" onclick="Quests.setTab(\'squad\')">Pair</button>' : '') +
+        (hasTeam ? '<button class="q-mtab' + (tab === 'team' ? ' on' : '') + '" onclick="Quests.setTab(\'team\')">Team</button>' : '') +
         '</div>') : '';
     }
     // The headline hero (#quest-hero) is the individual side — only on the Individual tab.
