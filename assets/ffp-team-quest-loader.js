@@ -181,7 +181,10 @@
     var search = (rows.length > 8)
       ? '<div style="padding:12px 20px 2px;"><input id="tq-search" type="search" autocomplete="off" oninput="FFPTeamQuest.filter(this.value)" value="' + esc(S.filter || '') + '" placeholder="Search teams" style="width:100%;box-sizing:border-box;background:#0f2536;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:11px 14px;color:#eaf2f8;font-size:14px;outline:none;"></div>'
       : '';
-    paint(hero + search + '<div id="tq-list-wrap">' + listHtml() + '</div>');
+    // Podium (top 3) is rendered HERE, outside the searchable list, so it always shows — this was computed but never
+    // painted after the search/load-more refactor (matches the Pair layout, which renders its podium the same way).
+    var pod = (S.metric !== 'division') ? podiumHtml(rows) : '';
+    paint(hero + pod + search + '<div id="tq-list-wrap">' + listHtml() + '</div>');
   }
   function ord(n) { return n === 1 ? 'st' : (n === 2 ? 'nd' : (n === 3 ? 'rd' : 'th')); }
   function bar(t) { return '<div style="padding:16px 20px;"><span onclick="FFPTeamQuest.close()" style="cursor:pointer;color:#9fc0d4;font-size:22px;">&times;</span> ' + esc(t) + '</div>'; }
@@ -320,6 +323,4 @@
     if (d && d.logo) return '<div style="' + st + 'background-image:url(\'' + esc(d.logo) + '\');"></div>';
     return '<div style="' + st + '">' + esc(initials(d && d.name)) + '</div>';
   }
-  // One global covers both call paths (new Quests.openTeam and any older Quests.openClub still live on a device).
-  W.FFPClubQuest = W.FFPTeamQuest;
 })();
