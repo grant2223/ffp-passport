@@ -168,8 +168,10 @@
     var host = document.getElementById('cf-teams'); if (!host) return;
     if (window.FFPMemberTeams) { try { FFPMemberTeams.renderCarousel(host); } catch (e) {} return; }
     if (window.__ffpTeamsLoad) return; window.__ffpTeamsLoad = true;
-    var sc = document.createElement('script'); var v = (window.FFP_BUILD || '');
-    sc.src = 'assets/ffp-member-teams-loader.js' + (v ? ('?v=' + v) : '');
+    // Cache-bust with a timestamp so the LATEST teams module always loads (fires once per session — the carousel
+    // reuses window.FFPMemberTeams after that). Decoupled from FFP_BUILD so training/updates never get stuck stale.
+    var sc = document.createElement('script');
+    sc.src = 'assets/ffp-member-teams-loader.js?v=' + Date.now();
     sc.onload = function () { try { FFPMemberTeams.renderCarousel(document.getElementById('cf-teams')); } catch (e) {} };
     sc.onerror = function () { window.__ffpTeamsLoad = false; console.error('[FFP Teams] assets/ffp-member-teams-loader.js failed to load (404?) — confirm this NEW file is committed & deployed to the Passport repo.'); };
     document.body.appendChild(sc);
@@ -346,19 +348,27 @@
     },
     openSearch: function () {
       var T = window.FFP_TAX || {};
-      var acts = (T.activities || []).map(function (a) { return (a && a.n) ? a.n : a; }).filter(Boolean);
+      // Canonical activity taxonomy source (Rule 5) — same as ffp-connections-core acFilter: FFP_TAX.activities,
+      // fall back to window.ACTIVITIES_DB when the DB hydration hasn't populated activities yet. Names via n|name.
+      var src = (T.activities && T.activities.length) ? T.activities : (window.ACTIVITIES_DB || []);
+      var acts = src.map(function (a) { return (a && (a.n || a.name)) ? (a.n || a.name) : a; }).filter(Boolean);
+      acts = acts.filter(function (n, i) { return acts.indexOf(n) === i; }).sort(function (a, b) { return String(a).localeCompare(String(b)); });
       var levels = (T.fitnessLevels && T.fitnessLevels.length) ? T.fitnessLevels : ['Just started', 'Recreational', 'Skilled', 'Highly skilled', 'Professional'];
-      var dl = '<datalist id="cf-sport-list">' + acts.map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>';
+      var spOpts = '<option value="">Any sport</option>' + acts.map(function (n) { return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('');
       var lvOpts = '<option value="">Any level</option>' + levels.map(function (l) { return '<option value="' + esc(l) + '">' + esc(l) + '</option>'; }).join('');
+      // Native <select> (renders on iOS — a <datalist> does NOT) enhanced to the shared dark picker via FFPSelect.
       var body = '<div class="cv-wrap"><h3 class="q-title">Find a connection</h3>' +
         '<input id="cf-search" class="cf-search" placeholder="Search by name…" autocomplete="off" oninput="FFPConnFeed.search()">' +
         '<div style="display:flex;gap:8px;margin:0 0 6px;">' +
-          '<input id="cf-sport" class="cf-search" style="margin:0;flex:1;min-width:0;" list="cf-sport-list" placeholder="Any sport…" autocomplete="off" oninput="FFPConnFeed.search()">' + dl +
+          '<select id="cf-sport" class="cf-search" style="margin:0;flex:1;min-width:0;" onchange="FFPConnFeed.search()">' + spOpts + '</select>' +
           '<select id="cf-level" class="cf-search" style="margin:0;flex:0 0 44%;" onchange="FFPConnFeed.search()">' + lvOpts + '</select>' +
         '</div>' +
         '<div id="cf-search-results" style="min-height:60px;"></div></div>';
       if (typeof openDetailModal === 'function') openDetailModal(body);
-      setTimeout(function () { var i = document.getElementById('cf-search'); if (i) { try { i.focus(); } catch (e) {} } }, 60);
+      setTimeout(function () {
+        try { if (window.FFPSelect && FFPSelect.enhance) { FFPSelect.enhance(document.getElementById('cf-sport')); FFPSelect.enhance(document.getElementById('cf-level')); } } catch (e) {}
+        var i = document.getElementById('cf-search'); if (i) { try { i.focus(); } catch (e) {} }
+      }, 60);
     },
     selectPerson: function (id, name) {
       try { var cells = document.querySelectorAll('.cf-cell'); for (var i = 0; i < cells.length; i++) cells[i].classList.remove('sel'); var sel = document.getElementById('cf-cell-' + id); if (sel) sel.classList.add('sel'); } catch (e) {}
