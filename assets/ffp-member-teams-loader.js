@@ -518,17 +518,24 @@
     var next = list[0], d = next.starts_at ? new Date(next.starts_at) : null;
     var wd = d ? d.toLocaleDateString([], { weekday: 'short' }).toUpperCase() : '';
     var day = d ? d.getDate() : '—';
+    var mo = d ? d.toLocaleDateString([], { month: 'short' }).toUpperCase() : '';
     var time = d ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
     var meta = [time, [next.location, next.city].filter(Boolean).join(' · ')].filter(Boolean).join('   ·   ');
     var more = list.length - 1;
     return '<div style="font-size:15px;font-weight:800;color:var(--text,#e8eef4);margin-bottom:12px;">Next training session</div>' +
-      '<div onclick="FFPMemberTeams.openSessions(\'' + teamId + '\')" style="display:flex;align-items:center;gap:15px;padding:15px 16px;background:#0d2032;border-radius:16px;cursor:pointer;margin-bottom:30px;">' +
-        '<div style="flex:0 0 auto;width:46px;text-align:center;"><div style="font-size:10px;font-weight:800;letter-spacing:.6px;color:#6f8496;">' + wd + '</div><div style="font-size:26px;font-weight:800;color:var(--text,#e8eef4);line-height:1;margin-top:1px;">' + day + '</div></div>' +
-        '<div style="flex:1;min-width:0;"><div style="font-size:16px;font-weight:700;color:var(--text,#e8eef4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(next.title || 'Training') + '</div>' +
-          (meta ? '<div style="font-size:12.5px;color:var(--muted,#8a99a8);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(meta) + '</div>' : '') +
-          (more > 0 ? '<div style="font-size:11.5px;color:#2ba8e0;font-weight:600;margin-top:5px;">View all ' + (more + 1) + ' sessions</div>' : '') +
+      '<div onclick="FFPMemberTeams.openSessions(\'' + teamId + '\')" style="display:flex;align-items:stretch;background:#0d2032;border-radius:16px;overflow:hidden;cursor:pointer;margin-bottom:30px;">' +
+        '<div style="flex:0 0 auto;width:70px;background:var(--yellow,#FFCC00);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px 0;">' +
+          '<div style="font-size:11px;font-weight:800;letter-spacing:.8px;color:#7a5c00;">' + wd + '</div>' +
+          '<div style="font-size:30px;font-weight:800;color:#082335;line-height:1;margin-top:2px;">' + day + '</div>' +
+          '<div style="font-size:11px;font-weight:800;letter-spacing:.8px;color:#7a5c00;margin-top:2px;">' + mo + '</div>' +
         '</div>' +
-        '<span class="material-icons" style="color:#5f7285;font-size:24px;flex:0 0 auto;">chevron_right</span>' +
+        '<div style="flex:1;min-width:0;display:flex;align-items:center;gap:12px;padding:15px 16px;">' +
+          '<div style="flex:1;min-width:0;"><div style="font-size:16px;font-weight:700;color:var(--text,#e8eef4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(next.title || 'Training') + '</div>' +
+            (meta ? '<div style="font-size:12.5px;color:var(--muted,#8a99a8);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(meta) + '</div>' : '') +
+            (more > 0 ? '<div style="font-size:11.5px;color:#2ba8e0;font-weight:600;margin-top:5px;">View all ' + (more + 1) + ' sessions</div>' : '') +
+          '</div>' +
+          '<span class="material-icons" style="color:#5f7285;font-size:24px;flex:0 0 auto;">chevron_right</span>' +
+        '</div>' +
       '</div>';
   }
   function _mtSessListHtml(teamId) {
@@ -553,6 +560,7 @@
     var d = s.starts_at ? new Date(s.starts_at) : null;
     var wd = d ? d.toLocaleDateString([], { weekday: 'short' }).toUpperCase() : '';
     var day = d ? d.getDate() : '—';
+    var mo = d ? d.toLocaleDateString([], { month: 'short' }).toUpperCase() : '';
     var time = d ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
     var loc = [s.location, s.city].filter(Boolean).join(' · ');
     var meta = [time, loc].filter(Boolean).join('   ·   ');
@@ -563,7 +571,7 @@
     else status = (gn ? gn + ' going &nbsp;·&nbsp; ' : '') + '<span style="color:#7f93a4;cursor:pointer;" onclick="FFPMemberTeams.ackSession(\'' + s.id + '\',\'not_going\')">Can’t make it</span>';
     var check = '<button onclick="FFPMemberTeams.ackSession(\'' + s.id + '\',\'' + (going ? 'pending' : 'going') + '\')" aria-label="' + (going ? 'Going' : 'Mark going') + '" style="flex:0 0 auto;width:32px;height:32px;border-radius:50%;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;' + (going ? 'background:var(--yellow,#FFCC00);border:none;' : 'background:transparent;border:1.6px solid rgba(255,255,255,.20);') + '"><span class="material-icons" style="font-size:' + (going ? 20 : 18) + 'px;color:' + (going ? '#3a2e00' : '#5f7285') + ';">' + (going ? 'check' : 'add') + '</span></button>';
     return '<div style="display:flex;align-items:center;gap:15px;padding:14px 0;border-top:1px solid rgba(255,255,255,.06);">' +
-      '<div style="flex:0 0 auto;width:40px;text-align:center;"><div style="font-size:10px;font-weight:800;letter-spacing:.6px;color:#6f8496;">' + wd + '</div><div style="font-size:23px;font-weight:800;color:var(--text,#e8eef4);line-height:1;margin-top:1px;">' + day + '</div></div>' +
+      '<div style="flex:0 0 auto;width:40px;text-align:center;"><div style="font-size:10px;font-weight:800;letter-spacing:.6px;color:#6f8496;">' + wd + '</div><div style="font-size:23px;font-weight:800;color:var(--text,#e8eef4);line-height:1;margin-top:1px;">' + day + '</div><div style="font-size:10px;font-weight:800;letter-spacing:.6px;color:#6f8496;margin-top:2px;">' + mo + '</div></div>' +
       '<div style="flex:1;min-width:0;"><div style="font-size:15.5px;font-weight:700;color:var(--text,#e8eef4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(s.title || 'Training') + '</div>' +
         (meta ? '<div style="font-size:12.5px;color:var(--muted,#8a99a8);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(meta) + '</div>' : '') +
         '<div style="font-size:11.5px;margin-top:5px;">' + status + '</div></div>' +
