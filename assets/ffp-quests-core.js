@@ -317,7 +317,7 @@ window.Quests = {
   },
   openTeam: function (id) {
     var q = (this.featured || []).filter(function (x) { return x.id === id; })[0] || {};
-    var go = function () { if (window.FFPTeamQuest) window.FFPTeamQuest.open(id, { title: q.title, metric: q.club_metric || 'avg', minMembers: q.club_min_members || 10 }); };
+    var go = function () { if (window.FFPTeamQuest) window.FFPTeamQuest.open(id, { title: q.title, metric: q.club_metric || 'avg', minMembers: q.club_min_members || 10, image: q.hero_image_url, desc: q.description }); };
     if (window.FFPTeamQuest) { go(); return; }
     if (this._teamLoading) return; this._teamLoading = true;
     var sc = document.createElement('script'); sc.src = 'assets/ffp-team-quest-loader.js?v=' + (window.FFP_BUILD || '1');
