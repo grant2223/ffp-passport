@@ -187,7 +187,12 @@
       '<div class="qf-pane" id="qf-pane-details">' +
       '<div class="qf-row"><label>Title</label><input class="qf-input" id="q-title" value="' + esc(q ? q.title : '') + '" placeholder="e.g. FFP World Streak"></div>' +
       '<div class="qf-row"><label>Description</label><textarea class="qf-area" id="q-desc" placeholder="What the member does">' + esc(q ? (q.description || '') : '') + '</textarea></div>' +
-      '<div class="qf-row"><label>Quest type</label><select class="qf-sel" id="q-mode" onchange="AdminQuests.modeChange()">' + modeOpts + '</select><div id="q-mode-hint" style="font-size:11px;color:#8a99a8;margin-top:5px;"></div></div>' +
+      '<div class="qf-row"><label>Format</label><select class="qf-sel" id="q-format" onchange="AdminQuests.formatChange()">' +
+          '<option value="solo"' + (q && !q.is_club_competition && !q.is_squad_quest ? ' selected' : (!q ? ' selected' : '')) + '>Solo — each member on their own</option>' +
+          '<option value="pair"' + (q && q.is_squad_quest ? ' selected' : '') + '>Pair — members pair up (2)</option>' +
+          '<option value="team"' + (q && q.is_club_competition ? ' selected' : '') + '>Team — clubs compete (10+)</option>' +
+        '</select><div style="font-size:11px;color:#8a99a8;margin-top:5px;">Solo, Pair and Team are separate — a quest is one of them.</div></div>' +
+      '<div class="qf-row"><label>Scoring</label><select class="qf-sel" id="q-mode" onchange="AdminQuests.modeChange()">' + modeOpts + '</select><div id="q-mode-hint" style="font-size:11px;color:#8a99a8;margin-top:5px;"></div></div>' +
       '<div class="qf-row"><label>Who takes part</label><select class="qf-sel" id="q-join">' + joinOpts + '</select></div>' +
       '<div class="qf-row qf-two"><div><label>Start date</label><input class="qf-input" type="date" id="q-start" value="' + (q && q.active_from ? String(q.active_from).slice(0, 10) : '') + '"></div>' +
         '<div><label>End date</label><input class="qf-input" type="date" id="q-end" value="' + (q && q.active_to ? String(q.active_to).slice(0, 10) : '') + '"></div></div>' +
@@ -198,15 +203,14 @@
       '</div>' +
       '<div class="qf-row"><label>Leaderboard</label><select class="qf-sel" id="q-leaderboard">' + lbOpts + '</select></div>' +
       '<div class="qf-row"><label style="display:flex;align-items:center;gap:9px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13px;color:#cfd6dc;"><input type="checkbox" id="q-headline"' + (q && q.is_headline ? ' checked' : '') + '> <span><b>Headline quest</b> — featured big at the top of the member Passport (one at a time)</span></label></div>' +
-      '<div class="qf-row"><label style="display:flex;align-items:center;gap:9px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13px;color:#cfd6dc;"><input type="checkbox" id="q-club"' + (q && q.is_club_competition ? ' checked' : '') + ' onchange="AdminQuests.clubToggle()"> <span><b>Club competition</b> — also rank CLUBS (teams) by their members’ activity; shows as a feature card in the Quest panel</span></label>' +
-        '<div id="q-club-opts" style="display:' + (q && q.is_club_competition ? 'flex' : 'none') + ';gap:10px;margin-top:10px;">' +
-          '<div style="flex:1;"><div style="font-size:11px;color:#8a99a8;margin-bottom:4px;">Ranked by</div><select class="qf-sel" id="q-club-metric">' + clubMetricOpts + '</select></div>' +
-          '<div style="flex:0 0 42%;"><div style="font-size:11px;color:#8a99a8;margin-bottom:4px;">Min members to qualify</div><input class="qf-sel" id="q-club-min" type="number" min="1" value="' + (q && q.club_min_members != null ? q.club_min_members : 10) + '"></div>' +
-        '</div></div>' +
-      '<div class="qf-row"><label style="display:flex;align-items:center;gap:9px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13px;color:#cfd6dc;"><input type="checkbox" id="q-squad"' + (q && q.is_squad_quest ? ' checked' : '') + ' onchange="AdminQuests.squadToggle()"> <span><b>Pair quest</b> — members pair up (the middle tier: Solo → Pair → Team). Shows as a Pair card in the Quest panel. Set a larger max for an occasional small-group quest.</span></label>' +
-        '<div id="q-squad-opts" style="display:' + (q && q.is_squad_quest ? 'flex' : 'none') + ';gap:10px;margin-top:10px;">' +
-          '<div style="flex:0 0 50%;"><div style="font-size:11px;color:#8a99a8;margin-bottom:4px;">Max size (2 = pair)</div><input class="qf-sel" id="q-squad-max" type="number" min="2" max="8" value="' + (q && q.squad_max != null ? q.squad_max : 2) + '"></div>' +
-        '</div></div>' +
+      '<div class="qf-row" id="q-pair-opts" style="display:' + (q && q.is_squad_quest ? 'block' : 'none') + ';">' +
+          '<label>Pair size</label><input class="qf-sel" id="q-squad-max" type="number" min="2" max="8" style="max-width:120px;" value="' + (q && q.squad_max != null ? q.squad_max : 2) + '">' +
+          '<div style="font-size:11px;color:#8a99a8;margin-top:5px;">2 = a pair. Raise it only for an occasional small-group quest.</div></div>' +
+      '<div class="qf-row" id="q-team-opts" style="display:' + (q && q.is_club_competition ? 'block' : 'none') + ';">' +
+          '<div style="display:flex;gap:10px;">' +
+            '<div style="flex:1;"><label>Ranked by</label><select class="qf-sel" id="q-club-metric">' + clubMetricOpts + '</select></div>' +
+            '<div style="flex:0 0 42%;"><label>Min members to qualify</label><input class="qf-sel" id="q-club-min" type="number" min="1" value="' + (q && q.club_min_members != null ? q.club_min_members : 10) + '"></div>' +
+          '</div></div>' +
       '<div class="qf-row"><label>Hero image</label>' +
         '<div id="q-hero-preview" onclick="document.getElementById(\'q-hero-file\').click()" style="height:300px;border-radius:12px;background-color:#0f2335;background-size:cover;background-position:center;background-repeat:no-repeat;border:2px dashed rgba(43,168,224,0.35);margin-bottom:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#8a99a8;font-size:13px;' + (q && q.hero_image_url ? "background-image:url('" + esc(q.hero_image_url) + "');border-style:solid;" : '') + '">' + (q && q.hero_image_url ? '' : '<span><span class="material-icons" style="vertical-align:-5px;">add_photo_alternate</span> Click to upload</span>') + '</div>' +
         '<input type="file" id="q-hero-file" accept="image/*" style="display:none" onchange="AdminQuests.uploadHero(this)">' +
@@ -226,8 +230,13 @@
     modeChange();
     if (q) renderTasks();
   }
-  function clubToggle() { var c = document.getElementById('q-club'), o = document.getElementById('q-club-opts'); if (o) o.style.display = (c && c.checked) ? 'flex' : 'none'; }
-  function squadToggle() { var c = document.getElementById('q-squad'), o = document.getElementById('q-squad-opts'); if (o) o.style.display = (c && c.checked) ? 'flex' : 'none'; }
+  // Format = Solo | Pair | Team (mutually exclusive). Show only the chosen format's options.
+  function formatChange() {
+    var f = (document.getElementById('q-format') || {}).value || 'solo';
+    var p = document.getElementById('q-pair-opts'), t = document.getElementById('q-team-opts');
+    if (p) p.style.display = (f === 'pair') ? 'block' : 'none';
+    if (t) t.style.display = (f === 'team') ? 'block' : 'none';
+  }
   function modeChange() {
     var m = currentMode();
     var hint = document.getElementById('q-mode-hint');
@@ -437,11 +446,11 @@
         join_mode: val('q-join') || 'auto',
         active_to: endISO,
         is_headline: !!(document.getElementById('q-headline') && document.getElementById('q-headline').checked),
-        is_club_competition: !!(document.getElementById('q-club') && document.getElementById('q-club').checked),
+        is_club_competition: (val('q-format') === 'team'),
         club_metric: val('q-club-metric') || 'avg',
         club_min_members: parseInt(val('q-club-min'), 10) || 10,
-        is_squad_quest: !!(document.getElementById('q-squad') && document.getElementById('q-squad').checked),
-        squad_max: parseInt(val('q-squad-max'), 10) || 4,
+        is_squad_quest: (val('q-format') === 'pair'),
+        squad_max: parseInt(val('q-squad-max'), 10) || 2,
         updated_at: new Date().toISOString()
       };
       if (startISO) payload.active_from = startISO;   // only overwrite start when the admin set one
@@ -567,7 +576,7 @@
   window.AdminQuests = {
     openForm: openForm, save: save, setStatus: setStatus, refresh: refresh,
     setTab: function (t) { S.tab = t; renderList(); },
-    uploadHero: uploadHero, qtProofChange: qtProofChange, qtCatChange: qtCatChange, modeChange: modeChange, clubToggle: clubToggle, squadToggle: squadToggle, formTab: formTab,
+    uploadHero: uploadHero, qtProofChange: qtProofChange, qtCatChange: qtCatChange, modeChange: modeChange, formatChange: formatChange, formTab: formTab,
     scopeChange: scopeChange, countryChange: countryChange,
     saveTask: saveTask, editTask: editTask, cancelTaskEdit: cancelTaskEdit, deleteTask: deleteTask, review: review
   };
