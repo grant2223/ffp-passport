@@ -511,12 +511,43 @@
   }
 
   function _mtSessWhen(iso) { if (!iso) return 'Date TBC'; try { var d = new Date(iso); return d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } }
+  // Team detail shows ONLY the next session as a clean tappable summary → tap opens the full-bleed sessions modal.
   function _mtSessionsSection(teamId) {
     var list = (W._mtSessions || []).filter(function (s) { return s.team_id === teamId; });
     if (!list.length) return '';
-    return '<div style="font-size:15px;font-weight:800;color:var(--text,#e8eef4);margin-bottom:14px;">Upcoming training</div>' +
-      '<div style="margin-bottom:30px;">' + list.slice(0, 6).map(_mtSessionRow).join('') + '</div>';
+    var next = list[0], d = next.starts_at ? new Date(next.starts_at) : null;
+    var wd = d ? d.toLocaleDateString([], { weekday: 'short' }).toUpperCase() : '';
+    var day = d ? d.getDate() : '—';
+    var time = d ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+    var meta = [time, [next.location, next.city].filter(Boolean).join(' · ')].filter(Boolean).join('   ·   ');
+    var more = list.length - 1;
+    return '<div style="font-size:15px;font-weight:800;color:var(--text,#e8eef4);margin-bottom:12px;">Next training session</div>' +
+      '<div onclick="FFPMemberTeams.openSessions(\'' + teamId + '\')" style="display:flex;align-items:center;gap:15px;padding:15px 16px;background:#0d2032;border-radius:16px;cursor:pointer;margin-bottom:30px;">' +
+        '<div style="flex:0 0 auto;width:46px;text-align:center;"><div style="font-size:10px;font-weight:800;letter-spacing:.6px;color:#6f8496;">' + wd + '</div><div style="font-size:26px;font-weight:800;color:var(--text,#e8eef4);line-height:1;margin-top:1px;">' + day + '</div></div>' +
+        '<div style="flex:1;min-width:0;"><div style="font-size:16px;font-weight:700;color:var(--text,#e8eef4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(next.title || 'Training') + '</div>' +
+          (meta ? '<div style="font-size:12.5px;color:var(--muted,#8a99a8);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(meta) + '</div>' : '') +
+          (more > 0 ? '<div style="font-size:11.5px;color:#2ba8e0;font-weight:600;margin-top:5px;">View all ' + (more + 1) + ' sessions</div>' : '') +
+        '</div>' +
+        '<span class="material-icons" style="color:#5f7285;font-size:24px;flex:0 0 auto;">chevron_right</span>' +
+      '</div>';
   }
+  function _mtSessListHtml(teamId) {
+    var list = (W._mtSessions || []).filter(function (s) { return s.team_id === teamId; });
+    if (!list.length) return '<div style="color:var(--muted,#8a99a8);font-size:13px;padding:22px 2px;">No upcoming sessions.</div>';
+    return list.map(_mtSessionRow).join('');
+  }
+  function openSessions(teamId) {
+    W._mtSessTeam = teamId; closeSessions();
+    var ov = document.createElement('div'); ov.id = 'mt-sess-modal';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:8000;background:#081420;display:flex;flex-direction:column;font-family:inherit;';
+    ov.innerHTML =
+      '<div style="display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 16px) 16px 15px;border-bottom:1px solid rgba(255,255,255,.07);">' +
+        '<button onclick="FFPMemberTeams.closeSessions()" aria-label="Back" style="background:none;border:none;color:#9fb1c0;cursor:pointer;padding:2px;display:flex;"><span class="material-icons" style="font-size:26px;">chevron_left</span></button>' +
+        '<div style="font-size:18px;font-weight:800;color:#e8eef4;">Upcoming training</div></div>' +
+      '<div id="mt-sess-list" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:4px 20px 34px;max-width:620px;width:100%;margin:0 auto;box-sizing:border-box;">' + _mtSessListHtml(teamId) + '</div>';
+    document.body.appendChild(ov);
+  }
+  function closeSessions() { var ov = document.getElementById('mt-sess-modal'); if (ov && ov.parentNode) ov.parentNode.removeChild(ov); }
   // World-class row (Apple/WHOOP): calendar date block · title + time/venue · quiet status · one premium "Going" toggle.
   function _mtSessionRow(s) {
     var d = s.starts_at ? new Date(s.starts_at) : null;
@@ -544,10 +575,11 @@
     try { var r = await sb().rpc('member_team_session_respond', { p_me: mid, p_session: id, p_status: status }); if (r && r.error) throw r.error; }
     catch (e) { if (W.showToast) showToast('Could not update — try again', 'error'); return; }
     try { var rs = await sb().rpc('member_team_sessions', { p_me: mid }); W._mtSessions = (rs && rs.data) || []; } catch (e) {}
+    var el = document.getElementById('mt-sess-list'); if (el && W._mtSessTeam) el.innerHTML = _mtSessListHtml(W._mtSessTeam);
     renderOverview();
   }
   W.FFPMemberTeams = { renderCarousel: renderCarousel, openTeam: openTeam, close: close, seeAll: seeAll, openFind: openFind, closeFind: closeFind, findInput: findInput, request: requestJoin,
-    openSkillsView: openSkillsView, openLeaderboard: openLeaderboard, backOverview: backOverview, openPerfBoard: openPerfBoard, ackSession: ackSession,
+    openSkillsView: openSkillsView, openLeaderboard: openLeaderboard, backOverview: backOverview, openPerfBoard: openPerfBoard, ackSession: ackSession, openSessions: openSessions, closeSessions: closeSessions,
     progToggle: function (id) {
       if (!W._mtProgMode) W._mtProgMode = {};
       var fits = (W._mtOv || {}).fitness || [], f = null;
