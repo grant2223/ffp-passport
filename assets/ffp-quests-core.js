@@ -317,12 +317,12 @@ window.Quests = {
   },
   openTeam: function (id) {
     var q = (this.featured || []).filter(function (x) { return x.id === id; })[0] || {};
-    var opts = { title: q.title, metric: q.club_metric || 'avg', minMembers: q.club_min_members || 10, image: q.hero_image_url, desc: q.description };
-    function go() { if (window.FFPTeamQuest && window.FFPTeamQuest.open) { window.FFPTeamQuest.open(id, opts); return true; } return false; }
-    if (go()) return;
+    var go = function () { if (window.FFPTeamQuest) window.FFPTeamQuest.open(id, { title: q.title, metric: q.club_metric || 'avg', minMembers: q.club_min_members || 10, image: q.hero_image_url, desc: q.description }); };
+    if (window.FFPTeamQuest) { go(); return; }
+    if (this._teamLoading) return; this._teamLoading = true;
     var sc = document.createElement('script'); sc.src = 'assets/ffp-team-quest-loader.js?v=' + (window.FFP_BUILD || '1');
-    sc.onload = function () { if (!go() && window.showToast) showToast('Could not open the Team Quest — please refresh', 'error'); };
-    sc.onerror = function () { if (window.showToast) showToast('Could not open the Team Quest — please refresh', 'error'); };
+    sc.onload = function () { try { go(); } catch (e) {} };
+    sc.onerror = function () { try { if (window.showToast) showToast('Could not open the team quest', 'error'); } catch (e) {} };
     document.body.appendChild(sc);
   },
 
