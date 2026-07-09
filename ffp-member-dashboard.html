@@ -4462,7 +4462,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '576';
+  const FFP_BUILD = '577';
   try { window.FFP_BUILD = FFP_BUILD; } catch (e) {}
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
@@ -7451,9 +7451,12 @@ function _ffpDrawZones(ctx, a, pad, y, W, U, fam) {
   var stp = Math.max(6, U * 0.018);
   for (var sx = bx - barH; sx < bx + bw; sx += stp * 2) { ctx.beginPath(); ctx.moveTo(sx, barY + barH); ctx.lineTo(sx + barH, barY); ctx.stroke(); }
   ctx.restore();
-  ctx.textAlign = 'center'; ctx.fillStyle = '#9fc4e0'; ctx.font = '800 ' + Math.round(U * 0.019) + 'px ' + fam;
-  var lx = bx, ly = barY + barH + U * 0.03;
-  zs.forEach(function (q) { var w = bw * (q[1] / tot); if (w > W * 0.032) ctx.fillText(q[0], lx + w / 2, ly); lx += w; });
+  // % of time spent shown INSIDE each zone segment (no Z labels under the bar).
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '800 ' + Math.round(U * 0.021) + 'px ' + fam;
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = Math.round(U * 0.006);
+  var lx = bx;
+  zs.forEach(function (q) { var w = bw * (q[1] / tot); if (w > W * 0.045) { ctx.fillStyle = '#fff'; ctx.fillText(Math.round(q[1] / tot * 100) + '%', lx + w / 2, barY + barH / 2 + 0.5); } lx += w; });
+  ctx.restore(); ctx.textBaseline = 'alphabetic';
 }
 // Preload remote images to DATA URLs so html2canvas never has a cross-origin image to hang/taint on.
 var _ffpLogoUrl = 'https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-logo-white.png';
@@ -7538,7 +7541,7 @@ async function _ffpMakeCardCanvas(a, ratio, usePhoto, sticker) {
   var ncol = Math.min(3, Math.max(1, cells.length));
   var statRows = cells.length ? Math.ceil(cells.length / ncol) : 0;
   var rowH = W * 0.098;
-  var hMap = { title: W * 0.075, hero: W * 0.175, sub: subStr ? W * 0.042 : 0, zones: showZones ? W * 0.14 : 0, stats: statRows ? (statRows * rowH + W * 0.028) : 0 };
+  var hMap = { title: W * 0.075, hero: W * 0.175, sub: subStr ? W * 0.042 : 0, zones: showZones ? W * 0.11 : 0, stats: statRows ? (statRows * rowH + W * 0.028) : 0 };
   var order = ['title', 'hero']; if (hMap.sub) order.push('sub'); if (hMap.zones) order.push('zones'); if (hMap.stats) order.push('stats');
   var top = pad + loH + W * 0.05, footTop = H - W * 0.085, region = footTop - top;
   var rawH = order.reduce(function (s, k) { return s + hMap[k]; }, 0) + G * (order.length - 1);
