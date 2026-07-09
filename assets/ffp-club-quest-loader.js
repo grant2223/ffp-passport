@@ -37,7 +37,7 @@
     return ov;
   }
   function paint(html) { var b = document.getElementById('ffp-cq-body'); if (b) { b.innerHTML = '<div class="cq-wrap">' + html + '</div>'; b.scrollTop = 0; } }
-  function metricLine(m) { return m === 'total' ? 'Ranked by total points' : (m === 'division' ? 'Ranked within size divisions' : 'Ranked by average points per member'); }
+  function metricLine(m) { return m === 'total' ? 'Ranked by total points' : (m === 'division' ? 'Ranked within size divisions' : 'Average points per active member — members count once they’ve logged'); }
   function scoreOf(row, m) { return m === 'total' ? Number(row.total_points || 0) : Number(row.avg_per_member || 0); }
   function scoreLabel(m) { return m === 'total' ? 'points' : 'avg / member'; }
 
@@ -112,9 +112,48 @@
       rows = (r && r.data) || [];
     } catch (e) { console.error('[FFP ClubQuest] leaderboard', e); }
     try { var rt = await sb().rpc('member_my_teams', { p_member: me }); ((rt && rt.data) || []).forEach(function (t) { mine[t.id] = 1; }); } catch (e) {}
-    S.rows = rows;
-    var myRow = rows.filter(function (x) { return mine[x.team_id]; })[0] || null;
+    S.rows = rows; S.mineMap = mine; S.shown = 50; S.filter = '';
+    paintBoard();
+  }
+  // Search + Load-More are client-side updates that touch ONLY the list container, so the search box keeps focus.
+  W.FFPClubQuest.filter = function (v) { S.filter = String(v || ''); S.shown = 50; var el = document.getElementById('cq-list-wrap'); if (el) el.innerHTML = listHtml(); };
+  W.FFPClubQuest.more = function () { S.shown = (S.shown || 50) + 50; var el = document.getElementById('cq-list-wrap'); if (el) el.innerHTML = listHtml(); };
 
+  function listHtml() {
+    var rows = S.rows || [], mine = S.mineMap || {};
+    // Podium owns the top 3 (when not searching); the list below is everyone else and is fully searchable.
+    var searching = !!(S.filter && S.filter.trim());
+    var pod = (S.metric !== 'division' && !searching) ? podiumHtml(rows) : '';
+    var base = pod ? rows.filter(function (x) { return x.qualified === false || x.rank > 3; }) : rows;
+    var f = (S.filter || '').trim().toLowerCase();
+    var filtered = f ? base.filter(function (x) { return String(x.name || '').toLowerCase().indexOf(f) >= 0; }) : base;
+    var total = filtered.length, shown = Math.min(S.shown || 50, total);
+    var page = filtered.slice(0, shown);
+    var list = page.map(function (x) {
+      var you = !!mine[x.team_id];
+      var val = Math.round(scoreOf(x, S.metric) * 10) / 10;
+      var q = (x.qualified === false);
+      var _lg = x.logo
+        ? '<div style="width:40px;height:40px;border-radius:12px;flex:0 0 auto;background:#12314a center/cover no-repeat;background-image:url(\'' + esc(x.logo) + '\');"></div>'
+        : '<div style="width:40px;height:40px;border-radius:12px;flex:0 0 auto;background:#12314a;display:flex;align-items:center;justify-content:center;color:#2ba8e0;font-weight:700;font-size:14px;">' + esc(String(x.name || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase()) + '</div>';
+      return '<div class="cq-row" onclick="FFPClubQuest.openClub(\'' + x.team_id + '\')"' + (you ? ' style="border-left:2px solid #FFCC00;margin-left:-16px;padding-left:14px;"' : '') + '>' +
+        '<div style="width:22px;text-align:center;font-size:18px;font-weight:' + (you ? '600' : '400') + ';color:' + (you ? '#FFCC00' : (q ? '#54697a' : '#8aa0b2')) + ';">' + (q ? '—' : x.rank) + '</div>' +
+        _lg +
+        '<div style="flex:1;min-width:0;"><div style="font-size:15.5px;font-weight:600;color:' + (you ? '#FFCC00' : '#f2f7fb') + ';">' + esc(x.name) + '</div>' +
+        '<div style="font-size:12px;color:' + (you ? '#b79a4a' : '#6f8ba1') + ';margin-top:1px;">' + (you ? 'your club · ' : '') + (x.active_members || 0) + ' of ' + x.roster + ' active' + (q ? ' · needs ' + S.min + ' to qualify' : '') + '</div></div>' +
+        '<div style="font-size:21px;font-weight:600;color:' + (you ? '#FFCC00' : (q ? '#54697a' : '#f2f7fb')) + ';">' + (q ? '—' : val) + '</div></div>';
+    }).join('') || '<div style="padding:24px 20px;color:#9fc0d4;">' + (f ? 'No clubs match “' + esc(S.filter) + '”.' : 'No clubs yet. The first team to add members takes the lead.') + '</div>';
+    var more = total > shown
+      ? '<div onclick="FFPClubQuest.more()" style="margin:6px 0 2px;padding:13px;text-align:center;color:#2ba8e0;font-weight:600;font-size:14px;cursor:pointer;border-top:1px solid rgba(255,255,255,.07);">Show more (' + (total - shown) + ')</div>'
+      : '';
+    return '<div style="padding:14px 20px 2px;font-size:11.5px;color:#6f8ba1;">' + metricLine(S.metric) + (total > 50 ? ' · ' + total + ' clubs' : '') + '</div>' +
+      '<div style="padding:0 20px 8px;">' + list + more + '</div>' +
+      '<div style="padding:2px 20px 24px;" class="cq-tap">Tap a club to see who\'s driving it →</div>';
+  }
+
+  function paintBoard() {
+    var rows = S.rows || [], mine = S.mineMap || {};
+    var myRow = rows.filter(function (x) { return mine[x.team_id]; })[0] || null;
     var hero;
     if (myRow) {
       var beh = null; if (myRow.rank > 1) { var above = rows.filter(function (x) { return x.rank === myRow.rank - 1; })[0]; if (above) beh = Math.round((scoreOf(above, S.metric) - scoreOf(myRow, S.metric)) * 10) / 10; }
@@ -134,30 +173,11 @@
         '<div style="font-size:22px;font-weight:600;color:#f2f7fb;margin-top:14px;">Join a team to get involved</div>' +
         '<div style="font-size:13px;color:#9fc0d4;margin-top:6px;">Join a team, or create one in the FFP Pro app — then your activity counts for the club.</div></div>';
     }
-
-    // Podium for the top 3 (non-division metric, 3+ qualified clubs). When shown, the list starts at rank 4.
-    var pod = (S.metric !== 'division') ? podiumHtml(rows) : '';
-    var listRows = pod ? rows.filter(function (x) { return x.qualified === false || x.rank > 3; }) : rows;
-
-    var list = listRows.map(function (x) {
-      var you = !!mine[x.team_id];
-      var val = Math.round(scoreOf(x, S.metric) * 10) / 10;
-      var q = (x.qualified === false);
-      var _lg = x.logo
-        ? '<div style="width:40px;height:40px;border-radius:12px;flex:0 0 auto;background:#12314a center/cover no-repeat;background-image:url(\'' + esc(x.logo) + '\');"></div>'
-        : '<div style="width:40px;height:40px;border-radius:12px;flex:0 0 auto;background:#12314a;display:flex;align-items:center;justify-content:center;color:#2ba8e0;font-weight:700;font-size:14px;">' + esc(String(x.name || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase()) + '</div>';
-      return '<div class="cq-row" onclick="FFPClubQuest.openClub(\'' + x.team_id + '\')"' + (you ? ' style="border-left:2px solid #FFCC00;margin-left:-16px;padding-left:14px;"' : '') + '>' +
-        '<div style="width:18px;text-align:center;font-size:18px;font-weight:' + (you ? '600' : '400') + ';color:' + (you ? '#FFCC00' : (q ? '#54697a' : '#8aa0b2')) + ';">' + (q ? '—' : x.rank) + '</div>' +
-        _lg +
-        '<div style="flex:1;min-width:0;"><div style="font-size:15.5px;font-weight:600;color:' + (you ? '#FFCC00' : '#f2f7fb') + ';">' + esc(x.name) + '</div>' +
-        '<div style="font-size:12px;color:' + (you ? '#b79a4a' : '#6f8ba1') + ';margin-top:1px;">' + (you ? 'your club · ' : '') + x.roster + ' member' + (x.roster === 1 ? '' : 's') + (q ? ' · needs ' + S.min + ' to qualify' : '') + '</div></div>' +
-        '<div style="font-size:21px;font-weight:600;color:' + (you ? '#FFCC00' : (q ? '#54697a' : '#f2f7fb')) + ';">' + (q ? '—' : val) + '</div></div>';
-    }).join('') || '<div style="padding:24px 20px;color:#9fc0d4;">No clubs yet. The first team to add members takes the lead.</div>';
-
-    paint(hero + pod +
-      '<div style="padding:14px 20px 2px;font-size:11.5px;color:#6f8ba1;">' + metricLine(S.metric) + '</div>' +
-      '<div style="padding:0 20px 8px;">' + list + '</div>' +
-      '<div style="padding:2px 20px 24px;" class="cq-tap">Tap a club to see who\'s driving it →</div>');
+    // Search box lives OUTSIDE #cq-list-wrap so it survives filter re-renders (keeps focus).
+    var search = (rows.length > 8)
+      ? '<div style="padding:12px 20px 2px;"><input id="cq-search" type="search" autocomplete="off" oninput="FFPClubQuest.filter(this.value)" value="' + esc(S.filter || '') + '" placeholder="Search clubs" style="width:100%;box-sizing:border-box;background:#0f2536;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:11px 14px;color:#eaf2f8;font-size:14px;outline:none;"></div>'
+      : '';
+    paint(hero + search + '<div id="cq-list-wrap">' + listHtml() + '</div>');
   }
   function ord(n) { return n === 1 ? 'st' : (n === 2 ? 'nd' : (n === 3 ? 'rd' : 'th')); }
   function bar(t) { return '<div style="padding:16px 20px;"><span onclick="FFPClubQuest.close()" style="cursor:pointer;color:#9fc0d4;font-size:22px;">&times;</span> ' + esc(t) + '</div>'; }
@@ -273,10 +293,10 @@
       '<div style="position:relative;"><div style="display:flex;align-items:center;gap:6px;color:#9fc0d4;font-size:13px;margin-bottom:14px;"><span onclick="renderCQBack()" style="cursor:pointer;font-size:18px;">&lsaquo;</span> <span onclick="renderCQBack()" style="cursor:pointer;">Leaderboard</span></div>' +
       '<div style="display:flex;align-items:center;gap:14px;">' + avatarSquare(d) +
       '<div style="flex:1;min-width:0;"><div style="font-size:19px;font-weight:600;color:#f2f7fb;">' + esc(d.name || 'Club') + '</div>' +
-      '<div style="font-size:12.5px;color:#9fc0d4;margin-top:2px;">' + esc(d.sport || 'Club') + ' · ' + (d.roster || 0) + ' members</div></div></div>' +
+      '<div style="font-size:12.5px;color:#9fc0d4;margin-top:2px;">' + esc(d.sport || 'Club') + ' · ' + (d.active_members || 0) + ' of ' + (d.roster || 0) + ' active</div></div></div>' +
       '<div style="display:flex;align-items:flex-end;gap:11px;margin-top:16px;">' +
       '<div style="font-size:40px;font-weight:600;color:#FFCC00;line-height:.9;letter-spacing:-1px;">' + (d.rank || '–') + '<span style="font-size:16px;">' + ord(d.rank) + '</span></div>' +
-      '<div style="padding-bottom:4px;font-size:12.5px;color:#cfe2ee;">' + (d.avg_per_member != null ? d.avg_per_member + ' avg / member' : '') + (d.behind_next != null && d.behind_next > 0 ? '<br>' + d.behind_next + ' behind the club above' : '') + '</div></div>' +
+      '<div style="padding-bottom:4px;font-size:12.5px;color:#cfe2ee;">' + (d.avg_per_member != null ? d.avg_per_member + ' avg / active member' : '') + (d.behind_next != null && d.behind_next > 0 ? '<br>' + d.behind_next + ' behind the club above' : '') + '</div></div>' +
       '</div></div>';
 
     paint(hero +
