@@ -220,39 +220,61 @@ window.Quests = {
       '.q-up-banner{display:flex;align-items:center;gap:12px;}.q-up-banner .material-icons{font-size:26px;color:var(--q-yellow,#FFCC00);}.q-up-banner-t{font-size:15px;font-weight:800;color:var(--q-text,#e8eef4);}.q-up-banner-s{font-size:12px;color:var(--q-muted,#8a99a8);margin-top:2px;}',
       '#panel-quests .q-featrow{display:flex;gap:12px;overflow-x:auto;scrollbar-width:none;padding:2px 0 4px;}#panel-quests .q-featrow::-webkit-scrollbar{display:none;height:0;}',
       '#panel-quests .q-feat{position:relative;flex:0 0 86%;border-radius:16px;overflow:hidden;min-height:198px;display:flex;flex-direction:column;justify-content:flex-end;padding:16px;cursor:pointer;background-size:cover;background-position:center;}',
-      '#panel-quests .q-feat.cov-sports{background:linear-gradient(135deg,#123a52,#0a1c2b);}#panel-quests .q-feat.cov-fitness{background:linear-gradient(135deg,#ff6b4a,#b23a1c);}#panel-quests .q-feat.cov-wellness{background:linear-gradient(135deg,#36c5b0,#0d6b5f);}'
+      '#panel-quests .q-feat.cov-sports{background:linear-gradient(135deg,#123a52,#0a1c2b);}#panel-quests .q-feat.cov-fitness{background:linear-gradient(135deg,#ff6b4a,#b23a1c);}#panel-quests .q-feat.cov-wellness{background:linear-gradient(135deg,#36c5b0,#0d6b5f);}',
+      '#panel-quests .q-maintabs{display:flex;gap:26px;border-bottom:1px solid rgba(255,255,255,.09);margin:0 0 18px;}',
+      '#panel-quests .q-mtab{background:none;border:0;font-family:inherit;font-size:16px;font-weight:400;color:var(--q-muted,#7fa0b8);padding:0 0 12px;cursor:pointer;position:relative;letter-spacing:-.2px;}',
+      '#panel-quests .q-mtab.on{color:var(--q-text,#f2f7fb);font-weight:600;}',
+      '#panel-quests .q-mtab.on:after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--q-yellow,#FFCC00);border-radius:2px;}'
     ].join('');
     document.head.appendChild(s);
   },
 
   renderAll() {
     this._ensureCss();
-    this.renderMajor();
-    var host = document.getElementById('quest-sections'); if (!host) return;
     var self = this;
-    // My quests = FFP quests the member has joined + any partner quests (those appear only when joined/unlocked).
-    var joined = this.minor.filter(function (q) { return q.joined; }).concat(this.partner || []);
-    var browse = this.minor.filter(function (q) { return !q.joined; });
+    // Team quests (club competitions) get their own tab; only show the tab bar when at least one exists.
+    var hasTeam = (this.featured || []).length > 0;
+    var tab = hasTeam ? (this.qtab || 'individual') : 'individual';
+    // Tab bar lives in its OWN container ABOVE the hero (Grant: tabs are the first thing you see; the quest sits under them).
+    var tabsEl = document.getElementById('quest-tabs');
+    if (tabsEl) {
+      tabsEl.innerHTML = hasTeam ? ('<div class="q-maintabs">' +
+        '<button class="q-mtab' + (tab === 'individual' ? ' on' : '') + '" onclick="Quests.setTab(\'individual\')">Individual</button>' +
+        '<button class="q-mtab' + (tab === 'team' ? ' on' : '') + '" onclick="Quests.setTab(\'team\')">Team</button></div>') : '';
+    }
+    // The headline hero (#quest-hero) is the individual side — only on the Individual tab.
+    var heroEl = document.getElementById('quest-hero');
+    if (tab === 'team') { if (heroEl) { heroEl.style.display = 'none'; heroEl.innerHTML = ''; } }
+    else { this.renderMajor(); }
+
+    var host = document.getElementById('quest-sections'); if (!host) return;
     var html = '';
-    // Club challenge feature quests — tap to open the full club-competition experience.
-    if ((this.featured || []).length) {
+
+    if (tab === 'team') {
+      // Team tab = just the team quest card(s). Tap a card → the club-competition experience.
       html += '<div class="q-featrow">' + this.featured.map(this.featuredCard.bind(this)).join('') + '</div>';
+    } else {
+      // Individual tab = the member's own quests.
+      var joined = this.minor.filter(function (q) { return q.joined; }).concat(this.partner || []);
+      var browse = this.minor.filter(function (q) { return !q.joined; });
+      // Coming soon — upcoming quests (published with a future start) teased at the top.
+      if ((this.upcoming || []).length) {
+        html += '<div class="q-sec-h">Coming soon</div>';
+        html += (this.upcoming || []).map(this.upcomingCard.bind(this)).join('');
+      }
+      if (joined.length) {
+        html += '<div class="q-sec-h">My quests</div>';
+        html += '<div class="q-list">' + joined.map(function (q) { return q.kind === 'partner' ? self.rowPartner(q) : self.rowMinor(q); }).join('') + '</div>';
+      }
+      html += '<div class="q-sec-h"' + (joined.length ? ' style="margin-top:22px;"' : '') + '>More quests</div>';
+      html += browse.length
+        ? '<div class="q-list">' + browse.map(this.rowMinor.bind(this)).join('') + '</div>'
+        : '<div class="q-sec-empty">' + (joined.length ? 'You’re in all the open quests — more on the way.' : 'New quests are on the way — check back soon.') + '</div>';
     }
-    // Coming soon — upcoming quests (published with a future start) teased at the top.
-    if ((this.upcoming || []).length) {
-      html += '<div class="q-sec-h">Coming soon</div>';
-      html += (this.upcoming || []).map(this.upcomingCard.bind(this)).join('');
-    }
-    if (joined.length) {
-      html += '<div class="q-sec-h">My quests</div>';
-      html += '<div class="q-list">' + joined.map(function (q) { return q.kind === 'partner' ? self.rowPartner(q) : self.rowMinor(q); }).join('') + '</div>';
-    }
-    html += '<div class="q-sec-h"' + (joined.length ? ' style="margin-top:22px;"' : '') + '>More quests</div>';
-    html += browse.length
-      ? '<div class="q-list">' + browse.map(this.rowMinor.bind(this)).join('') + '</div>'
-      : '<div class="q-sec-empty">' + (joined.length ? 'You’re in all the open quests — more on the way.' : 'New quests are on the way — check back soon.') + '</div>';
     host.innerHTML = html;
   },
+
+  setTab: function (t) { this.qtab = t; this.renderAll(); },
 
   upcomingCard: function (q) {
     var cover = (this.CAT[q.category] && this.CAT[q.category].cover) || 'cov-fitness';
