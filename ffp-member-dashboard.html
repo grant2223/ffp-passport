@@ -4462,7 +4462,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '577';
+  const FFP_BUILD = '578';
   try { window.FFP_BUILD = FFP_BUILD; } catch (e) {}
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
@@ -7521,6 +7521,10 @@ async function _ffpMakeCardCanvas(a, ratio, usePhoto, sticker) {
   var loH;
   if (logo && logo.width) { var lw = Math.round(W * 0.30), lh = Math.round(lw * (logo.height / logo.width)); ctx.drawImage(logo, (W - lw) / 2, pad, lw, lh); loH = lh; }
   else { ctx.fillStyle = '#fff'; ctx.font = '900 italic ' + Math.round(W * 0.07) + 'px ' + fam; ctx.fillText('FFP', W / 2, pad + Math.round(W * 0.075)); loH = Math.round(W * 0.09); }
+  // Slogan under the logo
+  ctx.textAlign = 'center'; ctx.fillStyle = '#bcd5e8'; ctx.font = '700 ' + Math.round(W * 0.028) + 'px ' + fam;
+  ctx.fillText('Active Lifestyle Community', W / 2, pad + loH + Math.round(W * 0.048));
+  loH += Math.round(W * 0.066);
   // Which fields to render — driven by the Options checklist (_ffpShareCfg.show). No cfg → all-available.
   var show = _ffpShareCfg.show || null;
   var on = function (k) { return !show || !!show[k]; };
