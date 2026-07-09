@@ -94,6 +94,7 @@
     S.rows = []; S.mine = null;
     try { var r = await sb().rpc('squad_leaderboard', { p_quest: S.q }); S.rows = (r && r.data) || []; } catch (e) { console.error('[FFP Pair] leaderboard', e); }
     try { var rm = await sb().rpc('member_squad_for_quest', { p_quest: S.q, p_member: me }); S.mine = (rm && rm.data) || null; } catch (e) {}
+    S.lbfilter = ''; S.lbshown = 50;
     renderStandings();
   }
 
@@ -123,8 +124,9 @@
     }
     head += '</div>';
 
+    var searching = !!(S.lbfilter && S.lbfilter.trim());
     var pod = '';
-    if (rows.length >= 3) {
+    if (rows.length >= 3 && !searching) {
       var order = [rows[1], rows[0], rows[2]], H = [40, 58, 30], SZ = [50, 58, 50], BZ = [28, 36, 28], RK = [2, 1, 3];
       var cells = order.map(function (x, i) {
         var you = (x.squad_id === myId);
@@ -137,21 +139,39 @@
       }).join('');
       pod = medalDefs() + '<div style="padding:16px 20px 0;"><div style="display:flex;align-items:flex-end;justify-content:center;gap:14px;">' + cells + '</div></div>';
     }
-    var listRows = pod ? rows.filter(function (x) { return x.rank > 3; }) : rows;
-    var list = listRows.map(function (x) {
+    var search = (rows.length > 8)
+      ? '<div style="padding:12px 20px 2px;"><input id="pr-lbsearch" type="search" autocomplete="off" oninput="FFPPairQuest.lbfilter(this.value)" value="' + esc(S.lbfilter || '') + '" placeholder="Search ' + NOUN() + 's" style="width:100%;box-sizing:border-box;background:#0f2536;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:11px 14px;color:#eaf2f8;font-size:14px;outline:none;"></div>'
+      : '';
+    paint(head + pod +
+      '<div style="padding:14px 20px 2px;font-size:11px;font-weight:800;letter-spacing:.8px;color:#8a99a8;text-transform:uppercase;">' + NOUNC() + ' standings</div>' +
+      search +
+      '<div id="pr-list-wrap" style="padding:0 20px 8px;">' + _lbList() + '</div>' +
+      '<div style="padding:2px 20px 28px;color:#5f7688;font-size:11.5px;">Tap to see the ' + NOUN() + ' →</div>');
+  }
+  // Standings list is searchable + paged (50), updated in place so the search box keeps focus.
+  function _lbList() {
+    var rows = S.rows || [], myId = S.mine && S.mine.squad_id, np = S.pair;
+    var searching = !!(S.lbfilter && S.lbfilter.trim());
+    var podActive = (rows.length >= 3 && !searching);
+    var base = podActive ? rows.filter(function (x) { return x.rank > 3; }) : rows;
+    var f = searching ? S.lbfilter.trim().toLowerCase() : '';
+    var filtered = f ? base.filter(function (x) { return String(x.name || '').toLowerCase().indexOf(f) >= 0; }) : base;
+    var total = filtered.length, shown = Math.min(S.lbshown || 50, total);
+    var list = filtered.slice(0, shown).map(function (x) {
       var you = (x.squad_id === myId);
       return '<div class="pr-row" onclick="FFPPairQuest.openSquad(\'' + x.squad_id + '\')"' + (you ? ' style="border-left:2px solid #FFCC00;margin-left:-16px;padding-left:14px;"' : '') + '>' +
-        '<div style="width:18px;text-align:center;font-size:17px;color:' + (you ? '#FFCC00' : '#8aa0b2') + ';">' + x.rank + '</div>' + mono(x.name, 38) +
+        '<div style="width:22px;text-align:center;font-size:17px;color:' + (you ? '#FFCC00' : '#8aa0b2') + ';">' + x.rank + '</div>' + mono(x.name, 38) +
         '<div style="flex:1;min-width:0;"><div style="font-size:15px;font-weight:600;color:' + (you ? '#FFCC00' : '#f2f7fb') + ';">' + esc(x.name) + (you ? ' · yours' : '') + '</div>' +
         '<div style="font-size:12px;color:#6f8ba1;margin-top:1px;">' + x.members + (np ? '' : (' member' + (x.members === 1 ? '' : 's'))) + (np ? ' paired' : '') + '</div></div>' +
         '<div style="font-size:19px;font-weight:600;color:' + (you ? '#FFCC00' : '#f2f7fb') + ';">' + Math.round(x.total_points) + '</div></div>';
-    }).join('') || '<div style="padding:24px 20px;color:#9fc0d4;">No ' + NOUN() + 's yet — be the first.</div>';
-
-    paint(head + pod +
-      '<div style="padding:14px 20px 2px;font-size:11px;font-weight:800;letter-spacing:.8px;color:#8a99a8;text-transform:uppercase;">' + NOUNC() + ' standings</div>' +
-      '<div style="padding:0 20px 8px;">' + list + '</div>' +
-      '<div style="padding:2px 20px 28px;color:#5f7688;font-size:11.5px;">Tap to see the ' + NOUN() + ' →</div>');
+    }).join('') || '<div style="padding:24px 20px;color:#9fc0d4;">' + (f ? 'No ' + NOUN() + 's match “' + esc(S.lbfilter) + '”.' : 'No ' + NOUN() + 's yet — be the first.') + '</div>';
+    var more = total > shown
+      ? '<div onclick="FFPPairQuest.lbmore()" style="margin:6px 0 2px;padding:13px;text-align:center;color:#2ba8e0;font-weight:600;font-size:14px;cursor:pointer;border-top:1px solid rgba(255,255,255,.07);">Show more (' + (total - shown) + ')</div>'
+      : '';
+    return list + more;
   }
+  W.FFPPairQuest.lbfilter = function (v) { S.lbfilter = String(v || ''); S.lbshown = 50; var el = document.getElementById('pr-list-wrap'); if (el) el.innerHTML = _lbList(); };
+  W.FFPPairQuest.lbmore = function () { S.lbshown = (S.lbshown || 50) + 50; var el = document.getElementById('pr-list-wrap'); if (el) el.innerHTML = _lbList(); };
 
   // ── CREATE / PAIR UP ──
   W.FFPPairQuest.create = function () { S.pick = {}; S.name = ''; renderCreate(); };
