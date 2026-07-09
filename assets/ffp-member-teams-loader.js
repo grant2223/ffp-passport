@@ -539,7 +539,7 @@
   function openSessions(teamId) {
     W._mtSessTeam = teamId; closeSessions();
     var ov = document.createElement('div'); ov.id = 'mt-sess-modal';
-    ov.style.cssText = 'position:fixed;inset:0;z-index:8000;background:#081420;display:flex;flex-direction:column;font-family:inherit;';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:100060;background:#081420;display:flex;flex-direction:column;font-family:inherit;';
     ov.innerHTML =
       '<div style="display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 16px) 16px 15px;border-bottom:1px solid rgba(255,255,255,.07);">' +
         '<button onclick="FFPMemberTeams.closeSessions()" aria-label="Back" style="background:none;border:none;color:#9fb1c0;cursor:pointer;padding:2px;display:flex;"><span class="material-icons" style="font-size:26px;">chevron_left</span></button>' +
