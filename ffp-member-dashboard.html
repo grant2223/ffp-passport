@@ -344,7 +344,7 @@
 <!-- Google Analytics 4 (platform-wide) -->
 <script src="assets/ffp-analytics.js?v=2"></script>
 <!-- Quests panel module (extracted from inline) — defines window.Quests before the dashboard boot calls init -->
-<script src="assets/ffp-quests-core.js?v=22"></script>
+<script src="assets/ffp-quests-core.js?v=23"></script>
 <script src="assets/ffp-earnings-core.js?v=3"></script>
 </head>
 <body>
@@ -4462,7 +4462,7 @@ function setupPanelNav() {
   // build number). This guarantees every loader is re-fetched fresh + consistent, so a dashboard deploy
   // can never serve a STALE loader (the recurring "fitness stats / meetups disappeared" cause). No more
   // per-loader ?v=N to keep in sync. ⬆⬆
-  const FFP_BUILD = '579';
+  const FFP_BUILD = '580';
   try { window.FFP_BUILD = FFP_BUILD; } catch (e) {}
   const _panelLoaderSrc = {
     'panel-earnings':        'assets/ffp-earnings-loader.js',
