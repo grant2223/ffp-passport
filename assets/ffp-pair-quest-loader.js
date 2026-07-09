@@ -83,6 +83,7 @@
     injectStyles(); ensureOverlay().classList.add('on');
     opts = opts || {};
     S.q = questId; S.title = opts.title || 'Pair Quest'; S.max = opts.max || opts.squadMax || 2; S.pair = (S.max <= 2);
+    S.image = opts.image || ''; S.desc = opts.desc || '';
     paint('<div style="padding:40px 20px;color:#7fa0b8;font-weight:600;">Loading…</div>');
     load();
   };
@@ -98,10 +99,13 @@
 
   function renderStandings() {
     var rows = S.rows || [], mine = S.mine, myId = mine && mine.squad_id, np = S.pair;
-    var head = '<div style="position:relative;padding:16px 20px 18px;background:linear-gradient(160deg,#123a52,#0a1825);">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;"><div style="display:flex;align-items:center;gap:8px;color:#9fc0d4;font-size:13px;"><span onclick="FFPPairQuest.close()" style="cursor:pointer;font-size:20px;">&lsaquo;</span> ' + NOUNC() + ' Quest</div>' +
-      '<span onclick="FFPPairQuest.close()" style="cursor:pointer;color:#9fc0d4;font-size:22px;line-height:1;">&times;</span></div>' +
-      '<div style="font-size:21px;font-weight:600;color:#f2f7fb;margin-top:12px;">' + esc(S.title) + '</div>';
+    // Header shows the quest's hero photo (dark scrim) + its description.
+    var _bg = S.image ? ("linear-gradient(160deg,rgba(8,20,32,0.55),rgba(9,22,34,0.90)),url('" + esc(S.image) + "')") : 'linear-gradient(160deg,#123a52,#0a1825)';
+    var head = '<div style="position:relative;padding:16px 20px 20px;background:' + _bg + ';background-size:cover;background-position:center;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;"><div style="display:flex;align-items:center;gap:8px;color:#cfe0ee;font-size:13px;"><span onclick="FFPPairQuest.close()" style="cursor:pointer;font-size:20px;">&lsaquo;</span> ' + NOUNC() + ' Quest</div>' +
+      '<span onclick="FFPPairQuest.close()" style="cursor:pointer;color:#cfe0ee;font-size:22px;line-height:1;">&times;</span></div>' +
+      '<div style="font-size:22px;font-weight:700;color:#fff;margin-top:12px;">' + esc(S.title) + '</div>' +
+      (S.desc ? '<div style="font-size:12.5px;color:#dbe8f0;margin-top:6px;line-height:1.45;">' + esc(S.desc) + '</div>' : '');
     if (mine && mine.status === 'invited') {
       head += '<div style="font-size:13px;color:#cfe2ee;margin-top:6px;">You’re invited to ' + (np ? 'pair with' : 'join') + ' <b style="color:#FFCC00;">' + esc(mine.name) + '</b>.</div>' +
         '<div style="display:flex;gap:10px;margin-top:12px;">' +
@@ -152,31 +156,40 @@
   // ── CREATE / PAIR UP ──
   W.FFPPairQuest.create = function () { S.pick = {}; S.name = ''; renderCreate(); };
   W.FFPPairQuest.back = function () { load(); };
-  function renderCreate() {
-    var np = S.pair, picked = Object.keys(S.pick || {}).length, cap = S.max - 1;
-    var results = (S.searchRows || []).map(function (u) {
+  function _searchRowsHtml() {
+    var rows = (S.searchRows || []).map(function (u) {
       var on = !!(S.pick && S.pick[u.id]);
       return '<div class="pr-pick" onclick="FFPPairQuest.pick(\'' + u.id + '\',\'' + esc(String(u.name || '').replace(/'/g, '')) + '\')">' + avatar({ photo: u.photo, name: u.name }, 36) +
         '<span style="flex:1;font-size:14.5px;color:#eaf2f8;">' + esc(u.name || 'Member') + '</span>' +
         (on ? '<span style="width:22px;height:22px;border-radius:50%;background:#FFCC00;color:#3a2e00;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;">✓</span>' : '<span style="width:22px;height:22px;border-radius:50%;border:2px solid #3a5064;"></span>') + '</div>';
     }).join('');
+    return rows || '<div style="padding:14px 2px;color:#6f8ba1;font-size:13px;">Type a name to find your mate.</div>';
+  }
+  // Update ONLY the results list + the counter — never the whole form (that killed the search input focus + text).
+  function _renderResults() {
+    var r = document.getElementById('pr-results'); if (r) r.innerHTML = _searchRowsHtml();
+    var c = document.getElementById('pr-count'); if (c) c.textContent = Object.keys(S.pick || {}).length;
+  }
+  function renderCreate() {
+    var np = S.pair, cap = S.max - 1;
     paint('<div style="padding:16px 20px 28px;">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><span style="font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:#7fa0b8;font-weight:600;">New ' + NOUN() + ' · ' + esc(S.title) + '</span><span onclick="FFPPairQuest.back()" style="cursor:pointer;color:#9fc0d4;font-size:22px;">&times;</span></div>' +
       (np ? '<div style="font-size:20px;font-weight:600;color:#f2f7fb;">Pick your partner</div><div style="font-size:13px;color:#9fb4c4;margin-top:6px;">Choose one mate — they’ll get an invite to accept.</div>'
           : ('<div style="font-size:20px;font-weight:600;color:#f2f7fb;">Name your squad</div><input id="pr-name" class="pr-inp" style="margin-top:12px;" placeholder="e.g. Dawn Patrol" value="' + esc(S.name || '') + '">' +
-             '<div style="font-size:10px;font-weight:800;letter-spacing:.8px;color:#8a99a8;text-transform:uppercase;margin:18px 0 4px;">Invite your people · you + ' + picked + ' of ' + cap + '</div>')) +
-      (np ? '<div style="height:14px;"></div>' : '') +
-      '<input class="pr-inp" placeholder="Search your connections…" oninput="FFPPairQuest.search(this.value)" style="margin-bottom:6px;">' +
-      '<div>' + (results || '<div style="padding:14px 2px;color:#6f8ba1;font-size:13px;">Search a name to invite.</div>') + '</div>' +
+             '<div style="font-size:10px;font-weight:800;letter-spacing:.8px;color:#8a99a8;text-transform:uppercase;margin:18px 0 4px;">Invite your people · you + <span id="pr-count">' + Object.keys(S.pick || {}).length + '</span> of ' + cap + '</div>')) +
+      '<div style="height:14px;"></div>' +
+      '<input id="pr-search" class="pr-inp" placeholder="Search your connections…" autocomplete="off" oninput="FFPPairQuest.search(this.value)" style="margin-bottom:6px;">' +
+      '<div id="pr-results">' + _searchRowsHtml() + '</div>' +
       '<div style="margin-top:18px;"><button class="pr-btn pr-pri" onclick="FFPPairQuest.submitCreate()">' + (np ? 'Send invite' : 'Create squad') + '</button></div>' +
       '</div>');
+    setTimeout(function () { var i = document.getElementById('pr-search'); if (i) { try { i.focus(); } catch (e) {} } }, 40);
   }
   W.FFPPairQuest.search = async function (q) {
     var nm = document.getElementById('pr-name'); if (nm) S.name = nm.value;
     q = String(q || '').trim();
-    if (q.length < 2) { S.searchRows = []; renderCreate(); return; }
-    try { var r = await sb().rpc('member_search_people', { p_me: memberId(), p_q: q, p_sport: null, p_level: null }); S.searchRows = (r && r.data) || []; } catch (e) { S.searchRows = []; }
-    renderCreate();
+    if (q.length < 2) { S.searchRows = []; _renderResults(); return; }
+    try { var r = await sb().rpc('member_search_people', { p_me: memberId(), p_q: q, p_sport: null, p_level: null }); S.searchRows = (r && r.data) || []; } catch (e) { console.error('[FFP Pair] search', e); S.searchRows = []; }
+    _renderResults();
   };
   W.FFPPairQuest.pick = function (id, name) {
     S.pick = S.pick || {};
@@ -186,8 +199,7 @@
       else if (Object.keys(S.pick).length >= (S.max - 1)) { toast('Full at ' + S.max, 'error'); return; }
       S.pick[id] = name || 1;
     }
-    var nm = document.getElementById('pr-name'); if (nm) S.name = nm.value;
-    renderCreate();
+    _renderResults();
   };
   W.FFPPairQuest.submitCreate = async function () {
     var ids = Object.keys(S.pick || {});
