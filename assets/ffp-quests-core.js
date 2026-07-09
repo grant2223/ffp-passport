@@ -318,21 +318,12 @@ window.Quests = {
   openTeam: function (id) {
     var q = (this.featured || []).filter(function (x) { return x.id === id; })[0] || {};
     var opts = { title: q.title, metric: q.club_metric || 'avg', minMembers: q.club_min_members || 10, image: q.hero_image_url, desc: q.description };
-    // Accept EITHER global (new FFPTeamQuest or legacy FFPClubQuest) so it works no matter which loader file is live.
-    function go() { var api = window.FFPTeamQuest || window.FFPClubQuest; if (api && api.open) { api.open(id, opts); return true; } return false; }
+    function go() { if (window.FFPTeamQuest && window.FFPTeamQuest.open) { window.FFPTeamQuest.open(id, opts); return true; } return false; }
     if (go()) return;
-    // Try the renamed file first, fall back to the old filename (deploy-order safe). No sticky lock — each
-    // onload/onerror advances; once a loader defines its global, go() short-circuits.
-    var srcs = ['assets/ffp-team-quest-loader.js', 'assets/ffp-club-quest-loader.js'];
-    var i = 0, v = (window.FFP_BUILD || '1');
-    function load() {
-      if (i >= srcs.length) { try { if (window.showToast) showToast('Could not open the Team Quest — please refresh and try again', 'error'); } catch (e) {} return; }
-      var sc = document.createElement('script'); sc.src = srcs[i++] + '?v=' + v;
-      sc.onload = function () { if (!go()) load(); };
-      sc.onerror = function () { load(); };
-      document.body.appendChild(sc);
-    }
-    load();
+    var sc = document.createElement('script'); sc.src = 'assets/ffp-team-quest-loader.js?v=' + (window.FFP_BUILD || '1');
+    sc.onload = function () { if (!go() && window.showToast) showToast('Could not open the Team Quest — please refresh', 'error'); };
+    sc.onerror = function () { if (window.showToast) showToast('Could not open the Team Quest — please refresh', 'error'); };
+    document.body.appendChild(sc);
   },
 
   squadCard: function (q) {
