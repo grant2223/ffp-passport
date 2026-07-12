@@ -78,31 +78,38 @@
   .split .img{position:relative;background-color:#0c2233;}
   .split .copy{padding:56px 48px;display:flex;flex-direction:column;justify-content:center;background:var(--bg2);}
   .steps{margin-top:26px;display:flex;flex-direction:column;gap:2px;}
-  .st{display:flex;align-items:center;gap:16px;padding:16px 0;border-top:1px solid var(--line);}
-  .st .n{font-size:15px;font-weight:900;color:var(--yellow);width:26px;flex:0 0 auto;}
-  .st b{font-size:16.5px;font-weight:800;}
-  .st .material-icons{margin-left:auto;color:var(--aqua);font-size:22px;}
+  .st{display:flex;align-items:flex-start;gap:16px;padding:16px 0;border-top:1px solid var(--line);}
+  .st .n{font-size:15px;font-weight:900;color:var(--yellow);width:22px;flex:0 0 auto;line-height:1.5;}
+  .st .stx{flex:1;} .st .stx b{font-size:16.5px;font-weight:800;display:block;} .st .stx small{font-size:12.5px;color:var(--mut);font-weight:600;display:block;margin-top:3px;line-height:1.5;}
+  .st .material-icons{color:var(--aqua);font-size:22px;margin-top:2px;flex:0 0 auto;}
 
   /* SCORING — clean rows, no pills */
   .score-band{background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
   .score-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0 40px;margin-top:22px;}
   .sc{display:flex;align-items:center;gap:13px;padding:17px 0;border-top:1px solid var(--line);font-size:15.5px;font-weight:800;color:#e8eff5;}
   .sc .material-icons{color:var(--yellow);font-size:22px;}
-  .avg{margin-top:26px;color:var(--mut);font-size:15px;font-weight:600;max-width:54ch;}
+  .avg{margin-top:18px;color:var(--mut);font-size:15px;font-weight:600;max-width:60ch;}
   .avg b{color:#fff;}
+  .flow{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:36px;}
+  .fstep{background:rgba(255,255,255,.045);border-radius:16px;padding:22px 16px;text-align:center;position:relative;}
+  .fstep .material-icons{font-size:26px;color:var(--aqua);}
+  .fstep b{display:block;font-size:14.5px;font-weight:800;margin-top:9px;}
+  .fstep small{display:block;font-size:11.5px;color:var(--mut);font-weight:600;margin-top:3px;}
+  .fstep:not(:last-child)::after{content:"\2192";position:absolute;right:-10px;top:50%;transform:translateY(-50%);color:var(--yellow);font-weight:900;font-size:17px;z-index:2;}
+  @media(max-width:620px){.flow{grid-template-columns:1fr 1fr;} .fstep::after{display:none!important;}}
 
   /* LEADERBOARD */
   .lb-sec{background:radial-gradient(120% 90% at 50% 0%,#0e2537,var(--bg));}
   .podium{display:grid;grid-template-columns:1fr 1.18fr 1fr;gap:14px;align-items:end;max-width:760px;margin:44px auto 8px;}
   .pcol{display:flex;flex-direction:column;align-items:center;text-align:center;}
-  .pbadge{width:80px;height:80px;margin-bottom:10px;filter:drop-shadow(0 8px 16px rgba(0,0,0,.5));}
-  .pbadge img{width:100%;height:100%;object-fit:contain;display:block;}
-  .pcol.first .pbadge{width:112px;height:112px;margin-bottom:12px;filter:drop-shadow(0 10px 24px rgba(244,215,122,.4));}
-  .pcov{width:100%;aspect-ratio:1;border-radius:18px;position:relative;overflow:hidden;border:2px solid var(--line);}
+  .pcov{width:100%;aspect-ratio:1;border-radius:18px;position:relative;border:2px solid var(--line);}
   .pcol.first .pcov{border-color:var(--gold);box-shadow:0 0 44px rgba(244,215,122,.30);}
   .pcol.second .pcov{border-color:var(--silver);} .pcol.third .pcov{border-color:var(--bronze);}
-  .pcov .ph{position:absolute;inset:0;}
-  .pname{font-weight:900;font-size:14.5px;margin-top:12px;letter-spacing:-.2px;}
+  .pcov .ph{position:absolute;inset:0;border-radius:16px;}
+  .pmedal{position:absolute;left:50%;bottom:0;transform:translate(-50%,44%);width:66px;height:66px;object-fit:contain;z-index:3;filter:drop-shadow(0 8px 15px rgba(0,0,0,.55));}
+  .pcol.first .pmedal{width:94px;transform:translate(-50%,42%);}
+  .pname{font-weight:900;font-size:14.5px;margin-top:54px;letter-spacing:-.2px;}
+  .pcol.first .pname{margin-top:70px;}
   .ploc{font-size:11.5px;color:var(--mut);font-weight:700;margin-top:2px;}
   .ppts{font-weight:900;font-size:16px;margin-top:6px;} .ppts.g{color:var(--gold);} .ppts.s{color:var(--silver);} .ppts.b{color:var(--bronze);}
   .pcol.first{transform:translateY(-16px);}
@@ -131,10 +138,9 @@
   .spend-lead{text-align:center;color:var(--mut);font-size:15px;font-weight:600;margin-top:22px;}
 
   /* DATES */
-  .dates{border-top:1px solid var(--line);}
-  .dates .wrap{display:grid;grid-template-columns:repeat(3,1fr);}
-  .date{padding:34px 16px;border-left:1px solid var(--line);}
-  .date:first-child{border-left:none;}
+  .dates{padding:8px 0 64px;}
+  .dates .wrap{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  .date{padding:26px 26px;background:rgba(255,255,255,.045);border-radius:16px;}
   .date .d{font-size:12px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;color:var(--yellow);}
   .date b{display:block;font-size:20px;font-weight:900;margin-top:7px;letter-spacing:-.4px;}
 
@@ -143,6 +149,7 @@
   .cta .ph{position:absolute;inset:0;z-index:-2;background-color:#0c2233;}
   .cta .veil{position:absolute;inset:0;background:linear-gradient(180deg,rgba(7,19,31,.72),rgba(7,19,31,.9));z-index:-1;}
   .cta h2{max-width:16ch;margin:0 auto 26px;}
+  .cta-note{margin-top:18px;font-size:13px;color:var(--mut);font-weight:600;}
   .cta-medal{width:100px;height:100px;object-fit:contain;display:block;margin:0 auto 18px;filter:drop-shadow(0 10px 24px rgba(244,215,122,.35));}
   .hero-medal{position:absolute;top:90px;right:5vw;width:162px;height:162px;object-fit:contain;z-index:1;filter:drop-shadow(0 14px 34px rgba(0,0,0,.55));pointer-events:none;}
   @media(max-width:860px){.hero-medal{width:100px;top:74px;right:18px;}}
@@ -154,8 +161,7 @@
   @media(max-width:860px){
     .pillars{grid-template-columns:1fr;}
     .split{grid-template-columns:1fr;} .split .img{min-height:280px;} .split .copy{padding:44px 26px;}
-    .prizes{grid-template-columns:1fr;} .dates .wrap{grid-template-columns:1fr;} .date{border-left:none;border-top:1px solid var(--line);}
-    .date:first-child{border-top:none;}
+    .prizes{grid-template-columns:1fr;} .dates .wrap{grid-template-columns:1fr;}
     .score-grid{grid-template-columns:1fr 1fr;gap:0 30px;}
   }
   @media(max-width:520px){
@@ -191,7 +197,7 @@
   <div class="stat"><b class="y">6</b><span>Weeks</span></div>
   <div class="stat"><b>Top 3</b><span>Win prizes</span></div>
   <div class="stat"><b class="a">Live</b><span>Leaderboard</span></div>
-  <div class="stat"><b>Free</b><span>To enter</span></div>
+  <div class="stat"><b class="y">AED 10K</b><span>Prize pool</span></div>
 </div></div>
 
 <!-- PILLARS -->
@@ -242,18 +248,19 @@
     <div class="eye">How it works</div>
     <h2>Get your crew<br>in the race.</h2>
     <div class="steps">
-      <div class="st"><span class="n">1</span><b>Coach signs up — free</b><span class="material-icons">person_add</span></div>
-      <div class="st"><span class="n">2</span><b>Create your team</b><span class="material-icons">groups</span></div>
-      <div class="st"><span class="n">3</span><b>Share your join link</b><span class="material-icons">link</span></div>
-      <div class="st"><span class="n">4</span><b>Members log &amp; climb</b><span class="material-icons">trending_up</span></div>
+      <div class="st"><span class="n">1</span><div class="stx"><b>Coach signs up — free</b><small>At ffpprofessional.com. No cost, no catch.</small></div><span class="material-icons">person_add</span></div>
+      <div class="st"><span class="n">2</span><div class="stx"><b>Create your team</b><small>Name it, add a logo &amp; sport in the Teams tab.</small></div><span class="material-icons">groups</span></div>
+      <div class="st"><span class="n">3</span><div class="stx"><b>Invite your crew</b><small>Share your link, add clients, or they join via the Passport.</small></div><span class="material-icons">link</span></div>
+      <div class="st"><span class="n">4</span><div class="stx"><b>They log — you climb</b><small>Every activity your members log lifts your team.</small></div><span class="material-icons">trending_up</span></div>
     </div>
   </div>
 </section>
 
 <!-- SCORING -->
 <section class="sec score-band"><div class="wrap">
-  <div class="eye">Points for</div>
-  <h2>Every move counts.</h2>
+  <div class="eye">How you win</div>
+  <h2>Every action climbs the board.</h2>
+  <p class="avg">Your members earn points for staying active <b>and</b> being a community:</p>
   <div class="score-grid">
     <div class="sc"><span class="material-icons">directions_run</span>Log an activity</div>
     <div class="sc"><span class="material-icons">back_hand</span>Give a high-five</div>
@@ -262,7 +269,12 @@
     <div class="sc"><span class="material-icons">event</span>Host or join a meet-up</div>
     <div class="sc"><span class="material-icons">local_fire_department</span>Keep a streak</div>
   </div>
-  <p class="avg">Team score = the <b>average of your active members</b>. Get everyone moving, not just your fittest.</p>
+  <div class="flow">
+    <div class="fstep"><span class="material-icons">directions_run</span><b>Members stay active</b><small>Log, high-five, meet up</small></div>
+    <div class="fstep"><span class="material-icons">add_circle</span><b>Points add up</b><small>Every action scores</small></div>
+    <div class="fstep"><span class="material-icons">leaderboard</span><b>Team score climbs</b><small>Average of active members</small></div>
+    <div class="fstep"><span class="material-icons">military_tech</span><b>Top 3 win</b><small>AED 10,000 in vouchers</small></div>
+  </div>
 </div></section>
 
 <!-- LEADERBOARD -->
@@ -270,18 +282,15 @@
   <div style="text-align:center;"><div class="eye">The leaderboard</div><h2>Bragging rights, live.</h2></div>
   <div class="podium">
     <div class="pcol second">
-      <div class="pbadge"><img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-silver.png" alt="2nd place"></div>
-      <div class="pcov"><div class="ph" style="background-image:var(--g-fit),url('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=600&q=70');background-blend-mode:soft-light;"></div></div>
+      <div class="pcov"><div class="ph" style="background-image:var(--g-fit),url('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=600&q=70');background-blend-mode:soft-light;"></div><img class="pmedal" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-silver.png" alt="2nd place"></div>
       <div class="pname">Sandstorm Hyrox</div><div class="ploc">Fitness · 31 active</div><div class="ppts s">8,610</div>
     </div>
     <div class="pcol first">
-      <div class="pbadge"><img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-gold.png" alt="1st place"></div>
-      <div class="pcov"><div class="ph" style="background-image:url('https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/race-group-photo.jpg');"></div></div>
+      <div class="pcov"><div class="ph" style="background-image:url('https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/race-group-photo.jpg');"></div><img class="pmedal" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-gold.png" alt="1st place"></div>
       <div class="pname">Dubai Distance Project</div><div class="ploc">Fitness · 42 active</div><div class="ppts g">8,940</div>
     </div>
     <div class="pcol third">
-      <div class="pbadge"><img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-bronze.png" alt="3rd place"></div>
-      <div class="pcov"><div class="ph" style="background-image:var(--g-spo),url('https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=600&q=70');background-blend-mode:soft-light;"></div></div>
+      <div class="pcov"><div class="ph" style="background-image:var(--g-spo),url('https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=600&q=70');background-blend-mode:soft-light;"></div><img class="pmedal" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-bronze.png" alt="3rd place"></div>
       <div class="pname">Al Khail Falcons</div><div class="ploc">Sports · 28 active</div><div class="ppts b">8,120</div>
     </div>
   </div>
@@ -319,6 +328,7 @@
     <img class="cta-medal" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-gold.png" alt="">
     <h2>How active is your team?</h2>
     <a class="btn" href="https://ffpprofessional.com/signup">Enter your team →</a>
+    <p class="cta-note">Coaches set up free · members join on the FFP Passport (14-day free trial)</p>
   </div>
 </section>
 
