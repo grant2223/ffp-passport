@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FFP Team Quest — Most active team in the UAE</title>
+<meta name="description" content="Six weeks. One live leaderboard. Find out who's the most active team in the UAE. 20 July – 31 August 2026.">
+<meta property="og:title" content="FFP Team Quest — most active team in the UAE">
+<meta property="og:image" content="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/race-group-photo.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+  :root{
+    --bg:#07131f; --bg2:#0a1a28; --ink:#fff; --mut:#94aabd; --mut2:#6d8497;
+    --blue:#2ba8e0; --aqua:#5ec8d8; --yellow:#FFCC00; --line:rgba(255,255,255,.09);
+    --gold:#f4d77a; --silver:#c8d2dc; --bronze:#d8a06a; --grey:#7d8b99;
+    --g-spo:linear-gradient(135deg,#8b7cf0,#4c2c9c); --g-fit:linear-gradient(135deg,#2ba8e0,#155e85);
+    --g-com:linear-gradient(135deg,#36c5b0,#0d6b5f); --g-run:linear-gradient(135deg,#ff6b4a,#b23a1c);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  *::-webkit-scrollbar{display:none;width:0;height:0;}
+  html,body{background:var(--bg);color:var(--ink);font-family:'Montserrat',system-ui,-apple-system,sans-serif;line-height:1.4;-webkit-font-smoothing:antialiased;scrollbar-width:none;overflow-x:hidden;}
+  a{color:inherit;text-decoration:none;}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 22px;}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--yellow);color:#08202f;font-weight:900;font-size:15px;padding:15px 28px;border-radius:14px;border:none;cursor:pointer;box-shadow:0 14px 34px rgba(255,204,0,.24);transition:transform .08s;}
+  .btn:hover{transform:translateY(-1px);}
+  .eye{font-size:12px;font-weight:900;letter-spacing:2.6px;text-transform:uppercase;color:var(--aqua);}
+  h2{font-size:clamp(27px,4.6vw,46px);font-weight:900;letter-spacing:-1.2px;line-height:1;}
+  .ph{background-size:cover;background-position:center;background-repeat:no-repeat;}
+
+  /* nav */
+  nav{position:sticky;top:0;z-index:50;background:rgba(7,19,31,.8);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:60px;}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:17px;}
+  .brand .dot{width:8px;height:8px;border-radius:50%;background:var(--yellow);box-shadow:0 0 12px var(--yellow);}
+  .brand small{font-weight:800;color:var(--mut);font-size:11px;letter-spacing:1.4px;text-transform:uppercase;}
+  nav .cta{font-size:13.5px;font-weight:900;padding:9px 17px;border-radius:11px;background:var(--yellow);color:#08202f;}
+
+  /* HERO */
+  .hero{position:relative;min-height:92vh;display:flex;align-items:flex-end;overflow:hidden;}
+  .hero .ph{position:absolute;inset:0;background-color:#0c2233;background-image:url('https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/race-group-photo.jpg');background-position:center 28%;}
+  .hero .veil{position:absolute;inset:0;background:linear-gradient(180deg,rgba(7,19,31,.35),rgba(7,19,31,.5) 55%,var(--bg));}
+  .hero .wrap{position:relative;padding:0 22px 70px;}
+  .hero .flag{display:flex;align-items:center;gap:9px;font-size:12.5px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:var(--aqua);margin-bottom:18px;}
+  .hero h1{font-size:clamp(40px,9vw,90px);font-weight:900;line-height:.94;letter-spacing:-2.4px;text-shadow:0 8px 40px rgba(0,0,0,.4);}
+  .hero h1 .hl{color:var(--yellow);}
+  .hero .row{margin-top:26px;display:flex;flex-wrap:wrap;gap:14px 22px;align-items:center;}
+  .hero .row .note{font-size:14px;color:#cfe0ec;font-weight:700;}
+
+  /* STAT STRIP */
+  .stats{border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+  .stats .wrap{display:grid;grid-template-columns:repeat(4,1fr);}
+  .stat{padding:26px 10px;text-align:center;border-left:1px solid var(--line);}
+  .stat:first-child{border-left:none;}
+  .stat b{display:block;font-size:clamp(26px,4vw,40px);font-weight:900;letter-spacing:-1px;line-height:1;}
+  .stat span{font-size:11.5px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--mut);margin-top:8px;display:block;}
+  .stat b.y{color:var(--yellow);} .stat b.a{color:var(--aqua);}
+
+  /* PILLARS — three kinds of team */
+  .sec{padding:70px 0;}
+  .sec-head{margin-bottom:28px;}
+  .pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+  .pil{border-radius:18px;overflow:hidden;background:var(--bg2);border:1px solid var(--line);}
+  .pil .img{position:relative;height:220px;}
+  .pil .img .ph{position:absolute;inset:0;}
+  .pil .img::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 42%,rgba(6,15,24,.9));}
+  .pil .img h3{position:absolute;left:18px;bottom:15px;font-size:23px;font-weight:900;letter-spacing:-.5px;z-index:1;}
+  .pil .img .lead{position:absolute;left:18px;bottom:-2px;font-size:11.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--aqua);z-index:1;}
+  .pil .body{padding:8px 20px 18px;}
+  .pil ul{list-style:none;}
+  .pil li{font-size:14.5px;font-weight:700;color:#dbe7f0;padding:12px 0;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px;}
+  .pil li:first-child{border-top:none;}
+  .pil li .material-icons{font-size:17px;color:var(--mut2);}
+
+  /* SPLIT band */
+  .split{display:grid;grid-template-columns:1.05fr .95fr;align-items:stretch;min-height:440px;}
+  .split .img{position:relative;background-color:#0c2233;}
+  .split .copy{padding:56px 48px;display:flex;flex-direction:column;justify-content:center;background:var(--bg2);}
+  .steps{margin-top:26px;display:flex;flex-direction:column;gap:2px;}
+  .st{display:flex;align-items:center;gap:16px;padding:16px 0;border-top:1px solid var(--line);}
+  .st .n{font-size:15px;font-weight:900;color:var(--yellow);width:26px;flex:0 0 auto;}
+  .st b{font-size:16.5px;font-weight:800;}
+  .st .material-icons{margin-left:auto;color:var(--aqua);font-size:22px;}
+
+  /* SCORING — clean rows, no pills */
+  .score-band{background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+  .score-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0 40px;margin-top:22px;}
+  .sc{display:flex;align-items:center;gap:13px;padding:17px 0;border-top:1px solid var(--line);font-size:15.5px;font-weight:800;color:#e8eff5;}
+  .sc .material-icons{color:var(--yellow);font-size:22px;}
+  .avg{margin-top:26px;color:var(--mut);font-size:15px;font-weight:600;max-width:54ch;}
+  .avg b{color:#fff;}
+
+  /* LEADERBOARD */
+  .lb-sec{background:radial-gradient(120% 90% at 50% 0%,#0e2537,var(--bg));}
+  .podium{display:grid;grid-template-columns:1fr 1.18fr 1fr;gap:14px;align-items:end;max-width:760px;margin:44px auto 8px;}
+  .pcol{display:flex;flex-direction:column;align-items:center;text-align:center;}
+  .pbadge{width:80px;height:80px;margin-bottom:10px;filter:drop-shadow(0 8px 16px rgba(0,0,0,.5));}
+  .pbadge img{width:100%;height:100%;object-fit:contain;display:block;}
+  .pcol.first .pbadge{width:112px;height:112px;margin-bottom:12px;filter:drop-shadow(0 10px 24px rgba(244,215,122,.4));}
+  .pcov{width:100%;aspect-ratio:1;border-radius:18px;position:relative;overflow:hidden;border:2px solid var(--line);}
+  .pcol.first .pcov{border-color:var(--gold);box-shadow:0 0 44px rgba(244,215,122,.30);}
+  .pcol.second .pcov{border-color:var(--silver);} .pcol.third .pcov{border-color:var(--bronze);}
+  .pcov .ph{position:absolute;inset:0;}
+  .pname{font-weight:900;font-size:14.5px;margin-top:12px;letter-spacing:-.2px;}
+  .ploc{font-size:11.5px;color:var(--mut);font-weight:700;margin-top:2px;}
+  .ppts{font-weight:900;font-size:16px;margin-top:6px;} .ppts.g{color:var(--gold);} .ppts.s{color:var(--silver);} .ppts.b{color:var(--bronze);}
+  .pcol.first{transform:translateY(-16px);}
+  .lblist{max-width:620px;margin:26px auto 0;}
+  .lbrow{display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:12px;margin-bottom:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);}
+  .lbrow.me{background:rgba(43,168,224,.12);border-color:var(--blue);}
+  .lbrank{width:22px;text-align:center;font-weight:900;font-size:14px;color:var(--grey);flex:0 0 auto;}
+  .lbav{width:34px;height:34px;border-radius:10px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;color:#08202f;}
+  .lbmeta{flex:1;min-width:0;} .lbmeta b{display:block;font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;} .lbmeta span{font-size:11.5px;color:var(--mut);font-weight:600;}
+  .lbpts{font-weight:900;font-size:15px;flex:0 0 auto;} .lbpts small{font-size:10px;color:var(--mut);font-weight:700;margin-left:2px;}
+  .lblive{display:inline-flex;align-items:center;gap:7px;color:var(--aqua);font-size:12px;font-weight:900;letter-spacing:1.4px;text-transform:uppercase;justify-content:center;width:100%;margin-top:24px;}
+  .lblive i{width:8px;height:8px;border-radius:50%;background:var(--aqua);box-shadow:0 0 10px var(--aqua);animation:pl 1.6s infinite;}
+  @keyframes pl{0%,100%{opacity:1}50%{opacity:.35}}
+
+  /* PRIZES */
+  .prizes{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:34px;}
+  .prize{position:relative;border-radius:18px;overflow:hidden;min-height:230px;display:flex;flex-direction:column;justify-content:flex-end;padding:22px;isolation:isolate;}
+  .prize::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,rgba(6,15,24,.85));z-index:-1;}
+  .prize .ph{position:absolute;inset:0;z-index:-2;}
+  .prize .medal{width:60px;height:60px;object-fit:contain;filter:drop-shadow(0 5px 12px rgba(0,0,0,.45));}
+  .prize h4{font-size:16px;font-weight:900;margin-top:10px;} .prize p{font-size:12.5px;color:#c3d2de;font-weight:600;margin-top:4px;}
+
+  /* DATES */
+  .dates{border-top:1px solid var(--line);}
+  .dates .wrap{display:grid;grid-template-columns:repeat(3,1fr);}
+  .date{padding:34px 16px;border-left:1px solid var(--line);}
+  .date:first-child{border-left:none;}
+  .date .d{font-size:12px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;color:var(--yellow);}
+  .date b{display:block;font-size:20px;font-weight:900;margin-top:7px;letter-spacing:-.4px;}
+
+  /* CTA */
+  .cta{position:relative;text-align:center;overflow:hidden;padding:84px 0;}
+  .cta .ph{position:absolute;inset:0;z-index:-2;background-color:#0c2233;}
+  .cta .veil{position:absolute;inset:0;background:linear-gradient(180deg,rgba(7,19,31,.72),rgba(7,19,31,.9));z-index:-1;}
+  .cta h2{max-width:16ch;margin:0 auto 26px;}
+  .cta-medal{width:100px;height:100px;object-fit:contain;display:block;margin:0 auto 18px;filter:drop-shadow(0 10px 24px rgba(244,215,122,.35));}
+  .hero-medal{position:absolute;top:90px;right:5vw;width:162px;height:162px;object-fit:contain;z-index:1;filter:drop-shadow(0 14px 34px rgba(0,0,0,.55));pointer-events:none;}
+  @media(max-width:860px){.hero-medal{width:100px;top:74px;right:18px;}}
+  @media(max-width:520px){.hero-medal{display:none;}}
+
+  footer{padding:34px 0;border-top:1px solid var(--line);color:var(--mut2);font-size:12.5px;font-weight:700;}
+  footer .wrap{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center;}
+
+  @media(max-width:860px){
+    .pillars{grid-template-columns:1fr;}
+    .split{grid-template-columns:1fr;} .split .img{min-height:280px;} .split .copy{padding:44px 26px;}
+    .prizes{grid-template-columns:1fr;} .dates .wrap{grid-template-columns:1fr;} .date{border-left:none;border-top:1px solid var(--line);}
+    .date:first-child{border-top:none;}
+    .score-grid{grid-template-columns:1fr 1fr;gap:0 30px;}
+  }
+  @media(max-width:520px){
+    .stats .wrap{grid-template-columns:1fr 1fr;} .stat:nth-child(3){border-left:none;} .stat{border-top:1px solid var(--line);} .stat:first-child,.stat:nth-child(2){border-top:none;}
+    .score-grid{grid-template-columns:1fr;}
+    .podium{gap:8px;} .pname{font-size:12px;} .ppts{font-size:13px;} .pcol.first{transform:none;} .pcol.first .pbadge{font-size:42px;}
+  }
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <div class="brand"><span class="dot"></span>FFP <small>Team Quest</small></div>
+  <a class="cta" href="https://ffpprofessional.com/signup">Enter your team</a>
+</div></nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="ph"></div><div class="veil"></div>
+  <img class="hero-medal" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-gold.png" alt="">
+  <div class="wrap">
+    <div class="flag">🇦🇪 UAE&nbsp;&nbsp;·&nbsp;&nbsp;20 Jul – 31 Aug 2026</div>
+    <h1>The most active<br>team in the <span class="hl">UAE.</span></h1>
+    <div class="row">
+      <a class="btn" href="https://ffpprofessional.com/signup">Enter your team →</a>
+      <span class="note">Six weeks. One live leaderboard.</span>
+    </div>
+  </div>
+</header>
+
+<!-- STATS -->
+<div class="stats"><div class="wrap">
+  <div class="stat"><b class="y">6</b><span>Weeks</span></div>
+  <div class="stat"><b>Top 3</b><span>Win prizes</span></div>
+  <div class="stat"><b class="a">Live</b><span>Leaderboard</span></div>
+  <div class="stat"><b>Free</b><span>To enter</span></div>
+</div></div>
+
+<!-- PILLARS -->
+<section class="sec"><div class="wrap">
+  <div class="sec-head"><div class="eye">Who's in</div><h2>Three kinds of team.</h2></div>
+  <div class="pillars">
+
+    <div class="pil">
+      <div class="img"><div class="ph" style="background-image:var(--g-spo),url('https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=900&q=70');background-blend-mode:soft-light;"></div><div class="lead">Organised sport</div><h3>Sports Teams</h3></div>
+      <div class="body"><ul>
+        <li><span class="material-icons">sports_rugby</span>Rugby &amp; touch</li>
+        <li><span class="material-icons">sports_soccer</span>Football</li>
+        <li><span class="material-icons">sports_basketball</span>Netball &amp; basketball</li>
+        <li><span class="material-icons">sports_cricket</span>Cricket</li>
+        <li><span class="material-icons">sports_tennis</span>Padel &amp; tennis</li>
+      </ul></div>
+    </div>
+
+    <div class="pil">
+      <div class="img"><div class="ph" style="background-image:var(--g-fit),url('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=900&q=70');background-blend-mode:soft-light;"></div><div class="lead">Train together</div><h3>Fitness Teams</h3></div>
+      <div class="body"><ul>
+        <li><span class="material-icons">fitness_center</span>Gyms</li>
+        <li><span class="material-icons">sports_gymnastics</span>Functional &amp; CrossFit</li>
+        <li><span class="material-icons">terrain</span>OCR &amp; Hyrox</li>
+        <li><span class="material-icons">directions_run</span>Running clubs</li>
+        <li><span class="material-icons">directions_bike</span>Cycling crews</li>
+      </ul></div>
+    </div>
+
+    <div class="pil">
+      <div class="img"><div class="ph" style="background-image:var(--g-com),url('https://images.unsplash.com/photo-1594882645126-14020914d58d?auto=format&fit=crop&w=900&q=70');background-blend-mode:soft-light;"></div><div class="lead">Move as one</div><h3>Community Teams</h3></div>
+      <div class="body"><ul>
+        <li><span class="material-icons">groups</span>Social run &amp; sweat crews</li>
+        <li><span class="material-icons">self_improvement</span>Wellness &amp; yoga groups</li>
+        <li><span class="material-icons">business_center</span>Corporate teams</li>
+        <li><span class="material-icons">hiking</span>Walking &amp; hiking clubs</li>
+        <li><span class="material-icons">favorite</span>Sports enthusiasts</li>
+      </ul></div>
+    </div>
+
+  </div>
+</div></section>
+
+<!-- SPLIT: how it works -->
+<section class="split">
+  <div class="img ph" style="background-image:url('https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/race-group-photo.jpg');"></div>
+  <div class="copy">
+    <div class="eye">How it works</div>
+    <h2>Get your crew<br>in the race.</h2>
+    <div class="steps">
+      <div class="st"><span class="n">1</span><b>Coach signs up — free</b><span class="material-icons">person_add</span></div>
+      <div class="st"><span class="n">2</span><b>Create your team</b><span class="material-icons">groups</span></div>
+      <div class="st"><span class="n">3</span><b>Share your join link</b><span class="material-icons">link</span></div>
+      <div class="st"><span class="n">4</span><b>Members log &amp; climb</b><span class="material-icons">trending_up</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- SCORING -->
+<section class="sec score-band"><div class="wrap">
+  <div class="eye">Points for</div>
+  <h2>Every move counts.</h2>
+  <div class="score-grid">
+    <div class="sc"><span class="material-icons">directions_run</span>Log an activity</div>
+    <div class="sc"><span class="material-icons">back_hand</span>Give a high-five</div>
+    <div class="sc"><span class="material-icons">chat_bubble</span>Leave a comment</div>
+    <div class="sc"><span class="material-icons">group_add</span>Refer a friend</div>
+    <div class="sc"><span class="material-icons">event</span>Host or join a meet-up</div>
+    <div class="sc"><span class="material-icons">local_fire_department</span>Keep a streak</div>
+  </div>
+  <p class="avg">Team score = the <b>average of your active members</b>. Get everyone moving, not just your fittest.</p>
+</div></section>
+
+<!-- LEADERBOARD -->
+<section class="sec lb-sec"><div class="wrap">
+  <div style="text-align:center;"><div class="eye">The leaderboard</div><h2>Bragging rights, live.</h2></div>
+  <div class="podium">
+    <div class="pcol second">
+      <div class="pbadge"><img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-silver.png" alt="2nd place"></div>
+      <div class="pcov"><div class="ph" style="background-image:var(--g-fit),url('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=600&q=70');background-blend-mode:soft-light;"></div></div>
+      <div class="pname">Sandstorm Hyrox</div><div class="ploc">Fitness · 31 active</div><div class="ppts s">8,610</div>
+    </div>
+    <div class="pcol first">
+      <div class="pbadge"><img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-gold.png" alt="1st place"></div>
+      <div class="pcov"><div class="ph" style="background-image:url('https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/race-group-photo.jpg');"></div></div>
+      <div class="pname">Dubai Distance Project</div><div class="ploc">Fitness · 42 active</div><div class="ppts g">8,940</div>
+    </div>
+    <div class="pcol third">
+      <div class="pbadge"><img src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-bronze.png" alt="3rd place"></div>
+      <div class="pcov"><div class="ph" style="background-image:var(--g-spo),url('https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=600&q=70');background-blend-mode:soft-light;"></div></div>
+      <div class="pname">Al Khail Falcons</div><div class="ploc">Sports · 28 active</div><div class="ppts b">8,120</div>
+    </div>
+  </div>
+  <div class="lblist">
+    <div class="lbrow"><div class="lbrank">4</div><div class="lbav" style="background:var(--g-run);">MB</div><div class="lbmeta"><b>Marina Barbell Club</b><span>Fitness · 24 active</span></div><div class="lbpts">7,455<small>pts</small></div></div>
+    <div class="lbrow me"><div class="lbrank" style="color:var(--blue);">5</div><div class="lbav" style="background:var(--g-com);">CT</div><div class="lbmeta"><b>Creek Touch Rugby</b><span>Your team · 19 active</span></div><div class="lbpts">6,980<small>pts</small></div></div>
+    <div class="lbrow"><div class="lbrank">6</div><div class="lbav" style="background:var(--g-spo);">DW</div><div class="lbmeta"><b>Desert Wolves FC</b><span>Sports · 22 active</span></div><div class="lbpts">6,640<small>pts</small></div></div>
+  </div>
+  <div class="lblive"><i></i>Updating live</div>
+</div></section>
+
+<!-- PRIZES -->
+<section class="sec"><div class="wrap">
+  <div class="sec-head"><div class="eye">The prizes</div><h2>Top three take the podium.</h2></div>
+  <div class="prizes">
+    <div class="prize"><div class="ph" style="background-image:url('https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=800&q=70');"></div><img class="medal" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-gold.png" alt=""><h4>Champion team</h4><p>Grand prize + the UAE's most-active title. <em>[TBC]</em></p></div>
+    <div class="prize"><div class="ph" style="background-image:url('https://images.unsplash.com/photo-1552674605-db6ffd4facb5?auto=format&fit=crop&w=800&q=70');"></div><img class="medal" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-silver.png" alt=""><h4>Runner-up</h4><p>A prize for the whole squad. <em>[TBC]</em></p></div>
+    <div class="prize"><div class="ph" style="background-image:url('https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=800&q=70');"></div><img class="medal" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-bronze.png" alt=""><h4>Third place</h4><p>Podium prize to finish the top three. <em>[TBC]</em></p></div>
+  </div>
+</div></section>
+
+<!-- DATES -->
+<div class="dates"><div class="wrap">
+  <div class="date"><div class="d">Now</div><b>Sign-ups open</b></div>
+  <div class="date"><div class="d">20 Jul 2026</div><b>Race begins</b></div>
+  <div class="date"><div class="d">31 Aug 2026</div><b>Winners crowned</b></div>
+</div></div>
+
+<!-- CTA -->
+<section class="cta">
+  <div class="ph" style="background-image:url('https://images.unsplash.com/photo-1594882645126-14020914d58d?auto=format&fit=crop&w=1600&q=70');"></div><div class="veil"></div>
+  <div class="wrap">
+    <img class="cta-medal" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-gold.png" alt="">
+    <h2>How active is your team?</h2>
+    <a class="btn" href="https://ffpprofessional.com/signup">Enter your team →</a>
+  </div>
+</section>
+
+<footer><div class="wrap">
+  <div><b style="color:#fff;">FFP Team Quest</b> · Find Fit People · UAE 2026</div>
+  <div><a style="color:var(--aqua);" href="mailto:hello@findfitpeople.com">hello@findfitpeople.com</a></div>
+</div></footer>
+
+</body>
+</html>
