@@ -1,5 +1,5 @@
 /* FFP Constants - v2 (2026-06-11)
-   v2: pricing truth — Passport is a SUBSCRIPTION ($20/mo · $149/yr · 7-day trial), not a one-time $99.
+   v2: pricing truth — Passport is a SUBSCRIPTION ($20/mo · $149/yr · 14-day trial), not a one-time $99.
        membershipUsd now = 149 (annual headline). Referral reward is RECURRING (tier% of each payment, per
        Stripe invoice) — the old "one-time % of $99" is dead. Display copy in the member dashboard updated to match.
    v1 (2026-05-31)
@@ -14,7 +14,7 @@
   'use strict';
   window.FFP_CONST = {
     currency: 'USD',
-    membershipUsd: 149,       // headline ANNUAL price (USD). Passport is a SUBSCRIPTION: $20/mo or $149/yr (7-day trial).
+    membershipUsd: 149,       // headline ANNUAL price (USD). Passport is a SUBSCRIPTION: $20/mo or $149/yr (14-day trial).
     minPayoutUsd: 250,        // minimum balance to request a payout
     // Referral reward is RECURRING: the referrer earns their tier% of EACH actual payment the referred member makes,
     // credited per Stripe invoice server-side (backend creditReferralForInvoice). NOT a one-time % of any single price.
