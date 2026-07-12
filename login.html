@@ -70,10 +70,10 @@
   (2) WRONG CODE: verifyCode now shows "That code didn't work. Check it and try again — or request a new code
   below." (+ clears the field), instead of a raw backend error. (3) ENTER KEY: pressing Enter/Go on the email
   fields submits requestCode, and on the code fields submits verifyCode (signin + signup), with enterkeyhint=go.
-  v16 (2026-06-08): 7-DAY FREE TRIAL. Signup screen now leads with a "7 days free · then $X" badge; the CTA
-  reads "Start My 7-Day Free Trial" and the Stripe subtext is "Free for 7 days, then billed via Stripe ·
-  cancel anytime." (Checkout creates the subscription with trial_period_days:7; card captured upfront,
-  first charge day 7.)
+  v16 (2026-06-08): 14-DAY FREE TRIAL. Signup screen now leads with a "14 days free · then $X" badge; the CTA
+  reads "Start My 14-Day Free Trial" and the Stripe subtext is "Free for 14 days, then billed via Stripe ·
+  cancel anytime." (Checkout creates the subscription with trial_period_days:14; card captured upfront,
+  first charge day 14.)
   v15 (2026-06-08): SIGNUP COPY. Removed the "Experiences & Adventures — group experiences and overseas trips"
   benefit (Experiences + overseas travel now live on findfitpeople.com, not Passport). Annual savings note
   corrected from "2 months free" to "4.5 months free vs monthly" (static + the ffpSetPlan JS) — $149/yr vs
@@ -357,16 +357,16 @@ Back
   <button type="button" id="plan-monthly-btn" onclick="ffpSetPlan('monthly')" style="flex:1;border:none;cursor:pointer;font-family:inherit;font-weight:800;font-size:13px;padding:11px;border-radius:9px;background:transparent;color:#637c8d;">Monthly</button>
 </div>
 <div style="text-align:center;margin-bottom:14px;">
-  <div style="font-size:10px;font-weight:800;letter-spacing:1.8px;color:#FFCC00;text-transform:uppercase;margin-bottom:5px;">7 days free &middot; then</div>
+  <div style="font-size:10px;font-weight:800;letter-spacing:1.8px;color:#FFCC00;text-transform:uppercase;margin-bottom:5px;">14 days free &middot; then</div>
   <div id="plan-price" style="font-size:32px;font-weight:900;color:#fff;line-height:1;">$149<span style="font-size:15px;font-weight:700;color:#8a99a8;"> / year</span></div>
   <div id="plan-note" style="font-size:11px;color:#2ba8e0;font-weight:700;margin-top:6px;">Best value &mdash; 4.5 months free vs monthly</div>
 </div>
 <button type="button" class="btn-primary" id="signup-pay-btn" onclick="ffpStartSignupCheckout()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-Start My 7-Day Free Trial
+Start My 14-Day Free Trial
 </button>
 <div style="font-size:11px;color:#6a90a8;text-align:center;margin-top:10px;line-height:1.6;">
-Free for 7 days, then billed via Stripe &middot; cancel anytime.
+Free for 14 days, then billed via Stripe &middot; cancel anytime.
 </div>
 <!-- BULLET LIST -->
 <div style="margin-bottom:22px;margin-top:24px;">
@@ -549,7 +549,7 @@ async function ffpStartSignupCheckout() {
     if (data && data.url) { location.href = data.url; return; }
     alert((data && data.error) || 'Could not start checkout. Please try again.');
   } catch (e) { alert('Could not start checkout. Please try again.'); }
-  if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Start My 7-Day Free Trial'; }
+  if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Start My 14-Day Free Trial'; }
 }
 function showError(elId, msg) {
   var el = document.getElementById(elId);
