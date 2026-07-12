@@ -123,7 +123,12 @@
   .prize::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,rgba(6,15,24,.85));z-index:-1;}
   .prize .ph{position:absolute;inset:0;z-index:-2;}
   .prize .medal{width:60px;height:60px;object-fit:contain;filter:drop-shadow(0 5px 12px rgba(0,0,0,.45));}
-  .prize h4{font-size:16px;font-weight:900;margin-top:10px;} .prize p{font-size:12.5px;color:#c3d2de;font-weight:600;margin-top:4px;}
+  .prize .amt{font-size:34px;font-weight:900;letter-spacing:-1.2px;line-height:1;margin-top:10px;}
+  .prize .amt small{display:block;font-size:11px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;color:var(--yellow);margin-bottom:5px;letter-spacing:1.6px;}
+  .prize h4{font-size:14.5px;font-weight:800;margin-top:6px;color:#cfdde8;} .prize p{font-size:12.5px;color:#c3d2de;font-weight:600;margin-top:4px;}
+  .spend{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 0;margin-top:30px;font-size:14.5px;font-weight:700;color:#dbe7f0;}
+  .spend span{padding:0 18px;border-left:1px solid var(--line);} .spend span:first-child{padding-left:0;border-left:none;}
+  .spend-lead{text-align:center;color:var(--mut);font-size:15px;font-weight:600;margin-top:22px;}
 
   /* DATES */
   .dates{border-top:1px solid var(--line);}
@@ -290,12 +295,14 @@
 
 <!-- PRIZES -->
 <section class="sec"><div class="wrap">
-  <div class="sec-head"><div class="eye">The prizes</div><h2>Top three take the podium.</h2></div>
+  <div class="sec-head"><div class="eye">The prizes</div><h2>AED 10,000 in team vouchers.</h2></div>
   <div class="prizes">
-    <div class="prize"><div class="ph" style="background-image:url('https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=800&q=70');"></div><img class="medal" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-gold.png" alt=""><h4>Champion team</h4><p>Grand prize + the UAE's most-active title. <em>[TBC]</em></p></div>
-    <div class="prize"><div class="ph" style="background-image:url('https://images.unsplash.com/photo-1552674605-db6ffd4facb5?auto=format&fit=crop&w=800&q=70');"></div><img class="medal" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-silver.png" alt=""><h4>Runner-up</h4><p>A prize for the whole squad. <em>[TBC]</em></p></div>
-    <div class="prize"><div class="ph" style="background-image:url('https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=800&q=70');"></div><img class="medal" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-bronze.png" alt=""><h4>Third place</h4><p>Podium prize to finish the top three. <em>[TBC]</em></p></div>
+    <div class="prize"><div class="ph" style="background-image:url('https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=800&q=70');"></div><img class="medal" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-gold.png" alt=""><div class="amt"><small>1st place</small>AED 5,000</div><h4>Champion team</h4></div>
+    <div class="prize"><div class="ph" style="background-image:url('https://images.unsplash.com/photo-1552674605-db6ffd4facb5?auto=format&fit=crop&w=800&q=70');"></div><img class="medal" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-silver.png" alt=""><div class="amt"><small>2nd place</small>AED 2,500</div><h4>Runner-up</h4></div>
+    <div class="prize"><div class="ph" style="background-image:url('https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=800&q=70');"></div><img class="medal" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-bronze.png" alt=""><div class="amt"><small>3rd place</small>AED 2,500</div><h4>Third place</h4></div>
   </div>
+  <p class="spend-lead">Activity vouchers for the team to spend however you like:</p>
+  <div class="spend"><span>Uniforms</span><span>Equipment</span><span>Fees</span><span>Team bonding</span><span>Team training</span><span>&amp; more</span></div>
 </div></section>
 
 <!-- DATES -->
