@@ -139,7 +139,7 @@
   .shots{display:flex;gap:20px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin:28px -24px 0;padding:0 24px 8px;}
   .shots::-webkit-scrollbar{display:none;}
   .shot{flex:0 0 auto;width:224px;scroll-snap-align:start;margin:0;}
-  .shot img{width:224px;aspect-ratio:9/19;object-fit:cover;object-position:top;border-radius:26px;display:block;background:linear-gradient(160deg,#12659a,#0d2b45);}
+  .shot img{width:224px;aspect-ratio:9/19.5;object-fit:contain;border-radius:26px;display:block;background:#0a1622;border:1px solid rgba(255,255,255,.07);}
   .shot figcaption{margin-top:14px;}
   .shot figcaption b{font-size:14.5px;font-weight:800;display:block;}
   .shot figcaption span{font-size:12.5px;color:var(--mut);display:block;margin-top:2px;}
@@ -225,7 +225,6 @@
   <div class="hero-copy"><div class="wrap">
     <div class="eyebrow">The active-lifestyle community</div>
     <h1>Find your people.<br>Live active.</h1>
-    <p class="lead">FFP Passport turns an active life into real-world connections — the people you train, play, explore and recover alongside.</p>
     <div class="hero-cta">
       <a href="/login#signup" class="btn">Start your 14-day free trial</a>
       <a href="#connect" class="btn-ghost">See how it works &rarr;</a>
