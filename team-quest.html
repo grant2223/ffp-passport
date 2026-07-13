@@ -88,6 +88,8 @@
   .score-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0 40px;margin-top:22px;}
   .sc{display:flex;align-items:center;gap:13px;padding:17px 0;border-top:1px solid var(--line);font-size:15.5px;font-weight:800;color:#e8eff5;}
   .sc .material-icons{color:var(--yellow);font-size:22px;}
+  .sc .n{margin-left:auto;font-weight:900;font-size:16px;color:var(--yellow);white-space:nowrap;}
+  .sc .n small{color:var(--mut);font-weight:700;font-size:11px;margin-left:3px;letter-spacing:.3px;}
   .avg{margin-top:18px;color:var(--mut);font-size:15px;font-weight:600;max-width:60ch;}
   .avg b{color:#fff;}
   .flow{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:36px;}
@@ -245,7 +247,7 @@
 
 <!-- SPLIT: how it works -->
 <section class="split">
-  <div class="img ph" style="background-image:url('https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/race-group-photo.jpg');"></div>
+  <div class="img ph" style="background-image:url('https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/team-quest-crew.jpg');"></div>
   <div class="copy">
     <div class="eye">How it works</div>
     <h2>Get your crew<br>in the race.</h2>
@@ -261,15 +263,15 @@
 <!-- SCORING -->
 <section class="sec score-band"><div class="wrap">
   <div class="eye">How you win</div>
-  <h2>Every action climbs the board.</h2>
+  <h2>Log activity + Support Your Team.</h2>
   <p class="avg">Your members earn points for staying active <b>and</b> being a community:</p>
   <div class="score-grid">
-    <div class="sc"><span class="material-icons">directions_run</span>Log an activity</div>
-    <div class="sc"><span class="material-icons">back_hand</span>Give a high-five</div>
-    <div class="sc"><span class="material-icons">chat_bubble</span>Leave a comment</div>
-    <div class="sc"><span class="material-icons">group_add</span>Refer a friend</div>
-    <div class="sc"><span class="material-icons">event</span>Host or join a meet-up</div>
-    <div class="sc"><span class="material-icons">local_fire_department</span>Keep a streak</div>
+    <div class="sc"><span class="material-icons">directions_run</span>Log an activity<span class="n">5<small>pts</small></span></div>
+    <div class="sc"><span class="material-icons">back_hand</span>Give a high-five<span class="n">2<small>pts</small></span></div>
+    <div class="sc"><span class="material-icons">chat_bubble</span>Leave a comment<span class="n">1<small>pt</small></span></div>
+    <div class="sc"><span class="material-icons">group_add</span>Refer a friend<span class="n">20–30<small>pts</small></span></div>
+    <div class="sc"><span class="material-icons">event</span>Host or join a meet-up<span class="n">20–30<small>pts</small></span></div>
+    <div class="sc"><span class="material-icons">ios_share</span>Share on socials<span class="n">5<small>pts</small></span></div>
   </div>
   <div class="flow">
     <div class="fstep"><span class="material-icons">directions_run</span><b>Members stay active</b><small>Log, high-five, meet up</small></div>
