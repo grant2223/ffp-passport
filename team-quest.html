@@ -34,6 +34,7 @@
   nav .wrap{display:flex;align-items:center;justify-content:space-between;height:60px;}
   .brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:17px;}
   .brand .dot{width:8px;height:8px;border-radius:50%;background:var(--yellow);box-shadow:0 0 12px var(--yellow);}
+  .brand .bmark{width:22px;height:22px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.45));}
   .brand small{font-weight:800;color:var(--mut);font-size:11px;letter-spacing:1.4px;text-transform:uppercase;}
   nav .cta{font-size:13.5px;font-weight:900;padding:9px 17px;border-radius:11px;background:var(--yellow);color:#08202f;}
 
@@ -178,20 +179,18 @@
 <body>
 
 <nav><div class="wrap">
-  <div class="brand"><span class="dot"></span>FFP <small>Team Quest</small></div>
+  <div class="brand"><img class="bmark" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-gold.png" alt="">FFP <small>Team Quest</small></div>
   <a class="cta" href="mailto:hello@findfitpeople.com?subject=Team%20Quest%20registration">Contact us to register</a>
 </div></nav>
 
 <!-- HERO -->
 <header class="hero">
   <div class="ph"></div><div class="veil"></div>
-  <img class="hero-medal" src="https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-gold.png" alt="">
   <div class="wrap">
     <div class="flag">🇦🇪 UAE&nbsp;&nbsp;·&nbsp;&nbsp;1 – 31 August 2026</div>
     <h1>The most active<br>team in the <span class="hl">UAE.</span></h1>
     <div class="row">
       <a class="btn" href="mailto:hello@findfitpeople.com?subject=Team%20Quest%20registration">Contact us to register →</a>
-      <span class="note">1 – 31 August 2026. One live leaderboard.</span>
     </div>
   </div>
 </header>
