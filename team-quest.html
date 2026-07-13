@@ -84,21 +84,22 @@
   .st .stx{flex:1;} .st .stx b{font-size:16.5px;font-weight:800;display:block;} .st .stx small{font-size:12.5px;color:var(--mut);font-weight:600;display:block;margin-top:3px;line-height:1.5;}
   .st .material-icons{color:var(--aqua);font-size:22px;margin-top:2px;flex:0 0 auto;}
 
-  /* SCORING — clean rows, no pills */
-  .score-band{background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
-  .score-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0 40px;margin-top:22px;}
-  .sc{display:flex;align-items:center;gap:13px;padding:17px 0;border-top:1px solid var(--line);font-size:15.5px;font-weight:800;color:#e8eff5;}
-  .sc .material-icons{color:var(--yellow);font-size:22px;}
-  .sc .n{margin-left:auto;font-weight:900;font-size:16px;color:var(--yellow);white-space:nowrap;}
-  .sc .n small{color:var(--mut);font-weight:700;font-size:11px;margin-left:3px;letter-spacing:.3px;}
-  .avg{margin-top:18px;color:var(--mut);font-size:15px;font-weight:600;max-width:60ch;}
+  /* SCORING — clean rows, no pills, no boxes */
+  .score-band{background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);text-align:center;}
+  .avg{margin:16px auto 0;color:var(--mut);font-size:15.5px;font-weight:600;max-width:50ch;}
   .avg b{color:#fff;}
-  .flow{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:36px;}
-  .fstep{background:rgba(255,255,255,.045);border-radius:16px;padding:22px 16px;text-align:center;position:relative;}
-  .fstep .material-icons{font-size:26px;color:var(--aqua);}
-  .fstep b{display:block;font-size:14.5px;font-weight:800;margin-top:9px;}
-  .fstep small{display:block;font-size:11.5px;color:var(--mut);font-weight:600;margin-top:3px;}
-  .fstep:not(:last-child)::after{content:"\2192";position:absolute;right:-10px;top:50%;transform:translateY(-50%);color:var(--yellow);font-weight:900;font-size:17px;z-index:2;}
+  .pts-list{max-width:580px;margin:36px auto 0;text-align:left;}
+  .sc{display:flex;align-items:center;gap:16px;padding:19px 2px;border-top:1px solid var(--line);}
+  .sc:last-child{border-bottom:1px solid var(--line);}
+  .sc .material-icons{color:var(--yellow);font-size:21px;flex:0 0 auto;}
+  .sc .lab{font-size:16.5px;font-weight:800;color:#eaf1f6;letter-spacing:-.2px;}
+  .sc .n{margin-left:auto;font-weight:900;font-size:17px;color:var(--yellow);white-space:nowrap;}
+  .sc .n small{color:var(--mut);font-weight:700;font-size:10.5px;margin-left:4px;text-transform:uppercase;letter-spacing:.5px;}
+  .flow{max-width:780px;margin:48px auto 0;display:grid;grid-template-columns:repeat(4,1fr);}
+  .fstep{padding:4px 18px;border-left:1px solid var(--line);text-align:center;}
+  .fstep:first-child{border-left:none;}
+  .fstep b{display:block;font-size:14px;font-weight:900;color:#fff;letter-spacing:-.2px;}
+  .fstep small{display:block;font-size:11.5px;color:var(--mut);font-weight:600;margin-top:6px;line-height:1.45;}
   @media(max-width:620px){.flow{grid-template-columns:1fr 1fr;} .fstep::after{display:none!important;}}
 
   /* LEADERBOARD */
@@ -167,11 +168,10 @@
     .pillars{grid-template-columns:1fr;}
     .split{grid-template-columns:1fr;} .split .img{min-height:280px;} .split .copy{padding:44px 26px;}
     .prizes{grid-template-columns:1fr;} .dates .wrap{grid-template-columns:1fr;}
-    .score-grid{grid-template-columns:1fr 1fr;gap:0 30px;}
+    .flow{grid-template-columns:1fr 1fr;gap:26px 0;} .fstep{border-left:none;} .fstep:nth-child(even){border-left:1px solid var(--line);}
   }
   @media(max-width:520px){
     .stats .wrap{grid-template-columns:1fr 1fr;} .stat:nth-child(3){border-left:none;} .stat{border-top:1px solid var(--line);} .stat:first-child,.stat:nth-child(2){border-top:none;}
-    .score-grid{grid-template-columns:1fr;}
     .podium{gap:8px;} .pname{font-size:12px;} .ppts{font-size:13px;} .pcol.first{transform:none;} .pcol.first .pbadge{font-size:42px;}
   }
 </style>
@@ -262,21 +262,21 @@
 <!-- SCORING -->
 <section class="sec score-band"><div class="wrap">
   <div class="eye">How you win</div>
-  <h2>Log activity + Support Your Team.</h2>
-  <p class="avg">Your members earn points for staying active <b>and</b> being a community:</p>
-  <div class="score-grid">
-    <div class="sc"><span class="material-icons">directions_run</span>Log an activity<span class="n">5<small>pts</small></span></div>
-    <div class="sc"><span class="material-icons">back_hand</span>Give a high-five<span class="n">2<small>pts</small></span></div>
-    <div class="sc"><span class="material-icons">chat_bubble</span>Leave a comment<span class="n">1<small>pt</small></span></div>
-    <div class="sc"><span class="material-icons">group_add</span>Refer a friend<span class="n">20–30<small>pts</small></span></div>
-    <div class="sc"><span class="material-icons">event</span>Host or join a meet-up<span class="n">20–30<small>pts</small></span></div>
-    <div class="sc"><span class="material-icons">ios_share</span>Share on socials<span class="n">5<small>pts</small></span></div>
+  <h2>Log activity.<br>Support your team.</h2>
+  <p class="avg">Members earn points for staying active <b>and</b> backing their crew.</p>
+  <div class="pts-list">
+    <div class="sc"><span class="material-icons">group_add</span><span class="lab">Refer a friend</span><span class="n">20–30<small>pts</small></span></div>
+    <div class="sc"><span class="material-icons">event</span><span class="lab">Host or join a meet-up</span><span class="n">20–30<small>pts</small></span></div>
+    <div class="sc"><span class="material-icons">directions_run</span><span class="lab">Log an activity</span><span class="n">5<small>pts</small></span></div>
+    <div class="sc"><span class="material-icons">ios_share</span><span class="lab">Share on socials</span><span class="n">5<small>pts</small></span></div>
+    <div class="sc"><span class="material-icons">back_hand</span><span class="lab">Give a high-five</span><span class="n">2<small>pts</small></span></div>
+    <div class="sc"><span class="material-icons">chat_bubble</span><span class="lab">Leave a comment</span><span class="n">1<small>pt</small></span></div>
   </div>
   <div class="flow">
-    <div class="fstep"><span class="material-icons">directions_run</span><b>Members stay active</b><small>Log, high-five, meet up</small></div>
-    <div class="fstep"><span class="material-icons">add_circle</span><b>Points add up</b><small>Every action scores</small></div>
-    <div class="fstep"><span class="material-icons">leaderboard</span><b>Team score climbs</b><small>Average of active members</small></div>
-    <div class="fstep"><span class="material-icons">military_tech</span><b>Top 3 win</b><small>AED 10,000 in vouchers</small></div>
+    <div class="fstep"><b>Members stay active</b><small>Log, high-five, meet up</small></div>
+    <div class="fstep"><b>Points add up</b><small>Every action counts</small></div>
+    <div class="fstep"><b>Team score climbs</b><small>Average of active members</small></div>
+    <div class="fstep"><b>Top 3 win</b><small>AED 10,000 in vouchers</small></div>
   </div>
 </div></section>
 
