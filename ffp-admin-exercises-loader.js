@@ -89,6 +89,8 @@
         '<div class="field-row"><div class="field"><div class="field-label">Default mode</div><select class="field-input" id="exf-mode">' + modeOpt + '</select></div>' +
           '<div class="field"><div class="field-label">Difficulty</div><select class="field-input" id="exf-diff"><option value="">—</option>' + opt(['Beginner', 'Intermediate', 'Advanced'], x.difficulty) + '</select></div></div>' +
         '<div class="field"><div class="field-label">Demo video link</div><input class="field-input" id="exf-demo" value="' + escHtml(x.demo_url || '') + '" placeholder="YouTube / Vimeo / MP4 link"></div>' +
+        '<div class="field"><div class="field-label">…or upload an FFP clip (mp4 / webm — overrides the link)</div><input class="field-input" id="exf-file" type="file" accept="video/*"></div>' +
+        '<div class="field"><div class="field-label">Poster image (optional)</div><input class="field-input" id="exf-poster" type="file" accept="image/*"></div>' +
         '<div class="field"><div class="field-label">Coaching cue</div><input class="field-input" id="exf-cue" value="' + escHtml(x.default_cue || '') + '" placeholder="e.g. Shoulder blades back, no bounce"></div>' +
         '<div class="field-row"><div class="field"><div class="field-label">Sort order</div><input class="field-input" id="exf-sort" type="number" value="' + (x.sort_order != null ? x.sort_order : 0) + '"></div>' +
           '<div class="field"><div class="field-label">Status</div><select class="field-input" id="exf-active"><option value="1"' + ((x.active === false) ? '' : ' selected') + '>Active</option><option value="0"' + ((x.active === false) ? ' selected' : '') + '>Hidden</option></select></div></div>';
@@ -96,18 +98,37 @@
       openModal(id ? 'Edit exercise' : 'Add exercise', body, foot);
     },
     save: function (id) {
-      var g = function (i) { var el = document.getElementById(i); return el ? el.value : ''; };
-      var name = (g('exf-name') || '').trim(); if (!name) { showToast('Name the exercise', 'error'); return; }
-      var payload = {
-        p_id: id || null, p_name: name, p_muscle_group: g('exf-muscle') || null, p_equipment: g('exf-equip') || null,
-        p_difficulty: g('exf-diff') || null, p_default_mode: g('exf-mode') || 'weights', p_demo_url: (g('exf-demo') || '').trim() || null,
-        p_thumb_url: null, p_default_cue: g('exf-cue') || null, p_aliases: null, p_sort_order: parseInt(g('exf-sort'), 10) || 0, p_active: (g('exf-active') === '1')
-      };
       var self = this;
-      window.supabase.rpc('exercise_library_admin_save', payload).then(function (r) {
+      var g = function (i) { var el = document.getElementById(i); return el ? el.value : ''; };
+      var fileOf = function (i) { var el = document.getElementById(i); return (el && el.files && el.files[0]) || null; };
+      var name = (g('exf-name') || '').trim(); if (!name) { showToast('Name the exercise', 'error'); return; }
+      var existing = id ? (this.ALL.filter(function (e) { return String(e.id) === String(id); })[0] || {}) : {};
+      var demoUrl = (g('exf-demo') || '').trim() || null;
+      var thumbUrl = existing.thumb_url || null;
+      var vid = fileOf('exf-file'), post = fileOf('exf-poster');
+      var slug = (name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'exercise');
+      var up = function (file, kind) {
+        if (!file) return Promise.resolve(null);
+        var ext = ((file.name.split('.').pop() || '').toLowerCase().replace(/[^a-z0-9]/g, '')) || (kind === 'clip' ? 'mp4' : 'jpg');
+        var path = 'official/' + slug + '-' + kind + '-' + Date.now() + '.' + ext;
+        return window.supabase.storage.from('exercise-demos').upload(path, file, { upsert: true, contentType: file.type || undefined }).then(function (r) {
+          if (r && r.error) throw r.error;
+          return window.supabase.storage.from('exercise-demos').getPublicUrl(path).data.publicUrl;
+        });
+      };
+      showToast((vid || post) ? 'Uploading…' : 'Saving…');
+      up(vid, 'clip').then(function (u) { if (u) demoUrl = u; return up(post, 'poster'); }).then(function (u) {
+        if (u) thumbUrl = u;
+        var payload = {
+          p_id: id || null, p_name: name, p_muscle_group: g('exf-muscle') || null, p_equipment: g('exf-equip') || null,
+          p_difficulty: g('exf-diff') || null, p_default_mode: g('exf-mode') || 'weights', p_demo_url: demoUrl,
+          p_thumb_url: thumbUrl, p_default_cue: g('exf-cue') || null, p_aliases: null, p_sort_order: parseInt(g('exf-sort'), 10) || 0, p_active: (g('exf-active') === '1')
+        };
+        return window.supabase.rpc('exercise_library_admin_save', payload);
+      }).then(function (r) {
         if (r && r.error) throw r.error; var d = (r && r.data) || {}; if (!d.ok) throw new Error(d.error || 'save_failed');
         closeModal(); showToast(id ? 'Saved' : 'Exercise added'); self.fetch();
-      }).catch(function (e) { console.error('[exlib admin save]', e); showToast('Could not save', 'error'); });
+      }).catch(function (e) { console.error('[exlib admin save]', e); showToast('Could not save' + (e && e.message ? ': ' + e.message : ''), 'error'); });
     }
   };
   window.AdminExercises = AdminExercises;
