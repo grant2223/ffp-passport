@@ -8,15 +8,18 @@
     MUSCLES: ['Chest', 'Back', 'Legs', 'Glutes', 'Shoulders', 'Arms', 'Core', 'Full body', 'Cardio'],
     EQUIP: ['Barbell', 'Dumbbell', 'Kettlebell', 'Bodyweight', 'Machine', 'Cable', 'Band', 'None'],
     MODES: [['weights', 'Reps & weight'], ['time', 'Time / hold'], ['distance', 'Distance']],
-    _q: '', _muscle: '',
+    _q: '', _muscle: '', _groupBy: 'muscle',
     render: function () {
       var host = document.getElementById('panel-exercises'); if (!host) return;
       host.innerHTML =
-        '<div class="panel-head"><h1>Exercise Library</h1><div class="panel-head-actions"><button class="btn btn-primary" onclick="AdminExercises.openForm(null)"><span class="material-icons">add</span> Add exercise</button></div></div>' +
+        '<div class="panel-head"><h1 style="color:var(--text);">Exercise Library</h1><div class="panel-head-actions"><button class="btn btn-primary" onclick="AdminExercises.openForm(null)"><span class="material-icons">add</span> Add exercise</button></div></div>' +
         '<div class="section"><div class="section-body padded">' +
-          '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">' +
+          '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">' +
             '<input class="field-input" id="exl-q" placeholder="Search exercises…" oninput="AdminExercises._onSearch(this.value)" style="flex:1;min-width:180px;">' +
-            '<select class="field-input" id="exl-muscle" onchange="AdminExercises._onMuscle(this.value)" style="max-width:200px;"><option value="">All muscles</option>' + this.MUSCLES.map(function (m) { return '<option>' + m + '</option>'; }).join('') + '</select>' +
+            '<select class="field-input" id="exl-muscle" onchange="AdminExercises._onMuscle(this.value)" style="max-width:180px;"><option value="">All muscles</option>' + this.MUSCLES.map(function (m) { return '<option>' + m + '</option>'; }).join('') + '</select>' +
+            '<span style="font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);">Group by</span>' +
+            '<button id="exg-muscle" class="btn btn-primary btn-sm" onclick="AdminExercises._setGroup(\'muscle\')">Muscle</button>' +
+            '<button id="exg-equip" class="btn btn-outline btn-sm" onclick="AdminExercises._setGroup(\'equipment\')">Equipment</button>' +
           '</div>' +
           '<div id="exl-count" style="color:var(--muted);font-size:12px;margin-bottom:8px;"></div>' +
           '<div id="exl-list"><div style="color:var(--muted);padding:12px 0;">Loading…</div></div>' +
@@ -41,19 +44,37 @@
       var rows = this.ALL.filter(function (x) { return (!q || (x.name || '').toLowerCase().indexOf(q) > -1) && (!mus || x.muscle_group === mus); });
       var c = document.getElementById('exl-count'); if (c) c.textContent = rows.length + ' of ' + this.ALL.length + ' exercises';
       if (!rows.length) { l.innerHTML = '<div style="color:var(--muted);padding:12px 0;">No exercises match.</div>'; return; }
-      var self = this;
+      var self = this, gb = this._groupBy || 'muscle';
+      var groups = {};
+      rows.forEach(function (x) { var k = (gb === 'equipment' ? x.equipment : x.muscle_group) || 'Other'; (groups[k] = groups[k] || []).push(x); });
+      var keys = Object.keys(groups).sort();
+      var rowHtml = function (x) {
+        return '<tr>' +
+          '<td style="font-weight:700;padding-left:26px;">' + escHtml(x.name || '') + (x.default_cue ? ('<div style="color:var(--muted);font-weight:400;font-size:12px;margin-top:2px;">' + escHtml(x.default_cue) + '</div>') : '') + '</td>' +
+          '<td>' + escHtml(x.muscle_group || '—') + '</td>' +
+          '<td>' + escHtml(x.equipment || '—') + '</td>' +
+          '<td>' + escHtml(self._modeLbl(x.default_mode)) + '</td>' +
+          '<td>' + (x.demo_url ? '<span class="material-icons" style="color:var(--green);font-size:19px;vertical-align:-4px;">check_circle</span>' : '<span class="material-icons" style="color:var(--muted);font-size:19px;vertical-align:-4px;">remove</span>') + '</td>' +
+          '<td>' + (x.active ? '<span style="color:var(--green);">Active</span>' : '<span style="color:var(--muted);">Hidden</span>') + '</td>' +
+          '<td class="table-actions"><button class="btn btn-outline btn-sm" onclick="AdminExercises.openForm(\'' + x.id + '\')"><span class="material-icons">edit</span></button></td>' +
+        '</tr>';
+      };
       l.innerHTML = '<table class="table"><thead><tr><th>Exercise</th><th>Muscle</th><th>Equipment</th><th>Mode</th><th>Demo</th><th>Status</th><th></th></tr></thead><tbody>' +
-        rows.map(function (x) {
-          return '<tr>' +
-            '<td style="font-weight:700;">' + escHtml(x.name || '') + (x.default_cue ? ('<div style="color:var(--muted);font-weight:400;font-size:12px;margin-top:2px;">' + escHtml(x.default_cue) + '</div>') : '') + '</td>' +
-            '<td>' + escHtml(x.muscle_group || '—') + '</td>' +
-            '<td>' + escHtml(x.equipment || '—') + '</td>' +
-            '<td>' + escHtml(self._modeLbl(x.default_mode)) + '</td>' +
-            '<td>' + (x.demo_url ? '<span class="material-icons" style="color:var(--green);font-size:19px;vertical-align:-4px;">check_circle</span>' : '<span class="material-icons" style="color:var(--muted);font-size:19px;vertical-align:-4px;">remove</span>') + '</td>' +
-            '<td>' + (x.active ? '<span style="color:var(--green);">Active</span>' : '<span style="color:var(--muted);">Hidden</span>') + '</td>' +
-            '<td class="table-actions"><button class="btn btn-outline btn-sm" onclick="AdminExercises.openForm(\'' + x.id + '\')"><span class="material-icons">edit</span></button></td>' +
-          '</tr>';
+        keys.map(function (k) {
+          return '<tr><td colspan="7" style="background:var(--bg-3);font-weight:800;font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--yellow);padding:9px 14px;">' + escHtml(k) + ' · ' + groups[k].length + '</td></tr>' +
+            groups[k].sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); }).map(rowHtml).join('');
         }).join('') + '</tbody></table>';
+    },
+    _setGroup: function (g) {
+      this._groupBy = g;
+      try {
+        var a = document.getElementById('exg-muscle'), b = document.getElementById('exg-equip');
+        if (a && b) {
+          a.className = 'btn btn-sm ' + (g === 'muscle' ? 'btn-primary' : 'btn-outline');
+          b.className = 'btn btn-sm ' + (g === 'equipment' ? 'btn-primary' : 'btn-outline');
+        }
+      } catch (e) {}
+      this.renderList();
     },
     _onSearch: function (v) { this._q = v || ''; this.renderList(); },
     _onMuscle: function (v) { this._muscle = v || ''; this.renderList(); },
