@@ -7800,6 +7800,7 @@ window.ffpToggleActivityLike = async function (id) {
     if (r && r.error) throw r.error;
     var d = (r && r.data) || {};
     if (!d.ok) { if (typeof showToast === 'function') showToast('Could not like that', 'error'); if (btn) btn.disabled = false; return; }
+    try { if (window.Quests && Quests.pokeLive) Quests.pokeLive(); } catch (e) {}   // high-five points reflect on the quest leaderboard immediately
     if (btn) {
       btn.disabled = false;
       var circle = document.getElementById('ffp-like-circle');
@@ -7870,6 +7871,7 @@ window.ffpPostActivityComment = async function (id) {
     var d = r && r.data; inp.disabled = false;
     if (!d || d.error) { if (window.showToast) showToast(d && d.error === 'not_allowed' ? 'Only connections can comment' : 'Couldn’t post comment', 'error'); return; }
     inp.value = '';
+    try { if (window.Quests && Quests.pokeLive) Quests.pokeLive(); } catch (e) {}   // comment points reflect on the quest leaderboard immediately
     await window.ffpLoadActivityComments(id);
     var host = document.getElementById('ffp-act-comments'); if (host && host.lastElementChild && host.lastElementChild.scrollIntoView) host.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } catch (e) { inp.disabled = false; }
@@ -8327,6 +8329,7 @@ window.ffpLogSocialShare = async function (kind, platform) {
     if (!window.supabase || !m || !m.id) return;
     await window.supabase.rpc('log_social_share', { p_member: m.id, p_kind: kind || 'app', p_platform: platform || null });
     if (typeof Earnings !== 'undefined' && Earnings.loadTierStats) { try { Earnings.loadTierStats(); } catch (e) {} }
+    try { if (window.Quests && Quests.pokeLive) Quests.pokeLive(); } catch (e) {}   // reflect share points on the quest leaderboard immediately
   } catch (e) { /* non-blocking */ }
 };
 
