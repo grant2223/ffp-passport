@@ -69,6 +69,15 @@ window.Quests = {
     this.renderAll();
   },
 
+  // Live-refresh after the member earns points elsewhere (e.g. a social share) so the
+  // leaderboard + their position update immediately instead of waiting for the next tick.
+  pokeLive() {
+    try {
+      if (this._openQuest && document.getElementById('q-board-list')) this.loadQuestBoard();
+      if (document.getElementById('quest-sections')) this.load();
+    } catch (e) {}
+  },
+
   _ensureCss() {
     if (document.getElementById('ffp-quests-v8-css')) return;
     var s = document.createElement('style'); s.id = 'ffp-quests-v8-css';
@@ -543,7 +552,7 @@ window.Quests = {
         // Don't yank the user back to page 1 if they've paged past the first 50 or are searching.
         if (self._boardLoaded && pane && pane.style.display !== 'none' && document.visibilityState === 'visible'
             && (self._boardOffset || 0) <= 50 && !(self.boardSearch && self.boardSearch.trim())) self.loadQuestBoard();
-      }, 45000);
+      }, 15000);
     }
   },
   descMore() {
