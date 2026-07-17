@@ -103,7 +103,7 @@
         FFP_BUILD 520→521 (image optimizer, bad) → 522 (reverted).
      Build 520 (2026-07-02): "Connections" panel → "Community" (nav label + title + 2p/3p icon swap); Coach Grant card is now
         snapshot-driven (streak, 5 active-life pillars, July race, one hook) with a fixed 3-CTA row Chat / Log activity / Meetups,
-        first-run onboarding (motivations quick-pick + a goal), and a never-blank fallback. Loader assets/ffp-coach-loader.js?v=522.
+        first-run onboarding (motivations quick-pick + a goal), and a never-blank fallback. Loader assets/ffp-coach-loader.js?v=523 (v2: top-bar portrait icon → full-bleed hub, feedback moved to avatar menu, 13-step spotlight tour, inline card removed).
      (Full history is in git. Do not paste the old changelog back — keep this header to the current Build only.)
 -->
 <!DOCTYPE html>
@@ -375,8 +375,35 @@
 <div class="topbar">
   <div class="topbar-logo">FFP Passport<span class="topbar-tag">Your Active Lifestyle Community</span></div>
   <div class="topbar-icons">
-    <button class="icon-btn" id="ffp-feedback-btn" title="Send feedback" aria-label="Send feedback" onclick="window.FFPFeedback && window.FFPFeedback.open()" style="background:rgba(43,168,224,0.16);border-color:var(--blue);">
-      <span class="material-icons" style="color:var(--blue);">feedback</span>
+    <button class="icon-btn" id="ffp-coach-btn" title="Coach AL" aria-label="Coach AL" onclick="window.ffpCoach && ffpCoach.openHub()" style="background:none;border:none;padding:0;width:auto;height:auto;position:relative;overflow:visible;">
+      <svg width="39" height="34" viewBox="0 0 60 52" style="display:block;" aria-hidden="true">
+        <defs>
+          <linearGradient id="skWTB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7d3b2"/><stop offset="1" stop-color="#e6ad84"/></linearGradient>
+          <linearGradient id="skMTB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9bd93"/><stop offset="1" stop-color="#cf9866"/></linearGradient>
+          <linearGradient id="haWTB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a9572a"/><stop offset="1" stop-color="#6d3417"/></linearGradient>
+          <linearGradient id="haMTB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b2a1d"/><stop offset="1" stop-color="#20140c"/></linearGradient>
+          <linearGradient id="tpWTB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff6f91"/><stop offset="1" stop-color="#e24b6e"/></linearGradient>
+          <linearGradient id="tpMTB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2fb0e6"/><stop offset="1" stop-color="#1c80b3"/></linearGradient>
+        </defs>
+        <path d="M28 52 L29.5 42.5 Q30.5 39.2 34 38.6 L50 38.6 Q53.4 39.2 54.4 42.5 L56 52 Z" fill="url(#tpMTB)"/>
+        <rect x="38.4" y="31" width="7.2" height="9" rx="3" fill="url(#skMTB)"/>
+        <ellipse cx="42" cy="22" rx="10.6" ry="11.6" fill="url(#skMTB)"/>
+        <circle cx="31.8" cy="23" r="2" fill="url(#skMTB)"/><circle cx="52.2" cy="23" r="2" fill="url(#skMTB)"/>
+        <path d="M31.5 21 Q31.2 8.5 42 8.5 Q52.8 8.5 52.5 21 Q52.6 16 49.5 13.4 Q46 11.2 42 11.2 Q35.5 11.2 33.4 14.8 Q31.7 17.3 31.5 21 Z" fill="url(#haMTB)"/>
+        <path d="M37.2 21.2 q1.6 -1 3.2 0" stroke="#3a2519" stroke-width="0.9" fill="none" stroke-linecap="round"/>
+        <path d="M43.6 21.2 q1.6 -1 3.2 0" stroke="#3a2519" stroke-width="0.9" fill="none" stroke-linecap="round"/>
+        <ellipse cx="38.8" cy="23" rx="1.15" ry="1.45" fill="#31241c"/><ellipse cx="45.2" cy="23" rx="1.15" ry="1.45" fill="#31241c"/>
+        <path d="M39.6 27.6 Q42 29.2 44.4 27.6" stroke="#a85c48" stroke-width="1" fill="none" stroke-linecap="round"/>
+        <path d="M6 52 L7.6 42.5 Q8.6 39.2 12 38.6 L28 38.6 Q31.4 39.2 32.4 42.5 L34 52 Z" fill="url(#tpWTB)"/>
+        <rect x="18.4" y="31" width="7.2" height="9" rx="3" fill="url(#skWTB)"/>
+        <path d="M8.5 25 Q7.4 6.5 22 6.5 Q36.6 6.5 35.5 25 Q36.2 34.5 31 40.5 L29 33.5 Q33 26 32 20 Q32 10.2 22 10.2 Q12 10.2 12 20 Q11 26 15 33.5 L13 40.5 Q7.8 34.5 8.5 25 Z" fill="url(#haWTB)"/>
+        <ellipse cx="22" cy="20.5" rx="10.6" ry="11.6" fill="url(#skWTB)"/>
+        <path d="M11.6 19.5 Q12.4 9.4 22 9.4 Q31.6 9.4 32.4 19.5 Q30 12.4 22 12.4 Q16.4 12.4 14 16.2 Q12.6 13.6 11.6 19.5 Z" fill="url(#haWTB)"/>
+        <ellipse cx="18.8" cy="21.4" rx="1.15" ry="1.5" fill="#3a2418"/><ellipse cx="25.2" cy="21.4" rx="1.15" ry="1.5" fill="#3a2418"/>
+        <ellipse cx="16.4" cy="24.4" rx="1.5" ry="1" fill="#f2a58a" opacity="0.5"/><ellipse cx="27.6" cy="24.4" rx="1.5" ry="1" fill="#f2a58a" opacity="0.5"/>
+        <path d="M19.6 26 Q22 27.7 24.4 26" stroke="#c65f5f" stroke-width="1.05" fill="none" stroke-linecap="round"/>
+      </svg>
+      <span id="ffp-coach-dot" style="position:absolute;top:-1px;right:-2px;width:10px;height:10px;border-radius:50%;background:#FFCC00;border:2px solid #0a1722;display:none;"></span>
     </button>
     <div class="menu-wrap">
       <button class="icon-btn" id="notif-btn">
@@ -406,7 +433,8 @@
         <button class="menu-item" data-panel="panel-workout-timer"><span class="material-icons">schedule</span><span>Workout Timer</span></button>
         <button class="menu-item" data-panel="panel-calorie-tracker"><span class="material-icons">local_fire_department</span><span>Calorie Tracker</span></button>
         <button class="menu-item" data-panel="panel-earnings"><span class="material-icons">account_balance_wallet</span><span>Earnings</span></button>
-        <button class="menu-item" onclick="ffpOpenSettings()"><span class="material-icons">settings</span><span>Settings</span></button>
+        <button class="menu-item" onclick="window.FFPFeedback && window.FFPFeedback.open()"><span class="material-icons">feedback</span><span>Feedback</span></button>
+        <button class="menu-item" id="ffp-menu-settings" onclick="ffpOpenSettings()"><span class="material-icons">settings</span><span>Settings</span></button>
         <div class="menu-divider"></div>
         <button class="menu-item menu-item-danger" id="user-menu-logout"><span class="material-icons">logout</span><span>Logout</span></button>
       </div>
@@ -518,7 +546,7 @@
   <!-- LOG: scan a provider QR or enter manually -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;">
     <button class="btn btn-block" style="padding:13px;background:#FFCC00;color:#081420;border:none;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;cursor:pointer;font-family:inherit;" onclick="openScanLog()"><span class="material-icons" style="font-size:18px;">qr_code_scanner</span> Scan QR</button>
-    <button class="btn btn-block" style="padding:13px;background:#FFCC00;color:#081420;border:none;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;cursor:pointer;font-family:inherit;" onclick="openLogModal()"><span class="material-icons" style="font-size:18px;">edit</span> Log Activity</button>
+    <button id="ffp-log-activity-btn" class="btn btn-block" style="padding:13px;background:#FFCC00;color:#081420;border:none;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;cursor:pointer;font-family:inherit;" onclick="openLogModal()"><span class="material-icons" style="font-size:18px;">edit</span> Log Activity</button>
     <button id="ffp-tagged-strap" onclick="openActivityTags()" style="display:none;width:100%;margin-top:10px;padding:12px 14px;background:rgba(43,168,224,0.10);border:1px solid rgba(43,168,224,0.35);border-radius:10px;color:#cfe9f7;font-weight:800;font-size:13px;font-family:inherit;cursor:pointer;align-items:center;gap:8px;text-align:left;">
       <span class="material-icons" style="font-size:19px;color:#2ba8e0;flex:0 0 auto;">group_add</span>
       <span id="ffp-tagged-strap-txt" style="flex:1;min-width:0;">You've been tagged in activities</span>
@@ -568,10 +596,9 @@
     <button class="time-chip" data-range="all">All time</button>
   </div>
 
-  <!-- COACH AL — the single coaching surface on the Passport (assets/ffp-coach-loader.js).
-       Coach owns coaching, trends and crew support. State-aware line + actions + Talk-to-Coach chat.
-       (WHOOP daily readiness moved to the top of Your Journey — Grant 2026-07-10.) -->
-  <div id="ffp-coach-mount" style="margin:6px 0 28px;"></div>
+  <!-- COACH AL now lives in a top-bar icon → full-bleed hub modal (assets/ffp-coach-loader.js).
+       The inline Passport card was REMOVED (Grant 2026-07-17); coach lives only in the modal. -->
+
 
   <!-- ═══ YOUR JOURNEY MAP (Leaflet) — World › Country › City ═══ -->
   <style>
@@ -8555,7 +8582,7 @@ else init();
 </style>
 <script src="assets/ffp-connections-core.js?v=361"></script>
 <!-- ffp-streak-loader removed 2026-07-10 (streak strap dropped) -->
-<script defer src="assets/ffp-coach-loader.js?v=522"></script>
+<script defer src="assets/ffp-coach-loader.js?v=523"></script>
 <script defer src="assets/ffp-connections-feed-loader.js?v=574"></script>
 <script defer src="assets/ffp-event-results-loader.js?v=329"></script>
 <script>
