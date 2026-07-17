@@ -347,7 +347,7 @@
      No ?v= on purpose: _headers sets /assets/*.js to no-store, so this always fetches fresh. -->
 <script src="assets/ffp-build.js"></script>
 <!-- Quests panel module (extracted from inline) — defines window.Quests before the dashboard boot calls init -->
-<script src="assets/ffp-quests-core.js?v=26"></script>
+<script src="assets/ffp-quests-core.js?v=27"></script>
 <script src="assets/ffp-earnings-core.js?v=3"></script>
 </head>
 <body>
@@ -7750,13 +7750,14 @@ window.ffpDoShareCard = async function () {
   var bits = [a.activity || 'My activity']; if (a.distance_km != null && a.distance_km > 0) bits.push((Math.round(a.distance_km * 100) / 100) + ' km'); var mins = Math.round(a.duration_min || 0); if (mins || a.duration_sec) bits.push(mins + ' min');
   var caption = bits.join(' · ') + ' — FFP Passport' + (window._ffpShareRef ? ('\nJoin me on FFP Passport: ' + window._ffpShareRef) : '');
   function cancel(e) { return e && (e.name === 'AbortError' || /abort|cancel|dismiss/i.test(e.message || '')); }
+  // ROOT-CAUSE FIX: count the share the moment they tap Share — BEFORE rendering the card image.
+  // Previously this was logged AFTER the image export, but the export's early `return` (below) on any
+  // render hiccup skipped it entirely, so members whose card didn't render got NO share points. Log first.
+  if (window.ffpLogSocialShare) ffpLogSocialShare('activity');
   // ALWAYS share the IMAGE (never a URL/link). Use the pre-rendered file if ready, else make it now.
   var f = (_ffpShareFile && _ffpShareKey === _ffpCurKey()) ? _ffpShareFile : null;
   if (!f) { f = await _ffpCaptureShareCard(); if (f) { _ffpShareFile = f; _ffpShareKey = _ffpCurKey(); } }
   if (!f) { if (typeof showToast === 'function') showToast('Image failed: ' + (_ffpShareErr || 'unknown'), 'error'); return; }
-  // Count the share the moment they commit — most people SAVE the image and post to Stories manually, which the OS
-  // never reports back, so waiting for navigator.share() to resolve loses the credit. Server caps it at 2/day.
-  if (window.ffpLogSocialShare) ffpLogSocialShare('activity');
   try {
     if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], text: caption }); return; }
     // Device can't share images (most desktop browsers) → download it instead of sharing a link.
@@ -8327,10 +8328,11 @@ window.ffpLogSocialShare = async function (kind, platform) {
   try {
     var m = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || null;
     if (!window.supabase || !m || !m.id) return;
-    await window.supabase.rpc('log_social_share', { p_member: m.id, p_kind: kind || 'app', p_platform: platform || null });
+    var r = await window.supabase.rpc('log_social_share', { p_member: m.id, p_kind: kind || 'app', p_platform: platform || null });
+    if (r && r.error) { console.warn('[FFP share] log_social_share FAILED:', (r.error.message || r.error.hint || r.error.code || r.error)); return; }
     if (typeof Earnings !== 'undefined' && Earnings.loadTierStats) { try { Earnings.loadTierStats(); } catch (e) {} }
-    try { if (window.Quests && Quests.pokeLive) Quests.pokeLive(); } catch (e) {}   // reflect share points on the quest leaderboard immediately
-  } catch (e) { /* non-blocking */ }
+    try { if (window.Quests && Quests.pokeLive) Quests.pokeLive(); } catch (e) {}   // points accrue silently, same as like / comment / log
+  } catch (e) { console.warn('[FFP share] error', e); }
 };
 
 // Tap handler — fires the share SYNCHRONOUSLY (within user activation): no await first.
