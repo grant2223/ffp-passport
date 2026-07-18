@@ -13,7 +13,6 @@
   var C = window.ffpCoach = window.ffpCoach || {};
   C._prof = C._prof || null;
   C._busy = false;
-  C._pending = null;   // message queued from the hub composer, sent once the chat thread is ready
 
   function refresh() { try { return localStorage.getItem('ffp_refresh') || (window.FFPAuth && FFPAuth.getRefresh && FFPAuth.getRefresh()) || ''; } catch (e) { return ''; } }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
@@ -76,10 +75,22 @@
       +   '<div style="min-width:0;"><div style="font-size:15px;font-weight:900;color:#fff;">Coach AL</div><div style="font-size:11px;color:#8a99a8;font-weight:700;">Your active-lifestyle coach</div></div>'
       + '</div>'
       + '<div id="ffp-coach-hub-body" class="ffp-noscroll" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;max-width:660px;width:100%;margin:0 auto;box-sizing:border-box;">'
-      +   '<div style="text-align:center;color:#5f7d94;font-size:12px;padding:40px;">…</div>'
+      +   '<div id="ffp-hub-summary"><div style="text-align:center;color:#5f7d94;font-size:12px;padding:40px;">…</div></div>'
+      +   '<div id="ffp-coach-thread" style="padding:0 18px 8px;"></div>'
+      + '</div>'
+      + '<div id="ffp-hub-composer" style="flex:0 0 auto;padding:10px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid rgba(255,255,255,.06);max-width:660px;width:100%;margin:0 auto;box-sizing:border-box;">'
+      +   '<div style="display:flex;gap:9px;align-items:flex-end;">'
+      +     '<textarea id="ffp-coach-input" rows="1" placeholder="Message Coach AL…" style="flex:1;resize:none;max-height:120px;background:#0e2032;border:1px solid rgba(255,255,255,.1);border-radius:14px;color:#e6eff7;font-family:inherit;font-size:14.5px;padding:11px 13px;outline:none;box-sizing:border-box;"></textarea>'
+      +     '<button id="ffp-coach-send" onclick="ffpCoach.send()" aria-label="Send" style="flex:0 0 auto;width:44px;height:44px;border:none;border-radius:50%;background:#2ba8e0;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;"><span class="material-icons">arrow_upward</span></button>'
+      +   '</div>'
       + '</div>';
     document.body.appendChild(ov);
     injectNoScroll();
+    var ta = document.getElementById('ffp-coach-input');
+    if (ta) {
+      ta.addEventListener('input', function () { ta.style.height = 'auto'; ta.style.height = Math.min(120, ta.scrollHeight) + 'px'; });
+      ta.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); C.send(); } });
+    }
     var rf = refresh();
     if (!rf) { renderHub(null); return; }
     post('/api/coach/snapshot', { refresh: rf }).then(function (j) {
@@ -91,8 +102,11 @@
   };
   C.closeHub = function () { var o = document.getElementById('ffp-coach-hub-ov'); if (o && o.parentNode) o.parentNode.removeChild(o); };
 
+  // The hub IS the conversation (Grant 2026-07-18): a short read on the member at the top, the live
+  // thread beneath it, composer pinned at the bottom. NO quest details, NO action buttons, NO
+  // "open full conversation" link — there is nowhere else to go.
   function renderHub(s, h) {
-    var body = document.getElementById('ffp-coach-hub-body'); if (!body) return;
+    var sum = document.getElementById('ffp-hub-summary'); if (!sum) return;
     s = s || {}; h = h || {};
     var streak = s.streak || 0;
     var rl = recLabel(s.latest_recovery);
@@ -101,44 +115,36 @@
     if (rl) strip.push(rl.replace(/^Recovery /, 'RECOVERY ').toUpperCase());
     var stripLine = strip.length ? '<div style="color:#ffc08a;font-size:11px;font-weight:900;letter-spacing:1.5px;">' + esc(strip.join(' · ')) + '</div>' : '';
     var headline = esc(h.headline || 'Ready when you are.');
-    var line = esc(h.line || 'Log a session, find people to move with, or chat with me about your active life.');
-    var race = (s.race && s.race.rank)
-      ? '<div style="margin-top:20px;padding-top:18px;border-top:1px solid rgba(255,255,255,.07);"><div style="color:#8fc7e8;font-size:13px;font-weight:800;">' + esc(s.race.quest || 'July race') + ' · #' + s.race.rank + ' · ' + s.race.points + ' pts</div>'
-        + (s.race.gap_to_above > 0 ? '<div style="color:#9fb3c4;font-size:12.5px;margin-top:3px;">' + s.race.gap_to_above + ' points off ' + esc(s.race.above_name || 'the spot above') + '.</div>' : '') + '</div>'
-      : '';
-    body.innerHTML =
-      '<div style="padding:22px 18px 26px;">'
+    var line = esc(h.line || 'Tell me what you are training for and I will help you build it.');
+    sum.innerHTML =
+      '<div style="padding:22px 18px 18px;">'
       +   stripLine
       +   '<div style="color:#fff;font-size:22px;font-weight:900;line-height:1.18;margin-top:' + (stripLine ? '10px' : '0') + ';">' + headline + '</div>'
       +   '<div style="color:#cfe1ef;font-size:14px;line-height:1.55;margin-top:8px;">' + line + '</div>'
       +   '<div style="display:flex;gap:14px;margin-top:24px;padding-top:18px;border-top:1px solid rgba(255,255,255,.07);">' + pillarRow(s.pillars && s.pillars.counts) + '</div>'
-      +   race
-      +   '<div style="margin-top:26px;">'
-      +     '<div style="display:flex;gap:9px;align-items:flex-end;">'
-      +       '<textarea id="ffp-hub-input" rows="1" placeholder="Message Coach AL…" style="flex:1;resize:none;max-height:120px;background:#0e2032;border:1px solid rgba(255,255,255,.1);border-radius:14px;color:#e6eff7;font-family:inherit;font-size:14.5px;padding:12px 14px;outline:none;box-sizing:border-box;"></textarea>'
-      +       '<button onclick="ffpCoach.hubSend()" aria-label="Send" style="flex:0 0 auto;width:44px;height:44px;border:none;border-radius:50%;background:#2ba8e0;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;"><span class="material-icons">arrow_upward</span></button>'
-      +     '</div>'
-      +     '<div onclick="ffpCoach.openChat()" style="text-align:center;color:#8fd0f0;font-size:12.5px;font-weight:800;margin-top:12px;cursor:pointer;">Open full conversation</div>'
-      +   '</div>'
-      +   '<div style="display:flex;margin-top:22px;border-top:1px solid rgba(255,255,255,.07);">'
-      +     '<button onclick="ffpCoach.logActivity()" style="flex:1;background:none;border:none;color:#8fd0f0;font-family:inherit;font-size:13.5px;font-weight:800;padding:17px 8px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px;"><span class="material-icons" style="font-size:18px;">add</span>Log activity</button>'
-      +     '<div style="width:1px;background:rgba(255,255,255,.07);margin:11px 0;"></div>'
-      +     '<button onclick="ffpCoach.goMeetups()" style="flex:1;background:none;border:none;color:#8fd0f0;font-family:inherit;font-size:13.5px;font-weight:800;padding:17px 8px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px;"><span class="material-icons" style="font-size:18px;">groups</span>Meetups</button>'
-      +   '</div>'
       + '</div>';
-    var ta = document.getElementById('ffp-hub-input');
-    if (ta) {
-      ta.addEventListener('input', function () { ta.style.height = 'auto'; ta.style.height = Math.min(120, ta.scrollHeight) + 'px'; });
-      ta.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); C.hubSend(); } });
-    }
+    var comp = document.getElementById('ffp-hub-composer'); if (comp) comp.style.display = '';
+    loadThread();
   }
 
-  // hub composer → open the full chat and send what they typed
-  C.hubSend = function () {
-    var ta = document.getElementById('ffp-hub-input'); var msg = ta ? (ta.value || '').trim() : '';
-    C._pending = msg || null;
-    C.openChat();
-  };
+  // the conversation itself, inside the hub
+  function loadThread() {
+    var th = document.getElementById('ffp-coach-thread'); if (!th) return;
+    th.innerHTML = '<div style="text-align:center;color:#5f7d94;font-size:12px;padding:14px;">…</div>';
+    post('/api/coach/history', { refresh: refresh() }).then(function (j) {
+      var t2 = document.getElementById('ffp-coach-thread'); if (!t2) return;
+      var msgs = (j && j.messages) || [];
+      if (!msgs.length) {
+        var opener = (C._hook && C._hook.line) ? (C._hook.headline + ' ' + C._hook.line) : 'Hey — I’m Coach AL. I’m here for your training, motivation and finding people to move with. What’s on your mind?';
+        t2.innerHTML = bubble('coach', nl2br(opener));
+      } else {
+        t2.innerHTML = msgs.map(function (m) { return bubble(m.role === 'coach' ? 'coach' : 'user', nl2br(m.content)); }).join('');
+      }
+      scrollBottom();
+    }).catch(function () {
+      var t2 = document.getElementById('ffp-coach-thread'); if (t2) t2.innerHTML = bubble('coach', 'Hey — I’m Coach AL. What’s on your mind?');
+    });
+  }
 
   // First-run onboarding, rendered INSIDE the hub (motivations quick-pick + one goal).
   C._selMot = C._selMot || {};
@@ -148,6 +154,7 @@
   };
   function renderHubOnboard() {
     var body = document.getElementById('ffp-coach-hub-body'); if (!body) return;
+    var comp = document.getElementById('ffp-hub-composer'); if (comp) comp.style.display = 'none';   // no chat until they're set up
     var name = (C._snap && C._snap.first_name) || 'there';
     var grid = (C._catalog || []).map(function (m) {
       return '<button type="button" onclick="ffpCoach.toggleMot(\'' + m.key + '\',this)" style="border:1px solid rgba(43,168,224,.22);background:rgba(43,168,224,.10);color:#cfe1ef;border-radius:12px;padding:13px 6px;font-family:inherit;font-size:11.5px;font-weight:800;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;line-height:1.15;text-align:center;"><span class="material-icons" style="font-size:20px;">' + esc(m.icon) + '</span>' + esc(m.label) + '</button>';
@@ -169,6 +176,9 @@
     var b = document.getElementById('ffp-onb-go'); if (b) { b.disabled = true; b.textContent = 'Setting up…'; }
     post('/api/coach/onboard', { refresh: rf, motivations: mot, goals: goal ? [{ label: goal }] : [] }).then(function () {
       C._selMot = {}; if (C._snap) C._snap.onboarded = true;
+      // restore the hub shell (onboarding overwrote the body), then render summary + conversation
+      var body = document.getElementById('ffp-coach-hub-body');
+      if (body) body.innerHTML = '<div id="ffp-hub-summary"></div><div id="ffp-coach-thread" style="padding:0 18px 8px;"></div>';
       renderHub(C._snap, C._hook); toast('You’re all set — let’s move.', 'success');
     }).catch(function () { var b2 = document.getElementById('ffp-onb-go'); if (b2) { b2.disabled = false; b2.textContent = 'Start my active life'; } });
   };
@@ -186,52 +196,16 @@
       '<div style="max-width:82%;padding:11px 14px;border-radius:16px;font-size:14.5px;line-height:1.5;' +
         (mine ? 'background:#2ba8e0;color:#fff;border-bottom-right-radius:5px;' : 'background:#12283b;color:#e6eff7;border-bottom-left-radius:5px;') + '">' + html + '</div></div>';
   }
-  function scrollBottom() { var b = document.getElementById('ffp-coach-thread'); if (b) b.scrollTop = b.scrollHeight; }
+  // the hub body is the scroller (summary + thread live inside it)
+  function scrollBottom() {
+    var b = document.getElementById('ffp-coach-hub-body') || document.getElementById('ffp-coach-thread');
+    if (b) b.scrollTop = b.scrollHeight;
+  }
 
-  C.openChat = function () {
-    if (document.getElementById('ffp-coach-ov')) { if (C._pending) { var t = document.getElementById('ffp-coach-input'); if (t) { t.value = C._pending; C._pending = null; C.send(); } } return; }
-    var ov = document.createElement('div'); ov.id = 'ffp-coach-ov';
-    ov.style.cssText = 'position:fixed;inset:0;z-index:100062;background:#081420;display:flex;flex-direction:column;font-family:inherit;';
-    ov.innerHTML =
-      '<div style="flex:0 0 auto;display:flex;align-items:center;gap:12px;padding:14px 16px calc(14px);border-bottom:1px solid rgba(255,255,255,.06);max-width:660px;width:100%;margin:0 auto;box-sizing:border-box;">' +
-        '<span onclick="ffpCoach.closeChat()" class="material-icons" style="color:#8a99a8;cursor:pointer;">arrow_back</span>' +
-        alMark(34) +
-        '<div style="min-width:0;"><div style="font-size:15px;font-weight:900;color:#fff;">Coach AL</div><div style="font-size:11px;color:#8a99a8;font-weight:700;">Your active-lifestyle coach</div></div>' +
-      '</div>' +
-      '<div id="ffp-coach-thread" class="ffp-noscroll" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:8px 16px;max-width:660px;width:100%;margin:0 auto;box-sizing:border-box;"></div>' +
-      '<div style="flex:0 0 auto;padding:10px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid rgba(255,255,255,.06);max-width:660px;width:100%;margin:0 auto;box-sizing:border-box;">' +
-        '<div style="display:flex;gap:9px;align-items:flex-end;">' +
-          '<textarea id="ffp-coach-input" rows="1" placeholder="Ask Coach anything…" style="flex:1;resize:none;max-height:120px;background:#0e2032;border:1px solid rgba(255,255,255,.1);border-radius:14px;color:#e6eff7;font-family:inherit;font-size:14.5px;padding:11px 13px;outline:none;"></textarea>' +
-          '<button id="ffp-coach-send" onclick="ffpCoach.send()" style="flex:0 0 auto;width:44px;height:44px;border:none;border-radius:50%;background:#2ba8e0;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;"><span class="material-icons">arrow_upward</span></button>' +
-        '</div>' +
-      '</div>';
-    document.body.appendChild(ov);
-    injectNoScroll();
-    var ta = document.getElementById('ffp-coach-input');
-    if (ta) {
-      ta.addEventListener('input', function () { ta.style.height = 'auto'; ta.style.height = Math.min(120, ta.scrollHeight) + 'px'; });
-      ta.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); C.send(); } });
-      setTimeout(function () { try { ta.focus(); } catch (e) {} }, 120);
-    }
-    var th = document.getElementById('ffp-coach-thread');
-    th.innerHTML = '<div id="ffp-coach-load" style="text-align:center;color:#5f7d94;font-size:12px;padding:20px;">…</div>';
-    post('/api/coach/history', { refresh: refresh() }).then(function (j) {
-      var t2 = document.getElementById('ffp-coach-thread'); if (!t2) return;
-      var msgs = (j && j.messages) || [];
-      if (!msgs.length) {
-        var opener = (C._hook && C._hook.line) ? (C._hook.headline + ' ' + C._hook.line) : 'Hey — I’m Coach AL. I’m here for your training, motivation and finding people to move with. What’s on your mind?';
-        t2.innerHTML = bubble('coach', nl2br(opener));
-      } else {
-        t2.innerHTML = msgs.map(function (m) { return bubble(m.role === 'coach' ? 'coach' : 'user', nl2br(m.content)); }).join('');
-      }
-      scrollBottom();
-      if (C._pending) { var inp = document.getElementById('ffp-coach-input'); if (inp) { inp.value = C._pending; C._pending = null; C.send(); } }
-    }).catch(function () {
-      var t2 = document.getElementById('ffp-coach-thread'); if (t2) t2.innerHTML = bubble('coach', 'Hey — I’m Coach AL. What’s on your mind?');
-      if (C._pending) { var inp = document.getElementById('ffp-coach-input'); if (inp) { inp.value = C._pending; C._pending = null; C.send(); } }
-    });
-  };
-  C.closeChat = function () { var o = document.getElementById('ffp-coach-ov'); if (o && o.parentNode) o.parentNode.removeChild(o); };
+  // The separate chat overlay is GONE — the hub IS the conversation. These stay as aliases so any
+  // legacy caller (or an old cached shell) still lands somewhere sensible.
+  C.openChat = function () { C.openHub(); };
+  C.closeChat = function () { C.closeHub(); };
 
   C.send = function () {
     if (C._busy) return;
