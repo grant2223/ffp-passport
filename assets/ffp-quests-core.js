@@ -259,20 +259,20 @@ window.Quests = {
   renderAll() {
     this._ensureCss();
     var self = this;
-    // Team (club competitions) + Squad (member 2-4 crews) each get a tab; the bar shows when either exists.
+    // Solo / Pair / Team ALWAYS show (Grant 2026-07-18). They used to appear only when that kind of quest
+    // happened to exist, so the whole bar vanished with no team/squad quest and members never learned the
+    // three formats exist. The tabs are now permanent navigation; an empty tab explains itself instead.
     var hasTeam = (this.featured || []).length > 0;
     var hasSquad = (this.squads || []).length > 0;
-    var tab = (hasTeam || hasSquad) ? (this.qtab || 'individual') : 'individual';
-    if (tab === 'team' && !hasTeam) tab = 'individual';
-    if (tab === 'squad' && !hasSquad) tab = 'individual';
+    var tab = this.qtab || 'individual';
     // Tab bar lives in its OWN container ABOVE the hero (Grant: tabs are the first thing you see; the quest sits under them).
     var tabsEl = document.getElementById('quest-tabs');
     if (tabsEl) {
-      tabsEl.innerHTML = (hasTeam || hasSquad) ? ('<div class="q-maintabs">' +
+      tabsEl.innerHTML = '<div class="q-maintabs">' +
         '<button class="q-mtab' + (tab === 'individual' ? ' on' : '') + '" onclick="Quests.setTab(\'individual\')">Solo</button>' +
-        (hasSquad ? '<button class="q-mtab' + (tab === 'squad' ? ' on' : '') + '" onclick="Quests.setTab(\'squad\')">Pair</button>' : '') +
-        (hasTeam ? '<button class="q-mtab' + (tab === 'team' ? ' on' : '') + '" onclick="Quests.setTab(\'team\')">Team</button>' : '') +
-        '</div>') : '';
+        '<button class="q-mtab' + (tab === 'squad' ? ' on' : '') + '" onclick="Quests.setTab(\'squad\')">Pair</button>' +
+        '<button class="q-mtab' + (tab === 'team' ? ' on' : '') + '" onclick="Quests.setTab(\'team\')">Team</button>' +
+        '</div>';
     }
     // The headline hero (#quest-hero) is the individual side — only on the Individual tab.
     var heroEl = document.getElementById('quest-hero');
@@ -282,21 +282,40 @@ window.Quests = {
     var host = document.getElementById('quest-sections'); if (!host) return;
     var html = '';
 
+    // Upcoming quests (published, future start) are teased with a countdown on EVERY tab, not just Solo —
+    // a published Team quest should be visible before it starts, not appear out of nowhere on day one.
+    var up = (this.upcoming || []);
+    function upcomingFor(kind) {
+      return up.filter(function (q) {
+        var k = String(q.kind || q.mode || q.quest_kind || 'individual').toLowerCase();
+        if (kind === 'team') return k.indexOf('team') > -1 || k.indexOf('club') > -1;
+        if (kind === 'squad') return k.indexOf('squad') > -1 || k.indexOf('pair') > -1;
+        return k.indexOf('team') === -1 && k.indexOf('club') === -1 && k.indexOf('squad') === -1 && k.indexOf('pair') === -1;
+      });
+    }
+    function comingSoon(list) {
+      if (!list.length) return '';
+      return '<div class="q-sec-h">Coming soon</div>' + list.map(self.upcomingCard.bind(self)).join('');
+    }
+
     if (tab === 'team') {
       // Team tab = the team quest card(s), FULL-WIDTH (same size as individual quest cards). Tap → club competition.
-      html += '<div class="q-teamlist">' + this.featured.map(this.featuredCard.bind(this)).join('') + '</div>';
+      html += comingSoon(upcomingFor('team'));
+      html += hasTeam
+        ? '<div class="q-teamlist">' + this.featured.map(this.featuredCard.bind(this)).join('') + '</div>'
+        : (upcomingFor('team').length ? '' : '<div class="q-sec-empty">No team quest running right now — the next one will show up here.</div>');
     } else if (tab === 'squad') {
       // Squad tab = the squad quest card(s), full-width. Tap → the squad experience (standings + create/join).
-      html += '<div class="q-teamlist">' + this.squads.map(this.squadCard.bind(this)).join('') + '</div>';
+      html += comingSoon(upcomingFor('squad'));
+      html += hasSquad
+        ? '<div class="q-teamlist">' + this.squads.map(this.squadCard.bind(this)).join('') + '</div>'
+        : (upcomingFor('squad').length ? '' : '<div class="q-sec-empty">No pair quest running right now — grab a partner and watch this space.</div>');
     } else {
       // Individual tab = the member's own quests.
       var joined = this.minor.filter(function (q) { return q.joined; }).concat(this.partner || []);
       var browse = this.minor.filter(function (q) { return !q.joined; });
-      // Coming soon — upcoming quests (published with a future start) teased at the top.
-      if ((this.upcoming || []).length) {
-        html += '<div class="q-sec-h">Coming soon</div>';
-        html += (this.upcoming || []).map(this.upcomingCard.bind(this)).join('');
-      }
+      // Coming soon — upcoming solo quests (published with a future start) teased at the top.
+      html += comingSoon(upcomingFor('individual'));
       if (joined.length) {
         html += '<div class="q-sec-h">My quests</div>';
         html += '<div class="q-list">' + joined.map(function (q) { return q.kind === 'partner' ? self.rowPartner(q) : self.rowMinor(q); }).join('') + '</div>';
