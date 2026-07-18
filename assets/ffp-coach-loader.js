@@ -41,45 +41,24 @@
     }).join('');
   }
 
-  // ── the Coach AL mark — a premium shoulders-up portrait (a woman + a man, gradient-shaded), NO box. Reused everywhere. ──
-  var _alN = 0;
-  function alMark(px) {
-    px = px || 40; var w = Math.round(px * 1.154), u = 'a' + (++_alN);
-    return '<svg width="' + w + '" height="' + px + '" viewBox="0 0 60 52" style="display:block;flex:0 0 auto;" aria-hidden="true">'
-      + '<defs>'
-      +   '<linearGradient id="skW' + u + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7d3b2"/><stop offset="1" stop-color="#e6ad84"/></linearGradient>'
-      +   '<linearGradient id="skM' + u + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9bd93"/><stop offset="1" stop-color="#cf9866"/></linearGradient>'
-      +   '<linearGradient id="haW' + u + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a9572a"/><stop offset="1" stop-color="#6d3417"/></linearGradient>'
-      +   '<linearGradient id="haM' + u + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b2a1d"/><stop offset="1" stop-color="#20140c"/></linearGradient>'
-      +   '<linearGradient id="tpW' + u + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff6f91"/><stop offset="1" stop-color="#e24b6e"/></linearGradient>'
-      +   '<linearGradient id="tpM' + u + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2fb0e6"/><stop offset="1" stop-color="#1c80b3"/></linearGradient>'
-      + '</defs>'
-      + '<path d="M28 52 L29.5 42.5 Q30.5 39.2 34 38.6 L50 38.6 Q53.4 39.2 54.4 42.5 L56 52 Z" fill="url(#tpM' + u + ')"/>'
-      + '<rect x="38.4" y="31" width="7.2" height="9" rx="3" fill="url(#skM' + u + ')"/>'
-      + '<ellipse cx="42" cy="22" rx="10.6" ry="11.6" fill="url(#skM' + u + ')"/>'
-      + '<circle cx="31.8" cy="23" r="2" fill="url(#skM' + u + ')"/><circle cx="52.2" cy="23" r="2" fill="url(#skM' + u + ')"/>'
-      + '<path d="M31.5 21 Q31.2 8.5 42 8.5 Q52.8 8.5 52.5 21 Q52.6 16 49.5 13.4 Q46 11.2 42 11.2 Q35.5 11.2 33.4 14.8 Q31.7 17.3 31.5 21 Z" fill="url(#haM' + u + ')"/>'
-      + '<path d="M37.2 21.2 q1.6 -1 3.2 0" stroke="#3a2519" stroke-width="0.9" fill="none" stroke-linecap="round"/>'
-      + '<path d="M43.6 21.2 q1.6 -1 3.2 0" stroke="#3a2519" stroke-width="0.9" fill="none" stroke-linecap="round"/>'
-      + '<ellipse cx="38.8" cy="23" rx="1.15" ry="1.45" fill="#31241c"/><ellipse cx="45.2" cy="23" rx="1.15" ry="1.45" fill="#31241c"/>'
-      + '<circle cx="39.2" cy="22.5" r="0.4" fill="#fff" opacity="0.85"/><circle cx="45.6" cy="22.5" r="0.4" fill="#fff" opacity="0.85"/>'
-      + '<path d="M41.4 24.5 q0.6 0.7 1.2 0" stroke="#b57b52" stroke-width="0.8" fill="none" stroke-linecap="round"/>'
-      + '<path d="M39.6 27.6 Q42 29.2 44.4 27.6" stroke="#a85c48" stroke-width="1" fill="none" stroke-linecap="round"/>'
-      + '<path d="M6 52 L7.6 42.5 Q8.6 39.2 12 38.6 L28 38.6 Q31.4 39.2 32.4 42.5 L34 52 Z" fill="url(#tpW' + u + ')"/>'
-      + '<rect x="18.4" y="31" width="7.2" height="9" rx="3" fill="url(#skW' + u + ')"/>'
-      + '<path d="M8.5 25 Q7.4 6.5 22 6.5 Q36.6 6.5 35.5 25 Q36.2 34.5 31 40.5 L29 33.5 Q33 26 32 20 Q32 10.2 22 10.2 Q12 10.2 12 20 Q11 26 15 33.5 L13 40.5 Q7.8 34.5 8.5 25 Z" fill="url(#haW' + u + ')"/>'
-      + '<ellipse cx="22" cy="20.5" rx="10.6" ry="11.6" fill="url(#skW' + u + ')"/>'
-      + '<path d="M11.6 19.5 Q12.4 9.4 22 9.4 Q31.6 9.4 32.4 19.5 Q30 12.4 22 12.4 Q16.4 12.4 14 16.2 Q12.6 13.6 11.6 19.5 Z" fill="url(#haW' + u + ')"/>'
-      + '<path d="M13.4 15.6 Q10.6 24 12.4 33" stroke="#89441f" stroke-width="0.9" fill="none" stroke-linecap="round" opacity="0.55"/>'
-      + '<path d="M17.4 19.6 q1.6 -1 3.2 0" stroke="#5a3018" stroke-width="0.9" fill="none" stroke-linecap="round"/>'
-      + '<path d="M23.4 19.6 q1.6 -1 3.2 0" stroke="#5a3018" stroke-width="0.9" fill="none" stroke-linecap="round"/>'
-      + '<ellipse cx="18.8" cy="21.4" rx="1.15" ry="1.5" fill="#3a2418"/><ellipse cx="25.2" cy="21.4" rx="1.15" ry="1.5" fill="#3a2418"/>'
-      + '<circle cx="19.2" cy="20.9" r="0.4" fill="#fff" opacity="0.85"/><circle cx="25.6" cy="20.9" r="0.4" fill="#fff" opacity="0.85"/>'
-      + '<ellipse cx="16.4" cy="24.4" rx="1.5" ry="1" fill="#f2a58a" opacity="0.5"/><ellipse cx="27.6" cy="24.4" rx="1.5" ry="1" fill="#f2a58a" opacity="0.5"/>'
-      + '<path d="M21.4 22.8 q0.6 0.7 1.2 0" stroke="#c9865c" stroke-width="0.8" fill="none" stroke-linecap="round"/>'
-      + '<path d="M19.6 26 Q22 27.7 24.4 26" stroke="#c65f5f" stroke-width="1.05" fill="none" stroke-linecap="round"/>'
-      + '</svg>';
+  // ── the Coach AL mark — ONE coach, chosen to match the member. COACH AL = ALBA (female) + LEO (male). ──
+  // Artwork: assets/coach-female.svg (Alba), coach-male.svg (Leo), coach-neutral.svg (default when gender unknown).
+  // Static files in the repo — no CDN, no runtime dependency. Swap a file to change that character everywhere;
+  // bump COACH_ART below when you do, so devices pick up the new art.
+  var COACH_ART = '1';
+  function coachSrc() {
+    var g = '';
+    try { g = String((C._snap && (C._snap.gender || C._snap.sex)) || '').trim().toLowerCase(); } catch (e) {}
+    if (g.indexOf('f') === 0 || g === 'woman' || g === 'w') return 'assets/coach-female.svg?v=' + COACH_ART;  // Alba
+    if (g.indexOf('m') === 0 || g === 'man') return 'assets/coach-male.svg?v=' + COACH_ART;                    // Leo
+    return 'assets/coach-neutral.svg?v=' + COACH_ART;
   }
+  function alMark(px) {
+    px = px || 40;
+    return '<img src="' + coachSrc() + '" width="' + px + '" height="' + px + '" alt="Coach AL" style="display:block;flex:0 0 auto;border-radius:50%;">';
+  }
+  // keep the top-bar icon in step with the member once the snapshot lands
+  C._syncTopbar = function () { try { var i = document.getElementById('ffp-coach-img'); if (i) i.src = coachSrc(); } catch (e) {} };
 
   // top-bar attention dot — shown when Coach AL has a fresh hook the member hasn't opened yet
   C._setBadge = function (on) { try { var d = document.getElementById('ffp-coach-dot'); if (d) d.style.display = on ? 'block' : 'none'; } catch (e) {} };
@@ -106,6 +85,7 @@
     post('/api/coach/snapshot', { refresh: rf }).then(function (j) {
       if (!document.getElementById('ffp-coach-hub-ov')) return;
       if (j && j.snapshot) { C._snap = j.snapshot || {}; C._hook = j.hook || {}; C._catalog = j.motivations_catalog || []; }
+      C._syncTopbar();
       if (C._snap && C._snap.onboarded === false) renderHubOnboard(); else renderHub(C._snap, C._hook);
     }).catch(function () { renderHub(C._snap, C._hook); });
   };
@@ -358,6 +338,7 @@
     var rf = refresh(); if (!rf) return;
     post('/api/coach/snapshot', { refresh: rf }).then(function (j) {
       if (j && j.snapshot) { C._snap = j.snapshot; C._hook = j.hook || {}; C._catalog = j.motivations_catalog || []; }
+      C._syncTopbar();                                   // swap the top-bar coach to match this member
       if (C._hook && C._hook.headline) C._setBadge(true);
       if (C._snap && C._snap.onboarded === false) { setTimeout(function () { try { C.startTour(); } catch (e) {} }, 900); }
     }).catch(function () {});
