@@ -6853,7 +6853,26 @@ async function saveLog() {
   if (!member || !member.id) { if (typeof showToast === 'function') showToast('Couldn’t save — please sign in again', 'error'); return; }
   if (!window.supabase) { if (typeof showToast === 'function') showToast('Still connecting — try again in a moment', 'error'); return; }
   var _editId = window._ffpEditLogId || null;
-  var _loggedAtIso = new Date(dateStr + 'T' + timeStr + ':00').toISOString();
+  // TIMEZONE-SAFE TIMESTAMP (2026-07-18). Was: new Date(dateStr+'T'+timeStr+':00').toISOString() — that
+  // converts using the DEVICE's timezone. If the phone's zone differed from the member's real timezone the
+  // instant was wrong by that offset, filing an evening session on the NEXT day, punching a phantom gap in
+  // the member's calendar and BREAKING THEIR STREAK (Grant: 41-day streak collapsed to 11). Now we convert
+  // the wall-clock the member actually entered using the MEMBER'S OWN timezone. The DB then stores
+  // activity_local_date from this instant via trigger, so the day is identical everywhere.
+  window._ffpLocalToUtcIso = function (dStr, tStr, tz) {
+    var naive = dStr + 'T' + tStr + ':00';
+    if (!tz) { try { tz = (Intl.DateTimeFormat().resolvedOptions() || {}).timeZone; } catch (e) {} }
+    if (!tz) return new Date(naive).toISOString();
+    try {
+      var guess = new Date(naive + 'Z');                       // read the wall-clock as if UTC
+      var parts = {};
+      new Intl.DateTimeFormat('en-US', { timeZone: tz, hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        .formatToParts(guess).forEach(function (p) { parts[p.type] = p.value; });
+      var asTz = Date.UTC(+parts.year, +parts.month - 1, +parts.day, (+parts.hour) % 24, +parts.minute, +parts.second);
+      return new Date(guess.getTime() - (asTz - guess.getTime())).toISOString();   // subtract the zone offset
+    } catch (e) { return new Date(naive).toISOString(); }
+  };
+  var _loggedAtIso = window._ffpLocalToUtcIso(dateStr, timeStr, (window.member && member.timezone) || null);
   var _photosVal = (window._logPhotos || []).slice(0, 8);
   var _photoVal = _photosVal[0] || '';
   // Photos are OPTIONAL: if none is added, activity_logs defaults photo_url to the member's PROFILE PHOTO
