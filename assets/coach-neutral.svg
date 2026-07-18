@@ -1,0 +1,33 @@
+<!-- Coach AL — DEFAULT (shown when the member's gender is unknown/blank). Currently ALBA with a neutral FFP-blue ring.
+     To make Leo the default instead, copy coach-male.svg over this file — no code change needed. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="108 60 84 84" width="96" height="96" role="img" aria-label="Coach AL">
+  <defs>
+    <linearGradient id="nSkin" x1="0.2" y1="0" x2="0.7" y2="1"><stop offset="0" stop-color="#f5c090"/><stop offset="1" stop-color="#dd9a5f"/></linearGradient>
+    <linearGradient id="nHair" x1="0.2" y1="0" x2="0.8" y2="1"><stop offset="0" stop-color="#3c3c48"/><stop offset="1" stop-color="#1d1d26"/></linearGradient>
+    <linearGradient id="nTop" x1="0.2" y1="0" x2="0.7" y2="1"><stop offset="0" stop-color="#52ecd3"/><stop offset="1" stop-color="#21b39e"/></linearGradient>
+    <clipPath id="nClip"><circle cx="150" cy="102" r="42"/></clipPath>
+  </defs>
+  <circle cx="150" cy="102" r="42" fill="#dcefe8"/>
+  <g clip-path="url(#nClip)">
+    <path d="M126,150 C126,140 135,133 150,133 C165,133 174,140 174,150 L170,224 C164,232 158,236 150,236 C142,236 136,232 130,224 Z" fill="url(#nTop)"/>
+    <path d="M143,114 L157,114 L156,134 C154,138 146,138 144,134 Z" fill="url(#nSkin)"/>
+    <path d="M143,123 C147,129 153,129 157,123 L156,130 C153,134 147,134 144,130 Z" fill="rgba(0,0,0,0.10)"/>
+    <path d="M116,94 C110,58 128,42 150,42 C172,42 190,58 184,94 C182,100 178,102 175,98 C179,74 168,62 150,62 C132,62 121,74 125,98 C122,102 118,100 116,94 Z" fill="url(#nHair)"/>
+    <path d="M176,84 C198,92 204,126 190,152 C186,140 184,118 174,108 Z" fill="url(#nHair)"/>
+    <circle cx="150" cy="90" r="31" fill="url(#nSkin)"/>
+    <circle cx="121" cy="94" r="6" fill="url(#nSkin)"/>
+    <circle cx="121" cy="94" r="2.6" fill="rgba(0,0,0,0.12)"/>
+    <path d="M119,86 C116,58 132,46 150,46 C170,46 185,58 183,82 C176,68 165,62 150,64 C150,64 149,78 137,82 C130,84 123,83 119,86 Z" fill="url(#nHair)"/>
+    <circle cx="132" cy="100" r="4.6" fill="rgba(255,120,120,0.22)"/>
+    <circle cx="164" cy="100" r="4.6" fill="rgba(255,120,120,0.22)"/>
+    <ellipse cx="139" cy="92" rx="3.1" ry="4.3" fill="#2a2530"/>
+    <ellipse cx="161" cy="92" rx="3.1" ry="4.3" fill="#2a2530"/>
+    <circle cx="140.2" cy="90.4" r="1.1" fill="#fff"/>
+    <circle cx="162.2" cy="90.4" r="1.1" fill="#fff"/>
+    <path d="M134,84.5 Q139,82.5 144,84.5" stroke="#3a2f34" stroke-width="1.7" fill="none" stroke-linecap="round"/>
+    <path d="M156,84.5 Q161,82.5 166,84.5" stroke="#3a2f34" stroke-width="1.7" fill="none" stroke-linecap="round"/>
+    <path d="M150,94 q2.5,4 -2,5" stroke="rgba(0,0,0,0.13)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <path d="M142,104 Q150,110.5 158,104" stroke="#7a3b34" stroke-width="2.3" fill="none" stroke-linecap="round"/>
+  </g>
+  <circle cx="150" cy="102" r="40.4" fill="none" stroke="#2ba8e0" stroke-width="3.2"/>
+</svg>
