@@ -3330,8 +3330,24 @@ function renderTrendFitness() {
       var days = (j && j.days) || [];
       var host2 = document.getElementById('trend-fitness'); if (!host2) return;
       if (!days.length) { host2.innerHTML = ''; return; }
-      var latest = function (k) { for (var i = 0; i < days.length; i++) { if (days[i][k] != null) return days[i][k]; } return null; };
-      var rec = latest('recovery_pct'), strain = latest('strain'), rhr = latest('resting_hr'), hrv = latest('hrv_ms'), sleep = latest('sleep_hours');
+      // CURRENT-OR-NOTHING (Grant 2026-07-18). The old code walked back through up to 30 days and took
+      // the first non-null value PER METRIC — so recovery could come from one day and HRV from another,
+      // all badged "Today · from WHOOP". Grant's Passport was showing yesterday's numbers. Now: use ONLY
+      // the row for the member's local today, and only if it was refreshed within the last hour.
+      // Anything else renders NOTHING. Never mix days, never label stale data "Today".
+      var FRESH_MS = 60 * 60 * 1000;
+      var nowMs = (j && j.server_now) ? new Date(j.server_now).getTime() : Date.now();  // server clock, not the device's
+      var tz = (j && j.timezone) || null;
+      if (!tz) { try { tz = (Intl.DateTimeFormat().resolvedOptions() || {}).timeZone; } catch (e) {} }
+      var todayKey;
+      try { todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: tz || undefined }).format(new Date(nowMs)); }
+      catch (e) { todayKey = new Date(nowMs).toISOString().slice(0, 10); }
+      var today = null;
+      for (var di = 0; di < days.length; di++) { if (String(days[di].day) === todayKey) { today = days[di]; break; } }
+      if (!today) { host2.innerHTML = ''; return; }                                   // no data for today
+      var stamp = today.updated_at || (j && j.last_synced_at) || null;
+      if (!stamp || (nowMs - new Date(stamp).getTime()) > FRESH_MS) { host2.innerHTML = ''; return; }  // stale
+      var rec = today.recovery_pct, strain = today.strain, rhr = today.resting_hr, hrv = today.hrv_ms, sleep = today.sleep_hours;
       var items = [];
       if (rec != null) items.push(['Recovery', rec + '%', rec >= 67 ? '#16a34a' : (rec >= 34 ? '#d9a300' : '#dc2626')]);
       if (sleep != null) items.push(['Sleep', sleep + 'h', 'var(--text)']);
