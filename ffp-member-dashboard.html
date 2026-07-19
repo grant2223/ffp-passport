@@ -5498,7 +5498,7 @@ function closePostMeetupIfBackdrop(e) {
 }
 function escHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function relDays(d) { return d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : d === -1 ? 'Yesterday' : (d > 0 ? `In ${d} days` : `${Math.abs(d)} days ago`); }
-// Expose a few shell helpers on window so the lazy assets/ffp-activity-share-card-loader.js (separate script,
+// Expose a few shell helpers on window so the lazy assets/ffp-activity-card-loader.js (separate script,
 // different scope) can reach them (all are hoisted function declarations, so this runs safely at boot).
 try { window.showToast = showToast; window.escHtml = escHtml; window._ppRefLink = _ppRefLink; } catch (e) {}
 
@@ -7068,7 +7068,7 @@ function _ffpSaveThenShare(id, act, city, entry, photoUrl, photos) {
       photo_url: photoUrl || null,
       photos: (photos && photos.length) ? photos.slice() : (photoUrl ? [photoUrl] : [])
     };
-    if (window.ffpSocialShareActivity) window.ffpSocialShareActivity(window._ffpActCard.id);   // lazy-loads assets/ffp-activity-share-card-loader.js
+    if (window.ffpSocialShareActivity) window.ffpSocialShareActivity(window._ffpActCard.id);   // lazy-loads assets/ffp-activity-card-loader.js
   } catch (e) {}
 }
 
@@ -7482,7 +7482,7 @@ window.ffpShareActivity = async function (id) {
 // ── Shareable social CARD (branded stats image) ─────────────────────────────────────────────
 // Builds an offscreen FFP-branded card, rasterises it with html2canvas (already loaded), and shares
 // it as an image via the native share sheet — or downloads it. Mirrors the Passport share pipeline.
-// ── Share-card engine EXTRACTED 2026-07-18 → assets/ffp-activity-share-card-loader.js (TOP-PRIORITY shrink) ──
+// ── Share-card engine EXTRACTED 2026-07-18 → assets/ffp-activity-card-loader.js (TOP-PRIORITY shrink) ──
 // The PNG card builder + share sheet (make canvas, preview, options, share/download, referral copy) now lives in
 // that lazy module. This shim loads it the first time a member taps "Share card", then forwards the call to the
 // real window.ffpSocialShareActivity the module defines. The activity-detail renderer + comments stay in the shell.
@@ -7494,7 +7494,7 @@ window.ffpShareActivity = async function (id) {
     if (loading) return;
     loading = true;
     var s = document.createElement('script');
-    s.src = 'assets/ffp-activity-share-card-loader.js?v=1';
+    s.src = 'assets/ffp-activity-card-loader.js';   // no ?v — _headers serves /assets/*.js no-store (FFP-MASTER versioning truth)
     s.onload = function () { loaded = true; loading = false; var f = q.splice(0); f.forEach(function (fn) { try { fn(); } catch (e) {} }); };
     s.onerror = function () { loading = false; if (window.showToast) showToast('Couldn’t open the share card — try again', 'error'); };
     document.head.appendChild(s);
@@ -7502,7 +7502,7 @@ window.ffpShareActivity = async function (id) {
   // Stub the public entry the open card calls; replaced by the real fn once the module loads.
   window.ffpSocialShareActivity = function (id) { window._ffpEnsureShareCard(function () { window.ffpSocialShareActivity(id); }); };
 })();
-// (share-card engine relocated → assets/ffp-activity-share-card-loader.js — see the lazy shim above)
+// (share-card engine relocated → assets/ffp-activity-card-loader.js — see the lazy shim above)
 // Like / un-like someone else's activity (member_like_activity toggles + pings the owner's bell on a new like).
 window.ffpToggleActivityLike = async function (id) {
   var me = (window.FFPAuth && FFPAuth.getMember && FFPAuth.getMember()) || {};
