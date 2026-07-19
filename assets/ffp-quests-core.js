@@ -285,12 +285,15 @@ window.Quests = {
     // Upcoming quests (published, future start) are teased with a countdown on EVERY tab, not just Solo —
     // a published Team quest should be visible before it starts, not appear out of nowhere on day one.
     var up = (this.upcoming || []);
+    // Route each upcoming quest by its ACTUAL kind flags (member_quests_feed sends is_club_competition /
+    // is_squad_quest). Do NOT infer from mode — a team quest's mode is 'points_race', not 'team'.
     function upcomingFor(kind) {
       return up.filter(function (q) {
-        var k = String(q.kind || q.mode || q.quest_kind || 'individual').toLowerCase();
-        if (kind === 'team') return k.indexOf('team') > -1 || k.indexOf('club') > -1;
-        if (kind === 'squad') return k.indexOf('squad') > -1 || k.indexOf('pair') > -1;
-        return k.indexOf('team') === -1 && k.indexOf('club') === -1 && k.indexOf('squad') === -1 && k.indexOf('pair') === -1;
+        var isClub = q.is_club_competition === true || q.is_club_competition === 'true';
+        var isSquad = q.is_squad_quest === true || q.is_squad_quest === 'true';
+        if (kind === 'team') return isClub;
+        if (kind === 'squad') return isSquad;
+        return !isClub && !isSquad;
       });
     }
     function comingSoon(list) {
