@@ -202,6 +202,7 @@
         return;
       }
       currentUserId = member.id;
+      try { CalorieTracker.loadSavedPlans(); } catch (e) {}   // saved + Coach-AL-created nutrition plans
 
       // 1. Goal from profile_meta
       var pm = await window.supabase
@@ -896,15 +897,47 @@
     var idle = '<span class="material-icons">auto_awesome</span>Build my plan';
     if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-icons">hourglass_empty</span>Building…'; }
     if (out) out.innerHTML = '<div style="font-size:13px;color:var(--muted);">Coach is putting your plan together…</div>';
-    fetch(FOOD_API + '/api/nutrition/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: txt }) })
+    var _rf = ''; try { _rf = localStorage.getItem('ffp_refresh') || ''; } catch (e) {}
+    fetch(FOOD_API + '/api/nutrition/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: txt, refresh: _rf }) })
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, j: j }; }, function () { return { ok: false, status: r.status, j: null }; }); })
       .then(function (res) {
         if (btn) { btn.disabled = false; btn.innerHTML = idle; }
         if (res.status === 503) { if (out) out.innerHTML = '<div style="font-size:13px;color:var(--muted);">Coach isn’t switched on yet.</div>'; return; }
         if (!res.ok || !res.j || !res.j.plan) { if (out) out.innerHTML = '<div style="font-size:13px;color:var(--muted);">Couldn’t build that — try rephrasing your goal.</div>'; return; }
         renderPlan(res.j.plan);
+        try { CalorieTracker.loadSavedPlans(); } catch (e) {}   // it was just persisted server-side
       })
       .catch(function () { if (btn) { btn.disabled = false; btn.innerHTML = idle; } if (out) out.innerHTML = '<div style="font-size:13px;color:var(--muted);">Network error — try again.</div>'; });
+  };
+  // Saved nutrition plans (member-built AND Coach-AL-created land here via the nutrition_plans table).
+  CalorieTracker._savedPlans = {};
+  CalorieTracker.loadSavedPlans = function () {
+    var host = document.getElementById('ct-saved-plans'); if (!host || !window.supabase || !currentUserId) return;
+    window.supabase.from('nutrition_plans').select('id, title, daily_kcal, plan, created_at')
+      .eq('member_id', currentUserId).order('created_at', { ascending: false }).limit(20)
+      .then(function (res) {
+        var host2 = document.getElementById('ct-saved-plans'); if (!host2) return;
+        var rows = (res && res.data) || [];
+        if (!rows.length) { host2.innerHTML = ''; return; }
+        var esc = (window.escHtml) ? window.escHtml : function (s) { return String(s == null ? '' : s); };
+        CalorieTracker._savedPlans = {};
+        var h = '<div style="font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin:0 0 9px;">Your saved plans</div>';
+        h += rows.map(function (r) {
+          CalorieTracker._savedPlans[r.id] = r.plan || null;
+          var d = ''; try { d = new Date(r.created_at).toLocaleDateString([], { day: 'numeric', month: 'short' }); } catch (e) {}
+          return '<button type="button" onclick="CalorieTracker.openSavedPlan(\'' + r.id + '\')" style="display:flex;width:100%;align-items:center;gap:10px;text-align:left;background:rgba(43,168,224,.06);border:1px solid rgba(43,168,224,.16);border-radius:12px;padding:12px 13px;margin-bottom:8px;cursor:pointer;font-family:inherit;">'
+            + '<span class="material-icons" style="color:var(--blue);font-size:19px;flex:0 0 auto;">restaurant</span>'
+            + '<span style="flex:1;min-width:0;"><span style="display:block;font-size:14px;font-weight:800;color:var(--text);">' + esc(r.title || 'Meal plan') + '</span>'
+            + '<span style="display:block;font-size:11.5px;color:var(--muted);margin-top:1px;">' + (r.daily_kcal ? Math.round(r.daily_kcal) + ' kcal · ' : '') + esc(d) + '</span></span>'
+            + '<span class="material-icons" style="color:var(--muted);font-size:18px;flex:0 0 auto;">chevron_right</span></button>';
+        }).join('');
+        host2.innerHTML = h;
+      }, function () {});
+  };
+  CalorieTracker.openSavedPlan = function (id) {
+    var p = CalorieTracker._savedPlans[id]; if (!p) return;
+    renderPlan(p);
+    var out = document.getElementById('ct-plan-result'); if (out && out.scrollIntoView) { try { out.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {} }
   };
   function renderPlan(p) {
     var out = document.getElementById('ct-plan-result'); if (!out) return;
