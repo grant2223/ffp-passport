@@ -75,8 +75,7 @@
       +   '<div style="min-width:0;"><div style="font-size:15px;font-weight:900;color:#fff;">Coach AL</div><div style="font-size:11px;color:#8a99a8;font-weight:700;">Your active-lifestyle coach</div></div>'
       + '</div>'
       + '<div id="ffp-coach-hub-body" class="ffp-noscroll" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;max-width:660px;width:100%;margin:0 auto;box-sizing:border-box;">'
-      +   '<div id="ffp-hub-summary"><div style="text-align:center;color:#5f7d94;font-size:12px;padding:40px;">…</div></div>'
-      +   '<div id="ffp-coach-thread" style="padding:0 18px 8px;"></div>'
+      +   '<div id="ffp-coach-thread" style="padding:16px 18px 8px;"></div>'
       + '</div>'
       + '<div id="ffp-hub-composer" style="flex:0 0 auto;padding:10px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid rgba(255,255,255,.06);max-width:660px;width:100%;margin:0 auto;box-sizing:border-box;">'
       +   '<div style="display:flex;gap:9px;align-items:flex-end;">'
@@ -102,47 +101,36 @@
   };
   C.closeHub = function () { var o = document.getElementById('ffp-coach-hub-ov'); if (o && o.parentNode) o.parentNode.removeChild(o); };
 
-  // The hub IS the conversation (Grant 2026-07-18): a short read on the member at the top, the live
-  // thread beneath it, composer pinned at the bottom. NO quest details, NO action buttons, NO
-  // "open full conversation" link — there is nowhere else to go.
+  // The hub IS the conversation (Grant 2026-07-18). It opens FRESH every time — no old thread, no stats
+  // block, no big title. Coach AL proactively starts a substantive conversation grounded in the member's
+  // real data (/api/coach/opener, generated fresh, not persisted). The composer is pinned below.
   function renderHub(s, h) {
-    var sum = document.getElementById('ffp-hub-summary'); if (!sum) return;
-    s = s || {}; h = h || {};
-    var streak = s.streak || 0;
-    var rl = recLabel(s.latest_recovery);
-    var strip = [];
-    if (streak >= 1) strip.push(streak + '-DAY STREAK');
-    if (rl) strip.push(rl.replace(/^Recovery /, 'RECOVERY ').toUpperCase());
-    var stripLine = strip.length ? '<div style="color:#ffc08a;font-size:11px;font-weight:900;letter-spacing:1.5px;">' + esc(strip.join(' · ')) + '</div>' : '';
-    var headline = esc(h.headline || 'Ready when you are.');
-    var line = esc(h.line || 'Tell me what you are training for and I will help you build it.');
-    sum.innerHTML =
-      '<div style="padding:22px 18px 18px;">'
-      +   stripLine
-      +   '<div style="color:#fff;font-size:22px;font-weight:900;line-height:1.18;margin-top:' + (stripLine ? '10px' : '0') + ';">' + headline + '</div>'
-      +   '<div style="color:#cfe1ef;font-size:14px;line-height:1.55;margin-top:8px;">' + line + '</div>'
-      +   '<div style="display:flex;gap:14px;margin-top:24px;padding-top:18px;border-top:1px solid rgba(255,255,255,.07);">' + pillarRow(s.pillars && s.pillars.counts) + '</div>'
-      + '</div>';
+    C._hook = h || C._hook;
     var comp = document.getElementById('ffp-hub-composer'); if (comp) comp.style.display = '';
-    loadThread();
+    loadOpener();
   }
 
-  // the conversation itself, inside the hub
-  function loadThread() {
+  function openerFallback() {
+    var h = C._hook || {};
+    if (h.line) return (h.headline ? h.headline + ' ' : '') + h.line;
+    return 'Hey — I’m Coach AL. What are you moving toward this week? Tell me and I’ll help you get there.';
+  }
+
+  // Coach AL opens the conversation. Fresh each time; history is NOT loaded (the coach still remembers
+  // server-side, so replies stay contextful once the member engages).
+  function loadOpener() {
     var th = document.getElementById('ffp-coach-thread'); if (!th) return;
-    th.innerHTML = '<div style="text-align:center;color:#5f7d94;font-size:12px;padding:14px;">…</div>';
-    post('/api/coach/history', { refresh: refresh() }).then(function (j) {
+    th.innerHTML = '<div id="ffp-coach-typing" style="display:flex;justify-content:flex-start;margin:6px 0;"><div style="background:#12283b;color:#8a99a8;padding:11px 16px;border-radius:16px;border-bottom-left-radius:5px;font-size:14px;">Coach AL is thinking…</div></div>';
+    var rf = refresh();
+    if (!rf) { th.innerHTML = bubble('coach', nl2br(openerFallback())); return; }
+    post('/api/coach/opener', { refresh: rf }).then(function (j) {
       var t2 = document.getElementById('ffp-coach-thread'); if (!t2) return;
-      var msgs = (j && j.messages) || [];
-      if (!msgs.length) {
-        var opener = (C._hook && C._hook.line) ? (C._hook.headline + ' ' + C._hook.line) : 'Hey — I’m Coach AL. I’m here for your training, motivation and finding people to move with. What’s on your mind?';
-        t2.innerHTML = bubble('coach', nl2br(opener));
-      } else {
-        t2.innerHTML = msgs.map(function (m) { return bubble(m.role === 'coach' ? 'coach' : 'user', nl2br(m.content)); }).join('');
-      }
+      var opener = (j && j.opener) ? j.opener : openerFallback();
+      t2.innerHTML = bubble('coach', nl2br(opener));
       scrollBottom();
+      try { var inp = document.getElementById('ffp-coach-input'); if (inp) inp.focus(); } catch (e) {}
     }).catch(function () {
-      var t2 = document.getElementById('ffp-coach-thread'); if (t2) t2.innerHTML = bubble('coach', 'Hey — I’m Coach AL. What’s on your mind?');
+      var t2 = document.getElementById('ffp-coach-thread'); if (t2) t2.innerHTML = bubble('coach', nl2br(openerFallback()));
     });
   }
 
@@ -176,9 +164,9 @@
     var b = document.getElementById('ffp-onb-go'); if (b) { b.disabled = true; b.textContent = 'Setting up…'; }
     post('/api/coach/onboard', { refresh: rf, motivations: mot, goals: goal ? [{ label: goal }] : [] }).then(function () {
       C._selMot = {}; if (C._snap) C._snap.onboarded = true;
-      // restore the hub shell (onboarding overwrote the body), then render summary + conversation
+      // restore the hub shell (onboarding overwrote the body), then start the fresh conversation
       var body = document.getElementById('ffp-coach-hub-body');
-      if (body) body.innerHTML = '<div id="ffp-hub-summary"></div><div id="ffp-coach-thread" style="padding:0 18px 8px;"></div>';
+      if (body) body.innerHTML = '<div id="ffp-coach-thread" style="padding:16px 18px 8px;"></div>';
       renderHub(C._snap, C._hook); toast('You’re all set — let’s move.', 'success');
     }).catch(function () { var b2 = document.getElementById('ffp-onb-go'); if (b2) { b2.disabled = false; b2.textContent = 'Start my active life'; } });
   };
