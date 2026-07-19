@@ -216,6 +216,34 @@
   C.openChat = function () { C.openHub(); };
   C.closeChat = function () { C.closeHub(); };
 
+  // Coach AL took an action → close the hub and jump to the panel where the result lives.
+  C.openPanel = function (panelId) {
+    try { C.closeHub(); } catch (e) {}
+    try { if (window.showPanel) return window.showPanel(panelId); } catch (e) {}
+    try { var b = document.querySelector('.menu-item[data-panel="' + panelId + '"]'); if (b) b.click(); } catch (e) {}
+  };
+  // A card the coach drops into the chat after CREATING something on the platform (a workout / meal plan).
+  function artifactCard(a) {
+    if (!a || !a.type) return '';
+    var isWk = a.type === 'workout';
+    var icon = isWk ? 'fitness_center' : 'restaurant';
+    var sub = isWk
+      ? [a.focus, (a.duration_min ? a.duration_min + ' min' : '')].filter(Boolean).join(' · ')
+      : (a.daily_kcal ? a.daily_kcal + ' kcal / day' : 'Meal plan');
+    var panel = isWk ? 'panel-workout' : 'panel-calorie-tracker';
+    var cta = isWk ? 'Open in AI Coach' : 'Open in Calorie Tracker';
+    return '<div style="display:flex;justify-content:flex-start;margin:8px 0;">'
+      + '<div style="max-width:82%;background:#0e2032;border:1px solid rgba(43,168,224,.28);border-radius:16px;border-bottom-left-radius:5px;padding:14px 15px;">'
+      +   '<div style="display:flex;align-items:center;gap:9px;">'
+      +     '<span class="material-icons" style="color:#2ba8e0;font-size:20px;">' + icon + '</span>'
+      +     '<div style="min-width:0;"><div style="color:#fff;font-weight:800;font-size:14px;line-height:1.25;">' + esc(a.title || (isWk ? 'Your workout' : 'Your meal plan')) + '</div>'
+      +     (sub ? '<div style="color:#9fb3c4;font-size:12px;margin-top:2px;">' + esc(sub) + '</div>' : '') + '</div>'
+      +   '</div>'
+      +   '<div style="color:#7fd0a0;font-size:11px;font-weight:800;letter-spacing:.3px;margin-top:10px;">✓ SAVED</div>'
+      +   '<button onclick="ffpCoach.openPanel(\'' + panel + '\')" style="margin-top:8px;width:100%;background:#2ba8e0;color:#fff;border:none;border-radius:11px;padding:11px;font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer;">' + cta + '</button>'
+      + '</div></div>';
+  }
+
   C.send = function () {
     if (C._busy) return;
     var ta = document.getElementById('ffp-coach-input'); var th = document.getElementById('ffp-coach-thread'); if (!ta || !th) return;
@@ -230,7 +258,12 @@
     post('/api/coach/chat', { refresh: rf, message: msg, coach: coachName() }).then(function (j) {
       var typing = document.getElementById('ffp-coach-typing'); if (typing) typing.remove();
       var reply = (j && j.reply) || 'I had a moment there — try me again in a sec.';
-      var t2 = document.getElementById('ffp-coach-thread'); if (t2) { t2.insertAdjacentHTML('beforeend', bubble('coach', nl2br(reply))); scrollBottom(); }
+      var t2 = document.getElementById('ffp-coach-thread');
+      if (t2) {
+        t2.insertAdjacentHTML('beforeend', bubble('coach', nl2br(reply)));
+        if (j && j.artifact) t2.insertAdjacentHTML('beforeend', artifactCard(j.artifact));   // coach created a workout/plan
+        scrollBottom();
+      }
     }).catch(function () {
       var typing = document.getElementById('ffp-coach-typing'); if (typing) typing.remove();
       var t2 = document.getElementById('ffp-coach-thread'); if (t2) { t2.insertAdjacentHTML('beforeend', bubble('coach', 'Connection dropped — try that again in a moment.')); scrollBottom(); }
