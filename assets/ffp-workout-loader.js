@@ -122,10 +122,12 @@
       '.wkr-setline{font-size:34px;font-weight:800;color:#fff;margin-bottom:10px;line-height:1.05;}' +
       '.wkr-target{font-size:14px;font-weight:800;letter-spacing:.4px;color:var(--blue);margin-bottom:30px;line-height:1.3;}' +
       '.wkr-note{font-size:13px;color:#8a99a8;margin-top:16px;max-width:300px;}' +
-      '.wkr-fills{display:flex;gap:34px;margin-bottom:26px;}' +
-      '.wkr-fill label{display:block;font-size:14px;font-weight:800;letter-spacing:.6px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;}' +
-      '.wkr-fill input{width:124px;background:none;border:none;border-bottom:3px solid rgba(255,255,255,.18);color:#fff;font-size:34px;font-weight:800;text-align:center;font-family:inherit;padding-bottom:6px;line-height:1;}' +
-      '.wkr-fill input:focus{border-bottom-color:var(--blue);outline:none;}' +
+      // Reps / Weight entry ~3x larger (Grant 2026-07-18): a big filled, tappable box with oversized numerals
+      // — far easier to read + hit mid-set than the old thin underline.
+      '.wkr-fills{display:flex;gap:18px;margin-bottom:26px;}' +
+      '.wkr-fill label{display:block;font-size:15px;font-weight:800;letter-spacing:.6px;color:var(--muted);text-transform:uppercase;margin-bottom:11px;}' +
+      '.wkr-fill input{box-sizing:border-box;width:152px;background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.16);border-radius:18px;color:#fff;font-size:58px;font-weight:800;text-align:center;font-family:inherit;padding:16px 8px;line-height:1;}' +
+      '.wkr-fill input:focus{border-color:var(--blue);outline:none;background:rgba(43,168,224,.10);}' +
       '.wkr-ring{width:190px;height:190px;border-radius:50%;border:6px solid rgba(43,168,224,.20);border-top-color:var(--blue);display:flex;align-items:center;justify-content:center;margin:8px auto 18px;}' +
       '.wkr-ring .t{font-size:62px;font-weight:800;color:#fff;}' +
       '.wkr-ring.rest{width:290px;height:290px;border-width:9px;margin:10px auto 22px;}' +
@@ -291,6 +293,9 @@
       }
     });
     (p.cooldown || []).forEach(function (c) { if (c.name) steps.push({ kind: 'mob', section: 'Cool-down', name: c.name, dur: firstInt(c.duration_sec, 30) }); });
+    // PREP (Grant 2026-07-18): a get-ready countdown before anything starts, showing what's first so the
+    // member can position themselves instead of being thrown straight into rep 1.
+    if (steps.length) steps.unshift({ kind: 'prep', name: steps[0].name, section: steps[0].section || 'Warm-up', dur: 15 });
     return steps;
   }
   function ensureRunnerEl() {
@@ -318,6 +323,15 @@
     if (r.i >= r.steps.length) { finish(); return; }
     var step = r.steps[r.i];
     var body = document.getElementById('wkr-body'), foot = document.getElementById('wkr-foot');
+    if (step.kind === 'prep') {
+      body.innerHTML = '<div class="wkr-section">Get ready</div>' +
+        '<div class="wkr-name" style="font-size:26px;margin-bottom:6px;">First up: ' + esc(step.name) + '</div>' +
+        '<div class="wkr-note" style="margin-bottom:6px;">' + esc(step.section || '') + ' · get into position</div>' +
+        '<div class="wkr-ring"><div class="t" id="wkr-count">' + fmt(step.dur) + '</div></div>';
+      foot.innerHTML = '<button class="wk-cta pri" onclick="FFPWorkout.next()">I’m ready — start</button>';
+      countdown(step.dur, function () { WK.next(); });
+      return;
+    }
     if (step.kind === 'mob') {
       body.innerHTML = '<div class="wkr-section">' + esc(step.section) + '</div><div class="wkr-name" style="font-size:30px;margin-bottom:8px;">' + esc(step.name) + '</div><div class="wkr-ring"><div class="t" id="wkr-count">' + fmt(step.dur) + '</div></div>';
       foot.innerHTML = '<button class="wk-cta soft" onclick="FFPWorkout.next()">Skip</button><button class="wk-cta blue" onclick="FFPWorkout.next()">Done</button>';
@@ -482,7 +496,11 @@
     logWorkoutSession();
     var title = r.plan.title || 'Workout';
     var durSec = sm.durSec || 0;
-    var notes = (sm.sets || 0) + ' sets' + (sm.exCount ? (' · ' + sm.exCount + ' exercises') : '') + (sm.volume ? (' · ' + sm.volume + 'kg volume') : '');
+    // Carry the actual exercise list into the activity so the workout itself travels to the Passport /
+    // share card (Grant 2026-07-18), not just an anonymous "N sets" summary.
+    var exList = (r.plan.exercises || []).map(function (e) { return e.name; }).filter(Boolean);
+    var notes = (exList.length ? exList.join(' · ') + '\n' : '')
+      + (sm.sets || 0) + ' sets' + (sm.exCount ? (' · ' + sm.exCount + ' exercises') : '') + (sm.volume ? (' · ' + sm.volume + 'kg volume') : '');
     closeRunner(); WK.run = null; WK.home();
     if (typeof window.openLogModal !== 'function') { toast('Workout saved'); return; }
     try {
