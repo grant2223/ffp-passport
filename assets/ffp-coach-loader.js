@@ -72,7 +72,7 @@
       '<div style="flex:0 0 auto;display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.06);max-width:660px;width:100%;margin:0 auto;box-sizing:border-box;">'
       +   '<span onclick="ffpCoach.closeHub()" class="material-icons" style="color:#8a99a8;cursor:pointer;">arrow_back</span>'
       +   alMark(34)
-      +   '<div style="min-width:0;"><div style="font-size:15px;font-weight:900;color:#fff;">Coach AL</div><div style="font-size:11px;color:#8a99a8;font-weight:700;">Your active-lifestyle coach</div></div>'
+      +   '<div style="min-width:0;"><div id="ffp-coach-hub-name" style="font-size:15px;font-weight:900;color:#fff;">' + coachName() + '</div><div style="font-size:11px;color:#8a99a8;font-weight:700;">Coach AL · your active-lifestyle coach</div></div>'
       + '</div>'
       + '<div id="ffp-coach-hub-body" class="ffp-noscroll" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;max-width:660px;width:100%;margin:0 auto;box-sizing:border-box;">'
       +   '<div id="ffp-coach-thread" style="padding:16px 18px 8px;"></div>'
@@ -92,13 +92,31 @@
     }
     var rf = refresh();
     if (!rf) { renderHub(null); return; }
+    // Fire the opener (the slow AI call) IN PARALLEL with the snapshot so it isn't snapshot-THEN-opener.
+    // Coach name is best-effort from any cached snapshot; the message greets the MEMBER, not itself, so a
+    // default here is fine — the header name is corrected the moment the snapshot lands.
+    C._openerPromise = post('/api/coach/opener', { refresh: rf, coach: coachName() }).catch(function () { return null; });
+    showThinking();
     post('/api/coach/snapshot', { refresh: rf }).then(function (j) {
       if (!document.getElementById('ffp-coach-hub-ov')) return;
       if (j && j.snapshot) { C._snap = j.snapshot || {}; C._hook = j.hook || {}; C._catalog = j.motivations_catalog || []; }
-      C._syncTopbar();
-      if (C._snap && C._snap.onboarded === false) renderHubOnboard(); else renderHub(C._snap, C._hook);
+      C._syncTopbar(); updateHubName();
+      if (C._snap && C._snap.onboarded === false) { C._openerPromise = null; renderHubOnboard(); } else renderHub(C._snap, C._hook);
     }).catch(function () { renderHub(C._snap, C._hook); });
   };
+  // Coach persona name — Alba (female members), Leo (male), else Coach AL. Mirrors coachSrc()'s female-first check.
+  function coachName() {
+    var g = ''; try { g = String((C._snap && (C._snap.gender || C._snap.sex)) || '').trim().toLowerCase(); } catch (e) {}
+    if (g.indexOf('f') === 0 || g === 'woman' || g === 'w') return 'Alba';
+    if (g.indexOf('m') === 0 || g === 'man') return 'Leo';
+    return 'Coach AL';
+  }
+  function updateHubName() { try { var el = document.getElementById('ffp-coach-hub-name'); if (el) el.textContent = coachName(); } catch (e) {} }
+  // animated "thinking" bubble so the wait never looks frozen
+  function showThinking() {
+    var th = document.getElementById('ffp-coach-thread'); if (!th) return;
+    th.innerHTML = '<div style="display:flex;justify-content:flex-start;margin:6px 0;"><div style="background:#12283b;padding:13px 16px;border-radius:16px;border-bottom-left-radius:5px;"><span class="ffp-typing"><i></i><i></i><i></i></span></div></div>';
+  }
   C.closeHub = function () { var o = document.getElementById('ffp-coach-hub-ov'); if (o && o.parentNode) o.parentNode.removeChild(o); };
 
   // The hub IS the conversation (Grant 2026-07-18). It opens FRESH every time — no old thread, no stats
@@ -117,13 +135,16 @@
   }
 
   // Coach AL opens the conversation. Fresh each time; history is NOT loaded (the coach still remembers
-  // server-side, so replies stay contextful once the member engages).
+  // server-side, so replies stay contextful once the member engages). Reuses the opener request already
+  // fired in parallel at open (C._openerPromise) so there's no second round-trip.
   function loadOpener() {
     var th = document.getElementById('ffp-coach-thread'); if (!th) return;
-    th.innerHTML = '<div id="ffp-coach-typing" style="display:flex;justify-content:flex-start;margin:6px 0;"><div style="background:#12283b;color:#8a99a8;padding:11px 16px;border-radius:16px;border-bottom-left-radius:5px;font-size:14px;">Coach AL is thinking…</div></div>';
+    showThinking();
     var rf = refresh();
     if (!rf) { th.innerHTML = bubble('coach', nl2br(openerFallback())); return; }
-    post('/api/coach/opener', { refresh: rf }).then(function (j) {
+    var p = C._openerPromise || post('/api/coach/opener', { refresh: rf, coach: coachName() });
+    C._openerPromise = null;
+    p.then(function (j) {
       var t2 = document.getElementById('ffp-coach-thread'); if (!t2) return;
       var opener = (j && j.opener) ? j.opener : openerFallback();
       t2.innerHTML = bubble('coach', nl2br(opener));
@@ -203,10 +224,10 @@
     C._busy = true;
     ta.value = ''; ta.style.height = 'auto';
     th.insertAdjacentHTML('beforeend', bubble('user', nl2br(msg)));
-    th.insertAdjacentHTML('beforeend', '<div id="ffp-coach-typing" style="display:flex;justify-content:flex-start;margin:10px 0;"><div style="background:#12283b;color:#8a99a8;padding:11px 16px;border-radius:16px;border-bottom-left-radius:5px;font-size:14px;">Coach is typing…</div></div>');
+    th.insertAdjacentHTML('beforeend', '<div id="ffp-coach-typing" style="display:flex;justify-content:flex-start;margin:10px 0;"><div style="background:#12283b;padding:13px 16px;border-radius:16px;border-bottom-left-radius:5px;"><span class="ffp-typing"><i></i><i></i><i></i></span></div></div>');
     scrollBottom();
     var sBtn = document.getElementById('ffp-coach-send'); if (sBtn) sBtn.style.opacity = '.5';
-    post('/api/coach/chat', { refresh: rf, message: msg }).then(function (j) {
+    post('/api/coach/chat', { refresh: rf, message: msg, coach: coachName() }).then(function (j) {
       var typing = document.getElementById('ffp-coach-typing'); if (typing) typing.remove();
       var reply = (j && j.reply) || 'I had a moment there — try me again in a sec.';
       var t2 = document.getElementById('ffp-coach-thread'); if (t2) { t2.insertAdjacentHTML('beforeend', bubble('coach', nl2br(reply))); scrollBottom(); }
@@ -310,7 +331,11 @@
   function injectNoScroll() {
     if (document.getElementById('ffp-coach-css')) return;
     var st = document.createElement('style'); st.id = 'ffp-coach-css';
-    st.textContent = '.ffp-noscroll{scrollbar-width:none;}.ffp-noscroll::-webkit-scrollbar{display:none;}';
+    st.textContent = '.ffp-noscroll{scrollbar-width:none;}.ffp-noscroll::-webkit-scrollbar{display:none;}'
+      + '.ffp-typing{display:inline-flex;gap:5px;align-items:center;}'
+      + '.ffp-typing i{width:7px;height:7px;border-radius:50%;background:#6f8ba0;display:inline-block;animation:ffpBlink 1.2s infinite both;}'
+      + '.ffp-typing i:nth-child(2){animation-delay:.18s;}.ffp-typing i:nth-child(3){animation-delay:.36s;}'
+      + '@keyframes ffpBlink{0%,70%,100%{opacity:.25;transform:translateY(0);}35%{opacity:1;transform:translateY(-3px);}}';
     document.head.appendChild(st);
   }
 
