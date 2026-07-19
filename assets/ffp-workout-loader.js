@@ -22,18 +22,40 @@
   function firstInt(s, d) { var m = String(s == null ? '' : s).match(/\d+/); return m ? parseInt(m[0], 10) : d; }
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
   function isBW(w) { var s = String(w == null ? '' : w).trim().toLowerCase(); return s === '' || /body|^bw$|n\/?a|none/.test(s); }
-  function parseTimeSec(s) { var t = String(s == null ? '' : s).toLowerCase(); var m; if ((m = t.match(/(\d+)\s*m/))) return parseInt(m[1], 10) * 60; if ((m = t.match(/(\d+)\s*s/))) return parseInt(m[1], 10); return null; }
+  // Time ONLY — minutes need "min", seconds "s/sec", or mm:ss. A bare "200m" is METRES (distance), NOT minutes.
+  function parseTimeSec(s) { var t = String(s == null ? '' : s).toLowerCase().trim(); var m; if ((m = t.match(/^(\d{1,3}):(\d{2})$/))) return parseInt(m[1], 10) * 60 + parseInt(m[2], 10); if ((m = t.match(/(\d+)\s*(?:min|mins|minutes?)\b/))) return parseInt(m[1], 10) * 60; if ((m = t.match(/(\d+)\s*(?:sec|secs|s)\b/))) return parseInt(m[1], 10); return null; }
+  function isDistanceStr(s) { s = String(s == null ? '' : s); return /(\d+)\s*(?:km|m|meters?|metres?|miles?|mi|yd|yards?)\b/i.test(s) && !/\bmin/i.test(s); }
+  function isCalStr(s) { return /\b(?:cal|cals|calorie|calories|kcal)\b/i.test(String(s == null ? '' : s)); }
+  // Explicit exercise metric: reps | time | distance | calories. Honour e.metric if the generator set it; else infer.
+  function classifyMetric(e) {
+    if (e && /^(?:reps|time|distance|calories)$/.test(String(e.metric || ''))) return e.metric;
+    if (e && e.mode === 'time') return 'time';
+    var r = e ? e.reps : '', n = e ? e.name : '';
+    if (isCalStr(r) || isCalStr(n)) return 'calories';
+    if (isDistanceStr(r)) return 'distance';
+    if (parseTimeSec(r) != null) return 'time';
+    return 'reps';
+  }
+  // Bogus meta "exercise" like "Rounds 2–4 (repeat above sequence)" — volume belongs in `sets`, so drop these.
+  function isRepeatMeta(name) { var s = String(name == null ? '' : name).toLowerCase(); return /\b(?:repeat|rounds?|circuit)\b/.test(s) && /(?:above|sequence|again|as written|as above|x\s*\d)/.test(s); }
+  // Weight is a KG number only. Intensity words ("moderate", "match load") are NOT weight.
+  function numWeight(w) { var s = String(w == null ? '' : w).trim(); return /^\d/.test(s) ? (s.match(/\d+(?:\.\d+)?/) || [''])[0] : ''; }
   function fmt(sec) { sec = Math.max(0, Math.round(sec)); var m = Math.floor(sec / 60), s = sec % 60; return m > 0 ? (m + ':' + String(s).padStart(2, '0')) : String(s); }
 
   function normPlan(p) {
     if (!p) return p;
     p.warmup = (p.warmup || []).map(function (w) { return { name: w.name || '', duration_sec: firstInt(w.duration_sec, 30), note: w.note || '', _u: (w.duration_sec >= 60 && w.duration_sec % 60 === 0) ? 'min' : 'sec' }; });
     p.cooldown = (p.cooldown || []).map(function (c) { return { name: c.name || '', duration_sec: firstInt(c.duration_sec, 30), note: c.note || '', _u: (c.duration_sec >= 60 && c.duration_sec % 60 === 0) ? 'min' : 'sec' }; });
-    p.exercises = (p.exercises || []).map(function (e) {
+    p.exercises = (p.exercises || []).filter(function (e) { return e && e.name && !isRepeatMeta(e.name); }).map(function (e) {
+      var metric = classifyMetric(e);
+      var mode = (metric === 'time') ? 'time' : 'reps';   // only 'time' runs a countdown; reps/distance/calories are a target
       var t = parseTimeSec(e.reps);
-      var mode = (e.mode === 'reps' || e.mode === 'time') ? e.mode : (t != null ? 'time' : 'reps');
       var time_sec = (e.time_sec != null) ? firstInt(e.time_sec, 30) : (t != null ? t : 30);
-      return { name: e.name || '', mode: mode, sets: Math.max(1, firstInt(e.sets, 3)), reps: (e.reps != null ? String(e.reps) : '10'), time_sec: time_sec, rest_sec: firstInt(e.rest_sec, 75), weight: e.weight || '', note: e.note || '', _u: (time_sec >= 60 && time_sec % 60 === 0) ? 'min' : 'sec' };
+      var wRaw = String(e.weight == null ? '' : e.weight).trim();
+      var wNum = numWeight(wRaw);
+      var note = e.note || '';
+      if (wRaw && !wNum && !isBW(wRaw)) { note = note ? (note + ' · ' + wRaw) : wRaw; }   // intensity word → note, never the weight box
+      return { name: e.name || '', metric: metric, mode: mode, sets: Math.max(1, firstInt(e.sets, 3)), reps: (e.reps != null ? String(e.reps) : '10'), time_sec: time_sec, rest_sec: firstInt(e.rest_sec, 75), weight: wNum, note: note, _u: (time_sec >= 60 && time_sec % 60 === 0) ? 'min' : 'sec' };
     });
     return p;
   }
@@ -289,7 +311,7 @@
       if (!e.name) return;
       var sets = Math.max(1, firstInt(e.sets, 1));
       for (var n = 1; n <= sets; n++) {
-        steps.push({ kind: (e.mode === 'time' ? 'timeset' : 'set'), section: 'Workout', exIndex: ei, name: e.name, setNo: n, setsTotal: sets, reps: e.reps, time_sec: firstInt(e.time_sec, 30), rest: firstInt(e.rest_sec, 0), weight: e.weight, note: e.note });
+        steps.push({ kind: (e.mode === 'time' ? 'timeset' : 'set'), section: 'Workout', exIndex: ei, name: e.name, setNo: n, setsTotal: sets, metric: e.metric || 'reps', reps: e.reps, time_sec: firstInt(e.time_sec, 30), rest: firstInt(e.rest_sec, 0), weight: e.weight, note: e.note });
       }
     });
     (p.cooldown || []).forEach(function (c) { if (c.name) steps.push({ kind: 'mob', section: 'Cool-down', name: c.name, dur: firstInt(c.duration_sec, 30) }); });
@@ -344,15 +366,20 @@
       foot.innerHTML = '<button class="wk-cta pri" onclick="FFPWorkout.completeTime()">Complete set</button>';
       countdown(step.time_sec, function () { WK.completeTime(); });
     } else {
-      var bw = isBW(step.weight);
-      var prefReps = firstInt(step.reps, 10);
-      var prefW = (r.lastWeight[step.exIndex] != null) ? r.lastWeight[step.exIndex] : '';
+      var metric = step.metric || 'reps';
+      var wNum = numWeight(step.weight);
+      var showWeight = (metric === 'reps') && !!wNum;                 // weight box ONLY for a loaded lift — never for cardio/distance/calories/bodyweight
+      var primaryLabel = (metric === 'distance') ? 'Distance' : (metric === 'calories') ? 'Calories' : 'Reps';
+      var repsHasUnit = /[a-z]/i.test(String(step.reps || ''));       // "200m" / "30 cal" already carry their unit
+      var unitTxt = repsHasUnit ? '' : (metric === 'reps' ? ' reps' : (metric === 'distance' ? ' m' : metric === 'calories' ? ' cal' : ''));
+      var prefPrimary = firstInt(step.reps, 10);
+      var prefW = (r.lastWeight[step.exIndex] != null) ? r.lastWeight[step.exIndex] : wNum;
       body.innerHTML = '<div class="wkr-section">' + esc(step.section) + '</div><div class="wkr-name">' + esc(step.name) + '</div>' +
         '<div class="wkr-setline"><span style="color:var(--yellow);">Set ' + step.setNo + '</span> of ' + step.setsTotal + '</div>' +
-        '<div class="wkr-target">Target ' + esc(step.reps) + ' reps' + (bw ? '' : (' · ' + esc(step.weight))) + '</div>' +
+        '<div class="wkr-target">Target ' + esc(step.reps) + unitTxt + (showWeight ? (' · ' + esc(wNum) + ' kg') : '') + '</div>' +
         '<div class="wkr-fills">' +
-          '<div class="wkr-fill"><label>Reps</label><input id="wkr-reps" type="number" inputmode="numeric" value="' + prefReps + '"></div>' +
-          (bw ? '' : '<div class="wkr-fill"><label>Weight kg</label><input id="wkr-weight" type="number" inputmode="decimal" value="' + esc(prefW) + '" placeholder="–"></div>') +
+          '<div class="wkr-fill"><label>' + primaryLabel + '</label><input id="wkr-reps" type="number" inputmode="numeric" value="' + prefPrimary + '"></div>' +
+          (showWeight ? '<div class="wkr-fill"><label>Weight kg</label><input id="wkr-weight" type="number" inputmode="decimal" value="' + esc(prefW) + '" placeholder="–"></div>' : '') +
         '</div>' +
         (step.note ? '<div class="wkr-note">' + esc(step.note) + '</div>' : '');
       foot.innerHTML = '<button class="wk-cta pri" onclick="FFPWorkout.completeSet()">Complete set</button>';
