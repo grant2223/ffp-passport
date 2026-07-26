@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Claim your organiser account — Find Fit People</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1980AD">
+<style>
+  :root{ --blue:#1980AD; --ink:#0a1722; --card:#0f2230; --line:#22384a; --muted:#9fb4c4; --text:#eaf2f8; --gold:#f2a900; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--ink);color:var(--text);font-family:Montserrat,-apple-system,Segoe UI,Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:24px}
+  .card{width:100%;max-width:440px;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:30px 26px;text-align:center}
+  .logo{width:54px;height:54px;border-radius:14px;background:var(--blue);display:inline-flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:20px;letter-spacing:.5px;margin-bottom:16px}
+  h1{font-size:21px;margin:0 0 8px;font-weight:800}
+  p{color:var(--muted);font-size:15px;line-height:1.5;margin:0 0 18px}
+  b{color:var(--text)}
+  .btn{display:block;width:100%;padding:14px;border:0;border-radius:12px;background:var(--blue);color:#fff;font-size:16px;font-weight:700;cursor:pointer;text-decoration:none;margin-top:8px}
+  .btn.sec{background:transparent;border:1px solid var(--line);color:var(--text)}
+  .btn:disabled{opacity:.55;cursor:default}
+  .ok{color:#37d39a} .err{color:#ff6b6b}
+  .spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--blue);border-radius:50%;animation:s .8s linear infinite;margin:6px auto}
+  @keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap"><div class="card" id="card">
+  <div class="logo">FFP</div>
+  <div id="content"><div class="spin"></div><p>Loading…</p></div>
+</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  var URL='https://kxzyuofecmtymablnmak.supabase.co';
+  var KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4enl1b2ZlY210eW1hYmxubWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NDM1MTYsImV4cCI6MjA5NTAxOTUxNn0.cWn0x1AeD-x9C-HHf9MShXbFRWdkWi5RMgHLgWJwOuE';
+  var sb = window.supabase.createClient(URL, KEY);
+  var C = document.getElementById('content');
+  var token = new URLSearchParams(location.search).get('token') || '';
+  function member(){ try { return JSON.parse(localStorage.getItem('ffp_member')||'{}')||{}; } catch(e){ return {}; } }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c];}); }
+
+  if(!token){ C.innerHTML = '<h1>Invalid link</h1><p>This claim link is missing its code. Please use the exact link you were sent.</p>'; return; }
+
+  var me = member();
+  if(!me.id){
+    var next = encodeURIComponent(location.pathname + location.search);
+    C.innerHTML = '<h1>Claim your account</h1>'+
+      '<p>Sign in to your Find Fit People account to take ownership of your event(s) and experience(s).</p>'+
+      '<a class="btn" href="login.html?next='+next+'">Sign in to continue</a>'+
+      '<p style="margin-top:14px;font-size:13px">No account yet? Create one on the sign-in page, then reopen this link.</p>';
+    return;
+  }
+
+  C.innerHTML = '<h1>Claim your listings</h1>'+
+    '<p>You’re signed in as <b>'+esc(me.full_name||me.email||'your account')+'</b>. '+
+    'Claiming makes you the owner of your organiser account on Find Fit People — you’ll inherit every event and experience we set up for you.</p>'+
+    '<button class="btn" id="go">Claim now</button>'+
+    '<button class="btn sec" id="cancel" onclick="location.href=\'https://www.findfitpeople.com\'">Not now</button>';
+
+  document.getElementById('go').onclick = async function(){
+    var b=this; b.disabled=true; b.textContent='Claiming…';
+    try{
+      var r = await sb.rpc('claim_provider_by_token', { p_token: token, p_member: me.id });
+      if(r.error) throw r.error;
+      var name = (r.data && r.data.business_name) || 'your organiser account';
+      C.innerHTML = '<h1 class="ok">✓ Claimed</h1>'+
+        '<p>You now own <b>'+esc(name)+'</b> and all of its events and experiences on Find Fit People.</p>'+
+        '<p>Our team will be in touch about managing your listings and taking registrations through FFP. You can close this page.</p>';
+    }catch(e){
+      b.disabled=false; b.textContent='Claim now';
+      var msg = (e && e.message) || 'Something went wrong';
+      var note = document.createElement('p'); note.className='err'; note.textContent = msg; C.insertBefore(note, b);
+    }
+  };
+})();
+</script>
+</body>
+</html>
