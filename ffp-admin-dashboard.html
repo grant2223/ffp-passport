@@ -104,6 +104,7 @@
   <script src="assets/ffp-constants.js"></script>
   <script src="assets/ffp-taxonomy.js?v=10"></script>
   <script src="assets/ffp-realtime.js"></script>
+  <script src="assets/ffp-admin-organiser-listings.js?v=1"></script>
 <script src="ffp-admin-auth.js"></script>
   <script src="ffp-admin-overview-loader.js?v=2"></script>
   <!-- Applications panel REMOVED 2026-06-01: providers now self-signup with instant, self-serve accounts — there is no application/approval step, so no Applications panel. -->
@@ -1537,7 +1538,7 @@ input, select, textarea { font-family: inherit; }
       </div>
     </div>
     <div class="sidebar-footer">
-      build v62 &middot; FFP Admin
+      build v63 &middot; FFP Admin
     </div>
   </aside>
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.toggleSidebar()"></div>
@@ -1933,7 +1934,7 @@ input, select, textarea { font-family: inherit; }
       <div class="panel-head">
         <h1>Events</h1>
         <div class="panel-head-actions">
-          <button class="btn btn-primary" onclick="showToast('Create FFP-organized event form coming')"><span class="material-icons">add</span>FFP-Organized Event</button>
+          <button class="btn btn-primary" onclick="AdminOrgListing.open('event')"><span class="material-icons">add</span>Add event</button>
         </div>
       </div>
       
@@ -1989,10 +1990,13 @@ input, select, textarea { font-family: inherit; }
       </div>
     </section>
 
-    <!-- ========== TOURS (one-off — the classes table) ========== -->
+    <!-- ========== EXPERIENCES (one-off — the experiences table) ========== -->
     <section class="panel" id="panel-tours">
       <div class="panel-head">
         <h1>Experiences</h1>
+        <div class="panel-head-actions">
+          <button class="btn btn-primary" onclick="AdminOrgListing.open('experience')"><span class="material-icons">add</span>Add experience</button>
+        </div>
       </div>
       <div class="section">
         <div class="search-row">
