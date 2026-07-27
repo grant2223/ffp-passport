@@ -47,7 +47,18 @@
           fld('Subtitle', 'b_subtitle', d.subtitle || '') +
           fld('Button label', 'b_cta', d.cta_label || 'Learn more') +
           fld('Link (e.g. /provider/123 or /explore/sessions)', 'b_link', d.link || '') +
-          fld('Image URL (optional)', 'b_image', d.image_url || '') +
+          '<div class="ffp-bfld"><span>Banner image</span>' +
+            '<input type="hidden" id="b_image" value="' + esc(d.image_url || '') + '">' +
+            '<div class="ffp-bup">' +
+              '<div class="ffp-bup-prev" id="b_image_prev"' + (d.image_url ? ' style="background-image:url(\'' + esc(d.image_url) + '\')"' : '') + '></div>' +
+              '<div class="ffp-bup-side">' +
+                '<button type="button" class="btn btn-sm btn-blue" onclick="document.getElementById(\'b_image_file\').click()"><span class="material-icons">upload</span>Upload image</button>' +
+                '<button type="button" class="btn btn-sm btn-ghost" id="b_image_rm" onclick="AdminBanners.clearImage()"' + (d.image_url ? '' : ' style="display:none"') + '>Remove</button>' +
+                '<div class="ffp-bup-hint">JPG or PNG · under 5MB · shown on the Explore promo card</div>' +
+              '</div>' +
+              '<input type="file" id="b_image_file" accept="image/*" style="display:none" onchange="AdminBanners.uploadImage(this)">' +
+            '</div>' +
+          '</div>' +
           fld('City (blank = all cities)', 'b_city', d.city || '') +
           fld('Sort order (lower = first)', 'b_sort', (d.sort_order != null ? d.sort_order : 0), 'number') +
           '<label class="ffp-bck"><input type="checkbox" id="b_active" ' + ((d.active == null || d.active) ? 'checked' : '') + '> Active (visible in the app)</label>' +
@@ -57,6 +68,32 @@
       document.body.appendChild(ov);
     },
     close() { var m = document.getElementById('ffp-bmodal'); if (m) m.remove(); },
+    async uploadImage(input) {
+      var file = input && input.files && input.files[0]; if (!file) return;
+      if (!/^image\//.test(file.type)) { toast('Please choose an image file', 'error'); input.value = ''; return; }
+      if (file.size > 5 * 1024 * 1024) { toast('Image must be under 5MB', 'error'); input.value = ''; return; }
+      var prev = document.getElementById('b_image_prev');
+      if (prev) prev.classList.add('loading');
+      try {
+        var ext = (String(file.name).split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+        var path = 'explore-banners/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+        var up = await window.supabase.storage.from('site-images').upload(path, file, { upsert: true, contentType: file.type, cacheControl: '3600' });
+        if (up.error) throw up.error;
+        var pub = window.supabase.storage.from('site-images').getPublicUrl(path);
+        var url = (pub && pub.data && pub.data.publicUrl) ? pub.data.publicUrl : '';
+        if (!url) throw new Error('No public URL returned');
+        var h = document.getElementById('b_image'); if (h) h.value = url;
+        if (prev) { prev.style.backgroundImage = "url('" + url + "')"; prev.classList.remove('loading'); }
+        var rm = document.getElementById('b_image_rm'); if (rm) rm.style.display = '';
+        toast('Image uploaded');
+      } catch (e) { if (prev) prev.classList.remove('loading'); toast('Upload failed: ' + (e.message || ''), 'error'); }
+      finally { input.value = ''; }
+    },
+    clearImage() {
+      var h = document.getElementById('b_image'); if (h) h.value = '';
+      var prev = document.getElementById('b_image_prev'); if (prev) prev.style.backgroundImage = '';
+      var rm = document.getElementById('b_image_rm'); if (rm) rm.style.display = 'none';
+    },
     async save(id) {
       var g = function (i) { var e = document.getElementById(i); return e ? String(e.value).trim() : ''; };
       var row = { title: g('b_title'), subtitle: g('b_subtitle') || null, cta_label: g('b_cta') || null, link: g('b_link') || null, image_url: g('b_image') || null, city: g('b_city') || null, sort_order: parseInt(g('b_sort') || '0', 10) || 0, active: !!document.getElementById('b_active').checked, updated_at: new Date().toISOString() };
@@ -91,6 +128,11 @@
       '.ffp-bfld{display:block;margin-bottom:13px;}.ffp-bfld span{display:block;font-size:12px;font-weight:700;color:#5b6b75;margin-bottom:5px;}' +
       '.ffp-bfld input{width:100%;border:1px solid #d7dee4;border-radius:9px;padding:11px 12px;font:inherit;font-size:14px;box-sizing:border-box;}' +
       '.ffp-bck{display:flex;align-items:center;gap:9px;font-weight:700;font-size:14px;margin-top:6px;}' +
+      '.ffp-bup{display:flex;gap:12px;align-items:stretch;}' +
+      '.ffp-bup-prev{flex:none;width:120px;height:74px;border-radius:10px;background:#eef2f5 center/cover no-repeat;border:1px solid #d7dee4;position:relative;}' +
+      '.ffp-bup-prev.loading::after{content:"Uploading…";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#5b6b75;background:rgba(238,242,245,.85);border-radius:10px;}' +
+      '.ffp-bup-side{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:7px;justify-content:center;}' +
+      '.ffp-bup-hint{font-size:11px;color:#8a9aa4;}' +
       '.ffp-bmodal-f{padding:14px 18px;border-top:1px solid #eef1f4;display:flex;justify-content:flex-end;gap:10px;}';
     document.head.appendChild(s);
   }
