@@ -23,7 +23,7 @@
       if (!this.data.length) { b.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#8a9aa4;padding:26px;">No banners yet — tap “Add banner”.</td></tr>'; return; }
       b.innerHTML = this.data.map(function (d) {
         return '<tr>' +
-          '<td><strong>' + esc(d.title) + '</strong><div style="font-size:11px;color:#8a9aa4;margin-top:2px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(d.subtitle || '') + '</div></td>' +
+          '<td><strong>' + esc(d.title || '(image banner)') + '</strong><div style="font-size:11px;color:#8a9aa4;margin-top:2px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(d.subtitle || '') + '</div></td>' +
           '<td>' + esc(d.city || 'All') + '</td>' +
           '<td>' + esc(d.cta_label || '') + '</td>' +
           '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#5b6b75;">' + esc(d.link || '') + '</td>' +
@@ -39,14 +39,14 @@
     edit(id) { this.openForm(this.data.find(function (x) { return x.id === id; }) || null); },
     openForm(d) {
       d = d || {}; var isNew = !d.id;
-      function fld(label, id, val, type) { return '<label class="ffp-bfld"><span>' + label + '</span><input id="' + id + '" type="' + (type || 'text') + '" value="' + esc(val) + '"></label>'; }
+      function fld(label, id, val, type, opt) { return '<label class="ffp-bfld"><span>' + label + (opt ? ' <em class="ffp-bopt">Optional</em>' : '') + '</span><input id="' + id + '" type="' + (type || 'text') + '" value="' + esc(val) + '"></label>'; }
       var ov = document.createElement('div'); ov.className = 'ffp-bmodal'; ov.id = 'ffp-bmodal';
       ov.innerHTML = '<div class="ffp-bmodal-card"><div class="ffp-bmodal-h"><h3>' + (isNew ? 'Add banner' : 'Edit banner') + '</h3><button class="btn btn-sm btn-ghost" onclick="AdminBanners.close()"><span class="material-icons">close</span></button></div>' +
         '<div class="ffp-bmodal-b">' +
-          fld('Headline', 'b_title', d.title || '') +
-          fld('Subtitle', 'b_subtitle', d.subtitle || '') +
-          fld('Button label', 'b_cta', d.cta_label || 'Learn more') +
-          fld('Link (e.g. /provider/123 or /explore/sessions)', 'b_link', d.link || '') +
+          fld('Headline', 'b_title', d.title || '', 'text', true) +
+          fld('Subtitle', 'b_subtitle', d.subtitle || '', 'text', true) +
+          fld('Button label', 'b_cta', d.cta_label || '', 'text', true) +
+          fld('Link (e.g. /provider/123 or /explore/sessions)', 'b_link', d.link || '', 'text', true) +
           '<div class="ffp-bfld"><span>Banner image</span>' +
             '<input type="hidden" id="b_image" value="' + esc(d.image_url || '') + '">' +
             '<div class="ffp-bup">' +
@@ -59,7 +59,7 @@
               '<input type="file" id="b_image_file" accept="image/*" style="display:none" onchange="AdminBanners.uploadImage(this)">' +
             '</div>' +
           '</div>' +
-          fld('City (blank = all cities)', 'b_city', d.city || '') +
+          fld('City (blank = all cities)', 'b_city', d.city || '', 'text', true) +
           fld('Sort order (lower = first)', 'b_sort', (d.sort_order != null ? d.sort_order : 0), 'number') +
           '<label class="ffp-bck"><input type="checkbox" id="b_active" ' + ((d.active == null || d.active) ? 'checked' : '') + '> Active (visible in the app)</label>' +
         '</div>' +
@@ -96,8 +96,8 @@
     },
     async save(id) {
       var g = function (i) { var e = document.getElementById(i); return e ? String(e.value).trim() : ''; };
-      var row = { title: g('b_title'), subtitle: g('b_subtitle') || null, cta_label: g('b_cta') || null, link: g('b_link') || null, image_url: g('b_image') || null, city: g('b_city') || null, sort_order: parseInt(g('b_sort') || '0', 10) || 0, active: !!document.getElementById('b_active').checked, updated_at: new Date().toISOString() };
-      if (!row.title) { toast('Headline is required', 'error'); return; }
+      var row = { title: g('b_title') || null, subtitle: g('b_subtitle') || null, cta_label: g('b_cta') || null, link: g('b_link') || null, image_url: g('b_image') || null, city: g('b_city') || null, sort_order: parseInt(g('b_sort') || '0', 10) || 0, active: !!document.getElementById('b_active').checked, updated_at: new Date().toISOString() };
+      if (!row.title && !row.image_url) { toast('Add a headline or an image', 'error'); return; }
       try {
         var r = id ? await window.supabase.from(TABLE).update(row).eq('id', id) : await window.supabase.from(TABLE).insert(row);
         if (r.error) throw r.error;
@@ -123,11 +123,12 @@
       '.ffp-bmodal{position:fixed;inset:0;background:rgba(10,20,30,.5);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px;}' +
       '.ffp-bmodal-card{background:#fff;border-radius:14px;width:100%;max-width:460px;max-height:92vh;overflow:auto;box-shadow:0 24px 60px rgba(10,30,45,.4);}' +
       '.ffp-bmodal-h{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid #eef1f4;}' +
-      '.ffp-bmodal-h h3{margin:0;font-size:18px;}' +
+      '.ffp-bmodal-h h3{margin:0;font-size:18px;color:#12232f;font-weight:800;}' +
       '.ffp-bmodal-b{padding:16px 18px;}' +
-      '.ffp-bfld{display:block;margin-bottom:13px;}.ffp-bfld span{display:block;font-size:12px;font-weight:700;color:#5b6b75;margin-bottom:5px;}' +
-      '.ffp-bfld input{width:100%;border:1px solid #d7dee4;border-radius:9px;padding:11px 12px;font:inherit;font-size:14px;box-sizing:border-box;}' +
-      '.ffp-bck{display:flex;align-items:center;gap:9px;font-weight:700;font-size:14px;margin-top:6px;}' +
+      '.ffp-bfld{display:block;margin-bottom:13px;}.ffp-bfld span{display:block;font-size:12px;font-weight:700;color:#12232f;margin-bottom:5px;}' +
+      '.ffp-bopt{display:inline-block;font-style:normal;font-size:9.5px;font-weight:800;color:#8a9aa4;background:#eef2f5;border-radius:6px;padding:2px 6px;margin-left:6px;text-transform:uppercase;letter-spacing:.4px;vertical-align:middle;}' +
+      '.ffp-bfld input{width:100%;border:1px solid #d7dee4;border-radius:9px;padding:11px 12px;font:inherit;font-size:14px;box-sizing:border-box;color:#12232f;}' +
+      '.ffp-bck{display:flex;align-items:center;gap:9px;font-weight:700;font-size:14px;margin-top:6px;color:#12232f;}' +
       '.ffp-bup{display:flex;gap:12px;align-items:stretch;}' +
       '.ffp-bup-prev{flex:none;width:120px;height:74px;border-radius:10px;background:#eef2f5 center/cover no-repeat;border:1px solid #d7dee4;position:relative;}' +
       '.ffp-bup-prev.loading::after{content:"Uploading…";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#5b6b75;background:rgba(238,242,245,.85);border-radius:10px;}' +
