@@ -11,7 +11,25 @@
   --pass-ink-dim: #4a5d72;
   --pass-gold: #b8965a;
   --pass-blue: #1d5d8a;
+  --pass-bg: #eff2f6;
 }
+
+/* ── Passport tier colour themes — SAME card, recoloured by membership tier ── */
+.ffp-pc--gold{
+  --pass-bg: linear-gradient(135deg,#fbf1cf 0%,#f4e0a3 38%,#e9cb78 70%,#f6e8b8 100%);
+  --pass-paper:#f4e2a8; --pass-ink:#4a3611; --pass-ink-dim:#7c5f22; --pass-blue:#8a6a1d; --pass-gold:#8a6a1d;
+}
+.ffp-pc--gold .pass-shell{ box-shadow:0 30px 80px -20px rgba(90,63,10,.5), 0 0 0 1px rgba(138,106,29,.35) inset; }
+.ffp-pc--gold .pass-mrz{ background:rgba(255,250,235,.45); border-top-color:rgba(74,54,17,.2); }
+.ffp-pc--gold .pass-type-row{ border-bottom-color:rgba(74,54,17,.15); }
+.ffp-pc--black{
+  --pass-bg: linear-gradient(140deg,#232323 0%,#0a0a0a 55%,#141414 100%);
+  --pass-paper:#141414; --pass-ink:#e7c877; --pass-ink-dim:#c2a25a; --pass-blue:#e7c877; --pass-gold:#e7c877;
+}
+.ffp-pc--black .pass-shell{ box-shadow:0 30px 80px -20px rgba(0,0,0,.75), 0 0 0 1px rgba(231,200,119,.4) inset; }
+.ffp-pc--black .pass-mrz{ background:rgba(0,0,0,.35); border-top-color:rgba(231,200,119,.28); }
+.ffp-pc--black .pass-type-row{ border-bottom-color:rgba(231,200,119,.18); }
+.ffp-pc--black .pass-bg-emblem{ filter:brightness(0) invert(1); opacity:.18; }
 
 /* ===== CSS BLOCK A (card) ===== */
 .pass-container {
@@ -33,7 +51,7 @@
   transform-origin: top left;
   border-radius: 14px;
   overflow: hidden;
-  background: #eff2f6;
+  background: var(--pass-bg, #eff2f6);
   box-shadow: 0 30px 80px -20px rgba(0,0,0,0.5), 0 8px 24px -8px rgba(0,0,0,0.3);
   color: var(--pass-ink);
 }
@@ -274,7 +292,7 @@
       var idx={ "just started":1, recreational:2, skilled:3, "highly skilled":4, professional:5,
                 /* legacy fallbacks */ "not tried":1, social:2, competitive:3, representative:4, beginner:1, intermediate:3, advanced:4 };
       var n=idx[String(level||"").toLowerCase()]||1; var out="";
-      for(var i=0;i<5;i++){ out+="<span style='flex:1;height:7px;border-radius:2px;background:"+(i<n?"#2ba8e0":"#c4d1dc")+";'></span>"; }
+      for(var i=0;i<5;i++){ out+="<span style='flex:1;height:7px;border-radius:2px;background:"+(i<n?"var(--pass-blue)":"rgba(148,163,184,.35)")+";'></span>"; }
       return "<div class='ffp-bk-meter'>"+out+"</div>";
     },
     cell:function(lbl,val,color){ return "<div class='ffp-bk-cell'><div class='pf-lbl'>"+lbl+"</div><div class='pf-val'"+(color?" style='color:"+color+"'":"")+">"+val+"</div></div>"; },
@@ -354,7 +372,9 @@
     render:function(m,opts){
       opts=opts||{};
       var clickAttr = opts.flippable ? " onclick=\"this.classList.toggle('flipped')\" style='cursor:pointer;'" : "";
-      return "<div class='ffp-pc'"+clickAttr+"><div class='ffp-pc-flip'>"+
+      var _t = String((opts.tier || (m&&(m.passport_tier||m.card_tier||m.membership_tier||m.membership))) || "").toLowerCase();
+      var _tc = /black|founder|obsidian/.test(_t) ? " ffp-pc--black" : /gold/.test(_t) ? " ffp-pc--gold" : "";
+      return "<div class='ffp-pc"+_tc+"'"+clickAttr+"><div class='ffp-pc-flip'>"+
         "<div class='ffp-pc-face ffp-pc-front'>"+this.frontShell(m,opts)+"</div>"+
         "<div class='ffp-pc-face ffp-pc-back'>"+this.backShell(m)+"</div>"+
       "</div></div>";
