@@ -76,6 +76,9 @@
       '#tax-editor .tx-bar input{flex:1;min-width:160px;}',
       '#tax-editor .tx-bar .tx-country{flex:0 0 200px;}',
       '#tax-editor .tx-bar button{background:#FFCC00;color:#082335;border:none;border-radius:9px;padding:10px 18px;font-weight:800;font-size:13px;cursor:pointer;}',
+      '#tax-editor .tx-bar button.tx-sort{background:transparent;color:#2ba8e0;border:1px solid rgba(43,168,224,.45);}',
+      '#tax-editor .tx-bar button.tx-sort:hover{background:rgba(43,168,224,.12);color:#8fd3f4;}',
+      '#tax-editor .tx-bar button.tx-sort[disabled]{opacity:.5;cursor:default;}',
       '#tax-editor .tx-bar label{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#8a99a8;font-weight:800;}',
       '#tax-editor table{width:100%;border-collapse:collapse;}',
       '#tax-editor th{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#8a99a8;text-align:left;padding:10px 14px;border-bottom:1px solid rgba(43,168,224,.12);}',
@@ -141,11 +144,13 @@
               '<label>Country</label><select id="tx-country" class="tx-country">' + opts + '</select>' +
               '<input id="tx-new" type="text" placeholder="Add a city to ' + esc(state.cityCountry) + '…">' +
               '<button id="tx-add-btn" type="button">Add City</button>' +
+              '<button id="tx-sort-btn" type="button" class="tx-sort" title="Reorder this list alphabetically">Sort A–Z</button>' +
             '</div>';
     } else {
       bar = '<div class="tx-bar">' +
               '<input id="tx-new" type="text" placeholder="Add to ' + esc(cur.name || '') + '… e.g. ' + esc((rows[0] && (rows[0].label || rows[0].value)) || 'New item') + '">' +
               '<button id="tx-add-btn" type="button">Add</button>' +
+              '<button id="tx-sort-btn" type="button" class="tx-sort" title="Reorder this list alphabetically">Sort A–Z</button>' +
             '</div>';
     }
 
@@ -204,6 +209,7 @@
         addItem(inp ? inp.value : '');
         return;
       }
+      if (t.closest('#tx-sort-btn')) { alphaSort(t.closest('#tx-sort-btn')); return; }
       var ic = t.closest('.tx-ic');
       if (ic) {
         var tr = ic.closest('tr'); if (!tr) return;
@@ -302,6 +308,26 @@
     if (res.error) { toast('Delete failed', 'error'); return; }
     state.data[state.current] = (state.data[state.current] || []).filter(function (x) { return x.id !== id; });
     toast('Deleted', 'success');
+    render();
+  }
+
+  // Reorder the current list A–Z (by shown name) and persist the new sort_order.
+  // For Cities this sorts within the selected country only (curRows is already filtered).
+  async function alphaSort(btn) {
+    var rows = curRows().slice().sort(function (a, b) {
+      var A = String(a.label || a.value || '').toLowerCase();
+      var B = String(b.label || b.value || '').toLowerCase();
+      return A < B ? -1 : A > B ? 1 : 0;
+    });
+    var changed = [];
+    rows.forEach(function (r, i) { if (r.sort_order !== i) { r.sort_order = i; changed.push(r); } });
+    if (!changed.length) { toast('Already sorted A–Z', 'success'); return; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Sorting…'; }
+    for (var k = 0; k < changed.length; k++) {
+      var res = await sb().from('taxonomy_items').update({ sort_order: changed[k].sort_order }).eq('id', changed[k].id);
+      if (res && res.error) { toast('Sort failed', 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Sort A–Z'; } return; }
+    }
+    toast('Sorted A–Z (' + changed.length + ' moved)', 'success');
     render();
   }
 
