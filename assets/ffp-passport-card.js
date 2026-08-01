@@ -30,6 +30,10 @@
 .ffp-pc--black .pass-mrz{ background:rgba(0,0,0,.35); border-top-color:rgba(231,200,119,.28); }
 .ffp-pc--black .pass-type-row{ border-bottom-color:rgba(231,200,119,.18); }
 .ffp-pc--black .pass-bg-emblem{ filter:brightness(0) invert(1); opacity:.18; }
+/* Gold-foil trim around the photo — platinum (black) card */
+.ffp-pc--black .pass-photo-new{ box-shadow:0 0 0 2px #d4af37, 0 0 0 3.5px rgba(231,200,119,.55), 0 3px 10px rgba(0,0,0,.45); }
+/* Subtle bronze trim on the Gold card for consistency */
+.ffp-pc--gold .pass-photo-new{ box-shadow:0 0 0 2px #8a6a1d, 0 0 0 3px rgba(138,106,29,.4); }
 
 /* ===== CSS BLOCK A (card) ===== */
 .pass-container {
