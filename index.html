@@ -138,8 +138,9 @@
   /* ---------- FEATURES: bento grid, varied tiles ---------- */
   .shots{display:flex;gap:20px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin:28px -24px 0;padding:0 24px 8px;}
   .shots::-webkit-scrollbar{display:none;}
-  .shot{flex:0 0 auto;width:224px;scroll-snap-align:start;margin:0;}
-  .shot img{width:224px;height:auto;display:block;border-radius:26px;background:#0a1622;border:1px solid rgba(255,255,255,.07);}
+  .shot{flex:0 0 auto;width:236px;scroll-snap-align:start;margin:0;}
+  /* Phone-shaped frame: every screenshot renders as a clean, uniform phone screen (9:19.5), top-aligned. */
+  .shot img{width:236px;aspect-ratio:1170/2532;height:auto;object-fit:cover;object-position:top center;display:block;border-radius:30px;background:#0a1622;border:1px solid rgba(255,255,255,.07);}
   .shot figcaption{margin-top:14px;}
   .shot figcaption b{font-size:14.5px;font-weight:800;display:block;}
   .shot figcaption span{font-size:12.5px;color:var(--mut);display:block;margin-top:2px;}
@@ -355,6 +356,110 @@
     <div style="font-size:12px;color:var(--mut2);margin-top:16px;">Then $149/year or $20/month.</div>
   </div>
 </div></section>
+
+<!-- LIFETIME / FOUNDER EDITIONS -->
+<style>
+  #lifetime .lts{ display:grid; grid-template-columns:1fr 1fr; gap:20px; max-width:860px; margin:0 auto; }
+  @media(max-width:720px){ #lifetime .lts{ grid-template-columns:1fr; } }
+  #lifetime .ltcard{ position:relative; border-radius:20px; padding:28px 24px; overflow:hidden; border:1px solid var(--hair); }
+  #lifetime .ltcard.gold{ background:linear-gradient(160deg,#3a2f12,#181205); box-shadow:inset 0 0 0 1px rgba(212,175,55,.35); }
+  #lifetime .ltcard.black{ background:linear-gradient(160deg,#161616,#050505); box-shadow:inset 0 0 0 1px rgba(231,200,119,.4); }
+  #lifetime .lttag{ display:inline-block; font-size:12px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; padding:6px 12px; border-radius:999px; }
+  #lifetime .gold .lttag{ color:#1a1405; background:linear-gradient(135deg,#f4e0a3,#d4af37); }
+  #lifetime .black .lttag{ color:#e7c877; border:1px solid rgba(231,200,119,.5); }
+  #lifetime .ltseats{ margin-top:14px; font-size:13px; font-weight:700; color:var(--mut); }
+  #lifetime .ltseats b{ color:#e7c877; }
+  #lifetime .ltamt{ font-size:40px; font-weight:900; letter-spacing:-1px; margin-top:6px; color:#fff; }
+  #lifetime .ltamt small{ font-size:15px; font-weight:600; color:var(--mut); }
+  #lifetime .ltcard ul{ list-style:none; padding:0; margin:18px 0 22px; }
+  #lifetime .ltcard li{ display:flex; gap:9px; align-items:flex-start; font-size:14px; color:#dceaf2; margin:9px 0; line-height:1.4; }
+  #lifetime .ltcard li svg{ width:16px; height:16px; flex:none; margin-top:2px; fill:none; stroke:#e7c877; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round; }
+  #lifetime .ltbuy{ width:100%; border:none; cursor:pointer; font-weight:800; }
+  #lifetime .gold .ltbuy{ background:linear-gradient(135deg,#f4e0a3,#d4af37); color:#1a1405; }
+  #lifetime .black .ltbuy{ background:linear-gradient(135deg,#e7c877,#c2a25a); color:#141005; }
+  #lifetime .ltbuy[disabled]{ opacity:.45; cursor:not-allowed; filter:grayscale(.5); }
+  #lifetime .ltnote{ text-align:center; font-size:12px; color:var(--mut2); margin-top:18px; }
+  #lifetime #lt-err{ text-align:center; color:#ff9b9b; font-size:13px; margin-top:12px; min-height:16px; }
+</style>
+<section id="lifetime" class="divide"><div class="wrap">
+  <div style="text-align:center;margin-bottom:32px;">
+    <div class="eyebrow">Founder editions</div>
+    <h2 style="font-size:36px;font-weight:900;letter-spacing:-.8px;margin-top:10px;">Own your Passport for life.</h2>
+    <p style="color:var(--mut);max-width:560px;margin:12px auto 0;font-size:16px;">A one-time membership &mdash; yours forever. Everything in Passport, a collector&rsquo;s card, and your own founder number.</p>
+  </div>
+  <div class="lts">
+    <div class="ltcard gold">
+      <span class="lttag">Gold</span>
+      <div class="ltseats" data-tier="gold">Checking availability&hellip;</div>
+      <div class="ltamt">$999<small>&nbsp;once</small></div>
+      <ul>
+        <li><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg> Everything in FFP Passport &mdash; for life, no renewals</li>
+        <li><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg> Gold collector&rsquo;s Passport card</li>
+        <li><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg> Your own founder number (limited to 1,000)</li>
+        <li><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg> Founder badge across the community</li>
+      </ul>
+      <button class="btn ltbuy" data-tier="gold">Become a Gold founder</button>
+    </div>
+    <div class="ltcard black">
+      <span class="lttag">Black &middot; Gold Foil</span>
+      <div class="ltseats" data-tier="black">Checking availability&hellip;</div>
+      <div class="ltamt">$9,999<small>&nbsp;once</small></div>
+      <ul>
+        <li><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg> Everything in Gold &mdash; for life</li>
+        <li><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg> Black card with gold-foil finish</li>
+        <li><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg> Only 10 will ever exist &mdash; the lowest founder numbers</li>
+        <li><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg> Founding-member status, forever</li>
+      </ul>
+      <button class="btn ltbuy" data-tier="black">Become a Black founder</button>
+    </div>
+  </div>
+  <div id="lt-err"></div>
+  <div class="ltnote">One-time payment, billed securely by Stripe. Lifetime access &mdash; never billed again.</div>
+</div></section>
+<script>
+(function(){
+  var SUPA = "https://kxzyuofecmtymablnmak.supabase.co";
+  var ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4enl1b2ZlY210eW1hYmxubWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NDM1MTYsImV4cCI6MjA5NTAxOTUxNn0.cWn0x1AeD-x9C-HHf9MShXbFRWdkWi5RMgHLgWJwOuE";
+  var HDR = { "Content-Type":"application/json", apikey:ANON, Authorization:"Bearer "+ANON };
+  function fmt(n){ return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,","); }
+
+  fetch(SUPA+"/rest/v1/rpc/lifetime_availability",{method:"POST",headers:HDR,body:"{}"})
+    .then(function(r){return r.json();})
+    .then(function(rows){
+      (rows||[]).forEach(function(row){
+        var el = document.querySelector('.ltseats[data-tier="'+row.tier+'"]');
+        var btn = document.querySelector('.ltbuy[data-tier="'+row.tier+'"]');
+        if(el){ el.innerHTML = row.sold_out ? "Sold out" : ("<b>"+fmt(row.remaining)+"</b> of "+fmt(row.seat_limit)+" remaining"); }
+        if(btn && row.sold_out){ btn.disabled = true; btn.textContent = "Sold out"; }
+      });
+    }).catch(function(){});
+
+  async function detectMember(){
+    try { if(window.FFPAuth && FFPAuth.getUser){ var u = await FFPAuth.getUser(); if(u) return { id:u.id, email:u.email }; } } catch(e){}
+    return null;
+  }
+
+  document.querySelectorAll(".ltbuy").forEach(function(btn){
+    btn.addEventListener("click", async function(){
+      var err = document.getElementById("lt-err"); if(err) err.textContent = "";
+      var tier = btn.getAttribute("data-tier");
+      var label = btn.textContent;
+      btn.disabled = true; btn.textContent = "Taking you to checkout…";
+      try {
+        var m = await detectMember();
+        var body = { tier:tier, success_url:"https://ffppassport.com/welcome", cancel_url:"https://ffppassport.com/#lifetime" };
+        if(m && m.id) body.member_id = m.id;
+        if(m && m.email) body.email = m.email;
+        var res = await fetch(SUPA+"/functions/v1/lifetime-checkout",{method:"POST",headers:HDR,body:JSON.stringify(body)});
+        var data = await res.json();
+        if(data && data.url){ location.href = data.url; return; }
+        if(err) err.textContent = (data && data.error) || "Could not start checkout. Please try again.";
+      } catch(e){ if(err) err.textContent = "Could not start checkout. Please try again."; }
+      btn.disabled = false; btn.textContent = label;
+    });
+  });
+})();
+</script>
 
 <!-- CTA -->
 <section class="cta-band divide"><div class="wrap">
