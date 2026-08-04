@@ -1485,6 +1485,9 @@ input, select, textarea { font-family: inherit; }
       <a class="sidebar-link" data-panel="panel-featured" onclick="App.go('panel-featured')">
         <span class="material-icons">star</span>Featured
       </a>
+      <a class="sidebar-link" data-panel="panel-offers" onclick="App.go('panel-offers')">
+        <span class="material-icons">local_offer</span>Offers
+      </a>
       <!-- Challenges parked — HIDDEN until built (restore: remove display:none + re-add onclick). -->
       <a class="sidebar-link" data-panel="panel-challenges" aria-disabled="true" title="Coming soon" style="display:none;opacity:.45;pointer-events:none;cursor:default;">
         <span class="material-icons">emoji_events</span>Challenges
@@ -2034,6 +2037,18 @@ input, select, textarea { font-family: inherit; }
             <tbody id="featured-tbody"></tbody>
           </table>
         </div>
+      </div>
+    </section>
+
+    <!-- ========== OFFERS (BOGO) ========== -->
+    <section class="panel" id="panel-offers">
+      <div class="panel-head"><h1>Offers</h1></div>
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">Buy 1, Get 1 Free offers</div>
+          <div class="section-actions"><button onclick="AdminOffers.openForm()" style="padding:8px 14px;border:none;background:#1980AD;color:#fff;border-radius:9px;font-weight:800;cursor:pointer;"><span class="material-icons" style="font-size:16px;vertical-align:-3px;">add</span> Add offer</button></div>
+        </div>
+        <div class="section-body padded"><div id="offers-list"></div></div>
       </div>
     </section>
 
@@ -2623,6 +2638,7 @@ const App = {
     'panel-experiences': 'Trips',
     'panel-tours':       'Experiences',
     'panel-featured':    'Featured',
+    'panel-offers':      'Offers',
     'panel-challenges':  'Challenges',
     'panel-meetups':     'Meet & Move',
     'panel-professionals':'Professionals',
@@ -2652,6 +2668,7 @@ const App = {
     'panel-experiences':  'ffp-admin-experiences-loader.js?v=3',
     'panel-tours':        'ffp-admin-classes-loader.js?v=4',
     'panel-featured':     'ffp-admin-featured-loader.js?v=2',
+    'panel-offers':       'assets/ffp-admin-offers.js',
     'panel-challenges':   'ffp-admin-challenges-loader.js',
     'panel-meetups':      'ffp-admin-meetups-loader.js',
     'panel-analytics':    'ffp-admin-analytics-loader.js',
