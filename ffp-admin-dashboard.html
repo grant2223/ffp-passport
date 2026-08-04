@@ -1755,7 +1755,7 @@ input, select, textarea { font-family: inherit; }
         <div class="section-body">
           <table class="table">
             <thead>
-              <tr><th>Member</th><th>City</th><th>Tier</th><th>Balance</th><th>Joined</th><th></th></tr>
+              <tr><th>Member</th><th>City</th><th>Type</th><th>Tier</th><th>Balance</th><th>Joined</th><th></th></tr>
             </thead>
             <tbody id="members-tbody"></tbody>
           </table>
@@ -2662,7 +2662,7 @@ const App = {
     'panel-content':      'ffp-admin-content-loader.js',
     'panel-referrals':    'ffp-admin-referrals-loader.js',
     'panel-feedback':     'ffp-admin-feedback-loader.js',
-    'panel-members':      'ffp-admin-members-loader.js',
+    'panel-members':      'ffp-admin-members-loader.js?v=6',
     'panel-quests':       'ffp-admin-quests-loader.js?v=3',
     'panel-events':       'ffp-admin-events-loader.js',
     'panel-experiences':  'ffp-admin-experiences-loader.js?v=3',
@@ -3047,6 +3047,10 @@ const AdminMembers = {
         </td>
         <td class="text-muted">${escHtml(m.city)}</td>
         <td onclick="event.stopPropagation()">
+          <span style="display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:800;white-space:nowrap;background:${m.mtype.bg};color:${m.mtype.fg};">${escHtml(m.mtype.label)}</span>
+          ${(m.mtype.passport && m.mtype.nosub) ? `<button title="${m.mtype.lifetime ? 'Lifetime — click to remove' : 'Mark as Lifetime'}" onclick="event.stopPropagation(); AdminMembers.setLifetime('${m.id}', ${!m.mtype.lifetime})" style="margin-left:6px;border:none;background:none;cursor:pointer;font-size:15px;line-height:1;vertical-align:middle;color:${m.mtype.lifetime ? '#f2c94c' : '#5b6b75'};">★</button>` : ''}
+        </td>
+        <td onclick="event.stopPropagation()">
           <select class="tier-select" onchange="AdminMembers.commitTier('${m.id}', this.closest('td'))">
             <option value="member"${m.tier==='member'?' selected':''}>Member</option>
             <option value="supporter"${m.tier==='supporter'?' selected':''}>Supporter</option>
@@ -3066,7 +3070,7 @@ const AdminMembers = {
           </div>
         </td>
       </tr>
-    `).join('') || '<tr><td colspan="6" class="text-muted" style="text-align:center; padding:30px;">No members match</td></tr>';
+    `).join('') || '<tr><td colspan="7" class="text-muted" style="text-align:center; padding:30px;">No members match</td></tr>';
     this.renderBulkBar();
   },
 
