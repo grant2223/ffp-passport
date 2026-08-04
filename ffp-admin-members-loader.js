@@ -26,7 +26,34 @@
     return check();
   }
 
-  function mapForUi(row) {
+  // Membership TYPE — what kind of account this really is. Standard (free), Passport (Monthly / Annual /
+  // Lifetime / Comp), or NOT a member at all (Partner contact = owns a provider; Test/system account).
+  // A "· Pro" suffix flags coaches (professionals table) whose Passport is usually a comp.
+  function classify(row, owners, pros) {
+    var email = (row.email || '').toLowerCase();
+    var isSys = email === 'providers@findfitpeople.com' || email === 'admin@findfitpeople.com' || /^deleted\+/.test(email) || /@ffp\.invalid$/.test(email);
+    var ownsProvider = !!owners[row.id];
+    var isPro = !!pros[row.id];
+    var passport = (row.membership || 'free') === 'passport';
+    var plan = row.plan || '';
+    var hasSub = !!row.stripe_subscription_id;
+    var lifetime = plan === 'lifetime';
+    var label, bg, fg;
+    if (ownsProvider) { label = 'Partner contact'; bg = 'rgba(224,137,30,.18)'; fg = '#e0a35a'; }
+    else if (isSys) { label = 'Test / system'; bg = 'rgba(255,255,255,.06)'; fg = '#7c8a91'; }
+    else if (passport) {
+      if (lifetime) { label = 'Passport · Lifetime'; bg = 'rgba(255,204,0,.16)'; fg = '#f2c94c'; }
+      else if (plan === 'annual') { label = 'Passport · Annual'; bg = 'rgba(43,168,224,.16)'; fg = '#5cc1ef'; }
+      else if (plan === 'monthly') { label = 'Passport · Monthly'; bg = 'rgba(43,168,224,.16)'; fg = '#5cc1ef'; }
+      else if (hasSub) { label = 'Passport · Sub'; bg = 'rgba(43,168,224,.16)'; fg = '#5cc1ef'; }
+      else { label = 'Passport · Comp'; bg = 'rgba(124,92,255,.16)'; fg = '#a99bff'; }
+      if (isPro) label += ' · Pro';
+    }
+    else { label = 'Standard' + (isPro ? ' · Pro' : ''); bg = 'rgba(255,255,255,.07)'; fg = '#9dbdd0'; }
+    return { label: label, bg: bg, fg: fg, passport: passport, nosub: !hasSub, lifetime: lifetime };
+  }
+
+  function mapForUi(row, owners, pros) {
     var name = row.full_name || row.given_names || (row.email ? row.email.split('@')[0] : 'Member');
     var days = row.created_at ? Math.floor((Date.now() - new Date(row.created_at).getTime()) / 86400000) : 0;
     return {
@@ -41,20 +68,28 @@
       daysAgo: days,
       status: row.status || 'active',
       role: row.role || 'member',
-      verified: !!row.verified
+      verified: !!row.verified,
+      mtype: classify(row, owners || {}, pros || {})
     };
   }
 
   async function fetchMembers() {
     try {
-      var res = await window.supabase
-        .from('members')
-        .select('id, full_name, given_names, email, city, tier, tier_expires_at, balance_aed, status, created_at, role, verified')
-        .order('created_at', { ascending: false });
+      var out = await Promise.all([
+        window.supabase.from('members')
+          .select('id, full_name, given_names, email, city, tier, tier_expires_at, balance_aed, status, created_at, role, verified, membership, plan, stripe_subscription_id')
+          .order('created_at', { ascending: false }),
+        window.supabase.from('providers').select('owner_user_id').not('owner_user_id', 'is', null),
+        window.supabase.from('professionals').select('member_id')
+      ]);
+      var res = out[0];
       if (res.error) { console.error('[FFP Admin Members] fetch:', res.error); toast('Could not load members', 'error'); return []; }
-      // Only real members — exclude provider/admin login accounts (e.g. a provider's contact person,
-      // who has a members row with role='provider'). They belong in Providers, not Members.
-      return (res.data || []).map(mapForUi).filter(function (m) { return m.role === 'member'; });
+      var owners = {}; (out[1] && out[1].data || []).forEach(function (r) { if (r.owner_user_id) owners[r.owner_user_id] = 1; });
+      var pros = {}; (out[2] && out[2].data || []).forEach(function (r) { if (r.member_id) pros[r.member_id] = 1; });
+      // Show member-login accounts (role='member'); any that own a provider are still shown but flagged
+      // "Partner contact" so the admin can see they're not a real member. Provider/admin login rows stay out.
+      return (res.data || []).map(function (row) { return mapForUi(row, owners, pros); })
+        .filter(function (m) { return m.role === 'member'; });
     } catch (e) { console.error('[FFP Admin Members] fetch threw:', e); return []; }
   }
 
@@ -83,6 +118,18 @@
         if (window.AuditLog) AuditLog.add(null, (val ? 'verified' : 'un-verified') + ' member ' + (row ? (row.full_name || row.email) : id));
         toast(val ? 'Member marked verified ✓' : 'Verified status removed', 'success');
       } catch (e) { console.error('[Members] toggleVerified threw', e); toast('Update failed', 'error'); }
+    };
+
+    // Admin marks/unmarks a member as Lifetime (only meaningful for a Passport account with no live
+    // subscription — Lifetime can't be derived from data, so it's an explicit admin flag on members.plan).
+    am.setLifetime = async function (id, on) {
+      try {
+        var res = await window.supabase.from('members').update({ plan: on ? 'lifetime' : null }).eq('id', id);
+        if (res.error) { console.error('[Members] setLifetime', res.error); toast('Could not update', 'error'); return; }
+        if (window.AuditLog) { var row = (am.data || []).filter(function (x) { return x.id === id; })[0]; AuditLog.add(null, (on ? 'marked lifetime' : 'removed lifetime') + ' — ' + (row ? (row.full_name || row.email) : id)); }
+        toast(on ? 'Marked Lifetime ★' : 'Lifetime removed', 'success');
+        refresh();
+      } catch (e) { console.error('[Members] setLifetime threw', e); toast('Update failed', 'error'); }
     };
 
     // v4: fetch only when the admin session is confirmed (event-driven, no race).
