@@ -15,9 +15,6 @@
   async function renderTeam() {
     var tb = document.getElementById('settings-team-tbody');
     if (!tb || !sb()) return;
-    var meEmail = (window.FFP_ADMIN && window.FFP_ADMIN.email) || '';
-    // FFP uses a custom per-request JWT, not Supabase Auth — supabase.auth.getUser() is always null
-    // here. The admin's id (== admin_users.id) is exposed as window.FFP_ADMIN.id.
     var meId = (window.FFP_ADMIN && window.FFP_ADMIN.id)
             || (window.FFPAuth && FFPAuth.getMember && (FFPAuth.getMember() || {}).id)
             || null;
@@ -28,22 +25,63 @@
     }
     var rows = res.data || [];
     if (!rows.length) { tb.innerHTML = '<tr><td colspan="5" class="text-muted" style="padding:14px;">No admins.</td></tr>'; return; }
+    // Resolve each admin_users row to its member (email + name).
+    var mmap = {};
+    try {
+      var mr = await sb().from('members').select('id, email, full_name, given_names').in('id', rows.map(function (a) { return a.id; }));
+      (mr.data || []).forEach(function (m) { mmap[m.id] = m; });
+    } catch (e) {}
     tb.innerHTML = rows.map(function (a) {
+      var mm = mmap[a.id] || {};
       var isMe = meId && a.id === meId;
-      var email = isMe && meEmail ? meEmail : '—';
-      var roleLabel = String(a.role || 'admin').replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
-      var name = isMe && meEmail ? meEmail : 'Admin';
-      var letter = (isMe && meEmail ? meEmail[0] : 'A').toUpperCase();
+      var email = mm.email || (isMe && window.FFP_ADMIN && window.FFP_ADMIN.email) || '—';
+      var name = mm.full_name || mm.given_names || (email !== '—' ? email : 'Admin');
+      var isStaff = String(a.role || '').toLowerCase() === 'staff';
+      var roleLabel = isStaff ? 'Staff' : String(a.role || 'admin').replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+      var letter = (name[0] || 'A').toUpperCase();
       var added = a.added_at ? new Date(a.added_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+      var revoke = (isStaff && !isMe && email !== '—') ? '<button class="btn btn-sm btn-danger" onclick="AdminStaff.revoke(\'' + esc(email).replace(/'/g, "&#39;") + '\')"><span class="material-icons">person_remove</span>Revoke</button>' : '';
       return '<tr>' +
         '<td><span class="cell-avatar">' + esc(letter) + '</span><span class="cell-name">' + esc(name) +
           (isMe ? ' <span class="text-muted" style="font-size:11px;">(you)</span>' : '') + '</span></td>' +
         '<td class="text-muted">' + esc(email) + '</td>' +
-        '<td><span class="pill pill-ambassador">' + esc(roleLabel) + '</span></td>' +
+        '<td><span class="pill ' + (isStaff ? 'pill-supporter' : 'pill-ambassador') + '">' + esc(roleLabel) + '</span></td>' +
         '<td class="text-muted">' + esc(added) + '</td>' +
-        '<td></td></tr>';
+        '<td>' + revoke + '</td></tr>';
     }).join('');
   }
+
+  // ── Staff access grant / revoke (admin_grant_staff RPC) ──
+  async function grantStaff() {
+    var inp = document.getElementById('staff-email'), msg = document.getElementById('staff-msg'), btn = document.getElementById('staff-grant-btn');
+    var email = inp ? String(inp.value || '').trim() : '';
+    if (!email) { if (msg) { msg.textContent = 'Enter an email'; msg.style.color = '#ef4444'; } return; }
+    if (btn) btn.disabled = true; if (msg) { msg.textContent = 'Granting…'; msg.style.color = ''; }
+    try {
+      var res = await sb().rpc('admin_grant_staff', { p_email: email, p_grant: true });
+      var d = res.data || {};
+      if (res.error || !d.ok) throw new Error((d && d.error) || (res.error && res.error.message) || 'failed');
+      if (msg) { msg.textContent = 'Staff access granted ✓'; msg.style.color = '#22c55e'; }
+      if (inp) inp.value = '';
+      if (window.AuditLog) AuditLog.add(null, 'granted staff access to ' + email);
+      renderTeam();
+    } catch (e) {
+      var m = e.message === 'no_member' ? 'No member with that email' : e.message === 'not_authorised' ? 'Not authorised' : (e.message || 'Failed');
+      if (msg) { msg.textContent = m; msg.style.color = '#ef4444'; }
+    } finally { if (btn) btn.disabled = false; }
+  }
+  async function revokeStaff(email) {
+    if (!window.confirm('Revoke staff access for ' + email + '?')) return;
+    try {
+      var res = await sb().rpc('admin_grant_staff', { p_email: email, p_grant: false });
+      var d = res.data || {};
+      if (res.error || !d.ok) throw new Error((d && d.error) || 'failed');
+      if (window.AuditLog) AuditLog.add(null, 'revoked staff access for ' + email);
+      if (window.showToast) showToast('Staff access revoked', 'success');
+      renderTeam();
+    } catch (e) { if (window.showToast) showToast('Could not revoke — ' + (e.message || ''), 'error'); }
+  }
+  window.AdminStaff = { grant: grantStaff, revoke: revokeStaff };
 
   // ── Platform Config (public.platform_config key/value) ──
   var CFG_FIELDS = {
@@ -92,7 +130,11 @@
     await loadConfig();
     var saveBtn = document.getElementById('cfg-save-btn');
     if (saveBtn) saveBtn.onclick = saveConfig;
-    console.log('[FFP Admin Settings] loaded v2 ✓ (team + audit + editable config)');
+    var grantBtn = document.getElementById('staff-grant-btn');
+    if (grantBtn) grantBtn.onclick = grantStaff;
+    var staffInp = document.getElementById('staff-email');
+    if (staffInp) staffInp.addEventListener('keydown', function (e) { if (e.key === 'Enter') grantStaff(); });
+    console.log('[FFP Admin Settings] loaded v3 ✓ (team + staff access + audit + config)');
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
