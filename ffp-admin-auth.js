@@ -48,6 +48,28 @@
     catch (e) { console.warn('[FFP Admin Auth v7] Could not parse ffp_member:', e); return null; }
   }
 
+  // Reveal the dashboard + expose identity. effRole = 'super'/'ops'/'content' (full) or 'staff' (limited).
+  function applyIdentity(effRole, m) {
+    window.FFP_ADMIN = { role: effRole, email: m.email || null, id: m.id };
+    var isStaff = String(effRole || '').toLowerCase() === 'staff';
+    try {
+      if (isStaff) document.body.classList.add('ffp-role-staff');   // hides owner-only panels (see dashboard CSS)
+      var roleText = isStaff ? 'Staff' : String(effRole || 'admin').replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+      var nm = document.getElementById('ffp-admin-name'); if (nm) nm.textContent = m.email || 'Admin';
+      var rl = document.getElementById('ffp-admin-role'); if (rl) rl.textContent = roleText;
+      var av = document.getElementById('ffp-admin-avatar'); if (av) av.textContent = ((m.email || 'A')[0] || 'A').toUpperCase();
+      var id = document.getElementById('ffp-admin-identity'); if (id) id.title = 'Signed in as ' + (m.email || 'admin');
+    } catch (e) {}
+    reveal();
+    document.dispatchEvent(new CustomEvent('ffp-admin-ready', { detail: { role: effRole, staff: isStaff } }));
+    console.log('[FFP Admin Auth v7] Access granted ✓ ' + (m.email || '') + ' · role=' + effRole);
+  }
+
+  function bounceNonAdmin(role) {
+    console.warn('[FFP Admin Auth v7] role="' + role + '" is not admin — redirecting');
+    location.href = (role === 'provider') ? 'https://partner.findfitpeople.com/' : '/ffp-member-dashboard.html';
+  }
+
   function gate() {
     var m = readMember();
 
@@ -58,28 +80,20 @@
       return;
     }
 
-    // Wrong role → bounce to the dashboard that matches their role.
     var role = String(m.role || '').toLowerCase();
-    if (role !== 'admin' && role !== 'super_admin' && role !== 'super') {
-      console.warn('[FFP Admin Auth v7] role="' + m.role + '" is not admin — redirecting');
-      location.href = (role === 'provider') ? 'https://partner.findfitpeople.com/' : '/ffp-member-dashboard.html';
-      return;
+    // Full admins (by members.role) go straight in.
+    if (role === 'admin' || role === 'super_admin' || role === 'super') { applyIdentity(m.role, m); return; }
+
+    // Otherwise they may have been granted STAFF access — a row in admin_users keyed by their member id.
+    // is_admin() lets them read it; if present, admit them at that role (limited UI for 'staff').
+    if (window.supabase && window.supabase.from) {
+      window.supabase.from('admin_users').select('role').eq('id', m.id).maybeSingle().then(function (res) {
+        if (res && res.data) { applyIdentity(res.data.role || 'staff', m); }
+        else { bounceNonAdmin(role); }
+      }, function () { bounceNonAdmin(role); });
+    } else {
+      bounceNonAdmin(role);
     }
-
-    // Role OK. Expose identity for the dashboard + loaders; real access is enforced
-    // server-side by is_admin()+RLS on the JWT that ffp-api-integration.js applied.
-    window.FFP_ADMIN = { role: m.role, email: m.email || null, id: m.id };
-    try {
-      var roleText = String(m.role || 'admin').replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
-      var nm = document.getElementById('ffp-admin-name'); if (nm) nm.textContent = m.email || 'Admin';
-      var rl = document.getElementById('ffp-admin-role'); if (rl) rl.textContent = roleText;
-      var av = document.getElementById('ffp-admin-avatar'); if (av) av.textContent = ((m.email || 'A')[0] || 'A').toUpperCase();
-      var id = document.getElementById('ffp-admin-identity'); if (id) id.title = 'Signed in as ' + (m.email || 'admin');
-    } catch (e) {}
-
-    reveal();
-    document.dispatchEvent(new CustomEvent('ffp-admin-ready', { detail: { role: m.role } }));
-    console.log('[FFP Admin Auth v7] Access granted ✓ ' + (m.email || '') + ' · role=' + m.role);
   }
 
   if (document.readyState === 'loading') {
