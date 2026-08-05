@@ -1,12 +1,16 @@
+/admin            /admin-login.html              200
+/admin-login      /admin-login.html              200
 /login            /login.html                    200
 /member           /ffp-member-dashboard.html     200
-/provider         /ffp-provider-dashboard.html   200
-/admin            /ffp-admin-dashboard.html      200
 /my-passport      /my-passport.html              200
 /join             /login.html#signup             301!
 
 # FFP Professional moved to its own origin (2026-07-01). Send old Passport-origin pro links/installs there.
-/ffp-professional-dashboard.html   https://ffpprofessional.com/   301!
-/professional                      https://ffpprofessional.com/   301!
+/ffp-professional-dashboard.html   https://ffpprofessional.com/app   301!
+/professional                      https://ffpprofessional.com/app   301!
+
+# FFP Partner moved to partner.findfitpeople.com (Stage B). Deploy these once that domain is live.
+/provider                          https://partner.findfitpeople.com/   301!
+/ffp-provider-dashboard.html       https://partner.findfitpeople.com/   301!
 
 /*                /index.html                    200
