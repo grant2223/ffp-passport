@@ -73,10 +73,11 @@
   function gate() {
     var m = readMember();
 
-    // No signed-in user → go sign in once at the shared login (same as member/provider).
+    // No signed-in user → go sign in at the dedicated admin login. (The shared member /login was turned into a
+    // permanent "we've moved to the FFP App" splash that clears localStorage, so admins sign in here instead.)
     if (!m || !m.id) {
-      console.warn('[FFP Admin Auth v7] No signed-in member — redirecting to /login');
-      location.href = '/login';
+      console.warn('[FFP Admin Auth v8] No signed-in member — redirecting to /admin');
+      location.href = '/admin';
       return;
     }
 
