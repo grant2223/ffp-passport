@@ -1,0 +1,212 @@
+<!--
+═══════════════════════════════════════════════════════════════════════
+  FFP ADMIN — admin-login.html v1 (2026-08-05)
+  Dedicated internal admin sign-in. Standalone because the member login.html was turned into a permanent
+  "We've moved to the FFP App" splash (it clears localStorage on load + never hides) — which broke the admin
+  path, since ffp-admin-auth.js bounces unauthenticated admins to /login. This page restores admin sign-in.
+
+  Flow (identical to the proven member sign-in): email → "Get My Code" → native Supabase OTP → verifyOtp →
+  POST /api/auth/exchange → app-JWT (sub=members.id) stored via FFPAuth → redirect to ffp-admin-dashboard.html.
+  Only admins get in: after exchange we check members.role ∈ {admin, super_admin, super}; otherwise we show an
+  error and do NOT proceed (server-side is_admin() + RLS remain the real gate).
+
+  Reached at: ffppassport.com/admin  (see _redirects: /admin → /admin-login.html)
+═══════════════════════════════════════════════════════════════════════
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<title>FFP Admin · Sign In</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#081420">
+<link rel="icon" href="/assets/icons/ffp-favicon-32.png?v=3" sizes="32x32" type="image/png">
+<!-- Supabase SDK FIRST so window.supabase exists when ffp-api-integration.js runs -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/ffp-api-integration.js?v=12"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{min-height:100%;font-family:'Montserrat',sans-serif;background:#081420;color:#e8eef4;}
+.page{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;}
+.logo{text-align:center;margin-bottom:22px;}
+.logo img{width:78px;height:auto;display:block;margin:0 auto 10px;}
+.logo-word{font-size:15px;font-weight:900;letter-spacing:3px;color:#fff;line-height:1;}
+.logo-word span{color:#facc15;}
+.logo-tag{font-size:10px;font-weight:800;letter-spacing:2px;color:#facc15;margin-top:8px;text-transform:uppercase;}
+.wrap{width:100%;max-width:400px;}
+.screen{display:none;}
+.screen.active{display:block;}
+.field{margin-bottom:16px;}
+.field-label{font-size:10px;font-weight:800;color:#8a99a8;letter-spacing:1px;text-transform:uppercase;margin-bottom:7px;}
+.field-input{width:100%;background:#0f1e2e;border:1.5px solid rgba(250,204,21,.28);border-radius:12px;padding:14px 16px;font-size:16px;font-weight:600;color:#e8eef4;font-family:'Montserrat',sans-serif;outline:none;transition:border-color .15s,box-shadow .15s;}
+.field-input:focus{border-color:#facc15;box-shadow:0 0 0 3px rgba(250,204,21,.16);}
+.field-input::placeholder{color:#5b7186;font-weight:600;}
+.code-wrap{display:block;margin:0 auto 8px;max-width:320px;width:100%;}
+.code-digit{width:100%;height:62px;padding:0 0 0 14px;background:#0f1e2e;border:1.5px solid rgba(250,204,21,.28);border-radius:12px;font-size:30px;font-weight:900;letter-spacing:14px;color:#e8eef4;text-align:center;font-family:'Montserrat',sans-serif;outline:none;transition:border-color .15s,box-shadow .15s;}
+.code-digit::placeholder{color:#3f6076;letter-spacing:14px;}
+.code-digit:focus{border-color:#facc15;box-shadow:0 0 0 3px rgba(250,204,21,.16);}
+.btn-primary{display:block;width:100%;padding:16px;border-radius:14px;font-size:15px;font-weight:800;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;color:#081420;background:#facc15;transition:background .15s,transform .05s;text-align:center;box-shadow:0 6px 16px rgba(250,204,21,.3);}
+.btn-primary:hover{background:#fbd534;}
+.btn-primary:active{transform:translateY(1px);}
+.btn-primary:disabled{opacity:.55;cursor:not-allowed;box-shadow:none;}
+.btn-back{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#8a99a8;background:none;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;padding:0;margin-bottom:24px;}
+.btn-back:hover{color:#facc15;}
+.screen-badge-label{font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#facc15;margin-bottom:12px;display:block;}
+.screen-title{font-size:26px;font-weight:900;margin-bottom:6px;color:#fff;}
+.screen-sub{font-size:13px;color:#8a99a8;margin-bottom:24px;line-height:1.6;}
+.divider{border:none;border-top:1px solid rgba(250,204,21,.15);margin:24px 0;}
+.resend-row{text-align:center;margin-top:16px;font-size:12px;color:#8a99a8;}
+.resend-row a{color:#facc15;text-decoration:none;font-weight:700;cursor:pointer;}
+.resend-timer{color:#5b7186;font-weight:600;margin-left:6px;}
+.resend-link.is-disabled{opacity:.45;pointer-events:none;cursor:default;}
+.error-msg{color:#ef4444;font-size:12px;font-weight:700;margin-top:8px;text-align:center;min-height:18px;}
+@media (max-width:360px){.code-wrap{max-width:280px;} .code-digit{height:52px;}}
+</style>
+</head>
+<body>
+<div class="page">
+<div class="logo">
+<img src="assets/ffp-emblem.png?v=2" alt="FFP" onerror="this.style.display='none'">
+<div class="logo-word">FFP <span>ADMIN</span></div>
+<div class="logo-tag">Internal Dashboard</div>
+</div>
+<div class="wrap">
+
+<!-- SCREEN 1: EMAIL -->
+<div class="screen active" id="screen-email">
+<span class="screen-badge-label">Admin Sign In</span>
+<div class="screen-title">Sign In</div>
+<div class="screen-sub">Enter your admin email to receive your 6-digit code.</div>
+<div class="field">
+<div class="field-label">Email Address</div>
+<input class="field-input" type="email" id="signin-email" placeholder="you@findfitpeople.com" autocomplete="email" enterkeyhint="go" onkeydown="if(event.key==='Enter'){event.preventDefault();requestCode();}">
+</div>
+<button class="btn-primary" id="email-btn" onclick="requestCode()">Get My Code</button>
+<div class="error-msg" id="email-err"></div>
+</div>
+
+<!-- SCREEN 2: CODE -->
+<div class="screen" id="screen-code">
+<button class="btn-back" onclick="goTo('screen-email')">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
+Back
+</button>
+<span class="screen-badge-label">Admin Sign In</span>
+<div class="screen-title">Enter Your Code</div>
+<div class="screen-sub">Enter the 6-digit code sent to <strong id="code-email"></strong>.</div>
+<div class="code-wrap" id="code-wrap">
+<input class="code-digit" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" aria-label="6-digit code" placeholder="••••••" enterkeyhint="go" onkeydown="if(event.key==='Enter'){event.preventDefault();verifyCode();}">
+</div>
+<label style="display:flex;align-items:center;gap:9px;margin:4px 2px 14px;font-size:13px;color:#cdd7e0;cursor:pointer;user-select:none;">
+  <input type="checkbox" id="keep-signed-in" checked style="width:17px;height:17px;accent-color:#facc15;cursor:pointer;flex-shrink:0;">
+  <span>Keep me signed in on this device</span>
+</label>
+<button class="btn-primary" id="code-btn" onclick="verifyCode()">Sign In</button>
+<div class="error-msg" id="code-err"></div>
+<div class="resend-row">Didn&rsquo;t get it? <a id="resend-link" class="resend-link" onclick="resendCode()">Resend code</a><span id="resend-timer" class="resend-timer"></span></div>
+<div class="resend-row"><a onclick="goTo('screen-email')">Use a different email</a></div>
+</div>
+
+</div>
+</div>
+<script>
+var ADMIN_ROLES = { admin:1, super_admin:1, super:1 };
+var EXCHANGE_URL = 'https://ffp-passport-backend.vercel.app/api/auth/exchange';
+var PREPARE_URL  = 'https://ffp-passport-backend.vercel.app/api/auth/prepare-signin';
+
+function goTo(id){ document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); }); document.getElementById(id).classList.add('active'); window.scrollTo(0,0); }
+function showError(id,msg){ var el=document.getElementById(id); if(el) el.textContent=msg||''; }
+function setBusy(id,busy,label){ var b=document.getElementById(id); if(!b) return; b.disabled=!!busy; if(busy){ b.dataset.label=b.textContent; b.textContent='Please wait…'; } else { b.textContent=label||b.dataset.label||b.textContent; } }
+
+var _resendTimer=null;
+function startResendCooldown(secs){ secs=secs||60; var link=document.getElementById('resend-link'), t=document.getElementById('resend-timer'); if(!link) return; if(_resendTimer) clearInterval(_resendTimer); var rem=secs; link.classList.add('is-disabled'); var tick=function(){ if(rem<=0){ clearInterval(_resendTimer); _resendTimer=null; link.classList.remove('is-disabled'); if(t) t.textContent=''; return; } if(t) t.textContent='· available in '+rem+'s'; rem--; }; tick(); _resendTimer=setInterval(tick,1000); }
+
+function readEmail(){ var el=document.getElementById('signin-email'); return el?el.value.trim().toLowerCase():''; }
+
+async function requestCode(){
+  var email=readEmail();
+  var emailEl=document.getElementById('signin-email');
+  if(!email||!email.includes('@')){ if(emailEl){ emailEl.style.borderColor='#ef4444'; emailEl.focus(); } return; }
+  if(emailEl) emailEl.style.borderColor='';
+  showError('email-err','');
+  if(!(window.supabase&&window.supabase.auth)){ showError('email-err','Auth not ready — refresh and try again.'); return; }
+  setBusy('email-btn',true);
+  try{
+    // Only a KNOWN member gets a code (and the backend ensures their pre-confirmed auth user exists).
+    var prep=await fetch(PREPARE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email})}).then(function(r){return r.json();}).catch(function(){return null;});
+    if(!prep){ showError('email-err','Network error — please try again.'); return; }
+    if(!prep.exists){ showError('email-err','No account found for that email.'); return; }
+    var nr=await window.supabase.auth.signInWithOtp({email:email,options:{shouldCreateUser:false}});
+    if(nr&&nr.error){ showError('email-err','Could not send your code. Please try again.'); return; }
+    var ce=document.getElementById('code-email'); if(ce) ce.textContent=email;
+    goTo('screen-code');
+    startResendCooldown(60);
+    var cd=document.querySelector('#screen-code .code-digit'); if(cd) cd.focus();
+  }catch(e){ showError('email-err','Network error. Please try again.'); }
+  finally{ setBusy('email-btn',false); }
+}
+
+async function resendCode(){
+  var link=document.getElementById('resend-link'); if(link&&link.classList.contains('is-disabled')) return;
+  var email=readEmail(); var t=document.getElementById('resend-timer');
+  if(!email||!email.includes('@')){ goTo('screen-email'); return; }
+  if(t) t.textContent='· sending…';
+  try{
+    var nr=await window.supabase.auth.signInWithOtp({email:email,options:{shouldCreateUser:false}});
+    if(nr&&nr.error){ if(t) t.textContent='· '+(nr.error.message||'could not send'); return; }
+    if(t) t.textContent='· new code sent'; startResendCooldown(60);
+  }catch(e){ if(t) t.textContent='· network error — try again'; }
+}
+
+async function verifyCode(){
+  var digits=document.querySelectorAll('#screen-code .code-digit'); var code=''; digits.forEach(function(d){ code+=d.value; });
+  if(code.length<6){ digits.forEach(function(d){ d.style.borderColor='#ef4444'; }); setTimeout(function(){ digits.forEach(function(d){ d.style.borderColor=''; }); },800); return; }
+  var email=readEmail();
+  showError('code-err','');
+  setBusy('code-btn',true);
+  try{
+    var keepEl=document.getElementById('keep-signed-in');
+    if(window.FFPAuth&&FFPAuth.setPersist) FFPAuth.setPersist(keepEl?!!keepEl.checked:true);
+  }catch(e){}
+  try{
+    var nv=await window.supabase.auth.verifyOtp({email:email,token:code,type:'email'});
+    if(!nv||nv.error||!(nv.data&&nv.data.session)){
+      showError('code-err','That code didn’t work. Check it and try again — or request a new code below.');
+      digits.forEach(function(d){ d.style.borderColor='#ef4444'; }); setTimeout(function(){ digits.forEach(function(d){ d.style.borderColor=''; }); },800);
+      var c0=digits[0]; if(c0){ c0.value=''; c0.focus(); }
+      return;
+    }
+    var ex=await fetch(EXCHANGE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({access_token:nv.data.session.access_token,allow_create:false})});
+    var b=await ex.json().catch(function(){return {};});
+    if(ex.status===404||(b&&b.error==='no_account')){ showError('code-err','We couldn’t find an account for that email.'); return; }
+    if(!ex.ok||!b.jwt){ showError('code-err','Sign in failed. Please try again.'); return; }
+    var role=String((b.member&&b.member.role)||'').toLowerCase();
+    if(!ADMIN_ROLES[role]){
+      // Not an admin — do NOT store a session or bounce them into the admin dashboard.
+      try{ if(window.supabase&&window.supabase.auth) await window.supabase.auth.signOut(); }catch(e){}
+      showError('code-err','That account doesn’t have admin access.');
+      return;
+    }
+    if(b.member) FFPAuth.setMember(b.member);
+    if(b.refresh) FFPAuth.setRefresh(b.refresh);
+    FFPAuth.setJwt(b.jwt);
+    if(FFPAuth.applySupabaseSession){ try{ await FFPAuth.applySupabaseSession(); }catch(e){} }
+    window.location.href='ffp-admin-dashboard.html';
+  }catch(e){ showError('code-err','Verification failed. Please try again.'); }
+  finally{ setBusy('code-btn',false); }
+}
+
+// Already signed in as an admin? Skip straight to the dashboard.
+document.addEventListener('DOMContentLoaded',function(){
+  try{
+    var m=(window.FFPAuth&&FFPAuth.getMember&&FFPAuth.getMember())||null;
+    var hasSession=!!(window.FFPAuth&&((FFPAuth.getJwt&&FFPAuth.getJwt())||(FFPAuth.getRefresh&&FFPAuth.getRefresh())));
+    var skip=new URLSearchParams(window.location.search).get('switch')==='1'||window.location.hash==='#switch';
+    if(m&&m.id&&hasSession&&!skip&&ADMIN_ROLES[String(m.role||'').toLowerCase()]){ window.location.href='ffp-admin-dashboard.html'; }
+  }catch(e){}
+});
+</script>
+</body>
+</html>
