@@ -190,7 +190,7 @@
       '<div class="qf-row"><label>Format</label><select class="qf-sel" id="q-format" onchange="AdminQuests.formatChange()">' +
           '<option value="solo"' + (q && !q.is_club_competition && !q.is_squad_quest ? ' selected' : (!q ? ' selected' : '')) + '>Solo — each member on their own</option>' +
           '<option value="pair"' + (q && q.is_squad_quest ? ' selected' : '') + '>Pair — members pair up (2)</option>' +
-          '<option value="team"' + (q && q.is_club_competition ? ' selected' : '') + '>Team — clubs compete (10+)</option>' +
+          '<option value="team"' + (q && q.is_club_competition ? ' selected' : '') + '>Team — members build a squad (4+)</option>' +
         '</select><div style="font-size:11px;color:#8a99a8;margin-top:5px;">Solo, Pair and Team are separate — a quest is one of them.</div></div>' +
       '<div class="qf-row"><label>Scoring</label><select class="qf-sel" id="q-mode" onchange="AdminQuests.modeChange()">' + modeOpts + '</select><div id="q-mode-hint" style="font-size:11px;color:#8a99a8;margin-top:5px;"></div></div>' +
       '<div class="qf-row"><label>Who takes part</label><select class="qf-sel" id="q-join">' + joinOpts + '</select></div>' +
@@ -207,10 +207,12 @@
           '<label>Pair size</label><input class="qf-sel" id="q-squad-max" type="number" min="2" max="8" style="max-width:120px;" value="' + (q && q.squad_max != null ? q.squad_max : 2) + '">' +
           '<div style="font-size:11px;color:#8a99a8;margin-top:5px;">2 = a pair. Raise it only for an occasional small-group quest.</div></div>' +
       '<div class="qf-row" id="q-team-opts" style="display:' + (q && q.is_club_competition ? 'block' : 'none') + ';">' +
-          '<div style="display:flex;gap:10px;">' +
-            '<div style="flex:1;"><label>Ranked by</label><select class="qf-sel" id="q-club-metric">' + clubMetricOpts + '</select></div>' +
-            '<div style="flex:0 0 42%;"><label>Min members to qualify</label><input class="qf-sel" id="q-club-min" type="number" min="1" value="' + (q && q.club_min_members != null ? q.club_min_members : 10) + '"></div>' +
-          '</div></div>' +
+          '<div style="display:flex;gap:10px;flex-wrap:wrap;">' +
+            '<div style="flex:1;min-width:130px;"><label>Ranked by</label><select class="qf-sel" id="q-club-metric">' + clubMetricOpts + '</select></div>' +
+            '<div style="flex:0 0 26%;"><label>Min members</label><input class="qf-sel" id="q-club-min" type="number" min="2" value="' + (q && q.club_min_members != null ? q.club_min_members : 4) + '"></div>' +
+            '<div style="flex:0 0 26%;"><label>Max members</label><input class="qf-sel" id="q-team-max" type="number" min="2" placeholder="No limit" value="' + (q && q.is_club_competition && q.squad_max != null ? q.squad_max : '') + '"></div>' +
+          '</div>' +
+          '<div style="font-size:11px;color:#8a99a8;margin-top:5px;">Members build the team themselves and the captain approves join requests. Min = members needed to compete; leave Max blank for no cap.</div></div>' +
       '<div class="qf-row"><label>Hero image</label>' +
         '<div id="q-hero-preview" onclick="document.getElementById(\'q-hero-file\').click()" style="height:300px;border-radius:12px;background-color:#0f2335;background-size:cover;background-position:center;background-repeat:no-repeat;border:2px dashed rgba(43,168,224,0.35);margin-bottom:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#8a99a8;font-size:13px;' + (q && q.hero_image_url ? "background-image:url('" + esc(q.hero_image_url) + "');border-style:solid;" : '') + '">' + (q && q.hero_image_url ? '' : '<span><span class="material-icons" style="vertical-align:-5px;">add_photo_alternate</span> Click to upload</span>') + '</div>' +
         '<input type="file" id="q-hero-file" accept="image/*" style="display:none" onchange="AdminQuests.uploadHero(this)">' +
@@ -448,9 +450,11 @@
         is_headline: !!(document.getElementById('q-headline') && document.getElementById('q-headline').checked),
         is_club_competition: (val('q-format') === 'team'),
         club_metric: val('q-club-metric') || 'avg',
-        club_min_members: parseInt(val('q-club-min'), 10) || 10,
+        club_min_members: parseInt(val('q-club-min'), 10) || 4,
         is_squad_quest: (val('q-format') === 'pair'),
-        squad_max: parseInt(val('q-squad-max'), 10) || 2,
+        // Max team size: pair uses the pair-size input; team uses the max-members input (blank = no cap); solo = null.
+        squad_max: val('q-format') === 'pair' ? (parseInt(val('q-squad-max'), 10) || 2)
+          : (val('q-format') === 'team' ? (parseInt(val('q-team-max'), 10) || null) : null),
         updated_at: new Date().toISOString()
       };
       if (startISO) payload.active_from = startISO;   // only overwrite start when the admin set one
