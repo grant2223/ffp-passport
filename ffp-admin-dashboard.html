@@ -1383,6 +1383,45 @@ body.ffp-role-staff [data-owner-only] { display: none !important; }
   .kpi-value { font-size: 22px; }
 }
 
+/* ── Phone (≤600px) ── */
+@media (max-width: 600px) {
+  .main { padding: 12px 12px 72px; }
+
+  /* Topbar: menu + search + icon-only sign-out (panel name is shown in the panel head below) */
+  .topbar { padding: 0 10px; gap: 8px; }
+  .topbar-title { display: none; }
+  .topbar-right { gap: 8px; flex: 1; }
+  .topbar-search { flex: 1; width: auto; max-width: none; }
+  .topbar-signout { padding: 8px 10px; font-size: 0; gap: 0; }
+  .topbar-signout .material-icons { font-size: 18px; }
+
+  /* Panel header stacks; action buttons wrap and fill the row */
+  .panel-head { flex-direction: column; align-items: stretch; gap: 10px; }
+  .panel-head h1 { font-size: 20px; }
+  .panel-head-sub { font-size: 12px; }
+  .panel-head-actions { flex-wrap: wrap; }
+  .panel-head-actions .btn { flex: 1 1 auto; justify-content: center; }
+
+  /* KPIs 2-up, charts single column */
+  .kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .kpi-tile { padding: 12px; }
+  .kpi-label { font-size: 10px; }
+  .kpi-value { font-size: 20px; }
+  .charts-grid { grid-template-columns: 1fr; }
+  .chart-canvas-wrap { height: 240px; }
+
+  /* Analytics filters: chips already wrap; let the location selects share the row */
+  .time-filter { padding: 12px; }
+  .time-chip { padding: 6px 10px; font-size: 11px; }
+  .time-filter-compare { margin-left: 0; padding-left: 0; border-left: 0; }
+  #analytics-country, #analytics-city { min-width: 0 !important; flex: 1 1 45%; }
+
+  /* Section heads wrap; wide tables scroll horizontally instead of breaking the layout */
+  .section-head { flex-wrap: wrap; gap: 6px; }
+  .table { display: block; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+  .table th, .table td { padding: 10px 12px; }
+}
+
 .topbar-menu-btn {
   display: none;
   background: none; border: none; color: var(--text);
