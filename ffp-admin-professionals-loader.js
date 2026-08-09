@@ -1,9 +1,9 @@
-/* FFP Admin Professionals Loader — v1 (2026-06-10)
-   The public-listing VERIFICATION QUEUE for the Professionals Portal. A professional who ticks
-   "List me on Find Fit People" moves to verification_status='pending' (professional_save_profile);
-   this panel lets an admin review the profile and Approve or Reject (with a note).
-   Data: professional_verification_list() (is_admin-gated) → pending rows.
-   Actions: professional_set_verification(p_pro, 'approved'|'rejected', note).
+/* FFP Admin Professionals Loader — v2 (2026-08-09)
+   v2: was a pending-ONLY verification queue, so with 0 pending the panel looked empty. Now it
+   MANAGES ALL professionals: lists everyone via admin_professionals_list() (is_admin-gated) with a
+   status filter (All / Live / Pending / Unlisted), a status badge, payments/Stripe status, and the
+   right action per state — Approve & publish (pending/unlisted/rejected), Unlist (live), Reject
+   (pending), plus View full profile. Still uses professional_set_verification for actions.
    Renders into #pro-verify-root inside #panel-professionals. */
 (function () {
   'use strict';
@@ -27,13 +27,38 @@
       '#pro-verify-root .pv-btn{border:none;border-radius:9px;padding:9px 16px;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit;}',
       '#pro-verify-root .pv-approve{background:#22c55e;color:#06210f;}',
       '#pro-verify-root .pv-reject{background:rgba(239,68,68,.14);color:#f07171;border:1px solid rgba(239,68,68,.4);}',
-      '#pro-verify-root a.pv-link{color:#2ba8e0;font-size:12px;font-weight:700;text-decoration:none;}'
+      '#pro-verify-root .pv-unlist{background:#13283b;color:#cfe0ee;border:1px solid rgba(43,168,224,.3);}',
+      '#pro-verify-root a.pv-link{color:#2ba8e0;font-size:12px;font-weight:700;text-decoration:none;}',
+      '#pro-verify-root .pv-badge{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;border-radius:20px;padding:3px 9px;}',
+      '#pro-verify-root .pv-pay{font-size:11px;margin-top:6px;font-weight:600;}',
+      '#pro-verify-root .pv-pay.on{color:#7fd0a3;} #pro-verify-root .pv-pay.off{color:#8a99a8;}',
+      '#pro-verify-root .pv-filter{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;}',
+      '#pro-verify-root .pv-fchip{font-size:12px;font-weight:800;color:#9db4c7;background:#13283b;border:1px solid rgba(43,168,224,.2);border-radius:20px;padding:6px 13px;cursor:pointer;}',
+      '#pro-verify-root .pv-fchip.on{background:#FFCC00;color:#0a0a0a;border-color:#FFCC00;}',
+      '#pro-verify-root .pv-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}'
     ].join('\n');
     document.head.appendChild(s);
   }
 
   function initials(nm) { return (String(nm || '').split(/\s+/).map(function (w) { return w[0] || ''; }).join('').slice(0, 2) || 'P').toUpperCase(); }
 
+  function statusOf(p) { return String(p.verification_status || 'unlisted').toLowerCase(); }
+  function badge(p) {
+    var vs = statusOf(p);
+    var map = {
+      pending:  ['Pending review', '#3a2e0a', '#f5c451'],
+      approved: [(p.is_published === false ? 'Approved' : 'Live'), '#06210f', '#7fd0a3'],
+      unlisted: ['Unlisted', '#1c2a35', '#9db4c7'],
+      rejected: ['Rejected', '#3a0f0f', '#f07171']
+    };
+    var m = map[vs] || map.unlisted;
+    return '<span class="pv-badge" style="background:' + m[1] + ';color:' + m[2] + ';">' + esc(m[0]) + '</span>';
+  }
+  function payLine(p) {
+    var connected = !!(p.stripe_account_id || p.charges_enabled);
+    if (!connected) return '<div class="pv-pay off">Payments — not set up</div>';
+    return '<div class="pv-pay on">Payments — connected · ' + (p.charges_enabled ? 'charges on' : 'charges off') + ' · ' + (p.payouts_enabled ? 'payouts on' : 'payouts off') + '</div>';
+  }
   function card(p) {
     var name = esc(p.display_name || ((p.given_names || '') + ' ' + (p.surname || '')).trim() || 'Professional');
     var types = (p.professional_types || []).map(function (t) { return '<span class="pv-chip">' + esc(t) + '</span>'; }).join('');
@@ -41,18 +66,25 @@
     var ph = p.profile_photo_url
       ? '<div class="pv-ph" style="background-image:url(\'' + esc(p.profile_photo_url) + '\');"></div>'
       : '<div class="pv-ph">' + initials(name) + '</div>';
+    var vs = statusOf(p);
+    var metaBits = [];
+    if (p.category) metaBits.push(esc(p.category));
+    if (loc) metaBits.push(loc);
+    if (p.years_experience) metaBits.push(esc(String(p.years_experience)) + ' yrs');
+    if (p.work_email) metaBits.push(esc(p.work_email));
+    var view = '<button class="pv-btn pv-view" data-act="preview" style="background:#13283b;color:#cfe0ee;border:1px solid rgba(43,168,224,.3);">View full profile</button>';
+    var approve = '<button class="pv-btn pv-approve" data-act="approve">Approve &amp; publish</button>';
+    var reject = '<button class="pv-btn pv-reject" data-act="reject">Reject…</button>';
+    var unlist = '<button class="pv-btn pv-unlist" data-act="unlist">Unlist</button>';
+    var actions = view + (vs === 'pending' ? (approve + reject) : vs === 'approved' ? unlist : approve);
     return '<div class="pv-card" data-id="' + p.id + '">' + ph +
       '<div style="flex:1;min-width:0;">' +
-        '<div class="pv-name">' + name + '</div>' +
-        '<div class="pv-meta">' + (p.category ? esc(p.category) : '') + (loc ? ' · ' + loc : '') + (p.work_email ? ' · ' + esc(p.work_email) : '') + '</div>' +
+        '<div class="pv-head"><span class="pv-name">' + name + '</span>' + badge(p) + '</div>' +
+        '<div class="pv-meta">' + metaBits.join(' · ') + '</div>' +
         (p.headline ? '<div class="pv-meta" style="color:#cbd9e6;font-weight:600;margin-top:4px;">' + esc(p.headline) + '</div>' : '') +
         (types ? '<div class="pv-chips">' + types + '</div>' : '') +
-        (p.bio ? '<div class="pv-bio">' + esc(p.bio) + '</div>' : '') +
-        '<div class="pv-actions">' +
-          '<button class="pv-btn pv-view" data-act="preview" style="background:#13283b;color:#cfe0ee;border:1px solid rgba(43,168,224,.3);">View full profile</button>' +
-          '<button class="pv-btn pv-approve" data-act="approve">Approve &amp; publish</button>' +
-          '<button class="pv-btn pv-reject" data-act="reject">Reject…</button>' +
-        '</div>' +
+        payLine(p) +
+        '<div class="pv-actions">' + actions + '</div>' +
       '</div></div>';
   }
 
@@ -109,24 +141,40 @@
     document.body.appendChild(ov);
   }
 
+  var _filter = 'all';
+  function matchFilter(p) {
+    var vs = statusOf(p);
+    if (_filter === 'live') return vs === 'approved';
+    if (_filter === 'pending') return vs === 'pending';
+    if (_filter === 'unlisted') return vs !== 'approved' && vs !== 'pending';
+    return true;
+  }
+  function render() {
+    var host = document.getElementById('pro-verify-root'); if (!host) return;
+    var all = _rows || [];
+    var counts = { all: all.length, live: 0, pending: 0, unlisted: 0 };
+    all.forEach(function (p) { var vs = statusOf(p); if (vs === 'approved') counts.live++; else if (vs === 'pending') counts.pending++; else counts.unlisted++; });
+    var chip = function (key, label) { return '<button class="pv-fchip' + (_filter === key ? ' on' : '') + '" data-filter="' + key + '">' + label + ' · ' + counts[key] + '</button>'; };
+    var bar = '<div class="pv-filter">' + chip('all', 'All') + chip('live', 'Live') + chip('pending', 'Pending') + chip('unlisted', 'Unlisted') + '</div>';
+    var rows = all.filter(matchFilter);
+    host.innerHTML = bar + (rows.length ? rows.map(card).join('') : '<div class="pv-empty">No professionals in this view.</div>');
+  }
   async function load() {
     var host = document.getElementById('pro-verify-root'); if (!host) return;
     host.innerHTML = '<div class="pv-empty">Loading…</div>';
     var res;
-    try { res = await sb().rpc('professional_verification_list'); } catch (e) { host.innerHTML = '<div class="pv-empty">Could not load.</div>'; return; }
+    try { res = await sb().rpc('admin_professionals_list'); } catch (e) { host.innerHTML = '<div class="pv-empty">Could not load.</div>'; return; }
     var data = res && res.data;
     if (data && data.error) { host.innerHTML = '<div class="pv-empty">' + esc(data.error === 'forbidden' ? 'Admin sign-in required.' : data.error) + '</div>'; return; }
-    var rows = Array.isArray(data) ? data : [];
-    _rows = rows;
-    if (!rows.length) { host.innerHTML = '<div class="pv-empty">No professionals are waiting for review. 🎉</div>'; return; }
-    host.innerHTML = '<p style="font-size:12px;color:#9db4c7;margin:0 0 14px;">' + rows.length + ' professional' + (rows.length === 1 ? '' : 's') + ' awaiting review. Approving makes the profile discoverable on Find Fit People.</p>' + rows.map(card).join('');
+    _rows = Array.isArray(data) ? data : [];
+    render();
   }
 
   async function setStatus(id, status, note) {
     try {
       var r = await sb().rpc('professional_set_verification', { p_pro: id, p_status: status, p_note: note || null });
       if (r && r.data && r.data.error) { toast(r.data.error === 'forbidden' ? 'Admin sign-in required' : r.data.error, 'error'); return; }
-      toast(status === 'approved' ? 'Approved — now live' : 'Rejected', 'success');
+      toast(status === 'approved' ? 'Approved — now live' : status === 'unlisted' ? 'Unlisted' : 'Rejected', 'success');
       load();
     } catch (e) { toast('Action failed', 'error'); }
   }
@@ -134,11 +182,14 @@
   function wire() {
     var host = document.getElementById('pro-verify-root'); if (!host || host._wired) return; host._wired = true;
     host.addEventListener('click', function (e) {
+      var fchip = e.target.closest && e.target.closest('.pv-fchip');
+      if (fchip) { _filter = fchip.dataset.filter || 'all'; render(); return; }
       var btn = e.target.closest && e.target.closest('.pv-btn'); if (!btn) return;
       var cardEl = btn.closest('.pv-card'); if (!cardEl) return;
       var id = cardEl.dataset.id, act = btn.dataset.act;
       if (act === 'preview') { preview(id); }
       else if (act === 'approve') { setStatus(id, 'approved'); }
+      else if (act === 'unlist') { setStatus(id, 'unlisted'); }
       else if (act === 'reject') { var note = prompt('Reason for the professional (optional):', ''); if (note === null) return; setStatus(id, 'rejected', note); }
     });
   }
