@@ -1,100 +1,212 @@
-/* FFP Admin Professionals Loader — v2 (2026-08-09)
-   v2: was a pending-ONLY verification queue, so with 0 pending the panel looked empty. Now it
-   MANAGES ALL professionals: lists everyone via admin_professionals_list() (is_admin-gated) with a
-   status filter (All / Live / Pending / Unlisted), a status badge, payments/Stripe status, and the
-   right action per state — Approve & publish (pending/unlisted/rejected), Unlist (live), Reject
-   (pending), plus View full profile. Still uses professional_set_verification for actions.
+/* FFP Admin Professionals Loader — v3 (2026-08-09) — WORLD-CLASS, scales to 100k+.
+   Server-side search + status filter + pagination via admin_professionals_search(p_q,p_status,p_limit,p_offset)
+   (is_admin-gated; returns {total, counts:{all,live,pending,unlisted}, rows:[page]}). Dense, scannable table:
+   photo/name/email · type · location · experience · payments · status · per-row actions
+   (Approve & publish / Unlist / Reject / View). Full public-profile preview modal retained.
    Renders into #pro-verify-root inside #panel-professionals. */
 (function () {
   'use strict';
   function sb() { return window.supabase; }
   function toast(m, t) { if (window.showToast) return window.showToast(m, t); if (window.toast) return window.toast(m, t); console.log('[Pros]', m); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
+  function initials(nm) { return (String(nm || '').split(/\s+/).map(function (w) { return w[0] || ''; }).join('').slice(0, 2) || 'P').toUpperCase(); }
+
+  var PAGE = 25;
+  var state = { q: '', status: 'all', page: 0, total: 0, counts: { all: 0, live: 0, pending: 0, unlisted: 0 }, rows: [], loading: false };
+  var _rows = [];   // current page (for preview lookup)
+  var _debounce = null;
 
   function injectCss() {
     if (document.getElementById('ffp-pros-css')) return;
     var s = document.createElement('style'); s.id = 'ffp-pros-css';
     s.textContent = [
-      '#pro-verify-root .pv-empty{padding:30px;text-align:center;color:#8a99a8;font-size:13px;}',
-      '#pro-verify-root .pv-card{display:flex;gap:14px;align-items:flex-start;border:1px solid rgba(43,168,224,.18);border-radius:14px;padding:14px 16px;margin-bottom:12px;background:#0f1e2e;}',
-      '#pro-verify-root .pv-ph{width:54px;height:54px;border-radius:50%;flex:0 0 auto;background:#13283b center/cover no-repeat;display:flex;align-items:center;justify-content:center;font-weight:800;color:#7fa7c4;overflow:hidden;}',
-      '#pro-verify-root .pv-name{font-size:15px;font-weight:800;color:#fff;}',
-      '#pro-verify-root .pv-meta{font-size:12px;color:#9db4c7;margin-top:2px;}',
-      '#pro-verify-root .pv-bio{font-size:12px;color:#c7d6e3;margin-top:8px;line-height:1.5;}',
-      '#pro-verify-root .pv-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}',
-      '#pro-verify-root .pv-chip{font-size:11px;font-weight:700;color:#cbd9e6;border:1px solid rgba(43,168,224,.25);border-radius:20px;padding:3px 9px;}',
-      '#pro-verify-root .pv-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}',
-      '#pro-verify-root .pv-btn{border:none;border-radius:9px;padding:9px 16px;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit;}',
-      '#pro-verify-root .pv-approve{background:#22c55e;color:#06210f;}',
-      '#pro-verify-root .pv-reject{background:rgba(239,68,68,.14);color:#f07171;border:1px solid rgba(239,68,68,.4);}',
-      '#pro-verify-root .pv-unlist{background:#13283b;color:#cfe0ee;border:1px solid rgba(43,168,224,.3);}',
-      '#pro-verify-root a.pv-link{color:#2ba8e0;font-size:12px;font-weight:700;text-decoration:none;}',
-      '#pro-verify-root .pv-badge{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;border-radius:20px;padding:3px 9px;}',
-      '#pro-verify-root .pv-pay{font-size:11px;margin-top:6px;font-weight:600;}',
-      '#pro-verify-root .pv-pay.on{color:#7fd0a3;} #pro-verify-root .pv-pay.off{color:#8a99a8;}',
-      '#pro-verify-root .pv-filter{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;}',
-      '#pro-verify-root .pv-fchip{font-size:12px;font-weight:800;color:#9db4c7;background:#13283b;border:1px solid rgba(43,168,224,.2);border-radius:20px;padding:6px 13px;cursor:pointer;}',
-      '#pro-verify-root .pv-fchip.on{background:#FFCC00;color:#0a0a0a;border-color:#FFCC00;}',
-      '#pro-verify-root .pv-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}'
+      '#pro-verify-root{--pw-line:rgba(43,168,224,.14);}',
+      '#pro-verify-root .pw-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;}',
+      '#pro-verify-root .pw-search{position:relative;flex:1;min-width:220px;}',
+      '#pro-verify-root .pw-search .material-icons{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:18px;color:#6f8698;pointer-events:none;}',
+      '#pro-verify-root .pw-search input{width:100%;box-sizing:border-box;background:#0f1e2e;border:1px solid var(--pw-line);border-radius:10px;padding:11px 12px 11px 38px;color:#e8f1f8;font-size:14px;font-family:inherit;outline:none;}',
+      '#pro-verify-root .pw-search input:focus{border-color:#2ba8e0;}',
+      '#pro-verify-root .pw-tabs{display:flex;gap:6px;flex-wrap:wrap;}',
+      '#pro-verify-root .pw-tab{font-size:12.5px;font-weight:800;color:#9db4c7;background:#0f1e2e;border:1px solid var(--pw-line);border-radius:20px;padding:8px 13px;cursor:pointer;}',
+      '#pro-verify-root .pw-tab .n{opacity:.65;margin-left:5px;font-variant-numeric:tabular-nums;}',
+      '#pro-verify-root .pw-tab.on{background:#FFCC00;color:#0a0a0a;border-color:#FFCC00;}',
+      '#pro-verify-root .pw-tab.on .n{opacity:.75;}',
+      '#pro-verify-root .pw-wrap{border:1px solid var(--pw-line);border-radius:14px;overflow:hidden;overflow-x:auto;background:#0c1926;-webkit-overflow-scrolling:touch;}',
+      '#pro-verify-root table.pw-tbl{width:100%;border-collapse:collapse;min-width:780px;}',
+      '#pro-verify-root .pw-tbl th{text-align:left;font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#7c93a6;padding:11px 14px;background:#0f1e2e;border-bottom:1px solid var(--pw-line);white-space:nowrap;}',
+      '#pro-verify-root .pw-tbl th.r,#pro-verify-root .pw-tbl td.r{text-align:right;}',
+      '#pro-verify-root .pw-tbl td{padding:11px 14px;border-bottom:1px solid rgba(43,168,224,.08);vertical-align:middle;font-size:13px;color:#cddae6;white-space:nowrap;}',
+      '#pro-verify-root .pw-tbl tr:last-child td{border-bottom:none;}',
+      '#pro-verify-root .pw-tbl tbody tr{cursor:pointer;transition:background .12s;}',
+      '#pro-verify-root .pw-tbl tbody tr:hover{background:rgba(43,168,224,.06);}',
+      '#pro-verify-root .pw-who{display:flex;align-items:center;gap:11px;min-width:0;}',
+      '#pro-verify-root .pw-ph{width:38px;height:38px;border-radius:50%;flex:none;background:#13283b center/cover no-repeat;display:flex;align-items:center;justify-content:center;font-weight:800;color:#7fa7c4;font-size:13px;overflow:hidden;}',
+      '#pro-verify-root .pw-nm{font-weight:800;color:#fff;font-size:13.5px;}',
+      '#pro-verify-root .pw-sub{font-size:11.5px;color:#7f97a9;margin-top:1px;}',
+      '#pro-verify-root .pw-badge{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;border-radius:20px;padding:3px 9px;}',
+      '#pro-verify-root .pw-pay{font-size:12px;font-weight:700;}',
+      '#pro-verify-root .pw-actions{display:flex;gap:6px;justify-content:flex-end;}',
+      '#pro-verify-root .pw-btn{border:none;border-radius:8px;padding:7px 12px;font-weight:800;font-size:11.5px;cursor:pointer;font-family:inherit;white-space:nowrap;}',
+      '#pro-verify-root .pw-approve{background:#22c55e;color:#06210f;}',
+      '#pro-verify-root .pw-reject{background:rgba(239,68,68,.14);color:#f07171;border:1px solid rgba(239,68,68,.4);}',
+      '#pro-verify-root .pw-unlist{background:#16324a;color:#cfe0ee;border:1px solid rgba(43,168,224,.3);}',
+      '#pro-verify-root .pw-view{background:#13283b;color:#a9c3d6;border:1px solid rgba(43,168,224,.22);}',
+      '#pro-verify-root .pw-pager{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;flex-wrap:wrap;}',
+      '#pro-verify-root .pw-pager .info{font-size:12.5px;color:#8fa6b8;font-weight:600;font-variant-numeric:tabular-nums;}',
+      '#pro-verify-root .pw-pg{display:flex;gap:8px;}',
+      '#pro-verify-root .pw-pg button{background:#0f1e2e;border:1px solid var(--pw-line);color:#cddae6;border-radius:9px;padding:8px 14px;font-weight:800;font-size:12.5px;cursor:pointer;font-family:inherit;}',
+      '#pro-verify-root .pw-pg button:disabled{opacity:.4;cursor:not-allowed;}',
+      '#pro-verify-root .pw-empty{padding:36px;text-align:center;color:#8a99a8;font-size:13px;}',
+      '#pro-verify-root a.pv-link{color:#2ba8e0;font-size:12px;font-weight:700;text-decoration:none;}'
     ].join('\n');
     document.head.appendChild(s);
   }
-
-  function initials(nm) { return (String(nm || '').split(/\s+/).map(function (w) { return w[0] || ''; }).join('').slice(0, 2) || 'P').toUpperCase(); }
 
   function statusOf(p) { return String(p.verification_status || 'unlisted').toLowerCase(); }
   function badge(p) {
     var vs = statusOf(p);
     var map = {
-      pending:  ['Pending review', '#3a2e0a', '#f5c451'],
+      pending: ['Pending', '#3a2e0a', '#f5c451'],
       approved: [(p.is_published === false ? 'Approved' : 'Live'), '#06210f', '#7fd0a3'],
       unlisted: ['Unlisted', '#1c2a35', '#9db4c7'],
       rejected: ['Rejected', '#3a0f0f', '#f07171']
     };
     var m = map[vs] || map.unlisted;
-    return '<span class="pv-badge" style="background:' + m[1] + ';color:' + m[2] + ';">' + esc(m[0]) + '</span>';
+    return '<span class="pw-badge" style="background:' + m[1] + ';color:' + m[2] + ';">' + esc(m[0]) + '</span>';
   }
-  function payLine(p) {
+  function payCell(p) {
     var connected = !!(p.stripe_account_id || p.charges_enabled);
-    if (!connected) return '<div class="pv-pay off">Payments — not set up</div>';
-    return '<div class="pv-pay on">Payments — connected · ' + (p.charges_enabled ? 'charges on' : 'charges off') + ' · ' + (p.payouts_enabled ? 'payouts on' : 'payouts off') + '</div>';
+    if (!connected) return '<span class="pw-pay" style="color:#7c93a6;">Not set up</span>';
+    var ok = p.charges_enabled && p.payouts_enabled;
+    return '<span class="pw-pay" style="color:' + (ok ? '#7fd0a3' : '#e0b83a') + ';">' + (ok ? 'Connected' : 'Partial') + '</span>';
   }
-  function card(p) {
-    var name = esc(p.display_name || ((p.given_names || '') + ' ' + (p.surname || '')).trim() || 'Professional');
-    var types = (p.professional_types || []).map(function (t) { return '<span class="pv-chip">' + esc(t) + '</span>'; }).join('');
-    var loc = [p.city, p.country].filter(Boolean).map(esc).join(', ');
+  function typeCell(p) {
+    var t = p.professional_types || [];
+    if (!t.length) return '<span style="color:#6f8698;">—</span>';
+    return esc(t[0]) + (t.length > 1 ? ' <span style="color:#6f8698;">+' + (t.length - 1) + '</span>' : '');
+  }
+  function nameOf(p) { return p.display_name || ((p.given_names || '') + ' ' + (p.surname || '')).trim() || 'Professional'; }
+
+  function rowHtml(p) {
+    var name = esc(nameOf(p));
     var ph = p.profile_photo_url
-      ? '<div class="pv-ph" style="background-image:url(\'' + esc(p.profile_photo_url) + '\');"></div>'
-      : '<div class="pv-ph">' + initials(name) + '</div>';
+      ? '<div class="pw-ph" style="background-image:url(\'' + esc(p.profile_photo_url) + '\');"></div>'
+      : '<div class="pw-ph">' + initials(nameOf(p)) + '</div>';
+    var loc = [p.city, p.country].filter(Boolean).map(esc).join(', ') || '—';
     var vs = statusOf(p);
-    var metaBits = [];
-    if (p.category) metaBits.push(esc(p.category));
-    if (loc) metaBits.push(loc);
-    if (p.years_experience) metaBits.push(esc(String(p.years_experience)) + ' yrs');
-    if (p.work_email) metaBits.push(esc(p.work_email));
-    var view = '<button class="pv-btn pv-view" data-act="preview" style="background:#13283b;color:#cfe0ee;border:1px solid rgba(43,168,224,.3);">View full profile</button>';
-    var approve = '<button class="pv-btn pv-approve" data-act="approve">Approve &amp; publish</button>';
-    var reject = '<button class="pv-btn pv-reject" data-act="reject">Reject…</button>';
-    var unlist = '<button class="pv-btn pv-unlist" data-act="unlist">Unlist</button>';
-    var actions = view + (vs === 'pending' ? (approve + reject) : vs === 'approved' ? unlist : approve);
-    return '<div class="pv-card" data-id="' + p.id + '">' + ph +
-      '<div style="flex:1;min-width:0;">' +
-        '<div class="pv-head"><span class="pv-name">' + name + '</span>' + badge(p) + '</div>' +
-        '<div class="pv-meta">' + metaBits.join(' · ') + '</div>' +
-        (p.headline ? '<div class="pv-meta" style="color:#cbd9e6;font-weight:600;margin-top:4px;">' + esc(p.headline) + '</div>' : '') +
-        (types ? '<div class="pv-chips">' + types + '</div>' : '') +
-        payLine(p) +
-        '<div class="pv-actions">' + actions + '</div>' +
-      '</div></div>';
+    var view = '<button class="pw-btn pw-view" data-act="preview">View</button>';
+    var approve = '<button class="pw-btn pw-approve" data-act="approve">Approve</button>';
+    var reject = '<button class="pw-btn pw-reject" data-act="reject">Reject</button>';
+    var unlist = '<button class="pw-btn pw-unlist" data-act="unlist">Unlist</button>';
+    var acts = view + (vs === 'pending' ? (approve + reject) : vs === 'approved' ? unlist : approve);
+    return '<tr data-id="' + p.id + '">' +
+      '<td><div class="pw-who">' + ph + '<div style="min-width:0;"><div class="pw-nm">' + name + '</div><div class="pw-sub">' + esc(p.work_email || '—') + '</div></div></div></td>' +
+      '<td>' + typeCell(p) + '</td>' +
+      '<td>' + loc + '</td>' +
+      '<td class="r">' + (p.years_experience ? esc(String(p.years_experience)) + ' yrs' : '—') + '</td>' +
+      '<td>' + payCell(p) + '</td>' +
+      '<td>' + badge(p) + '</td>' +
+      '<td class="r"><div class="pw-actions">' + acts + '</div></td>' +
+      '</tr>';
   }
 
-  var _rows = [];
+  // ── shell (built once so the search box never loses focus) ──
+  function mount() {
+    var host = document.getElementById('pro-verify-root'); if (!host || host._mounted) return;
+    host._mounted = true;
+    host.innerHTML =
+      '<div class="pw-toolbar">' +
+        '<div class="pw-search"><span class="material-icons">search</span>' +
+        '<input id="pw-q" type="text" autocomplete="off" placeholder="Search name, email, city or type…"></div>' +
+        '<div class="pw-tabs" id="pw-tabs"></div>' +
+      '</div>' +
+      '<div id="pw-body"></div>' +
+      '<div id="pw-pager" class="pw-pager" style="display:none;"></div>';
 
-  // Full in-admin preview — renders exactly what publishes on Find Fit People (the public site only shows
-  // approved pros, so we mirror the public profile here from the pending row + live services/intro videos).
+    host.addEventListener('click', function (e) {
+      var tab = e.target.closest && e.target.closest('.pw-tab');
+      if (tab) { state.status = tab.dataset.status; state.page = 0; fetchPage(); return; }
+      var pg = e.target.closest && e.target.closest('.pw-pg button');
+      if (pg && !pg.disabled) { state.page += (pg.dataset.dir === 'next' ? 1 : -1); if (state.page < 0) state.page = 0; fetchPage(); return; }
+      var btn = e.target.closest && e.target.closest('.pw-btn');
+      if (btn && btn.dataset.act) {
+        e.stopPropagation();
+        var tr = btn.closest('tr'); if (!tr) return; var id = tr.dataset.id;
+        if (btn.dataset.act === 'preview') return preview(id);
+        if (btn.dataset.act === 'approve') return setStatus(id, 'approved');
+        if (btn.dataset.act === 'unlist') return setStatus(id, 'unlisted');
+        if (btn.dataset.act === 'reject') { var note = prompt('Reason for the professional (optional):', ''); if (note === null) return; return setStatus(id, 'rejected', note); }
+        return;
+      }
+      var row = e.target.closest && e.target.closest('tr[data-id]');
+      if (row) preview(row.dataset.id);
+    });
+
+    var q = document.getElementById('pw-q');
+    if (q) q.addEventListener('input', function () {
+      state.q = q.value; state.page = 0;
+      if (_debounce) clearTimeout(_debounce);
+      _debounce = setTimeout(fetchPage, 280);
+    });
+  }
+
+  function paintTabs() {
+    var el = document.getElementById('pw-tabs'); if (!el) return;
+    var c = state.counts || {};
+    var defs = [['all', 'All', c.all], ['live', 'Live', c.live], ['pending', 'Pending', c.pending], ['unlisted', 'Unlisted', c.unlisted]];
+    el.innerHTML = defs.map(function (d) {
+      return '<button class="pw-tab' + (state.status === d[0] ? ' on' : '') + '" data-status="' + d[0] + '">' + d[1] + '<span class="n">' + (d[2] || 0) + '</span></button>';
+    }).join('');
+  }
+  function paintBody() {
+    var el = document.getElementById('pw-body'); if (!el) return;
+    if (state.loading) { el.innerHTML = '<div class="pw-empty">Loading…</div>'; return; }
+    if (!state.rows.length) { el.innerHTML = '<div class="pw-empty">' + (state.q ? 'No professionals match “' + esc(state.q) + '”.' : 'No professionals in this view.') + '</div>'; return; }
+    el.innerHTML = '<div class="pw-wrap"><table class="pw-tbl">' +
+      '<thead><tr><th>Professional</th><th>Type</th><th>Location</th><th class="r">Exp</th><th>Payments</th><th>Status</th><th class="r">Actions</th></tr></thead>' +
+      '<tbody>' + state.rows.map(rowHtml).join('') + '</tbody></table></div>';
+  }
+  function paintPager() {
+    var el = document.getElementById('pw-pager'); if (!el) return;
+    if (!state.total) { el.style.display = 'none'; return; }
+    el.style.display = 'flex';
+    var from = state.total ? state.page * PAGE + 1 : 0;
+    var to = Math.min(state.total, (state.page + 1) * PAGE);
+    var last = to >= state.total;
+    el.innerHTML = '<div class="info">' + from + '–' + to + ' of ' + state.total + '</div>' +
+      '<div class="pw-pg"><button data-dir="prev"' + (state.page === 0 ? ' disabled' : '') + '>Previous</button>' +
+      '<button data-dir="next"' + (last ? ' disabled' : '') + '>Next</button></div>';
+  }
+  function paint() { paintTabs(); paintBody(); paintPager(); }
+
+  async function fetchPage() {
+    mount();
+    state.loading = true; paint();
+    var res;
+    try { res = await sb().rpc('admin_professionals_search', { p_q: state.q, p_status: state.status, p_limit: PAGE, p_offset: state.page * PAGE }); }
+    catch (e) { state.loading = false; var b = document.getElementById('pw-body'); if (b) b.innerHTML = '<div class="pw-empty">Could not load.</div>'; return; }
+    var d = res && res.data;
+    if (d && d.error) { state.loading = false; var b2 = document.getElementById('pw-body'); if (b2) b2.innerHTML = '<div class="pw-empty">' + esc(d.error === 'forbidden' ? 'Admin sign-in required.' : d.error) + '</div>'; return; }
+    state.total = (d && d.total) || 0;
+    state.counts = (d && d.counts) || state.counts;
+    state.rows = (d && d.rows) || [];
+    _rows = state.rows;
+    state.loading = false; paint();
+  }
+
+  async function setStatus(id, status, note) {
+    try {
+      var r = await sb().rpc('professional_set_verification', { p_pro: id, p_status: status, p_note: note || null });
+      if (r && r.data && r.data.error) { toast(r.data.error === 'forbidden' ? 'Admin sign-in required' : r.data.error, 'error'); return; }
+      toast(status === 'approved' ? 'Approved — now live' : status === 'unlisted' ? 'Unlisted' : 'Rejected', 'success');
+      fetchPage();
+    } catch (e) { toast('Action failed', 'error'); }
+  }
+
+  // Full in-admin preview — mirrors the public Find Fit People profile (services + intro videos live).
   async function preview(id) {
     var p = _rows.find(function (x) { return x.id === id; }); if (!p) return;
-    var name = esc(p.display_name || ((p.given_names || '') + ' ' + (p.surname || '')).trim() || 'Professional');
+    var name = esc(nameOf(p));
     var loc = [p.city, p.country].filter(Boolean).map(esc).join(', ');
     var types = (p.professional_types || []).map(function (t) { return '<span style="font-size:12px;font-weight:700;color:#0e5a73;background:#e3f0f7;border-radius:20px;padding:4px 11px;">' + esc(t) + '</span>'; }).join('');
     var langs = (p.languages || []).map(esc).join(', ');
@@ -141,62 +253,6 @@
     document.body.appendChild(ov);
   }
 
-  var _filter = 'all';
-  function matchFilter(p) {
-    var vs = statusOf(p);
-    if (_filter === 'live') return vs === 'approved';
-    if (_filter === 'pending') return vs === 'pending';
-    if (_filter === 'unlisted') return vs !== 'approved' && vs !== 'pending';
-    return true;
-  }
-  function render() {
-    var host = document.getElementById('pro-verify-root'); if (!host) return;
-    var all = _rows || [];
-    var counts = { all: all.length, live: 0, pending: 0, unlisted: 0 };
-    all.forEach(function (p) { var vs = statusOf(p); if (vs === 'approved') counts.live++; else if (vs === 'pending') counts.pending++; else counts.unlisted++; });
-    var chip = function (key, label) { return '<button class="pv-fchip' + (_filter === key ? ' on' : '') + '" data-filter="' + key + '">' + label + ' · ' + counts[key] + '</button>'; };
-    var bar = '<div class="pv-filter">' + chip('all', 'All') + chip('live', 'Live') + chip('pending', 'Pending') + chip('unlisted', 'Unlisted') + '</div>';
-    var rows = all.filter(matchFilter);
-    host.innerHTML = bar + (rows.length ? rows.map(card).join('') : '<div class="pv-empty">No professionals in this view.</div>');
-  }
-  async function load() {
-    var host = document.getElementById('pro-verify-root'); if (!host) return;
-    host.innerHTML = '<div class="pv-empty">Loading…</div>';
-    var res;
-    try { res = await sb().rpc('admin_professionals_list'); } catch (e) { host.innerHTML = '<div class="pv-empty">Could not load.</div>'; return; }
-    var data = res && res.data;
-    if (data && data.error) { host.innerHTML = '<div class="pv-empty">' + esc(data.error === 'forbidden' ? 'Admin sign-in required.' : data.error) + '</div>'; return; }
-    _rows = Array.isArray(data) ? data : [];
-    render();
-  }
-
-  async function setStatus(id, status, note) {
-    try {
-      var r = await sb().rpc('professional_set_verification', { p_pro: id, p_status: status, p_note: note || null });
-      if (r && r.data && r.data.error) { toast(r.data.error === 'forbidden' ? 'Admin sign-in required' : r.data.error, 'error'); return; }
-      toast(status === 'approved' ? 'Approved — now live' : status === 'unlisted' ? 'Unlisted' : 'Rejected', 'success');
-      load();
-    } catch (e) { toast('Action failed', 'error'); }
-  }
-
-  function wire() {
-    var host = document.getElementById('pro-verify-root'); if (!host || host._wired) return; host._wired = true;
-    host.addEventListener('click', function (e) {
-      var fchip = e.target.closest && e.target.closest('.pv-fchip');
-      if (fchip) { _filter = fchip.dataset.filter || 'all'; render(); return; }
-      var btn = e.target.closest && e.target.closest('.pv-btn'); if (!btn) return;
-      var cardEl = btn.closest('.pv-card'); if (!cardEl) return;
-      var id = cardEl.dataset.id, act = btn.dataset.act;
-      if (act === 'preview') { preview(id); }
-      else if (act === 'approve') { setStatus(id, 'approved'); }
-      else if (act === 'unlist') { setStatus(id, 'unlisted'); }
-      else if (act === 'reject') { var note = prompt('Reason for the professional (optional):', ''); if (note === null) return; setStatus(id, 'rejected', note); }
-    });
-  }
-
-  function init() {
-    if (!sb()) { setTimeout(init, 150); return; }
-    injectCss(); wire(); load();
-  }
+  function init() { if (!sb()) { setTimeout(init, 150); return; } injectCss(); mount(); fetchPage(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
