@@ -1,4 +1,10 @@
-/* FFP Admin Providers Loader — v4
+/* FFP Admin Providers Loader — v5 (2026-08-09)
+   v5: the panel was showing nothing useful because fetchProviders() pulled the WHOLE directory
+       (~113k auto-discovered listings, owner null / status approved) → capped at 1000 junk rows
+       or errored. It now fetches only MANAGEABLE providers (owner_user_id set, i.e. human-claimed
+       partners, OR any non-approved status needing action). Real partners now show with full
+       management (tier/expiry/fee, approve/suspend/feature).
+   --- v4 ---
    Clean restructure based on Grant's feedback (v3 was messy):
    - Tier badge shown on every row (Standard / Premium / Partner color-coded)
    - Tier filter chips above the table (All / Standard / Premium / Partner)
@@ -603,10 +609,16 @@
 
   // ─── Data layer ───
   async function fetchProviders() {
+    // MANAGEABLE providers only. The directory has ~113k auto-discovered listings (owner_user_id
+    // null, status 'approved'); those are not individually managed and would otherwise flood the
+    // panel (and cap out at 1000). Show only human-claimed / signed-up providers (owner set) plus
+    // anything needing action (pending / suspended / lapsed / archived).
     var res = await window.supabase
       .from('providers')
       .select('id, business_name, letter_mark, category, city, status, featured, created_at, paid_until, subscription_tier, monthly_fee_aed, contact_email, contact_phone, area, address, owner_user_id, about, website, instagram, hero_photo_url, logo_url, latitude, longitude, approved_at, business_access, business_access_requested_at')
-      .order('created_at', { ascending: false });
+      .or('owner_user_id.not.is.null,status.neq.approved')
+      .order('created_at', { ascending: false })
+      .limit(1000);
     if (res.error) {
       console.error('[FFP Admin Providers] fetch:', res.error);
       toast('Could not load providers', 'error');
