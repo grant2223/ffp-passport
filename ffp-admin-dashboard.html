@@ -1410,11 +1410,18 @@ body.ffp-role-staff [data-owner-only] { display: none !important; }
   .charts-grid { grid-template-columns: 1fr; }
   .chart-canvas-wrap { height: 240px; }
 
-  /* Analytics filters: chips already wrap; let the location selects share the row */
+  /* Filters (Analytics period + Analytics/Community-Health location dropdowns).
+     Stack cleanly: label on its own line, chips fill the width, compare + each dropdown full-width. */
   .time-filter { padding: 12px; }
-  .time-chip { padding: 6px 10px; font-size: 11px; }
-  .time-filter-compare { margin-left: 0; padding-left: 0; border-left: 0; }
-  #analytics-country, #analytics-city { min-width: 0 !important; flex: 1 1 45%; }
+  .time-filter-row { align-items: stretch; }
+  .time-filter-label { flex: 1 1 100%; margin: 0 0 2px; }
+  .time-chip-group { flex: 1 1 100%; }
+  .time-chip { padding: 7px 12px; font-size: 12px; }
+  .time-filter-compare { flex: 1 1 100%; margin: 6px 0 0; padding: 8px 0 0; border-left: 0; border-top: 1px solid var(--border); }
+  #analytics-country, #analytics-city, #ch-country, #ch-city, #ch-gender {
+    min-width: 0 !important; flex: 1 1 100%; width: 100%;
+    padding: 12px 14px !important; font-size: 14px !important;
+  }
 
   /* Section heads wrap; wide tables scroll horizontally instead of breaking the layout */
   .section-head { flex-wrap: wrap; gap: 6px; }
@@ -2294,7 +2301,7 @@ body.ffp-role-staff [data-owner-only] { display: none !important; }
 
     <!-- ========== PROFESSIONALS (public-listing verification queue) ========== -->
     <section class="panel" id="panel-professionals">
-      <div class="panel-head"><h1>Professionals</h1></div>
+      <div class="panel-head"><h1>Professionals</h1><div class="panel-head-sub">Coaches &amp; trainers on FFP Professional — review, approve/unlist, and see listing &amp; payments status.</div></div>
       <div id="pro-verify-root" style="padding:4px 0;"></div>
     </section>
 
@@ -2755,7 +2762,7 @@ const App = {
       var sc = document.createElement('script');
       // Cache-bust lazy loaders so a new deploy never serves a stale cached .js.
       // BUMP this with the dashboard build number on every deploy (matches footer build).
-      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=66'; sc.async = false;
+      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=67'; sc.async = false;
       sc.onload = function () {
         if (panelId === 'panel-analytics') {
           setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 80);
