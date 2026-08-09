@@ -1,4 +1,16 @@
-/* FFP Admin Analytics Loader — v7 (2026-06-10)
+/* FFP Admin Analytics Loader — v8 (2026-08-09)
+   v8: ACCURACY + tier model + providers.
+       • Members set now also excludes soft-deleted accounts (deleted+…@ffp.invalid); role='member'
+         already drops provider/admin accounts. (Fixes inflated "N members".)
+       • Tier Distribution rebuilt to the REAL membership model — Standard (free) / Passport /
+         Gold / Platinum — from members.membership + members.passport_tier (was the legacy
+         member/supporter/ambassador `tier` field). Doughnut + legend + meta updated.
+       • "Paid Members" KPI now = Passport subscribers (membership='passport'), not the loose
+         `paid` flag.
+       • NEW Providers section (#prov-kpis/#prov-by-type/#prov-by-country) via the
+         admin_provider_stats() RPC (aggregated server-side — the directory is ~113k rows).
+   --- prior ---
+   v7 (2026-06-10)
    v7: NEW "How Members Are Signing Up" section — breakdown by signup METHOD (referral / paid-Stripe /
        access code / direct), MEMBERSHIP plan (annual / monthly / free), and WHERE (top countries +
        cities). Period- and geo-scoped like the rest of the panel; falls back to all-time when the
@@ -130,7 +142,7 @@
   async function fetchAll() {
     var since = new Date(2024, 0, 1).toISOString();
     var res = await Promise.all([
-      sel('members', 'id, tier, paid, city, country, nationality, date_of_birth, gender, created_at, role, referred_by, plan, access_code, stripe_subscription_id, stripe_session_id', function (q) { return q.eq('role', 'member'); }), // exclude provider/admin accounts
+      sel('members', 'id, tier, passport_tier, membership, paid, city, country, nationality, date_of_birth, gender, created_at, role, referred_by, plan, access_code, stripe_subscription_id, stripe_session_id', function (q) { return q.eq('role', 'member').not('email', 'ilike', 'deleted+%'); }), // exclude provider/admin accounts + soft-deleted rows
       sel('transactions', 'amount_aed, type, status, created_at', function (q) { return q.gte('created_at', since); }),
       sel('activity_logs', 'member_id, category, logged_at', function (q) { return q.gte('logged_at', since); }),
       sel('claims', 'member_id, deal_id, created_at'),
@@ -144,9 +156,14 @@
     ]);
     var dealProv = {}; res[9].forEach(function (d) { dealProv[d.id] = d.provider_id; });
     var provName = {}; res[10].forEach(function (p) { provName[p.id] = p.business_name; });
+    // Provider directory is ~113k rows — aggregate server-side, never fetch rows client-side.
+    var provStats = null;
+    try { var pr = await window.supabase.rpc('admin_provider_stats'); if (!pr.error) provStats = pr.data; }
+    catch (e) { console.warn('[FFP Analytics] admin_provider_stats', e); }
     RAW = {
       members: res[0], tx: res[1], acts: res[2], claims: res[3], rsvps: res[4],
-      apps: res[5], meetA: res[6], chalE: res[7], refs: res[8], dealProv: dealProv, provName: provName
+      apps: res[5], meetA: res[6], chalE: res[7], refs: res[8], dealProv: dealProv, provName: provName,
+      provStats: provStats
     };
   }
 
@@ -255,12 +272,12 @@
     renderAll: function () {
       this.renderGeoFilters();
       this.updateSummary(); this.renderKPIs(); this._drawCharts();
-      this.renderDemographics(); this.renderTopProviders(); this.renderCategories(); this.renderSignups();
+      this.renderDemographics(); this.renderProviders(); this.renderTopProviders(); this.renderCategories(); this.renderSignups();
     },
     // re-render everything except rebuilding the geo dropdowns (used on geo change)
     _refresh: function () {
       this.updateSummary(); this.renderKPIs(); this._drawCharts();
-      this.renderDemographics(); this.renderTopProviders(); this.renderCategories(); this.renderSignups();
+      this.renderDemographics(); this.renderProviders(); this.renderTopProviders(); this.renderCategories(); this.renderSignups();
     },
 
     // ── Country / City location filter ──
@@ -337,7 +354,7 @@
         members: countIn(mem, 'created_at', r.start, r.end),
         rev: revenueIn(r.start, r.end),
         eng: (function () { var e = engagementCounts(r.start, r.end); return e.Logs + e.Claims + e.RSVPs + e.Meet + e.Chal + e.Refs; })(),
-        paid: mem.filter(function (m) { return m.paid; }).length
+        paid: mem.filter(function (m) { return m.membership === 'passport'; }).length
       };
       var prev = {
         members: countIn(mem, 'created_at', r.prevStart, r.prevEnd),
@@ -349,7 +366,7 @@
         { label: 'New Members', v: cur.members, p: prev.members, fmt: function (x) { return dnum(x); } },
         { label: 'Revenue', v: cur.rev, p: prev.rev, fmt: function (x) { return '<span style="font-size:12px;color:var(--muted);">$</span> ' + dnum(x); } },
         { label: 'Engagement actions', v: cur.eng, p: prev.eng, fmt: function (x) { return dnum(x); } },
-        { label: 'Paid Members', v: cur.paid, p: null, fmt: function (x) { return dnum(x); } }
+        { label: 'Passport Members', v: cur.paid, p: null, fmt: function (x) { return dnum(x); } }
       ];
       function delta(c, p) { if (p == null || p === 0) return null; var pct = (c - p) / p * 100; return { pct: Math.abs(pct).toFixed(0), dir: pct > 0.5 ? 'up' : pct < -0.5 ? 'down' : 'flat' }; }
       var el = document.getElementById('analytics-kpis'); if (!el) return;
@@ -376,14 +393,23 @@
         datasets: [{ label: 'Members', data: bk.map(function (b) { return cumulativeMembersAt(b.end); }), borderColor: YELLOW, backgroundColor: 'rgba(255,204,0,0.10)', tension: 0.35, fill: true, pointRadius: 2, pointBackgroundColor: YELLOW }]
       }, {});
 
-      // Tiers (current snapshot, geo-scoped)
+      // Tiers (current snapshot, geo-scoped) — REAL membership model:
+      //   Standard = free · Passport = paid base · Gold / Platinum = passport_tier
       var memG = geoMembers();
-      var tiers = { member: 0, supporter: 0, ambassador: 0 };
-      memG.forEach(function (m) { var t = (m.tier || 'member'); if (tiers[t] == null) tiers[t] = 0; tiers[t]++; });
-      var tmeta = document.getElementById('chart-tiers-meta'); if (tmeta) tmeta.textContent = memG.length + ' members';
+      var tc = { standard: 0, passport: 0, gold: 0, platinum: 0 };
+      memG.forEach(function (m) {
+        var pt = String(m.passport_tier || '').toLowerCase();
+        if (m.membership !== 'passport') tc.standard++;
+        else if (pt === 'gold') tc.gold++;
+        else if (pt === 'black' || pt === 'platinum') tc.platinum++;
+        else tc.passport++;
+      });
+      var passportTotal = tc.passport + tc.gold + tc.platinum;
+      var tmeta = document.getElementById('chart-tiers-meta');
+      if (tmeta) tmeta.textContent = passportTotal + ' Passport · ' + memG.length + ' total';
       this._chart('tiers', 'chart-tiers', 'doughnut', {
-        labels: ['Member', 'Supporter', 'Ambassador'],
-        datasets: [{ data: [tiers.member || 0, tiers.supporter || 0, tiers.ambassador || 0], backgroundColor: [MUTE, BLUE, YELLOW], borderWidth: 0, hoverOffset: 8 }]
+        labels: ['Standard', 'Passport', 'Gold', 'Platinum'],
+        datasets: [{ data: [tc.standard, tc.passport, tc.gold, tc.platinum], backgroundColor: [MUTE, BLUE, '#e0b83a', '#cfd4da'], borderWidth: 0, hoverOffset: 8 }]
       }, { legend: true });
 
       // Revenue (USD) by bucket
@@ -457,6 +483,28 @@
       demoRows('signup-plan', tally(scoped, planLabel), YELLOW, false);
       demoRows('signup-countries', tally(scoped, function (m) { return m.country || countryOf(m.city); }).slice(0, 6), BLUE, false);
       demoRows('signup-cities', tally(scoped, function (m) { return m.city; }).slice(0, 6), YELLOW, false);
+    },
+    // Provider directory + partner summary (global — aggregated server-side via
+    // admin_provider_stats; the directory is ~113k rows so it is never fetched client-side).
+    renderProviders: function () {
+      if (!this._loaded) return;
+      var s = RAW.provStats || {};
+      var kp = document.getElementById('prov-kpis');
+      if (kp) {
+        var tiles = [
+          { label: 'Directory listings', v: s.total || 0 },
+          { label: 'Claimed partners', v: s.claimed || 0 },
+          { label: 'Applications pending', v: s.apps_pending || 0 }
+        ];
+        kp.innerHTML = tiles.map(function (t) {
+          return '<div class="kpi-tile"><div class="kpi-label">' + esc(t.label) + '</div>' +
+            '<div class="kpi-value f-tabular">' + dnum(t.v) + '</div></div>';
+        }).join('');
+      }
+      demoRows('prov-by-type', (s.by_type || []).slice(0, 6), BLUE, false);
+      demoRows('prov-by-country', (s.by_country || []).slice(0, 6), YELLOW, false);
+      var pm = document.getElementById('prov-meta');
+      if (pm) pm.textContent = dnum(s.claimed || 0) + ' claimed · ' + dnum(s.total || 0) + ' listed';
     },
     renderTopProviders: function () {
       if (!this._loaded) return;
