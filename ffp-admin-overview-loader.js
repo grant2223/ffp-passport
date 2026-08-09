@@ -1,4 +1,11 @@
-/* FFP Admin Overview Loader — v9 (2026-05-31)
+/* FFP Admin Overview Loader — v10 (2026-08-09)
+   v10: FIX blank Overview. The panel was calling admin_overview() before Supabase had
+        finished RESTORING its auth session (ffp-admin-auth dispatches 'ffp-admin-ready'
+        synchronously from localStorage, ahead of supabase.auth). The RPC therefore fired
+        ANONYMOUS → is_admin() false → 'not authorized' → the loader swallowed the error →
+        every KPI stayed as a dash. Now load() first awaits a real session
+        (supabase.auth.getSession, polled) and RETRIES once on any error/empty result, and
+        the dashboard re-fires refresh() whenever the Overview panel is shown.
    v9: event-driven — loads on confirmed admin session (ffp-admin-ready), never races a
        timeout into an unauthenticated "not authorized" call.
    v8 (history):
@@ -59,10 +66,31 @@
   }
   function initial(n) { return (n && n.length) ? n[0].toUpperCase() : '?'; }
 
-  async function load() {
+  // Wait until Supabase has actually RESTORED an auth session (it hydrates async from
+  // localStorage). Without this the RPC can fire anonymous → is_admin() false → 'not authorized'.
+  async function waitForSession(ms) {
+    var lim = Math.ceil((ms || 15000) / 150);
+    for (var i = 0; i < lim; i++) {
+      try { var s = await window.supabase.auth.getSession(); if (s && s.data && s.data.session) return true; } catch (e) {}
+      await new Promise(function (r) { setTimeout(r, 150); });
+    }
+    return false;
+  }
+
+  var _loadedOnce = false;
+  async function load(attempt) {
+    attempt = attempt || 0;
     try {
+      if (!window.supabase) return;
+      await waitForSession(attempt === 0 ? 15000 : 3000);
       var r = await window.supabase.rpc('admin_overview');
-      if (r.error) { console.warn('[FFP Admin Overview] rpc:', r.error.message); return; }
+      if (r.error || !r.data) {
+        // Session may still be attaching on first paint — retry a couple of times before giving up.
+        if (attempt < 4) { setTimeout(function () { load(attempt + 1); }, 700); return; }
+        console.warn('[FFP Admin Overview] rpc:', r.error && r.error.message);
+        return;
+      }
+      _loadedOnce = true;
       var d = r.data; if (!d) return;
 
       setKpi('kpi-total-members', dnum(d.members_total));
@@ -98,18 +126,25 @@
             '<td class="text-muted">' + esc(it.what) + '</td></tr>';
         }).join('') : '<tr><td colspan="3" class="text-muted" style="text-align:center;padding:24px;">No activity yet</td></tr>';
       }
-    } catch (e) { console.error('[FFP Admin Overview] load:', e); }
+    } catch (e) {
+      if (attempt < 4) { setTimeout(function () { load(attempt + 1); }, 700); return; }
+      console.error('[FFP Admin Overview] load:', e);
+    }
   }
 
   async function init() {
     var ready = await waitFor(function () { return window.supabase && document.getElementById('panel-overview'); }, 20000);
     if (!ready) return;
-    window.FFPAdminOverview = { refresh: load };
-    // v9: NEVER fire admin_overview unauthenticated. Load only once the admin session is
-    // confirmed — either it's already set, or when ffp-admin-auth dispatches 'ffp-admin-ready'
-    // (also covers a sign-in that happens after this loader initialised).
-    document.addEventListener('ffp-admin-ready', function () { load(); });
-    if (window.FFP_ADMIN) { try { await load(); console.log('[FFP Admin Overview v9] loaded ✓'); } catch (e) { console.error(e); } }
+    window.FFPAdminOverview = { refresh: function () { load(0); } };
+    // v10: fire load() once the admin identity is known, but load() itself waits for the
+    // Supabase SESSION before calling the RPC (so it can't run anonymous). Cover every timing:
+    //  (a) the ffp-admin-ready event (sign-in after this loader initialised),
+    //  (b) a poll for window.FFP_ADMIN in case the event fired before this listener attached.
+    document.addEventListener('ffp-admin-ready', function () { load(0); });
+    (async function () {
+      var ok = await waitFor(function () { return !!window.FFP_ADMIN; }, 20000);
+      if (ok) { try { await load(0); console.log('[FFP Admin Overview v10] loaded ✓'); } catch (e) { console.error(e); } }
+    })();
     if (window.FFPRealtime) {
       var t = null, bump = function () { clearTimeout(t); t = setTimeout(load, 800); };
       ['events', 'trips', 'challenges', 'provider_applications', 'payouts', 'referrals', 'members', 'providers', 'activity_logs'].forEach(function (tbl) {
