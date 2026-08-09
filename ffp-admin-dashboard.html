@@ -106,7 +106,7 @@
   <script src="assets/ffp-realtime.js"></script>
   <script src="assets/ffp-admin-organiser-listings.js?v=2"></script>
 <script src="ffp-admin-auth.js?v=8"></script>
-  <script src="ffp-admin-overview-loader.js?v=2"></script>
+  <script src="ffp-admin-overview-loader.js?v=10"></script>
   <script src="ffp-admin-banners-loader.js"></script>
   <!-- Applications panel REMOVED 2026-06-01: providers now self-signup with instant, self-serve accounts — there is no application/approval step, so no Applications panel. -->
 <!-- v7: removed 8 phantom loader refs that 404'd (referrals/content/members/meetups/overview/analytics/taxonomies/settings — those panels run on their inline modules). Normalized quests loader ref to the plain GitHub filename. -->
@@ -2481,6 +2481,27 @@ body.ffp-role-staff [data-owner-only] { display: none !important; }
         </div>
       </div>
 
+      <!-- Provider details -->
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">Providers</div>
+          <span class="section-count" id="prov-meta">Directory &amp; partners</span>
+        </div>
+        <div class="section-body padded">
+          <div class="kpi-grid" id="prov-kpis" style="margin-bottom:16px;"></div>
+          <div class="charts-grid">
+            <div>
+              <div class="chart-card-title" style="margin-bottom:10px;">By type</div>
+              <div class="demo-list" id="prov-by-type"></div>
+            </div>
+            <div>
+              <div class="chart-card-title" style="margin-bottom:10px;">By country</div>
+              <div class="demo-list" id="prov-by-country"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Top providers -->
       <div class="section">
         <div class="section-head">
@@ -2695,7 +2716,7 @@ const App = {
       var sc = document.createElement('script');
       // Cache-bust lazy loaders so a new deploy never serves a stale cached .js.
       // BUMP this with the dashboard build number on every deploy (matches footer build).
-      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=65'; sc.async = false;
+      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=66'; sc.async = false;
       sc.onload = function () {
         if (panelId === 'panel-analytics') {
           setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 80);
@@ -2729,6 +2750,11 @@ const App = {
     }
     if (panelId === 'panel-rankings') {
       setTimeout(() => AdminRankings.render(), 30);
+    }
+    // Overview populates eagerly at page load, but re-fetch on every view so it's never
+    // left blank by a first-paint session race (see ffp-admin-overview-loader v10).
+    if (panelId === 'panel-overview') {
+      setTimeout(() => { try { window.FFPAdminOverview && window.FFPAdminOverview.refresh(); } catch (e) {} }, 30);
     }
   },
   
