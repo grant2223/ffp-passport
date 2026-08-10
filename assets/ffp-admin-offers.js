@@ -20,9 +20,17 @@
     o = o || {};
     var h = '';
     h += field('Partner name', inp('of-partner', 'e.g. Green Bean Cafe', 'text', o.partner_name), 'The business the offer is for (not listed on the site).');
+    var curLogo = o.logo_url || '';
+    var logoInner =
+      '<input id="of-logo" type="hidden" value="' + esc(curLogo) + '">' +
+      '<div onclick="document.getElementById(\'of-logo-file\').click()" style="cursor:pointer;border:1.5px dashed #cbd5dd;border-radius:10px;padding:9px 11px;display:flex;align-items:center;gap:10px;background:#fff;">' +
+        '<div id="of-logo-prev" style="width:42px;height:42px;border-radius:9px;flex:none;display:flex;align-items:center;justify-content:center;color:#8a99a8;background:#eef2f5' + (curLogo ? " url('" + esc(curLogo) + "') center/cover no-repeat" : '') + ';">' + (curLogo ? '' : '<span class="material-icons">add_photo_alternate</span>') + '</div>' +
+        '<div id="of-logo-txt" style="font-size:12px;font-weight:700;color:#5b6b75;">' + (curLogo ? 'Tap to change logo' : 'Tap to upload a logo') + '</div>' +
+      '</div>' +
+      '<input id="of-logo-file" type="file" accept="image/*" style="display:none" onchange="AdminOffers.uploadLogo(this)">';
     h += '<div style="display:flex;gap:10px;">' +
          '<div style="flex:1">' + field('City', inp('of-city', 'e.g. Cairns', 'text', o.city)) + '</div>' +
-         '<div style="flex:1">' + field('Logo URL', inp('of-logo', 'https://…', 'text', o.logo_url)) + '</div>' +
+         '<div style="flex:1">' + field('Logo', logoInner, 'Square image works best.') + '</div>' +
          '</div>';
     h += field('Offer title', inp('of-title', 'Buy 1 Get 1 Free smoothie', 'text', o.title), 'This is a Buy-1-Get-1-Free deal.');
     h += field('Description', ta('of-desc', 'Short description shown to members', o.description));
@@ -73,7 +81,7 @@
     editingId = (o && o.id) || null;
     var footer = '<button onclick="closeModal()" style="padding:10px 16px;border:1px solid #d7dee5;background:#fff;border-radius:10px;font-weight:700;cursor:pointer;">Cancel</button>' +
                  '<button onclick="AdminOffers.save()" style="padding:10px 18px;border:none;background:#1980AD;color:#fff;border-radius:10px;font-weight:800;cursor:pointer;">' + (editingId ? 'Save' : 'Add offer') + '</button>';
-    window.openModal((editingId ? 'Edit offer' : 'Add offer') + ' · Buy 1 Get 1 Free', formBody(o || {}), footer);
+    window.openModal((editingId ? 'Edit offer' : 'Add offer') + ' · Buy 1 Get 1 Free', formBody(o || {}), footer, { fullbleed: true });
   }
 
   async function setStatus(id, status) {
@@ -118,7 +126,46 @@
     } catch (e) { el.innerHTML = '<div style="padding:20px;color:#d9534f;">Couldn’t load offers: ' + esc(e.message || '') + '</div>'; }
   }
 
-  window.AdminOffers = { openForm: openForm, edit: function (o) { openForm(o); }, save: save, setStatus: setStatus, remove: remove, render: renderList };
+  // Downscale + re-encode any image to a small JPEG so large/HEIC uploads don't fail.
+  function toJpeg(file, maxDim, q) {
+    return new Promise(function (resolve, reject) {
+      var fr = new FileReader();
+      fr.onload = function () {
+        var img = new Image();
+        img.onload = function () {
+          var w = img.naturalWidth || img.width, hh = img.naturalHeight || img.height;
+          if (!w || !hh) { reject(new Error('empty')); return; }
+          if (w > maxDim || hh > maxDim) { var s = Math.min(maxDim / w, maxDim / hh); w = Math.round(w * s); hh = Math.round(hh * s); }
+          var c = document.createElement('canvas'); c.width = w; c.height = hh;
+          var ctx = c.getContext('2d'); if (!ctx) { reject(new Error('no ctx')); return; }
+          ctx.drawImage(img, 0, 0, w, hh);
+          c.toBlob(function (b) { b ? resolve(b) : reject(new Error('encode')); }, 'image/jpeg', q || 0.85);
+        };
+        img.onerror = function () { reject(new Error('decode')); };
+        img.src = fr.result;
+      };
+      fr.onerror = function () { reject(new Error('read')); };
+      fr.readAsDataURL(file);
+    });
+  }
+  async function uploadLogo(input) {
+    var file = input.files && input.files[0]; if (!file) return;
+    var txt = document.getElementById('of-logo-txt'), prev = document.getElementById('of-logo-prev');
+    if (txt) txt.textContent = 'Uploading…';
+    try {
+      var blob = file, ext = 'jpg', ctype = 'image/jpeg';
+      try { blob = await toJpeg(file, 512, 0.85); } catch (e) { blob = file; ext = (file.name.split('.').pop() || 'jpg').toLowerCase(); ctype = file.type || 'image/jpeg'; }
+      var path = 'offers/' + Date.now() + '-' + Math.random().toString(16).slice(2, 8) + '.' + ext;
+      var up = await sb().storage.from('provider-logos').upload(path, blob, { upsert: true, contentType: ctype, cacheControl: '3600' });
+      if (up.error) throw up.error;
+      var url = sb().storage.from('provider-logos').getPublicUrl(path).data.publicUrl;
+      var hid = document.getElementById('of-logo'); if (hid) hid.value = url;
+      if (prev) { prev.style.background = "#eef2f5 url('" + url + "') center/cover no-repeat"; prev.innerHTML = ''; }
+      if (txt) txt.textContent = 'Logo uploaded ✓ — tap to change';
+    } catch (e) { if (txt) txt.textContent = 'Upload failed — try again'; window.showToast && showToast(e.message || 'Upload failed', 'error'); }
+  }
+
+  window.AdminOffers = { openForm: openForm, edit: function (o) { openForm(o); }, save: save, setStatus: setStatus, remove: remove, render: renderList, uploadLogo: uploadLogo };
   // Self-render when the loader is fetched (panel first opened).
   try { renderList(); } catch (e) {}
 })();
