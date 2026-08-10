@@ -1291,6 +1291,11 @@ body.ffp-role-staff [data-owner-only] { display: none !important; }
 }
 .modal-close:hover { color: var(--text); }
 .modal-body { padding: 20px; }
+/* Full-bleed variant — the modal fills the whole screen (long forms like Offers). */
+.modal-backdrop.fullbleed { padding: 0; }
+.modal-backdrop.fullbleed .modal { max-width: none; width: 100%; height: 100dvh; max-height: none; border-radius: 0; border: none; display: flex; flex-direction: column; }
+.modal-backdrop.fullbleed .modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.modal-backdrop.fullbleed .modal-head, .modal-backdrop.fullbleed .modal-footer { flex: none; }
 .modal-footer {
   padding: 14px 20px;
   border-top: 1px solid var(--border);
@@ -2675,13 +2680,15 @@ function showToast(msg, icon) {
   setTimeout(() => t.classList.remove('show'), 2800);
 }
 function escHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function openModal(title, bodyHtml, footerHtml) {
+function openModal(title, bodyHtml, footerHtml, opts) {
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-body').innerHTML = bodyHtml;
   document.getElementById('modal-footer').innerHTML = footerHtml || '';
-  document.getElementById('modal-backdrop').classList.add('open');
+  var bd = document.getElementById('modal-backdrop');
+  bd.classList.toggle('fullbleed', !!(opts && opts.fullbleed));
+  bd.classList.add('open');
 }
-function closeModal() { document.getElementById('modal-backdrop').classList.remove('open'); }
+function closeModal() { var bd = document.getElementById('modal-backdrop'); bd.classList.remove('open'); bd.classList.remove('fullbleed'); }
 function fmtDays(d) {
   if (d === 0) return 'Today';
   if (d === 1) return 'Yesterday';
@@ -2762,7 +2769,7 @@ const App = {
       var sc = document.createElement('script');
       // Cache-bust lazy loaders so a new deploy never serves a stale cached .js.
       // BUMP this with the dashboard build number on every deploy (matches footer build).
-      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=69'; sc.async = false;
+      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=70'; sc.async = false;
       sc.onload = function () {
         if (panelId === 'panel-analytics') {
           setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 80);
