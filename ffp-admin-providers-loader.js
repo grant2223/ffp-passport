@@ -1,4 +1,9 @@
-/* FFP Admin Providers Loader — v5 (2026-08-09)
+/* FFP Admin Providers Loader — v6 (2026-08-10)
+   v6: NEW per-row "Verify for Refer & earn" toggle (shield icon) on approved/lapsed partners — sets
+       providers.approved_by (the admin-verified gate the backend referral check requires). Self-signup
+       partners join with approved_by=null (not referral-eligible) until an admin verifies them here.
+       Fetch now selects approved_by; mapForUi exposes `verified`.
+   --- v5 ---
    v5: the panel was showing nothing useful because fetchProviders() pulled the WHOLE directory
        (~113k auto-discovered listings, owner null / status approved) → capped at 1000 junk rows
        or errored. It now fetches only MANAGEABLE providers (owner_user_id set, i.e. human-claimed
@@ -615,7 +620,7 @@
     // anything needing action (pending / suspended / lapsed / archived).
     var res = await window.supabase
       .from('providers')
-      .select('id, business_name, letter_mark, category, city, status, featured, created_at, paid_until, subscription_tier, monthly_fee_aed, contact_email, contact_phone, area, address, owner_user_id, about, website, instagram, hero_photo_url, logo_url, latitude, longitude, approved_at, business_access, business_access_requested_at')
+      .select('id, business_name, letter_mark, category, city, status, featured, created_at, paid_until, subscription_tier, monthly_fee_aed, contact_email, contact_phone, area, address, owner_user_id, about, website, instagram, hero_photo_url, logo_url, latitude, longitude, approved_at, approved_by, business_access, business_access_requested_at')
       .or('owner_user_id.not.is.null,status.neq.approved')
       .order('created_at', { ascending: false })
       .limit(1000);
@@ -641,6 +646,7 @@
       monthly_fee_aed: p.monthly_fee_aed,
       business_access: !!p.business_access,
       business_access_requested_at: p.business_access_requested_at || null,
+      verified: !!p.approved_by,   // admin-verified → unlocks partner Refer & earn (needs complete profile too)
       _raw: p
     };
   }
@@ -694,6 +700,7 @@
     }
     if (p.status === 'approved' || p.status === 'lapsed') {
       return '<button class="btn btn-sm btn-ghost" title="Edit subscription" onclick="AdminProviders.editSub(\'' + p.id + '\')"><span class="material-icons">edit_calendar</span></button>' +
+             '<button class="btn btn-sm ' + (p.verified ? 'btn-blue' : 'btn-ghost') + '" title="' + (p.verified ? 'Verified for Refer & earn — click to remove' : 'Verify this partner for Refer & earn') + '" onclick="AdminProviders.toggleVerify(\'' + p.id + '\')"><span class="material-icons">' + (p.verified ? 'verified_user' : 'gpp_maybe') + '</span></button>' +
              '<button class="btn btn-sm btn-ghost" title="' + (p.featured ? 'Unfeature' : 'Feature') + '" onclick="AdminProviders.toggleFeatured(\'' + p.id + '\')"><span class="material-icons">' + (p.featured ? 'star' : 'star_border') + '</span></button>' +
              '<button class="btn btn-sm btn-ghost" title="Suspend" onclick="AdminProviders.suspend(\'' + p.id + '\')"><span class="material-icons">block</span></button>';
     }
@@ -825,6 +832,25 @@
         logAction('reinstated provider ' + p.business_name + ' to ' + newStatus);
         await refresh();
       } catch (e) { console.error(e); toast(e.message || 'Reinstate failed', 'error'); }
+    };
+    // Verify a partner for Refer & earn: sets providers.approved_by (the admin-verified gate in the
+    // backend referral check — needs a complete profile too). Toggling off removes eligibility.
+    AP.toggleVerify = async function (id) {
+      var p = AP.data.find(function (x) { return x.id === id; });
+      if (!p) return;
+      var makeVerified = !p.verified;
+      var admin = window.FFP_ADMIN && window.FFP_ADMIN.id;
+      if (makeVerified && !admin) { toast('Admin sign-in required', 'error'); return; }
+      try {
+        var patch = makeVerified
+          ? { approved_by: admin, approved_at: (p._raw && p._raw.approved_at) || new Date().toISOString() }
+          : { approved_by: null };
+        var res = await window.supabase.from('providers').update(patch).eq('id', id);
+        if (res.error) throw res.error;
+        toast(makeVerified ? 'Verified · Refer & earn unlocked' : 'Verification removed', makeVerified ? 'success' : 'info');
+        logAction((makeVerified ? 'verified' : 'un-verified') + ' provider for referrals · ' + p.business_name);
+        await refresh();
+      } catch (e) { console.error(e); toast(e.message || 'Update failed', 'error'); }
     };
     AP.toggleFeatured = async function (id) {
       var p = AP.data.find(function (x) { return x.id === id; });
