@@ -117,7 +117,7 @@
     async load() {
       var res = await window.supabase
         .from('provider_applications')
-        .select('id, business_name, contact_name, email, phone, category, provider_type, country, city, website, about, status, created_at')
+        .select('id, business_name, contact_name, email, phone, category, provider_type, country, city, website, about, status, created_at, claim_provider_id')
         .order('created_at', { ascending: false });
       if (res.error) { console.error('[FFP Applications] load:', res.error); toast('Could not load applications', 'error'); this.data = []; }
       else this.data = res.data || [];
@@ -182,6 +182,7 @@
         return '<tr>' +
           '<td><span class="cell-avatar" style="background:var(--yellow); color:#0a0a0a;">' + esc((a.business_name||'?').charAt(0).toUpperCase()) + '</span>' +
             '<span class="cell-name">' + esc(a.business_name) + '</span>' +
+            (a.claim_provider_id ? '<span title="Claim on an existing directory listing" style="margin-left:6px;background:rgba(43,168,224,.16);color:#7fc4e8;font-size:10px;font-weight:800;padding:2px 7px;border-radius:20px;letter-spacing:.4px;">CLAIM</span>' : '') +
             (a.website ? '<div class="cell-meta" style="margin-left:36px;">' + esc(a.website) + '</div>' : '') +
             (a.about ? '<div class="ffp-apps-about" style="margin-left:36px;">' + esc(a.about.slice(0,120)) + (a.about.length>120?'…':'') + '</div>' : '') + '</td>' +
           '<td>' + esc(a.contact_name) + '<div class="cell-meta">' + esc(a.email) + (a.phone ? ' · ' + esc(a.phone) : '') + '</div></td>' +
@@ -216,7 +217,7 @@
       this._pendingId = id;
       var defaultEnd = new Date(Date.now() + 365 * 86400000); // 1 year default
       var body =
-        '<div style="font-size:13px;color:var(--muted);margin-bottom:14px;">Approving <strong style="color:var(--text);">' + esc(a.business_name) + '</strong> (' + esc(a.email) + '). This creates their provider account and emails an invite.</div>' +
+        '<div style="font-size:13px;color:var(--muted);margin-bottom:14px;">Approving <strong style="color:var(--text);">' + esc(a.business_name) + '</strong> (' + esc(a.email) + '). ' + (a.claim_provider_id ? 'This assigns the EXISTING listing to them as verified owner and emails an invite.' : 'This creates their provider account and emails an invite.') + '</div>' +
         '<div class="field"><label class="field-label">Subscription tier</label>' +
           '<div class="ffp-apps-tierchips" id="apps-tierchips">' +
             Object.keys(TIER_DEFAULTS).map(function (t) {
