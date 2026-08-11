@@ -16,8 +16,22 @@
   function ta(id, ph, val) { return '<textarea id="' + id + '" placeholder="' + esc(ph || '') + '" rows="2" style="' + inputCss + ';resize:vertical">' + esc(val || '') + '</textarea>'; }
   function val(id) { var e = document.getElementById(id); return e ? String(e.value || '').trim() : ''; }
 
+  // Offer categories come from the admin-editable taxonomy (list_key='offer_category').
+  var CATS = [];
+  function loadCats() {
+    try { sb().from('taxonomy_items').select('value,label,sort_order').eq('list_key', 'offer_category').eq('active', true).order('sort_order').then(function (r) { if (!r.error && r.data) CATS = r.data; }); } catch (e) {}
+  }
+  function selectHtml(id, v) {
+    var opts = '<option value="">Select a category…</option>' + CATS.map(function (c) { return '<option value="' + esc(c.value) + '"' + (c.value === v ? ' selected' : '') + '>' + esc(c.label) + '</option>'; }).join('');
+    return '<select id="' + id + '" style="' + inputCss + '">' + opts + '</select>';
+  }
+  // Per-tier benefit input. Blank = not available to that tier.
+  function tierRow(key, label, v) {
+    return field(label, inp('of-tier-' + key, 'e.g. 10% off 1 meal', 'text', v || ''), 'Leave blank = not available to ' + label + ' tier.');
+  }
+
   function formBody(o) {
-    o = o || {};
+    o = o || {}; var T = o.tiers || {};
     var h = '';
     h += field('Partner name', inp('of-partner', 'e.g. Green Bean Cafe', 'text', o.partner_name), 'The business the offer is for (not listed on the site).');
     var curLogo = o.logo_url || '';
@@ -32,8 +46,13 @@
          '<div style="flex:1">' + field('City', inp('of-city', 'e.g. Cairns', 'text', o.city)) + '</div>' +
          '<div style="flex:1">' + field('Logo', logoInner, 'Square image works best.') + '</div>' +
          '</div>';
-    h += field('Offer title', inp('of-title', 'Buy 1 Get 1 Free smoothie', 'text', o.title), 'This is a Buy-1-Get-1-Free deal.');
+    h += field('Category', selectHtml('of-category', o.category), 'Sets where it appears in the member Offers filter.');
+    h += field('Offer title', inp('of-title', 'e.g. Meal discount', 'text', o.title), 'Short name for the offer.');
     h += field('Description', ta('of-desc', 'Short description shown to members', o.description));
+    h += '<div style="font-size:12px;font-weight:800;color:#43525c;margin:8px 0 6px;">Benefit by tier</div>';
+    h += tierRow('member', 'Member', T.member);
+    h += tierRow('supporter', 'Supporter', T.supporter);
+    h += tierRow('ambassador', 'Ambassador', T.ambassador);
     h += field('Terms / fine print', ta('of-terms', 'e.g. Dine-in only, one per visit', o.terms));
     h += '<div style="display:flex;gap:10px;">' +
          '<div style="flex:1">' + field('Valid from', inp('of-from', '', 'date', o.valid_from)) + '</div>' +
@@ -48,11 +67,15 @@
       if (!adminId()) { window.showToast && showToast('Admin session not ready — reload.', 'error'); return; }
       if (!val('of-partner')) { window.showToast && showToast('Partner name is required', 'error'); return; }
       if (!val('of-title')) { window.showToast && showToast('Offer title is required', 'error'); return; }
+      var tiers = { member: val('of-tier-member') || null, supporter: val('of-tier-supporter') || null, ambassador: val('of-tier-ambassador') || null };
+      if (!tiers.member && !tiers.supporter && !tiers.ambassador) { window.showToast && showToast('Add a benefit for at least one tier', 'error'); return; }
       var row = {
         provider_id: null,
         partner_name: val('of-partner'),
         city: val('of-city') || null,
         logo_url: val('of-logo') || null,
+        category: val('of-category') || null,
+        tiers: tiers,
         title: val('of-title'),
         description: val('of-desc') || null,
         terms: val('of-terms') || null,
@@ -167,5 +190,5 @@
 
   window.AdminOffers = { openForm: openForm, edit: function (o) { openForm(o); }, save: save, setStatus: setStatus, remove: remove, render: renderList, uploadLogo: uploadLogo };
   // Self-render when the loader is fetched (panel first opened).
-  try { renderList(); } catch (e) {}
+  try { loadCats(); renderList(); } catch (e) {}
 })();
