@@ -53,6 +53,7 @@
     h += tierRow('member', 'Member', T.member);
     h += tierRow('supporter', 'Supporter', T.supporter);
     h += tierRow('ambassador', 'Ambassador', T.ambassador);
+    h += field('How members redeem', ta('of-redeem', 'The provider’s method — e.g. show the confirmation to staff, tell them the code, or scan at the desk', o.redeem_info));
     h += field('Terms / fine print', ta('of-terms', 'e.g. Dine-in only, one per visit', o.terms));
     h += '<div style="display:flex;gap:10px;">' +
          '<div style="flex:1">' + field('Valid from', inp('of-from', '', 'date', o.valid_from)) + '</div>' +
@@ -78,6 +79,7 @@
         tiers: tiers,
         title: val('of-title'),
         description: val('of-desc') || null,
+        redeem_info: val('of-redeem') || null,
         terms: val('of-terms') || null,
         deal_type: 'bogo',
         valid_from: val('of-from') || null,
