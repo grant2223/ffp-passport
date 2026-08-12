@@ -24,7 +24,7 @@
   async function render() {
     var el = document.getElementById('fund-body');
     if (!el) return;
-    el.innerHTML = '<div style="padding:20px;color:#8a99a8;">Loading Community Fund…</div>';
+    el.innerHTML = '<div style="padding:20px;color:#8a99a8;">Loading Activity Fund…</div>';
     var d = {}, ledger = [], grants = [];
     try {
       var r = await sb().rpc('admin_community_funds');
@@ -52,7 +52,7 @@
         '<button onclick="AdminFund.grant()" style="padding:11px 18px;border:none;background:#1980AD;color:#fff;border-radius:10px;font-weight:800;cursor:pointer;white-space:nowrap;"><span class="material-icons" style="vertical-align:-5px;font-size:19px;">volunteer_activism</span> Record a grant</button>' +
       '</div>' +
       '<div style="background:#eef6fb;border:1px solid #cfe6f3;border-radius:10px;padding:10px 14px;margin:0 0 18px;color:#1b5b7a;font-size:12.5px;line-height:1.5;">' +
-        '<b>5%</b> of every paid Passport subscription is ring-fenced to the member’s city fund. <b>Available = raised − granted.</b> Recording a grant tracks money committed to a cause — you make the actual payment externally.</div>';
+        '<b>5%</b> of every paid Passport subscription is ring-fenced to the member’s city fund, put towards local initiatives that support an active lifestyle. <b>Available = raised − granted.</b> Recording a grant tracks money committed to an initiative — you make the actual payment externally.</div>';
 
     var body = countries.length ? countries.map(function (c) {
       var cities = (c.cities || []).map(function (ci) {
