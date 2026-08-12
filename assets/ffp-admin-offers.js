@@ -128,23 +128,36 @@
       if (r.error) throw r.error;
       var rows = r.data || [];
       if (!rows.length) { el.innerHTML = '<div style="padding:24px;color:#8a99a8;">No offers yet. Add one with the button above.</div>'; return; }
+      // Surface the review queue: pending offers first, otherwise newest-first (already sorted by created).
+      rows.sort(function (a, b) { return (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1); });
+      var pendingCount = rows.filter(function (o) { return o.status === 'pending'; }).length;
+      var badge = function (s) {
+        var map = { live: ['#e3f4ea', '#127a52', 'Live'], pending: ['#fff3d6', '#8a6100', 'Pending review'], paused: ['#f0f2f4', '#8a99a8', 'Paused'], rejected: ['#fdecea', '#c0392b', 'Rejected'] };
+        var x = map[s] || ['#f0f2f4', '#8a99a8', s || '—'];
+        return '<span style="font-size:11px;font-weight:800;padding:3px 9px;border-radius:20px;background:' + x[0] + ';color:' + x[1] + ';">' + esc(x[2]) + '</span>';
+      };
       var body = rows.map(function (o) {
         var live = o.status === 'live';
+        var pending = o.status === 'pending';
         var valid = [o.valid_from, o.valid_to].filter(Boolean).join(' → ') || 'No dates';
         var src = o.source === 'admin' ? 'External (admin)' : 'Partner';
-        return '<tr style="border-bottom:1px solid #eef2f5;">' +
+        var actions =
+          // Review actions for partner-submitted offers awaiting verification.
+          (pending ? '<button onclick="AdminOffers.setStatus(\'' + o.id + '\',\'live\')" title="Approve & publish" style="border:none;background:none;cursor:pointer;color:#127a52;font-size:18px;"><span class="material-icons">check_circle</span></button>' +
+                     '<button onclick="AdminOffers.setStatus(\'' + o.id + '\',\'rejected\')" title="Reject" style="border:none;background:none;cursor:pointer;color:#c0392b;font-size:18px;"><span class="material-icons">cancel</span></button>' : '') +
+          '<button onclick=\'AdminOffers.edit(' + JSON.stringify(o).replace(/'/g, "&#39;") + ')\' title="Edit" style="border:none;background:none;cursor:pointer;color:#1980AD;font-size:18px;"><span class="material-icons">edit</span></button>' +
+          ((live || o.status === 'paused') ? '<button onclick="AdminOffers.setStatus(\'' + o.id + '\',\'' + (live ? 'paused' : 'live') + '\')" title="' + (live ? 'Pause' : 'Activate') + '" style="border:none;background:none;cursor:pointer;color:#5b6b75;font-size:18px;"><span class="material-icons">' + (live ? 'pause_circle' : 'play_circle') + '</span></button>' : '') +
+          '<button onclick="AdminOffers.remove(\'' + o.id + '\')" title="Delete" style="border:none;background:none;cursor:pointer;color:#d9534f;font-size:18px;"><span class="material-icons">delete</span></button>';
+        return '<tr style="border-bottom:1px solid #eef2f5;' + (pending ? 'background:#fffdf5;' : '') + '">' +
           '<td style="padding:10px 12px;"><b>' + esc(o.partner_name || '—') + '</b><div style="font-size:11px;color:#8a99a8;">' + esc(o.city || '') + ' · ' + src + '</div></td>' +
           '<td style="padding:10px 12px;">' + esc(o.title || '') + '</td>' +
           '<td style="padding:10px 12px;font-size:12px;color:#5b6b75;">' + esc(valid) + '</td>' +
           '<td style="padding:10px 12px;text-align:center;">' + (o.redeemed_count || 0) + '</td>' +
-          '<td style="padding:10px 12px;"><span style="font-size:11px;font-weight:800;padding:3px 9px;border-radius:20px;background:' + (live ? '#e3f4ea;color:#127a52' : '#f0f2f4;color:#8a99a8') + ';">' + esc(o.status) + '</span></td>' +
-          '<td style="padding:10px 12px;white-space:nowrap;text-align:right;">' +
-            '<button onclick=\'AdminOffers.edit(' + JSON.stringify(o).replace(/'/g, "&#39;") + ')\' title="Edit" style="border:none;background:none;cursor:pointer;color:#1980AD;font-size:18px;"><span class="material-icons">edit</span></button>' +
-            '<button onclick="AdminOffers.setStatus(\'' + o.id + '\',\'' + (live ? 'paused' : 'live') + '\')" title="' + (live ? 'Pause' : 'Activate') + '" style="border:none;background:none;cursor:pointer;color:#5b6b75;font-size:18px;"><span class="material-icons">' + (live ? 'pause_circle' : 'play_circle') + '</span></button>' +
-            '<button onclick="AdminOffers.remove(\'' + o.id + '\')" title="Delete" style="border:none;background:none;cursor:pointer;color:#d9534f;font-size:18px;"><span class="material-icons">delete</span></button>' +
-          '</td></tr>';
+          '<td style="padding:10px 12px;">' + badge(o.status) + '</td>' +
+          '<td style="padding:10px 12px;white-space:nowrap;text-align:right;">' + actions + '</td></tr>';
       }).join('');
-      el.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+      var queue = pendingCount ? '<div style="background:#fff8e6;border:1px solid #f2e2a8;border-radius:10px;padding:10px 14px;margin-bottom:12px;color:#7a5c00;font-size:13px;font-weight:700;">' + pendingCount + ' offer' + (pendingCount > 1 ? 's' : '') + ' awaiting review — approve to publish to members.</div>' : '';
+      el.innerHTML = queue + '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
         '<thead><tr style="text-align:left;color:#8a99a8;font-size:11px;text-transform:uppercase;letter-spacing:.4px;">' +
         '<th style="padding:8px 12px;">Partner</th><th style="padding:8px 12px;">Offer</th><th style="padding:8px 12px;">Valid</th><th style="padding:8px 12px;text-align:center;">Redeemed</th><th style="padding:8px 12px;">Status</th><th></th>' +
         '</tr></thead><tbody>' + body + '</tbody></table>';
