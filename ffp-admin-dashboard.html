@@ -2171,7 +2171,7 @@ body.ffp-role-staff [data-owner-only] { display: none !important; }
     <section class="panel" id="panel-fund">
       <div class="panel-head">
         <h1>Community Fund</h1>
-        <div class="panel-head-sub">5% of every Passport subscription payment is ring-fenced to the member's city fund, rolling up to country. Tracking only — no funds are disbursed here yet.</div>
+        <div class="panel-head-sub">5% of every Passport subscription payment is ring-fenced to the member's city fund, rolling up to country. Available = raised − grants. Record grants here; make the actual payment externally.</div>
       </div>
       <div class="section">
         <div id="fund-body"><div style="padding:20px;color:#8a99a8;">Loading…</div></div>
@@ -2783,7 +2783,7 @@ const App = {
       var sc = document.createElement('script');
       // Cache-bust lazy loaders so a new deploy never serves a stale cached .js.
       // BUMP this with the dashboard build number on every deploy (matches footer build).
-      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=74'; sc.async = false;
+      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=75'; sc.async = false;
       sc.onload = function () {
         if (panelId === 'panel-analytics') {
           setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 80);
