@@ -156,9 +156,11 @@
   }
   async function init() {
     await waitFor(function () { return window.supabase && document.querySelector('.sidebar-nav') && document.querySelector('.panel') && window.App; }, 30000);
-    await waitFor(function () { return !!window.FFP_ADMIN; }, 30000);
-    injectCss(); injectUi(); Banners.load();
-    try { console.log('[FFP Admin Banners v1] loaded ✓'); } catch (e) {}
+    injectCss(); injectUi();
+    // The banner list is RLS-protected server-side and authed via the stored JWT header, so it does NOT
+    // need to wait for window.FFP_ADMIN (which was costing up to 30s). Load as soon as the client is ready.
+    Banners.load();
+    try { console.log('[FFP Admin Banners v2] loaded ✓'); } catch (e) {}
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
