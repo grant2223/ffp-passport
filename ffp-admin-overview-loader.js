@@ -66,13 +66,14 @@
   }
   function initial(n) { return (n && n.length) ? n[0].toUpperCase() : '?'; }
 
-  // Wait until Supabase has actually RESTORED an auth session (it hydrates async from
-  // localStorage). Without this the RPC can fire anonymous → is_admin() false → 'not authorized'.
+  // The admin client authenticates via a stored JWT header (persistSession:false), so
+  // supabase.auth.getSession() is ALWAYS empty — polling it just wasted up to 15s on every load.
+  // What actually makes admin_overview() authorised is the stored JWT / admin identity, so wait for THAT.
   async function waitForSession(ms) {
-    var lim = Math.ceil((ms || 15000) / 150);
+    var lim = Math.ceil((ms || 6000) / 100);
     for (var i = 0; i < lim; i++) {
-      try { var s = await window.supabase.auth.getSession(); if (s && s.data && s.data.session) return true; } catch (e) {}
-      await new Promise(function (r) { setTimeout(r, 150); });
+      if (window.FFP_ADMIN || (window.FFPAuth && FFPAuth.getJwt && FFPAuth.getJwt())) return true;
+      await new Promise(function (r) { setTimeout(r, 100); });
     }
     return false;
   }
@@ -82,7 +83,7 @@
     attempt = attempt || 0;
     try {
       if (!window.supabase) return;
-      await waitForSession(attempt === 0 ? 15000 : 3000);
+      await waitForSession(attempt === 0 ? 6000 : 2000);
       var r = await window.supabase.rpc('admin_overview');
       if (r.error || !r.data) {
         // Session may still be attaching on first paint — retry a couple of times before giving up.
