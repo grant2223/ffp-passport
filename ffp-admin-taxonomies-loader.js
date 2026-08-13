@@ -30,6 +30,7 @@
     { key: 'professional_role', name: 'Professions' },
     { key: 'category',        name: 'Provider Categories' },
     { key: 'experience_type', name: 'Experience Types' },
+    { key: 'wga_dream_type',  name: 'WGA Dream Types' },
     { key: 'fitness_level',   name: 'Fitness Levels' },
     { key: 'country',         name: 'Countries' },
     { key: 'city',            name: 'Cities', nested: true },
