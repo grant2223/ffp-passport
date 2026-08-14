@@ -91,6 +91,61 @@
      (USD $99 / $250 / 5-10-20%); was demo AED. -->
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons&display=block" rel="stylesheet">
+<!-- PERF INSTRUMENT — measures every Supabase call so we can see exactly where load time goes.
+     Shows a badge (bottom-right) with the slowest recent query; full list in console as [perf].
+     Toggle off by removing this block. -->
+<script>
+(function () {
+  var origFetch = window.fetch;
+  window.__perf = { calls: [], reset: function () { this.calls = []; paint(); } };
+  var badge;
+  function ensureBadge() {
+    if (badge) return badge;
+    badge = document.createElement('div');
+    badge.id = 'perf-badge';
+    badge.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:99999;background:#0b1622;color:#cfe6f3;border:1px solid #2ba8e0;border-radius:10px;padding:8px 11px;font:600 12px/1.4 Montserrat,system-ui,sans-serif;box-shadow:0 8px 22px rgba(0,0,0,.4);max-width:340px;cursor:pointer;';
+    badge.title = 'Click to reset';
+    badge.onclick = function () { window.__perf.reset(); };
+    (document.body || document.documentElement).appendChild(badge);
+    return badge;
+  }
+  function paint() {
+    var b = ensureBadge();
+    var calls = window.__perf.calls;
+    if (!calls.length) { b.innerHTML = '⏱ waiting for queries…'; return; }
+    var total = calls.reduce(function (a, c) { return a + c.ms; }, 0);
+    var worst = calls.slice().sort(function (a, c) { return c.ms - a.ms; })[0];
+    b.innerHTML = '⏱ <b style="color:#7fd6ff">' + Math.round(total) + 'ms</b> total · ' + calls.length + ' calls' +
+      '<br>slowest: <b style="color:' + (worst.ms > 1200 ? '#ff7b7b' : '#7fd6ff') + '">' + Math.round(worst.ms) + 'ms</b> ' + worst.name;
+  }
+  window.fetch = function () {
+    var a0 = arguments[0];
+    var url = (a0 && a0.url) ? a0.url : String(a0 || '');
+    var isSb = /\/rest\/v1\/|\/auth\/v1\/|\/rpc\//.test(url);
+    if (!isSb) return origFetch.apply(this, arguments);
+    var t0 = performance.now();
+    var name = (url.split('/rest/v1/')[1] || url.split('/auth/v1/')[1] || url).split('?')[0];
+    return origFetch.apply(this, arguments).then(function (r) {
+      var ms = performance.now() - t0;
+      window.__perf.calls.push({ name: name, ms: ms });
+      if (ms > 250) { try { console.log('[perf]', Math.round(ms) + 'ms', name); } catch (e) {} }
+      paint();
+      return r;
+    }, function (e) { paint(); throw e; });
+  };
+  window.addEventListener('load', function () {
+    try {
+      var nav = performance.getEntriesByType('navigation')[0];
+      if (nav) console.log('[perf] DOM ready ' + Math.round(nav.domContentLoadedEventEnd) + 'ms · page load ' + Math.round(nav.loadEventEnd) + 'ms');
+      var res = performance.getEntriesByType('resource')
+        .filter(function (r) { return /\.js(\?|$)/.test(r.name) && r.duration > 200; })
+        .sort(function (a, b) { return b.duration - a.duration; }).slice(0, 6);
+      res.forEach(function (r) { console.log('[perf] script ' + Math.round(r.duration) + 'ms', r.name.split('/').pop()); });
+    } catch (e) {}
+    ensureBadge(); paint();
+  });
+})();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -2800,7 +2855,7 @@ const App = {
       var sc = document.createElement('script');
       // Cache-bust lazy loaders so a new deploy never serves a stale cached .js.
       // BUMP this with the dashboard build number on every deploy (matches footer build).
-      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=77'; sc.async = false;
+      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=78'; sc.async = false;
       sc.onload = function () {
         if (panelId === 'panel-analytics') {
           setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 80);
