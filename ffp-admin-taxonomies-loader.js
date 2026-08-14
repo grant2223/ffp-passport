@@ -103,10 +103,13 @@
   }
 
   async function fetchAll() {
+    // range(0, 9999): without an explicit range PostgREST caps at 1000 rows, which (ordered by list_key)
+    // truncated the alphabetically-last lists — Professions/Provider Types/WGA Dream Types showed 0 items.
     var res = await sb().from('taxonomy_items')
       .select('id, list_key, value, label, sort_order, active, parent, code')
       .order('list_key', { ascending: true })
-      .order('sort_order', { ascending: true });
+      .order('sort_order', { ascending: true })
+      .range(0, 9999);
     if (res.error) { console.error('[Taxonomies] fetch', res.error); toast('Could not load taxonomy', 'error'); return; }
     var by = {};
     LISTS.forEach(function (l) { by[l.key] = []; });
