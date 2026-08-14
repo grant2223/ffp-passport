@@ -218,6 +218,10 @@
         '<input type="file" id="q-hero-file" accept="image/*" style="display:none" onchange="AdminQuests.uploadHero(this)">' +
         '<button type="button" class="btn btn-ghost" onclick="document.getElementById(\'q-hero-file\').click()"><span class="material-icons">upload</span> Upload image</button>' +
         '<input type="hidden" id="q-hero" value="' + esc(q ? (q.hero_image_url || '') : '') + '"></div>' +
+      '<div class="qf-row"><label>Sponsors</label>' +
+        (q ? '<div id="q-sponsors-wrap" style="font-size:13px;color:#8a99a8;">Loading…</div>'
+           : '<div style="color:#8a99a8;font-size:13px;padding:14px;border:1px dashed #294257;border-radius:10px;">Save the quest first, then add the presented-by banner and supporter logos here.</div>') +
+      '</div>' +
       '</div>' +
       '<div class="qf-pane" id="qf-pane-tasks" style="display:none;">' +
       '<div id="q-missions-wrap">' +
@@ -231,6 +235,67 @@
     scopeChange();
     modeChange();
     if (q) renderTasks();
+    if (q) renderSponsors(q.id);
+  }
+
+  // ── Sponsors sub-editor (presented-by banner + supporter logos → quest_sponsors) ──
+  var SPQ = null;
+  async function uploadToSponsors(file) {
+    var ext = ((file.name || '').split('.').pop() || 'jpg').toLowerCase();
+    if (!/^(jpg|jpeg|png|webp|svg)$/.test(ext)) ext = 'jpg';
+    var ct = file.type || 'image/jpeg';
+    var path = 's-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+    var token = (window.FFPAuth && window.FFPAuth.getJwt && window.FFPAuth.getJwt()) || SB_ANON;
+    var resp = await window.fetch(SB_URL + '/storage/v1/object/quest-sponsors/' + path, { method: 'POST', headers: { 'apikey': SB_ANON, 'Authorization': 'Bearer ' + token, 'Content-Type': ct, 'x-upsert': 'true', 'cache-control': '3600' }, body: file });
+    if (!resp || !resp.ok) { var d = ''; try { d = await resp.text(); } catch (e) {} throw new Error('HTTP ' + (resp ? resp.status : '?') + (d ? ' — ' + d.slice(0, 160) : '')); }
+    return SB_URL + '/storage/v1/object/public/quest-sponsors/' + path;
+  }
+  async function renderSponsors(questId) {
+    if (questId) SPQ = questId;
+    var wrap = document.getElementById('q-sponsors-wrap'); if (!wrap || !SPQ) return;
+    var r = await window.supabase.from('quest_sponsors').select('id,logo_url,link_url,tier,sort_order').eq('quest_id', SPQ).order('tier', { ascending: true }).order('sort_order', { ascending: true });
+    var rows = (r && !r.error && r.data) || [];
+    var pres = rows.filter(function (x) { return x.tier === 'presented'; })[0];
+    var sup = rows.filter(function (x) { return x.tier !== 'presented'; });
+    var linkIn = function (s, ph) { return '<input value="' + esc(s.link_url || '') + '" placeholder="' + ph + '" onchange="AdminQuests.setSponsorLink(\'' + s.id + '\',this.value)" style="flex:1;min-width:0;padding:8px 10px;border:1px solid #294257;border-radius:8px;background:#0b1622;color:#e8eef4;font-size:12px;">'; };
+    var del = function (id) { return '<button type="button" class="btn btn-ghost" onclick="AdminQuests.removeSponsor(\'' + id + '\')"><span class="material-icons">delete</span></button>'; };
+    var h = '<div style="font-weight:800;color:#cfd6dc;margin:2px 0 6px;font-size:12px;">Presented by — banner</div>';
+    if (pres) {
+      h += '<div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;"><div style="width:120px;height:46px;border-radius:8px;background:#0f2335 center/cover no-repeat;background-image:url(\'' + esc(pres.logo_url) + '\');flex:none;"></div>' + linkIn(pres, 'Link URL (https://…)') + del(pres.id) + '</div>';
+    } else {
+      h += '<button type="button" class="btn btn-ghost" style="margin-bottom:12px;" onclick="document.getElementById(\'sp-pres-file\').click()"><span class="material-icons">add_photo_alternate</span> Upload banner</button>';
+    }
+    h += '<input type="file" id="sp-pres-file" accept="image/*" style="display:none" onchange="AdminQuests.uploadSponsor(this,\'presented\')">';
+    h += '<div style="font-weight:800;color:#cfd6dc;margin:6px 0 6px;font-size:12px;">Supported by — logos</div>';
+    sup.forEach(function (s) {
+      h += '<div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;"><div style="width:46px;height:46px;border-radius:8px;background:#fff center/contain no-repeat;background-image:url(\'' + esc(s.logo_url) + '\');flex:none;border:1px solid #294257;"></div>' + linkIn(s, 'Link URL (optional)') + del(s.id) + '</div>';
+    });
+    h += '<button type="button" class="btn btn-ghost" onclick="document.getElementById(\'sp-sup-file\').click()"><span class="material-icons">add</span> Add supporter logo</button>';
+    h += '<input type="file" id="sp-sup-file" accept="image/*" style="display:none" onchange="AdminQuests.uploadSponsor(this,\'supporter\')">';
+    wrap.innerHTML = h;
+  }
+  async function uploadSponsor(input, tier) {
+    var file = input && input.files && input.files[0]; if (!file || !SPQ) return;
+    toast('Uploading…', 'info');
+    try {
+      var url = await uploadToSponsors(file);
+      var mx = 0;
+      var r = await window.supabase.from('quest_sponsors').select('sort_order').eq('quest_id', SPQ).eq('tier', tier).order('sort_order', { ascending: false }).limit(1);
+      if (r && r.data && r.data[0]) mx = (r.data[0].sort_order || 0) + 1;
+      var ins = await window.supabase.from('quest_sponsors').insert({ quest_id: SPQ, logo_url: url, tier: tier, sort_order: mx });
+      if (ins.error) throw ins.error;
+      toast('Sponsor added ✓', 'success'); renderSponsors(SPQ);
+    } catch (e) { toast('Upload failed: ' + ((e && e.message) || 'error'), 'error'); }
+    finally { try { input.value = ''; } catch (e) {} }
+  }
+  async function setSponsorLink(id, val) {
+    var r = await window.supabase.from('quest_sponsors').update({ link_url: (val || '').trim() || null }).eq('id', id);
+    toast(r && r.error ? 'Could not save link' : 'Link saved', r && r.error ? 'error' : 'success');
+  }
+  async function removeSponsor(id) {
+    if (typeof window !== 'undefined' && !window.confirm('Remove this sponsor?')) return;
+    await window.supabase.from('quest_sponsors').delete().eq('id', id);
+    renderSponsors(SPQ);
   }
   // Format = Solo | Pair | Team (mutually exclusive). Show only the chosen format's options.
   function formatChange() {
@@ -581,6 +646,7 @@
     openForm: openForm, save: save, setStatus: setStatus, refresh: refresh,
     setTab: function (t) { S.tab = t; renderList(); },
     uploadHero: uploadHero, qtProofChange: qtProofChange, qtCatChange: qtCatChange, modeChange: modeChange, formatChange: formatChange, formTab: formTab,
+    renderSponsors: renderSponsors, uploadSponsor: uploadSponsor, setSponsorLink: setSponsorLink, removeSponsor: removeSponsor,
     scopeChange: scopeChange, countryChange: countryChange,
     saveTask: saveTask, editTask: editTask, cancelTaskEdit: cancelTaskEdit, deleteTask: deleteTask, review: review
   };
