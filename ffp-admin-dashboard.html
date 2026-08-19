@@ -2830,7 +2830,7 @@ const App = {
     'panel-fund':         'assets/ffp-admin-fund-loader.js',
     'panel-wga':          'assets/ffp-admin-wga-loader.js',
     'panel-feedback':     'ffp-admin-feedback-loader.js',
-    'panel-members':      'ffp-admin-members-loader.js?v=6',
+    'panel-members':      'ffp-admin-members-loader.js?v=7',
     'panel-quests':       'ffp-admin-quests-loader.js?v=4',
     'panel-events':       'ffp-admin-events-loader.js',
     'panel-experiences':  'ffp-admin-experiences-loader.js?v=3',
@@ -4102,6 +4102,18 @@ const Drawer = {
             <button class="btn btn-sm btn-danger" onclick="AdminMembers.eraseData('${m.id}')"><span class="material-icons">delete_forever</span>Erase</button>
           </div>
         </div>
+        <div class="info-row" style="margin-top:10px;border-top:1px solid var(--border,#1d3346);padding-top:12px;">
+          <div class="info-row-label">Membership</div>
+          <div class="info-row-value"><span class="pill" style="background:${m.mtype.bg};color:${m.mtype.fg};">${m.mtype.label}</span></div>
+        </div>
+        <div class="info-row" style="padding-top:8px;">
+          <div class="info-row-label">Manage account</div>
+          <div class="info-row-value" style="display:flex;gap:8px;flex-wrap:wrap;">
+            ${m.mtype.passport
+              ? `${!m.mtype.nosub ? `<button class="btn btn-sm btn-outline" onclick="AdminMembers.cancelSubscription('${m.id}')"><span class="material-icons">credit_card_off</span>Cancel subscription</button>` : ''}<button class="btn btn-sm btn-danger" onclick="AdminMembers.makeStandard('${m.id}')"><span class="material-icons">arrow_downward</span>Downgrade to Standard</button>`
+              : `<button class="btn btn-sm btn-blue" onclick="AdminMembers.grantPassport('${m.id}')"><span class="material-icons">verified</span>Switch to Passport</button>`}
+          </div>
+        </div>
       </div>
 
       <div class="drawer-pane" data-dtab="activity">
@@ -4228,9 +4240,35 @@ const Drawer = {
     `);
   },
 
-  editField(fieldName) {
-    showToast(`Inline edit for "${fieldName}" — opens edit form`);
-    // PRODUCTION: open inline editor or modal; on save, update Supabase row + audit log
+  async editField(fieldName) {
+    if (!this.current) return;
+    const kind = this.current.kind;
+    const row = this.current.data;
+    const table = kind === 'provider' ? 'providers' : (kind === 'member' ? 'members' : null);
+    if (!table) { showToast('Not editable here', 'error'); return; }
+    // Computed / non-column fields can't be edited directly.
+    if (kind === 'member' && fieldName === 'balance') { showToast('Balance is calculated from the wallet — not editable here', 'error'); return; }
+    const cur = (row[fieldName] != null ? String(row[fieldName]) : '');
+    const label = String(fieldName).replace(/_/g, ' ');
+    const next = window.prompt('Edit ' + label + ':', cur);
+    if (next === null) return;                       // cancelled
+    const val = next.trim();
+    if (val === cur) return;                          // no change
+    try {
+      if (!window.supabase) throw new Error('not connected');
+      const res = await window.supabase.from(table).update({ [fieldName]: (val || null) }).eq('id', row.id);
+      if (res.error) throw res.error;
+      row[fieldName] = val;                           // reflect locally
+      const who = (row.business_name || row.full_name || row.id);
+      try { AuditLog.add(null, 'edited ' + kind + ' ' + fieldName + ' → "' + val + '" (' + who + ')'); } catch (e) {}
+      showToast('Saved', 'success');
+      // Refresh the drawer + underlying list so the change is visible everywhere.
+      if (kind === 'provider') { this.openProvider(row.id); try { AdminProviders.render(); } catch (e) {} }
+      else { this.openMember(row.id); try { AdminMembers.render(); } catch (e) {} }
+    } catch (e) {
+      console.error('[Drawer.editField]', e);
+      showToast(e.message || 'Save failed', 'error');
+    }
   },
   
   suspendMember(id) {
