@@ -1,4 +1,7 @@
-/* FFP Admin Members Loader — v5 (2026-05-31)
+/* FFP Admin Members Loader — v6 (2026-08-20)
+   v6: admin account management — grant comp Passport, downgrade Passport→Standard, and cancel a
+       member's Stripe subscription (no future charge). Actions call the admin-gated backend
+       /api/admin/member/subscription; the member drawer's "Manage account" buttons trigger them.
    v5: realtime refresh is suppressed while an admin is editing a tier/expiry control, so
        the expiry date picker is not destroyed mid-selection.
    v4 (history):
@@ -130,6 +133,42 @@
         toast(on ? 'Marked Lifetime ★' : 'Lifetime removed', 'success');
         refresh();
       } catch (e) { console.error('[Members] setLifetime threw', e); toast('Update failed', 'error'); }
+    };
+
+    // v6: admin account management — flip Standard↔Passport + cancel subscription (no future charge).
+    // Membership changes + Stripe cancel go through the admin-gated backend so Stripe is handled server-side.
+    var BACKEND = 'https://ffp-passport-backend.vercel.app';
+    function jwtHeader() { var t = null; try { t = localStorage.getItem('ffp_jwt'); } catch (e) {} return t ? { 'Authorization': 'Bearer ' + t } : {}; }
+    async function adminSub(id, action, months) {
+      var res = await fetch(BACKEND + '/api/admin/member/subscription', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, jwtHeader()),
+        body: JSON.stringify({ member_id: id, action: action, months: months })
+      });
+      var out = await res.json().catch(function () { return {}; });
+      if (!res.ok || out.error) throw new Error(out.error || ('HTTP ' + res.status));
+      return out;
+    }
+    async function afterChange(id, label) {
+      if (window.AuditLog) AuditLog.add(null, label + ' — member ' + id);
+      await refresh();
+      // Reopen the drawer so it reflects the new membership state.
+      try { if (window.Drawer && Drawer.current && Drawer.current.data && Drawer.current.data.id === id) Drawer.openMember(id); } catch (e) {}
+    }
+    am.grantPassport = async function (id) {
+      if (!confirm('Switch this member to a Passport account? (No Stripe charge — use for members who have paid another way.)')) return;
+      try { await adminSub(id, 'grant_passport', 12); toast('Switched to Passport', 'success'); await afterChange(id, 'switched to Passport'); }
+      catch (e) { console.error('[Members] grantPassport', e); toast(e.message || 'Could not switch to Passport', 'error'); }
+    };
+    am.makeStandard = async function (id) {
+      if (!confirm('Downgrade this member to Standard now and stop any future charge?')) return;
+      try { await adminSub(id, 'make_standard'); toast('Downgraded to Standard · no future charge', 'success'); await afterChange(id, 'downgraded to Standard'); }
+      catch (e) { console.error('[Members] makeStandard', e); toast(e.message || 'Could not downgrade', 'error'); }
+    };
+    am.cancelSubscription = async function (id) {
+      if (!confirm('Cancel this member\'s subscription so they are NOT charged again? They keep Passport until the current period ends.')) return;
+      try { await adminSub(id, 'cancel'); toast('Subscription cancelled · no future charge', 'success'); await afterChange(id, 'cancelled subscription'); }
+      catch (e) { console.error('[Members] cancelSubscription', e); toast(e.message || 'Could not cancel', 'error'); }
     };
 
     // v4: fetch only when the admin session is confirmed (event-driven, no race).
