@@ -2841,7 +2841,7 @@ const App = {
     'panel-meetups':      'ffp-admin-meetups-loader.js',
     'panel-analytics':    'ffp-admin-analytics-loader.js',
     'panel-community-health': 'ffp-admin-health-loader.js',
-    'panel-taxonomies':   'ffp-admin-taxonomies-loader.js?v=2',
+    'panel-taxonomies':   'ffp-admin-taxonomies-loader.js?v=3',
     'panel-exercises':    'ffp-admin-exercises-loader.js?v=4',
     'panel-professionals':'ffp-admin-professionals-loader.js',
     'panel-settings':     'ffp-admin-settings-loader.js?v=3'
@@ -3333,23 +3333,29 @@ const AdminMembers = {
     } catch (e) { console.error('[GDPR export]', e); if (window.showToast) showToast(e.message || 'Export failed', 'error'); }
   },
 
-  // ── GDPR: erasure (right to be forgotten) — deletes behavioural/health data + anonymizes the account ──
+  // ── GDPR: erasure (right to be forgotten) — PERMANENT HARD DELETE. Cancels the Stripe subscription
+  //    immediately (no future/trial charge), removes the member row + ALL their data, and deletes the
+  //    login. No "Deleted member" ghost. Goes through the admin-gated backend so Stripe is handled server-side.
   async eraseData(id) {
     var m = (this.data || []).find(function (x) { return x.id === id; });
     var name = m ? (m.full_name || m.email) : 'this member';
-    if (!confirm('GDPR ERASE ' + name + '?\n\nThis deletes their activity, food, wearable, quest and review data and anonymizes the account. Financial / booking records are kept but de-identified. This CANNOT be undone.')) return;
-    if (!confirm('Final confirmation — permanently erase ' + name + '?')) return;
-    var admin = window.FFP_ADMIN && window.FFP_ADMIN.id;
-    if (!admin) { if (window.showToast) showToast('Admin session not ready — reload.', 'error'); return; }
+    if (!confirm('PERMANENTLY DELETE ' + name + '?\n\nThis cancels any subscription (no future charge) and HARD-deletes the account and all their data. This CANNOT be undone.')) return;
+    if (!confirm('Final confirmation — permanently delete ' + name + '?')) return;
     try {
-      var res = await window.supabase.rpc('admin_erase_member', { p_admin: admin, p_member: id, p_confirm: true });
-      if (res.error) throw res.error;
-      if (window.showToast) showToast('Member erased + anonymized', 'check');
+      var t = null; try { t = localStorage.getItem('ffp_jwt'); } catch (e0) {}
+      var res = await fetch('https://ffp-passport-backend.vercel.app/api/admin/member/erase', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, t ? { 'Authorization': 'Bearer ' + t } : {}),
+        body: JSON.stringify({ member_id: id })
+      });
+      var out = await res.json().catch(function () { return {}; });
+      if (!res.ok || out.error) throw new Error(out.error || ('HTTP ' + res.status));
+      if (window.showToast) showToast('Member permanently deleted', 'check');
       try { if (window.Drawer && Drawer.close) Drawer.close(); } catch (e2) {}
       if (typeof this.load === 'function') this.load();
       else if (typeof this.refresh === 'function') this.refresh();
       else location.reload();
-    } catch (e) { console.error('[GDPR erase]', e); if (window.showToast) showToast(e.message || 'Erase failed', 'error'); }
+    } catch (e) { console.error('[GDPR erase]', e); if (window.showToast) showToast(e.message || 'Delete failed', 'error'); }
   }
 };
 
