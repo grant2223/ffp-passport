@@ -1,6 +1,11 @@
-/* FFP Admin — Explore Banners loader (v1)
-   Self-injects a sidebar link + panel + full CRUD for the app's Explore promo card.
-   Table: explore_banners (title, subtitle, cta_label, link, image_url, city, active, sort_order).
+/* FFP Admin — Explore Banners loader (v3)
+   Self-injects a sidebar link + panel + full CRUD for the app's promo banners.
+   Table: explore_banners (title, subtitle, cta_label, link, image_url, city, placement, active, sort_order).
+   v3 (2026-08-21): (a) DESTINATION PICKER — quick page chips (Explore home/Classes/Experiences/Events/
+       Trips/Offers) + a partner search that fills the link with /provider/<id>, so admins don't type raw
+       URLs. (b) PLACEMENT targeting — "Show it on" select (Explore & Home / Explore only / Home only),
+       new `placement` column; the FFP App filters banners by it (explore_home RPC = explore/both, Home
+       feed HomeBanner = home/both). "Shows on" column added to the table.
    Loaded directly (not lazy) so it can inject its own nav link + panel on page load. */
 (function () {
   'use strict';
@@ -20,11 +25,13 @@
     },
     render() {
       var b = document.getElementById('banners-tbody'); if (!b) return;
-      if (!this.data.length) { b.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#8a9aa4;padding:26px;">No banners yet — tap “Add banner”.</td></tr>'; return; }
+      if (!this.data.length) { b.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#8a9aa4;padding:26px;">No banners yet — tap “Add banner”.</td></tr>'; return; }
+      var placeLbl = function (pl) { return pl === 'explore' ? 'Explore' : (pl === 'home' ? 'Home' : 'Explore & Home'); };
       b.innerHTML = this.data.map(function (d) {
         return '<tr>' +
           '<td><strong>' + esc(d.title || '(image banner)') + '</strong><div style="font-size:11px;color:#8a9aa4;margin-top:2px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(d.subtitle || '') + '</div></td>' +
           '<td>' + esc(d.city || 'All') + '</td>' +
+          '<td><span class="ffp-bplace">' + placeLbl(d.placement || 'both') + '</span></td>' +
           '<td>' + esc(d.cta_label || '') + '</td>' +
           '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#5b6b75;">' + esc(d.link || '') + '</td>' +
           '<td><span class="ffp-bpill' + (d.active ? ' on' : '') + '">' + (d.active ? 'Active' : 'Off') + '</span></td>' +
@@ -46,7 +53,14 @@
           fld('Headline', 'b_title', d.title || '', 'text', true) +
           fld('Subtitle', 'b_subtitle', d.subtitle || '', 'text', true) +
           fld('Button label', 'b_cta', d.cta_label || '', 'text', true) +
-          fld('Link (e.g. /provider/123 or /explore/sessions)', 'b_link', d.link || '', 'text', true) +
+          '<div class="ffp-bfld"><span>Where it links <em class="ffp-bopt">Optional</em></span>' +
+            '<input id="b_link" type="text" value="' + esc(d.link || '') + '" placeholder="/provider/123 or /explore/sessions">' +
+            '<div class="ffp-bquick">' +
+              [['Explore home', '/explore'], ['Classes', '/explore/sessions'], ['Experiences', '/explore/experiences'], ['Events', '/explore/events'], ['Trips', '/explore/trips'], ['Offers', '/passport/offers']]
+                .map(function (q) { return '<button type="button" class="ffp-bqchip" onclick="AdminBanners.setLink(\'' + q[1] + '\')">' + q[0] + '</button>'; }).join('') +
+            '</div>' +
+            '<div class="ffp-bprov"><input id="b_provq" placeholder="…or search a partner to link to its page" oninput="AdminBanners.searchProv(this.value)"><div id="b_provres" class="ffp-bprovres"></div></div>' +
+          '</div>' +
           '<div class="ffp-bfld"><span>Banner image</span>' +
             '<input type="hidden" id="b_image" value="' + esc(d.image_url || '') + '">' +
             '<div class="ffp-bup">' +
@@ -60,6 +74,9 @@
             '</div>' +
           '</div>' +
           fld('City (blank = all cities)', 'b_city', d.city || '', 'text', true) +
+          '<div class="ffp-bfld"><span>Show it on</span><select id="b_placement" class="ffp-bsel">' +
+            ['both:Explore & Home', 'explore:Explore home only', 'home:Home feed only'].map(function (o) { var v = o.split(':')[0], l = o.split(':')[1]; return '<option value="' + v + '"' + (((d.placement || 'both') === v) ? ' selected' : '') + '>' + l + '</option>'; }).join('') +
+          '</select></div>' +
           fld('Sort order (lower = first)', 'b_sort', (d.sort_order != null ? d.sort_order : 0), 'number') +
           '<label class="ffp-bck"><input type="checkbox" id="b_active" ' + ((d.active == null || d.active) ? 'checked' : '') + '> Active (visible in the app)</label>' +
         '</div>' +
@@ -96,7 +113,8 @@
     },
     async save(id) {
       var g = function (i) { var e = document.getElementById(i); return e ? String(e.value).trim() : ''; };
-      var row = { title: g('b_title') || null, subtitle: g('b_subtitle') || null, cta_label: g('b_cta') || null, link: g('b_link') || null, image_url: g('b_image') || null, city: g('b_city') || null, sort_order: parseInt(g('b_sort') || '0', 10) || 0, active: !!document.getElementById('b_active').checked, updated_at: new Date().toISOString() };
+      var placeSel = document.getElementById('b_placement');
+      var row = { title: g('b_title') || null, subtitle: g('b_subtitle') || null, cta_label: g('b_cta') || null, link: g('b_link') || null, image_url: g('b_image') || null, city: g('b_city') || null, placement: (placeSel && placeSel.value) || 'both', sort_order: parseInt(g('b_sort') || '0', 10) || 0, active: !!document.getElementById('b_active').checked, updated_at: new Date().toISOString() };
       if (!row.title && !row.image_url) { toast('Add a headline or an image', 'error'); return; }
       try {
         var r = id ? await window.supabase.from(TABLE).update(row).eq('id', id) : await window.supabase.from(TABLE).insert(row);
@@ -111,6 +129,25 @@
     async del(id) {
       if (!window.confirm('Delete this banner? This cannot be undone.')) return;
       try { var r = await window.supabase.from(TABLE).delete().eq('id', id); if (r.error) throw r.error; toast('Deleted'); this.load(); } catch (e) { toast('Delete failed', 'error'); }
+    },
+    // Destination picker — quick pages + a partner search that fills the link with /provider/<id>.
+    setLink(url) { var l = document.getElementById('b_link'); if (l) l.value = url; },
+    async searchProv(q) {
+      q = String(q || '').trim(); var box = document.getElementById('b_provres'); if (!box) return;
+      if (q.length < 2) { box.innerHTML = ''; return; }
+      try {
+        var r = await window.supabase.from('providers').select('id,business_name,city').ilike('business_name', '%' + q + '%').eq('status', 'approved').limit(6);
+        var rows = (r && r.data) || [];
+        box.innerHTML = rows.length ? rows.map(function (p) {
+          return '<button type="button" class="ffp-bprovitem" onclick="AdminBanners.pickProv(\'' + p.id + '\',\'' + esc(p.business_name).replace(/'/g, '&#39;') + '\')">' + esc(p.business_name) + '<small>' + esc(p.city || '') + '</small></button>';
+        }).join('') : '<div class="ffp-bprovnone">No matches</div>';
+      } catch (e) { box.innerHTML = ''; }
+    },
+    pickProv(id, name) {
+      this.setLink('/provider/' + id);
+      var box = document.getElementById('b_provres'); if (box) box.innerHTML = '';
+      var q = document.getElementById('b_provq'); if (q) q.value = name;
+      toast('Linked to ' + name);
     }
   };
   window.AdminBanners = Banners;
@@ -134,6 +171,18 @@
       '.ffp-bup-prev.loading::after{content:"Uploading…";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#5b6b75;background:rgba(238,242,245,.85);border-radius:10px;}' +
       '.ffp-bup-side{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:7px;justify-content:center;}' +
       '.ffp-bup-hint{font-size:11px;color:#8a9aa4;}' +
+      '.ffp-bsel{width:100%;border:1px solid #d7dee4;border-radius:9px;padding:11px 12px;font:inherit;font-size:14px;box-sizing:border-box;color:#12232f;background:#fff;}' +
+      '.ffp-bplace{font-size:11px;font-weight:700;color:#3b5566;background:#eef4f8;border-radius:6px;padding:3px 8px;white-space:nowrap;}' +
+      '.ffp-bquick{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}' +
+      '.ffp-bqchip{font-size:11.5px;font-weight:700;color:#1980ad;background:#eef4f8;border:1px solid #d7e5ee;border-radius:999px;padding:5px 11px;cursor:pointer;}' +
+      '.ffp-bqchip:hover{background:#e2eef5;}' +
+      '.ffp-bprov{position:relative;margin-top:8px;}' +
+      '.ffp-bprov input{width:100%;border:1px solid #d7dee4;border-radius:9px;padding:10px 12px;font:inherit;font-size:13.5px;box-sizing:border-box;color:#12232f;}' +
+      '.ffp-bprovres{margin-top:4px;display:flex;flex-direction:column;gap:3px;}' +
+      '.ffp-bprovitem{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;text-align:left;background:#f6f9fb;border:1px solid #e6edf2;border-radius:8px;padding:8px 11px;font:inherit;font-size:13px;font-weight:700;color:#12232f;cursor:pointer;}' +
+      '.ffp-bprovitem:hover{background:#eaf2f7;}' +
+      '.ffp-bprovitem small{font-weight:600;color:#8a9aa4;}' +
+      '.ffp-bprovnone{font-size:12px;color:#8a9aa4;padding:6px 2px;}' +
       '.ffp-bmodal-f{padding:14px 18px;border-top:1px solid #eef1f4;display:flex;justify-content:flex-end;gap:10px;}';
     document.head.appendChild(s);
   }
@@ -149,7 +198,7 @@
       var sec = document.createElement('section'); sec.className = 'panel'; sec.id = 'panel-banners';
       sec.innerHTML = '<div class="ffp-bhead"><div><h1 style="margin:0;font-size:24px;">Explore banners</h1><p style="margin:5px 0 0;color:#8a9aa4;font-size:13px;max-width:520px;">The promotional card shown on the app’s Explore home. Add a brand promo, set which city it shows in, and toggle it on or off — changes are live instantly, no deploy.</p></div>' +
         '<button class="btn btn-blue" onclick="AdminBanners.add()"><span class="material-icons">add</span>Add banner</button></div>' +
-        '<div class="table-wrap"><table class="data-table"><thead><tr><th>Banner</th><th>City</th><th>Button</th><th>Link</th><th>Status</th><th style="text-align:right;">Actions</th></tr></thead><tbody id="banners-tbody"></tbody></table></div>';
+        '<div class="table-wrap"><table class="data-table"><thead><tr><th>Banner</th><th>City</th><th>Shows on</th><th>Button</th><th>Link</th><th>Status</th><th style="text-align:right;">Actions</th></tr></thead><tbody id="banners-tbody"></tbody></table></div>';
       anyPanel.parentNode.appendChild(sec);
     }
     try { if (window.App && App.panelNames) App.panelNames['panel-banners'] = 'Explore banners'; } catch (e) {}
