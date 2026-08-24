@@ -170,6 +170,22 @@
       try { await adminSub(id, 'cancel'); toast('Subscription cancelled · no future charge', 'success'); await afterChange(id, 'cancelled subscription'); }
       catch (e) { console.error('[Members] cancelSubscription', e); toast(e.message || 'Could not cancel', 'error'); }
     };
+    // Assign a referrer to this member (e.g. someone who signed up without the ref link). Sets referred_by AND
+    // tags their live Stripe subscription so the referrer earns commission on every FUTURE invoice.
+    am.setReferrer = async function (id) {
+      var q = window.prompt('Who referred this member? Enter the referrer\'s email or referral code:');
+      if (!q) return; q = q.trim(); if (!q) return;
+      try {
+        var res = await fetch(BACKEND + '/api/admin/member/set-referrer', {
+          method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, jwtHeader()),
+          body: JSON.stringify({ member_id: id, referrer: q })
+        });
+        var out = await res.json().catch(function () { return {}; });
+        if (!res.ok || out.error) throw new Error(out.error || ('HTTP ' + res.status));
+        toast('Referrer set: ' + (out.referrer || q) + (out.sub_updated ? ' · future invoices will credit them' : ' · no live subscription yet'), 'success');
+        await afterChange(id, 'set referrer → ' + (out.referrer || q));
+      } catch (e) { console.error('[Members] setReferrer', e); toast(e.message || 'Could not set referrer', 'error'); }
+    };
 
     // v4: fetch only when the admin session is confirmed (event-driven, no race).
     document.addEventListener('ffp-admin-ready', function () { refresh(); });
