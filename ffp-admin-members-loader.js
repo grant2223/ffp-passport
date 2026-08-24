@@ -56,7 +56,7 @@
     return { label: label, bg: bg, fg: fg, passport: passport, nosub: !hasSub, lifetime: lifetime };
   }
 
-  function mapForUi(row, owners, pros) {
+  function mapForUi(row, owners, pros, byId) {
     var name = row.full_name || row.given_names || (row.email ? row.email.split('@')[0] : 'Member');
     var days = row.created_at ? Math.floor((Date.now() - new Date(row.created_at).getTime()) / 86400000) : 0;
     return {
@@ -72,6 +72,8 @@
       status: row.status || 'active',
       role: row.role || 'member',
       verified: !!row.verified,
+      referred_by: row.referred_by || null,
+      referred_by_name: (row.referred_by && byId && byId[row.referred_by]) ? byId[row.referred_by] : null,
       mtype: classify(row, owners || {}, pros || {})
     };
   }
@@ -80,7 +82,7 @@
     try {
       var out = await Promise.all([
         window.supabase.from('members')
-          .select('id, full_name, given_names, email, city, tier, tier_expires_at, balance_aed, status, created_at, role, verified, membership, plan, stripe_subscription_id')
+          .select('id, full_name, given_names, email, city, tier, tier_expires_at, balance_aed, status, created_at, role, verified, membership, plan, stripe_subscription_id, referred_by')
           .order('created_at', { ascending: false }),
         window.supabase.from('providers').select('owner_user_id').not('owner_user_id', 'is', null),
         window.supabase.from('professionals').select('member_id')
@@ -89,9 +91,11 @@
       if (res.error) { console.error('[FFP Admin Members] fetch:', res.error); toast('Could not load members', 'error'); return []; }
       var owners = {}; (out[1] && out[1].data || []).forEach(function (r) { if (r.owner_user_id) owners[r.owner_user_id] = 1; });
       var pros = {}; (out[2] && out[2].data || []).forEach(function (r) { if (r.member_id) pros[r.member_id] = 1; });
+      // id → display name, to resolve each member's referrer (referred_by) to a readable name in the drawer.
+      var byId = {}; (res.data || []).forEach(function (r) { byId[r.id] = r.full_name || r.given_names || (r.email ? r.email.split('@')[0] : 'Member'); });
       // Show member-login accounts (role='member'); any that own a provider are still shown but flagged
       // "Partner contact" so the admin can see they're not a real member. Provider/admin login rows stay out.
-      return (res.data || []).map(function (row) { return mapForUi(row, owners, pros); })
+      return (res.data || []).map(function (row) { return mapForUi(row, owners, pros, byId); })
         .filter(function (m) { return m.role === 'member'; });
     } catch (e) { console.error('[FFP Admin Members] fetch threw:', e); return []; }
   }
