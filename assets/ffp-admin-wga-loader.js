@@ -39,9 +39,10 @@
       '<div style="font-size:22px;font-weight:900;color:' + (color || '#12232f') + ';margin-top:4px;">' + val + '</div></div>';
   }
 
-  var dests = [], dreams = [], settings = {}, things = [], updates = [];
+  var dests = [], dreams = [], settings = {}, things = [], updates = [], route = [];
 
   async function loadAll() {
+    try { var rr = await sb().rpc('wga_admin_route_list'); route = (rr && !rr.error && Array.isArray(rr.data)) ? rr.data : []; } catch (e) { route = []; }
     var dr = await sb().rpc('wga_admin_destinations');
     dests = (dr && !dr.error && Array.isArray(dr.data)) ? dr.data : [];
     var mr = await sb().rpc('wga_admin_dreams', { p_limit: 300 });
@@ -81,6 +82,18 @@
         '<div style="font-size:12px;font-weight:600;color:#8a99a8;margin-top:2px;">' + esc(t.blurb || '') + (t.suggested_by ? ' · suggested by ' + esc(t.suggested_by) : '') + '</div></td>' +
       '<td style="padding:10px 12px;text-align:center;font-weight:900;color:#1980AD;">' + (t.votes || 0) + '</td>' +
       '<td style="padding:10px 12px;text-align:right;white-space:nowrap;">' + actions + '</td></tr>';
+  }
+
+  function routeRow(r) {
+    var badge = { confirmed: ['#e7f6ef', '#127a52', 'Confirmed'], voting: ['#fff3d6', '#9a6a00', 'Voting now'], tbd: ['#eef2f5', '#8a99a8', 'TBD'] }[r.status] || ['#eef2f5', '#8a99a8', r.status];
+    var dates = r.date_from ? (fmtDate(r.date_from) + (r.date_to ? '–' + fmtDate(r.date_to) : '')) : '';
+    return '<tr style="border-bottom:1px solid #f1f4f6;">' +
+      '<td style="padding:10px 12px;font-weight:800;color:#12232f;">' + esc(r.month_label || '') + '</td>' +
+      '<td style="padding:10px 12px;"><div style="font-weight:800;color:#12232f;">' + esc(r.name) + '</div><div style="font-size:12px;font-weight:600;color:#8a99a8;">' + esc([r.city, r.country, dates].filter(Boolean).join(' · ')) + '</div></td>' +
+      '<td style="padding:10px 12px;text-align:center;"><span style="background:' + badge[0] + ';color:' + badge[1] + ';font-size:10px;font-weight:900;padding:3px 9px;border-radius:100px;">' + badge[2] + '</span></td>' +
+      '<td style="padding:10px 12px;text-align:right;white-space:nowrap;">' +
+        '<button onclick="AdminWGA.editRoute(\'' + r.id + '\')" style="padding:7px 12px;border:none;background:#eef4f8;color:#1980AD;border-radius:8px;font-weight:800;cursor:pointer;font-size:12px;margin-right:6px;">Edit</button>' +
+        '<button onclick="AdminWGA.removeRoute(\'' + r.id + '\')" style="padding:7px 12px;border:none;background:#f1f4f6;color:#d9534f;border-radius:8px;font-weight:800;cursor:pointer;font-size:12px;">Delete</button></td></tr>';
   }
 
   function dreamRow(d) {
@@ -143,10 +156,21 @@
       (updates.length ? updates.map(function (u) { return '<tr style="border-bottom:1px solid #f1f4f6;"><td style="padding:10px 12px;font-weight:700;color:#12232f;">' + esc(u.text) + '<div style="font-size:11px;color:#8a99a8;margin-top:2px;">' + fmtDate(u.created_at) + '</div></td><td style="padding:10px 12px;text-align:right;"><button onclick="AdminWGA.removeUpdate(\'' + u.id + '\')" style="padding:6px 11px;border:none;background:#f1f4f6;color:#d9534f;border-radius:8px;font-weight:800;cursor:pointer;font-size:12px;">Delete</button></td></tr>'; }).join('') : '<tr><td style="padding:16px;color:#8a99a8;">No updates posted.</td></tr>') +
       '</tbody></table>';
 
+    // THE 2027 ROUTE (schedule)
+    var routeHead = '<div style="display:flex;justify-content:space-between;align-items:center;margin:22px 0 10px;">' +
+      '<h2 style="font-size:16px;font-weight:900;color:#12232f;margin:0;">The 2027 route (schedule)</h2>' +
+      '<button onclick="AdminWGA.addRoute()" style="padding:9px 15px;border:none;background:#1980AD;color:#fff;border-radius:9px;font-weight:800;cursor:pointer;font-size:13px;"><span class="material-icons" style="font-size:17px;vertical-align:-4px;">route</span> Add stop</button></div>';
+    var routeTable = '<table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #eef2f5;border-radius:12px;overflow:hidden;">' +
+      '<thead><tr style="background:#f7f9fb;"><th style="text-align:left;padding:9px 12px;font-size:11px;color:#8a99a8;">Month</th><th style="text-align:left;padding:9px 12px;font-size:11px;color:#8a99a8;">Stop</th><th style="padding:9px 12px;font-size:11px;color:#8a99a8;">Status</th><th></th></tr></thead><tbody>' +
+      (route.length ? route.map(routeRow).join('') : '<tr><td colspan="4" style="padding:16px;color:#8a99a8;">No stops yet. Add each month\'s confirmed destination.</td></tr>') +
+      '</tbody></table>';
+
     var setBox = '<h2 style="font-size:16px;font-weight:900;color:#12232f;margin:22px 0 10px;">Tile settings</h2>' +
       '<div style="background:#fff;border:1px solid #eef2f5;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px;max-width:520px;">' +
         '<label style="font-size:12px;font-weight:800;color:#5f6f7d;">Votes to unlock the next stop (goal)' +
           '<input id="wga-goal" value="' + esc(settings.vote_goal || '25000') + '" style="display:block;width:100%;margin-top:6px;padding:10px 12px;border:1px solid #e7ecf0;border-radius:9px;font-size:14px;"></label>' +
+        '<label style="font-size:12px;font-weight:800;color:#5f6f7d;">Round label (shown on the app hero, e.g. “September round”)' +
+          '<input id="wga-round" value="' + esc(settings.round_label || '') + '" style="display:block;width:100%;margin-top:6px;padding:10px 12px;border:1px solid #e7ecf0;border-radius:9px;font-size:14px;"></label>' +
         '<label style="font-size:12px;font-weight:800;color:#5f6f7d;">Voting closes (ISO, e.g. 2026-10-26T00:00:00+04:00)' +
           '<input id="wga-close" value="' + esc(settings.vote_close_at || '') + '" style="display:block;width:100%;margin-top:6px;padding:10px 12px;border:1px solid #e7ecf0;border-radius:9px;font-size:14px;"></label>' +
         '<label style="font-size:12px;font-weight:800;color:#5f6f7d;">Itinerary link (where “Join us” goes, e.g. /explore)' +
@@ -154,7 +178,7 @@
         '<button onclick="AdminWGA.saveSettings()" style="align-self:flex-start;padding:10px 18px;border:none;background:#1980AD;color:#fff;border-radius:9px;font-weight:800;cursor:pointer;">Save settings</button>' +
       '</div>';
 
-    el.innerHTML = kpis + destHead + destTable + thingHead + thingTable + updHead + updTable + dreamHead + dreamTable + setBox;
+    el.innerHTML = kpis + routeHead + routeTable + destHead + destTable + thingHead + thingTable + updHead + updTable + dreamHead + dreamTable + setBox;
   }
 
   window.AdminWGA = {
@@ -287,16 +311,48 @@
     },
     saveSettings: async function () {
       var goal = document.getElementById('wga-goal').value;
+      var round = document.getElementById('wga-round').value;
       var close = document.getElementById('wga-close').value;
       var itin = document.getElementById('wga-itin').value;
-      var a = await sb().rpc('wga_settings_set', { p_key: 'vote_goal', p_value: goal });
-      var b = await sb().rpc('wga_settings_set', { p_key: 'vote_close_at', p_value: close });
-      var c = await sb().rpc('wga_settings_set', { p_key: 'itinerary_url', p_value: itin });
-      if ((a && a.error) || (b && b.error) || (c && c.error)) return toast('Save failed', 'error');
-      settings.vote_goal = goal; settings.vote_close_at = close; settings.itinerary_url = itin;
+      await sb().rpc('wga_settings_set', { p_key: 'vote_goal', p_value: goal });
+      await sb().rpc('wga_settings_set', { p_key: 'round_label', p_value: round });
+      await sb().rpc('wga_settings_set', { p_key: 'vote_close_at', p_value: close });
+      await sb().rpc('wga_settings_set', { p_key: 'itinerary_url', p_value: itin });
+      settings.vote_goal = goal; settings.round_label = round; settings.vote_close_at = close; settings.itinerary_url = itin;
       toast('Settings saved', 'success');
+    },
+    addRoute: function () { AdminWGA.editRoute(null); },
+    editRoute: function (id) {
+      if (typeof window.openModal !== 'function') { alert('Admin modal unavailable on this page.'); return; }
+      var r = id ? (route.filter(function (x) { return x.id === id; })[0] || {}) : {};
+      var fld = 'display:block;width:100%;margin-top:6px;padding:11px 12px;border:1px solid #e7ecf0;border-radius:9px;font:inherit;font-size:14px;box-sizing:border-box;';
+      var lbl = 'font-size:12px;font-weight:800;color:#5f6f7d;';
+      function opt(v, l, cur) { return '<option value="' + v + '"' + (cur === v ? ' selected' : '') + '>' + l + '</option>'; }
+      var body = '<input type="hidden" id="rt-id" value="' + esc(r.id || '') + '"><div style="display:flex;flex-direction:column;gap:14px;">' +
+        '<label style="' + lbl + '">Month label<input id="rt-month" style="' + fld + '" value="' + esc(r.month_label || '') + '" placeholder="Feb 2027"></label>' +
+        '<label style="' + lbl + '">Destination<input id="rt-name" style="' + fld + '" value="' + esc(r.name || '') + '" placeholder="Cape Town"></label>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"><label style="' + lbl + '">City<input id="rt-city" style="' + fld + '" value="' + esc(r.city || '') + '"></label><label style="' + lbl + '">Country<input id="rt-country" style="' + fld + '" value="' + esc(r.country || '') + '"></label></div>' +
+        '<label style="' + lbl + '">Image URL<input id="rt-img" style="' + fld + '" value="' + esc(r.image_url || '') + '" placeholder="https://…"></label>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"><label style="' + lbl + '">From<input id="rt-from" type="date" style="' + fld + '" value="' + esc(r.date_from || '') + '"></label><label style="' + lbl + '">To<input id="rt-to" type="date" style="' + fld + '" value="' + esc(r.date_to || '') + '"></label></div>' +
+        '<label style="' + lbl + '">Status<select id="rt-status" style="' + fld + '">' + opt('confirmed', 'Confirmed', r.status || 'confirmed') + opt('voting', 'Voting now', r.status) + opt('tbd', 'TBD', r.status) + '</select></label></div>';
+      window.openModal(id ? 'Edit stop' : 'Add stop', body, '<button class="btn" onclick="closeModal()">Cancel</button><button class="btn" style="background:#1980AD;color:#fff;" onclick="AdminWGA.submitRoute()">Save</button>');
+    },
+    submitRoute: async function () {
+      var id = (document.getElementById('rt-id').value || '') || null;
+      var p = { month_label: v('rt-month'), name: v('rt-name'), city: v('rt-city'), country: v('rt-country'), image_url: v('rt-img'), date_from: v('rt-from') || null, date_to: v('rt-to') || null, status: v('rt-status') };
+      if (!p.name) return toast('Enter a destination', 'error');
+      var r = await sb().rpc('wga_admin_route_save', { p_id: id, p: p });
+      if (r.error) return toast(r.error.message || 'Failed', 'error');
+      if (window.closeModal) closeModal(); toast('Saved', 'success'); render();
+    },
+    removeRoute: async function (id) {
+      if (!confirm('Delete this stop?')) return;
+      var r = await sb().rpc('wga_admin_route_remove', { p_id: id });
+      if (r.error) return toast(r.error.message || 'Failed', 'error');
+      toast('Deleted', 'success'); render();
     }
   };
+  function v(id) { var e = document.getElementById(id); return e ? (e.value || '').trim() : ''; }
 
   render();
 })();
