@@ -1574,6 +1574,9 @@ body.ffp-role-staff [data-owner-only] { display: none !important; }
       <a class="sidebar-link" data-panel="panel-wga" onclick="App.go('panel-wga')">
         <span class="material-icons">public</span>WGA
       </a>
+      <a class="sidebar-link" data-panel="panel-giveaways" onclick="App.go('panel-giveaways')">
+        <span class="material-icons">card_giftcard</span>Giveaways
+      </a>
       <a class="sidebar-link" data-panel="panel-feedback" onclick="App.go('panel-feedback')">
         <span class="material-icons">feedback</span>Feedback
         <span class="sidebar-link-badge" id="badge-feedback" style="display:none"></span>
@@ -2249,6 +2252,16 @@ body.ffp-role-staff [data-owner-only] { display: none !important; }
       </div>
     </section>
 
+    <section class="panel" id="panel-giveaways">
+      <div class="panel-head">
+        <h1>Giveaways</h1>
+        <div class="panel-head-sub">Partner-provided prizes, loaded here and linked to a partner. Passport members only; the partner sets who's eligible (location, their own visitors, gender, age). Members earn entries by staying active during the window — create a giveaway, then draw a winner when it closes.</div>
+      </div>
+      <div class="section">
+        <div id="giveaways-body"><div style="padding:20px;color:#8a99a8;">Loading…</div></div>
+      </div>
+    </section>
+
     <section class="panel" id="panel-feedback">
       <div class="panel-head">
         <h1>Feedback</h1>
@@ -2805,6 +2818,7 @@ const App = {
     'panel-tours':       'Experiences',
     'panel-featured':    'Featured',
     'panel-offers':      'Offers',
+    'panel-giveaways':   'Giveaways',
     'panel-challenges':  'Challenges',
     'panel-meetups':     'Meet & Move',
     'panel-professionals':'Professionals',
@@ -2822,15 +2836,16 @@ const App = {
   // Each panel's loader script is fetched ONLY when the panel is first opened, so the
   // page load fires no panel queries (the Overview RPC always wins a connection -> instant).
   _panelScript: {
-    'panel-providers':    'ffp-admin-providers-loader.js?v=2',
+    'panel-providers':    'ffp-admin-providers-loader.js?v=3',
     'panel-payouts':      'ffp-admin-payouts-loader.js',
     'panel-appointments': 'ffp-admin-appointments-loader.js',
     'panel-content':      'ffp-admin-content-loader.js',
     'panel-referrals':    'ffp-admin-referrals-loader.js',
     'panel-fund':         'assets/ffp-admin-fund-loader.js',
     'panel-wga':          'assets/ffp-admin-wga-loader.js',
+    'panel-giveaways':    'assets/ffp-admin-giveaways-loader.js',
     'panel-feedback':     'ffp-admin-feedback-loader.js',
-    'panel-members':      'ffp-admin-members-loader.js?v=7',
+    'panel-members':      'ffp-admin-members-loader.js?v=8',
     'panel-quests':       'ffp-admin-quests-loader.js?v=4',
     'panel-events':       'ffp-admin-events-loader.js',
     'panel-experiences':  'ffp-admin-experiences-loader.js?v=3',
@@ -2855,7 +2870,7 @@ const App = {
       var sc = document.createElement('script');
       // Cache-bust lazy loaders so a new deploy never serves a stale cached .js.
       // BUMP this with the dashboard build number on every deploy (matches footer build).
-      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=80'; sc.async = false;
+      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=83'; sc.async = false;
       sc.onload = function () {
         if (panelId === 'panel-analytics') {
           setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 80);
@@ -4118,6 +4133,13 @@ const Drawer = {
             ${m.mtype.passport
               ? `${!m.mtype.nosub ? `<button class="btn btn-sm btn-outline" onclick="AdminMembers.cancelSubscription('${m.id}')"><span class="material-icons">credit_card_off</span>Cancel subscription</button>` : ''}<button class="btn btn-sm btn-danger" onclick="AdminMembers.makeStandard('${m.id}')"><span class="material-icons">arrow_downward</span>Downgrade to Standard</button>`
               : `<button class="btn btn-sm btn-blue" onclick="AdminMembers.grantPassport('${m.id}')"><span class="material-icons">verified</span>Switch to Passport</button>`}
+          </div>
+        </div>
+        <div class="info-row" style="padding-top:8px;">
+          <div class="info-row-label">Referred by</div>
+          <div class="info-row-value" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            ${m.referred_by_name ? `<span class="pill" style="background:rgba(43,168,224,.16);color:#5cc1ef;">${m.referred_by_name}</span>` : (m.referred_by ? `<span style="font-size:12px;color:var(--muted);">Attributed (unknown)</span>` : `<span style="font-size:12px;color:var(--muted);">No referrer</span>`)}
+            <button class="btn btn-sm btn-outline" onclick="AdminMembers.setReferrer('${m.id}')"><span class="material-icons">group_add</span>${m.referred_by ? 'Change' : 'Set referrer'}</button>
           </div>
         </div>
       </div>
