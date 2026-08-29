@@ -1,4 +1,12 @@
-/* FFP Admin Providers Loader — v6 (2026-08-10)
+/* FFP Admin Providers Loader — v7 (2026-08-29)
+   v7: NEW full-screen provider INFO PAGE (AdminProviders.info) — clicking a provider row opens a
+       read view: identity + status chips (approved/tier/venue-or-brand/verified/booking/payments),
+       a CONTACT PERSON block (owner member name/email/phone, when they signed up, their FFP account
+       status, link to their member info page), Business details, Account & billing, and internal
+       notes. Hero buttons reuse Manage account / Edit subscription / Open-as. Fetch now also selects
+       activities, google_rating, payments_status, stripe_account_id, maps_url. Row click was
+       Drawer.openProvider → now AdminProviders.info.
+   --- v6 ---
    v6: NEW per-row "Verify for Refer & earn" toggle (shield icon) on approved/lapsed partners — sets
        providers.approved_by (the admin-verified gate the backend referral check requires). Self-signup
        partners join with approved_by=null (not referral-eligible) until an admin verifies them here.
@@ -308,6 +316,49 @@
             '<button class="ffp-pm-btn ffp-pm-btn-primary" type="button" id="ffp-pm-add-confirm">Add provider</button>' +
           '</div>' +
         '</div>' +
+      '</div>' +
+
+      // EDIT ACCOUNT DETAILS modal (main details + brand/booking + owner + notes + delete/merge/impersonate)
+      '<div class="ffp-pm-backdrop" id="ffp-pm-details-backdrop">' +
+        '<div class="ffp-pm-sheet" style="max-width:640px;" onclick="event.stopPropagation();">' +
+          '<div class="ffp-pm-head">' +
+            '<div><div class="ffp-pm-title">Edit account</div>' +
+            '<div class="ffp-pm-sub" id="ffp-pm-details-bizname"></div></div>' +
+            '<button class="ffp-pm-close" type="button" data-close="details"><span class="material-icons">close</span></button>' +
+          '</div>' +
+          '<div class="ffp-pm-body">' +
+            '<div class="ffp-pm-row"><label class="ffp-pm-label">Business name</label><input type="text" class="ffp-pm-input" id="pd-name"></div>' +
+            '<div class="ffp-pm-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+              '<div><label class="ffp-pm-label">Category</label><input type="text" class="ffp-pm-input" id="pd-category"></div>' +
+              '<div><label class="ffp-pm-label">City</label><input type="text" class="ffp-pm-input" id="pd-city"></div></div>' +
+            '<div class="ffp-pm-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+              '<div><label class="ffp-pm-label">Area</label><input type="text" class="ffp-pm-input" id="pd-area"></div>' +
+              '<div><label class="ffp-pm-label">Country</label><input type="text" class="ffp-pm-input" id="pd-country"></div></div>' +
+            '<div class="ffp-pm-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+              '<div><label class="ffp-pm-label">Contact email</label><input type="email" class="ffp-pm-input" id="pd-email"></div>' +
+              '<div><label class="ffp-pm-label">Contact phone</label><input type="tel" class="ffp-pm-input" id="pd-phone"></div></div>' +
+            '<div class="ffp-pm-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+              '<div><label class="ffp-pm-label">Website</label><input type="text" class="ffp-pm-input" id="pd-website"></div>' +
+              '<div><label class="ffp-pm-label">Instagram</label><input type="text" class="ffp-pm-input" id="pd-instagram"></div></div>' +
+            '<div class="ffp-pm-row"><label class="ffp-pm-label">About</label><textarea class="ffp-pm-input" id="pd-about" rows="3"></textarea></div>' +
+            '<div class="ffp-pm-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+              '<div><label class="ffp-pm-label">Account type</label><select class="ffp-pm-input" id="pd-brand"><option value="false">Venue / provider</option><option value="true">Product brand</option></select></div>' +
+              '<div><label class="ffp-pm-label">Bookings</label><select class="ffp-pm-input" id="pd-bookmode"><option value="native">On FFP (native)</option><option value="external">External link</option></select></div></div>' +
+            '<div class="ffp-pm-row" id="pd-bookurl-row" style="display:none;"><label class="ffp-pm-label">External booking URL</label><input type="text" class="ffp-pm-input" id="pd-bookurl" placeholder="https://..."></div>' +
+            '<div class="ffp-pm-row"><label class="ffp-pm-label">Owner login email <span style="font-weight:500;color:#8a99a8;">— must be an existing member</span></label>' +
+              '<div style="display:flex;gap:8px;"><input type="email" class="ffp-pm-input" id="pd-owner" placeholder="owner@email.com" style="flex:1;"><button class="ffp-pm-btn ffp-pm-btn-ghost" type="button" id="pd-reassign">Reassign</button></div></div>' +
+            '<div class="ffp-pm-row"><label class="ffp-pm-label">Internal notes <span style="font-weight:500;color:#8a99a8;">— admin only</span></label><textarea class="ffp-pm-input" id="pd-notes" rows="2"></textarea></div>' +
+            '<div class="ffp-pm-row" style="border-top:1px solid #e7ecf0;padding-top:12px;display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<button class="ffp-pm-btn ffp-pm-btn-ghost" type="button" id="pd-openas"><span class="material-icons" style="font-size:16px;vertical-align:-3px;">login</span> Open dashboard as</button>' +
+              '<button class="ffp-pm-btn ffp-pm-btn-ghost" type="button" id="pd-merge"><span class="material-icons" style="font-size:16px;vertical-align:-3px;">merge</span> Merge duplicate…</button>' +
+              '<button class="ffp-pm-btn ffp-pm-btn-ghost" type="button" id="pd-delete" style="color:#c0392b;margin-left:auto;"><span class="material-icons" style="font-size:16px;vertical-align:-3px;">delete</span> Delete</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="ffp-pm-foot">' +
+            '<button class="ffp-pm-btn ffp-pm-btn-ghost" type="button" data-close="details">Cancel</button>' +
+            '<button class="ffp-pm-btn ffp-pm-btn-primary" type="button" id="ffp-pm-details-confirm">Save details</button>' +
+          '</div>' +
+        '</div>' +
       '</div>';
     var wrap = document.createElement('div');
     wrap.innerHTML = html;
@@ -320,15 +371,18 @@
         if (key === 'approve') closeApprove();
         if (key === 'edit')    closeEdit();
         if (key === 'add')     closeAdd();
+        if (key === 'details')  closeDetails();
       });
     });
-    ['approve', 'edit', 'add'].forEach(function (key) {
+    ['approve', 'edit', 'add', 'details'].forEach(function (key) {
       var backdrop = $('#ffp-pm-' + key + '-backdrop');
+      if (!backdrop) return;
       backdrop.addEventListener('click', function (e) {
         if (e.target.id === backdrop.id) {
           if (key === 'approve') closeApprove();
           if (key === 'edit') closeEdit();
           if (key === 'add') closeAdd();
+          if (key === 'details') closeDetails();
         }
       });
     });
@@ -343,6 +397,13 @@
     $('#ffp-pm-approve-confirm').addEventListener('click', confirmApprove);
     $('#ffp-pm-edit-confirm').addEventListener('click', confirmEdit);
     $('#ffp-pm-add-confirm').addEventListener('click', confirmAddProvider);
+    // Edit-details modal wiring
+    $('#ffp-pm-details-confirm').addEventListener('click', confirmDetails);
+    $('#pd-bookmode').addEventListener('change', function () { $('#pd-bookurl-row').style.display = (this.value === 'external') ? '' : 'none'; });
+    $('#pd-reassign').addEventListener('click', reassignOwner);
+    $('#pd-openas').addEventListener('click', function () { openAsProvider(pendingDetailsId); });
+    $('#pd-merge').addEventListener('click', function () { mergeProvider(pendingDetailsId); });
+    $('#pd-delete').addEventListener('click', function () { deleteProvider(pendingDetailsId); });
 
     // Add modal: status chips toggle subscription fields
     $$('#ffp-pm-add-status-chips button').forEach(function (chip) {
@@ -461,6 +522,7 @@
   // ─── Modal open/close ───
   var pendingApproveId = null;
   var pendingEditId = null;
+  var pendingDetailsId = null;
 
   function openApprove(id) {
     var p = getAP().data.find(function (x) { return x.id === id; });
@@ -491,6 +553,111 @@
     $('#ffp-pm-edit-backdrop').classList.add('open');
   }
   function closeEdit() { $('#ffp-pm-edit-backdrop').classList.remove('open'); pendingEditId = null; }
+
+  // ─── Edit account details (main details + brand/booking + owner + notes + delete/merge/impersonate) ───
+  function openDetails(id) {
+    var pm = getAP().data.find(function (x) { return x.id === id; });
+    if (!pm) return;
+    var p = pm._raw || pm;   // full provider row (mapped object only carries a subset)
+    pendingDetailsId = id;
+    var v = function (k, val) { var el = document.getElementById(k); if (el) el.value = (val != null ? val : ''); };
+    $('#ffp-pm-details-bizname').textContent = p.business_name + (p.city ? ' · ' + p.city : '');
+    v('pd-name', p.business_name); v('pd-category', p.category); v('pd-city', p.city); v('pd-area', p.area);
+    v('pd-country', p.country); v('pd-email', p.contact_email); v('pd-phone', p.contact_phone);
+    v('pd-website', p.website); v('pd-instagram', p.instagram); v('pd-about', p.about); v('pd-notes', p.admin_notes);
+    v('pd-owner', p.contact_email);
+    $('#pd-brand').value = p.is_brand ? 'true' : 'false';
+    $('#pd-bookmode').value = (p.booking_mode === 'external') ? 'external' : 'native';
+    v('pd-bookurl', p.external_booking_url);
+    $('#pd-bookurl-row').style.display = (p.booking_mode === 'external') ? '' : 'none';
+    $('#pd-openas').style.display = p.owner_user_id ? '' : 'none';   // impersonation needs an owner account
+    $('#ffp-pm-details-backdrop').classList.add('open');
+  }
+  function closeDetails() { $('#ffp-pm-details-backdrop').classList.remove('open'); pendingDetailsId = null; }
+
+  async function confirmDetails() {
+    if (!pendingDetailsId) return;
+    var g = function (k) { var el = document.getElementById(k); return el ? el.value.trim() : ''; };
+    var name = g('pd-name'); if (!name) { toast('Business name is required', 'error'); return; }
+    var patch = {
+      business_name: name, category: g('pd-category') || null, city: g('pd-city') || null,
+      area: g('pd-area') || null, country: g('pd-country') || null,
+      contact_email: g('pd-email') || null, contact_phone: g('pd-phone') || null,
+      website: g('pd-website') || null, instagram: g('pd-instagram') || null,
+      about: g('pd-about') || null, admin_notes: g('pd-notes') || null,
+      is_brand: ($('#pd-brand').value === 'true'),
+      booking_mode: $('#pd-bookmode').value, external_booking_url: g('pd-bookurl') || null
+    };
+    var btn = $('#ffp-pm-details-confirm'); btn.disabled = true;
+    try {
+      var res = await window.supabase.from('providers').update(patch).eq('id', pendingDetailsId);
+      if (res.error) throw res.error;
+      toast('Account details saved', 'success');
+      logAction('edited provider details · ' + name);
+      closeDetails(); await refresh();
+    } catch (e) { toast(e.message || 'Save failed', 'error'); btn.disabled = false; }
+  }
+
+  async function reassignOwner() {
+    if (!pendingDetailsId) return;
+    var email = ($('#pd-owner').value || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('Enter a valid email', 'error'); return; }
+    if (!window.confirm('Reassign this account to ' + email + '? They must already have an FFP account.')) return;
+    try {
+      var r = await window.supabase.rpc('admin_provider_reassign_owner', { p_id: pendingDetailsId, p_email: email });
+      if (r.error) throw r.error;
+      if (r.data && r.data.error === 'no_member') { toast('No FFP account with that email — they must sign up first.', 'error'); return; }
+      toast('Owner reassigned to ' + email, 'success');
+      logAction('reassigned provider owner → ' + email);
+      closeDetails(); await refresh();
+    } catch (e) { toast(e.message || 'Reassign failed', 'error'); }
+  }
+
+  async function openAsProvider(id) {
+    var pm = getAP().data.find(function (x) { return x.id === id; });
+    if (!pm) return;
+    var p = pm._raw || pm;
+    if (!p.owner_user_id) { toast('No owner account to open as', 'error'); return; }
+    var jwt = (window.FFPAuth && FFPAuth.getJwt && FFPAuth.getJwt()) || (function () { try { return localStorage.getItem('ffp_jwt') || ''; } catch (e) { return ''; } })();
+    var btn = $('#pd-openas'); var lbl = btn ? btn.innerHTML : ''; if (btn) { btn.disabled = true; btn.textContent = 'Opening…'; }
+    try {
+      var r = await fetch((window.FFP_BACKEND || 'https://ffp-passport-backend.vercel.app') + '/api/admin/provider/impersonate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+        body: JSON.stringify({ provider_id: id })
+      });
+      var j = await r.json().catch(function () { return {}; });
+      if (!r.ok || !j.url) throw new Error(j.error || 'Could not create a sign-in link');
+      logAction('opened dashboard as ' + p.business_name);
+      window.open(j.url, '_blank');
+    } catch (e) { toast(e.message || 'Impersonation failed', 'error'); }
+    if (btn) { btn.disabled = false; btn.innerHTML = lbl; }
+  }
+
+  async function deleteProvider(id) {
+    var p = getAP().data.find(function (x) { return x.id === id; });
+    if (!p) return;
+    if (!window.confirm('Permanently delete "' + p.business_name + '"? This removes the listing and its offers. This cannot be undone.')) return;
+    try {
+      var r = await window.supabase.rpc('admin_provider_delete', { p_id: id });
+      if (r.error) throw r.error;
+      toast('Provider deleted', 'info'); logAction('deleted provider ' + p.business_name);
+      closeDetails(); await refresh();
+    } catch (e) { toast(e.message || 'Delete failed', 'error'); }
+  }
+
+  async function mergeProvider(keepId) {
+    var keep = getAP().data.find(function (x) { return x.id === keepId; });
+    if (!keep) return;
+    var dupId = window.prompt('Merge a DUPLICATE listing INTO "' + keep.business_name + '".\nPaste the duplicate provider ID to merge (it will be deleted, its data folded in):');
+    if (!dupId) return; dupId = dupId.trim();
+    if (dupId === keepId) { toast('That is the same provider', 'error'); return; }
+    try {
+      var r = await window.supabase.rpc('admin_provider_merge', { p_keep: keepId, p_dup: dupId });
+      if (r.error) throw r.error;
+      toast('Merged — duplicate removed', 'success'); logAction('merged ' + dupId + ' into ' + keep.business_name);
+      closeDetails(); await refresh();
+    } catch (e) { toast(e.message || 'Merge failed', 'error'); }
+  }
 
   function openAdd() {
     $('#ffp-pm-add-name').value = '';
@@ -620,7 +787,7 @@
     // anything needing action (pending / suspended / lapsed / archived).
     var res = await window.supabase
       .from('providers')
-      .select('id, business_name, letter_mark, category, city, status, featured, created_at, paid_until, subscription_tier, monthly_fee_aed, contact_email, contact_phone, area, address, owner_user_id, about, website, instagram, hero_photo_url, logo_url, latitude, longitude, approved_at, approved_by, business_access, business_access_requested_at')
+      .select('id, business_name, letter_mark, category, city, country, status, featured, created_at, paid_until, subscription_tier, monthly_fee_aed, contact_email, contact_phone, area, address, owner_user_id, about, website, instagram, hero_photo_url, logo_url, latitude, longitude, approved_at, approved_by, business_access, business_access_requested_at, admin_notes, is_brand, booking_mode, external_booking_url, activities, google_rating, payments_status, stripe_account_id, maps_url')
       .or('owner_user_id.not.is.null,status.neq.approved')
       .order('created_at', { ascending: false })
       .limit(1000);
@@ -694,21 +861,26 @@
   }
 
   function rowActions(p) {
+    // Manage-account (edit details, brand/booking, owner, notes, delete/merge, open-as) — available on every row.
+    var manage = '<button class="btn btn-sm btn-ghost" title="Manage account · edit details" onclick="AdminProviders.details(\'' + p.id + '\')"><span class="material-icons">manage_accounts</span></button>';
     if (p.status === 'pending') {
-      return '<button class="btn btn-sm btn-blue" onclick="AdminProviders.approve(\'' + p.id + '\')"><span class="material-icons">check</span>Approve</button>' +
+      return manage +
+             '<button class="btn btn-sm btn-blue" onclick="AdminProviders.approve(\'' + p.id + '\')"><span class="material-icons">check</span>Approve</button>' +
              '<button class="btn btn-sm btn-danger" onclick="AdminProviders.reject(\'' + p.id + '\')">Reject</button>';
     }
     if (p.status === 'approved' || p.status === 'lapsed') {
-      return '<button class="btn btn-sm btn-ghost" title="Edit subscription" onclick="AdminProviders.editSub(\'' + p.id + '\')"><span class="material-icons">edit_calendar</span></button>' +
+      return manage +
+             '<button class="btn btn-sm btn-ghost" title="Edit subscription" onclick="AdminProviders.editSub(\'' + p.id + '\')"><span class="material-icons">edit_calendar</span></button>' +
              '<button class="btn btn-sm ' + (p.verified ? 'btn-blue' : 'btn-ghost') + '" title="' + (p.verified ? 'Verified for Refer & earn — click to remove' : 'Verify this partner for Refer & earn') + '" onclick="AdminProviders.toggleVerify(\'' + p.id + '\')"><span class="material-icons">' + (p.verified ? 'verified_user' : 'gpp_maybe') + '</span></button>' +
              '<button class="btn btn-sm btn-ghost" title="' + (p.featured ? 'Unfeature' : 'Feature') + '" onclick="AdminProviders.toggleFeatured(\'' + p.id + '\')"><span class="material-icons">' + (p.featured ? 'star' : 'star_border') + '</span></button>' +
              '<button class="btn btn-sm btn-ghost" title="Suspend" onclick="AdminProviders.suspend(\'' + p.id + '\')"><span class="material-icons">block</span></button>';
     }
     if (p.status === 'suspended') {
-      return '<button class="btn btn-sm btn-blue" title="Reinstate" onclick="AdminProviders.reinstate(\'' + p.id + '\')"><span class="material-icons">refresh</span></button>' +
+      return manage +
+             '<button class="btn btn-sm btn-blue" title="Reinstate" onclick="AdminProviders.reinstate(\'' + p.id + '\')"><span class="material-icons">refresh</span></button>' +
              '<button class="btn btn-sm btn-ghost" title="Archive" onclick="AdminProviders.archive(\'' + p.id + '\')"><span class="material-icons">archive</span></button>';
     }
-    return '<span class="text-muted" style="font-size:12px;">\u2014</span>';
+    return manage;
   }
 
   function renderRow(p) {
@@ -718,7 +890,7 @@
     }
     var star = p.featured ? '<span class="ffp-row-featured-star material-icons" title="Featured">star</span>' : '';
     return '<tr>' +
-      '<td onclick="Drawer.openProvider(\'' + p.id + '\')" style="cursor:pointer;">' +
+      '<td onclick="AdminProviders.info(\'' + p.id + '\')" style="cursor:pointer;" title="Open info page">' +
         '<span class="cell-avatar" style="background:var(--yellow); color:#0a0a0a;">' + escHtmlSafe(p.letter) + '</span>' +
         '<span class="cell-name">' + escHtmlSafe(p.business_name) + star + '</span>' +
         meta +
@@ -771,6 +943,10 @@
     };
     AP.approve = function (id) { openApprove(id); };
     AP.editSub = function (id) { openEdit(id); };
+    AP.details = function (id) { openDetails(id); };
+    AP.info = function (id) { openInfo(id); };
+    AP.closeInfo = function () { closeInfo(); };
+    AP.openAs = function (id) { openAsProvider(id); };
     AP.openAddModal = function () { openAdd(); };
 
     AP.reject = async function (id) {
@@ -864,6 +1040,248 @@
         await refresh();
       } catch (e) { console.error(e); toast(e.message || 'Update failed', 'error'); }
     };
+  }
+
+  // ─── Provider INFO PAGE (full-screen read view) ───
+  function injectInfoStyles() {
+    if ($('#ffp-info-css')) return;
+    var css = document.createElement('style');
+    css.id = 'ffp-info-css';
+    css.textContent = [
+      '.pinfo-ov{position:fixed;inset:0;z-index:9990;background:#06101a;overflow-y:auto;font-family:Montserrat,system-ui,sans-serif;color:#eaf1f6;display:none;}',
+      '.pinfo-ov.open{display:block;}',
+      '.pinfo-wrap{max-width:940px;margin:0 auto;padding:26px 20px 70px;}',
+      '.pinfo-crumb{display:flex;align-items:center;gap:7px;color:#8499a8;font-size:13px;font-weight:700;margin-bottom:14px;cursor:pointer;width:max-content;}',
+      '.pinfo-crumb .material-icons{font-size:18px;color:#2b9fd0;}',
+      '.pinfo-shell{background:#0a141c;border:1px solid rgba(255,255,255,.09);border-radius:20px;overflow:hidden;box-shadow:0 30px 70px rgba(0,0,0,.5);}',
+      '.pinfo-hero{position:relative;padding:26px 30px 22px;background:radial-gradient(120% 150% at 88% -20%,rgba(43,159,208,.22),transparent 55%),linear-gradient(135deg,#143046,#0b1a26);border-bottom:1px solid rgba(255,255,255,.09);}',
+      '.pinfo-hbar{display:flex;align-items:flex-start;gap:18px;}',
+      '.pinfo-mono{width:74px;height:74px;border-radius:20px;flex:none;display:grid;place-items:center;font-weight:900;font-size:26px;color:#06212e;background:linear-gradient(160deg,#7fd0f0,#2b9fd0);box-shadow:0 10px 24px rgba(43,159,208,.4);overflow:hidden;}',
+      '.pinfo-mono.g{background:linear-gradient(160deg,#ffe07a,#f4b400);color:#3a2600;}',
+      '.pinfo-mono img{width:100%;height:100%;object-fit:cover;}',
+      '.pinfo-hmid{flex:1;min-width:0;}',
+      '.pinfo-name{font-size:27px;font-weight:900;letter-spacing:-.02em;line-height:1.06;}',
+      '.pinfo-sub{margin-top:5px;color:#c7d7e1;font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}',
+      '.pinfo-sub .dot{color:#5f7482;}',
+      '.pinfo-sub .star{color:#FFCC00;font-weight:800;display:inline-flex;align-items:center;gap:3px;}',
+      '.pinfo-sub .star .material-icons{font-size:16px;}',
+      '.pinfo-acts{display:flex;gap:10px;flex:none;flex-wrap:wrap;}',
+      '.pinfo-btn{border:0;border-radius:11px;padding:11px 16px;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;}',
+      '.pinfo-btn .material-icons{font-size:18px;}',
+      '.pinfo-btn.gold{background:linear-gradient(180deg,#ffd23d,#f0b400);color:#3a2600;}',
+      '.pinfo-btn.blue{background:transparent;color:#bfe0f0;border:1.5px solid rgba(120,190,225,.45);}',
+      '.pinfo-btn.ghost{background:rgba(255,255,255,.06);color:#dbe8f0;}',
+      '.pinfo-btn.danger{background:transparent;color:#f0938a;border:1px solid rgba(226,87,76,.4);}',
+      '.pinfo-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;}',
+      '.pinfo-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:800;}',
+      '.pinfo-chip .material-icons{font-size:15px;}',
+      '.pc-grn{background:rgba(47,189,119,.16);color:#57d79a;}',
+      '.pc-gold{background:rgba(255,204,0,.16);color:#ffd54a;}',
+      '.pc-blue{background:rgba(43,159,208,.18);color:#7fcdec;}',
+      '.pc-grey{background:rgba(255,255,255,.08);color:#b8c9d4;}',
+      '.pc-amb{background:rgba(240,168,60,.16);color:#f6c072;}',
+      '.pc-red{background:rgba(226,87,76,.16);color:#f0938a;}',
+      '.pinfo-body{padding:8px 30px 26px;}',
+      '.pinfo-sec{padding:20px 0;border-bottom:1px solid rgba(255,255,255,.09);}',
+      '.pinfo-sec:last-child{border-bottom:0;}',
+      '.pinfo-sec h3{font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#7fa0b2;margin-bottom:14px;display:flex;align-items:center;gap:8px;}',
+      '.pinfo-sec h3 .material-icons{font-size:18px;color:#2b9fd0;}',
+      '.pinfo-rows{display:grid;grid-template-columns:1fr 1fr;column-gap:40px;}',
+      '.pinfo-row{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.055);}',
+      '.pinfo-row .k{color:#8499a8;font-size:13.5px;font-weight:600;flex:none;}',
+      '.pinfo-row .v{color:#eaf1f6;font-size:13.5px;font-weight:700;text-align:right;word-break:break-word;}',
+      '.pinfo-row .v.mut{color:#5f7482;font-weight:600;}',
+      '.pinfo-row .v a{color:#7fcdec;text-decoration:none;}',
+      '.pinfo-row .v .ok{color:#2fbd77;}.pinfo-row .v .no{color:#f0a83c;}',
+      '.pinfo-full{grid-column:1 / -1;}',
+      '.pinfo-about{color:#c3d3dd;font-size:14px;font-weight:500;line-height:1.55;max-width:70ch;}',
+      '.pinfo-tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}',
+      '.pinfo-tag{background:rgba(255,255,255,.06);color:#cfe0ea;font-size:12.5px;font-weight:700;padding:6px 12px;border-radius:9px;}',
+      '.pinfo-contact{display:flex;align-items:center;gap:16px;background:linear-gradient(120deg,#12283a,#0e1f2b);border:1px solid rgba(255,255,255,.09);border-radius:15px;padding:16px 18px;flex-wrap:wrap;}',
+      '.pinfo-cav{width:52px;height:52px;border-radius:50%;flex:none;display:grid;place-items:center;font-weight:900;font-size:18px;color:#06212e;background:linear-gradient(160deg,#9adcf3,#3ba7d6);}',
+      '.pinfo-cinfo{flex:1;min-width:180px;}',
+      '.pinfo-cname{font-size:16px;font-weight:800;}',
+      '.pinfo-crole{font-size:12.5px;font-weight:700;color:#8499a8;margin-top:1px;}',
+      '.pinfo-clines{display:flex;gap:18px;flex-wrap:wrap;margin-top:7px;color:#c3d3dd;font-size:13px;font-weight:600;}',
+      '.pinfo-clines span{display:inline-flex;align-items:center;gap:6px;}',
+      '.pinfo-clines .material-icons{font-size:16px;color:#5f7482;}',
+      '.pinfo-clink{color:#7fcdec;font-weight:800;font-size:13px;text-decoration:none;cursor:pointer;display:inline-flex;align-items:center;gap:4px;flex:none;}',
+      '.pinfo-clink .material-icons{font-size:17px;}',
+      '.pinfo-note{background:transparent;border:1px dashed rgba(255,255,255,.16);border-radius:12px;padding:13px 15px;color:#b7c8d3;font-size:13.5px;font-weight:500;line-height:1.5;}',
+      '@media(max-width:720px){.pinfo-rows{grid-template-columns:1fr;}.pinfo-hbar{flex-wrap:wrap;}.pinfo-acts{width:100%;}}'
+    ].join('');
+    document.head.appendChild(css);
+  }
+  function ensureInfoOverlay() {
+    var ov = document.getElementById('ffp-prov-info');
+    if (!ov) {
+      ov = document.createElement('div');
+      ov.id = 'ffp-prov-info';
+      ov.className = 'pinfo-ov';
+      document.body.appendChild(ov);
+    }
+    return ov;
+  }
+  function closeInfo() {
+    var ov = document.getElementById('ffp-prov-info');
+    if (ov) { ov.classList.remove('open'); ov.innerHTML = ''; }
+    document.body.style.overflow = '';
+  }
+  function infoRow(k, v, cls) {
+    return '<div class="pinfo-row"><span class="k">' + k + '</span><span class="v ' + (cls || '') + '">' + (v == null || v === '' ? '—' : v) + '</span></div>';
+  }
+  function fmtNice(d) { try { return fmtDateNice(new Date(d)); } catch (e) { return '—'; } }
+
+  async function openInfo(id) {
+    var pm = getAP().data.find(function (x) { return x.id === id; });
+    if (!pm) return;
+    var p = pm._raw || pm;
+    injectInfoStyles();
+    var ov = ensureInfoOverlay();
+    document.body.style.overflow = 'hidden';
+    ov.classList.add('open');
+    ov.scrollTop = 0;
+    ov.innerHTML = '<div class="pinfo-wrap"><div class="pinfo-crumb" onclick="AdminProviders.closeInfo()"><span class="material-icons">arrow_back</span> Providers / ' + escHtmlSafe(p.business_name || '') + '</div><div class="pinfo-shell"><div class="pinfo-body"><div class="pinfo-sec" style="text-align:center;color:#5f7482;padding:50px 0;">Loading…</div></div></div></div>';
+
+    // fetch the contact person (owner member) + any claim application contact
+    var owner = null, app = null;
+    try {
+      if (p.owner_user_id) {
+        var or_ = await window.supabase.from('members')
+          .select('id,given_names,surname,full_name,email,phone,membership,city,created_at')
+          .eq('id', p.owner_user_id).maybeSingle();
+        owner = or_ && or_.data ? or_.data : null;
+      }
+      var ar_ = await window.supabase.from('provider_applications')
+        .select('contact_name,email,phone,status,created_at')
+        .eq('claim_provider_id', id).order('created_at', { ascending: false }).limit(1);
+      app = ar_ && ar_.data && ar_.data[0] ? ar_.data[0] : null;
+    } catch (e) { /* non-fatal */ }
+
+    var e = escHtmlSafe;
+    var tier = p.subscription_tier || 'standard';
+    var tierLabel = (TIER_DEFAULTS[tier] || TIER_DEFAULTS.standard).label;
+    var isBrand = !!p.is_brand;
+    var verified = !!p.approved_by;
+    var external = p.booking_mode === 'external';
+    var paid = p.payments_status === 'connected';
+    var loc = [p.area, p.city, p.country].filter(function (x) { return x && x !== p.city || (x === p.city); }); // keep simple below
+    var locStr = [p.city, p.country].filter(Boolean).map(e).join(', ') || '—';
+
+    // status chip
+    var stMap = { approved: ['pc-grn', 'check_circle', 'Approved'], pending: ['pc-amb', 'schedule', 'Pending'], lapsed: ['pc-amb', 'error_outline', 'Lapsed'], suspended: ['pc-red', 'block', 'Suspended'], archived: ['pc-grey', 'archive', 'Archived'] };
+    var st = stMap[p.status] || ['pc-grey', 'help', p.status || '—'];
+    function chip(cls, icon, txt) { return '<span class="pinfo-chip ' + cls + '">' + (icon ? '<span class="material-icons">' + icon + '</span>' : '') + e(txt) + '</span>'; }
+
+    var chips = [
+      chip(st[0], st[1], st[2]),
+      chip('pc-grey', '', tierLabel + ' tier'),
+      chip('pc-grey', '', isBrand ? 'Brand' : 'Venue'),
+      verified ? chip('pc-blue', 'verified_user', 'Verified for referrals') : chip('pc-grey', 'gpp_maybe', 'Not verified'),
+      external ? chip('pc-grey', 'open_in_new', 'External booking') : chip('pc-grey', 'event_available', 'FFP booking'),
+      paid ? chip('pc-grn', 'credit_card', 'Payments connected') : chip('pc-amb', 'credit_card_off', 'Payments not connected')
+    ].join('');
+
+    // contact person
+    var ownerName = owner ? ([owner.given_names, owner.surname].filter(Boolean).join(' ') || owner.full_name || '') : '';
+    var contactName = ownerName || (app && app.contact_name) || '';
+    var contactEmail = (owner && owner.email) || p.contact_email || (app && app.email) || '';
+    var contactPhone = (owner && owner.phone) || p.contact_phone || (app && app.phone) || '';
+    var cav = (contactName ? contactName[0] : (p.business_name || '?')[0] || '?').toUpperCase();
+    var membershipLabel = owner ? (owner.membership === 'passport' ? 'Premium' : 'Standard (free)') : null;
+    var roleLine;
+    if (owner) {
+      roleLine = 'Owner &middot; signed up ' + fmtNice(owner.created_at) + ' &middot; FFP account: ' + membershipLabel;
+    } else if (app) {
+      roleLine = 'Applied to claim &middot; ' + fmtNice(app.created_at) + ' &middot; no linked FFP account yet';
+    } else {
+      roleLine = 'No linked FFP account — unclaimed listing';
+    }
+    var contactHtml =
+      '<div class="pinfo-contact">' +
+        '<div class="pinfo-cav">' + e(cav) + '</div>' +
+        '<div class="pinfo-cinfo">' +
+          '<div class="pinfo-cname">' + (contactName ? e(contactName) : 'Account holder <span style="color:#5f7482;font-weight:600;font-size:13px">· no name on file</span>') + '</div>' +
+          '<div class="pinfo-crole">' + roleLine + '</div>' +
+          '<div class="pinfo-clines">' +
+            (contactEmail ? '<span><span class="material-icons">mail</span>' + e(contactEmail) + '</span>' : '') +
+            (contactPhone ? '<span><span class="material-icons">call</span>' + e(contactPhone) + '</span>' : '') +
+          '</div>' +
+        '</div>' +
+        (owner ? '<a class="pinfo-clink" onclick="AdminProviders.closeInfo(); if(window.AdminMembers&&AdminMembers.info){AdminMembers.info(\'' + owner.id + '\')}else if(window.Drawer&&Drawer.openMember){Drawer.openMember(\'' + owner.id + '\')}">Open member profile <span class="material-icons">chevron_right</span></a>' : '') +
+      '</div>';
+
+    // business rows
+    var acts = Array.isArray(p.activities) ? p.activities : [];
+    var actsHtml = acts.length
+      ? '<div class="pinfo-row pinfo-full" style="flex-direction:column;align-items:flex-start;gap:8px;border-bottom:0;"><span class="k">Activities</span><div class="pinfo-tags">' + acts.map(function (a) { return '<span class="pinfo-tag">' + e(a) + '</span>'; }).join('') + '</div></div>'
+      : '';
+    var aboutHtml = p.about
+      ? '<div class="pinfo-row pinfo-full" style="flex-direction:column;align-items:flex-start;gap:6px;border-bottom:0;"><span class="k">About</span><p class="pinfo-about">' + e(p.about) + '</p></div>'
+      : '';
+    var webHtml = p.website ? '<a href="' + e(p.website) + '" target="_blank" rel="noopener">' + e((p.website || '').replace(/^https?:\/\//, '').replace(/\/$/, '')) + '</a>' : '—';
+    var igHtml = p.instagram ? e(p.instagram) : '—';
+    var bookHtml = external ? ('External' + (p.external_booking_url ? ' &middot; <a href="' + e(p.external_booking_url) + '" target="_blank" rel="noopener">link</a>' : '')) : 'On FFP (native)';
+
+    var businessRows =
+      infoRow('Category', e(p.category || '—')) +
+      infoRow('Type', isBrand ? 'Brand' : 'Venue') +
+      infoRow('Location', locStr) +
+      infoRow('Website', webHtml) +
+      infoRow('Instagram', igHtml) +
+      infoRow('Google rating', p.google_rating != null ? (p.google_rating + ' ★') : '—') +
+      '<div class="pinfo-row pinfo-full"><span class="k">Booking</span><span class="v">' + bookHtml + '</span></div>' +
+      actsHtml + aboutHtml;
+
+    // account & billing rows
+    var payVal = paid ? '<span class="ok">Connected</span>' + (p.stripe_account_id ? ' <span style="color:#5f7482;font-weight:600">· ' + e(p.stripe_account_id) + '</span>' : '') : '<span class="no">Not connected</span>';
+    var billRows =
+      infoRow('Listing status', '<span class="' + (p.status === 'approved' ? 'ok' : 'no') + '">' + e((p.status || '').charAt(0).toUpperCase() + (p.status || '').slice(1)) + '</span>') +
+      infoRow('Subscription', tierLabel + (tier === 'standard' ? ' (free)' : '')) +
+      infoRow('Renews / paid until', p.paid_until ? fmtNice(p.paid_until) : '—') +
+      infoRow('Monthly fee', p.monthly_fee_aed != null ? ('AED ' + p.monthly_fee_aed) : '—') +
+      '<div class="pinfo-row"><span class="k">Payments (Stripe)</span><span class="v">' + payVal + '</span></div>' +
+      infoRow('Verified for referrals', verified ? '<span class="ok">Yes</span>' : '<span class="no">No</span>') +
+      infoRow('Listed since', fmtNice(p.created_at)) +
+      infoRow('Approved on', p.approved_at ? fmtNice(p.approved_at) : '—');
+
+    var notesHtml = p.admin_notes
+      ? '<div class="pinfo-note">' + e(p.admin_notes) + '</div>'
+      : '<div class="pinfo-note">No notes yet — use Manage account to add context (owner spoken to, verification done, follow-ups)…</div>';
+
+    var monoHtml = p.logo_url
+      ? '<div class="pinfo-mono"><img src="' + e(p.logo_url) + '" alt=""></div>'
+      : '<div class="pinfo-mono">' + e((p.business_name || '?')[0] || '?').toUpperCase() + '</div>';
+
+    ov.innerHTML =
+      '<div class="pinfo-wrap">' +
+        '<div class="pinfo-crumb" onclick="AdminProviders.closeInfo()"><span class="material-icons">arrow_back</span> Providers / ' + e(p.business_name || '') + '</div>' +
+        '<div class="pinfo-shell">' +
+          '<div class="pinfo-hero">' +
+            '<div class="pinfo-hbar">' +
+              monoHtml +
+              '<div class="pinfo-hmid">' +
+                '<div class="pinfo-name">' + e(p.business_name || '—') + '</div>' +
+                '<div class="pinfo-sub">' + e(p.category || 'Uncategorised') + ' <span class="dot">·</span> ' + locStr +
+                  (p.google_rating != null ? ' <span class="dot">·</span> <span class="star"><span class="material-icons">star</span>' + p.google_rating + '</span>' : '') +
+                '</div>' +
+              '</div>' +
+              '<div class="pinfo-acts">' +
+                '<button class="pinfo-btn gold" onclick="AdminProviders.details(\'' + id + '\')"><span class="material-icons">manage_accounts</span>Manage account</button>' +
+                ((p.status === 'approved' || p.status === 'lapsed') ? '<button class="pinfo-btn blue" onclick="AdminProviders.editSub(\'' + id + '\')"><span class="material-icons">edit_calendar</span>Edit subscription</button>' : '') +
+                (p.owner_user_id ? '<button class="pinfo-btn ghost" onclick="AdminProviders.openAs(\'' + id + '\')"><span class="material-icons">login</span>Open as</button>' : '') +
+              '</div>' +
+            '</div>' +
+            '<div class="pinfo-chips">' + chips + '</div>' +
+          '</div>' +
+          '<div class="pinfo-body">' +
+            '<div class="pinfo-sec"><h3><span class="material-icons">contact_page</span>Contact person</h3>' + contactHtml + '</div>' +
+            '<div class="pinfo-sec"><h3><span class="material-icons">storefront</span>Business</h3><div class="pinfo-rows">' + businessRows + '</div></div>' +
+            '<div class="pinfo-sec"><h3><span class="material-icons">receipt_long</span>Account &amp; billing status</h3><div class="pinfo-rows">' + billRows + '</div></div>' +
+            '<div class="pinfo-sec"><h3><span class="material-icons">sticky_note_2</span>Internal notes <span style="font-weight:600;letter-spacing:0;text-transform:none;color:#5f7482;font-size:12px">(admin only)</span></h3>' + notesHtml + '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
   }
 
   // ─── Boot ───
