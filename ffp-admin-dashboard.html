@@ -2836,7 +2836,7 @@ const App = {
   // Each panel's loader script is fetched ONLY when the panel is first opened, so the
   // page load fires no panel queries (the Overview RPC always wins a connection -> instant).
   _panelScript: {
-    'panel-providers':    'ffp-admin-providers-loader.js?v=3',
+    'panel-providers':    'ffp-admin-providers-loader.js?v=10',
     'panel-payouts':      'ffp-admin-payouts-loader.js',
     'panel-appointments': 'ffp-admin-appointments-loader.js',
     'panel-content':      'ffp-admin-content-loader.js',
@@ -2845,7 +2845,7 @@ const App = {
     'panel-wga':          'assets/ffp-admin-wga-loader.js',
     'panel-giveaways':    'assets/ffp-admin-giveaways-loader.js',
     'panel-feedback':     'ffp-admin-feedback-loader.js',
-    'panel-members':      'ffp-admin-members-loader.js?v=8',
+    'panel-members':      'ffp-admin-members-loader.js?v=9',
     'panel-quests':       'ffp-admin-quests-loader.js?v=4',
     'panel-events':       'ffp-admin-events-loader.js',
     'panel-experiences':  'ffp-admin-experiences-loader.js?v=3',
@@ -3227,7 +3227,7 @@ const AdminMembers = {
     document.getElementById('AdminMembers-meta').textContent = this.search ? `${rows.length} match` : `${rows.length} total`;
     document.getElementById('members-tbody').innerHTML = rows.map(m => `
       <tr>
-        <td onclick="Drawer.openMember('${m.id}')" style="cursor:pointer;">
+        <td onclick="AdminMembers.info('${m.id}')" style="cursor:pointer;" title="Open info page">
           <input type="checkbox" ${(this._sel && this._sel[m.id]) ? 'checked' : ''} onclick="event.stopPropagation(); AdminMembers.toggleSel('${m.id}', this.checked)" style="margin-right:8px;vertical-align:middle;">
           <span class="cell-avatar">${m.initial}</span>
           <span class="cell-name">${escHtml(m.full_name)}${m.verified ? ' <span class="material-icons" title="Verified — checked as a real/safe person" style="font-size:15px;color:#22c55e;vertical-align:middle;">verified</span>' : ''}</span>
