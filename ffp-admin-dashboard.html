@@ -2836,7 +2836,7 @@ const App = {
   // Each panel's loader script is fetched ONLY when the panel is first opened, so the
   // page load fires no panel queries (the Overview RPC always wins a connection -> instant).
   _panelScript: {
-    'panel-providers':    'ffp-admin-providers-loader.js?v=10',
+    'panel-providers':    'ffp-admin-providers-loader.js?v=11',
     'panel-payouts':      'ffp-admin-payouts-loader.js',
     'panel-appointments': 'ffp-admin-appointments-loader.js',
     'panel-content':      'ffp-admin-content-loader.js',
@@ -2870,7 +2870,7 @@ const App = {
       var sc = document.createElement('script');
       // Cache-bust lazy loaders so a new deploy never serves a stale cached .js.
       // BUMP this with the dashboard build number on every deploy (matches footer build).
-      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=83'; sc.async = false;
+      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=85'; sc.async = false;
       sc.onload = function () {
         if (panelId === 'panel-analytics') {
           setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 80);
