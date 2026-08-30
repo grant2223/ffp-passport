@@ -68,118 +68,99 @@
     return bits.join(' · ');
   }
 
+  var COLS = 'grid-template-columns:1fr 150px 90px 120px 190px;';
   function row(g) {
+    var chip = { open: 'ax-c-open', draft: 'ax-c-draft', drawn: 'ax-c-drawn', cancelled: 'ax-c-cancel' }[g.status] || 'ax-c-draft';
     var canDraw = g.status === 'open';
-    return '<tr style="border-bottom:1px solid #f1f4f6;">' +
-      '<td style="padding:11px 12px;">' +
-        '<div style="display:flex;align-items:center;gap:11px;">' +
-          '<div style="width:46px;height:46px;border-radius:9px;flex:none;background:#eef2f5 ' + (g.image_url ? "url('" + esc(g.image_url) + "') center/cover no-repeat" : '') + ';"></div>' +
-          '<div><div style="font-weight:800;color:#12232f;">' + esc(g.prize || g.title) + ' ' + statusPill(g.status) + '</div>' +
-          '<div style="font-size:12px;font-weight:600;color:#8a99a8;margin-top:2px;">' + esc(g.provider_name || 'No partner') + ' · ' + esc(crit(g)) + '</div></div>' +
-        '</div></td>' +
-      '<td style="padding:11px 12px;text-align:center;font-size:13px;color:#5b6b75;">' + fmtDate(g.starts_at) + ' → ' + fmtDate(g.draw_at) + '</td>' +
-      '<td style="padding:11px 12px;text-align:center;font-weight:900;color:#1980AD;">' + (g.entrants || 0) + '</td>' +
-      '<td style="padding:11px 12px;text-align:center;font-weight:700;color:#12232f;">' + (g.winner ? esc(g.winner) : '—') + '</td>' +
-      '<td style="padding:11px 12px;text-align:right;white-space:nowrap;">' +
-        (canDraw ? '<button onclick="AdminGiveaways.draw(\'' + g.id + '\')" style="padding:7px 12px;border:none;background:#1e9e75;color:#fff;border-radius:8px;font-weight:800;cursor:pointer;font-size:12px;">Draw</button> ' : '') +
-        '<button onclick="AdminGiveaways.edit(\'' + g.id + '\')" style="padding:7px 12px;border:none;background:#eef2f5;color:#12232f;border-radius:8px;font-weight:800;cursor:pointer;font-size:12px;">Edit</button> ' +
-        '<button onclick="AdminGiveaways.remove(\'' + g.id + '\')" style="padding:7px 10px;border:none;background:#fbe7e6;color:#c0392b;border-radius:8px;font-weight:800;cursor:pointer;font-size:12px;">Delete</button>' +
-      '</td></tr>';
+    return '<div class="ax-grow" style="' + COLS + '">' +
+      '<div style="display:flex;align-items:center;gap:13px;min-width:0;">' +
+        '<span style="width:46px;height:46px;border-radius:11px;flex:none;background:#0a1620 ' + (g.image_url ? "url('" + esc(g.image_url) + "') center/cover no-repeat" : '') + ';box-shadow:0 4px 12px rgba(0,0,0,.35);"></span>' +
+        '<div style="min-width:0;"><b style="font-size:14px;font-weight:800;color:#eaf1f6;">' + esc(g.prize || g.title) + ' <span class="ax-chip ' + chip + '">' + String(g.status || '').toUpperCase() + '</span></b>' +
+        '<div style="font-size:11.5px;color:#8aa0ad;font-weight:600;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(g.provider_name || 'No partner') + ' · ' + esc(crit(g)) + '</div></div></div>' +
+      '<div style="font-size:12.5px;color:#8aa0ad;font-weight:600;">' + fmtDate(g.starts_at) + ' → ' + fmtDate(g.draw_at) + '</div>' +
+      '<div style="font-size:16px;font-weight:900;color:#2b9fd0;">' + (g.entrants || 0) + '</div>' +
+      '<div style="font-size:13px;font-weight:700;color:#eaf1f6;">' + (g.winner ? esc(g.winner) : '—') + '</div>' +
+      '<div style="display:flex;gap:7px;justify-content:flex-end;">' +
+        (canDraw ? '<button class="ax-a draw" onclick="AdminGiveaways.draw(\'' + g.id + '\')">Draw</button>' : '') +
+        '<button class="ax-a edit" onclick="AdminGiveaways.edit(\'' + g.id + '\')">Edit</button>' +
+        '<button class="ax-a del" onclick="AdminGiveaways.remove(\'' + g.id + '\')">Delete</button></div>' +
+    '</div>';
   }
 
   async function render() {
     var el = document.getElementById('giveaways-body');
     for (var i = 0; i < 40 && !el; i++) { await new Promise(function (r) { setTimeout(r, 100); }); el = document.getElementById('giveaways-body'); }
     if (!el) return;
-    el.innerHTML = '<div style="padding:20px;color:#8a99a8;">Loading…</div>';
+    el.innerHTML = '<div style="padding:20px;color:#8aa0ad;">Loading…</div>';
     await loadAll();
     var open = rows.filter(function (g) { return g.status === 'open'; }).length;
     var drawn = rows.filter(function (g) { return g.status === 'drawn'; }).length;
-    var kpis = '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">' +
-      kpi('Total', rows.length) + kpi('Live', open, '#1e9e63') + kpi('Drawn', drawn, '#4a6072') + '</div>';
-    var head = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
-      '<div style="font-size:13px;font-weight:700;color:#5b6b75;">Partner giveaways — Passport members only. Members earn entries by staying active.</div>' +
-      '<button onclick="AdminGiveaways.create()" style="padding:10px 16px;border:none;background:#1980AD;color:#fff;border-radius:9px;font-weight:800;cursor:pointer;">+ New giveaway</button></div>';
-    var table = rows.length === 0
-      ? '<div style="padding:30px;text-align:center;color:#8a99a8;">No giveaways yet — create one and link it to a partner.</div>'
-      : '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #eef2f5;border-radius:12px;overflow:hidden;">' +
-        '<thead><tr style="background:#f7f9fb;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#8a99a8;">' +
-        '<th style="padding:10px 12px;">Prize · partner · who</th><th style="padding:10px 12px;text-align:center;">Window</th><th style="padding:10px 12px;text-align:center;">Entrants</th><th style="padding:10px 12px;text-align:center;">Winner</th><th style="padding:10px 12px;"></th></tr></thead>' +
-        '<tbody>' + rows.map(row).join('') + '</tbody></table></div>';
-    el.innerHTML = kpis + head + table;
+    var ent = rows.reduce(function (s, g) { return s + (g.entrants || 0); }, 0);
+    var stats = '<div class="ax-stats"><div class="hero"><div class="n live">' + open + '</div><div class="k">Live now</div></div><div class="sep"></div>' +
+      '<div class="s"><div class="n">' + rows.length + '</div><div class="k">Total</div></div>' +
+      '<div class="s"><div class="n">' + drawn + '</div><div class="k">Drawn</div></div>' +
+      '<div class="s"><div class="n">' + ent + '</div><div class="k">Entrants</div></div></div>';
+    var head = '<div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">' +
+      '<div style="flex:1;font-size:13px;font-weight:600;color:#8aa0ad;">Partner giveaways — Passport members only. Members earn entries by staying active.</div>' +
+      '<button class="ax-btn gold" onclick="AdminGiveaways.create()"><span class="material-icons">add</span>New giveaway</button></div>';
+    var list = rows.length === 0
+      ? '<div style="padding:34px;text-align:center;color:#8aa0ad;">No giveaways yet — create one and link it to a partner.</div>'
+      : '<div class="ax-lhead" style="' + COLS + '"><span>Prize · partner</span><span>Window</span><span>Entrants</span><span>Winner</span><span></span></div>' + rows.map(row).join('');
+    el.innerHTML = stats + head + list;
   }
 
   function form(g) {
     g = g || {};
-    var fld = 'display:block;width:100%;margin-top:6px;padding:11px 12px;border:1px solid rgba(255,255,255,.14);border-radius:9px;background:#12232f;color:#eaf1f6;font-family:inherit;font-weight:500;font-size:14px;box-sizing:border-box;';
-    var lbl = 'font-size:11px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#8aa0ad;';
     var w = g.entry_weights || { optin: 1, activity: 1, checkin: 2, referral: 5 };
-    return '<div style="display:flex;flex-direction:column;gap:15px;">' +
-      '<label style="' + lbl + '">Partner<div style="position:relative;">' +
-        '<input id="gw-prov-q" style="' + fld + '" placeholder="Search a partner…" value="' + esc(g.provider_name || '') + '" oninput="AdminGiveaways.searchProv(this.value)" autocomplete="off">' +
-        '<input type="hidden" id="gw-prov" value="' + esc(g.provider_id || '') + '">' +
-        '<div id="gw-prov-opts" style="position:absolute;left:0;right:0;top:100%;z-index:5;background:#0f1e2e;border:1px solid rgba(255,255,255,.14);border-radius:9px;margin-top:3px;box-shadow:0 12px 28px rgba(0,0,0,.5);display:none;max-height:200px;overflow:auto;"></div>' +
-      '</div></label>' +
-      '<label style="' + lbl + '">Prize name<input id="gw-prize" style="' + fld + '" placeholder="WHOOP 4.0 + 12-month membership" value="' + esc(g.prize || g.title || '') + '"></label>' +
-      '<div style="display:flex;gap:12px;">' +
-        '<label style="' + lbl + 'flex:1;">Value (optional, $)<input id="gw-value" type="number" style="' + fld + '" placeholder="360" value="' + (g.prize_value != null ? g.prize_value : '') + '"></label>' +
-        '<label style="' + lbl + 'flex:1;">Status<select id="gw-status" style="' + fld + '">' +
-          ['draft', 'open', 'drawn', 'cancelled'].map(function (s) { return '<option value="' + s + '"' + ((g.status || 'draft') === s ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select></label>' +
+    var opt = function (v, cur) { return '<option value="' + v + '"' + (cur === v ? ' selected' : '') + '>' + (v ? v.charAt(0).toUpperCase() + v.slice(1) : 'Any') + '</option>'; };
+    return '' +
+      '<div class="ax-sec"><h4>Prize &amp; partner</h4>' +
+        '<div class="ax-f"><label>Partner</label>' +
+          '<input id="gw-prov-q" class="ax-in" placeholder="Search a partner…" value="' + esc(g.provider_name || '') + '" oninput="AdminGiveaways.searchProv(this.value)" autocomplete="off">' +
+          '<input type="hidden" id="gw-prov" value="' + esc(g.provider_id || '') + '">' +
+          '<div id="gw-prov-opts" class="ax-pres" style="display:none;top:100%;max-height:220px;overflow:auto;"></div></div>' +
+        '<div class="ax-f"><label>Prize name</label><input id="gw-prize" class="ax-in" placeholder="WHOOP 4.0 + 12-month membership" value="' + esc(g.prize || g.title || '') + '"></div>' +
+        '<div class="ax-f2"><div class="ax-f"><label>Value ($)</label><input id="gw-value" type="number" class="ax-in" placeholder="360" value="' + (g.prize_value != null ? g.prize_value : '') + '"></div>' +
+          '<div class="ax-f"><label>Status</label><select id="gw-status" class="ax-in">' + ['draft', 'open', 'drawn', 'cancelled'].map(function (s) { return opt(s, g.status || 'draft'); }).join('') + '</select></div></div>' +
+        '<div class="ax-f"><label>Description</label><textarea id="gw-desc" rows="3" class="ax-in" placeholder="What they win + why it matters">' + esc(g.description || '') + '</textarea></div>' +
+        '<div class="ax-f"><label>Prize image</label>' +
+          '<div class="ax-drop" onclick="document.getElementById(\'gw-img-file\').click()"><span id="gw-img-prev" class="pv" style="' + (g.image_url ? "background-image:url('" + esc(g.image_url) + "')" : '') + '">' + (g.image_url ? '' : '<span class="material-icons">image</span>') + '</span><b id="gw-img-txt">' + (g.image_url ? 'Uploaded ✓ — tap to change' : 'Tap to upload an image') + '</b></div>' +
+          '<input id="gw-img-file" type="file" accept="image/*" style="display:none" onchange="AdminGiveaways.uploadImg(this)"><input type="hidden" id="gw-img" value="' + esc(g.image_url || '') + '"></div>' +
       '</div>' +
-      '<label style="' + lbl + '">Description<textarea id="gw-desc" rows="3" style="' + fld + '" placeholder="What they win + why it matters">' + esc(g.description || '') + '</textarea></label>' +
-      '<div><div style="' + lbl + 'margin-bottom:7px;">Prize image</div>' +
-        '<div onclick="document.getElementById(\'gw-img-file\').click()" style="display:flex;align-items:center;gap:12px;border:1px dashed rgba(255,255,255,.2);border-radius:10px;padding:12px;cursor:pointer;background:#12232f;">' +
-          '<div id="gw-img-prev" style="width:52px;height:52px;border-radius:9px;flex:none;background:#0a1620 ' + (g.image_url ? "url('" + esc(g.image_url) + "') center/cover no-repeat" : '') + ';display:flex;align-items:center;justify-content:center;color:#8aa0ad;">' + (g.image_url ? '' : '<span class="material-icons">image</span>') + '</div>' +
-          '<div id="gw-img-txt" style="font-size:13px;font-weight:600;color:#c3d3dd;">' + (g.image_url ? 'Uploaded ✓ — tap to change' : 'Tap to upload an image') + '</div>' +
-        '</div>' +
-        '<input id="gw-img-file" type="file" accept="image/*" style="display:none" onchange="AdminGiveaways.uploadImg(this)">' +
-        '<input type="hidden" id="gw-img" value="' + esc(g.image_url || '') + '">' +
+      '<div class="ax-sec"><h4>Window</h4>' +
+        '<div class="ax-f2"><div class="ax-f"><label>Opens</label><input id="gw-starts" type="datetime-local" class="ax-in" value="' + toLocalInput(g.starts_at) + '"></div>' +
+          '<div class="ax-f"><label>Draw date</label><input id="gw-draw" type="datetime-local" class="ax-in" value="' + toLocalInput(g.draw_at) + '"></div></div>' +
       '</div>' +
-      '<div style="display:flex;gap:12px;">' +
-        '<label style="' + lbl + 'flex:1;">Opens<input id="gw-starts" type="datetime-local" style="' + fld + '" value="' + toLocalInput(g.starts_at) + '"></label>' +
-        '<label style="' + lbl + 'flex:1;">Draw date<input id="gw-draw" type="datetime-local" style="' + fld + '" value="' + toLocalInput(g.draw_at) + '"></label>' +
+      '<div class="ax-sec"><h4>Who can enter <span style="text-transform:none;letter-spacing:0;color:#5f7482;font-weight:600">· Passport members only</span></h4>' +
+        '<div class="ax-f2"><div class="ax-f"><label>Location</label><select id="gw-locmode" class="ax-in" onchange="AdminGiveaways.toggleRadius()"><option value="radius"' + ((g.location_mode || 'radius') === 'radius' ? ' selected' : '') + '>Near the partner</option><option value="global"' + (g.location_mode === 'global' ? ' selected' : '') + '>Worldwide</option></select></div>' +
+          '<div class="ax-f" id="gw-radwrap"><label>Radius (km)</label><input id="gw-radius" type="number" class="ax-in" value="' + (g.radius_km || 50) + '"></div></div>' +
+        '<div class="ax-f3"><div class="ax-f"><label>Gender</label><select id="gw-gender" class="ax-in"><option value="">Any</option><option value="Male"' + (g.gender === 'Male' ? ' selected' : '') + '>Male</option><option value="Female"' + (g.gender === 'Female' ? ' selected' : '') + '>Female</option></select></div>' +
+          '<div class="ax-f"><label>Min age</label><input id="gw-minage" type="number" class="ax-in" value="' + (g.min_age != null ? g.min_age : '') + '"></div>' +
+          '<div class="ax-f"><label>Max age</label><input id="gw-maxage" type="number" class="ax-in" value="' + (g.max_age != null ? g.max_age : '') + '"></div></div>' +
+        '<label class="ax-check"><input type="checkbox" id="gw-visitors" ' + (g.visitors_only ? 'checked' : '') + '>Only members who have checked in at this partner</label>' +
       '</div>' +
-      '<div style="border-top:1px solid rgba(255,255,255,.1);padding-top:13px;"><div style="' + lbl + 'margin-bottom:9px;">Who can enter <span style="font-weight:600;color:#8a99a8;">(Passport members only, always)</span></div>' +
-        '<div style="display:flex;gap:12px;">' +
-          '<label style="' + lbl + 'flex:1;">Location<select id="gw-locmode" style="' + fld + '" onchange="AdminGiveaways.toggleRadius()">' +
-            '<option value="radius"' + ((g.location_mode || 'radius') === 'radius' ? ' selected' : '') + '>Near the partner</option>' +
-            '<option value="global"' + (g.location_mode === 'global' ? ' selected' : '') + '>Worldwide</option></select></label>' +
-          '<label style="' + lbl + 'flex:1;" id="gw-radwrap">Radius (km)<input id="gw-radius" type="number" style="' + fld + '" value="' + (g.radius_km || 50) + '"></label>' +
-        '</div>' +
-        '<div style="display:flex;gap:12px;margin-top:12px;">' +
-          '<label style="' + lbl + 'flex:1;">Gender<select id="gw-gender" style="' + fld + '">' +
-            '<option value="">Any</option>' +
-            '<option value="Male"' + (g.gender === 'Male' ? ' selected' : '') + '>Male</option>' +
-            '<option value="Female"' + (g.gender === 'Female' ? ' selected' : '') + '>Female</option></select></label>' +
-          '<label style="' + lbl + 'flex:1;">Min age<input id="gw-minage" type="number" style="' + fld + '" value="' + (g.min_age != null ? g.min_age : '') + '"></label>' +
-          '<label style="' + lbl + 'flex:1;">Max age<input id="gw-maxage" type="number" style="' + fld + '" value="' + (g.max_age != null ? g.max_age : '') + '"></label>' +
-        '</div>' +
-        '<label style="display:flex;align-items:center;gap:9px;margin-top:12px;font-size:13px;font-weight:600;color:#c3d3dd;cursor:pointer;">' +
-          '<input type="checkbox" id="gw-visitors" ' + (g.visitors_only ? 'checked' : '') + ' style="width:18px;height:18px;">Only members who have checked in at this partner</label>' +
-      '</div>' +
-      '<div style="border-top:1px solid rgba(255,255,255,.1);padding-top:13px;"><div style="' + lbl + 'margin-bottom:9px;">Entries per action <span style="font-weight:600;color:#8a99a8;">(more active = better odds)</span></div>' +
-        '<div style="display:flex;gap:12px;">' +
-          '<label style="' + lbl + 'flex:1;">Activity<input id="gw-w-act" type="number" style="' + fld + '" value="' + (w.activity != null ? w.activity : 1) + '"></label>' +
-          '<label style="' + lbl + 'flex:1;">Check-in<input id="gw-w-chk" type="number" style="' + fld + '" value="' + (w.checkin != null ? w.checkin : 2) + '"></label>' +
-          '<label style="' + lbl + 'flex:1;">Referral<input id="gw-w-ref" type="number" style="' + fld + '" value="' + (w.referral != null ? w.referral : 5) + '"></label>' +
-        '</div></div>' +
+      '<div class="ax-sec"><h4>Entries per action <span style="text-transform:none;letter-spacing:0;color:#5f7482;font-weight:600">· more active = better odds</span></h4>' +
+        '<div class="ax-f3"><div class="ax-f"><label>Activity</label><input id="gw-w-act" type="number" class="ax-in" value="' + (w.activity != null ? w.activity : 1) + '"></div>' +
+          '<div class="ax-f"><label>Check-in</label><input id="gw-w-chk" type="number" class="ax-in" value="' + (w.checkin != null ? w.checkin : 2) + '"></div>' +
+          '<div class="ax-f"><label>Referral</label><input id="gw-w-ref" type="number" class="ax-in" value="' + (w.referral != null ? w.referral : 5) + '"></div></div>' +
       '</div>';
   }
 
   window.AdminGiveaways = {
     refresh: render,
     create: function () {
-      if (typeof window.openModal !== 'function') { alert('Admin modal unavailable on this page.'); return; }
+      var open = window.openSheet || window.openModal;
+      if (typeof open !== 'function') { alert('Admin sheet unavailable on this page.'); return; }
       editing = null;
-      window.openModal('New giveaway', form(null),
-        '<button class="btn" onclick="closeModal()">Cancel</button><button class="btn" style="background:#1980AD;color:#fff;" onclick="AdminGiveaways.save()">Save</button>');
+      open('New giveaway', form(null),
+        '<button class="ax-btn ghost" onclick="closeSheet()">Cancel</button><button class="ax-btn blue" onclick="AdminGiveaways.save()"><span class="material-icons">check</span>Save giveaway</button>');
       setTimeout(this.toggleRadius, 30);
     },
     edit: function (id) {
       editing = rows.find(function (g) { return g.id === id; }) || null;
       if (!editing) return;
-      window.openModal('Edit giveaway', form(editing),
-        '<button class="btn" onclick="closeModal()">Cancel</button><button class="btn" style="background:#1980AD;color:#fff;" onclick="AdminGiveaways.save()">Save</button>');
+      (window.openSheet || window.openModal)('Edit giveaway', form(editing),
+        '<button class="ax-btn ghost" onclick="closeSheet()">Cancel</button><button class="ax-btn blue" onclick="AdminGiveaways.save()"><span class="material-icons">check</span>Save giveaway</button>');
       setTimeout(this.toggleRadius, 30);
     },
     toggleRadius: function () {
@@ -245,7 +226,7 @@
       };
       var r = await sb().rpc('admin_giveaway_save', { p_id: editing ? editing.id : null, p: p });
       if (r.error) return toast(r.error.message || 'Save failed', 'error');
-      if (window.closeModal) closeModal();
+      if (window.closeSheet) closeSheet(); else if (window.closeModal) closeModal();
       toast('Giveaway saved', 'success'); render();
     },
     draw: async function (id) {
