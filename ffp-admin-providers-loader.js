@@ -342,7 +342,7 @@
               '<div><label class="ffp-pm-label">Instagram</label><input type="text" class="ffp-pm-input" id="pd-instagram"></div></div>' +
             '<div class="ffp-pm-row"><label class="ffp-pm-label">About</label><textarea class="ffp-pm-input" id="pd-about" rows="3"></textarea></div>' +
             '<div class="ffp-pm-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
-              '<div><label class="ffp-pm-label">Account type</label><select class="ffp-pm-input" id="pd-brand"><option value="false">Venue / provider</option><option value="true">Product brand</option></select></div>' +
+              '<div><label class="ffp-pm-label">Account type</label><select class="ffp-pm-input" id="pd-brand"><option value="venue">Venue / provider</option><option value="brand">Product brand</option><option value="organizer">Event organizer</option></select></div>' +
               '<div><label class="ffp-pm-label">Bookings</label><select class="ffp-pm-input" id="pd-bookmode"><option value="native">On FFP (native)</option><option value="external">External link</option></select></div></div>' +
             '<div class="ffp-pm-row" id="pd-bookurl-row" style="display:none;"><label class="ffp-pm-label">External booking URL</label><input type="text" class="ffp-pm-input" id="pd-bookurl" placeholder="https://..."></div>' +
             '<div class="ffp-pm-row"><label class="ffp-pm-label">Owner login email <span style="font-weight:500;color:#8a99a8;">— must be an existing member</span></label>' +
@@ -566,7 +566,7 @@
     v('pd-country', p.country); v('pd-email', p.contact_email); v('pd-phone', p.contact_phone);
     v('pd-website', p.website); v('pd-instagram', p.instagram); v('pd-about', p.about); v('pd-notes', p.admin_notes);
     v('pd-owner', p.contact_email);
-    $('#pd-brand').value = p.is_brand ? 'true' : 'false';
+    $('#pd-brand').value = p.is_organizer ? 'organizer' : (p.is_brand ? 'brand' : 'venue');
     $('#pd-bookmode').value = (p.booking_mode === 'external') ? 'external' : 'native';
     v('pd-bookurl', p.external_booking_url);
     $('#pd-bookurl-row').style.display = (p.booking_mode === 'external') ? '' : 'none';
@@ -585,7 +585,8 @@
       contact_email: g('pd-email') || null, contact_phone: g('pd-phone') || null,
       website: g('pd-website') || null, instagram: g('pd-instagram') || null,
       about: g('pd-about') || null, admin_notes: g('pd-notes') || null,
-      is_brand: ($('#pd-brand').value === 'true'),
+      is_brand: ($('#pd-brand').value === 'brand'),
+      is_organizer: ($('#pd-brand').value === 'organizer'),
       booking_mode: $('#pd-bookmode').value, external_booking_url: g('pd-bookurl') || null
     };
     var btn = $('#ffp-pm-details-confirm'); btn.disabled = true;
@@ -787,7 +788,7 @@
     // anything needing action (pending / suspended / lapsed / archived).
     var res = await window.supabase
       .from('providers')
-      .select('id, business_name, letter_mark, category, city, country, status, featured, created_at, paid_until, subscription_tier, monthly_fee_aed, contact_email, contact_phone, area, address, owner_user_id, about, website, instagram, hero_photo_url, logo_url, latitude, longitude, approved_at, approved_by, business_access, business_access_requested_at, admin_notes, is_brand, booking_mode, external_booking_url, activities, google_rating, payments_status, stripe_account_id, maps_url')
+      .select('id, business_name, letter_mark, category, city, country, status, featured, created_at, paid_until, subscription_tier, monthly_fee_aed, contact_email, contact_phone, area, address, owner_user_id, about, website, instagram, hero_photo_url, logo_url, latitude, longitude, approved_at, approved_by, business_access, business_access_requested_at, admin_notes, is_brand, is_organizer, booking_mode, external_booking_url, activities, google_rating, payments_status, stripe_account_id, maps_url')
       .or('owner_user_id.not.is.null,status.neq.approved')
       .order('created_at', { ascending: false })
       .limit(1000);
@@ -1162,6 +1163,8 @@
     var tier = p.subscription_tier || 'standard';
     var tierLabel = (TIER_DEFAULTS[tier] || TIER_DEFAULTS.standard).label;
     var isBrand = !!p.is_brand;
+    var isOrganizer = !!p.is_organizer;
+    var typeLabel = isOrganizer ? 'Event organizer' : (isBrand ? 'Brand' : 'Venue');
     var verified = !!p.approved_by;
     var external = p.booking_mode === 'external';
     var paid = p.payments_status === 'connected';
@@ -1176,7 +1179,7 @@
     var chips = [
       chip(st[0], st[1], st[2]),
       chip('pc-grey', '', tierLabel + ' tier'),
-      chip('pc-grey', '', isBrand ? 'Brand' : 'Venue'),
+      chip('pc-grey', '', typeLabel),
       verified ? chip('pc-blue', 'verified_user', 'Verified for referrals') : chip('pc-grey', 'gpp_maybe', 'Not verified'),
       external ? chip('pc-grey', 'open_in_new', 'External booking') : chip('pc-grey', 'event_available', 'FFP booking'),
       paid ? chip('pc-grn', 'credit_card', 'Payments connected') : chip('pc-amb', 'credit_card_off', 'Payments not connected')
@@ -1225,7 +1228,7 @@
 
     var businessRows =
       infoRow('Category', e(p.category || '—')) +
-      infoRow('Type', isBrand ? 'Brand' : 'Venue') +
+      infoRow('Type', typeLabel) +
       infoRow('Location', locStr) +
       infoRow('Website', webHtml) +
       infoRow('Instagram', igHtml) +
@@ -1276,7 +1279,7 @@
           '</div>' +
           '<div class="pinfo-body">' +
             '<div class="pinfo-sec"><h3><span class="material-icons">contact_page</span>Contact person</h3>' + contactHtml + '</div>' +
-            '<div class="pinfo-sec"><h3><span class="material-icons">storefront</span>Business</h3><div class="pinfo-rows">' + businessRows + '</div></div>' +
+            ((isBrand || isOrganizer) ? '' : '<div class="pinfo-sec"><h3><span class="material-icons">storefront</span>Business</h3><div class="pinfo-rows">' + businessRows + '</div></div>') +
             '<div class="pinfo-sec"><h3><span class="material-icons">receipt_long</span>Account &amp; billing status</h3><div class="pinfo-rows">' + billRows + '</div></div>' +
             '<div class="pinfo-sec"><h3><span class="material-icons">sticky_note_2</span>Internal notes <span style="font-weight:600;letter-spacing:0;text-transform:none;color:#5f7482;font-size:12px">(admin only)</span></h3>' + notesHtml + '</div>' +
           '</div>' +
