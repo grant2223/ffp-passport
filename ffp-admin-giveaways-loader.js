@@ -42,8 +42,11 @@
   var editing = null;   // giveaway being edited (or null for new)
 
   async function loadAll() {
-    var r = await sb().rpc('admin_giveaways_list');
-    rows = (r && !r.error && Array.isArray(r.data)) ? r.data : [];
+    try {
+      var s = sb(); if (!s) { rows = []; return; }
+      var r = await s.rpc('admin_giveaways_list');
+      rows = (r && !r.error && Array.isArray(r.data)) ? r.data : [];
+    } catch (e) { console.error('[Giveaways] loadAll:', e); rows = []; }
   }
 
   function statusPill(s) {
@@ -255,5 +258,11 @@
     }
   };
 
-  render();
+  async function boot() {
+    var t = 0;
+    while (!window.supabase && t < 100) { await new Promise(function (r) { setTimeout(r, 100); }); t++; }
+    try { await render(); } catch (e) { console.error('[Giveaways] boot render:', e); var el = document.getElementById('giveaways-body'); if (el) el.innerHTML = '<div style="padding:24px;color:#c0392b;">Could not load giveaways. Reload the page.</div>'; }
+  }
+  document.addEventListener('ffp-admin-ready', function () { boot(); });
+  boot();
 })();
