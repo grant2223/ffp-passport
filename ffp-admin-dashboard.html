@@ -1541,8 +1541,8 @@ body.ffp-role-staff [data-owner-only] { display: none !important; }
 .ax-sheet-hd{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:12px;padding:16px 22px;border-bottom:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg,#0f1d28,#0b1722);}
 .ax-sheet-hd .ax-x{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.06);display:grid;place-items:center;color:#cfe0ea;cursor:pointer;}
 .ax-sheet-hd h3{font-size:17px;font-weight:900;flex:1;}
-.ax-sheet-body{flex:1;padding:8px 22px 26px;max-width:720px;margin:0 auto;width:100%;}
-.ax-sheet-ft{position:sticky;bottom:0;display:flex;justify-content:flex-end;gap:10px;padding:14px 22px;border-top:1px solid rgba(255,255,255,.08);background:linear-gradient(0deg,#0f1d28,#0b1722);}
+.ax-sheet-body{flex:1;padding:8px 22px 0;max-width:720px;margin:0 auto;width:100%;}
+.ax-sheet-ft{display:flex;justify-content:flex-end;gap:10px;padding:22px 22px 56px;max-width:720px;margin:0 auto;width:100%;border-top:1px solid rgba(255,255,255,.08);}
 .ax-sec{padding:20px 0;border-bottom:1px solid rgba(255,255,255,.08);}
 .ax-sec:last-child{border-bottom:0;}
 .ax-sec h4{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#7fa0b2;margin-bottom:14px;}
@@ -2929,7 +2929,7 @@ const App = {
       var sc = document.createElement('script');
       // Cache-bust lazy loaders so a new deploy never serves a stale cached .js.
       // BUMP this with the dashboard build number on every deploy (matches footer build).
-      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=89'; sc.async = false;
+      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=90'; sc.async = false;
       sc.onload = function () {
         if (panelId === 'panel-analytics') {
           setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 80);
