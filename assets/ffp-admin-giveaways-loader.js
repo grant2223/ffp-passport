@@ -127,6 +127,8 @@
           '<div class="ax-drop" onclick="document.getElementById(\'gw-img-file\').click()"><span id="gw-img-prev" class="pv" style="' + (g.image_url ? "background-image:url('" + esc(g.image_url) + "')" : '') + '">' + (g.image_url ? '' : '<span class="material-icons">image</span>') + '</span><b id="gw-img-txt">' + (g.image_url ? 'Uploaded ✓ — tap to change' : 'Tap to upload an image') + '</b></div>' +
           '<input id="gw-img-file" type="file" accept="image/*" style="display:none" onchange="AdminGiveaways.uploadImg(this)"><input type="hidden" id="gw-img" value="' + esc(g.image_url || '') + '"></div>' +
       '</div>' +
+      '<div class="ax-sec"><h4>Included</h4>' +
+        '<div class="ax-f"><label>What\'s included</label><textarea id="gw-included" rows="3" class="ax-in" placeholder="e.g. WHOOP 4.0 band · 12-month membership · free shipping — one per line">' + esc(g.included || '') + '</textarea></div></div>' +
       '<div class="ax-sec"><h4>Window</h4>' +
         '<div class="ax-f2"><div class="ax-f"><label>Opens</label><input id="gw-starts" type="datetime-local" class="ax-in" value="' + toLocalInput(g.starts_at) + '"></div>' +
           '<div class="ax-f"><label>Draw date</label><input id="gw-draw" type="datetime-local" class="ax-in" value="' + toLocalInput(g.draw_at) + '"></div></div>' +
@@ -143,7 +145,9 @@
         '<div class="ax-f3"><div class="ax-f"><label>Activity</label><input id="gw-w-act" type="number" class="ax-in" value="' + (w.activity != null ? w.activity : 1) + '"></div>' +
           '<div class="ax-f"><label>Check-in</label><input id="gw-w-chk" type="number" class="ax-in" value="' + (w.checkin != null ? w.checkin : 2) + '"></div>' +
           '<div class="ax-f"><label>Referral</label><input id="gw-w-ref" type="number" class="ax-in" value="' + (w.referral != null ? w.referral : 5) + '"></div></div>' +
-      '</div>';
+      '</div>' +
+      '<div class="ax-sec"><h4>Terms &amp; conditions</h4>' +
+        '<div class="ax-f"><label>Terms members must accept</label><textarea id="gw-terms" rows="4" class="ax-in" placeholder="Eligibility, how the winner is drawn &amp; contacted, prize claim window, any exclusions…">' + esc(g.terms || '') + '</textarea></div></div>';
   }
 
   window.AdminGiveaways = {
@@ -213,6 +217,8 @@
         prize_value: val('gw-value') || null,
         image_url: val('gw-img') || null,
         description: val('gw-desc').trim() || null,
+        included: val('gw-included').trim() || null,
+        terms: val('gw-terms').trim() || null,
         starts_at: val('gw-starts') ? new Date(val('gw-starts')).toISOString() : null,
         draw_at: new Date(draw).toISOString(),
         status: val('gw-status') || 'draft',
