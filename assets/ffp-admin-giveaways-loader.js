@@ -76,11 +76,12 @@
       '<div style="display:flex;align-items:center;gap:13px;min-width:0;">' +
         '<span style="width:46px;height:46px;border-radius:11px;flex:none;background:#0a1620 ' + (g.image_url ? "url('" + esc(g.image_url) + "') center/cover no-repeat" : '') + ';box-shadow:0 4px 12px rgba(0,0,0,.35);"></span>' +
         '<div style="min-width:0;"><b style="font-size:14px;font-weight:800;color:#eaf1f6;">' + esc(g.prize || g.title) + ' <span class="ax-chip ' + chip + '">' + String(g.status || '').toUpperCase() + '</span></b>' +
-        '<div style="font-size:11.5px;color:#8aa0ad;font-weight:600;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(g.provider_name || 'No partner') + ' · ' + esc(crit(g)) + '</div></div></div>' +
+        '<div style="font-size:11.5px;color:#8aa0ad;font-weight:600;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(g.provider_name || 'No partner') + ' · ' + esc(crit(g)) + (g.interim_enabled ? ' · <span style="color:#e6b23c;">★ ' + (g.finalist_count || 0) + ' finalist' + ((g.finalist_count || 0) === 1 ? '' : 's') + ' · every ' + (g.interim_every || 1) + ' ' + (g.interim_unit || 'day') + ((g.interim_every || 1) === 1 ? '' : 's') + '</span>' : '') + '</div></div></div>' +
       '<div style="font-size:12.5px;color:#8aa0ad;font-weight:600;">' + fmtDate(g.starts_at) + ' → ' + fmtDate(g.draw_at) + '</div>' +
       '<div style="font-size:16px;font-weight:900;color:#2b9fd0;">' + (g.entrants || 0) + '</div>' +
       '<div style="font-size:13px;font-weight:700;color:#eaf1f6;">' + (g.winner ? esc(g.winner) : '—') + '</div>' +
-      '<div style="display:flex;gap:7px;justify-content:flex-end;">' +
+      '<div style="display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap;">' +
+        (g.interim_enabled ? '<button class="ax-a" onclick="AdminGiveaways.viewFinalists(\'' + g.id + '\')">Finalists</button>' : '') +
         (canDraw ? '<button class="ax-a draw" onclick="AdminGiveaways.draw(\'' + g.id + '\')">Draw</button>' : '') +
         '<button class="ax-a edit" onclick="AdminGiveaways.edit(\'' + g.id + '\')">Edit</button>' +
         '<button class="ax-a del" onclick="AdminGiveaways.remove(\'' + g.id + '\')">Delete</button></div>' +
