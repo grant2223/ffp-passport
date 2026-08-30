@@ -115,10 +115,11 @@
     var opt = function (v, cur) { return '<option value="' + v + '"' + (cur === v ? ' selected' : '') + '>' + (v ? v.charAt(0).toUpperCase() + v.slice(1) : 'Any') + '</option>'; };
     return '' +
       '<div class="ax-sec"><h4>Prize &amp; partner</h4>' +
-        '<div class="ax-f"><label>Partner</label>' +
-          '<input id="gw-prov-q" class="ax-in" placeholder="Search a partner…" value="' + esc(g.provider_name || '') + '" oninput="AdminGiveaways.searchProv(this.value)" autocomplete="off">' +
+        '<div class="ax-f"><label>Partner <span style="text-transform:none;letter-spacing:0;color:#5f7482;font-weight:600">· real FFP partners only — leave blank for a Find Fit People giveaway</span></label>' +
+          '<input id="gw-prov-q" class="ax-in" placeholder="Search a claimed partner…" value="' + esc(g.provider_name || '') + '" oninput="AdminGiveaways.searchProv(this.value)" autocomplete="off">' +
           '<input type="hidden" id="gw-prov" value="' + esc(g.provider_id || '') + '">' +
-          '<div id="gw-prov-opts" class="ax-pres" style="display:none;top:100%;max-height:220px;overflow:auto;"></div></div>' +
+          '<div id="gw-prov-opts" class="ax-pres" style="display:none;top:100%;max-height:220px;overflow:auto;"></div>' +
+          '<button type="button" class="ax-btn ghost" style="margin-top:8px;" onclick="AdminGiveaways.ffpGiveaway()">Find Fit People giveaway — no partner</button></div>' +
         '<div class="ax-f"><label>Prize name</label><input id="gw-prize" class="ax-in" placeholder="WHOOP 4.0 + 12-month membership" value="' + esc(g.prize || g.title || '') + '"></div>' +
         '<div class="ax-f2"><div class="ax-f"><label>Value ($)</label><input id="gw-value" type="number" class="ax-in" placeholder="360" value="' + (g.prize_value != null ? g.prize_value : '') + '"></div>' +
           '<div class="ax-f"><label>Status</label><select id="gw-status" class="ax-in">' + ['draft', 'open', 'drawn', 'cancelled'].map(function (s) { return opt(s, g.status || 'draft'); }).join('') + '</select></div></div>' +
@@ -133,6 +134,14 @@
         '<div class="ax-f2"><div class="ax-f"><label>Opens</label><input id="gw-starts" type="datetime-local" class="ax-in" value="' + toLocalInput(g.starts_at) + '"></div>' +
           '<div class="ax-f"><label>Draw date</label><input id="gw-draw" type="datetime-local" class="ax-in" value="' + toLocalInput(g.draw_at) + '"></div></div>' +
       '</div>' +
+      '<div class="ax-sec"><h4>Finalist draws <span style="text-transform:none;letter-spacing:0;color:#5f7482;font-weight:600">· optional recurring draws before the final</span></h4>' +
+        '<label class="ax-check"><input type="checkbox" id="gw-intr" ' + (g.interim_enabled ? 'checked' : '') + ' onchange="AdminGiveaways.toggleInterim()">Run recurring finalist draws</label>' +
+        '<div id="gw-intr-wrap" style="' + (g.interim_enabled ? '' : 'display:none') + '">' +
+          '<div class="ax-f3"><div class="ax-f"><label>Every</label><input id="gw-intr-every" type="number" min="1" class="ax-in" value="' + (g.interim_every || 1) + '"></div>' +
+            '<div class="ax-f"><label>Period</label><select id="gw-intr-unit" class="ax-in"><option value="day"' + ((g.interim_unit || 'day') === 'day' ? ' selected' : '') + '>Days</option><option value="week"' + (g.interim_unit === 'week' ? ' selected' : '') + '>Weeks</option></select></div>' +
+            '<div class="ax-f"><label>Finalists each</label><input id="gw-intr-n" type="number" min="1" class="ax-in" value="' + (g.interim_finalists || 1) + '"></div></div>' +
+          '<div style="font-size:12px;color:#8aa0ad;font-weight:600;margin-top:2px;">Each draw picks finalists at random from members who met the entry requirements that period (e.g. logged an activity that day). The final winner is drawn from all finalists. Runs automatically each night — you can also run it manually from the giveaway row.</div>' +
+        '</div></div>' +
       '<div class="ax-sec"><h4>Who can enter <span style="text-transform:none;letter-spacing:0;color:#5f7482;font-weight:600">· Passport members only</span></h4>' +
         '<div class="ax-f2"><div class="ax-f"><label>Location</label><select id="gw-locmode" class="ax-in" onchange="AdminGiveaways.toggleRadius()"><option value="radius"' + ((g.location_mode || 'radius') === 'radius' ? ' selected' : '') + '>Near the partner</option><option value="global"' + (g.location_mode === 'global' ? ' selected' : '') + '>Worldwide</option></select></div>' +
           '<div class="ax-f" id="gw-radwrap"><label>Radius (km)</label><input id="gw-radius" type="number" class="ax-in" value="' + (g.radius_km || 50) + '"></div></div>' +
@@ -171,14 +180,39 @@
       var m = document.getElementById('gw-locmode'), w = document.getElementById('gw-radwrap');
       if (m && w) w.style.display = (m.value === 'global') ? 'none' : '';
     },
+    toggleInterim: function () {
+      var c = document.getElementById('gw-intr'), w = document.getElementById('gw-intr-wrap');
+      if (c && w) w.style.display = c.checked ? '' : 'none';
+    },
+    runInterim: async function (id) {
+      var r = await sb().rpc('admin_giveaway_interim_run', { p_id: id });
+      if (r.error) return toast(r.error.message || 'Draw failed', 'error');
+      if (r.data && r.data.error) return toast(r.data.error === 'interim_disabled' ? 'Turn on finalist draws first' : r.data.error, 'error');
+      toast('Ran ' + ((r.data && r.data.periods) || 0) + ' draw(s) · ' + ((r.data && r.data.finalists) || 0) + ' finalist(s) added', 'success');
+      render();
+    },
+    viewFinalists: async function (id) {
+      var r = await sb().rpc('admin_giveaway_finalists', { p_id: id });
+      var list = (r && !r.error && r.data) ? r.data : [];
+      var body = list.length
+        ? '<div class="ax-sec">' + list.map(function (f) {
+            return '<div class="ax-grow" style="grid-template-columns:1fr 160px;">' +
+              '<div style="display:flex;align-items:center;gap:12px;min-width:0;"><span style="width:38px;height:38px;border-radius:50%;flex:none;background:#0a1620 ' + (f.photo ? "url('" + esc(f.photo) + "') center/cover no-repeat" : '') + ';"></span><b style="color:#eaf1f6;font-weight:700;font-size:14px;">' + esc(f.name || 'Member') + '</b></div>' +
+              '<div style="color:#8aa0ad;font-weight:600;font-size:12.5px;">' + fmtDate(f.period_start) + '</div></div>';
+          }).join('') + '</div>'
+        : '<div style="padding:34px;text-align:center;color:#8aa0ad;">No finalists drawn yet. Run the draw to pick this period’s finalists.</div>';
+      (window.openSheet || window.openModal)('Finalists (' + list.length + ')', body,
+        '<button class="ax-btn ghost" onclick="closeSheet()">Close</button><button class="ax-btn blue" onclick="AdminGiveaways.runInterim(\'' + id + '\')"><span class="material-icons">casino</span>Run draws now</button>');
+    },
     searchProv: async function (q) {
       var box = document.getElementById('gw-prov-opts'); if (!box) return;
       document.getElementById('gw-prov').value = '';   // typing clears the locked pick until re-selected
       q = (q || '').trim();
       if (q.length < 2) { box.style.display = 'none'; return; }
-      var r = await sb().from('providers').select('id,business_name,city').ilike('business_name', '%' + q + '%').limit(8);
+      // Only REAL partners (a claimed FFP account) — never the scraped directory.
+      var r = await sb().from('providers').select('id,business_name,city').not('owner_user_id', 'is', null).ilike('business_name', '%' + q + '%').limit(8);
       var list = (r && !r.error && r.data) ? r.data : [];
-      if (!list.length) { box.innerHTML = '<div style="padding:10px 12px;color:#8a99a8;font-size:13px;">No partners found</div>'; box.style.display = 'block'; return; }
+      if (!list.length) { box.innerHTML = '<div style="padding:10px 12px;color:#8a99a8;font-size:13px;">No real partners found — only claimed FFP partners can be linked. Leave blank for a Find Fit People giveaway.</div>'; box.style.display = 'block'; return; }
       box.innerHTML = list.map(function (p) {
         return '<div onclick="AdminGiveaways.pickProv(\'' + p.id + '\',\'' + esc((p.business_name || '').replace(/'/g, ' ')) + '\')" style="padding:10px 12px;cursor:pointer;font-size:14px;font-weight:600;color:#eaf1f6;border-bottom:1px solid rgba(255,255,255,.08);">' + esc(p.business_name) + (p.city ? ' <span style="color:#8aa0ad;font-size:12px;font-weight:500;">· ' + esc(p.city) + '</span>' : '') + '</div>';
       }).join('');
@@ -188,6 +222,12 @@
       document.getElementById('gw-prov').value = id;
       document.getElementById('gw-prov-q').value = name;
       var box = document.getElementById('gw-prov-opts'); if (box) box.style.display = 'none';
+    },
+    ffpGiveaway: function () {   // FFP (us) can list unlimited giveaways with no partner attached
+      var h = document.getElementById('gw-prov'); if (h) h.value = '';
+      var q = document.getElementById('gw-prov-q'); if (q) q.value = '';
+      var box = document.getElementById('gw-prov-opts'); if (box) box.style.display = 'none';
+      toast('Find Fit People giveaway — no partner linked', 'info');
     },
     uploadImg: async function (input) {
       var file = input.files && input.files[0]; if (!file) return;
@@ -228,7 +268,11 @@
         gender: val('gw-gender') || null,
         min_age: val('gw-minage') || null,
         max_age: val('gw-maxage') || null,
-        entry_weights: { optin: 1, activity: Number(val('gw-w-act') || 1), checkin: Number(val('gw-w-chk') || 2), referral: Number(val('gw-w-ref') || 5) }
+        entry_weights: { optin: 1, activity: Number(val('gw-w-act') || 1), checkin: Number(val('gw-w-chk') || 2), referral: Number(val('gw-w-ref') || 5) },
+        interim_enabled: !!(document.getElementById('gw-intr') && document.getElementById('gw-intr').checked),
+        interim_unit: val('gw-intr-unit') || 'day',
+        interim_every: Number(val('gw-intr-every') || 1),
+        interim_finalists: Number(val('gw-intr-n') || 1)
       };
       var r = await sb().rpc('admin_giveaway_save', { p_id: editing ? editing.id : null, p: p });
       if (r.error) return toast(r.error.message || 'Save failed', 'error');
