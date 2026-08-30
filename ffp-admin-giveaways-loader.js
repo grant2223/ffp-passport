@@ -89,6 +89,7 @@
 
   async function render() {
     var el = document.getElementById('giveaways-body');
+    for (var i = 0; i < 40 && !el; i++) { await new Promise(function (r) { setTimeout(r, 100); }); el = document.getElementById('giveaways-body'); }
     if (!el) return;
     el.innerHTML = '<div style="padding:20px;color:#8a99a8;">Loading…</div>';
     await loadAll();
