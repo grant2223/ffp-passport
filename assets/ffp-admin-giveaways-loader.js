@@ -111,14 +111,14 @@
 
   function form(g) {
     g = g || {};
-    var fld = 'display:block;width:100%;margin-top:6px;padding:11px 12px;border:1px solid #e7ecf0;border-radius:9px;font:inherit;font-size:14px;box-sizing:border-box;';
-    var lbl = 'font-size:12px;font-weight:800;color:#5f6f7d;';
+    var fld = 'display:block;width:100%;margin-top:6px;padding:11px 12px;border:1px solid rgba(255,255,255,.14);border-radius:9px;background:#12232f;color:#eaf1f6;font-family:inherit;font-weight:500;font-size:14px;box-sizing:border-box;';
+    var lbl = 'font-size:11px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#8aa0ad;';
     var w = g.entry_weights || { optin: 1, activity: 1, checkin: 2, referral: 5 };
     return '<div style="display:flex;flex-direction:column;gap:15px;">' +
       '<label style="' + lbl + '">Partner<div style="position:relative;">' +
         '<input id="gw-prov-q" style="' + fld + '" placeholder="Search a partner…" value="' + esc(g.provider_name || '') + '" oninput="AdminGiveaways.searchProv(this.value)" autocomplete="off">' +
         '<input type="hidden" id="gw-prov" value="' + esc(g.provider_id || '') + '">' +
-        '<div id="gw-prov-opts" style="position:absolute;left:0;right:0;top:100%;z-index:5;background:#fff;border:1px solid #e7ecf0;border-radius:9px;margin-top:3px;box-shadow:0 8px 20px rgba(15,34,48,.12);display:none;max-height:200px;overflow:auto;"></div>' +
+        '<div id="gw-prov-opts" style="position:absolute;left:0;right:0;top:100%;z-index:5;background:#0f1e2e;border:1px solid rgba(255,255,255,.14);border-radius:9px;margin-top:3px;box-shadow:0 12px 28px rgba(0,0,0,.5);display:none;max-height:200px;overflow:auto;"></div>' +
       '</div></label>' +
       '<label style="' + lbl + '">Prize name<input id="gw-prize" style="' + fld + '" placeholder="WHOOP 4.0 + 12-month membership" value="' + esc(g.prize || g.title || '') + '"></label>' +
       '<div style="display:flex;gap:12px;">' +
@@ -128,9 +128,9 @@
       '</div>' +
       '<label style="' + lbl + '">Description<textarea id="gw-desc" rows="3" style="' + fld + '" placeholder="What they win + why it matters">' + esc(g.description || '') + '</textarea></label>' +
       '<div><div style="' + lbl + 'margin-bottom:7px;">Prize image</div>' +
-        '<div onclick="document.getElementById(\'gw-img-file\').click()" style="display:flex;align-items:center;gap:12px;border:1px dashed #cfdbe3;border-radius:10px;padding:12px;cursor:pointer;background:#fff;">' +
-          '<div id="gw-img-prev" style="width:52px;height:52px;border-radius:9px;flex:none;background:#eef2f5 ' + (g.image_url ? "url('" + esc(g.image_url) + "') center/cover no-repeat" : '') + ';display:flex;align-items:center;justify-content:center;color:#8a99a8;">' + (g.image_url ? '' : '<span class="material-icons">image</span>') + '</div>' +
-          '<div id="gw-img-txt" style="font-size:13px;font-weight:700;color:#5b6b75;">' + (g.image_url ? 'Uploaded ✓ — tap to change' : 'Tap to upload an image') + '</div>' +
+        '<div onclick="document.getElementById(\'gw-img-file\').click()" style="display:flex;align-items:center;gap:12px;border:1px dashed rgba(255,255,255,.2);border-radius:10px;padding:12px;cursor:pointer;background:#12232f;">' +
+          '<div id="gw-img-prev" style="width:52px;height:52px;border-radius:9px;flex:none;background:#0a1620 ' + (g.image_url ? "url('" + esc(g.image_url) + "') center/cover no-repeat" : '') + ';display:flex;align-items:center;justify-content:center;color:#8aa0ad;">' + (g.image_url ? '' : '<span class="material-icons">image</span>') + '</div>' +
+          '<div id="gw-img-txt" style="font-size:13px;font-weight:600;color:#c3d3dd;">' + (g.image_url ? 'Uploaded ✓ — tap to change' : 'Tap to upload an image') + '</div>' +
         '</div>' +
         '<input id="gw-img-file" type="file" accept="image/*" style="display:none" onchange="AdminGiveaways.uploadImg(this)">' +
         '<input type="hidden" id="gw-img" value="' + esc(g.image_url || '') + '">' +
@@ -139,7 +139,7 @@
         '<label style="' + lbl + 'flex:1;">Opens<input id="gw-starts" type="datetime-local" style="' + fld + '" value="' + toLocalInput(g.starts_at) + '"></label>' +
         '<label style="' + lbl + 'flex:1;">Draw date<input id="gw-draw" type="datetime-local" style="' + fld + '" value="' + toLocalInput(g.draw_at) + '"></label>' +
       '</div>' +
-      '<div style="border-top:1px solid #eef2f5;padding-top:13px;"><div style="' + lbl + 'margin-bottom:9px;">Who can enter <span style="font-weight:600;color:#8a99a8;">(Passport members only, always)</span></div>' +
+      '<div style="border-top:1px solid rgba(255,255,255,.1);padding-top:13px;"><div style="' + lbl + 'margin-bottom:9px;">Who can enter <span style="font-weight:600;color:#8a99a8;">(Passport members only, always)</span></div>' +
         '<div style="display:flex;gap:12px;">' +
           '<label style="' + lbl + 'flex:1;">Location<select id="gw-locmode" style="' + fld + '" onchange="AdminGiveaways.toggleRadius()">' +
             '<option value="radius"' + ((g.location_mode || 'radius') === 'radius' ? ' selected' : '') + '>Near the partner</option>' +
@@ -154,10 +154,10 @@
           '<label style="' + lbl + 'flex:1;">Min age<input id="gw-minage" type="number" style="' + fld + '" value="' + (g.min_age != null ? g.min_age : '') + '"></label>' +
           '<label style="' + lbl + 'flex:1;">Max age<input id="gw-maxage" type="number" style="' + fld + '" value="' + (g.max_age != null ? g.max_age : '') + '"></label>' +
         '</div>' +
-        '<label style="display:flex;align-items:center;gap:9px;margin-top:12px;font-size:13px;font-weight:700;color:#5b6b75;cursor:pointer;">' +
+        '<label style="display:flex;align-items:center;gap:9px;margin-top:12px;font-size:13px;font-weight:600;color:#c3d3dd;cursor:pointer;">' +
           '<input type="checkbox" id="gw-visitors" ' + (g.visitors_only ? 'checked' : '') + ' style="width:18px;height:18px;">Only members who have checked in at this partner</label>' +
       '</div>' +
-      '<div style="border-top:1px solid #eef2f5;padding-top:13px;"><div style="' + lbl + 'margin-bottom:9px;">Entries per action <span style="font-weight:600;color:#8a99a8;">(more active = better odds)</span></div>' +
+      '<div style="border-top:1px solid rgba(255,255,255,.1);padding-top:13px;"><div style="' + lbl + 'margin-bottom:9px;">Entries per action <span style="font-weight:600;color:#8a99a8;">(more active = better odds)</span></div>' +
         '<div style="display:flex;gap:12px;">' +
           '<label style="' + lbl + 'flex:1;">Activity<input id="gw-w-act" type="number" style="' + fld + '" value="' + (w.activity != null ? w.activity : 1) + '"></label>' +
           '<label style="' + lbl + 'flex:1;">Check-in<input id="gw-w-chk" type="number" style="' + fld + '" value="' + (w.checkin != null ? w.checkin : 2) + '"></label>' +
@@ -195,7 +195,7 @@
       var list = (r && !r.error && r.data) ? r.data : [];
       if (!list.length) { box.innerHTML = '<div style="padding:10px 12px;color:#8a99a8;font-size:13px;">No partners found</div>'; box.style.display = 'block'; return; }
       box.innerHTML = list.map(function (p) {
-        return '<div onclick="AdminGiveaways.pickProv(\'' + p.id + '\',\'' + esc((p.business_name || '').replace(/'/g, ' ')) + '\')" style="padding:10px 12px;cursor:pointer;font-size:14px;border-bottom:1px solid #f1f4f6;">' + esc(p.business_name) + (p.city ? ' <span style="color:#8a99a8;font-size:12px;">· ' + esc(p.city) + '</span>' : '') + '</div>';
+        return '<div onclick="AdminGiveaways.pickProv(\'' + p.id + '\',\'' + esc((p.business_name || '').replace(/'/g, ' ')) + '\')" style="padding:10px 12px;cursor:pointer;font-size:14px;font-weight:600;color:#eaf1f6;border-bottom:1px solid rgba(255,255,255,.08);">' + esc(p.business_name) + (p.city ? ' <span style="color:#8aa0ad;font-size:12px;font-weight:500;">· ' + esc(p.city) + '</span>' : '') + '</div>';
       }).join('');
       box.style.display = 'block';
     },
