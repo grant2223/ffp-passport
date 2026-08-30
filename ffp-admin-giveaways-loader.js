@@ -44,7 +44,11 @@
   async function loadAll() {
     try {
       var s = sb(); if (!s) { rows = []; return; }
-      var r = await s.rpc('admin_giveaways_list');
+      // hard timeout so the panel can NEVER hang on "Loading…" if the request stalls
+      var r = await Promise.race([
+        s.rpc('admin_giveaways_list'),
+        new Promise(function (res) { setTimeout(function () { res({ error: { message: 'timeout' } }); }, 8000); })
+      ]);
       rows = (r && !r.error && Array.isArray(r.data)) ? r.data : [];
     } catch (e) { console.error('[Giveaways] loadAll:', e); rows = []; }
   }
@@ -258,10 +262,13 @@
     }
   };
 
+  // Wait for BOTH the supabase client AND the admin session (JWT/FFP_ADMIN) — admin_giveaways_list
+  // is is_admin()-gated, so firing before auth is attached returns [] and the panel looks empty.
+  function adminReady() { return window.supabase && (window.FFP_ADMIN || (window.FFPAuth && FFPAuth.getJwt && FFPAuth.getJwt())); }
   async function boot() {
-    var t = 0;
-    while (!window.supabase && t < 100) { await new Promise(function (r) { setTimeout(r, 100); }); t++; }
-    try { await render(); } catch (e) { console.error('[Giveaways] boot render:', e); var el = document.getElementById('giveaways-body'); if (el) el.innerHTML = '<div style="padding:24px;color:#c0392b;">Could not load giveaways. Reload the page.</div>'; }
+    for (var i = 0; i < 80 && !adminReady(); i++) { await new Promise(function (r) { setTimeout(r, 100); }); }
+    try { await render(); }
+    catch (e) { console.error('[Giveaways] boot render:', e); var el = document.getElementById('giveaways-body'); if (el) el.innerHTML = '<div style="padding:24px;color:#c0392b;">Could not load giveaways. Reload the page.</div>'; }
   }
   document.addEventListener('ffp-admin-ready', function () { boot(); });
   boot();
