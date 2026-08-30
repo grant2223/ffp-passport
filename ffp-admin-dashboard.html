@@ -1513,6 +1513,54 @@ body.ffp-role-staff [data-owner-only] { display: none !important; }
 </style>
 <!-- Google Analytics 4 (platform-wide) -->
 <script src="assets/ffp-analytics.js?v=2"></script>
+<style id="ffp-ax-css">
+/* ── FFP Admin design system (shared, dark). Any panel: use .ax-* + openSheet(). ── */
+.ax-stats{position:relative;overflow:hidden;border-radius:18px;padding:20px 24px;display:flex;align-items:center;gap:34px;flex-wrap:wrap;background:radial-gradient(120% 160% at 90% -30%,rgba(43,159,208,.28),transparent 55%),linear-gradient(135deg,#143047,#0b1a26);box-shadow:0 16px 34px rgba(9,24,36,.4);margin-bottom:22px;}
+.ax-stats .hero .n{font-size:44px;font-weight:900;line-height:1;letter-spacing:-.02em;color:#eaf1f6;}
+.ax-stats .hero .k{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#9fd0e6;margin-top:6px;}
+.ax-stats .sep{width:1px;align-self:stretch;background:rgba(255,255,255,.1);}
+.ax-stats .s .n{font-size:22px;font-weight:900;color:#eaf1f6;}
+.ax-stats .s .k{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8aa0ad;margin-top:3px;}
+.ax-stats .live{color:#2fbd77;}
+.ax-lhead,.ax-grow{display:grid;gap:12px;align-items:center;}
+.ax-lhead{padding:0 6px 10px;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#5f7482;}
+.ax-grow{padding:14px 6px;border-top:1px solid rgba(255,255,255,.08);}
+.ax-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:10.5px;font-weight:800;}
+.ax-c-open{background:rgba(47,189,119,.16);color:#57d79a;} .ax-c-draft{background:rgba(255,255,255,.08);color:#b8c9d4;} .ax-c-drawn{background:rgba(43,159,208,.18);color:#7fcdec;} .ax-c-cancel{background:rgba(226,87,76,.16);color:#f0938a;}
+.ax-btn{border:0;border-radius:12px;padding:11px 18px;font-family:inherit;font-weight:800;font-size:13.5px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;}
+.ax-btn .material-icons{font-size:18px;}
+.ax-btn.gold{background:linear-gradient(180deg,#ffd23d,#f0b400);color:#3a2600;}
+.ax-btn.blue{background:linear-gradient(180deg,#39a9d6,#1f86b6);color:#fff;}
+.ax-btn.ghost{background:rgba(255,255,255,.06);color:#dbe8f0;}
+.ax-a{border:0;border-radius:9px;padding:7px 12px;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer;}
+.ax-a.draw{background:linear-gradient(180deg,#39c98d,#1e9e6f);color:#04120b;} .ax-a.edit{background:rgba(255,255,255,.08);color:#dbe8f0;} .ax-a.del{background:rgba(226,87,76,.14);color:#f0938a;}
+/* full-bleed sheet (replaces centered modal box) */
+.ax-sheet-bk{position:fixed;inset:0;z-index:10000;background:#0a141c;overflow-y:auto;display:none;font-family:Montserrat,system-ui,sans-serif;color:#eaf1f6;}
+.ax-sheet-bk.open{display:block;}
+.ax-sheet{min-height:100dvh;display:flex;flex-direction:column;}
+.ax-sheet-hd{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:12px;padding:16px 22px;border-bottom:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg,#0f1d28,#0b1722);}
+.ax-sheet-hd .ax-x{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.06);display:grid;place-items:center;color:#cfe0ea;cursor:pointer;}
+.ax-sheet-hd h3{font-size:17px;font-weight:900;flex:1;}
+.ax-sheet-body{flex:1;padding:8px 22px 26px;max-width:720px;margin:0 auto;width:100%;}
+.ax-sheet-ft{position:sticky;bottom:0;display:flex;justify-content:flex-end;gap:10px;padding:14px 22px;border-top:1px solid rgba(255,255,255,.08);background:linear-gradient(0deg,#0f1d28,#0b1722);}
+.ax-sec{padding:20px 0;border-bottom:1px solid rgba(255,255,255,.08);}
+.ax-sec:last-child{border-bottom:0;}
+.ax-sec h4{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#7fa0b2;margin-bottom:14px;}
+.ax-f{margin-bottom:14px;position:relative;}
+.ax-f label{display:block;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#8aa0ad;margin-bottom:6px;}
+.ax-in{width:100%;background:#12232f;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:11px 13px;color:#eaf1f6;font-family:inherit;font-weight:500;font-size:14px;box-sizing:border-box;}
+.ax-in::placeholder{color:#5f7482;}
+select.ax-in{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238aa0ad' stroke-width='2' stroke-linecap='round'><polyline points='6 9 12 15 18 9'/></svg>");background-repeat:no-repeat;background-position:right 12px center;background-size:14px;padding-right:34px;}
+.ax-f2{display:grid;grid-template-columns:1fr 1fr;gap:14px;} .ax-f3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.ax-pres{border:1px solid rgba(255,255,255,.12);border-radius:10px;overflow:hidden;margin-top:6px;background:#0f1e2e;position:absolute;left:0;right:0;z-index:5;box-shadow:0 12px 28px rgba(0,0,0,.5);}
+.ax-pres div{padding:10px 13px;font-size:13.5px;font-weight:700;color:#eaf1f6;border-top:1px solid rgba(255,255,255,.08);cursor:pointer;}
+.ax-pres div:first-child{border-top:0;} .ax-pres div:hover{background:rgba(43,159,208,.12);} .ax-pres small{color:#8aa0ad;font-weight:500;}
+.ax-drop{display:flex;align-items:center;gap:13px;border:1px dashed rgba(255,255,255,.2);border-radius:12px;padding:13px;cursor:pointer;}
+.ax-drop .pv{width:52px;height:52px;border-radius:10px;flex:none;background:#0a1620 center/cover no-repeat;display:grid;place-items:center;color:#5f7482;}
+.ax-drop b{font-size:13px;font-weight:600;color:#c3d3dd;}
+.ax-check{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600;color:#c3d3dd;cursor:pointer;}
+.ax-check input{width:18px;height:18px;}
+</style>
 </head>
 <body>
 
@@ -2786,6 +2834,17 @@ function openModal(title, bodyHtml, footerHtml, opts) {
   bd.classList.add('open');
 }
 function closeModal() { var bd = document.getElementById('modal-backdrop'); bd.classList.remove('open'); bd.classList.remove('fullbleed'); }
+/* Shared full-bleed SHEET (FFP admin design system). Any panel: openSheet(title, bodyHtml, footerHtml). */
+function openSheet(title, bodyHtml, footerHtml) {
+  var bk = document.getElementById('ax-sheet-bk');
+  if (!bk) { bk = document.createElement('div'); bk.id = 'ax-sheet-bk'; bk.className = 'ax-sheet-bk'; document.body.appendChild(bk); }
+  bk.innerHTML = '<div class="ax-sheet"><div class="ax-sheet-hd"><span class="ax-x material-icons" onclick="closeSheet()">close</span><h3>' + (title || '') + '</h3></div>' +
+    '<div class="ax-sheet-body">' + (bodyHtml || '') + '</div>' +
+    (footerHtml ? '<div class="ax-sheet-ft">' + footerHtml + '</div>' : '') + '</div>';
+  bk.classList.add('open'); document.body.style.overflow = 'hidden';
+}
+function closeSheet() { var bk = document.getElementById('ax-sheet-bk'); if (bk) { bk.classList.remove('open'); bk.innerHTML = ''; } document.body.style.overflow = ''; }
+window.openSheet = openSheet; window.closeSheet = closeSheet;
 function fmtDays(d) {
   if (d === 0) return 'Today';
   if (d === 1) return 'Yesterday';
@@ -2870,7 +2929,7 @@ const App = {
       var sc = document.createElement('script');
       // Cache-bust lazy loaders so a new deploy never serves a stale cached .js.
       // BUMP this with the dashboard build number on every deploy (matches footer build).
-      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=87'; sc.async = false;
+      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=88'; sc.async = false;
       sc.onload = function () {
         if (panelId === 'panel-analytics') {
           setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 80);
