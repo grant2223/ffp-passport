@@ -166,7 +166,22 @@
           '<div class="ax-f"><label>Referral</label><input id="gw-w-ref" type="number" class="ax-in" value="' + (w.referral != null ? w.referral : 5) + '"></div></div>' +
       '</div>' +
       '<div class="ax-sec"><h4>Terms &amp; conditions</h4>' +
-        '<div class="ax-f"><label>Terms members must accept</label><textarea id="gw-terms" rows="4" class="ax-in" placeholder="Eligibility, how the winner is drawn &amp; contacted, prize claim window, any exclusions…">' + esc(g.terms || '') + '</textarea></div></div>';
+        '<div class="ax-f"><label>Terms members must accept</label><textarea id="gw-terms" rows="4" class="ax-in" placeholder="Eligibility, how the winner is drawn &amp; contacted, prize claim window, any exclusions…">' + esc(g.terms || '') + '</textarea></div></div>' +
+      '<div class="ax-sec"><h4>Sponsors <span style="text-transform:none;letter-spacing:0;color:#5f7482;font-weight:600">· title sponsor + partners</span></h4>' +
+        (g.id ? '<div id="gw-spon"></div>' : '<div style="color:#8aa0ad;font-size:12.5px;font-weight:600;">Save the giveaway first — then add its sponsors here.</div>') + '</div>';
+  }
+
+  // --- Sponsor editor (reused shape: title banner + partner logos) ---
+  async function sponUpload(input, cb) {
+    var file = input.files && input.files[0]; if (!file) return;
+    try {
+      var blob = file, ext = 'jpg', ctype = 'image/jpeg';
+      try { blob = await toJpeg(file, 1400, 0.86); } catch (e) { blob = file; ext = (file.name.split('.').pop() || 'jpg').toLowerCase(); ctype = file.type || 'image/jpeg'; }
+      var path = 'giveaway/' + Date.now() + '-' + Math.random().toString(16).slice(2, 8) + '.' + ext;
+      var up = await sb().storage.from('event-sponsors').upload(path, blob, { upsert: true, contentType: ctype, cacheControl: '3600' });
+      if (up.error) throw up.error;
+      cb(sb().storage.from('event-sponsors').getPublicUrl(path).data.publicUrl);
+    } catch (e) { toast(e.message || 'Upload failed', 'error'); }
   }
 
   window.AdminGiveaways = {
@@ -184,7 +199,53 @@
       if (!editing) return;
       (window.openSheet || window.openModal)('Edit giveaway', form(editing),
         '<button class="ax-btn ghost" onclick="closeSheet()">Cancel</button><button class="ax-btn blue" onclick="AdminGiveaways.save()"><span class="material-icons">check</span>Save giveaway</button>');
-      setTimeout(this.toggleRadius, 30);
+      var self = this;
+      setTimeout(function () { self.toggleRadius(); self.renderSponsors(id); }, 30);
+    },
+    renderSponsors: async function (id) {
+      var el = document.getElementById('gw-spon'); if (!el) return;
+      var r = await sb().rpc('event_sponsors_list', { p_scope: 'giveaway', p_event: id });
+      var list = (r && !r.error && r.data) ? r.data : [];
+      var list_html = list.length ? list.map(function (s) {
+        var tierChip = s.tier === 'title'
+          ? '<span class="ax-chip" style="background:#3a2f10;color:#e6b23c;">TITLE</span>'
+          : '<span class="ax-chip" style="background:#12313f;color:#7fb8d6;">PARTNER</span>';
+        return '<div class="ax-grow" style="grid-template-columns:1fr 120px;">' +
+          '<div style="display:flex;align-items:center;gap:12px;min-width:0;"><span style="width:44px;height:44px;border-radius:10px;flex:none;background:#fff ' + (s.logo_url ? "url('" + esc(s.logo_url) + "') center/contain no-repeat" : '') + ';"></span>' +
+          '<div style="min-width:0;"><b style="color:#eaf1f6;font-size:14px;font-weight:800;">' + esc(s.name || 'Sponsor') + ' ' + tierChip + '</b>' + (s.link_url ? '<div style="font-size:11.5px;color:#8aa0ad;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(s.link_url) + '</div>' : '') + '</div></div>' +
+          '<div style="text-align:right;"><button class="ax-a del" onclick="AdminGiveaways.sponRemove(\'' + s.id + '\',\'' + id + '\')">Remove</button></div></div>';
+      }).join('') : '<div style="padding:14px 2px;color:#8aa0ad;font-size:12.5px;">No sponsors yet.</div>';
+      el.innerHTML = list_html +
+        '<div class="ax-sec" style="border:none;padding-top:12px;">' +
+          '<div class="ax-drop" onclick="document.getElementById(\'spon-img-file\').click()"><span id="spon-img-prev" class="pv"><span class="material-icons">add_photo_alternate</span></span><b id="spon-img-txt">Tap to upload logo / banner</b></div>' +
+          '<input id="spon-img-file" type="file" accept="image/*" style="display:none" onchange="AdminGiveaways.sponImg(this)"><input type="hidden" id="spon-img">' +
+          '<div class="ax-f3" style="margin-top:10px;"><div class="ax-f"><label>Name</label><input id="spon-name" class="ax-in" placeholder="Sponsor name"></div>' +
+            '<div class="ax-f"><label>Tier</label><select id="spon-tier" class="ax-in"><option value="partner">Official partner</option><option value="title">Title sponsor</option></select></div>' +
+            '<div class="ax-f"><label>Link (optional)</label><input id="spon-link" class="ax-in" placeholder="https://…"></div></div>' +
+          '<button class="ax-btn gold" style="margin-top:10px;" onclick="AdminGiveaways.sponAdd(\'' + id + '\')"><span class="material-icons">add</span>Add sponsor</button>' +
+        '</div>';
+    },
+    sponImg: function (input) {
+      var txt = document.getElementById('spon-img-txt'), prev = document.getElementById('spon-img-prev');
+      if (txt) txt.textContent = 'Uploading…';
+      sponUpload(input, function (url) {
+        var h = document.getElementById('spon-img'); if (h) h.value = url;
+        if (prev) { prev.style.background = "#fff url('" + url + "') center/contain no-repeat"; prev.innerHTML = ''; }
+        if (txt) txt.textContent = 'Uploaded ✓ — tap to change';
+      });
+    },
+    sponAdd: async function (id) {
+      var v = function (x) { var e = document.getElementById(x); return e ? e.value.trim() : ''; };
+      var name = v('spon-name'), logo = v('spon-img');
+      if (!name && !logo) return toast('Add a sponsor name or logo', 'error');
+      var r = await sb().rpc('event_sponsor_save', { p_scope: 'giveaway', p_event: id, p_id: null, p: { name: name || null, logo_url: logo || null, link_url: v('spon-link') || null, tier: v('spon-tier') || 'partner' } });
+      if (r.error) return toast(r.error.message || 'Save failed', 'error');
+      toast('Sponsor added', 'success'); this.renderSponsors(id);
+    },
+    sponRemove: async function (sid, id) {
+      var r = await sb().rpc('event_sponsor_remove', { p_id: sid });
+      if (r.error) return toast(r.error.message || 'Remove failed', 'error');
+      this.renderSponsors(id);
     },
     toggleRadius: function () {
       var m = document.getElementById('gw-locmode'); if (!m) return;
