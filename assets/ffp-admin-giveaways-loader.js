@@ -61,7 +61,10 @@
 
   function crit(g) {
     var bits = [];
-    bits.push(g.location_mode === 'global' ? 'Worldwide' : ('Within ' + (g.radius_km || 50) + ' km'));
+    if (g.location_mode === 'global') bits.push('Worldwide');
+    else if (g.location_mode === 'city') bits.push('In ' + (g.city || 'a city'));
+    else if (g.location_mode === 'country') bits.push('In ' + (g.country || 'a country'));
+    else bits.push('Within ' + (g.radius_km || 50) + ' km');
     if (g.visitors_only) bits.push('Visitors only');
     if (g.gender) bits.push(g.gender);
     if (g.min_age || g.max_age) bits.push('Age ' + (g.min_age || '') + '–' + (g.max_age || ''));
@@ -144,8 +147,14 @@
           '<div style="font-size:12px;color:#8aa0ad;font-weight:600;margin-top:2px;">Each draw picks finalists at random from members who met the entry requirements that period (e.g. logged an activity that day). The final winner is drawn from all finalists. Runs automatically each night — you can also run it manually from the giveaway row.</div>' +
         '</div></div>' +
       '<div class="ax-sec"><h4>Who can enter <span style="text-transform:none;letter-spacing:0;color:#5f7482;font-weight:600">· Passport members only</span></h4>' +
-        '<div class="ax-f2"><div class="ax-f"><label>Location</label><select id="gw-locmode" class="ax-in" onchange="AdminGiveaways.toggleRadius()"><option value="radius"' + ((g.location_mode || 'radius') === 'radius' ? ' selected' : '') + '>Near the partner</option><option value="global"' + (g.location_mode === 'global' ? ' selected' : '') + '>Worldwide</option></select></div>' +
-          '<div class="ax-f" id="gw-radwrap"><label>Radius (km)</label><input id="gw-radius" type="number" class="ax-in" value="' + (g.radius_km || 50) + '"></div></div>' +
+        '<div class="ax-f2"><div class="ax-f"><label>Location</label><select id="gw-locmode" class="ax-in" onchange="AdminGiveaways.toggleRadius()">' +
+            '<option value="radius"' + ((g.location_mode || 'radius') === 'radius' ? ' selected' : '') + '>Near the partner</option>' +
+            '<option value="global"' + (g.location_mode === 'global' ? ' selected' : '') + '>Worldwide</option>' +
+            '<option value="city"' + (g.location_mode === 'city' ? ' selected' : '') + '>In a city</option>' +
+            '<option value="country"' + (g.location_mode === 'country' ? ' selected' : '') + '>In a country</option></select></div>' +
+          '<div class="ax-f" id="gw-radwrap"><label>Radius (km)</label><input id="gw-radius" type="number" class="ax-in" value="' + (g.radius_km || 50) + '"></div>' +
+          '<div class="ax-f" id="gw-citywrap" style="display:none"><label>City</label><input id="gw-city" class="ax-in" placeholder="e.g. Dubai" value="' + esc(g.city || '') + '"></div>' +
+          '<div class="ax-f" id="gw-countrywrap" style="display:none"><label>Country</label><input id="gw-country" class="ax-in" list="gw-country-list" placeholder="e.g. United Arab Emirates" value="' + esc(g.country || '') + '"><datalist id="gw-country-list"></datalist></div></div>' +
         '<div class="ax-f3"><div class="ax-f"><label>Gender</label><select id="gw-gender" class="ax-in"><option value="">Any</option><option value="Male"' + (g.gender === 'Male' ? ' selected' : '') + '>Male</option><option value="Female"' + (g.gender === 'Female' ? ' selected' : '') + '>Female</option></select></div>' +
           '<div class="ax-f"><label>Min age</label><input id="gw-minage" type="number" class="ax-in" value="' + (g.min_age != null ? g.min_age : '') + '"></div>' +
           '<div class="ax-f"><label>Max age</label><input id="gw-maxage" type="number" class="ax-in" value="' + (g.max_age != null ? g.max_age : '') + '"></div></div>' +
@@ -178,8 +187,24 @@
       setTimeout(this.toggleRadius, 30);
     },
     toggleRadius: function () {
-      var m = document.getElementById('gw-locmode'), w = document.getElementById('gw-radwrap');
-      if (m && w) w.style.display = (m.value === 'global') ? 'none' : '';
+      var m = document.getElementById('gw-locmode'); if (!m) return;
+      var v = m.value;
+      var set = function (id, on) { var e = document.getElementById(id); if (e) e.style.display = on ? '' : 'none'; };
+      set('gw-radwrap', v === 'radius');
+      set('gw-citywrap', v === 'city');
+      set('gw-countrywrap', v === 'country');
+      if (v === 'country') AdminGiveaways.loadCountries();
+    },
+    _countries: null,
+    loadCountries: async function () {
+      var dl = document.getElementById('gw-country-list'); if (!dl) return;
+      try {
+        if (!AdminGiveaways._countries) {
+          var r = await sb().from('taxonomy_items').select('label').eq('list_key', 'country').eq('active', true).order('label');
+          AdminGiveaways._countries = (r && !r.error && r.data) ? r.data.map(function (x) { return x.label; }) : [];
+        }
+        dl.innerHTML = AdminGiveaways._countries.map(function (c) { return '<option value="' + esc(c) + '">'; }).join('');
+      } catch (e) { /* datalist is optional — free text still works */ }
     },
     toggleInterim: function () {
       var c = document.getElementById('gw-intr'), w = document.getElementById('gw-intr-wrap');
@@ -265,6 +290,8 @@
         status: val('gw-status') || 'draft',
         location_mode: val('gw-locmode') || 'radius',
         radius_km: val('gw-radius') || 50,
+        city: val('gw-city').trim() || null,
+        country: val('gw-country').trim() || null,
         visitors_only: !!(document.getElementById('gw-visitors') && document.getElementById('gw-visitors').checked),
         gender: val('gw-gender') || null,
         min_age: val('gw-minage') || null,
