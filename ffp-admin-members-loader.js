@@ -167,8 +167,10 @@
 
     var manageBtns = '';
     if (premium) {
-      manageBtns += '<button class="pinfo-btn ghost" onclick="AdminMembers.makeStandard(\'' + id + '\')"><span class="material-icons">arrow_downward</span>Downgrade to Standard</button>';
+      // ONE control. Real subscribers → cancel auto-renewal (keeps Passport until the paid period ends).
+      // Admin-granted (comp) members have no subscription to cancel → a simple Remove Premium.
       if (m.stripe_subscription_id) manageBtns += '<button class="pinfo-btn ghost" onclick="AdminMembers.cancelSubscription(\'' + id + '\')"><span class="material-icons">cancel</span>Cancel subscription</button>';
+      else manageBtns += '<button class="pinfo-btn ghost" onclick="AdminMembers.makeStandard(\'' + id + '\')"><span class="material-icons">arrow_downward</span>Remove Premium</button>';
     } else {
       manageBtns += '<button class="pinfo-btn ghost" onclick="AdminMembers.grantPassport(\'' + id + '\')"><span class="material-icons">upgrade</span>Switch to Premium</button>';
     }
