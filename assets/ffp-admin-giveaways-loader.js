@@ -41,6 +41,13 @@
   var rows = [];
   var editing = null;   // giveaway being edited (or null for new)
 
+  // Menu of trackable FFP actions a giveaway can award entries for [key, label, default points]. All auto-verified.
+  var EARN_ACTIONS = [
+    ['activity', 'Log an activity', 1], ['checkin', 'Check in at a partner', 2], ['referral', 'Refer a friend', 5],
+    ['event', 'Attend an event', 0], ['quest', 'Complete a quest task', 0], ['meetup', 'Host a meetup', 0],
+    ['connection', 'Make a connection', 0], ['comment', 'Comment on the feed', 0], ['high_five', 'Give a High Five', 0]
+  ];
+
   async function loadAll() {
     try {
       var s = sb(); if (!s) { rows = []; return; }
@@ -160,10 +167,8 @@
           '<div class="ax-f"><label>Max age</label><input id="gw-maxage" type="number" class="ax-in" value="' + (g.max_age != null ? g.max_age : '') + '"></div></div>' +
         '<label class="ax-check"><input type="checkbox" id="gw-visitors" ' + (g.visitors_only ? 'checked' : '') + '>Only members who have checked in at this partner</label>' +
       '</div>' +
-      '<div class="ax-sec"><h4>Entries per action <span style="text-transform:none;letter-spacing:0;color:#5f7482;font-weight:600">· more active = better odds</span></h4>' +
-        '<div class="ax-f3"><div class="ax-f"><label>Activity</label><input id="gw-w-act" type="number" class="ax-in" value="' + (w.activity != null ? w.activity : 1) + '"></div>' +
-          '<div class="ax-f"><label>Check-in</label><input id="gw-w-chk" type="number" class="ax-in" value="' + (w.checkin != null ? w.checkin : 2) + '"></div>' +
-          '<div class="ax-f"><label>Referral</label><input id="gw-w-ref" type="number" class="ax-in" value="' + (w.referral != null ? w.referral : 5) + '"></div></div>' +
+      '<div class="ax-sec"><h4>How they earn entries <span style="text-transform:none;letter-spacing:0;color:#5f7482;font-weight:600">· entering = 1 point · set points per action (0 = off)</span></h4>' +
+        '<div class="ax-f3">' + EARN_ACTIONS.map(function (a) { var v = (w[a[0]] != null ? w[a[0]] : a[2]); return '<div class="ax-f"><label>' + a[1] + '</label><input id="gw-w-' + a[0] + '" type="number" min="0" class="ax-in" value="' + v + '"></div>'; }).join('') + '</div>' +
       '</div>' +
       '<div class="ax-sec"><h4>Terms &amp; conditions</h4>' +
         '<div class="ax-f"><label>Terms members must accept</label><textarea id="gw-terms" rows="4" class="ax-in" placeholder="Eligibility, how the winner is drawn &amp; contacted, prize claim window, any exclusions…">' + esc(g.terms || '') + '</textarea></div></div>' +
@@ -357,7 +362,7 @@
         gender: val('gw-gender') || null,
         min_age: val('gw-minage') || null,
         max_age: val('gw-maxage') || null,
-        entry_weights: { optin: 1, activity: Number(val('gw-w-act') || 1), checkin: Number(val('gw-w-chk') || 2), referral: Number(val('gw-w-ref') || 5) },
+        entry_weights: (function () { var o = { optin: 1 }; EARN_ACTIONS.forEach(function (a) { o[a[0]] = Number(val('gw-w-' + a[0]) || 0); }); return o; })(),
         interim_enabled: !!(document.getElementById('gw-intr') && document.getElementById('gw-intr').checked),
         interim_unit: val('gw-intr-unit') || 'day',
         interim_every: Number(val('gw-intr-every') || 1),
