@@ -1583,6 +1583,9 @@ select.ax-in{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg 
       <a class="sidebar-link" data-panel="panel-analytics" onclick="App.go('panel-analytics')">
         <span class="material-icons">insights</span>Analytics
       </a>
+      <a class="sidebar-link" data-panel="panel-activity" onclick="App.go('panel-activity')">
+        <span class="material-icons">bolt</span>Platform activity
+      </a>
       <a class="sidebar-link" data-panel="panel-community-health" onclick="App.go('panel-community-health')">
         <span class="material-icons">favorite</span>Community Health
       </a>
@@ -2300,6 +2303,16 @@ select.ax-in{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg 
       </div>
     </section>
 
+    <section class="panel" id="panel-activity">
+      <div class="panel-head">
+        <h1>Platform activity</h1>
+        <div class="panel-head-sub">What members are doing across the app — by area (Find · Track · Reward · Connect · Profile), which functions are used most/least, and the demographic split (gender · age · membership · city) behind each action. Filter by worldwide / country / city.</div>
+      </div>
+      <div class="section">
+        <div id="activity-body"><div style="padding:20px;color:#8a99a8;">Loading…</div></div>
+      </div>
+    </section>
+
     <section class="panel" id="panel-giveaways">
       <div class="panel-head">
         <h1>Giveaways</h1>
@@ -2877,6 +2890,7 @@ const App = {
     'panel-tours':       'Experiences',
     'panel-featured':    'Featured',
     'panel-offers':      'Offers',
+    'panel-activity':    'Platform activity',
     'panel-giveaways':   'Giveaways',
     'panel-challenges':  'Challenges',
     'panel-meetups':     'Meet & Move',
@@ -2902,6 +2916,7 @@ const App = {
     'panel-referrals':    'ffp-admin-referrals-loader.js',
     'panel-fund':         'assets/ffp-admin-fund-loader.js',
     'panel-wga':          'assets/ffp-admin-wga-loader.js',
+    'panel-activity':     'assets/ffp-admin-activity-loader.js',
     'panel-giveaways':    'assets/ffp-admin-giveaways-loader.js',
     'panel-feedback':     'ffp-admin-feedback-loader.js',
     'panel-members':      'ffp-admin-members-loader.js?v=9',
@@ -2929,7 +2944,7 @@ const App = {
       var sc = document.createElement('script');
       // Cache-bust lazy loaders so a new deploy never serves a stale cached .js.
       // BUMP this with the dashboard build number on every deploy (matches footer build).
-      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=90'; sc.async = false;
+      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=91'; sc.async = false;
       sc.onload = function () {
         if (panelId === 'panel-analytics') {
           setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 80);
@@ -2939,6 +2954,9 @@ const App = {
         }
         if (panelId === 'panel-giveaways') {
           setTimeout(function () { try { window.AdminGiveaways && AdminGiveaways.refresh && AdminGiveaways.refresh(); } catch (e) {} }, 80);
+        }
+        if (panelId === 'panel-activity') {
+          setTimeout(function () { try { window.AdminActivity && AdminActivity.refresh && AdminActivity.refresh(); } catch (e) {} }, 80);
         }
       };
       sc.onerror = function () { console.error('[FFP] failed to load ' + src); };
