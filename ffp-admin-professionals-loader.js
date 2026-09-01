@@ -98,7 +98,9 @@
     var approve = '<button class="pw-btn pw-approve" data-act="approve">Approve</button>';
     var reject = '<button class="pw-btn pw-reject" data-act="reject">Reject</button>';
     var unlist = '<button class="pw-btn pw-unlist" data-act="unlist">Unlist</button>';
-    var acts = view + (vs === 'pending' ? (approve + reject) : vs === 'approved' ? unlist : approve);
+    // Feature on the Find home (only meaningful once approved/live)
+    var feat = '<button class="pw-btn pw-feature" data-act="feature" title="' + (p.featured ? 'Featured on Find — click to remove' : 'Feature on Find home') + '"><span class="material-icons" style="font-size:17px;vertical-align:middle;color:' + (p.featured ? '#f2a900' : '#9fb0bd') + ';">' + (p.featured ? 'star' : 'star_border') + '</span></button>';
+    var acts = view + (vs === 'approved' ? feat : '') + (vs === 'pending' ? (approve + reject) : vs === 'approved' ? unlist : approve);
     return '<tr data-id="' + p.id + '">' +
       '<td><div class="pw-who">' + ph + '<div style="min-width:0;"><div class="pw-nm">' + name + '</div><div class="pw-sub">' + esc(p.work_email || '—') + '</div></div></div></td>' +
       '<td>' + typeCell(p) + '</td>' +
@@ -133,6 +135,7 @@
         e.stopPropagation();
         var tr = btn.closest('tr'); if (!tr) return; var id = tr.dataset.id;
         if (btn.dataset.act === 'preview') return preview(id);
+        if (btn.dataset.act === 'feature') return toggleFeatured(id, tr);
         if (btn.dataset.act === 'approve') return setStatus(id, 'approved');
         if (btn.dataset.act === 'unlist') return setStatus(id, 'unlisted');
         if (btn.dataset.act === 'reject') { var note = prompt('Reason for the professional (optional):', ''); if (note === null) return; return setStatus(id, 'rejected', note); }
@@ -201,6 +204,20 @@
       toast(status === 'approved' ? 'Approved — now live' : status === 'unlisted' ? 'Unlisted' : 'Rejected', 'success');
       fetchPage();
     } catch (e) { toast('Action failed', 'error'); }
+  }
+
+  // Feature / unfeature on the Find home (professionals appear there featured-only, grouped by category).
+  async function toggleFeatured(id, tr) {
+    var p = (_rows || []).find(function (x) { return x.id === id; }); if (!p) return;
+    var on = !p.featured;
+    try {
+      var r = await sb().rpc('admin_professional_set_featured', { p_pro: id, p_on: on });
+      if (r && r.error) { toast(r.error.message || 'Could not update', 'error'); return; }
+      p.featured = on;
+      var ic = tr && tr.querySelector('.pw-feature .material-icons');
+      if (ic) { ic.textContent = on ? 'star' : 'star_border'; ic.style.color = on ? '#f2a900' : '#9fb0bd'; }
+      toast(on ? 'Featured on Find' : 'Removed from Find', 'success');
+    } catch (e) { toast('Could not update', 'error'); }
   }
 
   // Full in-admin preview — mirrors the public Find Fit People profile (services + intro videos live).
