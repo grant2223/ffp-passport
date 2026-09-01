@@ -159,7 +159,7 @@
   <script src="assets/ffp-constants.js"></script>
   <script src="assets/ffp-taxonomy.js?v=10"></script>
   <script src="assets/ffp-realtime.js"></script>
-  <script src="assets/ffp-admin-organiser-listings.js?v=2"></script>
+  <script src="ffp-admin-organiser-listings.js?v=2"></script>
 <script src="ffp-admin-auth.js?v=8"></script>
   <script src="ffp-admin-overview-loader.js?v=11"></script>
   <script src="ffp-admin-banners-loader.js?v=3"></script>
@@ -2109,8 +2109,8 @@ select.ax-in{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg 
       <div class="panel-head">
         <h1>Events</h1>
         <div class="panel-head-actions">
-          <button class="btn" onclick="window.AdminOrgListing ? AdminOrgListing.organisers() : alert('Organiser module not loaded — check that assets/ffp-admin-organiser-listings.js is deployed.')"><span class="material-icons">groups</span>Organisers</button>
-          <button class="btn btn-primary" onclick="window.AdminOrgListing ? AdminOrgListing.open('event') : alert('Add-listings module not loaded — check that assets/ffp-admin-organiser-listings.js is deployed.')"><span class="material-icons">add</span>Add event</button>
+          <button class="btn" onclick="window.AdminOrgListing ? AdminOrgListing.organisers() : alert('Organiser module not loaded — check that ffp-admin-organiser-listings.js is deployed.')"><span class="material-icons">groups</span>Organisers</button>
+          <button class="btn btn-primary" onclick="window.AdminOrgListing ? AdminOrgListing.open('event') : alert('Add-listings module not loaded — check that ffp-admin-organiser-listings.js is deployed.')"><span class="material-icons">add</span>Add event</button>
         </div>
       </div>
       
@@ -2171,7 +2171,7 @@ select.ax-in{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg 
       <div class="panel-head">
         <h1>Experiences</h1>
         <div class="panel-head-actions">
-          <button class="btn btn-primary" onclick="window.AdminOrgListing ? AdminOrgListing.open('experience') : alert('Add-listings module not loaded — check that assets/ffp-admin-organiser-listings.js is deployed.')"><span class="material-icons">add</span>Add experience</button>
+          <button class="btn btn-primary" onclick="window.AdminOrgListing ? AdminOrgListing.open('experience') : alert('Add-listings module not loaded — check that ffp-admin-organiser-listings.js is deployed.')"><span class="material-icons">add</span>Add experience</button>
         </div>
       </div>
       <div class="section">
@@ -2909,15 +2909,15 @@ const App = {
   // Each panel's loader script is fetched ONLY when the panel is first opened, so the
   // page load fires no panel queries (the Overview RPC always wins a connection -> instant).
   _panelScript: {
-    'panel-providers':    'ffp-admin-providers-loader.js?v=11',
+    'panel-providers':    'ffp-admin-providers-loader.js?v=12',
     'panel-payouts':      'ffp-admin-payouts-loader.js',
     'panel-appointments': 'ffp-admin-appointments-loader.js',
     'panel-content':      'ffp-admin-content-loader.js',
     'panel-referrals':    'ffp-admin-referrals-loader.js',
-    'panel-fund':         'assets/ffp-admin-fund-loader.js',
-    'panel-wga':          'assets/ffp-admin-wga-loader.js',
-    'panel-activity':     'assets/ffp-admin-activity-loader.js',
-    'panel-giveaways':    'assets/ffp-admin-giveaways-loader.js',
+    'panel-fund':         'ffp-admin-fund-loader.js',
+    'panel-wga':          'ffp-admin-wga-loader.js',
+    'panel-activity':     'ffp-admin-activity-loader.js',
+    'panel-giveaways':    'ffp-admin-giveaways-loader.js',
     'panel-feedback':     'ffp-admin-feedback-loader.js',
     'panel-members':      'ffp-admin-members-loader.js?v=9',
     'panel-quests':       'ffp-admin-quests-loader.js?v=4',
@@ -2925,7 +2925,7 @@ const App = {
     'panel-experiences':  'ffp-admin-experiences-loader.js?v=3',
     'panel-tours':        'ffp-admin-classes-loader.js?v=4',
     'panel-featured':     'ffp-admin-featured-loader.js?v=2',
-    'panel-offers':       'assets/ffp-admin-offers.js',
+    'panel-offers':       'ffp-admin-offers.js',
     'panel-challenges':   'ffp-admin-challenges-loader.js',
     'panel-meetups':      'ffp-admin-meetups-loader.js',
     'panel-analytics':    'ffp-admin-analytics-loader.js',
@@ -2956,7 +2956,12 @@ const App = {
           setTimeout(function () { try { window.AdminGiveaways && AdminGiveaways.refresh && AdminGiveaways.refresh(); } catch (e) {} }, 80);
         }
         if (panelId === 'panel-activity') {
-          setTimeout(function () { try { window.AdminActivity && AdminActivity.refresh && AdminActivity.refresh(); } catch (e) {} }, 80);
+          setTimeout(function () {
+            try {
+              if (window.AdminActivity && AdminActivity.refresh) { AdminActivity.refresh(); }
+              else { var el = document.getElementById('activity-body'); if (el) el.innerHTML = '<div style="padding:24px;color:#c0392b;">Platform activity failed to load its script (ffp-admin-activity-loader.js). If this is right after a deploy, hard-refresh; otherwise the file needs deploying.</div>'; }
+            } catch (e) {}
+          }, 400);
         }
       };
       sc.onerror = function () { console.error('[FFP] failed to load ' + src); };
