@@ -16,20 +16,34 @@
 
 /* ── Passport tier colour themes — SAME card, recoloured by membership tier ── */
 .ffp-pc--gold{
-  --pass-bg: linear-gradient(135deg,#fbf1cf 0%,#f4e0a3 38%,#e9cb78 70%,#f6e8b8 100%);
-  --pass-paper:#f4e2a8; --pass-ink:#4a3611; --pass-ink-dim:#7c5f22; --pass-blue:#8a6a1d; --pass-gold:#8a6a1d;
+  --pass-bg:
+    repeating-linear-gradient(108deg, rgba(255,255,255,.05) 0 1px, rgba(0,0,0,.022) 1px 3px),
+    linear-gradient(158deg,#c8a02a 0%,#dcb648 24%,#caa022 52%,#b68a10 80%,#cba433 100%);
+  --pass-paper:#d9b23a; --pass-ink:#3f2f0d; --pass-ink-dim:#6a4f12; --pass-blue:#6a4f12; --pass-gold:#6a4f12;
 }
-.ffp-pc--gold .pass-shell{ box-shadow:0 30px 80px -20px rgba(90,63,10,.5), 0 0 0 1px rgba(138,106,29,.35) inset; }
+.ffp-pc--gold .pass-shell{ box-shadow: inset 0 0 0 1.5px rgba(255,248,220,.55), inset 0 0 0 3px rgba(138,106,29,.4), 0 30px 80px -20px rgba(90,63,10,.55); }
 .ffp-pc--gold .pass-mrz{ background:rgba(255,250,235,.45); border-top-color:rgba(74,54,17,.2); }
 .ffp-pc--gold .pass-type-row{ border-bottom-color:rgba(74,54,17,.15); }
+.ffp-pc--emerald{
+  --pass-bg:
+    linear-gradient(112deg, rgba(231,200,119,0) 34%, rgba(231,200,119,.14) 48%, rgba(231,200,119,0) 60%),
+    radial-gradient(130% 110% at 80% 10%, rgba(231,200,119,.10), rgba(231,200,119,0) 52%),
+    linear-gradient(158deg,#0f5e41 0%,#0a4a32 55%,#063724 100%);
+  --pass-paper:#0d4a33; --pass-ink:#eaf3ec; --pass-ink-dim:#a7c1ac; --pass-blue:#e4c169; --pass-gold:#e4c169;
+}
+.ffp-pc--emerald .pass-shell{ box-shadow: inset 0 0 0 1.5px rgba(231,200,119,.5), inset 0 0 0 3px rgba(231,200,119,.16), 0 30px 80px -20px rgba(4,30,20,.6); }
+.ffp-pc--emerald .pass-photo-new{ box-shadow:0 0 0 2px #d4af37, 0 0 0 3.5px rgba(231,200,119,.4); }
 .ffp-pc--black{
-  --pass-bg: linear-gradient(140deg,#232323 0%,#0a0a0a 55%,#141414 100%);
+  --pass-bg:
+    linear-gradient(112deg, rgba(231,200,119,0) 34%, rgba(231,200,119,.16) 48%, rgba(231,200,119,0) 60%),
+    radial-gradient(130% 110% at 80% 10%, rgba(231,200,119,.12), rgba(231,200,119,0) 52%),
+    linear-gradient(140deg,#262626 0%,#080808 55%,#171717 100%);
   --pass-paper:#141414; --pass-ink:#e7c877; --pass-ink-dim:#c2a25a; --pass-blue:#e7c877; --pass-gold:#e7c877;
 }
-.ffp-pc--black .pass-shell{ box-shadow:0 30px 80px -20px rgba(0,0,0,.75), 0 0 0 1px rgba(231,200,119,.4) inset; }
+.ffp-pc--black .pass-shell{ box-shadow: inset 0 0 0 1.5px rgba(231,200,119,.5), inset 0 0 0 3px rgba(231,200,119,.16), 0 30px 80px -20px rgba(0,0,0,.78); }
 .ffp-pc--black .pass-mrz{ background:rgba(0,0,0,.35); border-top-color:rgba(231,200,119,.28); }
 .ffp-pc--black .pass-type-row{ border-bottom-color:rgba(231,200,119,.18); }
-.ffp-pc--black .pass-bg-emblem{ filter:brightness(0) invert(1); opacity:.18; }
+.ffp-pc--black .pass-bg-emblem{ filter:brightness(0) invert(78%) sepia(55%) saturate(520%) hue-rotate(357deg); opacity:.30; background-size:150%; background-position:center 42%; }
 /* Gold-foil trim around the photo — platinum (black) card */
 .ffp-pc--black .pass-photo-new{ box-shadow:0 0 0 2px #d4af37, 0 0 0 3.5px rgba(231,200,119,.55), 0 3px 10px rgba(0,0,0,.45); }
 /* Subtle bronze trim on the Gold card for consistency */
@@ -250,12 +264,17 @@
   text-align: center;
 }
 .pass-mrz-line {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   letter-spacing: 1.5px;
   white-space: nowrap;
-  overflow: hidden;
   font-feature-settings: 'tnum';
 }
+.pass-mrz-line .ar { flex: 1 1 0; overflow: hidden; white-space: nowrap; opacity: .7; }
+.pass-mrz-line .ar.l { text-align: right; }
+.pass-mrz-line .ar.r { text-align: left; }
+.pass-mrz-line .d { flex: none; font-weight: 700; }
 
 /* ===== CSS BLOCK B (flip) ===== */
 .ffp-pc{ position:relative; width:100%; aspect-ratio:540/340; perspective:1400px; }
@@ -311,15 +330,25 @@
       var _ty=String(m.memberType||"member").toLowerCase(); var tyAbbr=(_ty==="supporter")?"S":((_ty==="ambassador")?"A":"M");
       var thirdCol="", mainCols="95px 1fr";
       if(opts.context==="attendee"){ mainCols="95px 1fr 100px"; thirdCol="<div class='pass-qr-side'><div class='ffp-pc-badge'>"+(opts.role||"GOING")+"</div><div class='pass-qr-label'>STATUS</div></div>"; }
-      var mrz1="P&lt;"+ccode+esc(surname.toUpperCase())+"&lt;&lt;"+esc(given.toUpperCase())+rep("&lt;",30);
-      var mrz2=(m.sports||[]).map(function(sp){return String(sp.name).slice(0,3).toUpperCase();}).join("&lt;&lt;")+"&lt;&lt;"+ccode+rep("&lt;",12);
+      var _tierC=String((opts&&opts.tier)||m.passport_tier||m.tier||"").toLowerCase();
+      var numStr = (m.passno||m.passport_no) ? (m.passno||m.passport_no) : m.code ? m.code
+        : (/black|founder|obsidian/.test(_tierC) ? ("FFP-"+(m.number!=null?m.number:""))
+        : ((ccode||"FFP")+"-"+(m.number!=null?m.number:"1001")));
+      var _c2=numStr.replace(/[^A-Za-z0-9]/g,'').toUpperCase();
+      var _nat=(m.nationality?this.ccode(m.nationality):ccode)||ccode||"FFP";
+      var _sex=String(m.gender||"").toUpperCase().charAt(0)||"X"; if("MF".indexOf(_sex)<0)_sex="X";
+      var _chk=(function(s){var t=0;for(var i=0;i<s.length;i++)t+=s.charCodeAt(i);return t%10;})(_c2);
+      var _mL=rep("&gt;",60),_mR=rep("&lt;",60);
+      function _mrow(d){return "<span class='ar l'>"+_mL+"</span><span class='d'>"+d+"</span><span class='ar r'>"+_mR+"</span>";}
+      var mrz1=_mrow("P&lt;"+ccode+esc(surname.toUpperCase())+"&lt;&lt;"+esc(given.toUpperCase()));
+      var mrz2=_mrow(_c2+"&lt;"+_nat+"&lt;"+_sex+"&lt;&lt;"+_chk+((_chk*7+3)%10));
       return "<div class='pass-shell'>"+
         "<div class='pass-bg-emblem'></div>"+
         "<div class='pass-inner'>"+
           "<div class='pass-top'>"+
             "<div><div class='pass-top-label'>PASSPORT</div><div class='pass-top-sub'>URUWHENUA</div></div>"+
             "<div class='pass-worldwide'>WORLDWIDE</div>"+
-            "<div class='pass-top-right'><div class='pass-top-label'>MEMBER NO.</div><div class='pass-passnum'>"+memno+"</div></div>"+
+            "<div class='pass-top-right'><div class='pass-top-label'>MEMBER NO.</div><div class='pass-passnum'>"+numStr+"</div></div>"+
           "</div>"+
           "<div class='pass-type-row'>"+
             "<div><div class='pass-mini-label'>TYPE</div><div class='pass-mini-val'>"+tyAbbr+"</div></div>"+
@@ -349,7 +378,7 @@
     backShell:function(m){
       var given=m.givenNames||(String(m.name||"").split(" ")[0])||"";
       var surname=m.surname||(String(m.name||"").split(" ").slice(1).join(" "))||"";
-      var skills=(m.sports||[]).slice(0,4); var self=this;
+      var skills=(m.sports||m.skills||[]).slice(0,4); var self=this;
       var rows=skills.map(function(sp){ var g=(sp.grade!=null?String(sp.grade).trim():""); return "<div style='margin-bottom:10px;'><div style='display:flex;justify-content:space-between;align-items:baseline;'><span class='pf-val' style='font-size:11px;'>"+esc(sp.name)+(g?" <span style='color:var(--pass-blue);font-weight:800;'>"+esc(g)+"</span>":"")+"</span><span class='pf-lbl' style='margin:0;'>"+cap(sp.level)+"</span></div>"+self.meter(sp.level)+"</div>"; }).join("");
       var cells=[];
       cells.push(this.cell("TYPE", cap(m.memberType||"Member")));
@@ -357,7 +386,7 @@
       // RELIABILITY cell removed — reliability_score is a uniform seed (10) for all members, not yet a
       // real computed metric. Re-add once attendance-based reliability is actually calculated.
       if(m.area||m.city) cells.push(this.cell("BASED IN", esc([m.area,m.city].filter(Boolean).join(', ')||m.city)));
-      var visa="VISA&lt;"+(skills[0]?String(skills[0].name).slice(0,5).toUpperCase():"")+"&lt;&lt;"+rep("&lt;",34);
+      var visa="<span class='ar l'>"+rep("&gt;",60)+"</span><span class='d'>VISA&lt;"+(skills[0]?esc(String(skills[0].name).slice(0,8).toUpperCase()):"MEMBER")+"</span><span class='ar r'>"+rep("&lt;",60)+"</span>";
       return "<div class='pass-shell'>"+
         "<div class='pass-bg-emblem'></div>"+
         "<div class='pass-inner'>"+
@@ -365,10 +394,7 @@
             "<div><div class='pass-top-label'>ACTIVITIES + LEVEL</div><div class='pass-top-sub'>"+esc((given+" "+surname).trim()||m.name||"")+"</div></div>"+
             "<div class='pass-top-right'><div class='pass-top-label'>MEMBER SINCE</div><div class='pass-passnum'>"+(m.memberSince||"—")+"</div></div>"+
           "</div>"+
-          "<div style='display:grid;grid-template-columns:1.25fr 1fr;gap:18px;flex:1;padding-top:6px;'>"+
-            "<div><div class='pf-lbl' style='margin-bottom:8px;'>ACTIVITIES + LEVEL</div>"+(rows||"<div class='pf-val' style='font-size:11px;'>No activities logged yet</div>")+"</div>"+
-            "<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start;'>"+cells.join("")+"</div>"+
-          "</div>"+
+          "<div style='flex:1;padding-top:6px;'>"+(rows||"<div class='pf-val' style='font-size:11px;'>No interests added yet</div>")+"</div>"+
           "<div class='pass-mrz'><span class='pass-mrz-line'>"+visa+"</span></div>"+
         "</div>"+
       "</div>";
@@ -377,7 +403,7 @@
       opts=opts||{};
       var clickAttr = opts.flippable ? " onclick=\"this.classList.toggle('flipped')\" style='cursor:pointer;'" : "";
       var _t = String((opts.tier || (m&&(m.passport_tier||m.card_tier||m.membership_tier||m.membership))) || "").toLowerCase();
-      var _tc = /black|founder|obsidian/.test(_t) ? " ffp-pc--black" : /gold/.test(_t) ? " ffp-pc--gold" : "";
+      var _tc = /black|founder|obsidian/.test(_t) ? " ffp-pc--black" : /gold/.test(_t) ? " ffp-pc--gold" : /emerald|green/.test(_t) ? " ffp-pc--emerald" : "";
       return "<div class='ffp-pc"+_tc+"'"+clickAttr+"><div class='ffp-pc-flip'>"+
         "<div class='ffp-pc-face ffp-pc-front'>"+this.frontShell(m,opts)+"</div>"+
         "<div class='ffp-pc-face ffp-pc-back'>"+this.backShell(m)+"</div>"+
