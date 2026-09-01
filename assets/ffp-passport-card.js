@@ -25,14 +25,13 @@
 .ffp-pc--gold .pass-mrz{ background:rgba(255,250,235,.45); border-top-color:rgba(74,54,17,.2); }
 .ffp-pc--gold .pass-type-row{ border-bottom-color:rgba(74,54,17,.15); }
 .ffp-pc--emerald{
-  --pass-bg:
-    linear-gradient(112deg, rgba(231,200,119,0) 34%, rgba(231,200,119,.14) 48%, rgba(231,200,119,0) 60%),
-    radial-gradient(130% 110% at 80% 10%, rgba(231,200,119,.10), rgba(231,200,119,0) 52%),
-    linear-gradient(158deg,#0f5e41 0%,#0a4a32 55%,#063724 100%);
+  --pass-bg: linear-gradient(158deg,#0f5e41 0%,#0a4a32 55%,#063724 100%);
   --pass-paper:#0d4a33; --pass-ink:#eaf3ec; --pass-ink-dim:#a7c1ac; --pass-blue:#e4c169; --pass-gold:#e4c169;
 }
 .ffp-pc--emerald .pass-shell{ box-shadow: inset 0 0 0 1.5px rgba(231,200,119,.5), inset 0 0 0 3px rgba(231,200,119,.16), 0 30px 80px -20px rgba(4,30,20,.6); }
 .ffp-pc--emerald .pass-photo-new{ box-shadow:0 0 0 2px #d4af37, 0 0 0 3.5px rgba(231,200,119,.4); }
+.ffp-pc--emerald .pass-mrz{ background:rgba(4,34,22,.66); border-top-color:rgba(231,200,119,.22); }
+.ffp-pc--emerald .pass-bg-emblem{ filter:brightness(0) invert(78%) sepia(55%) saturate(520%) hue-rotate(357deg); opacity:.24; background-size:150%; background-position:center 46%; }
 .ffp-pc--black{
   --pass-bg:
     linear-gradient(112deg, rgba(231,200,119,0) 34%, rgba(231,200,119,.16) 48%, rgba(231,200,119,0) 60%),
