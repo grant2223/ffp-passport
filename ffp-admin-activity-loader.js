@@ -15,7 +15,15 @@
     activity: ['Activities logged', 'directions_run'], calories: ['Calories / meals logged', 'restaurant'],
     giveaway_entry: ['Giveaway entries', 'card_giftcard'], offer_claimed: ['Offers claimed', 'local_offer'], loyalty: ['Loyalty earns', 'card_membership'], tour_vote: ['Tour (WGA) votes', 'public'], quest_join: ['Quests joined', 'flag'],
     message: ['Messages sent', 'chat_bubble'], high_five: ['High fives', 'front_hand'], connection: ['Connections made', 'handshake'], meetup: ['Meetups hosted', 'groups'], comment: ['Comments', 'forum'],
-    signup: ['Signups', 'person_add'], cancellation: ['Cancellations', 'cancel']
+    signup: ['Signups', 'person_add'], cancellation: ['Cancellations', 'cancel'],
+    // tile/screen OPENS (Phase 2 — from tile_events; distinct from the actions above)
+    explore_open: ['Explore opened', 'explore'], explore_browse: ['Category browsed', 'grid_view'], bookings_open: ['Bookings screen', 'event'], checkin_open: ['Check-in screen', 'qr_code_scanner'],
+    provider_view: ['Partner profiles viewed', 'storefront'], brand_view: ['Brand profiles viewed', 'shopping_bag'], pro_view: ['Pro profiles viewed', 'badge'], listing_view: ['Listings viewed', 'local_activity'],
+    passport_view: ['Passport card viewed', 'badge'], stats_view: ['Stats / Bio-age viewed', 'bar_chart'], benchmarks_view: ['Benchmarks viewed', 'speed'], milestones_view: ['Milestones viewed', 'military_tech'],
+    workout_open: ['Workout opened', 'fitness_center'], programs_open: ['Programs opened', 'list_alt'], calories_open: ['Calories opened', 'restaurant'], mealplan_open: ['Meal planner opened', 'restaurant_menu'], timer_open: ['Timer opened', 'timer'], log_open: ['Log activity opened', 'add_circle'], history_open: ['History opened', 'history'],
+    quests_open: ['Quests opened', 'flag'], giveaways_open: ['Giveaways opened', 'card_giftcard'], offers_open: ['Offers opened', 'local_offer'], earnings_open: ['Earnings opened', 'payments'], loyalty_open: ['Loyalty opened', 'card_membership'], tour_open: ['Tour (WGA) opened', 'public'], rewards_open: ['Rewards opened', 'redeem'],
+    connections_open: ['Connections opened', 'handshake'], matches_open: ['Matches opened', 'favorite'], meetups_open: ['Meetups opened', 'groups'], messages_open: ['Messages opened', 'chat_bubble'], teams_open: ['Teams opened', 'shield'], compete_open: ['Compete opened', 'emoji_events'], leagues_open: ['Leagues opened', 'sports_soccer'], tournaments_open: ['Tournaments opened', 'account_tree'], community_open: ['Community opened', 'diversity_3'], coach_open: ['Coach opened', 'psychology'],
+    profile_open: ['Profile opened', 'person'], membership_open: ['Membership opened', 'credit_card'], profile_edit_open: ['Profile edited', 'edit']
   };
   function label(k) { return (META[k] && META[k][0]) || k; }
   function icon(k) { return (META[k] && META[k][1]) || 'bolt'; }
