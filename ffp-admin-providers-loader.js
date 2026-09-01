@@ -328,6 +328,16 @@
           '</div>' +
           '<div class="ffp-pm-body">' +
             '<div class="ffp-pm-row"><label class="ffp-pm-label">Business name</label><input type="text" class="ffp-pm-input" id="pd-name"></div>' +
+            '<div class="ffp-pm-row" style="display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:end;">' +
+              '<div><label class="ffp-pm-label">Logo</label><div style="display:flex;align-items:center;gap:10px;">' +
+                '<div id="pd-logo-prev" style="width:52px;height:52px;border-radius:12px;background:#12232f center/cover no-repeat;border:1px solid #24323d;flex:none;"></div>' +
+                '<button type="button" class="ffp-pm-btn ffp-pm-btn-ghost" id="pd-logo-btn">Upload</button>' +
+                '<input type="file" accept="image/*" id="pd-logo-file" style="display:none;"><input type="hidden" id="pd-logo-url"></div></div>' +
+              '<div><label class="ffp-pm-label">Banner</label><div style="display:flex;align-items:center;gap:10px;">' +
+                '<div id="pd-hero-prev" style="width:96px;height:52px;border-radius:10px;background:#12232f center/cover no-repeat;border:1px solid #24323d;flex:none;"></div>' +
+                '<button type="button" class="ffp-pm-btn ffp-pm-btn-ghost" id="pd-hero-btn">Upload</button>' +
+                '<input type="file" accept="image/*" id="pd-hero-file" style="display:none;"><input type="hidden" id="pd-hero-url"></div></div>' +
+            '</div>' +
             '<div class="ffp-pm-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
               '<div><label class="ffp-pm-label">Category</label><select class="ffp-pm-input" id="pd-category"><option value="">— Select —</option></select></div>' +
               '<div><label class="ffp-pm-label">City</label><input type="text" class="ffp-pm-input" id="pd-city"></div></div>' +
@@ -401,6 +411,10 @@
     $('#ffp-pm-details-confirm').addEventListener('click', confirmDetails);
     $('#pd-bookmode').addEventListener('change', function () { $('#pd-bookurl-row').style.display = (this.value === 'external') ? '' : 'none'; });
     $('#pd-brand').addEventListener('change', function () { _fillPdCategory(this.value === 'brand' ? 'brand' : 'venue', '', false); });
+    $('#pd-logo-btn').addEventListener('click', function () { $('#pd-logo-file').click(); });
+    $('#pd-hero-btn').addEventListener('click', function () { $('#pd-hero-file').click(); });
+    $('#pd-logo-file').addEventListener('change', function () { _pdUploadImg('logo', this); });
+    $('#pd-hero-file').addEventListener('change', function () { _pdUploadImg('hero', this); });
     // Populate the Add-provider Category datalist from the live venue taxonomy (was a stale hardcoded list)
     _loadPdTax().then(function () { var dl = document.getElementById('ffp-pm-add-cats'); if (dl && _pdTax) dl.innerHTML = (_pdTax.venue || []).map(function (c) { return '<option value="' + escHtmlSafe(c.value) + '">'; }).join(''); });
     $('#pd-reassign').addEventListener('click', reassignOwner);
@@ -578,6 +592,25 @@
     sel.innerHTML = opts;
   }
 
+  // ─── Logo / banner upload (admin can add branding for a provider) ───
+  async function _pdUploadImg(kind, input) {
+    var f = input.files && input.files[0]; if (!f || !pendingDetailsId) return;
+    var bucket = kind === 'logo' ? 'provider-logos' : 'provider-heroes';
+    var btn = document.getElementById('pd-' + kind + '-btn'); var was = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Uploading…'; }
+    try {
+      var ext = (f.name.split('.').pop() || 'jpg').toLowerCase();
+      var path = pendingDetailsId + '/' + kind + '-' + Date.now() + '.' + ext;
+      var up = await window.supabase.storage.from(bucket).upload(path, f, { upsert: true, contentType: f.type || 'image/jpeg', cacheControl: '3600' });
+      if (up.error) throw up.error;
+      var url = window.supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+      var h = document.getElementById('pd-' + kind + '-url'); if (h) h.value = url;
+      var pv = document.getElementById('pd-' + kind + '-prev'); if (pv) pv.style.backgroundImage = "url('" + url + "')";
+      toast((kind === 'logo' ? 'Logo' : 'Banner') + ' uploaded — Save details to apply', 'success');
+    } catch (e) { console.error('[providers] image upload', e); toast('Upload failed — try again', 'error'); }
+    finally { if (btn) { btn.disabled = false; btn.textContent = was || 'Upload'; } input.value = ''; }
+  }
+
   // ─── Edit account details (main details + brand/booking + owner + notes + delete/merge/impersonate) ───
   function openDetails(id) {
     var pm = getAP().data.find(function (x) { return x.id === id; });
@@ -589,6 +622,8 @@
     v('pd-name', p.business_name); v('pd-city', p.city); v('pd-area', p.area);
     var _ptype = p.is_organizer ? 'organizer' : (p.is_brand ? 'brand' : 'venue');
     _loadPdTax().then(function () { _fillPdCategory(_ptype === 'brand' ? 'brand' : 'venue', p.category || '', true); });
+    var setImg = function (kind, url) { var h = document.getElementById('pd-' + kind + '-url'); if (h) h.value = url || ''; var pv = document.getElementById('pd-' + kind + '-prev'); if (pv) pv.style.backgroundImage = url ? "url('" + url + "')" : 'none'; };
+    setImg('logo', p.logo_url); setImg('hero', p.hero_photo_url);
     v('pd-country', p.country); v('pd-email', p.contact_email); v('pd-phone', p.contact_phone);
     v('pd-website', p.website); v('pd-instagram', p.instagram); v('pd-about', p.about); v('pd-notes', p.admin_notes);
     v('pd-owner', p.contact_email);
@@ -613,7 +648,8 @@
       about: g('pd-about') || null, admin_notes: g('pd-notes') || null,
       is_brand: ($('#pd-brand').value === 'brand'),
       is_organizer: ($('#pd-brand').value === 'organizer'),
-      booking_mode: $('#pd-bookmode').value, external_booking_url: g('pd-bookurl') || null
+      booking_mode: $('#pd-bookmode').value, external_booking_url: g('pd-bookurl') || null,
+      logo_url: g('pd-logo-url') || null, hero_photo_url: g('pd-hero-url') || null
     };
     var btn = $('#ffp-pm-details-confirm'); btn.disabled = true;
     try {
@@ -1217,14 +1253,15 @@
     var contactEmail = (owner && owner.email) || p.contact_email || (app && app.email) || '';
     var contactPhone = (owner && owner.phone) || p.contact_phone || (app && app.phone) || '';
     var cav = (contactName ? contactName[0] : (p.business_name || '?')[0] || '?').toUpperCase();
-    var membershipLabel = owner ? (owner.membership === 'passport' ? 'Premium' : 'Standard (free)') : null;
+    // The owner is the provider's LOGIN / business contact — NOT a consumer FFP member. Never label them
+    // with a member tier (Standard/Premium); that conflates a partner contact with a paying member.
     var roleLine;
     if (owner) {
-      roleLine = 'Owner &middot; signed up ' + fmtNice(owner.created_at) + ' &middot; FFP account: ' + membershipLabel;
+      roleLine = 'Owner login &middot; business contact &middot; login created ' + fmtNice(owner.created_at);
     } else if (app) {
-      roleLine = 'Applied to claim &middot; ' + fmtNice(app.created_at) + ' &middot; no linked FFP account yet';
+      roleLine = 'Applied to claim &middot; ' + fmtNice(app.created_at) + ' &middot; not yet an owner login';
     } else {
-      roleLine = 'No linked FFP account — unclaimed listing';
+      roleLine = 'No owner login — unclaimed listing';
     }
     var contactHtml =
       '<div class="pinfo-contact">' +
@@ -1237,7 +1274,7 @@
             (contactPhone ? '<span><span class="material-icons">call</span>' + e(contactPhone) + '</span>' : '') +
           '</div>' +
         '</div>' +
-        (owner ? '<a class="pinfo-clink" onclick="AdminProviders.closeInfo(); if(window.AdminMembers&&AdminMembers.info){AdminMembers.info(\'' + owner.id + '\')}else if(window.Drawer&&Drawer.openMember){Drawer.openMember(\'' + owner.id + '\')}">Open member profile <span class="material-icons">chevron_right</span></a>' : '') +
+        (owner ? '<a class="pinfo-clink" onclick="AdminProviders.closeInfo(); if(window.AdminMembers&&AdminMembers.info){AdminMembers.info(\'' + owner.id + '\')}else if(window.Drawer&&Drawer.openMember){Drawer.openMember(\'' + owner.id + '\')}">Open owner account <span class="material-icons">chevron_right</span></a>' : '') +
       '</div>';
 
     // business rows
