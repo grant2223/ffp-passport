@@ -329,7 +329,7 @@
           '<div class="ffp-pm-body">' +
             '<div class="ffp-pm-row"><label class="ffp-pm-label">Business name</label><input type="text" class="ffp-pm-input" id="pd-name"></div>' +
             '<div class="ffp-pm-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
-              '<div><label class="ffp-pm-label">Category</label><input type="text" class="ffp-pm-input" id="pd-category"></div>' +
+              '<div><label class="ffp-pm-label">Category</label><select class="ffp-pm-input" id="pd-category"><option value="">— Select —</option></select></div>' +
               '<div><label class="ffp-pm-label">City</label><input type="text" class="ffp-pm-input" id="pd-city"></div></div>' +
             '<div class="ffp-pm-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
               '<div><label class="ffp-pm-label">Area</label><input type="text" class="ffp-pm-input" id="pd-area"></div>' +
@@ -400,6 +400,9 @@
     // Edit-details modal wiring
     $('#ffp-pm-details-confirm').addEventListener('click', confirmDetails);
     $('#pd-bookmode').addEventListener('change', function () { $('#pd-bookurl-row').style.display = (this.value === 'external') ? '' : 'none'; });
+    $('#pd-brand').addEventListener('change', function () { _fillPdCategory(this.value === 'brand' ? 'brand' : 'venue', '', false); });
+    // Populate the Add-provider Category datalist from the live venue taxonomy (was a stale hardcoded list)
+    _loadPdTax().then(function () { var dl = document.getElementById('ffp-pm-add-cats'); if (dl && _pdTax) dl.innerHTML = (_pdTax.venue || []).map(function (c) { return '<option value="' + escHtmlSafe(c.value) + '">'; }).join(''); });
     $('#pd-reassign').addEventListener('click', reassignOwner);
     $('#pd-openas').addEventListener('click', function () { openAsProvider(pendingDetailsId); });
     $('#pd-merge').addEventListener('click', function () { mergeProvider(pendingDetailsId); });
@@ -554,6 +557,27 @@
   }
   function closeEdit() { $('#ffp-pm-edit-backdrop').classList.remove('open'); pendingEditId = null; }
 
+  // ─── Category taxonomy (venue = 'category', brand = 'brand_category') ───
+  var _pdTax = null;
+  async function _loadPdTax() {
+    if (_pdTax) return _pdTax;
+    var t = { venue: [], brand: [] };
+    try {
+      var r = await window.supabase.from('taxonomy_items').select('list_key,value,label,sort_order').in('list_key', ['category', 'brand_category']).eq('active', true).order('sort_order', { ascending: true });
+      (r.data || []).forEach(function (x) { (x.list_key === 'brand_category' ? t.brand : t.venue).push({ value: x.value, label: x.label || x.value }); });
+      _pdTax = t;
+    } catch (e) { console.error('[providers] category taxonomy load', e); }
+    return _pdTax || t;
+  }
+  function _fillPdCategory(type, current, keepUnknown) {
+    var sel = document.getElementById('pd-category'); if (!sel) return;
+    var list = (type === 'brand') ? ((_pdTax && _pdTax.brand) || []) : ((_pdTax && _pdTax.venue) || []);
+    var opts = '<option value="">— Select —</option>', found = false;
+    list.forEach(function (c) { if (c.value === current) found = true; opts += '<option value="' + escHtmlSafe(c.value) + '"' + (c.value === current ? ' selected' : '') + '>' + escHtmlSafe(c.label) + '</option>'; });
+    if (keepUnknown && current && !found) opts += '<option value="' + escHtmlSafe(current) + '" selected>' + escHtmlSafe(current) + '</option>';
+    sel.innerHTML = opts;
+  }
+
   // ─── Edit account details (main details + brand/booking + owner + notes + delete/merge/impersonate) ───
   function openDetails(id) {
     var pm = getAP().data.find(function (x) { return x.id === id; });
@@ -562,7 +586,9 @@
     pendingDetailsId = id;
     var v = function (k, val) { var el = document.getElementById(k); if (el) el.value = (val != null ? val : ''); };
     $('#ffp-pm-details-bizname').textContent = p.business_name + (p.city ? ' · ' + p.city : '');
-    v('pd-name', p.business_name); v('pd-category', p.category); v('pd-city', p.city); v('pd-area', p.area);
+    v('pd-name', p.business_name); v('pd-city', p.city); v('pd-area', p.area);
+    var _ptype = p.is_organizer ? 'organizer' : (p.is_brand ? 'brand' : 'venue');
+    _loadPdTax().then(function () { _fillPdCategory(_ptype === 'brand' ? 'brand' : 'venue', p.category || '', true); });
     v('pd-country', p.country); v('pd-email', p.contact_email); v('pd-phone', p.contact_phone);
     v('pd-website', p.website); v('pd-instagram', p.instagram); v('pd-about', p.about); v('pd-notes', p.admin_notes);
     v('pd-owner', p.contact_email);
