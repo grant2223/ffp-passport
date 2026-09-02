@@ -120,6 +120,10 @@
       '.ffp-tier-filter-chip{padding:5px 12px;border-radius:999px;background:rgba(43,168,224,0.06);border:1px solid rgba(43,168,224,0.25);color:#a8b3c0;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;text-transform:capitalize;}',
       '.ffp-tier-filter-chip:hover{color:#f5f7fa;}',
       '.ffp-tier-filter-chip.active{background:#2ba8e0;color:#082335;border-color:#2ba8e0;}',
+      // Needs-setup work queue
+      '.ffp-comp-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}',
+      '.ffp-comp-chip{font-size:10px;font-weight:800;padding:2px 8px;border-radius:100px;background:rgba(224,90,90,.14);color:#f2a3a3;}',
+      '.ffp-comp-pill{display:inline-flex;align-items:center;font-size:12px;font-weight:900;padding:3px 10px;border-radius:100px;border:1px solid;background:rgba(255,255,255,.04);}',
 
       // Modal (shared) — FULL-BLEED sheet (locked admin rule: no centered card, no box-in-box). The sheet
       // fills the viewport; head/body/foot sit in a centered readable column so wide screens aren't sparse.
@@ -183,6 +187,16 @@
   function injectExtraTabs() {
     var tabs = $('#providers-tabs');
     if (!tabs) return;
+    if (!$('#providers-tabs [data-tab="needs"]')) {
+      var approved = $('#providers-tabs [data-tab="approved"]');
+      var needs = document.createElement('button');
+      needs.className = 'tab-btn';
+      needs.dataset.tab = 'needs';
+      needs.setAttribute('onclick', "AdminProviders.setTab('needs')");
+      needs.innerHTML = 'Needs setup <span class="count" id="prov-count-needs">0</span>';
+      if (approved && approved.nextSibling) tabs.insertBefore(needs, approved.nextSibling);
+      else tabs.appendChild(needs);
+    }
     if (!$('#providers-tabs [data-tab="lapsed"]')) {
       var suspended = $('#providers-tabs [data-tab="suspended"]');
       var lap = document.createElement('button');
@@ -374,6 +388,24 @@
             '<button class="ffp-pm-btn ffp-pm-btn-primary" type="button" id="ffp-pm-details-confirm">Save details</button>' +
           '</div>' +
         '</div>' +
+      '</div>' +
+
+      // REQUEST INFO modal (full-bleed) — email the provider contact for the missing listing items
+      '<div class="ffp-pm-backdrop" id="ffp-pm-reqinfo-backdrop">' +
+        '<div class="ffp-pm-sheet" onclick="event.stopPropagation();">' +
+          '<div class="ffp-pm-head"><div><div class="ffp-pm-title">Request info</div><div class="ffp-pm-sub" id="ri-biz"></div></div>' +
+            '<button class="ffp-pm-close" type="button" data-close="reqinfo"><span class="material-icons">close</span></button></div>' +
+          '<div class="ffp-pm-body">' +
+            '<p style="font-size:13px;color:#9fb2c2;font-weight:600;line-height:1.6;margin-bottom:14px;">Email the provider contact asking for the missing items. Pre-ticked from the checklist — untick anything you don\'t need.</p>' +
+            '<div id="ri-items"></div>' +
+            '<div class="ffp-pm-row" style="margin-top:16px;"><label class="ffp-pm-label">Message</label><textarea class="ffp-pm-input" id="ri-msg" rows="5"></textarea></div>' +
+            '<div class="ffp-pm-label" id="ri-to" style="text-transform:none;letter-spacing:0;color:#8a99a8;font-weight:700;"></div>' +
+          '</div>' +
+          '<div class="ffp-pm-foot">' +
+            '<button class="ffp-pm-btn ffp-pm-btn-ghost" type="button" data-close="reqinfo">Cancel</button>' +
+            '<button class="ffp-pm-btn ffp-pm-btn-primary" type="button" id="ri-send">Send request</button>' +
+          '</div>' +
+        '</div>' +
       '</div>';
     var wrap = document.createElement('div');
     wrap.innerHTML = html;
@@ -387,9 +419,10 @@
         if (key === 'edit')    closeEdit();
         if (key === 'add')     closeAdd();
         if (key === 'details')  closeDetails();
+        if (key === 'reqinfo')  closeReqInfo();
       });
     });
-    ['approve', 'edit', 'add', 'details'].forEach(function (key) {
+    ['approve', 'edit', 'add', 'details', 'reqinfo'].forEach(function (key) {
       var backdrop = $('#ffp-pm-' + key + '-backdrop');
       if (!backdrop) return;
       backdrop.addEventListener('click', function (e) {
@@ -398,9 +431,11 @@
           if (key === 'edit') closeEdit();
           if (key === 'add') closeAdd();
           if (key === 'details') closeDetails();
+          if (key === 'reqinfo') closeReqInfo();
         }
       });
     });
+    $('#ri-send').addEventListener('click', sendReqInfo);
 
     // Wire chip handlers for each modal
     wireTierChips('approve');
@@ -701,6 +736,51 @@
     if (btn) { btn.disabled = false; btn.innerHTML = lbl; }
   }
 
+  // ─── Request info from provider (email the contact for the missing listing items) ───
+  var pendingReqId = null;
+  async function requestInfo(id) {
+    var pm = getAP().data.find(function (x) { return x.id === id; });
+    if (!pm) return;
+    var p = pm._raw || pm; pendingReqId = id;
+    var comp = pm.completeness || completenessOf(p);
+    if (!comp.missing.length) { toast('This listing is already complete', 'info'); return; }
+    // resolve contact email (contact_email, else owner login email)
+    var email = p.contact_email;
+    if (!email && p.owner_user_id) { try { var mo = await window.supabase.from('members').select('email').eq('id', p.owner_user_id).maybeSingle(); email = mo && mo.data ? mo.data.email : null; } catch (e) {} }
+    var first = (p.business_name || 'there');
+    $('#ri-biz').textContent = p.business_name || '';
+    $('#ri-items').innerHTML = comp.missing.map(function (m) {
+      return '<label class="ffp-pm-row" style="display:flex;align-items:center;gap:11px;margin-bottom:0;padding:10px 0;border-bottom:1px solid rgba(43,168,224,.1);cursor:pointer;">' +
+        '<input type="checkbox" class="ri-item" value="' + escHtmlSafe(m.label) + '" checked style="width:18px;height:18px;accent-color:#2ba8e0;">' +
+        '<span style="font-size:13.5px;font-weight:700;">' + escHtmlSafe(m.label) + '</span></label>';
+    }).join('');
+    var missTxt = comp.missing.map(function (m) { return m.label.toLowerCase(); }).join(', ');
+    $('#ri-msg').value = 'Hi, to get ' + first + ' live and looking its best on Find Fit People, could you send us: ' + missTxt + '? Reply to this email and we\'ll add them to your listing for you.';
+    $('#ri-to').innerHTML = email ? ('To: ' + escHtmlSafe(email)) : '<span style="color:#e0765a;">No contact email on file — add one in Manage account first.</span>';
+    $('#ri-send').disabled = !email;
+    $('#ffp-pm-reqinfo-backdrop').classList.add('open');
+  }
+  function closeReqInfo() { var b = $('#ffp-pm-reqinfo-backdrop'); if (b) b.classList.remove('open'); pendingReqId = null; }
+  async function sendReqInfo() {
+    if (!pendingReqId) return;
+    var items = $$('#ri-items .ri-item').filter(function (el) { return el.checked; }).map(function (el) { return el.value; });
+    var msg = ($('#ri-msg').value || '').trim();
+    if (!items.length) { toast('Pick at least one item', 'error'); return; }
+    var jwt = (window.FFPAuth && FFPAuth.getJwt && FFPAuth.getJwt()) || (function () { try { return localStorage.getItem('ffp_jwt') || ''; } catch (e) { return ''; } })();
+    var btn = $('#ri-send'); btn.disabled = true; var lbl = btn.textContent; btn.textContent = 'Sending…';
+    try {
+      var r = await fetch((window.FFP_BACKEND || 'https://ffp-passport-backend.vercel.app') + '/api/admin/provider/request-info', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+        body: JSON.stringify({ provider_id: pendingReqId, items: items, message: msg })
+      });
+      var j = await r.json().catch(function () { return {}; });
+      if (!r.ok || !j.ok) throw new Error(j.error || 'Could not send');
+      toast('Request sent to the provider', 'success'); logAction('requested info from a provider (' + items.join(', ') + ')');
+      closeReqInfo();
+    } catch (e) { toast(e.message || 'Send failed', 'error'); btn.disabled = false; }
+    btn.textContent = lbl;
+  }
+
   async function deleteProvider(id) {
     var p = getAP().data.find(function (x) { return x.id === id; });
     if (!p) return;
@@ -867,6 +947,23 @@
     return res.data || [];
   }
 
+  // Listing completeness — which core fields a listing needs to look good to members. Venue needs the most;
+  // brand/organizer aren't bookable venues so skip location/activities.
+  function completenessOf(p) {
+    var isBrand = !!p.is_brand, isOrg = !!p.is_organizer, items;
+    if (isBrand) items = [['logo_url', 'Logo'], ['hero_photo_url', 'Banner photo'], ['category', 'Product type'], ['about', 'About / description']];
+    else if (isOrg) items = [['logo_url', 'Logo'], ['hero_photo_url', 'Banner photo'], ['category', 'Category'], ['about', 'About / description']];
+    else items = [['logo_url', 'Logo'], ['hero_photo_url', 'Banner photo'], ['category', 'Category'], ['about', 'About / description'], ['city', 'Location'], ['activities', 'Activities']];
+    var done = [], missing = [];
+    items.forEach(function (it) {
+      var k = it[0], ok;
+      if (k === 'activities') ok = Array.isArray(p.activities) && p.activities.length > 0;
+      else ok = !!(p[k] && String(p[k]).trim());
+      (ok ? done : missing).push({ key: k, label: it[1] });
+    });
+    return { pct: Math.round(done.length / items.length * 100), done: done, missing: missing, total: items.length };
+  }
+
   function mapForUi(p) {
     var created = p.created_at ? new Date(p.created_at) : new Date();
     return {
@@ -882,6 +979,7 @@
       business_access: !!p.business_access,
       business_access_requested_at: p.business_access_requested_at || null,
       verified: !!p.approved_by,   // admin-verified → unlocks partner Refer & earn (needs complete profile too)
+      completeness: completenessOf(p),
       _raw: p
     };
   }
@@ -903,6 +1001,8 @@
     setCount('prov-count-lapsed', counts.lapsed);
     setCount('prov-count-suspended', counts.suspended);
     setCount('prov-count-archived', counts.archived);
+    var needs = getAP().data.filter(function (p) { return p.status === 'approved' && p.completeness && p.completeness.pct < 100; }).length;
+    setCount('prov-count-needs', needs);
   }
   function setCount(id, n) { var el = document.getElementById(id); if (el) el.textContent = n; }
 
@@ -952,11 +1052,26 @@
   }
 
   function renderRow(p) {
+    var needsView = getAP().tab === 'needs';
+    var star = p.featured ? '<span class="ffp-row-featured-star material-icons" title="Featured">star</span>' : '';
     var meta = '';
-    if (p.subscription_tier || p.paid_until) {
+    if (needsView && p.completeness) {
+      meta = '<div class="ffp-comp-chips">' + p.completeness.missing.map(function (m) { return '<span class="ffp-comp-chip">' + escHtmlSafe(m.label) + '</span>'; }).join('') + '</div>';
+    } else if (p.subscription_tier || p.paid_until) {
       meta = '<div class="ffp-row-meta">' + tierBadgeHtml(p) + expiryHtml(p) + '</div>';
     }
-    var star = p.featured ? '<span class="ffp-row-featured-star material-icons" title="Featured">star</span>' : '';
+    var statusCell, actionsCell;
+    if (needsView && p.completeness) {
+      var pct = p.completeness.pct, col = pct >= 90 ? '#3ecf8e' : (pct >= 50 ? '#e0a94a' : '#e0765a');
+      statusCell = '<td><span class="ffp-comp-pill" style="color:' + col + ';border-color:' + col + '55;">' + pct + '%</span></td>';
+      actionsCell = '<td><div class="table-actions">' +
+        '<button class="btn btn-sm btn-blue" title="Email the provider for the missing items" onclick="event.stopPropagation(); AdminProviders.requestInfo(\'' + p.id + '\')"><span class="material-icons">mail</span>Request</button>' +
+        '<button class="btn btn-sm btn-ghost" title="Manage account" onclick="event.stopPropagation(); AdminProviders.details(\'' + p.id + '\')"><span class="material-icons">manage_accounts</span></button>' +
+        '</div></td>';
+    } else {
+      statusCell = '<td><span class="pill pill-' + p.status + '">' + p.status + '</span></td>';
+      actionsCell = '<td><div class="table-actions">' + rowActions(p) + '</div></td>';
+    }
     return '<tr>' +
       '<td onclick="AdminProviders.info(\'' + p.id + '\')" style="cursor:pointer;" title="Open info page">' +
         '<span class="cell-avatar" style="background:var(--yellow); color:#0a0a0a;">' + escHtmlSafe(p.letter) + '</span>' +
@@ -966,8 +1081,8 @@
       '<td class="text-muted">' + escHtmlSafe(p.category || '') + '</td>' +
       '<td class="text-muted">' + escHtmlSafe(p.city || '') + '</td>' +
       '<td class="text-muted nowrap">' + (typeof window.fmtDays === 'function' ? window.fmtDays(p.daysAgo) : (p.daysAgo + 'd ago')) + '</td>' +
-      '<td><span class="pill pill-' + p.status + '">' + p.status + '</span></td>' +
-      '<td><div class="table-actions">' + rowActions(p) + '</div></td>' +
+      statusCell +
+      actionsCell +
     '</tr>';
   }
 
@@ -978,6 +1093,10 @@
       var rows = this.data;
       // Tab filter
       if (this.tab === 'featured') rows = rows.filter(function (p) { return p.featured && p.status === 'approved'; });
+      else if (this.tab === 'needs') {
+        rows = rows.filter(function (p) { return p.status === 'approved' && p.completeness && p.completeness.pct < 100; })
+          .sort(function (a, b) { return (a.completeness.pct || 0) - (b.completeness.pct || 0); });
+      }
       else rows = rows.filter(function (p) { return p.status === this.tab; }, this);
       // Tier filter
       if (state.tierFilter !== 'all') {
@@ -1015,6 +1134,7 @@
     AP.info = function (id) { openInfo(id); };
     AP.closeInfo = function () { closeInfo(); };
     AP.openAs = function (id) { openAsProvider(id); };
+    AP.requestInfo = function (id) { requestInfo(id); };
     AP.openAddModal = function () { openAdd(); };
 
     AP.reject = async function (id) {
@@ -1154,6 +1274,17 @@
       '.pinfo-sec:last-child{border-bottom:0;}',
       '.pinfo-sec h3{font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#7fa0b2;margin-bottom:14px;display:flex;align-items:center;gap:8px;}',
       '.pinfo-sec h3 .material-icons{font-size:18px;color:#2b9fd0;}',
+      '.pinfo-comphero{display:flex;align-items:center;gap:18px;margin-bottom:6px;}',
+      '.pinfo-comphero .k{font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#8fc7e8;}',
+      '.pinfo-comphero .h{font-size:18px;font-weight:900;margin-top:3px;color:#f5f7fa;}',
+      '.pinfo-comphero .s{font-size:12.5px;color:#9fb2c2;font-weight:600;margin-top:3px;line-height:1.5;}',
+      '.pinfo-clh{font-size:10.5px;font-weight:900;letter-spacing:.7px;text-transform:uppercase;color:#7fa0b2;margin:16px 0 2px;}',
+      '.pinfo-cli{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.07);}',
+      '.pinfo-cli .ic{font-size:20px;width:22px;flex:none;}',
+      '.pinfo-cli.done .ic{color:#3ecf8e;}.pinfo-cli.miss .ic{color:#5f7482;}',
+      '.pinfo-cli .n{flex:1;font-size:13.5px;font-weight:700;}',
+      '.pinfo-cli.done .n{color:#8fa3b5;}.pinfo-cli.miss .n{color:#d3dde5;}',
+      '.pinfo-clfix{background:none;border:none;color:#8fd3ef;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer;}',
       '.pinfo-rows{display:grid;grid-template-columns:1fr 1fr;column-gap:40px;}',
       '.pinfo-row{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.055);}',
       '.pinfo-row .k{color:#8499a8;font-size:13.5px;font-weight:600;flex:none;}',
@@ -1324,6 +1455,24 @@
       ? '<div class="pinfo-mono"><img src="' + e(p.logo_url) + '" alt=""></div>'
       : '<div class="pinfo-mono">' + e((p.business_name || '?')[0] || '?').toUpperCase() + '</div>';
 
+    // Listing completeness (ring + checklist) — flat on the canvas, ring provides the depth (no card box).
+    var comp = completenessOf(p);
+    var compCol = comp.pct >= 90 ? '#3ecf8e' : (comp.pct >= 50 ? '#e0a94a' : '#e0765a');
+    var circ = 232.5, off = (circ * (1 - comp.pct / 100)).toFixed(1);
+    var compState = comp.pct >= 100 ? 'Complete' : (comp.pct >= 50 ? 'Almost there' : 'Needs setup');
+    var ringSvg = '<svg width="92" height="92" viewBox="0 0 88 88" style="filter:drop-shadow(0 6px 14px ' + compCol + '3d);">' +
+      '<circle cx="44" cy="44" r="37" fill="none" stroke="#1e3242" stroke-width="8"/>' +
+      '<circle cx="44" cy="44" r="37" fill="none" stroke="' + compCol + '" stroke-width="8" stroke-linecap="round" stroke-dasharray="' + circ + '" stroke-dashoffset="' + off + '" transform="rotate(-90 44 44)"/>' +
+      '<text x="44" y="50" text-anchor="middle" font-size="19" font-weight="900" fill="#fff" font-family="Montserrat">' + comp.pct + '%</text></svg>';
+    var doneRows = comp.done.map(function (d) { return '<div class="pinfo-cli done"><span class="material-icons ic">check_circle</span><span class="n">' + e(d.label) + '</span></div>'; }).join('');
+    var missRows = comp.missing.map(function (m) { return '<div class="pinfo-cli miss"><span class="material-icons ic">radio_button_unchecked</span><span class="n">' + e(m.label) + '</span><button class="pinfo-clfix" onclick="AdminProviders.details(\'' + id + '\')">Add</button></div>'; }).join('');
+    var compHtml = comp.pct >= 100
+      ? '<div class="pinfo-comphero">' + ringSvg + '<div><div class="k">Listing completeness</div><div class="h">Complete</div><div class="s">All the essentials are in — this listing looks great to members.</div></div></div>'
+      : '<div class="pinfo-comphero">' + ringSvg + '<div><div class="k">Listing completeness</div><div class="h">' + compState + '</div><div class="s">' + comp.missing.length + ' of ' + comp.total + ' item' + (comp.missing.length === 1 ? '' : 's') + ' missing — members see a bare listing.</div>' +
+          '<button class="pinfo-btn gold" style="margin-top:12px;" onclick="AdminProviders.requestInfo(\'' + id + '\')"><span class="material-icons">mail</span>Request info from provider</button></div></div>' +
+        (missRows ? '<div class="pinfo-clh">Still missing</div>' + missRows : '') +
+        (doneRows ? '<div class="pinfo-clh">Done</div>' + doneRows : '');
+
     ov.innerHTML =
       '<div class="pinfo-wrap">' +
         '<div class="pinfo-crumb" onclick="AdminProviders.closeInfo()"><span class="material-icons">arrow_back</span> Providers / ' + e(p.business_name || '') + '</div>' +
@@ -1346,6 +1495,7 @@
             '<div class="pinfo-chips">' + chips + '</div>' +
           '</div>' +
           '<div class="pinfo-body">' +
+            '<div class="pinfo-sec"><h3><span class="material-icons">fact_check</span>Listing completeness</h3>' + compHtml + '</div>' +
             '<div class="pinfo-sec"><h3><span class="material-icons">contact_page</span>Contact person</h3>' + contactHtml + '</div>' +
             ((isBrand || isOrganizer) ? '' : '<div class="pinfo-sec"><h3><span class="material-icons">storefront</span>Business</h3><div class="pinfo-rows">' + businessRows + '</div></div>') +
             '<div class="pinfo-sec"><h3><span class="material-icons">receipt_long</span>Account &amp; billing status</h3><div class="pinfo-rows">' + billRows + '</div></div>' +
