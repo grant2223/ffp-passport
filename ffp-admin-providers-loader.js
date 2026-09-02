@@ -121,20 +121,25 @@
       '.ffp-tier-filter-chip:hover{color:#f5f7fa;}',
       '.ffp-tier-filter-chip.active{background:#2ba8e0;color:#082335;border-color:#2ba8e0;}',
 
-      // Modal (shared)
-      '.ffp-pm-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;font-family:Montserrat,sans-serif;}',
+      // Modal (shared) — FULL-BLEED sheet (locked admin rule: no centered card, no box-in-box). The sheet
+      // fills the viewport; head/body/foot sit in a centered readable column so wide screens aren't sparse.
+      '.ffp-pm-backdrop{position:fixed;inset:0;background:#0b1622;z-index:9999;display:none;align-items:stretch;justify-content:stretch;padding:0;font-family:Montserrat,sans-serif;}',
       '.ffp-pm-backdrop.open{display:flex;}',
-      '.ffp-pm-sheet{background:#0f1e2e;border:1px solid rgba(43,168,224,0.30);border-radius:14px;width:100%;max-width:480px;color:#f5f7fa;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;}',
-      '.ffp-pm-head{padding:18px 20px 12px;border-bottom:1px solid rgba(43,168,224,0.15);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}',
-      '.ffp-pm-title{font-size:16px;font-weight:800;}',
+      '.ffp-pm-sheet{background:#0f1e2e;border:none;border-radius:0;width:100%;max-width:none;height:100dvh;color:#f5f7fa;overflow:hidden;max-height:none;display:flex;flex-direction:column;}',
+      '.ffp-pm-head{padding:18px 20px 14px;border-bottom:1px solid rgba(43,168,224,0.15);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;position:sticky;top:0;background:#0f1e2e;z-index:2;width:100%;max-width:720px;margin:0 auto;}',
+      '.ffp-pm-title{font-size:18px;font-weight:800;}',
       '.ffp-pm-sub{font-size:12px;color:#8a99a8;margin-top:2px;}',
       '.ffp-pm-close{background:transparent;border:none;color:#8a99a8;cursor:pointer;font-family:inherit;padding:4px;}',
       '.ffp-pm-close:hover{color:#f5f7fa;}',
-      '.ffp-pm-body{padding:16px 20px;overflow-y:auto;}',
+      '.ffp-pm-body{padding:18px 20px;overflow-y:auto;flex:1;width:100%;max-width:720px;margin:0 auto;}',
       '.ffp-pm-row{margin-bottom:14px;}',
       '.ffp-pm-label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:0.6px;font-weight:800;color:#8a99a8;margin-bottom:6px;}',
       '.ffp-pm-input{width:100%;background:rgba(43,168,224,0.06);border:1px solid rgba(43,168,224,0.30);border-radius:8px;color:#f5f7fa;padding:10px 12px;font-size:13px;font-weight:600;font-family:inherit;color-scheme:dark;}',
       '.ffp-pm-input:focus{outline:none;border-color:#2ba8e0;}',
+      // Native <select> popups use the control background — the translucent input bg renders the open list
+      // white/unreadable, so give selects + their options a solid dark surface.
+      'select.ffp-pm-input{background-color:#12232f;background-image:none;-webkit-appearance:none;appearance:none;background-repeat:no-repeat;background-position:right 10px center;background-image:url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%238a99a8\' stroke-width=\'3\'><path d=\'M6 9l6 6 6-6\'/></svg>");padding-right:30px;}',
+      '.ffp-pm-input option{background-color:#12232f;color:#f5f7fa;}',
       'input.ffp-pm-input[type="date"]{cursor:pointer;color-scheme:dark;}',
 
       // Tier chips inside modal
@@ -155,7 +160,7 @@
       '.ffp-pm-status-chips button{padding:10px 8px;background:rgba(43,168,224,0.06);border:1px solid rgba(43,168,224,0.30);border-radius:8px;color:#f5f7fa;font-size:12px;font-weight:700;cursor:pointer;text-align:center;font-family:inherit;}',
       '.ffp-pm-status-chips button.active{background:#2ba8e0;color:#082335;border-color:#2ba8e0;}',
 
-      '.ffp-pm-foot{padding:12px 20px 18px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid rgba(43,168,224,0.15);}',
+      '.ffp-pm-foot{padding:12px 20px 18px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid rgba(43,168,224,0.15);position:sticky;bottom:0;background:#0f1e2e;width:100%;max-width:720px;margin:0 auto;}',
       '.ffp-pm-btn{padding:9px 16px;font-size:13px;font-weight:800;border-radius:8px;border:none;cursor:pointer;font-family:inherit;}',
       '.ffp-pm-btn-primary{background:#FFCC00;color:#082335;}',
       '.ffp-pm-btn-primary:hover{filter:brightness(1.05);}',
