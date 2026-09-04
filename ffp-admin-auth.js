@@ -85,16 +85,25 @@
     // Full admins (by members.role) go straight in.
     if (role === 'admin' || role === 'super_admin' || role === 'super') { applyIdentity(m.role, m); return; }
 
-    // Otherwise they may have been granted STAFF access — a row in admin_users keyed by their member id.
-    // is_admin() lets them read it; if present, admit them at that role (limited UI for 'staff').
-    if (window.supabase && window.supabase.from) {
-      window.supabase.from('admin_users').select('role').eq('id', m.id).maybeSingle().then(function (res) {
-        if (res && res.data) { applyIdentity(res.data.role || 'staff', m); }
-        else { bounceNonAdmin(role); }
-      }, function () { bounceNonAdmin(role); });
-    } else {
-      bounceNonAdmin(role);
-    }
+    // v209: the backend now stamps the member with `admin_role` (service-role authority) on exchange AND
+    // refresh — the AUTHORITATIVE staff/admin flag. Admit on it directly, no fragile client RLS read.
+    if (m.admin_role) { applyIdentity(m.admin_role, m); return; }
+
+    // Fallback (older stored sessions without admin_role): read admin_users under the app-JWT.
+    // If window.supabase isn't ready yet, wait briefly rather than bouncing immediately.
+    var tries = 0;
+    (function tryStaff() {
+      if (window.supabase && window.supabase.from) {
+        window.supabase.from('admin_users').select('role').eq('id', m.id).maybeSingle().then(function (res) {
+          if (res && res.data) { applyIdentity(res.data.role || 'staff', m); }
+          else { bounceNonAdmin(role); }
+        }, function () { bounceNonAdmin(role); });
+      } else if (tries++ < 40) {
+        setTimeout(tryStaff, 100);   // up to ~4s for the supabase client to initialise
+      } else {
+        bounceNonAdmin(role);
+      }
+    })();
   }
 
   if (document.readyState === 'loading') {
