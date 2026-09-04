@@ -160,7 +160,7 @@
   <script src="assets/ffp-taxonomy.js?v=10"></script>
   <script src="assets/ffp-realtime.js"></script>
   <script src="ffp-admin-organiser-listings.js?v=2"></script>
-<script src="ffp-admin-auth.js?v=8"></script>
+<script src="ffp-admin-auth.js?v=9"></script>
   <script src="ffp-admin-overview-loader.js?v=11"></script>
   <script src="ffp-admin-banners-loader.js?v=3"></script>
   <!-- Applications panel REMOVED 2026-06-01: providers now self-signup with instant, self-serve accounts — there is no application/approval step, so no Applications panel. -->
@@ -1918,9 +1918,8 @@ select.ax-in{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg 
         </div>
         <div class="filters-row">
           <button class="filter-chip active" onclick="AdminMembers.setFilter('all', this)">All</button>
-          <button class="filter-chip" onclick="AdminMembers.setFilter('member', this)">Member</button>
-          <button class="filter-chip" onclick="AdminMembers.setFilter('supporter', this)">Supporter</button>
-          <button class="filter-chip" onclick="AdminMembers.setFilter('ambassador', this)">Ambassador</button>
+          <button class="filter-chip" onclick="AdminMembers.setFilter('standard', this)">Standard</button>
+          <button class="filter-chip" onclick="AdminMembers.setFilter('premium', this)">Premium</button>
           <button class="filter-chip" onclick="AdminMembers.setFilter('suspended', this)">Suspended</button>
         </div>
         <div class="section-body">
@@ -3296,7 +3295,8 @@ const AdminMembers = {
   filtered() {
     let rows = this.data;
     if (this.filter === 'suspended') rows = rows.filter(m => m.status === 'suspended');
-    else if (this.filter !== 'all') rows = rows.filter(m => m.tier === this.filter && m.status === 'active');
+    else if (this.filter === 'premium') rows = rows.filter(m => m.mtype && m.mtype.passport && m.status === 'active');
+    else if (this.filter === 'standard') rows = rows.filter(m => (!m.mtype || !m.mtype.passport) && m.status === 'active');
     if (this.search) {
       rows = rows.filter(m =>
         m.full_name.toLowerCase().includes(this.search) ||
