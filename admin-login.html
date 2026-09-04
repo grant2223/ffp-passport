@@ -183,16 +183,28 @@ async function verifyCode(){
     if(ex.status===404||(b&&b.error==='no_account')){ showError('code-err','We couldn’t find an account for that email.'); return; }
     if(!ex.ok||!b.jwt){ showError('code-err','Sign in failed. Please try again.'); return; }
     var role=String((b.member&&b.member.role)||'').toLowerCase();
-    if(!ADMIN_ROLES[role]){
-      // Not an admin — do NOT store a session or bounce them into the admin dashboard.
-      try{ if(window.supabase&&window.supabase.auth) await window.supabase.auth.signOut(); }catch(e){}
-      showError('code-err','That account doesn’t have admin access.');
-      return;
-    }
+    // Store the session first so window.supabase carries the app-JWT for the admin_users check below.
     if(b.member) FFPAuth.setMember(b.member);
     if(b.refresh) FFPAuth.setRefresh(b.refresh);
     FFPAuth.setJwt(b.jwt);
     if(FFPAuth.applySupabaseSession){ try{ await FFPAuth.applySupabaseSession(); }catch(e){} }
+    // Admit FULL admins (members.role) OR STAFF granted via a row in admin_users (matches ffp-admin-auth.js,
+    // so staff like coaches who help run the platform can sign in — is_admin() lets them read their own row).
+    // v209: the backend (/api/auth/exchange) now returns `admin_role` — the AUTHORITATIVE admin/staff
+    // flag computed server-side with the service role. This is the primary gate. The client admin_users
+    // read below is only a last-resort fallback (it silently failed for staff whose native auth uid
+    // differs from members.id, which is why Mike Bourne was bounced despite being valid staff).
+    var allowed = !!ADMIN_ROLES[role] || !!b.admin_role;
+    if(!allowed && b.member && b.member.id && window.supabase && window.supabase.from){
+      try{ var au=await window.supabase.from('admin_users').select('role').eq('id',b.member.id).maybeSingle(); if(au&&au.data) allowed=true; }catch(e){}
+    }
+    if(!allowed){
+      // No admin/staff access — clear the session we just stored and stop.
+      try{ ['ffp_member','ffp_jwt','ffp_refresh','ffp_token'].forEach(function(k){ localStorage.removeItem(k); }); }catch(e){}
+      try{ if(window.supabase&&window.supabase.auth) await window.supabase.auth.signOut(); }catch(e){}
+      showError('code-err','That account doesn’t have admin access.');
+      return;
+    }
     window.location.href='ffp-admin-dashboard.html';
   }catch(e){ showError('code-err','Verification failed. Please try again.'); }
   finally{ setBusy('code-btn',false); }
@@ -204,7 +216,9 @@ document.addEventListener('DOMContentLoaded',function(){
     var m=(window.FFPAuth&&FFPAuth.getMember&&FFPAuth.getMember())||null;
     var hasSession=!!(window.FFPAuth&&((FFPAuth.getJwt&&FFPAuth.getJwt())||(FFPAuth.getRefresh&&FFPAuth.getRefresh())));
     var skip=new URLSearchParams(window.location.search).get('switch')==='1'||window.location.hash==='#switch';
-    if(m&&m.id&&hasSession&&!skip&&ADMIN_ROLES[String(m.role||'').toLowerCase()]){ window.location.href='ffp-admin-dashboard.html'; }
+    // Already signed in → hand off to the dashboard, whose gate (ffp-admin-auth.js) admits full admins AND
+    // admin_users staff and bounces anyone else. (Was admin-role-only, which locked out signed-in staff.)
+    if(m&&m.id&&hasSession&&!skip){ window.location.href='ffp-admin-dashboard.html'; }
   }catch(e){}
 });
 </script>
