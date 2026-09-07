@@ -47,6 +47,18 @@
 .ffp-pc--black .pass-photo-new{ box-shadow:0 0 0 2px #d4af37, 0 0 0 3.5px rgba(231,200,119,.55), 0 3px 10px rgba(0,0,0,.45); }
 /* Subtle bronze trim on the Gold card for consistency */
 .ffp-pc--gold .pass-photo-new{ box-shadow:0 0 0 2px #8a6a1d, 0 0 0 3px rgba(138,106,29,.4); }
+/* ── GRAPHITE — Standard (free) member. Refined brushed-graphite, silver ink (premium, not "cheap grey"). ── */
+.ffp-pc--graphite{
+  --pass-bg:
+    repeating-linear-gradient(108deg, rgba(255,255,255,.5) 0 1px, rgba(0,0,0,.012) 1px 3px),
+    linear-gradient(150deg,#eef2f6 0%,#dbe3ec 55%,#e9eef3 100%);
+  --pass-paper:#e6ebf1; --pass-ink:#1a2937; --pass-ink-dim:#4a5d72; --pass-blue:#1d5d8a; --pass-gold:#7c8a99;
+}
+.ffp-pc--graphite .pass-shell{ box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.75), inset 0 0 0 3px rgba(120,138,153,.16), 0 30px 80px -20px rgba(60,80,100,.32); }
+.ffp-pc--graphite .pass-mrz{ background:rgba(255,255,255,.06); border-top-color:rgba(255,255,255,.16); }
+.ffp-pc--graphite .pass-type-row{ border-bottom-color:rgba(255,255,255,.1); }
+.ffp-pc--graphite .pass-photo-new{ box-shadow:0 0 0 2px rgba(255,255,255,.28), 0 0 0 3px rgba(255,255,255,.08); }
+.ffp-pc--graphite .pass-bg-emblem{ filter:brightness(0) invert(1); opacity:.06; }
 
 /* ===== CSS BLOCK A (card) ===== */
 .pass-container {
@@ -401,8 +413,13 @@
     render:function(m,opts){
       opts=opts||{};
       var clickAttr = opts.flippable ? " onclick=\"this.classList.toggle('flipped')\" style='cursor:pointer;'" : "";
-      var _t = String((opts.tier || (m&&(m.passport_tier||m.card_tier||m.membership_tier||m.membership))) || "").toLowerCase();
-      var _tc = /black|founder|obsidian/.test(_t) ? " ffp-pc--black" : /gold/.test(_t) ? " ffp-pc--gold" : /emerald|green/.test(_t) ? " ffp-pc--emerald" : "";
+      var _t = String((opts.tier || (m&&(m.passport_tier||m.card_tier||m.membership_tier))) || "").toLowerCase();
+      var _mem = String((m&&m.membership)||"").toLowerCase();
+      // Tier → card colour (Grant, 2026-09-07 LOCKED): obsidian=special · emerald=lifetime · gold=Premium(paid) · graphite=Standard(free).
+      var _tc = /black|founder|obsidian/.test(_t) ? " ffp-pc--black"
+        : /emerald|green|lifetime/.test(_t) ? " ffp-pc--emerald"
+        : (_mem==="passport" || /gold|premium|passport/.test(_t)) ? " ffp-pc--gold"
+        : " ffp-pc--graphite";
       return "<div class='ffp-pc"+_tc+"'"+clickAttr+"><div class='ffp-pc-flip'>"+
         "<div class='ffp-pc-face ffp-pc-front'>"+this.frontShell(m,opts)+"</div>"+
         "<div class='ffp-pc-face ffp-pc-back'>"+this.backShell(m)+"</div>"+
