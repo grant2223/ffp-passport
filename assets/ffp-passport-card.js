@@ -415,11 +415,11 @@
       var clickAttr = opts.flippable ? " onclick=\"this.classList.toggle('flipped')\" style='cursor:pointer;'" : "";
       var _t = String((opts.tier || (m&&(m.passport_tier||m.card_tier||m.membership_tier))) || "").toLowerCase();
       var _mem = String((m&&m.membership)||"").toLowerCase();
-      // Tier → card colour (Grant, 2026-09-07 LOCKED): obsidian=special · emerald=lifetime · gold=Premium(paid) · graphite=Standard(free).
+      // Tier → card colour (Grant, 2026-09-07 LOCKED): obsidian=special · emerald=lifetime · gold=Premium(paid) · Standard=ORIGINAL base light theme (no tier class).
       var _tc = /black|founder|obsidian/.test(_t) ? " ffp-pc--black"
         : /emerald|green|lifetime/.test(_t) ? " ffp-pc--emerald"
         : (_mem==="passport" || /gold|premium|passport/.test(_t)) ? " ffp-pc--gold"
-        : " ffp-pc--graphite";
+        : "";
       return "<div class='ffp-pc"+_tc+"'"+clickAttr+"><div class='ffp-pc-flip'>"+
         "<div class='ffp-pc-face ffp-pc-front'>"+this.frontShell(m,opts)+"</div>"+
         "<div class='ffp-pc-face ffp-pc-back'>"+this.backShell(m)+"</div>"+
