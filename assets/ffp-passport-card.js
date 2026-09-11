@@ -118,10 +118,12 @@
    Tiers: Standard = silver, Premium / Emerald / Obsidian = gold. Bronze is unused (spare). */
 .pass-fg-emblem {
   position: absolute;
-  top: 50%;
+  /* Lifted and shrunk again on Grant's option B (2026-09-11): top 50%->42%, width 26%->22%.
+     translateY(-50%) still centres it on that line, so its centre sits at .42*340 = 142.8px. */
+  top: 42%;
   right: 3%;
   transform: translateY(-50%);
-  width: 26%;
+  width: 22%;
   aspect-ratio: 1 / 1;
   background: url('https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-silver.png') no-repeat center / contain;
   pointer-events: none;
@@ -154,7 +156,9 @@
   grid-template-columns: auto 1fr auto;
   align-items: start;
   gap: 12px;
-  margin-bottom: 10px;
+  /* 10px -> 4px lifts the TYPE/COUNTRY row 6px (Grant, 2026-09-11). The 6px is given back on
+     .pass-type-row's margin-bottom, so the gap closes ABOVE that row and nothing below moves. */
+  margin-bottom: 4px;
   padding-bottom: 10px;
   border-bottom: 1px solid rgba(26,41,55,0.08);
 }
@@ -192,7 +196,8 @@
   display: grid;
   grid-template-columns: 50px 1fr;
   gap: 12px;
-  margin-bottom: 10px;
+  /* 10px -> 16px absorbs the 6px taken off .pass-top, so everything below stays put. */
+  margin-bottom: 16px;
   padding-bottom: 8px;
   border-bottom: 1px solid rgba(26,41,55,0.08);
 }
