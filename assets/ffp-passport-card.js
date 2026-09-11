@@ -95,6 +95,30 @@
   pointer-events: none;
   z-index: 0;
 }
+.pass-fg-emblem {
+  position: absolute;
+  top: 50%;
+  right: -8%;
+  transform: translateY(-50%);
+  width: 52%;
+  aspect-ratio: 1 / 1;
+  background: url('https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/quest-images/brand/ffp-emblem-stamp.png') no-repeat center / contain;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.09;
+  filter: brightness(0);
+}
+.ffp-pc--gold .pass-fg-emblem { filter: brightness(0) invert(16%) sepia(40%) saturate(1200%) hue-rotate(2deg); opacity: 0.11; }
+.ffp-pc--emerald .pass-fg-emblem { filter: brightness(0) invert(78%) sepia(55%) saturate(520%) hue-rotate(357deg); opacity: 0.14; }
+.ffp-pc--black .pass-fg-emblem { filter: brightness(0) invert(78%) sepia(55%) saturate(520%) hue-rotate(357deg); opacity: 0.16; }
+.pass-int { display: flex; flex-direction: column; gap: 16px; }
+.pass-int-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.pass-int-l { min-width: 0; }
+.pass-int-sport { font-size: 14px; font-weight: 600; letter-spacing: -0.1px; color: var(--pass-ink); }
+.pass-int-meter { display: flex; gap: 4px; margin-top: 7px; }
+.pass-int-meter i { width: 16px; height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--pass-ink) 16%, transparent); }
+.pass-int-meter i.on { background: var(--pass-gold); }
+.pass-int-grade { flex: none; font-family: 'Courier New', monospace; font-size: 15px; font-weight: 700; color: var(--pass-gold); line-height: 1; white-space: nowrap; }
 .pass-inner {
   position: relative;
   z-index: 1;
@@ -355,6 +379,7 @@
       var mrz2=_mrow(_c2+"&lt;"+_nat+"&lt;"+_sex+"&lt;&lt;"+_chk+((_chk*7+3)%10));
       return "<div class='pass-shell'>"+
         "<div class='pass-bg-emblem'></div>"+
+        "<div class='pass-fg-emblem'></div>"+
         "<div class='pass-inner'>"+
           "<div class='pass-top'>"+
             "<div><div class='pass-top-label'>PASSPORT</div><div class='pass-top-sub'>URUWHENUA</div></div>"+
@@ -390,7 +415,13 @@
       var given=m.givenNames||(String(m.name||"").split(" ")[0])||"";
       var surname=m.surname||(String(m.name||"").split(" ").slice(1).join(" "))||"";
       var skills=(m.sports||m.skills||[]).slice(0,4); var self=this;
-      var rows=skills.map(function(sp){ var g=(sp.grade!=null?String(sp.grade).trim():""); return "<div style='margin-bottom:10px;'><div style='display:flex;justify-content:space-between;align-items:baseline;'><span class='pf-val' style='font-size:11px;'>"+esc(sp.name)+(g?" <span style='color:var(--pass-blue);font-weight:800;'>"+esc(g)+"</span>":"")+"</span><span class='pf-lbl' style='margin:0;'>"+cap(sp.level)+"</span></div>"+self.meter(sp.level)+"</div>"; }).join("");
+      var LVL={ "just started":1, recreational:2, skilled:3, "highly skilled":4, professional:5, "not tried":1, social:2, competitive:3, representative:4, beginner:1, intermediate:3, advanced:4 };
+      var rows=skills.map(function(sp){
+        var g=(sp.grade!=null?String(sp.grade).trim():"");
+        var n=LVL[String(sp.level||"").toLowerCase()]||1; var seg="";
+        for(var i=0;i<5;i++){ seg+="<i"+(i<n?" class='on'":"")+"></i>"; }
+        return "<div class='pass-int-row'><div class='pass-int-l'><div class='pass-int-sport'>"+esc(sp.name)+"</div><div class='pass-int-meter'>"+seg+"</div></div>"+(g?"<div class='pass-int-grade'>"+esc(g)+"</div>":"")+"</div>";
+      }).join("");
       var cells=[];
       cells.push(this.cell("TYPE", cap(m.memberType||"Member")));
       if(m.meetupsHosted!=null) cells.push(this.cell("MEET-UPS HOSTED", m.meetupsHosted));
@@ -402,10 +433,10 @@
         "<div class='pass-bg-emblem'></div>"+
         "<div class='pass-inner'>"+
           "<div class='pass-top' style='grid-template-columns:1fr auto;'>"+
-            "<div><div class='pass-top-label'>ACTIVITIES + LEVEL</div><div class='pass-top-sub'>"+esc((given+" "+surname).trim()||m.name||"")+"</div></div>"+
+            "<div><div class='pass-top-label'>INTERESTS</div><div class='pass-top-sub'>"+esc((given+" "+surname).trim()||m.name||"")+"</div></div>"+
             "<div class='pass-top-right'><div class='pass-top-label'>MEMBER SINCE</div><div class='pass-passnum'>"+(m.memberSince||"—")+"</div></div>"+
           "</div>"+
-          "<div style='flex:1;padding-top:6px;'>"+(rows||"<div class='pf-val' style='font-size:11px;'>No interests added yet</div>")+"</div>"+
+          "<div class='pass-int' style='flex:1;padding-top:10px;justify-content:center;'>"+(rows||"<div class='pf-val' style='font-size:11px;'>No interests added yet</div>")+"</div>"+
           "<div class='pass-mrz'><span class='pass-mrz-line'>"+visa+"</span></div>"+
         "</div>"+
       "</div>";
