@@ -12,6 +12,14 @@
   --pass-gold: #b8965a;
   --pass-blue: #1d5d8a;
   --pass-bg: #eff2f6;
+  /* EXPORT-SAFE twin of --pass-bg (Grant, 2026-09-11). The PNG download goes through
+     html2canvas, which cannot rasterise a MULTI-LAYER background — a stacked
+     repeating-linear-gradient came out as a dark fill, which is what made the exported gold
+     card near-black at the edges. Every tier that layers --pass-bg MUST also set
+     --pass-bg-flat: the same colours expressed as ONE plain gradient (or a solid). Screen uses
+     --pass-bg; only the export swaps in --pass-bg-flat. Keep the two in sync. */
+  --pass-bg-flat: #eff2f6;
+  --pass-bg-baked: url('https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-card-bg-standard.webp');
 }
 
 /* ── Passport tier colour themes — SAME card, recoloured by membership tier ── */
@@ -19,6 +27,8 @@
   --pass-bg:
     repeating-linear-gradient(108deg, rgba(255,255,255,.05) 0 1px, rgba(0,0,0,.022) 1px 3px),
     linear-gradient(158deg,#c8a02a 0%,#dcb648 24%,#caa022 52%,#b68a10 80%,#cba433 100%);
+  --pass-bg-flat: linear-gradient(158deg,#c8a02a 0%,#dcb648 24%,#caa022 52%,#b68a10 80%,#cba433 100%);
+  --pass-bg-baked: url('https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-card-bg-gold.webp');
   --pass-paper:#d9b23a; --pass-ink:#3f2f0d; --pass-ink-dim:#6a4f12; --pass-blue:#6a4f12; --pass-gold:#6a4f12;
 }
 .ffp-pc--gold .pass-shell{ box-shadow: inset 0 0 0 1.5px rgba(255,248,220,.55), inset 0 0 0 3px rgba(138,106,29,.4), 0 30px 80px -20px rgba(90,63,10,.55); }
@@ -26,6 +36,8 @@
 .ffp-pc--gold .pass-type-row{ border-bottom-color:rgba(74,54,17,.15); }
 .ffp-pc--emerald{
   --pass-bg: linear-gradient(158deg,#0f5e41 0%,#0a4a32 55%,#063724 100%);
+  --pass-bg-flat: linear-gradient(158deg,#0f5e41 0%,#0a4a32 55%,#063724 100%);
+  --pass-bg-baked: url('https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-card-bg-emerald.webp');
   --pass-paper:#0d4a33; --pass-ink:#eaf3ec; --pass-ink-dim:#a7c1ac; --pass-blue:#e4c169; --pass-gold:#e4c169;
 }
 .ffp-pc--emerald .pass-shell{ box-shadow: inset 0 0 0 1.5px rgba(231,200,119,.5), inset 0 0 0 3px rgba(231,200,119,.16), 0 30px 80px -20px rgba(4,30,20,.6); }
@@ -37,6 +49,8 @@
     linear-gradient(112deg, rgba(231,200,119,0) 34%, rgba(231,200,119,.16) 48%, rgba(231,200,119,0) 60%),
     radial-gradient(130% 110% at 80% 10%, rgba(231,200,119,.12), rgba(231,200,119,0) 52%),
     linear-gradient(140deg,#262626 0%,#080808 55%,#171717 100%);
+  --pass-bg-flat: linear-gradient(140deg,#262626 0%,#080808 55%,#171717 100%);
+  --pass-bg-baked: url('https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-card-bg-obsidian.webp');
   --pass-paper:#141414; --pass-ink:#e7c877; --pass-ink-dim:#c2a25a; --pass-blue:#e7c877; --pass-gold:#e7c877;
 }
 .ffp-pc--black .pass-shell{ box-shadow: inset 0 0 0 1.5px rgba(231,200,119,.5), inset 0 0 0 3px rgba(231,200,119,.16), 0 30px 80px -20px rgba(0,0,0,.78); }
@@ -52,6 +66,8 @@
   --pass-bg:
     repeating-linear-gradient(108deg, rgba(255,255,255,.5) 0 1px, rgba(0,0,0,.012) 1px 3px),
     linear-gradient(150deg,#eef2f6 0%,#dbe3ec 55%,#e9eef3 100%);
+  --pass-bg-flat: linear-gradient(150deg,#eef2f6 0%,#dbe3ec 55%,#e9eef3 100%);
+  --pass-bg-baked: url('https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-card-bg-standard.webp');
   --pass-paper:#e6ebf1; --pass-ink:#1a2937; --pass-ink-dim:#4a5d72; --pass-blue:#1d5d8a; --pass-gold:#7c8a99;
 }
 .ffp-pc--graphite .pass-shell{ box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.75), inset 0 0 0 3px rgba(120,138,153,.16), 0 30px 80px -20px rgba(60,80,100,.32); }
@@ -95,22 +111,27 @@
   pointer-events: none;
   z-index: 0;
 }
+/* FG emblem = tier MEDAL watermark (Grant, 2026-09-11 LOCKED). HALF the old size (52%→26%) and
+   painted in the card's own metal so it sinks into the background. The medal art is already
+   tinted, so there is NO CSS filter here — which also makes the watermark survive the PNG
+   export, where html2canvas drops filter/mask.
+   Tiers: Standard = silver, Premium / Emerald / Obsidian = gold. Bronze is unused (spare). */
 .pass-fg-emblem {
   position: absolute;
   top: 50%;
-  right: -8%;
+  right: 3%;
   transform: translateY(-50%);
-  width: 52%;
+  width: 26%;
   aspect-ratio: 1 / 1;
-  background: url('https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/quest-images/brand/ffp-emblem-stamp.png') no-repeat center / contain;
+  background: url('https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-silver.png') no-repeat center / contain;
   pointer-events: none;
   z-index: 0;
-  opacity: 0.09;
-  filter: brightness(0);
+  opacity: 0.16;
+  filter: none;
 }
-.ffp-pc--gold .pass-fg-emblem { filter: brightness(0) invert(16%) sepia(40%) saturate(1200%) hue-rotate(2deg); opacity: 0.11; }
-.ffp-pc--emerald .pass-fg-emblem { filter: brightness(0) invert(78%) sepia(55%) saturate(520%) hue-rotate(357deg); opacity: 0.14; }
-.ffp-pc--black .pass-fg-emblem { filter: brightness(0) invert(78%) sepia(55%) saturate(520%) hue-rotate(357deg); opacity: 0.16; }
+.ffp-pc--gold .pass-fg-emblem { background-image: url('https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-gold.png'); opacity: 0.18; }
+.ffp-pc--emerald .pass-fg-emblem { background-image: url('https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-gold.png'); opacity: 0.22; }
+.ffp-pc--black .pass-fg-emblem { background-image: url('https://kxzyuofecmtymablnmak.supabase.co/storage/v1/object/public/site-images/ffp-medal-gold.png'); opacity: 0.22; }
 .pass-int { display: flex; flex-direction: column; gap: 16px; }
 .pass-int-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .pass-int-l { min-width: 0; }
@@ -335,6 +356,46 @@
 .ffp-pc-back{ background:#0a1825; }
 .ffp-pc-badge{ font-size:12px; font-weight:900; letter-spacing:1px; color:var(--pass-blue); border:2px solid var(--pass-blue); border-radius:8px; padding:6px 10px; }
 .ffp-bk-meter{ display:flex; gap:4px; margin-top:4px; }
+
+/* == EXPORT MODE (Grant, 2026-09-11 LOCKED: the download must look EXACTLY like the app) =====
+   The PNG download rasterises this card with html2canvas, whose CSS support is a SUBSET of the
+   browser's. What it cannot paint fails SILENTLY: a stacked repeating-linear-gradient came out as
+   a dark fill, which is what made the exported gold card near-black at the edges (measured
+   rgb(38,41,39)) and muddy olive in the middle.
+   Flattening the gradients was measured and REJECTED - it changed 17.68% of pixels on gold and
+   64.32% on obsidian (obsidian stacks a gold sheen + a radial glow that flattening discards).
+   So instead the two purely-decorative painted layers - the tier --pass-bg and the tinted
+   world-map .pass-bg-emblem - are PRE-BAKED per tier into ONE lossless image (1080x680, produced
+   from this very CSS, so it is pixel-identical: verified max channel delta 0). The export paints
+   that single image, which html2canvas handles perfectly, and hides the live layers. Everything
+   else (text, photo, medal, MRZ) is already CSS it can rasterise.
+   Two modes: .ffp-pc-export (baked, exact) and .ffp-pc-export-flat (fallback used only if the
+   baked asset fails to load, so a missing file degrades instead of exporting a blank card).
+   !! If you change a tier's --pass-bg or .pass-bg-emblem, RE-BAKE that tier's image or the
+   download silently stops matching the app. Keep this block last so it wins on source order. */
+/* --- shared: neutralise what html2canvas cannot reproduce --- */
+.ffp-pc-export .pass-shell,
+.ffp-pc-export-flat .pass-shell{ width:540px; height:340px; box-shadow:none; }
+/* NOTE: layout properties need NO override. html2canvas does not re-layout - it reads each
+   element's already-resolved box - so aspect-ratio and % sizing come through correctly. An
+   earlier attempt to restate the medal as explicit px introduced a sub-pixel shift and was the
+   only structural difference left in the diff; it was removed. Only PAINT properties (gradients,
+   filters, blend modes, color-mix) need restating here. */
+/* color-mix() -> the same colour pre-resolved from each tier's --pass-ink at 16% */
+.ffp-pc-export .pass-int-meter i,
+.ffp-pc-export-flat .pass-int-meter i{ background:rgba(26,41,55,.16); }
+.ffp-pc-export.ffp-pc--gold .pass-int-meter i,
+.ffp-pc-export-flat.ffp-pc--gold .pass-int-meter i{ background:rgba(63,47,13,.16); }
+.ffp-pc-export.ffp-pc--emerald .pass-int-meter i,
+.ffp-pc-export-flat.ffp-pc--emerald .pass-int-meter i{ background:rgba(234,243,236,.16); }
+.ffp-pc-export.ffp-pc--black .pass-int-meter i,
+.ffp-pc-export-flat.ffp-pc--black .pass-int-meter i{ background:rgba(231,200,119,.16); }
+/* --- baked mode: one exact image replaces both painted layers --- */
+.ffp-pc-export .pass-shell{ background:var(--pass-bg-baked) center / 100% 100% no-repeat; }
+.ffp-pc-export .pass-bg-emblem{ display:none; }
+/* --- fallback mode: single-gradient twin, untinted map. NOT pixel-exact; last resort only. --- */
+.ffp-pc-export-flat{ --pass-bg: var(--pass-bg-flat); }
+.ffp-pc-export-flat .pass-bg-emblem{ filter:none; }
 `;
   if (!document.getElementById('ffp-passport-card-css')) {
     var s=document.createElement('style'); s.id='ffp-passport-card-css'; s.textContent=CSS; document.head.appendChild(s);
