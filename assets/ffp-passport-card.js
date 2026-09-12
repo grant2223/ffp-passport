@@ -411,6 +411,27 @@
   window.ffpFmtPassDate=function(d,addYears){ if(!d)return ""; var x=new Date(d); if(isNaN(x.getTime()))return ""; if(addYears)x.setFullYear(x.getFullYear()+addYears); var MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]; return x.getDate()+" "+MON[x.getMonth()]+" "+x.getFullYear(); };
 
   window.FFPPassportCard = {
+    /* TYPE letter (Grant, 2026-09-12 LOCKED). Free is ALWAYS M; within Premium the most
+       specific wins. Commission ladder behind the letters: P 5%, S 10%, A 20%,
+       LT = Premium on a locked 20%. O is awarded by hand in special cases.
+         M  Standard (free)        O  Obsidian        LT Lifetime (emerald)
+         A  Ambassador (20%)       S  Supporter (10%) P  Premium (5%)
+       Premium is detected by membership==='passport' OR a non-empty card tier: both RPCs
+       (get_match_pool, member_passport_cv) set card_tier to passport_tier, else 'gold' when
+       membership='passport', else null — so a card tier is only ever present on a paying member.
+       That matters because the matches deck supplies card_tier but no membership field. */
+    typeCode:function(m,opts){
+      m=m||{}; opts=opts||{};
+      var pt=String(opts.tier||m.passport_tier||m.card_tier||"").toLowerCase();
+      var mem=String(m.membership||"").toLowerCase();
+      if(mem!=="passport" && pt==="") return "M";
+      if(/black|obsidian|founder/.test(pt)) return "O";
+      if(/emerald|lifetime/.test(pt)) return "LT";
+      var role=String(m.memberType||m.tier||"").toLowerCase();
+      if(role==="ambassador") return "A";
+      if(role==="supporter") return "S";
+      return "P";
+    },
     ccode:function(country){ var w=String(country||"").trim().split(/\s+/); if(w.length>1) return w.map(function(x){return x[0];}).join("").slice(0,3).toUpperCase(); return String(country||"").slice(0,3).toUpperCase(); },
     meter:function(level){
       var idx={ "just started":1, recreational:2, skilled:3, "highly skilled":4, professional:5,
@@ -428,7 +449,7 @@
       var photoStyle=m.photo? "background-image:url('"+m.photo+"');background-size:cover;background-position:center top;" : "";
       var ccode=this.ccode(m.country);
       var memno=ccode+"·"+String(m.id||"").replace(/[^a-z0-9]/gi,"").slice(0,4).toUpperCase();
-      var _ty=String(m.memberType||"member").toLowerCase(); var tyAbbr=(_ty==="supporter")?"S":((_ty==="ambassador")?"A":"M");
+      var tyAbbr=this.typeCode(m,opts);
       var thirdCol="", mainCols="95px 1fr";
       if(opts.context==="attendee"){ mainCols="95px 1fr 100px"; thirdCol="<div class='pass-qr-side'><div class='ffp-pc-badge'>"+(opts.role||"GOING")+"</div><div class='pass-qr-label'>STATUS</div></div>"; }
       var _tierC=String((opts&&opts.tier)||m.passport_tier||m.tier||"").toLowerCase();
