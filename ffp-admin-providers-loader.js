@@ -129,13 +129,14 @@
       // fills the viewport; head/body/foot sit in a centered readable column so wide screens aren't sparse.
       '.ffp-pm-backdrop{position:fixed;inset:0;background:#0b1622;z-index:9999;display:none;align-items:stretch;justify-content:stretch;padding:0;font-family:Montserrat,sans-serif;}',
       '.ffp-pm-backdrop.open{display:flex;}',
-      '.ffp-pm-sheet{background:#0f1e2e;border:none;border-radius:0;width:100%;max-width:none;height:100dvh;color:#f5f7fa;overflow:hidden;max-height:none;display:flex;flex-direction:column;}',
-      '.ffp-pm-head{padding:18px 20px 14px;border-bottom:1px solid rgba(43,168,224,0.15);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;position:sticky;top:0;background:#0f1e2e;z-index:2;width:100%;max-width:720px;margin:0 auto;}',
+      'body.ffp-modal-open{overflow:hidden;}',
+      '.ffp-pm-sheet{background:#0f1e2e;border:none;border-radius:0;width:100%;max-width:none;height:100dvh;max-height:100%;color:#f5f7fa;overflow:hidden;display:flex;flex-direction:column;}',
+      '.ffp-pm-head{padding:calc(18px + env(safe-area-inset-top,0px)) 20px 14px;border-bottom:1px solid rgba(43,168,224,0.15);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;position:sticky;top:0;background:#0f1e2e;z-index:2;width:100%;max-width:720px;margin:0 auto;}',
       '.ffp-pm-title{font-size:18px;font-weight:800;}',
       '.ffp-pm-sub{font-size:12px;color:#8a99a8;margin-top:2px;}',
       '.ffp-pm-close{background:transparent;border:none;color:#8a99a8;cursor:pointer;font-family:inherit;padding:4px;}',
       '.ffp-pm-close:hover{color:#f5f7fa;}',
-      '.ffp-pm-body{padding:18px 20px;overflow-y:auto;flex:1;width:100%;max-width:720px;margin:0 auto;}',
+      '.ffp-pm-body{padding:18px 20px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;flex:1 1 auto;min-height:0;width:100%;max-width:720px;margin:0 auto;}',
       '.ffp-pm-row{margin-bottom:14px;}',
       '.ffp-pm-label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:0.6px;font-weight:800;color:#8a99a8;margin-bottom:6px;}',
       '.ffp-pm-input{width:100%;background:rgba(43,168,224,0.06);border:1px solid rgba(43,168,224,0.30);border-radius:8px;color:#f5f7fa;padding:10px 12px;font-size:13px;font-weight:600;font-family:inherit;color-scheme:dark;}',
@@ -164,7 +165,7 @@
       '.ffp-pm-status-chips button{padding:10px 8px;background:rgba(43,168,224,0.06);border:1px solid rgba(43,168,224,0.30);border-radius:8px;color:#f5f7fa;font-size:12px;font-weight:700;cursor:pointer;text-align:center;font-family:inherit;}',
       '.ffp-pm-status-chips button.active{background:#2ba8e0;color:#082335;border-color:#2ba8e0;}',
 
-      '.ffp-pm-foot{padding:12px 20px 18px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid rgba(43,168,224,0.15);position:sticky;bottom:0;background:#0f1e2e;width:100%;max-width:720px;margin:0 auto;}',
+      '.ffp-pm-foot{padding:12px 0 calc(6px + env(safe-area-inset-bottom,0px));display:flex;gap:8px;justify-content:flex-end;border-top:1px solid rgba(43,168,224,0.15);position:sticky;bottom:0;background:#0f1e2e;width:100%;margin:12px 0 0;z-index:3;}',
       '.ffp-pm-btn{padding:9px 16px;font-size:13px;font-weight:800;border-radius:8px;border:none;cursor:pointer;font-family:inherit;}',
       '.ffp-pm-btn-primary{background:#FFCC00;color:#082335;}',
       '.ffp-pm-btn-primary:hover{filter:brightness(1.05);}',
@@ -411,6 +412,16 @@
     wrap.innerHTML = html;
     while (wrap.firstChild) document.body.appendChild(wrap.firstChild);
 
+    // Put every sheet's footer inside its scrolling body. A full-bleed sheet on a
+    // phone can end up taller than the visible area, and a footer that is a sibling
+    // of the scroller then sits below the fold with no way to reach it - which is
+    // why admin could open Edit account but never tap Save.
+    $$('.ffp-pm-sheet').forEach(function (sh) {
+      var body = sh.querySelector('.ffp-pm-body');
+      var foot = sh.querySelector('.ffp-pm-foot');
+      if (body && foot && foot.parentNode === sh) body.appendChild(foot);
+    });
+
     // Wire modal close handlers
     $$('[data-close]').forEach(function (el) {
       el.addEventListener('click', function () {
@@ -592,9 +603,9 @@
     $('#ffp-pm-approve-fee').value = TIER_DEFAULTS.standard.fee;
     $('#ffp-pm-approve-confirm').disabled = false;
     updatePreview('approve');
-    $('#ffp-pm-approve-backdrop').classList.add('open');
+    $('#ffp-pm-approve-backdrop').classList.add('open'); document.body.classList.add('ffp-modal-open');
   }
-  function closeApprove() { $('#ffp-pm-approve-backdrop').classList.remove('open'); pendingApproveId = null; }
+  function closeApprove() { $('#ffp-pm-approve-backdrop').classList.remove('open'); document.body.classList.remove('ffp-modal-open'); pendingApproveId = null; }
 
   function openEdit(id) {
     var p = getAP().data.find(function (x) { return x.id === id; });
@@ -607,9 +618,9 @@
     $('#ffp-pm-edit-fee').value = p.monthly_fee_aed != null ? p.monthly_fee_aed : (TIER_DEFAULTS[p.subscription_tier] || TIER_DEFAULTS.standard).fee;
     $('#ffp-pm-edit-confirm').disabled = false;
     updatePreview('edit');
-    $('#ffp-pm-edit-backdrop').classList.add('open');
+    $('#ffp-pm-edit-backdrop').classList.add('open'); document.body.classList.add('ffp-modal-open');
   }
-  function closeEdit() { $('#ffp-pm-edit-backdrop').classList.remove('open'); pendingEditId = null; }
+  function closeEdit() { $('#ffp-pm-edit-backdrop').classList.remove('open'); document.body.classList.remove('ffp-modal-open'); pendingEditId = null; }
 
   // ─── Category taxonomy (venue = 'category', brand = 'brand_category') ───
   var _pdTax = null;
@@ -672,9 +683,9 @@
     v('pd-bookurl', p.external_booking_url);
     $('#pd-bookurl-row').style.display = (p.booking_mode === 'external') ? '' : 'none';
     $('#pd-openas').style.display = p.owner_user_id ? '' : 'none';   // impersonation needs an owner account
-    $('#ffp-pm-details-backdrop').classList.add('open');
+    $('#ffp-pm-details-backdrop').classList.add('open'); document.body.classList.add('ffp-modal-open');
   }
-  function closeDetails() { $('#ffp-pm-details-backdrop').classList.remove('open'); pendingDetailsId = null; }
+  function closeDetails() { $('#ffp-pm-details-backdrop').classList.remove('open'); document.body.classList.remove('ffp-modal-open'); pendingDetailsId = null; }
 
   async function confirmDetails() {
     if (!pendingDetailsId) return;
@@ -758,9 +769,9 @@
     $('#ri-msg').value = 'Hi, to get ' + first + ' live and looking its best on Find Fit People, could you send us: ' + missTxt + '? Reply to this email and we\'ll add them to your listing for you.';
     $('#ri-to').innerHTML = email ? ('To: ' + escHtmlSafe(email)) : '<span style="color:#e0765a;">No contact email on file — add one in Manage account first.</span>';
     $('#ri-send').disabled = !email;
-    $('#ffp-pm-reqinfo-backdrop').classList.add('open');
+    $('#ffp-pm-reqinfo-backdrop').classList.add('open'); document.body.classList.add('ffp-modal-open');
   }
-  function closeReqInfo() { var b = $('#ffp-pm-reqinfo-backdrop'); if (b) b.classList.remove('open'); pendingReqId = null; }
+  function closeReqInfo() { var b = $('#ffp-pm-reqinfo-backdrop'); if (b) b.classList.remove('open'); document.body.classList.remove('ffp-modal-open'); pendingReqId = null; }
   async function sendReqInfo() {
     if (!pendingReqId) return;
     var items = $$('#ri-items .ri-item').filter(function (el) { return el.checked; }).map(function (el) { return el.value; });
@@ -819,10 +830,10 @@
     $('#ffp-pm-add-fee').value = TIER_DEFAULTS.standard.fee;
     $('#ffp-pm-add-sub-fields').style.display = 'none';
     $('#ffp-pm-add-confirm').disabled = false;
-    $('#ffp-pm-add-backdrop').classList.add('open');
+    $('#ffp-pm-add-backdrop').classList.add('open'); document.body.classList.add('ffp-modal-open');
     setTimeout(function () { try { $('#ffp-pm-add-name').focus(); } catch (e) {} }, 50);
   }
-  function closeAdd() { $('#ffp-pm-add-backdrop').classList.remove('open'); }
+  function closeAdd() { $('#ffp-pm-add-backdrop').classList.remove('open'); document.body.classList.remove('ffp-modal-open'); }
 
   function setActiveTier(key, tier) {
     $$('#ffp-pm-' + key + '-tier-chips .ffp-pm-tier-chip').forEach(function (c) {
