@@ -48,6 +48,7 @@
 
   // ─── State ───
   var state = {
+    loadError: null,
     tierFilter: 'all'  // 'all' | 'standard' | 'premium' | 'partner'
   };
 
@@ -598,7 +599,7 @@
     var p = getAP().data.find(function (x) { return x.id === id; });
     if (!p) return;
     pendingApproveId = id;
-    $('#ffp-pm-approve-bizname').textContent = p.business_name + (p.city ? ' \u00b7 ' + p.city : '');
+    $('#ffp-pm-approve-bizname').textContent = p.business_name + (p.city ? ', ' + p.city : '');
     setActiveTier('approve', 'standard');
     var defaultEnd = new Date(Date.now() + 90 * 86400000);
     $('#ffp-pm-approve-date').value = isoDate(defaultEnd);
@@ -613,7 +614,7 @@
     var p = getAP().data.find(function (x) { return x.id === id; });
     if (!p) return;
     pendingEditId = id;
-    $('#ffp-pm-edit-bizname').textContent = p.business_name + (p.city ? ' \u00b7 ' + p.city : '');
+    $('#ffp-pm-edit-bizname').textContent = p.business_name + (p.city ? ', ' + p.city : '');
     setActiveTier('edit', p.subscription_tier || 'standard');
     var currentExp = p.paid_until ? new Date(p.paid_until) : new Date(Date.now() + 90 * 86400000);
     $('#ffp-pm-edit-date').value = isoDate(currentExp);
@@ -879,7 +880,7 @@
         approved_at: new Date().toISOString()
       }).eq('id', pendingApproveId);
       if (res.error) throw res.error;
-      toast('Approved \u00b7 ' + (p ? p.business_name : ''), 'success');
+      toast('Approved, ' + (p ? p.business_name : ''), 'success');
       logAction('approved provider ' + (p ? p.business_name : pendingApproveId) + ' (' + tier + ', until ' + isoDate(date) + ', AED ' + fee + '/mo)');
       closeApprove();
       await refresh();
@@ -946,7 +947,7 @@
     try {
       var res = await window.supabase.from('providers').insert(payload);
       if (res.error) throw res.error;
-      toast('Provider added \u00b7 ' + name, 'success');
+      toast('Provider added, ' + name, 'success');
       logAction('added provider ' + name + ' (status=' + status + ')');
       closeAdd();
       await refresh();
@@ -971,9 +972,11 @@
       .limit(1000);
     if (res.error) {
       console.error('[FFP Admin Providers] fetch:', res.error);
+      state.loadError = res.error.message || res.error.code || 'request failed';
       toast('Could not load providers', 'error');
       return [];
     }
+    state.loadError = null;
     return res.data || [];
   }
 
@@ -1050,10 +1053,10 @@
     var clickAttr = 'onclick="event.stopPropagation(); AdminProviders.editSub(\'' + p.id + '\')"';
     var title = 'Click to change expiry';
     if (days < 0) {
-      return '<span class="ffp-expiry bad" ' + clickAttr + ' title="' + title + '"><span class="material-icons">error_outline</span>Expired ' + Math.abs(days) + 'd ago \u00b7 ' + dateStr + '</span>';
+      return '<span class="ffp-expiry bad" ' + clickAttr + ' title="' + title + '"><span class="material-icons">error_outline</span>Expired ' + Math.abs(days) + 'd ago \u2013 ' + dateStr + '</span>';
     }
     if (days < 7) {
-      return '<span class="ffp-expiry warn" ' + clickAttr + ' title="' + title + '"><span class="material-icons">schedule</span>' + days + 'd left \u00b7 ' + dateStr + '</span>';
+      return '<span class="ffp-expiry warn" ' + clickAttr + ' title="' + title + '"><span class="material-icons">schedule</span>' + days + 'd left \u2013 ' + dateStr + '</span>';
     }
     return '<span class="ffp-expiry ok" ' + clickAttr + ' title="' + title + '"><span class="material-icons">event</span>Until ' + dateStr + ' (' + days + 'd)</span>';
   }
@@ -1151,13 +1154,21 @@
         if (this.search) bits.push(rows.length + ' match');
         else bits.push(rows.length + ' total');
         if (state.tierFilter !== 'all') bits.push(state.tierFilter);
-        metaEl.textContent = bits.join(' \u00b7 ');
+        metaEl.textContent = bits.join(', ');
       }
       var tbody = document.getElementById('providers-tbody');
       if (!tbody) return;
-      tbody.innerHTML = rows.map(renderRow).join('') ||
-        '<tr><td colspan="6" class="text-muted" style="text-align:center; padding:30px;">No providers match</td></tr>';
+      tbody.innerHTML = rows.map(renderRow).join('') || (state.loadError
+        ? '<tr><td colspan="6" style="text-align:center; padding:26px; color:#ff8f8a;">' +
+          'Could not load providers<div style="margin-top:6px; font-size:12px; color:#8a99a8;">' +
+          escHtmlSafe(state.loadError) + '</div>' +
+          '<button onclick="AdminProviders.retry()" style="margin-top:14px; padding:9px 16px;' +
+          'border:1px solid rgba(43,168,224,.5); border-radius:9px; background:none;' +
+          'color:#2ba8e0; font-family:inherit; font-weight:800; cursor:pointer;">Retry</button>' +
+          '</td></tr>'
+        : '<tr><td colspan="6" class="text-muted" style="text-align:center; padding:30px;">No providers match</td></tr>');
     };
+    AP.retry = function () { refresh(); };
     AP.approve = function (id) { openApprove(id); };
     AP.editSub = function (id) { openEdit(id); };
     AP.details = function (id) { openDetails(id); };
@@ -1173,7 +1184,7 @@
       try {
         var res = await window.supabase.from('providers').update({ status: 'archived' }).eq('id', id);
         if (res.error) throw res.error;
-        toast('Archived' + (p ? ' \u00b7 ' + p.business_name : ''), 'info');
+        toast('Archived' + (p ? ', ' + p.business_name : ''), 'info');
         logAction('rejected provider ' + (p ? p.business_name : id));
         await refresh();
       } catch (e) { console.error(e); toast(e.message || 'Reject failed', 'error'); }
@@ -1184,7 +1195,7 @@
       try {
         var res = await window.supabase.from('providers').update({ status: 'archived' }).eq('id', id);
         if (res.error) throw res.error;
-        toast('Archived' + (p ? ' \u00b7 ' + p.business_name : ''), 'info');
+        toast('Archived' + (p ? ', ' + p.business_name : ''), 'info');
         logAction('archived provider ' + (p ? p.business_name : id));
         await refresh();
       } catch (e) { console.error(e); toast(e.message || 'Archive failed', 'error'); }
@@ -1195,7 +1206,7 @@
       try {
         var res = await window.supabase.from('providers').update({ status: 'suspended' }).eq('id', id);
         if (res.error) throw res.error;
-        toast('Suspended' + (p ? ' \u00b7 ' + p.business_name : ''), 'info');
+        toast('Suspended' + (p ? ', ' + p.business_name : ''), 'info');
         logAction('suspended provider ' + (p ? p.business_name : id));
         await refresh();
       } catch (e) { console.error(e); toast(e.message || 'Suspend failed', 'error'); }
@@ -1253,7 +1264,7 @@
       try {
         var res = await window.supabase.from('providers').update({ featured: newVal }).eq('id', id);
         if (res.error) throw res.error;
-        toast(newVal ? 'Featured \u00b7 ' + p.business_name : 'Unfeatured', 'info');
+        toast(newVal ? 'Featured, ' + p.business_name : 'Unfeatured', 'info');
         logAction((newVal ? 'featured' : 'unfeatured') + ' provider ' + p.business_name);
         await refresh();
       } catch (e) { console.error(e); toast(e.message || 'Update failed', 'error'); }
