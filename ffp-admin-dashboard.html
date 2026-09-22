@@ -1713,7 +1713,7 @@ select.ax-in{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg 
       </div>
     </div>
     <div class="sidebar-footer">
-      build v64 &middot; FFP Admin
+      build v65, FFP Admin
     </div>
   </aside>
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="App.toggleSidebar()"></div>
@@ -2908,7 +2908,7 @@ const App = {
   // Each panel's loader script is fetched ONLY when the panel is first opened, so the
   // page load fires no panel queries (the Overview RPC always wins a connection -> instant).
   _panelScript: {
-    'panel-providers':    'ffp-admin-providers-loader.js?v=14',
+    'panel-providers':    'ffp-admin-providers-loader.js?v=15',
     'panel-payouts':      'ffp-admin-payouts-loader.js',
     'panel-appointments': 'ffp-admin-appointments-loader.js',
     'panel-content':      'ffp-admin-content-loader.js',
@@ -2943,7 +2943,7 @@ const App = {
       var sc = document.createElement('script');
       // Cache-bust lazy loaders so a new deploy never serves a stale cached .js.
       // BUMP this with the dashboard build number on every deploy (matches footer build).
-      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=91'; sc.async = false;
+      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=92'; sc.async = false;
       sc.onload = function () {
         if (panelId === 'panel-analytics') {
           setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 80);
