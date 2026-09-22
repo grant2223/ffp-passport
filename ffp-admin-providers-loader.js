@@ -380,6 +380,7 @@
             '<div class="ffp-pm-row"><label class="ffp-pm-label">Internal notes <span style="font-weight:500;color:#8a99a8;">— admin only</span></label><textarea class="ffp-pm-input" id="pd-notes" rows="2"></textarea></div>' +
             '<div class="ffp-pm-row" style="border-top:1px solid #e7ecf0;padding-top:12px;display:flex;flex-wrap:wrap;gap:8px;">' +
               '<button class="ffp-pm-btn ffp-pm-btn-ghost" type="button" id="pd-openas"><span class="material-icons" style="font-size:16px;vertical-align:-3px;">login</span> Open dashboard as</button>' +
+              '<button class="ffp-pm-btn ffp-pm-btn-ghost" type="button" id="pd-claimlink"><span class="material-icons" style="font-size:16px;vertical-align:-3px;">link</span> Copy claim link</button>' +
               '<button class="ffp-pm-btn ffp-pm-btn-ghost" type="button" id="pd-merge"><span class="material-icons" style="font-size:16px;vertical-align:-3px;">merge</span> Merge duplicate…</button>' +
               '<button class="ffp-pm-btn ffp-pm-btn-ghost" type="button" id="pd-delete" style="color:#c0392b;margin-left:auto;"><span class="material-icons" style="font-size:16px;vertical-align:-3px;">delete</span> Delete</button>' +
             '</div>' +
@@ -470,6 +471,7 @@
     _loadPdTax().then(function () { var dl = document.getElementById('ffp-pm-add-cats'); if (dl && _pdTax) dl.innerHTML = (_pdTax.venue || []).map(function (c) { return '<option value="' + escHtmlSafe(c.value) + '">'; }).join(''); });
     $('#pd-reassign').addEventListener('click', reassignOwner);
     $('#pd-openas').addEventListener('click', function () { openAsProvider(pendingDetailsId); });
+    $('#pd-claimlink').addEventListener('click', copyClaimLink);
     $('#pd-merge').addEventListener('click', function () { mergeProvider(pendingDetailsId); });
     $('#pd-delete').addEventListener('click', function () { deleteProvider(pendingDetailsId); });
 
@@ -669,7 +671,7 @@
     var p = pm._raw || pm;   // full provider row (mapped object only carries a subset)
     pendingDetailsId = id;
     var v = function (k, val) { var el = document.getElementById(k); if (el) el.value = (val != null ? val : ''); };
-    $('#ffp-pm-details-bizname').textContent = p.business_name + (p.city ? ' · ' + p.city : '');
+    $('#ffp-pm-details-bizname').textContent = p.business_name + (p.city ? ', ' + p.city : '');
     v('pd-name', p.business_name); v('pd-city', p.city); v('pd-area', p.area);
     var _ptype = p.is_organizer ? 'organizer' : (p.is_brand ? 'brand' : 'venue');
     _loadPdTax().then(function () { _fillPdCategory(_ptype === 'brand' ? 'brand' : 'venue', p.category || '', true); });
@@ -683,6 +685,7 @@
     v('pd-bookurl', p.external_booking_url);
     $('#pd-bookurl-row').style.display = (p.booking_mode === 'external') ? '' : 'none';
     $('#pd-openas').style.display = p.owner_user_id ? '' : 'none';   // impersonation needs an owner account
+    $('#pd-claimlink').style.display = p.owner_user_id ? 'none' : '';   // a claimed account has no link to give
     $('#ffp-pm-details-backdrop').classList.add('open'); document.body.classList.add('ffp-modal-open');
   }
   function closeDetails() { $('#ffp-pm-details-backdrop').classList.remove('open'); document.body.classList.remove('ffp-modal-open'); pendingDetailsId = null; }
@@ -707,9 +710,25 @@
       var res = await window.supabase.from('providers').update(patch).eq('id', pendingDetailsId);
       if (res.error) throw res.error;
       toast('Account details saved', 'success');
-      logAction('edited provider details · ' + name);
+      logAction('edited provider details, ' + name);
       closeDetails(); await refresh();
     } catch (e) { toast(e.message || 'Save failed', 'error'); btn.disabled = false; }
+  }
+
+  // Hand the club a link. They sign up to FFP as a normal member, open it, and
+  // become the owner of this account - no password ever passes through us.
+  async function copyClaimLink() {
+    if (!pendingDetailsId) return;
+    var me = (window.FFP_ADMIN && window.FFP_ADMIN.id) || (window.FFP_MEMBER && window.FFP_MEMBER.id);
+    if (!me) { toast('Could not identify you as admin', 'error'); return; }
+    try {
+      var r = await window.supabase.rpc('admin_generate_claim_link', { p_admin: me, p_provider: pendingDetailsId });
+      if (r.error) throw r.error;
+      var url = 'https://app.findfitpeople.com/?pt=' + r.data;
+      try { await navigator.clipboard.writeText(url); toast('Claim link copied', 'success'); }
+      catch (e) { window.prompt('Copy this claim link and send it to the club:', url); }
+      logAction('generated a claim link');
+    } catch (e) { toast(e.message || 'Could not create a claim link', 'error'); }
   }
 
   async function reassignOwner() {
@@ -946,8 +965,8 @@
     // anything needing action (pending / suspended / lapsed / archived).
     var res = await window.supabase
       .from('providers')
-      .select('id, business_name, letter_mark, category, city, country, status, featured, created_at, paid_until, subscription_tier, monthly_fee_aed, contact_email, contact_phone, area, address, owner_user_id, about, website, instagram, hero_photo_url, logo_url, latitude, longitude, approved_at, approved_by, business_access, business_access_requested_at, admin_notes, is_brand, is_organizer, booking_mode, external_booking_url, activities, google_rating, payments_status, stripe_account_id, maps_url')
-      .or('owner_user_id.not.is.null,status.neq.approved')
+      .select('id, business_name, letter_mark, source, category, city, country, status, featured, created_at, paid_until, subscription_tier, monthly_fee_aed, contact_email, contact_phone, area, address, owner_user_id, about, website, instagram, hero_photo_url, logo_url, latitude, longitude, approved_at, approved_by, business_access, business_access_requested_at, admin_notes, is_brand, is_organizer, booking_mode, external_booking_url, activities, google_rating, payments_status, stripe_account_id, maps_url')
+      .or('owner_user_id.not.is.null,status.neq.approved,source.eq.ffp_club_seed')
       .order('created_at', { ascending: false })
       .limit(1000);
     if (res.error) {
@@ -1041,7 +1060,7 @@
 
   function rowActions(p) {
     // Manage-account (edit details, brand/booking, owner, notes, delete/merge, open-as) — available on every row.
-    var manage = '<button class="btn btn-sm btn-ghost" title="Manage account · edit details" onclick="AdminProviders.details(\'' + p.id + '\')"><span class="material-icons">manage_accounts</span></button>';
+    var manage = '<button class="btn btn-sm btn-ghost" title="Manage account, edit details" onclick="AdminProviders.details(\'' + p.id + '\')"><span class="material-icons">manage_accounts</span></button>';
     if (p.status === 'pending') {
       return manage +
              '<button class="btn btn-sm btn-blue" onclick="AdminProviders.approve(\'' + p.id + '\')"><span class="material-icons">check</span>Approve</button>' +
@@ -1191,7 +1210,7 @@
         var res = await window.supabase.from('providers').update(patch).eq('id', id);
         if (res.error) throw res.error;
         toast(turnOn ? 'Business access granted ($99/mo section)' : 'Business access revoked', turnOn ? 'check' : 'info');
-        logAction((turnOn ? 'granted' : 'revoked') + ' Business access · ' + (p ? p.business_name : id));
+        logAction((turnOn ? 'granted' : 'revoked') + ' Business access, ' + (p ? p.business_name : id));
         await refresh();
         try { if (window.Drawer && typeof Drawer.openProvider === 'function') Drawer.openProvider(id); } catch (e) {}
       } catch (e) { console.error(e); toast(e.message || 'Update failed', 'error'); }
@@ -1222,8 +1241,8 @@
           : { approved_by: null };
         var res = await window.supabase.from('providers').update(patch).eq('id', id);
         if (res.error) throw res.error;
-        toast(makeVerified ? 'Verified · Refer & earn unlocked' : 'Verification removed', makeVerified ? 'success' : 'info');
-        logAction((makeVerified ? 'verified' : 'un-verified') + ' provider for referrals · ' + p.business_name);
+        toast(makeVerified ? 'Verified, Refer & earn unlocked' : 'Verification removed', makeVerified ? 'success' : 'info');
+        logAction((makeVerified ? 'verified' : 'un-verified') + ' provider for referrals, ' + p.business_name);
         await refresh();
       } catch (e) { console.error(e); toast(e.message || 'Update failed', 'error'); }
     };
@@ -1414,7 +1433,7 @@
       '<div class="pinfo-contact">' +
         '<div class="pinfo-cav">' + e(cav) + '</div>' +
         '<div class="pinfo-cinfo">' +
-          '<div class="pinfo-cname">' + (contactName ? e(contactName) : 'Account holder <span style="color:#5f7482;font-weight:600;font-size:13px">· no name on file</span>') + '</div>' +
+          '<div class="pinfo-cname">' + (contactName ? e(contactName) : 'Account holder <span style="color:#5f7482;font-weight:600;font-size:13px">, no name on file</span>') + '</div>' +
           '<div class="pinfo-crole">' + roleLine + '</div>' +
           '<div class="pinfo-clines">' +
             (contactEmail ? '<span><span class="material-icons">mail</span>' + e(contactEmail) + '</span>' : '') +
@@ -1447,7 +1466,7 @@
       actsHtml + aboutHtml;
 
     // account & billing rows
-    var payVal = paid ? '<span class="ok">Connected</span>' + (p.stripe_account_id ? ' <span style="color:#5f7482;font-weight:600">· ' + e(p.stripe_account_id) + '</span>' : '') : '<span class="no">Not connected</span>';
+    var payVal = paid ? '<span class="ok">Connected</span>' + (p.stripe_account_id ? ' <span style="color:#5f7482;font-weight:600">, ' + e(p.stripe_account_id) + '</span>' : '') : '<span class="no">Not connected</span>';
     var billRows =
       infoRow('Listing status', '<span class="' + (p.status === 'approved' ? 'ok' : 'no') + '">' + e((p.status || '').charAt(0).toUpperCase() + (p.status || '').slice(1)) + '</span>') +
       infoRow('Subscription', tierLabel + (tier === 'standard' ? ' (free)' : '')) +
@@ -1493,8 +1512,8 @@
               monoHtml +
               '<div class="pinfo-hmid">' +
                 '<div class="pinfo-name">' + e(p.business_name || '—') + '</div>' +
-                '<div class="pinfo-sub">' + e(p.category || 'Uncategorised') + ' <span class="dot">·</span> ' + locStr +
-                  (p.google_rating != null ? ' <span class="dot">·</span> <span class="star"><span class="material-icons">star</span>' + p.google_rating + '</span>' : '') +
+                '<div class="pinfo-sub">' + e(p.category || 'Uncategorised') + ' <span class="dot">,</span> ' + locStr +
+                  (p.google_rating != null ? ' <span class="dot">,</span> <span class="star"><span class="material-icons">star</span>' + p.google_rating + '</span>' : '') +
                 '</div>' +
               '</div>' +
               '<div class="pinfo-acts">' +
