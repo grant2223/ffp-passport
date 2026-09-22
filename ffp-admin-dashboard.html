@@ -115,7 +115,7 @@
     if (!calls.length) { b.innerHTML = '⏱ waiting for queries…'; return; }
     var total = calls.reduce(function (a, c) { return a + c.ms; }, 0);
     var worst = calls.slice().sort(function (a, c) { return c.ms - a.ms; })[0];
-    b.innerHTML = '⏱ <b style="color:#7fd6ff">' + Math.round(total) + 'ms</b> total · ' + calls.length + ' calls' +
+    b.innerHTML = '⏱ <b style="color:#7fd6ff">' + Math.round(total) + 'ms</b> total, ' + calls.length + ' calls' +
       '<br>slowest: <b style="color:' + (worst.ms > 1200 ? '#ff7b7b' : '#7fd6ff') + '">' + Math.round(worst.ms) + 'ms</b> ' + worst.name;
   }
   window.fetch = function () {
@@ -136,7 +136,7 @@
   window.addEventListener('load', function () {
     try {
       var nav = performance.getEntriesByType('navigation')[0];
-      if (nav) console.log('[perf] DOM ready ' + Math.round(nav.domContentLoadedEventEnd) + 'ms · page load ' + Math.round(nav.loadEventEnd) + 'ms');
+      if (nav) console.log('[perf] DOM ready ' + Math.round(nav.domContentLoadedEventEnd) + 'ms, page load ' + Math.round(nav.loadEventEnd) + 'ms');
       var res = performance.getEntriesByType('resource')
         .filter(function (r) { return /\.js(\?|$)/.test(r.name) && r.duration > 200; })
         .sort(function (a, b) { return b.duration - a.duration; }).slice(0, 6);
@@ -159,10 +159,10 @@
   <script src="assets/ffp-constants.js"></script>
   <script src="assets/ffp-taxonomy.js?v=10"></script>
   <script src="assets/ffp-realtime.js"></script>
-  <script src="ffp-admin-organiser-listings.js?v=2"></script>
-<script src="ffp-admin-auth.js?v=9"></script>
-  <script src="ffp-admin-overview-loader.js?v=11"></script>
-  <script src="ffp-admin-banners-loader.js?v=3"></script>
+  <script src="ffp-admin-organiser-listings.js?v=3"></script>
+<script src="ffp-admin-auth.js?v=10"></script>
+  <script src="ffp-admin-overview-loader.js?v=12"></script>
+  <script src="ffp-admin-banners-loader.js?v=4"></script>
   <!-- Applications panel REMOVED 2026-06-01: providers now self-signup with instant, self-serve accounts — there is no application/approval step, so no Applications panel. -->
 <!-- v7: removed 8 phantom loader refs that 404'd (referrals/content/members/meetups/overview/analytics/taxonomies/settings — those panels run on their inline modules). Normalized quests loader ref to the plain GitHub filename. -->
 
@@ -2294,7 +2294,7 @@ select.ax-in{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg 
 
     <section class="panel" id="panel-wga">
       <div class="panel-head">
-        <h1>WGA · World's Greatest Adventures</h1>
+        <h1>WGA, World's Greatest Adventures</h1>
         <div class="panel-head-sub">Review member-suggested destinations (approve onto the public vote list or reject), see every submitted dream and mark the ones you're making real, and edit the tile's launch date and “next dream drops” banner.</div>
       </div>
       <div class="section">
@@ -2305,7 +2305,7 @@ select.ax-in{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg 
     <section class="panel" id="panel-activity">
       <div class="panel-head">
         <h1>Platform activity</h1>
-        <div class="panel-head-sub">What members are doing across the app — by area (Find · Track · Reward · Connect · Profile), which functions are used most/least, and the demographic split (gender · age · membership · city) behind each action. Filter by worldwide / country / city.</div>
+        <div class="panel-head-sub">What members are doing across the app — by area (Find, Track, Reward, Connect, Profile), which functions are used most/least, and the demographic split (gender, age, membership, city) behind each action. Filter by worldwide / country / city.</div>
       </div>
       <div class="section">
         <div id="activity-body"><div style="padding:20px;color:#8a99a8;">Loading…</div></div>
@@ -2665,7 +2665,7 @@ select.ax-in{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg 
       <div class="section">
         <div class="section-head">
           <div class="section-title">How Members Are Signing Up</div>
-          <span class="section-count" id="signup-meta">Method · Membership · Where</span>
+          <span class="section-count" id="signup-meta">Method, Membership, Where</span>
         </div>
         <div class="section-body padded">
           <div class="charts-grid">
@@ -2908,7 +2908,7 @@ const App = {
   // Each panel's loader script is fetched ONLY when the panel is first opened, so the
   // page load fires no panel queries (the Overview RPC always wins a connection -> instant).
   _panelScript: {
-    'panel-providers':    'ffp-admin-providers-loader.js?v=12',
+    'panel-providers':    'ffp-admin-providers-loader.js?v=14',
     'panel-payouts':      'ffp-admin-payouts-loader.js',
     'panel-appointments': 'ffp-admin-appointments-loader.js',
     'panel-content':      'ffp-admin-content-loader.js',
@@ -2918,21 +2918,21 @@ const App = {
     'panel-activity':     'ffp-admin-activity-loader.js',
     'panel-giveaways':    'ffp-admin-giveaways-loader.js',
     'panel-feedback':     'ffp-admin-feedback-loader.js',
-    'panel-members':      'ffp-admin-members-loader.js?v=9',
-    'panel-quests':       'ffp-admin-quests-loader.js?v=4',
+    'panel-members':      'ffp-admin-members-loader.js?v=10',
+    'panel-quests':       'ffp-admin-quests-loader.js?v=5',
     'panel-events':       'ffp-admin-events-loader.js',
-    'panel-experiences':  'ffp-admin-experiences-loader.js?v=3',
-    'panel-tours':        'ffp-admin-classes-loader.js?v=4',
-    'panel-featured':     'ffp-admin-featured-loader.js?v=2',
+    'panel-experiences':  'ffp-admin-experiences-loader.js?v=4',
+    'panel-tours':        'ffp-admin-classes-loader.js?v=5',
+    'panel-featured':     'ffp-admin-featured-loader.js?v=3',
     'panel-offers':       'ffp-admin-offers.js',
     'panel-challenges':   'ffp-admin-challenges-loader.js',
     'panel-meetups':      'ffp-admin-meetups-loader.js',
     'panel-analytics':    'ffp-admin-analytics-loader.js',
     'panel-community-health': 'ffp-admin-health-loader.js',
-    'panel-taxonomies':   'ffp-admin-taxonomies-loader.js?v=3',
-    'panel-exercises':    'ffp-admin-exercises-loader.js?v=4',
+    'panel-taxonomies':   'ffp-admin-taxonomies-loader.js?v=4',
+    'panel-exercises':    'ffp-admin-exercises-loader.js?v=5',
     'panel-professionals':'ffp-admin-professionals-loader.js',
-    'panel-settings':     'ffp-admin-settings-loader.js?v=3'
+    'panel-settings':     'ffp-admin-settings-loader.js?v=4'
   },
   _lazyInit(panelId) {
     if (this._opened[panelId]) return;
@@ -2975,7 +2975,7 @@ const App = {
     document.querySelector(`.sidebar-link[data-panel="${panelId}"]`)?.classList.add('active');
     document.getElementById('topbar-panel-name').textContent = this.panelNames[panelId] || '';
     // GA4 per-panel page_view (SPA — no real page reload on panel switch)
-    try { if (window.ffpTrackView) window.ffpTrackView('admin/' + String(panelId).replace(/^panel-/, ''), 'Admin · ' + (this.panelNames[panelId] || panelId)); } catch (e) {}
+    try { if (window.ffpTrackView) window.ffpTrackView('admin/' + String(panelId).replace(/^panel-/, ''), 'Admin, ' + (this.panelNames[panelId] || panelId)); } catch (e) {}
     this._lazyInit(panelId);
     document.getElementById('sidebar').classList.remove('open');
     document.getElementById('sidebar-backdrop').classList.remove('show');
@@ -3091,7 +3091,7 @@ const AdminRankings = {
       if (res.error) throw res.error;
       this.populateFilters(); // a new type/size value may now be filterable
       this.apply();
-      if (meta) { const t = meta.textContent.replace(/ · saved.*$/, ''); meta.textContent = t + ' · saved ✓'; }
+      if (meta) { const t = meta.textContent.replace(/, saved.*$/, ''); meta.textContent = t + ', saved ✓'; }
     } catch (e) {
       console.error('[FFP] classification save:', e);
       if (meta) meta.textContent = 'Could not save classification (admin only).';
@@ -3527,7 +3527,7 @@ const AdminContent = {
     const c = this.data.find(x => x.id === id);
     if (c) c.status = 'approved';
     closeModal();
-    showToast(`Approved · AED ${reward} credited to ${c.member}`);
+    showToast(`Approved, AED ${reward} credited to ${c.member}`);
     AuditLog.add('Grant', `approved content "${c.title}" from ${c.member} (AED ${reward})`);
     this.render();
   },
@@ -3592,14 +3592,14 @@ const AdminPayouts = {
   approve(id) {
     const p = this.data.find(x => x.id === id);
     p.status = 'approved';
-    showToast(`Approved · collecting bank details from ${p.member}`);
+    showToast(`Approved, collecting bank details from ${p.member}`);
     AuditLog.add('Grant', `approved payout AED ${p.amount} to ${p.member}`);
     this.render();
   },
   markPaid(id) {
     const p = this.data.find(x => x.id === id);
     p.status = 'paid';
-    showToast(`Marked as paid · AED ${p.amount} to ${p.member}`);
+    showToast(`Marked as paid, AED ${p.amount} to ${p.member}`);
     AuditLog.add('Grant', `marked payout AED ${p.amount} to ${p.member} as paid`);
     this.render();
   },
@@ -3793,7 +3793,7 @@ const AdminReferrals = {
     try {
       const res = await window.supabase.rpc('admin_verify_referral', { p_admin: admin, p_referral: id });
       if (res.error || !res.data || res.data.ok === false) { showToast('Verify failed', 'error'); return; }
-      showToast(`Verified · $${r.reward} credited to ${r.referrer}`);
+      showToast(`Verified, $${r.reward} credited to ${r.referrer}`);
       AuditLog.add((window.FFP_ADMIN && window.FFP_ADMIN.email) || 'admin', `verified referral by ${r.referrer}`);
       if (typeof this.refresh === 'function') { await this.refresh(); } else { r.status = 'paid'; this.render(); }
     } catch (e) { console.error(e); showToast('Verify failed', 'error'); }
@@ -4046,7 +4046,7 @@ const Drawer = {
     document.getElementById('drawer-avatar').textContent = p.letter;
     document.getElementById('drawer-avatar').className = 'drawer-head-avatar provider';
     document.getElementById('drawer-title').textContent = p.business_name;
-    document.getElementById('drawer-sub').textContent = `${p.category} · ${p.city}`;
+    document.getElementById('drawer-sub').textContent = `${p.category}, ${p.city}`;
     document.getElementById('drawer-pills').innerHTML = `
       <span class="pill pill-${p.status}">${p.status}</span>
       ${p.featured ? '<span class="pill pill-featured">Featured</span>' : ''}
@@ -4108,7 +4108,7 @@ const Drawer = {
             <div class="drawer-link-card-icon"><span class="material-icons">local_offer</span></div>
             <div class="drawer-link-card-body">
               <div class="drawer-link-card-title">${escHtml(d.perk)}</div>
-              <div class="drawer-link-card-meta">${escHtml(d.category)} · <span class="pill pill-${d.status}" style="display:inline-block; margin-left:2px;">${d.status}</span></div>
+              <div class="drawer-link-card-meta">${escHtml(d.category)}, <span class="pill pill-${d.status}" style="display:inline-block; margin-left:2px;">${d.status}</span></div>
             </div>
             <div class="drawer-link-card-arrow"><span class="material-icons">arrow_forward</span></div>
           </div>
@@ -4121,7 +4121,7 @@ const Drawer = {
             <div class="drawer-link-card-icon"><span class="material-icons">event</span></div>
             <div class="drawer-link-card-body">
               <div class="drawer-link-card-title">${escHtml(e.title)}</div>
-              <div class="drawer-link-card-meta">${escHtml(e.date)} · ${e.rsvps} RSVPs</div>
+              <div class="drawer-link-card-meta">${escHtml(e.date)}, ${e.rsvps} RSVPs</div>
             </div>
             <div class="drawer-link-card-arrow"><span class="material-icons">arrow_forward</span></div>
           </div>
@@ -4134,7 +4134,7 @@ const Drawer = {
             <div class="drawer-link-card-icon"><span class="material-icons">flight_takeoff</span></div>
             <div class="drawer-link-card-body">
               <div class="drawer-link-card-title">${escHtml(x.title)}</div>
-              <div class="drawer-link-card-meta">${escHtml(x.type)} · ${escHtml(x.dates)} · ${x.apps} applications</div>
+              <div class="drawer-link-card-meta">${escHtml(x.type)}, ${escHtml(x.dates)}, ${x.apps} applications</div>
             </div>
             <div class="drawer-link-card-arrow"><span class="material-icons">arrow_forward</span></div>
           </div>
@@ -4147,7 +4147,7 @@ const Drawer = {
             <div class="drawer-link-card-icon"><span class="material-icons">emoji_events</span></div>
             <div class="drawer-link-card-body">
               <div class="drawer-link-card-title">${escHtml(c.title)}</div>
-              <div class="drawer-link-card-meta">${escHtml(c.sport)} · ${c.participants} participants · ends ${escHtml(c.ends)}</div>
+              <div class="drawer-link-card-meta">${escHtml(c.sport)}, ${c.participants} participants, ends ${escHtml(c.ends)}</div>
             </div>
             <div class="drawer-link-card-arrow"><span class="material-icons">arrow_forward</span></div>
           </div>
@@ -4186,9 +4186,9 @@ const Drawer = {
     document.getElementById('drawer-tabs').innerHTML = `
       <button class="drawer-tab active" data-dtab="profile" onclick="Drawer.setTab('profile')">Profile</button>
       <button class="drawer-tab" data-dtab="activity" onclick="Drawer.setTab('activity')">Activity</button>
-      <button class="drawer-tab" data-dtab="claims" onclick="Drawer.setTab('claims')">Claims <span class="count" id="dm-tab-claims">·</span></button>
+      <button class="drawer-tab" data-dtab="claims" onclick="Drawer.setTab('claims')">Claims <span class="count" id="dm-tab-claims">,</span></button>
       <button class="drawer-tab" data-dtab="earnings" onclick="Drawer.setTab('earnings')">Earnings</button>
-      <button class="drawer-tab" data-dtab="referrals" onclick="Drawer.setTab('referrals')">Referrals <span class="count" id="dm-tab-referrals">·</span></button>
+      <button class="drawer-tab" data-dtab="referrals" onclick="Drawer.setTab('referrals')">Referrals <span class="count" id="dm-tab-referrals">,</span></button>
     `;
     
     document.getElementById('drawer-body').innerHTML = `
@@ -4233,9 +4233,9 @@ const Drawer = {
         <div style="margin-bottom:16px;">
           <div style="font-size:11px; color:var(--muted); font-weight:700; margin-bottom:6px; text-transform:uppercase;">All time</div>
           <div style="display:flex; gap:14px;">
-            <div><div style="font-size:20px; font-weight:900;" id="dm-act-claims">·</div><div style="font-size:10px; color:var(--muted);">Deals claimed</div></div>
-            <div><div style="font-size:20px; font-weight:900;" id="dm-act-events">·</div><div style="font-size:10px; color:var(--muted);">Events</div></div>
-            <div><div style="font-size:20px; font-weight:900;" id="dm-act-workouts">·</div><div style="font-size:10px; color:var(--muted);">Workouts</div></div>
+            <div><div style="font-size:20px; font-weight:900;" id="dm-act-claims">,</div><div style="font-size:10px; color:var(--muted);">Deals claimed</div></div>
+            <div><div style="font-size:20px; font-weight:900;" id="dm-act-events">,</div><div style="font-size:10px; color:var(--muted);">Events</div></div>
+            <div><div style="font-size:20px; font-weight:900;" id="dm-act-workouts">,</div><div style="font-size:10px; color:var(--muted);">Workouts</div></div>
           </div>
         </div>
         <div class="drawer-link-card" onclick="Drawer.close(); App.go('panel-meetups');">
@@ -4305,10 +4305,10 @@ const Drawer = {
     const su = d.signup || {};
     let signupLabel;
     if (su.method === 'referral') signupLabel = 'Referral' + (su.referred_by_name ? ' — invited by ' + escHtml(su.referred_by_name) : '');
-    else if (su.method === 'paid') signupLabel = 'Paid signup (Stripe)' + (su.plan ? ' · ' + escHtml(su.plan) : '');
+    else if (su.method === 'paid') signupLabel = 'Paid signup (Stripe)' + (su.plan ? ', ' + escHtml(su.plan) : '');
     else if (su.method === 'access_code') signupLabel = 'Access code';
     else signupLabel = 'Direct signup (email)';
-    if (su.paid && su.method !== 'paid') signupLabel += ' · paid';
+    if (su.paid && su.method !== 'paid') signupLabel += ', paid';
     setHtml('dm-signup', signupLabel);
 
     // ── Tab counts ──
@@ -4332,7 +4332,7 @@ const Drawer = {
     setHtml('dm-claims-pane', claims.length
       ? claims.map(c => `
           <div class="info-row">
-            <div class="info-row-label">${escHtml(c.deal_title || 'Deal')}${c.provider ? ' · ' + escHtml(c.provider) : ''}</div>
+            <div class="info-row-label">${escHtml(c.deal_title || 'Deal')}${c.provider ? ', ' + escHtml(c.provider) : ''}</div>
             <div class="info-row-value"><span class="pill pill-${c.status === 'verified' ? 'live' : 'member'}">${escHtml(c.status || 'claimed')}</span> <span style="color:var(--muted); font-size:11px;">${fmtDate(c.created_at)}</span></div>
           </div>`).join('')
       : '<div class="drawer-empty"><span class="material-icons">local_offer</span>No deals claimed yet</div>');
@@ -4341,7 +4341,7 @@ const Drawer = {
     const refs = rf.recent || [];
     setHtml('dm-ref-pane', `
       <div style="font-size:13px; margin-bottom:14px;">
-        <strong>${rf.count || 0}</strong> referral${(rf.count === 1 ? '' : 's')} · <strong>${rf.paid || 0}</strong> paid · Earned <strong class="text-yellow">${aed(rf.earned_aed)}</strong>
+        <strong>${rf.count || 0}</strong> referral${(rf.count === 1 ? '' : 's')}, <strong>${rf.paid || 0}</strong> paid, Earned <strong class="text-yellow">${aed(rf.earned_aed)}</strong>
       </div>
       ${refs.length
         ? refs.map(r => `
@@ -4484,7 +4484,7 @@ const GlobalSearch = {
           <div class="gs-result-icon member">${m.initial}</div>
           <div class="gs-result-info">
             <div class="gs-result-title">${escHtml(m.full_name)}</div>
-            <div class="gs-result-meta">${escHtml(m.email)} · ${m.tier} · ${escHtml(m.city)}</div>
+            <div class="gs-result-meta">${escHtml(m.email)}, ${m.tier}, ${escHtml(m.city)}</div>
           </div>
         </div>
       `).join('');
@@ -4497,7 +4497,7 @@ const GlobalSearch = {
           <div class="gs-result-icon provider">${p.letter}</div>
           <div class="gs-result-info">
             <div class="gs-result-title">${escHtml(p.business_name)}</div>
-            <div class="gs-result-meta">${escHtml(p.category)} · ${escHtml(p.city)} · <span class="pill pill-${p.status}" style="display:inline-block; padding:1px 6px; font-size:9px;">${p.status}</span></div>
+            <div class="gs-result-meta">${escHtml(p.category)}, ${escHtml(p.city)}, <span class="pill pill-${p.status}" style="display:inline-block; padding:1px 6px; font-size:9px;">${p.status}</span></div>
           </div>
         </div>
       `).join('');
@@ -4510,7 +4510,7 @@ const GlobalSearch = {
           <div class="gs-result-icon"><span class="material-icons" style="font-size:14px;">local_offer</span></div>
           <div class="gs-result-info">
             <div class="gs-result-title">${escHtml(d.perk)}</div>
-            <div class="gs-result-meta">${escHtml(d.provider)} · ${escHtml(d.category)}</div>
+            <div class="gs-result-meta">${escHtml(d.provider)}, ${escHtml(d.category)}</div>
           </div>
         </div>
       `).join('');
@@ -4523,7 +4523,7 @@ const GlobalSearch = {
           <div class="gs-result-icon"><span class="material-icons" style="font-size:14px;">event</span></div>
           <div class="gs-result-info">
             <div class="gs-result-title">${escHtml(e.title)}</div>
-            <div class="gs-result-meta">${escHtml(e.organizer)} · ${escHtml(e.date)}</div>
+            <div class="gs-result-meta">${escHtml(e.organizer)}, ${escHtml(e.date)}</div>
           </div>
         </div>
       `).join('');
@@ -4536,7 +4536,7 @@ const GlobalSearch = {
           <div class="gs-result-icon"><span class="material-icons" style="font-size:14px;">flight_takeoff</span></div>
           <div class="gs-result-info">
             <div class="gs-result-title">${escHtml(x.title)}</div>
-            <div class="gs-result-meta">${escHtml(x.type)} · ${escHtml(x.dates)}</div>
+            <div class="gs-result-meta">${escHtml(x.type)}, ${escHtml(x.dates)}</div>
           </div>
         </div>
       `).join('');
@@ -4549,7 +4549,7 @@ const GlobalSearch = {
           <div class="gs-result-icon"><span class="material-icons" style="font-size:14px;">emoji_events</span></div>
           <div class="gs-result-info">
             <div class="gs-result-title">${escHtml(c.title)}</div>
-            <div class="gs-result-meta">${escHtml(c.sport)} · ${escHtml(c.organizer)}</div>
+            <div class="gs-result-meta">${escHtml(c.sport)}, ${escHtml(c.organizer)}</div>
           </div>
         </div>
       `).join('');
