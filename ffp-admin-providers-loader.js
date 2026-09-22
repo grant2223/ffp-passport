@@ -1423,9 +1423,9 @@
     // with a member tier (Standard/Premium); that conflates a partner contact with a paying member.
     var roleLine;
     if (owner) {
-      roleLine = 'Owner login &middot; business contact &middot; login created ' + fmtNice(owner.created_at);
+      roleLine = 'Owner login, business contact, login created ' + fmtNice(owner.created_at);
     } else if (app) {
-      roleLine = 'Applied to claim &middot; ' + fmtNice(app.created_at) + ' &middot; not yet an owner login';
+      roleLine = 'Applied to claim ' + fmtNice(app.created_at) + ', not yet an owner login';
     } else {
       roleLine = 'No owner login — unclaimed listing';
     }
@@ -1453,7 +1453,7 @@
       : '';
     var webHtml = p.website ? '<a href="' + e(p.website) + '" target="_blank" rel="noopener">' + e((p.website || '').replace(/^https?:\/\//, '').replace(/\/$/, '')) + '</a>' : '—';
     var igHtml = p.instagram ? e(p.instagram) : '—';
-    var bookHtml = external ? ('External' + (p.external_booking_url ? ' &middot; <a href="' + e(p.external_booking_url) + '" target="_blank" rel="noopener">link</a>' : '')) : 'On FFP (native)';
+    var bookHtml = external ? ('External' + (p.external_booking_url ? ', <a href="' + e(p.external_booking_url) + '" target="_blank" rel="noopener">link</a>' : '')) : 'On FFP (native)';
 
     var businessRows =
       infoRow('Category', e(p.category || '—')) +
