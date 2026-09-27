@@ -26,9 +26,16 @@
 
   var LISTS = [
     { key: 'activity',        name: 'Activities' },
+    /* SPORTS is not Activities. An activity is something a member does; a sport
+       is a scoring engine the platform has built, and each row's VALUE is that
+       engine's key in lt_sport_schemas. Rename, reorder and deactivate freely -
+       but adding a row here does not create a sport: the save refuses any key
+       with no scoring engine behind it, so a new sport starts in the schema. */
+    { key: 'sport',           name: 'Sports (scoring)' },
     { key: 'event',           name: 'Events' },
     { key: 'professional_role', name: 'Professions' },
     { key: 'category',        name: 'Provider Categories' },
+    { key: 'brand_category',  name: 'Brand Product Types' },
     { key: 'experience_type', name: 'Experience Types' },
     { key: 'wga_dream_type',  name: 'WGA Dream Types' },
     { key: 'fitness_level',   name: 'Fitness Levels' },
