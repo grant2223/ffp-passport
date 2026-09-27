@@ -283,6 +283,15 @@
       toast('Already in the list', 'error'); return;
     }
     var maxSort = rows.reduce(function (m, r) { return Math.max(m, r.sort_order || 0); }, -1);
+    /* Sports are the exception: a row's VALUE has to be a scoring engine's
+       key in lt_sport_schemas, and this form writes value = label. Adding
+       one here would make an entry the save RPC then refuses - a dead end
+       the admin walks into with no warning. Rename, reorder and deactivate
+       all still work; a NEW sport starts with its scoring schema. */
+    if (state.current === 'sport') {
+      toast('A new sport needs a scoring engine first. Rename, reorder and turn sports off here, but add a new one with its scoring schema.', 'error');
+      return;
+    }
     var payload = { list_key: state.current, value: val, label: val, sort_order: maxSort + 1, active: true };
     if (isNested()) payload.parent = state.cityCountry;
     console.log('[Tax] inserting', payload);
