@@ -2923,7 +2923,7 @@ const App = {
     'panel-events':       'ffp-admin-events-loader.js',
     'panel-experiences':  'ffp-admin-experiences-loader.js?v=4',
     'panel-tours':        'ffp-admin-classes-loader.js?v=5',
-    'panel-featured':     'ffp-admin-featured-loader.js?v=3',
+    'panel-featured':     'ffp-admin-featured-loader.js?v=4',
     'panel-offers':       'ffp-admin-offers.js',
     'panel-challenges':   'ffp-admin-challenges-loader.js',
     'panel-meetups':      'ffp-admin-meetups-loader.js',
@@ -2943,7 +2943,7 @@ const App = {
       var sc = document.createElement('script');
       // Cache-bust lazy loaders so a new deploy never serves a stale cached .js.
       // BUMP this with the dashboard build number on every deploy (matches footer build).
-      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=93'; sc.async = false;
+      sc.src = src + (src.indexOf('?') < 0 ? '?' : '&') + 'v=94'; sc.async = false;
       sc.onload = function () {
         if (panelId === 'panel-analytics') {
           setTimeout(function () { try { window.Analytics && Analytics.renderCharts && Analytics.renderCharts(); } catch (e) {} }, 80);
