@@ -106,7 +106,7 @@
     editingId = (o && o.id) || null;
     var footer = '<button onclick="closeModal()" style="padding:10px 16px;border:1px solid #d7dee5;background:#fff;border-radius:10px;font-weight:700;cursor:pointer;">Cancel</button>' +
                  '<button onclick="AdminOffers.save()" style="padding:10px 18px;border:none;background:#1980AD;color:#fff;border-radius:10px;font-weight:800;cursor:pointer;">' + (editingId ? 'Save' : 'Add offer') + '</button>';
-    window.openModal((editingId ? 'Edit offer' : 'Add offer') + ' · Buy 1 Get 1 Free', formBody(o || {}), footer, { fullbleed: true });
+    window.openModal((editingId ? 'Edit offer' : 'Add offer') + ', Buy 1 Get 1 Free', formBody(o || {}), footer, { fullbleed: true });
   }
 
   async function setStatus(id, status) {
@@ -127,6 +127,15 @@
       var r = await sb().from('partner_offers').select('*').order('created_at', { ascending: false });
       if (r.error) throw r.error;
       var rows = r.data || [];
+      /* An offer can be featured two ways and admin must be able to tell them
+         apart: FFP picked it (partner_offers.featured), or a partner paid for a
+         window. feature_requests is RLS-locked with no policies, so the windows
+         come through admin_offer_feature_windows. */
+      var WIN = {};
+      try {
+        var w = await sb().rpc('admin_offer_feature_windows');
+        ((w && w.data) || []).forEach(function (x) { WIN[x.offer_id] = x; });
+      } catch (e) { console.warn('[FFP Admin Offers] feature windows', e); }
       if (!rows.length) { el.innerHTML = '<div style="padding:24px;color:#8a99a8;">No offers yet. Add one with the button above.</div>'; return; }
       // Surface the review queue: pending offers first, otherwise newest-first (already sorted by created).
       rows.sort(function (a, b) { return (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1); });
@@ -148,8 +157,29 @@
           '<button onclick=\'AdminOffers.edit(' + JSON.stringify(o).replace(/'/g, "&#39;") + ')\' title="Edit" style="border:none;background:none;cursor:pointer;color:#1980AD;font-size:18px;"><span class="material-icons">edit</span></button>' +
           ((live || o.status === 'paused') ? '<button onclick="AdminOffers.setStatus(\'' + o.id + '\',\'' + (live ? 'paused' : 'live') + '\')" title="' + (live ? 'Pause' : 'Activate') + '" style="border:none;background:none;cursor:pointer;color:#5b6b75;font-size:18px;"><span class="material-icons">' + (live ? 'pause_circle' : 'play_circle') + '</span></button>' : '') +
           '<button onclick="AdminOffers.remove(\'' + o.id + '\')" title="Delete" style="border:none;background:none;cursor:pointer;color:#d9534f;font-size:18px;"><span class="material-icons">delete</span></button>';
+        var win = WIN[o.id];
+        var paidLive = !!(win && win.status === 'live');
+        var why = paidLive ? 'Paid to ' + fdate(win.ends_on)
+                : (win && win.status === 'approved') ? 'Paid, from ' + fdate(win.starts_on)
+                : o.featured ? 'FFP pick' : '';
+        /* Gold means featured, light blue means not, per the button rule. A paid
+           placement is not admin's to switch off, so that star is shown, not
+           pressed; an FFP pick toggles. */
+        var starOn = !!(o.featured || paidLive);
+        var starBtn = paidLive
+          ? '<span title="Featured by a paid placement until ' + esc(fdate(win.ends_on))
+            + '" style="color:#FFCC00;font-size:25px;line-height:1;display:inline-flex;padding:2px;">'
+            + '<span class="material-icons">star</span></span>'
+          : '<button onclick="AdminOffers.setFeatured(\'' + o.id + '\',' + (o.featured ? 'false' : 'true') + ')"'
+            + ' title="' + (o.featured ? 'Remove the FFP feature' : 'Feature this offer') + '"'
+            + ' style="border:none;background:none;cursor:pointer;padding:2px;line-height:1;display:inline-flex;font-size:25px;color:'
+            + (starOn ? '#FFCC00' : 'rgba(43,168,224,.55)') + ';">'
+            + '<span class="material-icons">' + (starOn ? 'star' : 'star_border') + '</span></button>';
         return '<tr style="border-bottom:1px solid #eef2f5;' + (pending ? 'background:#fffdf5;' : '') + '">' +
-          '<td style="padding:10px 12px;"><b>' + esc(o.partner_name || '—') + '</b><div style="font-size:11px;color:#8a99a8;">' + esc(o.city || '') + ' · ' + src + '</div></td>' +
+          '<td style="padding:10px 12px;">' + starBtn
+            + (why ? '<div style="font-size:11px;color:#8a99a8;white-space:nowrap;">' + esc(why) + '</div>' : '')
+            + '</td>' +
+          '<td style="padding:10px 12px;"><b>' + esc(o.partner_name || '—') + '</b><div style="font-size:11px;color:#8a99a8;">' + esc(o.city || '') + ', ' + src + '</div></td>' +
           '<td style="padding:10px 12px;">' + esc(o.title || '') + '</td>' +
           '<td style="padding:10px 12px;font-size:12px;color:#5b6b75;">' + esc(valid) + '</td>' +
           '<td style="padding:10px 12px;text-align:center;">' + (o.redeemed_count || 0) + '</td>' +
@@ -159,6 +189,7 @@
       var queue = pendingCount ? '<div style="background:#fff8e6;border:1px solid #f2e2a8;border-radius:10px;padding:10px 14px;margin-bottom:12px;color:#7a5c00;font-size:13px;font-weight:700;">' + pendingCount + ' offer' + (pendingCount > 1 ? 's' : '') + ' awaiting review — approve to publish to members.</div>' : '';
       el.innerHTML = queue + '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
         '<thead><tr style="text-align:left;color:#8a99a8;font-size:11px;text-transform:uppercase;letter-spacing:.4px;">' +
+        '<th style="padding:8px 12px;width:104px;">Feature</th>' +
         '<th style="padding:8px 12px;">Partner</th><th style="padding:8px 12px;">Offer</th><th style="padding:8px 12px;">Valid</th><th style="padding:8px 12px;text-align:center;">Redeemed</th><th style="padding:8px 12px;">Status</th><th></th>' +
         '</tr></thead><tbody>' + body + '</tbody></table>';
     } catch (e) { el.innerHTML = '<div style="padding:20px;color:#d9534f;">Couldn’t load offers: ' + esc(e.message || '') + '</div>'; }
@@ -203,7 +234,24 @@
     } catch (e) { if (txt) txt.textContent = 'Upload failed — try again'; window.showToast && showToast(e.message || 'Upload failed', 'error'); }
   }
 
-  window.AdminOffers = { openForm: openForm, edit: function (o) { openForm(o); }, save: save, setStatus: setStatus, remove: remove, render: renderList, uploadLogo: uploadLogo };
+  function fdate(s) { if (!s) return ''; var d = new Date(String(s) + 'T00:00:00');
+    if (isNaN(d)) return String(s);
+    return d.getDate() + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]; }
+
+  /* Feature an offer at FFP's discretion. This sets partner_offers.featured,
+     which member_offers already sorts on; a paid placement rides on the day
+     table instead and is not touched here. */
+  async function setFeatured(id, on) {
+    try {
+      var r = await sb().from('partner_offers')
+        .update({ featured: !!on, updated_at: new Date().toISOString() }).eq('id', id);
+      if (r.error) throw r.error;
+      window.showToast && showToast(on ? 'Offer featured' : 'Feature removed', 'check');
+      renderList();
+    } catch (e) { console.error(e); window.showToast && showToast(e.message || 'Could not change it', 'error'); }
+  }
+
+  window.AdminOffers = { openForm: openForm, edit: function (o) { openForm(o); }, save: save, setStatus: setStatus, remove: remove, setFeatured: setFeatured, render: renderList, uploadLogo: uploadLogo };
   // Self-render when the loader is fetched (panel first opened).
   try { loadCats(); renderList(); } catch (e) {}
 })();
