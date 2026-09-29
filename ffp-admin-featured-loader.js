@@ -10,7 +10,24 @@
   function toast(m, k) { if (typeof window.showToast === 'function') { try { window.showToast(m, k || 'info'); return; } catch (e) {} } console.log('[FFP Admin Featured]', m); }
   async function waitFor(check, ms) { var t = 0, lim = Math.ceil((ms || 15000) / 100); while (!check() && t < lim) { await new Promise(function (r) { setTimeout(r, 100); }); t++; } return check(); }
   function escHtml(s) { if (typeof window.escHtml === 'function') return window.escHtml(s); return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-  var TYPE_LABEL = { session: 'Session', class: 'Tour', experience: 'Trip', event: 'Event' };
+  var TYPE_LABEL = { session: 'Session', class: 'Tour', experience: 'Trip', event: 'Event', offer: 'Offer' };
+  /* An offer is bought by the MONTH at the launch rate, everything else by the
+     day. The request records which, so this row never reads "92 days" for what
+     was sold as three months. */
+  function fdate(s) { if (!s) return ''; var d = new Date(String(s) + 'T00:00:00');
+    if (isNaN(d)) return String(s);
+    return d.getDate() + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]
+      + ' ' + d.getFullYear(); }
+  function booked(d) {
+    var days = d.days || [], n = days.length;
+    if (d.billing_unit === 'month') {
+      var u = d.units || 1;
+      return { qty: u + ' month' + (u !== 1 ? 's' : '') + ', USD ' + (d.total_usd != null ? d.total_usd : ''),
+               detail: fdate(d.starts_on) + ' to ' + fdate(d.ends_on) + ', launch rate' };
+    }
+    return { qty: n + ' day' + (n !== 1 ? 's' : '') + ', USD ' + (d.total_usd != null ? d.total_usd : n * 99),
+             detail: days.slice(0, 6).join(', ') + (n > 6 ? ' +' + (n - 6) + ' more' : '') };
+  }
 
   async function fetchRequests() {
     var res = await window.supabase.rpc('admin_list_feature_requests');
@@ -36,11 +53,9 @@
     body.innerHTML = rows.length === 0
       ? '<tr><td colspan="5" class="text-muted" style="text-align:center; padding:30px;">No pending feature requests</td></tr>'
       : rows.map(function (d) {
-          var days = d.days || []; var n = days.length;
-          var total = (d.total_usd != null ? d.total_usd : n * 99);
-          var daysList = days.slice(0, 6).join(', ') + (n > 6 ? ' +' + (n - 6) + ' more' : '');
+          var bk = booked(d);
           var statusPill = d.status === 'approved'
-            ? '<span class="pill" style="background:rgba(74,222,128,.15);color:#4ade80;">Approved · awaiting payment</span>'
+            ? '<span class="pill" style="background:rgba(74,222,128,.15);color:#4ade80;">Approved, awaiting payment</span>'
             : '<span class="pill" style="background:rgba(157,189,208,.15);color:#9dbdd0;">Pending</span>';
           var actions = d.status === 'approved'
             ? '<button class="btn btn-sm btn-blue" title="Payment received — make it live on the chosen days" onclick="AdminFeatured.decide(\'' + d.id + '\',\'live\')"><span class="material-icons">bolt</span>Set live</button>' +
@@ -51,7 +66,7 @@
             '<td><strong>' + escHtml(d.title || '(untitled)') + '</strong><div class="text-muted" style="font-size:11px;margin-top:2px;">' + statusPill + '</div></td>' +
             '<td><span class="pill pill-verified">' + escHtml(TYPE_LABEL[d.item_type] || d.item_type) + '</span></td>' +
             '<td class="text-muted">' + escHtml(d.provider || '—') + '</td>' +
-            '<td class="text-muted nowrap">' + n + ' day' + (n !== 1 ? 's' : '') + ' · USD ' + total + '<div class="text-muted" style="font-size:11px;">' + escHtml(daysList) + '</div></td>' +
+            '<td class="text-muted nowrap">' + escHtml(bk.qty) + '<div class="text-muted" style="font-size:11px;">' + escHtml(bk.detail) + '</div></td>' +
             '<td><div class="table-actions">' + actions + '</div></td>' +
           '</tr>';
         }).join('');
