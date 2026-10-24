@@ -1,7 +1,14 @@
 /admin            /admin-login.html              200
 /admin-login      /admin-login.html              200
 /login            /login.html                    200
-/member           /ffp-member-dashboard.html     200
+# MEMBERS USE THE MEMBER APP (24 Oct 2026). The old member dashboard here is
+# retired; every member link, bookmark and printed QR goes to app.findfitpeople.com.
+# A coach's or a venue's check-in QR keeps its id, so the scan still checks in.
+/ffp-member-dashboard.html  pro=:pro      https://app.findfitpeople.com/checkin?pro=:pro      301!
+/ffp-member-dashboard.html  venue=:venue  https://app.findfitpeople.com/checkin?venue=:venue  301!
+/ffp-member-dashboard.html  meetup=:m     https://app.findfitpeople.com/checkin?meetup=:m     301!
+/ffp-member-dashboard.html  https://app.findfitpeople.com/passport  301!
+/member           https://app.findfitpeople.com/passport  301!
 /my-passport      /my-passport.html              200
 /join             /login.html#signup             301!
 
